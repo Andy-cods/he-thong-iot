@@ -21,17 +21,17 @@ import {
 import { cn } from "@/lib/utils";
 
 /**
- * Step 2 — ColumnMapper step trong Import Wizard v2.
+ * V2 ColumnMapperStep — design-spec §3.5.1.
  *
- * Direction B design-spec §3.16 + brainstorm-deep §2.4.
+ * - Table row h-9 compact (40px spacing), Select target h-8.
+ * - Badge "Trùng #N" warning sm (amber-50 / amber-700).
+ * - "Áp dụng preset" button size sm ghost.
+ * - Synonym hint text-xs italic zinc-500 inline below source.
+ * - Required banner khi thiếu trường: bg-red-50 border red-200 text-red-700.
+ * - Success banner khi đủ: bg-emerald-50 border emerald-200 text-emerald-700.
  *
- * Props theo spec mở rộng:
- * - `sourceHeaders`: header thô từ Excel (có thể trùng — dùng index để phân biệt).
- * - `sampleRows`: 3 dòng đầu để preview.
- * - `targetFields`: DB fields với required/optional + enum hint.
- * - `onChange`: emit mapping `sourceIndex#headerRaw -> targetKey | null`.
- *
- * A11y: table + caption + label for, aria-describedby cho required banner.
+ * GIỮ logic V1 100%: autoMapHeaders (synonym + Levenshtein), duplicate
+ * header detection bằng index, preset localStorage per-user.
  */
 
 export interface ColumnMapperStepProps {
@@ -45,11 +45,6 @@ export interface ColumnMapperStepProps {
   onSaveAsDefaultChange: (checked: boolean) => void;
 }
 
-/**
- * Key nội bộ để xử lý duplicate headers: "idx#header".
- * Ra ngoài (qua onChange) vẫn giữ key = chính header raw đầu tiên —
- * nhưng state máy trong component cần phân biệt chính xác từng cột index.
- */
 function rowKey(index: number, header: string): string {
   return `${index}#${header}`;
 }
@@ -64,15 +59,12 @@ export function ColumnMapperStep({
   saveAsDefault,
   onSaveAsDefaultChange,
 }: ColumnMapperStepProps) {
-  // Phát hiện duplicate headers (2+ cột cùng tên) — hiển thị badge "Trùng #N".
   const headerCounts = React.useMemo(() => {
     const counts: Record<string, number> = {};
     for (const h of sourceHeaders) counts[h] = (counts[h] ?? 0) + 1;
     return counts;
   }, [sourceHeaders]);
 
-  // State: keyed by "idx#header" để tránh collide.
-  // Giá trị = targetKey đã map hoặc null (bỏ qua).
   const [mapping, setMapping] = React.useState<Record<string, string | null>>(
     () => {
       if (initialMapping) {
@@ -82,7 +74,6 @@ export function ColumnMapperStep({
         });
         return out;
       }
-      // Auto-detect lần đầu
       const auto = autoMapHeaders(sourceHeaders, targetFields);
       const claimed = new Set<string>();
       const out: Record<string, string | null> = {};
@@ -102,13 +93,10 @@ export function ColumnMapperStep({
   const [presetAvailable, setPresetAvailable] = React.useState(false);
 
   React.useEffect(() => {
-    // Chỉ check 1 lần mount — không re-check mỗi render
     const preset = loadMappingPreset(userId);
     setPresetAvailable(Boolean(preset));
   }, [userId]);
 
-  // Emit mapping ra ngoài (dạng header raw → targetKey) mỗi lần state đổi.
-  // Nếu có duplicate header, giữ LAST mapping (người dùng chỉ định cột nào dùng).
   React.useEffect(() => {
     const external: Record<string, string | null> = {};
     sourceHeaders.forEach((h, i) => {
@@ -119,7 +107,6 @@ export function ColumnMapperStep({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapping]);
 
-  // Reset to auto-detect
   const handleResetAuto = () => {
     const auto = autoMapHeaders(sourceHeaders, targetFields);
     const claimed = new Set<string>();
@@ -166,7 +153,6 @@ export function ColumnMapperStep({
   const setRowMapping = (index: number, header: string, target: string | null) => {
     setMapping((prev) => {
       const next = { ...prev };
-      // Nếu target đã được claim bởi row khác → unset row đó.
       if (target) {
         for (const [k, v] of Object.entries(next)) {
           if (v === target && k !== rowKey(index, header)) {
@@ -179,7 +165,6 @@ export function ColumnMapperStep({
     });
   };
 
-  // Tính required chưa được map → validation banner
   const requiredFields = targetFields.filter((t) => t.required);
   const mappedTargets = new Set(
     Object.values(mapping).filter((v): v is string => v !== null),
@@ -195,10 +180,10 @@ export function ColumnMapperStep({
     <div className="space-y-4">
       <header className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">
+          <h2 className="text-md font-semibold text-zinc-900">
             Khớp cột Excel với trường hệ thống
           </h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-xs text-zinc-500">
             Hệ thống tự đề xuất dựa trên tên cột (VN/EN). Kiểm tra lại, sửa nếu
             cần, rồi bấm <strong>Tiếp theo</strong>.
           </p>
@@ -206,17 +191,17 @@ export function ColumnMapperStep({
         <div className="flex gap-2">
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={handleResetAuto}
           >
-            <Sparkles className="h-4 w-4" aria-hidden="true" />
+            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
             Đề xuất lại
           </Button>
           {presetAvailable ? (
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={handleApplyPreset}
             >
@@ -229,7 +214,7 @@ export function ColumnMapperStep({
       {missingRequired.length > 0 ? (
         <div
           role="alert"
-          className="flex items-start gap-2 rounded-md border border-danger/20 bg-danger-soft px-3 py-2 text-sm text-danger-strong"
+          className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
         >
           <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
           <span>
@@ -249,27 +234,27 @@ export function ColumnMapperStep({
       ) : (
         <div
           role="status"
-          className="flex items-center gap-2 rounded-md border border-success/20 bg-success-soft px-3 py-2 text-sm text-success-strong"
+          className="flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700"
         >
           <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
           Tất cả trường bắt buộc đã được map.
         </div>
       )}
 
-      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-        <table className="min-w-full text-sm">
+      <div className="overflow-hidden rounded-md border border-zinc-200 bg-white">
+        <table className="min-w-full text-base">
           <caption className="sr-only">
             Khớp cột Excel với trường hệ thống
           </caption>
-          <thead className="bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-600">
+          <thead className="bg-zinc-50 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
             <tr>
-              <th className="w-12 px-3 py-2">#</th>
-              <th className="px-3 py-2">Cột Excel</th>
-              <th className="w-64 px-3 py-2">Trường DB</th>
-              <th className="px-3 py-2">Mẫu dữ liệu (3 dòng)</th>
+              <th className="h-8 w-12 px-3">#</th>
+              <th className="h-8 px-3">Cột Excel</th>
+              <th className="h-8 w-64 px-3">Trường hệ thống</th>
+              <th className="h-8 px-3">Mẫu dữ liệu</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody>
             {sourceHeaders.map((header, index) => {
               const key = rowKey(index, header);
               const current = mapping[key] ?? null;
@@ -286,29 +271,36 @@ export function ColumnMapperStep({
               return (
                 <tr
                   key={key}
-                  className={cn(index % 2 === 1 && "bg-zebra/40")}
+                  className="h-10 border-t border-zinc-100 align-top"
                 >
-                  <td className="px-3 py-2 text-slate-500 tabular-nums">
+                  <td className="px-3 py-2 text-xs text-zinc-500 tabular-nums">
                     {index + 1}
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-slate-900">
+                      <span className="font-medium text-zinc-900">
                         {header || (
-                          <span className="italic text-slate-400">
+                          <span className="italic text-zinc-400">
                             (không tên)
                           </span>
                         )}
                       </span>
                       {isDuplicate ? (
                         <span
-                          className="inline-flex items-center rounded bg-warning-soft px-1.5 py-0.5 text-xs font-medium text-warning-strong"
+                          className="inline-flex items-center rounded-sm bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700"
                           title={`Có ${headerCounts[header]} cột trùng tên`}
                         >
                           Trùng #{dupIndex}
                         </span>
                       ) : null}
                     </div>
+                    {current && samples.length > 0 ? null : (
+                      <p className="mt-0.5 text-xs italic text-zinc-500">
+                        {current
+                          ? `→ ${targetFields.find((t) => t.key === current)?.label ?? current}`
+                          : "Bỏ qua cột này"}
+                      </p>
+                    )}
                   </td>
                   <td className="px-3 py-2">
                     <label htmlFor={`map-${key}`} className="sr-only">
@@ -324,13 +316,13 @@ export function ColumnMapperStep({
                         )
                       }
                     >
-                      <SelectTrigger id={`map-${key}`} className="h-9">
+                      <SelectTrigger id={`map-${key}`} size="sm">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="__skip__">
-                          <span className="italic text-slate-500">
-                            -- Bỏ qua --
+                          <span className="italic text-zinc-500">
+                            — Bỏ qua —
                           </span>
                         </SelectItem>
                         {targetFields.map((t) => {
@@ -345,16 +337,16 @@ export function ColumnMapperStep({
                               <span
                                 className={cn(
                                   t.required
-                                    ? "font-semibold text-slate-900"
-                                    : "text-slate-600",
+                                    ? "font-semibold text-zinc-900"
+                                    : "text-zinc-700",
                                 )}
                               >
                                 {t.label}
                                 {t.required ? (
-                                  <span className="ml-1 text-danger">*</span>
+                                  <span className="ml-1 text-red-500">*</span>
                                 ) : null}
                                 {claimedElsewhere ? (
-                                  <span className="ml-2 text-xs text-slate-400">
+                                  <span className="ml-2 text-xs text-zinc-400">
                                     (đã dùng)
                                   </span>
                                 ) : null}
@@ -365,7 +357,7 @@ export function ColumnMapperStep({
                       </SelectContent>
                     </Select>
                   </td>
-                  <td className="px-3 py-2 font-mono text-xs text-slate-500">
+                  <td className="px-3 py-2 font-mono text-xs text-zinc-500">
                     <div className="max-w-xs truncate">
                       {samples.length > 0 ? samples.join(", ") : "—"}
                     </div>
@@ -377,11 +369,11 @@ export function ColumnMapperStep({
         </table>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+      <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-zinc-600">
         <div className="flex items-center gap-2">
-          <Info className="h-4 w-4 text-slate-400" aria-hidden="true" />
-          Đã map <strong className="text-slate-900">{totalMapped}</strong>,
-          bỏ qua <strong className="text-slate-900">{totalSkipped}</strong> /{" "}
+          <Info className="h-3.5 w-3.5 text-zinc-400" aria-hidden="true" />
+          Đã map <strong className="text-zinc-900">{totalMapped}</strong>, bỏ qua{" "}
+          <strong className="text-zinc-900">{totalSkipped}</strong> /{" "}
           {sourceHeaders.length} cột.
         </div>
 
@@ -396,12 +388,12 @@ export function ColumnMapperStep({
           </label>
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={handleSavePresetNow}
             disabled={missingRequired.length > 0}
           >
-            <Save className="h-4 w-4" aria-hidden="true" />
+            <Save className="h-3.5 w-3.5" aria-hidden="true" />
             Lưu ngay
           </Button>
         </div>

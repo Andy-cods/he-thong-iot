@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import {
   AlertTriangle,
   ArrowLeft,
+  Check,
   CheckCircle2,
   Download,
   FileSpreadsheet,
@@ -39,6 +40,22 @@ import {
 import { ColumnMapperStep } from "./ColumnMapperStep";
 import { cn } from "@/lib/utils";
 
+/**
+ * V2 ImportWizard — design-spec §2.6 + §3.5.2.
+ *
+ * - Stepper V2: 4-step dot h-8 w-8 rounded-full. Active blue-500, done
+ *   emerald-500 + check icon, pending zinc-300 border + zinc-500 number.
+ *   Connector line 2px bg emerald-500 (done) / zinc-200 (todo).
+ * - Dropzone hover/active: border-blue-500 bg-blue-50/30 (thay cta dead V1).
+ * - Preview table sticky header + invalid row bg-red-50 border-l-2 red-500,
+ *   cell bg-red-100 khi field cụ thể thiếu.
+ * - Stats card dùng success-strong / danger-strong tokens V2.
+ * - Result: Check icon 48px emerald-500 + h1 xl + stats grid + actions.
+ *
+ * GIỮ logic V1: useImports hooks BullMQ flow, parseExcelPreview ExcelJS
+ * client-side, duplicate mode select, preset localStorage.
+ */
+
 type Step = "upload" | "map" | "preview" | "result";
 
 const DUP_LABEL: Record<ImportDuplicateMode, string> = {
@@ -48,18 +65,18 @@ const DUP_LABEL: Record<ImportDuplicateMode, string> = {
 };
 
 const STEP_ORDER: Step[] = ["upload", "map", "preview", "result"];
+const STEP_LABELS: Record<Step, string> = {
+  upload: "Tải file",
+  map: "Khớp cột",
+  preview: "Preview",
+  result: "Kết quả",
+};
 
-/**
- * Đọc 1 dòng đầu (header) + 3 dòng data đầu từ file Excel ngay trên trình duyệt.
- * Dùng ExcelJS (đã có trong deps, bundle browser OK).
- * Fallback an toàn nếu parse lỗi: return { headers: [], samples: [] } và để server validate.
- */
 async function parseExcelPreview(file: File): Promise<{
   headers: string[];
   samples: string[][];
 }> {
   try {
-    // Lazy import để không tăng bundle các route khác.
     const ExcelJS = (await import("exceljs")).default;
     const ab = await file.arrayBuffer();
     const wb = new ExcelJS.Workbook();
@@ -67,7 +84,6 @@ async function parseExcelPreview(file: File): Promise<{
     const ws = wb.worksheets[0];
     if (!ws) return { headers: [], samples: [] };
     const headerRow = ws.getRow(1).values as unknown[];
-    // ExcelJS values[0] là undefined (1-indexed). Slice(1).
     const headers = (headerRow.slice(1) as unknown[]).map((v) =>
       v == null ? "" : String(v).trim(),
     );
@@ -87,10 +103,6 @@ async function parseExcelPreview(file: File): Promise<{
 }
 
 export interface ImportWizardProps {
-  /**
-   * Username hoặc userId ổn định — dùng key preset localStorage.
-   * Nếu không truyền → dùng "anon" (vẫn persist nhưng không tách theo user).
-   */
   userId?: string;
 }
 
@@ -101,7 +113,6 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
     useState<ImportDuplicateMode>("skip");
   const [batchId, setBatchId] = useState<string | null>(null);
 
-  // Client-side parsed header + sample từ step 1.
   const [sourceHeaders, setSourceHeaders] = useState<string[]>([]);
   const [sampleRows, setSampleRows] = useState<string[][]>([]);
   const [mapping, setMapping] = useState<Record<string, string | null>>({});
@@ -155,7 +166,6 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
 
   const handleGoToPreview = async () => {
     if (!file) return;
-    // Validate required fields mapped
     const mappedTargets = new Set(
       Object.values(mapping).filter((v): v is string => !!v),
     );
@@ -171,13 +181,9 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
       return;
     }
     try {
-      // Persist preset nếu user chọn checkbox.
       if (saveAsDefault) {
         saveMappingPreset(userId, mapping);
       }
-      // TODO V1.1: gửi mapping JSON kèm multipart để server accept header
-      // tuỳ biến. V1 backend chỉ accept template chuẩn — ColumnMapper chủ yếu
-      // để user verify + warn trước upload.
       const res = await upload.mutateAsync({ file, duplicateMode });
       setBatchId(res.batchId);
       setStep("preview");
@@ -228,84 +234,87 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
   };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-6">
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">
-            Nhập Excel — Item Master
-          </h1>
-          <p className="text-sm text-slate-600">
-            Upload → Khớp cột → Preview → Commit. Tối đa{" "}
-            {LIMITS.FILE_UPLOAD_MAX_BYTES / 1024 / 1024}MB / file.
-          </p>
-        </div>
-        <a
-          href={downloadTemplateUrl()}
-          className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-        >
-          <Download className="h-4 w-4" /> Tải template
-        </a>
-      </header>
-
+    <div className="space-y-6">
+      {/* V2 Stepper — 4-dot + connector */}
       <StepIndicator step={step} />
 
       {step === "upload" && (
-        <section className="space-y-4">
+        <section className="space-y-4 rounded-lg border border-zinc-200 bg-white p-6">
           <div
             {...getRootProps()}
             className={cn(
-              "flex min-h-[200px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition",
+              "flex min-h-[200px] cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed p-6 transition-colors duration-150",
               isDragActive
-                ? "border-cta bg-cta-soft"
-                : "border-slate-300 bg-white hover:border-slate-400",
+                ? "border-blue-500 bg-blue-50/30"
+                : "border-zinc-300 bg-white hover:border-zinc-400 hover:bg-zinc-50/50",
             )}
           >
             <input {...getInputProps()} />
-            <UploadCloud className="mb-3 h-10 w-10 text-slate-400" aria-hidden />
+            <UploadCloud
+              className="mb-3 h-8 w-8 text-zinc-400"
+              aria-hidden="true"
+            />
             {file ? (
               <div className="text-center">
-                <FileSpreadsheet className="mx-auto mb-2 h-6 w-6 text-success" />
-                <p className="font-medium text-slate-900">{file.name}</p>
-                <p className="text-sm text-slate-500">
-                  {(file.size / 1024).toFixed(0)} KB
+                <FileSpreadsheet
+                  className="mx-auto mb-2 h-5 w-5 text-emerald-600"
+                  aria-hidden="true"
+                />
+                <p className="text-md font-medium text-zinc-900">{file.name}</p>
+                <p className="text-xs text-zinc-500 tabular-nums">
+                  {(file.size / 1024).toLocaleString("vi-VN", {
+                    maximumFractionDigits: 0,
+                  })}{" "}
+                  KB
                 </p>
               </div>
             ) : (
-              <p className="text-sm text-slate-600">
-                Kéo thả file .xlsx vào đây hoặc bấm để chọn (tối đa{" "}
-                {LIMITS.FILE_UPLOAD_MAX_BYTES / 1024 / 1024}MB)
-              </p>
+              <>
+                <p className="text-md font-medium text-zinc-900">
+                  Kéo thả file Excel vào đây
+                </p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  hoặc bấm để chọn · XLSX ·{" "}
+                  {LIMITS.FILE_UPLOAD_MAX_BYTES / 1024 / 1024}MB tối đa
+                </p>
+              </>
             )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="dup">Xử lý trùng SKU</Label>
-            <Select
-              value={duplicateMode}
-              onValueChange={(v) => setDuplicateMode(v as ImportDuplicateMode)}
-            >
-              <SelectTrigger id="dup">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {IMPORT_DUPLICATE_MODES.map((m) => (
-                  <SelectItem key={m} value={m}>
-                    {DUP_LABEL[m]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="dup" uppercase>
+                Xử lý trùng SKU
+              </Label>
+              <Select
+                value={duplicateMode}
+                onValueChange={(v) => setDuplicateMode(v as ImportDuplicateMode)}
+              >
+                <SelectTrigger id="dup">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {IMPORT_DUPLICATE_MODES.map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {DUP_LABEL[m]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <a
+                href={downloadTemplateUrl()}
+                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-base font-medium text-zinc-700 transition-colors hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+              >
+                <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                Tải template Excel
+              </a>
+            </div>
           </div>
 
-          <div className="flex justify-end">
-            <Button
-              onClick={handleGoToMap}
-              disabled={!file}
-              className="min-h-[48px]"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && file) void handleGoToMap();
-              }}
-            >
+          <div className="flex justify-end border-t border-zinc-200 pt-4">
+            <Button onClick={handleGoToMap} disabled={!file}>
               Tiếp theo — Khớp cột
             </Button>
           </div>
@@ -313,7 +322,7 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
       )}
 
       {step === "map" && (
-        <section className="space-y-4">
+        <section className="space-y-4 rounded-lg border border-zinc-200 bg-white p-6">
           <ColumnMapperStep
             sourceHeaders={sourceHeaders}
             sampleRows={sampleRows}
@@ -323,15 +332,12 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
             saveAsDefault={saveAsDefault}
             onSaveAsDefaultChange={setSaveAsDefault}
           />
-          <div className="flex justify-between">
-            <Button variant="outline" onClick={goBack}>
-              <ArrowLeft className="h-4 w-4" /> Quay lại
+          <div className="flex justify-between border-t border-zinc-200 pt-4">
+            <Button variant="ghost" onClick={goBack}>
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+              Quay lại
             </Button>
-            <Button
-              onClick={handleGoToPreview}
-              disabled={upload.isPending}
-              className="min-h-[48px]"
-            >
+            <Button onClick={handleGoToPreview} disabled={upload.isPending}>
               {upload.isPending ? "Đang đọc file…" : "Tiếp theo — Preview"}
             </Button>
           </div>
@@ -339,7 +345,7 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
       )}
 
       {step === "preview" && uploadData && (
-        <section className="space-y-4">
+        <section className="space-y-4 rounded-lg border border-zinc-200 bg-white p-6">
           <div className="grid grid-cols-3 gap-3">
             <StatCard label="Tổng dòng" value={uploadData.rowTotal} />
             <StatCard
@@ -357,67 +363,71 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
           {uploadData.rowFail > 0 && batchId && (
             <a
               href={downloadErrorsUrl(batchId)}
-              className="inline-flex items-center gap-2 text-sm font-medium text-warning-strong hover:underline"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline"
             >
-              <AlertTriangle className="h-4 w-4" /> Tải file lỗi (
-              {uploadData.rowFail} dòng) để sửa
+              <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
+              Tải danh sách {uploadData.rowFail} dòng lỗi để sửa
             </a>
           )}
 
           {previewRows && previewRows.length > 0 && (
-            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-              <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700">
+            <div className="overflow-hidden rounded-md border border-zinc-200 bg-white">
+              <div className="flex items-center justify-between border-b border-zinc-200 bg-zinc-50 px-3 h-8 text-xs font-medium uppercase tracking-wider text-zinc-500">
                 <span>Preview {previewRows.length} dòng đầu</span>
-                <span className="text-xs text-slate-500">
-                  Dòng lỗi được tô đỏ
+                <span className="normal-case tracking-normal text-zinc-500">
+                  Dòng lỗi tô nền đỏ
                 </span>
               </div>
               <div className="max-h-96 overflow-auto">
-                <table className="min-w-full divide-y divide-slate-200 text-sm">
-                  <thead className="sticky top-0 z-sticky bg-slate-50">
-                    <tr>
-                      <th className="w-14 px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-slate-600">
-                        #
-                      </th>
+                <table className="min-w-full text-base">
+                  <thead className="sticky top-0 z-sticky bg-zinc-50">
+                    <tr className="text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                      <th className="h-8 w-12 px-3">#</th>
                       {["SKU", "Tên", "Loại", "UoM", "Category"].map((h) => (
-                        <th
-                          key={h}
-                          className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-slate-600"
-                        >
+                        <th key={h} className="h-8 px-3">
                           {h}
                         </th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody>
                     {previewRows.map((r, i) => {
                       const invalid = Boolean(r.__invalid);
                       return (
                         <tr
                           key={i}
-                          className={cn(invalid && "bg-danger-soft")}
+                          className={cn(
+                            "h-8 border-t border-zinc-100",
+                            invalid &&
+                              "border-l-2 border-l-red-500 bg-red-50",
+                          )}
                         >
-                          <td className="px-3 py-2 text-xs text-slate-500 tabular-nums">
+                          <td className="px-3 text-xs text-zinc-500 tabular-nums">
                             {i + 1}
                           </td>
                           <td
                             className={cn(
-                              "px-3 py-2 font-mono text-slate-900",
-                              invalid && !r.sku && "bg-danger/30",
+                              "px-3 font-mono text-xs text-zinc-900",
+                              invalid && !r.sku && "bg-red-100",
                             )}
                           >
                             {r.sku ?? "—"}
                           </td>
-                          <td className="px-3 py-2 text-slate-800">
+                          <td
+                            className={cn(
+                              "px-3 text-zinc-800",
+                              invalid && !r.name && "bg-red-100",
+                            )}
+                          >
                             {r.name ?? "—"}
                           </td>
-                          <td className="px-3 py-2 text-slate-600">
+                          <td className="px-3 text-zinc-600">
                             {r.itemType ?? "—"}
                           </td>
-                          <td className="px-3 py-2 text-slate-600">
+                          <td className="px-3 text-zinc-600">
                             {r.uom ?? "—"}
                           </td>
-                          <td className="px-3 py-2 text-slate-500">
+                          <td className="px-3 text-zinc-500">
                             {r.category ?? "—"}
                           </td>
                         </tr>
@@ -429,30 +439,25 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
             </div>
           )}
 
-          <div className="flex justify-between">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setStep("map");
-              }}
-            >
-              <ArrowLeft className="h-4 w-4" /> Quay lại
+          <div className="flex justify-between border-t border-zinc-200 pt-4">
+            <Button variant="ghost" onClick={() => setStep("map")}>
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+              Quay lại
             </Button>
             <Button
               onClick={handleCommit}
               disabled={uploadData.rowSuccess === 0 || commit.isPending}
-              className="min-h-[48px]"
             >
               {commit.isPending
                 ? "Đang gửi…"
-                : `Commit ${uploadData.rowSuccess} dòng hợp lệ`}
+                : `Commit ${uploadData.rowSuccess.toLocaleString("vi-VN")} dòng hợp lệ`}
             </Button>
           </div>
         </section>
       )}
 
       {step === "result" && batchQuery.data && (
-        <section className="space-y-4">
+        <section className="space-y-4 rounded-lg border border-zinc-200 bg-white p-6">
           <ResultPanel
             status={batchQuery.data.status}
             progressPct={progressPct}
@@ -461,9 +466,9 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
             rowTotal={batchQuery.data.rowTotal}
             errorMessage={batchQuery.data.errorMessage}
           />
-          <div className="flex justify-between">
+          <div className="flex justify-between border-t border-zinc-200 pt-4">
             <Button
-              variant="outline"
+              variant="ghost"
               onClick={() => {
                 setStep("upload");
                 setFile(null);
@@ -479,9 +484,10 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
             {batchQuery.data.rowFail > 0 && batchId && (
               <a
                 href={downloadErrorsUrl(batchId)}
-                className="inline-flex items-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50"
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-base font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
               >
-                <Download className="h-4 w-4" /> Tải file lỗi
+                <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                Tải file lỗi
               </a>
             )}
           </div>
@@ -492,51 +498,53 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
 }
 
 function StepIndicator({ step }: { step: Step }) {
-  const steps: { key: Step; label: string }[] = [
-    { key: "upload", label: "Upload" },
-    { key: "map", label: "Khớp cột" },
-    { key: "preview", label: "Preview" },
-    { key: "result", label: "Kết quả" },
-  ];
-  const activeIdx = steps.findIndex((s) => s.key === step);
+  const activeIdx = STEP_ORDER.indexOf(step);
   return (
-    <ol className="flex items-center gap-2 text-sm" aria-label="Tiến trình">
-      {steps.map((s, i) => {
+    <ol
+      className="flex items-center gap-0 rounded-md border border-zinc-200 bg-white px-4 h-12"
+      aria-label="Tiến trình import"
+    >
+      {STEP_ORDER.map((s, i) => {
         const state: "done" | "current" | "pending" =
           i < activeIdx ? "done" : i === activeIdx ? "current" : "pending";
+        const isLast = i === STEP_ORDER.length - 1;
         return (
-          <li key={s.key} className="flex items-center gap-2">
+          <li key={s} className="flex flex-1 items-center gap-2">
             <span
-              className={cn(
-                "flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold",
-                state === "current" && "border-cta bg-cta text-white",
-                state === "done" &&
-                  "border-success bg-success text-white",
-                state === "pending" &&
-                  "border-slate-300 bg-white text-slate-500",
-              )}
               aria-current={state === "current" ? "step" : undefined}
+              className={cn(
+                "inline-flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold tabular-nums transition-colors",
+                state === "current" && "bg-blue-500 text-white",
+                state === "done" && "bg-emerald-500 text-white",
+                state === "pending" &&
+                  "border-2 border-zinc-300 bg-white text-zinc-500",
+              )}
             >
               {state === "done" ? (
-                <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                <Check className="h-3.5 w-3.5" aria-hidden="true" />
               ) : (
                 i + 1
               )}
             </span>
             <span
               className={cn(
-                state === "current"
-                  ? "font-medium text-slate-900"
-                  : state === "done"
-                    ? "text-slate-700"
-                    : "text-slate-500",
+                "text-base font-medium",
+                state === "current" && "text-zinc-900",
+                state === "done" && "text-emerald-700",
+                state === "pending" && "text-zinc-500",
               )}
             >
-              {s.label}
+              {STEP_LABELS[s]}
             </span>
-            {i < steps.length - 1 && (
-              <span className="mx-1 h-px w-8 bg-slate-300" />
-            )}
+            {!isLast ? (
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "mx-2 h-0.5 flex-1",
+                  state === "done" ? "bg-emerald-500" : "bg-zinc-200",
+                )}
+              />
+            ) : null}
           </li>
         );
       })}
@@ -555,16 +563,16 @@ function StatCard({
 }) {
   const toneClass =
     tone === "success"
-      ? "text-success-strong"
+      ? "text-emerald-700"
       : tone === "error"
-        ? "text-danger-strong"
-        : "text-slate-900";
+        ? "text-red-700"
+        : "text-zinc-900";
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4">
-      <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
+    <div className="rounded-md border border-zinc-200 bg-white p-4">
+      <div className="text-xs font-medium uppercase tracking-wider text-zinc-500">
         {label}
       </div>
-      <div className={cn("mt-1 text-2xl font-semibold tabular-nums", toneClass)}>
+      <div className={cn("mt-1 text-xl font-semibold tabular-nums", toneClass)}>
         {value.toLocaleString("vi-VN")}
       </div>
     </div>
@@ -589,24 +597,32 @@ function ResultPanel({
   const isDone = status === "done";
   const isFailed = status === "failed";
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-6">
+    <div className="rounded-md border border-zinc-200 bg-white p-6">
       <div className="flex items-center gap-3">
         {isDone ? (
-          <CheckCircle2 className="h-6 w-6 text-success" />
+          <CheckCircle2
+            className="h-12 w-12 text-emerald-500"
+            strokeWidth={1.75}
+            aria-hidden="true"
+          />
         ) : isFailed ? (
-          <AlertTriangle className="h-6 w-6 text-danger" />
+          <AlertTriangle
+            className="h-12 w-12 text-red-500"
+            strokeWidth={1.75}
+            aria-hidden="true"
+          />
         ) : (
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-cta" />
+          <div className="h-12 w-12 animate-spin rounded-full border-2 border-zinc-200 border-t-blue-500" />
         )}
         <div>
-          <div className="text-base font-semibold text-slate-900">
+          <div className="text-xl font-semibold tracking-tight text-zinc-900">
             {isDone
               ? "Hoàn tất import"
               : isFailed
                 ? "Import thất bại"
                 : "Đang import nền…"}
           </div>
-          <div className="text-sm text-slate-600">
+          <div className="text-xs text-zinc-500">
             Trạng thái: <span className="font-mono">{status}</span>
           </div>
         </div>
@@ -614,15 +630,16 @@ function ResultPanel({
 
       {!isFailed && (
         <>
-          <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-slate-200">
+          <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-zinc-200">
             <div
-              className="h-full bg-cta transition-all"
+              className="h-full bg-blue-500 transition-all"
               style={{ width: `${progressPct}%` }}
             />
           </div>
-          <div className="mt-2 flex justify-between text-xs text-slate-500 tabular-nums">
+          <div className="mt-2 flex justify-between text-xs text-zinc-500 tabular-nums">
             <span>
-              {rowSuccess + rowFail}/{rowTotal} dòng
+              {(rowSuccess + rowFail).toLocaleString("vi-VN")}/
+              {rowTotal.toLocaleString("vi-VN")} dòng
             </span>
             <span>{progressPct}%</span>
           </div>
@@ -630,7 +647,7 @@ function ResultPanel({
       )}
 
       {isFailed && errorMessage && (
-        <div className="mt-3 rounded-md bg-danger-soft p-3 text-sm text-danger-strong">
+        <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {errorMessage}
         </div>
       )}
