@@ -5,7 +5,22 @@ import type {
   ItemSupplierCreate,
   ItemSupplierUpdate,
   SupplierCreate,
+  SupplierUpdate,
 } from "@iot/shared";
+
+export interface SupplierRow {
+  id: string;
+  code: string;
+  name: string;
+  contactName: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  taxCode: string | null;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 async function request<T>(input: string, init?: RequestInit): Promise<T> {
   const res = await fetch(input, {
@@ -29,9 +44,17 @@ export function useSuppliersList(q: { q?: string; page?: number; pageSize?: numb
     queryKey: ["suppliers", q],
     queryFn: () =>
       request<{
-        data: Array<{ id: string; code: string; name: string; isActive: boolean }>;
+        data: SupplierRow[];
         meta: { page: number; pageSize: number; total: number };
       }>(`/api/suppliers?${p.toString()}`),
+  });
+}
+
+export function useSupplier(id: string | null) {
+  return useQuery({
+    queryKey: ["supplier", id],
+    queryFn: () => request<{ data: SupplierRow }>(`/api/suppliers/${id}`),
+    enabled: !!id,
   });
 }
 
@@ -39,10 +62,34 @@ export function useCreateSupplier() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: SupplierCreate) =>
-      request(`/api/suppliers`, {
+      request<{ data: SupplierRow }>(`/api/suppliers`, {
         method: "POST",
         body: JSON.stringify(input),
       }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["suppliers"] }),
+  });
+}
+
+export function useUpdateSupplier(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SupplierUpdate) =>
+      request<{ data: SupplierRow }>(`/api/suppliers/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["suppliers"] });
+      qc.invalidateQueries({ queryKey: ["supplier", id] });
+    },
+  });
+}
+
+export function useDeleteSupplier() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      request(`/api/suppliers/${id}`, { method: "DELETE" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["suppliers"] }),
   });
 }
