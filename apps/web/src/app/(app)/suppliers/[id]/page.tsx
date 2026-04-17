@@ -24,6 +24,9 @@ import {
   useUpdateSupplier,
 } from "@/hooks/useSuppliers";
 
+/**
+ * V2 /suppliers/[id] — Breadcrumb + header mixed + Tabs V2 underline (2 tab).
+ */
 export default function SupplierDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? "";
@@ -38,9 +41,10 @@ export default function SupplierDetailPage() {
 
   if (query.isLoading) {
     return (
-      <div className="mx-auto w-full max-w-3xl p-4 space-y-3">
-        <Skeleton className="h-6 w-56" />
-        <Skeleton className="h-10 w-full" />
+      <div className="mx-auto w-full max-w-4xl space-y-3 p-6">
+        <Skeleton className="h-5 w-56" />
+        <Skeleton className="h-8 w-72" />
+        <Skeleton className="h-9 w-full" />
         <Skeleton className="h-80 w-full" />
       </div>
     );
@@ -49,13 +53,13 @@ export default function SupplierDetailPage() {
   const supplier = query.data?.data;
   if (!supplier) {
     return (
-      <div className="p-4">
+      <div className="p-6">
         <EmptyState
           preset="error"
           title="Không tìm thấy nhà cung cấp"
           description="Liên kết có thể đã bị xoá hoặc không đúng."
           actions={
-            <Button variant="outline" onClick={() => router.push("/suppliers")}>
+            <Button variant="ghost" size="sm" onClick={() => router.push("/suppliers")}>
               Về danh sách
             </Button>
           }
@@ -65,20 +69,20 @@ export default function SupplierDetailPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl p-4">
+    <div className="mx-auto w-full max-w-4xl p-6">
       <Breadcrumb
         items={[
           { label: "Trang chủ", href: "/" },
           { label: "Nhà cung cấp", href: "/suppliers" },
           { label: supplier.code },
         ]}
-        className="mb-3"
+        className="mb-2"
       />
 
       <header className="mb-4 flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="font-heading text-xl font-semibold text-slate-900">
+            <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
               {supplier.name}
             </h1>
             <StatusBadge
@@ -86,16 +90,17 @@ export default function SupplierDetailPage() {
               size="sm"
             />
           </div>
-          <p className="mt-1 font-mono text-sm text-slate-500">
+          <p className="mt-0.5 font-mono text-xs text-zinc-500">
             {supplier.code}
           </p>
         </div>
         <Button
           variant="outline"
+          size="sm"
           onClick={() => setDeleteOpen(true)}
           disabled={!supplier.isActive}
         >
-          <Trash2 className="h-4 w-4" aria-hidden />
+          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
           {supplier.isActive ? "Ngưng hoạt động" : "Đã ngưng"}
         </Button>
       </header>
@@ -142,7 +147,7 @@ export default function SupplierDetailPage() {
           <EmptyState
             preset="no-data"
             title="Chưa có vật tư nào gắn với NCC này"
-            description="Gắn vật tư từ trang chi tiết vật tư → tab 'Nhà cung cấp'. Màn hình tổng hợp 'Item của NCC' sẽ có ở V1.1."
+            description="Gắn vật tư từ trang chi tiết vật tư → tab ‘Nhà cung cấp’. Màn hình tổng hợp ‘Item của NCC’ sẽ có ở V1.1."
           />
         </TabsContent>
       </Tabs>

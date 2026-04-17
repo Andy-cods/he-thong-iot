@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Search } from "lucide-react";
+import { Eye, Pencil, Plus, Search, X } from "lucide-react";
 import {
   parseAsBoolean,
   parseAsInteger,
@@ -14,26 +14,30 @@ import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/domain/StatusBadge";
 import { useSuppliersList, type SupplierRow } from "@/hooks/useSuppliers";
 import { useHotkey } from "@/lib/shortcuts";
 import { cn } from "@/lib/utils";
 
+type ActiveMode = "all" | "active" | "inactive";
+
+const ACTIVE_MODES: { value: ActiveMode; label: string }[] = [
+  { value: "all", label: "Tất cả" },
+  { value: "active", label: "Đang dùng" },
+  { value: "inactive", label: "Ngưng" },
+];
+
 /**
- * /suppliers — list stub (T9a).
+ * V2 /suppliers — Linear-inspired compact (design-spec §2.7, kế thừa /items V2).
  *
- * Direction B design-spec §2.7 — bám pattern /items nhưng columns gọn:
- * Code · Name · Phone · Email · Status.
- * URL state: `q` + `active`. Phím `/` focus search, `e` edit selected.
- * EmptyState có-/ không filter tách riêng.
+ * - Header: H1 text-xl font-semibold "Nhà cung cấp" + subtitle count, action
+ *   "Tạo mới" button size sm top-right.
+ * - Filter bar h-11 compact: search h-8 w-[280px] + segmented h-8 (3 mode).
+ * - Table row h-9 36px no zebra, columns Code (mono 12) · Name · Phone · Email
+ *   · Active StatusBadge sm, actions Eye preview + Pencil edit.
+ * - EmptyState preset no-data + no-filter-match.
+ * - URL state nuqs giữ V1, hotkey / j k e Enter Esc giữ V1.
  */
 export default function SuppliersListPage() {
   const router = useRouter();
@@ -98,77 +102,106 @@ export default function SuppliersListPage() {
     void setUrlState({ q: "", active: null, page: 1 });
   };
 
+  const activeMode: ActiveMode =
+    urlState.active === null ? "all" : urlState.active ? "active" : "inactive";
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4">
-        <div>
-          <Breadcrumb
-            items={[
-              { label: "Trang chủ", href: "/" },
-              { label: "Nhà cung cấp" },
-            ]}
-            className="mb-0.5"
-          />
-          <h1 className="font-heading text-xl font-semibold text-slate-900">
-            Nhà cung cấp
-          </h1>
+      {/* V2 compact header: Breadcrumb + H1 xl + Tạo mới top-right */}
+      <header className="border-b border-zinc-200 bg-white px-6 py-4">
+        <Breadcrumb
+          items={[{ label: "Trang chủ", href: "/" }, { label: "Nhà cung cấp" }]}
+          className="mb-0.5"
+        />
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
+              Nhà cung cấp
+            </h1>
+            <p className="mt-0.5 text-xs text-zinc-500">
+              {total.toLocaleString("vi-VN")} NCC
+            </p>
+          </div>
+          <Button asChild size="sm">
+            <Link href="/suppliers/new">
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+              Tạo mới
+            </Link>
+          </Button>
         </div>
-        <Button asChild>
-          <Link href="/suppliers/new">
-            <Plus className="h-4 w-4" aria-hidden />
-            Tạo mới
-          </Link>
-        </Button>
       </header>
 
-      <div className="flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-2">
-        <div className="relative flex-1 max-w-md">
+      {/* Filter bar compact h-11 */}
+      <div className="flex h-11 items-center gap-2 border-b border-zinc-200 bg-white px-4">
+        <div className="relative w-[280px]">
           <Search
-            className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
-            aria-hidden
+            className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400"
+            aria-hidden="true"
           />
           <Input
             ref={searchRef}
+            size="sm"
             placeholder="Tìm theo mã / tên NCC (phím /)"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            className="h-9 pl-8 sm:h-9"
+            className="pl-8"
+            aria-label="Tìm nhà cung cấp"
           />
+          {searchInput ? (
+            <button
+              type="button"
+              onClick={() => setSearchInput("")}
+              className="absolute right-1.5 top-1/2 inline-flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+              aria-label="Xoá tìm kiếm"
+            >
+              <X className="h-3 w-3" aria-hidden="true" />
+            </button>
+          ) : null}
         </div>
-        <Select
-          value={
-            urlState.active === null
-              ? "all"
-              : urlState.active
-                ? "active"
-                : "inactive"
-          }
-          onValueChange={(v) =>
-            void setUrlState({
-              active: v === "all" ? null : v === "active",
-              page: 1,
-            })
-          }
-        >
-          <SelectTrigger className="h-9 w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tất cả trạng thái</SelectItem>
-            <SelectItem value="active">Đang hoạt động</SelectItem>
-            <SelectItem value="inactive">Ngưng hoạt động</SelectItem>
-          </SelectContent>
-        </Select>
-        <div className="ml-auto text-xs text-slate-500 tabular-nums">
-          {total.toLocaleString("vi-VN")} NCC
+
+        {/* Segmented 3-mode active (h-8) */}
+        <div className="inline-flex h-8 overflow-hidden rounded-md border border-zinc-200 bg-white">
+          {ACTIVE_MODES.map((m, i) => (
+            <button
+              key={m.value}
+              type="button"
+              onClick={() =>
+                void setUrlState({
+                  active:
+                    m.value === "all" ? null : m.value === "active" ? true : false,
+                  page: 1,
+                })
+              }
+              className={cn(
+                "inline-flex h-full items-center px-3 text-base font-medium transition-colors",
+                i > 0 && "border-l border-zinc-200",
+                activeMode === m.value
+                  ? "bg-zinc-900 text-white"
+                  : "bg-white text-zinc-700 hover:bg-zinc-50",
+              )}
+              aria-pressed={activeMode === m.value}
+            >
+              {m.label}
+            </button>
+          ))}
         </div>
+
+        {hasFilter ? (
+          <button
+            type="button"
+            onClick={handleReset}
+            className="ml-auto text-xs font-medium text-blue-600 hover:text-blue-700"
+          >
+            Xoá bộ lọc
+          </button>
+        ) : null}
       </div>
 
-      <div className="flex-1 overflow-auto p-3">
+      <div className="flex-1 overflow-auto p-4">
         {query.isLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-12 w-full" />
+              <Skeleton key={i} className="h-9 w-full" />
             ))}
           </div>
         ) : isEmpty ? (
@@ -178,8 +211,8 @@ export default function SuppliersListPage() {
               title="Không tìm thấy NCC khớp bộ lọc"
               description="Thử xoá bộ lọc hoặc đổi từ khoá tìm kiếm."
               actions={
-                <Button variant="outline" onClick={handleReset}>
-                  Xoá bộ lọc
+                <Button variant="ghost" size="sm" onClick={handleReset}>
+                  Xoá tất cả bộ lọc
                 </Button>
               }
             />
@@ -189,28 +222,29 @@ export default function SuppliersListPage() {
               title="Chưa có nhà cung cấp"
               description="Thêm NCC đầu tiên để gắn vật tư với nguồn cung."
               actions={
-                <Button asChild>
+                <Button asChild size="sm">
                   <Link href="/suppliers/new">
-                    <Plus className="h-4 w-4" aria-hidden />
-                    Tạo mới
+                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                    Tạo nhà cung cấp đầu tiên
                   </Link>
                 </Button>
               }
             />
           )
         ) : (
-          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-            <table className="min-w-full divide-y divide-slate-200 text-sm">
-              <thead className="bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-600">
-                <tr>
-                  <th className="px-3 py-2 w-32">Mã</th>
-                  <th className="px-3 py-2">Tên</th>
-                  <th className="px-3 py-2 w-40">Điện thoại</th>
-                  <th className="px-3 py-2">Email</th>
-                  <th className="px-3 py-2 w-36">Trạng thái</th>
+          <div className="overflow-hidden rounded-md border border-zinc-200 bg-white">
+            <table className="min-w-full border-collapse text-base">
+              <thead className="bg-zinc-50">
+                <tr className="text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                  <th className="h-8 px-3 w-[128px]">Mã</th>
+                  <th className="h-8 px-3">Tên</th>
+                  <th className="h-8 px-3 w-[140px]">Điện thoại</th>
+                  <th className="h-8 px-3 w-[220px]">Email</th>
+                  <th className="h-8 px-3 w-[100px]">Trạng thái</th>
+                  <th className="h-8 px-3 w-[80px] text-right">Hành động</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody>
                 {rows.map((r, i) => (
                   <tr
                     key={r.id}
@@ -225,25 +259,52 @@ export default function SuppliersListPage() {
                       }
                     }}
                     className={cn(
-                      "cursor-pointer transition-colors hover:bg-slate-50 focus:bg-slate-100 focus:outline-none",
-                      focusedIndex === i && "bg-slate-100",
+                      "group h-9 cursor-pointer border-t border-zinc-100 transition-colors hover:bg-zinc-50 focus:outline-none",
+                      focusedIndex === i &&
+                        "bg-blue-50 outline outline-2 -outline-offset-2 outline-blue-500",
                     )}
                   >
-                    <td className="px-3 py-2 font-mono font-medium text-slate-900">
+                    <td className="px-3 font-mono text-sm text-zinc-900">
                       {r.code}
                     </td>
-                    <td className="px-3 py-2 text-slate-900">{r.name}</td>
-                    <td className="px-3 py-2 text-slate-600 tabular-nums">
+                    <td className="px-3 text-zinc-900">{r.name}</td>
+                    <td className="px-3 text-zinc-600 tabular-nums">
                       {r.phone ?? "—"}
                     </td>
-                    <td className="px-3 py-2 text-slate-600 truncate max-w-xs">
+                    <td className="max-w-xs truncate px-3 text-zinc-600">
                       {r.email ?? "—"}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3">
                       <StatusBadge
                         status={r.isActive ? "active" : "inactive"}
                         size="sm"
                       />
+                    </td>
+                    <td className="px-3 text-right">
+                      <div className="inline-flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                        <Button
+                          asChild
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Xem NCC ${r.code}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Link href={`/suppliers/${r.id}`}>
+                            <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                          </Link>
+                        </Button>
+                        <Button
+                          asChild
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Sửa NCC ${r.code}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Link href={`/suppliers/${r.id}`}>
+                            <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                          </Link>
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -254,24 +315,36 @@ export default function SuppliersListPage() {
       </div>
 
       {!isEmpty ? (
-        <footer className="flex items-center justify-between border-t border-slate-200 bg-white px-4 py-2 text-sm">
-          <div className="text-slate-600">
-            Trang <span className="tabular-nums">{urlState.page}</span> /{" "}
-            <span className="tabular-nums">{pageCount}</span>
+        <footer className="flex h-9 items-center justify-between border-t border-zinc-200 bg-white px-4 text-base">
+          <div className="text-zinc-600">
+            Hiển thị{" "}
+            <span className="tabular-nums text-zinc-900">
+              {rows.length === 0
+                ? 0
+                : (urlState.page - 1) * urlState.pageSize + 1}
+              –{(urlState.page - 1) * urlState.pageSize + rows.length}
+            </span>{" "}
+            /{" "}
+            <span className="tabular-nums text-zinc-900">
+              {total.toLocaleString("vi-VN")}
+            </span>
           </div>
           <div className="flex items-center gap-1">
             <Button
               size="sm"
-              variant="outline"
+              variant="ghost"
               disabled={urlState.page <= 1}
               onClick={() => void setUrlState({ page: urlState.page - 1 })}
               aria-label="Trang trước"
             >
               ‹
             </Button>
+            <span className="px-2 text-zinc-600 tabular-nums">
+              {urlState.page} / {pageCount}
+            </span>
             <Button
               size="sm"
-              variant="outline"
+              variant="ghost"
               disabled={urlState.page >= pageCount}
               onClick={() => void setUrlState({ page: urlState.page + 1 })}
               aria-label="Trang sau"
