@@ -127,6 +127,20 @@
 - [ ] Apply migration 0002a+0002b trên VPS (CẦN USER xác nhận)
 - [ ] Rebuild Docker image VPS + deploy + smoke login flow + verify từng screen
 
+### Giai đoạn 5 — UI/UX V2 Redesign (Linear-inspired, 2026-04-17 start)
+- [x] 2026-04-17 · **Plan pack V2** (brainstorm 774 dòng + design-spec 4191 dòng + implementation-plan 1400 dòng, zinc+electric-blue + font scale nhỏ hơn + density D3) — *commit e0b416b* · `plans/redesign-v2/*.md`
+- [x] 2026-04-17 · **T1 Tokens refactor:** replace tailwind.config (palette zinc+blue+semantic + back-compat slate/brand/cta alias, typography 10 tokens, spacing 9+back-compat, radius sm/md=6/lg=8, shadow minimal, motion 100/150/200/300ms + ease-out-quart, keyframes V2), globals.css (CSS vars --bg/--text/--accent/--shortage + reserve dark mode, Inter cv11/ss01/cv02, :focus-visible CSS outline 2px blue-500), layout.tsx bỏ Be Vietnam Pro giữ Inter, `docs/design-guidelines-v2.md` NEW ~180 dòng — *commit 9e0e782*
+- [x] 2026-04-17 · **T2-T3 13 UI primitives refactor:**
+  - Commit A (6f0df10) — Button (size xs/sm/md=default h-8/lg/icon + blue-500 primary), Input (size sm h-8 / default h-9 / lg h-11 PWA + CSS outline focus), Label (13px weight 500 + uppercase variant + required red-500), Badge (rounded-full→rounded-sm + shortage variant orange-50/700)
+  - Commit B (e701ffd) — Checkbox (20px→14px h-3.5 border 1.5px blue-500), Select (trigger sm h-8 / default h-9, item h-8 selected blue-50), Textarea (min-h 72px 13px padding 12/8), Skeleton (bg zinc-100 shimmer-sm 1200ms)
+  - Commit C (0b43c48) — Dialog (rounded-lg 8px shadow-lg overlay 0.5 padding 20 close 28px), Sheet (md 420px/lg 560px ease-out-quart header h-12 body p-20 footer h-14), Popover (padding 12 shadow-sm offset 4 no arrow), Dropdown (item h-8 text-base padding-x 8 danger red-700), Tabs (list h-9 border-b trigger h-8 active zinc-900 underline neutral)
+  - Commit D (c5a89a2) — Tooltip NEW (Radix + SimpleTooltip helper, bg zinc-900 text-12px rounded-md max-w-240 delay 300), Breadcrumb (separator chevron→"/" zinc-400 font 13px), EmptyState refactor icon-based (BỎ illustrations folder 6 SVG + giữ `illustration` @deprecated alias)
+- [x] 2026-04-17 · **T4 6 layout components refactor:**
+  - Commit E (064ac0d) — Sidebar (220px FIXED bỏ collapsible V1, nav item h-7 font 13 active blue-50/border-l-blue-500), TopBar (desktop h-14→h-11 44px, CmdK button h-8 bg zinc-50, buttons h-8 icons 16px, badge tabular-nums), UserMenu (trigger h-8 avatar 24px, items h-8 text-base, logout danger)
+  - Commit F (d1fb0f3) — CommandPalette (560px rounded-lg shadow-lg input h-11, item h-8 aria-selected blue-50 + footer hints), AppShell (grid 220/44 CSS vars, padding 24/20 md+, mobile drawer 280px)
+- [ ] T5-T10 screens redesign (tiếp theo — cook agent sau)
+- [ ] T11 final build verify + preview smoke
+
 ---
 
 ## 🧱 Ràng buộc kỹ thuật (từ discussion)
