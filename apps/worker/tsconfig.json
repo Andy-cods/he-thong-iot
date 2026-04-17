@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "baseUrl": ".",
+    "rootDir": "../..",
+    "paths": {
+      "@iot/db": ["../../packages/db/src/index.ts"],
+      "@iot/db/*": ["../../packages/db/src/*"],
+      "@iot/shared": ["../../packages/shared/src/index.ts"],
+      "@iot/shared/*": ["../../packages/shared/src/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

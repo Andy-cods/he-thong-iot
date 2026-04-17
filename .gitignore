@@ -1,0 +1,73 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+.npm/
+.yarn/
+
+# Build output
+dist/
+build/
+.next/
+out/
+.turbo/
+.vercel/
+*.tsbuildinfo
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+.env.production
+deploy/.env
+deploy/secrets/*
+!deploy/secrets/.gitkeep
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor / OS
+.vscode/*
+!.vscode/settings.json.example
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Test / coverage
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# TypeScript
+*.tsbuildinfo
+
+# Runtime caches
+.cache/
+.eslintcache
+
+# PWA generated
+apps/web/public/sw.js
+apps/web/public/workbox-*.js
+apps/web/public/worker-*.js
+apps/web/public/fallback-*.js
+apps/web/public/sw.js.map
+
+# DB local
+*.sqlite
+*.sqlite3
+pgdata/
+
+# Backup dumps
+*.dump
+*.sql.gz
+*.sql.gpg
+
+# Uploads local
+uploads/

@@ -1,0 +1,41 @@
+{
+  "name": "he-thong-iot — Xưởng IoT",
+  "short_name": "he-thong-iot",
+  "description": "Hệ thống MES/ERP nhẹ, BOM-centric cho xưởng cơ khí Việt Nam.",
+  "lang": "vi",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#0F172A",
+  "background_color": "#F8FAFC",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Quét lắp ráp",
+      "short_name": "Quét",
+      "description": "Mở trạm quét mã vạch lắp ráp",
+      "url": "/app/assembly/scan"
+    },
+    {
+      "name": "Bảng đơn hàng",
+      "short_name": "Đơn hàng",
+      "url": "/app/orders"
+    }
+  ]
+}

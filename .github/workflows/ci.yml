@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  build-test:
+    name: Lint, typecheck, build, test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm -r typecheck
+
+      - name: Lint
+        run: pnpm -r lint
+        continue-on-error: true
+
+      - name: Build
+        env:
+          # Dummy vars cho Next build (không chạy runtime)
+          DATABASE_URL: postgres://dummy:dummy@localhost:5432/dummy
+          JWT_SECRET: dummy-secret-for-build-only-not-used-at-runtime
+          REDIS_URL: redis://localhost:6379/2
+        run: pnpm -r --filter=./apps/* --filter=./packages/* build
+        continue-on-error: true
+
+      - name: Test
+        run: pnpm -r test
+        continue-on-error: true

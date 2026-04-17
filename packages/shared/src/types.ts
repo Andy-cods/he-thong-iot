@@ -1,0 +1,49 @@
+/** Role cứng V1 — khớp Drizzle enum trong packages/db. */
+export const ROLES = ["admin", "planner", "warehouse", "operator"] as const;
+export type Role = (typeof ROLES)[number];
+
+/** JWT access token payload (tối thiểu). */
+export interface JwtPayload {
+  /** User UUID. */
+  sub: string;
+  /** Username (human-readable). */
+  usr: string;
+  /** Roles đã gán. */
+  roles: Role[];
+  /** Issued at (seconds since epoch). */
+  iat: number;
+  /** Expires at (seconds since epoch). */
+  exp: number;
+}
+
+/** Session context mà mọi handler auth-protected nhận. */
+export interface SessionContext {
+  userId: string;
+  username: string;
+  roles: Role[];
+  /** Có role nào trong danh sách không. */
+  hasRole(...anyOf: Role[]): boolean;
+  /** Có phải admin không. */
+  isAdmin(): boolean;
+}
+
+/** Shape response login + /me. */
+export interface AuthMeResponse {
+  id: string;
+  username: string;
+  fullName: string;
+  email: string | null;
+  roles: Role[];
+}
+
+/** Shape chung cho API error (tiếng Việt). */
+export interface ApiError {
+  error: {
+    code: string;
+    message: string;
+    details?: Record<string, unknown>;
+  };
+}
+
+export const isRole = (v: unknown): v is Role =>
+  typeof v === "string" && (ROLES as readonly string[]).includes(v);

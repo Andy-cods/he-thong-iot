@@ -1,0 +1,29 @@
+# =============================================================
+# Cloudflare Tunnel config cho he-thong-iot
+# Copy thành ~/.cloudflared/config.yml (hoặc /etc/cloudflared/config.yml)
+# trên VPS, sau khi đã chạy: cloudflared tunnel create hethong-iot
+# =============================================================
+
+tunnel: <tunnel-uuid-từ-cloudflared-tunnel-create>
+credentials-file: /etc/cloudflared/<tunnel-uuid>.json
+
+ingress:
+  # UI chính
+  - hostname: iot.your-domain.vn
+    service: http://localhost:8443
+    originRequest:
+      connectTimeout: 30s
+      noTLSVerify: true
+      httpHostHeader: iot.your-domain.vn
+
+  # (tuỳ chọn) subdomain file tĩnh nếu không dùng R2 public URL
+  # - hostname: files.iot.your-domain.vn
+  #   service: http://localhost:8443
+
+  # Catch-all (bắt buộc cuối cùng)
+  - service: http_status:404
+
+# Sau khi config:
+#   cloudflared tunnel route dns hethong-iot iot.your-domain.vn
+#   cloudflared service install   # chạy systemd service
+#   systemctl enable --now cloudflared

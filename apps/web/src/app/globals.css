@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===========================================================
+ * Industrial Slate CSS custom properties
+ * Dùng khi không tiện bind tailwind class (ví dụ print.css)
+ * =========================================================== */
+@layer base {
+  :root {
+    --color-bg-base: #f8fafc;
+    --color-bg-card: #ffffff;
+    --color-bg-zebra: #f1f5f9;
+    --color-text-primary: #0f172a;
+    --color-text-muted: #64748b;
+
+    --color-brand-ink: #0f172a;
+    --color-brand-steel: #334155;
+    --color-brand-mist: #e2e8f0;
+
+    --color-cta: #ea580c;
+    --color-cta-hover: #c2410c;
+    --color-cta-press: #9a3412;
+
+    --color-success: #059669;
+    --color-warning: #d97706;
+    --color-danger: #dc2626;
+    --color-info: #0369a1;
+
+    --ring-focus: 0 0 0 3px rgba(3, 105, 161, 0.35);
+  }
+
+  html {
+    font-family:
+      Inter,
+      "Be Vietnam Pro",
+      ui-sans-serif,
+      system-ui,
+      sans-serif;
+    background: var(--color-bg-base);
+    color: var(--color-text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply min-h-screen bg-slate-50 text-slate-900;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
+    @apply text-slate-900;
+  }
+
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--ring-focus);
+    border-radius: 6px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0ms !important;
+      transition-duration: 0ms !important;
+    }
+  }
+}
+
+/* Skip link WCAG 2.4.1 */
+.skip-link {
+  @apply absolute left-2 top-2 z-50 -translate-y-20 rounded bg-slate-900 px-3 py-1.5 text-sm text-white transition-transform focus:translate-y-0;
+}

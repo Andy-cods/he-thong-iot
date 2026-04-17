@@ -1,0 +1,190 @@
+# =============================================================
+# he-thong-iot — docker-compose stack
+# Cô lập hoàn toàn với Song Châu ERP đang chạy cùng VPS.
+# - Container prefix: iot_
+# - Network riêng: iot_net (không attach Song Châu)
+# - Postgres/Redis TÁCH RIÊNG khỏi Song Châu (user confirm 2026-04-16)
+# - Caddy bind 0.0.0.0:8443 (chưa có domain → access qua http://<VPS_IP>:8443
+#   hoặc Cloudflare Tunnel khi có domain)
+# =============================================================
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: iot_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: hethong_iot
+      POSTGRES_USER: hethong_app
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      # Tuning cho VPS 8GB chia sẻ với Song Châu (siết thấp)
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=256MB"
+      - "-c"
+      - "effective_cache_size=768MB"
+      - "-c"
+      - "work_mem=8MB"
+      - "-c"
+      - "maintenance_work_mem=128MB"
+      - "-c"
+      - "max_connections=25"
+      - "-c"
+      - "wal_buffers=8MB"
+      - "-c"
+      - "checkpoint_timeout=15min"
+      - "-c"
+      - "random_page_cost=1.1"
+    volumes:
+      - iot_pg_data:/var/lib/postgresql/data
+    networks: [iot_net]
+    secrets:
+      - db_password
+    mem_limit: 640m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hethong_app -d hethong_iot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: iot_redis
+    restart: unless-stopped
+    command:
+      - "redis-server"
+      - "--maxmemory"
+      - "128mb"
+      - "--maxmemory-policy"
+      - "allkeys-lru"
+      - "--save"
+      - "60"
+      - "1"
+      - "--appendonly"
+      - "no"
+    volumes:
+      - iot_redis_data:/data
+    networks: [iot_net]
+    mem_limit: 192m
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  app:
+    image: ${IOT_IMAGE:-registry.local/hethong-iot:latest}
+    container_name: iot_app
+    restart: unless-stopped
+    command: ["node", "apps/web/server.js"]
+    environment:
+      NODE_ENV: production
+      APP_URL: ${APP_URL:-http://103.56.158.129:8443}
+      DATABASE_URL: postgres://hethong_app@iot_postgres:5432/hethong_iot
+      REDIS_URL: redis://iot_redis:6379/0
+      BULLMQ_PREFIX: iot-
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID}
+      R2_BUCKET: ${R2_BUCKET}
+      R2_ENDPOINT: ${R2_ENDPOINT}
+      R2_PUBLIC_URL: ${R2_PUBLIC_URL}
+      LOG_LEVEL: info
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      JWT_SECRET_FILE: /run/secrets/jwt_secret
+      SESSION_SECRET_FILE: /run/secrets/session_secret
+      R2_ACCESS_KEY_FILE: /run/secrets/r2_access_key
+      R2_SECRET_KEY_FILE: /run/secrets/r2_secret_key
+    secrets:
+      - db_password
+      - jwt_secret
+      - session_secret
+      - r2_access_key
+      - r2_secret_key
+    volumes:
+      - ./logs:/app/logs
+    networks: [iot_net]
+    mem_limit: 768m
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    image: ${IOT_IMAGE:-registry.local/hethong-iot:latest}
+    container_name: iot_worker
+    restart: unless-stopped
+    working_dir: /app
+    command: ["./node_modules/.bin/tsx", "apps/worker/src/index.ts"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://hethong_app@iot_postgres:5432/hethong_iot
+      REDIS_URL: redis://iot_redis:6379/0
+      BULLMQ_PREFIX: iot-
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID}
+      R2_BUCKET: ${R2_BUCKET}
+      R2_ENDPOINT: ${R2_ENDPOINT}
+      LOG_LEVEL: info
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      JWT_SECRET_FILE: /run/secrets/jwt_secret
+      R2_ACCESS_KEY_FILE: /run/secrets/r2_access_key
+      R2_SECRET_KEY_FILE: /run/secrets/r2_secret_key
+    secrets:
+      - db_password
+      - jwt_secret
+      - r2_access_key
+      - r2_secret_key
+    volumes:
+      - ./logs:/app/logs
+    networks: [iot_net]
+    mem_limit: 256m
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: iot_caddy
+    restart: unless-stopped
+    # VPS dedicated 123.30.48.215 — không share Song Châu → bind port 80/443 thẳng
+    # Chưa có domain: HTTP plain 80; khi có domain → Caddy auto Let's Encrypt trên 443
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - iot_caddy_data:/data
+      - iot_caddy_config:/config
+    networks: [iot_net]
+    mem_limit: 128m
+    depends_on:
+      - app
+
+networks:
+  iot_net:
+    name: iot_net
+    driver: bridge
+
+volumes:
+  iot_pg_data:
+    name: iot_pg_data
+  iot_redis_data:
+    name: iot_redis_data
+  iot_caddy_data:
+    name: iot_caddy_data
+  iot_caddy_config:
+    name: iot_caddy_config
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
+  jwt_secret:
+    file: ./secrets/jwt_secret.txt
+  session_secret:
+    file: ./secrets/session_secret.txt
+  r2_access_key:
+    file: ./secrets/r2_access_key.txt
+  r2_secret_key:
+    file: ./secrets/r2_secret_key.txt
