@@ -42,7 +42,9 @@ apply_one() {
 pick_user() {
   local name="$1"
   case "$name" in
-    *_superuser*|0002a_*|0002a.sql) echo "postgres" ;;
+    # Superuser: 0002a (extensions), 0002c (f_unaccent wrapper FUNCTION + GIN),
+    #            0003a (bom enum + GRANT USAGE)
+    *_superuser*|0002a_*|0002a.sql|0002c_*|0002c.sql|0003a_*|0003a.sql) echo "postgres" ;;
     *) echo "hethong_app" ;;
   esac
 }

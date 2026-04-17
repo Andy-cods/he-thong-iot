@@ -18,6 +18,24 @@ phải apply thủ công qua `psql` bằng script
 | ----------------------------- | ------------ | ------------------------------------------------------------ |
 | `0002a_extensions.sql`        | `postgres`   | `CREATE EXTENSION pg_trgm, unaccent`                         |
 | `0002b_item_master.sql`       | `hethong_app`| Item master, barcode, supplier, import_batch + trgm indexes  |
+| `0002c_gin_unaccent_fix.sql`  | `postgres`   | `public.f_unaccent` IMMUTABLE wrapper + recreate GIN idx     |
+| `0003a_bom_enums.sql`         | `postgres`   | Enum `app.bom_status` + grant usage (V1.1-alpha)             |
+| `0003b_bom_tables.sql`        | `hethong_app`| `bom_template`, `bom_line` (self-ref tree), `receiving_event`|
+| `0003c_bom_indexes.sql`       | `hethong_app`| GIN trgm + btree + trigger updated_at (reuse `f_unaccent`)   |
+| `0003d_seed_demo.sql`         | `hethong_app`| Seed 4 role + BOM demo `CNC-ABC-DEMO` (idempotent)           |
+
+### Flow apply V1.1-alpha
+
+```bash
+# Thứ tự bắt buộc
+bash scripts/apply-sql-migrations.sh 0003a_bom_enums.sql postgres
+bash scripts/apply-sql-migrations.sh 0003b_bom_tables.sql hethong_app
+bash scripts/apply-sql-migrations.sh 0003c_bom_indexes.sql hethong_app
+bash scripts/apply-sql-migrations.sh 0003d_seed_demo.sql hethong_app
+
+# Hoặc apply toàn bộ (script tự pick user theo prefix)
+bash scripts/apply-sql-migrations.sh
+```
 
 ## Apply trên VPS
 
