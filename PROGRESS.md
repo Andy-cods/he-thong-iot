@@ -97,10 +97,25 @@
 - [x] 2026-04-17 · Move project khỏi OneDrive sang `C:\dev\he-thong-iot\` (fix ERR_PNPM_EBUSY do OneDrive lock)
 - [x] 2026-04-17 · `pnpm install` (35s, argon2 native build OK), `pnpm build` PASS local sau 5 fix: worker tsc → tsx runtime, regex escape next.config.js, shared/db schema/index bỏ `.js` extension, webpack `extensionAlias` map `.js→.ts`, conditional `output: standalone` (Windows symlink), set dummy DATABASE_URL/JWT_SECRET cho build-time (env.ts crash khi Next collect API routes)
 - [x] 2026-04-17 · `pnpm test` shared 11/11 PASS, web 4/6 PASS (2 fail exceljs stream trên Node 24 local — sẽ pass trên Node 20 Docker)
-- [ ] (đang chạy) Build Docker image trên VPS từ source local-tested
-- [ ] Up postgres+redis + migrate (`pnpm db:push`) + seed admin
-- [ ] Up app+worker+caddy + smoke test `/api/health`, `/login`
-- [ ] Trả link `http://123.30.48.215` cho user
+- [x] 2026-04-17 · Build Docker image VPS thành công (273MB, 13 phút trên 2 vCPU, multi-stage Next standalone + worker tsx)
+- [x] 2026-04-17 · Up postgres+redis healthy, migrate qua `drizzle-kit generate` + `psql` (28 tables app schema), seed admin `admin/ChangeMe!234`
+- [x] 2026-04-17 · Up app+caddy, smoke test `/api/health` 200, login `/api/auth/login` 200 với JWT cookie
+- [x] 2026-04-17 · Setup domain `mes.songchau.vn` + Caddy auto Let's Encrypt cert (HTTP/2 + HTTP/3, 80→443 redirect)
+- [x] 2026-04-17 · Fix middleware Edge runtime đọc `process.env.JWT_SECRET` (compose chỉ set `_FILE`) → thêm `JWT_SECRET: ${JWT_SECRET}` inline → login redirect loop hết
+- [x] 2026-04-17 · Fix CSP wildcard `https://files.iot.*` invalid + thiếu `media-src` → đổi CSP gọn hơn trong Caddyfile
+- [x] 2026-04-17 · Push code lên GitHub `Andy-cods/he-thong-iot` (private, branch main)
+- [x] **🚀 LIVE: https://mes.songchau.vn** — login admin/ChangeMe!234 hoạt động đầy đủ
+- [ ] Worker container disabled (pnpm symlinks missing trong runtime image) — fix trong sprint redesign
+- [ ] Migration 0002 (pg_trgm + unaccent) — search VN không dấu chưa hoạt động
+- [ ] PWA icons 404, lib/env.ts regex root-cause fix, R2 placeholder
+- [ ] Đổi password admin
+
+### Giai đoạn 4 — UI/UX Redesign (Direction B, 2026-04-17 quyết định)
+- [x] 2026-04-17 · Brainstorm agent tổng hợp 10 vấn đề UI/UX + 3 direction + bug full-stack — *`plans/redesign/260417-brainstorm.md`*
+- [x] 2026-04-17 · User chốt **Direction B (Refresh trung bình)**: giữ palette Industrial Slate, thêm Dashboard + AppShell + CommandPalette + Receiving + PWA min, fix 3 P0 bug
+- [ ] Plan agent ra implementation plan chi tiết (8 screens, 18 components, 14.5 ngày ước tính)
+- [ ] Cook agent implement
+- [ ] Test + redeploy VPS + verify từng screen
 
 ---
 
@@ -129,4 +144,6 @@
 | 2026-04-16 | Claude (full-stack cook) | **Foundation V1 (tuần 0-1):** pnpm monorepo (apps/web, apps/worker, packages/db, packages/shared) + Drizzle schema 20 bảng + seed role/admin + auth API (login/logout/me) + health/ready + Next.js 14 PWA skeleton với design tokens Industrial Slate + docker-compose + Caddyfile + Cloudflare Tunnel example + backup/health-check/migrate scripts + CI GitHub Actions. Còn lại: business module tuần 2+. |
 | 2026-04-16 | Claude (infra update) | User confirm: **Postgres/Redis tách riêng** trong stack IoT (không share Song Châu), **chưa có domain** (truy cập qua `http://<VPS_IP>:8443`). Update `deploy/docker-compose.yml` thêm `iot_postgres` + `iot_redis` có healthcheck + mem_limit, siết `shared_buffers=256MB max_connections=25`. Update `deploy/.env.example`, `deploy/README.md`, `deploy/scripts/backup.sh` dùng `docker exec iot_postgres pg_dump`. |
 | 2026-04-16 | Claude (brainstorm + plan + cook tuần 2) | **Tuần 2 — Item Master + Barcode + Supplier + Excel Import hoàn chỉnh.** Brainstorm 12 câu hỏi brutal honesty → 3 quyết định (TOOL+PACKAGING enum, SKU manual regex, import idempotency SHA-256). Plan 5 ngày × 2 dev. Cook: migration 0002 (pg_trgm+unaccent+import_batch), 20+ API endpoints (items CRUD + barcodes + suppliers + item-suppliers + imports wizard), BullMQ worker `item-import-commit` (chunk 500, skip/upsert/error), UI List virtualized + Edit Sheet + Import Wizard 3-step polling 2s, unit tests. 63 file mới tổng cộng. |
-| 2026-04-17 | Claude (deploy bootstrap) | **VPS bootstrap + lần build đầu.** Đổi target từ VPS share Song Châu sang VPS dedicated `123.30.48.215` (2 vCPU/2GB/40GB Ubuntu 24.04). Plan agent đẻ ra `plans/deploy/260417-bootstrap-vps-dedicated.md`. Bootstrap: swap 4GB + Docker 29.4 + UFW. Viết `Dockerfile` multi-stage + `.dockerignore`. Fix code chạy được build prod: worker → tsx runtime (bỏ tsc compile vì rootDir conflict với workspace), regex escape next.config.js, shared/db schema bỏ `.js` extension, webpack `extensionAlias` map `.js→.ts`, conditional `output: standalone` (Windows symlink), dummy DATABASE_URL/JWT_SECRET cho Next build collect page data. Move project khỏi OneDrive → C:\dev (fix EBUSY). `pnpm build` PASS local; test shared 11/11, web 4/6 (2 fail exceljs Node 24 local, OK trên Node 20 Docker). Build VPS đang chạy. |
+| 2026-04-17 | Claude (deploy bootstrap) | **VPS bootstrap + lần build đầu.** Đổi target từ VPS share Song Châu sang VPS dedicated `123.30.48.215` (2 vCPU/2GB/40GB Ubuntu 24.04). Plan agent đẻ ra `plans/deploy/260417-bootstrap-vps-dedicated.md`. Bootstrap: swap 4GB + Docker 29.4 + UFW. Viết `Dockerfile` multi-stage + `.dockerignore`. Fix code chạy được build prod: worker → tsx runtime (bỏ tsc compile vì rootDir conflict với workspace), regex escape next.config.js, shared/db schema bỏ `.js` extension, webpack `extensionAlias` map `.js→.ts`, conditional `output: standalone` (Windows symlink), dummy DATABASE_URL/JWT_SECRET cho Next build collect page data. Move project khỏi OneDrive → C:\dev (fix EBUSY). `pnpm build` PASS local; test shared 11/11, web 4/6 (2 fail exceljs Node 24 local, OK trên Node 20 Docker). |
+| 2026-04-17 | Claude (go-live) | **🚀 LIVE: https://mes.songchau.vn**. Build VPS image v8 (273MB, 13 phút). Migrate qua `drizzle-kit generate` + psql (28 tables, do strict TUI prompt block tx mode). Seed admin `admin/ChangeMe!234`. Fix runtime: `lib/env.ts` regex bug DATABASE_URL workaround bằng hard-code .env, middleware Edge runtime cần `JWT_SECRET` inline (không qua _FILE), CSP gọn hơn trong Caddyfile. Setup domain `mes.songchau.vn` + Caddy auto Let's Encrypt cert (HTTP/2 + HTTP/3). Push code GitHub Andy-cods/he-thong-iot. Worker container tạm disable (pnpm symlinks). |
+| 2026-04-17 | Claude (brainstorm UI/UX) | Spawn brainstorm agent đánh giá UI/UX hiện tại + 10 issue brutal honesty + 3 direction. User chốt **Direction B Refresh trung bình** (10-14 ngày): giữ palette Industrial Slate, thêm Dashboard + AppShell + CommandPalette + Receiving + PWA min, fix 3 P0 bug full-stack (env.ts regex, migration 0002, worker Dockerfile). Output `plans/redesign/260417-brainstorm.md`. Tiếp theo: plan + cook agents trong session mới (cwd = C:\dev\he-thong-iot). |
