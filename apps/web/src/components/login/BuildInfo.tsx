@@ -1,10 +1,8 @@
 /**
- * Direction B — BuildInfo footer.
+ * V2 BuildInfo footer (design-spec §2.1).
  *
- * Đọc env `NEXT_PUBLIC_BUILD_SHA` + `NEXT_PUBLIC_BUILD_DATE` (set lúc build
- * trong CI/Docker). Nếu thiếu → fallback "dev".
- *
- * Server component OK vì chỉ đọc env, không dùng hook.
+ * Format: `v{VERSION} · {SHA7} · {DATE}` font-mono 11px text-zinc-400.
+ * Server component — đọc `NEXT_PUBLIC_BUILD_*` env (set lúc build CI/Docker).
  */
 export function BuildInfo({ className }: { className?: string }) {
   const sha = process.env.NEXT_PUBLIC_BUILD_SHA || "dev";
@@ -18,12 +16,12 @@ export function BuildInfo({ className }: { className?: string }) {
     <p
       className={
         className ??
-        "text-center font-mono text-xs text-slate-500"
+        "text-center font-mono text-xs text-zinc-400"
       }
     >
-      Build <span className="text-slate-700">{short}</span>
-      {" · "}
       {version}
+      {" · "}
+      <span className="text-zinc-500">{short}</span>
       {when ? (
         <>
           {" · "}
@@ -35,7 +33,6 @@ export function BuildInfo({ className }: { className?: string }) {
 }
 
 function formatBuildDate(raw: string): string {
-  // raw có thể là ISO (2026-04-17T...) hoặc chuỗi tự do.
   const d = new Date(raw);
   if (Number.isNaN(d.getTime())) return raw;
   const pad = (n: number) => String(n).padStart(2, "0");
