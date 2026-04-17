@@ -32,7 +32,16 @@ RUN pnpm --filter @iot/db build 2>/dev/null || true
 RUN pnpm --filter @iot/worker build
 RUN pnpm --filter @iot/web build
 
-# ---------- Stage 3: runtime ----------
+# ---------- Stage 2b: worker-deploy ----------
+# pnpm deploy flatten toàn bộ workspace deps của @iot/worker vào /worker-out:
+# resolve @iot/shared + @iot/db từ symlink thành copy thực tế, gom node_modules
+# phẳng. Giữ tsx (đã được move sang dependencies) để runtime chạy TS trực tiếp.
+FROM builder AS worker-deploy
+WORKDIR /repo
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm deploy --filter=@iot/worker /worker-out
+
+# ---------- Stage 3: runtime (web) ----------
 FROM node:20-bookworm-slim AS runtime
 ENV NODE_ENV=production \
     PNPM_HOME=/pnpm \
@@ -45,21 +54,31 @@ RUN corepack enable && corepack prepare pnpm@9.12.0 --activate \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
-# Next.js standalone output
+# Next.js standalone output (web)
 COPY --from=builder /repo/apps/web/.next/standalone ./
 COPY --from=builder /repo/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder /repo/apps/web/public ./apps/web/public
 
-# Worker source (runs via tsx at runtime) + shared packages + node_modules
-COPY --from=builder /repo/apps/worker/src ./apps/worker/src
-COPY --from=builder /repo/apps/worker/tsconfig.json ./apps/worker/tsconfig.json
-COPY --from=builder /repo/apps/worker/package.json ./apps/worker/package.json
+# Worker — deploy flattened (symlink-free, node_modules phẳng)
+COPY --from=worker-deploy /worker-out ./apps/worker-deploy
+
+# Meta cho pnpm seed/migrate từ packages/db
 COPY --from=builder /repo/packages ./packages
 COPY --from=builder /repo/node_modules ./node_modules
-
-# Meta files để pnpm --filter ... push / seed chạy được tại runtime
 COPY --from=builder /repo/pnpm-workspace.yaml /repo/package.json ./
 
 EXPOSE 3001
 ENTRYPOINT ["/usr/bin/tini","--"]
 CMD ["node","apps/web/server.js"]
+
+# ---------- Stage 4: worker-runtime (optional target) ----------
+# Build riêng image worker nhỏ gọn: docker build --target worker-runtime ...
+FROM node:20-bookworm-slim AS worker-runtime
+ENV NODE_ENV=production
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends tini ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY --from=worker-deploy /worker-out ./
+ENTRYPOINT ["/usr/bin/tini","--"]
+CMD ["./node_modules/.bin/tsx","src/index.ts"]

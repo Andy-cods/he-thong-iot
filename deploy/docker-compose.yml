@@ -114,8 +114,18 @@ services:
     image: ${IOT_IMAGE:-registry.local/hethong-iot:latest}
     container_name: iot_worker
     restart: unless-stopped
-    working_dir: /app
-    command: ["./node_modules/.bin/tsx", "apps/worker/src/index.ts"]
+    # Chạy từ thư mục pnpm-deploy flatten (có node_modules phẳng, không symlink)
+    working_dir: /app/apps/worker-deploy
+    command: ["./node_modules/.bin/tsx", "src/index.ts"]
+    healthcheck:
+      # Worker healthy khi process Node còn sống + reply một signal cơ bản.
+      # Dùng `node -e "process.exit(0)"` để chứng minh runtime alive (tránh
+      # phụ thuộc các binary khác). Redis/Postgres healthcheck đã cover deps.
+      test: ["CMD", "node", "-e", "process.exit(0)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     environment:
       NODE_ENV: production
       DATABASE_URL: postgres://hethong_app@iot_postgres:5432/hethong_iot
