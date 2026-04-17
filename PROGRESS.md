@@ -138,7 +138,13 @@
 - [x] 2026-04-17 · **T4 6 layout components refactor:**
   - Commit E (064ac0d) — Sidebar (220px FIXED bỏ collapsible V1, nav item h-7 font 13 active blue-50/border-l-blue-500), TopBar (desktop h-14→h-11 44px, CmdK button h-8 bg zinc-50, buttons h-8 icons 16px, badge tabular-nums), UserMenu (trigger h-8 avatar 24px, items h-8 text-base, logout danger)
   - Commit F (d1fb0f3) — CommandPalette (560px rounded-lg shadow-lg input h-11, item h-8 aria-selected blue-50 + footer hints), AppShell (grid 220/44 CSS vars, padding 24/20 md+, mobile drawer 280px)
-- [ ] T5-T10 screens redesign (tiếp theo — cook agent sau)
+- [x] 2026-04-17 · **T5 6 Domain components refactor:**
+  - Commit G (c752469) — StatusBadge V2 (size sm h-5 / md h-6, variants neutral/info/success/warning/danger/shortage safety-orange, 3-channel icon+label+color, border 1px), KpiCard V2 (**FIX RSC→Client bug**: icon prop = React.ReactNode JSX element, BỎ border-l-4 stripe V1, h-20 compact, value 22px font-medium tabular-nums, label 12px uppercase zinc-500, status dot 6px bên trái label)
+  - Commit H (2b8ca2c) — OrdersReadinessTable V2 (row h-9 36px no zebra, padding-x 12, text 13px, progress bar h-1.5 zinc-200 fill emerald/amber/red 80/40 threshold, shortage row bg-orange-50/60), AlertsList V2 (item padding 12, icon leading 14px shortage safety-orange override, title 13px + desc 12px zinc-500, divide-y zinc-100 hover bg-zinc-50), SystemHealthCard V2 (header "HỆ THỐNG" uppercase 11px + timestamp mono, status row h-8 dot 8px + label 13px + value mono 12px divide-y), EmptyState thêm preset `no-alerts` (BellOff icon)
+- [x] 2026-04-17 · **T6 /login + / Dashboard V2 refactor:**
+  - Commit I (e1dced1) — /login V2 (hero bg slate-900 → zinc-900 + SVG Linear-minimal 1 spindle + 2 gears stroke 1px zinc-400 40% width, form card max-w-[400px] padding 24 border zinc-200 rounded-lg shadow-none, title "Đăng nhập" text-xl 20px semibold, label text-xs uppercase tracking-wide zinc-700, input h-9, button primary blue-500 h-9 full-width, error alert border red-200 bg red-50 + AlertCircle icon 14px, BuildInfo format `v{VER} · {SHA7} · {DATE}` mono 11px zinc-400, giữ Suspense boundary)
+  - Commit J (d65574c) — / Dashboard V2 (greeting h1 text-xl 20px semibold + subtitle text-xs zinc-500 "mock V1", KPI row gap-3 với icon JSX element `<Icon className="h-3.5 w-3.5" />` cross RSC→Client boundary safe, content grid lg:3 col OrdersReadinessTable col-span-2 + AlertsList/SystemHealthCard stack, section header uppercase tracking-wide text-xs zinc-500 "Xem tất cả (V1.1) →" CTA blue-600, quick links h-12 card icon 14px + title 13px + desc 11px, mock disclaimer footer zinc-400)
+- [ ] T7-T10 screens redesign (items/suppliers/import/pwa — cook agent sau)
 - [ ] T11 final build verify + preview smoke
 
 ---
