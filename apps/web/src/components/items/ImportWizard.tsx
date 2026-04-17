@@ -3,7 +3,14 @@
 import { useCallback, useMemo, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
-import { UploadCloud, FileSpreadsheet, AlertTriangle, CheckCircle2, Download } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  CheckCircle2,
+  Download,
+  FileSpreadsheet,
+  UploadCloud,
+} from "lucide-react";
 import {
   IMPORT_DUPLICATE_MODES,
   LIMITS,
@@ -25,8 +32,14 @@ import {
   downloadErrorsUrl,
   downloadTemplateUrl,
 } from "@/hooks/useImports";
+import {
+  ITEM_TARGET_FIELDS,
+  saveMappingPreset,
+} from "@/lib/import-mapping";
+import { ColumnMapperStep } from "./ColumnMapperStep";
+import { cn } from "@/lib/utils";
 
-type Step = "upload" | "preview" | "result";
+type Step = "upload" | "map" | "preview" | "result";
 
 const DUP_LABEL: Record<ImportDuplicateMode, string> = {
   skip: "Bỏ qua dòng trùng SKU",
@@ -34,11 +47,65 @@ const DUP_LABEL: Record<ImportDuplicateMode, string> = {
   error: "Báo lỗi nếu trùng SKU",
 };
 
-export function ImportWizard() {
+const STEP_ORDER: Step[] = ["upload", "map", "preview", "result"];
+
+/**
+ * Đọc 1 dòng đầu (header) + 3 dòng data đầu từ file Excel ngay trên trình duyệt.
+ * Dùng ExcelJS (đã có trong deps, bundle browser OK).
+ * Fallback an toàn nếu parse lỗi: return { headers: [], samples: [] } và để server validate.
+ */
+async function parseExcelPreview(file: File): Promise<{
+  headers: string[];
+  samples: string[][];
+}> {
+  try {
+    // Lazy import để không tăng bundle các route khác.
+    const ExcelJS = (await import("exceljs")).default;
+    const ab = await file.arrayBuffer();
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(ab);
+    const ws = wb.worksheets[0];
+    if (!ws) return { headers: [], samples: [] };
+    const headerRow = ws.getRow(1).values as unknown[];
+    // ExcelJS values[0] là undefined (1-indexed). Slice(1).
+    const headers = (headerRow.slice(1) as unknown[]).map((v) =>
+      v == null ? "" : String(v).trim(),
+    );
+    const samples: string[][] = [];
+    for (let r = 2; r <= Math.min(4, ws.rowCount); r++) {
+      const row = ws.getRow(r).values as unknown[];
+      samples.push(
+        (row.slice(1) as unknown[]).map((v) =>
+          v == null ? "" : String(v).trim(),
+        ),
+      );
+    }
+    return { headers, samples };
+  } catch {
+    return { headers: [], samples: [] };
+  }
+}
+
+export interface ImportWizardProps {
+  /**
+   * Username hoặc userId ổn định — dùng key preset localStorage.
+   * Nếu không truyền → dùng "anon" (vẫn persist nhưng không tách theo user).
+   */
+  userId?: string;
+}
+
+export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
   const [step, setStep] = useState<Step>("upload");
   const [file, setFile] = useState<File | null>(null);
-  const [duplicateMode, setDuplicateMode] = useState<ImportDuplicateMode>("skip");
+  const [duplicateMode, setDuplicateMode] =
+    useState<ImportDuplicateMode>("skip");
   const [batchId, setBatchId] = useState<string | null>(null);
+
+  // Client-side parsed header + sample từ step 1.
+  const [sourceHeaders, setSourceHeaders] = useState<string[]>([]);
+  const [sampleRows, setSampleRows] = useState<string[][]>([]);
+  const [mapping, setMapping] = useState<Record<string, string | null>>({});
+  const [saveAsDefault, setSaveAsDefault] = useState(false);
 
   const upload = useUploadItemImport();
   const commit = useCommitImport();
@@ -68,9 +135,49 @@ export function ImportWizard() {
     },
   });
 
-  const handleUpload = async () => {
+  const handleGoToMap = async () => {
     if (!file) return;
     try {
+      const { headers, samples } = await parseExcelPreview(file);
+      if (headers.length === 0) {
+        toast.error(
+          "Không đọc được header từ file. Kiểm tra lại định dạng .xlsx.",
+        );
+        return;
+      }
+      setSourceHeaders(headers);
+      setSampleRows(samples);
+      setStep("map");
+    } catch (err) {
+      toast.error(`Đọc file thất bại: ${(err as Error).message}`);
+    }
+  };
+
+  const handleGoToPreview = async () => {
+    if (!file) return;
+    // Validate required fields mapped
+    const mappedTargets = new Set(
+      Object.values(mapping).filter((v): v is string => !!v),
+    );
+    const missing = ITEM_TARGET_FIELDS.filter(
+      (t) => t.required && !mappedTargets.has(t.key),
+    );
+    if (missing.length > 0) {
+      toast.error(
+        `Còn ${missing.length} trường bắt buộc chưa được map: ${missing
+          .map((t) => t.label)
+          .join(", ")}.`,
+      );
+      return;
+    }
+    try {
+      // Persist preset nếu user chọn checkbox.
+      if (saveAsDefault) {
+        saveMappingPreset(userId, mapping);
+      }
+      // TODO V1.1: gửi mapping JSON kèm multipart để server accept header
+      // tuỳ biến. V1 backend chỉ accept template chuẩn — ColumnMapper chủ yếu
+      // để user verify + warn trước upload.
       const res = await upload.mutateAsync({ file, duplicateMode });
       setBatchId(res.batchId);
       setStep("preview");
@@ -103,15 +210,33 @@ export function ImportWizard() {
     return Math.round(((d.rowSuccess + d.rowFail) / d.rowTotal) * 100);
   }, [batchQuery.data]);
 
+  const previewRows = uploadData?.previewRows as
+    | Array<{
+        sku?: string;
+        name?: string;
+        itemType?: string;
+        uom?: string;
+        category?: string | null;
+        __invalid?: boolean;
+        __reason?: string;
+      }>
+    | undefined;
+
+  const goBack = () => {
+    const idx = STEP_ORDER.indexOf(step);
+    if (idx > 0) setStep(STEP_ORDER[idx - 1]!);
+  };
+
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-6">
+    <div className="mx-auto max-w-4xl space-y-6 p-6">
       <header className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">
             Nhập Excel — Item Master
           </h1>
           <p className="text-sm text-slate-600">
-            Tải lên file .xlsx theo template. Hệ thống kiểm tra cú pháp → preview → commit nền qua BullMQ.
+            Upload → Khớp cột → Preview → Commit. Tối đa{" "}
+            {LIMITS.FILE_UPLOAD_MAX_BYTES / 1024 / 1024}MB / file.
           </p>
         </div>
         <a
@@ -128,14 +253,15 @@ export function ImportWizard() {
         <section className="space-y-4">
           <div
             {...getRootProps()}
-            className={`flex min-h-[200px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition ${
+            className={cn(
+              "flex min-h-[200px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition",
               isDragActive
                 ? "border-cta bg-cta-soft"
-                : "border-slate-300 bg-white hover:border-slate-400"
-            }`}
+                : "border-slate-300 bg-white hover:border-slate-400",
+            )}
           >
             <input {...getInputProps()} />
-            <UploadCloud className="mb-3 h-10 w-10 text-slate-400" />
+            <UploadCloud className="mb-3 h-10 w-10 text-slate-400" aria-hidden />
             {file ? (
               <div className="text-center">
                 <FileSpreadsheet className="mx-auto mb-2 h-6 w-6 text-success" />
@@ -173,11 +299,40 @@ export function ImportWizard() {
 
           <div className="flex justify-end">
             <Button
-              onClick={handleUpload}
-              disabled={!file || upload.isPending}
+              onClick={handleGoToMap}
+              disabled={!file}
+              className="min-h-[48px]"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && file) void handleGoToMap();
+              }}
+            >
+              Tiếp theo — Khớp cột
+            </Button>
+          </div>
+        </section>
+      )}
+
+      {step === "map" && (
+        <section className="space-y-4">
+          <ColumnMapperStep
+            sourceHeaders={sourceHeaders}
+            sampleRows={sampleRows}
+            targetFields={ITEM_TARGET_FIELDS}
+            userId={userId}
+            onChange={setMapping}
+            saveAsDefault={saveAsDefault}
+            onSaveAsDefaultChange={setSaveAsDefault}
+          />
+          <div className="flex justify-between">
+            <Button variant="outline" onClick={goBack}>
+              <ArrowLeft className="h-4 w-4" /> Quay lại
+            </Button>
+            <Button
+              onClick={handleGoToPreview}
+              disabled={upload.isPending}
               className="min-h-[48px]"
             >
-              {upload.isPending ? "Đang đọc file…" : "Đọc & preview"}
+              {upload.isPending ? "Đang đọc file…" : "Tiếp theo — Preview"}
             </Button>
           </div>
         </section>
@@ -209,19 +364,25 @@ export function ImportWizard() {
             </a>
           )}
 
-          {uploadData.previewRows && uploadData.previewRows.length > 0 && (
+          {previewRows && previewRows.length > 0 && (
             <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-              <div className="border-b border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700">
-                Preview 20 dòng đầu
+              <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700">
+                <span>Preview {previewRows.length} dòng đầu</span>
+                <span className="text-xs text-slate-500">
+                  Dòng lỗi được tô đỏ
+                </span>
               </div>
-              <div className="max-h-80 overflow-auto">
+              <div className="max-h-96 overflow-auto">
                 <table className="min-w-full divide-y divide-slate-200 text-sm">
-                  <thead className="bg-slate-50">
+                  <thead className="sticky top-0 z-sticky bg-slate-50">
                     <tr>
+                      <th className="w-14 px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-slate-600">
+                        #
+                      </th>
                       {["SKU", "Tên", "Loại", "UoM", "Category"].map((h) => (
                         <th
                           key={h}
-                          className="px-3 py-2 text-left font-medium text-slate-600"
+                          className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-slate-600"
                         >
                           {h}
                         </th>
@@ -229,21 +390,39 @@ export function ImportWizard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {uploadData.previewRows.map((r: any, i) => (
-                      <tr key={i}>
-                        <td className="px-3 py-2 font-mono text-slate-900">
-                          {r.sku}
-                        </td>
-                        <td className="px-3 py-2 text-slate-800">{r.name}</td>
-                        <td className="px-3 py-2 text-slate-600">
-                          {r.itemType}
-                        </td>
-                        <td className="px-3 py-2 text-slate-600">{r.uom}</td>
-                        <td className="px-3 py-2 text-slate-500">
-                          {r.category ?? "—"}
-                        </td>
-                      </tr>
-                    ))}
+                    {previewRows.map((r, i) => {
+                      const invalid = Boolean(r.__invalid);
+                      return (
+                        <tr
+                          key={i}
+                          className={cn(invalid && "bg-danger-soft")}
+                        >
+                          <td className="px-3 py-2 text-xs text-slate-500 tabular-nums">
+                            {i + 1}
+                          </td>
+                          <td
+                            className={cn(
+                              "px-3 py-2 font-mono text-slate-900",
+                              invalid && !r.sku && "bg-danger/30",
+                            )}
+                          >
+                            {r.sku ?? "—"}
+                          </td>
+                          <td className="px-3 py-2 text-slate-800">
+                            {r.name ?? "—"}
+                          </td>
+                          <td className="px-3 py-2 text-slate-600">
+                            {r.itemType ?? "—"}
+                          </td>
+                          <td className="px-3 py-2 text-slate-600">
+                            {r.uom ?? "—"}
+                          </td>
+                          <td className="px-3 py-2 text-slate-500">
+                            {r.category ?? "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -254,12 +433,10 @@ export function ImportWizard() {
             <Button
               variant="outline"
               onClick={() => {
-                setStep("upload");
-                setBatchId(null);
-                upload.reset();
+                setStep("map");
               }}
             >
-              Quay lại
+              <ArrowLeft className="h-4 w-4" /> Quay lại
             </Button>
             <Button
               onClick={handleCommit}
@@ -291,6 +468,9 @@ export function ImportWizard() {
                 setStep("upload");
                 setFile(null);
                 setBatchId(null);
+                setSourceHeaders([]);
+                setSampleRows([]);
+                setMapping({});
                 upload.reset();
               }}
             >
@@ -313,36 +493,53 @@ export function ImportWizard() {
 
 function StepIndicator({ step }: { step: Step }) {
   const steps: { key: Step; label: string }[] = [
-    { key: "upload", label: "1. Upload" },
-    { key: "preview", label: "2. Preview" },
-    { key: "result", label: "3. Kết quả" },
+    { key: "upload", label: "Upload" },
+    { key: "map", label: "Khớp cột" },
+    { key: "preview", label: "Preview" },
+    { key: "result", label: "Kết quả" },
   ];
   const activeIdx = steps.findIndex((s) => s.key === step);
   return (
-    <ol className="flex items-center gap-2 text-sm">
-      {steps.map((s, i) => (
-        <li key={s.key} className="flex items-center gap-2">
-          <span
-            className={`flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold ${
-              i <= activeIdx
-                ? "border-cta bg-cta text-white"
-                : "border-slate-300 bg-white text-slate-500"
-            }`}
-          >
-            {i + 1}
-          </span>
-          <span
-            className={
-              i <= activeIdx ? "font-medium text-slate-900" : "text-slate-500"
-            }
-          >
-            {s.label.replace(/^\d+\.\s*/, "")}
-          </span>
-          {i < steps.length - 1 && (
-            <span className="mx-1 h-px w-8 bg-slate-300" />
-          )}
-        </li>
-      ))}
+    <ol className="flex items-center gap-2 text-sm" aria-label="Tiến trình">
+      {steps.map((s, i) => {
+        const state: "done" | "current" | "pending" =
+          i < activeIdx ? "done" : i === activeIdx ? "current" : "pending";
+        return (
+          <li key={s.key} className="flex items-center gap-2">
+            <span
+              className={cn(
+                "flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold",
+                state === "current" && "border-cta bg-cta text-white",
+                state === "done" &&
+                  "border-success bg-success text-white",
+                state === "pending" &&
+                  "border-slate-300 bg-white text-slate-500",
+              )}
+              aria-current={state === "current" ? "step" : undefined}
+            >
+              {state === "done" ? (
+                <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+              ) : (
+                i + 1
+              )}
+            </span>
+            <span
+              className={cn(
+                state === "current"
+                  ? "font-medium text-slate-900"
+                  : state === "done"
+                    ? "text-slate-700"
+                    : "text-slate-500",
+              )}
+            >
+              {s.label}
+            </span>
+            {i < steps.length - 1 && (
+              <span className="mx-1 h-px w-8 bg-slate-300" />
+            )}
+          </li>
+        );
+      })}
     </ol>
   );
 }
@@ -367,7 +564,7 @@ function StatCard({
       <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
         {label}
       </div>
-      <div className={`mt-1 text-2xl font-semibold tabular-nums ${toneClass}`}>
+      <div className={cn("mt-1 text-2xl font-semibold tabular-nums", toneClass)}>
         {value.toLocaleString("vi-VN")}
       </div>
     </div>
