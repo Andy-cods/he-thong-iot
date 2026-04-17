@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { ItemCreate } from "@iot/shared";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { ItemForm } from "@/components/items/ItemForm";
 import { useCreateItem } from "@/hooks/useItems";
 
@@ -10,14 +11,21 @@ export default function NewItemPage() {
   const router = useRouter();
   const create = useCreateItem();
 
+  const breadcrumbItems = [
+    { label: "Trang chủ", href: "/" },
+    { label: "Vật tư", href: "/items" },
+    { label: "Tạo mới" },
+  ];
+
   return (
-    <div className="mx-auto w-full max-w-2xl p-4">
+    <div className="mx-auto w-full max-w-3xl p-4">
+      <Breadcrumb items={breadcrumbItems} className="mb-3" />
       <header className="mb-4">
         <h1 className="font-heading text-xl font-semibold text-slate-900">
           Thêm vật tư mới
         </h1>
-        <p className="text-sm text-slate-600">
-          Nhập thông tin cơ bản; Barcode + NCC thêm sau khi tạo.
+        <p className="mt-1 text-sm text-slate-600">
+          Nhập thông tin cơ bản. Barcode và NCC có thể thêm sau khi tạo.
         </p>
       </header>
 
@@ -29,8 +37,8 @@ export default function NewItemPage() {
           try {
             const res = await create.mutateAsync(data);
             toast.success(`Đã tạo vật tư ${data.sku}.`);
-            const id = (res as { data?: { id?: string } }).data?.id;
-            router.push(id ? `/items/${id}` : "/items");
+            const newId = res.data?.id;
+            router.push(newId ? `/items/${newId}` : "/items");
           } catch (err) {
             toast.error((err as Error).message);
           }
