@@ -159,6 +159,26 @@
 - [x] 2026-04-17 · **Deploy V2 lên VPS hiện tại (123.30.48.215)** — backup pg_dump, tag v1-backup, prune build cache 9.5GB, SCP source V2 (1.2MB tar), rebuild image `hethong-iot:v2` (5fda721bcd3f, 1.65GB, **build 44 phút** trên HDD 2 vCPU), tag :v2 → :local, compose up --force-recreate app+worker, 12/12 smoke test PASS (health/login/me/dashboard 200 + render "Xin chào"/"SKU hoạt động"/"PO chờ nhận"/"Cảnh báo tồn kho" V2 content, items "Danh mục vật tư", suppliers "Nhà cung cấp", import/pwa/receive/login 200, worker ready, app no errors, HTTPS 307→/login expected + HTTP/3 Alt-Svc + CSP)
 - [x] **🚀 V2 LIVE:** https://mes.songchau.vn — Dashboard hoạt động (fix RSC boundary bug V1), UI Linear-inspired zinc+blue font compact, image backup v1-backup (1da06320df69) sẵn sàng rollback nếu cần
 
+### Giai đoạn 6 — V1.1-alpha (2026-04-18) · BOM + Admin + Receiving
+
+- [x] 2026-04-18 · **Phase A — DB + API backend** (branch `feat/v1.1-alpha-bom-admin-receiving`)
+  - [x] A1 · Rewrite Drizzle schema `packages/db/src/schema/bom.ts`: bom_template (status enum, parentItemId, targetQty, metadata) + bom_line self-ref tree (parentLineId, level CHECK 1..5) + receiving_event (scan_id unique idempotent). Xoá bomRevision, sync FK order.ts + audit.ts. Typecheck PASS. *(commit a58d7bb)*
+  - [x] A2 · Migration 0003 split 4 file:
+    - `0003a_bom_enums.sql` (superuser) — CREATE TYPE app.bom_status + GRANT USAGE
+    - `0003b_bom_tables.sql` — bom_template + bom_line self-ref + receiving_event với CHECK + UNIQUE scan_id
+    - `0003c_bom_indexes.sql` — GIN trgm dùng `public.f_unaccent` (reuse 0002c) + trigger `fn_touch_updated_at`
+    - `0003d_seed_demo.sql` — 4 role upsert + BOM `CNC-ABC-DEMO` 3 lines (idempotent)
+    - `apply-sql-migrations.sh` pick_user recognize 0002c + 0003a as superuser
+    - README.md document flow 0003 *(commit a5b74d2)*
+  - [x] A3 · Repos TypeScript: `bomTemplates.ts` (list trgm, CRUD, loadTree CTE depth 5, cloneTemplate UUID map, softDelete→OBSOLETE), `bomLines.ts` (addLine cycle+level check, deleteLine cascade opt-in 409 HAS_CHILDREN, moveLine shift subtree level, countDescendants), `receivingEvents.ts` (insertEvent ON CONFLICT scan_id), `userAccounts.ts` (list+role filter, CRUD txn, changePassword argon2, resetPassword), `auditEvents.ts` (listAudit filter) *(commit 3868655)*
+  - [x] A4 · Zod schemas shared: `schemas/bom.ts` (BOM_MAX_LEVEL=5, create/update/line CRUD/move/import commit), `schemas/receiving.ts` (batch ≤ 50 uuidv7 scan_id), `schemas/user.ts` (strong password + match confirm + diff old), index.ts + QUEUE_NAMES.BOM_IMPORT_COMMIT *(commit 89bf1d8)*
+  - [x] A5 Commit E1 · 12 BOM endpoints: GET/POST /api/bom/templates, GET/PATCH/DELETE /[id], /check-code, /[id]/tree, /[id]/clone, /[id]/lines (POST), /[id]/lines/[lid] (PATCH/DELETE ?cascade=), /[id]/lines/[lid]/move. Role: any logged-in create, DELETE admin|planner, transition ACTIVE→OBSOLETE admin only *(commit b7d4c03)*
+  - [x] A5 Commit E2 · 4 BOM import endpoints + worker: /upload (parse multi-sheet auto-detect header row 1/2 + auto-mapping synonym dict), /[id]/status, /[id]/commit (enqueue BullMQ), /[id]/errors.xlsx; worker `apps/worker/src/jobs/bomImport.ts` chunk 100/TX, tạo template per sheet, lookup item SKU, auto-create nếu autoCreateMissingItems *(commit ca854f0)*
+  - [x] A5 Commit E3 · 7 Admin+Receiving+PO endpoints: /api/admin/users GET+POST + /[id] GET+PATCH (block self-deactivate), /api/auth/change-password, /api/admin/audit filter, /api/receiving/events batch 50 idempotent, /api/po/[id] stub 3 scenario demo/-small/-large else 404 *(commit 79380d6)*
+  - Typecheck baseline 16 errors preserved (không regress). Tests baseline flaky ExcelJS stream (unrelated, reproducible trước commit).
+- [ ] Phase B — UI screens (Day 3+): BOM list/new/detail tree editor dnd-kit + import wizard 5-step, Admin 5 screens, PWA Receiving backend wire-in
+- [ ] Phase C — Deploy VPS + smoke + tag `v1.1.0-alpha`
+
 ---
 
 ## 🧱 Ràng buộc kỹ thuật (từ discussion)
