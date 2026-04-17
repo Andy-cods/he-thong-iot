@@ -1,120 +1,103 @@
 "use client";
 
 import * as React from "react";
-import { Activity, Server, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useHealth } from "@/hooks/useHealth";
 
 /**
- * Direction B — SystemHealthCard (design-spec §2.2 SystemHealthStrip).
+ * V2 SystemHealthCard — Linear-inspired compact (design-spec §3.3.4).
  *
- * Client component — fetch `/api/health` qua React Query, auto refresh 30s.
- * Hiển thị: status indicator (● xanh/cam/đỏ) + uptime + thời gian phản hồi.
+ * Delta V1: padding 16px giữ, dot 10→8, text 14→13.
+ * Header "Hệ thống" uppercase tracking-wide 11px text-zinc-500.
+ * Status row h-8 với dot 8px + label 13px + value mono 12px.
  *
- * V1: `/api/health` đơn giản chỉ trả `{ ok, ts }`. Latency tính client-side
- * bằng Date.now() diff. DB latency + queue count cần `/api/ready` — sẽ bổ
- * sung khi API sẵn sàng (TODO V1.1).
+ * Client component — `/api/health` qua React Query auto refresh 30s.
+ * TODO V1.1: bổ sung DB/Redis/Worker real khi `/api/ready` ready.
  */
 
 export interface SystemHealthCardProps {
   className?: string;
 }
 
+type HealthStatus = "ok" | "warn" | "down";
+
+const dotColor: Record<HealthStatus, string> = {
+  ok: "bg-emerald-500",
+  warn: "bg-amber-500",
+  down: "bg-red-500",
+};
+
+const dotLabel: Record<HealthStatus, string> = {
+  ok: "Hoạt động bình thường",
+  warn: "Đang kiểm tra",
+  down: "Không phản hồi",
+};
+
 export function SystemHealthCard({ className }: SystemHealthCardProps) {
   const { data, isLoading, isError, latencyMs, dataUpdatedAt } = useHealth();
 
-  const status: "ok" | "warn" | "down" = isError
+  const status: HealthStatus = isError
     ? "down"
     : !data || isLoading
       ? "warn"
       : "ok";
 
-  const statusColor = {
-    ok: "bg-success",
-    warn: "bg-warning",
-    down: "bg-danger",
-  }[status];
-
-  const statusLabel = {
-    ok: "Hoạt động bình thường",
-    warn: "Đang kiểm tra",
-    down: "Không phản hồi",
-  }[status];
-
   return (
     <div
       className={cn(
-        "rounded-md border border-slate-200 bg-white p-4",
+        "rounded-md border border-zinc-200 bg-white",
         className,
       )}
       aria-live="polite"
     >
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-900">Trạng thái hệ thống</h3>
-        <span className="text-xs text-slate-500">
-          {dataUpdatedAt ? `Cập nhật ${formatTime(dataUpdatedAt)}` : "—"}
+      <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
+        <h3 className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+          Hệ thống
+        </h3>
+        <span className="font-mono text-xs tabular-nums text-zinc-400">
+          {dataUpdatedAt ? formatTime(dataUpdatedAt) : "—"}
         </span>
       </div>
 
-      <ul className="space-y-2 text-sm">
+      <ul className="divide-y divide-zinc-100">
         <HealthRow
-          icon={Server}
           label="API server"
           status={status}
-          detail={latencyMs ? `${latencyMs} ms` : "—"}
-          statusColor={statusColor}
-          statusLabel={statusLabel}
+          value={latencyMs ? `${latencyMs} ms` : "—"}
         />
         <HealthRow
-          icon={Activity}
           label="Tín hiệu"
           status={status}
-          detail={data?.ok ? "OK" : "N/A"}
-          statusColor={statusColor}
-          statusLabel={statusLabel}
+          value={data?.ok ? "OK" : "N/A"}
         />
         <HealthRow
-          icon={ShieldCheck}
           label="Xác thực"
           status="ok"
-          detail="JWT · cookie httpOnly"
-          statusColor="bg-success"
-          statusLabel="Hoạt động bình thường"
+          value="JWT · cookie"
         />
       </ul>
-
-      <p className="mt-3 text-xs text-slate-500">
-        {/* TODO V1.1: thay bằng /api/ready để có DB/Redis/Worker real. */}
-        Dữ liệu từ <code className="font-mono">/api/health</code> · refresh 30s.
-      </p>
     </div>
   );
 }
 
 function HealthRow({
-  icon: Icon,
   label,
-  detail,
-  statusColor,
-  statusLabel,
+  status,
+  value,
 }: {
-  icon: React.ElementType;
   label: string;
-  status: "ok" | "warn" | "down";
-  detail: string;
-  statusColor: string;
-  statusLabel: string;
+  status: HealthStatus;
+  value: string;
 }) {
   return (
-    <li className="flex items-center gap-2">
+    <li className="flex h-8 items-center gap-2 px-4">
       <span
-        aria-label={statusLabel}
-        className={cn("h-2 w-2 shrink-0 rounded-full", statusColor)}
+        aria-label={dotLabel[status]}
+        className={cn("h-2 w-2 shrink-0 rounded-full", dotColor[status])}
       />
-      <Icon className="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
-      <span className="flex-1 text-slate-700">{label}</span>
-      <span className="font-mono text-xs tabular-nums text-slate-500">
-        {detail}
+      <span className="flex-1 text-base text-zinc-900">{label}</span>
+      <span className="font-mono text-sm tabular-nums text-zinc-500">
+        {value}
       </span>
     </li>
   );

@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   AlertTriangle,
+  BellOff,
   CheckCircle,
   Inbox,
   Package,
@@ -24,6 +25,7 @@ import { cn } from "@/lib/utils";
  * - no-filter-match: SearchX
  * - error: AlertTriangle
  * - empty-success: CheckCircle
+ * - no-alerts: BellOff
  * - offline: WifiOff
  * - scan-ready: ScanLine
  */
@@ -33,6 +35,7 @@ export type EmptyStatePreset =
   | "no-filter-match"
   | "error"
   | "empty-success"
+  | "no-alerts"
   | "offline"
   | "scan-ready";
 
@@ -58,6 +61,7 @@ const presetIcon: Record<EmptyStatePreset, LucideIcon> = {
   "no-filter-match": SearchX,
   error: AlertTriangle,
   "empty-success": CheckCircle,
+  "no-alerts": BellOff,
   offline: WifiOff,
   "scan-ready": ScanLine,
 };
@@ -67,6 +71,7 @@ const presetColor: Record<EmptyStatePreset, string> = {
   "no-filter-match": "text-zinc-400",
   error: "text-red-500",
   "empty-success": "text-emerald-500",
+  "no-alerts": "text-zinc-400",
   offline: "text-amber-500",
   "scan-ready": "text-blue-500",
 };

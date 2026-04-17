@@ -2,15 +2,23 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { AlertTriangle, ChevronRight, PackageMinus, Timer } from "lucide-react";
+import {
+  AlertTriangle,
+  Bell,
+  ChevronRight,
+  PackageMinus,
+  Timer,
+  XCircle,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
- * Direction B — AlertsList (design-spec §2.2 AlertsSidebar).
+ * V2 AlertsList — Linear-inspired compact (design-spec §3.3.3).
  *
- * V1: mock alerts (shortage > 20%, PO overdue). Khi Order/PO module ready
- * V1.1 sẽ fetch `/api/dashboard/alerts`.
+ * Delta V1: padding item 16→12, icon 16→14, title 14→13, meta 12→11.
+ * Icon leading theo kind: shortage (orange) · overdue (amber) · stock-min (amber) · info (zinc).
+ * CTA text-xs blue-600 hover underline.
  */
 
 export type AlertSeverity = "warning" | "danger" | "info";
@@ -21,7 +29,7 @@ export interface DashboardAlert {
   title: string;
   description?: string;
   href?: string;
-  kind: "shortage" | "overdue" | "stock-min";
+  kind: "shortage" | "overdue" | "stock-min" | "info";
 }
 
 export interface AlertsListProps {
@@ -30,17 +38,24 @@ export interface AlertsListProps {
   className?: string;
 }
 
-const severityBg: Record<AlertSeverity, string> = {
-  warning: "bg-warning-soft text-warning-strong",
-  danger: "bg-danger-soft text-danger-strong",
-  info: "bg-info-soft text-info-strong",
-};
-
 const kindIcon: Record<DashboardAlert["kind"], React.ElementType> = {
   shortage: PackageMinus,
   overdue: Timer,
   "stock-min": AlertTriangle,
+  info: Bell,
 };
+
+const severityColor: Record<AlertSeverity, string> = {
+  warning: "text-amber-500",
+  danger: "text-red-500",
+  info: "text-blue-500",
+};
+
+// Shortage override: override severity color để luôn là safety-orange.
+function iconColor(alert: DashboardAlert): string {
+  if (alert.kind === "shortage") return "text-orange-500";
+  return severityColor[alert.severity];
+}
 
 export function AlertsList({ alerts, loading, className }: AlertsListProps) {
   if (loading) {
@@ -48,11 +63,11 @@ export function AlertsList({ alerts, loading, className }: AlertsListProps) {
       <div
         aria-busy="true"
         className={cn(
-          "rounded-md border border-slate-200 bg-white p-4",
+          "rounded-md border border-zinc-200 bg-white p-4",
           className,
         )}
       >
-        <Skeleton className="mb-3 h-5 w-32" />
+        <Skeleton className="mb-3 h-4 w-32" />
         {Array.from({ length: 3 }).map((_, i) => (
           <Skeleton key={i} className="mb-2 h-12 w-full" />
         ))}
@@ -63,22 +78,23 @@ export function AlertsList({ alerts, loading, className }: AlertsListProps) {
   return (
     <div
       className={cn(
-        "rounded-md border border-slate-200 bg-white p-4",
+        "rounded-md border border-zinc-200 bg-white",
         className,
       )}
     >
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-900">
+      <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
+        <h3 className="text-xs font-medium uppercase tracking-wide text-zinc-500">
           Cảnh báo ({alerts.length})
         </h3>
       </div>
 
       {alerts.length === 0 ? (
-        <p className="py-4 text-center text-sm text-slate-500">
+        <div className="flex items-center gap-2 px-4 py-4 text-sm text-zinc-500">
+          <XCircle className="h-3.5 w-3.5 text-zinc-400" aria-hidden="true" />
           Không có cảnh báo nào.
-        </p>
+        </div>
       ) : (
-        <ul className="space-y-2">
+        <ul className="divide-y divide-zinc-100">
           {alerts.map((alert) => (
             <AlertItem key={alert.id} alert={alert} />
           ))}
@@ -90,29 +106,28 @@ export function AlertsList({ alerts, loading, className }: AlertsListProps) {
 
 function AlertItem({ alert }: { alert: DashboardAlert }) {
   const Icon = kindIcon[alert.kind];
+  const color = iconColor(alert);
+
   const body = (
     <>
-      <span
-        className={cn(
-          "flex h-8 w-8 shrink-0 items-center justify-center rounded-sm",
-          severityBg[alert.severity],
-        )}
-      >
-        <Icon className="h-4 w-4" aria-hidden="true" />
-      </span>
+      <Icon
+        className={cn("mt-0.5 h-3.5 w-3.5 shrink-0", color)}
+        strokeWidth={2}
+        aria-hidden="true"
+      />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-slate-900">
+        <p className="truncate text-base font-medium text-zinc-900">
           {alert.title}
         </p>
         {alert.description ? (
-          <p className="truncate text-xs text-slate-500">
+          <p className="truncate text-sm text-zinc-500">
             {alert.description}
           </p>
         ) : null}
       </div>
       {alert.href ? (
         <ChevronRight
-          className="h-4 w-4 shrink-0 text-slate-400"
+          className="h-3.5 w-3.5 shrink-0 text-zinc-400"
           aria-hidden="true"
         />
       ) : null}
@@ -124,7 +139,7 @@ function AlertItem({ alert }: { alert: DashboardAlert }) {
       <li>
         <Link
           href={alert.href}
-          className="flex items-center gap-3 rounded-sm border border-transparent p-2 transition-colors hover:border-slate-200 hover:bg-slate-50 focus:outline-none focus-visible:shadow-focus"
+          className="flex items-start gap-2 px-4 py-3 transition-colors duration-100 hover:bg-zinc-50 focus:outline-none focus-visible:bg-zinc-50"
         >
           {body}
         </Link>
@@ -133,7 +148,7 @@ function AlertItem({ alert }: { alert: DashboardAlert }) {
   }
 
   return (
-    <li className="flex items-center gap-3 rounded-sm p-2">{body}</li>
+    <li className="flex items-start gap-2 px-4 py-3">{body}</li>
   );
 }
 
@@ -146,7 +161,7 @@ export function generateMockAlerts(): DashboardAlert[] {
       id: "a1",
       severity: "danger",
       title: "SO-100 đã quá hạn 1 ngày",
-      description: "Khách hàng Cơ khí Việt Tiến · thiếu 3 SKU",
+      description: "Cơ khí Việt Tiến · thiếu 3 SKU",
       kind: "overdue",
     },
     {
@@ -159,7 +174,7 @@ export function generateMockAlerts(): DashboardAlert[] {
     {
       id: "a3",
       severity: "warning",
-      title: "7 SKU chạm mức tồn kho tối thiểu",
+      title: "7 SKU chạm tồn kho tối thiểu",
       description: "Cần đặt mua bổ sung trong tuần này",
       href: "/items?filter=low-stock",
       kind: "stock-min",

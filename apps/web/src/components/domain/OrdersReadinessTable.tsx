@@ -1,19 +1,18 @@
 "use client";
 
 import * as React from "react";
-import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StatusBadge, type BadgeStatus } from "@/components/domain/StatusBadge";
 import { formatDate, formatDaysLeft } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
- * Direction B — OrdersReadinessTable (design-spec §3.14).
+ * V2 OrdersReadinessTable — Linear-inspired compact (design-spec §3.3.2).
  *
- * Compact table dùng trên Dashboard. Dữ liệu V1 là mock; khi Order module
- * ready V1.1 sẽ thay bằng query `/api/dashboard/overview`.
+ * Delta V1: row h-10→h-9 (36px), no zebra, padding-x 3→3 (12px), text-base 13px.
+ * Cột: PO (mono 12) · Khách hàng · Sản phẩm · Deadline · Ready% (progress h-1.5) · Thiếu · Trạng thái sm.
  *
- * Cột: PO · Customer · Ready% (progress bar) · Due (days left) · Status badge.
+ * V1 mock dữ liệu giữ nguyên; V1.1 sẽ thay bằng `/api/dashboard/overview`.
  */
 
 export interface OrderReadinessRow {
@@ -52,13 +51,13 @@ export function OrdersReadinessTable({
       <div
         aria-busy="true"
         className={cn(
-          "rounded-md border border-slate-200 bg-white p-4",
+          "rounded-md border border-zinc-200 bg-white p-4",
           className,
         )}
       >
-        <Skeleton className="mb-3 h-5 w-48" />
+        <Skeleton className="mb-3 h-4 w-48" />
         {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="mb-2 h-10 w-full" />
+          <Skeleton key={i} className="mb-1.5 h-9 w-full" />
         ))}
       </div>
     );
@@ -68,11 +67,11 @@ export function OrdersReadinessTable({
     return (
       <div
         className={cn(
-          "rounded-md border border-slate-200 bg-white p-8 text-center",
+          "rounded-md border border-zinc-200 bg-white p-8 text-center",
           className,
         )}
       >
-        <p className="text-sm text-slate-500">Chưa có đơn hàng nào.</p>
+        <p className="text-sm text-zinc-500">Chưa có đơn hàng nào.</p>
       </div>
     );
   }
@@ -80,23 +79,23 @@ export function OrdersReadinessTable({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-md border border-slate-200 bg-white",
+        "overflow-hidden rounded-md border border-zinc-200 bg-white",
         className,
       )}
     >
-      <table className="w-full text-sm">
+      <table className="w-full text-base">
         <caption className="sr-only">
           Đơn hàng sắp giao, sắp xếp theo deadline.
         </caption>
-        <thead className="border-b border-slate-200 bg-slate-50">
-          <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-            <th scope="col" className="px-3 py-2">PO</th>
-            <th scope="col" className="px-3 py-2">Khách hàng</th>
-            <th scope="col" className="px-3 py-2">Sản phẩm</th>
-            <th scope="col" className="px-3 py-2">Deadline</th>
-            <th scope="col" className="px-3 py-2">Ready</th>
-            <th scope="col" className="px-3 py-2 text-right">Thiếu</th>
-            <th scope="col" className="px-3 py-2">Trạng thái</th>
+        <thead className="border-b border-zinc-200">
+          <tr className="text-left text-sm font-medium uppercase tracking-wide text-zinc-500">
+            <th scope="col" className="h-9 px-3">PO</th>
+            <th scope="col" className="h-9 px-3">Khách hàng</th>
+            <th scope="col" className="h-9 px-3">Sản phẩm</th>
+            <th scope="col" className="h-9 px-3">Deadline</th>
+            <th scope="col" className="h-9 px-3">Ready</th>
+            <th scope="col" className="h-9 px-3 text-right">Thiếu</th>
+            <th scope="col" className="h-9 px-3">Trạng thái</th>
           </tr>
         </thead>
         <tbody>
@@ -122,13 +121,15 @@ function OrdersRow({
 }) {
   const daysLeft = formatDaysLeft(order.deadline);
   const isClickable = Boolean(onClick);
+  const isShortage = order.status === "shortage" || order.status === "critical";
 
   return (
     <tr
       className={cn(
-        "h-10 border-b border-slate-100 last:border-b-0 odd:bg-slate-50/50",
+        "h-9 border-b border-zinc-100 last:border-b-0",
+        isShortage && "bg-orange-50/60",
         isClickable &&
-          "cursor-pointer transition-colors hover:bg-slate-100 focus-within:bg-slate-100",
+          "cursor-pointer transition-colors duration-100 hover:bg-zinc-50 focus-within:bg-zinc-50",
       )}
       onClick={isClickable ? () => onClick?.(order) : undefined}
       tabIndex={isClickable ? 0 : undefined}
@@ -143,31 +144,31 @@ function OrdersRow({
           : undefined
       }
     >
-      <td className="px-3 py-2 font-mono text-xs font-medium text-slate-900">
+      <td className="px-3 font-mono text-sm font-medium text-zinc-900">
         {order.orderCode}
       </td>
-      <td className="px-3 py-2 text-slate-700">{order.customerName}</td>
-      <td className="px-3 py-2 text-slate-600">{order.productName}</td>
-      <td className="px-3 py-2 text-slate-700">
+      <td className="px-3 text-zinc-900">{order.customerName}</td>
+      <td className="px-3 text-zinc-600">{order.productName}</td>
+      <td className="px-3 text-zinc-700">
         <span className="mr-1 tabular-nums">
           {formatDate(order.deadline, "dd/MM")}
         </span>
         <span
           className={cn(
-            "text-xs",
-            daysLeft.overdue ? "text-danger-strong" : "text-slate-500",
+            "text-sm",
+            daysLeft.overdue ? "text-red-600" : "text-zinc-500",
           )}
         >
           ({daysLeft.label})
         </span>
       </td>
-      <td className="px-3 py-2">
+      <td className="px-3">
         <ReadinessBar percent={order.readinessPercent} />
       </td>
-      <td className="px-3 py-2 text-right font-mono tabular-nums text-slate-700">
+      <td className="px-3 text-right font-mono tabular-nums text-zinc-700">
         {order.shortageSkus > 0 ? `${order.shortageSkus} SKU` : "—"}
       </td>
-      <td className="px-3 py-2">
+      <td className="px-3">
         <StatusBadge status={order.status} size="sm" />
       </td>
     </tr>
@@ -178,15 +179,15 @@ function ReadinessBar({ percent }: { percent: number }) {
   const clamped = Math.max(0, Math.min(100, percent));
   const fillColor =
     clamped >= 80
-      ? "bg-success"
+      ? "bg-emerald-500"
       : clamped >= 40
-        ? "bg-warning"
-        : "bg-danger";
+        ? "bg-amber-500"
+        : "bg-red-500";
 
   return (
     <div className="flex items-center gap-2">
       <div
-        className="h-1.5 w-16 shrink-0 rounded-full bg-slate-200"
+        className="h-1.5 w-16 shrink-0 rounded-full bg-zinc-200"
         role="progressbar"
         aria-valuenow={clamped}
         aria-valuemin={0}
@@ -194,11 +195,14 @@ function ReadinessBar({ percent }: { percent: number }) {
         aria-label={`Sẵn sàng ${clamped}%`}
       >
         <div
-          className={cn("h-full rounded-full transition-all", fillColor)}
+          className={cn(
+            "h-full rounded-full transition-all duration-200",
+            fillColor,
+          )}
           style={{ width: `${clamped}%` }}
         />
       </div>
-      <span className="font-mono text-xs tabular-nums text-slate-700">
+      <span className="font-mono text-sm tabular-nums text-zinc-700">
         {clamped}%
       </span>
     </div>
@@ -206,8 +210,8 @@ function ReadinessBar({ percent }: { percent: number }) {
 }
 
 /**
- * Mock generator V1 — dùng khi chưa có Order module thật.
- * @internal TODO V1.1: replace với `/api/dashboard/overview`.
+ * Mock generator V1 — TODO V1.1: replace với `/api/dashboard/overview`.
+ * @internal
  */
 export function generateMockOrders(): OrderReadinessRow[] {
   const today = new Date();
