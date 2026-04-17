@@ -2,6 +2,7 @@ import {
   Building2,
   FileSpreadsheet,
   LayoutDashboard,
+  Network,
   Package,
   Settings,
   Truck,
@@ -47,6 +48,17 @@ export const NAV_ITEMS: NavItem[] = [
   {
     href: "/items/import",
     label: "Nhập Excel",
+    icon: FileSpreadsheet,
+    roles: ["admin", "planner"],
+  },
+  {
+    href: "/bom",
+    label: "BOM",
+    icon: Network,
+  },
+  {
+    href: "/bom/import",
+    label: "Nhập BOM Excel",
     icon: FileSpreadsheet,
     roles: ["admin", "planner"],
   },

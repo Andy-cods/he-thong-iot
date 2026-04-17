@@ -6,6 +6,7 @@ import {
   BellOff,
   CheckCircle,
   Inbox,
+  Network,
   Package,
   SearchX,
   WifiOff,
@@ -33,6 +34,7 @@ import { cn } from "@/lib/utils";
 export type EmptyStatePreset =
   | "no-data"
   | "no-filter-match"
+  | "no-bom"
   | "error"
   | "empty-success"
   | "no-alerts"
@@ -59,6 +61,7 @@ export interface EmptyStateProps {
 const presetIcon: Record<EmptyStatePreset, LucideIcon> = {
   "no-data": Package,
   "no-filter-match": SearchX,
+  "no-bom": Network,
   error: AlertTriangle,
   "empty-success": CheckCircle,
   "no-alerts": BellOff,
@@ -69,6 +72,7 @@ const presetIcon: Record<EmptyStatePreset, LucideIcon> = {
 const presetColor: Record<EmptyStatePreset, string> = {
   "no-data": "text-zinc-400",
   "no-filter-match": "text-zinc-400",
+  "no-bom": "text-zinc-400",
   error: "text-red-500",
   "empty-success": "text-emerald-500",
   "no-alerts": "text-zinc-400",
