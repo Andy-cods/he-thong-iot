@@ -187,7 +187,17 @@
   - [x] B1.6 Commit 2 · `/bom/import` page Breadcrumb + title + BomImportWizard *(commit 23261a0)*
   - [x] B1.7 · Dashboard KPI row lên 5 cột thêm `BomKpiCard` client wrapper (count ACTIVE từ useBomList meta.total); Quick links grid 5 actions bổ sung "Tạo BOM mới" + "Nhập BOM Excel" *(commit 05ffc31)*
   - Typecheck baseline 16 errors preserved; tests 15/15 PASS local.
-- [ ] Phase B2 — Admin (5 screens) + PWA Receiving backend wire-in
+- [x] 2026-04-18 · **Phase B2 — Admin (5 screens) + PWA Receiving wire-in real API**
+  - [x] B2.1 · `hooks/useAdmin.ts` (useUsersList/useUserDetail/useCreateUser/useUpdateUser optimistic/useDeactivateUser/useAuditList) + `hooks/useChangePassword.ts` + qk factory extend `admin.users/audit/po.detail` *(commit fd55e65)*
+  - [x] B2.2 · Nav item "Quản trị" icon Shield admin-only + `lib/role-guard.ts` (hasRole/isAdmin/parseRolesString) *(commit ab73274)*
+  - [x] B2.3 · `/admin/layout.tsx` server-side check JWT+role admin else redirect('/') + `/admin/page.tsx` index 4 QuickLink card compact (Users count thật / Audit / Settings / Build info inline) *(commit 72b96f0)*
+  - [x] B2.4 Commit 1 · `/admin/users` list (search/role/active filters nuqs) + table 36px compact với roles pill badges + `/admin/users/new` Accordion 2 section + TempPasswordDisplay 12-char crypto random + copy tooltip + UserForm reusable *(commit 408e0af)*
+  - [x] B2.4 Commit 2 · `/admin/users/[id]` detail Tabs 2 (Thông tin edit + Nhật ký hoạt động reuse useAuditList({userId})) + DropdownMenu actions (Reset pass V1.2 stub + Vô hiệu hoá DialogConfirm "XOA") + optimistic cache update *(commit 9e3b76a)*
+  - [x] B2.5 · `/admin/audit` filter bar (date range + entity multi-toggle + action multi-toggle + user search) + AuditRow với diff popover (before red / after emerald) + virtualize @tanstack/react-virtual khi >50 rows + Export CSV V1.2 stub *(commit 2bb337f)*
+  - [x] B2.6 · `/admin/settings` ChangePasswordForm (show/hide eye + inline 3 rules validation + confirm match + auto logout redirect) + Build info section + Session V1.2 stub *(commit 3d09fad)*
+  - [x] B2.7 Commit 1 · `/pwa/receive/[poId]` server component fetch `/api/po/[id]` thật + forward auth cookie + demo banner + error page khi PO not found + `hooks/useReceivingEvents.ts` (useReplayQueue + useReceivingHistory stub) *(commit f38a533)*
+  - [x] B2.7 Commit 2 · `ReceivingConsole` replace setTimeout(600ms) fake replay bằng real POST `/api/receiving/events` sequential FIFO 500ms delay + idempotent handling (200 acked + 409 duplicate đều delete Dexie) + mutex replayingRef + sync progress sticky banner + toast success/warning/error + `ScanQueueBadge` retry-all button + badge color amber/red/emerald *(commit c549a67)*
+  - Typecheck baseline 16 errors preserved (0 regression from new files); tests 14/15 PASS (1 pre-existing excelImport failure).
 - [ ] Phase C — Deploy VPS + smoke + tag `v1.1.0-alpha`
 
 ---
