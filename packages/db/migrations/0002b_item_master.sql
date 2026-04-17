@@ -1,19 +1,25 @@
--- Week 2 · Item Master + Barcode + Supplier + Import Batch
--- NOTE 1: ALTER TYPE ... ADD VALUE KHÔNG chạy được trong transaction block.
---         Khi áp migration, phải chạy từng statement riêng (drizzle-kit default OK),
---         hoặc split tay như dưới.
--- NOTE 2: pg_trgm/unaccent extension cần quyền superuser. Trên VPS chia sẻ Song Châu
---         nhờ admin chạy trước. Fallback ILIKE nếu extension unavailable.
+-- =============================================================
+-- Migration 0002b · Week 2 · Item Master + Barcode + Supplier + Import Batch
+-- =============================================================
+-- Chạy bằng user owner `hethong_app` (KHÔNG phải superuser).
+-- Yêu cầu: migration 0002a_extensions.sql PHẢI được apply trước
+-- (pg_trgm + unaccent đã sẵn sàng).
+--
+-- Apply:
+--   docker cp 0002b_item_master.sql iot_postgres:/tmp/
+--   docker exec -i iot_postgres psql -U hethong_app -d hethong_iot \
+--     -v ON_ERROR_STOP=1 -f /tmp/0002b_item_master.sql
+--
+-- NOTE: ALTER TYPE ... ADD VALUE chạy OK trong Postgres 12+ (transaction
+-- support đã có từ 2019). File hiện đang dùng Postgres 16 nên không
+-- cần split tay.
+-- =============================================================
 
--- 1) Extensions (no-op nếu đã có) ------------------------------------------
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
-CREATE EXTENSION IF NOT EXISTS unaccent;
-
--- 2) Enum items mở rộng ----------------------------------------------------
+-- 1) Enum items mở rộng ----------------------------------------------------
 ALTER TYPE app.item_type ADD VALUE IF NOT EXISTS 'TOOL';
 ALTER TYPE app.item_type ADD VALUE IF NOT EXISTS 'PACKAGING';
 
--- 3) Enum barcode + source -------------------------------------------------
+-- 2) Enum barcode + source -------------------------------------------------
 DO $$ BEGIN
   CREATE TYPE app.barcode_type AS ENUM ('EAN13','EAN8','CODE128','CODE39','QR','DATAMATRIX');
 EXCEPTION WHEN duplicate_object THEN NULL;
@@ -24,12 +30,12 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
--- 4) ALTER item thêm category + is_active ---------------------------------
+-- 3) ALTER item thêm category + is_active ---------------------------------
 ALTER TABLE app.item
   ADD COLUMN IF NOT EXISTS category varchar(64),
   ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true;
 
--- 5) ALTER item_barcode --------------------------------------------------
+-- 4) ALTER item_barcode --------------------------------------------------
 ALTER TABLE app.item_barcode
   ADD COLUMN IF NOT EXISTS source app.barcode_source NOT NULL DEFAULT 'internal';
 
@@ -53,13 +59,13 @@ ALTER TABLE app.item_barcode
 ALTER TABLE app.item_barcode
   ALTER COLUMN barcode_type SET DEFAULT 'CODE128'::app.barcode_type;
 
--- 6) ALTER item_supplier --------------------------------------------------
+-- 5) ALTER item_supplier --------------------------------------------------
 ALTER TABLE app.item_supplier
   ADD COLUMN IF NOT EXISTS vendor_item_code varchar(128),
   ADD COLUMN IF NOT EXISTS moq       numeric(18,4) NOT NULL DEFAULT 1,
   ADD COLUMN IF NOT EXISTS pack_size numeric(18,4) NOT NULL DEFAULT 1;
 
--- 7) Indexes pg_trgm + unaccent ------------------------------------------
+-- 6) Indexes pg_trgm + unaccent ------------------------------------------
 DROP INDEX IF EXISTS app.item_name_trgm_idx;
 
 CREATE INDEX IF NOT EXISTS item_sku_trgm_idx
@@ -76,12 +82,12 @@ CREATE INDEX IF NOT EXISTS item_active_type_idx
   ON app.item (is_active, item_type)
   WHERE is_active = true;
 
--- 8) Partial unique: 1 primary barcode per item ---------------------------
+-- 7) Partial unique: 1 primary barcode per item ---------------------------
 CREATE UNIQUE INDEX IF NOT EXISTS item_barcode_primary_per_item_uk
   ON app.item_barcode (item_id)
   WHERE is_primary = true;
 
--- 9) Import batch table + enums ------------------------------------------
+-- 8) Import batch table + enums ------------------------------------------
 DO $$ BEGIN
   CREATE TYPE app.import_kind AS ENUM ('item','bom');
 EXCEPTION WHEN duplicate_object THEN NULL;
