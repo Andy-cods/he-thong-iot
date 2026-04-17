@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FileUp, Plus, Rows3, Rows4 } from "lucide-react";
+import { FileUp, Plus } from "lucide-react";
 import {
   parseAsArrayOf,
   parseAsBoolean,
@@ -41,20 +41,19 @@ import {
 } from "@/hooks/use-selection";
 import type { ItemFilter } from "@/lib/query-keys";
 import { useHotkey } from "@/lib/shortcuts";
-import { cn } from "@/lib/utils";
 
 const TRACKING_VALUES = ["lot", "serial", "none"] as const;
 
 /**
- * /items — redesigned (design-spec §2.4, T5-T6).
+ * V2 /items — Linear-inspired compact (design-spec §2.4, impl-plan §8.T7).
  *
- * - URL-state qua nuqs (q, type, uom, active, tracking, category, page, pageSize, sort).
- * - Debounce q 300ms.
- * - Selection state machine (3 mode) qua useSelection.
- * - BulkActionBar sticky bottom khi count > 0.
- * - QuickEditSheet mở từ row action "Edit" (giữ scroll position).
- * - Keyboard: `/` focus search, `j/k` next/prev row, `Space` toggle,
- *   `Enter` mở detail, `e` edit, `Escape` clear selection.
+ * - Header h-auto: H1 "Danh mục vật tư" text-xl font-semibold + subtitle
+ *   text-xs zinc-500, action "Tạo mới" button size sm top-right.
+ * - Grid: FilterBar (sticky indirect via layout) + ItemListTable flex-1
+ *   + BulkActionBar sticky bottom.
+ * - EmptyState: no-data (chưa có) + no-filter-match (lọc không kết quả).
+ * - Logic giữ V1: URL state nuqs, debounce q 300ms, 3-mode selection,
+ *   keyboard /jkeSpace, optimistic bulk delete.
  */
 export default function ItemsPage() {
   const router = useRouter();
@@ -76,7 +75,7 @@ export default function ItemsPage() {
     { history: "replace", shallow: true, throttleMs: 250 },
   );
 
-  // Debounce search input (brainstorm-deep §1.5: throttleMs=250 + debounce input 300ms).
+  // Debounce search input 300ms (brainstorm-deep §1.5)
   const [searchInput, setSearchInput] = React.useState(urlState.q);
   React.useEffect(() => {
     const t = setTimeout(() => {
@@ -88,7 +87,6 @@ export default function ItemsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchInput]);
 
-  // Sync external reset (onReset) về input
   React.useEffect(() => {
     if (urlState.q !== searchInput && urlState.q === "") {
       setSearchInput("");
@@ -135,24 +133,6 @@ export default function ItemsPage() {
       page: 1,
     });
   };
-
-  // Density (localStorage)
-  const [density, setDensity] = React.useState<"compact" | "comfort">(
-    "compact",
-  );
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    const v = window.localStorage.getItem("iot:items:density");
-    if (v === "40") setDensity("compact");
-    else if (v === "56") setDensity("comfort");
-  }, []);
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(
-      "iot:items:density",
-      density === "compact" ? "40" : "56",
-    );
-  }, [density]);
 
   // Filter for react-query key
   const queryFilter: ItemFilter = React.useMemo(
@@ -259,51 +239,26 @@ export default function ItemsPage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4">
+      {/* V2 Page header — compact 20px title + action top-right */}
+      <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-4">
         <div>
-          <h1 className="font-heading text-xl font-semibold text-slate-900">
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
             Danh mục vật tư
           </h1>
-          <p className="text-xs text-slate-500">
-            {total.toLocaleString("vi-VN")} vật tư · cập nhật theo realtime
+          <p className="mt-0.5 text-xs text-zinc-500">
+            {total.toLocaleString("vi-VN")} vật tư · cập nhật realtime
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="hidden items-center gap-1 rounded border border-slate-200 p-0.5 md:flex">
-            <button
-              type="button"
-              onClick={() => setDensity("compact")}
-              aria-label="Mật độ gọn"
-              aria-pressed={density === "compact"}
-              className={cn(
-                "inline-flex h-7 w-7 items-center justify-center rounded-sm text-slate-500 hover:bg-slate-100",
-                density === "compact" && "bg-slate-200 text-slate-900",
-              )}
-            >
-              <Rows4 className="h-4 w-4" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setDensity("comfort")}
-              aria-label="Mật độ thoáng"
-              aria-pressed={density === "comfort"}
-              className={cn(
-                "inline-flex h-7 w-7 items-center justify-center rounded-sm text-slate-500 hover:bg-slate-100",
-                density === "comfort" && "bg-slate-200 text-slate-900",
-              )}
-            >
-              <Rows3 className="h-4 w-4" aria-hidden="true" />
-            </button>
-          </div>
-          <Button asChild variant="outline">
+          <Button asChild variant="ghost" size="sm">
             <Link href="/items/import">
-              <FileUp className="h-4 w-4" aria-hidden />
+              <FileUp className="h-3.5 w-3.5" aria-hidden="true" />
               Nhập Excel
             </Link>
           </Button>
-          <Button asChild>
+          <Button asChild size="sm">
             <Link href="/items/new">
-              <Plus className="h-4 w-4" aria-hidden />
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
               Tạo mới
             </Link>
           </Button>
@@ -319,7 +274,7 @@ export default function ItemsPage() {
         searchInputRef={searchRef}
       />
 
-      <div className="flex-1 overflow-hidden p-3">
+      <div className="flex-1 overflow-hidden p-4">
         {isEmpty ? (
           hasFilter ? (
             <EmptyState
@@ -327,7 +282,7 @@ export default function ItemsPage() {
               title="Không tìm thấy vật tư khớp bộ lọc"
               description="Thử thay đổi tiêu chí tìm kiếm hoặc xoá bớt bộ lọc."
               actions={
-                <Button variant="outline" onClick={handleReset}>
+                <Button variant="ghost" size="sm" onClick={handleReset}>
                   Xoá tất cả bộ lọc
                 </Button>
               }
@@ -339,16 +294,16 @@ export default function ItemsPage() {
               description="Nhập danh mục từ Excel hoặc tạo thủ công để bắt đầu quản lý kho."
               actions={
                 <>
-                  <Button asChild>
+                  <Button asChild size="sm">
                     <Link href="/items/new">
-                      <Plus className="h-4 w-4" aria-hidden="true" />
+                      <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                       Tạo mới
                     </Link>
                   </Button>
-                  <Button asChild variant="outline">
+                  <Button asChild variant="ghost" size="sm">
                     <Link href="/items/import">
-                      <FileUp className="h-4 w-4" aria-hidden="true" />
-                      Import Excel
+                      <FileUp className="h-3.5 w-3.5" aria-hidden="true" />
+                      Nhập Excel
                     </Link>
                   </Button>
                 </>
@@ -364,27 +319,31 @@ export default function ItemsPage() {
             onTogglePage={(ids) => selectionActions.togglePage(ids)}
             onEdit={(row) => setEditingId(row.id)}
             onPreview={(row) => router.push(`/items/${row.id}`)}
-            density={density}
+            density="compact"
             focusedIndex={focusedIndex}
           />
         )}
       </div>
 
-      <footer className="flex items-center justify-between border-t border-slate-200 bg-white px-4 py-2 text-sm">
-        <div className="text-slate-600">
+      {/* V2 compact pagination footer — h-9 text-base */}
+      <footer className="flex h-9 items-center justify-between border-t border-zinc-200 bg-white px-4 text-base">
+        <div className="text-zinc-600">
           Hiển thị{" "}
-          <span className="tabular-nums">
+          <span className="tabular-nums text-zinc-900">
             {rows.length === 0
               ? 0
               : (urlState.page - 1) * urlState.pageSize + 1}
             –{(urlState.page - 1) * urlState.pageSize + rows.length}
           </span>{" "}
-          / <span className="tabular-nums">{total.toLocaleString("vi-VN")}</span>
+          /{" "}
+          <span className="tabular-nums text-zinc-900">
+            {total.toLocaleString("vi-VN")}
+          </span>
         </div>
         <div className="flex items-center gap-1">
           <Button
             size="sm"
-            variant="outline"
+            variant="ghost"
             disabled={urlState.page <= 1}
             onClick={() => void setUrlState({ page: 1 })}
             aria-label="Trang đầu"
@@ -393,7 +352,7 @@ export default function ItemsPage() {
           </Button>
           <Button
             size="sm"
-            variant="outline"
+            variant="ghost"
             disabled={urlState.page <= 1}
             onClick={() =>
               void setUrlState({ page: Math.max(1, urlState.page - 1) })
@@ -402,12 +361,12 @@ export default function ItemsPage() {
           >
             ‹
           </Button>
-          <span className="px-2 text-slate-600">
+          <span className="px-2 text-zinc-600 tabular-nums">
             {urlState.page} / {pageCount}
           </span>
           <Button
             size="sm"
-            variant="outline"
+            variant="ghost"
             disabled={urlState.page >= pageCount}
             onClick={() =>
               void setUrlState({
@@ -420,7 +379,7 @@ export default function ItemsPage() {
           </Button>
           <Button
             size="sm"
-            variant="outline"
+            variant="ghost"
             disabled={urlState.page >= pageCount}
             onClick={() => void setUrlState({ page: pageCount })}
             aria-label="Trang cuối"

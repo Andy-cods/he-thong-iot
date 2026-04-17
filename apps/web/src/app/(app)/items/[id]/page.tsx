@@ -54,6 +54,16 @@ type ItemDetail = {
   updatedAt?: string;
 };
 
+/**
+ * V2 /items/[id] — Linear-inspired (design-spec §2.5 + impl-plan §8.T8).
+ *
+ * - Breadcrumb: "Dashboard / Vật tư / {SKU}".
+ * - Header: Name text-xl + SKU mono 13px + StatusBadge + DropdownMenu actions
+ *   (Nhân bản / Khôi phục / Xoá red). DialogConfirm "XOA".
+ * - Tabs V2 underline style (zinc-900 active, border-b-2), 4 sections:
+ *   Thông tin / Kho / Tracking / Ảnh.
+ * - Content max-w 5xl mx-auto p-6.
+ */
 export default function ItemDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? "";
@@ -64,33 +74,33 @@ export default function ItemDetailPage() {
   const restore = useRestoreItem();
 
   const [deleteOpen, setDeleteOpen] = React.useState(false);
-  const [tab, setTab] = React.useState<"info" | "inventory" | "tracking" | "media">(
-    "info",
-  );
+  const [tab, setTab] = React.useState<
+    "info" | "inventory" | "tracking" | "media"
+  >("info");
 
   const itemData = (data?.data as ItemDetail | undefined) ?? null;
 
   const breadcrumbItems = [
-    { label: "Trang chủ", href: "/" },
+    { label: "Dashboard", href: "/" },
     { label: "Vật tư", href: "/items" },
     { label: itemData?.sku ?? "Chi tiết" },
   ];
 
   if (isLoading) {
     return (
-      <div className="mx-auto w-full max-w-5xl p-4">
+      <div className="mx-auto w-full max-w-5xl p-6">
         <div className="mb-3">
           <Skeleton className="h-4 w-48" />
         </div>
         <div className="mb-4 flex items-center gap-3">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-6 w-20 rounded-sm" />
+          <Skeleton className="h-6 w-64" />
+          <Skeleton className="h-5 w-20 rounded-sm" />
         </div>
-        <Skeleton className="mb-3 h-10 w-96" />
-        <div className="space-y-3 rounded border border-slate-200 bg-white p-4">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-3/4" />
+        <Skeleton className="mb-3 h-9 w-96" />
+        <div className="space-y-3 rounded-md border border-zinc-200 bg-white p-6">
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-3/4" />
           <Skeleton className="h-20 w-full" />
         </div>
       </div>
@@ -105,7 +115,7 @@ export default function ItemDetailPage() {
           title="Không tìm thấy vật tư"
           description="ID không tồn tại hoặc bạn không có quyền truy cập."
           actions={
-            <Button asChild>
+            <Button asChild size="sm">
               <Link href="/items">Về danh sách</Link>
             </Button>
           }
@@ -122,13 +132,14 @@ export default function ItemDetailPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-5xl p-4">
+    <div className="mx-auto w-full max-w-5xl p-6">
       <Breadcrumb items={breadcrumbItems} className="mb-3" />
 
-      <header className="mb-4 flex flex-wrap items-center gap-3">
+      {/* V2 Header — Name + SKU + Status + Actions */}
+      <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <h1 className="font-heading text-xl font-semibold text-slate-900">
+            <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
               {itemData.name}
             </h1>
             <StatusBadge
@@ -137,66 +148,71 @@ export default function ItemDetailPage() {
               label={itemData.isActive ? "Đang dùng" : "Đã xoá"}
             />
           </div>
-          <div className="mt-1 flex items-center gap-2 text-sm text-slate-500">
-            <span className="font-mono tabular-nums">{itemData.sku}</span>
+          <div className="mt-1 flex items-center gap-1.5 text-base text-zinc-500">
+            <span className="font-mono text-base tabular-nums text-zinc-700">
+              {itemData.sku}
+            </span>
             <button
               type="button"
               onClick={handleCopySku}
               aria-label="Copy SKU"
-              className="inline-flex h-5 w-5 items-center justify-center rounded-sm text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              className="inline-flex h-5 w-5 items-center justify-center rounded-sm text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-0"
             >
               <Copy className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
           </div>
         </div>
-        <Button variant="outline" asChild>
-          <Link href="/items">Về danh sách</Link>
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Thao tác khác"
-            >
-              <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onClick={() => toast.info("Nhân bản: V1.1.")}
-            >
-              Nhân bản
-            </DropdownMenuItem>
-            {!itemData.isActive && (
-              <DropdownMenuItem
-                onClick={() =>
-                  restore.mutate(id, {
-                    onSuccess: () => toast.success("Đã khôi phục."),
-                    onError: (e) => toast.error((e as Error).message),
-                  })
-                }
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/items">Về danh sách</Link>
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon-sm"
+                aria-label="Thao tác khác"
               >
-                Khôi phục
+                <MoreHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => toast.info("Nhân bản: sẽ có ở V1.1.")}
+              >
+                Nhân bản
               </DropdownMenuItem>
-            )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              variant="danger"
-              onClick={() => setDeleteOpen(true)}
-              disabled={!itemData.isActive}
-            >
-              <Trash2 className="h-4 w-4" aria-hidden="true" />
-              Xoá
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              {!itemData.isActive && (
+                <DropdownMenuItem
+                  onClick={() =>
+                    restore.mutate(id, {
+                      onSuccess: () => toast.success("Đã khôi phục."),
+                      onError: (e) => toast.error((e as Error).message),
+                    })
+                  }
+                >
+                  Khôi phục
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                variant="danger"
+                onClick={() => setDeleteOpen(true)}
+                disabled={!itemData.isActive}
+              >
+                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                Xoá
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </header>
 
+      {/* V2 Tabs — underline style zinc-900 active, 13px */}
       <Tabs
         value={tab}
         onValueChange={(v) => setTab(v as typeof tab)}
-        className="space-y-3"
+        className="space-y-4"
       >
         <TabsList>
           <TabsTrigger value="info">Thông tin</TabsTrigger>
@@ -206,7 +222,7 @@ export default function ItemDetailPage() {
         </TabsList>
 
         <TabsContent value="info">
-          <div className="rounded border border-slate-200 bg-white">
+          <div className="rounded-md border border-zinc-200 bg-white">
             <ItemForm
               mode="edit"
               submitting={update.isPending}
@@ -248,11 +264,11 @@ export default function ItemDetailPage() {
         </TabsContent>
 
         <TabsContent value="inventory">
-          <div className="rounded border border-slate-200 bg-white p-6">
-            <h3 className="font-heading text-base font-semibold text-slate-900">
+          <div className="rounded-md border border-zinc-200 bg-white p-6">
+            <h3 className="text-base font-semibold text-zinc-900">
               Tồn kho (V1.1 real)
             </h3>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-zinc-500">
               Dữ liệu mock — chờ module Inventory ở V1.1.
             </p>
             <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -269,13 +285,13 @@ export default function ItemDetailPage() {
         </TabsContent>
 
         <TabsContent value="tracking">
-          <div className="rounded border border-slate-200 bg-white p-4">
+          <div className="rounded-md border border-zinc-200 bg-white p-4">
             <BarcodeList itemId={id} />
           </div>
         </TabsContent>
 
         <TabsContent value="media">
-          <div className="rounded border border-slate-200 bg-white p-6">
+          <div className="rounded-md border border-zinc-200 bg-white p-6">
             <EmptyState
               preset="no-data"
               title="Chưa có ảnh / tài liệu"
@@ -317,12 +333,12 @@ function MiniStat({
   hint?: string;
 }) {
   return (
-    <div className="rounded border border-slate-200 p-3">
-      <p className="text-xs uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-900">
+    <div className="rounded-md border border-zinc-200 p-3">
+      <p className="text-xs uppercase tracking-wide text-zinc-500">{label}</p>
+      <p className="mt-1 text-xl font-semibold tabular-nums text-zinc-900">
         {value}
       </p>
-      {hint && <p className="mt-0.5 text-xs text-slate-500">{hint}</p>}
+      {hint && <p className="mt-0.5 text-sm text-zinc-500">{hint}</p>}
     </div>
   );
 }
