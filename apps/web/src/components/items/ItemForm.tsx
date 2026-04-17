@@ -3,7 +3,7 @@
 import * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { ChevronDown } from "lucide-react";
+import { CheckCircle2, ChevronDown, Loader2, XCircle } from "lucide-react";
 import {
   ITEM_TYPES,
   ITEM_TYPE_LABELS,
@@ -56,13 +56,17 @@ function useDebounced<T>(value: T, delay = 400): T {
 }
 
 /**
- * ItemForm — polished (T7 Step 5).
+ * V2 ItemForm — Linear-inspired spacious (design-spec §2.5 + impl-plan §8.T8).
  *
- * 4 section accordion: Thông tin cơ bản / Kho & bổ sung / Tracking / Mô tả.
- * Section có thể collapse nhưng mặc định open cho create, edit giữ open.
- * Helper text reserve space (min-h-5) tránh layout jank.
- * SKU check debounce 400ms.
- * Checkbox dùng shadcn.
+ * - Wrapper max-w-[720px] mx-auto padding 24 (p-6).
+ * - Section spacing gap-6 (24px) giữa Accordion panels.
+ * - Accordion (<details>): header h-10 px-4 font-medium 13px + content padding 16.
+ * - Label: uppercase 11px tracking-wide font-medium zinc-700, required * red-500.
+ * - Input h-9 (36px) font 13px — default V2 Input size.
+ * - Grid 2-col md: gap-4.
+ * - Helper text min-h-4 text-xs zinc-500 (error red-700) — reserve space.
+ * - Submit button primary blue-500 h-9 px-4 + Cancel ghost h-9.
+ * - SKU check indicator inline right của input, icon 14px + text-xs.
  */
 export function ItemForm({
   mode,
@@ -107,6 +111,11 @@ export function ItemForm({
 
   const skuCheck = useCheckSku(mode === "create" ? debouncedSku : "");
   const skuTaken = mode === "create" && skuCheck.data?.data?.exists === true;
+  const skuShowSuccess =
+    mode === "create" &&
+    debouncedSku.length >= 2 &&
+    skuCheck.isSuccess &&
+    !skuTaken;
 
   const isLotTracked = form.watch("isLotTracked");
   const isSerialTracked = form.watch("isSerialTracked");
@@ -115,30 +124,44 @@ export function ItemForm({
     <form
       id={formId}
       onSubmit={form.handleSubmit((values) => onSubmit(values as ItemCreate))}
-      className="space-y-4"
+      className="mx-auto w-full max-w-[720px] space-y-6 p-6"
       noValidate
     >
       <Section title="Thông tin cơ bản" defaultOpen>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Field>
-            <Label htmlFor="sku" required>
+            <Label htmlFor="sku" uppercase required>
               Mã SKU
             </Label>
-            <Input
-              id="sku"
-              disabled={mode === "edit"}
-              placeholder="VD: RM-0001"
-              {...form.register("sku")}
-              aria-invalid={!!form.formState.errors.sku || skuTaken}
-              aria-describedby="sku-helper"
-              autoComplete="off"
-            />
+            <div className="relative">
+              <Input
+                id="sku"
+                disabled={mode === "edit"}
+                placeholder="VD: RM-0001"
+                {...form.register("sku")}
+                aria-invalid={!!form.formState.errors.sku || skuTaken}
+                aria-describedby="sku-helper"
+                autoComplete="off"
+                className={cn(
+                  (skuTaken || form.formState.errors.sku) &&
+                    "border-red-500 focus:border-red-500 focus-visible:outline-red-500",
+                  skuShowSuccess && "border-emerald-500",
+                )}
+              />
+              {mode === "create" && debouncedSku.length >= 2 && (
+                <SkuIndicator
+                  loading={skuCheck.isFetching}
+                  taken={skuTaken}
+                  ok={skuShowSuccess}
+                />
+              )}
+            </div>
             <HelperText
               id="sku-helper"
               tone={
                 form.formState.errors.sku || skuTaken
                   ? "error"
-                  : debouncedSku && skuCheck.isSuccess && mode === "create"
+                  : skuShowSuccess
                     ? "success"
                     : "muted"
               }
@@ -146,14 +169,14 @@ export function ItemForm({
               {form.formState.errors.sku?.message ??
                 (skuTaken
                   ? "Mã đã tồn tại."
-                  : debouncedSku.length >= 2 && skuCheck.isSuccess
+                  : skuShowSuccess
                     ? "Mã khả dụng."
                     : "A-Z, 0-9, _ - ; 2-64 ký tự")}
             </HelperText>
           </Field>
 
           <Field>
-            <Label htmlFor="name" required>
+            <Label htmlFor="name" uppercase required>
               Tên vật tư
             </Label>
             <Input
@@ -162,6 +185,10 @@ export function ItemForm({
               aria-invalid={!!form.formState.errors.name}
               aria-describedby="name-helper"
               {...form.register("name")}
+              className={cn(
+                form.formState.errors.name &&
+                  "border-red-500 focus:border-red-500 focus-visible:outline-red-500",
+              )}
             />
             <HelperText
               id="name-helper"
@@ -172,9 +199,11 @@ export function ItemForm({
           </Field>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <Field>
-            <Label required>Loại</Label>
+            <Label uppercase required>
+              Loại
+            </Label>
             <Select
               value={form.watch("itemType")}
               onValueChange={(v) => {
@@ -198,7 +227,9 @@ export function ItemForm({
           </Field>
 
           <Field>
-            <Label required>Đơn vị tính</Label>
+            <Label uppercase required>
+              Đơn vị tính
+            </Label>
             <Select
               value={form.watch("uom")}
               onValueChange={(v) =>
@@ -218,11 +249,13 @@ export function ItemForm({
                 ))}
               </SelectContent>
             </Select>
-            <HelperText tone="muted">Không đổi sau khi đã có nhập xuất</HelperText>
+            <HelperText tone="muted">
+              Không đổi sau khi đã có nhập xuất
+            </HelperText>
           </Field>
 
           <Field>
-            <Label>Trạng thái</Label>
+            <Label uppercase>Trạng thái</Label>
             <Select
               value={form.watch("status") ?? "ACTIVE"}
               onValueChange={(v) =>
@@ -248,9 +281,11 @@ export function ItemForm({
       </Section>
 
       <Section title="Kho & bổ sung" defaultOpen>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Field>
-            <Label htmlFor="category">Nhóm / category</Label>
+            <Label htmlFor="category" uppercase>
+              Nhóm / danh mục
+            </Label>
             <Input
               id="category"
               placeholder="VD: Thép tấm"
@@ -259,36 +294,45 @@ export function ItemForm({
             <HelperText tone="muted">Dùng cho lọc nhanh danh sách</HelperText>
           </Field>
           <Field>
-            <Label htmlFor="leadTimeDays">Lead time (ngày)</Label>
+            <Label htmlFor="leadTimeDays" uppercase>
+              Lead time (ngày)
+            </Label>
             <Input
               id="leadTimeDays"
               type="number"
               min={0}
+              className="tabular-nums"
               {...form.register("leadTimeDays", { valueAsNumber: true })}
             />
             <HelperText tone="muted">Thời gian bổ sung mặc định</HelperText>
           </Field>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Field>
-            <Label htmlFor="minStockQty">Tồn tối thiểu</Label>
+            <Label htmlFor="minStockQty" uppercase>
+              Tồn tối thiểu
+            </Label>
             <Input
               id="minStockQty"
               type="number"
               step="0.0001"
               min={0}
+              className="tabular-nums"
               {...form.register("minStockQty", { valueAsNumber: true })}
             />
             <HelperText tone="muted">Cảnh báo khi tồn thấp hơn</HelperText>
           </Field>
           <Field>
-            <Label htmlFor="reorderQty">Số lượng đặt lại</Label>
+            <Label htmlFor="reorderQty" uppercase>
+              Số lượng đặt lại
+            </Label>
             <Input
               id="reorderQty"
               type="number"
               step="0.0001"
               min={0}
+              className="tabular-nums"
               {...form.register("reorderQty", { valueAsNumber: true })}
             />
             <HelperText tone="muted">Gợi ý SL đặt hàng kế tiếp</HelperText>
@@ -298,7 +342,7 @@ export function ItemForm({
 
       <Section title="Tracking">
         <div className="space-y-3">
-          <label className="flex items-start gap-2">
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-sm p-2 hover:bg-zinc-50">
             <Checkbox
               checked={isLotTracked}
               onCheckedChange={(v) =>
@@ -310,15 +354,15 @@ export function ItemForm({
               className="mt-0.5"
             />
             <span>
-              <span className="text-sm font-medium text-slate-900">
+              <span className="block text-base font-medium text-zinc-900">
                 Quản lý theo lô
               </span>
-              <span className="mt-0.5 block text-xs text-slate-500">
+              <span className="mt-0.5 block text-sm text-zinc-500">
                 Ghi nhận lot_no khi nhập/xuất kho
               </span>
             </span>
           </label>
-          <label className="flex items-start gap-2">
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-sm p-2 hover:bg-zinc-50">
             <Checkbox
               checked={isSerialTracked}
               onCheckedChange={(v) =>
@@ -330,10 +374,10 @@ export function ItemForm({
               className="mt-0.5"
             />
             <span>
-              <span className="text-sm font-medium text-slate-900">
+              <span className="block text-base font-medium text-zinc-900">
                 Quản lý theo serial
               </span>
-              <span className="mt-0.5 block text-xs text-slate-500">
+              <span className="mt-0.5 block text-sm text-zinc-500">
                 Ghi nhận serial từng pcs (FG / jig chuyên dụng)
               </span>
             </span>
@@ -343,7 +387,9 @@ export function ItemForm({
 
       <Section title="Mô tả">
         <Field>
-          <Label htmlFor="description">Mô tả chi tiết</Label>
+          <Label htmlFor="description" uppercase>
+            Mô tả chi tiết
+          </Label>
           <Textarea
             id="description"
             rows={4}
@@ -355,15 +401,25 @@ export function ItemForm({
       </Section>
 
       {!hideFormActions && (
-        <div className="flex items-center justify-end gap-2 border-t border-slate-200 pt-3">
+        <div className="flex items-center justify-end gap-2 border-t border-zinc-200 pt-4">
           {onCancel && (
-            <Button type="button" variant="outline" onClick={onCancel}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="md"
+              onClick={onCancel}
+            >
               Huỷ
             </Button>
           )}
           <Button
             type="submit"
-            disabled={submitting || skuTaken || !form.formState.isValid && form.formState.isSubmitted}
+            size="md"
+            disabled={
+              submitting ||
+              skuTaken ||
+              (!form.formState.isValid && form.formState.isSubmitted)
+            }
           >
             {submitting
               ? "Đang lưu…"
@@ -378,7 +434,7 @@ export function ItemForm({
 }
 
 function Field({ children }: { children: React.ReactNode }) {
-  return <div className="space-y-1">{children}</div>;
+  return <div className="space-y-1.5">{children}</div>;
 }
 
 function HelperText({
@@ -392,20 +448,59 @@ function HelperText({
 }) {
   const color =
     tone === "error"
-      ? "text-danger-strong"
+      ? "text-red-700"
       : tone === "success"
-        ? "text-success-strong"
-        : "text-slate-500";
+        ? "text-emerald-700"
+        : "text-zinc-500";
   return (
-    <p id={id} className={cn("min-h-5 text-xs", color)}>
+    <p id={id} className={cn("min-h-4 text-sm", color)}>
       {children}
     </p>
   );
 }
 
+function SkuIndicator({
+  loading,
+  taken,
+  ok,
+}: {
+  loading?: boolean;
+  taken?: boolean;
+  ok?: boolean;
+}) {
+  return (
+    <div className="pointer-events-none absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 text-xs">
+      {loading ? (
+        <>
+          <Loader2
+            className="h-3.5 w-3.5 animate-spin text-zinc-400"
+            aria-hidden="true"
+          />
+          <span className="text-zinc-400">Đang kiểm tra</span>
+        </>
+      ) : taken ? (
+        <>
+          <XCircle className="h-3.5 w-3.5 text-red-600" aria-hidden="true" />
+          <span className="text-red-700">Đã tồn tại</span>
+        </>
+      ) : ok ? (
+        <>
+          <CheckCircle2
+            className="h-3.5 w-3.5 text-emerald-600"
+            aria-hidden="true"
+          />
+          <span className="text-emerald-700">Khả dụng</span>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 /**
- * Section — accordion-style group với chevron toggle.
- * Dùng <details>/<summary> cho native semantics + keyboard free.
+ * V2 Section — Accordion với <details>/<summary>.
+ * Header h-10 px-4 text-base (13px) font-medium zinc-900.
+ * Content padding-16 border-t zinc-100.
+ * Icon chevron 16px zinc-500 rotate khi open.
  */
 function Section({
   title,
@@ -419,16 +514,16 @@ function Section({
   return (
     <details
       open={defaultOpen}
-      className="group rounded border border-slate-200 bg-white open:shadow-xs"
+      className="group rounded-md border border-zinc-200 bg-white"
     >
-      <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-2.5 text-sm font-semibold text-slate-900 [&::-webkit-details-marker]:hidden">
+      <summary className="flex h-10 cursor-pointer list-none items-center justify-between px-4 text-base font-medium text-zinc-900 [&::-webkit-details-marker]:hidden">
         <span>{title}</span>
         <ChevronDown
-          className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180"
+          className="h-4 w-4 text-zinc-500 transition-transform group-open:rotate-180"
           aria-hidden="true"
         />
       </summary>
-      <div className="space-y-3 border-t border-slate-200 p-4">{children}</div>
+      <div className="space-y-4 border-t border-zinc-100 p-4">{children}</div>
     </details>
   );
 }
