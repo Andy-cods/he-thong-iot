@@ -4,7 +4,7 @@ import {
   LayoutDashboard,
   Network,
   Package,
-  Settings,
+  Shield,
   Truck,
   type LucideIcon,
 } from "lucide-react";
@@ -63,6 +63,13 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ["admin", "planner"],
   },
   {
+    href: "/admin",
+    label: "Quản trị",
+    icon: Shield,
+    roles: ["admin"],
+    divider: true,
+  },
+  {
     href: "/suppliers",
     label: "Nhà cung cấp",
     icon: Building2,
@@ -74,15 +81,6 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Truck,
     roles: ["admin", "warehouse"],
     divider: true,
-  },
-  {
-    href: "/admin",
-    label: "Quản trị",
-    icon: Settings,
-    roles: ["admin"],
-    divider: true,
-    disabled: true,
-    comingSoon: "V1.1",
   },
 ];
 
