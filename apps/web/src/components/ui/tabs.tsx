@@ -4,6 +4,14 @@ import * as React from "react";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { cn } from "@/lib/utils";
 
+/**
+ * V2 Tabs — Linear-inspired underline style (not pill-filled V1).
+ * List h-9 (36px) border-b zinc-200.
+ * Trigger h-8 padding-x 12, text-base 13px weight 500, text-zinc-500.
+ * Active: text-zinc-900 border-b-2 zinc-900 (quiet neutral, KHÔNG blue
+ * để tabs không "ồn" — blue chỉ cho action/command).
+ */
+
 export const Tabs = TabsPrimitive.Root;
 
 export const TabsList = React.forwardRef<
@@ -13,7 +21,7 @@ export const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "inline-flex h-10 items-center justify-start gap-1 rounded-md bg-slate-100 p-1 text-slate-600",
+      "inline-flex h-9 w-full items-center justify-start gap-1 border-b border-zinc-200 text-zinc-500",
       className,
     )}
     {...props}
@@ -28,7 +36,10 @@ export const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      "inline-flex items-center justify-center whitespace-nowrap rounded px-3 py-1.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info/35 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-xs",
+      "inline-flex h-8 items-center justify-center whitespace-nowrap border-b-2 border-transparent px-3 text-base font-medium text-zinc-500 transition-colors duration-100 ease-out -mb-px",
+      "hover:text-zinc-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
+      "disabled:pointer-events-none disabled:opacity-50",
+      "data-[state=active]:border-zinc-900 data-[state=active]:text-zinc-900",
       className,
     )}
     {...props}
@@ -43,7 +54,7 @@ export const TabsContent = React.forwardRef<
   <TabsPrimitive.Content
     ref={ref}
     className={cn(
-      "mt-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info/35",
+      "mt-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
       className,
     )}
     {...props}

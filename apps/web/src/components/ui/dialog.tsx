@@ -8,14 +8,11 @@ import { Button } from "./button";
 import { Input } from "./input";
 
 /**
- * Direction B — Dialog (Radix) với overlay-scrim + shadow-dialog,
- * slide-down content + focus trap.
- *
- * Variants:
- * - default: confirm thường.
- * - destructive: title màu danger-strong, action button danger.
- * - DialogConfirm (export riêng): type-to-confirm destructive
- *   (user gõ `XOA` để enable button xoá).
+ * V2 Dialog — Linear-inspired.
+ * Overlay bg-black/50 (darker than V1 0.48) backdrop-blur-sm.
+ * Content rounded-lg 8px, shadow-lg (single layer) thay V1 shadow-dialog.
+ * Padding 24→20. Header title text-lg (15px) weight 600.
+ * Close button 32px (h-7 w-7) ghost.
  */
 
 export const Dialog = DialogPrimitive.Root;
@@ -30,9 +27,9 @@ export const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-dialog bg-overlay backdrop-blur-[2px]",
-      "data-[state=open]:animate-in data-[state=open]:fade-in-0",
-      "data-[state=closed]:animate-out data-[state=closed]:fade-out-0",
+      "fixed inset-0 z-dialog bg-overlay-scrim backdrop-blur-[2px]",
+      "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:duration-150",
+      "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:duration-150",
       className,
     )}
     {...props}
@@ -47,9 +44,9 @@ export const DialogContent = React.forwardRef<
   }
 >(({ className, children, size = "md", ...props }, ref) => {
   const sizeClass = {
-    sm: "max-w-sm", // 384
-    md: "max-w-md", // 448 (spec 480 — gần nhất)
-    lg: "max-w-lg", // 512 (spec 640 dùng max-w-xl)
+    sm: "max-w-sm", // 384px
+    md: "max-w-md", // 448px (spec target ~480)
+    lg: "max-w-lg", // 512px
   }[size];
   return (
     <DialogPortal>
@@ -57,9 +54,9 @@ export const DialogContent = React.forwardRef<
       <DialogPrimitive.Content
         ref={ref}
         className={cn(
-          "fixed left-1/2 top-1/2 z-dialog grid w-full -translate-x-1/2 -translate-y-1/2 gap-3 rounded-md border border-slate-200 bg-white p-6 shadow-dialog duration-base",
-          "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-top-4",
-          "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-4",
+          "fixed left-1/2 top-1/2 z-dialog grid w-full -translate-x-1/2 -translate-y-1/2 gap-3 rounded-lg border border-zinc-200 bg-white p-5 shadow-lg duration-200 ease-[cubic-bezier(0.25,1,0.5,1)]",
+          "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
+          "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
           sizeClass,
           className,
         )}
@@ -68,11 +65,11 @@ export const DialogContent = React.forwardRef<
         {children}
         <DialogPrimitive.Close
           className={cn(
-            "absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-sm text-slate-500 transition-opacity hover:bg-slate-100 hover:text-slate-900",
-            "focus:outline-none focus-visible:shadow-focus",
+            "absolute right-3 top-3 inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition-colors duration-100 hover:bg-zinc-100 hover:text-zinc-900",
+            "focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
           )}
         >
-          <X className="h-4 w-4" aria-hidden="true" />
+          <X className="h-3.5 w-3.5" aria-hidden="true" />
           <span className="sr-only">Đóng</span>
         </DialogPrimitive.Close>
       </DialogPrimitive.Content>
@@ -110,8 +107,8 @@ export const DialogTitle = React.forwardRef<
   <DialogPrimitive.Title
     ref={ref}
     className={cn(
-      "text-lg font-semibold",
-      variant === "destructive" ? "text-danger-strong" : "text-slate-900",
+      "text-lg font-semibold leading-snug",
+      variant === "destructive" ? "text-red-700" : "text-zinc-900",
       className,
     )}
     {...props}
@@ -125,7 +122,7 @@ export const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
-    className={cn("text-sm text-slate-600", className)}
+    className={cn("text-base text-zinc-500", className)}
     {...props}
   />
 ));
@@ -180,10 +177,10 @@ export function DialogConfirm({
         <div className="mt-2 space-y-2">
           <label
             htmlFor="dialog-confirm-input"
-            className="text-sm font-medium text-slate-700"
+            className="text-base font-medium text-zinc-900"
           >
             Gõ{" "}
-            <span className="font-mono font-semibold text-danger-strong">
+            <span className="font-mono font-semibold text-red-700">
               {confirmText}
             </span>{" "}
             để xác nhận:

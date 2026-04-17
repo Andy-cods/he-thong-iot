@@ -6,13 +6,11 @@ import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * Direction B — Sheet (side drawer).
- *
- * Dùng lại Radix Dialog primitive để có focus trap + Esc close.
- * Side: right (quick edit, mặc định), left (filter panel), bottom (mobile action),
- * top (scan queue).
- *
- * Animation slide 200ms ease-snap (tương đương cubic-bezier(0.2,0.8,0.2,1)).
+ * V2 Sheet — Linear-inspired slide-in-right.
+ * Width md (420px — giảm từ V1 480 cho density compact). lg (560px). sm (360px).
+ * Animation 220ms ease-out-quart (Linear signature).
+ * Overlay bg-black/40 nhẹ hơn Dialog 0.5.
+ * Header h-12 (48px) — giảm từ V1 56. Body padding 20 — giảm từ V1 24.
  */
 
 export const Sheet = DialogPrimitive.Root;
@@ -27,9 +25,9 @@ export const SheetOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-dialog bg-overlay",
-      "data-[state=open]:animate-in data-[state=open]:fade-in-0",
-      "data-[state=closed]:animate-out data-[state=closed]:fade-out-0",
+      "fixed inset-0 z-dialog bg-overlay-sheet",
+      "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:duration-150",
+      "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:duration-150",
       className,
     )}
     {...props}
@@ -42,25 +40,26 @@ type Size = "sm" | "md" | "lg";
 
 const sideClasses: Record<Side, string> = {
   right:
-    "inset-y-0 right-0 border-l data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right",
+    "inset-y-0 right-0 border-l rounded-l-lg data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right",
   left:
-    "inset-y-0 left-0 border-r data-[state=open]:slide-in-from-left data-[state=closed]:slide-out-to-left",
+    "inset-y-0 left-0 border-r rounded-r-lg data-[state=open]:slide-in-from-left data-[state=closed]:slide-out-to-left",
   bottom:
-    "inset-x-0 bottom-0 border-t data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom",
+    "inset-x-0 bottom-0 border-t rounded-t-lg data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom",
   top:
-    "inset-x-0 top-0 border-b data-[state=open]:slide-in-from-top data-[state=closed]:slide-out-to-top",
+    "inset-x-0 top-0 border-b rounded-b-lg data-[state=open]:slide-in-from-top data-[state=closed]:slide-out-to-top",
 };
 
+// V2 sizes — giảm từ V1 để phù hợp density compact.
 const sizeClasses: Record<Side, Record<Size, string>> = {
   right: {
     sm: "w-full md:w-[360px]",
-    md: "w-full md:w-[480px]",
-    lg: "w-full md:w-[640px]",
+    md: "w-full md:w-[420px]", // V1 480 → V2 420
+    lg: "w-full md:w-[560px]", // V1 640 → V2 560
   },
   left: {
     sm: "w-full md:w-[360px]",
-    md: "w-full md:w-[480px]",
-    lg: "w-full md:w-[640px]",
+    md: "w-full md:w-[420px]",
+    lg: "w-full md:w-[560px]",
   },
   bottom: {
     sm: "h-[45vh]",
@@ -102,7 +101,7 @@ export const SheetContent = React.forwardRef<
       <DialogPrimitive.Content
         ref={ref}
         className={cn(
-          "fixed z-dialog flex flex-col bg-white border-slate-200 shadow-pop duration-base ease-snap",
+          "fixed z-dialog flex flex-col bg-white border-zinc-200 shadow-lg duration-200 ease-[cubic-bezier(0.25,1,0.5,1)]",
           "data-[state=open]:animate-in data-[state=closed]:animate-out",
           sideClasses[side],
           sizeClasses[side][size],
@@ -114,11 +113,11 @@ export const SheetContent = React.forwardRef<
         {hideCloseButton ? null : (
           <DialogPrimitive.Close
             className={cn(
-              "absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-sm text-slate-500 transition-opacity hover:bg-slate-100 hover:text-slate-900",
-              "focus:outline-none focus-visible:shadow-focus",
+              "absolute right-3 top-3 inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition-colors duration-100 hover:bg-zinc-100 hover:text-zinc-900",
+              "focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
             )}
           >
-            <X className="h-4 w-4" aria-hidden="true" />
+            <X className="h-3.5 w-3.5" aria-hidden="true" />
             <span className="sr-only">Đóng</span>
           </DialogPrimitive.Close>
         )}
@@ -134,7 +133,7 @@ export const SheetHeader = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex h-14 shrink-0 items-center justify-between border-b border-slate-200 px-6",
+      "flex h-12 shrink-0 items-center justify-between border-b border-zinc-100 px-5",
       className,
     )}
     {...props}
@@ -146,7 +145,7 @@ export const SheetBody = ({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex-1 overflow-y-auto p-6", className)} {...props} />
+  <div className={cn("flex-1 overflow-y-auto p-5", className)} {...props} />
 );
 SheetBody.displayName = "SheetBody";
 
@@ -156,7 +155,7 @@ export const SheetFooter = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex h-[72px] shrink-0 items-center justify-end gap-2 border-t border-slate-200 px-6",
+      "flex h-14 shrink-0 items-center justify-end gap-2 border-t border-zinc-100 px-5",
       className,
     )}
     {...props}
@@ -170,7 +169,7 @@ export const SheetTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
-    className={cn("text-lg font-semibold text-slate-900", className)}
+    className={cn("text-lg font-semibold text-zinc-900", className)}
     {...props}
   />
 ));
@@ -182,7 +181,7 @@ export const SheetDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
-    className={cn("text-sm text-slate-600", className)}
+    className={cn("text-base text-zinc-500", className)}
     {...props}
   />
 ));
