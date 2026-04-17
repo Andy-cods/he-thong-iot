@@ -52,7 +52,7 @@ export function BarcodeList({ itemId }: { itemId: string }) {
   return (
     <div className="space-y-3">
       <form
-        className="rounded border border-slate-200 bg-slate-50 p-2.5"
+        className="rounded-md border border-zinc-200 bg-zinc-50 p-3"
         onSubmit={async (e) => {
           e.preventDefault();
           if (!form.barcode.trim()) return;
@@ -130,7 +130,7 @@ export function BarcodeList({ itemId }: { itemId: string }) {
             </Button>
           </div>
         </div>
-        <label className="mt-2 flex items-center gap-1.5 text-sm text-slate-700">
+        <label className="mt-2 flex items-center gap-1.5 text-sm text-zinc-700">
           <input
             type="checkbox"
             checked={form.isPrimary}
@@ -143,7 +143,7 @@ export function BarcodeList({ itemId }: { itemId: string }) {
       </form>
 
       <table className="w-full text-sm">
-        <thead className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+        <thead className="border-b border-zinc-200 text-left text-xs uppercase tracking-wider text-zinc-500">
           <tr>
             <th className="py-2 pr-2">Barcode</th>
             <th className="py-2 pr-2">Loại</th>
@@ -155,25 +155,25 @@ export function BarcodeList({ itemId }: { itemId: string }) {
         <tbody>
           {isLoading && (
             <tr>
-              <td colSpan={5} className="py-3 text-center text-slate-500">
+              <td colSpan={5} className="py-3 text-center text-zinc-500">
                 Đang tải…
               </td>
             </tr>
           )}
           {!isLoading && rows.length === 0 && (
             <tr>
-              <td colSpan={5} className="py-3 text-center text-slate-500">
+              <td colSpan={5} className="py-3 text-center text-zinc-500">
                 Chưa có barcode nào.
               </td>
             </tr>
           )}
           {rows.map((b) => (
-            <tr key={b.id} className="border-b border-slate-100">
-              <td className="py-2 pr-2 font-mono text-slate-900">{b.barcode}</td>
+            <tr key={b.id} className="border-b border-zinc-100">
+              <td className="py-2 pr-2 font-mono text-zinc-900">{b.barcode}</td>
               <td className="py-2 pr-2">
                 <Badge variant="outline">{b.barcodeType}</Badge>
               </td>
-              <td className="py-2 pr-2 text-slate-600">
+              <td className="py-2 pr-2 text-zinc-600">
                 {b.source === "vendor" ? "Vendor" : "Nội bộ"}
               </td>
               <td className="py-2 pr-2">
@@ -183,7 +183,7 @@ export function BarcodeList({ itemId }: { itemId: string }) {
                   <button
                     type="button"
                     aria-label="Đặt làm barcode chính"
-                    className="text-slate-400 hover:text-cta"
+                    className="text-zinc-400 hover:text-blue-600"
                     onClick={() => setPrimary.mutate(b.id)}
                   >
                     <Star className="h-4 w-4" />
@@ -194,7 +194,7 @@ export function BarcodeList({ itemId }: { itemId: string }) {
                 <button
                   type="button"
                   aria-label="Xoá barcode"
-                  className="text-slate-400 hover:text-danger"
+                  className="text-zinc-400 hover:text-red-600"
                   onClick={() => {
                     if (confirm(`Xoá barcode "${b.barcode}"?`)) {
                       remove.mutate(b.id);
