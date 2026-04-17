@@ -1,7 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown, LogOut, Settings as SettingsIcon, User } from "lucide-react";
+import {
+  ChevronDown,
+  LogOut,
+  Settings as SettingsIcon,
+  User,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,9 +18,9 @@ import {
 import { cn } from "@/lib/utils";
 
 /**
- * Direction B — UserMenu (design-spec §3.5).
- * Avatar + username + role badge → Radix DropdownMenu.
- * Item Logout ở cuối với variant danger.
+ * V2 UserMenu — Linear-inspired compact.
+ * Trigger h-8 avatar 24px. Menu items h-8 text-base (13px).
+ * Logout variant danger red-700 focus bg-red-50.
  */
 
 export interface UserMenuUser {
@@ -56,15 +61,16 @@ export function UserMenu({
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(
-          "inline-flex h-10 items-center gap-2 rounded px-2 text-sm text-slate-700 transition-colors hover:bg-slate-100",
-          "focus:outline-none focus-visible:shadow-focus",
+          "inline-flex h-8 items-center gap-1.5 rounded-md px-1.5 text-base text-zinc-700 transition-colors duration-100",
+          "hover:bg-zinc-100",
+          "focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
           className,
         )}
         aria-label="Tài khoản người dùng"
       >
         <span
           aria-hidden="true"
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-700"
+          className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-200 text-[10px] font-semibold text-zinc-700"
         >
           {user.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -77,40 +83,40 @@ export function UserMenu({
             initials
           )}
         </span>
-        <span className="hidden max-w-[140px] truncate md:inline">
+        <span className="hidden max-w-[120px] truncate font-medium md:inline">
           {user.fullName || user.username}
         </span>
         <ChevronDown
-          className="h-4 w-4 text-slate-500"
+          className="h-3.5 w-3.5 text-zinc-400"
           aria-hidden="true"
         />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" className="min-w-[220px]">
         <DropdownMenuLabel className="normal-case tracking-normal">
           <div className="space-y-0.5">
-            <div className="text-sm font-semibold text-slate-900">
+            <div className="text-base font-semibold text-zinc-900">
               {user.fullName || user.username}
             </div>
-            <div className="text-xs text-slate-600">@{user.username}</div>
-            <div className="text-xs text-slate-500">
+            <div className="text-sm text-zinc-500">@{user.username}</div>
+            <div className="text-sm text-zinc-500">
               Vai trò:{" "}
-              <span className="font-medium text-slate-700">{roleLabel}</span>
+              <span className="font-medium text-zinc-700">{roleLabel}</span>
             </div>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem disabled>
-          <User className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <User className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden="true" />
           <span>Hồ sơ</span>
-          <span className="ml-auto text-xs text-slate-400">V1.1</span>
+          <span className="ml-auto text-xs text-zinc-400">V1.1</span>
         </DropdownMenuItem>
         <DropdownMenuItem disabled>
-          <SettingsIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <SettingsIcon className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden="true" />
           <span>Cài đặt</span>
-          <span className="ml-auto text-xs text-slate-400">V1.1</span>
+          <span className="ml-auto text-xs text-zinc-400">V1.1</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuLabel className="normal-case tracking-normal text-slate-500">
+        <DropdownMenuLabel className="normal-case tracking-normal text-zinc-400">
           Phiên bản {version}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -122,7 +128,7 @@ export function UserMenu({
           }}
           disabled={loading}
         >
-          <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <LogOut className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           <span>{loading ? "Đang đăng xuất..." : "Đăng xuất"}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>

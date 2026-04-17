@@ -9,11 +9,12 @@ import { formatShortcut } from "@/lib/shortcuts";
 import { cn } from "@/lib/utils";
 
 /**
- * Direction B — TopBar (design-spec §3.3).
- * - Height 56px (--topbar-height), bg-white border-b.
- * - Left: hamburger (mobile) + breadcrumb (desktop).
- * - Center (xl): CommandPalette trigger.
- * - Right: notification bell (stub) + UserMenu.
+ * V2 TopBar — Linear-inspired compact.
+ * Desktop h-11 (44px) — giảm từ V1 56. Mobile h-14 (56px).
+ * Logo nhỏ 20px mobile, breadcrumb inline desktop.
+ * Ctrl+K trigger button ghost (text zinc-500 hover zinc-700).
+ * Notification bell 28px icon 16px, badge red-500.
+ * UserMenu right với avatar 24px.
  */
 
 export interface TopBarProps {
@@ -41,7 +42,7 @@ export function TopBar({
     <header
       role="banner"
       className={cn(
-        "sticky top-0 z-topbar flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 xl:px-6",
+        "sticky top-0 z-topbar flex h-14 md:h-11 items-center justify-between border-b border-zinc-200 bg-white px-4 xl:px-6",
         className,
       )}
     >
@@ -52,13 +53,19 @@ export function TopBar({
             type="button"
             onClick={onSidebarToggle}
             aria-label="Mở menu"
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus-visible:shadow-focus md:hidden"
+            className={cn(
+              "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-zinc-600 transition-colors duration-100 hover:bg-zinc-100 hover:text-zinc-900 md:hidden",
+              "focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
+            )}
           >
-            <Menu className="h-5 w-5" aria-hidden="true" />
+            <Menu className="h-4 w-4" aria-hidden="true" />
           </button>
         ) : null}
-        {/* Logo mobile thay breadcrumb trên mobile */}
-        <span className="inline-flex h-8 w-8 items-center justify-center rounded bg-slate-900 text-xs font-bold text-white md:hidden">
+        {/* Logo mobile thay breadcrumb */}
+        <span
+          aria-hidden="true"
+          className="inline-flex h-5 w-5 items-center justify-center rounded-sm bg-zinc-900 text-[9px] font-bold text-white md:hidden"
+        >
           CN
         </span>
         <div className="hidden min-w-0 md:block">
@@ -72,37 +79,49 @@ export function TopBar({
           type="button"
           onClick={onCommandOpen}
           aria-label={`Mở tìm kiếm và lệnh (${shortcutLabel})`}
-          className="group inline-flex h-9 w-full items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500 transition-colors hover:border-slate-300 hover:bg-white focus:outline-none focus-visible:shadow-focus"
+          aria-keyshortcuts="Control+K"
+          className={cn(
+            "group inline-flex h-8 w-full items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2.5 text-sm text-zinc-500 transition-colors duration-100 ease-out",
+            "hover:border-zinc-300 hover:bg-white hover:text-zinc-700",
+            "focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
+          )}
         >
-          <Search className="h-4 w-4" aria-hidden="true" />
+          <Search className="h-3.5 w-3.5" aria-hidden="true" />
           <span className="flex-1 text-left">Tìm kiếm và lệnh...</span>
-          <kbd className="rounded border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-xs text-slate-600">
+          <kbd className="rounded-sm border border-zinc-200 bg-white px-1.5 py-0 font-mono text-[10px] text-zinc-500">
             {shortcutLabel}
           </kbd>
         </button>
       </div>
 
       {/* Right */}
-      <div className="flex shrink-0 items-center gap-1">
+      <div className="flex shrink-0 items-center gap-0.5">
         {/* Command trigger collapsed cho md-lg (icon only) */}
         <button
           type="button"
           onClick={onCommandOpen}
           aria-label={`Mở tìm kiếm và lệnh (${shortcutLabel})`}
-          className="relative hidden h-10 w-10 items-center justify-center rounded text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus-visible:shadow-focus md:inline-flex xl:hidden"
+          aria-keyshortcuts="Control+K"
+          className={cn(
+            "relative hidden h-8 w-8 items-center justify-center rounded-md text-zinc-600 transition-colors duration-100 hover:bg-zinc-100 hover:text-zinc-900 md:inline-flex xl:hidden",
+            "focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
+          )}
         >
-          <Search className="h-5 w-5" aria-hidden="true" />
+          <Search className="h-4 w-4" aria-hidden="true" />
         </button>
         <button
           type="button"
           aria-label={`Thông báo · ${notificationCount} mới`}
-          className="relative inline-flex h-10 w-10 items-center justify-center rounded text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus-visible:shadow-focus"
+          className={cn(
+            "relative inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-600 transition-colors duration-100 hover:bg-zinc-100 hover:text-zinc-900",
+            "focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
+          )}
         >
-          <Bell className="h-5 w-5" aria-hidden="true" />
+          <Bell className="h-4 w-4" aria-hidden="true" />
           {notificationCount > 0 ? (
             <span
               aria-hidden="true"
-              className="absolute right-1.5 top-1.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white"
+              className="absolute right-1 top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white tabular-nums"
             >
               {notificationCount > 99 ? "99+" : notificationCount}
             </span>
