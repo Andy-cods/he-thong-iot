@@ -10,15 +10,13 @@ import {
 } from "lucide-react";
 import { AUTH_COOKIE_NAME, verifyAccessToken } from "@/lib/auth";
 import { KpiCard } from "@/components/domain/KpiCard";
-import {
-  OrdersReadinessTable,
-  generateMockOrders,
-} from "@/components/domain/OrdersReadinessTable";
-import {
-  AlertsList,
-  generateMockAlerts,
-} from "@/components/domain/AlertsList";
+import { OrdersReadinessTable } from "@/components/domain/OrdersReadinessTable";
+import { AlertsList } from "@/components/domain/AlertsList";
 import { SystemHealthCard } from "@/components/domain/SystemHealthCard";
+import {
+  generateMockOrders,
+  generateMockAlerts,
+} from "@/lib/dashboard-mocks";
 
 export const dynamic = "force-dynamic";
 

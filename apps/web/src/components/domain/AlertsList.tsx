@@ -152,32 +152,4 @@ function AlertItem({ alert }: { alert: DashboardAlert }) {
   );
 }
 
-/**
- * Mock alerts V1 — TODO V1.1: thay bằng API real.
- */
-export function generateMockAlerts(): DashboardAlert[] {
-  return [
-    {
-      id: "a1",
-      severity: "danger",
-      title: "SO-100 đã quá hạn 1 ngày",
-      description: "Cơ khí Việt Tiến · thiếu 3 SKU",
-      kind: "overdue",
-    },
-    {
-      id: "a2",
-      severity: "warning",
-      title: "SO-103 thiếu vật tư > 20%",
-      description: "4 SKU chưa đủ · Jig-CNC-200",
-      kind: "shortage",
-    },
-    {
-      id: "a3",
-      severity: "warning",
-      title: "7 SKU chạm tồn kho tối thiểu",
-      description: "Cần đặt mua bổ sung trong tuần này",
-      href: "/items?filter=low-stock",
-      kind: "stock-min",
-    },
-  ];
-}
+// Mock generator moved to `@/lib/dashboard-mocks.ts` (server-safe RSC import).
