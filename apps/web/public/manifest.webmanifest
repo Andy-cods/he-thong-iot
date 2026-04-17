@@ -1,10 +1,10 @@
 {
-  "name": "he-thong-iot — Xưởng IoT",
-  "short_name": "he-thong-iot",
-  "description": "Hệ thống MES/ERP nhẹ, BOM-centric cho xưởng cơ khí Việt Nam.",
+  "name": "IoT Xưởng — BOM MES",
+  "short_name": "IoT",
+  "description": "Hệ thống quản lý BOM-centric cho xưởng cơ khí Việt Nam.",
   "lang": "vi",
   "dir": "ltr",
-  "start_url": "/",
+  "start_url": "/pwa",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
@@ -19,23 +19,36 @@
       "purpose": "any"
     },
     {
+      "src": "/icons/icon-256.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
       "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "shortcuts": [
     {
-      "name": "Quét lắp ráp",
-      "short_name": "Quét",
-      "description": "Mở trạm quét mã vạch lắp ráp",
-      "url": "/app/assembly/scan"
-    },
-    {
-      "name": "Bảng đơn hàng",
-      "short_name": "Đơn hàng",
-      "url": "/app/orders"
+      "name": "Nhận hàng",
+      "short_name": "Nhận",
+      "description": "Mở trạm nhận hàng PWA",
+      "url": "/pwa/receive"
     }
   ]
 }
