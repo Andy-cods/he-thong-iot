@@ -7,16 +7,20 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 /**
- * BarcodeScanner — design-spec §3.17 + brainstorm-deep §2.5 / §3.
+ * V2 BarcodeScanner — design-spec §3.7.2.
  *
- * 3 nguồn đầu vào:
- * 1. Camera (html5-qrcode) — lazy khi user bấm "Bật camera".
- * 2. USB/Bluetooth wedge — keystroke timing < 30ms/char, pause 100ms tự submit.
- * 3. Manual text input — fallback khi camera denied + không có wedge.
+ * Card padding 16 border zinc-200 rounded-md. Camera area aspect-[4/3]
+ * bg-zinc-900 rounded-sm (thay slate-900). Permission denied fallback:
+ * Input h-9 + "Nhập tay barcode" hint. Scan feedback: flash border 3px
+ * emerald-500/red-500 400ms. Audio beep 880Hz success / 220Hz error /
+ * 660Hz dup. USB keyboard wedge detect giữ < 80ms/char logic V1.
+ *
+ * GIỮ 3 nguồn input V1:
+ * 1. Camera (html5-qrcode lazy import khi bấm "Bật camera").
+ * 2. USB/BT wedge — keystroke timing < 80ms/char, pause 100ms tự submit.
+ * 3. Manual text input — fallback.
  *
  * IME safe: skip `e.isComposing` để không ăn phím khi user gõ tiếng Việt.
- * Visual feedback: animate-flash-success / animate-flash-danger, optional beep
- * 880Hz/220Hz qua Web Audio API.
  */
 
 export interface BarcodeScannerProps {
@@ -24,11 +28,10 @@ export interface BarcodeScannerProps {
   onError?: (err: Error) => void;
   enableSound?: boolean;
   disabled?: boolean;
-  /** Label vùng live-region để a11y announce. Default "Kết quả quét". */
   liveRegionLabel?: string;
 }
 
-type FlashKind = "success" | "danger" | null;
+type FlashKind = "success" | "danger" | "dup" | null;
 
 const CAMERA_DENIED_KEY = "iot:pwa:camera-denied";
 
@@ -53,7 +56,7 @@ function beep(freq: number) {
     osc.stop(ctx.currentTime + 0.12);
     osc.onended = () => ctx.close();
   } catch {
-    // silent — browser block audio context trước user gesture
+    // silent
   }
 }
 
@@ -74,8 +77,8 @@ export function BarcodeScanner({
 
   const scannerRef = React.useRef<HTMLDivElement | null>(null);
   const instanceRef = React.useRef<unknown>(null);
+  const lastCodeRef = React.useRef<{ code: string; at: number } | null>(null);
 
-  // Init reduced-motion check + camera-denied flag
   React.useEffect(() => {
     if (typeof window === "undefined") return;
     setPrefersReducedMotion(
@@ -90,16 +93,19 @@ export function BarcodeScanner({
     }
   }, []);
 
-  /** Play flash + beep feedback. */
   const playFeedback = React.useCallback(
-    (kind: "success" | "danger") => {
+    (kind: "success" | "danger" | "dup") => {
       if (!prefersReducedMotion) setFlash(kind);
-      if (soundOn) beep(kind === "success" ? 880 : 220);
-      // Haptic — nếu browser hỗ trợ
-      if (typeof navigator !== "undefined" && navigator.vibrate) {
-        navigator.vibrate(kind === "success" ? 40 : [80, 40, 80]);
+      if (soundOn) {
+        const freq = kind === "success" ? 880 : kind === "dup" ? 660 : 220;
+        beep(freq);
       }
-      window.setTimeout(() => setFlash(null), 600);
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        navigator.vibrate(
+          kind === "success" ? 40 : kind === "dup" ? [30, 30, 30] : [80, 40, 80],
+        );
+      }
+      window.setTimeout(() => setFlash(null), 400);
     },
     [prefersReducedMotion, soundOn],
   );
@@ -108,6 +114,15 @@ export function BarcodeScanner({
     (code: string) => {
       const trimmed = code.trim();
       if (!trimmed) return;
+      // Dup detection: cùng mã trong 800ms → beep dup thay vì fire onDetect
+      const now = performance.now();
+      const last = lastCodeRef.current;
+      if (last && last.code === trimmed && now - last.at < 800) {
+        setLiveText(`Trùng mã ${trimmed}`);
+        playFeedback("dup");
+        return;
+      }
+      lastCodeRef.current = { code: trimmed, at: now };
       onDetect(trimmed);
       setLiveText(`Đã quét ${trimmed}`);
       playFeedback("success");
@@ -115,9 +130,7 @@ export function BarcodeScanner({
     [onDetect, playFeedback],
   );
 
-  // ── USB/Bluetooth wedge detection (global key listener) ─────────────
-  // Buffer keystroke; submit khi Enter hoặc pause 100ms, và chỉ khi inter-keystroke
-  // time < 30ms (chứng tỏ là máy quét, không phải user gõ tay).
+  // USB/BT wedge detection — giữ logic V1 (< 80ms/char, pause 100ms)
   React.useEffect(() => {
     if (disabled) return;
     if (typeof window === "undefined") return;
@@ -140,10 +153,8 @@ export function BarcodeScanner({
 
     const onKey = (e: KeyboardEvent) => {
       if (e.isComposing || e.keyCode === 229) return;
-      // Skip khi user đang focus input/textarea (trừ các input dedicated trong scanner)
       const tgt = e.target as HTMLElement | null;
       if (tgt && (tgt.tagName === "INPUT" || tgt.tagName === "TEXTAREA")) {
-        // Cho phép Enter trong manual input xử lý riêng.
         return;
       }
       const now = performance.now();
@@ -154,13 +165,11 @@ export function BarcodeScanner({
         }
         return;
       }
-      if (e.key.length !== 1) return; // bỏ các phím điều khiển (Shift, Alt, F1…)
+      if (e.key.length !== 1) return;
 
-      // Đo inter-keystroke
       if (times.length > 0) {
         const delta = now - times[times.length - 1]!;
         if (delta > 80) {
-          // User gõ tay — reset buffer (không phải wedge)
           buf.length = 0;
           times.length = 0;
         }
@@ -185,11 +194,9 @@ export function BarcodeScanner({
     };
   }, [disabled, handleDetect]);
 
-  // ── Camera start/stop ────────────────────────────────────────────────
   const startCamera = async () => {
     if (disabled) return;
     try {
-      // html5-qrcode dynamic import — nặng ~120KB, chỉ load khi cần
       const mod = await import("html5-qrcode");
       const { Html5Qrcode } = mod;
       if (!scannerRef.current) return;
@@ -202,7 +209,7 @@ export function BarcodeScanner({
         { fps: 10, qrbox: { width: 260, height: 160 } },
         (decodedText) => handleDetect(decodedText),
         () => {
-          // ignore individual frame errors — chỉ alert khi stop
+          // ignore frame errors
         },
       );
       setMode("camera");
@@ -260,49 +267,44 @@ export function BarcodeScanner({
   return (
     <div
       className={cn(
-        "rounded-lg border border-slate-200 bg-white p-4 transition-all",
-        flash === "success" && "animate-flash-success",
-        flash === "danger" && "animate-flash-danger",
+        "rounded-md border bg-white p-4 transition-[border-color,box-shadow] duration-150",
+        flash === "success" &&
+          "border-emerald-500 ring-[3px] ring-emerald-500/30",
+        flash === "danger" &&
+          "border-red-500 ring-[3px] ring-red-500/30 animate-shake",
+        flash === "dup" && "border-amber-500 ring-[3px] ring-amber-500/30",
+        !flash && "border-zinc-200",
       )}
       aria-busy={disabled}
     >
-      {/* Live region for screen readers */}
-      <div
-        aria-live="polite"
-        aria-atomic="true"
-        className="sr-only"
-      >
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
         {liveRegionLabel}: {liveText}
       </div>
 
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold text-slate-900">
-          Quét mã vạch
-        </h3>
-        <div className="flex gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setSoundOn((s) => !s)}
-            aria-label={soundOn ? "Tắt âm" : "Bật âm"}
-            className="h-10 w-10 p-0"
-          >
-            {soundOn ? (
-              <Volume2 className="h-4 w-4" aria-hidden />
-            ) : (
-              <VolumeX className="h-4 w-4" aria-hidden />
-            )}
-          </Button>
-        </div>
+        <h3 className="text-md font-semibold text-zinc-900">Quét mã vạch</h3>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => setSoundOn((s) => !s)}
+          aria-label={soundOn ? "Tắt âm thanh" : "Bật âm thanh"}
+          className="h-11 w-11"
+        >
+          {soundOn ? (
+            <Volume2 className="h-4 w-4" aria-hidden="true" />
+          ) : (
+            <VolumeX className="h-4 w-4" aria-hidden="true" />
+          )}
+        </Button>
       </div>
 
       {cameraDenied ? (
         <div
           role="status"
-          className="mt-3 flex items-start gap-2 rounded-md border border-warning/20 bg-warning-soft px-3 py-2 text-sm text-warning-strong"
+          className="mt-3 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
         >
-          <CameraOff className="h-4 w-4 shrink-0" aria-hidden />
+          <CameraOff className="h-4 w-4 shrink-0" aria-hidden="true" />
           <span>
             Camera không khả dụng. Dùng máy quét USB (gắn vào rồi quét thẳng)
             hoặc nhập tay bên dưới.
@@ -314,15 +316,16 @@ export function BarcodeScanner({
         <div className="mt-3 space-y-2">
           <div
             ref={scannerRef}
-            className="relative mx-auto aspect-[4/3] w-full max-w-md overflow-hidden rounded-md bg-slate-900"
+            className="relative mx-auto aspect-[4/3] w-full max-w-md overflow-hidden rounded-sm bg-zinc-900"
           />
           <div className="flex justify-end">
             <Button
               type="button"
               variant="outline"
+              size="lg"
               onClick={() => void stopCamera()}
             >
-              <CameraOff className="h-4 w-4" aria-hidden />
+              <CameraOff className="h-4 w-4" aria-hidden="true" />
               Dừng camera
             </Button>
           </div>
@@ -333,11 +336,12 @@ export function BarcodeScanner({
             <Button
               type="button"
               variant="outline"
-              className="w-full min-h-[48px]"
+              size="lg"
+              className="w-full"
               onClick={() => void startCamera()}
               disabled={disabled}
             >
-              <Camera className="h-4 w-4" aria-hidden />
+              <Camera className="h-4 w-4" aria-hidden="true" />
               Bật camera để quét
             </Button>
           ) : null}
@@ -349,27 +353,27 @@ export function BarcodeScanner({
             <div className="flex-1">
               <label
                 htmlFor="barcode-manual"
-                className="mb-1 flex items-center gap-1 text-xs font-medium text-slate-600"
+                className="mb-1 flex items-center gap-1 text-xs font-medium text-zinc-600"
               >
-                <Keyboard className="h-3.5 w-3.5" aria-hidden />
-                Nhập tay hoặc dùng máy quét USB
+                <Keyboard className="h-3.5 w-3.5" aria-hidden="true" />
+                Nhập tay barcode hoặc dùng máy quét USB
               </label>
               <Input
                 id="barcode-manual"
+                size="lg"
                 value={manual}
                 onChange={(e) => setManual(e.target.value)}
                 placeholder="Quét / gõ SKU hoặc barcode rồi bấm Enter"
                 autoComplete="off"
-                className="h-12"
                 disabled={disabled}
               />
             </div>
             <Button
               type="submit"
+              size="lg"
               disabled={disabled || manual.trim().length === 0}
-              className="h-12"
             >
-              <Send className="h-4 w-4" aria-hidden />
+              <Send className="h-4 w-4" aria-hidden="true" />
               Gửi
             </Button>
           </form>

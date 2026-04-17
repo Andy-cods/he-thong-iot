@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { AlertCircle, RefreshCw, Trash2 } from "lucide-react";
+import { AlertCircle, RefreshCw, Trash2, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -14,16 +14,34 @@ import { countPendingScans, getDB, type ScanEvent } from "@/lib/dexie";
 import { cn } from "@/lib/utils";
 
 /**
- * ScanQueueBadge — floating button top-right, show count events chưa sync.
- * Click → mở Sheet với list pending events + retry/delete per event.
+ * V2 ScanQueueBadge — design-spec §3.7.3.
  *
- * Design-spec §3.18.1 + brainstorm-deep §2.5 D19 FIFO.
- * Auto-refresh 5s — đủ cho workload V1 (không cần Dexie liveQuery overhead).
+ * - Floating top-right bg-white border zinc-200 rounded-md shadow-sm
+ *   padding 8 12px.
+ * - Count badge h-5 px-1.5 text-xs font-mono tabular-nums.
+ * - Offline tone amber-50/amber-700, normal tone zinc-50/zinc-700, overflow
+ *   red-50/red-700.
+ * - Click mở Sheet width 360px list pending events + retry/delete each.
+ * - Auto-refresh 5s (logic V1).
  */
 export function ScanQueueBadge({ poId }: { poId?: string }) {
   const [count, setCount] = React.useState(0);
   const [open, setOpen] = React.useState(false);
   const [events, setEvents] = React.useState<ScanEvent[]>([]);
+  const [online, setOnline] = React.useState<boolean>(
+    typeof navigator !== "undefined" ? navigator.onLine : true,
+  );
+
+  React.useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener("online", on);
+    window.addEventListener("offline", off);
+    return () => {
+      window.removeEventListener("online", on);
+      window.removeEventListener("offline", off);
+    };
+  }, []);
 
   const refresh = React.useCallback(async () => {
     try {
@@ -42,7 +60,7 @@ export function ScanQueueBadge({ poId }: { poId?: string }) {
         setEvents(list);
       }
     } catch {
-      // ignore — SSR or Dexie not ready
+      // ignore SSR
     }
   }, [poId, open]);
 
@@ -52,16 +70,7 @@ export function ScanQueueBadge({ poId }: { poId?: string }) {
     return () => window.clearInterval(t);
   }, [refresh]);
 
-  const tone =
-    count === 0
-      ? "bg-slate-100 text-slate-600"
-      : count > 50
-        ? "bg-danger-soft text-danger-strong"
-        : count > 10
-          ? "bg-warning-soft text-warning-strong"
-          : "bg-info-soft text-info-strong";
-
-  const label = `Hàng đợi quét: ${count} ${count > 50 ? "(tải cao)" : count > 10 ? "(đầy)" : ""}`;
+  const label = `Hàng đợi quét: ${count} sự kiện${!online ? " (offline)" : ""}`;
 
   const handleRetry = async (id: string) => {
     const db = getDB();
@@ -75,6 +84,24 @@ export function ScanQueueBadge({ poId }: { poId?: string }) {
     await refresh();
   };
 
+  const tone = !online
+    ? "bg-amber-50 border-amber-200 text-amber-800"
+    : count > 50
+      ? "bg-red-50 border-red-200 text-red-700"
+      : count > 10
+        ? "bg-amber-50 border-amber-200 text-amber-800"
+        : "bg-white border-zinc-200 text-zinc-700";
+
+  const dotTone = !online
+    ? "bg-amber-500"
+    : count > 50
+      ? "bg-red-500"
+      : count > 10
+        ? "bg-amber-500"
+        : count > 0
+          ? "bg-blue-500"
+          : "bg-zinc-400";
+
   return (
     <>
       <button
@@ -82,24 +109,27 @@ export function ScanQueueBadge({ poId }: { poId?: string }) {
         onClick={() => setOpen(true)}
         aria-label={label}
         className={cn(
-          "fixed right-3 top-3 z-sticky inline-flex h-10 items-center gap-1.5 rounded-full px-3 text-sm font-medium shadow-md focus:outline-none focus-visible:shadow-focus-strong",
+          "fixed right-3 top-3 z-sticky inline-flex items-center gap-2 rounded-md border px-3 py-2 shadow-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500",
           tone,
         )}
       >
+        {!online ? (
+          <WifiOff className="h-3.5 w-3.5" aria-hidden="true" />
+        ) : (
+          <span
+            aria-hidden="true"
+            className={cn("h-2 w-2 rounded-full", dotTone)}
+          />
+        )}
+        <span className="text-xs font-medium">Hàng đợi</span>
         <span
-          aria-hidden
           className={cn(
-            "inline-block h-2 w-2 rounded-full",
-            count > 50
-              ? "bg-danger"
-              : count > 10
-                ? "bg-warning"
-                : count > 0
-                  ? "bg-info"
-                  : "bg-slate-400",
+            "inline-flex h-5 items-center rounded-sm bg-white/70 px-1.5 text-xs font-mono font-semibold tabular-nums",
+            count === 0 && "text-zinc-500",
           )}
-        />
-        <span className="tabular-nums">{count}</span>
+        >
+          {count}
+        </span>
         <span className="sr-only">{label}</span>
       </button>
 
@@ -110,7 +140,7 @@ export function ScanQueueBadge({ poId }: { poId?: string }) {
           </SheetHeader>
           <SheetBody>
             {events.length === 0 ? (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-zinc-500">
                 Không có sự kiện chờ đồng bộ.
               </p>
             ) : (
@@ -118,35 +148,35 @@ export function ScanQueueBadge({ poId }: { poId?: string }) {
                 {events.map((ev) => (
                   <li
                     key={ev.id}
-                    className="rounded-md border border-slate-200 p-3"
+                    className="rounded-md border border-zinc-200 bg-white p-3"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <code className="font-mono text-sm font-medium text-slate-900">
+                          <code className="font-mono text-sm font-medium text-zinc-900">
                             {ev.code}
                           </code>
                           {ev.status === "failed" ? (
-                            <span className="inline-flex items-center gap-1 rounded bg-danger-soft px-1.5 py-0.5 text-xs font-medium text-danger-strong">
+                            <span className="inline-flex items-center gap-1 rounded-sm bg-red-50 px-1.5 py-0.5 text-xs font-medium text-red-700">
                               <AlertCircle
                                 className="h-3 w-3"
-                                aria-hidden
+                                aria-hidden="true"
                               />
                               Thất bại ×{ev.retryCount}
                             </span>
                           ) : (
-                            <span className="inline-flex items-center rounded bg-info-soft px-1.5 py-0.5 text-xs font-medium text-info-strong">
+                            <span className="inline-flex items-center rounded-sm bg-blue-50 px-1.5 py-0.5 text-xs font-medium text-blue-700">
                               Chờ
                             </span>
                           )}
                         </div>
-                        <p className="mt-1 text-xs text-slate-500 tabular-nums">
-                          qty {ev.qty}
+                        <p className="mt-1 text-xs text-zinc-500 tabular-nums">
+                          qty {ev.qty.toLocaleString("vi-VN")}
                           {ev.lotNo ? ` · lot ${ev.lotNo}` : ""} ·{" "}
                           {new Date(ev.createdAt).toLocaleTimeString("vi-VN")}
                         </p>
                         {ev.lastError ? (
-                          <p className="mt-1 text-xs text-danger-strong">
+                          <p className="mt-1 text-xs text-red-700">
                             {ev.lastError}
                           </p>
                         ) : null}
@@ -156,21 +186,27 @@ export function ScanQueueBadge({ poId }: { poId?: string }) {
                           <Button
                             type="button"
                             variant="outline"
-                            size="sm"
+                            size="icon-sm"
                             onClick={() => void handleRetry(ev.id)}
                             aria-label="Thử lại"
                           >
-                            <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+                            <RefreshCw
+                              className="h-3.5 w-3.5"
+                              aria-hidden="true"
+                            />
                           </Button>
                         ) : null}
                         <Button
                           type="button"
                           variant="outline"
-                          size="sm"
+                          size="icon-sm"
                           onClick={() => void handleDelete(ev.id)}
                           aria-label="Xoá"
                         >
-                          <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                          <Trash2
+                            className="h-3.5 w-3.5"
+                            aria-hidden="true"
+                          />
                         </Button>
                       </div>
                     </div>
