@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,22 @@ import { cn } from "@/lib/utils";
  * - POST `/api/auth/login` → redirect `?next=` hoặc `/`.
  */
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginFallback />}>
+      <LoginContent />
+    </Suspense>
+  );
+}
+
+function LoginFallback() {
+  return (
+    <div className="grid min-h-screen place-items-center bg-bg-base">
+      <Loader2 className="h-6 w-6 animate-spin text-slate-400" aria-hidden="true" />
+    </div>
+  );
+}
+
+function LoginContent() {
   const router = useRouter();
   const params = useSearchParams();
   const nextPath = params.get("next") || "/";
