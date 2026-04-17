@@ -2,13 +2,14 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ChevronRight, MoreHorizontal } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * Direction B — Breadcrumb nav.
- * Last item có aria-current="page", separator aria-hidden.
- * Auto-collapse middle nếu items > maxItems (default 3).
+ * V2 Breadcrumb — Linear-inspired.
+ * Font-size 13px (text-base V2). Separator "/" zinc-400 (V1 chevron ›).
+ * Link text-blue-600 hover underline. Last text-zinc-900 weight 500.
+ * Auto-collapse middle nếu items > maxItems (default 4).
  */
 
 export interface BreadcrumbItemData {
@@ -29,15 +30,22 @@ export function Breadcrumb({
 }: BreadcrumbProps) {
   const display = collapseItems(items, maxItems);
   return (
-    <nav aria-label="Breadcrumb" className={cn("text-sm", className)} {...props}>
-      <ol className="flex flex-wrap items-center gap-1 text-slate-600">
+    <nav
+      aria-label="Breadcrumb"
+      className={cn("text-base", className)}
+      {...props}
+    >
+      <ol className="flex flex-wrap items-center gap-1 text-zinc-500">
         {display.map((item, idx) => {
           const isLast = idx === display.length - 1;
           if (item === "…") {
             return (
-              <li key={`ellipsis-${idx}`} className="flex items-center gap-1">
+              <li
+                key={`ellipsis-${idx}`}
+                className="flex items-center gap-1"
+              >
                 <MoreHorizontal
-                  className="h-4 w-4 text-slate-400"
+                  className="h-3.5 w-3.5 text-zinc-400"
                   aria-hidden="true"
                 />
                 <Separator />
@@ -45,10 +53,13 @@ export function Breadcrumb({
             );
           }
           return (
-            <li key={`${item.label}-${idx}`} className="flex items-center gap-1">
+            <li
+              key={`${item.label}-${idx}`}
+              className="flex items-center gap-1"
+            >
               {isLast ? (
                 <span
-                  className="font-medium text-slate-900"
+                  className="font-medium text-zinc-900"
                   aria-current="page"
                 >
                   {item.label}
@@ -56,7 +67,7 @@ export function Breadcrumb({
               ) : item.href ? (
                 <Link
                   href={item.href}
-                  className="text-slate-600 transition-colors hover:text-slate-900"
+                  className="text-blue-600 transition-colors duration-100 hover:text-blue-700 hover:underline underline-offset-2"
                 >
                   {item.label}
                 </Link>
@@ -74,10 +85,12 @@ export function Breadcrumb({
 
 function Separator() {
   return (
-    <ChevronRight
-      className="h-3.5 w-3.5 text-slate-400"
+    <span
       aria-hidden="true"
-    />
+      className="select-none px-1 text-zinc-400"
+    >
+      /
+    </span>
   );
 }
 
@@ -98,7 +111,6 @@ function collapseItems(
 /**
  * useBreadcrumb — auto-generate từ pathname.
  * VD: `/items/ABC-001` → [{label:"Vật tư",href:"/items"},{label:"ABC-001"}].
- * Labels lấy từ map cho các segment quen thuộc, fallback uppercase.
  */
 const SEGMENT_LABELS: Record<string, string> = {
   "": "Trang chủ",

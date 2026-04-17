@@ -1,21 +1,31 @@
 "use client";
 
 import * as React from "react";
-import { cn } from "@/lib/utils";
 import {
-  EmptyAlert,
-  EmptyBox,
-  EmptyInbox,
-  EmptySearch,
-  OfflineCloud,
-  ScanReady,
-} from "./illustrations";
+  AlertTriangle,
+  CheckCircle,
+  Inbox,
+  Package,
+  SearchX,
+  WifiOff,
+  ScanLine,
+  type LucideIcon,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 /**
- * Direction B — EmptyState (design-spec §3.11).
- * Slot illustration + title + description + CTA buttons.
- * Preset: no-data, no-filter-match, error, empty-success, offline, scan-ready.
- * Illustrations: inline line-art SVG, slate-400 stroke, no external asset.
+ * V2 EmptyState — Linear-inspired icon-based (BỎ illustration folder V1).
+ * Icon 32-40px Lucide (muted color). Title 14px weight 500 + description
+ * 12px zinc-500 + optional CTA buttons size sm.
+ * Padding vertical 48px (py-12) để give breathing room.
+ *
+ * Preset → icon mapping:
+ * - no-data: Package
+ * - no-filter-match: SearchX
+ * - error: AlertTriangle
+ * - empty-success: CheckCircle
+ * - offline: WifiOff
+ * - scan-ready: ScanLine
  */
 
 export type EmptyStatePreset =
@@ -30,42 +40,63 @@ export interface EmptyStateProps {
   title: string;
   description?: string;
   actions?: React.ReactNode;
+  /** Custom icon override preset. */
+  icon?: React.ReactNode;
+  /**
+   * @deprecated V2 dùng `icon` — prop `illustration` giữ back-compat V1
+   * để pages chưa migrate không break.
+   */
   illustration?: React.ReactNode;
   preset?: EmptyStatePreset;
+  /** Icon size px. Default 40. */
+  iconSize?: number;
   className?: string;
 }
 
-const presetIllustration: Record<
-  EmptyStatePreset,
-  React.ComponentType<{ className?: string; size?: number }>
-> = {
-  "no-data": EmptyBox,
-  "no-filter-match": EmptySearch,
-  error: EmptyAlert,
-  "empty-success": EmptyInbox,
-  offline: OfflineCloud,
-  "scan-ready": ScanReady,
+const presetIcon: Record<EmptyStatePreset, LucideIcon> = {
+  "no-data": Package,
+  "no-filter-match": SearchX,
+  error: AlertTriangle,
+  "empty-success": CheckCircle,
+  offline: WifiOff,
+  "scan-ready": ScanLine,
 };
 
 const presetColor: Record<EmptyStatePreset, string> = {
-  "no-data": "text-slate-400",
-  "no-filter-match": "text-slate-400",
-  error: "text-danger",
-  "empty-success": "text-success",
-  offline: "text-slate-400",
-  "scan-ready": "text-slate-500",
+  "no-data": "text-zinc-400",
+  "no-filter-match": "text-zinc-400",
+  error: "text-red-500",
+  "empty-success": "text-emerald-500",
+  offline: "text-amber-500",
+  "scan-ready": "text-blue-500",
 };
+
+/** Fallback neutral icon khi không có preset và không truyền icon. */
+const DEFAULT_ICON: LucideIcon = Inbox;
 
 export function EmptyState({
   title,
   description,
   actions,
+  icon,
   illustration,
   preset,
+  iconSize = 40,
   className,
 }: EmptyStateProps) {
-  const illustrationNode =
-    illustration ?? (preset ? <PresetIllustration preset={preset} /> : null);
+  const iconNode =
+    icon ??
+    illustration ??
+    (preset ? (
+      <PresetIcon preset={preset} size={iconSize} />
+    ) : (
+      <DEFAULT_ICON
+        className="text-zinc-400"
+        size={iconSize}
+        strokeWidth={1.5}
+        aria-hidden="true"
+      />
+    ));
 
   return (
     <div
@@ -76,17 +107,17 @@ export function EmptyState({
         className,
       )}
     >
-      {illustrationNode ? (
-        <div aria-hidden="true" className="mb-4">
-          {illustrationNode}
-        </div>
-      ) : null}
-      <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+      <div aria-hidden="true" className="mb-3">
+        {iconNode}
+      </div>
+      <h3 className="text-md font-medium text-zinc-900">{title}</h3>
       {description ? (
-        <p className="mt-2 text-sm text-slate-600">{description}</p>
+        <p className="mt-1 text-sm text-zinc-500 leading-normal">
+          {description}
+        </p>
       ) : null}
       {actions ? (
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
           {actions}
         </div>
       ) : null}
@@ -94,8 +125,21 @@ export function EmptyState({
   );
 }
 
-function PresetIllustration({ preset }: { preset: EmptyStatePreset }) {
-  const Illustration = presetIllustration[preset];
+function PresetIcon({
+  preset,
+  size,
+}: {
+  preset: EmptyStatePreset;
+  size: number;
+}) {
+  const Icon = presetIcon[preset];
   const color = presetColor[preset];
-  return <Illustration className={color} size={128} />;
+  return (
+    <Icon
+      className={color}
+      size={size}
+      strokeWidth={1.5}
+      aria-hidden="true"
+    />
+  );
 }
