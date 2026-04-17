@@ -4,7 +4,8 @@
 
 /* ===========================================================
  * Industrial Slate CSS custom properties
- * Dùng khi không tiện bind tailwind class (ví dụ print.css)
+ * Dùng khi không tiện bind tailwind class (ví dụ print.css).
+ * Direction B thêm biến sidebar/topbar cho layout shell.
  * =========================================================== */
 @layer base {
   :root {
@@ -28,6 +29,12 @@
     --color-info: #0369a1;
 
     --ring-focus: 0 0 0 3px rgba(3, 105, 161, 0.35);
+
+    /* Direction B — layout geometry */
+    --sidebar-width: 15rem; /* 240px */
+    --sidebar-width-collapsed: 3.5rem; /* 56px */
+    --topbar-height: 3.5rem; /* 56px */
+    --content-max-width: 1440px;
   }
 
   html {
@@ -69,6 +76,153 @@
       animation-duration: 0ms !important;
       transition-duration: 0ms !important;
     }
+  }
+}
+
+/* ===========================================================
+ * Direction B — keyframes (global, tái sử dụng bởi Tailwind
+ * animation tokens + CSS class helpers dưới đây).
+ * =========================================================== */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-6px);
+  }
+  75% {
+    transform: translateX(6px);
+  }
+}
+
+@keyframes flash-success {
+  0% {
+    box-shadow: 0 0 0 0 rgba(5, 150, 105, 0);
+    background-color: transparent;
+  }
+  30% {
+    box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.35);
+    background-color: #d1fae5;
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(5, 150, 105, 0);
+    background-color: transparent;
+  }
+}
+
+@keyframes flash-danger {
+  0% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+    background-color: transparent;
+  }
+  30% {
+    box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.35);
+    background-color: #fee2e2;
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+    background-color: transparent;
+  }
+}
+
+@keyframes slide-in-right {
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-out-right {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-out {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ===========================================================
+ * Scan feedback utilities (PWA Receiving / Picklist)
+ * =========================================================== */
+@layer components {
+  .scan-row-current {
+    @apply border-l-4 border-cta bg-cta-soft/60;
+  }
+
+  .scan-flash-success {
+    animation: flash-success 600ms cubic-bezier(0.2, 0.8, 0.2, 1) 1;
+  }
+
+  .scan-flash-danger {
+    animation: flash-danger 600ms cubic-bezier(0.2, 0.8, 0.2, 1) 1;
+  }
+
+  .scan-shake {
+    animation: shake 240ms cubic-bezier(0.4, 0, 0.2, 1) 1;
+  }
+
+  .skeleton {
+    @apply relative overflow-hidden bg-slate-200;
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.55) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1200ms linear infinite;
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+}
+
+/* Reduced motion override — tắt shimmer + shake + flash cho A11y. */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none !important;
+    background: var(--color-brand-mist) !important;
+  }
+  .scan-flash-success,
+  .scan-flash-danger,
+  .scan-shake {
+    animation: none !important;
   }
 }
 
