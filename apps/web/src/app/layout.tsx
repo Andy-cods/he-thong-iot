@@ -24,18 +24,30 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://mes.songchau.vn";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
-    default: "he-thong-iot — Xưởng IoT",
-    template: "%s · he-thong-iot",
+    default: "IoT Xưởng cơ khí — BOM MES",
+    template: "%s · IoT Xưởng",
   },
   description:
     "Hệ thống MES/ERP nhẹ, BOM-centric cho xưởng cơ khí Việt Nam. V1 thay thế Excel.",
-  applicationName: "he-thong-iot",
+  applicationName: "IoT Xưởng cơ khí",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+    shortcut: ["/favicon.ico"],
+  },
   appleWebApp: {
     capable: true,
-    title: "he-thong-iot",
+    title: "IoT Xưởng",
     statusBarStyle: "default",
   },
   formatDetection: {

@@ -1,7 +1,7 @@
 {
-  "name": "IoT Xưởng — BOM MES",
-  "short_name": "IoT",
-  "description": "Hệ thống quản lý BOM-centric cho xưởng cơ khí Việt Nam.",
+  "name": "IoT Xưởng cơ khí",
+  "short_name": "IoT Xưởng",
+  "description": "Hệ thống quản lý xưởng cơ khí BOM-centric cho nhà máy Việt Nam.",
   "lang": "vi",
   "dir": "ltr",
   "start_url": "/pwa",

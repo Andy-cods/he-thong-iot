@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Logo IoT xưởng cơ khí">
+  <!-- Background rounded square slate-900 -->
+  <rect x="0" y="0" width="512" height="512" rx="80" ry="80" fill="#0F172A"/>
+
+  <!-- Safety-orange accent ring behind main gear -->
+  <circle cx="256" cy="256" r="156" fill="none" stroke="#F97316" stroke-width="6" stroke-dasharray="4 10" opacity="0.45"/>
+
+  <!-- Main gear (12 teeth) - slate-100 -->
+  <g fill="#F8FAFC" stroke="#F8FAFC" stroke-linejoin="round">
+    <!-- teeth as tapered rects rotated around center -->
+    <g>
+      <rect x="244" y="60"  width="24" height="44" rx="3"/>
+      <rect x="244" y="408" width="24" height="44" rx="3"/>
+      <rect x="60"  y="244" width="44" height="24" rx="3"/>
+      <rect x="408" y="244" width="44" height="24" rx="3"/>
+    </g>
+    <g transform="rotate(30 256 256)">
+      <rect x="244" y="60"  width="24" height="44" rx="3"/>
+      <rect x="244" y="408" width="24" height="44" rx="3"/>
+      <rect x="60"  y="244" width="44" height="24" rx="3"/>
+      <rect x="408" y="244" width="44" height="24" rx="3"/>
+    </g>
+    <g transform="rotate(60 256 256)">
+      <rect x="244" y="60"  width="24" height="44" rx="3"/>
+      <rect x="244" y="408" width="24" height="44" rx="3"/>
+      <rect x="60"  y="244" width="44" height="24" rx="3"/>
+      <rect x="408" y="244" width="44" height="24" rx="3"/>
+    </g>
+    <!-- gear body -->
+    <circle cx="256" cy="256" r="128" fill="#F8FAFC"/>
+  </g>
+
+  <!-- Inner ring slate-900 hollow -->
+  <circle cx="256" cy="256" r="88" fill="#0F172A"/>
+
+  <!-- Central hex bolt safety-orange -->
+  <g>
+    <polygon points="256,196 308,226 308,286 256,316 204,286 204,226" fill="#F97316"/>
+    <!-- inner hex highlight -->
+    <polygon points="256,214 292,234 292,278 256,298 220,278 220,234" fill="none" stroke="#0F172A" stroke-width="4" stroke-linejoin="round"/>
+    <!-- center hole -->
+    <circle cx="256" cy="256" r="14" fill="#0F172A"/>
+  </g>
+
+  <!-- Small accent arc at top -->
+  <path d="M 196 132 A 80 80 0 0 1 316 132" fill="none" stroke="#F97316" stroke-width="5" stroke-linecap="round"/>
+</svg>
