@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { buildDsn } from "./dsn";
 
 /**
  * Đọc secret: ưu tiên {VAR}_FILE (docker compose secret mount),
@@ -32,18 +33,15 @@ function must(name: string): string {
   return v;
 }
 
+export { buildDsn };
+
 export const env = {
   NODE_ENV: process.env.NODE_ENV ?? "development",
   APP_URL: process.env.APP_URL ?? "http://localhost:3001",
-  DATABASE_URL: (() => {
-    const raw = must("DATABASE_URL");
-    // Thay `hethong_app@` bằng `hethong_app:<password>@` nếu DB_PASSWORD_FILE set
-    const dbPwd = readSecret("DB_PASSWORD", false);
-    if (dbPwd && !raw.includes(":")) {
-      return raw.replace(/\/\/([^@]+)@/, `//$1:${encodeURIComponent(dbPwd)}@`);
-    }
-    return raw;
-  })(),
+  DATABASE_URL: buildDsn(
+    must("DATABASE_URL"),
+    readSecret("DB_PASSWORD", false),
+  ),
   REDIS_URL: process.env.REDIS_URL ?? "redis://localhost:6379/2",
   BULLMQ_PREFIX: process.env.BULLMQ_PREFIX ?? "iot-",
   JWT_SECRET: readSecret("JWT_SECRET") as string,
