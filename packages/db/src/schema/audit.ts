@@ -10,7 +10,6 @@ import {
 } from "drizzle-orm/pg-core";
 import { appSchema } from "./_schema";
 import { userAccount } from "./auth";
-import { bomRevision } from "./bom";
 
 export const auditActionEnum = pgEnum("audit_action", [
   "CREATE",
@@ -52,36 +51,11 @@ export const auditEvent = appSchema.table(
   }),
 );
 
-/** Bảng 20: eco_request (STUB — chưa dùng V1, giữ schema để V1.5+ không vỡ) */
-export const ecoRequestStatusEnum = pgEnum("eco_request_status", [
-  "DRAFT",
-  "SUBMITTED",
-  "APPROVED",
-  "REJECTED",
-  "APPLIED",
-]);
-
-export const ecoRequest = appSchema.table(
-  "eco_request",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    ecoNo: varchar("eco_no", { length: 64 }).notNull(),
-    bomRevisionId: uuid("bom_revision_id").references(() => bomRevision.id),
-    status: ecoRequestStatusEnum("status").notNull().default("DRAFT"),
-    title: varchar("title", { length: 255 }).notNull(),
-    description: text("description"),
-    requestedBy: uuid("requested_by").references(() => userAccount.id),
-    requestedAt: timestamp("requested_at", { withTimezone: true })
-      .notNull()
-      .default(sql`now()`),
-    decidedAt: timestamp("decided_at", { withTimezone: true }),
-    decidedBy: uuid("decided_by").references(() => userAccount.id),
-  },
-  (t) => ({
-    ecoNoIdx: index("eco_request_no_idx").on(t.ecoNo),
-    statusIdx: index("eco_request_status_idx").on(t.status),
-  }),
-);
+/**
+ * NOTE: `eco_request` table (V1.5+ ECO workflow) tạm thời KHÔNG expose qua Drizzle
+ * schema TypeScript vì phụ thuộc `bom_revision` — đã loại khỏi V1.1-alpha.
+ * DB vẫn giữ nguyên bảng nếu đã tạo ở môi trường nào đó; khi cần resurrect sẽ
+ * cook lại ở sprint ECO (V1.5+).
+ */
 
 export type AuditEvent = typeof auditEvent.$inferSelect;
-export type EcoRequest = typeof ecoRequest.$inferSelect;

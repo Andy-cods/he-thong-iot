@@ -13,7 +13,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { appSchema } from "./_schema";
 import { userAccount } from "./auth";
-import { bomRevision, bomLine } from "./bom";
+import { bomTemplate, bomLine } from "./bom";
 import { item } from "./master";
 
 export const salesOrderStatusEnum = pgEnum("sales_order_status", [
@@ -38,7 +38,8 @@ export const salesOrder = appSchema.table(
     productItemId: uuid("product_item_id")
       .notNull()
       .references(() => item.id),
-    bomRevisionId: uuid("bom_revision_id").references(() => bomRevision.id),
+    // V1.1-alpha: bom_revision removed → trỏ thẳng bom_template
+    bomTemplateId: uuid("bom_template_id").references(() => bomTemplate.id),
     orderQty: numeric("order_qty", { precision: 18, scale: 4 }).notNull(),
     dueDate: date("due_date"),
     notes: text("notes"),
