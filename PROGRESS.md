@@ -176,7 +176,18 @@
   - [x] A5 Commit E2 · 4 BOM import endpoints + worker: /upload (parse multi-sheet auto-detect header row 1/2 + auto-mapping synonym dict), /[id]/status, /[id]/commit (enqueue BullMQ), /[id]/errors.xlsx; worker `apps/worker/src/jobs/bomImport.ts` chunk 100/TX, tạo template per sheet, lookup item SKU, auto-create nếu autoCreateMissingItems *(commit ca854f0)*
   - [x] A5 Commit E3 · 7 Admin+Receiving+PO endpoints: /api/admin/users GET+POST + /[id] GET+PATCH (block self-deactivate), /api/auth/change-password, /api/admin/audit filter, /api/receiving/events batch 50 idempotent, /api/po/[id] stub 3 scenario demo/-small/-large else 404 *(commit 79380d6)*
   - Typecheck baseline 16 errors preserved (không regress). Tests baseline flaky ExcelJS stream (unrelated, reproducible trước commit).
-- [ ] Phase B — UI screens (Day 3+): BOM list/new/detail tree editor dnd-kit + import wizard 5-step, Admin 5 screens, PWA Receiving backend wire-in
+- [x] 2026-04-18 · **Phase B1 — BOM UI (4 màn)**: list + new + detail tree dnd-kit + import wizard 5-step
+  - [x] B1.1 · `useBom.ts` + `useBomImport.ts` hooks TanStack Query với optimistic move, debounced code check 300ms; `qk.bom.*` factory; install `@dnd-kit/core @dnd-kit/sortable @dnd-kit/modifiers @dnd-kit/utilities` *(commit fda93db)*
+  - [x] B1.2 · Nav thêm "BOM" (Network icon, all users) + "Nhập BOM Excel" (admin/planner); EmptyState preset `no-bom` *(commit f272389)*
+  - [x] B1.3 · `/bom` list page compact virtualize 36px row + `BomListTable` + `BomFilterBar` 3-mode segmented status + URL nuqs (q, statusMode, page, sort, sortDir) + keyboard `/jke Space Enter` + BulkActionBar + DialogConfirm "XOA" *(commit f7bda58)*
+  - [x] B1.4 · `/bom/new` page + `BomForm` accordion 2-section (basic + parent/target) + `ItemPicker` Popover search SKU (dùng chung cho parent item + component) *(commit cc90f3f)*
+  - [x] B1.5 Commit 1 · `BomTreeView` + `BomTreeNode` dnd-kit restrictToVerticalAxis + virtualize threshold 50 nodes + ancestorIds guard drop-vào-descendant + level icon + level badge + hover actions (add/edit/delete) *(commit 6a0eb1c)*
+  - [x] B1.5 Commit 2 · `/bom/[id]` detail Tabs V2 2-tab (Linh kiện default / Metadata) + `BomLineInspector` Sheet right md (readonly + Sửa form) + `AddBomLineDialog` với ItemPicker + scrap default 0 + UoM auto-inherit + `DeleteBomLineDialog` cascade DialogConfirm "XOA" + Clone/Xoá BOM dropdown *(commit 5b568f1)*
+  - [x] B1.6 Commit 1 · `BomImportWizard` 5-step (Upload → Select sheet → Map cột → Preview → Result) + `SheetSelectorStep` multi-select preview 3 rows + `BomColumnMapperStep` synonym BOM riêng (Standard Number→componentSku, ID Number→componentSeq, NCC→supplierItemCode, Quantity→qtyPerParent, Sub Category→description, Visible Part Size→size, note→notes) + tab switcher per-sheet mapping *(commit 1439212)*
+  - [x] B1.6 Commit 2 · `/bom/import` page Breadcrumb + title + BomImportWizard *(commit 23261a0)*
+  - [x] B1.7 · Dashboard KPI row lên 5 cột thêm `BomKpiCard` client wrapper (count ACTIVE từ useBomList meta.total); Quick links grid 5 actions bổ sung "Tạo BOM mới" + "Nhập BOM Excel" *(commit 05ffc31)*
+  - Typecheck baseline 16 errors preserved; tests 15/15 PASS local.
+- [ ] Phase B2 — Admin (5 screens) + PWA Receiving backend wire-in
 - [ ] Phase C — Deploy VPS + smoke + tag `v1.1.0-alpha`
 
 ---
