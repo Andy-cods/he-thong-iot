@@ -61,7 +61,42 @@ export const qk = {
       status: (batchId: string) => ["bom", "import", "status", batchId] as const,
     },
   },
+  admin: {
+    all: ["admin"] as const,
+    users: {
+      all: ["admin", "users"] as const,
+      list: (filter: UserFilter) => ["admin", "users", "list", filter] as const,
+      detail: (id: string) => ["admin", "users", "detail", id] as const,
+    },
+    audit: {
+      all: ["admin", "audit"] as const,
+      list: (filter: AuditFilter) => ["admin", "audit", "list", filter] as const,
+    },
+  },
+  po: {
+    detail: (id: string) => ["po", "detail", id] as const,
+  },
 } as const;
+
+export interface UserFilter {
+  q?: string;
+  role?: "admin" | "planner" | "warehouse" | "operator";
+  isActive?: boolean;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AuditFilter {
+  q?: string;
+  entity?: string[];
+  action?: string[];
+  actorUsername?: string;
+  userId?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  pageSize?: number;
+}
 
 export interface BomFilter {
   q?: string;
