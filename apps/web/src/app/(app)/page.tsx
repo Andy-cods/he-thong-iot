@@ -5,7 +5,6 @@ import {
   FileSpreadsheet,
   Package,
   PackageMinus,
-  Plus,
   ShoppingCart,
   Truck,
 } from "lucide-react";
@@ -24,49 +23,44 @@ import { SystemHealthCard } from "@/components/domain/SystemHealthCard";
 export const dynamic = "force-dynamic";
 
 /**
- * Direction B — `/` Dashboard (design-spec §2.2).
+ * V2 `/` Dashboard (design-spec §2.2) — compact KPI + readiness table.
  *
- * RSC page:
- * - Greeting với username từ JWT cookie (layout đã verify nên chắc chắn có).
- * - 4 KpiCard (mock V1.0 — TODO V1.1 fetch `/api/dashboard/overview`).
- * - Grid: OrdersReadinessTable (col-span-2) + AlertsList + SystemHealthCard.
- * - Quick links section.
+ * Delta V1: greeting 30→20px, KPI row gap-4→3, content grid 2-col lg (table
+ * span-2 + Alerts/Health stack), quick links cards 48px height. Icon prop
+ * truyền JSX element qua RSC→Client boundary (fix bug "N is not a function" V1).
  *
- * Middleware + layout (app) đã auth check. Page này KHÔNG tự redirect —
- * nếu không có payload (edge case race condition), fallback hiển thị "Người
- * dùng".
+ * Mock V1 — TODO V1.1 thay generator bằng fetch `/api/dashboard/overview`.
  */
 export default async function DashboardPage() {
   const token = cookies().get(AUTH_COOKIE_NAME)?.value;
   const payload = token ? await verifyAccessToken(token) : null;
   const username = payload?.usr ?? "Người dùng";
 
-  // Mock data V1. TODO V1.1: replace with `/api/dashboard/overview`.
   const orders = generateMockOrders();
   const alerts = generateMockAlerts();
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       {/* Greeting */}
       <section>
-        <h1 className="font-heading text-2xl font-bold text-slate-900 xl:text-3xl">
+        <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
           Xin chào, {username}
         </h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Tổng quan hoạt động xưởng hôm nay · dữ liệu mock V1
+        <p className="mt-1 text-xs text-zinc-500">
+          Tổng quan xưởng · mock V1
         </p>
       </section>
 
       {/* KPI Row */}
       <section
         aria-label="Chỉ số quan trọng"
-        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
       >
         <KpiCard
-          label="SKU đang hoạt động"
+          label="SKU hoạt động"
           value={124}
           status="info"
-          icon={<Package className="h-5 w-5" aria-hidden="true" />}
+          icon={<Package className="h-3.5 w-3.5" aria-hidden="true" />}
           href="/items"
           delta={{ value: 3, direction: "up", label: "vs tuần trước" }}
         />
@@ -74,39 +68,41 @@ export default async function DashboardPage() {
           label="PO chờ nhận"
           value={8}
           status="warning"
-          icon={<Truck className="h-5 w-5" aria-hidden="true" />}
+          icon={<Truck className="h-3.5 w-3.5" aria-hidden="true" />}
           delta={{ value: 2, direction: "up", label: "trong 7 ngày" }}
         />
         <KpiCard
           label="WO đang chạy"
           value={5}
           status="success"
-          icon={<ShoppingCart className="h-5 w-5" aria-hidden="true" />}
+          icon={
+            <ShoppingCart className="h-3.5 w-3.5" aria-hidden="true" />
+          }
           delta={{ value: 0, direction: "flat" }}
         />
         <KpiCard
           label="Cảnh báo tồn kho"
           value={7}
           status="danger"
-          icon={<PackageMinus className="h-5 w-5" aria-hidden="true" />}
+          icon={<PackageMinus className="h-3.5 w-3.5" aria-hidden="true" />}
           href="/items?filter=low-stock"
           delta={{ value: 2, direction: "down", label: "vs hôm qua" }}
         />
       </section>
 
-      {/* Content grid */}
+      {/* Content grid: table span-2 + Alerts/Health stack */}
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-base font-semibold text-slate-900">
+            <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500">
               Đơn hàng sắp giao
             </h2>
             <Link
               href="/orders"
-              className="text-sm font-medium text-info-strong hover:underline"
+              className="text-xs text-blue-600 hover:underline"
               aria-disabled
             >
-              Xem tất cả (V1.1)
+              Xem tất cả (V1.1) →
             </Link>
           </div>
           <OrdersReadinessTable orders={orders} />
@@ -118,27 +114,29 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      {/* Quick links */}
+      {/* Quick links — compact 48px */}
       <section aria-label="Hành động nhanh">
-        <h2 className="mb-3 text-base font-semibold text-slate-900">
+        <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
           Hành động nhanh
         </h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <QuickLink
             href="/items/new"
-            icon={Plus}
+            icon={<Package className="h-3.5 w-3.5" aria-hidden="true" />}
             title="Tạo vật tư mới"
             description="Thêm SKU vào danh mục"
           />
           <QuickLink
             href="/items/import"
-            icon={FileSpreadsheet}
+            icon={
+              <FileSpreadsheet className="h-3.5 w-3.5" aria-hidden="true" />
+            }
             title="Nhập Excel"
             description="Upload hàng loạt từ file"
           />
           <QuickLink
             href="/items"
-            icon={Package}
+            icon={<Package className="h-3.5 w-3.5" aria-hidden="true" />}
             title="Xem danh mục"
             description="Tìm kiếm và quản lý SKU"
           />
@@ -146,10 +144,10 @@ export default async function DashboardPage() {
       </section>
 
       {/* Mock disclaimer */}
-      <p className="flex items-center gap-2 text-xs text-slate-500">
-        <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
-        Dữ liệu KPI/đơn hàng/cảnh báo đang là mock V1. Module Orders sẽ cung cấp
-        dữ liệu thật ở V1.1.
+      <p className="flex items-center gap-1.5 text-xs text-zinc-400">
+        <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+        Dữ liệu KPI/đơn hàng/cảnh báo đang là mock V1 · module Orders sẽ cung
+        cấp dữ liệu thật ở V1.1.
       </p>
     </div>
   );
@@ -157,26 +155,26 @@ export default async function DashboardPage() {
 
 function QuickLink({
   href,
-  icon: Icon,
+  icon,
   title,
   description,
 }: {
   href: string;
-  icon: React.ElementType;
+  icon: React.ReactNode;
   title: string;
   description: string;
 }) {
   return (
     <Link
       href={href}
-      className="group flex items-center gap-3 rounded-md border border-slate-200 bg-white p-4 transition-colors hover:border-cta hover:shadow-sm focus:outline-none focus-visible:shadow-focus"
+      className="group flex h-12 items-center gap-3 rounded-md border border-zinc-200 bg-white px-3 transition-colors duration-150 hover:border-zinc-300 hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
     >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-slate-100 text-slate-700 transition-colors group-hover:bg-cta/10 group-hover:text-cta">
-        <Icon className="h-5 w-5" aria-hidden="true" />
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-zinc-100 text-zinc-600 transition-colors group-hover:bg-blue-50 group-hover:text-blue-600">
+        {icon}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-slate-900">{title}</p>
-        <p className="truncate text-xs text-slate-500">{description}</p>
+        <p className="truncate text-base font-medium text-zinc-900">{title}</p>
+        <p className="truncate text-xs text-zinc-500">{description}</p>
       </div>
     </Link>
   );
