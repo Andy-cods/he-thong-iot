@@ -113,9 +113,19 @@
 ### Giai đoạn 4 — UI/UX Redesign (Direction B, 2026-04-17 quyết định)
 - [x] 2026-04-17 · Brainstorm agent tổng hợp 10 vấn đề UI/UX + 3 direction + bug full-stack — *`plans/redesign/260417-brainstorm.md`*
 - [x] 2026-04-17 · User chốt **Direction B (Refresh trung bình)**: giữ palette Industrial Slate, thêm Dashboard + AppShell + CommandPalette + Receiving + PWA min, fix 3 P0 bug
-- [ ] Plan agent ra implementation plan chi tiết (8 screens, 18 components, 14.5 ngày ước tính)
-- [ ] Cook agent implement
-- [ ] Test + redeploy VPS + verify từng screen
+- [x] 2026-04-17 · **Brainstorm deep** (data flow 5 tầng + 30 quyết định execution) — *`plans/redesign/260417-brainstorm-deep.md`*
+- [x] 2026-04-17 · **Design spec** (tokens diff + 8 screen ASCII + 18 component TS props + motion + a11y + assets) — *`plans/redesign/260417-design-spec.md`*
+- [x] 2026-04-17 · **P0 bugs audit + fix plan** (env.ts regex root-cause, migration 0002 split superuser, worker pnpm deploy) — *`plans/redesign/260417-p0-bugs-fix-plan.md`*
+- [x] 2026-04-17 · **Implementation plan** 10 ngày T1-T10 + 30 quyết định resolved — *`plans/redesign/260417-implementation-plan.md`*
+- [x] 2026-04-17 · **T1 P0 bug fixes:** `buildDsn` dùng `new URL()` + 9/9 test, migration 0002 split 0002a (superuser) + 0002b (app user) + script `apply-sql-migrations.sh`, worker Dockerfile `pnpm deploy` stage + `tsx` sang deps, cookie name centralized — *commits e504b36, 3763f87, 748a2ff, 680104b*
+- [x] 2026-04-17 · **T2-T3 Foundation:** design tokens diff (colors `*-strong` AAA, spacing, elevation, motion, z-index scale), globals.css keyframes, 12 shadcn primitives (Sheet/DropdownMenu/Popover/Checkbox/Skeleton/Breadcrumb/EmptyState... + Dialog/Button/Input patched), 6 layout/domain components (Sidebar collapsible / TopBar / UserMenu / CommandPalette cmdk / StatusBadge / EmptyState), utility libs (cn, format vi-VN, shortcuts IME-safe, storage), providers (QueryProvider staleTime 30s, SonnerProvider position mobile/desktop) — *commits 453853b, 9cd0fb2, 7e87f19, 17c0e5b*
+- [x] 2026-04-17 · **T4 AppShell + Login + Dashboard:** AppShell wiring `(app)/layout.tsx` + nav-items registry role-filtered, `/login` split 50/50 + CNC hero SVG + build info footer + focus ring fixed, `/` Dashboard skeleton (4 KPI cards + Orders Readiness table mock 5 rows + Alerts 3 stub + SystemHealthCard auto-refresh 30s), middleware protect `/`, useSession + useHealth hooks — *commits 858393b, 8d8b7a0, ca3c251*
+- [x] 2026-04-17 · **T5-T7 Items redesign:** query-keys factory + optimistic mutations (useUpdateItem + useDeleteItem + useBulkDelete), URL-state filter nuqs (q/type/active/category/supplier/lotTracked/minStockViolation), density 40/56px responsive, 3-mode bulk select (none/visible/all-matching), virtualized table + skeleton rows + EmptyState, keyboard shortcuts (/jkeSpace), ItemQuickEditSheet 480px slide-in + unsaved warning + 409 conflict dialog, detail Tabs 4 section (Thông tin/Kho/Tracking/Ảnh), DialogConfirm "XOA" thay confirm(), ItemForm Accordion 4 section + shadcn Checkbox + SKU debounce 400ms + required label — *commits 60be916, bed94e0, ea3808a, 89ded0a*
+- [x] 2026-04-17 · **T8-T9 Import v2 + Suppliers + PWA:** ColumnMapperStep 60+ synonyms VN/EN + Levenshtein + duplicate badge + preset localStorage, ImportWizard 4 step (Upload→Map→Preview→Result) palette cta/slate thay brand-* dead, Suppliers list+new+detail stub, `/pwa` layout tách (no sidebar), Dexie scanQueue + uuidv7 FIFO, BarcodeScanner 3-source (camera/USB wedge <80ms/manual) + IME safe + beep 880/220Hz + haptic, ScanQueueBadge floating + retry sheet, ReceivingConsole 2-col tablet + optimistic enqueue + online banner + replay fake 600ms — *commits d241633, 3981b17, c8cf494, 894cd2c, b769e36*
+- [x] 2026-04-17 · **T1-T3 Assets:** icon source SVG gear cluster + hex bolt (slate-900 + safety-orange), 4 PNG maskable 192/256/384/512 via sharp, favicon.ico + apple-touch-icon 180, opengraph-image.tsx dynamic 1200x630 @vercel/og, 6 line-art illustrations (EmptyBox/EmptySearch/EmptyAlert/EmptyInbox/ScanReady/OfflineCloud), LoginHero refine 3 gears + tool-path arc + spindle marker, manifest.webmanifest Vietnamese + maskable, BUILD_SHA/DATE/VERSION env injection — *commits 2821b26, 38434c2, db60d16*
+- [ ] Local `pnpm build` verify (đang chạy) + dev server smoke test
+- [ ] Apply migration 0002a+0002b trên VPS (CẦN USER xác nhận)
+- [ ] Rebuild Docker image VPS + deploy + smoke login flow + verify từng screen
 
 ---
 
