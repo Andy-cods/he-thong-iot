@@ -1,10 +1,12 @@
 import argon2 from "argon2";
 import { SignJWT, jwtVerify } from "jose";
 import type { JwtPayload, Role } from "@iot/shared";
+import { AUTH_COOKIE_NAME, REFRESH_COOKIE_NAME } from "@iot/shared";
 import { env } from "./env";
 
-export const AUTH_COOKIE_NAME = "iot_session";
-export const REFRESH_COOKIE_NAME = "iot_refresh";
+// Re-export để callers hiện tại (`@/lib/auth`) không phải đổi import path.
+// Nguồn duy nhất sống trong `@iot/shared/constants.ts`.
+export { AUTH_COOKIE_NAME, REFRESH_COOKIE_NAME };
 
 const encoder = new TextEncoder();
 const jwtKey = () => encoder.encode(env.JWT_SECRET);

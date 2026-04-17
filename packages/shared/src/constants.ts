@@ -108,6 +108,14 @@ export const QUEUE_NAMES = {
   ASSEMBLY_SCAN_SYNC: "assembly-scan-sync",
 } as const;
 
+/**
+ * Tên cookie auth (single source of truth, dùng chung cả middleware edge
+ * lẫn server runtime). Tránh hardcode ở nhiều chỗ gây mismatch giữa
+ * `lib/auth.ts` và `lib/auth-edge.ts`.
+ */
+export const AUTH_COOKIE_NAME = "iot_session";
+export const REFRESH_COOKIE_NAME = "iot_refresh";
+
 /** Giới hạn an toàn. */
 export const LIMITS = {
   FILE_UPLOAD_MAX_BYTES: 20 * 1024 * 1024,

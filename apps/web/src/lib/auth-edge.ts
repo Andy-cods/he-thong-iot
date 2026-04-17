@@ -4,8 +4,11 @@
  */
 import { jwtVerify } from "jose";
 import type { JwtPayload } from "@iot/shared";
+import { AUTH_COOKIE_NAME } from "@iot/shared";
 
-export const AUTH_COOKIE_NAME = "iot_session";
+// Re-export giữ backwards-compat với middleware.ts. Nguồn duy nhất sống
+// trong `@iot/shared/constants.ts`.
+export { AUTH_COOKIE_NAME };
 
 const encoder = new TextEncoder();
 
