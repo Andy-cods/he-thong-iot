@@ -11,7 +11,13 @@ import { AUTH_COOKIE_NAME, verifyAccessTokenEdge } from "./lib/auth-edge";
  * trực tiếp từ process.env.JWT_SECRET (Next Edge expose biến non-secret OK,
  * và deployment compose set env inline cho container).
  */
-const PROTECTED_PREFIXES = ["/app", "/items", "/suppliers", "/imports"];
+const PROTECTED_PREFIXES = [
+  "/app",
+  "/items",
+  "/suppliers",
+  "/imports",
+  "/pwa",
+];
 
 function isProtected(pathname: string): boolean {
   if (pathname === "/") return true; // Dashboard root
@@ -60,5 +66,6 @@ export const config = {
     "/items/:path*",
     "/suppliers/:path*",
     "/imports/:path*",
+    "/pwa/:path*",
   ],
 };
