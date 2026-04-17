@@ -6,6 +6,10 @@ import {
   processItemImportCommit,
   type ItemImportCommitJob,
 } from "./jobs/itemImport.js";
+import {
+  processBomImportCommit,
+  type BomImportCommitJob,
+} from "./jobs/bomImport.js";
 
 const logger = pino({
   level: process.env.LOG_LEVEL ?? "info",
@@ -51,6 +55,27 @@ const itemImportCommitWorker = new Worker<ItemImportCommitJob>(
   },
 );
 
+const bomImportCommitWorker = new Worker<BomImportCommitJob>(
+  QUEUE_NAMES.BOM_IMPORT_COMMIT,
+  async (job) => {
+    logger.info(
+      { jobId: job.id, batchId: job.data.batchId },
+      "bom-import-commit: start",
+    );
+    const res = await processBomImportCommit(job);
+    logger.info(
+      { jobId: job.id, batchId: job.data.batchId, res },
+      "bom-import-commit: done",
+    );
+    return res;
+  },
+  {
+    connection,
+    prefix,
+    concurrency: 1,
+  },
+);
+
 const assemblyScanWorker = new Worker<AssemblyScanSyncJob>(
   QUEUE_NAMES.ASSEMBLY_SCAN_SYNC,
   async (job: Job<AssemblyScanSyncJob>) => {
@@ -67,7 +92,11 @@ const assemblyScanWorker = new Worker<AssemblyScanSyncJob>(
   },
 );
 
-for (const w of [itemImportCommitWorker, assemblyScanWorker]) {
+for (const w of [
+  itemImportCommitWorker,
+  bomImportCommitWorker,
+  assemblyScanWorker,
+]) {
   w.on("ready", () => logger.info({ queue: w.name }, "worker ready"));
   w.on("failed", (job, err) =>
     logger.error({ queue: w.name, jobId: job?.id, err }, "job failed"),
@@ -81,6 +110,7 @@ const shutdown = async (signal: string) => {
   logger.info({ signal }, "shutting down worker");
   await Promise.all([
     itemImportCommitWorker.close(),
+    bomImportCommitWorker.close(),
     assemblyScanWorker.close(),
   ]);
   await connection.quit();
@@ -92,7 +122,11 @@ process.on("SIGTERM", () => void shutdown("SIGTERM"));
 
 logger.info(
   {
-    queues: [QUEUE_NAMES.ITEM_IMPORT_COMMIT, QUEUE_NAMES.ASSEMBLY_SCAN_SYNC],
+    queues: [
+      QUEUE_NAMES.ITEM_IMPORT_COMMIT,
+      QUEUE_NAMES.BOM_IMPORT_COMMIT,
+      QUEUE_NAMES.ASSEMBLY_SCAN_SYNC,
+    ],
     prefix,
   },
   "iot-worker started",
