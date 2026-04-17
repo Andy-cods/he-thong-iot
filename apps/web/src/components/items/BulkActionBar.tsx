@@ -17,10 +17,16 @@ export interface BulkActionBarProps {
 }
 
 /**
- * BulkActionBar — sticky bottom bar xuất hiện khi count > 0 (design-spec §2.4).
+ * V2 BulkActionBar — Linear-inspired compact (design-spec §2.4).
  *
- * Khi mode="visible" và count = số visible trên trang → show link
- * "Chọn tất cả {totalMatching} khớp bộ lọc".
+ * - Sticky bottom, height 48px (thay 56px V1).
+ * - bg white border-t zinc-200 shadow-sm (thay V1 dark bar, vì content density cao
+ *   dark bar làm nặng viewport — impl-plan §8.T7 ghi zinc-900 nhưng nhìn theo
+ *   design-spec §2.4 ASCII test lại: test với white để khớp form/detail section).
+ * - Font 13px.
+ * - Left: count "Đã chọn {n} / {total}" + link "Chọn tất cả {total} khớp filter".
+ * - Right buttons size sm: "Xuất Excel" ghost + "Xoá {n}" destructive + "Huỷ" ghost.
+ * - Slide-up 150ms khi selectedCount > 0.
  */
 export function BulkActionBar({
   count,
@@ -41,15 +47,20 @@ export function BulkActionBar({
       role="region"
       aria-label={`Đã chọn ${count} vật tư`}
       className={cn(
-        "sticky bottom-0 z-sticky flex flex-wrap items-center gap-3 border-t border-slate-200 bg-white px-4 py-3 shadow-md",
-        "animate-in slide-in-from-bottom-2 duration-base",
+        "sticky bottom-0 z-sticky flex h-12 flex-wrap items-center gap-3 border-t border-zinc-200 bg-white px-4 shadow-sm",
+        "animate-in slide-in-from-bottom-2 duration-150 ease-out",
       )}
     >
-      <div className="text-sm font-medium text-slate-900">
+      <div className="text-base font-medium text-zinc-900">
         Đã chọn{" "}
         <span className="tabular-nums">{count.toLocaleString("vi-VN")}</span>
+        {totalMatching > 0 && (
+          <span className="text-zinc-500">
+            {" "}/ {totalMatching.toLocaleString("vi-VN")}
+          </span>
+        )}
         {mode === "all-matching" && (
-          <span className="ml-1 text-slate-500">(tất cả khớp filter)</span>
+          <span className="ml-1 text-zinc-500">(tất cả khớp filter)</span>
         )}
       </div>
 
@@ -57,23 +68,23 @@ export function BulkActionBar({
         <button
           type="button"
           onClick={onSelectAllMatching}
-          className="text-sm font-medium text-info-strong underline underline-offset-2 hover:text-info"
+          className="text-base font-medium text-blue-600 underline-offset-2 transition-colors hover:text-blue-700 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2"
         >
-          Chọn tất cả {totalMatching.toLocaleString("vi-VN")} khớp bộ lọc
+          Chọn tất cả {totalMatching.toLocaleString("vi-VN")} khớp filter
         </button>
       )}
 
       <div className="ml-auto flex items-center gap-2">
         {onExport && (
-          <Button variant="outline" size="sm" onClick={onExport}>
-            <Download className="h-4 w-4" aria-hidden="true" />
+          <Button variant="ghost" size="sm" onClick={onExport}>
+            <Download className="h-3.5 w-3.5" aria-hidden="true" />
             Xuất Excel
           </Button>
         )}
         {onDelete && (
-          <Button variant="danger" size="sm" onClick={onDelete}>
-            <Trash2 className="h-4 w-4" aria-hidden="true" />
-            Xoá {count}
+          <Button variant="destructive" size="sm" onClick={onDelete}>
+            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+            Xoá {count.toLocaleString("vi-VN")}
           </Button>
         )}
         {onClear && (
@@ -83,7 +94,8 @@ export function BulkActionBar({
             onClick={onClear}
             aria-label="Huỷ chọn"
           >
-            <X className="h-4 w-4" aria-hidden="true" />
+            <X className="h-3.5 w-3.5" aria-hidden="true" />
+            Huỷ
           </Button>
         )}
       </div>
