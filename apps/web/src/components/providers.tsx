@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { QueryProvider } from "./providers/QueryProvider";
 import { SonnerProvider } from "./providers/SonnerProvider";
 
@@ -9,13 +10,16 @@ import { SonnerProvider } from "./providers/SonnerProvider";
  * Giữ tên `Providers` cũ để tương thích với `app/layout.tsx` hiện tại;
  * nội dung refactor sang QueryProvider + SonnerProvider tách riêng.
  *
- * Nuqs + CSRF provider sẽ được bổ sung ở phase Items list (T5).
+ * Thêm NuqsAdapter (T5) để URL-state filter `/items` đồng bộ query params
+ * theo brainstorm-deep §1.5.
  */
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <QueryProvider>
-      {children}
-      <SonnerProvider />
-    </QueryProvider>
+    <NuqsAdapter>
+      <QueryProvider>
+        {children}
+        <SonnerProvider />
+      </QueryProvider>
+    </NuqsAdapter>
   );
 }
