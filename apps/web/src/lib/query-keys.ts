@@ -49,4 +49,26 @@ export const qk = {
   auth: {
     me: ["auth", "me"] as const,
   },
+  bom: {
+    all: ["bom"] as const,
+    list: (filter: BomFilter) => ["bom", "list", filter] as const,
+    detail: (id: string) => ["bom", "detail", id] as const,
+    tree: (id: string) => ["bom", "tree", id] as const,
+    codeCheck: (code: string, excludeId?: string) =>
+      ["bom", "code-check", code, excludeId ?? null] as const,
+    import: {
+      all: ["bom", "import"] as const,
+      status: (batchId: string) => ["bom", "import", "status", batchId] as const,
+    },
+  },
 } as const;
+
+export interface BomFilter {
+  q?: string;
+  status?: ("DRAFT" | "ACTIVE" | "OBSOLETE")[];
+  hasComponents?: boolean;
+  sort?: string;
+  sortDir?: "asc" | "desc";
+  page?: number;
+  pageSize?: number;
+}
