@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
 import { CommandPalette } from "@/components/command/CommandPalette";
-import { Breadcrumb, useBreadcrumb } from "@/components/ui/breadcrumb";
 import {
   Sheet,
   SheetContent,
@@ -15,20 +14,18 @@ import {
 } from "@/components/ui/sheet";
 import { NAV_ITEMS, filterNavByRoles, type NavItem } from "@/lib/nav-items";
 import type { UserMenuUser } from "@/components/layout/UserMenu";
-import { cn } from "@/lib/utils";
 import type { Role } from "@iot/shared";
 
 /**
- * Direction B — AppShell (design-spec §2.3).
+ * V2 AppShell — Linear-inspired grid layout.
  *
- * Responsive:
- * - < 768 px: sidebar drawer (slide-in bằng Sheet, hamburger trong TopBar).
- * - 768+ px: Sidebar persistent, collapsible (240 ↔ 56).
+ * Desktop (>= md): sidebar 220px fixed left + topbar 44px sticky top +
+ *   main content padding 24x / 20y, max-w 1440 center.
+ * Mobile (< md): topbar 56px + hamburger menu; sidebar slide-in drawer
+ *   (Sheet width 280px — giữ chuẩn touch).
  *
- * Slot: Sidebar + TopBar (sticky) + Breadcrumb (sticky dưới TopBar) + <main>.
- * CommandPalette portal nằm tại shell, shared state qua useState (Ctrl+K open).
- *
- * Client component vì cần usePathname, useState, useRouter (logout).
+ * CSS vars exposed: --sidebar-width 220px, --topbar-height 44px.
+ * CommandPalette portal shared state (Ctrl+K global).
  */
 export interface AppShellProps {
   user: UserMenuUser;
@@ -44,7 +41,6 @@ export function AppShell({
 }: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname() ?? "/";
-  const breadcrumbs = useBreadcrumb(pathname);
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [paletteOpen, setPaletteOpen] = React.useState(false);
 
@@ -70,32 +66,38 @@ export function AppShell({
 
   return (
     <div
-      className="flex min-h-screen w-full bg-bg-base"
-      style={{ ["--sidebar-width" as string]: "15rem" }}
+      className="flex min-h-screen w-full bg-zinc-50"
+      style={{
+        ["--sidebar-width" as string]: "13.75rem", // 220px
+        ["--topbar-height" as string]: "2.75rem", // 44px
+      }}
     >
-      {/* Desktop sidebar (md+) */}
+      {/* Desktop sidebar (md+) — 220px fixed */}
       <div className="hidden md:flex">
         <Sidebar navItems={filteredNav} />
       </div>
 
-      {/* Mobile sidebar drawer */}
+      {/* Mobile sidebar drawer — 280px slide-in */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent
           side="left"
           size="sm"
-          className="flex flex-col p-0"
+          className="flex flex-col p-0 md:w-[280px]"
           hideCloseButton
         >
           <SheetHeader>
             <SheetTitle>Menu</SheetTitle>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto">
-            <Sidebar navItems={filteredNav} className="h-full w-full border-r-0" />
+            <Sidebar
+              navItems={filteredNav}
+              className="h-full w-full border-r-0"
+            />
           </div>
         </SheetContent>
       </Sheet>
 
-      {/* Right column */}
+      {/* Right column: topbar + main */}
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar
           user={user}
@@ -104,18 +106,9 @@ export function AppShell({
           onCommandOpen={() => setPaletteOpen(true)}
         />
 
-        {/* Breadcrumb row (chỉ desktop, md+) — mobile đã có ở TopBar */}
-        <div
-          className={cn(
-            "sticky top-14 z-sticky hidden h-10 border-b border-slate-200 bg-white px-4 md:flex md:items-center xl:px-6",
-          )}
-        >
-          <Breadcrumb items={breadcrumbs} />
-        </div>
-
         <main
           id="main"
-          className="flex-1 p-4 xl:mx-auto xl:w-full xl:max-w-[1440px] xl:p-6"
+          className="flex-1 px-4 py-4 md:px-6 md:py-5 xl:mx-auto xl:w-full xl:max-w-[1440px]"
         >
           {children}
         </main>

@@ -196,14 +196,14 @@ export function CommandPalette({
       role="dialog"
       aria-modal="true"
       aria-label="Tìm kiếm và lệnh"
-      className="fixed inset-0 z-cmdk flex items-start justify-center bg-overlay animate-in fade-in-0 duration-fast"
+      className="fixed inset-0 z-cmdk flex items-start justify-center bg-overlay-scrim backdrop-blur-[2px] animate-in fade-in-0 duration-150"
       onClick={(e) => {
         if (e.target === e.currentTarget) onOpenChange(false);
       }}
     >
       <CommandPrimitive
         label="Bảng lệnh"
-        className="mt-[15vh] flex w-full max-w-xl flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-pop"
+        className="mt-[15vh] flex w-full max-w-[560px] flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-lg"
         // cmdk handles arrow keys / enter / escape
         onKeyDown={(e) => {
           if (e.key === "Escape") {
@@ -212,33 +212,34 @@ export function CommandPalette({
           }
         }}
       >
-        <div className="flex h-12 items-center gap-2 border-b border-slate-200 px-4">
+        <div className="flex h-11 items-center gap-2 border-b border-zinc-200 px-3">
           <Search
-            className="h-4 w-4 shrink-0 text-slate-500"
+            className="h-4 w-4 shrink-0 text-zinc-400"
             aria-hidden="true"
           />
           <CommandPrimitive.Input
             autoFocus
             value={query}
             onValueChange={setQuery}
-            placeholder="Gõ lệnh hoặc tìm kiếm..."
-            className="h-full flex-1 bg-transparent text-base text-slate-900 placeholder:text-slate-400 focus:outline-none"
+            placeholder="Tìm kiếm hoặc gõ lệnh..."
+            className="h-full flex-1 bg-transparent text-md text-zinc-900 placeholder:text-zinc-400 focus:outline-none"
           />
-          <kbd className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-xs text-slate-500">
+          <kbd className="rounded-sm border border-zinc-200 bg-zinc-50 px-1.5 py-0 font-mono text-[10px] text-zinc-500">
             Esc
           </kbd>
         </div>
-        <CommandPrimitive.List className="max-h-96 overflow-y-auto py-2">
-          <CommandPrimitive.Empty className="px-4 py-8 text-center text-sm text-slate-500">
+        <CommandPrimitive.List className="max-h-[400px] overflow-y-auto py-1">
+          <CommandPrimitive.Empty className="px-4 py-8 text-center text-sm text-zinc-500">
             Không có kết quả.
           </CommandPrimitive.Empty>
 
           {recents.length > 0 ? (
             <CommandPrimitive.Group
               heading="Gần đây"
-              className="px-2 text-xs font-semibold uppercase tracking-wide text-slate-500 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5"
+              className="text-xs font-medium uppercase tracking-wider text-zinc-500 [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5"
             >
-              {recents.map((r) => (
+              {/* Limit recent items to 5 max (V2 spec §3.1.6) */}
+              {recents.slice(0, RECENT_MAX).map((r) => (
                 <CommandRow
                   key={r.id}
                   icon={Clock}
@@ -254,7 +255,7 @@ export function CommandPalette({
 
           <CommandPrimitive.Group
             heading="Điều hướng"
-            className="px-2 text-xs font-semibold uppercase tracking-wide text-slate-500 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5"
+            className="text-xs font-medium uppercase tracking-wider text-zinc-500 [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5"
           >
             {navItems.map((it) => (
               <CommandRow
@@ -270,7 +271,7 @@ export function CommandPalette({
           {actionItems.length > 0 ? (
             <CommandPrimitive.Group
               heading="Hành động"
-              className="px-2 text-xs font-semibold uppercase tracking-wide text-slate-500 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5"
+              className="text-xs font-medium uppercase tracking-wider text-zinc-500 [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5"
             >
               {actionItems.map((it) => (
                 <CommandRow
@@ -284,6 +285,27 @@ export function CommandPalette({
             </CommandPrimitive.Group>
           ) : null}
         </CommandPrimitive.List>
+        {/* V2 footer hints — consistent với Linear CmdK */}
+        <div className="flex h-8 items-center gap-3 border-t border-zinc-100 px-3 text-xs text-zinc-500">
+          <span className="inline-flex items-center gap-1">
+            <kbd className="rounded-sm border border-zinc-200 bg-zinc-50 px-1 font-mono text-[10px]">
+              ↑↓
+            </kbd>
+            Di chuyển
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <kbd className="rounded-sm border border-zinc-200 bg-zinc-50 px-1 font-mono text-[10px]">
+              ↵
+            </kbd>
+            Chọn
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <kbd className="rounded-sm border border-zinc-200 bg-zinc-50 px-1 font-mono text-[10px]">
+              Esc
+            </kbd>
+            Đóng
+          </span>
+        </div>
       </CommandPrimitive>
     </div>
   );
@@ -304,15 +326,19 @@ function CommandRow({
     <CommandPrimitive.Item
       onSelect={onSelect}
       className={cn(
-        "mx-1 flex h-9 items-center gap-2 rounded px-3 text-sm text-slate-700",
-        "aria-selected:bg-slate-100 aria-selected:text-slate-900",
-        "cursor-pointer",
+        "mx-1 flex h-8 items-center gap-2 rounded-sm px-3 text-base text-zinc-700",
+        "aria-selected:bg-blue-50 aria-selected:text-blue-700 aria-selected:font-medium",
+        "cursor-pointer transition-colors duration-100 ease-out",
       )}
     >
-      <Icon className="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
+      <Icon
+        className="h-3.5 w-3.5 shrink-0 text-zinc-500 aria-selected:text-blue-600"
+        aria-hidden="true"
+        strokeWidth={1.75}
+      />
       <span className="flex-1 truncate">{label}</span>
       {shortcut ? (
-        <span className="font-mono text-xs text-slate-500">{shortcut}</span>
+        <span className="font-mono text-[10px] text-zinc-400">{shortcut}</span>
       ) : null}
     </CommandPrimitive.Item>
   );
