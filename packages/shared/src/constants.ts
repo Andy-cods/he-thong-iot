@@ -105,6 +105,7 @@ export const ROLE_LABELS = {
 export const QUEUE_NAMES = {
   ITEM_IMPORT: "item-import",
   ITEM_IMPORT_COMMIT: "item-import-commit",
+  BOM_IMPORT_COMMIT: "bom-import-commit",
   ASSEMBLY_SCAN_SYNC: "assembly-scan-sync",
 } as const;
 
