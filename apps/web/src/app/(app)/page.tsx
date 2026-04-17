@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import {
   AlertTriangle,
   FileSpreadsheet,
+  Network,
   Package,
   PackageMinus,
   ShoppingCart,
@@ -10,6 +11,7 @@ import {
 } from "lucide-react";
 import { AUTH_COOKIE_NAME, verifyAccessToken } from "@/lib/auth";
 import { KpiCard } from "@/components/domain/KpiCard";
+import { BomKpiCard } from "@/components/domain/BomKpiCard";
 import { OrdersReadinessTable } from "@/components/domain/OrdersReadinessTable";
 import { AlertsList } from "@/components/domain/AlertsList";
 import { SystemHealthCard } from "@/components/domain/SystemHealthCard";
@@ -52,7 +54,7 @@ export default async function DashboardPage() {
       {/* KPI Row */}
       <section
         aria-label="Chỉ số quan trọng"
-        className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5"
       >
         <KpiCard
           label="SKU hoạt động"
@@ -62,6 +64,7 @@ export default async function DashboardPage() {
           href="/items"
           delta={{ value: 3, direction: "up", label: "vs tuần trước" }}
         />
+        <BomKpiCard />
         <KpiCard
           label="PO chờ nhận"
           value={8}
@@ -117,7 +120,7 @@ export default async function DashboardPage() {
         <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
           Hành động nhanh
         </h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <QuickLink
             href="/items/new"
             icon={<Package className="h-3.5 w-3.5" aria-hidden="true" />}
@@ -125,11 +128,25 @@ export default async function DashboardPage() {
             description="Thêm SKU vào danh mục"
           />
           <QuickLink
+            href="/bom/new"
+            icon={<Network className="h-3.5 w-3.5" aria-hidden="true" />}
+            title="Tạo BOM mới"
+            description="Template công thức sản xuất"
+          />
+          <QuickLink
+            href="/bom/import"
+            icon={
+              <FileSpreadsheet className="h-3.5 w-3.5" aria-hidden="true" />
+            }
+            title="Nhập BOM Excel"
+            description="Upload multi-sheet .xlsx"
+          />
+          <QuickLink
             href="/items/import"
             icon={
               <FileSpreadsheet className="h-3.5 w-3.5" aria-hidden="true" />
             }
-            title="Nhập Excel"
+            title="Nhập vật tư Excel"
             description="Upload hàng loạt từ file"
           />
           <QuickLink
