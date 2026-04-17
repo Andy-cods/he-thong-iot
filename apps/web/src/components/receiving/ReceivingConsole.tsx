@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Minus, Package, Plus, WifiOff } from "lucide-react";
+import { Minus, Package, Plus, RefreshCw, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +20,8 @@ import { ScanQueueBadge } from "@/components/scan/ScanQueueBadge";
 import { getDB, type ScanEvent } from "@/lib/dexie";
 import { uuidv7 } from "@/lib/uuid-v7";
 import { cn } from "@/lib/utils";
+
+const REPLAY_DELAY_MS = 500; // Sequential FIFO, tránh race condition
 
 /**
  * V2 ReceivingConsole — design-spec §2.8 + §3.7.1.
@@ -78,6 +80,11 @@ export function ReceivingConsole({
     line: LineState;
     code: string;
   } | null>(null);
+  const [syncProgress, setSyncProgress] = React.useState<{
+    current: number;
+    total: number;
+  } | null>(null);
+  const replayingRef = React.useRef(false);
 
   React.useEffect(() => {
     const on = () => setOnline(true);
@@ -117,38 +124,146 @@ export function ReceivingConsole({
     };
   }, [poId]);
 
+  const replayQueue = React.useCallback(async () => {
+    if (replayingRef.current) return;
+    replayingRef.current = true;
+    try {
+      const db = getDB();
+      // Query cả pending + failed (retry fail) nhưng KHÔNG re-sync các row "synced"
+      const pending = await db.scanQueue
+        .where("poId")
+        .equals(poId)
+        .filter((e) => e.status === "pending" || e.status === "failed")
+        .sortBy("createdAt"); // FIFO (uuidv7 embed ms)
+
+      if (pending.length === 0) {
+        setSyncProgress(null);
+        return;
+      }
+
+      setSyncProgress({ current: 0, total: pending.length });
+
+      let syncedCount = 0;
+      let failedCount = 0;
+
+      for (let i = 0; i < pending.length; i++) {
+        const ev = pending[i]!;
+        await db.scanQueue.update(ev.id, { status: "syncing" });
+        try {
+          const payload = {
+            events: [
+              {
+                id: ev.id,
+                scanId: ev.id, // V1: client uuid là scanId
+                poCode,
+                sku: ev.code,
+                qty: ev.qty,
+                lotNo: ev.lotNo,
+                qcStatus: ev.qcStatus === "pending" ? "pass" : ev.qcStatus,
+                scannedAt: new Date(ev.createdAt).toISOString(),
+                rawCode: ev.code,
+                metadata: { lineId: ev.lineId },
+              },
+            ],
+          };
+          const res = await fetch("/api/receiving/events", {
+            method: "POST",
+            credentials: "include",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          if (res.status === 401 || res.status === 403) {
+            await db.scanQueue.update(ev.id, {
+              status: "failed",
+              lastError: `Auth: HTTP ${res.status}`,
+              retryCount: (ev.retryCount ?? 0) + 1,
+            });
+            failedCount++;
+            break; // auth fail → stop replay
+          }
+
+          if (res.ok) {
+            const body = (await res.json()) as {
+              data: {
+                acked: string[];
+                rejected: Array<{ id: string; reason: string }>;
+              };
+            };
+            const acked = body.data.acked.includes(ev.id);
+            const rejected = body.data.rejected.find((r) => r.id === ev.id);
+            if (acked) {
+              // Server 200 OR 409 duplicate — cả 2 = synced. Xoá khỏi queue.
+              await db.scanQueue.delete(ev.id);
+              syncedCount++;
+            } else if (rejected) {
+              await db.scanQueue.update(ev.id, {
+                status: "failed",
+                lastError: rejected.reason,
+                retryCount: (ev.retryCount ?? 0) + 1,
+              });
+              failedCount++;
+            } else {
+              await db.scanQueue.update(ev.id, {
+                status: "failed",
+                lastError: "Server không ack event",
+                retryCount: (ev.retryCount ?? 0) + 1,
+              });
+              failedCount++;
+            }
+          } else {
+            // 5xx → retry backoff (để lại pending)
+            const body = (await res.json().catch(() => ({}))) as {
+              error?: { message?: string };
+            };
+            await db.scanQueue.update(ev.id, {
+              status: "failed",
+              lastError: body.error?.message ?? `HTTP ${res.status}`,
+              retryCount: (ev.retryCount ?? 0) + 1,
+            });
+            failedCount++;
+            // Backoff delay khi server lỗi
+            await new Promise((r) => setTimeout(r, 2000));
+          }
+        } catch (err) {
+          await db.scanQueue.update(ev.id, {
+            status: "failed",
+            lastError: (err as Error).message,
+            retryCount: (ev.retryCount ?? 0) + 1,
+          });
+          failedCount++;
+        }
+        setSyncProgress({ current: i + 1, total: pending.length });
+
+        // Sequential delay (tránh race condition)
+        if (i < pending.length - 1) {
+          await new Promise((r) => setTimeout(r, REPLAY_DELAY_MS));
+        }
+      }
+
+      if (syncedCount > 0 && failedCount === 0) {
+        toast.success(`Đã đồng bộ ${syncedCount} scan.`);
+      } else if (syncedCount > 0 && failedCount > 0) {
+        toast.warning(
+          `Đồng bộ ${syncedCount} scan, ${failedCount} lỗi — check hàng đợi.`,
+        );
+      } else if (failedCount > 0) {
+        toast.error(
+          `Đồng bộ thất bại ${failedCount} scan — check hàng đợi.`,
+        );
+      }
+    } catch (err) {
+      toast.error(`Đồng bộ lỗi: ${(err as Error).message}`);
+    } finally {
+      replayingRef.current = false;
+      setSyncProgress(null);
+    }
+  }, [poId, poCode]);
+
   React.useEffect(() => {
     if (!online) return;
-    let cancelled = false;
-    const replay = async () => {
-      try {
-        const db = getDB();
-        const pending = await db.scanQueue
-          .where("[poId+status]")
-          .equals([poId, "pending"])
-          .sortBy("createdAt");
-        if (cancelled) return;
-        for (const ev of pending) {
-          await db.scanQueue.update(ev.id, { status: "syncing" });
-          await new Promise((r) => setTimeout(r, 600));
-          if (cancelled) return;
-          await db.scanQueue.update(ev.id, {
-            status: "synced",
-            syncedAt: Date.now(),
-          });
-        }
-        if (pending.length > 0) {
-          toast.success(`Đã đồng bộ ${pending.length} sự kiện.`);
-        }
-      } catch (err) {
-        toast.error(`Đồng bộ lỗi: ${(err as Error).message}`);
-      }
-    };
-    void replay();
-    return () => {
-      cancelled = true;
-    };
-  }, [online, poId]);
+    void replayQueue();
+  }, [online, replayQueue]);
 
   const handleScan = (code: string) => {
     const normalized = code.trim().toUpperCase();
@@ -213,7 +328,7 @@ export function ReceivingConsole({
 
   return (
     <div className="relative min-h-full">
-      <ScanQueueBadge poId={poId} />
+      <ScanQueueBadge poId={poId} onRetry={() => void replayQueue()} />
 
       {/* Offline banner fixed top */}
       {!online ? (
@@ -223,6 +338,17 @@ export function ReceivingConsole({
         >
           <WifiOff className="h-4 w-4" aria-hidden="true" />
           Đang mất kết nối. Sự kiện quét được lưu hàng đợi — tự đồng bộ khi có mạng.
+        </div>
+      ) : null}
+
+      {/* Sync progress banner */}
+      {syncProgress ? (
+        <div
+          role="status"
+          className="sticky top-0 z-sticky flex items-center justify-center gap-2 border-b border-blue-200 bg-blue-50 px-4 py-2 text-xs font-medium text-blue-800"
+        >
+          <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+          Đang đồng bộ {syncProgress.current}/{syncProgress.total} scan…
         </div>
       ) : null}
 

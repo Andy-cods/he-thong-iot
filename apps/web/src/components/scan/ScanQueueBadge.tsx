@@ -24,8 +24,16 @@ import { cn } from "@/lib/utils";
  * - Click mở Sheet width 360px list pending events + retry/delete each.
  * - Auto-refresh 5s (logic V1).
  */
-export function ScanQueueBadge({ poId }: { poId?: string }) {
+export function ScanQueueBadge({
+  poId,
+  onRetry,
+}: {
+  poId?: string;
+  /** Trigger batch retry từ parent ReceivingConsole (replayQueue). */
+  onRetry?: () => void;
+}) {
   const [count, setCount] = React.useState(0);
+  const [failedCount, setFailedCount] = React.useState(0);
   const [open, setOpen] = React.useState(false);
   const [events, setEvents] = React.useState<ScanEvent[]>([]);
   const [online, setOnline] = React.useState<boolean>(
@@ -47,8 +55,16 @@ export function ScanQueueBadge({ poId }: { poId?: string }) {
     try {
       const c = await countPendingScans(poId);
       setCount(c);
+      // Count failed separately for color coding
+      const db = getDB();
+      const failed = await db.scanQueue
+        .where("status")
+        .equals("failed")
+        .filter((e) => (poId ? e.poId === poId : true))
+        .count();
+      setFailedCount(failed);
+
       if (open) {
-        const db = getDB();
         const list = await db.scanQueue
           .orderBy("createdAt")
           .filter(
@@ -84,23 +100,22 @@ export function ScanQueueBadge({ poId }: { poId?: string }) {
     await refresh();
   };
 
+  // Color coding theo spec B2.7: amber nếu pending, red nếu failed, emerald nếu 0
   const tone = !online
     ? "bg-amber-50 border-amber-200 text-amber-800"
-    : count > 50
+    : failedCount > 0
       ? "bg-red-50 border-red-200 text-red-700"
-      : count > 10
+      : count > 0
         ? "bg-amber-50 border-amber-200 text-amber-800"
-        : "bg-white border-zinc-200 text-zinc-700";
+        : "bg-emerald-50 border-emerald-200 text-emerald-700";
 
   const dotTone = !online
     ? "bg-amber-500"
-    : count > 50
+    : failedCount > 0
       ? "bg-red-500"
-      : count > 10
+      : count > 0
         ? "bg-amber-500"
-        : count > 0
-          ? "bg-blue-500"
-          : "bg-zinc-400";
+        : "bg-emerald-500";
 
   return (
     <>
@@ -139,9 +154,28 @@ export function ScanQueueBadge({ poId }: { poId?: string }) {
             <SheetTitle>Hàng đợi quét ({count})</SheetTitle>
           </SheetHeader>
           <SheetBody>
+            {onRetry && events.length > 0 ? (
+              <div className="mb-3 flex justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    onRetry();
+                    void refresh();
+                  }}
+                  disabled={!online}
+                >
+                  <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                  Đồng bộ lại tất cả
+                </Button>
+              </div>
+            ) : null}
             {events.length === 0 ? (
               <p className="text-sm text-zinc-500">
-                Không có sự kiện chờ đồng bộ.
+                {failedCount === 0
+                  ? "Tất cả sự kiện đã đồng bộ."
+                  : "Không có sự kiện chờ đồng bộ."}
               </p>
             ) : (
               <ul className="space-y-2">
