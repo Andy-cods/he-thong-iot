@@ -1,15 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { Be_Vietnam_Pro, Inter, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
-const beVietnamPro = Be_Vietnam_Pro({
-  subsets: ["latin", "latin-ext", "vietnamese"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-be-vietnam-pro",
-  display: "swap",
-});
-
+// V2 — chỉ Inter + JetBrains Mono (bỏ Be Vietnam Pro).
+// Inter features: cv11 (alt i/l), ss01 (open digits), cv02 (alt single-story a).
 const inter = Inter({
   subsets: ["latin", "latin-ext", "vietnamese"],
   weight: ["400", "500", "600", "700"],
@@ -18,7 +13,7 @@ const inter = Inter({
 });
 
 const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin", "latin-ext", "vietnamese"],
+  subsets: ["latin", "latin-ext"],
   weight: ["400", "500", "600"],
   variable: "--font-jetbrains-mono",
   display: "swap",
@@ -70,7 +65,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0F172A",
+  themeColor: "#18181B",
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
@@ -84,7 +79,7 @@ export default function RootLayout({
   return (
     <html
       lang="vi"
-      className={`${beVietnamPro.variable} ${inter.variable} ${jetbrainsMono.variable}`}
+      className={`${inter.variable} ${jetbrainsMono.variable}`}
     >
       <body>
         <a href="#main" className="skip-link">

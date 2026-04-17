@@ -2,57 +2,118 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ===========================================================
- * Industrial Slate CSS custom properties
- * Dùng khi không tiện bind tailwind class (ví dụ print.css).
- * Direction B thêm biến sidebar/topbar cho layout shell.
- * =========================================================== */
+/* ============================================================
+ * V2 Design tokens — Linear-inspired zinc + electric blue.
+ * Reserve dark mode via [data-theme="dark"] — NO toggle V2.0.
+ * Nguồn: plans/redesign-v2/260417-v2-design-spec.md §1.
+ * ============================================================ */
 @layer base {
   :root {
-    --color-bg-base: #f8fafc;
-    --color-bg-card: #ffffff;
-    --color-bg-zebra: #f1f5f9;
-    --color-text-primary: #0f172a;
-    --color-text-muted: #64748b;
+    /* Background layers */
+    --bg-page: #fafafa;
+    --bg-card: #ffffff;
+    --bg-muted: #f4f4f5;
+    --bg-hover: #f4f4f5;
+    --bg-elevated: #ffffff;
 
-    --color-brand-ink: #0f172a;
-    --color-brand-steel: #334155;
-    --color-brand-mist: #e2e8f0;
+    /* Borders */
+    --border-subtle: #e4e4e7;
+    --border-strong: #d4d4d8;
+    --border-focus: #3b82f6;
 
-    --color-cta: #ea580c;
-    --color-cta-hover: #c2410c;
-    --color-cta-press: #9a3412;
+    /* Text */
+    --text-primary: #18181b;
+    --text-secondary: #3f3f46;
+    --text-muted: #71717a;
+    --text-placeholder: #a1a1aa;
+    --text-inverse: #fafafa;
+    --text-link: #2563eb;
 
-    --color-success: #059669;
-    --color-warning: #d97706;
-    --color-danger: #dc2626;
-    --color-info: #0369a1;
+    /* Accent */
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --accent-press: #1d4ed8;
+    --accent-soft: #eff6ff;
+    --accent-ring: rgba(59, 130, 246, 0.35);
 
-    --ring-focus: 0 0 0 3px rgba(3, 105, 161, 0.35);
+    /* Semantic */
+    --success: #10b981;
+    --success-strong: #047857;
+    --success-soft: #ecfdf5;
+    --warning: #f59e0b;
+    --warning-strong: #b45309;
+    --warning-soft: #fffbeb;
+    --danger: #ef4444;
+    --danger-strong: #b91c1c;
+    --danger-soft: #fef2f2;
+    --info: #0ea5e9;
+    --info-strong: #0369a1;
+    --info-soft: #f0f9ff;
+    --shortage: #f97316;
+    --shortage-strong: #c2410c;
+    --shortage-soft: #fff7ed;
 
-    /* Direction B — layout geometry */
-    --sidebar-width: 15rem; /* 240px */
-    --sidebar-width-collapsed: 3.5rem; /* 56px */
-    --topbar-height: 3.5rem; /* 56px */
+    /* Layout geometry V2 */
+    --sidebar-width: 13.75rem; /* 220px — giảm từ V1 240px */
+    --topbar-height: 2.75rem; /* 44px — giảm từ V1 56px */
     --content-max-width: 1440px;
+    --page-padding-x: 1.5rem; /* 24px */
+    --page-padding-y: 1.25rem; /* 20px */
+
+    /* Focus ring */
+    --focus-ring: 2px solid #3b82f6;
+    --focus-ring-offset: 2px;
+    --focus-ring-pwa: 3px solid #2563eb;
+
+    /* Back-compat V1 aliases (để V1 code cũ không crash) */
+    --color-bg-base: #fafafa;
+    --color-bg-card: #ffffff;
+    --color-bg-zebra: #f4f4f5;
+    --color-text-primary: #18181b;
+    --color-text-muted: #71717a;
+    --color-brand-ink: #18181b;
+    --color-brand-steel: #3f3f46;
+    --color-brand-mist: #e4e4e7;
+    --color-cta: #3b82f6;
+    --color-cta-hover: #2563eb;
+    --color-cta-press: #1d4ed8;
+    --color-success: #10b981;
+    --color-warning: #f59e0b;
+    --color-danger: #ef4444;
+    --color-info: #0ea5e9;
+    --ring-focus: 0 0 0 2px rgba(59, 130, 246, 0.5);
+    --sidebar-width-collapsed: 0; /* V2 không còn collapsed rail */
+  }
+
+  /* Dark mode reserve — NOT ACTIVATED V2.0 */
+  [data-theme="dark"] {
+    --bg-page: #09090b;
+    --bg-card: #18181b;
+    --bg-muted: #27272a;
+    --border-subtle: #27272a;
+    --border-strong: #3f3f46;
+    --text-primary: #fafafa;
+    --text-secondary: #d4d4d8;
+    --text-muted: #a1a1aa;
+    --accent: #60a5fa;
+    --accent-hover: #93c5fd;
+    --accent-press: #3b82f6;
+    --accent-soft: #172554;
   }
 
   html {
-    font-family:
-      Inter,
-      "Be Vietnam Pro",
-      ui-sans-serif,
-      system-ui,
-      sans-serif;
-    background: var(--color-bg-base);
-    color: var(--color-text-primary);
+    font-family: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-feature-settings: "cv11" 1, "ss01" 1, "cv02" 1;
+    font-size: 16px;
+    background: var(--bg-page);
+    color: var(--text-primary);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
 
   body {
-    @apply min-h-screen bg-slate-50 text-slate-900;
+    @apply min-h-screen bg-zinc-50 text-zinc-900 text-base leading-[1.4];
   }
 
   h1,
@@ -61,28 +122,188 @@
   h4,
   h5,
   h6 {
-    font-family: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
-    @apply text-slate-900;
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+    @apply text-zinc-900 tracking-tight;
   }
 
-  :focus-visible {
+  h1 {
+    @apply text-2xl font-semibold leading-tight;
+  } /* 20px */
+  h2 {
+    @apply text-xl font-semibold leading-snug;
+  } /* 17px */
+  h3 {
+    @apply text-lg font-semibold leading-snug;
+  } /* 15px */
+  h4 {
+    @apply text-md font-semibold;
+  } /* 14px */
+  h5 {
+    @apply text-base font-semibold;
+  } /* 13px */
+  h6 {
+    @apply text-xs font-medium uppercase tracking-wide;
+  } /* 11px */
+
+  /* Focus visible — CSS outline thay box-shadow V1 */
+  :focus {
     outline: none;
-    box-shadow: var(--ring-focus);
+  }
+  :focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
     border-radius: 6px;
   }
 
+  /* PWA focus override (outdoor visibility) */
+  [data-route="pwa"] :focus-visible {
+    outline: 3px solid var(--accent-hover);
+    outline-offset: 2px;
+  }
+
+  /* Reduced motion */
   @media (prefers-reduced-motion: reduce) {
-    * {
-      animation-duration: 0ms !important;
-      transition-duration: 0ms !important;
+    *,
+    *::before,
+    *::after {
+      animation-duration: 1ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 1ms !important;
+      scroll-behavior: auto !important;
     }
   }
 }
 
-/* ===========================================================
- * Direction B — keyframes (global, tái sử dụng bởi Tailwind
- * animation tokens + CSS class helpers dưới đây).
- * =========================================================== */
+/* ============================================================
+ * Keyframes V2 (global, tái sử dụng bởi Tailwind animation
+ * tokens + CSS class helpers).
+ * ============================================================ */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes slide-out-right {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes dialog-out {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(0.98);
+    opacity: 0;
+  }
+}
+
+@keyframes shimmer-sm {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes scan-flash-success {
+  0% {
+    outline: 0 solid rgba(16, 185, 129, 0);
+    background-color: transparent;
+  }
+  30% {
+    outline: 3px solid rgba(16, 185, 129, 0.5);
+    background-color: #ecfdf5;
+  }
+  100% {
+    outline: 0 solid rgba(16, 185, 129, 0);
+    background-color: transparent;
+  }
+}
+
+@keyframes scan-flash-danger {
+  0% {
+    outline: 0 solid rgba(239, 68, 68, 0);
+    background-color: transparent;
+  }
+  30% {
+    outline: 3px solid rgba(239, 68, 68, 0.5);
+    background-color: #fef2f2;
+  }
+  100% {
+    outline: 0 solid rgba(239, 68, 68, 0);
+    background-color: transparent;
+  }
+}
+
+@keyframes scan-shake-sm {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  50% {
+    transform: translateX(4px);
+  }
+  75% {
+    transform: translateX(-2px);
+  }
+}
+
+@keyframes toast-slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Back-compat V1 keyframe aliases (đảm bảo classes V1 còn sót không crash) */
 @keyframes shimmer {
   0% {
     background-position: -200% 0;
@@ -91,142 +312,133 @@
     background-position: 200% 0;
   }
 }
-
 @keyframes shake {
   0%,
   100% {
     transform: translateX(0);
   }
   25% {
-    transform: translateX(-6px);
+    transform: translateX(-4px);
   }
   75% {
-    transform: translateX(6px);
+    transform: translateX(4px);
   }
 }
-
 @keyframes flash-success {
   0% {
-    box-shadow: 0 0 0 0 rgba(5, 150, 105, 0);
+    outline: 0 solid rgba(16, 185, 129, 0);
     background-color: transparent;
   }
   30% {
-    box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.35);
-    background-color: #d1fae5;
+    outline: 3px solid rgba(16, 185, 129, 0.5);
+    background-color: #ecfdf5;
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(5, 150, 105, 0);
+    outline: 0 solid rgba(16, 185, 129, 0);
     background-color: transparent;
   }
 }
-
 @keyframes flash-danger {
   0% {
-    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+    outline: 0 solid rgba(239, 68, 68, 0);
     background-color: transparent;
   }
   30% {
-    box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.35);
-    background-color: #fee2e2;
+    outline: 3px solid rgba(239, 68, 68, 0.5);
+    background-color: #fef2f2;
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+    outline: 0 solid rgba(239, 68, 68, 0);
     background-color: transparent;
   }
 }
 
-@keyframes slide-in-right {
-  0% {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  100% {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-@keyframes slide-out-right {
-  0% {
-    transform: translateX(0);
-    opacity: 1;
-  }
-  100% {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-}
-
-@keyframes fade-in {
-  0% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 1;
-  }
-}
-
-@keyframes fade-out {
-  0% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-
-/* ===========================================================
- * Scan feedback utilities (PWA Receiving / Picklist)
- * =========================================================== */
+/* ============================================================
+ * Component utilities
+ * ============================================================ */
 @layer components {
-  .scan-row-current {
-    @apply border-l-4 border-cta bg-cta-soft/60;
+  /* Skip link WCAG 2.4.1 */
+  .skip-link {
+    @apply absolute left-2 top-2 z-[80] -translate-y-20 rounded-md bg-zinc-900 px-3 py-1.5 text-sm text-white transition-transform focus:translate-y-0;
   }
 
-  .scan-flash-success {
-    animation: flash-success 600ms cubic-bezier(0.2, 0.8, 0.2, 1) 1;
-  }
-
-  .scan-flash-danger {
-    animation: flash-danger 600ms cubic-bezier(0.2, 0.8, 0.2, 1) 1;
-  }
-
-  .scan-shake {
-    animation: shake 240ms cubic-bezier(0.4, 0, 0.2, 1) 1;
-  }
-
+  /* Skeleton shimmer */
   .skeleton {
-    @apply relative overflow-hidden bg-slate-200;
+    @apply relative overflow-hidden rounded-md bg-zinc-100;
     background-image: linear-gradient(
       90deg,
       transparent 0%,
-      rgba(255, 255, 255, 0.55) 50%,
+      rgba(255, 255, 255, 0.5) 50%,
       transparent 100%
     );
     background-size: 200% 100%;
-    animation: shimmer 1200ms linear infinite;
+    animation: shimmer-sm 1200ms linear infinite;
   }
 
+  /* Tabular numbers (Inter cv11 + ss01 + tnum) */
   .tabular-nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1, "cv11" 1, "ss01" 1;
+  }
+
+  /* Mono number cell */
+  .mono-num {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum" 1;
   }
+
+  /* Text balance for headings */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Scan feedback — PWA */
+  .scan-row-current {
+    @apply border-l-2 border-orange-500 bg-orange-50/60;
+  }
+  .scan-flash-success {
+    animation: scan-flash-success 400ms cubic-bezier(0.25, 1, 0.5, 1) 1;
+  }
+  .scan-flash-danger {
+    animation: scan-flash-danger 400ms cubic-bezier(0.25, 1, 0.5, 1) 1;
+  }
+  .scan-shake {
+    animation: scan-shake-sm 300ms cubic-bezier(0.4, 0, 0.2, 1) 1;
+  }
+
+  /* Card interactive hover */
+  .card-interactive {
+    @apply border border-zinc-200 bg-white transition-all duration-150 ease-[cubic-bezier(0.25,1,0.5,1)];
+  }
+  .card-interactive:hover {
+    @apply border-zinc-300 shadow-xs;
+    transform: translateY(-1px);
+  }
+
+  /* Row hover (tables) */
+  .row-hover {
+    @apply transition-colors duration-100 ease-out;
+  }
+  .row-hover:hover {
+    @apply bg-zinc-50;
+  }
+  .row-selected {
+    @apply bg-blue-50 border-l-2 border-blue-500;
+  }
 }
 
-/* Reduced motion override — tắt shimmer + shake + flash cho A11y. */
+/* ============================================================
+ * Reduced motion override
+ * ============================================================ */
 @media (prefers-reduced-motion: reduce) {
   .skeleton {
     animation: none !important;
-    background: var(--color-brand-mist) !important;
+    background: var(--bg-muted) !important;
   }
   .scan-flash-success,
   .scan-flash-danger,
   .scan-shake {
     animation: none !important;
   }
-}
-
-/* Skip link WCAG 2.4.1 */
-.skip-link {
-  @apply absolute left-2 top-2 z-50 -translate-y-20 rounded bg-slate-900 px-3 py-1.5 text-sm text-white transition-transform focus:translate-y-0;
 }
