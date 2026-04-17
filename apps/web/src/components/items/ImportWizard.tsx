@@ -130,7 +130,7 @@ export function ImportWizard() {
             {...getRootProps()}
             className={`flex min-h-[200px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition ${
               isDragActive
-                ? "border-brand-500 bg-brand-50"
+                ? "border-cta bg-cta-soft"
                 : "border-slate-300 bg-white hover:border-slate-400"
             }`}
           >
@@ -138,7 +138,7 @@ export function ImportWizard() {
             <UploadCloud className="mb-3 h-10 w-10 text-slate-400" />
             {file ? (
               <div className="text-center">
-                <FileSpreadsheet className="mx-auto mb-2 h-6 w-6 text-emerald-600" />
+                <FileSpreadsheet className="mx-auto mb-2 h-6 w-6 text-success" />
                 <p className="font-medium text-slate-900">{file.name}</p>
                 <p className="text-sm text-slate-500">
                   {(file.size / 1024).toFixed(0)} KB
@@ -202,7 +202,7 @@ export function ImportWizard() {
           {uploadData.rowFail > 0 && batchId && (
             <a
               href={downloadErrorsUrl(batchId)}
-              className="inline-flex items-center gap-2 text-sm font-medium text-amber-700 hover:underline"
+              className="inline-flex items-center gap-2 text-sm font-medium text-warning-strong hover:underline"
             >
               <AlertTriangle className="h-4 w-4" /> Tải file lỗi (
               {uploadData.rowFail} dòng) để sửa
@@ -325,7 +325,7 @@ function StepIndicator({ step }: { step: Step }) {
           <span
             className={`flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold ${
               i <= activeIdx
-                ? "border-brand-600 bg-brand-600 text-white"
+                ? "border-cta bg-cta text-white"
                 : "border-slate-300 bg-white text-slate-500"
             }`}
           >
@@ -358,9 +358,9 @@ function StatCard({
 }) {
   const toneClass =
     tone === "success"
-      ? "text-emerald-700"
+      ? "text-success-strong"
       : tone === "error"
-        ? "text-red-700"
+        ? "text-danger-strong"
         : "text-slate-900";
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4">
@@ -395,11 +395,11 @@ function ResultPanel({
     <div className="rounded-lg border border-slate-200 bg-white p-6">
       <div className="flex items-center gap-3">
         {isDone ? (
-          <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+          <CheckCircle2 className="h-6 w-6 text-success" />
         ) : isFailed ? (
-          <AlertTriangle className="h-6 w-6 text-red-600" />
+          <AlertTriangle className="h-6 w-6 text-danger" />
         ) : (
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-brand-600" />
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-cta" />
         )}
         <div>
           <div className="text-base font-semibold text-slate-900">
@@ -419,7 +419,7 @@ function ResultPanel({
         <>
           <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-slate-200">
             <div
-              className="h-full bg-brand-600 transition-all"
+              className="h-full bg-cta transition-all"
               style={{ width: `${progressPct}%` }}
             />
           </div>
@@ -433,7 +433,7 @@ function ResultPanel({
       )}
 
       {isFailed && errorMessage && (
-        <div className="mt-3 rounded-md bg-red-50 p-3 text-sm text-red-700">
+        <div className="mt-3 rounded-md bg-danger-soft p-3 text-sm text-danger-strong">
           {errorMessage}
         </div>
       )}
