@@ -2,9 +2,11 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Direction B — Skeleton placeholder với shimmer 1200ms.
- * Variant: rect (default, rounded-sm), circle (rounded-full), text (h-4).
- * A11y: wrapper dùng role="status" aria-busy="true" aria-label.
+ * V2 Skeleton — Linear-inspired.
+ * Bg zinc-100 (nhẹ hơn V1 slate-200). Shimmer 1200ms linear via .skeleton utility.
+ * Variant: rect (default rounded-md) / circle (rounded-full) / text (h-4 rounded-sm).
+ * Shape: dùng `.skeleton` utility class trong globals.css (animation + gradient).
+ * A11y: wrapper SkeletonGroup thêm role="status" aria-busy.
  */
 
 export interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -22,7 +24,7 @@ export function Skeleton({
   ...props
 }: SkeletonProps) {
   const variantClass = {
-    rect: "rounded-sm",
+    rect: "rounded-md",
     circle: "rounded-full",
     text: "h-4 rounded-sm",
   }[variant];
