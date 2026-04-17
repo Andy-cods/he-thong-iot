@@ -29,7 +29,8 @@ export interface KpiCardProps {
   value: number | string;
   delta?: KpiDelta;
   status?: KpiStatus;
-  icon?: React.ElementType;
+  /** Icon node — truyền `<Package className="h-5 w-5" />` từ RSC để tránh serialize function. */
+  icon?: React.ReactNode;
   /** Href → render <Link>, bỏ qua onClick. */
   href?: string;
   onClick?: () => void;
@@ -62,7 +63,7 @@ export function KpiCard({
   value,
   delta,
   status,
-  icon: Icon,
+  icon,
   href,
   onClick,
   loading,
@@ -93,8 +94,10 @@ export function KpiCard({
     <>
       <div className="flex items-start justify-between">
         <p className="text-sm font-medium text-slate-600">{label}</p>
-        {Icon ? (
-          <Icon className="h-5 w-5 shrink-0 text-slate-400" aria-hidden="true" />
+        {icon ? (
+          <span className="h-5 w-5 shrink-0 text-slate-400" aria-hidden="true">
+            {icon}
+          </span>
         ) : null}
       </div>
       <p className="mt-2 font-heading text-4xl font-bold tabular-nums text-slate-900">

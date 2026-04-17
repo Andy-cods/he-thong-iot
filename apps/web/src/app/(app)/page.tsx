@@ -66,7 +66,7 @@ export default async function DashboardPage() {
           label="SKU đang hoạt động"
           value={124}
           status="info"
-          icon={Package}
+          icon={<Package className="h-5 w-5" aria-hidden="true" />}
           href="/items"
           delta={{ value: 3, direction: "up", label: "vs tuần trước" }}
         />
@@ -74,21 +74,21 @@ export default async function DashboardPage() {
           label="PO chờ nhận"
           value={8}
           status="warning"
-          icon={Truck}
+          icon={<Truck className="h-5 w-5" aria-hidden="true" />}
           delta={{ value: 2, direction: "up", label: "trong 7 ngày" }}
         />
         <KpiCard
           label="WO đang chạy"
           value={5}
           status="success"
-          icon={ShoppingCart}
+          icon={<ShoppingCart className="h-5 w-5" aria-hidden="true" />}
           delta={{ value: 0, direction: "flat" }}
         />
         <KpiCard
           label="Cảnh báo tồn kho"
           value={7}
           status="danger"
-          icon={PackageMinus}
+          icon={<PackageMinus className="h-5 w-5" aria-hidden="true" />}
           href="/items?filter=low-stock"
           delta={{ value: 2, direction: "down", label: "vs hôm qua" }}
         />
