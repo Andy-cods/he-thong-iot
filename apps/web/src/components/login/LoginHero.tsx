@@ -5,12 +5,11 @@ import * as React from "react";
 /**
  * Direction B — LoginHero (design-spec §2.1).
  *
- * Line-art SVG mô tả: bánh răng CNC + mũi phay (spindle) + grid nền,
- * stroke `slate-400` 1.5 px, inline (không request external).
+ * Line-art SVG CNC scene: gear cluster (3 gears) + spindle + machine bed +
+ * background grid. Stroke `slate-400` 1.5px, inline (no external request).
  *
- * Tổng kích thước mục tiêu < 10 KB (hiện ~6 KB gzipped).
- * TODO designer: thay thế bằng minh hoạ chính thức khi có asset trong
- *   `public/illustrations/login-hero-cnc.svg`.
+ * Inline for LCP: keeps hero paint on initial HTML, no image fetch.
+ * Target size < 10 KB gzipped.
  */
 export function LoginHero({ className }: { className?: string }) {
   return (
@@ -75,6 +74,7 @@ export function LoginHero({ className }: { className?: string }) {
         {/* Work-piece block */}
         <rect x="200" y="232" width="80" height="28" rx="1" />
         <line x1="212" y1="240" x2="268" y2="240" strokeDasharray="3 3" />
+        <line x1="212" y1="252" x2="268" y2="252" strokeDasharray="3 3" />
 
         {/* Column (vertical) */}
         <rect x="360" y="60" width="36" height="200" rx="2" />
@@ -85,36 +85,71 @@ export function LoginHero({ className }: { className?: string }) {
 
         {/* Spindle head + tool */}
         <rect x="190" y="104" width="60" height="60" rx="3" />
-        <line x1="220" y1="164" x2="220" y2="220" strokeWidth="2" />
-        <polygon points="215,220 225,220 220,232" fill="currentColor" />
+        <circle cx="220" cy="134" r="16" />
+        <line x1="220" y1="164" x2="220" y2="220" strokeWidth="2.5" />
+        <polygon
+          points="215,220 225,220 220,232"
+          fill="currentColor"
+          stroke="none"
+        />
 
-        {/* Gear 1 (left) */}
-        <circle cx="110" cy="170" r="36" />
-        <circle cx="110" cy="170" r="10" />
-        {Array.from({ length: 12 }).map((_, i) => {
-          const angle = (i / 12) * Math.PI * 2;
-          const x1 = 110 + Math.cos(angle) * 36;
-          const y1 = 170 + Math.sin(angle) * 36;
-          const x2 = 110 + Math.cos(angle) * 44;
-          const y2 = 170 + Math.sin(angle) * 44;
-          return (
-            <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} />
-          );
-        })}
+        {/* Gear cluster — 3 gears with visible teeth */}
+        {/* Gear 1 (main, bottom-left) */}
+        <g>
+          <circle cx="110" cy="180" r="36" />
+          <circle cx="110" cy="180" r="12" />
+          <circle cx="110" cy="180" r="3" fill="currentColor" stroke="none" />
+          {Array.from({ length: 12 }).map((_, i) => {
+            const angle = (i / 12) * Math.PI * 2;
+            const inner = 36;
+            const outer = 46;
+            const x1 = 110 + Math.cos(angle) * inner;
+            const y1 = 180 + Math.sin(angle) * inner;
+            const x2 = 110 + Math.cos(angle) * outer;
+            const y2 = 180 + Math.sin(angle) * outer;
+            return (
+              <line key={`g1-${i}`} x1={x1} y1={y1} x2={x2} y2={y2} />
+            );
+          })}
+        </g>
 
-        {/* Gear 2 (small, top-left) */}
-        <circle cx="60" cy="140" r="18" />
-        <circle cx="60" cy="140" r="6" />
-        {Array.from({ length: 8 }).map((_, i) => {
-          const angle = (i / 8) * Math.PI * 2;
-          const x1 = 60 + Math.cos(angle) * 18;
-          const y1 = 140 + Math.sin(angle) * 18;
-          const x2 = 60 + Math.cos(angle) * 24;
-          const y2 = 140 + Math.sin(angle) * 24;
-          return <line key={`g2-${i}`} x1={x1} y1={y1} x2={x2} y2={y2} />;
-        })}
+        {/* Gear 2 (small, upper-left, interlocking) */}
+        <g>
+          <circle cx="58" cy="134" r="20" />
+          <circle cx="58" cy="134" r="7" />
+          {Array.from({ length: 10 }).map((_, i) => {
+            const angle = (i / 10) * Math.PI * 2;
+            const inner = 20;
+            const outer = 27;
+            const x1 = 58 + Math.cos(angle) * inner;
+            const y1 = 134 + Math.sin(angle) * inner;
+            const x2 = 58 + Math.cos(angle) * outer;
+            const y2 = 134 + Math.sin(angle) * outer;
+            return (
+              <line key={`g2-${i}`} x1={x1} y1={y1} x2={x2} y2={y2} />
+            );
+          })}
+        </g>
 
-        {/* Dimension markers */}
+        {/* Gear 3 (medium, right of main, interlocking with spindle hint) */}
+        <g>
+          <circle cx="170" cy="210" r="24" />
+          <circle cx="170" cy="210" r="8" />
+          {Array.from({ length: 10 }).map((_, i) => {
+            const angle = (i / 10) * Math.PI * 2 + Math.PI / 10;
+            const inner = 24;
+            const outer = 32;
+            const x1 = 170 + Math.cos(angle) * inner;
+            const y1 = 210 + Math.sin(angle) * inner;
+            const x2 = 170 + Math.cos(angle) * outer;
+            const y2 = 210 + Math.sin(angle) * outer;
+            return (
+              <line key={`g3-${i}`} x1={x1} y1={y1} x2={x2} y2={y2} />
+            );
+          })}
+        </g>
+
+        {/* Dimension markers on work-piece */}
         <line x1="200" y1="318" x2="280" y2="318" strokeWidth="1" />
         <line x1="200" y1="314" x2="200" y2="322" strokeWidth="1" />
         <line x1="280" y1="314" x2="280" y2="322" strokeWidth="1" />
@@ -134,6 +169,13 @@ export function LoginHero({ className }: { className?: string }) {
         <circle cx="330" cy="200" r="6" strokeDasharray="2 2" />
         <line x1="320" y1="200" x2="340" y2="200" />
         <line x1="330" y1="190" x2="330" y2="210" />
+
+        {/* Tool-path dashed arc (stylized tool motion) */}
+        <path
+          d="M 240 260 Q 280 240 320 260"
+          strokeDasharray="3 3"
+          opacity="0.6"
+        />
       </svg>
     </div>
   );

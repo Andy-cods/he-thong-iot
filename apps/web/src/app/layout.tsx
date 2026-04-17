@@ -45,6 +45,20 @@ export const metadata: Metadata = {
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
     shortcut: ["/favicon.ico"],
   },
+  openGraph: {
+    type: "website",
+    locale: "vi_VN",
+    url: siteUrl,
+    siteName: "IoT Xưởng cơ khí",
+    title: "IoT Xưởng cơ khí — BOM MES",
+    description:
+      "Hệ thống quản lý BOM, đơn hàng và kho cho xưởng cơ khí Việt Nam.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "IoT Xưởng cơ khí — BOM MES",
+    description: "Quản lý xưởng cơ khí BOM-centric.",
+  },
   appleWebApp: {
     capable: true,
     title: "IoT Xưởng",

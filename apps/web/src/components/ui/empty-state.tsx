@@ -1,20 +1,30 @@
 "use client";
 
 import * as React from "react";
-import { AlertTriangle, Inbox, SearchX, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  EmptyAlert,
+  EmptyBox,
+  EmptyInbox,
+  EmptySearch,
+  OfflineCloud,
+  ScanReady,
+} from "./illustrations";
 
 /**
- * Direction B — EmptyState.
+ * Direction B — EmptyState (design-spec §3.11).
  * Slot illustration + title + description + CTA buttons.
- * Preset: no-data, no-filter-match, error, empty-success.
+ * Preset: no-data, no-filter-match, error, empty-success, offline, scan-ready.
+ * Illustrations: inline line-art SVG, slate-400 stroke, no external asset.
  */
 
 export type EmptyStatePreset =
   | "no-data"
   | "no-filter-match"
   | "error"
-  | "empty-success";
+  | "empty-success"
+  | "offline"
+  | "scan-ready";
 
 export interface EmptyStateProps {
   title: string;
@@ -25,11 +35,16 @@ export interface EmptyStateProps {
   className?: string;
 }
 
-const presetIcon: Record<EmptyStatePreset, React.ElementType> = {
-  "no-data": Inbox,
-  "no-filter-match": SearchX,
-  error: AlertTriangle,
-  "empty-success": CheckCircle2,
+const presetIllustration: Record<
+  EmptyStatePreset,
+  React.ComponentType<{ className?: string; size?: number }>
+> = {
+  "no-data": EmptyBox,
+  "no-filter-match": EmptySearch,
+  error: EmptyAlert,
+  "empty-success": EmptyInbox,
+  offline: OfflineCloud,
+  "scan-ready": ScanReady,
 };
 
 const presetColor: Record<EmptyStatePreset, string> = {
@@ -37,6 +52,8 @@ const presetColor: Record<EmptyStatePreset, string> = {
   "no-filter-match": "text-slate-400",
   error: "text-danger",
   "empty-success": "text-success",
+  offline: "text-slate-400",
+  "scan-ready": "text-slate-500",
 };
 
 export function EmptyState({
@@ -47,9 +64,8 @@ export function EmptyState({
   preset,
   className,
 }: EmptyStateProps) {
-  const illustrationNode = illustration ?? (preset ? (
-    <PresetIllustration preset={preset} />
-  ) : null);
+  const illustrationNode =
+    illustration ?? (preset ? <PresetIllustration preset={preset} /> : null);
 
   return (
     <div
@@ -79,16 +95,7 @@ export function EmptyState({
 }
 
 function PresetIllustration({ preset }: { preset: EmptyStatePreset }) {
-  const Icon = presetIcon[preset];
+  const Illustration = presetIllustration[preset];
   const color = presetColor[preset];
-  return (
-    <div
-      className={cn(
-        "flex h-18 w-18 items-center justify-center rounded-full bg-slate-100",
-        color,
-      )}
-    >
-      <Icon className="h-9 w-9" strokeWidth={1.5} aria-hidden="true" />
-    </div>
-  );
+  return <Illustration className={color} size={128} />;
 }
