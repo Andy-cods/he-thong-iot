@@ -3,25 +3,42 @@ import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
+/**
+ * V2 Button — Linear-inspired compact.
+ * Size default = md (h-8 32px). Bỏ orange primary, dùng blue-500.
+ * GIỮ backward-compat variant name `default` / `danger` / `destructive`.
+ */
+
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-1.5 rounded font-medium transition-colors duration-fast ease-industrial focus-visible:outline-none focus-visible:shadow-focus disabled:cursor-not-allowed disabled:opacity-60",
+  "inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors duration-150 ease-out focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.98]",
   {
     variants: {
       variant: {
-        default: "bg-cta text-white hover:bg-cta-hover active:bg-cta-press",
+        default:
+          "bg-blue-500 text-white hover:bg-blue-600 active:bg-blue-700 disabled:bg-blue-300",
+        primary:
+          "bg-blue-500 text-white hover:bg-blue-600 active:bg-blue-700 disabled:bg-blue-300",
         secondary:
-          "bg-slate-100 text-slate-900 hover:bg-slate-200 active:bg-slate-300",
+          "bg-zinc-100 text-zinc-900 border border-zinc-200 hover:bg-zinc-200 active:bg-zinc-300",
         outline:
-          "border border-slate-300 bg-white text-slate-900 hover:bg-slate-50",
-        ghost: "text-slate-900 hover:bg-slate-100",
-        danger: "bg-danger text-white hover:bg-danger/90",
-        link: "text-info underline-offset-2 hover:underline",
+          "border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50 hover:border-zinc-400 active:bg-zinc-100",
+        ghost:
+          "bg-transparent text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200",
+        danger:
+          "bg-red-500 text-white hover:bg-red-600 active:bg-red-700 disabled:bg-red-300",
+        destructive:
+          "bg-red-500 text-white hover:bg-red-600 active:bg-red-700 disabled:bg-red-300",
+        link:
+          "bg-transparent text-blue-600 underline-offset-2 hover:text-blue-700 hover:underline active:text-blue-800",
       },
       size: {
-        default: "h-10 px-4 text-base",
-        sm: "h-8 px-2 text-sm",
-        lg: "h-12 px-5 text-lg", // PWA tap target 48px cho găng tay
-        icon: "h-10 w-10",
+        xs: "h-6 px-2 text-xs", // 24px
+        sm: "h-7 px-2.5 text-sm", // 28px
+        md: "h-8 px-3 text-base", // 32px — default V2
+        default: "h-8 px-3 text-base", // alias md cho back-compat V1
+        lg: "h-11 px-4 text-md", // 44px — PWA touch
+        icon: "h-8 w-8", // 32px square
+        "icon-sm": "h-7 w-7", // 28px square
       },
     },
     defaultVariants: {
