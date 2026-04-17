@@ -1,4 +1,37 @@
 /** @type {import('next').NextConfig} */
+const { execSync } = require("child_process");
+
+// ---------------------------------------------------------------------------
+// Build info injection (design-spec §7.3 / impl-plan §6.4)
+// ---------------------------------------------------------------------------
+// NEXT_PUBLIC_BUILD_SHA   — short commit hash (7-char), fallback "dev"
+// NEXT_PUBLIC_BUILD_DATE  — ISO 2026-04-17 date (YYYY-MM-DD), fallback today
+// NEXT_PUBLIC_BUILD_VERSION — semver from package.json
+//
+// Nguồn ưu tiên: env (Docker/CI đã set) → git CLI → static fallback.
+// Wrap trong try/catch vì build container có thể không có git.
+
+function resolveBuildSha() {
+  if (process.env.NEXT_PUBLIC_BUILD_SHA) return process.env.NEXT_PUBLIC_BUILD_SHA;
+  if (process.env.BUILD_COMMIT) return process.env.BUILD_COMMIT.slice(0, 7);
+  try {
+    return execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"] })
+      .toString()
+      .trim();
+  } catch {
+    return "dev";
+  }
+}
+
+function resolveBuildDate() {
+  if (process.env.NEXT_PUBLIC_BUILD_DATE) return process.env.NEXT_PUBLIC_BUILD_DATE;
+  return new Date().toISOString().slice(0, 10);
+}
+
+const buildSha = resolveBuildSha();
+const buildDate = resolveBuildDate();
+const buildVersion = require("./package.json").version;
+
 const withPWA = require("next-pwa")({
   dest: "public",
   register: true,
@@ -32,6 +65,11 @@ const nextConfig = {
   reactStrictMode: true,
   trailingSlash: false,
   poweredByHeader: false,
+  env: {
+    NEXT_PUBLIC_BUILD_SHA: buildSha,
+    NEXT_PUBLIC_BUILD_DATE: buildDate,
+    NEXT_PUBLIC_BUILD_VERSION: buildVersion,
+  },
   // standalone output cần symlink (Windows chưa-admin không tạo được).
   // Dockerfile set BUILD_STANDALONE=1 để bật cho production image.
   ...(process.env.BUILD_STANDALONE === "1" ? { output: "standalone" } : {}),
