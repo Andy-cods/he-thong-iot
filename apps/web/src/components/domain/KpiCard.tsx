@@ -7,13 +7,17 @@ import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
- * Direction B — KpiCard (design-spec §3.13).
+ * V2 KpiCard — Linear-inspired compact (design-spec §2.2 + §3.3.1).
  *
- * - Visual: border-l 4px theo status (success/warning/danger/info/neutral).
- * - Value 36px font-bold tabular-nums.
- * - Delta optional: arrow up/down/flat + màu theo direction.
- * - Clickable variant: wrap <Link>, hover border-slate-300.
- * - Loading: skeleton 112px height (tương đương content height).
+ * Delta V1: BỎ border-l-4 stripe, height 112→80, padding 24→16,
+ * value 36 bold → 22 medium, label 14→12 uppercase.
+ *
+ * **RSC boundary fix**: `icon` nhận `React.ReactNode` (JSX element) — không phải
+ * `React.ElementType` (function) vì function không thể serialize qua RSC→Client
+ * boundary. Caller truyền `<Icon className="h-3.5 w-3.5" />`.
+ *
+ * Status dot 6px bên trái label khi có status (chỉ visual hint, không còn
+ * color stripe bìa trái như V1).
  */
 
 export type KpiStatus = "success" | "warning" | "danger" | "info" | "neutral";
@@ -29,7 +33,7 @@ export interface KpiCardProps {
   value: number | string;
   delta?: KpiDelta;
   status?: KpiStatus;
-  /** Icon node — truyền `<Package className="h-5 w-5" />` từ RSC để tránh serialize function. */
+  /** JSX element (e.g. `<Package className="h-3.5 w-3.5" />`) — an toàn qua RSC boundary. */
   icon?: React.ReactNode;
   /** Href → render <Link>, bỏ qua onClick. */
   href?: string;
@@ -38,18 +42,18 @@ export interface KpiCardProps {
   className?: string;
 }
 
-const statusBorder: Record<KpiStatus, string> = {
-  success: "border-l-success",
-  warning: "border-l-warning",
-  danger: "border-l-danger",
-  info: "border-l-info",
-  neutral: "border-l-slate-300",
+const statusDot: Record<KpiStatus, string> = {
+  success: "bg-emerald-500",
+  warning: "bg-amber-500",
+  danger: "bg-red-500",
+  info: "bg-blue-500",
+  neutral: "bg-zinc-300",
 };
 
 const deltaColor: Record<KpiDelta["direction"], string> = {
-  up: "text-success-strong",
-  down: "text-danger-strong",
-  flat: "text-slate-500",
+  up: "text-emerald-600",
+  down: "text-red-600",
+  flat: "text-zinc-500",
 };
 
 const deltaIcon: Record<KpiDelta["direction"], React.ElementType> = {
@@ -74,13 +78,13 @@ export function KpiCard({
       <div
         aria-busy="true"
         className={cn(
-          "flex min-h-28 flex-col gap-2 rounded-md border border-slate-200 bg-white p-4",
+          "flex h-20 flex-col justify-between rounded-md border border-zinc-200 bg-white p-4",
           className,
         )}
       >
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="h-9 w-20" />
-        <Skeleton className="h-3 w-32" />
+        <Skeleton className="h-3 w-20" />
+        <Skeleton className="h-5 w-16" />
+        <Skeleton className="h-3 w-24" />
       </div>
     );
   }
@@ -92,32 +96,45 @@ export function KpiCard({
 
   const content = (
     <>
-      <div className="flex items-start justify-between">
-        <p className="text-sm font-medium text-slate-600">{label}</p>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-1.5">
+          {status ? (
+            <span
+              aria-hidden="true"
+              className={cn(
+                "h-1.5 w-1.5 shrink-0 rounded-full",
+                statusDot[status],
+              )}
+            />
+          ) : null}
+          <p className="truncate text-sm font-medium uppercase tracking-wide text-zinc-500">
+            {label}
+          </p>
+        </div>
         {icon ? (
-          <span className="h-5 w-5 shrink-0 text-slate-400" aria-hidden="true">
+          <span className="shrink-0 text-zinc-400" aria-hidden="true">
             {icon}
           </span>
         ) : null}
       </div>
-      <p className="mt-2 font-heading text-4xl font-bold tabular-nums text-slate-900">
+      <p className="text-[1.375rem] font-medium leading-none tabular-nums text-zinc-900">
         {value}
       </p>
       {delta ? (
         <p
           className={cn(
-            "mt-1 flex items-center gap-1 font-mono text-sm",
+            "flex items-center gap-1 text-sm",
             deltaColor[delta.direction],
           )}
         >
           {DeltaIcon ? (
-            <DeltaIcon className="h-3.5 w-3.5" aria-hidden="true" />
+            <DeltaIcon className="h-3 w-3" aria-hidden="true" />
           ) : null}
-          <span className="tabular-nums">
+          <span className="font-mono tabular-nums">
             {delta.direction === "flat" ? "±0" : formatDelta(delta.value)}
           </span>
           {delta.label ? (
-            <span className="text-slate-500">{delta.label}</span>
+            <span className="truncate text-zinc-500">{delta.label}</span>
           ) : null}
         </p>
       ) : null}
@@ -125,10 +142,9 @@ export function KpiCard({
   );
 
   const baseClass = cn(
-    "flex min-h-28 flex-col rounded-md border border-slate-200 bg-white p-4 border-l-4",
-    status ? statusBorder[status] : "border-l-slate-200",
+    "flex h-20 flex-col justify-between rounded-md border border-zinc-200 bg-white p-4",
     isInteractive &&
-      "transition-fast hover:border-slate-300 hover:shadow-sm focus:outline-none focus-visible:shadow-focus",
+      "transition-colors duration-150 ease-out hover:border-zinc-300 hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1",
     className,
   );
 
