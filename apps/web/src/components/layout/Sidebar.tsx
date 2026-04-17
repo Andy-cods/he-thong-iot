@@ -3,18 +3,11 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  ChevronLeft,
-  ChevronRight,
-  LayoutDashboard,
-  Package,
-  Settings,
-  ShoppingCart,
-  Truck,
-  Factory,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import type { Role } from "@iot/shared";
 import { cn } from "@/lib/utils";
 import { storage, STORAGE_KEYS } from "@/lib/storage";
+import { NAV_ITEMS, type NavItem } from "@/lib/nav-items";
 
 /**
  * Direction B — Sidebar (design-spec §3.2).
@@ -22,61 +15,13 @@ import { storage, STORAGE_KEYS } from "@/lib/storage";
  * - Active item: bg-slate-100 + border-l-2 border-cta.
  * - Collapsed: icon-only + tooltip (Radix title native cho V1 đơn giản).
  * - Persist localStorage `iot:sidebar-collapsed`, SSR-safe (initial prop).
+ *
+ * Nav items lấy từ `@/lib/nav-items` (single-source-of-truth với
+ * CommandPalette + breadcrumb). Prop `navItems` override cho test/story.
  */
+export type { Role, NavItem };
 
-export type Role = "admin" | "planner" | "warehouse" | "viewer";
-
-export interface NavItem {
-  href: string;
-  label: string;
-  icon: React.ElementType;
-  badge?: number | string;
-  disabled?: boolean;
-  roles?: Role[];
-  /** True → render divider phía trên item này. */
-  divider?: boolean;
-}
-
-const DEFAULT_NAV: NavItem[] = [
-  {
-    href: "/",
-    label: "Tổng quan",
-    icon: LayoutDashboard,
-    roles: ["admin", "planner", "viewer"],
-  },
-  {
-    href: "/items",
-    label: "Vật tư",
-    icon: Package,
-    roles: ["admin", "planner", "warehouse", "viewer"],
-  },
-  {
-    href: "/suppliers",
-    label: "Nhà cung cấp",
-    icon: ShoppingCart,
-    roles: ["admin", "planner"],
-  },
-  {
-    href: "/work-orders",
-    label: "Work Order",
-    icon: Factory,
-    disabled: true,
-    divider: true,
-  },
-  {
-    href: "/pwa/receive",
-    label: "Nhận hàng",
-    icon: Truck,
-    roles: ["admin", "warehouse"],
-  },
-  {
-    href: "/admin",
-    label: "Quản trị",
-    icon: Settings,
-    roles: ["admin"],
-    divider: true,
-  },
-];
+const DEFAULT_NAV: NavItem[] = NAV_ITEMS;
 
 export interface SidebarProps {
   defaultCollapsed?: boolean;

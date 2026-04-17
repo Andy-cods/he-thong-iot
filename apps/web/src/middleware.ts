@@ -2,7 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { AUTH_COOKIE_NAME, verifyAccessTokenEdge } from "./lib/auth-edge";
 
 /**
- * Chỉ protect /app/* — phần UI có state auth.
+ * Protect UI routes có state auth: `/` (Dashboard), `/items`, `/suppliers`,
+ * `/imports`, `/app` (legacy).
+ *
  * API routes tự verify JWT bên trong handler (để trả JSON 401 thay vì redirect).
  *
  * Middleware chạy Edge runtime nên KHÔNG import argon2/fs. JWT secret đọc
@@ -11,10 +13,15 @@ import { AUTH_COOKIE_NAME, verifyAccessTokenEdge } from "./lib/auth-edge";
  */
 const PROTECTED_PREFIXES = ["/app", "/items", "/suppliers", "/imports"];
 
+function isProtected(pathname: string): boolean {
+  if (pathname === "/") return true; // Dashboard root
+  return PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));
+}
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  if (!PROTECTED_PREFIXES.some((p) => pathname.startsWith(p))) {
+  if (!isProtected(pathname)) {
     return NextResponse.next();
   }
 
@@ -48,6 +55,7 @@ function redirectToLogin(req: NextRequest) {
 
 export const config = {
   matcher: [
+    "/",
     "/app/:path*",
     "/items/:path*",
     "/suppliers/:path*",
