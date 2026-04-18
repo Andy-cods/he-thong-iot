@@ -16,10 +16,19 @@ export interface ReceivingEventInput {
   sku: string;
   qty: number;
   lotNo?: string | null;
-  qcStatus: "pass" | "fail";
+  qcStatus: "OK" | "NG" | "PENDING";
   scannedAt: string;
   rawCode?: string | null;
   metadata?: Record<string, unknown>;
+}
+
+export interface ReceivingEventDetail {
+  id: string;
+  poStatus?: string | null;
+  newSnapshotState?: string | null;
+  lotStatus?: string;
+  overDelivery?: boolean;
+  warning?: string | null;
 }
 
 export interface ReplayResponse {
@@ -27,6 +36,7 @@ export interface ReplayResponse {
     acked: string[];
     rejected: Array<{ id: string; reason: string }>;
     count: number;
+    details?: ReceivingEventDetail[];
   };
 }
 

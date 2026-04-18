@@ -1,7 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { eq } from "drizzle-orm";
+import { item, purchaseOrder, purchaseOrderLine } from "@iot/db/schema";
 import { receivingEventsBatchSchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
-import { insertEvent } from "@/server/repos/receivingEvents";
+import {
+  insertEvent,
+  postReceivingAtomic,
+} from "@/server/repos/receivingEvents";
 import {
   extractRequestMeta,
   jsonError,
@@ -9,12 +14,24 @@ import {
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { requireSession } from "@/server/session";
+import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/**
+ * POST /api/receiving/events — V1.2 Phase B5.2.
+ *
+ * Batch scan events FE (Dexie queue replay). Flow per event:
+ *   1. Idempotent insert vào receiving_event (scan_id unique)
+ *   2. Nếu inserted mới → lookup PO + item + PO line
+ *   3. Call postReceivingAtomic() → 7-table atomic chain + transition state
+ *   4. Audit RECEIVE với qty + qcStatus + snapshot transition
+ *
+ * Trả { acked, rejected, count, details? } như V1.1-alpha để không phá
+ * Dexie replay consumer.
+ */
 export async function POST(req: NextRequest) {
-  // warehouse / admin / planner được phép ghi receiving event
   const guard = await requireSession(req, "warehouse", "planner");
   if ("response" in guard) return guard.response;
 
@@ -23,6 +40,14 @@ export async function POST(req: NextRequest) {
 
   const acked: string[] = [];
   const rejected: Array<{ id: string; reason: string }> = [];
+  const details: Array<{
+    id: string;
+    poStatus?: string | null;
+    newSnapshotState?: string | null;
+    lotStatus?: string;
+    overDelivery?: boolean;
+    warning?: string | null;
+  }> = [];
   const meta = extractRequestMeta(req);
 
   for (const e of body.data.events) {
@@ -41,33 +66,95 @@ export async function POST(req: NextRequest) {
         metadata: e.metadata ?? {},
       });
       acked.push(e.id);
-      if (result.inserted) {
-        // Audit chỉ khi insert mới (idempotent duplicate không ghi audit)
-        await writeAudit({
-          actor: guard.session,
-          action: "CREATE",
-          objectType: "receiving_event",
-          objectId: e.id,
-          after: {
-            scanId: e.scanId,
-            poCode: e.poCode,
-            sku: e.sku,
-            qty: e.qty,
-            qcStatus: e.qcStatus,
-          },
-          ...meta,
-        });
+
+      if (!result.inserted) {
+        // duplicate scan — skip atomic post, idempotent
+        continue;
       }
+
+      // Lookup PO + item + line
+      const [po] = await db
+        .select()
+        .from(purchaseOrder)
+        .where(eq(purchaseOrder.poNo, e.poCode))
+        .limit(1);
+      if (!po) {
+        rejected.push({ id: e.id, reason: `PO ${e.poCode} không tồn tại` });
+        continue;
+      }
+      const [itm] = await db
+        .select()
+        .from(item)
+        .where(eq(item.sku, e.sku))
+        .limit(1);
+      if (!itm) {
+        rejected.push({ id: e.id, reason: `SKU ${e.sku} không tồn tại` });
+        continue;
+      }
+      const [poLine] = await db
+        .select()
+        .from(purchaseOrderLine)
+        .where(eq(purchaseOrderLine.itemId, itm.id))
+        .limit(1);
+      if (!poLine) {
+        rejected.push({
+          id: e.id,
+          reason: `PO line cho SKU ${e.sku} không tồn tại trong PO ${e.poCode}`,
+        });
+        continue;
+      }
+
+      // Atomic 7-table post
+      const posted = await postReceivingAtomic({
+        scanEventId: e.id,
+        poId: po.id,
+        poLineId: poLine.id,
+        itemId: itm.id,
+        qty: e.qty,
+        lotCode: e.lotNo ?? null,
+        userId: guard.session.userId,
+        qcStatus: e.qcStatus ?? "PENDING",
+      });
+
+      details.push({
+        id: e.id,
+        poStatus: posted.poStatus,
+        newSnapshotState: posted.newSnapshotState,
+        lotStatus: posted.lotStatus,
+        overDelivery: posted.overDelivery,
+        warning: posted.overDelivery ? "Qty nhận > 105% ordered" : null,
+      });
+
+      await writeAudit({
+        actor: guard.session,
+        action: "RECEIVE",
+        objectType: "receiving_event",
+        objectId: e.id,
+        after: {
+          poCode: e.poCode,
+          sku: e.sku,
+          qty: e.qty,
+          lotNo: e.lotNo,
+          qcStatus: e.qcStatus,
+          newSnapshotState: posted.newSnapshotState,
+          lotStatus: posted.lotStatus,
+          poStatus: posted.poStatus,
+        },
+        notes: posted.overDelivery
+          ? "Over-delivery > 105%"
+          : undefined,
+        ...meta,
+      });
     } catch (err) {
-      logger.warn({ err, eventId: e.id }, "insert receiving event failed");
+      logger.warn({ err, eventId: e.id }, "receiving event post failed");
       rejected.push({
         id: e.id,
-        reason: err instanceof Error ? err.message : "insert failed",
+        reason: err instanceof Error ? err.message : "post failed",
       });
     }
   }
 
   return NextResponse.json({
-    data: { acked, rejected, count: acked.length },
+    data: { acked, rejected, count: acked.length, details },
   });
 }

@@ -150,6 +150,13 @@ export function ReceivingConsole({
         const ev = pending[i]!;
         await db.scanQueue.update(ev.id, { status: "syncing" });
         try {
+          // V1.2 B5.2: map Dexie pass/fail → API OK/NG/PENDING
+          const mappedQc: "OK" | "NG" | "PENDING" =
+            ev.qcStatus === "fail"
+              ? "NG"
+              : ev.qcStatus === "pass"
+              ? "OK"
+              : "PENDING";
           const payload = {
             events: [
               {
@@ -159,7 +166,7 @@ export function ReceivingConsole({
                 sku: ev.code,
                 qty: ev.qty,
                 lotNo: ev.lotNo,
-                qcStatus: ev.qcStatus === "pending" ? "pass" : ev.qcStatus,
+                qcStatus: mappedQc,
                 scannedAt: new Date(ev.createdAt).toISOString(),
                 rawCode: ev.code,
                 metadata: { lineId: ev.lineId },
