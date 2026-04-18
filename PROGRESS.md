@@ -206,6 +206,13 @@
   - [x] B2.7 Commit 2 · `ReceivingConsole` replace setTimeout(600ms) fake replay bằng real POST `/api/receiving/events` sequential FIFO 500ms delay + idempotent handling (200 acked + 409 duplicate đều delete Dexie) + mutex replayingRef + sync progress sticky banner + toast success/warning/error + `ScanQueueBadge` retry-all button + badge color amber/red/emerald *(commit c549a67)*
   - Typecheck baseline 16 errors preserved (0 regression from new files); tests 14/15 PASS (1 pre-existing excelImport failure).
 - [ ] Phase C — Deploy VPS + smoke + tag `v1.1.0-alpha`
+- [x] 2026-04-17 · **Phase D — Bug fix V1.1-alpha (4 bugs user report LIVE)**
+  - [x] D1 · BOM import smart header detection: scan 5 row đầu, pick row có keyword match cao nhất + nonEmpty ≥ 3; trả `headerRow` + `headerWarning` + `topTitle` về wizard UI hiển thị "Header đọc từ row N" + warning banner + preview positional array (fix mismatch `firstRows` dict vs `previewRows` array)
+  - [x] D2 · Sidebar active state fix parent-child highlight trùng: `matchActive(pathname, href, allHrefs)` loại nested route dài hơn → chỉ item nested sâu nhất active
+  - [x] D3 · `/receiving` hub trong (app) layout list 3 demo PO + CTA → `/pwa/receive/{poId}`; nav "Nhận hàng" chuyển `/pwa/receive` → `/receiving`
+  - [x] D4 · `/orders/[code]` stub reuse `getMockOrderByCode` + info cards + V1.2 roadmap; `OrdersReadinessTable` row mặc định Link `/orders/{code}` với keyboard navigation
+  - [x] D5 · Script `scripts/seed-bom-sample.mjs` idempotent: parse sample xlsx, upsert Item stub (DRAFT/PCS), upsert bom_template `CNC-238846`, delete+reinsert bom_line (max 50 lines) — chạy 2 lần không duplicate
+  - Build local PASS (16 TS errors baseline preserved, 0 regression). Routes mới: `/receiving` (94 kB), `/orders/[code]` (103 kB).
 
 ---
 
