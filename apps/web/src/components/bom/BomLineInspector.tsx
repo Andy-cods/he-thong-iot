@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { useUpdateBomLine, type BomTreeNodeRaw } from "@/hooks/useBom";
+import { useIsMobile } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/format";
 
@@ -39,6 +40,7 @@ export function BomLineInspector({
   }, [node?.id]);
 
   const updateLine = useUpdateBomLine(templateId);
+  const isMobile = useIsMobile();
 
   const form = useForm<BomLineUpdate>({
     resolver: zodResolver(bomLineUpdateSchema),
@@ -78,7 +80,10 @@ export function BomLineInspector({
 
   return (
     <Sheet open={!!node} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent side="right" size="md">
+      <SheetContent
+        side={isMobile ? "bottom" : "right"}
+        size={isMobile ? "lg" : "md"}
+      >
         <SheetHeader>
           <SheetTitle>
             {node?.componentSku ? (
