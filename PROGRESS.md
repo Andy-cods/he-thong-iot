@@ -159,6 +159,13 @@
 - [x] 2026-04-17 · **Deploy V2 lên VPS hiện tại (123.30.48.215)** — backup pg_dump, tag v1-backup, prune build cache 9.5GB, SCP source V2 (1.2MB tar), rebuild image `hethong-iot:v2` (5fda721bcd3f, 1.65GB, **build 44 phút** trên HDD 2 vCPU), tag :v2 → :local, compose up --force-recreate app+worker, 12/12 smoke test PASS (health/login/me/dashboard 200 + render "Xin chào"/"SKU hoạt động"/"PO chờ nhận"/"Cảnh báo tồn kho" V2 content, items "Danh mục vật tư", suppliers "Nhà cung cấp", import/pwa/receive/login 200, worker ready, app no errors, HTTPS 307→/login expected + HTTP/3 Alt-Svc + CSP)
 - [x] **🚀 V2 LIVE:** https://mes.songchau.vn — Dashboard hoạt động (fix RSC boundary bug V1), UI Linear-inspired zinc+blue font compact, image backup v1-backup (1da06320df69) sẵn sàng rollback nếu cần
 
+- [x] **🚀 V1.1-alpha LIVE:** 2026-04-18 — BOM (list/new/tree editor dnd-kit/import wizard 5-step) + Admin (users/audit/settings change-password) + Receiving PWA real API. Image `hethong-iot:v1.1-alpha` (6463794488f7). Backup v2-backup sẵn sàng rollback.
+  - Migration 0003 applied 4 file + 2 fix (0003b2 drop V1 bom_line, 0003b3 drop V1 bom_template với schema cũ product_item_id → recreate V1.1-alpha parent_item_id)
+  - Docker build 7 phút (cache warm từ V2 build)
+  - 10/10 smoke test PASS: health/login/dashboard với "Tạo BOM mới" quick link + BOM KPI card, /bom list "BOM Templates", /bom/new, /bom/import, /admin index + users + audit all 200, /api/bom/templates 200 (empty list OK), /api/admin/users 200 (admin user seeded), /api/po/demo-001 stub return 3 PO lines demo
+  - Worker BullMQ 3 queue ready: item-import + **bom-import** + assembly-scan
+  - 28 commits Phase A (DB+API) + Phase B1 (BOM UI) + Phase B2 (Admin+Receiving) + 2 migration fix
+
 ### Giai đoạn 6 — V1.1-alpha (2026-04-18) · BOM + Admin + Receiving
 
 - [x] 2026-04-18 · **Phase A — DB + API backend** (branch `feat/v1.1-alpha-bom-admin-receiving`)
