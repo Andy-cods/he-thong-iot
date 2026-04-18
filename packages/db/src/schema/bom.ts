@@ -142,9 +142,58 @@ export const receivingEvent = appSchema.table(
   }),
 );
 
+/**
+ * Bảng 10b: bom_revision — bản đóng băng (immutable) của bom_template tại
+ * thời điểm RELEASE. frozen_snapshot lưu full tree JSON (audit + snapshot).
+ * V1.2 thêm mới.
+ */
+export const bomRevisionStatusEnum = pgEnum("bom_revision_status", [
+  "DRAFT",
+  "RELEASED",
+  "SUPERSEDED",
+]);
+
+export const bomRevision = appSchema.table(
+  "bom_revision",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    templateId: uuid("template_id")
+      .notNull()
+      .references(() => bomTemplate.id, { onDelete: "cascade" }),
+    revisionNo: varchar("revision_no", { length: 16 }).notNull(),
+    status: bomRevisionStatusEnum("status").notNull().default("DRAFT"),
+    frozenSnapshot: jsonb("frozen_snapshot").notNull().default(sql`'{}'::jsonb`),
+    releasedAt: timestamp("released_at", { withTimezone: true }),
+    releasedBy: uuid("released_by").references(() => userAccount.id),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (t) => ({
+    templateRevUk: uniqueIndex("bom_revision_template_rev_uk").on(
+      t.templateId,
+      t.revisionNo,
+    ),
+    templateStatusIdx: index("bom_revision_template_status_idx").on(
+      t.templateId,
+      t.status,
+    ),
+    releasedIdx: index("bom_revision_released_idx").on(
+      t.templateId,
+      t.releasedAt,
+    ),
+  }),
+);
+
 export type BomTemplate = typeof bomTemplate.$inferSelect;
 export type NewBomTemplate = typeof bomTemplate.$inferInsert;
 export type BomLine = typeof bomLine.$inferSelect;
 export type NewBomLine = typeof bomLine.$inferInsert;
+export type BomRevision = typeof bomRevision.$inferSelect;
+export type NewBomRevision = typeof bomRevision.$inferInsert;
 export type ReceivingEvent = typeof receivingEvent.$inferSelect;
 export type NewReceivingEvent = typeof receivingEvent.$inferInsert;

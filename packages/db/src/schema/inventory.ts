@@ -14,6 +14,17 @@ import { appSchema } from "./_schema";
 import { userAccount } from "./auth";
 import { item, locationBin } from "./master";
 
+/**
+ * V1.2 — Lot status: QC HOLD + CONSUMED + EXPIRED.
+ * Default AVAILABLE (lot mới nhận vào kho).
+ */
+export const lotStatusEnum = pgEnum("lot_status", [
+  "AVAILABLE",
+  "HOLD",
+  "CONSUMED",
+  "EXPIRED",
+]);
+
 export const invTxTypeEnum = pgEnum("inv_tx_type", [
   "IN_RECEIPT",
   "OUT_ISSUE",
@@ -40,6 +51,9 @@ export const inventoryLotSerial = appSchema.table(
     mfgDate: date("mfg_date"),
     expDate: date("exp_date"),
     supplierRef: varchar("supplier_ref", { length: 128 }),
+    /** V1.2 — lot status: AVAILABLE (default) / HOLD (QC fail) / CONSUMED / EXPIRED */
+    status: lotStatusEnum("status").notNull().default("AVAILABLE"),
+    holdReason: text("hold_reason"),
     notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -47,6 +61,7 @@ export const inventoryLotSerial = appSchema.table(
   },
   (t) => ({
     itemIdx: index("inventory_lot_serial_item_idx").on(t.itemId),
+    statusIdx: index("lot_serial_status_idx").on(t.status),
     lotIdx: uniqueIndex("inventory_lot_uk")
       .on(t.itemId, t.lotCode)
       .where(sql`${t.lotCode} IS NOT NULL AND ${t.serialCode} IS NULL`),

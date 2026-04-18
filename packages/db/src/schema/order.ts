@@ -46,6 +46,8 @@ export const salesOrder = appSchema.table(
     snapshotAt: timestamp("snapshot_at", { withTimezone: true }),
     snapshotBy: uuid("snapshot_by").references(() => userAccount.id),
     closedAt: timestamp("closed_at", { withTimezone: true }),
+    /** V1.2 optimistic lock — tăng mỗi UPDATE, WHERE version_lock = $expected */
+    versionLock: integer("version_lock").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
