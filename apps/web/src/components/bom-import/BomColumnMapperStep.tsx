@@ -142,6 +142,12 @@ export interface BomColumnMapperStepProps {
   sampleRows?: unknown[][];
   initialMapping?: Record<string, string | null>;
   onChange: (mapping: Record<string, string | null>) => void;
+  /** Row index Excel (1-based) đã auto-detect làm header — hiển thị cho user. */
+  headerRow?: number;
+  /** Cảnh báo từ parser nếu auto-detect không chắc chắn. */
+  headerWarning?: string | null;
+  /** Title row 1 (nếu header > row 1) — hiển thị gợi ý BOM code. */
+  topTitle?: string | null;
 }
 
 function rowKey(index: number, header: string): string {
@@ -154,6 +160,9 @@ export function BomColumnMapperStep({
   sampleRows = [],
   initialMapping,
   onChange,
+  headerRow,
+  headerWarning,
+  topTitle,
 }: BomColumnMapperStepProps) {
   const headerCounts = React.useMemo(() => {
     const counts: Record<string, number> = {};
@@ -232,6 +241,19 @@ export function BomColumnMapperStep({
           <p className="mt-1 text-xs text-zinc-500">
             Cần map tối thiểu <code className="font-mono">componentSku</code> +{" "}
             <code className="font-mono">qtyPerParent</code>.
+            {headerRow ? (
+              <>
+                {" · "}
+                Header đọc từ <strong>row {headerRow}</strong>
+                {topTitle ? (
+                  <>
+                    {" · "}
+                    Title row 1:{" "}
+                    <span className="font-mono text-zinc-700">{topTitle}</span>
+                  </>
+                ) : null}
+              </>
+            ) : null}
           </p>
         </div>
         <Button
@@ -244,6 +266,16 @@ export function BomColumnMapperStep({
           Đề xuất lại
         </Button>
       </header>
+
+      {headerWarning ? (
+        <div
+          role="alert"
+          className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
+        >
+          <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>{headerWarning}</span>
+        </div>
+      ) : null}
 
       {missingRequired.length > 0 ? (
         <div

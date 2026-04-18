@@ -341,6 +341,9 @@ export function BomImportWizard() {
             onChange={(m) =>
               setMappings((prev) => ({ ...prev, [activeSheetName]: m }))
             }
+            headerRow={activeSheet.headerRow}
+            headerWarning={activeSheet.headerWarning ?? null}
+            topTitle={activeSheet.topTitle ?? null}
           />
 
           <div className="flex justify-between border-t border-zinc-200 pt-4">

@@ -99,6 +99,15 @@ export function SheetSelectorStep({
                       → sẽ tạo BOM mới
                     </p>
                   )}
+                  <p className="mt-0.5 text-xs text-zinc-500">
+                    Header đọc từ <strong>row {s.headerRow}</strong> ·{" "}
+                    {s.headersDetected.length} cột
+                  </p>
+                  {s.headerWarning && (
+                    <p className="mt-0.5 text-xs text-amber-700">
+                      ⚠ {s.headerWarning}
+                    </p>
+                  )}
                   {preview.length > 0 && (
                     <div className="mt-2 overflow-hidden rounded-sm border border-zinc-200">
                       <table className="w-full text-xs">

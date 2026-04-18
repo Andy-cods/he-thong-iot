@@ -18,9 +18,14 @@ import { qk } from "@/lib/query-keys";
 export interface BomImportSheet {
   sheetName: string;
   rowCount: number;
+  headerRow: number;
   headersDetected: string[];
   topTitle: string | null;
-  previewRows: unknown[];
+  previewRows: unknown[][];
+  headerWarning?: string | null;
+  headerScanInfo?: {
+    scannedRows: Array<{ rowNumber: number; nonEmpty: number; matches: number }>;
+  };
 }
 
 export interface BomUploadResult {

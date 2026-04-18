@@ -2,9 +2,13 @@ import crypto from "node:crypto";
 import ExcelJS from "exceljs";
 
 /**
- * Parser BOM Excel multi-sheet (V1.1-alpha).
- * - Header row có thể là row 1 hoặc row 2 (sample file header = row 2, row 1 là title).
- * - Auto-detect: thử row 1 — nếu chứa ≥ 3 header known → row 1; nếu không thử row 2.
+ * Parser BOM Excel multi-sheet (V1.1-alpha + fix smart header detect).
+ * - Header row có thể rơi row 1..5 tuỳ file (title merged row 1 chỉ 1 cell).
+ * - Auto-detect 2 tín hiệu:
+ *     a) "Non-empty cell count": row nào có ≥ 3 cell non-empty là ứng viên.
+ *     b) "Keyword match": ứng viên có keyword match ≥ 2 → chọn luôn.
+ *   Ưu tiên row có nhiều keyword match nhất (tie → row có nhiều cell hơn → row sớm hơn).
+ * - Nếu không ứng viên nào ≥ 3 cell → fallback row 1 + flag headerWarning.
  * - Mỗi sheet được treat như 1 BOM riêng (commit sẽ tạo 1 bom_template per sheet).
  */
 
@@ -13,7 +17,16 @@ export interface BomSheetMeta {
   rowCount: number;
   headerRow: number;
   headersDetected: string[];
-  firstRows: Array<Record<string, unknown>>; // 5 dòng đầu (sau header) cho preview
+  /** 5 dòng đầu sau header row, dạng positional array (row[colIdx] = value). */
+  previewRows: unknown[][];
+  /** Title merged cell row 1 (nếu headerRow > 1) — hiển thị UI để gợi ý BOM code. */
+  topTitle?: string | null;
+  /** Cảnh báo nếu auto-detect không chắc chắn (cell count < 3). */
+  headerWarning?: string | null;
+  /** Tổng số row đã scan trong 5 row đầu (cho UI debug). */
+  headerScanInfo?: {
+    scannedRows: Array<{ rowNumber: number; nonEmpty: number; matches: number }>;
+  };
 }
 
 export interface BomParseResult {
@@ -38,8 +51,14 @@ function normHeader(s: string): string {
 const HEADER_KEYWORDS_NORM = [
   "idnumber", "standardnumber", "quantity", "subcategory",
   "ncc", "visiblepartsize", "note", "ma", "soluong", "mota",
-  "sku", "qty", "size",
+  "sku", "qty", "size", "stt", "image", "partnumber",
+  "material", "description", "spec", "linhkien", "vattu",
 ];
+
+/** Số row scan đầu sheet để tìm header (title merged có thể chiếm 1-3 rows). */
+const HEADER_SCAN_DEPTH = 5;
+/** Ngưỡng tối thiểu non-empty cell để 1 row trở thành ứng viên header. */
+const MIN_HEADER_CELLS = 3;
 
 function cellToString(v: unknown): string {
   if (v === null || v === undefined) return "";
@@ -89,21 +108,57 @@ export async function parseBomImport(buffer: Buffer): Promise<BomParseResult> {
   const allRowsBySheet: BomParseResult["allRowsBySheet"] = {};
 
   wb.eachSheet((ws) => {
-    // Auto-detect header row: row 1 hoặc row 2
-    const row1Cells = readRowCells(ws, 1);
-    const row2Cells = readRowCells(ws, 2);
+    // Smart auto-detect header: scan row 1..HEADER_SCAN_DEPTH, chọn row
+    // có keyword match cao nhất; nếu hoà → row có nhiều cell hơn; nếu vẫn
+    // hoà → row sớm hơn. Fallback: row đầu tiên có ≥ MIN_HEADER_CELLS cell.
+    const scanned: Array<{
+      rowNumber: number;
+      cells: string[];
+      nonEmpty: number;
+      matches: number;
+    }> = [];
+    for (let rn = 1; rn <= Math.min(HEADER_SCAN_DEPTH, ws.rowCount); rn++) {
+      const cells = readRowCells(ws, rn);
+      const nonEmpty = cells.filter((c) => c.trim().length > 0).length;
+      const matches = countHeaderMatches(cells);
+      scanned.push({ rowNumber: rn, cells, nonEmpty, matches });
+    }
 
-    const matchR1 = countHeaderMatches(row1Cells);
-    const matchR2 = countHeaderMatches(row2Cells);
+    // Ứng viên: có ≥ MIN_HEADER_CELLS cell non-empty.
+    const candidates = scanned.filter((r) => r.nonEmpty >= MIN_HEADER_CELLS);
 
-    let headerRow = 1;
-    let headerCells = row1Cells;
-    if (matchR2 > matchR1 && matchR2 >= 2) {
-      headerRow = 2;
-      headerCells = row2Cells;
-    } else if (matchR1 < 2 && matchR2 >= 2) {
-      headerRow = 2;
-      headerCells = row2Cells;
+    let picked = candidates[0];
+    if (candidates.length > 0) {
+      // Sort: match desc → nonEmpty desc → rowNumber asc.
+      const sorted = [...candidates].sort((a, b) => {
+        if (b.matches !== a.matches) return b.matches - a.matches;
+        if (b.nonEmpty !== a.nonEmpty) return b.nonEmpty - a.nonEmpty;
+        return a.rowNumber - b.rowNumber;
+      });
+      picked = sorted[0];
+    }
+
+    let headerRow: number;
+    let headerCells: string[];
+    let headerWarning: string | null = null;
+    if (picked) {
+      headerRow = picked.rowNumber;
+      headerCells = picked.cells;
+      if (picked.matches < 2) {
+        headerWarning = `Không chắc chắn header ở row ${picked.rowNumber} — vui lòng kiểm tra bước Khớp cột.`;
+      }
+    } else {
+      // Không row nào đủ 3 cell → lấy row 1 làm fallback + warn.
+      headerRow = 1;
+      headerCells = scanned[0]?.cells ?? [];
+      headerWarning = "Không tìm thấy row header hợp lệ (mỗi row < 3 cell). Dùng row 1 tạm thời.";
+    }
+
+    // Lấy title row 1 nếu headerRow > 1 (thường là merged title).
+    let topTitle: string | null = null;
+    if (headerRow > 1 && scanned[0]) {
+      const firstNonEmpty = scanned[0].cells.find((c) => c.trim().length > 0);
+      topTitle = firstNonEmpty ? firstNonEmpty.trim() : null;
     }
 
     // Xây index header: col-index → header-string
@@ -130,14 +185,33 @@ export async function parseBomImport(buffer: Buffer): Promise<BomParseResult> {
       if (hasAny) dataRows.push({ rowNumber: rn, data: rowData });
     }
 
-    const firstRows = dataRows.slice(0, 5).map((r) => r.data);
+    // Preview dạng positional array theo headers (chỉ cột non-empty) để mapper +
+    // SheetSelector index theo col idx = index của `headers` (đã filter).
+    const previewRows: unknown[][] = dataRows.slice(0, 5).map((r) => {
+      const row: unknown[] = [];
+      headerCells.forEach((h, idx) => {
+        if (!h || h.trim().length === 0) return;
+        const key = h.trim() || `col_${idx + 1}`;
+        row.push(r.data[key] ?? "");
+      });
+      return row;
+    });
 
     sheets.push({
       sheetName: ws.name,
       rowCount: dataRows.length,
       headerRow,
       headersDetected: headers,
-      firstRows,
+      previewRows,
+      topTitle,
+      headerWarning,
+      headerScanInfo: {
+        scannedRows: scanned.map((r) => ({
+          rowNumber: r.rowNumber,
+          nonEmpty: r.nonEmpty,
+          matches: r.matches,
+        })),
+      },
     });
     allRowsBySheet[ws.name] = dataRows;
   });
