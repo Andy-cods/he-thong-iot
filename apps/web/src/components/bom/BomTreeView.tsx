@@ -3,13 +3,17 @@
 import * as React from "react";
 import {
   DndContext,
+  DragOverlay,
   type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
   closestCenter,
 } from "@dnd-kit/core";
+import { toast } from "sonner";
 import {
   SortableContext,
   verticalListSortingStrategy,
@@ -205,26 +209,109 @@ export function BomTreeView({
     }),
   );
 
+  // Drag state: 3-zone detection (top 30% / middle 40% / bottom 30%).
+  type DropZone = "before" | "into" | "after";
+  const [activeNode, setActiveNode] = React.useState<BomFlatNode | null>(null);
+  const [dropZone, setDropZone] = React.useState<DropZone | null>(null);
+  const [overId, setOverId] = React.useState<string | null>(null);
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const node = flat.find((n) => n.id === event.active.id);
+    if (node) setActiveNode(node);
+  };
+
+  // onDragOver: compute zone dựa vào vị trí con trỏ trong rect của over.
+  // Throttle 16ms (60fps) bằng setState — React batch update đã đủ smooth,
+  // không cần raf manual vì dnd-kit tự throttle pointer events.
+  const handleDragOver = React.useCallback((event: DragOverEvent) => {
+    const { over, active, activatorEvent, delta } = event;
+    if (!over || over.id === active.id) {
+      setDropZone(null);
+      setOverId(null);
+      return;
+    }
+    const rect = over.rect;
+    // activatorEvent là event gốc khi bắt đầu drag (pointerDown).
+    // pointerY hiện tại = activator.clientY + delta.y.
+    const activator = activatorEvent as PointerEvent | MouseEvent | undefined;
+    const startY =
+      activator && "clientY" in activator ? activator.clientY : rect.top;
+    const pointerY = startY + (delta?.y ?? 0);
+    const relative = pointerY - rect.top;
+    const ratio = Math.max(0, Math.min(1, relative / rect.height));
+    const zone: DropZone =
+      ratio < 0.3 ? "before" : ratio > 0.7 ? "after" : "into";
+    setDropZone((prev) => (prev === zone ? prev : zone));
+    setOverId((prev) => (prev === String(over.id) ? prev : String(over.id)));
+  }, []);
+
+  // Compute subtree depth của active node: số level sâu nhất dưới nó + 1 (bao gồm chính nó).
+  const getSubtreeDepth = React.useCallback(
+    (rootId: string): number => {
+      const rootLevel = flat.find((n) => n.id === rootId)?.level ?? 1;
+      let maxLevel = rootLevel;
+      for (const n of flat) {
+        if (n.id === rootId || n.ancestorIds.includes(rootId)) {
+          if (n.level > maxLevel) maxLevel = n.level;
+        }
+      }
+      return maxLevel - rootLevel + 1;
+    },
+    [flat],
+  );
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const activeNode = flat.find((n) => n.id === active.id);
-    const overNode = flat.find((n) => n.id === over.id);
-    if (!activeNode || !overNode) return;
+    // Reset visual state bất kể drop thành công hay không.
+    const zone = dropZone;
+    setActiveNode(null);
+    setDropZone(null);
+    setOverId(null);
 
-    // Disallow drop vào descendant của chính mình.
-    if (overNode.ancestorIds.includes(activeNode.id)) {
+    if (!over || active.id === over.id || !zone) return;
+    const activeNodeRef = flat.find((n) => n.id === active.id);
+    const overNode = flat.find((n) => n.id === over.id);
+    if (!activeNodeRef || !overNode) return;
+
+    // Guard 1: cấm drop vào descendant của chính nó (cyclic).
+    if (
+      overNode.id === activeNodeRef.id ||
+      overNode.ancestorIds.includes(activeNodeRef.id)
+    ) {
+      toast.error("Không thể di chuyển vào con cháu của chính nó");
       return;
     }
 
-    // Simple strategy (V1.1-alpha): reorder within same parent.
-    // Khi drop lên over node khác parent → đặt cùng parent với over, position
-    // của over + 1 (swap-style). Level check = over.level.
-    const targetLevel = overNode.level;
-    if (targetLevel > BOM_MAX_LEVEL) return;
+    // Compute newParent + newPosition + projectedLevel theo zone.
+    let newParent: string | null;
+    let newPosition: number;
+    let projectedLevel: number;
+    if (zone === "into") {
+      newParent = overNode.id;
+      // position = max current children + 1
+      const children = flat.filter((n) => n.parentLineId === overNode.id);
+      newPosition = children.length + 1;
+      projectedLevel = overNode.level + 1;
+    } else if (zone === "before") {
+      newParent = overNode.parentLineId;
+      newPosition = overNode.position;
+      projectedLevel = overNode.level;
+    } else {
+      // after
+      newParent = overNode.parentLineId;
+      newPosition = overNode.position + 1;
+      projectedLevel = overNode.level;
+    }
 
-    const newParent = overNode.parentLineId;
-    const newPosition = overNode.position;
+    // Guard 2: depth check — projectedLevel + subtree depth active - 1 ≤ BOM_MAX_LEVEL.
+    const activeSubtreeDepth = getSubtreeDepth(activeNodeRef.id);
+    const finalMaxLevel = projectedLevel + activeSubtreeDepth - 1;
+    if (finalMaxLevel > BOM_MAX_LEVEL) {
+      toast.error(
+        `Vượt quá ${BOM_MAX_LEVEL} cấp BOM — thử drop ở vị trí nông hơn.`,
+      );
+      return;
+    }
 
     onMove(String(active.id), newParent, newPosition);
   };
@@ -254,7 +341,14 @@ export function BomTreeView({
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
+        onDragCancel={() => {
+          setActiveNode(null);
+          setDropZone(null);
+          setOverId(null);
+        }}
         modifiers={[restrictToVerticalAxis]}
       >
         <SortableContext
@@ -269,6 +363,8 @@ export function BomTreeView({
                 isSelected={selectedId === node.id}
                 isExpanded={expanded.has(node.id)}
                 canExpand={node.childCount > 0}
+                isOver={overId === node.id}
+                dropZone={overId === node.id ? dropZone : null}
                 onToggleExpand={() => toggleExpand(node.id)}
                 onSelect={() => onSelect(node.id)}
                 onEdit={() => onEdit(node.id)}
@@ -302,6 +398,8 @@ export function BomTreeView({
                       isSelected={selectedId === node.id}
                       isExpanded={expanded.has(node.id)}
                       canExpand={node.childCount > 0}
+                      isOver={overId === node.id}
+                      dropZone={overId === node.id ? dropZone : null}
                       onToggleExpand={() => toggleExpand(node.id)}
                       onSelect={() => onSelect(node.id)}
                       onEdit={() => onEdit(node.id)}
@@ -314,6 +412,26 @@ export function BomTreeView({
             </div>
           )}
         </SortableContext>
+
+        <DragOverlay dropAnimation={null}>
+          {activeNode && (
+            <div className="flex h-8 items-center gap-2 rounded-md border border-blue-300 bg-white px-3 shadow-lg ring-1 ring-blue-400">
+              <GripVertical
+                className="h-3 w-3 text-zinc-400"
+                aria-hidden="true"
+              />
+              <span className="font-mono text-sm text-zinc-700">
+                {activeNode.componentSku ?? "—"}
+              </span>
+              <span className="max-w-[200px] truncate text-sm text-zinc-600">
+                {activeNode.componentName ?? ""}
+              </span>
+              <span className="ml-1 rounded-sm bg-zinc-100 px-1 text-xs text-zinc-500">
+                L{activeNode.level}
+              </span>
+            </div>
+          )}
+        </DragOverlay>
       </DndContext>
 
       {visible.length === 0 && (
@@ -330,6 +448,8 @@ interface TreeRowProps {
   isSelected: boolean;
   isExpanded: boolean;
   canExpand: boolean;
+  isOver: boolean;
+  dropZone: "before" | "into" | "after" | null;
   onToggleExpand: () => void;
   onSelect: () => void;
   onEdit: () => void;
@@ -342,6 +462,8 @@ function TreeRow({
   isSelected,
   isExpanded,
   canExpand,
+  isOver,
+  dropZone,
   onToggleExpand,
   onSelect,
   onEdit,
@@ -360,6 +482,29 @@ function TreeRow({
   const indentPx = (node.level - 1) * 16;
   const scrap = Number(node.scrapPercent);
 
+  // Drop zone visual:
+  // - before: border-top blue
+  // - into: bg-blue-50 + border-left blue
+  // - after: border-bottom blue
+  const zoneClass =
+    isOver && dropZone === "into"
+      ? "bg-blue-50 border-l-2 border-l-blue-500"
+      : "";
+  const beforeBar =
+    isOver && dropZone === "before" ? (
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute left-0 right-0 top-0 h-0.5 bg-blue-500"
+      />
+    ) : null;
+  const afterBar =
+    isOver && dropZone === "after" ? (
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500"
+      />
+    ) : null;
+
   return (
     <div
       ref={setNodeRef}
@@ -373,9 +518,12 @@ function TreeRow({
         "group relative flex h-8 items-center gap-1 border-b border-zinc-100 pl-1 pr-2 text-base transition-colors duration-100",
         "hover:bg-zinc-50",
         isSelected && "border-l-2 border-l-blue-500 bg-blue-50",
-        isDragging && "z-10 bg-white shadow-md",
+        isDragging && "z-10 bg-white opacity-50 shadow-md",
+        zoneClass,
       )}
     >
+      {beforeBar}
+      {afterBar}
       {/* drag handle */}
       <button
         type="button"
