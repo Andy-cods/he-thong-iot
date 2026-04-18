@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { ZodError, type ZodSchema } from "zod";
+import { ZodError, type z } from "zod";
 
 /** Trích metadata chuẩn (requestId, IP, UA) từ Next request. */
 export function extractRequestMeta(req: NextRequest) {
@@ -36,20 +36,20 @@ export function zodErrorResponse(err: ZodError) {
   );
 }
 
-export async function parseJson<T>(
+export async function parseJson<S extends z.ZodTypeAny>(
   req: NextRequest,
-  schema: ZodSchema<T>,
-): Promise<{ data: T } | { response: NextResponse }> {
+  schema: S,
+): Promise<{ data: z.output<S> } | { response: NextResponse }> {
   const raw = await req.json().catch(() => null);
   const parsed = schema.safeParse(raw);
   if (!parsed.success) return { response: zodErrorResponse(parsed.error) };
   return { data: parsed.data };
 }
 
-export function parseSearchParams<T>(
+export function parseSearchParams<S extends z.ZodTypeAny>(
   req: NextRequest,
-  schema: ZodSchema<T>,
-): { data: T } | { response: NextResponse } {
+  schema: S,
+): { data: z.output<S> } | { response: NextResponse } {
   const entries: Record<string, string | string[]> = {};
   for (const [k, v] of req.nextUrl.searchParams.entries()) {
     const existing = entries[k];

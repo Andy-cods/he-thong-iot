@@ -51,6 +51,7 @@ export async function POST(
 
   try {
     const row = await createBarcode(params.id, body.data);
+    if (!row) throw new Error("createBarcode trả về undefined");
     const meta = extractRequestMeta(req);
     await writeAudit({
       actor: guard.session,

@@ -96,6 +96,10 @@ export async function POST(req: NextRequest) {
     duplicateMode: duplicateMode as "skip" | "upsert" | "error",
     uploadedBy: guard.session.userId,
   });
+  if (!batch) {
+    logger.error({ fileHash: parsed.fileHash }, "createImportBatch returned undefined");
+    return jsonError("INTERNAL", "Không tạo được import batch.", 500);
+  }
 
   const previewRows = parsed.validRows.slice(0, 20).map((r) => r.data);
   // Lưu ALL valid rows để worker commit có dữ liệu; preview UI chỉ show 20 từ field riêng.

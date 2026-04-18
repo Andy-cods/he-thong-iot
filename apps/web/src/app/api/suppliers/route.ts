@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
     );
   try {
     const row = await createSupplier(body.data);
+    if (!row) throw new Error("createSupplier trả về undefined");
     const meta = extractRequestMeta(req);
     await writeAudit({
       actor: guard.session,

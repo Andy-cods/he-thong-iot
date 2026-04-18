@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const row = await createItem(body.data, guard.session.userId);
+    if (!row) throw new Error("createItem trả về undefined");
     const meta = extractRequestMeta(req);
     await writeAudit({
       actor: guard.session,

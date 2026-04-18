@@ -53,6 +53,7 @@ export async function POST(
 
   try {
     const row = await createItemSupplier(params.id, body.data);
+    if (!row) throw new Error("createItemSupplier trả về undefined");
     const meta = extractRequestMeta(req);
     await writeAudit({
       actor: guard.session,
