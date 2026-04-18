@@ -224,10 +224,12 @@
 - [ ] BOM tree editor drag-drop cross-parent + auto level update (hiện chỉ reorder same-parent)
 - [ ] BOM compare 2 templates side-by-side (diff viewer)
 - [ ] BOM export Excel ngược (xuất lại từ tree → .xlsx)
-- [ ] Dashboard KPI 4 cards → real data từ API (`/api/dashboard/overview` aggregate)
-- [ ] Fix 16 TS baseline errors trong `/api/imports`, `/api/items`, `/api/suppliers` (zod infer strict mode)
+- [x] 2026-04-17 · **M2 · Dashboard KPI → real data** qua `/api/dashboard/overview` (aggregate 3 COUNT + Redis cache 60s + React Query 60s stale + invalidate hooks trên items/bom/suppliers mutations). Fallback mock orders/alerts khi API lỗi. KPI placeholder `lowStockCount: null` chờ V1.2. — *`apps/web/src/app/api/dashboard/overview/route.ts`, `apps/web/src/server/services/redis.ts`, `apps/web/src/hooks/useDashboardOverview.ts`, `apps/web/src/app/(app)/page.tsx`*
+- [x] 2026-04-17 · **M1 · Fix 16 TS baseline errors → 0** trong `/api/imports`, `/api/items`, `/api/suppliers`. Root-cause: `parseJson/parseSearchParams<T>` unify sai Input thay vì Output zod → đổi generic `<S extends z.ZodTypeAny>` với `z.output<S>`. + runtime guard `!row`/`!batch` cho `noUncheckedIndexedAccess`. + migration 0004 enum `audit_action` thêm UPLOAD + COMMIT. — *`apps/web/src/server/http.ts`, 5 route files, `packages/db/migrations/0004_audit_action_upload_commit.sql`*
 - [ ] Mobile responsive polish `/bom`, `/admin`, `/receiving` (test tablet 1024×768 + mobile 390×)
 - [ ] Unit test BOM state machine + tree mutation (target coverage 70%)
+
+**Deploy note 0004:** migration `0004_audit_action_upload_commit.sql` chưa apply local (không có docker dev) — cần chạy trên VPS lần deploy kế: `docker exec -i iot_postgres psql -U iot -d iot -f - < packages/db/migrations/0004_audit_action_upload_commit.sql`
 
 ### V1.2 (3-4 tuần) — Order + Procurement + Snapshot
 - [ ] Order Entry: CRUD /orders module thật thay stub mock (schema app.sales_order đã có V1 foundation)
