@@ -223,6 +223,7 @@ export function useDeleteBomTemplate() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.bom.all });
+      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
   });
 }

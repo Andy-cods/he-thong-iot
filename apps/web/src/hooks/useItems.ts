@@ -233,7 +233,10 @@ export function useDeleteItem() {
         qc.setQueryData(key, list);
       }
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: qk.items.all }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: qk.items.all });
+      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
+    },
   });
 }
 
@@ -244,7 +247,10 @@ export function useRestoreItem() {
       request<{ data: unknown }>(`/api/items/${id}/restore`, {
         method: "POST",
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.items.all }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.items.all });
+      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
+    },
   });
 }
 
@@ -272,6 +278,9 @@ export function useBulkDeleteItems() {
       });
       return { success, failed };
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.items.all }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.items.all });
+      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
+    },
   });
 }

@@ -7,6 +7,7 @@ import type {
   SupplierCreate,
   SupplierUpdate,
 } from "@iot/shared";
+import { qk } from "@/lib/query-keys";
 
 export interface SupplierRow {
   id: string;
@@ -66,7 +67,10 @@ export function useCreateSupplier() {
         method: "POST",
         body: JSON.stringify(input),
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["suppliers"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["suppliers"] });
+      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
+    },
   });
 }
 
@@ -90,7 +94,10 @@ export function useDeleteSupplier() {
   return useMutation({
     mutationFn: (id: string) =>
       request(`/api/suppliers/${id}`, { method: "DELETE" }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["suppliers"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["suppliers"] });
+      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
+    },
   });
 }
 
