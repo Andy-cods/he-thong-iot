@@ -98,6 +98,38 @@ export const qk = {
     list: (filter: OrderFilter) => ["orders", "list", filter] as const,
     detail: (code: string) => ["orders", "detail", code] as const,
   },
+  procurement: {
+    all: ["procurement"] as const,
+    requests: {
+      all: ["procurement", "requests"] as const,
+      list: (filter: PRFilter) =>
+        ["procurement", "requests", "list", filter] as const,
+      detail: (id: string) =>
+        ["procurement", "requests", "detail", id] as const,
+      lines: (id: string) =>
+        ["procurement", "requests", "lines", id] as const,
+    },
+    orders: {
+      all: ["procurement", "orders"] as const,
+      list: (filter: POFilter) =>
+        ["procurement", "orders", "list", filter] as const,
+      detail: (id: string) =>
+        ["procurement", "orders", "detail", id] as const,
+      lines: (id: string) =>
+        ["procurement", "orders", "lines", id] as const,
+    },
+  },
+  shortage: {
+    all: ["shortage"] as const,
+    list: (filter: ShortageBoardFilter) =>
+      ["shortage", "list", filter] as const,
+    byOrder: (orderId: string) => ["shortage", "by-order", orderId] as const,
+  },
+  receiving: {
+    all: ["receiving"] as const,
+    history: (poCode: string) => ["receiving", "history", poCode] as const,
+    lot: (id: string) => ["receiving", "lot", id] as const,
+  },
 } as const;
 
 export interface OrderFilter {
@@ -158,6 +190,46 @@ export interface SnapshotFilter {
   shortOnly?: boolean;
   page?: number;
   pageSize?: number;
+}
+
+export interface PRFilter {
+  q?: string;
+  status?: (
+    | "DRAFT"
+    | "SUBMITTED"
+    | "APPROVED"
+    | "CONVERTED"
+    | "REJECTED"
+  )[];
+  linkedOrderId?: string;
+  requestedBy?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface POFilter {
+  q?: string;
+  status?: (
+    | "DRAFT"
+    | "SENT"
+    | "PARTIAL"
+    | "RECEIVED"
+    | "CANCELLED"
+    | "CLOSED"
+  )[];
+  supplierId?: string;
+  prId?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface ShortageBoardFilter {
+  itemId?: string[];
+  supplierId?: string[];
+  orderId?: string;
+  minShortQty?: number;
+  q?: string;
+  limit?: number;
 }
 
 export interface BomFilter {

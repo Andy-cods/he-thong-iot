@@ -1,5 +1,15 @@
 import { z } from "zod";
 
+/**
+ * Receiving schemas — V1.2 Phase B5.2.
+ *
+ * Atomic 7-table: receiving_event + inbound_receipt + inbound_receipt_line
+ * + inventory_lot_serial + inventory_txn + purchase_order_line.received_qty
+ * + bom_snapshot_line.received_qty/qc_pass_qty + transition state.
+ *
+ * QC status OK/NG/PENDING: NG → lot status HOLD + snapshot state rollback PLANNED.
+ */
+
 export const RECEIVING_QC_STATUSES = ["OK", "NG", "PENDING"] as const;
 export type ReceivingQcStatus = (typeof RECEIVING_QC_STATUSES)[number];
 
@@ -16,6 +26,7 @@ export const receivingEventSchema = z.object({
   sku: z.string().trim().min(1).max(128),
   qty: z.coerce.number().positive("Số lượng phải > 0"),
   lotNo: z.string().trim().max(128).optional().nullable(),
+  isLotTracked: z.boolean().optional(),
   qcStatus: z.enum(RECEIVING_QC_STATUSES).default("PENDING"),
   scannedAt: z.string().datetime({ message: "scannedAt phải ISO8601" }),
   rawCode: z.string().max(256).optional().nullable(),
