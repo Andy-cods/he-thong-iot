@@ -19,6 +19,23 @@ export async function GET(
     return jsonError("WRONG_KIND", "Phiên import không phải BOM.", 400);
   }
 
+  // Preview 10 lỗi đầu (errorJson là array RowError từ worker).
+  const errorJson = Array.isArray(batch.errorJson)
+    ? (batch.errorJson as Array<{
+        rowNumber: number;
+        sheet: string;
+        field: string;
+        reason: string;
+        rawValue?: unknown;
+      }>)
+    : [];
+  const errorPreview = errorJson.slice(0, 10).map((e) => ({
+    sheet: e.sheet,
+    rowNumber: e.rowNumber,
+    field: e.field,
+    reason: e.reason,
+  }));
+
   return NextResponse.json({
     data: {
       batchId: batch.id,
@@ -27,6 +44,7 @@ export async function GET(
       rowSuccess: batch.rowSuccess,
       rowFail: batch.rowFail,
       errorMessage: batch.errorMessage,
+      errorPreview,
       startedAt: batch.startedAt,
       finishedAt: batch.finishedAt,
     },

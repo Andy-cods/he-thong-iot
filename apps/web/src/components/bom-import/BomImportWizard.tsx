@@ -23,11 +23,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   downloadBomImportErrorsUrl,
   useBomImportStatus,
   useCommitBomImport,
   useUploadBomImport,
+  type BomImportErrorPreview,
   type BomImportSheet,
   type BomUploadResult,
 } from "@/hooks/useBomImport";
@@ -438,8 +440,9 @@ export function BomImportWizard() {
             rowFail={statusQuery.data?.rowFail ?? 0}
             rowTotal={statusQuery.data?.rowTotal ?? totalSelectedRows}
             errorMessage={statusQuery.data?.errorMessage ?? null}
+            errorPreview={statusQuery.data?.errorPreview ?? []}
           />
-          <div className="flex justify-between border-t border-zinc-200 pt-4">
+          <div className="flex flex-wrap justify-between gap-2 border-t border-zinc-200 pt-4">
             <Button
               variant="ghost"
               onClick={() => {
@@ -449,19 +452,40 @@ export function BomImportWizard() {
                 setSelectedSheets([]);
                 setMappings({});
                 upload.reset();
+                commit.reset();
               }}
             >
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
               Import file khác
             </Button>
-            {statusQuery.data && statusQuery.data.rowFail > 0 && (
-              <a
-                href={downloadBomImportErrorsUrl(uploadData.batchId)}
-                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-base font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
-              >
-                <Download className="h-3.5 w-3.5" aria-hidden="true" />
-                Tải danh sách lỗi
-              </a>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              {statusQuery.data &&
+                statusQuery.data.status === "failed" && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      // Retry: quay về step 1 và giữ nguyên file để user thử lại
+                      setStep("upload");
+                      setUploadData(null);
+                      setSelectedSheets([]);
+                      setMappings({});
+                      upload.reset();
+                      commit.reset();
+                    }}
+                  >
+                    Thử lại
+                  </Button>
+                )}
+              {statusQuery.data && statusQuery.data.rowFail > 0 && (
+                <a
+                  href={downloadBomImportErrorsUrl(uploadData.batchId)}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-base font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                >
+                  <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                  Tải errors.xlsx
+                </a>
+              )}
+            </div>
           </div>
         </section>
       )}
@@ -568,6 +592,7 @@ function ResultPanel({
   rowFail,
   rowTotal,
   errorMessage,
+  errorPreview,
 }: {
   status: string;
   progressPct: number;
@@ -575,9 +600,20 @@ function ResultPanel({
   rowFail: number;
   rowTotal: number;
   errorMessage: string | null;
+  errorPreview: BomImportErrorPreview[];
 }) {
   const isDone = status === "done";
   const isFailed = status === "failed";
+  // Empty-state: import xong nhưng không có row nào (file rỗng hoặc mapping sai).
+  if (isDone && rowTotal === 0) {
+    return (
+      <EmptyState
+        preset="no-data"
+        title="Import không có dòng nào"
+        description="File đọc xong nhưng 0 dòng dữ liệu được nhận. Kiểm tra lại header row/mapping cột, hoặc thử file khác."
+      />
+    );
+  }
   return (
     <div className="rounded-md border border-zinc-200 bg-white p-6">
       <div className="flex items-center gap-3">
@@ -599,7 +635,9 @@ function ResultPanel({
         <div>
           <div className="text-xl font-semibold tracking-tight text-zinc-900">
             {isDone
-              ? "Hoàn tất import BOM"
+              ? rowFail > 0
+                ? `Hoàn tất với ${rowFail} dòng lỗi`
+                : "Hoàn tất import BOM"
               : isFailed
                 ? "Import thất bại"
                 : "Đang import nền…"}
@@ -643,6 +681,54 @@ function ResultPanel({
           tone={rowFail > 0 ? "error" : "muted"}
         />
       </div>
+
+      {errorPreview.length > 0 && (
+        <div className="mt-5">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-medium text-zinc-900">
+              Lỗi chi tiết
+              <span className="ml-1.5 text-xs font-normal text-zinc-500">
+                ({errorPreview.length}
+                {rowFail > errorPreview.length
+                  ? `/${rowFail.toLocaleString("vi-VN")} đầu tiên`
+                  : ""}
+                )
+              </span>
+            </h3>
+          </div>
+          <div className="max-h-[240px] overflow-auto rounded-md border border-zinc-200">
+            <table className="w-full border-collapse text-xs">
+              <thead className="sticky top-0 bg-zinc-50">
+                <tr className="border-b border-zinc-200 text-left text-[10px] font-medium uppercase tracking-wider text-zinc-500">
+                  <th className="px-2 py-1.5">Sheet</th>
+                  <th className="px-2 py-1.5 text-right">Dòng</th>
+                  <th className="px-2 py-1.5">Cột</th>
+                  <th className="px-2 py-1.5">Lý do</th>
+                </tr>
+              </thead>
+              <tbody>
+                {errorPreview.map((e, i) => (
+                  <tr
+                    key={`${e.sheet}-${e.rowNumber}-${i}`}
+                    className="border-b border-zinc-100 last:border-b-0"
+                  >
+                    <td className="truncate px-2 py-1.5 font-mono text-zinc-700">
+                      {e.sheet}
+                    </td>
+                    <td className="px-2 py-1.5 text-right tabular-nums text-zinc-600">
+                      {e.rowNumber}
+                    </td>
+                    <td className="px-2 py-1.5 font-mono text-zinc-600">
+                      {e.field}
+                    </td>
+                    <td className="px-2 py-1.5 text-zinc-700">{e.reason}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

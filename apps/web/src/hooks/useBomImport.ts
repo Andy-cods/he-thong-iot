@@ -38,6 +38,13 @@ export interface BomUploadResult {
   duplicateMode: string;
 }
 
+export interface BomImportErrorPreview {
+  sheet: string;
+  rowNumber: number;
+  field: string;
+  reason: string;
+}
+
 export interface BomImportStatus {
   batchId: string;
   status: string;
@@ -45,6 +52,7 @@ export interface BomImportStatus {
   rowSuccess: number;
   rowFail: number;
   errorMessage: string | null;
+  errorPreview?: BomImportErrorPreview[];
   startedAt: string | null;
   finishedAt: string | null;
 }
