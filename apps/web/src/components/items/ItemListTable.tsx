@@ -100,10 +100,11 @@ export function ItemListTable({
     }
   }, []);
 
-  // grid columns: checkbox 32 / SKU 128 / Tên 1fr / Loại 96 / UoM 64 / Danh mục 112
-  // / Tồn 80 right / Trạng thái 80 / Actions 96
-  const gridCols =
-    "grid-cols-[32px_128px_minmax(0,1fr)_96px_64px_112px_80px_80px_96px]";
+  // Mobile: 4 col (checkbox/SKU/Tên/Status). md+: full 9 col với Loại/UoM/Danh mục/Tồn/Actions.
+  const gridCols = cn(
+    "grid-cols-[32px_96px_minmax(0,1fr)_80px]",
+    "md:grid-cols-[32px_128px_minmax(0,1fr)_96px_64px_112px_80px_80px_96px]",
+  );
 
   return (
     <div
@@ -137,14 +138,20 @@ export function ItemListTable({
         </div>
         <div role="columnheader">SKU</div>
         <div role="columnheader">Tên</div>
-        <div role="columnheader">Loại</div>
-        <div role="columnheader">UoM</div>
-        <div role="columnheader">Danh mục</div>
-        <div role="columnheader" className="text-right">
+        <div role="columnheader" className="hidden md:block">
+          Loại
+        </div>
+        <div role="columnheader" className="hidden md:block">
+          UoM
+        </div>
+        <div role="columnheader" className="hidden md:block">
+          Danh mục
+        </div>
+        <div role="columnheader" className="hidden text-right md:block">
           Tồn kho
         </div>
         <div role="columnheader">Trạng thái</div>
-        <div role="columnheader" className="text-center">
+        <div role="columnheader" className="hidden text-center md:block">
           Thao tác
         </div>
       </div>
@@ -163,12 +170,12 @@ export function ItemListTable({
               <Skeleton className="h-3.5 w-3.5" />
               <Skeleton className="h-3 w-20" />
               <Skeleton className="h-3 w-48" />
-              <Skeleton className="h-3 w-16" />
-              <Skeleton className="h-3 w-8" />
-              <Skeleton className="h-3 w-16" />
-              <Skeleton className="h-3 w-12" />
+              <Skeleton className="hidden h-3 w-16 md:block" />
+              <Skeleton className="hidden h-3 w-8 md:block" />
+              <Skeleton className="hidden h-3 w-16 md:block" />
+              <Skeleton className="hidden h-3 w-12 md:block" />
               <Skeleton className="h-4 w-16 rounded-sm" />
-              <Skeleton className="h-3 w-16" />
+              <Skeleton className="hidden h-3 w-16 md:block" />
             </div>
           ))}
         </div>
@@ -237,27 +244,27 @@ export function ItemListTable({
                 {row.name}
               </Link>
 
-              {/* Loại — badge-like text */}
+              {/* Loại — badge-like text (ẩn < md) */}
               <div
-                className="truncate text-zinc-600"
+                className="hidden truncate text-zinc-600 md:block"
                 title={ITEM_TYPE_LABELS[row.itemType]}
               >
                 {ITEM_TYPE_LABELS[row.itemType]}
               </div>
 
-              {/* UoM */}
-              <div className="text-zinc-500">{row.uom}</div>
+              {/* UoM (ẩn < md) */}
+              <div className="hidden text-zinc-500 md:block">{row.uom}</div>
 
-              {/* Danh mục */}
+              {/* Danh mục (ẩn < md) */}
               <div
-                className="truncate text-zinc-600"
+                className="hidden truncate text-zinc-600 md:block"
                 title={row.category ?? ""}
               >
                 {row.category ?? "—"}
               </div>
 
-              {/* Tồn kho — right tabular-nums */}
-              <div className="text-right tabular-nums text-zinc-700">
+              {/* Tồn kho — right tabular-nums (ẩn < md) */}
+              <div className="hidden text-right tabular-nums text-zinc-700 md:block">
                 {row.onHand !== null && row.onHand !== undefined
                   ? formatNumber(row.onHand)
                   : "—"}
@@ -272,8 +279,8 @@ export function ItemListTable({
                 />
               </div>
 
-              {/* Actions — icon buttons h-7 w-7 ghost */}
-              <div className="flex items-center justify-center gap-0.5">
+              {/* Actions — icon buttons h-7 w-7 ghost (ẩn < md) */}
+              <div className="hidden items-center justify-center gap-0.5 md:flex">
                 {onPreview && (
                   <button
                     type="button"

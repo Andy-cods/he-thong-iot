@@ -35,9 +35,10 @@ const ACTION_OPTIONS = [
   { code: "LOGOUT", label: "Đăng xuất" },
 ];
 
-// grid cols: time / user / action / entity / entityId / diff
+// grid cols: time / user / action / entity / [entityId md+] / [diff md+]
+// Mobile: 4 col (time/user/action/entity). md+: full 6 col.
 const GRID_COLS =
-  "grid-cols-[170px,130px,80px,140px,90px,minmax(0,1fr)]";
+  "grid-cols-[120px,100px,70px,minmax(0,1fr)] md:grid-cols-[170px,130px,80px,140px,90px,minmax(0,1fr)]";
 
 export default function AdminAuditPage() {
   const [urlState, setUrlState] = useQueryStates(
@@ -287,8 +288,8 @@ export default function AdminAuditPage() {
           <span>User</span>
           <span>Action</span>
           <span>Entity</span>
-          <span>Entity ID</span>
-          <span>Thay đổi</span>
+          <span className="hidden md:block">Entity ID</span>
+          <span className="hidden md:block">Thay đổi</span>
         </div>
 
         {query.isLoading ? (

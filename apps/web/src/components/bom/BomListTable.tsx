@@ -98,8 +98,12 @@ export function BomListTable({
     }
   }, []);
 
-  const gridCols =
-    "grid-cols-[32px_128px_minmax(0,1fr)_128px_72px_80px_96px_96px_112px]";
+  // Mobile: 4 col primary (checkbox + code + name + status).
+  // md+: 9 col full (thêm parent/lines/target/updated/actions).
+  const gridCols = cn(
+    "grid-cols-[32px_96px_minmax(0,1fr)_80px]",
+    "md:grid-cols-[32px_128px_minmax(0,1fr)_128px_72px_80px_96px_96px_112px]",
+  );
 
   return (
     <div
@@ -129,16 +133,20 @@ export function BomListTable({
         </div>
         <div role="columnheader">Mã BOM</div>
         <div role="columnheader">Tên</div>
-        <div role="columnheader">Parent item</div>
-        <div role="columnheader" className="text-right">
+        <div role="columnheader" className="hidden md:block">
+          Parent item
+        </div>
+        <div role="columnheader" className="hidden text-right md:block">
           Linh kiện
         </div>
-        <div role="columnheader" className="text-right">
+        <div role="columnheader" className="hidden text-right md:block">
           Target Qty
         </div>
         <div role="columnheader">Trạng thái</div>
-        <div role="columnheader">Cập nhật</div>
-        <div role="columnheader" className="text-center">
+        <div role="columnheader" className="hidden md:block">
+          Cập nhật
+        </div>
+        <div role="columnheader" className="hidden text-center md:block">
           Thao tác
         </div>
       </div>
@@ -157,12 +165,12 @@ export function BomListTable({
               <Skeleton className="h-3.5 w-3.5" />
               <Skeleton className="h-3 w-20" />
               <Skeleton className="h-3 w-48" />
-              <Skeleton className="h-3 w-20" />
-              <Skeleton className="h-3 w-10" />
-              <Skeleton className="h-3 w-12" />
+              <Skeleton className="hidden h-3 w-20 md:block" />
+              <Skeleton className="hidden h-3 w-10 md:block" />
+              <Skeleton className="hidden h-3 w-12 md:block" />
               <Skeleton className="h-4 w-16 rounded-sm" />
-              <Skeleton className="h-3 w-16" />
-              <Skeleton className="h-3 w-16" />
+              <Skeleton className="hidden h-3 w-16 md:block" />
+              <Skeleton className="hidden h-3 w-16 md:block" />
             </div>
           ))}
         </div>
@@ -230,7 +238,7 @@ export function BomListTable({
               </Link>
 
               <div
-                className="truncate font-mono text-sm text-zinc-600"
+                className="hidden truncate font-mono text-sm text-zinc-600 md:block"
                 title={
                   row.parentItemSku
                     ? `${row.parentItemSku} — ${row.parentItemName ?? ""}`
@@ -240,11 +248,11 @@ export function BomListTable({
                 {row.parentItemSku ?? "—"}
               </div>
 
-              <div className="text-right tabular-nums text-zinc-700">
+              <div className="hidden text-right tabular-nums text-zinc-700 md:block">
                 {formatNumber(row.componentCount)}
               </div>
 
-              <div className="text-right tabular-nums text-zinc-700">
+              <div className="hidden text-right tabular-nums text-zinc-700 md:block">
                 {formatNumber(Number(row.targetQty))}
               </div>
 
@@ -256,11 +264,11 @@ export function BomListTable({
                 />
               </div>
 
-              <div className="truncate text-xs text-zinc-500">
+              <div className="hidden truncate text-xs text-zinc-500 md:block">
                 {formatDate(row.updatedAt, "dd/MM/yyyy HH:mm")}
               </div>
 
-              <div className="flex items-center justify-center gap-0.5">
+              <div className="hidden items-center justify-center gap-0.5 md:flex">
                 {onPreview && (
                   <button
                     type="button"

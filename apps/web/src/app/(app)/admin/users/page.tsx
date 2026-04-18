@@ -204,14 +204,14 @@ export default function AdminUsersPage() {
 
       {/* Table */}
       <div className="overflow-hidden rounded-md border border-zinc-200 bg-white">
-        <div className="grid h-8 grid-cols-[1fr,1.2fr,1.3fr,1.4fr,100px,120px,90px] items-center gap-3 border-b border-zinc-200 bg-zinc-50 px-4 text-xs font-medium uppercase tracking-wider text-zinc-500">
+        <div className="grid h-8 grid-cols-[1fr,1.2fr,100px] items-center gap-3 border-b border-zinc-200 bg-zinc-50 px-4 text-xs font-medium uppercase tracking-wider text-zinc-500 md:grid-cols-[1fr,1.2fr,1.3fr,1.4fr,100px,120px,90px]">
           <span>Username</span>
           <span>Họ tên</span>
-          <span>Email</span>
-          <span>Vai trò</span>
+          <span className="hidden md:block">Email</span>
+          <span className="hidden md:block">Vai trò</span>
           <span className="text-center">Trạng thái</span>
-          <span>Đăng nhập cuối</span>
-          <span className="text-right">Hành động</span>
+          <span className="hidden md:block">Đăng nhập cuối</span>
+          <span className="hidden text-right md:block">Hành động</span>
         </div>
 
         {query.isLoading ? (
@@ -252,7 +252,7 @@ export default function AdminUsersPage() {
             {rows.map((u) => (
               <li
                 key={u.id}
-                className="grid min-h-[36px] grid-cols-[1fr,1.2fr,1.3fr,1.4fr,100px,120px,90px] items-center gap-3 border-t border-zinc-100 px-4 py-1.5 transition-colors hover:bg-zinc-50"
+                className="grid min-h-[36px] grid-cols-[1fr,1.2fr,100px] items-center gap-3 border-t border-zinc-100 px-4 py-1.5 transition-colors hover:bg-zinc-50 md:grid-cols-[1fr,1.2fr,1.3fr,1.4fr,100px,120px,90px]"
               >
                 <Link
                   href={`/admin/users/${u.id}`}
@@ -263,10 +263,10 @@ export default function AdminUsersPage() {
                 <span className="truncate text-sm text-zinc-900">
                   {u.fullName}
                 </span>
-                <span className="truncate text-sm text-zinc-600">
+                <span className="hidden truncate text-sm text-zinc-600 md:block">
                   {u.email ?? "—"}
                 </span>
-                <div className="flex flex-wrap gap-1">
+                <div className="hidden flex-wrap gap-1 md:flex">
                   {u.roles.length === 0 ? (
                     <span className="text-xs text-zinc-400">—</span>
                   ) : (
@@ -295,10 +295,10 @@ export default function AdminUsersPage() {
                     {u.isActive ? "Active" : "Disabled"}
                   </span>
                 </span>
-                <span className="truncate text-xs text-zinc-500 tabular-nums">
+                <span className="hidden truncate text-xs text-zinc-500 tabular-nums md:block">
                   {formatDate(u.lastLoginAt)}
                 </span>
-                <div className="flex justify-end gap-1">
+                <div className="hidden justify-end gap-1 md:flex">
                   <Button
                     variant="ghost"
                     size="icon-sm"

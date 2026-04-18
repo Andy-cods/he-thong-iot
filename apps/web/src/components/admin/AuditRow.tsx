@@ -84,10 +84,10 @@ export function AuditRow({ row, style, gridCols }: AuditRowProps) {
         {row.action}
       </span>
       <span className="truncate text-zinc-700">{row.objectType}</span>
-      <code className="truncate font-mono text-[10px] text-zinc-500">
+      <code className="hidden truncate font-mono text-[10px] text-zinc-500 md:block">
         {row.objectId ? row.objectId.slice(0, 8) : "—"}
       </code>
-      <div className="flex items-center gap-1.5">
+      <div className="hidden items-center gap-1.5 md:flex">
         {hasDiff ? (
           <Popover>
             <PopoverTrigger asChild>
