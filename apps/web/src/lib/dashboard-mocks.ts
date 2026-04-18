@@ -72,6 +72,11 @@ export function generateMockOrders(): OrderReadinessRow[] {
   ];
 }
 
+export function getMockOrderByCode(code: string): OrderReadinessRow | null {
+  const all = generateMockOrders();
+  return all.find((o) => o.orderCode === code) ?? null;
+}
+
 export function generateMockAlerts(): DashboardAlert[] {
   return [
     {

@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { StatusBadge, type BadgeStatus } from "@/components/domain/StatusBadge";
 import { formatDate, formatDaysLeft } from "@/lib/format";
@@ -30,17 +32,26 @@ export interface OrdersReadinessTableProps {
   orders: OrderReadinessRow[];
   loading?: boolean;
   onRowClick?: (order: OrderReadinessRow) => void;
+  /**
+   * Trả về href cho mỗi row (default = `/orders/{orderCode}`). Truyền `null`
+   * nếu không muốn row interactive (VD read-only view).
+   */
+  getOrderHref?: ((order: OrderReadinessRow) => string) | null;
   limit?: number;
   className?: string;
 }
+
+const defaultGetOrderHref = (o: OrderReadinessRow) => `/orders/${o.orderCode}`;
 
 export function OrdersReadinessTable({
   orders,
   loading,
   onRowClick,
+  getOrderHref,
   limit = 10,
   className,
 }: OrdersReadinessTableProps) {
+  const router = useRouter();
   const rows = React.useMemo(
     () => orders.slice(0, limit),
     [orders, limit],
@@ -99,13 +110,23 @@ export function OrdersReadinessTable({
           </tr>
         </thead>
         <tbody>
-          {rows.map((order) => (
-            <OrdersRow
-              key={order.id}
-              order={order}
-              onClick={onRowClick}
-            />
-          ))}
+          {rows.map((order) => {
+            const href =
+              getOrderHref === null
+                ? null
+                : (getOrderHref ?? defaultGetOrderHref)(order);
+            return (
+              <OrdersRow
+                key={order.id}
+                order={order}
+                href={href}
+                onClick={
+                  onRowClick ??
+                  (href ? () => router.push(href) : undefined)
+                }
+              />
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -115,9 +136,11 @@ export function OrdersReadinessTable({
 function OrdersRow({
   order,
   onClick,
+  href,
 }: {
   order: OrderReadinessRow;
-  onClick?: (o: OrderReadinessRow) => void;
+  onClick?: ((o: OrderReadinessRow) => void) | (() => void);
+  href?: string | null;
 }) {
   const daysLeft = formatDaysLeft(order.deadline);
   const isClickable = Boolean(onClick);
@@ -131,21 +154,31 @@ function OrdersRow({
         isClickable &&
           "cursor-pointer transition-colors duration-100 hover:bg-zinc-50 focus-within:bg-zinc-50",
       )}
-      onClick={isClickable ? () => onClick?.(order) : undefined}
+      onClick={isClickable ? () => (onClick as (o: OrderReadinessRow) => void)(order) : undefined}
       tabIndex={isClickable ? 0 : undefined}
       onKeyDown={
         isClickable
           ? (e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
-                onClick?.(order);
+                (onClick as (o: OrderReadinessRow) => void)(order);
               }
             }
           : undefined
       }
     >
       <td className="px-3 font-mono text-sm font-medium text-zinc-900">
-        {order.orderCode}
+        {href ? (
+          <Link
+            href={href}
+            className="text-zinc-900 hover:text-blue-700 hover:underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {order.orderCode}
+          </Link>
+        ) : (
+          order.orderCode
+        )}
       </td>
       <td className="px-3 text-zinc-900">{order.customerName}</td>
       <td className="px-3 text-zinc-600">{order.productName}</td>
