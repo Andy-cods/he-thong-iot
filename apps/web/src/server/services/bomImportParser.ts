@@ -219,32 +219,142 @@ export async function parseBomImport(buffer: Buffer): Promise<BomParseResult> {
   return { fileHash, sheets, allRowsBySheet };
 }
 
-/** Synonym dict BOM target field → header tokens (normalized). */
+/**
+ * Synonym dict BOM target field → header tokens (normalized, không khoảng trắng,
+ * chỉ chữ + số, tất cả lowercase). Mở rộng VN/EN theo file thực tế xưởng.
+ */
 export const BOM_SYNONYM_DICT: Record<string, string[]> = {
-  componentSku: ["standardnumber", "sku", "ma", "mvt", "mahanghoa"],
-  qtyPerParent: ["quantity", "sl", "soluong", "qty"],
-  componentSeq: ["idnumber", "stt", "id", "so"],
-  description: ["subcategory", "mota", "description", "name", "ten"],
-  supplierItemCode: ["ncc", "nhacungcap", "supplier", "vendor"],
-  size: ["visiblepartsize", "size", "kichthuoc", "kt"],
-  notes: ["note", "ghichu", "comment"],
+  componentSku: [
+    "standardnumber",
+    "sku",
+    "ma",
+    "macode",
+    "mavattu",
+    "mvt",
+    "mahanghoa",
+    "mahang",
+    "partnumber",
+    "partno",
+    "itemcode",
+    "materialcode",
+    "code",
+  ],
+  qtyPerParent: [
+    "quantity",
+    "sl",
+    "soluong",
+    "qty",
+    "qtyperparent",
+    "amount",
+    "qtyper",
+  ],
+  componentSeq: ["idnumber", "stt", "id", "so", "seq", "sequence", "no", "thutu"],
+  description: [
+    "subcategory",
+    "mota",
+    "description",
+    "desc",
+    "name",
+    "ten",
+    "tenvt",
+    "tenvattu",
+    "productname",
+    "spec",
+    "specification",
+  ],
+  supplierItemCode: [
+    "ncc",
+    "nhacungcap",
+    "supplier",
+    "supplieritemcode",
+    "supplierno",
+    "vendor",
+    "vendorcode",
+    "maxncc",
+  ],
+  size: [
+    "visiblepartsize",
+    "size",
+    "kichthuoc",
+    "kt",
+    "dimension",
+    "dimensions",
+    "dim",
+  ],
+  notes: ["note", "notes", "ghichu", "comment", "comments", "remark", "remarks"],
 };
 
-/** Auto mapping header → target field dựa synonym dict. */
+/** Levenshtein edit distance (iterative, O(mn) space-optimized). */
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const curr = [i];
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      curr.push(
+        Math.min(
+          (curr[j - 1] ?? 0) + 1, // insert
+          (prev[j] ?? 0) + 1, // delete
+          (prev[j - 1] ?? 0) + cost, // replace
+        ),
+      );
+    }
+    prev = curr;
+  }
+  return prev[b.length] ?? 0;
+}
+
+/**
+ * Auto mapping header → target field dựa synonym dict.
+ *
+ * Chiến lược 2-pass:
+ *   1. Exact / substring match (includes) — ưu tiên cao.
+ *   2. Fuzzy Levenshtein ≤ 2 với token dài ≥ 4 ký tự (tránh false-positive
+ *      short token như "id" khớp "no").
+ *
+ * Ví dụ: "Qty per parent" → norm "qtyperparent" → exact match qtyPerParent.
+ * "Standard No" → norm "standardno" → substring match componentSku.
+ * "Describtion" (typo) → norm "describtion" → fuzzy match description (dist=2).
+ */
 export function autoMapHeaders(headers: string[]): Record<string, string | null> {
   const mapping: Record<string, string | null> = {};
   for (const h of headers) {
     const n = normHeader(h);
+    if (!n) {
+      mapping[h] = null;
+      continue;
+    }
+
+    // Pass 1: exact/substring.
     let matched: string | null = null;
     for (const [target, tokens] of Object.entries(BOM_SYNONYM_DICT)) {
       for (const t of tokens) {
-        if (n.includes(t) || t.includes(n)) {
+        if (n === t || n.includes(t) || t.includes(n)) {
           matched = target;
           break;
         }
       }
       if (matched) break;
     }
+
+    // Pass 2: fuzzy Levenshtein (chỉ khi pass 1 fail).
+    if (!matched && n.length >= 4) {
+      let best: { target: string; dist: number } | null = null;
+      for (const [target, tokens] of Object.entries(BOM_SYNONYM_DICT)) {
+        for (const t of tokens) {
+          if (t.length < 4) continue;
+          const dist = levenshtein(n, t);
+          if (dist <= 2 && (!best || dist < best.dist)) {
+            best = { target, dist };
+          }
+        }
+      }
+      if (best) matched = best.target;
+    }
+
     mapping[h] = matched;
   }
   return mapping;
