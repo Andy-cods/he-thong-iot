@@ -1,5 +1,6 @@
+"use client";
+
 import Link from "next/link";
-import { cookies } from "next/headers";
 import {
   AlertTriangle,
   FileSpreadsheet,
@@ -9,9 +10,7 @@ import {
   ShoppingCart,
   Truck,
 } from "lucide-react";
-import { AUTH_COOKIE_NAME, verifyAccessToken } from "@/lib/auth";
 import { KpiCard } from "@/components/domain/KpiCard";
-import { BomKpiCard } from "@/components/domain/BomKpiCard";
 import { OrdersReadinessTable } from "@/components/domain/OrdersReadinessTable";
 import { AlertsList } from "@/components/domain/AlertsList";
 import { SystemHealthCard } from "@/components/domain/SystemHealthCard";
@@ -19,25 +18,36 @@ import {
   generateMockOrders,
   generateMockAlerts,
 } from "@/lib/dashboard-mocks";
-
-export const dynamic = "force-dynamic";
+import { useSession } from "@/hooks/useSession";
+import { useDashboardOverview } from "@/hooks/useDashboardOverview";
 
 /**
  * V2 `/` Dashboard (design-spec §2.2) — compact KPI + readiness table.
  *
- * Delta V1: greeting 30→20px, KPI row gap-4→3, content grid 2-col lg (table
- * span-2 + Alerts/Health stack), quick links cards 48px height. Icon prop
- * truyền JSX element qua RSC→Client boundary (fix bug "N is not a function" V1).
+ * V1.1-beta: chuyển sang Client Component để tận dụng React Query cache
+ * 60s cho `/api/dashboard/overview`. Middleware đã bảo vệ route nên không
+ * cần verify cookie ở page. Nếu API fail (Redis/DB down) vẫn fallback mock.
  *
- * Mock V1 — TODO V1.1 thay generator bằng fetch `/api/dashboard/overview`.
+ * KPI thật:
+ * - SKU hoạt động (activeItemsCount)
+ * - BOM Templates (bomTemplatesCount)  — thay BomKpiCard cũ
+ * - Nhà cung cấp (suppliersCount)      — thay "PO chờ nhận" mock
+ *
+ * KPI placeholder (còn mock, chờ V1.2):
+ * - WO đang chạy (mock)
+ * - Cảnh báo tồn kho (null → hiển thị "—" + badge V1.2)
  */
-export default async function DashboardPage() {
-  const token = cookies().get(AUTH_COOKIE_NAME)?.value;
-  const payload = token ? await verifyAccessToken(token) : null;
-  const username = payload?.usr ?? "Người dùng";
+export default function DashboardPage() {
+  const session = useSession();
+  const username = session.data?.username ?? "Người dùng";
 
-  const orders = generateMockOrders();
-  const alerts = generateMockAlerts();
+  const overview = useDashboardOverview();
+  const data = overview.data;
+  const loading = overview.isLoading;
+
+  // Fallback mock nếu API lỗi (Redis/DB down) → giữ UX không vỡ.
+  const orders = data?.recentOrdersMock ?? generateMockOrders();
+  const alerts = data?.recentAlertsMock ?? generateMockAlerts();
 
   return (
     <div className="flex flex-col gap-5">
@@ -47,7 +57,7 @@ export default async function DashboardPage() {
           Xin chào, {username}
         </h1>
         <p className="mt-1 text-xs text-zinc-500">
-          Tổng quan xưởng · mock V1
+          Tổng quan xưởng · KPI thật (items/BOM/NCC) · Orders/Cảnh báo mock
         </p>
       </section>
 
@@ -58,36 +68,45 @@ export default async function DashboardPage() {
       >
         <KpiCard
           label="SKU hoạt động"
-          value={124}
+          value={data?.activeItemsCount ?? 0}
           status="info"
           icon={<Package className="h-3.5 w-3.5" aria-hidden="true" />}
           href="/items"
-          delta={{ value: 3, direction: "up", label: "vs tuần trước" }}
+          loading={loading}
         />
-        <BomKpiCard />
         <KpiCard
-          label="PO chờ nhận"
-          value={8}
-          status="warning"
+          label="BOM Templates"
+          value={data?.bomTemplatesCount ?? 0}
+          status="info"
+          icon={<Network className="h-3.5 w-3.5" aria-hidden="true" />}
+          href="/bom"
+          loading={loading}
+          delta={{ value: 0, direction: "flat", label: "đang hoạt động" }}
+        />
+        <KpiCard
+          label="Nhà cung cấp"
+          value={data?.suppliersCount ?? 0}
+          status="info"
           icon={<Truck className="h-3.5 w-3.5" aria-hidden="true" />}
-          delta={{ value: 2, direction: "up", label: "trong 7 ngày" }}
+          href="/suppliers"
+          loading={loading}
         />
         <KpiCard
           label="WO đang chạy"
           value={5}
-          status="success"
+          status="neutral"
           icon={
             <ShoppingCart className="h-3.5 w-3.5" aria-hidden="true" />
           }
-          delta={{ value: 0, direction: "flat" }}
+          delta={{ value: 0, direction: "flat", label: "mock · V1.3" }}
         />
         <KpiCard
           label="Cảnh báo tồn kho"
-          value={7}
-          status="danger"
+          value={data?.lowStockCount ?? "—"}
+          status="neutral"
           icon={<PackageMinus className="h-3.5 w-3.5" aria-hidden="true" />}
-          href="/items?filter=low-stock"
-          delta={{ value: 2, direction: "down", label: "vs hôm qua" }}
+          loading={loading}
+          delta={{ value: 0, direction: "flat", label: "V1.2" }}
         />
       </section>
 
@@ -161,8 +180,7 @@ export default async function DashboardPage() {
       {/* Mock disclaimer */}
       <p className="flex items-center gap-1.5 text-xs text-zinc-400">
         <AlertTriangle className="h-3 w-3" aria-hidden="true" />
-        Dữ liệu KPI/đơn hàng/cảnh báo đang là mock V1 · module Orders sẽ cung
-        cấp dữ liệu thật ở V1.1.
+        Orders/Alerts/WO/Low-stock vẫn mock — sẽ có dữ liệu thật ở V1.1–V1.3.
       </p>
     </div>
   );
