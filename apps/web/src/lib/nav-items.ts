@@ -76,7 +76,7 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ["admin", "planner"],
   },
   {
-    href: "/pwa/receive",
+    href: "/receiving",
     label: "Nhận hàng",
     icon: Truck,
     roles: ["admin", "warehouse"],
