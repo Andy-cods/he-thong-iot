@@ -10,9 +10,14 @@ import {
   MoreHorizontal,
   Pencil,
   RotateCcw,
+  Zap,
 } from "lucide-react";
 import {
+  BOM_SNAPSHOT_STATES,
+  BOM_SNAPSHOT_STATE_LABELS,
+  BOM_SNAPSHOT_STATE_TONES,
   SALES_ORDER_STATUS_LABELS,
+  type BomSnapshotState,
   type OrderCreate,
   type SalesOrderStatus,
 } from "@iot/shared";
@@ -47,11 +52,25 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { OrderForm } from "@/components/orders/OrderForm";
 import {
+  SnapshotBoardTable,
+  SnapshotBoardFilterBar,
+} from "@/components/snapshot/SnapshotBoardTable";
+import { TransitionStateDialog } from "@/components/snapshot/TransitionStateDialog";
+import { ExplodeSnapshotDialog } from "@/components/snapshot/ExplodeSnapshotDialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import {
+  useSnapshotLines,
+  useSnapshotSummary,
+  type SnapshotLineRow,
+} from "@/hooks/useSnapshots";
+import { useSession } from "@/hooks/useSession";
+import {
   useCloseOrder,
   useOrderDetail,
   useReopenOrder,
   useUpdateOrder,
 } from "@/hooks/useOrders";
+import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -102,6 +121,29 @@ export default function OrderDetailPage({
   const [editMode, setEditMode] = React.useState(false);
   const [closeDialogOpen, setCloseDialogOpen] = React.useState(false);
   const [closeReason, setCloseReason] = React.useState("");
+
+  // Snapshot Board state
+  const session = useSession();
+  const isAdmin = session.data?.roles?.includes("admin") ?? false;
+  const [explodeOpen, setExplodeOpen] = React.useState(false);
+  const [transitionRow, setTransitionRow] =
+    React.useState<SnapshotLineRow | null>(null);
+  const [snapQ, setSnapQ] = React.useState("");
+  const [snapStates, setSnapStates] = React.useState<BomSnapshotState[]>([]);
+  const snapshotFilter = React.useMemo(
+    () => ({
+      q: snapQ.trim().length > 0 ? snapQ.trim() : undefined,
+      state: snapStates.length > 0 ? snapStates : undefined,
+      page: 1,
+      pageSize: 500,
+    }),
+    [snapQ, snapStates],
+  );
+  const snapshotLinesQuery = useSnapshotLines(code, snapshotFilter);
+  const snapshotSummaryQuery = useSnapshotSummary(code);
+  const snapshotRows = snapshotLinesQuery.data?.data ?? [];
+  const snapshotSummary = snapshotSummaryQuery.data?.data;
+  const snapshotTotal = snapshotSummary?.total ?? 0;
 
   if (query.isLoading) {
     return (
@@ -303,18 +345,50 @@ export default function OrderDetailPage({
           </TabsContent>
 
           <TabsContent value="snapshot">
-            <div className="rounded-md border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center">
-              <h3 className="text-base font-medium text-zinc-900">
-                Snapshot Board
-              </h3>
-              <p className="mt-1 text-sm text-zinc-500">
-                Cần release revision + explode snapshot (Phase B2).
-              </p>
-              <p className="mt-1 text-xs text-zinc-400">
-                Tính năng sẽ hiển thị cây BOM đã đóng băng + trạng thái từng
-                line (PLANNED / RESERVED / ISSUED / ASSEMBLED).
-              </p>
-            </div>
+            {snapshotTotal === 0 && !snapshotSummaryQuery.isLoading ? (
+              <EmptyState
+                preset="no-data"
+                title="Chưa có snapshot"
+                description="Explode từ một BOM revision để sinh snapshot lines cho đơn hàng này."
+                actions={
+                  <Button size="sm" onClick={() => setExplodeOpen(true)}>
+                    <Zap className="h-3.5 w-3.5" aria-hidden="true" />
+                    Explode snapshot
+                  </Button>
+                }
+              />
+            ) : (
+              <div className="flex flex-col gap-2">
+                <SnapshotSummaryHeader
+                  summary={snapshotSummary?.byState ?? []}
+                  total={snapshotTotal}
+                  onClick={(s) =>
+                    setSnapStates((prev) =>
+                      prev.includes(s)
+                        ? prev.filter((x) => x !== s)
+                        : [...prev, s],
+                    )
+                  }
+                  selectedStates={snapStates}
+                  onRefresh={() => setExplodeOpen(true)}
+                />
+                <SnapshotBoardFilterBar
+                  q={snapQ}
+                  onQChange={setSnapQ}
+                  selectedStates={snapStates}
+                  onStatesChange={setSnapStates}
+                  total={snapshotTotal}
+                  showing={snapshotRows.length}
+                />
+                <div className="h-[min(72vh,640px)]">
+                  <SnapshotBoardTable
+                    rows={snapshotRows}
+                    loading={snapshotLinesQuery.isLoading}
+                    onTransition={(r) => setTransitionRow(r)}
+                  />
+                </div>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="shortage">
@@ -353,6 +427,30 @@ export default function OrderDetailPage({
           </TabsContent>
         </Tabs>
       </div>
+
+      <ExplodeSnapshotDialog
+        open={explodeOpen}
+        onOpenChange={setExplodeOpen}
+        orderCode={order.orderNo}
+        orderQty={Number(order.orderQty)}
+        bomTemplateId={order.bomTemplateId}
+      />
+
+      {transitionRow && (
+        <TransitionStateDialog
+          open={!!transitionRow}
+          onOpenChange={(v) => {
+            if (!v) setTransitionRow(null);
+          }}
+          lineId={transitionRow.id}
+          orderCode={order.orderNo}
+          currentState={transitionRow.state}
+          versionLock={transitionRow.versionLock}
+          componentSku={transitionRow.componentSku}
+          componentName={transitionRow.componentName}
+          isAdmin={isAdmin}
+        />
+      )}
 
       <Dialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
         <DialogContent size="md">
@@ -395,6 +493,79 @@ export default function OrderDetailPage({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+/**
+ * Snapshot summary header — 1 badge mỗi state (count > 0) + quick click filter.
+ */
+function SnapshotSummaryHeader({
+  summary,
+  total,
+  selectedStates,
+  onClick,
+  onRefresh,
+}: {
+  summary: { state: BomSnapshotState; count: number }[];
+  total: number;
+  selectedStates: BomSnapshotState[];
+  onClick: (s: BomSnapshotState) => void;
+  onRefresh: () => void;
+}) {
+  const map = new Map(summary.map((s) => [s.state, s.count]));
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-md border border-zinc-200 bg-white px-4 py-2.5">
+      <span className="text-xs uppercase tracking-wider text-zinc-500">
+        Tổng: <span className="text-zinc-900">{total}</span>
+      </span>
+      <div className="flex flex-wrap gap-1.5">
+        {BOM_SNAPSHOT_STATES.map((s) => {
+          const count = map.get(s) ?? 0;
+          if (count === 0) return null;
+          const active = selectedStates.includes(s);
+          const tone = BOM_SNAPSHOT_STATE_TONES[s];
+          const toneClass =
+            tone === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : tone === "warning"
+                ? "border-amber-200 bg-amber-50 text-amber-700"
+                : tone === "danger"
+                  ? "border-red-200 bg-red-50 text-red-700"
+                  : tone === "info"
+                    ? "border-blue-200 bg-blue-50 text-blue-700"
+                    : tone === "shortage"
+                      ? "border-orange-200 bg-orange-50 text-orange-700"
+                      : "border-zinc-200 bg-zinc-100 text-zinc-700";
+          return (
+            <button
+              type="button"
+              key={s}
+              onClick={() => onClick(s)}
+              className={cn(
+                "inline-flex h-6 items-center gap-1 rounded-sm border px-2 text-xs font-medium transition-colors",
+                toneClass,
+                active && "ring-2 ring-blue-500 ring-offset-1",
+              )}
+              aria-pressed={active}
+              title={`Filter ${BOM_SNAPSHOT_STATE_LABELS[s]}`}
+            >
+              <span>{BOM_SNAPSHOT_STATE_LABELS[s]}</span>
+              <span className="tabular-nums">{count}</span>
+            </button>
+          );
+        })}
+      </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onRefresh}
+        className="ml-auto text-xs"
+        title="Explode lại (nếu cần refresh)"
+      >
+        <Zap className="h-3.5 w-3.5" aria-hidden="true" />
+        Explode...
+      </Button>
     </div>
   );
 }
