@@ -232,14 +232,19 @@
 **Deploy note 0004:** migration `0004_audit_action_upload_commit.sql` chưa apply local (không có docker dev) — cần chạy trên VPS lần deploy kế: `docker exec -i iot_postgres psql -U iot -d iot -f - < packages/db/migrations/0004_audit_action_upload_commit.sql`
 
 ### V1.2 (3-4 tuần) — Order + Procurement + Snapshot
-- [ ] Order Entry: CRUD /orders module thật thay stub mock (schema app.sales_order đã có V1 foundation)
-- [ ] PO tạo từ Order + link BOM snapshot
-- [ ] Procurement module: PR (Purchase Request) → PO (Purchase Order) → ETA → receipt
-- [ ] BOM Revision immutable RELEASE flow (DRAFT → RELEASED lock + new revision number)
-- [ ] BOM Snapshot recursive CTE explode (1 order → N snapshot line với 9 cột qty)
-- [ ] 10-state machine snapshot line: PLANNED → PURCHASING → INBOUND_QC → PROD_QC → AVAILABLE → RESERVED → ISSUED → ASSEMBLED → CLOSED
-- [ ] Shortage Board aggregate by item (rollup multi-level)
-- [ ] Nhận hàng real: link PO → receiving_event → inventory update (not just audit stub)
+
+**Phase A — Schema + Migration + Repos (branch `feat/v1.2-order-snapshot`)**
+- [x] 2026-04-17 · **A1 · Migration 0005 split 5 file** — `0005a` (superuser: EXTENSION ltree + ALTER TYPE audit_action +6 value + 4 enum mới), `0005b` (bom_revision), `0005c` (sales_order.version_lock + sequence gen_order_code + bom_snapshot_line core 22 col với GENERATED remaining_short_qty STORED + path ltree), `0005d` (purchase_request + line + po.pr_id + lot_serial.status), `0005e` (10+ indexes btree/GIST/GIN trgm/partial + materialized view shortage_aggregate + refresh function). Update `deploy/scripts/apply-sql-migrations.sh` recognize 0005a as superuser. — *commit c53ffab*
+- [x] 2026-04-17 · **A2 · Drizzle schema update** — `bom.ts` add bomRevision + bomRevisionStatusEnum. File MỚI `snapshot.ts` với customType ltree + bomSnapshotLineStateEnum 10 state + bomSnapshotLine 22 cột (GENERATED readonly). `order.ts` add salesOrder.versionLock. `procurement.ts` add purchaseRequest/Line + PO.prId + POLine.snapshotLineId + purchaseRequestStatusEnum. `inventory.ts` add lotStatusEnum + inventoryLotSerial.status + holdReason. `audit.ts` enum +6 value. Re-export tất cả qua `index.ts`. `pnpm -r typecheck` PASS. — *commit 36a91ec*
+- [x] 2026-04-17 · **A3 commit C · bomRevisions + snapshots repos** — `bomRevisions.ts`: releaseRevision (clone bom_line tree → frozen_snapshot JSON + R01/R02 auto increment + atomic TX), listRevisions, getRevision, supersedeRevision. `snapshots.ts`: STATE_TRANSITIONS 10-state map + canTransition (admin override), explodeSnapshot (BFS duyệt frozen_snapshot tree, qty cumulative product, scrap multiplicative (1+s1)(1+s2), path ltree LPAD 3-digit, pre-gen UUID cho parent FK, batch insert 200/lần, log durationMs), transitionState (optimistic lock WHERE version_lock = expected, 409 Conflict nếu race), ConflictError + StateTransitionError classes. `audit.ts` service enum +6. — *commit c1b7b27*
+- [x] 2026-04-17 · **A3 commit D · orders + PR + PO + shortage + receiving repos** — `orders.ts`: listOrders (filter status/due/q), createOrder (Postgres gen_order_code func), updateOrder (DRAFT only, optimistic lock), confirm/close/reopenOrder. `purchaseRequests.ts`: listPRs, createPR (atomic), createPRFromShortage (aggregate MV × 1.1 buffer), submit/approve/rejectPR + getPRLinesEnriched. `purchaseOrders.ts`: createPOFromPR (atomic, group by preferred_supplier, 1 PO = 1 supplier V1.2 rule), createPO manual, sendPO, listPOs. `shortage.ts`: getShortageByItem (MV), getShortageByOrder (on-fly), refreshAggregate. `receivingEvents.ts` enhance: postReceivingAtomic (7-table atomic: receipt header/line + lot_serial find-or-create + inventory_txn IN_RECEIPT + PO line received_qty + PO status PARTIAL/RECEIVED + snapshot_line received_qty + PURCHASING → INBOUND_QC + receiving_event.metadata link). `pnpm -r typecheck` PASS. — *commit c12626f*
+- [ ] **Phase B1 · Order API + UI** (6 endpoint + 3 route — next)
+- [ ] Phase B2 · BOM Revision API + UI
+- [ ] Phase B3 · Snapshot Board UI + virtualized table
+- [ ] Phase B4 · State machine badges + transition dropdown + 100-case test matrix
+- [ ] Phase B5 · Procurement PR + PO pages
+- [ ] Phase B6 · Shortage Board + Receiving QC flow
+- [ ] Phase C · Integration E2E + Deploy VPS + tag v1.2.0-beta
 
 ### V1.3 (3-4 tuần) — Production + WO + Assembly
 - [ ] WO (Work Order) tạo từ snapshot release
