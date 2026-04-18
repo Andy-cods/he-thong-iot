@@ -1,10 +1,12 @@
 import {
+  AlertCircle,
   Building2,
   ClipboardList,
   FileSpreadsheet,
   LayoutDashboard,
   Network,
   Package,
+  ShoppingCart,
   Shield,
   Truck,
   type LucideIcon,
@@ -61,6 +63,24 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/orders",
     label: "Đơn hàng",
     icon: ClipboardList,
+  },
+  {
+    href: "/procurement/purchase-requests",
+    label: "Yêu cầu mua (PR)",
+    icon: ShoppingCart,
+    roles: ["admin", "planner"],
+  },
+  {
+    href: "/procurement/purchase-orders",
+    label: "Đặt hàng NCC (PO)",
+    icon: ShoppingCart,
+    roles: ["admin", "planner"],
+  },
+  {
+    href: "/shortage",
+    label: "Thiếu hàng",
+    icon: AlertCircle,
+    roles: ["admin", "planner"],
   },
   {
     href: "/bom/import",
