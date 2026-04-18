@@ -12,7 +12,9 @@ type AuditAction =
   | "RELEASE"
   | "SNAPSHOT"
   | "POST"
-  | "CANCEL";
+  | "CANCEL"
+  | "UPLOAD"
+  | "COMMIT";
 
 export interface AuditInput {
   actor: Session | null;

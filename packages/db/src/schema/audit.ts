@@ -21,6 +21,8 @@ export const auditActionEnum = pgEnum("audit_action", [
   "SNAPSHOT",
   "POST",
   "CANCEL",
+  "UPLOAD",
+  "COMMIT",
 ]);
 
 /** Bảng 19: audit_event */
