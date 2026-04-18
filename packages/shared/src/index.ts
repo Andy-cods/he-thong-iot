@@ -8,3 +8,5 @@ export * from "./schemas/bom";
 export * from "./schemas/receiving";
 export * from "./schemas/user";
 export * from "./schemas/order";
+export * from "./schemas/snapshot";
+export * from "./schemas/bomRevision";

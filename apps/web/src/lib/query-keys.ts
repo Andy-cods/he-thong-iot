@@ -60,6 +60,23 @@ export const qk = {
       all: ["bom", "import"] as const,
       status: (batchId: string) => ["bom", "import", "status", batchId] as const,
     },
+    revisions: {
+      all: ["bom", "revisions"] as const,
+      list: (templateId: string) =>
+        ["bom", "revisions", "list", templateId] as const,
+      detail: (revisionId: string) =>
+        ["bom", "revisions", "detail", revisionId] as const,
+    },
+  },
+  snapshots: {
+    all: ["snapshots"] as const,
+    lines: (orderCode: string, filter?: SnapshotFilter) =>
+      filter === undefined
+        ? (["snapshots", "lines", orderCode] as const)
+        : (["snapshots", "lines", orderCode, filter] as const),
+    line: (id: string) => ["snapshots", "line", id] as const,
+    summary: (orderCode: string) =>
+      ["snapshots", "summary", orderCode] as const,
   },
   admin: {
     all: ["admin"] as const,
@@ -119,6 +136,26 @@ export interface AuditFilter {
   userId?: string;
   from?: string;
   to?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface SnapshotFilter {
+  state?: (
+    | "PLANNED"
+    | "PURCHASING"
+    | "IN_PRODUCTION"
+    | "INBOUND_QC"
+    | "PROD_QC"
+    | "AVAILABLE"
+    | "RESERVED"
+    | "ISSUED"
+    | "ASSEMBLED"
+    | "CLOSED"
+  )[];
+  level?: number;
+  q?: string;
+  shortOnly?: boolean;
   page?: number;
   pageSize?: number;
 }
