@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm --filter @iot/web typecheck)",
+      "Bash(pnpm exec *)",
+      "Bash(pnpm --filter @iot/web build)",
+      "Bash(pnpm --filter @iot/shared typecheck)",
+      "Bash(pnpm --filter @iot/web test)",
+      "Bash(scp -i ~/.ssh/iot_vps packages/db/migrations/0003a_bom_enums.sql packages/db/migrations/0003b_bom_tables.sql packages/db/migrations/0003c_bom_indexes.sql packages/db/migrations/0003d_seed_demo.sql root@123.30.48.215:/tmp/)",
+      "Bash(pnpm -r typecheck)",
+      "Bash(ssh -o ConnectTimeout=20 -i ~/.ssh/iot_vps root@123.30.48.215 \"pgrep -af 'docker build' | head -2; echo ---; tail -8 /tmp/v1.1-beta-build.log; echo ---; docker images hethong-iot:v1.1-beta --format '{{.ID}} {{.CreatedSince}} {{.Size}}'\")",
+      "Bash(ssh -i ~/.ssh/iot_vps root@123.30.48.215 \"docker tag hethong-iot:v1.1-beta hethong-iot:local && cd /opt/hethong-iot && docker compose up -d --force-recreate app worker 2>&1 | tail -6 && sleep 20 && docker ps --format '{{.Names}} {{.Status}}' | head -5 && echo --- && docker logs iot_app 2>&1 | tail -5\")"
+    ]
+  }
+}

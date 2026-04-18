@@ -76,7 +76,32 @@ export const qk = {
   po: {
     detail: (id: string) => ["po", "detail", id] as const,
   },
+  orders: {
+    all: ["orders"] as const,
+    list: (filter: OrderFilter) => ["orders", "list", filter] as const,
+    detail: (code: string) => ["orders", "detail", code] as const,
+  },
 } as const;
+
+export interface OrderFilter {
+  q?: string;
+  status?: (
+    | "DRAFT"
+    | "CONFIRMED"
+    | "SNAPSHOTTED"
+    | "IN_PROGRESS"
+    | "FULFILLED"
+    | "CLOSED"
+    | "CANCELLED"
+  )[];
+  customer?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  sort?: string;
+  sortDir?: "asc" | "desc";
+  page?: number;
+  pageSize?: number;
+}
 
 export interface UserFilter {
   q?: string;
