@@ -10,6 +10,7 @@ import {
   Info,
   MoreHorizontal,
   Plus,
+  Rocket,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -47,6 +48,8 @@ import {
   useMoveBomLine,
   type BomTreeNodeRaw,
 } from "@/hooks/useBom";
+import { useBomRevisions } from "@/hooks/useBomRevisions";
+import { ReleaseRevisionDialog } from "@/components/bom-revision/ReleaseRevisionDialog";
 import { cn } from "@/lib/utils";
 import { formatDate, formatNumber } from "@/lib/format";
 
@@ -87,8 +90,22 @@ export default function BomDetailPage() {
   );
 
   const [deleteBomOpen, setDeleteBomOpen] = React.useState(false);
+  const [releaseOpen, setReleaseOpen] = React.useState(false);
 
   const template = query.data?.data?.template;
+  const revisionsQuery = useBomRevisions(template?.id ?? null);
+  const existingRevisions = revisionsQuery.data?.data ?? [];
+  const nextRevisionNoHint = React.useMemo(() => {
+    let max = 0;
+    for (const r of existingRevisions) {
+      const m = /^R(\d+)$/.exec(r.revisionNo);
+      if (m?.[1]) {
+        const n = Number.parseInt(m[1], 10);
+        if (!Number.isNaN(n) && n > max) max = n;
+      }
+    }
+    return `R${(max + 1).toString().padStart(2, "0")}`;
+  }, [existingRevisions]);
   const tree = query.data?.data?.tree ?? [];
   const selectedNode = tree.find((n) => n.id === selectedLineId) ?? null;
 
@@ -246,29 +263,50 @@ export default function BomDetailPage() {
             </p>
           </div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <MoreHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
-                Thao tác
-                <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => void handleCloneBom()}>
-                <GitBranch className="h-3.5 w-3.5" aria-hidden="true" />
-                Clone BOM
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                variant="danger"
-                onClick={() => setDeleteBomOpen(true)}
+          <div className="flex items-center gap-2">
+            {template.status !== "OBSOLETE" && tree.length > 0 && (
+              <Button
+                size="sm"
+                onClick={() => setReleaseOpen(true)}
+                title={`Release ${nextRevisionNoHint}`}
               >
-                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                Xoá (ngừng dùng)
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <Rocket className="h-3.5 w-3.5" aria-hidden="true" />
+                Release {nextRevisionNoHint}
+              </Button>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm">
+                  <MoreHorizontal
+                    className="h-3.5 w-3.5"
+                    aria-hidden="true"
+                  />
+                  Thao tác
+                  <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {template.status !== "OBSOLETE" && tree.length > 0 && (
+                  <DropdownMenuItem onClick={() => setReleaseOpen(true)}>
+                    <Rocket className="h-3.5 w-3.5" aria-hidden="true" />
+                    Release revision {nextRevisionNoHint}
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={() => void handleCloneBom()}>
+                  <GitBranch className="h-3.5 w-3.5" aria-hidden="true" />
+                  Clone BOM
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="danger"
+                  onClick={() => setDeleteBomOpen(true)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  Xoá (ngừng dùng)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </header>
 
@@ -397,6 +435,15 @@ export default function BomDetailPage() {
         }
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
+      />
+
+      {/* Release revision dialog */}
+      <ReleaseRevisionDialog
+        open={releaseOpen}
+        onOpenChange={setReleaseOpen}
+        templateId={template.id}
+        templateCode={template.code}
+        nextRevisionNoHint={nextRevisionNoHint}
       />
 
       {/* Delete BOM dialog */}
