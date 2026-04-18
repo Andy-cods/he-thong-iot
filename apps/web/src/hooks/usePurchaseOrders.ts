@@ -1,0 +1,182 @@
+"use client";
+
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import type { POCreateInput, POUpdateInput, POStatus } from "@iot/shared";
+import { qk, type POFilter } from "@/lib/query-keys";
+
+/**
+ * Purchase Orders hooks — V1.2 Phase B4.3.
+ * Invalidate: qk.procurement.orders + requests (khi convert from PR) +
+ * dashboard + shortage (khi PO received → shortage giảm).
+ */
+
+export interface PORow {
+  id: string;
+  poNo: string;
+  supplierId: string;
+  status: POStatus;
+  linkedOrderId: string | null;
+  prId: string | null;
+  orderDate: string;
+  expectedEta: string | null;
+  currency: string;
+  totalAmount: string;
+  notes: string | null;
+  sentAt: string | null;
+  cancelledAt: string | null;
+  createdAt: string;
+  createdBy: string | null;
+}
+
+export interface POLineRow {
+  id: string;
+  poId: string;
+  lineNo: number;
+  itemId: string;
+  orderedQty: string;
+  receivedQty: string;
+  unitPrice: string;
+  expectedEta: string | null;
+  snapshotLineId: string | null;
+  notes: string | null;
+}
+
+export interface POListResponse {
+  data: PORow[];
+  meta: { page: number; pageSize: number; total: number };
+}
+
+export interface PODetailResponse {
+  data: PORow & { lines: POLineRow[] };
+}
+
+interface RequestError extends Error {
+  status?: number;
+  code?: string;
+}
+
+async function request<T>(input: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(input, {
+    credentials: "include",
+    headers: {
+      "content-type": "application/json",
+      ...(init?.headers ?? {}),
+    },
+    ...init,
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as {
+      error?: { message?: string; code?: string };
+    };
+    const err = new Error(
+      body.error?.message ?? `HTTP ${res.status}`,
+    ) as RequestError;
+    err.status = res.status;
+    err.code = body.error?.code;
+    throw err;
+  }
+  return (await res.json()) as T;
+}
+
+function buildListUrl(f: POFilter): string {
+  const p = new URLSearchParams();
+  if (f.q) p.set("q", f.q);
+  if (f.supplierId) p.set("supplierId", f.supplierId);
+  if (f.prId) p.set("prId", f.prId);
+  if (f.page) p.set("page", String(f.page));
+  if (f.pageSize) p.set("pageSize", String(f.pageSize));
+  for (const s of f.status ?? []) p.append("status", s);
+  return `/api/purchase-orders?${p.toString()}`;
+}
+
+export function usePurchaseOrdersList(filter: POFilter) {
+  return useQuery({
+    queryKey: qk.procurement.orders.list(filter),
+    queryFn: () => request<POListResponse>(buildListUrl(filter)),
+    staleTime: 30_000,
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function usePurchaseOrderDetail(id: string | null) {
+  return useQuery({
+    queryKey: id
+      ? qk.procurement.orders.detail(id)
+      : ["procurement", "orders", "detail", "__none__"],
+    queryFn: () => request<PODetailResponse>(`/api/purchase-orders/${id}`),
+    enabled: !!id,
+    staleTime: 15_000,
+  });
+}
+
+export function useCreatePurchaseOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: POCreateInput) =>
+      request<{ data: PORow }>("/api/purchase-orders", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.procurement.orders.all });
+      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
+    },
+  });
+}
+
+export interface ConvertPRResult {
+  createdPOs: PORow[];
+  linesBySupplier: Record<string, number>;
+}
+
+export function useConvertPRToPOs() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (prId: string) =>
+      request<{ data: ConvertPRResult }>(
+        `/api/purchase-orders/from-pr/${prId}`,
+        { method: "POST" },
+      ),
+    onSuccess: (_data, prId) => {
+      qc.invalidateQueries({ queryKey: qk.procurement.orders.all });
+      qc.invalidateQueries({ queryKey: qk.procurement.requests.all });
+      qc.invalidateQueries({ queryKey: qk.procurement.requests.detail(prId) });
+      qc.invalidateQueries({ queryKey: qk.snapshots.all });
+      qc.invalidateQueries({ queryKey: qk.shortage.all });
+      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
+    },
+  });
+}
+
+export function useUpdatePurchaseOrder(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: POUpdateInput) =>
+      request<{ data: PORow }>(`/api/purchase-orders/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.procurement.orders.all });
+      qc.invalidateQueries({ queryKey: qk.procurement.orders.detail(id) });
+    },
+  });
+}
+
+export function useSendPurchaseOrder(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      request<{ data: PORow }>(`/api/purchase-orders/${id}/send`, {
+        method: "POST",
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.procurement.orders.all });
+      qc.invalidateQueries({ queryKey: qk.procurement.orders.detail(id) });
+    },
+  });
+}
