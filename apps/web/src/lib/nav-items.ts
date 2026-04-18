@@ -1,5 +1,6 @@
 import {
   Building2,
+  ClipboardList,
   FileSpreadsheet,
   LayoutDashboard,
   Network,
@@ -55,6 +56,11 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/bom",
     label: "BOM",
     icon: Network,
+  },
+  {
+    href: "/orders",
+    label: "Đơn hàng",
+    icon: ClipboardList,
   },
   {
     href: "/bom/import",
