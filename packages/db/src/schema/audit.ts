@@ -23,6 +23,13 @@ export const auditActionEnum = pgEnum("audit_action", [
   "CANCEL",
   "UPLOAD",
   "COMMIT",
+  // V1.2 additions (migration 0005a ALTER TYPE ADD VALUE)
+  "TRANSITION",
+  "RESERVE",
+  "ISSUE",
+  "RECEIVE",
+  "APPROVE",
+  "CONVERT",
 ]);
 
 /** Bảng 19: audit_event */

@@ -14,7 +14,14 @@ type AuditAction =
   | "POST"
   | "CANCEL"
   | "UPLOAD"
-  | "COMMIT";
+  | "COMMIT"
+  // V1.2 additions
+  | "TRANSITION"
+  | "RESERVE"
+  | "ISSUE"
+  | "RECEIVE"
+  | "APPROVE"
+  | "CONVERT";
 
 export interface AuditInput {
   actor: Session | null;
