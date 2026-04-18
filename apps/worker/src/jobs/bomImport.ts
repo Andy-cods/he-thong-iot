@@ -237,11 +237,13 @@ async function processChunk(
         if (existingItem) {
           componentItemId = existingItem.id;
         } else if (input.autoCreateMissingItems) {
-          // Auto-create item: type=PURCHASED default (raw material Excel thường là mua ngoài)
+          // Auto-create item (race-safe): ON CONFLICT (sku) DO UPDATE RETURNING id.
+          // 2 sheet cùng SKU mới chạy song song (hoặc 2 chunk) → sheet đầu INSERT,
+          // sheet sau UPDATE updated_by/updated_at và vẫn trả id. Không unique_violation.
           const nameFromDesc =
             String(row.data[invMapping.description ?? ""] ?? "").trim() ||
             skuNorm;
-          const [created] = await tx
+          const [upserted] = await tx
             .insert(item)
             .values({
               sku: skuNorm,
@@ -253,9 +255,17 @@ async function processChunk(
               createdBy: input.actorId,
               updatedBy: input.actorId,
             })
+            .onConflictDoUpdate({
+              target: item.sku,
+              set: {
+                updatedBy: input.actorId,
+                updatedAt: new Date(),
+              },
+            })
             .returning({ id: item.id });
-          if (!created) throw new Error(`Không tạo được item SKU ${skuNorm}`);
-          componentItemId = created.id;
+          if (!upserted)
+            throw new Error(`Không upsert được item SKU ${skuNorm}`);
+          componentItemId = upserted.id;
         } else {
           errors.push({
             rowNumber: row.rowNumber,

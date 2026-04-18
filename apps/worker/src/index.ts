@@ -73,6 +73,9 @@ const bomImportCommitWorker = new Worker<BomImportCommitJob>(
     connection,
     prefix,
     concurrency: 1,
+    // Multi-sheet import (4 sheet × ~50 row) vượt default 30s lock.
+    // 60s đủ cho fileset ~400 rows, auto-create item ON CONFLICT.
+    lockDuration: 60_000,
   },
 );
 
