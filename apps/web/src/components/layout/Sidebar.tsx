@@ -37,6 +37,16 @@ export function Sidebar({
     return navItems.filter((it) => !it.roles || it.roles.includes(userRole));
   }, [navItems, userRole]);
 
+  /**
+   * Tập hợp href của các item hiện hữu — dùng để loại trừ trường hợp
+   * parent "/bom" bị match khi user đang ở nested "/bom/import" (bản thân
+   * "/bom/import" đã là item riêng). Nếu không có guard này, cả 2 item sáng.
+   */
+  const allHrefs = React.useMemo(
+    () => items.map((it) => it.href),
+    [items],
+  );
+
   return (
     <aside
       aria-label="Điều hướng chính"
@@ -69,6 +79,7 @@ export function Sidebar({
               key={`${item.href}-${idx}`}
               item={item}
               pathname={pathname ?? "/"}
+              allHrefs={allHrefs}
             />
           ))}
         </ul>
@@ -80,12 +91,14 @@ export function Sidebar({
 function SidebarItem({
   item,
   pathname,
+  allHrefs,
 }: {
   item: NavItem;
   pathname: string;
+  allHrefs: string[];
 }) {
   const Icon = item.icon;
-  const isActive = matchActive(pathname, item.href);
+  const isActive = matchActive(pathname, item.href, allHrefs);
 
   const content = (
     <>
@@ -145,8 +158,29 @@ function SidebarItem({
   );
 }
 
-/** Active matching: `/items` active khi pathname `/items`, `/items/...`. Root `/` chỉ exact match. */
-function matchActive(pathname: string, href: string): boolean {
+/**
+ * Active matching V2 (fix highlight trùng parent-child):
+ * - `/` chỉ active khi exact `/`.
+ * - Exact match luôn active.
+ * - Prefix match (`pathname.startsWith(href + "/")`) chỉ active khi
+ *   KHÔNG có item khác nested sâu hơn cũng match (ví dụ `/bom/import`).
+ *   Điều này tránh cả `/bom` và `/bom/import` cùng sáng khi ở `/bom/import`.
+ */
+function matchActive(
+  pathname: string,
+  href: string,
+  allHrefs: string[] = [],
+): boolean {
   if (href === "/") return pathname === "/";
-  return pathname === href || pathname.startsWith(`${href}/`);
+  if (pathname === href) return true;
+  if (!pathname.startsWith(`${href}/`)) return false;
+  // Có item khác dài hơn + khớp pathname hơn → item này không active.
+  for (const other of allHrefs) {
+    if (other === href) continue;
+    if (other === "/") continue;
+    if (other.startsWith(`${href}/`)) {
+      if (pathname === other || pathname.startsWith(`${other}/`)) return false;
+    }
+  }
+  return true;
 }
