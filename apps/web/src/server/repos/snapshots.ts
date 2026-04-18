@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, or, sql, type SQL } from "drizzle-orm";
 import { bomSnapshotLine, bomRevision, bomTemplate } from "@iot/db/schema";
 import type { BomSnapshotLine, BomSnapshotLineState } from "@iot/db/schema";
 import { db } from "@/lib/db";
@@ -320,28 +320,94 @@ export async function explodeSnapshot(
 }
 
 export interface ListSnapshotLinesFilter {
-  state?: BomSnapshotLineState;
+  state?: BomSnapshotLineState | BomSnapshotLineState[];
   level?: number;
   shortOnly?: boolean;
+  q?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface ListSnapshotLinesResult {
+  rows: BomSnapshotLine[];
+  total: number;
 }
 
 export async function listSnapshotLines(
   orderId: string,
   filter: ListSnapshotLinesFilter = {},
-) {
-  const conds = [eq(bomSnapshotLine.orderId, orderId)];
-  if (filter.state) conds.push(eq(bomSnapshotLine.state, filter.state));
+): Promise<ListSnapshotLinesResult> {
+  const conds: SQL[] = [eq(bomSnapshotLine.orderId, orderId)];
+  if (filter.state) {
+    if (Array.isArray(filter.state)) {
+      if (filter.state.length > 0) {
+        conds.push(
+          inArray(
+            bomSnapshotLine.state,
+            filter.state as unknown as (typeof bomSnapshotLine.state.enumValues)[number][],
+          ),
+        );
+      }
+    } else {
+      conds.push(eq(bomSnapshotLine.state, filter.state));
+    }
+  }
   if (filter.level !== undefined)
     conds.push(eq(bomSnapshotLine.level, filter.level));
   if (filter.shortOnly) {
     conds.push(sql`${bomSnapshotLine.remainingShortQty} > 0`);
   }
+  if (filter.q && filter.q.trim().length > 0) {
+    const needle = `%${filter.q.trim()}%`;
+    const search = or(
+      sql`${bomSnapshotLine.componentSku} ILIKE ${needle}`,
+      sql`${bomSnapshotLine.componentName} ILIKE ${needle}`,
+    );
+    if (search) conds.push(search);
+  }
 
-  return db
-    .select()
+  const page = filter.page ?? 1;
+  const pageSize = filter.pageSize ?? 100;
+  const offset = (page - 1) * pageSize;
+
+  const whereExpr = and(...conds);
+
+  const [totalResult, rows] = await Promise.all([
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(bomSnapshotLine)
+      .where(whereExpr),
+    db
+      .select()
+      .from(bomSnapshotLine)
+      .where(whereExpr)
+      .orderBy(asc(bomSnapshotLine.path))
+      .limit(pageSize)
+      .offset(offset),
+  ]);
+
+  return {
+    rows,
+    total: totalResult[0]?.count ?? 0,
+  };
+}
+
+/**
+ * Aggregate count per state cho 1 order — hiển thị header Snapshot Board badges.
+ */
+export async function getSnapshotSummary(
+  orderId: string,
+): Promise<{ state: BomSnapshotLineState; count: number }[]> {
+  const rows = await db
+    .select({
+      state: bomSnapshotLine.state,
+      count: sql<number>`count(*)::int`,
+    })
     .from(bomSnapshotLine)
-    .where(and(...conds))
-    .orderBy(asc(bomSnapshotLine.path));
+    .where(eq(bomSnapshotLine.orderId, orderId))
+    .groupBy(bomSnapshotLine.state);
+
+  return rows as { state: BomSnapshotLineState; count: number }[];
 }
 
 export async function getSnapshotLine(
