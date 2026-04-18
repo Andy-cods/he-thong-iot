@@ -321,8 +321,16 @@ export interface MoveBomLineVars {
 }
 
 /**
- * Move line với optimistic update trên tree cache.
- * Rollback khi server error (MAX_DEPTH_EXCEEDED, CANNOT_MOVE_INTO_DESCENDANT…).
+ * Move line với optimistic update trên tree cache — cross-parent support.
+ *
+ * Flow:
+ *   1. onMutate: cập nhật parentLineId + position ngay lập tức trên cache
+ *      (`qk.bom.detail` + `qk.bom.tree`). KHÔNG update `level` optimistic vì
+ *      subtree shift phức tạp — server trả `newLevel` + `shift` qua response,
+ *      onSettled refetch sẽ lấy level đúng.
+ *   2. onError (409/422 MAX_DEPTH_EXCEEDED, CANNOT_MOVE_INTO_DESCENDANT):
+ *      rollback cache về snapshot trước mutation.
+ *   3. onSettled: invalidate detail + tree → refetch level đúng từ server.
  */
 export function useMoveBomLine(templateId: string) {
   const qc = useQueryClient();
