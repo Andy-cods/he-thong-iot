@@ -205,14 +205,71 @@
   - [x] B2.7 Commit 1 · `/pwa/receive/[poId]` server component fetch `/api/po/[id]` thật + forward auth cookie + demo banner + error page khi PO not found + `hooks/useReceivingEvents.ts` (useReplayQueue + useReceivingHistory stub) *(commit f38a533)*
   - [x] B2.7 Commit 2 · `ReceivingConsole` replace setTimeout(600ms) fake replay bằng real POST `/api/receiving/events` sequential FIFO 500ms delay + idempotent handling (200 acked + 409 duplicate đều delete Dexie) + mutex replayingRef + sync progress sticky banner + toast success/warning/error + `ScanQueueBadge` retry-all button + badge color amber/red/emerald *(commit c549a67)*
   - Typecheck baseline 16 errors preserved (0 regression from new files); tests 14/15 PASS (1 pre-existing excelImport failure).
-- [ ] Phase C — Deploy VPS + smoke + tag `v1.1.0-alpha`
-- [x] 2026-04-17 · **Phase D — Bug fix V1.1-alpha (4 bugs user report LIVE)**
+- [x] 2026-04-18 · **Phase C — Deploy V1.1-alpha VPS + smoke + tag `v1.1.0-alpha`** — SCP source V1.1-alpha (1.2MB), docker build runtime 7 phút (cache warm từ V2), migration 0003+0003b2+0003b3 apply VPS (drop V1 bom_template/bom_line flat schema + recreate V1.1-alpha tree self-ref), tag v2-backup rollback sẵn, compose up --force-recreate app+worker, 10/10 smoke PASS (/bom list + /bom/new + /bom/import + /admin + /admin/users + /admin/audit + /api/bom/templates + /api/admin/users + /api/po/demo-001 return 3 lines), worker 3 queue ready (item + bom + assembly), image `hethong-iot:v1.1-alpha` (6463794488f7), tag v1.1.0-alpha pushed
+- [x] 2026-04-18 · **Phase D — Bug fix V1.1-alpha.1 (4 bugs user report LIVE)**
   - [x] D1 · BOM import smart header detection: scan 5 row đầu, pick row có keyword match cao nhất + nonEmpty ≥ 3; trả `headerRow` + `headerWarning` + `topTitle` về wizard UI hiển thị "Header đọc từ row N" + warning banner + preview positional array (fix mismatch `firstRows` dict vs `previewRows` array)
   - [x] D2 · Sidebar active state fix parent-child highlight trùng: `matchActive(pathname, href, allHrefs)` loại nested route dài hơn → chỉ item nested sâu nhất active
   - [x] D3 · `/receiving` hub trong (app) layout list 3 demo PO + CTA → `/pwa/receive/{poId}`; nav "Nhận hàng" chuyển `/pwa/receive` → `/receiving`
   - [x] D4 · `/orders/[code]` stub reuse `getMockOrderByCode` + info cards + V1.2 roadmap; `OrdersReadinessTable` row mặc định Link `/orders/{code}` với keyboard navigation
-  - [x] D5 · Script `scripts/seed-bom-sample.mjs` idempotent: parse sample xlsx, upsert Item stub (DRAFT/PCS), upsert bom_template `CNC-238846`, delete+reinsert bom_line (max 50 lines) — chạy 2 lần không duplicate
-  - Build local PASS (16 TS errors baseline preserved, 0 regression). Routes mới: `/receiving` (94 kB), `/orders/[code]` (103 kB).
+  - [x] D5 · Script `scripts/seed-bom-sample.mjs` + `scripts/generate-bom-seed-sql.mjs` (SQL pipe psql workaround Next standalone không include exceljs) idempotent parse sample xlsx → upsert 30 item stub DRAFT + upsert bom_template `CNC-238846-DEMO` (ACTIVE, target_qty 6) + reinsert 30 bom_line level=1 với metadata size + seq + NCC supplier_item_code
+  - [x] D6 · Deploy V1.1-alpha.1 VPS: SCP 1.2MB source, tag v1.1-alpha-prev backup, docker build 7 phút (cache warm) image `hethong-iot:v1.1-alpha.1` (9290570b0f65), restart app+worker, 6/6 smoke PASS (/receiving NEW 200 + "Nhận hàng" + "PO-DEMO" content, /orders/SO-103 NEW 200 + "SO-103" content, /pwa/receive/demo-001 200, /bom + /bom/import 200), seed BOM `CNC-238846-DEMO` 30 linh kiện applied psql, BOM list API trả 2 BOM (seed + user-created "EWRWER")
+  - Build local PASS (16 TS errors baseline preserved, 0 regression). Routes mới: `/receiving` (94 kB), `/orders/[code]` (103 kB). Tag **`v1.1.0-alpha.1`** pushed.
+
+---
+
+## 🚧 Các phase tiếp theo (roadmap từ 2026-04-18)
+
+### V1.1-beta (1-2 tuần) — hoàn thiện BOM + Import stability + UX polish
+- [ ] Import BOM end-to-end thực sự work với file user `Z0000002-262422` (smart header detection đã fix, cần test full commit pipeline + auto-create missing items)
+- [ ] BOM tree editor drag-drop cross-parent + auto level update (hiện chỉ reorder same-parent)
+- [ ] BOM compare 2 templates side-by-side (diff viewer)
+- [ ] BOM export Excel ngược (xuất lại từ tree → .xlsx)
+- [ ] Dashboard KPI 4 cards → real data từ API (`/api/dashboard/overview` aggregate)
+- [ ] Fix 16 TS baseline errors trong `/api/imports`, `/api/items`, `/api/suppliers` (zod infer strict mode)
+- [ ] Mobile responsive polish `/bom`, `/admin`, `/receiving` (test tablet 1024×768 + mobile 390×)
+- [ ] Unit test BOM state machine + tree mutation (target coverage 70%)
+
+### V1.2 (3-4 tuần) — Order + Procurement + Snapshot
+- [ ] Order Entry: CRUD /orders module thật thay stub mock (schema app.sales_order đã có V1 foundation)
+- [ ] PO tạo từ Order + link BOM snapshot
+- [ ] Procurement module: PR (Purchase Request) → PO (Purchase Order) → ETA → receipt
+- [ ] BOM Revision immutable RELEASE flow (DRAFT → RELEASED lock + new revision number)
+- [ ] BOM Snapshot recursive CTE explode (1 order → N snapshot line với 9 cột qty)
+- [ ] 10-state machine snapshot line: PLANNED → PURCHASING → INBOUND_QC → PROD_QC → AVAILABLE → RESERVED → ISSUED → ASSEMBLED → CLOSED
+- [ ] Shortage Board aggregate by item (rollup multi-level)
+- [ ] Nhận hàng real: link PO → receiving_event → inventory update (not just audit stub)
+
+### V1.3 (3-4 tuần) — Production + WO + Assembly
+- [ ] WO (Work Order) tạo từ snapshot release
+- [ ] Assembly UI: scan component → confirm → advance state
+- [ ] ECO (Engineering Change Order) apply flow: ECO approve → new BOM revision auto-create
+- [ ] Reservation FIFO/FEFO policy per order priority
+- [ ] Kho lot tracking + serial tracking end-to-end
+- [ ] QC in-process checkpoint (chuẩn bị V1.4 QC plans)
+
+### V1.4 (2-3 tuần) — Security + Audit UI + Polish
+- [ ] RLS (Row-Level Security) policies Postgres theo role + entity ownership
+- [ ] RBAC 12×12 matrix hoàn chỉnh (action × entity)
+- [ ] Full audit UI: filter + diff + rollback stub + export Excel
+- [ ] Session management UI (`/admin/settings` - xem sessions + revoke)
+- [ ] Reset password workflow (admin reset + user via email)
+- [ ] Rate limit login 5 lần/phút/IP
+- [ ] Monitoring stack: Prometheus + Grafana + Loki (nếu scope cho phép)
+- [ ] Backup cron automation + S3/R2 off-site
+- [ ] Load test với 10k SKU + 100 concurrent user
+
+### V2.0 (2-3 tháng) — Edge + Telemetry + Analytics
+- [ ] Edge gateway Brother SPEEDIO S500X1 / CNC-C00 integration
+- [ ] Machine telemetry real-time (OPC UA / MTConnect)
+- [ ] OEE (Overall Equipment Effectiveness) tracking
+- [ ] Lead-time learning từ history data
+- [ ] Forecasting demand + material
+
+### Infra optimization (song song)
+- [ ] Migrate sang VPS SSD NVMe (Hetzner CX22 €4.51/tháng) — build time 30 phút → 8 phút
+- [ ] GitHub Actions CI/CD build + push GHCR → VPS docker pull (2 phút thay 30 phút)
+- [ ] Prune Docker cache định kỳ (currently 9.5GB)
+- [ ] Backup schedule cron automation
 
 ---
 
