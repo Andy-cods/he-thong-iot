@@ -13,7 +13,8 @@ import {
   Truck,
   type LucideIcon,
 } from "lucide-react";
-import type { Role } from "@iot/shared";
+import type { RbacEntity, Role } from "@iot/shared";
+import { canAny } from "@iot/shared";
 
 /**
  * Direction B — nav-items registry.
@@ -26,8 +27,16 @@ export interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
-  /** Nếu có → chỉ hiển thị khi user có ít nhất 1 role khớp. */
+  /**
+   * Legacy role gate — để backward-compat V1.3. V1.4 ưu tiên `entity`
+   * (filter qua `canAny()` theo RBAC matrix).
+   */
   roles?: Role[];
+  /**
+   * V1.4 — entity của RBAC matrix. Nếu set, item chỉ hiển thị khi user có
+   * BẤT KỲ quyền nào trên entity (`canAny(userRoles, entity)`).
+   */
+  entity?: RbacEntity;
   /** True → render divider phía trên item này trong sidebar. */
   divider?: boolean;
   /** True → hiển thị mờ, disable click (feature chưa bật). */
@@ -49,6 +58,7 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/items",
     label: "Danh mục vật tư",
     icon: Package,
+    entity: "item",
   },
   {
     href: "/items/import",
@@ -60,23 +70,26 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/bom",
     label: "BOM",
     icon: Network,
+    entity: "bomTemplate",
   },
   {
     href: "/orders",
     label: "Đơn hàng",
     icon: ClipboardList,
+    entity: "salesOrder",
   },
   {
     href: "/procurement/purchase-requests",
     label: "Yêu cầu mua (PR)",
     icon: ShoppingCart,
+    entity: "pr",
     roles: ["admin", "planner"],
   },
   {
     href: "/procurement/purchase-orders",
     label: "Đặt hàng NCC (PO)",
     icon: ShoppingCart,
-    roles: ["admin", "planner"],
+    entity: "po",
   },
   {
     href: "/shortage",
@@ -88,12 +101,13 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/work-orders",
     label: "Work Orders",
     icon: Factory,
-    roles: ["admin", "planner", "operator"],
+    entity: "wo",
   },
   {
     href: "/eco",
     label: "ECO",
     icon: GitBranch,
+    entity: "eco",
     roles: ["admin", "planner"],
   },
   {
@@ -113,7 +127,7 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/suppliers",
     label: "Nhà cung cấp",
     icon: Building2,
-    roles: ["admin", "planner"],
+    entity: "supplier",
   },
   {
     href: "/receiving",
@@ -126,6 +140,13 @@ export const NAV_ITEMS: NavItem[] = [
 
 /**
  * Lọc nav items theo roles của user hiện tại.
+ *
+ * Logic V1.4:
+ *   - Nếu item có `entity` → dùng `canAny(userRoles, entity)` (RBAC matrix).
+ *   - Nếu chỉ có `roles` → fallback role-match (legacy).
+ *   - Nếu không có cả 2 → hiển thị cho mọi user đã đăng nhập.
+ *   - Nếu user có CẢ `roles` lẫn `entity` set → AND (phải thoả cả hai).
+ *
  * Nếu `userRoles` undefined → giữ toàn bộ (dev/fallback).
  */
 export function filterNavByRoles(
@@ -133,7 +154,9 @@ export function filterNavByRoles(
   userRoles: Role[] | undefined,
 ): NavItem[] {
   if (!userRoles || userRoles.length === 0) return items;
-  return items.filter(
-    (it) => !it.roles || it.roles.some((r) => userRoles.includes(r)),
-  );
+  return items.filter((it) => {
+    if (it.entity && !canAny(userRoles, it.entity)) return false;
+    if (it.roles && !it.roles.some((r) => userRoles.includes(r))) return false;
+    return true;
+  });
 }

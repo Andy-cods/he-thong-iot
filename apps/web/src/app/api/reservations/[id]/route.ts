@@ -10,7 +10,7 @@ import {
   jsonError,
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,7 +24,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireSession(req, "admin", "planner", "warehouse");
+  const guard = await requireCan(req, "transition", "reservation");
   if ("response" in guard) return guard.response;
 
   // DELETE có thể không có body — parse best-effort

@@ -13,7 +13,7 @@ import {
   parseJson,
 } from "@/server/http";
 import { writeAudit, diffObjects } from "@/server/services/audit";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,7 +22,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireSession(req);
+  const guard = await requireCan(req, "read", "bomTemplate");
   if ("response" in guard) return guard.response;
 
   const template = await getTemplateById(params.id);
@@ -37,7 +37,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireSession(req);
+  const guard = await requireCan(req, "update", "bomTemplate");
   if ("response" in guard) return guard.response;
 
   const body = await parseJson(req, bomTemplateUpdateSchema);
@@ -102,8 +102,8 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  // Soft delete chỉ admin hoặc planner
-  const guard = await requireSession(req, "admin", "planner");
+  // Soft delete: admin (delete/bomTemplate). Planner không được trong matrix.
+  const guard = await requireCan(req, "delete", "bomTemplate");
   if ("response" in guard) return guard.response;
 
   const before = await getTemplateById(params.id);

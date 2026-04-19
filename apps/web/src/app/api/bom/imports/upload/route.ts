@@ -9,7 +9,7 @@ import {
 } from "@/server/repos/importBatch";
 import { autoMapHeaders, parseBomImport } from "@/server/services/bomImportParser";
 import { writeAudit } from "@/server/services/audit";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
  * Parse tất cả sheets → preview + auto-mapping.
  */
 export async function POST(req: NextRequest) {
-  const guard = await requireSession(req);
+  const guard = await requireCan(req, "create", "bomTemplate");
   if ("response" in guard) return guard.response;
 
   const form = await req.formData().catch(() => null);

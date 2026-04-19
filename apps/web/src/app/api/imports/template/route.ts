@@ -1,13 +1,13 @@
 import { type NextRequest } from "next/server";
 import { buildImportTemplate } from "@/server/services/excelImport";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /** GET /api/imports/template?kind=item — tải template xlsx mẫu. */
 export async function GET(req: NextRequest) {
-  const guard = await requireSession(req, "planner", "warehouse");
+  const guard = await requireCan(req, "read", "item");
   if ("response" in guard) return guard.response;
 
   const buf = await buildImportTemplate();

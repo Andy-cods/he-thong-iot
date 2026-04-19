@@ -9,7 +9,7 @@ import {
   parseSearchParams,
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,7 +22,7 @@ export const dynamic = "force-dynamic";
  * `app.gen_order_code()` SO-YYMM-####. Ghi audit CREATE.
  */
 export async function GET(req: NextRequest) {
-  const guard = await requireSession(req);
+  const guard = await requireCan(req, "read", "salesOrder");
   if ("response" in guard) return guard.response;
 
   const q = parseSearchParams(req, orderListQuerySchema);
@@ -58,8 +58,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  // Mọi user logged-in tạo được đơn hàng
-  const guard = await requireSession(req);
+  const guard = await requireCan(req, "create", "salesOrder");
   if ("response" in guard) return guard.response;
 
   const body = await parseJson(req, orderCreateSchema);

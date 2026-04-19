@@ -4,7 +4,7 @@ import { logger } from "@/lib/logger";
 import { deleteCheck, updateResult } from "@/server/repos/qcChecks";
 import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,13 +18,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireSession(
-    req,
-    "admin",
-    "planner",
-    "operator",
-    "warehouse",
-  );
+  const guard = await requireCan(req, "transition", "wo");
   if ("response" in guard) return guard.response;
 
   const body = await parseJson(req, patchSchema);
@@ -61,7 +55,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireSession(req, "admin");
+  const guard = await requireCan(req, "delete", "wo");
   if ("response" in guard) return guard.response;
 
   try {

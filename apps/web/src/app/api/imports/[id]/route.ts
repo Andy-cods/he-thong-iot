@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { jsonError } from "@/server/http";
 import { getImportBatch } from "@/server/repos/importBatch";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,7 +11,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireSession(req, "planner", "warehouse");
+  const guard = await requireCan(req, "read", "item");
   if ("response" in guard) return guard.response;
 
   const batch = await getImportBatch(params.id);

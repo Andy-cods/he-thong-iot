@@ -13,7 +13,7 @@ import {
   parseJson,
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,7 +27,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireSession(req, "admin", "planner");
+  const guard = await requireCan(req, "transition", "wo");
   if ("response" in guard) return guard.response;
 
   const body = await parseJson(req, schema);

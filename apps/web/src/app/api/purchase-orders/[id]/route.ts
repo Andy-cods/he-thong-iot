@@ -10,7 +10,7 @@ import {
   parseJson,
 } from "@/server/http";
 import { writeAudit, diffObjects } from "@/server/services/audit";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -24,7 +24,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireSession(req);
+  const guard = await requireCan(req, "read", "po");
   if ("response" in guard) return guard.response;
 
   const row = await getPO(params.id);
@@ -38,7 +38,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireSession(req, "planner");
+  const guard = await requireCan(req, "update", "po");
   if ("response" in guard) return guard.response;
 
   const before = await getPO(params.id);

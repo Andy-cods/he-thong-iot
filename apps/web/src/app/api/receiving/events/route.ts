@@ -13,7 +13,7 @@ import {
   parseJson,
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -32,7 +32,8 @@ export const dynamic = "force-dynamic";
  * Dexie replay consumer.
  */
 export async function POST(req: NextRequest) {
-  const guard = await requireSession(req, "warehouse", "planner");
+  // Receiving = warehouse transition PO (entity 'po', action 'transition').
+  const guard = await requireCan(req, "transition", "po");
   if ("response" in guard) return guard.response;
 
   const body = await parseJson(req, receivingEventsBatchSchema);

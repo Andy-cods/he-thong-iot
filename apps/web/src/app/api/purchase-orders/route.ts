@@ -9,7 +9,7 @@ import {
   parseSearchParams,
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
  * POST /api/purchase-orders — create manual PO 1 supplier (admin+planner).
  */
 export async function GET(req: NextRequest) {
-  const guard = await requireSession(req);
+  const guard = await requireCan(req, "read", "po");
   if ("response" in guard) return guard.response;
 
   const q = parseSearchParams(req, poListQuerySchema);
@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const guard = await requireSession(req, "planner");
+  const guard = await requireCan(req, "create", "po");
   if ("response" in guard) return guard.response;
 
   const body = await parseJson(req, poCreateSchema);

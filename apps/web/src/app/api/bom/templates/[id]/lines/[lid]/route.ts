@@ -14,7 +14,7 @@ import {
   parseSearchParams,
 } from "@/server/http";
 import { writeAudit, diffObjects } from "@/server/services/audit";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,7 +23,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string; lid: string } },
 ) {
-  const guard = await requireSession(req);
+  const guard = await requireCan(req, "update", "bomTemplate");
   if ("response" in guard) return guard.response;
 
   const belongs = await lineBelongsToTemplate(params.lid, params.id);
@@ -70,7 +70,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string; lid: string } },
 ) {
-  const guard = await requireSession(req);
+  const guard = await requireCan(req, "update", "bomTemplate");
   if ("response" in guard) return guard.response;
 
   const belongs = await lineBelongsToTemplate(params.lid, params.id);

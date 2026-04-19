@@ -1,5 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
-import type { JwtPayload, Role } from "@iot/shared";
+import type {
+  JwtPayload,
+  RbacAction,
+  RbacEntity,
+  Role,
+} from "@iot/shared";
+import { can } from "@iot/shared";
 import { AUTH_COOKIE_NAME, verifyAccessToken } from "@/lib/auth";
 
 export interface Session {
@@ -46,7 +52,13 @@ export function hasRole(session: Session, ...anyOf: Role[]): boolean {
   return anyOf.some((r) => session.roles.includes(r));
 }
 
-/** Helper guard dùng đầu mỗi route handler. */
+/**
+ * Helper guard dùng đầu mỗi route handler.
+ *
+ * @deprecated V1.4 — dùng `requireCan(req, action, entity)` để match
+ *   RBAC matrix (`@iot/shared/rbac`). Giữ tạm cho backward-compat các
+ *   route cũ; mỗi route nên được refactor dần sang `requireCan`.
+ */
 export async function requireSession(
   req: NextRequest,
   ...roles: Role[]
@@ -54,6 +66,27 @@ export async function requireSession(
   const session = await getSession(req);
   if (!session) return { response: unauthorized() };
   if (roles.length > 0 && !hasRole(session, ...roles)) {
+    return { response: forbidden() };
+  }
+  return { session };
+}
+
+/**
+ * Guard chuẩn V1.4 — kiểm tra session + RBAC matrix (`can()`).
+ *
+ * @example
+ *   const r = await requireCan(req, "create", "item");
+ *   if ("response" in r) return r.response;
+ *   const session = r.session; // typed Session
+ */
+export async function requireCan(
+  req: NextRequest,
+  action: RbacAction,
+  entity: RbacEntity,
+): Promise<{ session: Session } | { response: NextResponse }> {
+  const session = await getSession(req);
+  if (!session) return { response: unauthorized() };
+  if (!can(session.roles, action, entity)) {
     return { response: forbidden() };
   }
   return { session };

@@ -13,13 +13,13 @@ import {
   parseSearchParams,
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  const guard = await requireSession(req);
+  const guard = await requireCan(req, "read", "bomTemplate");
   if ("response" in guard) return guard.response;
 
   const q = parseSearchParams(req, bomTemplateListQuerySchema);
@@ -51,8 +51,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  // Mọi user logged-in (Q5=c) tạo BOM được
-  const guard = await requireSession(req);
+  const guard = await requireCan(req, "create", "bomTemplate");
   if ("response" in guard) return guard.response;
 
   const body = await parseJson(req, bomTemplateCreateSchema);

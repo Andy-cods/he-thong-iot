@@ -8,7 +8,7 @@ import {
   parseJson,
 } from "@/server/http";
 import { writeAudit, diffObjects } from "@/server/services/audit";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,7 +17,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireSession(req, "admin");
+  const guard = await requireCan(req, "read", "user");
   if ("response" in guard) return guard.response;
 
   const user = await getUserById(params.id);
@@ -30,7 +30,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireSession(req, "admin");
+  const guard = await requireCan(req, "update", "user");
   if ("response" in guard) return guard.response;
 
   const body = await parseJson(req, userUpdateSchema);

@@ -6,7 +6,7 @@ import {
   refreshAggregate,
 } from "@/server/repos/shortage";
 import { jsonError, parseSearchParams } from "@/server/http";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
  * POST /api/shortage (action=refresh) — manual refresh MV (admin+planner).
  */
 export async function GET(req: NextRequest) {
-  const guard = await requireSession(req);
+  const guard = await requireCan(req, "read", "bomSnapshot");
   if ("response" in guard) return guard.response;
 
   const q = parseSearchParams(req, shortageFilterSchema);
@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const guard = await requireSession(req, "planner");
+  const guard = await requireCan(req, "transition", "bomSnapshot");
   if ("response" in guard) return guard.response;
 
   try {

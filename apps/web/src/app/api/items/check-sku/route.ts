@@ -3,7 +3,7 @@ import { z } from "zod";
 import { SKU_REGEX } from "@iot/shared";
 import { checkSkuExists } from "@/server/repos/items";
 import { jsonError, parseSearchParams } from "@/server/http";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,7 +21,7 @@ const querySchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
-  const guard = await requireSession(req, "planner", "warehouse");
+  const guard = await requireCan(req, "read", "item");
   if ("response" in guard) return guard.response;
 
   const parsed = parseSearchParams(req, querySchema);

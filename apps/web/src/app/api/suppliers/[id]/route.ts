@@ -12,7 +12,7 @@ import {
   parseJson,
 } from "@/server/http";
 import { writeAudit, diffObjects } from "@/server/services/audit";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,7 +21,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireSession(req, "planner", "warehouse");
+  const guard = await requireCan(req, "read", "supplier");
   if ("response" in guard) return guard.response;
   const row = await getSupplierById(params.id);
   if (!row) return jsonError("NOT_FOUND", "Không tìm thấy NCC.", 404);
@@ -32,7 +32,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireSession(req, "planner");
+  const guard = await requireCan(req, "update", "supplier");
   if ("response" in guard) return guard.response;
   const body = await parseJson(req, supplierUpdateSchema);
   if ("response" in body) return body.response;
@@ -67,7 +67,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireSession(req, "planner");
+  const guard = await requireCan(req, "delete", "supplier");
   if ("response" in guard) return guard.response;
   const before = await getSupplierById(params.id);
   if (!before) return jsonError("NOT_FOUND", "Không tìm thấy NCC.", 404);

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { LIMITS } from "@iot/shared";
 import { jsonError, extractRequestMeta } from "@/server/http";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 import { logger } from "@/lib/logger";
 import {
   createImportBatch,
@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
  * Parse server-side, tạo import_batch status=preview_ready, trả preview.
  */
 export async function POST(req: NextRequest) {
-  const guard = await requireSession(req, "planner");
+  const guard = await requireCan(req, "create", "item");
   if ("response" in guard) return guard.response;
 
   const form = await req.formData().catch(() => null);

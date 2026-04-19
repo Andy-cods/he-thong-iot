@@ -5,7 +5,7 @@ import {
   getECOByCode,
 } from "@/server/repos/ecoChanges";
 import { jsonError } from "@/server/http";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,7 +14,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { code: string } },
 ) {
-  const guard = await requireSession(req);
+  const guard = await requireCan(req, "read", "eco");
   if ("response" in guard) return guard.response;
 
   try {

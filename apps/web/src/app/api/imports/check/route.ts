@@ -2,13 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { importCheckSchema } from "@iot/shared";
 import { findRecentByHash } from "@/server/repos/importBatch";
 import { parseJson } from "@/server/http";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  const guard = await requireSession(req, "planner");
+  const guard = await requireCan(req, "create", "item");
   if ("response" in guard) return guard.response;
 
   const body = await parseJson(req, importCheckSchema);

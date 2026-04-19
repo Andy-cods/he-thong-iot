@@ -6,7 +6,7 @@ import {
   jsonError,
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,7 +22,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { prId: string } },
 ) {
-  const guard = await requireSession(req, "planner");
+  const guard = await requireCan(req, "create", "po");
   if ("response" in guard) return guard.response;
 
   try {

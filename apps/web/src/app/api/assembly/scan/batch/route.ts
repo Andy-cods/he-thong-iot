@@ -6,7 +6,7 @@ import {
   recordAssemblyScanAtomic,
 } from "@/server/repos/assemblies";
 import { jsonError, parseJson } from "@/server/http";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,13 +33,7 @@ export interface BatchAck {
 
 /** POST /api/assembly/scan/batch — replay Dexie queue. */
 export async function POST(req: NextRequest) {
-  const guard = await requireSession(
-    req,
-    "admin",
-    "operator",
-    "warehouse",
-    "planner",
-  );
+  const guard = await requireCan(req, "transition", "wo");
   if ("response" in guard) return guard.response;
 
   const body = await parseJson(req, schema);

@@ -12,7 +12,7 @@ import {
   parseJson,
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,7 +21,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string; bid: string } },
 ) {
-  const guard = await requireSession(req, "warehouse", "planner");
+  const guard = await requireCan(req, "update", "item");
   if ("response" in guard) return guard.response;
   const body = await parseJson(req, barcodeUpdateSchema);
   if ("response" in body) return body.response;
@@ -54,7 +54,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string; bid: string } },
 ) {
-  const guard = await requireSession(req, "warehouse", "planner");
+  const guard = await requireCan(req, "update", "item");
   if ("response" in guard) return guard.response;
 
   const before = await getBarcode(params.bid);

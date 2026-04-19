@@ -4,7 +4,7 @@ import { importCommitSchema } from "@iot/shared";
 import { getImportBatch, updateImportBatch } from "@/server/repos/importBatch";
 import { enqueueItemImportCommit } from "@/server/services/importQueue";
 import { writeAudit } from "@/server/services/audit";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
@@ -19,7 +19,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireSession(req, "planner");
+  const guard = await requireCan(req, "create", "item");
   if ("response" in guard) return guard.response;
 
   const body = await parseJson(req, importCommitSchema);

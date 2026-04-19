@@ -3,7 +3,7 @@ import { logger } from "@/lib/logger";
 import { getPO, sendPO } from "@/server/repos/purchaseOrders";
 import { extractRequestMeta, jsonError } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,7 +18,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireSession(req, "admin");
+  const guard = await requireCan(req, "approve", "po");
   if ("response" in guard) return guard.response;
 
   const before = await getPO(params.id);

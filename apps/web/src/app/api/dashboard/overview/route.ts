@@ -4,7 +4,7 @@ import { item, bomTemplate, supplier } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { jsonError } from "@/server/http";
-import { requireSession } from "@/server/session";
+import { getSession, unauthorized } from "@/server/session";
 import { cacheGetJson, cacheSetJson } from "@/server/services/redis";
 import {
   generateMockOrders,
@@ -52,8 +52,9 @@ async function countRows(
  * Response shape xem `DashboardOverviewPayload`.
  */
 export async function GET(req: NextRequest) {
-  const guard = await requireSession(req);
-  if ("response" in guard) return guard.response;
+  // Dashboard aggregate cho mọi user đã login — không ràng theo entity cụ thể.
+  const session = await getSession(req);
+  if (!session) return unauthorized();
 
   // 1) Thử đọc cache trước.
   const cached = await cacheGetJson<DashboardOverviewPayload>(CACHE_KEY);

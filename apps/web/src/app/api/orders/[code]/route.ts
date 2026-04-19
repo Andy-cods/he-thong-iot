@@ -11,7 +11,7 @@ import {
   parseJson,
 } from "@/server/http";
 import { writeAudit, diffObjects } from "@/server/services/audit";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,7 +24,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { code: string } },
 ) {
-  const guard = await requireSession(req);
+  const guard = await requireCan(req, "read", "salesOrder");
   if ("response" in guard) return guard.response;
 
   const row = await getOrderByCode(params.code);
@@ -37,7 +37,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { code: string } },
 ) {
-  const guard = await requireSession(req);
+  const guard = await requireCan(req, "update", "salesOrder");
   if ("response" in guard) return guard.response;
 
   const before = await getOrderByCode(params.code);

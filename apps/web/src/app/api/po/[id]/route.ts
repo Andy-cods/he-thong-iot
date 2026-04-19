@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { jsonError } from "@/server/http";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -94,7 +94,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireSession(req, "warehouse", "planner");
+  const guard = await requireCan(req, "read", "po");
   if ("response" in guard) return guard.response;
 
   const id = params.id.toLowerCase();

@@ -3,13 +3,13 @@ import { auditListQuerySchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import { listAudit } from "@/server/repos/auditEvents";
 import { jsonError, parseSearchParams } from "@/server/http";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  const guard = await requireSession(req, "admin");
+  const guard = await requireCan(req, "read", "audit");
   if ("response" in guard) return guard.response;
 
   // Cast schema — auditListQuerySchema dùng ZodEffects (transform from/to → Date)

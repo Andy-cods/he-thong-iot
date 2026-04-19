@@ -1,4 +1,5 @@
-import type { Role } from "@iot/shared";
+import type { RbacAction, RbacEntity, Role } from "@iot/shared";
+import { can as rbacCan, canAny as rbacCanAny } from "@iot/shared";
 
 /**
  * Role guard helper — client-side usage (hooks, components).
@@ -22,6 +23,30 @@ export function hasRole(
 
 export function isAdmin(userRoles: Role[] | undefined | null): boolean {
   return hasRole(userRoles, "admin");
+}
+
+/**
+ * Client-side `useCan` — dùng trong component React để ẩn/hiện UI element.
+ * Thực ra chỉ là pure function (không hook state) — tên `use*` theo convention
+ * của V1.4 để phân biệt client context; không đăng ký hook Reactôi.
+ *
+ * @example
+ *   if (useCan(userRoles, "create", "item")) return <Button>Tạo SKU</Button>;
+ */
+export function useCan(
+  userRoles: Role[] | undefined | null,
+  action: RbacAction,
+  entity: RbacEntity,
+): boolean {
+  return rbacCan(userRoles ?? [], action, entity);
+}
+
+/** Shortcut: hiển thị nav entry nếu user có BẤT KỲ quyền nào trên entity. */
+export function useCanAny(
+  userRoles: Role[] | undefined | null,
+  entity: RbacEntity,
+): boolean {
+  return rbacCanAny(userRoles ?? [], entity);
 }
 
 /** Parse role string (e.g. "admin,planner") từ UserMenuUser.role field. */
