@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ResetPasswordDialog } from "@/components/admin/ResetPasswordDialog";
 import { UserForm, type UserFormState } from "@/components/admin/UserForm";
 import {
   useAuditList,
@@ -70,6 +71,7 @@ export default function AdminUserDetailPage({
 
   const [form, setForm] = React.useState<UserFormState | null>(null);
   const [deactivateOpen, setDeactivateOpen] = React.useState(false);
+  const [resetPwOpen, setResetPwOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (query.data?.data && !form) {
@@ -204,11 +206,11 @@ export default function AdminUserDetailPage({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem
-              disabled
-              onSelect={() => toast.info("Reset mật khẩu: sẽ có ở V1.2.")}
+              variant="danger"
+              onSelect={() => setResetPwOpen(true)}
             >
               <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
-              Reset mật khẩu (V1.2)
+              Reset mật khẩu
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
@@ -340,6 +342,13 @@ export default function AdminUserDetailPage({
         actionLabel="Vô hiệu hoá"
         loading={deactivate.isPending}
         onConfirm={() => void handleDeactivate()}
+      />
+
+      <ResetPasswordDialog
+        open={resetPwOpen}
+        onOpenChange={setResetPwOpen}
+        userId={user.id}
+        username={user.username}
       />
     </div>
   );

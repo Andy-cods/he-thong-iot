@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { role, userAccount, userRole } from "@iot/db/schema/auth";
@@ -8,6 +8,12 @@ import { db } from "@/lib/db";
 import { AppShell } from "@/components/layout/AppShell";
 
 export const dynamic = "force-dynamic";
+
+/** Path user bị must_change_password vẫn được truy cập (để đổi mật khẩu). */
+const FORCE_CHANGE_EXEMPT = [
+  "/admin/settings/force-change-password",
+  "/logout",
+];
 
 /**
  * Direction B — `(app)` layout.
@@ -35,12 +41,23 @@ export default async function AppLayout({
       id: userAccount.id,
       username: userAccount.username,
       fullName: userAccount.fullName,
+      mustChangePassword: userAccount.mustChangePassword,
     })
     .from(userAccount)
     .where(eq(userAccount.id, payload.sub))
     .limit(1);
 
   if (!userRow) redirect("/login");
+
+  // V1.4 — nếu admin đã reset password, user phải đổi trước khi dùng tiếp.
+  // Middleware đã forward x-pathname header để RSC đọc được current path.
+  const currentPath = headers().get("x-pathname") ?? "";
+  if (
+    userRow.mustChangePassword &&
+    !FORCE_CHANGE_EXEMPT.some((p) => currentPath.startsWith(p))
+  ) {
+    redirect("/admin/settings/force-change-password");
+  }
 
   const roles = await db
     .select({ code: role.code })

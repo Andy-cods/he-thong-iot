@@ -268,7 +268,14 @@ export async function changePassword(
   const newHash = await hashPassword(newPassword);
   await db
     .update(userAccount)
-    .set({ passwordHash: newHash, updatedAt: new Date() })
+    .set({
+      passwordHash: newHash,
+      // V1.4: clear must_change_password flag khi user đổi xong
+      mustChangePassword: false,
+      passwordResetTokenHash: null,
+      passwordResetExpiresAt: null,
+      updatedAt: new Date(),
+    })
     .where(eq(userAccount.id, userId));
   return { ok: true };
 }

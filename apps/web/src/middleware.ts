@@ -17,6 +17,19 @@ const PROTECTED_PREFIXES = [
   "/suppliers",
   "/imports",
   "/pwa",
+  "/admin",
+  "/bom",
+  "/orders",
+  "/work-orders",
+  "/eco",
+  "/po",
+  "/purchase-requests",
+  "/purchase-orders",
+  "/receiving",
+  "/reservations",
+  "/qc-checks",
+  "/lot-serial",
+  "/shortage",
 ];
 
 function isProtected(pathname: string): boolean {
@@ -27,8 +40,13 @@ function isProtected(pathname: string): boolean {
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  // Forward pathname qua header để RSC layout đọc được (dùng cho
+  // check must_change_password + sidebar active state).
+  const forwardHeaders = new Headers(req.headers);
+  forwardHeaders.set("x-pathname", pathname);
+
   if (!isProtected(pathname)) {
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: forwardHeaders } });
   }
 
   const token = req.cookies.get(AUTH_COOKIE_NAME)?.value;
@@ -49,7 +67,7 @@ export async function middleware(req: NextRequest) {
     return res;
   }
 
-  return NextResponse.next();
+  return NextResponse.next({ request: { headers: forwardHeaders } });
 }
 
 function redirectToLogin(req: NextRequest) {
@@ -67,5 +85,18 @@ export const config = {
     "/suppliers/:path*",
     "/imports/:path*",
     "/pwa/:path*",
+    "/admin/:path*",
+    "/bom/:path*",
+    "/orders/:path*",
+    "/work-orders/:path*",
+    "/eco/:path*",
+    "/po/:path*",
+    "/purchase-requests/:path*",
+    "/purchase-orders/:path*",
+    "/receiving/:path*",
+    "/reservations/:path*",
+    "/qc-checks/:path*",
+    "/lot-serial/:path*",
+    "/shortage/:path*",
   ],
 };
