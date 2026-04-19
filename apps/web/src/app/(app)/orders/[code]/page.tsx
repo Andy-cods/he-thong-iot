@@ -63,6 +63,7 @@ import {
   useSnapshotSummary,
   type SnapshotLineRow,
 } from "@/hooks/useSnapshots";
+import { useReserveLine } from "@/hooks/useReservations";
 import { useSession } from "@/hooks/useSession";
 import {
   useCloseOrder,
@@ -144,6 +145,42 @@ export default function OrderDetailPage({
   const snapshotRows = snapshotLinesQuery.data?.data ?? [];
   const snapshotSummary = snapshotSummaryQuery.data?.data;
   const snapshotTotal = snapshotSummary?.total ?? 0;
+
+  // V1.3 Reservation handler
+  const reserveMut = useReserveLine();
+  const handleReserve = React.useCallback(
+    async (row: SnapshotLineRow) => {
+      const remaining =
+        Number(row.grossRequiredQty) - Number(row.reservedQty);
+      if (remaining <= 0) {
+        toast.info("Line đã reserve đủ.");
+        return;
+      }
+      try {
+        const res = await reserveMut.mutateAsync({
+          snapshotLineId: row.id,
+          qty: remaining,
+        });
+        const lotLabel =
+          res.data.lotCode ?? res.data.serialCode ?? res.data.lotId.slice(0, 8);
+        toast.success(
+          `Đã reserve ${res.data.reservedQty} @ lot ${lotLabel} (${res.data.reason})`,
+        );
+      } catch (err) {
+        const e = err as Error & { code?: string };
+        if (e.code === "ITEM_LOCKED_TRY_AGAIN") {
+          toast.error("Item đang bị lock. Thử lại sau vài giây.");
+        } else if (e.code === "NO_AVAILABLE_LOT") {
+          toast.error("Không có lot AVAILABLE đủ qty.");
+        } else if (e.code === "INSUFFICIENT_STOCK") {
+          toast.error(e.message);
+        } else {
+          toast.error(e.message);
+        }
+      }
+    },
+    [reserveMut],
+  );
 
   if (query.isLoading) {
     return (
@@ -385,6 +422,7 @@ export default function OrderDetailPage({
                     rows={snapshotRows}
                     loading={snapshotLinesQuery.isLoading}
                     onTransition={(r) => setTransitionRow(r)}
+                    onReserve={handleReserve}
                   />
                 </div>
               </div>

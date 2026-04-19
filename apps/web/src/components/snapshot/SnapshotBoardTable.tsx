@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ArrowRightLeft, MoreHorizontal, Search } from "lucide-react";
+import { ArrowRightLeft, MoreHorizontal, PackageOpen, Search } from "lucide-react";
 import {
   BOM_SNAPSHOT_STATES,
   BOM_SNAPSHOT_STATE_LABELS,
@@ -41,6 +41,8 @@ export interface SnapshotBoardTableProps {
   loading?: boolean;
   onTransition: (row: SnapshotLineRow) => void;
   onRowClick?: (row: SnapshotLineRow) => void;
+  /** V1.3 — Reserve inline cho line state=AVAILABLE có qc_pass_qty > 0. */
+  onReserve?: (row: SnapshotLineRow) => void;
 }
 
 export function SnapshotBoardTable({
@@ -48,6 +50,7 @@ export function SnapshotBoardTable({
   loading,
   onTransition,
   onRowClick,
+  onReserve,
 }: SnapshotBoardTableProps) {
   const parentRef = React.useRef<HTMLDivElement>(null);
   const rowHeight = 36;
@@ -167,6 +170,7 @@ export function SnapshotBoardTable({
                   gridCols={gridCols}
                   onTransition={onTransition}
                   onRowClick={onRowClick}
+                  onReserve={onReserve}
                 />
               </div>
             );
@@ -181,6 +185,7 @@ export function SnapshotBoardTable({
               gridCols={gridCols}
               onTransition={onTransition}
               onRowClick={onRowClick}
+              onReserve={onReserve}
             />
           ))}
         </div>
@@ -194,11 +199,13 @@ function SnapshotBoardRow({
   gridCols,
   onTransition,
   onRowClick,
+  onReserve,
 }: {
   row: SnapshotLineRow;
   gridCols: string;
   onTransition: (r: SnapshotLineRow) => void;
   onRowClick?: (r: SnapshotLineRow) => void;
+  onReserve?: (r: SnapshotLineRow) => void;
 }) {
   const short = Number.parseFloat(row.remainingShortQty ?? "0");
   const isShort = short > 0;
@@ -256,9 +263,22 @@ function SnapshotBoardRow({
         <StateMachineBadge state={row.state} size="sm" />
       </div>
       <div
-        className="flex items-center justify-center"
+        className="flex items-center justify-center gap-1"
         onClick={(e) => e.stopPropagation()}
       >
+        {onReserve &&
+          row.state === "AVAILABLE" &&
+          Number(row.qcPassQty) > 0 && (
+            <button
+              type="button"
+              onClick={() => onReserve(row)}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-indigo-600 transition-colors hover:bg-indigo-50 hover:text-indigo-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
+              aria-label={`Reserve ${row.componentSku}`}
+              title="Reserve (FIFO/FEFO)"
+            >
+              <PackageOpen className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          )}
         <button
           type="button"
           onClick={() => onTransition(row)}
