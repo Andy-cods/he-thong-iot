@@ -122,8 +122,50 @@ export default function AdminAuditPage() {
     enabled: virtualize,
   });
 
-  const handleExport = () => {
-    toast.info("Xuất CSV: sẽ có ở V1.2.");
+  const [exporting, setExporting] = React.useState(false);
+
+  const handleExport = async () => {
+    if (exporting) return;
+    setExporting(true);
+    const p = new URLSearchParams();
+    if (urlState.q) p.set("q", urlState.q);
+    if (urlState.userQ) p.set("actorUsername", urlState.userQ);
+    if (fromIso) p.set("from", fromIso);
+    if (toIso) p.set("to", toIso);
+    for (const e of urlState.entity) p.append("entity", e);
+    for (const a of urlState.action) p.append("action", a);
+    try {
+      const res = await fetch(`/api/admin/audit/export?${p.toString()}`, {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        toast.error(`Xuất Excel thất bại (HTTP ${res.status})`);
+        return;
+      }
+      const truncated = res.headers.get("X-Export-Truncated");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `audit-${Date.now()}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      if (truncated) {
+        toast.warning(
+          `Kết quả quá lớn, đã cắt còn ${truncated} dòng. Thu hẹp bộ lọc để xuất đủ.`,
+        );
+      } else {
+        toast.success("Đã xuất Excel audit log.");
+      }
+    } catch (err) {
+      toast.error(
+        `Lỗi xuất Excel: ${err instanceof Error ? err.message : "unknown"}`,
+      );
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -152,9 +194,14 @@ export default function AdminAuditPage() {
             {total.toLocaleString("vi-VN")} bản ghi
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={handleExport}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExport}
+          disabled={exporting}
+        >
           <Download className="h-3.5 w-3.5" aria-hidden="true" />
-          Xuất CSV (V1.2)
+          {exporting ? "Đang xuất…" : "Xuất Excel"}
         </Button>
       </header>
 
