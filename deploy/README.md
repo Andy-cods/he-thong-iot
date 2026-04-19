@@ -131,7 +131,59 @@ docker exec iot_postgres pg_dump -U hethong_app -Fc hethong_iot | gpg -c > backu
 - Telegram bot alert qua `scripts/health-check.sh`.
 - `pg_stat_statements` trong Postgres container (thêm vào `shared_preload_libraries` nếu cần).
 
-V1 **không** Prometheus/Grafana/Loki — bổ sung V1.1 nếu cần thêm metrics.
+## 7.1 Monitoring V1.4 — Grafana Cloud Free + OpenTelemetry
+
+Stack mới dùng OTLP push (không cần Prometheus scrape local). Free tier
+Grafana Cloud cho 10k metrics + 50GB log/tháng — dư cho MES 1 xưởng.
+
+**Setup step-by-step:**
+
+1. **Đăng ký Grafana Cloud Free** → https://grafana.com/auth/sign-up
+   - Chọn region gần nhất (EU Frankfurt hoặc SG nếu có).
+   - Tạo stack tên `iot-mes-songchau`.
+
+2. **Lấy OTLP credential**
+   - Dashboard → Connections → OTLP (HTTP).
+   - Copy:
+     - `OTEL_EXPORTER_OTLP_ENDPOINT` (ví dụ `https://otlp-gateway-prod-eu-west-2.grafana.net/otlp`)
+     - `Instance ID` (số)
+     - Tạo API token loại "metrics:write + traces:write".
+   - Compose base64: `echo -n "${InstanceID}:${ApiKey}" | base64 -w0` → đây là giá trị cho `GRAFANA_CLOUD_TOKEN`.
+
+3. **Set ENV trên VPS**
+   ```bash
+   cd /opt/hethong-iot
+   cat >> .env <<'EOF'
+   OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp-gateway-prod-eu-west-2.grafana.net/otlp
+   OTEL_SERVICE_NAME=iot-web
+   EOF
+   echo -n "${InstanceID}:${ApiKey}" | base64 -w0 | sudo tee secrets/grafana_cloud_token.txt
+   sudo chmod 600 secrets/grafana_cloud_token.txt
+   ```
+
+4. **Restart app + worker**
+   ```bash
+   sudo docker compose --env-file .env up -d --force-recreate web worker
+   sudo docker compose logs web | grep telemetry
+   # Kỳ vọng: [telemetry] OTLP SDK started → https://otlp-gateway-...
+   ```
+
+5. **Import dashboard**
+   - Grafana UI → Dashboards → New → Import.
+   - Upload `deploy/grafana-dashboards/iot-web.json`.
+   - Chọn Prometheus datasource `grafanacloud-prom` (auto-provision).
+   - 7 panel: request rate, p95 latency, error rate, DB p95, login failures, queue depth, BOM explode p95.
+
+6. **Cài alert rules**
+   - Grafana UI → Alerting → Alert rules → Import.
+   - Upload `deploy/grafana-alerts.yml` (3 rule: p95>1s 5m, error>5% 5m, queue>100 10m).
+   - Contact point: tạo Telegram bot (reuse `TELEGRAM_BOT_TOKEN`) → route mọi severity tới cùng chat.
+
+7. **Verify data flow**
+   - Sau 1-2 phút → Explore → query `http_server_request_duration_seconds_count{service_name="iot-web"}` → thấy series.
+   - Force 401: `curl -X POST http://127.0.0.1:8443/api/auth/login -d '{"username":"x","password":"x"}' -H 'content-type: application/json'` → panel "Login failures" tăng.
+
+**Disable telemetry:** remove `OTEL_EXPORTER_OTLP_ENDPOINT` trong `.env` → SDK skip init (log warn), không crash app.
 
 ## 8. Cảnh báo bảo mật chưa có domain
 

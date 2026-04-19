@@ -1,0 +1,103 @@
+# =============================================================
+# Grafana Cloud Alerting rules — V1.4 Phase E
+# Import: Grafana UI → Alerting → Alert rules → Import from file,
+# hoặc dùng terraform grafana_rule_group resource.
+# =============================================================
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: iot-web-critical
+    folder: IoT
+    interval: 1m
+    rules:
+      - uid: iot-http-p95-high
+        title: HTTP p95 latency > 1s (5m sustained)
+        condition: C
+        for: 5m
+        data:
+          - refId: A
+            datasourceUid: grafanacloud-prom
+            model:
+              expr: |
+                histogram_quantile(
+                  0.95,
+                  sum by (le, http_route) (
+                    rate(http_server_request_duration_seconds_bucket{service_name="iot-web"}[5m])
+                  )
+                )
+              intervalMs: 1000
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [1.0] }
+              refId: C
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "HTTP p95 {{ $labels.http_route }} đang {{ $value | humanizeDuration }} — ngưỡng 1s"
+          runbook: "Check slow query trong dashboard IoT-Web panel DB p95"
+
+      - uid: iot-error-rate-high
+        title: Error rate > 5% (5m sustained)
+        condition: C
+        for: 5m
+        data:
+          - refId: A
+            datasourceUid: grafanacloud-prom
+            model:
+              expr: |
+                100 * sum(rate(iot_api_error_total{service_name="iot-web"}[5m]))
+                /
+                sum(rate(http_server_request_duration_seconds_count{service_name="iot-web"}[5m]))
+              intervalMs: 1000
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [5.0] }
+              refId: C
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "Error rate {{ $value }}% > 5% ngưỡng"
+          runbook: "Check logs app container + recent deploy log"
+
+      - uid: iot-queue-backlog
+        title: BullMQ queue backlog > 100 (10m sustained)
+        condition: C
+        for: 10m
+        data:
+          - refId: A
+            datasourceUid: grafanacloud-prom
+            model:
+              expr: |
+                iot_bullmq_queue_depth{service_name="iot-worker"}
+              intervalMs: 1000
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [100.0] }
+              refId: C
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "Queue {{ $labels.queue }} backlog {{ $value }} jobs > 100"
+          runbook: "Check worker container status + scale concurrency"
+
+# Contact point + notification policy (phải set qua Grafana UI hoặc terraform):
+# - Contact point: Telegram bot `iot-alerts` (token + chat id dùng chung health-check.sh)
+# - Notification policy: route severity=critical → Telegram + email, warning → Telegram only

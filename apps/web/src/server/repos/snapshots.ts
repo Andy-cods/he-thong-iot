@@ -3,6 +3,7 @@ import { bomSnapshotLine, bomRevision, bomTemplate } from "@iot/db/schema";
 import type { BomSnapshotLine, BomSnapshotLineState } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { bomExplodeHistogram } from "@/lib/metrics";
 
 /**
  * Repository cho bom_snapshot_line — kết quả explode recursive CTE của 1
@@ -298,6 +299,9 @@ export async function explodeSnapshot(
     }
 
     const durationMs = Date.now() - startedAt;
+    bomExplodeHistogram.record(durationMs / 1000, {
+      lines_bucket: toInsert.length < 100 ? "small" : toInsert.length < 1000 ? "medium" : "large",
+    });
     logger.info(
       {
         orderId: input.orderId,

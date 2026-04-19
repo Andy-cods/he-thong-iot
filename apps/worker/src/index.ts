@@ -1,7 +1,15 @@
-import { Worker, type Job } from "bullmq";
+import { Queue, Worker, type Job } from "bullmq";
 import IORedis from "ioredis";
 import pino from "pino";
 import { QUEUE_NAMES } from "@iot/shared";
+import {
+  registerQueueDepthGauge,
+  startWorkerTelemetry,
+} from "./telemetry.js";
+
+// Start OTel SDK trước khi khởi tạo Worker để auto-instrumentation (pg,
+// ioredis) catch được span gốc. Nếu ENV chưa set, hàm return ngay.
+await startWorkerTelemetry();
 import {
   processItemImportCommit,
   type ItemImportCommitJob,
@@ -136,6 +144,28 @@ for (const w of [
   );
 }
 
+// V1.4 Phase E: Queue read-only handle cho observability (getJobCounts).
+// Worker instance không expose getJobCounts trực tiếp → phải dùng Queue.
+const metricQueues = {
+  [QUEUE_NAMES.ITEM_IMPORT_COMMIT]: new Queue(
+    QUEUE_NAMES.ITEM_IMPORT_COMMIT,
+    { connection, prefix },
+  ),
+  [QUEUE_NAMES.BOM_IMPORT_COMMIT]: new Queue(
+    QUEUE_NAMES.BOM_IMPORT_COMMIT,
+    { connection, prefix },
+  ),
+  [QUEUE_NAMES.ASSEMBLY_SCAN_SYNC]: new Queue(
+    QUEUE_NAMES.ASSEMBLY_SCAN_SYNC,
+    { connection, prefix },
+  ),
+  [QUEUE_NAMES.ECO_APPLY_BATCH]: new Queue(
+    QUEUE_NAMES.ECO_APPLY_BATCH,
+    { connection, prefix },
+  ),
+};
+registerQueueDepthGauge(metricQueues);
+
 const shutdown = async (signal: string) => {
   logger.info({ signal }, "shutting down worker");
   await Promise.all([
@@ -143,6 +173,7 @@ const shutdown = async (signal: string) => {
     bomImportCommitWorker.close(),
     assemblyScanWorker.close(),
     ecoApplyBatchWorker.close(),
+    ...Object.values(metricQueues).map((q) => q.close()),
   ]);
   await connection.quit();
   process.exit(0);

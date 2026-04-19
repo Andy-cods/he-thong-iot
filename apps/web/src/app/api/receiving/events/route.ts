@@ -15,6 +15,7 @@ import {
 import { writeAudit } from "@/server/services/audit";
 import { requireCan } from "@/server/session";
 import { db } from "@/lib/db";
+import { receivingScanCounter } from "@/lib/metrics";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -124,6 +125,11 @@ export async function POST(req: NextRequest) {
         lotStatus: posted.lotStatus,
         overDelivery: posted.overDelivery,
         warning: posted.overDelivery ? "Qty nhận > 105% ordered" : null,
+      });
+
+      receivingScanCounter.add(1, {
+        qc_status: e.qcStatus ?? "PENDING",
+        over_delivery: posted.overDelivery ? "true" : "false",
       });
 
       await writeAudit({

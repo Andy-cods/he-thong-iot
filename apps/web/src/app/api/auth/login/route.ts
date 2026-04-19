@@ -13,6 +13,7 @@ import {
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { apiErrorCounter, loginCounter } from "@/lib/metrics";
 import { extractRequestMeta, tooManyRequests } from "@/server/http";
 import { loginRateLimit } from "@/server/middlewares/rateLimit";
 
@@ -28,6 +29,7 @@ export async function POST(req: NextRequest) {
   // V1.4: rate limit IP 5/60s trước khi verify password (brute-force defense).
   const rl = await loginRateLimit(req);
   if (!rl.ok) {
+    loginCounter.add(1, { result: "rate_limited" });
     return tooManyRequests(
       rl.retryAfter,
       `Quá nhiều lần đăng nhập. Vui lòng thử lại sau ${rl.retryAfter}s.`,
@@ -79,10 +81,13 @@ export async function POST(req: NextRequest) {
       password,
       "$argon2id$v=19$m=19456,t=2,p=1$YWFhYWFhYWFhYWFhYWFhYQ$dummyhashdummyhashdummyhashdummy",
     );
+    loginCounter.add(1, { result: "invalid" });
+    apiErrorCounter.add(1, { route: "/api/auth/login", status: "401" });
     return invalid;
   }
 
   if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
+    loginCounter.add(1, { result: "locked" });
     return NextResponse.json(
       {
         error: {
@@ -102,6 +107,8 @@ export async function POST(req: NextRequest) {
         failedLoginCount: sql`(CAST(${userAccount.failedLoginCount} AS INTEGER) + 1)::text`,
       })
       .where(eq(userAccount.id, user.id));
+    loginCounter.add(1, { result: "invalid" });
+    apiErrorCounter.add(1, { route: "/api/auth/login", status: "401" });
     return invalid;
   }
 
@@ -150,6 +157,7 @@ export async function POST(req: NextRequest) {
     })
     .where(eq(userAccount.id, user.id));
 
+  loginCounter.add(1, { result: "success" });
   logger.info(
     { userId: user.id, username: user.username, roles: roleCodes },
     "user login",
