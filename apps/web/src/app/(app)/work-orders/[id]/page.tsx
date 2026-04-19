@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   ChevronLeft,
   Factory,
@@ -10,6 +11,7 @@ import {
   CheckCircle2,
   XCircle,
   RefreshCw,
+  Smartphone,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -209,6 +211,14 @@ export default function WorkOrderDetailPage() {
             >
               <RefreshCw className="h-3.5 w-3.5" />
               Tiếp tục
+            </Button>
+          )}
+          {wo.status === "IN_PROGRESS" && (
+            <Button asChild size="sm" variant="secondary">
+              <Link href={`/pwa/assembly/${wo.id}`}>
+                <Smartphone className="h-3.5 w-3.5" />
+                Mở PWA scan
+              </Link>
             </Button>
           )}
           {wo.status === "IN_PROGRESS" && canComplete && (

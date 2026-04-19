@@ -42,14 +42,46 @@ export interface ScanEvent {
   syncedAt: number | null;
 }
 
+/**
+ * V1.3 Phase B3 — Assembly scan offline queue.
+ * Mỗi event = 1 lần operator scan 1 component lot cho 1 WO line.
+ * Idempotency key: `id` = UUIDv7 client-generated → server trả idempotent.
+ */
+export interface AssemblyScanQueueEvent {
+  /** UUIDv7. Primary key + idempotency. */
+  id: string;
+  /** WO id. Index. */
+  woId: string;
+  /** snapshot_line_id — component line đang scan. */
+  snapshotLineId: string;
+  /** lot_serial_id được chọn (đã reserve). */
+  lotSerialId: string;
+  /** Mã lô hiển thị (lot_code hoặc serial_code) cho audit. */
+  barcode: string;
+  qty: number;
+  status: ScanStatus;
+  retryCount: number;
+  lastError: string | null;
+  createdAt: number;
+  syncedAt: number | null;
+  deviceId: string | null;
+}
+
 class IoTPwaDB extends Dexie {
   scanQueue!: Table<ScanEvent, string>;
+  assemblyQueue!: Table<AssemblyScanQueueEvent, string>;
 
   constructor() {
     super("iot-pwa");
     this.version(1).stores({
       // Primary key `id`, index `poId + createdAt` và `status` cho badge count.
       scanQueue: "id, poId, createdAt, status, [poId+status]",
+    });
+    // v2: thêm assemblyQueue cho Phase B3 offline scan assembly.
+    this.version(2).stores({
+      scanQueue: "id, poId, createdAt, status, [poId+status]",
+      assemblyQueue:
+        "id, woId, createdAt, status, [woId+status], snapshotLineId, lotSerialId",
     });
   }
 }
@@ -81,6 +113,26 @@ export async function countPendingScans(poId?: string): Promise<number> {
       .count();
   }
   return db.scanQueue
+    .where("status")
+    .anyOf(["pending", "failed"])
+    .count();
+}
+
+/** Helper — đếm events assembly pending/failed của 1 WO (hoặc tất cả). */
+export async function countPendingAssemblyScans(
+  woId?: string,
+): Promise<number> {
+  const db = getDB();
+  if (woId) {
+    return db.assemblyQueue
+      .where("[woId+status]")
+      .anyOf([
+        [woId, "pending"],
+        [woId, "failed"],
+      ])
+      .count();
+  }
+  return db.assemblyQueue
     .where("status")
     .anyOf(["pending", "failed"])
     .count();
