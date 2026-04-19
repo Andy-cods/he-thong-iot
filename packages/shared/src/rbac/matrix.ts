@@ -32,7 +32,8 @@ export type RbacEntity =
   | "reservation"
   | "eco"
   | "audit"
-  | "user";
+  | "user"
+  | "session";
 
 /** Partial vì không phải role nào cũng có action trên mọi entity. */
 type Matrix = Record<Role, Partial<Record<RbacEntity, RbacAction[]>>>;
@@ -62,6 +63,7 @@ export const RBAC_MATRIX: Matrix = {
     eco: ["create", "read", "update", "delete", "approve"],
     audit: ["read"],
     user: ["create", "read", "update", "delete"],
+    session: ["read", "delete"],
   },
   planner: {
     item: ["create", "read", "update"],
@@ -77,6 +79,7 @@ export const RBAC_MATRIX: Matrix = {
     eco: ["create", "read", "update", "approve"],
     audit: ["read"],
     user: ["read"],
+    session: ["read"],
   },
   operator: {
     item: ["read"],
@@ -91,6 +94,7 @@ export const RBAC_MATRIX: Matrix = {
     eco: ["read"],
     audit: ["read"],
     user: ["read"],
+    session: ["read"],
   },
   warehouse: {
     item: ["read"],
@@ -106,6 +110,7 @@ export const RBAC_MATRIX: Matrix = {
     eco: ["read"],
     audit: ["read"],
     user: ["read"],
+    session: ["read"],
   },
 };
 
@@ -124,6 +129,7 @@ export const RBAC_ENTITIES: RbacEntity[] = [
   "eco",
   "audit",
   "user",
+  "session",
 ];
 
 export const RBAC_ACTIONS: RbacAction[] = [

@@ -14,6 +14,8 @@ export interface JwtPayload {
   iat: number;
   /** Expires at (seconds since epoch). */
   exp: number;
+  /** V1.4: session row id để revoke / list. Optional cho JWT cũ. */
+  sid?: string;
 }
 
 /** Session context mà mọi handler auth-protected nhận. */

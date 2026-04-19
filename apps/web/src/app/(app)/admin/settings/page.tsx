@@ -95,18 +95,24 @@ export default function AdminSettingsPage() {
               Phiên đăng nhập
             </h2>
             <p className="text-xs text-zinc-500">
-              Quản lý các phiên đang hoạt động (V1.2).
+              Xem các thiết bị đang đăng nhập, thu hồi phiên khi cần.
             </p>
           </header>
           <div className="space-y-3">
             <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs">
               <p className="font-medium text-zinc-700">Phiên hiện tại</p>
               <p className="mt-0.5 font-mono text-[11px] text-zinc-500">
-                JWT HttpOnly cookie · {typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 60) : "—"}…
+                JWT HttpOnly cookie ·{" "}
+                {typeof navigator !== "undefined"
+                  ? navigator.userAgent.slice(0, 60)
+                  : "—"}
+                …
               </p>
             </div>
-            <Button variant="outline" size="sm" disabled>
-              Đăng xuất mọi thiết bị (V1.2)
+            <Button asChild variant="outline" size="sm">
+              <Link href="/admin/settings/sessions">
+                Quản lý phiên đăng nhập
+              </Link>
             </Button>
           </div>
         </section>

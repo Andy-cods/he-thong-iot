@@ -37,6 +37,14 @@ export const userAccount = appSchema.table(
       .default("0"),
     lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
     isActive: boolean("is_active").notNull().default(true),
+    // V1.4 — Admin reset password + self-reset stub
+    mustChangePassword: boolean("must_change_password")
+      .notNull()
+      .default(false),
+    passwordResetTokenHash: text("password_reset_token_hash"),
+    passwordResetExpiresAt: timestamp("password_reset_expires_at", {
+      withTimezone: true,
+    }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -106,6 +114,8 @@ export const session = appSchema.table(
       .default(sql`now()`),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    // V1.4 — hiển thị "Last seen" trong session mgmt UI
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
     replacedBySessionId: uuid("replaced_by_session_id"),
   },
   (t) => ({

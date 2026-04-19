@@ -12,6 +12,8 @@ export interface Session {
   userId: string;
   username: string;
   roles: Role[];
+  /** V1.4: session row id từ JWT sid. Null nếu JWT cũ (pre-V1.4). */
+  sessionId: string | null;
 }
 
 export async function getSession(req: NextRequest): Promise<Session | null> {
@@ -23,6 +25,7 @@ export async function getSession(req: NextRequest): Promise<Session | null> {
     userId: payload.sub,
     username: payload.usr,
     roles: payload.roles ?? [],
+    sessionId: payload.sid ?? null,
   };
 }
 

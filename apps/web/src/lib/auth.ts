@@ -35,6 +35,8 @@ export interface SignAccessTokenInput {
   sub: string;
   username: string;
   roles: Role[];
+  /** V1.4: session row id để revoke / list active sessions. */
+  sid?: string;
 }
 
 export async function signAccessToken(
@@ -43,6 +45,7 @@ export async function signAccessToken(
   return await new SignJWT({
     usr: input.username,
     roles: input.roles,
+    ...(input.sid ? { sid: input.sid } : {}),
   })
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setSubject(input.sub)

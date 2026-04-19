@@ -1,7 +1,8 @@
+import crypto from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { role, userAccount, userRole } from "@iot/db/schema/auth";
+import { role, session, userAccount, userRole } from "@iot/db/schema/auth";
 import type { Role } from "@iot/shared";
 import {
   AUTH_COOKIE_NAME,
@@ -12,6 +13,7 @@ import {
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { extractRequestMeta } from "@/server/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -102,10 +104,32 @@ export async function POST(req: NextRequest) {
 
   const roleCodes = roles.map((r) => r.code) as Role[];
 
+  // V1.4: tạo session row để hỗ trợ revoke + list active sessions.
+  // refresh_token_hash tạm dùng random 32 bytes (chưa phát refresh token
+  // thật — V1.4 giữ JWT-only, chỉ cần unique value để NOT NULL). V1.5+
+  // sẽ chuyển sang refresh token thật.
+  const meta = extractRequestMeta(req);
+  const refreshTokenHash = crypto.randomBytes(32).toString("hex");
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + env.JWT_ACCESS_TTL * 1000);
+  const [sessionRow] = await db
+    .insert(session)
+    .values({
+      userId: user.id,
+      refreshTokenHash,
+      userAgent: meta.userAgent,
+      ipAddress: meta.ipAddress,
+      issuedAt: now,
+      expiresAt,
+      lastSeenAt: now,
+    })
+    .returning({ id: session.id });
+
   const token = await signAccessToken({
     sub: user.id,
     username: user.username,
     roles: roleCodes,
+    sid: sessionRow?.id,
   });
 
   await db
