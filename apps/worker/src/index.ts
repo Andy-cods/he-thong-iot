@@ -10,6 +10,10 @@ import {
   processBomImportCommit,
   type BomImportCommitJob,
 } from "./jobs/bomImport.js";
+import {
+  processEcoApplyBatch,
+  type EcoApplyBatchJob,
+} from "./jobs/ecoApply.js";
 
 const logger = pino({
   level: process.env.LOG_LEVEL ?? "info",
@@ -95,10 +99,33 @@ const assemblyScanWorker = new Worker<AssemblyScanSyncJob>(
   },
 );
 
+const ecoApplyBatchWorker = new Worker<EcoApplyBatchJob>(
+  QUEUE_NAMES.ECO_APPLY_BATCH,
+  async (job) => {
+    logger.info(
+      { jobId: job.id, ecoId: job.data.ecoId },
+      "eco-apply-batch: start",
+    );
+    const res = await processEcoApplyBatch(job);
+    logger.info(
+      { jobId: job.id, ecoId: job.data.ecoId, res },
+      "eco-apply-batch: done",
+    );
+    return res;
+  },
+  {
+    connection,
+    prefix,
+    concurrency: 1,
+    lockDuration: 120_000,
+  },
+);
+
 for (const w of [
   itemImportCommitWorker,
   bomImportCommitWorker,
   assemblyScanWorker,
+  ecoApplyBatchWorker,
 ]) {
   w.on("ready", () => logger.info({ queue: w.name }, "worker ready"));
   w.on("failed", (job, err) =>
@@ -115,6 +142,7 @@ const shutdown = async (signal: string) => {
     itemImportCommitWorker.close(),
     bomImportCommitWorker.close(),
     assemblyScanWorker.close(),
+    ecoApplyBatchWorker.close(),
   ]);
   await connection.quit();
   process.exit(0);
@@ -129,6 +157,7 @@ logger.info(
       QUEUE_NAMES.ITEM_IMPORT_COMMIT,
       QUEUE_NAMES.BOM_IMPORT_COMMIT,
       QUEUE_NAMES.ASSEMBLY_SCAN_SYNC,
+      QUEUE_NAMES.ECO_APPLY_BATCH,
     ],
     prefix,
   },

@@ -4,6 +4,7 @@ import {
   ClipboardList,
   Factory,
   FileSpreadsheet,
+  GitBranch,
   LayoutDashboard,
   Network,
   Package,
@@ -88,6 +89,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Work Orders",
     icon: Factory,
     roles: ["admin", "planner", "operator"],
+  },
+  {
+    href: "/eco",
+    label: "ECO",
+    icon: GitBranch,
+    roles: ["admin", "planner"],
   },
   {
     href: "/bom/import",

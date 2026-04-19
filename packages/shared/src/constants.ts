@@ -107,6 +107,7 @@ export const QUEUE_NAMES = {
   ITEM_IMPORT_COMMIT: "item-import-commit",
   BOM_IMPORT_COMMIT: "bom-import-commit",
   ASSEMBLY_SCAN_SYNC: "assembly-scan-sync",
+  ECO_APPLY_BATCH: "eco-apply-batch",
 } as const;
 
 /**

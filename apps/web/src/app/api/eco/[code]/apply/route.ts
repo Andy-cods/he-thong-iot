@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import IORedis from "ioredis";
 import { Queue } from "bullmq";
+import { QUEUE_NAMES } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import {
   EcoError,
@@ -14,7 +15,6 @@ import { requireSession } from "@/server/session";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const QUEUE_NAME = "eco-apply-batch";
 let _queue: Queue | null = null;
 function getQueue(): Queue {
   if (_queue) return _queue;
@@ -24,7 +24,7 @@ function getQueue(): Queue {
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
   });
-  _queue = new Queue(QUEUE_NAME, { connection, prefix });
+  _queue = new Queue(QUEUE_NAMES.ECO_APPLY_BATCH, { connection, prefix });
   return _queue;
 }
 
@@ -45,7 +45,7 @@ export async function POST(
     if (!eco.syncMode && eco.affectedOrdersCount > 0) {
       try {
         const job = await getQueue().add(
-          QUEUE_NAME,
+          QUEUE_NAMES.ECO_APPLY_BATCH,
           {
             ecoId: eco.id,
             ecoCode: eco.code,
