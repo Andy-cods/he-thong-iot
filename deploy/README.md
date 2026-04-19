@@ -287,6 +287,56 @@ zcat /tmp/restore.sql.gz | docker exec -i iot_postgres psql -U hethong_app -d he
 docker compose up -d
 ```
 
+## 7.3 Load testing V1.4 — k6 100 VU × 5 endpoint
+
+File: `tests/load/v1.4-load.js` + workflow `.github/workflows/load-test.yml`.
+
+**Endpoint mix (tổng 100% iteration):**
+| % | Endpoint | Mục đích |
+|---|---|---|
+| 40% | GET /api/items?q=bu&pageSize=50 | trigger pg_trgm index |
+| 20% | GET /api/bom/templates | list + paginate |
+| 20% | GET /api/orders | list + paginate |
+| 10% | GET /api/dashboard/overview | aggregate query |
+| 10% | POST /api/auth/login | stress argon2 |
+
+**Thresholds (pass/fail CI):**
+- Global `http_req_duration p(95) < 500ms` (GET heavy)
+- `http_req_duration{endpoint:login} p(95) < 1500ms` (argon2 19_456KB memory)
+- `http_req_failed rate < 1%` + custom `errors rate < 1%`
+
+**Chạy manual local:**
+```bash
+# 1. Seed 100 user (argon2 hash thật)
+LOAD_TEST_PASSWORD=Loadtest!234 \
+DATABASE_URL=postgres://hethong_app:changeme@localhost:5432/hethong_iot \
+pnpm tsx tests/load/setup-test-users.ts
+
+# 2. Chạy k6
+LOAD_TEST_URL=http://localhost:3001 \
+LOAD_TEST_PASSWORD=Loadtest!234 \
+k6 run tests/load/v1.4-load.js
+```
+
+**Chạy qua GitHub Actions:**
+- Thiết lập secret:
+  - `LOAD_TEST_URL` = https://staging-iot.domain.vn (hoặc production URL nếu downtime ngoài giờ xưởng)
+  - `LOAD_TEST_DATABASE_URL` = DSN staging (cho seed step)
+  - `LOAD_TEST_PASSWORD` = `Loadtest!234`
+- Actions → "Load Test V1.4" → Run workflow → optional override target_url.
+- Auto chạy Chủ Nhật 04:00 UTC (11:00 VN).
+- Output: artifact `load-test-<run_id>` chứa `result.json` (full metrics), `summary.json`, `k6-output.txt`, HTML report.
+
+**Đọc report:**
+- `checks: X/Y passed` → tỉ lệ check pass.
+- `http_req_duration p(95)` per endpoint tag.
+- Thresholds block cuối — nếu FAIL → CI fail job.
+- So sánh run mới vs baseline tuần trước → detect regression sau deploy.
+
+**Tránh DoS production:**
+- Rate limit login đã set 5 req/60s/IP (V1.4 Phase C) → k6 từ 1 CI runner IP sẽ bị rate limit → k6 401 không phải bug.
+- Workaround: chạy k6 từ nhiều IP (distributed k6) hoặc tắt rate limit staging.
+
 ## 8. Cảnh báo bảo mật chưa có domain
 
 Khi `APP_URL=http://103.56.158.129:8443`:
