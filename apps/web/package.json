@@ -50,6 +50,7 @@
     "pino": "^9.3.2",
     "postgres": "^3.4.4",
     "react": "18.3.1",
+    "react-diff-viewer-continued": "^4.2.0",
     "react-dom": "18.3.1",
     "react-dropzone": "^14.2.3",
     "react-hook-form": "^7.53.0",
