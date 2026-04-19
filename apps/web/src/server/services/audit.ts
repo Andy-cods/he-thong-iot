@@ -21,7 +21,17 @@ type AuditAction =
   | "ISSUE"
   | "RECEIVE"
   | "APPROVE"
-  | "CONVERT";
+  | "CONVERT"
+  // V1.3 additions
+  | "WO_START"
+  | "WO_PAUSE"
+  | "WO_RESUME"
+  | "WO_COMPLETE"
+  | "ECO_SUBMIT"
+  | "ECO_APPROVE"
+  | "ECO_APPLY"
+  | "ECO_REJECT"
+  | "QC_CHECK";
 
 export interface AuditInput {
   actor: Session | null;

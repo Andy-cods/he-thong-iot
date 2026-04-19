@@ -30,6 +30,16 @@ export const auditActionEnum = pgEnum("audit_action", [
   "RECEIVE",
   "APPROVE",
   "CONVERT",
+  // V1.3 additions (migration 0006a ALTER TYPE ADD VALUE)
+  "WO_START",
+  "WO_PAUSE",
+  "WO_RESUME",
+  "WO_COMPLETE",
+  "ECO_SUBMIT",
+  "ECO_APPROVE",
+  "ECO_APPLY",
+  "ECO_REJECT",
+  "QC_CHECK",
 ]);
 
 /** Bảng 19: audit_event */
