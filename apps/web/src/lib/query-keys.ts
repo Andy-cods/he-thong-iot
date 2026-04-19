@@ -130,7 +130,36 @@ export const qk = {
     history: (poCode: string) => ["receiving", "history", poCode] as const,
     lot: (id: string) => ["receiving", "lot", id] as const,
   },
+  workOrders: {
+    all: ["workOrders"] as const,
+    list: (filter: WorkOrderFilter) =>
+      ["workOrders", "list", filter] as const,
+    detail: (id: string) => ["workOrders", "detail", id] as const,
+    qcChecks: (id: string) => ["workOrders", "qc-checks", id] as const,
+  },
+  reservations: {
+    all: ["reservations"] as const,
+    bySnapshot: (snapshotLineId: string) =>
+      ["reservations", "by-snapshot", snapshotLineId] as const,
+    byWo: (woId: string) => ["reservations", "by-wo", woId] as const,
+  },
 } as const;
+
+export interface WorkOrderFilter {
+  q?: string;
+  status?: (
+    | "DRAFT"
+    | "QUEUED"
+    | "RELEASED"
+    | "IN_PROGRESS"
+    | "PAUSED"
+    | "COMPLETED"
+    | "CANCELLED"
+  )[];
+  orderId?: string;
+  page?: number;
+  pageSize?: number;
+}
 
 export interface OrderFilter {
   q?: string;

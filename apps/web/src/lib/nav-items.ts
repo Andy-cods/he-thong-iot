@@ -2,6 +2,7 @@ import {
   AlertCircle,
   Building2,
   ClipboardList,
+  Factory,
   FileSpreadsheet,
   LayoutDashboard,
   Network,
@@ -81,6 +82,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Thiếu hàng",
     icon: AlertCircle,
     roles: ["admin", "planner"],
+  },
+  {
+    href: "/work-orders",
+    label: "Work Orders",
+    icon: Factory,
+    roles: ["admin", "planner", "operator"],
   },
   {
     href: "/bom/import",
