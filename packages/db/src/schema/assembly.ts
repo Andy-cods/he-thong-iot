@@ -11,8 +11,11 @@ import {
 } from "drizzle-orm/pg-core";
 import { appSchema } from "./_schema";
 import { userAccount } from "./auth";
+import { inventoryLotSerial } from "./inventory";
 import { item, locationBin } from "./master";
 import { salesOrder, orderBomSnapshot } from "./order";
+import { workOrder } from "./production";
+import { reservation } from "./reservation";
 
 export const assemblyOrderStatusEnum = pgEnum("assembly_order_status", [
   "DRAFT",
@@ -45,6 +48,7 @@ export const assemblyOrder = appSchema.table(
       .notNull()
       .default("0"),
     status: assemblyOrderStatusEnum("status").notNull().default("DRAFT"),
+    woId: uuid("wo_id").references(() => workOrder.id),
     startedAt: timestamp("started_at", { withTimezone: true }),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     notes: text("notes"),
@@ -77,6 +81,9 @@ export const assemblyScan = appSchema.table(
     itemId: uuid("item_id").references(() => item.id),
     qty: numeric("qty", { precision: 18, scale: 4 }).notNull().default("1"),
     fromBinId: uuid("from_bin_id").references(() => locationBin.id),
+    woId: uuid("wo_id").references(() => workOrder.id),
+    lotSerialId: uuid("lot_serial_id").references(() => inventoryLotSerial.id),
+    reservationId: uuid("reservation_id").references(() => reservation.id),
     scannedAt: timestamp("scanned_at", { withTimezone: true }).notNull(),
     scannedBy: uuid("scanned_by").references(() => userAccount.id),
     deviceId: varchar("device_id", { length: 64 }),
