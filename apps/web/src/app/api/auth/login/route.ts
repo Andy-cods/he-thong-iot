@@ -13,7 +13,8 @@ import {
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
-import { extractRequestMeta } from "@/server/http";
+import { extractRequestMeta, tooManyRequests } from "@/server/http";
+import { loginRateLimit } from "@/server/middlewares/rateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,6 +25,15 @@ const LoginSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  // V1.4: rate limit IP 5/60s trước khi verify password (brute-force defense).
+  const rl = await loginRateLimit(req);
+  if (!rl.ok) {
+    return tooManyRequests(
+      rl.retryAfter,
+      `Quá nhiều lần đăng nhập. Vui lòng thử lại sau ${rl.retryAfter}s.`,
+    );
+  }
+
   const body = await req.json().catch(() => null);
   const parsed = LoginSchema.safeParse(body);
   if (!parsed.success) {

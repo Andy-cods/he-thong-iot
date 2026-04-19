@@ -77,3 +77,28 @@ export function jsonError(
     { status },
   );
 }
+
+/**
+ * Response 429 chuẩn V1.4 — Rate limited.
+ * Header Retry-After theo RFC 7231 (giây).
+ */
+export function tooManyRequests(retryAfter: number, message?: string) {
+  return NextResponse.json(
+    {
+      error: {
+        code: "RATE_LIMITED",
+        message:
+          message ??
+          `Quá nhiều yêu cầu. Vui lòng thử lại sau ${retryAfter}s.`,
+        details: { retryAfter },
+      },
+    },
+    {
+      status: 429,
+      headers: {
+        "Retry-After": String(retryAfter),
+        "X-RateLimit-Retry-After": String(retryAfter),
+      },
+    },
+  );
+}

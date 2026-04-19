@@ -7,6 +7,8 @@ import type {
 } from "@iot/shared";
 import { can } from "@iot/shared";
 import { AUTH_COOKIE_NAME, verifyAccessToken } from "@/lib/auth";
+import { apiBurstRateLimit } from "./middlewares/rateLimit";
+import { tooManyRequests } from "./http";
 
 export interface Session {
   userId: string;
@@ -66,6 +68,9 @@ export async function requireSession(
   req: NextRequest,
   ...roles: Role[]
 ): Promise<{ session: Session } | { response: NextResponse }> {
+  const burst = await apiBurstRateLimit(req);
+  if (!burst.ok) return { response: tooManyRequests(burst.retryAfter) };
+
   const session = await getSession(req);
   if (!session) return { response: unauthorized() };
   if (roles.length > 0 && !hasRole(session, ...roles)) {
@@ -77,6 +82,9 @@ export async function requireSession(
 /**
  * Guard chuẩn V1.4 — kiểm tra session + RBAC matrix (`can()`).
  *
+ * Cũng apply rate limit burst 60 req/60s per-IP ngay đầu pipeline để
+ * bảo vệ toàn bộ API authenticated. Rate limit fail-open khi Redis down.
+ *
  * @example
  *   const r = await requireCan(req, "create", "item");
  *   if ("response" in r) return r.response;
@@ -87,6 +95,9 @@ export async function requireCan(
   action: RbacAction,
   entity: RbacEntity,
 ): Promise<{ session: Session } | { response: NextResponse }> {
+  const burst = await apiBurstRateLimit(req);
+  if (!burst.ok) return { response: tooManyRequests(burst.retryAfter) };
+
   const session = await getSession(req);
   if (!session) return { response: unauthorized() };
   if (!can(session.roles, action, entity)) {

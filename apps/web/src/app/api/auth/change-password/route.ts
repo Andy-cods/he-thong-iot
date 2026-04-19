@@ -6,7 +6,9 @@ import {
   extractRequestMeta,
   jsonError,
   parseJson,
+  tooManyRequests,
 } from "@/server/http";
+import { changePasswordRateLimit } from "@/server/middlewares/rateLimit";
 import { writeAudit } from "@/server/services/audit";
 import { getSession, unauthorized } from "@/server/session";
 
@@ -18,6 +20,12 @@ export async function POST(req: NextRequest) {
   const session = await getSession(req);
   if (!session) return unauthorized();
   const guard = { session };
+
+  // V1.4: rate limit per-user 3/60s chống spam đổi password.
+  const rl = await changePasswordRateLimit(guard.session.userId);
+  if (!rl.ok) {
+    return tooManyRequests(rl.retryAfter);
+  }
 
   const body = await parseJson(req, changePasswordSchema);
   if ("response" in body) return body.response;
