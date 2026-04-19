@@ -185,6 +185,108 @@ Grafana Cloud cho 10k metrics + 50GB log/tháng — dư cho MES 1 xưởng.
 
 **Disable telemetry:** remove `OTEL_EXPORTER_OTLP_ENDPOINT` trong `.env` → SDK skip init (log warn), không crash app.
 
+## 7.2 Backup off-site V1.4 — Cloudflare R2 encrypted + weekly restore drill
+
+V1 backup script chỉ lưu local + rsync option — không đáp ứng 3-2-1
+rule khi VPS chết. V1.4 Phase F bổ sung off-site R2 encrypted + drill
+auto-verify.
+
+**Pre-req:**
+
+1. **Tạo R2 bucket + API token**
+   - Cloudflare dashboard → R2 → Create bucket `iot-backups`.
+   - R2 → Manage R2 API Tokens → Create token → Permission "Object Read & Write".
+   - Copy `Account ID`, `Access Key ID`, `Secret Access Key`, `Endpoint` (`https://<account>.r2.cloudflarestorage.com`).
+
+2. **Cài rclone + config R2 remote trên VPS**
+   ```bash
+   # Cài rclone
+   curl https://rclone.org/install.sh | sudo bash
+
+   # Config remote tên `r2` (chạy tương tác 1 lần)
+   sudo rclone config create r2 s3 \
+     provider=Cloudflare \
+     access_key_id=${R2_ACCESS_KEY} \
+     secret_access_key=${R2_SECRET_KEY} \
+     endpoint=https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com \
+     acl=private
+
+   # Test
+   sudo rclone lsd r2:
+   # Expect: iot-backups
+   ```
+
+3. **GPG passphrase**
+   ```bash
+   # Sinh passphrase random 32 byte (base64)
+   openssl rand -base64 32 | sudo tee /opt/hethong-iot/secrets/backup_gpg_key.txt
+   sudo chmod 600 /opt/hethong-iot/secrets/backup_gpg_key.txt
+   # Lưu BẢN SAO ở nơi khác (password manager, printed paper) —
+   # mất file này = không restore được backup.
+   ```
+
+4. **Deploy scripts**
+   ```bash
+   sudo cp <repo>/deploy/scripts/backup-offsite.sh /opt/hethong-iot/scripts/
+   sudo cp <repo>/deploy/scripts/restore-drill.sh /opt/hethong-iot/scripts/
+   sudo cp <repo>/deploy/scripts/install-cron.sh /opt/hethong-iot/scripts/
+   sudo chmod +x /opt/hethong-iot/scripts/*.sh
+   ```
+
+5. **Update .env với R2 + GPG**
+   ```bash
+   cat >> /opt/hethong-iot/.env <<'EOF'
+   R2_REMOTE=r2:iot-backups
+   GPG_PASS_FILE=/opt/hethong-iot/secrets/backup_gpg_key.txt
+   EOF
+   ```
+
+6. **Manual test 1 phát trước khi cài cron**
+   ```bash
+   sudo --preserve-env=R2_REMOTE,GPG_PASS_FILE \
+     /opt/hethong-iot/scripts/backup-offsite.sh
+   # Expect: log "Backup DONE (daily) — XXXm", Telegram notify.
+   # Verify: sudo rclone lsf r2:iot-backups/daily/ | tail -5
+   ```
+
+7. **Cài cron**
+   ```bash
+   sudo /opt/hethong-iot/scripts/install-cron.sh
+   # 02:00 daily backup + 03:00 Sunday restore drill + 5min health check
+   ```
+
+**Retention:**
+- Daily: giữ 7 bản mới nhất (local + R2 prefix `daily/`)
+- Weekly: giữ 4 bản (backup ngày Chủ Nhật tag weekly)
+- Monthly: giữ 12 bản (backup ngày 1 tag monthly)
+
+**Restore drill (Chủ Nhật 03:00):**
+- Tự pull backup daily mới nhất → decrypt → spin up scratch Postgres port 55432 → restore → compare `app.item` count giữa prod và drill → Telegram notify "Restore drill OK: X/Y tables, Z/W rows".
+- Nếu mismatch → WARN notify, không fail ngay (backup có thể trễ 1 cycle).
+
+**Restore thật (disaster recovery):**
+```bash
+# 1. Pull backup mong muốn
+rclone copy r2:iot-backups/daily/hethong_iot-daily-20260419-020015.sql.gz.gpg /tmp/
+
+# 2. Decrypt
+gpg --batch --passphrase-file /opt/hethong-iot/secrets/backup_gpg_key.txt \
+  --decrypt /tmp/*.sql.gz.gpg > /tmp/restore.sql.gz
+
+# 3. Stop app, drop + re-create DB
+docker compose stop web worker
+docker exec -i iot_postgres psql -U postgres <<'SQL'
+DROP DATABASE IF EXISTS hethong_iot;
+CREATE DATABASE hethong_iot OWNER hethong_app;
+SQL
+
+# 4. Restore
+zcat /tmp/restore.sql.gz | docker exec -i iot_postgres psql -U hethong_app -d hethong_iot
+
+# 5. Restart
+docker compose up -d
+```
+
 ## 8. Cảnh báo bảo mật chưa có domain
 
 Khi `APP_URL=http://103.56.158.129:8443`:
