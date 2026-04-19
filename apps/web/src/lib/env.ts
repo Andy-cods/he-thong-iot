@@ -56,6 +56,15 @@ export const env = {
     accessKey: readSecret("R2_ACCESS_KEY", false) ?? "",
     secretKey: readSecret("R2_SECRET_KEY", false) ?? "",
   },
+  // --- V1.4 Phase E: OpenTelemetry / Grafana Cloud ---
+  // Nếu OTEL_EXPORTER_OTLP_ENDPOINT trống → telemetry SDK skip init (local dev).
+  OTEL: {
+    endpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? "",
+    // Header chuẩn OTel (Basic base64(user:apikey) cho Grafana Cloud)
+    headers: process.env.OTEL_EXPORTER_OTLP_HEADERS ?? "",
+    serviceName: process.env.OTEL_SERVICE_NAME ?? "iot-web",
+    token: readSecret("GRAFANA_CLOUD_TOKEN", false) ?? "",
+  },
 };
 
 export type Env = typeof env;

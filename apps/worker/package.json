@@ -15,6 +15,7 @@
   "dependencies": {
     "@iot/db": "workspace:*",
     "@iot/shared": "workspace:*",
+    "@opentelemetry/api": "^1.9.0",
     "bullmq": "^5.12.0",
     "drizzle-orm": "^0.33.0",
     "exceljs": "^4.4.0",
