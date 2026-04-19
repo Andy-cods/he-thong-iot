@@ -23,6 +23,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { QcChecklist } from "@/components/qc/QcChecklist";
 import { useSession } from "@/hooks/useSession";
 import {
   useWorkOrderDetail,
@@ -360,10 +361,17 @@ export default function WorkOrderDetailPage() {
         </TabsContent>
 
         <TabsContent value="qc" className="overflow-auto px-6 py-4">
-          <p className="text-sm text-zinc-500">
-            QC Checks (hardcode 3 checkpoint V1.3 stub) — UI chi tiết sẽ
-            có ở Phase B6.
-          </p>
+          <QcChecklist
+            woId={wo.id}
+            woStatus={wo.status}
+            canEdit={
+              roles.includes("admin") ||
+              roles.includes("planner") ||
+              roles.includes("operator") ||
+              roles.includes("warehouse")
+            }
+            isAdmin={isAdmin}
+          />
         </TabsContent>
 
         <TabsContent value="audit" className="overflow-auto px-6 py-4">
