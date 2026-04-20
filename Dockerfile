@@ -22,7 +22,7 @@ WORKDIR /repo
 COPY . .
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
-    NODE_OPTIONS=--max-old-space-size=1536 \
+    NODE_OPTIONS=--max-old-space-size=1024 \
     BUILD_STANDALONE=1 \
     DATABASE_URL=postgres://build:build@localhost:5432/build \
     JWT_SECRET=build-time-dummy-jwt-secret-value-placeholder-123456789 \
