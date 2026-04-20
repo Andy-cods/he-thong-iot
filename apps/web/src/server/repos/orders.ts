@@ -24,6 +24,8 @@ export interface OrderListQuery {
   status?: SalesOrderStatus[];
   dueFrom?: Date;
   dueTo?: Date;
+  /** V1.6 — filter theo BOM template (FK trực tiếp). */
+  bomTemplateId?: string;
   page: number;
   pageSize: number;
 }
@@ -54,6 +56,7 @@ export async function listOrders(q: OrderListQuery): Promise<OrderListResult> {
   }
   if (q.dueFrom) where.push(gte(salesOrder.dueDate, q.dueFrom.toISOString().slice(0, 10)));
   if (q.dueTo) where.push(lte(salesOrder.dueDate, q.dueTo.toISOString().slice(0, 10)));
+  if (q.bomTemplateId) where.push(eq(salesOrder.bomTemplateId, q.bomTemplateId));
 
   const whereExpr = where.length > 0 ? and(...where) : sql`true`;
   const offset = (q.page - 1) * q.pageSize;

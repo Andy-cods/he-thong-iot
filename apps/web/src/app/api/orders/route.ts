@@ -36,6 +36,7 @@ export async function GET(req: NextRequest) {
       status: q.data.status,
       dueFrom,
       dueTo,
+      bomTemplateId: q.data.bomTemplateId,
       page: q.data.page,
       pageSize: q.data.pageSize,
     });

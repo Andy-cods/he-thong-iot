@@ -89,6 +89,8 @@ export const orderListQuerySchema = z.object({
   customer: z.string().trim().max(128).optional(),
   dateFrom: z.string().trim().optional(),
   dateTo: z.string().trim().optional(),
+  /** V1.6 — filter orders theo BOM template ID (FK direct). */
+  bomTemplateId: z.string().uuid().optional(),
   sort: z.enum(["createdAt", "dueDate", "orderNo"]).default("createdAt"),
   sortDir: z.enum(["asc", "desc"]).default("desc"),
   page: z.coerce.number().int().positive().default(1),
