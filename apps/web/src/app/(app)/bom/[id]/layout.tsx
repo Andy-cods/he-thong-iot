@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useParams } from "next/navigation";
 import { BOM_STATUS_LABELS, type BomStatus } from "@iot/shared";
-import { useBomDetail } from "@/hooks/useBom";
+import { useBomDetail, useBomWorkspaceSummary } from "@/hooks/useBom";
 import { useSession } from "@/hooks/useSession";
 import { ContextualSidebar } from "@/components/layout/ContextualSidebar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -29,8 +29,10 @@ export default function BomWorkspaceLayout({
   const bomId = params?.id ?? null;
   const detailQuery = useBomDetail(bomId);
   const sessionQuery = useSession();
+  const summaryQuery = useBomWorkspaceSummary(bomId);
 
   const template = detailQuery.data?.data?.template;
+  const summary = summaryQuery.data?.data;
 
   // BOM mới/import/không hợp lệ: không render sidebar (fallback render children
   // như trang bình thường). AppShell cũng xử lý riêng cho đường dẫn như vậy.
@@ -73,6 +75,16 @@ export default function BomWorkspaceLayout({
           bomName={template.name}
           bomStatus={badge.badgeStatus}
           bomStatusLabel={badge.label}
+          counts={
+            summary
+              ? {
+                  orders: summary.ordersActive,
+                  workOrders: summary.workOrdersActive,
+                  shortage: summary.shortageComponents,
+                  eco: summary.ecoActive,
+                }
+              : undefined
+          }
           userRoles={userRoles}
         />
       </div>

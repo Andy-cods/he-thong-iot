@@ -448,6 +448,40 @@ export function useSaveBomGrid(templateId: string) {
 // Activity log hook
 // ─────────────────────────────────────────────────────────
 
+export interface BomWorkspaceSummary {
+  bomTemplateId: string;
+  ordersTotal: number;
+  ordersActive: number;
+  workOrdersActive: number;
+  shortageComponents: number;
+  ecoTotal: number;
+  ecoActive: number;
+  lineCount: number;
+}
+
+/**
+ * V1.6 — aggregate KPI cho BOM workspace (feed ContextualSidebar badges
+ * + KPI header). 1 round-trip thay vì 5 API call.
+ */
+export function useBomWorkspaceSummary(
+  bomId: string | null,
+  enabled = true,
+) {
+  return useQuery<{ data: BomWorkspaceSummary }>({
+    queryKey: ["bom", "workspace-summary", bomId],
+    queryFn: async () => {
+      const res = await fetch(`/api/bom/templates/${bomId}/summary`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as { data: BomWorkspaceSummary };
+    },
+    enabled: enabled && !!bomId,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+}
+
 export interface ActivityLogEntry {
   id: number;
   userId: string | null;
