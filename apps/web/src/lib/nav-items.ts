@@ -4,6 +4,7 @@ import {
   ClipboardList,
   Factory,
   FileSpreadsheet,
+  FolderKanban,
   GitBranch,
   LayoutDashboard,
   Network,
@@ -67,8 +68,14 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ["admin", "planner"],
   },
   {
+    href: "/product-lines",
+    label: "Dòng sản phẩm",
+    icon: FolderKanban,
+    entity: "bomTemplate",
+  },
+  {
     href: "/bom",
-    label: "BOM",
+    label: "BOM Templates",
     icon: Network,
     entity: "bomTemplate",
   },

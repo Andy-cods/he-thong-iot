@@ -140,6 +140,17 @@ export const qk = {
     detail: (id: string) => ["workOrders", "detail", id] as const,
     qcChecks: (id: string) => ["workOrders", "qc-checks", id] as const,
   },
+  productLines: {
+    all: ["productLines"] as const,
+    list: (filter: ProductLineFilter) =>
+      ["productLines", "list", filter] as const,
+    detail: (id: string) => ["productLines", "detail", id] as const,
+    members: (id: string) => ["productLines", "members", id] as const,
+    orders: (id: string) => ["productLines", "orders", id] as const,
+    workOrders: (id: string) => ["productLines", "workOrders", id] as const,
+    purchaseOrders: (id: string) =>
+      ["productLines", "purchaseOrders", id] as const,
+  },
   reservations: {
     all: ["reservations"] as const,
     bySnapshot: (snapshotLineId: string) =>
@@ -262,6 +273,13 @@ export interface ShortageBoardFilter {
   minShortQty?: number;
   q?: string;
   limit?: number;
+}
+
+export interface ProductLineFilter {
+  q?: string;
+  status?: ("ACTIVE" | "ARCHIVED")[];
+  page?: number;
+  pageSize?: number;
 }
 
 export interface BomFilter {
