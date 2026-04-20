@@ -54,6 +54,7 @@ export const qk = {
     list: (filter: BomFilter) => ["bom", "list", filter] as const,
     detail: (id: string) => ["bom", "detail", id] as const,
     tree: (id: string) => ["bom", "tree", id] as const,
+    grid: (id: string) => ["bom", "grid", id] as const,
     codeCheck: (code: string, excludeId?: string) =>
       ["bom", "code-check", code, excludeId ?? null] as const,
     import: {

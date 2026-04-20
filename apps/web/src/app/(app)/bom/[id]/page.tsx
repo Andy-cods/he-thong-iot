@@ -8,6 +8,7 @@ import {
   FolderTree,
   GitBranch,
   Info,
+  LayoutGrid,
   MoreHorizontal,
   Plus,
   Rocket,
@@ -264,6 +265,17 @@ export default function BomDetailPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <Button
+              asChild
+              size="sm"
+              variant="outline"
+              className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+            >
+              <Link href={`/bom/${id}/grid`}>
+                <LayoutGrid className="h-3.5 w-3.5" aria-hidden="true" />
+                Mở Grid Editor
+              </Link>
+            </Button>
             {template.status !== "OBSOLETE" && tree.length > 0 && (
               <Button
                 size="sm"

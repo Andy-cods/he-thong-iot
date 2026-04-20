@@ -5,6 +5,7 @@ import {
   Z502653_PARENT_QTY,
   Z502653_ROWS,
 } from "./sample-z502653";
+import type { BomTemplateDetail, BomTreeNodeRaw } from "@/hooks/useBom";
 import type { UniverWorkbookSnapshot } from "@/components/bom-grid/UniverSpreadsheet";
 
 /**
@@ -224,6 +225,163 @@ export function buildZ502653Workbook(): UniverWorkbookSnapshot {
         ht: 3,
         cl: { rgb: "#0F172A" },
       },
+    },
+    resources: [],
+  };
+}
+
+/**
+ * Builder generic — tạo IWorkbookData từ DB template + bomLines tree.
+ * Dùng cho production /bom/[id]/grid page khi chưa có Univer snapshot.
+ *
+ * Mapping:
+ *   level=1 + childCount>0  → group header row (xám, merge cột 1-10)
+ *   mọi node còn lại        → component row (row banding, icon loại)
+ */
+export function buildWorkbookFromTemplate(
+  template: Pick<BomTemplateDetail, "id" | "code" | "name" | "targetQty">,
+  tree: BomTreeNodeRaw[],
+): UniverWorkbookSnapshot {
+  const parentQty = Number(template.targetQty) || 1;
+  const parentLabel = `${template.code} — ${template.name}`;
+
+  const cellData: Record<number, Record<number, unknown>> = {};
+  const mergeData: Array<{
+    startRow: number; startColumn: number; endRow: number; endColumn: number;
+  }> = [];
+
+  // R0 — Tiêu đề
+  cellData[0] = {
+    0: cell(parentLabel, STYLE.title),
+    8: cell("Số lượng parent:", STYLE.title),
+    10: cell(parentQty, STYLE.title),
+  };
+  mergeData.push({ startRow: 0, startColumn: 0, endRow: 0, endColumn: 7 });
+
+  // R1 — Header cột
+  cellData[1] = {};
+  BOM_COLUMN_HEADERS.forEach((h, idx) => {
+    cellData[1]![idx] = cell(h, STYLE.header);
+  });
+
+  // Phân loại: group nodes (level=1, có con) vs component nodes
+  const groupIds = new Set(
+    tree.filter((n) => n.childCount > 0).map((n) => n.id),
+  );
+
+  // Flatten: group → rồi con của group, rồi root components không thuộc group nào
+  const ordered: Array<{ node: BomTreeNodeRaw; isGroup: boolean }> = [];
+  const rootGroups = tree.filter((n) => n.parentLineId === null && groupIds.has(n.id));
+  const rootComponents = tree.filter((n) => n.parentLineId === null && !groupIds.has(n.id));
+
+  for (const g of rootGroups) {
+    ordered.push({ node: g, isGroup: true });
+    const children = tree.filter((n) => n.parentLineId === g.id);
+    for (const c of children) {
+      ordered.push({ node: c, isGroup: false });
+    }
+  }
+  for (const c of rootComponents) {
+    ordered.push({ node: c, isGroup: false });
+  }
+
+  let dataRowIdx = 0;
+  ordered.forEach(({ node, isGroup }, i) => {
+    const r = i + 2;
+    if (isGroup) {
+      const childCount = tree.filter((n) => n.parentLineId === node.id).length;
+      cellData[r] = {
+        0: cell(""),
+        1: cell(
+          `${KIND_LABEL.group.icon}  ${node.componentName ?? node.componentSku ?? node.id}  (${childCount} linh kiện)`,
+          STYLE.group,
+        ),
+      };
+      mergeData.push({ startRow: r, startColumn: 1, endRow: r, endColumn: 10 });
+      return;
+    }
+
+    const bandStyle = dataRowIdx % 2 === 1 ? STYLE.band : undefined;
+    const itype = (node.componentItemType ?? "").toUpperCase();
+    const isFab = itype === "FABRICATED" || itype === "SUB_ASSEMBLY";
+    const kindIcon = isFab ? KIND_LABEL.fab.icon : KIND_LABEL.com.icon;
+    const kindText = isFab ? KIND_LABEL.fab.text : KIND_LABEL.com.text;
+    const kindStyle = isFab ? STYLE.fab : STYLE.com;
+
+    cellData[r] = {
+      0: cell("", bandStyle),
+      1: cell(`   ${node.componentSku ?? ""}`, bandStyle),
+      2: cell(node.componentName ?? "", bandStyle),
+      3: cell(`${kindIcon} ${kindText}`, kindStyle),
+      4: cell(node.componentCategory ?? "", bandStyle),
+      5: cell(node.supplierItemCode ?? "", bandStyle),
+      6: cell(Number(node.qtyPerParent) || 1, bandStyle),
+      7: cell("", bandStyle),
+      8: formula(`=G${r + 1}*$K$1`, STYLE.formula),
+      9: cell(Number(node.scrapPercent) / 100, STYLE.percent),
+      10: cell(node.description ?? "", STYLE.note),
+    };
+    dataRowIdx++;
+  });
+
+  const totalRows = ordered.length + 2;
+
+  return {
+    id: `bom-${template.id}`,
+    name: template.code,
+    appVersion: "0.21.0",
+    locale: "viVN",
+    sheetOrder: ["sheet-main"],
+    sheets: {
+      "sheet-main": {
+        id: "sheet-main",
+        name: template.code,
+        tabColor: "",
+        hidden: 0,
+        freeze: { xSplit: 2, ySplit: 2, startRow: 2, startColumn: 2 },
+        rowCount: Math.max(totalRows + 30, 60),
+        columnCount: 14,
+        zoomRatio: 1,
+        scrollTop: 0,
+        scrollLeft: 0,
+        defaultColumnWidth: 100,
+        defaultRowHeight: 26,
+        mergeData,
+        cellData,
+        rowData: { 0: { h: 36 }, 1: { h: 30 } },
+        columnData: {
+          0: { w: 50 }, 1: { w: 90 }, 2: { w: 240 }, 3: { w: 130 },
+          4: { w: 180 }, 5: { w: 100 }, 6: { w: 70 }, 7: { w: 160 },
+          8: { w: 85 }, 9: { w: 90 }, 10: { w: 240 },
+        },
+        showGridlines: 1,
+        rowHeader: { visible: true, width: 46 },
+        columnHeader: { visible: true, height: 22 },
+        selections: ["B3"],
+        rightToLeft: 0,
+      },
+    },
+    styles: {
+      [STYLE.title]: { bl: 1, fs: 13, vt: 2 },
+      [STYLE.header]: {
+        bg: { rgb: "#18181B" }, cl: { rgb: "#FAFAFA" },
+        bl: 1, fs: 12, vt: 2, ht: 2,
+        bd: { b: { s: 1, cl: { rgb: "#27272A" } } },
+      },
+      [STYLE.group]: {
+        bg: { rgb: "#E4E4E7" }, bl: 1, fs: 12,
+        cl: { rgb: "#18181B" }, vt: 2,
+      },
+      [STYLE.band]: { bg: { rgb: "#F9FAFB" } },
+      [STYLE.fab]: {
+        bg: { rgb: "#DCFCE7" }, cl: { rgb: "#166534" }, bl: 1,
+      },
+      [STYLE.com]: {
+        bg: { rgb: "#DBEAFE" }, cl: { rgb: "#1E40AF" }, bl: 1,
+      },
+      [STYLE.note]: { cl: { rgb: "#71717A" }, it: 1 },
+      [STYLE.percent]: { n: { pattern: "0.0%" }, ht: 3 },
+      [STYLE.formula]: { bl: 1, ht: 3, cl: { rgb: "#0F172A" } },
     },
     resources: [],
   };

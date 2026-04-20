@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Copy, Eye, Pencil, GitBranch } from "lucide-react";
+import { Copy, Eye, LayoutGrid, Pencil, GitBranch } from "lucide-react";
 import { toast } from "sonner";
 import { BOM_STATUS_LABELS, type BomStatus } from "@iot/shared";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -279,6 +279,14 @@ export function BomListTable({
                     <Eye className="h-3.5 w-3.5" aria-hidden="true" />
                   </button>
                 )}
+                <Link
+                  href={`/bom/${row.id}/grid`}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-emerald-600 transition-colors hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-500"
+                  aria-label={`Grid Editor ${row.code}`}
+                  title="Mở Grid Editor"
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" aria-hidden="true" />
+                </Link>
                 <button
                   type="button"
                   onClick={() => onEdit(row)}
