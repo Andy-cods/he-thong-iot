@@ -20,6 +20,8 @@ export const shortageFilterSchema = z.object({
     .optional()
     .transform((v) => (v === undefined ? undefined : Array.isArray(v) ? v : [v])),
   orderId: uuid.optional(),
+  /** V1.6 — filter theo BOM template (JOIN qua bom_snapshot_line → sales_order). */
+  bomTemplateId: uuid.optional(),
   minShortQty: z.coerce.number().nonnegative().optional(),
   q: z.string().trim().max(120).optional(),
   limit: z.coerce.number().int().positive().max(1000).default(200),

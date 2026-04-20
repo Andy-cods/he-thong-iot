@@ -276,6 +276,8 @@ export interface ShortageBoardFilter {
   itemId?: string[];
   supplierId?: string[];
   orderId?: string;
+  /** V1.6 — filter shortage theo BOM template (JOIN snapshot_line → sales_order). */
+  bomTemplateId?: string;
   minShortQty?: number;
   q?: string;
   limit?: number;

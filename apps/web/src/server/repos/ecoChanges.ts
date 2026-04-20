@@ -512,6 +512,8 @@ export async function applyECO(
 export interface EcoListQuery {
   q?: string;
   status?: EcoStatus[];
+  /** V1.6 — filter ECO theo BOM template (FK direct: eco_change.affected_template_id). */
+  bomTemplateId?: string;
   page: number;
   pageSize: number;
 }
@@ -536,6 +538,9 @@ export async function listECO(q: EcoListQuery): Promise<{
       ilike(ecoChange.title, needle),
     );
     if (search) where.push(search);
+  }
+  if (q.bomTemplateId) {
+    where.push(eq(ecoChange.affectedTemplateId, q.bomTemplateId));
   }
   const whereExpr = where.length > 0 ? and(...where) : sql`true`;
   const offset = (q.page - 1) * q.pageSize;

@@ -52,6 +52,7 @@ function buildUrl(f: ShortageBoardFilter): string {
   const p = new URLSearchParams();
   if (f.q) p.set("q", f.q);
   if (f.orderId) p.set("orderId", f.orderId);
+  if (f.bomTemplateId) p.set("bomTemplateId", f.bomTemplateId);
   if (f.minShortQty !== undefined)
     p.set("minShortQty", String(f.minShortQty));
   if (f.limit) p.set("limit", String(f.limit));
