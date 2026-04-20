@@ -7,7 +7,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/hethong-iot
+  IMAGE_NAME: andy-cods/hethong-iot
 
 jobs:
   build-and-deploy:
@@ -49,7 +49,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u andy-cods --password-stdin
             cd /opt/hethong-iot
             docker pull ghcr.io/${{ env.IMAGE_NAME }}:latest
             docker compose up -d --force-recreate app worker
