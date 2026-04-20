@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Cloud, CloudOff, Loader2, Plus } from "lucide-react";
+import { ArrowLeft, Cloud, CloudOff, History, Loader2, Plus, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import {
   useBomTree,
   useBomGrid,
   useSaveBomGrid,
+  useActivityLog,
 } from "@/hooks/useBom";
 import { buildWorkbookFromTemplate } from "@/lib/bom-grid/build-workbook";
 
@@ -40,11 +41,18 @@ export default function BomGridPage() {
   const treeQuery = useBomTree(id);
   const saveMutation = useSaveBomGrid(id);
 
+  const activityLogQuery = useActivityLog("bom_template", id, !!id);
+
   const gridRef = React.useRef<UniverSpreadsheetHandle>(null);
   const [addOpen, setAddOpen] = React.useState(false);
+  const [historyOpen, setHistoryOpen] = React.useState(false);
   const [lastSavedAt, setLastSavedAt] = React.useState<Date | null>(null);
   const [isSaving, setIsSaving] = React.useState(false);
   const autoSaveTimer = React.useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // Client-side snapshot undo stack (last 5 saves)
+  const undoStack = React.useRef<UniverWorkbookSnapshot[]>([]);
+  const [canUndo, setCanUndo] = React.useState(false);
 
   const template = detailQuery.data?.data?.template;
   const tree = treeQuery.data?.data?.tree ?? [];
@@ -74,6 +82,12 @@ export default function BomGridPage() {
       clearTimeout(autoSaveTimer.current);
       autoSaveTimer.current = setTimeout(() => {
         setIsSaving(true);
+        // Capture previous snapshot for undo before overwriting
+        const currentSnap = gridRef.current?.save();
+        if (currentSnap) {
+          undoStack.current = [currentSnap, ...undoStack.current].slice(0, 5);
+          setCanUndo(undoStack.current.length > 0);
+        }
         saveMutation
           .mutateAsync(snap)
           .then(() => {
@@ -87,6 +101,21 @@ export default function BomGridPage() {
     },
     [saveMutation],
   );
+
+  const handleUndo = React.useCallback(() => {
+    const prev = undoStack.current.shift();
+    setCanUndo(undoStack.current.length > 0);
+    if (!prev) return;
+    setIsSaving(true);
+    saveMutation
+      .mutateAsync(prev)
+      .then(() => {
+        setLastSavedAt(new Date());
+        toast.success("Đã hoàn tác về phiên bản trước.");
+      })
+      .catch(() => toast.error("Hoàn tác thất bại."))
+      .finally(() => setIsSaving(false));
+  }, [saveMutation]);
 
   const handleManualSave = () => {
     const snap = gridRef.current?.save();
@@ -198,6 +227,27 @@ export default function BomGridPage() {
 
             <Button
               size="sm"
+              variant="ghost"
+              onClick={() => setHistoryOpen((o) => !o)}
+              title="Lịch sử lưu"
+            >
+              <History className="h-3.5 w-3.5" aria-hidden />
+              Lịch sử
+            </Button>
+
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleUndo}
+              disabled={!canUndo || isObsolete || isSaving}
+              title="Hoàn tác về phiên lưu trước (client-side)"
+            >
+              <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+              Hoàn tác
+            </Button>
+
+            <Button
+              size="sm"
               variant="outline"
               onClick={() => setAddOpen(true)}
               disabled={isObsolete}
@@ -231,27 +281,56 @@ export default function BomGridPage() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-hidden bg-zinc-50 p-4">
-        {isLoading ? (
-          <div className="flex h-full items-center justify-center rounded-md border border-zinc-200 bg-white text-sm text-zinc-500">
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Đang tải BOM…
-          </div>
-        ) : (
-          <div className="h-full overflow-hidden rounded-md border border-zinc-200 bg-white shadow-sm">
-            {initialSnapshot ? (
-              <UniverSpreadsheetLazy
-                ref={gridRef}
-                key={id}
-                initialSnapshot={initialSnapshot}
-                onEdit={isObsolete ? undefined : handleEdit}
-              />
+      <div className="flex flex-1 overflow-hidden bg-zinc-50">
+        <div className="flex-1 overflow-hidden p-4">
+          {isLoading ? (
+            <div className="flex h-full items-center justify-center rounded-md border border-zinc-200 bg-white text-sm text-zinc-500">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Đang tải BOM…
+            </div>
+          ) : (
+            <div className="h-full overflow-hidden rounded-md border border-zinc-200 bg-white shadow-sm">
+              {initialSnapshot ? (
+                <UniverSpreadsheetLazy
+                  ref={gridRef}
+                  key={id}
+                  initialSnapshot={initialSnapshot}
+                  onEdit={isObsolete ? undefined : handleEdit}
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center text-sm text-zinc-500">
+                  Không tải được dữ liệu BOM.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Activity log side panel */}
+        {historyOpen && (
+          <aside className="w-64 shrink-0 overflow-y-auto border-l border-zinc-200 bg-white p-4">
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+              Lịch sử lưu
+            </h3>
+            {activityLogQuery.isLoading ? (
+              <p className="text-xs text-zinc-400">Đang tải…</p>
+            ) : (activityLogQuery.data?.data.length ?? 0) === 0 ? (
+              <p className="text-xs text-zinc-400">Chưa có lịch sử lưu.</p>
             ) : (
-              <div className="flex h-full items-center justify-center text-sm text-zinc-500">
-                Không tải được dữ liệu BOM.
-              </div>
+              <ol className="space-y-2">
+                {activityLogQuery.data?.data.map((entry) => (
+                  <li key={entry.id} className="rounded border border-zinc-100 p-2 text-xs">
+                    <p className="font-medium text-zinc-700">
+                      {entry.action === "GRID_SAVE" ? "Lưu Grid" : entry.action}
+                    </p>
+                    <p className="mt-0.5 text-zinc-400">
+                      {new Date(entry.at).toLocaleString("vi-VN")}
+                    </p>
+                  </li>
+                ))}
+              </ol>
             )}
-          </div>
+          </aside>
         )}
       </div>
 

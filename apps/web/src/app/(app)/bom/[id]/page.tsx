@@ -7,9 +7,11 @@ import {
   ChevronDown,
   FolderTree,
   GitBranch,
+  History,
   Info,
   LayoutGrid,
   MoreHorizontal,
+  PackageCheck,
   Plus,
   Rocket,
   Trash2,
@@ -44,6 +46,8 @@ import { AddBomLineDialog } from "@/components/bom/AddBomLineDialog";
 import { DeleteBomLineDialog } from "@/components/bom/DeleteBomLineDialog";
 import {
   useBomDetail,
+  useBomDerivedStatus,
+  useActivityLog,
   useCloneBomTemplate,
   useDeleteBomTemplate,
   useMoveBomLine,
@@ -77,6 +81,8 @@ export default function BomDetailPage() {
   const moveLine = useMoveBomLine(id ?? "");
   const deleteBom = useDeleteBomTemplate();
   const cloneBom = useCloneBomTemplate();
+  const derivedStatusQuery = useBomDerivedStatus(id ?? "", !!id);
+  const activityLogQuery = useActivityLog("bom_template", id ?? "", !!id);
 
   const [selectedLineId, setSelectedLineId] = React.useState<string | null>(
     null,
@@ -334,6 +340,14 @@ export default function BomDetailPage() {
                 <Info className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
                 Metadata
               </TabsTrigger>
+              <TabsTrigger value="material-status">
+                <PackageCheck className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+                Tình trạng vật tư
+              </TabsTrigger>
+              <TabsTrigger value="activity">
+                <History className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+                Lịch sử
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -378,6 +392,16 @@ export default function BomDetailPage() {
                 />
               )}
             </div>
+          </TabsContent>
+
+          {/* Material Status tab */}
+          <TabsContent value="material-status" className="m-0 overflow-auto p-6">
+            <MaterialStatusPanel query={derivedStatusQuery} />
+          </TabsContent>
+
+          {/* Activity log tab */}
+          <TabsContent value="activity" className="m-0 overflow-auto p-6">
+            <ActivityLogPanel query={activityLogQuery} />
           </TabsContent>
 
           <TabsContent value="metadata" className="m-0 overflow-auto p-6">
@@ -499,5 +523,168 @@ function ReadRow({
         {value}
       </dd>
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────
+// Trụ cột 5 — Material Status Panel
+// ─────────────────────────────────────────────────────────
+
+const MATERIAL_STATUS_COLORS: Record<string, string> = {
+  NO_ORDERS: "bg-zinc-100 text-zinc-500",
+  PLANNED: "bg-yellow-100 text-yellow-700",
+  PURCHASING: "bg-blue-100 text-blue-700",
+  PARTIAL: "bg-orange-100 text-orange-700",
+  AVAILABLE: "bg-emerald-100 text-emerald-700",
+  ISSUED: "bg-violet-100 text-violet-700",
+};
+
+const MATERIAL_STATUS_LABELS: Record<string, string> = {
+  NO_ORDERS: "Chưa có đơn hàng",
+  PLANNED: "Chưa mua",
+  PURCHASING: "Đang mua",
+  PARTIAL: "Nhận một phần",
+  AVAILABLE: "Đủ hàng",
+  ISSUED: "Đã xuất SX",
+};
+
+import type { UseQueryResult } from "@tanstack/react-query";
+import type { DerivedStatusSummary, ActivityLogEntry } from "@/hooks/useBom";
+
+function MaterialStatusPanel({
+  query,
+}: {
+  query: UseQueryResult<{ data: DerivedStatusSummary }>;
+}) {
+  if (query.isLoading) {
+    return <p className="text-sm text-zinc-500">Đang tải tình trạng vật tư…</p>;
+  }
+  if (query.isError) {
+    return <p className="text-sm text-red-500">Không tải được tình trạng vật tư.</p>;
+  }
+  const status = query.data?.data;
+  if (!status || status.overallStatus === "NO_ORDERS") {
+    return (
+      <p className="text-sm text-zinc-500">
+        Chưa có đơn hàng nào dùng BOM này. Tình trạng sẽ hiển thị sau khi tạo đơn.
+      </p>
+    );
+  }
+
+  const pct = status.totalComponents > 0
+    ? Math.round((status.availableComponents / status.totalComponents) * 100)
+    : 0;
+
+  return (
+    <div className="max-w-3xl space-y-4">
+      <div className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-white p-4">
+        <div className="flex-1">
+          <p className="text-xs text-zinc-500">Tổng thể</p>
+          <p className="mt-0.5 text-sm font-semibold text-zinc-900">
+            {status.availableComponents}/{status.totalComponents} loại đủ hàng
+          </p>
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-zinc-100">
+            <div
+              className="h-full rounded-full bg-emerald-500 transition-all"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        </div>
+        <span
+          className={cn(
+            "rounded-full px-3 py-1 text-xs font-semibold",
+            MATERIAL_STATUS_COLORS[status.overallStatus] ?? "bg-zinc-100 text-zinc-600",
+          )}
+        >
+          {MATERIAL_STATUS_LABELS[status.overallStatus] ?? status.overallStatus}
+        </span>
+      </div>
+
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-zinc-200 text-xs text-zinc-500">
+            <th className="pb-2 text-left font-medium">Linh kiện</th>
+            <th className="pb-2 text-right font-medium">Cần</th>
+            <th className="pb-2 text-right font-medium">Đã nhận</th>
+            <th className="pb-2 text-right font-medium">Thiếu</th>
+            <th className="pb-2 text-center font-medium">Tình trạng</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-zinc-100">
+          {status.componentStatuses.map((c) => (
+            <tr key={c.componentItemId}>
+              <td className="py-2">
+                <p className="font-mono text-xs font-semibold text-zinc-700">{c.componentSku}</p>
+                <p className="text-xs text-zinc-500">{c.componentName}</p>
+              </td>
+              <td className="py-2 text-right tabular-nums text-zinc-700">
+                {parseFloat(c.totalRequired).toLocaleString("vi-VN")}
+              </td>
+              <td className="py-2 text-right tabular-nums text-zinc-700">
+                {parseFloat(c.totalReceived).toLocaleString("vi-VN")}
+              </td>
+              <td className="py-2 text-right tabular-nums text-red-600">
+                {parseFloat(c.totalShort) > 0
+                  ? parseFloat(c.totalShort).toLocaleString("vi-VN")
+                  : "—"}
+              </td>
+              <td className="py-2 text-center">
+                <span
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-xs font-medium",
+                    MATERIAL_STATUS_COLORS[c.status] ?? "bg-zinc-100 text-zinc-600",
+                  )}
+                >
+                  {MATERIAL_STATUS_LABELS[c.status] ?? c.status}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────
+// Trụ cột 4 — Activity Log Panel
+// ─────────────────────────────────────────────────────────
+
+const ACTION_LABELS: Record<string, string> = {
+  GRID_SAVE: "Lưu BOM Grid",
+  WO_COMPLETED: "Lệnh SX hoàn thành",
+  MATERIAL_RECEIVED: "Nhận vật tư",
+  CREATE: "Tạo mới",
+  UPDATE: "Cập nhật",
+};
+
+function ActivityLogPanel({
+  query,
+}: {
+  query: UseQueryResult<{ data: ActivityLogEntry[] }>;
+}) {
+  if (query.isLoading) {
+    return <p className="text-sm text-zinc-500">Đang tải lịch sử…</p>;
+  }
+  const entries = query.data?.data ?? [];
+  if (entries.length === 0) {
+    return <p className="text-sm text-zinc-500">Chưa có lịch sử thay đổi.</p>;
+  }
+  return (
+    <ol className="max-w-2xl space-y-3">
+      {entries.map((entry) => (
+        <li key={entry.id} className="flex gap-3">
+          <div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-zinc-300" />
+          <div>
+            <p className="text-sm font-medium text-zinc-800">
+              {ACTION_LABELS[entry.action] ?? entry.action}
+            </p>
+            <p className="text-xs text-zinc-400">
+              {new Date(entry.at).toLocaleString("vi-VN")}
+            </p>
+          </div>
+        </li>
+      ))}
+    </ol>
   );
 }

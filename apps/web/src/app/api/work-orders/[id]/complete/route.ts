@@ -13,6 +13,7 @@ import {
   parseJson,
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
+import { insertActivityLog } from "@/server/repos/activityLogs";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -44,6 +45,18 @@ export async function POST(
       after: { status: wo.status, completedAt: wo.completedAt },
       ...meta,
     });
+
+    // Activity log + trigger derived status sync (fire-and-forget)
+    void insertActivityLog({
+      userId: guard.session.userId,
+      entityType: "work_order",
+      entityId: wo.id,
+      action: "WO_COMPLETED",
+      diffJson: { status: wo.status, completedAt: wo.completedAt },
+      ipAddress: meta.ipAddress ?? null,
+      userAgent: meta.userAgent ?? null,
+    });
+
     return NextResponse.json({ data: wo });
   } catch (err) {
     if (err instanceof WoNotFoundError) return jsonError("NOT_FOUND", err.message, 404);

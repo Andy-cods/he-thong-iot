@@ -13,6 +13,7 @@ import {
   parseJson,
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
+import { insertActivityLog } from "@/server/repos/activityLogs";
 import { requireCan } from "@/server/session";
 import { db } from "@/lib/db";
 import { receivingScanCounter } from "@/lib/metrics";
@@ -131,6 +132,23 @@ export async function POST(req: NextRequest) {
         qc_status: e.qcStatus ?? "PENDING",
         over_delivery: posted.overDelivery ? "true" : "false",
       });
+
+      // Activity log cho PO (fire-and-forget)
+      if (po) {
+        void insertActivityLog({
+          userId: guard.session.userId,
+          entityType: "purchase_order",
+          entityId: po.id,
+          action: "MATERIAL_RECEIVED",
+          diffJson: {
+            sku: e.sku,
+            qty: e.qty,
+            qcStatus: e.qcStatus ?? "PENDING",
+            newSnapshotState: posted.newSnapshotState,
+            overDelivery: posted.overDelivery,
+          },
+        });
+      }
 
       await writeAudit({
         actor: guard.session,

@@ -6,6 +6,7 @@ import {
   getTemplateById,
   saveGridSnapshot,
 } from "@/server/repos/bomTemplates";
+import { insertActivityLog } from "@/server/repos/activityLogs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,6 +52,17 @@ export async function POST(
 
   const ok = await saveGridSnapshot(params.id, body.snapshot as Record<string, unknown>);
   if (!ok) return jsonError("NOT_FOUND", "Không tìm thấy BOM.", 404);
+
+  // Fire-and-forget activity log — don't block response
+  void insertActivityLog({
+    userId: guard.session.userId,
+    entityType: "bom_template",
+    entityId: params.id,
+    action: "GRID_SAVE",
+    diffJson: { savedAt: new Date().toISOString() },
+    ipAddress: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
+    userAgent: req.headers.get("user-agent") ?? null,
+  });
 
   return NextResponse.json({ data: { saved: true } });
 }

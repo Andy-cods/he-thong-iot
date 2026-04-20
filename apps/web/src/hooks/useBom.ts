@@ -439,6 +439,70 @@ export function useSaveBomGrid(templateId: string) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.bom.grid(templateId) });
+      qc.invalidateQueries({ queryKey: qk.bom.activityLog(templateId) });
     },
+  });
+}
+
+// ─────────────────────────────────────────────────────────
+// Activity log hook
+// ─────────────────────────────────────────────────────────
+
+export interface ActivityLogEntry {
+  id: number;
+  userId: string | null;
+  action: string;
+  diffJson: unknown;
+  at: string;
+}
+
+export function useActivityLog(entityType: string, entityId: string, enabled = true) {
+  return useQuery<{ data: ActivityLogEntry[] }>({
+    queryKey: qk.bom.activityLog(entityId),
+    queryFn: async () => {
+      const res = await fetch(
+        `/api/activity-log?entityType=${encodeURIComponent(entityType)}&entityId=${encodeURIComponent(entityId)}&limit=20`,
+      );
+      if (!res.ok) throw new Error("Không tải được lịch sử");
+      return (await res.json()) as { data: ActivityLogEntry[] };
+    },
+    staleTime: 10_000,
+    enabled: enabled && !!entityId,
+  });
+}
+
+// ─────────────────────────────────────────────────────────
+// Derived status hook
+// ─────────────────────────────────────────────────────────
+
+export interface ComponentMaterialStatus {
+  componentItemId: string;
+  componentSku: string;
+  componentName: string;
+  totalRequired: string;
+  totalReceived: string;
+  totalShort: string;
+  status: string;
+  orderCount: number;
+}
+
+export interface DerivedStatusSummary {
+  templateId: string;
+  componentStatuses: ComponentMaterialStatus[];
+  overallStatus: string;
+  totalComponents: number;
+  availableComponents: number;
+}
+
+export function useBomDerivedStatus(templateId: string, enabled = true) {
+  return useQuery<{ data: DerivedStatusSummary }>({
+    queryKey: qk.bom.derivedStatus(templateId),
+    queryFn: async () => {
+      const res = await fetch(`/api/bom/templates/${templateId}/derived-status`);
+      if (!res.ok) throw new Error("Không tải được material status");
+      return (await res.json()) as { data: DerivedStatusSummary };
+    },
+    staleTime: 30_000,
+    enabled: enabled && !!templateId,
   });
 }
