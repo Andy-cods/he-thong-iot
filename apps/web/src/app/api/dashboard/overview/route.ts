@@ -1,13 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { eq, sql } from "drizzle-orm";
-import { item, bomTemplate, supplier } from "@iot/db/schema";
+import { desc, eq, inArray, sql } from "drizzle-orm";
+import { item, bomTemplate, supplier, salesOrder, bomSnapshotLine, workOrder } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { jsonError } from "@/server/http";
 import { getSession, unauthorized } from "@/server/session";
 import { cacheGetJson, cacheSetJson } from "@/server/services/redis";
 import {
-  generateMockOrders,
   generateMockAlerts,
 } from "@/lib/dashboard-mocks";
 import type { OrderReadinessRow } from "@/components/domain/OrdersReadinessTable";
@@ -16,7 +15,7 @@ import type { DashboardAlert } from "@/components/domain/AlertsList";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const CACHE_KEY = "dashboard:overview:v1";
+const CACHE_KEY = "dashboard:overview:v2";
 const CACHE_TTL_SECONDS = 60;
 
 export interface DashboardOverviewPayload {
@@ -25,12 +24,13 @@ export interface DashboardOverviewPayload {
   suppliersCount: number;
   /** V1.2 sẽ cung cấp count tồn kho dưới min_stock_qty. */
   lowStockCount: number | null;
-  recentOrdersMock: OrderReadinessRow[];
+  /** WO đang IN_PROGRESS (real). */
+  woRunningCount: number;
+  recentOrders: OrderReadinessRow[];
   recentAlertsMock: DashboardAlert[];
   /** Metadata để UI biết field nào còn là mock / placeholder. */
   placeholder: {
     lowStockCount: "V1.2";
-    recentOrdersMock: "V1.1";
     recentAlertsMock: "V1.1";
   };
   cachedAt: string;
@@ -45,8 +45,111 @@ async function countRows(
 }
 
 /**
+ * Map sales_order.status → OrderReadinessRow.status (BadgeStatus).
+ */
+function mapOrderStatus(
+  status: string,
+): OrderReadinessRow["status"] {
+  switch (status) {
+    case "CONFIRMED":
+      return "info";
+    case "SNAPSHOTTED":
+      return "info";
+    case "IN_PROGRESS":
+      return "pending";
+    case "FULFILLED":
+      return "success";
+    case "CLOSED":
+      return "inactive";
+    case "CANCELLED":
+      return "danger";
+    default:
+      return "draft";
+  }
+}
+
+/**
+ * Query 10 sales_order gần nhất có status CONFIRMED/SNAPSHOTTED/IN_PROGRESS,
+ * thêm readiness từ bom_snapshot_line nếu có.
+ * Không crash nếu không có orders hoặc không có snapshot lines.
+ */
+async function getRecentOrdersReal(): Promise<OrderReadinessRow[]> {
+  const ACTIVE_STATUSES = ["CONFIRMED", "SNAPSHOTTED", "IN_PROGRESS"] as const;
+
+  // 1) Query 10 orders active gần nhất
+  const orders = await db
+    .select({
+      id: salesOrder.id,
+      orderNo: salesOrder.orderNo,
+      customerName: salesOrder.customerName,
+      productItemId: salesOrder.productItemId,
+      status: salesOrder.status,
+      dueDate: salesOrder.dueDate,
+    })
+    .from(salesOrder)
+    .where(
+      inArray(
+        salesOrder.status,
+        ACTIVE_STATUSES as unknown as (typeof salesOrder.status.enumValues)[number][],
+      ),
+    )
+    .orderBy(desc(salesOrder.createdAt))
+    .limit(10);
+
+  if (orders.length === 0) return [];
+
+  const orderIds = orders.map((o) => o.id);
+
+  // 2) Aggregate snapshot line state per order (nếu có)
+  // Count total lines + shortage lines
+  type SnapRow = { orderId: string; total: number; shortage: number };
+  let snapAgg: SnapRow[] = [];
+  try {
+    const rows = await db
+      .select({
+        orderId: bomSnapshotLine.orderId,
+        total: sql<number>`count(*)::int`,
+        shortage: sql<number>`count(*) filter (where ${bomSnapshotLine.remainingShortQty} > 0)::int`,
+      })
+      .from(bomSnapshotLine)
+      .where(inArray(bomSnapshotLine.orderId, orderIds))
+      .groupBy(bomSnapshotLine.orderId);
+    snapAgg = rows as SnapRow[];
+  } catch {
+    // snapshot table có thể chưa có data — không crash
+    snapAgg = [];
+  }
+
+  const snapMap = new Map<string, SnapRow>(
+    snapAgg.map((r) => [r.orderId, r]),
+  );
+
+  // 3) Map về OrderReadinessRow
+  return orders.map((o) => {
+    const snap = snapMap.get(o.id);
+    const total = snap?.total ?? 0;
+    const shortage = snap?.shortage ?? 0;
+    const readinessPct =
+      total > 0 ? Math.round(((total - shortage) / total) * 100) : 0;
+
+    // Nếu chưa có snapshot → readiness = 0, shortage = 0
+    return {
+      id: o.id,
+      orderCode: o.orderNo,
+      customerName: o.customerName,
+      // productName: dùng productItemId (chưa join item để đơn giản)
+      productName: `SKU: ${o.productItemId.slice(0, 8)}…`,
+      deadline: o.dueDate ?? new Date().toISOString(),
+      readinessPercent: readinessPct,
+      shortageSkus: shortage,
+      status: mapOrderStatus(o.status),
+    };
+  });
+}
+
+/**
  * GET /api/dashboard/overview
- * Trả KPI tổng quan cho trang chủ. Cache Redis 60s để giảm tải 3 COUNT queries
+ * Trả KPI tổng quan cho trang chủ. Cache Redis 60s để giảm tải queries
  * khi nhiều user cùng mở dashboard. Bất kỳ user đã login cũng xem được.
  *
  * Response shape xem `DashboardOverviewPayload`.
@@ -62,9 +165,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ data: cached, cached: true });
   }
 
-  // 2) Cache miss → 3 COUNT song song. isActive = true + status ACTIVE
+  // 2) Cache miss → queries song song.
   try {
-    const [activeItemsCount, bomTemplatesCount, suppliersCount] =
+    const [activeItemsCount, bomTemplatesCount, suppliersCount, woRunningCount, recentOrders] =
       await Promise.all([
         countRows(() =>
           db
@@ -84,19 +187,27 @@ export async function GET(req: NextRequest) {
             .from(supplier)
             .where(eq(supplier.isActive, true)),
         ),
+        // WO đang chạy — real data
+        countRows(() =>
+          db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(workOrder)
+            .where(eq(workOrder.status, "IN_PROGRESS")),
+        ),
+        // Orders real từ DB
+        getRecentOrdersReal(),
       ]);
 
     const payload: DashboardOverviewPayload = {
       activeItemsCount,
       bomTemplatesCount,
       suppliersCount,
-      // V1.2: sẽ query item WHERE on_hand_qty < min_stock_qty (chưa có bảng stock).
-      lowStockCount: null,
-      recentOrdersMock: generateMockOrders(),
+      lowStockCount: null, // V1.2
+      woRunningCount,
+      recentOrders,
       recentAlertsMock: generateMockAlerts(),
       placeholder: {
         lowStockCount: "V1.2",
-        recentOrdersMock: "V1.1",
         recentAlertsMock: "V1.1",
       },
       cachedAt: new Date().toISOString(),

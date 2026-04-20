@@ -15,7 +15,6 @@ import { OrdersReadinessTable } from "@/components/domain/OrdersReadinessTable";
 import { AlertsList } from "@/components/domain/AlertsList";
 import { SystemHealthCard } from "@/components/domain/SystemHealthCard";
 import {
-  generateMockOrders,
   generateMockAlerts,
 } from "@/lib/dashboard-mocks";
 import { useSession } from "@/hooks/useSession";
@@ -46,7 +45,7 @@ export default function DashboardPage() {
   const loading = overview.isLoading;
 
   // Fallback mock nếu API lỗi (Redis/DB down) → giữ UX không vỡ.
-  const orders = data?.recentOrdersMock ?? generateMockOrders();
+  const orders = data?.recentOrders ?? [];
   const alerts = data?.recentAlertsMock ?? generateMockAlerts();
 
   return (
@@ -93,12 +92,13 @@ export default function DashboardPage() {
         />
         <KpiCard
           label="WO đang chạy"
-          value={5}
+          value={data?.woRunningCount ?? 0}
           status="neutral"
           icon={
             <ShoppingCart className="h-3.5 w-3.5" aria-hidden="true" />
           }
-          delta={{ value: 0, direction: "flat", label: "mock · V1.3" }}
+          loading={loading}
+          href="/work-orders"
         />
         <KpiCard
           label="Cảnh báo tồn kho"
@@ -180,7 +180,7 @@ export default function DashboardPage() {
       {/* Mock disclaimer */}
       <p className="flex items-center gap-1.5 text-xs text-zinc-400">
         <AlertTriangle className="h-3 w-3" aria-hidden="true" />
-        Orders/Alerts/WO/Low-stock vẫn mock — sẽ có dữ liệu thật ở V1.1–V1.3.
+        Alerts/Low-stock vẫn mock — sẽ có dữ liệu thật ở V1.2.
       </p>
     </div>
   );

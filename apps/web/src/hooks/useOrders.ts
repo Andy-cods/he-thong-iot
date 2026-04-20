@@ -12,6 +12,7 @@ import type {
   SalesOrderStatus,
 } from "@iot/shared";
 import { qk, type OrderFilter } from "@/lib/query-keys";
+import type { OrderProductionSummary } from "@/app/api/orders/[code]/production-summary/route";
 
 /**
  * Order TanStack Query hooks — V1.2 Phase B1.
@@ -176,6 +177,20 @@ export function useCloseOrder(code: string) {
       qc.invalidateQueries({ queryKey: qk.orders.detail(code) });
       qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
+  });
+}
+
+export function useOrderProductionSummary(code: string | null) {
+  return useQuery({
+    queryKey: code
+      ? qk.orders.productionSummary(code)
+      : ["orders", "__none__", "production-summary"],
+    queryFn: () =>
+      request<{ data: OrderProductionSummary }>(
+        `/api/orders/${code}/production-summary`,
+      ),
+    enabled: !!code,
+    staleTime: 30_000,
   });
 }
 

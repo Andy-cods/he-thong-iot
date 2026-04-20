@@ -12,7 +12,8 @@
       "Bash(ssh -i ~/.ssh/iot_vps root@123.30.48.215 \"docker tag hethong-iot:v1.1-beta hethong-iot:local && cd /opt/hethong-iot && docker compose up -d --force-recreate app worker 2>&1 | tail -6 && sleep 20 && docker ps --format '{{.Names}} {{.Status}}' | head -5 && echo --- && docker logs iot_app 2>&1 | tail -5\")",
       "Bash(pnpm add *)",
       "Bash(ssh -i ~/.ssh/iot_vps root@123.30.48.215 \"docker system df\")",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(ssh -i ~/.ssh/iot_vps -o ConnectTimeout=15 root@123.30.48.215 \"docker images | grep hethong && echo '---' && df -h /\")"
     ]
   }
 }

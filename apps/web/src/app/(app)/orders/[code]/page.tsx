@@ -51,6 +51,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { OrderForm } from "@/components/orders/OrderForm";
+import { ProductionProgressPanel } from "@/components/orders/ProductionProgressPanel";
 import {
   SnapshotBoardTable,
   SnapshotBoardFilterBar,
@@ -68,6 +69,7 @@ import { useSession } from "@/hooks/useSession";
 import {
   useCloseOrder,
   useOrderDetail,
+  useOrderProductionSummary,
   useReopenOrder,
   useUpdateOrder,
 } from "@/hooks/useOrders";
@@ -145,6 +147,12 @@ export default function OrderDetailPage({
   const snapshotRows = snapshotLinesQuery.data?.data ?? [];
   const snapshotSummary = snapshotSummaryQuery.data?.data;
   const snapshotTotal = snapshotSummary?.total ?? 0;
+
+  // Production summary (lazy — chỉ fetch khi tab active)
+  const [productionTabActive, setProductionTabActive] = React.useState(false);
+  const productionSummaryQuery = useOrderProductionSummary(
+    productionTabActive ? code : null,
+  );
 
   // V1.3 Reservation handler
   const reserveMut = useReserveLine();
@@ -326,10 +334,16 @@ export default function OrderDetailPage({
       </header>
 
       <div className="flex-1 px-6 py-4">
-        <Tabs defaultValue="info">
+        <Tabs
+          defaultValue="info"
+          onValueChange={(v) => {
+            if (v === "production") setProductionTabActive(true);
+          }}
+        >
           <TabsList>
             <TabsTrigger value="info">Thông tin</TabsTrigger>
             <TabsTrigger value="snapshot">Snapshot Board</TabsTrigger>
+            <TabsTrigger value="production">Sản xuất</TabsTrigger>
             <TabsTrigger value="shortage">Thiếu vật tư</TabsTrigger>
             <TabsTrigger value="audit">Lịch sử</TabsTrigger>
           </TabsList>
@@ -427,6 +441,19 @@ export default function OrderDetailPage({
                 </div>
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="production">
+            <ProductionProgressPanel
+              data={productionSummaryQuery.data?.data ?? null}
+              loading={productionSummaryQuery.isLoading}
+              error={
+                productionSummaryQuery.isError
+                  ? (productionSummaryQuery.error as Error)?.message ??
+                    "Không tải được dữ liệu sản xuất."
+                  : null
+              }
+            />
           </TabsContent>
 
           <TabsContent value="shortage">

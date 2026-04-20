@@ -97,6 +97,8 @@ export const qk = {
     all: ["orders"] as const,
     list: (filter: OrderFilter) => ["orders", "list", filter] as const,
     detail: (code: string) => ["orders", "detail", code] as const,
+    productionSummary: (code: string) =>
+      ["orders", code, "production-summary"] as const,
   },
   procurement: {
     all: ["procurement"] as const,
