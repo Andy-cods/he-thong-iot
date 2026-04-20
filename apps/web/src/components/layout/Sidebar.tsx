@@ -22,12 +22,21 @@ export interface SidebarProps {
   userRole?: Role;
   navItems?: NavItem[];
   className?: string;
+  /**
+   * V1.6 — variant hiển thị.
+   * - `full` (default): width 220px, icon + label + badge.
+   * - `icon-only`: width 56px, chỉ icon + tooltip native (title attr).
+   *   Dùng khi AppShell detect workspace context (BOM/...) → không gian cho
+   *   ContextualSidebar 220px bên cạnh.
+   */
+  variant?: "full" | "icon-only";
 }
 
 export function Sidebar({
   userRole,
   navItems = DEFAULT_NAV,
   className,
+  variant = "full",
 }: SidebarProps) {
   const pathname = usePathname();
 
@@ -47,25 +56,35 @@ export function Sidebar({
     [items],
   );
 
+  const isIconOnly = variant === "icon-only";
+
   return (
     <aside
       aria-label="Điều hướng chính"
       className={cn(
-        "relative z-sidebar flex h-full w-[220px] shrink-0 flex-col border-r border-zinc-200 bg-white",
+        "relative z-sidebar flex h-full shrink-0 flex-col border-r border-zinc-200 bg-white transition-[width] duration-150 ease-out",
+        isIconOnly ? "w-14" : "w-[220px]",
         className,
       )}
       style={{
-        ["--sidebar-current-width" as string]: "13.75rem",
+        ["--sidebar-current-width" as string]: isIconOnly ? "3.5rem" : "13.75rem",
       }}
     >
       {/* Brand header 48px */}
-      <div className="flex h-12 items-center border-b border-zinc-100 px-4">
+      <div
+        className={cn(
+          "flex h-12 items-center border-b border-zinc-100",
+          isIconOnly ? "justify-center px-0" : "px-4",
+        )}
+      >
         <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm bg-zinc-900 text-[10px] font-bold text-white">
           CN
         </div>
-        <span className="ml-2 truncate text-base font-semibold text-zinc-900">
-          Xưởng IoT
-        </span>
+        {!isIconOnly && (
+          <span className="ml-2 truncate text-base font-semibold text-zinc-900">
+            Xưởng IoT
+          </span>
+        )}
       </div>
 
       {/* Nav */}
@@ -73,13 +92,19 @@ export function Sidebar({
         className="flex-1 overflow-y-auto py-2"
         aria-label="Menu"
       >
-        <ul className="flex flex-col gap-0.5 px-2">
+        <ul
+          className={cn(
+            "flex flex-col gap-0.5",
+            isIconOnly ? "px-1.5" : "px-2",
+          )}
+        >
           {items.map((item, idx) => (
             <SidebarItem
               key={`${item.href}-${idx}`}
               item={item}
               pathname={pathname ?? "/"}
               allHrefs={allHrefs}
+              iconOnly={isIconOnly}
             />
           ))}
         </ul>
@@ -92,20 +117,31 @@ function SidebarItem({
   item,
   pathname,
   allHrefs,
+  iconOnly = false,
 }: {
   item: NavItem;
   pathname: string;
   allHrefs: string[];
+  iconOnly?: boolean;
 }) {
   const Icon = item.icon;
   const isActive = matchActive(pathname, item.href, allHrefs);
 
-  const content = (
+  const content = iconOnly ? (
+    <Icon
+      className={cn(
+        "h-4 w-4 shrink-0 transition-colors duration-100",
+        isActive ? "text-indigo-600" : "text-zinc-500",
+      )}
+      aria-hidden="true"
+      strokeWidth={1.75}
+    />
+  ) : (
     <>
       <Icon
         className={cn(
           "h-4 w-4 shrink-0 transition-colors duration-100",
-          isActive ? "text-blue-600" : "text-zinc-500",
+          isActive ? "text-indigo-600" : "text-zinc-500",
         )}
         aria-hidden="true"
         strokeWidth={1.75}
@@ -120,12 +156,16 @@ function SidebarItem({
   );
 
   const baseClass = cn(
-    "relative flex h-7 items-center gap-2 rounded-md px-3 text-base font-medium transition-colors duration-100 ease-out",
+    iconOnly
+      ? "relative flex h-9 items-center justify-center rounded-md"
+      : "relative flex h-7 items-center gap-2 rounded-md px-3 text-base font-medium",
+    "transition-colors duration-100 ease-out",
     "focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 focus-visible:outline-offset-[-2px]",
-    isActive
-      ? // V1.5 active: bg-indigo-50 tint + border-l-2 indigo-500
-        "bg-indigo-50 text-indigo-700 pl-[10px] before:absolute before:left-0 before:top-1 before:h-5 before:w-0.5 before:rounded-r before:bg-indigo-500"
-      : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900",
+    isActive && !iconOnly
+      ? "bg-indigo-50 text-indigo-700 pl-[10px] before:absolute before:left-0 before:top-1 before:h-5 before:w-0.5 before:rounded-r before:bg-indigo-500"
+      : isActive && iconOnly
+        ? "bg-indigo-50 text-indigo-700"
+        : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900",
     item.disabled && "cursor-not-allowed text-zinc-400 hover:bg-transparent",
   );
 
@@ -134,7 +174,7 @@ function SidebarItem({
       {item.divider ? (
         <div
           aria-hidden="true"
-          className="my-1.5 h-px bg-zinc-100"
+          className={cn("my-1.5 h-px bg-zinc-100", iconOnly && "mx-2")}
         />
       ) : null}
       {item.disabled ? (
@@ -142,6 +182,7 @@ function SidebarItem({
           aria-disabled="true"
           tabIndex={-1}
           className={baseClass}
+          title={iconOnly ? item.label : undefined}
         >
           {content}
         </span>
@@ -149,6 +190,8 @@ function SidebarItem({
         <Link
           href={item.href}
           aria-current={isActive ? "page" : undefined}
+          aria-label={iconOnly ? item.label : undefined}
+          title={iconOnly ? item.label : undefined}
           className={baseClass}
         >
           {content}
