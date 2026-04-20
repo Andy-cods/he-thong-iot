@@ -14,7 +14,7 @@ COPY apps/web/package.json apps/web/
 COPY apps/worker/package.json apps/worker/
 COPY packages/db/package.json packages/db/
 COPY packages/shared/package.json packages/shared/
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --no-frozen-lockfile
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 
 # ---------- Stage 2: builder ----------
 FROM deps AS builder
@@ -30,7 +30,8 @@ ENV NODE_ENV=production \
 RUN pnpm --filter @iot/shared build 2>/dev/null || true
 RUN pnpm --filter @iot/db build 2>/dev/null || true
 RUN pnpm --filter @iot/worker build
-RUN pnpm --filter @iot/web build
+RUN --mount=type=cache,id=nextjs,target=/repo/apps/web/.next/cache \
+    pnpm --filter @iot/web build
 
 # ---------- Stage 2b: worker-deploy ----------
 # pnpm deploy flatten toàn bộ workspace deps của @iot/worker vào /worker-out:
@@ -62,23 +63,6 @@ COPY --from=builder /repo/apps/web/public ./apps/web/public
 # Worker — deploy flattened (symlink-free, node_modules phẳng)
 COPY --from=worker-deploy /worker-out ./apps/worker-deploy
 
-# Meta cho pnpm seed/migrate từ packages/db
-COPY --from=builder /repo/packages ./packages
-COPY --from=builder /repo/node_modules ./node_modules
-COPY --from=builder /repo/pnpm-workspace.yaml /repo/package.json ./
-
 EXPOSE 3001
 ENTRYPOINT ["/usr/bin/tini","--"]
 CMD ["node","apps/web/server.js"]
-
-# ---------- Stage 4: worker-runtime (optional target) ----------
-# Build riêng image worker nhỏ gọn: docker build --target worker-runtime ...
-FROM node:20-bookworm-slim AS worker-runtime
-ENV NODE_ENV=production
-RUN apt-get update \
- && apt-get install -y --no-install-recommends tini ca-certificates \
- && rm -rf /var/lib/apt/lists/*
-WORKDIR /app
-COPY --from=worker-deploy /worker-out ./
-ENTRYPOINT ["/usr/bin/tini","--"]
-CMD ["./node_modules/.bin/tsx","src/index.ts"]

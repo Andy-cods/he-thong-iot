@@ -19,3 +19,7 @@ deploy/secrets
 coverage
 .DS_Store
 *.log
+*.xlsx
+*.xls
+tests/load/result.json
+tests/load/summary.json
