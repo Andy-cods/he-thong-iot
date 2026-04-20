@@ -1,6 +1,7 @@
 export * from "./auth";
 export * from "./master";
 export * from "./bom";
+export * from "./product-line";
 export * from "./order";
 export * from "./snapshot";
 export * from "./procurement";
