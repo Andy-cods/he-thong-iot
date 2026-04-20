@@ -4,6 +4,29 @@
 > **Owner:** Thắng.
 > **Dependency:** Trụ cột 1 DONE (cột `univer_snapshot` tồn tại).
 
+## ⚡ Update 2026-04-20 — corrections sau khi install thực tế
+
+Researcher agent xác minh qua `npm view` → các correction sau:
+
+| Plan gốc | Thực tế | Action |
+|---|---|---|
+| Univer v0.5+ | **v0.21.0** (stable Apr 2026) | Dùng `@univerjs/presets@^0.21.0` |
+| `@univerjs/preset-sheets-advanced` | ❌ Commercial (DreamNum, `@univerjs-pro/*`) | **BỎ** khỏi V1.5 scope |
+| `@univerjs/sheets-clipboard` | ❌ Không tồn tại (bundle trong `sheets-ui` transitive) | Không cài trực tiếp |
+| `@univerjs/sheets-exchange` | ❌ Commercial | V1.5 bỏ export XLSX. CSV dùng papaparse (V1.6) |
+| `@univerjs/core/design/docs/engine-render` | Transitive của presets | **KHÔNG cài trực tiếp** (tránh duplicate plugin) |
+
+**Install lệnh đúng (đã chạy, commit 0eb8):**
+```bash
+pnpm -F @iot/web add @univerjs/presets@^0.21.0 @univerjs/preset-sheets-core@^0.21.0 rxjs
+```
+
+**Vi-VN locale:** có sẵn tại `@univerjs/preset-sheets-core/locales/vi-VN` → KHÔNG cần tự dịch 50 key. Import `LocaleType.VI_VN`.
+
+**Next.js 14 pitfall chính:** Univer touch `window` ở import time → BẮT BUỘC `next/dynamic({ ssr: false })`. File `UniverSpreadsheetLazy.tsx` đã wrap.
+
+**React StrictMode (reactStrictMode: true):** double-mount làm plugin register 2 lần → dùng ref guard `initedRef` trong `UniverSpreadsheet.tsx` + `univer.dispose()` trong cleanup.
+
 ---
 
 ## 1. Tại sao Univer?
