@@ -9,7 +9,7 @@ WORKDIR /repo
 RUN apt-get update \
  && apt-get install -y --no-install-recommends python3 make g++ \
  && rm -rf /var/lib/apt/lists/*
-COPY package.json pnpm-workspace.yaml ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/web/package.json apps/web/
 COPY apps/worker/package.json apps/worker/
 COPY packages/db/package.json packages/db/
