@@ -240,6 +240,7 @@ export interface BomTreeNode {
   componentSku: string | null;
   componentName: string | null;
   componentUom: string | null;
+  componentCategory: string | null;
   level: number;
   position: number;
   qtyPerParent: string;
@@ -268,6 +269,7 @@ export async function loadTree(templateId: string): Promise<BomTreeNode[]> {
       t.level, t.position, t.qty_per_parent, t.scrap_percent,
       t.uom, t.description, t.supplier_item_code, t.metadata,
       i.sku AS component_sku, i.name AS component_name, i.uom AS component_uom,
+      i.category AS component_category,
       (SELECT count(*)::int FROM app.bom_line c WHERE c.parent_line_id = t.id) AS child_count
     FROM tree t
     LEFT JOIN app.item i ON i.id = t.component_item_id
@@ -284,6 +286,7 @@ export async function loadTree(templateId: string): Promise<BomTreeNode[]> {
     componentSku: (r.component_sku as string | null) ?? null,
     componentName: (r.component_name as string | null) ?? null,
     componentUom: (r.component_uom as string | null) ?? null,
+    componentCategory: (r.component_category as string | null) ?? null,
     level: Number(r.level),
     position: Number(r.position),
     qtyPerParent: String(r.qty_per_parent),

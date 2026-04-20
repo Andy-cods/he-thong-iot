@@ -124,6 +124,36 @@ const TYPE_ICON = (level: number) => {
   return Cog;
 };
 
+function BomTreeHeader() {
+  return (
+    <div
+      className="sticky top-0 z-10 flex h-8 items-center gap-1 border-b border-zinc-200 bg-zinc-50 pl-1 pr-2 text-xs font-medium uppercase tracking-wide text-zinc-500 min-w-[720px]"
+      aria-hidden="true"
+    >
+      {/* grip placeholder */}
+      <div className="w-4 shrink-0" />
+      {/* chevron placeholder */}
+      <div className="w-5 shrink-0" />
+      {/* icon placeholder */}
+      <div className="w-4 shrink-0" />
+      {/* SKU */}
+      <span className="w-28 shrink-0">SKU</span>
+      {/* Tên */}
+      <span className="flex-1 min-w-0">Tên linh kiện</span>
+      {/* Danh mục */}
+      <span className="w-24 shrink-0">Danh mục</span>
+      {/* ĐVT */}
+      <span className="w-16 shrink-0 text-center">ĐVT</span>
+      {/* Số lượng */}
+      <span className="w-20 shrink-0 text-right">Số lượng</span>
+      {/* Hao hụt */}
+      <span className="w-16 shrink-0 text-right">Hao hụt</span>
+      {/* Actions placeholder */}
+      <div className="w-24 shrink-0" />
+    </div>
+  );
+}
+
 export function BomTreeView({
   tree,
   selectedId,
@@ -334,10 +364,11 @@ export function BomTreeView({
       ref={parentRef}
       onKeyDown={handleKey}
       tabIndex={0}
-      className="relative h-full min-h-[400px] w-full overflow-auto rounded-md border border-zinc-200 bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+      className="relative h-full min-h-[400px] w-full overflow-auto rounded-md border border-zinc-200 bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
       role="tree"
       aria-label="Cây linh kiện BOM"
     >
+      <BomTreeHeader />
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -415,7 +446,7 @@ export function BomTreeView({
 
         <DragOverlay dropAnimation={null}>
           {activeNode && (
-            <div className="flex h-8 items-center gap-2 rounded-md border border-blue-300 bg-white px-3 shadow-lg ring-1 ring-blue-400">
+            <div className="flex h-8 items-center gap-2 rounded-md border border-indigo-300 bg-white px-3 shadow-lg ring-1 ring-indigo-400">
               <GripVertical
                 className="h-3 w-3 text-zinc-400"
                 aria-hidden="true"
@@ -483,25 +514,25 @@ function TreeRow({
   const scrap = Number(node.scrapPercent);
 
   // Drop zone visual:
-  // - before: border-top blue
-  // - into: bg-blue-50 + border-left blue
-  // - after: border-bottom blue
+  // - before: border-top indigo
+  // - into: bg-indigo-50 + border-left indigo
+  // - after: border-bottom indigo
   const zoneClass =
     isOver && dropZone === "into"
-      ? "bg-blue-50 border-l-2 border-l-blue-500"
+      ? "bg-indigo-50 border-l-2 border-l-indigo-500"
       : "";
   const beforeBar =
     isOver && dropZone === "before" ? (
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute left-0 right-0 top-0 h-0.5 bg-blue-500"
+        className="pointer-events-none absolute left-0 right-0 top-0 h-0.5 bg-indigo-500"
       />
     ) : null;
   const afterBar =
     isOver && dropZone === "after" ? (
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500"
+        className="pointer-events-none absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500"
       />
     ) : null;
 
@@ -515,9 +546,9 @@ function TreeRow({
       aria-expanded={canExpand ? isExpanded : undefined}
       onClick={onSelect}
       className={cn(
-        "group relative flex h-8 items-center gap-1 border-b border-zinc-100 pl-1 pr-2 text-base transition-colors duration-100",
+        "group relative flex h-8 items-center gap-1 border-b border-zinc-100 pl-1 pr-2 text-base transition-colors duration-100 min-w-[720px]",
         "hover:bg-zinc-50",
-        isSelected && "border-l-2 border-l-blue-500 bg-blue-50",
+        isSelected && "border-l-2 border-l-indigo-500 bg-indigo-50",
         isDragging && "z-10 bg-white opacity-50 shadow-md",
         zoneClass,
       )}
@@ -560,9 +591,9 @@ function TreeRow({
 
       <Icon
         className={cn(
-          "h-3.5 w-3.5 shrink-0",
+          "h-4 w-4 shrink-0",
           node.level === 1
-            ? "text-blue-500"
+            ? "text-indigo-500"
             : node.level === 2
               ? "text-emerald-500"
               : "text-zinc-400",
@@ -570,38 +601,40 @@ function TreeRow({
         aria-hidden="true"
       />
 
-      {/* SKU mono */}
-      <span className="w-24 shrink-0 truncate font-mono text-sm text-zinc-700">
+      {/* SKU mono — w-28 */}
+      <span className="w-28 shrink-0 truncate font-mono text-sm text-zinc-700">
         {node.componentSku ?? "—"}
       </span>
 
-      {/* Name */}
+      {/* Name — flex-1 */}
       <span className="min-w-0 flex-1 truncate text-zinc-900">
         {node.componentName ?? "Chưa có"}
       </span>
 
-      {/* qty */}
-      <span className="shrink-0 font-mono text-xs tabular-nums text-zinc-700">
-        {formatNumber(Number(node.qtyPerParent))}{" "}
-        {node.uom ?? node.componentUom ?? ""}
+      {/* Danh mục — w-24 */}
+      <span className="w-24 shrink-0 truncate text-xs text-zinc-400">
+        {node.componentCategory ?? "—"}
       </span>
 
-      {/* scrap */}
-      {scrap > 0 && (
-        <span className="shrink-0 text-xs text-zinc-500">
-          scrap {scrap.toFixed(1)}%
-        </span>
-      )}
-
-      {/* level badge */}
-      <span className="shrink-0 rounded-sm bg-zinc-100 px-1 text-xs text-zinc-500">
-        L{node.level}
+      {/* ĐVT — w-16 */}
+      <span className="w-16 shrink-0 text-center text-xs text-zinc-500">
+        {node.uom ?? node.componentUom ?? "—"}
       </span>
 
-      {/* hover actions */}
+      {/* Số lượng — w-20 */}
+      <span className="w-20 shrink-0 text-right font-mono text-xs tabular-nums text-zinc-700">
+        {formatNumber(Number(node.qtyPerParent))}
+      </span>
+
+      {/* Hao hụt — w-16 */}
+      <span className="w-16 shrink-0 text-right text-xs text-zinc-500">
+        {scrap > 0 ? `${scrap.toFixed(1)}%` : "—"}
+      </span>
+
+      {/* hover actions — w-24 */}
       <div
         className={cn(
-          "ml-1 hidden items-center gap-0.5",
+          "w-24 shrink-0 hidden items-center justify-end gap-0.5",
           "group-hover:flex",
           isSelected && "flex",
         )}

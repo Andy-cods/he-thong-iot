@@ -201,10 +201,10 @@ export function BomListTable({
               className={cn(
                 "absolute left-0 top-0 grid w-full items-center border-b border-zinc-100 px-3 text-base text-zinc-900 transition-colors duration-100",
                 "hover:bg-zinc-50",
-                "focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:-outline-offset-2",
-                checked && "bg-blue-50",
+                "focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 focus-visible:-outline-offset-2",
+                checked && "bg-indigo-50",
                 isFocused &&
-                  "bg-zinc-50 outline outline-2 -outline-offset-2 outline-blue-500",
+                  "bg-zinc-50 outline outline-2 -outline-offset-2 outline-indigo-500",
                 gridCols,
               )}
               tabIndex={-1}
@@ -220,8 +220,8 @@ export function BomListTable({
               <Link
                 href={`/bom/${row.id}`}
                 className={cn(
-                  "sticky left-0 truncate border-r border-zinc-100 bg-white pr-2 font-mono text-sm text-zinc-700 hover:text-blue-600",
-                  checked && "bg-blue-50",
+                  "sticky left-0 truncate border-r border-zinc-100 bg-white pr-2 font-mono text-sm text-zinc-700 hover:text-indigo-600",
+                  checked && "bg-indigo-50",
                   isFocused && !checked && "bg-zinc-50",
                 )}
                 title={row.code}
@@ -231,7 +231,7 @@ export function BomListTable({
 
               <Link
                 href={`/bom/${row.id}`}
-                className="truncate pr-2 text-zinc-900 hover:text-blue-600 focus-visible:outline-none focus-visible:text-blue-600"
+                className="truncate pr-2 text-zinc-900 hover:text-indigo-600 focus-visible:outline-none focus-visible:text-indigo-600"
                 title={row.name}
               >
                 {row.name}
@@ -273,7 +273,7 @@ export function BomListTable({
                   <button
                     type="button"
                     onClick={() => onPreview(row)}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
                     aria-label={`Xem ${row.code}`}
                   >
                     <Eye className="h-3.5 w-3.5" aria-hidden="true" />
@@ -282,7 +282,7 @@ export function BomListTable({
                 <button
                   type="button"
                   onClick={() => onEdit(row)}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
                   aria-label={`Sửa ${row.code}`}
                 >
                   <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
@@ -290,7 +290,7 @@ export function BomListTable({
                 <button
                   type="button"
                   onClick={() => copyCode(row.code)}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
                   aria-label={`Copy mã ${row.code}`}
                 >
                   <Copy className="h-3.5 w-3.5" aria-hidden="true" />
@@ -299,7 +299,7 @@ export function BomListTable({
                   <button
                     type="button"
                     onClick={() => onClone(row)}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
                     aria-label={`Clone ${row.code}`}
                   >
                     <GitBranch className="h-3.5 w-3.5" aria-hidden="true" />

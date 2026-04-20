@@ -22,7 +22,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         "focus:outline-none disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-400",
         error
           ? "border-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500 focus-visible:outline-offset-0"
-          : "border-zinc-200 focus:border-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-0",
+          : "border-zinc-200 focus:border-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 focus-visible:outline-offset-0",
         "aria-[invalid=true]:border-red-500",
         className,
       )}

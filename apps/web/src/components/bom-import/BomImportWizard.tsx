@@ -224,7 +224,7 @@ export function BomImportWizard() {
             className={cn(
               "flex min-h-[200px] cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed p-6 transition-colors duration-150",
               isDragActive
-                ? "border-blue-500 bg-blue-50/30"
+                ? "border-indigo-500 bg-indigo-50/30"
                 : "border-zinc-300 bg-white hover:border-zinc-400 hover:bg-zinc-50/50",
             )}
           >
@@ -510,7 +510,7 @@ function StepIndicator({ step }: { step: Step }) {
               aria-current={state === "current" ? "step" : undefined}
               className={cn(
                 "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold tabular-nums transition-colors",
-                state === "current" && "bg-blue-500 text-white",
+                state === "current" && "bg-indigo-600 text-white",
                 state === "done" && "bg-emerald-500 text-white",
                 state === "pending" &&
                   "border-2 border-zinc-300 bg-white text-zinc-500",
@@ -630,7 +630,7 @@ function ResultPanel({
             aria-hidden="true"
           />
         ) : (
-          <div className="h-12 w-12 animate-spin rounded-full border-2 border-zinc-200 border-t-blue-500" />
+          <div className="h-12 w-12 animate-spin rounded-full border-2 border-zinc-200 border-t-indigo-500" />
         )}
         <div>
           <div className="text-xl font-semibold tracking-tight text-zinc-900">
@@ -652,7 +652,7 @@ function ResultPanel({
         <>
           <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-zinc-200">
             <div
-              className="h-full bg-blue-500 transition-all"
+              className="h-full bg-indigo-500 transition-all"
               style={{ width: `${progressPct}%` }}
             />
           </div>

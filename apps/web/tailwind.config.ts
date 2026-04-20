@@ -30,7 +30,7 @@ export default {
           950: "#09090B",
         },
 
-        // Blue (primary accent — electric Linear-style)
+        // Blue (semantic: info/link — giữ nguyên cho info badge)
         blue: {
           50: "#EFF6FF",
           100: "#DBEAFE",
@@ -43,6 +43,21 @@ export default {
           800: "#1E40AF",
           900: "#1E3A8A",
           950: "#172554",
+        },
+
+        // Indigo (primary accent V1.5)
+        indigo: {
+          50:  "#EEF2FF",
+          100: "#E0E7FF",
+          200: "#C7D2FE",
+          300: "#A5B4FC",
+          400: "#818CF8",
+          500: "#6366F1",
+          600: "#4F46E5",
+          700: "#4338CA",
+          800: "#3730A3",
+          900: "#312E81",
+          950: "#1E1B4B",
         },
 
         // Semantic
@@ -95,13 +110,13 @@ export default {
           700: "#C2410C",
         },
 
-        // Aliases V2
+        // Aliases V2 — indigo-600 accent V1.5
         accent: {
-          DEFAULT: "#3B82F6",
-          hover: "#2563EB",
-          press: "#1D4ED8",
-          soft: "#EFF6FF",
-          ring: "rgba(59, 130, 246, 0.35)",
+          DEFAULT: "#4F46E5",   // indigo-600
+          hover:   "#4338CA",   // indigo-700
+          press:   "#3730A3",   // indigo-800
+          soft:    "#EEF2FF",   // indigo-50
+          ring:    "rgba(79, 70, 229, 0.35)",
         },
         shortage: {
           DEFAULT: "#F97316",
@@ -135,10 +150,10 @@ export default {
           mist: "#E4E4E7",
         },
         cta: {
-          DEFAULT: "#3B82F6",
-          hover: "#2563EB",
-          press: "#1D4ED8",
-          soft: "#EFF6FF",
+          DEFAULT: "#4F46E5",
+          hover:   "#4338CA",
+          press:   "#3730A3",
+          soft:    "#EEF2FF",
         },
         success: { DEFAULT: "#10B981", strong: "#047857", soft: "#ECFDF5" },
         warning: { DEFAULT: "#F59E0B", strong: "#B45309", soft: "#FFFBEB" },
@@ -149,7 +164,7 @@ export default {
           "flash-danger": "#FEF2F2",
         },
         zebra: "#F4F4F5",
-        "border-focus": "#3B82F6",
+        "border-focus": "#4F46E5",
       },
 
       fontFamily: {
@@ -217,8 +232,10 @@ export default {
         // Back-compat aliases
         pop: "0 4px 12px rgba(0, 0, 0, 0.06)",
         dialog: "0 16px 48px rgba(0, 0, 0, 0.12)",
-        focus: "0 0 0 2px rgba(59, 130, 246, 0.5)",
-        "focus-strong": "0 0 0 3px rgba(37, 99, 235, 0.5)",
+        focus: "0 0 0 2px rgba(79, 70, 229, 0.5)",
+        "focus-strong": "0 0 0 3px rgba(67, 56, 202, 0.5)",
+        card:       "0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
+        "card-hover": "0 4px 12px rgba(79,70,229,0.10), 0 1px 3px rgba(0,0,0,0.06)",
         "scan-success": "0 0 0 3px rgba(16, 185, 129, 0.5)",
         "scan-error": "0 0 0 3px rgba(239, 68, 68, 0.5)",
       },

@@ -144,7 +144,7 @@ export function KpiCard({
   const baseClass = cn(
     "flex h-20 flex-col justify-between rounded-md border border-zinc-200 bg-white p-4",
     isInteractive &&
-      "transition-colors duration-150 ease-out hover:border-zinc-300 hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1",
+      "transition-colors duration-150 ease-out hover:border-zinc-300 hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1",
     className,
   );
 

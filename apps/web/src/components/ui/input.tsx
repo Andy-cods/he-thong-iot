@@ -41,7 +41,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         // Border + focus trạng thái chuẩn V2 (CSS outline thuần không box-shadow).
         error
           ? "border-red-500 focus:border-red-500 focus-visible:outline-red-500"
-          : "border-zinc-200 focus:border-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-0",
+          : "border-zinc-200 focus:border-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 focus-visible:outline-offset-0",
         "aria-[invalid=true]:border-red-500",
         className,
       )}

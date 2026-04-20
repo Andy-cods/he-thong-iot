@@ -19,7 +19,7 @@
     /* Borders */
     --border-subtle: #e4e4e7;
     --border-strong: #d4d4d8;
-    --border-focus: #3b82f6;
+    --border-focus: #4f46e5;
 
     /* Text */
     --text-primary: #18181b;
@@ -29,12 +29,12 @@
     --text-inverse: #fafafa;
     --text-link: #2563eb;
 
-    /* Accent */
-    --accent: #3b82f6;
-    --accent-hover: #2563eb;
-    --accent-press: #1d4ed8;
-    --accent-soft: #eff6ff;
-    --accent-ring: rgba(59, 130, 246, 0.35);
+    /* Accent — indigo-600 */
+    --accent: #4f46e5;
+    --accent-hover: #4338ca;
+    --accent-press: #3730a3;
+    --accent-soft: #eef2ff;
+    --accent-ring: rgba(79, 70, 229, 0.35);
 
     /* Semantic */
     --success: #10b981;
@@ -74,15 +74,22 @@
     --color-brand-ink: #18181b;
     --color-brand-steel: #3f3f46;
     --color-brand-mist: #e4e4e7;
-    --color-cta: #3b82f6;
-    --color-cta-hover: #2563eb;
-    --color-cta-press: #1d4ed8;
+    --color-cta: #4f46e5;
+    --color-cta-hover: #4338ca;
+    --color-cta-press: #3730a3;
     --color-success: #10b981;
     --color-warning: #f59e0b;
     --color-danger: #ef4444;
     --color-info: #0ea5e9;
-    --ring-focus: 0 0 0 2px rgba(59, 130, 246, 0.5);
+    --ring-focus: 0 0 0 2px rgba(79, 70, 229, 0.5);
     --sidebar-width-collapsed: 0; /* V2 không còn collapsed rail */
+
+    /* Shadow tokens V1.5 */
+    --shadow-card: 0 1px 2px rgba(0,0,0,0.05), 0 1px 4px rgba(0,0,0,0.04);
+    --shadow-card-hover: 0 3px 8px rgba(0,0,0,0.08);
+
+    /* Background — tối hơn 1 bậc */
+    --bg-page: #f7f7f8;
   }
 
   /* Dark mode reserve — NOT ACTIVATED V2.0 */
@@ -95,10 +102,10 @@
     --text-primary: #fafafa;
     --text-secondary: #d4d4d8;
     --text-muted: #a1a1aa;
-    --accent: #60a5fa;
-    --accent-hover: #93c5fd;
-    --accent-press: #3b82f6;
-    --accent-soft: #172554;
+    --accent: #818cf8;        /* indigo-400 */
+    --accent-hover: #a5b4fc;  /* indigo-300 */
+    --accent-press: #6366f1;  /* indigo-500 */
+    --accent-soft: #1e1b4b;   /* indigo-950 */
   }
 
   html {
@@ -424,7 +431,7 @@
     @apply bg-zinc-50;
   }
   .row-selected {
-    @apply bg-blue-50 border-l-2 border-blue-500;
+    @apply bg-indigo-50 border-l-2 border-indigo-500;
   }
 }
 

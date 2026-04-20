@@ -183,7 +183,7 @@ export function ItemPicker({
                   )}
                   {selected && (
                     <Check
-                      className="h-3.5 w-3.5 text-blue-500"
+                      className="h-3.5 w-3.5 text-indigo-600"
                       aria-hidden="true"
                     />
                   )}

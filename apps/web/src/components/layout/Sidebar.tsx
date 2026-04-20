@@ -121,10 +121,10 @@ function SidebarItem({
 
   const baseClass = cn(
     "relative flex h-7 items-center gap-2 rounded-md px-3 text-base font-medium transition-colors duration-100 ease-out",
-    "focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-[-2px]",
+    "focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 focus-visible:outline-offset-[-2px]",
     isActive
-      ? // V2 active: bg-blue-50 tint + border-l-2 blue-500 (padding-l bù 2px = [10px])
-        "bg-blue-50 text-blue-700 pl-[10px] before:absolute before:left-0 before:top-1 before:h-5 before:w-0.5 before:rounded-r before:bg-blue-500"
+      ? // V1.5 active: bg-indigo-50 tint + border-l-2 indigo-500
+        "bg-indigo-50 text-indigo-700 pl-[10px] before:absolute before:left-0 before:top-1 before:h-5 before:w-0.5 before:rounded-r before:bg-indigo-500"
       : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900",
     item.disabled && "cursor-not-allowed text-zinc-400 hover:bg-transparent",
   );

@@ -16,6 +16,7 @@
     "migrate": "tsx src/migrate.ts",
     "studio": "drizzle-kit studio",
     "seed": "tsx src/seed.ts",
+    "seed-demo": "tsx src/seed-demo.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"src/**/*.ts\"",
     "test": "vitest run"

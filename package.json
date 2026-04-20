@@ -22,6 +22,7 @@
     "db:push": "pnpm --filter @iot/db push",
     "db:migrate": "pnpm --filter @iot/db migrate",
     "db:seed": "pnpm --filter @iot/db seed",
+    "db:seed-demo": "pnpm --filter @iot/db seed-demo",
     "db:studio": "pnpm --filter @iot/db studio",
     "clean": "pnpm -r exec rm -rf dist .next .turbo node_modules"
   },

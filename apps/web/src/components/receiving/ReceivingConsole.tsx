@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Minus, Package, Plus, RefreshCw, WifiOff } from "lucide-react";
 import { toast } from "sonner";
+import { EtaProgressBar } from "@/components/receiving/EtaProgressBar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -359,19 +360,29 @@ export function ReceivingConsole({
         </div>
       ) : null}
 
-      {/* Header h-12 compact tablet */}
-      <header className="flex h-12 items-center justify-between gap-4 border-b border-zinc-200 bg-white px-4">
+      {/* Header compact tablet */}
+      <header className="flex items-center justify-between gap-4 border-b border-zinc-200 bg-white px-4 py-2 min-h-[3.5rem]">
         <div className="flex items-center gap-3 min-w-0">
           <Package
             className="h-4 w-4 shrink-0 text-zinc-500"
             aria-hidden="true"
           />
-          <code className="font-mono text-[13px] font-semibold text-zinc-900">
-            PO {poCode}
-          </code>
-          <span className="truncate text-xs text-zinc-500">
-            {supplierName} · Dự kiến {expectedDate}
-          </span>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <code className="font-mono text-[13px] font-semibold text-zinc-900">
+                PO {poCode}
+              </code>
+              <span className="truncate text-xs text-zinc-500">
+                {supplierName}
+              </span>
+            </div>
+            <EtaProgressBar
+              etaDate={expectedDate ?? null}
+              orderedQty={lines.reduce((s, l) => s + l.orderedQty, 0)}
+              receivedQty={lines.reduce((s, l) => s + l.receivedQty, 0)}
+              className="mt-0.5 max-w-xs"
+            />
+          </div>
         </div>
         <div className="shrink-0 text-xs font-medium text-zinc-600 tabular-nums">
           {doneLines}/{totalLines} dòng

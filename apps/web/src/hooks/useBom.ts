@@ -49,6 +49,7 @@ export interface BomTreeNodeRaw {
   componentSku: string | null;
   componentName: string | null;
   componentUom: string | null;
+  componentCategory: string | null;
   level: number;
   position: number;
   qtyPerParent: string;

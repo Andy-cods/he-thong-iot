@@ -46,7 +46,7 @@ import { cn } from "@/lib/utils";
  * - Stepper V2: 4-step dot h-8 w-8 rounded-full. Active blue-500, done
  *   emerald-500 + check icon, pending zinc-300 border + zinc-500 number.
  *   Connector line 2px bg emerald-500 (done) / zinc-200 (todo).
- * - Dropzone hover/active: border-blue-500 bg-blue-50/30 (thay cta dead V1).
+ * - Dropzone hover/active: border-indigo-500 bg-indigo-50/30 (thay cta dead V1).
  * - Preview table sticky header + invalid row bg-red-50 border-l-2 red-500,
  *   cell bg-red-100 khi field cụ thể thiếu.
  * - Stats card dùng success-strong / danger-strong tokens V2.
@@ -245,7 +245,7 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
             className={cn(
               "flex min-h-[200px] cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed p-6 transition-colors duration-150",
               isDragActive
-                ? "border-blue-500 bg-blue-50/30"
+                ? "border-indigo-500 bg-indigo-50/30"
                 : "border-zinc-300 bg-white hover:border-zinc-400 hover:bg-zinc-50/50",
             )}
           >
@@ -305,7 +305,7 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
             <div className="flex items-end">
               <a
                 href={downloadTemplateUrl()}
-                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-base font-medium text-zinc-700 transition-colors hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-base font-medium text-zinc-700 transition-colors hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
               >
                 <Download className="h-3.5 w-3.5" aria-hidden="true" />
                 Tải template Excel
@@ -514,7 +514,7 @@ function StepIndicator({ step }: { step: Step }) {
               aria-current={state === "current" ? "step" : undefined}
               className={cn(
                 "inline-flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold tabular-nums transition-colors",
-                state === "current" && "bg-blue-500 text-white",
+                state === "current" && "bg-indigo-600 text-white",
                 state === "done" && "bg-emerald-500 text-white",
                 state === "pending" &&
                   "border-2 border-zinc-300 bg-white text-zinc-500",
@@ -612,7 +612,7 @@ function ResultPanel({
             aria-hidden="true"
           />
         ) : (
-          <div className="h-12 w-12 animate-spin rounded-full border-2 border-zinc-200 border-t-blue-500" />
+          <div className="h-12 w-12 animate-spin rounded-full border-2 border-zinc-200 border-t-indigo-500" />
         )}
         <div>
           <div className="text-xl font-semibold tracking-tight text-zinc-900">
@@ -632,7 +632,7 @@ function ResultPanel({
         <>
           <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-zinc-200">
             <div
-              className="h-full bg-blue-500 transition-all"
+              className="h-full bg-indigo-500 transition-all"
               style={{ width: `${progressPct}%` }}
             />
           </div>

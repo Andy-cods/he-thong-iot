@@ -205,7 +205,7 @@ export function OrderForm({
               {...form.register("priority")}
               className={cn(
                 "h-9 w-full rounded-md border border-zinc-200 bg-white px-3 text-base text-zinc-900",
-                "focus:border-blue-500 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500",
+                "focus:border-indigo-500 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500",
                 "disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-400",
               )}
             >

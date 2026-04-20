@@ -43,8 +43,8 @@ export function LoginHero({ className }: { className?: string }) {
 
       {/* Brand + tagline — top */}
       <div className="relative z-10 flex flex-col items-start self-start">
-        <div className="mb-4 flex h-8 w-8 items-center justify-center rounded-sm bg-blue-500/15 ring-1 ring-blue-400/30">
-          <span className="font-heading text-sm font-semibold text-blue-300">
+        <div className="mb-4 flex h-8 w-8 items-center justify-center rounded-sm bg-indigo-500/15 ring-1 ring-indigo-400/30">
+          <span className="font-heading text-sm font-semibold text-indigo-300">
             CN
           </span>
         </div>

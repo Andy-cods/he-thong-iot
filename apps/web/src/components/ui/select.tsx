@@ -31,7 +31,7 @@ export const SelectTrigger = React.forwardRef<
     ref={ref}
     className={cn(
       "flex w-full items-center justify-between rounded-md border border-zinc-200 bg-white text-base text-zinc-900 transition-colors duration-150 ease-out",
-      "focus:border-blue-500 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-0",
+      "focus:border-indigo-500 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 focus-visible:outline-offset-0",
       "data-[placeholder]:text-zinc-400",
       "disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:opacity-60",
       "[&>span]:line-clamp-1",

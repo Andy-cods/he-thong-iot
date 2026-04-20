@@ -44,9 +44,9 @@ export const Checkbox = React.forwardRef<
       className={cn(
         "peer inline-flex shrink-0 items-center justify-center rounded-sm border-[1.5px] border-zinc-300 bg-white text-white transition-all duration-100 ease-out",
         "hover:border-zinc-400 hover:bg-zinc-50",
-        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-1",
-        "data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500 data-[state=checked]:hover:bg-blue-600",
-        "data-[state=indeterminate]:bg-blue-500 data-[state=indeterminate]:border-blue-500",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 focus-visible:outline-offset-1",
+        "data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600 data-[state=checked]:hover:bg-indigo-700",
+        "data-[state=indeterminate]:bg-indigo-600 data-[state=indeterminate]:border-indigo-600",
         "disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:border-zinc-200 disabled:opacity-60",
         box,
         className,
