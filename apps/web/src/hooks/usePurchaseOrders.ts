@@ -18,6 +18,8 @@ export interface PORow {
   id: string;
   poNo: string;
   supplierId: string;
+  supplierName?: string | null;
+  supplierCode?: string | null;
   status: POStatus;
   linkedOrderId: string | null;
   prId: string | null;
@@ -37,6 +39,8 @@ export interface POLineRow {
   poId: string;
   lineNo: number;
   itemId: string;
+  itemSku?: string | null;
+  itemName?: string | null;
   orderedQty: string;
   receivedQty: string;
   unitPrice: string;

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { desc, eq, inArray, sql } from "drizzle-orm";
+import { desc, eq, inArray, sql, sum } from "drizzle-orm";
 import { item, bomTemplate, supplier, salesOrder, bomSnapshotLine, workOrder } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
@@ -76,17 +76,20 @@ function mapOrderStatus(
 async function getRecentOrdersReal(): Promise<OrderReadinessRow[]> {
   const ACTIVE_STATUSES = ["CONFIRMED", "SNAPSHOTTED", "IN_PROGRESS"] as const;
 
-  // 1) Query 10 orders active gần nhất
+  // 1) Query 10 orders active gần nhất, join item để lấy productName
   const orders = await db
     .select({
       id: salesOrder.id,
       orderNo: salesOrder.orderNo,
       customerName: salesOrder.customerName,
       productItemId: salesOrder.productItemId,
+      itemName: item.name,
+      itemSku: item.sku,
       status: salesOrder.status,
       dueDate: salesOrder.dueDate,
     })
     .from(salesOrder)
+    .leftJoin(item, eq(salesOrder.productItemId, item.id))
     .where(
       inArray(
         salesOrder.status,
@@ -124,21 +127,52 @@ async function getRecentOrdersReal(): Promise<OrderReadinessRow[]> {
     snapAgg.map((r) => [r.orderId, r]),
   );
 
-  // 3) Map về OrderReadinessRow
+  // 3) WO progress per order (goodQty / plannedQty)
+  type WoRow = { orderId: string; planned: number; good: number };
+  let woAgg: WoRow[] = [];
+  try {
+    const rows = await db
+      .select({
+        orderId: workOrder.linkedOrderId,
+        planned: sql<number>`coalesce(sum(${workOrder.plannedQty}), 0)::numeric`,
+        good: sql<number>`coalesce(sum(${workOrder.goodQty}), 0)::numeric`,
+      })
+      .from(workOrder)
+      .where(inArray(workOrder.linkedOrderId, orderIds))
+      .groupBy(workOrder.linkedOrderId);
+    woAgg = rows as unknown as WoRow[];
+  } catch {
+    woAgg = [];
+  }
+  const woMap = new Map<string, WoRow>(
+    woAgg.filter((r) => r.orderId).map((r) => [r.orderId!, r]),
+  );
+
+  // 4) Map về OrderReadinessRow
   return orders.map((o) => {
     const snap = snapMap.get(o.id);
     const total = snap?.total ?? 0;
     const shortage = snap?.shortage ?? 0;
-    const readinessPct =
-      total > 0 ? Math.round(((total - shortage) / total) * 100) : 0;
+    const snapPct = total > 0 ? Math.round(((total - shortage) / total) * 100) : null;
 
-    // Nếu chưa có snapshot → readiness = 0, shortage = 0
+    const wo = woMap.get(o.id);
+    const woPct =
+      wo && Number(wo.planned) > 0
+        ? Math.round((Number(wo.good) / Number(wo.planned)) * 100)
+        : null;
+
+    const readinessPct = woPct ?? snapPct ?? 0;
+
+    const productName =
+      o.itemName
+        ? `${o.itemSku ? o.itemSku + " — " : ""}${o.itemName}`
+        : o.itemSku ?? `SKU: ${o.productItemId.slice(0, 8)}…`;
+
     return {
       id: o.id,
       orderCode: o.orderNo,
       customerName: o.customerName,
-      // productName: dùng productItemId (chưa join item để đơn giản)
-      productName: `SKU: ${o.productItemId.slice(0, 8)}…`,
+      productName,
       deadline: o.dueDate ?? new Date().toISOString(),
       readinessPercent: readinessPct,
       shortageSkus: shortage,

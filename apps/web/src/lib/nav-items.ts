@@ -61,7 +61,7 @@ export const NAV_ITEMS: NavItem[] = [
     entity: "item",
   },
   {
-    href: "/items/import",
+    href: "/import",
     label: "Nhập Excel",
     icon: FileSpreadsheet,
     roles: ["admin", "planner"],
@@ -99,7 +99,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     href: "/work-orders",
-    label: "Work Orders",
+    label: "Lệnh sản xuất (WO)",
     icon: Factory,
     entity: "wo",
   },
@@ -108,12 +108,6 @@ export const NAV_ITEMS: NavItem[] = [
     label: "ECO",
     icon: GitBranch,
     entity: "eco",
-    roles: ["admin", "planner"],
-  },
-  {
-    href: "/bom/import",
-    label: "Nhập BOM Excel",
-    icon: FileSpreadsheet,
     roles: ["admin", "planner"],
   },
   {

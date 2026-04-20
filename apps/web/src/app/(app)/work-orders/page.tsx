@@ -164,11 +164,12 @@ export default function WorkOrdersListPage() {
             <table className="w-full text-sm">
               <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
                 <tr>
-                  <th className="px-3 py-2 text-left">WO No</th>
-                  <th className="px-3 py-2 text-left">Order</th>
-                  <th className="px-3 py-2 text-left">Priority</th>
-                  <th className="px-3 py-2 text-right">Planned Qty</th>
-                  <th className="px-3 py-2 text-right">Good / Scrap</th>
+                  <th className="px-3 py-2 text-left">Số WO</th>
+                  <th className="px-3 py-2 text-left">Đơn hàng</th>
+                  <th className="px-3 py-2 text-left">Ưu tiên</th>
+                  <th className="px-3 py-2 text-right">SL kế hoạch</th>
+                  <th className="px-3 py-2 text-right">Đạt / Phế</th>
+                  <th className="px-3 py-2 text-left">% Hoàn thành</th>
                   <th className="px-3 py-2 text-left">Trạng thái</th>
                   <th className="px-3 py-2 text-left">Tạo lúc</th>
                 </tr>
@@ -207,6 +208,24 @@ export default function WorkOrdersListPage() {
                       <span className="text-red-600">
                         {Number(r.scrapQty).toLocaleString("vi-VN")}
                       </span>
+                    </td>
+                    <td className="px-3 py-2">
+                      {(() => {
+                        const planned = Number(r.plannedQty);
+                        const good = Number(r.goodQty);
+                        const pct = planned > 0 ? Math.min(100, Math.round((good / planned) * 100)) : 0;
+                        return (
+                          <div className="flex items-center gap-2">
+                            <div className="h-1.5 w-16 overflow-hidden rounded-full bg-zinc-100">
+                              <div
+                                className={`h-full rounded-full ${pct >= 100 ? "bg-emerald-500" : pct > 0 ? "bg-blue-500" : "bg-zinc-300"}`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                            <span className="text-xs tabular-nums text-zinc-600">{pct}%</span>
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="px-3 py-2">
                       <Badge variant={STATUS_VARIANTS[r.status]}>

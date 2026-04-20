@@ -9,7 +9,7 @@ import {
   parseAsStringEnum,
   useQueryStates,
 } from "nuqs";
-import { PO_STATUSES } from "@iot/shared";
+import { PO_STATUSES, PO_STATUS_LABELS, type POStatus } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { POListTable } from "@/components/procurement/POListTable";
@@ -88,7 +88,7 @@ export default function PurchaseOrdersListPage() {
                   : "text-zinc-600 hover:bg-zinc-100"
               }`}
             >
-              {s === "all" ? "Tất cả" : s}
+              {s === "all" ? "Tất cả" : PO_STATUS_LABELS[s as POStatus]}
             </button>
           ))}
         </div>

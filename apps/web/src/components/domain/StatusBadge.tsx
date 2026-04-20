@@ -92,12 +92,12 @@ const STATUS_MAP: Record<BadgeStatus, StatusMeta> = {
   },
   // V1 legacy aliases → map sang V2 semantic
   active: {
-    defaultLabel: "Đang hoạt động",
+    defaultLabel: "Hoạt động",
     icon: CircleDot,
     color: "bg-emerald-50 text-emerald-700 border-emerald-200",
   },
   inactive: {
-    defaultLabel: "Ngưng hoạt động",
+    defaultLabel: "Ngưng",
     icon: CircleOff,
     color: "bg-zinc-100 text-zinc-600 border-zinc-200",
   },

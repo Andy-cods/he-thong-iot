@@ -4,6 +4,8 @@ import {
   purchaseOrderLine,
   purchaseRequest,
   purchaseRequestLine,
+  supplier,
+  item,
 } from "@iot/db/schema";
 import type {
   PurchaseOrder,
@@ -56,8 +58,27 @@ export async function listPOs(q: ListPOsQuery) {
       .from(purchaseOrder)
       .where(whereExpr),
     db
-      .select()
+      .select({
+        id: purchaseOrder.id,
+        poNo: purchaseOrder.poNo,
+        supplierId: purchaseOrder.supplierId,
+        supplierName: supplier.name,
+        supplierCode: supplier.code,
+        status: purchaseOrder.status,
+        orderDate: purchaseOrder.orderDate,
+        expectedEta: purchaseOrder.expectedEta,
+        currency: purchaseOrder.currency,
+        totalAmount: purchaseOrder.totalAmount,
+        prId: purchaseOrder.prId,
+        linkedOrderId: purchaseOrder.linkedOrderId,
+        notes: purchaseOrder.notes,
+        sentAt: purchaseOrder.sentAt,
+        receivedAt: purchaseOrder.receivedAt,
+        createdAt: purchaseOrder.createdAt,
+        updatedAt: purchaseOrder.updatedAt,
+      })
       .from(purchaseOrder)
+      .leftJoin(supplier, eq(purchaseOrder.supplierId, supplier.id))
       .where(whereExpr)
       .orderBy(desc(purchaseOrder.createdAt))
       .limit(q.pageSize)
@@ -76,10 +97,25 @@ export async function getPO(id: string): Promise<PurchaseOrder | null> {
   return row ?? null;
 }
 
-export async function getPOLines(poId: string): Promise<PurchaseOrderLine[]> {
+export async function getPOLines(poId: string) {
   return db
-    .select()
+    .select({
+      id: purchaseOrderLine.id,
+      poId: purchaseOrderLine.poId,
+      lineNo: purchaseOrderLine.lineNo,
+      itemId: purchaseOrderLine.itemId,
+      itemSku: item.sku,
+      itemName: item.name,
+      unit: purchaseOrderLine.unit,
+      orderedQty: purchaseOrderLine.orderedQty,
+      receivedQty: purchaseOrderLine.receivedQty,
+      unitPrice: purchaseOrderLine.unitPrice,
+      lineTotal: purchaseOrderLine.lineTotal,
+      expectedEta: purchaseOrderLine.expectedEta,
+      notes: purchaseOrderLine.notes,
+    })
     .from(purchaseOrderLine)
+    .leftJoin(item, eq(purchaseOrderLine.itemId, item.id))
     .where(eq(purchaseOrderLine.poId, poId))
     .orderBy(purchaseOrderLine.lineNo);
 }

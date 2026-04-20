@@ -112,7 +112,7 @@ export function POListTable({ rows, loading }: POListTableProps) {
                 {row.poNo}
               </Link>
               <div className="truncate pr-2 text-sm text-zinc-700">
-                {row.supplierId.slice(0, 8)}…
+                {row.supplierName ?? row.supplierCode ?? `${row.supplierId.slice(0, 8)}…`}
               </div>
               <div className="text-sm text-zinc-600 tabular-nums">
                 {row.expectedEta

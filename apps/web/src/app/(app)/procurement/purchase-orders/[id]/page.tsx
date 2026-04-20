@@ -115,9 +115,9 @@ export default function PurchaseOrderDetailPage() {
                 <dd className="font-mono text-sm text-zinc-900">{po.poNo}</dd>
               </div>
               <div>
-                <dt className="text-xs uppercase text-zinc-500">NCC ID</dt>
-                <dd className="font-mono text-xs text-zinc-900">
-                  {po.supplierId}
+                <dt className="text-xs uppercase text-zinc-500">Nhà cung cấp</dt>
+                <dd className="text-sm text-zinc-900">
+                  {po.supplierName ?? po.supplierCode ?? po.supplierId}
                 </dd>
               </div>
               <div>
@@ -151,10 +151,11 @@ export default function PurchaseOrderDetailPage() {
                 <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
                   <tr>
                     <th className="w-12 px-3 py-2 text-left">#</th>
-                    <th className="px-3 py-2 text-left">Item ID</th>
+                    <th className="px-3 py-2 text-left">Vật tư</th>
                     <th className="px-3 py-2 text-right">Đặt</th>
                     <th className="px-3 py-2 text-right">Đã nhận</th>
-                    <th className="px-3 py-2 text-right">Còn</th>
+                    <th className="px-3 py-2 text-right">Còn lại</th>
+                    <th className="px-3 py-2 text-left">Tiến độ</th>
                     <th className="px-3 py-2 text-left">ETA</th>
                   </tr>
                 </thead>
@@ -166,8 +167,17 @@ export default function PurchaseOrderDetailPage() {
                     return (
                       <tr key={l.id} className="border-t border-zinc-100">
                         <td className="px-3 py-2 text-zinc-500">{l.lineNo}</td>
-                        <td className="px-3 py-2 font-mono text-xs">
-                          {l.itemId.slice(0, 8)}…
+                        <td className="px-3 py-2 text-sm">
+                          {l.itemSku ? (
+                            <span>
+                              <span className="font-mono text-xs text-zinc-500">{l.itemSku}</span>
+                              {l.itemName && (
+                                <span className="ml-1 text-zinc-700">{l.itemName}</span>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="font-mono text-xs">{l.itemId.slice(0, 8)}…</span>
+                          )}
                         </td>
                         <td className="px-3 py-2 text-right tabular-nums">
                           {formatNumber(ordered)}
@@ -181,6 +191,27 @@ export default function PurchaseOrderDetailPage() {
                           }`}
                         >
                           {formatNumber(remaining)}
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            <div className="h-1.5 w-20 overflow-hidden rounded-full bg-zinc-100">
+                              <div
+                                className={`h-full rounded-full transition-all ${
+                                  ordered > 0 && received >= ordered
+                                    ? "bg-emerald-500"
+                                    : received > 0
+                                    ? "bg-amber-500"
+                                    : "bg-zinc-300"
+                                }`}
+                                style={{
+                                  width: `${ordered > 0 ? Math.min(100, Math.round((received / ordered) * 100)) : 0}%`,
+                                }}
+                              />
+                            </div>
+                            <span className="text-xs tabular-nums text-zinc-500">
+                              {ordered > 0 ? `${Math.min(100, Math.round((received / ordered) * 100))}%` : "—"}
+                            </span>
+                          </div>
                         </td>
                         <td className="px-3 py-2 text-xs text-zinc-600">
                           {l.expectedEta

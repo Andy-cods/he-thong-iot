@@ -184,7 +184,7 @@ function OrdersRow({
       <td className="px-3 text-zinc-600">{order.productName}</td>
       <td className="px-3 text-zinc-700">
         <span className="mr-1 tabular-nums">
-          {formatDate(order.deadline, "dd/MM")}
+          {formatDate(order.deadline, "dd/MM/yyyy")}
         </span>
         <span
           className={cn(
