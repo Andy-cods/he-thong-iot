@@ -4,6 +4,28 @@
 > **Owner:** Thắng.
 > **Dependency:** Trụ cột 1 DONE (cột `univer_snapshot` tồn tại).
 
+## ⚡ Update 2026-04-20 (chiều) — Anh Hoạt feedback + mở rộng scope
+
+Sau khi review trang `/bom/[id]` tree view cũ, anh Hoạt yêu cầu 4 điểm:
+1. Tree hiển thị **chuyên nghiệp** hơn (Outline/Group giống Excel)
+2. **% Hao hụt edit inline** được
+3. Thêm cột **"Loại: Gia công / Thương mại"** (icon + text)
+4. **Thêm linh kiện từ master** của cả xưởng
+
+**Quyết định (chốt với user hôm nay):**
+- ✅ Bỏ hẳn trang `/bom/[id]` tree cũ → redirect sang `/bom/[code]` Univer
+- ✅ Cột "Loại" = **icon + text** (🔧 Gia công | 🛒 Thương mại)
+- ✅ Thêm linh kiện = **Ctrl+K palette + nút toolbar "+ Thêm linh kiện"** (cả 2)
+
+**7 task bổ sung vào ngày 3-5 (sau POC):**
+- [ ] Cột "Loại" data-validation list dropdown + icon renderer
+- [ ] Cột "Hao hụt %" editable, format `0.0%`, range 0-100
+- [ ] Ctrl+K command palette search master items
+- [ ] Toolbar button "+ Thêm linh kiện" (tương đương Ctrl+K)
+- [ ] Outline/Group rows theo depth BOM (1-5 cấp)
+- [ ] Row banding màu nhạt dần theo cấp
+- [ ] Freeze cột SKU khi scroll ngang + deprecate trang tree cũ
+
 ## ⚡ Update 2026-04-20 — corrections sau khi install thực tế
 
 Researcher agent xác minh qua `npm view` → các correction sau:

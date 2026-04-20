@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FileUp, Plus } from "lucide-react";
+import { FileUp, Plus, Sparkles } from "lucide-react";
 import {
   parseAsInteger,
   parseAsString,
@@ -219,6 +219,12 @@ export default function BomListPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button asChild variant="outline" size="sm" className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100">
+            <Link href="/playground/univer">
+              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+              Thử Grid mới (Excel-like)
+            </Link>
+          </Button>
           <Button asChild variant="ghost" size="sm">
             <Link href="/bom/import">
               <FileUp className="h-3.5 w-3.5" aria-hidden="true" />

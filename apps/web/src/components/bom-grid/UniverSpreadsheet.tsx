@@ -32,6 +32,19 @@ export type UniverWorkbookSnapshot = Record<string, unknown>;
 export interface UniverSpreadsheetHandle {
   /** Lấy snapshot JSON hiện tại của workbook. */
   save: () => UniverWorkbookSnapshot | null;
+  /**
+   * Append 1 dòng linh kiện từ master (Ctrl+Shift+A hoặc toolbar "+ Thêm").
+   * Tìm dòng trống đầu tiên sau header → set values.
+   */
+  insertItemRow: (row: InsertableItemRow) => void;
+}
+
+export interface InsertableItemRow {
+  sku: string;
+  name: string;
+  itemType: string; // FABRICATED | PURCHASED | ...
+  category: string | null;
+  uom: string;
 }
 
 export const UniverSpreadsheet = React.forwardRef<
@@ -42,6 +55,8 @@ export const UniverSpreadsheet = React.forwardRef<
   const apiRef = React.useRef<ReturnType<typeof createUniver>["univerAPI"] | null>(null);
   const univerRef = React.useRef<ReturnType<typeof createUniver>["univer"] | null>(null);
   const initedRef = React.useRef(false);
+  /** Row counter để append dòng mới — tránh dò Univer API getLastRow. */
+  const nextInsertRowRef = React.useRef(21);
 
   React.useImperativeHandle(
     ref,
@@ -51,6 +66,46 @@ export const UniverSpreadsheet = React.forwardRef<
         if (!api) return null;
         const wb = api.getActiveWorkbook();
         return wb ? (wb.save() as unknown as UniverWorkbookSnapshot) : null;
+      },
+      insertItemRow: (row: InsertableItemRow) => {
+        const api = apiRef.current;
+        if (!api) return;
+        const wb = api.getActiveWorkbook();
+        const sheet = wb?.getActiveSheet();
+        if (!sheet) return;
+
+        // Counter nội bộ — row tiếp theo để thêm (start 22 = end of init data).
+        // User có thể scroll xuống để thấy. V2: smarter auto-detect last row.
+        nextInsertRowRef.current = Math.max(22, nextInsertRowRef.current + 1);
+        const targetRow = nextInsertRowRef.current;
+
+        const kindIcon = row.itemType === "FABRICATED" ? "🔧" : "🛒";
+        const kindText =
+          row.itemType === "FABRICATED" ? "Gia công" : "Thương mại";
+
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const s = sheet as any;
+          const range = s.getRange(targetRow, 0, 1, 11);
+          range?.setValues?.([
+            [
+              "",
+              `   ${row.sku}`,
+              row.name,
+              `${kindIcon} ${kindText}`,
+              row.category ?? "",
+              "",
+              1,
+              "",
+              `=G${targetRow + 1}*$K$1`,
+              0,
+              "",
+            ],
+          ]);
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error("[Univer] insertItemRow failed:", err);
+        }
       },
     }),
     [],
