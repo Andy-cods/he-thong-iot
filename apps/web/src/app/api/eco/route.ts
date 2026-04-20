@@ -30,6 +30,7 @@ const listSchema = z.object({
     .transform((s) =>
       s === undefined ? undefined : Array.isArray(s) ? s : [s],
     ),
+  bomTemplateId: z.string().uuid().optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(200).default(50),
 });

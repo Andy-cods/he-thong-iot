@@ -66,6 +66,8 @@ export interface EcoDetail extends EcoRow {
 export interface EcoListFilter {
   q?: string;
   status?: EcoStatus[];
+  /** V1.6 — filter theo BOM template (FK direct: eco_change.affected_template_id). */
+  bomTemplateId?: string;
   page?: number;
   pageSize?: number;
 }
@@ -98,6 +100,7 @@ const ecoKeys = {
 export function useEcoList(filter: EcoListFilter) {
   const p = new URLSearchParams();
   if (filter.q) p.set("q", filter.q);
+  if (filter.bomTemplateId) p.set("bomTemplateId", filter.bomTemplateId);
   if (filter.page) p.set("page", String(filter.page));
   if (filter.pageSize) p.set("pageSize", String(filter.pageSize));
   for (const s of filter.status ?? []) p.append("status", s);

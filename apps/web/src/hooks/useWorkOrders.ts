@@ -92,6 +92,7 @@ function buildUrl(f: WorkOrderFilter): string {
   const p = new URLSearchParams();
   if (f.q && f.q.trim()) p.set("q", f.q.trim());
   if (f.orderId) p.set("orderId", f.orderId);
+  if (f.bomTemplateId) p.set("bomTemplateId", f.bomTemplateId);
   if (f.page) p.set("page", String(f.page));
   if (f.pageSize) p.set("pageSize", String(f.pageSize));
   for (const s of f.status ?? []) p.append("status", s);

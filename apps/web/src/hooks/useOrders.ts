@@ -82,6 +82,7 @@ function buildOrderListUrl(f: OrderFilter): string {
   if (f.customer && f.customer.trim()) p.set("customer", f.customer.trim());
   if (f.dateFrom) p.set("dateFrom", f.dateFrom);
   if (f.dateTo) p.set("dateTo", f.dateTo);
+  if (f.bomTemplateId) p.set("bomTemplateId", f.bomTemplateId);
   if (f.page) p.set("page", String(f.page));
   if (f.pageSize) p.set("pageSize", String(f.pageSize));
   if (f.sort) p.set("sort", f.sort);

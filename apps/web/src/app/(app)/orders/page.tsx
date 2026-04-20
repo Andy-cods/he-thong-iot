@@ -26,6 +26,7 @@ import {
   type OrderRow,
 } from "@/components/orders/OrderListTable";
 import { useOrdersList } from "@/hooks/useOrders";
+import { BomFilterChip } from "@/components/bom/BomFilterChip";
 import {
   selectionCount,
   useSelection,
@@ -58,6 +59,7 @@ export default function OrdersListPage() {
       statusMode: parseAsStringEnum([...STATUS_MODES]).withDefault("all"),
       dateFrom: parseAsString.withDefault(""),
       dateTo: parseAsString.withDefault(""),
+      bomTemplateId: parseAsString.withDefault(""),
       page: parseAsInteger.withDefault(1),
       pageSize: parseAsInteger.withDefault(50),
       sort: parseAsString.withDefault("createdAt"),
@@ -122,6 +124,7 @@ export default function OrdersListPage() {
       status,
       dateFrom: urlState.dateFrom || undefined,
       dateTo: urlState.dateTo || undefined,
+      bomTemplateId: urlState.bomTemplateId || undefined,
       page: urlState.page,
       pageSize: urlState.pageSize,
       sort: urlState.sort,
@@ -232,6 +235,19 @@ export default function OrdersListPage() {
         onSearchInput={setSearchInput}
         searchInputRef={searchRef}
       />
+
+      {/* V1.6 — BOM filter chip khi URL có ?bomTemplateId=X */}
+      {urlState.bomTemplateId ? (
+        <div className="flex items-center gap-2 border-b border-zinc-100 bg-zinc-50 px-4 py-2">
+          <span className="text-[11px] uppercase tracking-wide text-zinc-500">
+            Đang lọc theo BOM:
+          </span>
+          <BomFilterChip
+            bomTemplateId={urlState.bomTemplateId}
+            onDismiss={() => void setUrlState({ bomTemplateId: "", page: 1 })}
+          />
+        </div>
+      ) : null}
 
       <div className="flex-1 overflow-hidden p-4">
         {isEmpty ? (

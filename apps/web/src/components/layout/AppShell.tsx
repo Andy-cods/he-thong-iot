@@ -13,6 +13,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { NAV_ITEMS, filterNavByRoles, type NavItem } from "@/lib/nav-items";
+import { matchBomWorkspace } from "@/lib/contextual-nav";
 import type { UserMenuUser } from "@/components/layout/UserMenu";
 import type { Role } from "@iot/shared";
 
@@ -53,6 +54,17 @@ export function AppShell({
     [navItems, userRoles],
   );
 
+  // V1.6 — khi user ở trong BOM workspace, thu gọn global sidebar thành
+  // icon-only 56px để không gian cho ContextualSidebar 220px (render bởi
+  // bom/[id]/layout.tsx). Mobile drawer không bị ảnh hưởng.
+  const workspace = React.useMemo(
+    () => matchBomWorkspace(pathname),
+    [pathname],
+  );
+  const sidebarVariant: "full" | "icon-only" = workspace.isWorkspace
+    ? "icon-only"
+    : "full";
+
   // Đóng drawer mobile mỗi khi pathname đổi (điều hướng xong).
   React.useEffect(() => {
     setMobileOpen(false);
@@ -72,9 +84,9 @@ export function AppShell({
         ["--topbar-height" as string]: "2.75rem", // 44px
       }}
     >
-      {/* Desktop sidebar (md+) — 220px fixed */}
+      {/* Desktop sidebar (md+) — 220px full hoặc 56px icon-only khi workspace */}
       <div className="hidden md:flex">
-        <Sidebar navItems={filteredNav} />
+        <Sidebar navItems={filteredNav} variant={sidebarVariant} />
       </div>
 
       {/* Mobile sidebar drawer — 280px slide-in */}
@@ -108,7 +120,14 @@ export function AppShell({
 
         <main
           id="main"
-          className="flex-1 px-4 py-4 md:px-6 md:py-5 xl:mx-auto xl:w-full xl:max-w-[1440px]"
+          className={
+            workspace.isWorkspace
+              ? // Workspace mode: no padding — children (bom/[id]/layout) tự
+                // render ContextualSidebar + padding riêng cho mỗi sub-route.
+                "flex-1 overflow-hidden"
+              : // Global mode: padding standard
+                "flex-1 px-4 py-4 md:px-6 md:py-5 xl:mx-auto xl:w-full xl:max-w-[1440px]"
+          }
         >
           {children}
         </main>

@@ -69,6 +69,59 @@ export async function getShortageByItem(
 }
 
 /**
+ * V1.6 — Shortage aggregate theo 1 BOM template (on-fly, bypass MV).
+ * JOIN bom_snapshot_line → sales_order filter theo bom_template_id,
+ * SUM short qty + AVG available. Data scope nhỏ (1 BOM) nên perf OK
+ * không cần MV riêng.
+ */
+export async function getShortageByBomTemplate(
+  bomTemplateId: string,
+  limit = 200,
+): Promise<ShortageByItemRow[]> {
+  const rows = await db.execute(sql`
+    SELECT
+      bsl.component_item_id,
+      bsl.component_sku,
+      bsl.component_name,
+      SUM(bsl.gross_required_qty)::text AS total_required,
+      SUM(bsl.qc_pass_qty)::text AS total_available,
+      SUM(bsl.open_purchase_qty)::text AS total_on_order,
+      SUM(bsl.remaining_short_qty)::text AS total_short,
+      COUNT(DISTINCT bsl.order_id)::int AS order_count,
+      MAX(bsl.updated_at) AS last_update
+    FROM app.bom_snapshot_line bsl
+    JOIN app.sales_order so ON so.id = bsl.order_id
+    WHERE so.bom_template_id = ${bomTemplateId}
+      AND bsl.remaining_short_qty > 0
+    GROUP BY bsl.component_item_id, bsl.component_sku, bsl.component_name
+    ORDER BY SUM(bsl.remaining_short_qty) DESC
+    LIMIT ${limit}
+  `);
+  const list = rows as unknown as Array<{
+    component_item_id: string;
+    component_sku: string;
+    component_name: string;
+    total_required: string;
+    total_available: string;
+    total_on_order: string;
+    total_short: string;
+    order_count: number;
+    last_update: Date;
+  }>;
+  return list.map((r) => ({
+    componentItemId: r.component_item_id,
+    componentSku: r.component_sku,
+    componentName: r.component_name,
+    totalRequired: Number.parseFloat(r.total_required),
+    totalAvailable: Number.parseFloat(r.total_available),
+    totalOnOrder: Number.parseFloat(r.total_on_order),
+    totalShort: Number.parseFloat(r.total_short),
+    orderCount: r.order_count,
+    lastUpdate: r.last_update,
+  }));
+}
+
+/**
  * Lấy shortage của 1 order cụ thể (on-fly, không qua MV).
  * Hiển thị breakdown component với remaining_short_qty > 0.
  */

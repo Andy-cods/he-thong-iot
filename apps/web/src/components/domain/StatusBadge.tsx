@@ -8,8 +8,15 @@ import {
   CircleOff,
   Clock,
   Diamond,
+  Factory,
+  FlaskConical,
+  Lock,
   Minus,
+  Package,
+  PackageCheck,
+  ShoppingCart,
   TriangleAlert,
+  Wrench,
   XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -32,6 +39,17 @@ export type BadgeStatus =
   | "warning"
   | "danger"
   | "shortage"
+  // V1.6 — snapshot state 10-color (mỗi state distinct hue)
+  | "snapshot-planned"
+  | "snapshot-purchasing"
+  | "snapshot-inbound-qc"
+  | "snapshot-available"
+  | "snapshot-reserved"
+  | "snapshot-in-production"
+  | "snapshot-prod-qc"
+  | "snapshot-issued"
+  | "snapshot-assembled"
+  | "snapshot-closed"
   // V1 legacy aliases (keep back-compat cho items/suppliers chưa migrate)
   | "active"
   | "inactive"
@@ -89,6 +107,57 @@ const STATUS_MAP: Record<BadgeStatus, StatusMeta> = {
     defaultLabel: "Thiếu",
     icon: TriangleAlert,
     color: "bg-orange-50 text-orange-700 border-orange-200",
+  },
+  // V1.6 snapshot 10-state — mỗi state distinct color cho board view.
+  "snapshot-planned": {
+    defaultLabel: "Kế hoạch",
+    icon: Clock,
+    color: "bg-amber-50 text-amber-700 border-amber-200",
+  },
+  "snapshot-purchasing": {
+    defaultLabel: "Đang mua",
+    icon: ShoppingCart,
+    color: "bg-blue-50 text-blue-700 border-blue-200",
+  },
+  "snapshot-inbound-qc": {
+    defaultLabel: "QC đầu vào",
+    icon: FlaskConical,
+    color: "bg-sky-50 text-sky-700 border-sky-200",
+  },
+  "snapshot-available": {
+    defaultLabel: "Sẵn hàng",
+    icon: Package,
+    color: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  },
+  "snapshot-reserved": {
+    defaultLabel: "Đã giữ",
+    icon: Lock,
+    color: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  },
+  "snapshot-in-production": {
+    defaultLabel: "Đang SX",
+    icon: Factory,
+    color: "bg-violet-50 text-violet-700 border-violet-200",
+  },
+  "snapshot-prod-qc": {
+    defaultLabel: "QC sản xuất",
+    icon: FlaskConical,
+    color: "bg-cyan-50 text-cyan-700 border-cyan-200",
+  },
+  "snapshot-issued": {
+    defaultLabel: "Đã xuất",
+    icon: Wrench,
+    color: "bg-purple-50 text-purple-700 border-purple-200",
+  },
+  "snapshot-assembled": {
+    defaultLabel: "Lắp xong",
+    icon: PackageCheck,
+    color: "bg-teal-50 text-teal-700 border-teal-200",
+  },
+  "snapshot-closed": {
+    defaultLabel: "Đóng",
+    icon: CircleOff,
+    color: "bg-zinc-100 text-zinc-600 border-zinc-300",
   },
   // V1 legacy aliases → map sang V2 semantic
   active: {

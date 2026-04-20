@@ -52,6 +52,8 @@ export interface WorkOrderListQuery {
   q?: string;
   status?: WorkOrderStatus[];
   orderId?: string;
+  /** V1.6 — filter WO theo BOM template (JOIN qua sales_order.bom_template_id). */
+  bomTemplateId?: string;
   page: number;
   pageSize: number;
 }
@@ -70,6 +72,10 @@ export async function listWorkOrders(q: WorkOrderListQuery): Promise<{
     );
   }
   if (q.orderId) where.push(eq(workOrder.linkedOrderId, q.orderId));
+  if (q.bomTemplateId) {
+    // JOIN đã có sẵn qua salesOrder — thêm WHERE trên salesOrder.bomTemplateId.
+    where.push(eq(salesOrder.bomTemplateId, q.bomTemplateId));
+  }
   if (q.q && q.q.trim().length > 0) {
     const needle = `%${q.q.trim()}%`;
     const search = or(
@@ -81,10 +87,12 @@ export async function listWorkOrders(q: WorkOrderListQuery): Promise<{
   const whereExpr = where.length > 0 ? and(...where) : sql`true`;
   const offset = (q.page - 1) * q.pageSize;
 
+  // JOIN salesOrder trong cả COUNT + rows query (để WHERE bomTemplateId khớp).
   const [totalRows, rows] = await Promise.all([
     db
       .select({ count: sql<number>`count(*)::int` })
       .from(workOrder)
+      .leftJoin(salesOrder, eq(salesOrder.id, workOrder.linkedOrderId))
       .where(whereExpr),
     db
       .select({

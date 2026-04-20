@@ -33,6 +33,8 @@ const listQuerySchema = z.object({
       s === undefined ? undefined : Array.isArray(s) ? s : [s],
     ),
   orderId: z.string().uuid().optional(),
+  /** V1.6 — filter WO theo BOM template (JOIN qua sales_order.bom_template_id). */
+  bomTemplateId: z.string().uuid().optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(200).default(50),
 });
@@ -63,6 +65,7 @@ export async function GET(req: NextRequest) {
       q: q.data.q,
       status: q.data.status,
       orderId: q.data.orderId,
+      bomTemplateId: q.data.bomTemplateId,
       page: q.data.page,
       pageSize: q.data.pageSize,
     });

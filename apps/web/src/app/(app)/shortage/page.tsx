@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { RefreshCw, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
 } from "@/hooks/useShortage";
 import { useSession } from "@/hooks/useSession";
 import type { ShortageBoardFilter } from "@/lib/query-keys";
+import { BomFilterChip } from "@/components/bom/BomFilterChip";
 
 /**
  * /shortage — Shortage Board (admin+planner).
@@ -37,13 +38,25 @@ export default function ShortagePage() {
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [bulkOpen, setBulkOpen] = React.useState(false);
 
+  // V1.6 — đọc bomTemplateId từ URL param (không managed qua state — Link
+  // từ BOM workspace set param khi navigate).
+  const searchParams = useSearchParams();
+  const bomTemplateId = searchParams?.get("bomTemplateId") ?? "";
+
+  const dismissBomFilter = React.useCallback(() => {
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    params.delete("bomTemplateId");
+    router.replace(`/shortage?${params.toString()}`);
+  }, [searchParams, router]);
+
   const filter: ShortageBoardFilter = React.useMemo(
     () => ({
       q: q.trim() || undefined,
+      bomTemplateId: bomTemplateId || undefined,
       minShortQty: minShort ? Number(minShort) : undefined,
       limit: 500,
     }),
-    [q, minShort],
+    [q, minShort, bomTemplateId],
   );
 
   const query = useShortageList(filter);
@@ -126,6 +139,19 @@ export default function ShortagePage() {
           )}
         </div>
       </header>
+
+      {/* V1.6 — BOM filter chip khi URL có ?bomTemplateId=X */}
+      {bomTemplateId ? (
+        <div className="flex items-center gap-2 border-b border-zinc-100 bg-zinc-50 px-6 py-2">
+          <span className="text-[11px] uppercase tracking-wide text-zinc-500">
+            Đang lọc theo BOM:
+          </span>
+          <BomFilterChip
+            bomTemplateId={bomTemplateId}
+            onDismiss={dismissBomFilter}
+          />
+        </div>
+      ) : null}
 
       {/* Filter bar */}
       <div className="flex items-center gap-3 border-b border-zinc-200 bg-white px-6 py-2">

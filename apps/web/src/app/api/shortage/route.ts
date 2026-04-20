@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { shortageFilterSchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import {
+  getShortageByBomTemplate,
   getShortageByItem,
   refreshAggregate,
 } from "@/server/repos/shortage";
@@ -24,8 +25,13 @@ export async function GET(req: NextRequest) {
   if ("response" in q) return q.response;
 
   try {
-    const rows = await getShortageByItem(q.data.limit);
-    // Filter in-memory nếu có filter (V1.2 MV nhỏ, MV tăng > 1000 thì move SQL)
+    // V1.6 — filter bomTemplateId dùng query on-fly (bypass MV) để join sales_order.
+    // Với BOM scope thì data nhỏ nên không cần MV riêng.
+    const rows = q.data.bomTemplateId
+      ? await getShortageByBomTemplate(q.data.bomTemplateId, q.data.limit)
+      : await getShortageByItem(q.data.limit);
+
+    // Filter in-memory cho các option khác (V1.2 MV nhỏ, MV tăng > 1000 thì move SQL)
     const filtered = rows.filter((r) => {
       if (q.data.minShortQty !== undefined && r.totalShort < q.data.minShortQty)
         return false;
@@ -45,7 +51,12 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       data: filtered,
-      meta: { total: filtered.length, source: "mv_shortage_aggregate" },
+      meta: {
+        total: filtered.length,
+        source: q.data.bomTemplateId
+          ? "bom_template_on_fly"
+          : "mv_shortage_aggregate",
+      },
     });
   } catch (err) {
     logger.error({ err }, "shortage list failed");

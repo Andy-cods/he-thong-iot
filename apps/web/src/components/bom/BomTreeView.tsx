@@ -31,9 +31,6 @@ import {
   Plus,
   Trash2,
   Pencil,
-  Package,
-  Layers,
-  Cog,
 } from "lucide-react";
 import { BOM_MAX_LEVEL } from "@iot/shared";
 import type { BomTreeNodeRaw } from "@/hooks/useBom";
@@ -118,11 +115,50 @@ function computeVisible(
   return visible;
 }
 
-const TYPE_ICON = (level: number) => {
-  if (level === 1) return Package;
-  if (level === 2) return Layers;
-  return Cog;
+/**
+ * Level color mapping — distinct visual per BOM depth.
+ * Dùng cho LevelBadge + indent guide.
+ * L1 indigo (root), L2 emerald, L3 violet, L4 amber, L5 rose.
+ */
+const LEVEL_STYLE: Record<
+  number,
+  { bg: string; ring: string; text: string; guide: string }
+> = {
+  1: {
+    bg: "bg-indigo-100",
+    ring: "ring-indigo-500",
+    text: "text-indigo-700",
+    guide: "bg-indigo-200",
+  },
+  2: {
+    bg: "bg-emerald-100",
+    ring: "ring-emerald-500",
+    text: "text-emerald-700",
+    guide: "bg-emerald-200",
+  },
+  3: {
+    bg: "bg-violet-100",
+    ring: "ring-violet-500",
+    text: "text-violet-700",
+    guide: "bg-violet-200",
+  },
+  4: {
+    bg: "bg-amber-100",
+    ring: "ring-amber-500",
+    text: "text-amber-700",
+    guide: "bg-amber-200",
+  },
+  5: {
+    bg: "bg-rose-100",
+    ring: "ring-rose-500",
+    text: "text-rose-700",
+    guide: "bg-rose-200",
+  },
 };
+
+function getLevelStyle(level: number) {
+  return LEVEL_STYLE[Math.max(1, Math.min(5, level))] ?? LEVEL_STYLE[5]!;
+}
 
 function BomTreeHeader() {
   return (
@@ -166,21 +202,19 @@ export function BomTreeView({
 }: BomTreeViewProps) {
   const flat = React.useMemo(() => flatten(tree), [tree]);
 
-  // Default expanded: tất cả root + cha-của-con đã load.
-  const defaultExpanded = React.useMemo(() => {
-    const s = new Set<string>();
-    flat.forEach((n) => s.add(n.id));
-    return s;
-  }, [flat]);
+  // Default expanded: KHÔNG có node nào expand sẵn — user phải click chevron
+  // để xổ children. Giống Windows Explorer / Finder. Chỉ L1 root lúc nào cũng
+  // visible (không bị parent ẩn vì không có parent).
+  const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
 
-  const [expanded, setExpanded] = React.useState<Set<string>>(defaultExpanded);
-
-  // Sync khi tree reload — preserve user collapse nhưng add nodes mới.
+  // Giữ nguyên user expansion khi tree reload. KHÔNG auto-expand node mới —
+  // tôn trọng trạng thái user đã chọn. Chỉ cleanup id đã xoá khỏi tree.
   React.useEffect(() => {
     setExpanded((prev) => {
-      const next = new Set(prev);
-      flat.forEach((n) => {
-        if (!prev.has(n.id)) next.add(n.id);
+      const ids = new Set(flat.map((n) => n.id));
+      const next = new Set<string>();
+      prev.forEach((id) => {
+        if (ids.has(id)) next.add(id);
       });
       return next;
     });
@@ -206,9 +240,12 @@ export function BomTreeView({
   }, [selectedId]);
 
   // Keyboard nav within tree
+  // ArrowUp/Down: điều hướng; ArrowRight: expand; ArrowLeft: collapse (về parent nếu đã collapse)
+  // Enter: toggle expand (backward compat); e: edit; Delete/Backspace: xoá.
   const handleKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (visible.length === 0) return;
     const idx = visible.findIndex((n) => n.id === selectedId);
+    const selectedNode = idx >= 0 ? visible[idx] : null;
     if (e.key === "ArrowDown") {
       e.preventDefault();
       const n = visible[Math.min(visible.length - 1, Math.max(0, idx) + 1)];
@@ -217,6 +254,23 @@ export function BomTreeView({
       e.preventDefault();
       const n = visible[Math.max(0, (idx < 0 ? 0 : idx) - 1)];
       if (n) onSelect(n.id);
+    } else if (e.key === "ArrowRight" && selectedNode) {
+      e.preventDefault();
+      if (selectedNode.childCount > 0 && !expanded.has(selectedNode.id)) {
+        toggleExpand(selectedNode.id);
+      } else if (selectedNode.childCount > 0 && expanded.has(selectedNode.id)) {
+        // đã expand → nhảy xuống con đầu tiên
+        const firstChild = visible[idx + 1];
+        if (firstChild?.parentLineId === selectedNode.id) onSelect(firstChild.id);
+      }
+    } else if (e.key === "ArrowLeft" && selectedNode) {
+      e.preventDefault();
+      if (selectedNode.childCount > 0 && expanded.has(selectedNode.id)) {
+        toggleExpand(selectedNode.id);
+      } else if (selectedNode.parentLineId) {
+        // collapse rồi thì nhảy về parent
+        onSelect(selectedNode.parentLineId);
+      }
     } else if (e.key === "Enter" && selectedId) {
       e.preventDefault();
       toggleExpand(selectedId);
@@ -249,6 +303,31 @@ export function BomTreeView({
     const node = flat.find((n) => n.id === event.active.id);
     if (node) setActiveNode(node);
   };
+
+  // Khi drag hover trên parent collapsed → auto expand sau 600ms để user có thể
+  // drop vào children (spring-loaded folders pattern).
+  const expandTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  React.useEffect(() => {
+    if (!overId || !activeNode) {
+      if (expandTimerRef.current) {
+        clearTimeout(expandTimerRef.current);
+        expandTimerRef.current = null;
+      }
+      return;
+    }
+    const overNode = flat.find((n) => n.id === overId);
+    if (!overNode || overNode.childCount === 0 || expanded.has(overNode.id)) {
+      if (expandTimerRef.current) clearTimeout(expandTimerRef.current);
+      return;
+    }
+    if (expandTimerRef.current) clearTimeout(expandTimerRef.current);
+    expandTimerRef.current = setTimeout(() => {
+      setExpanded((prev) => new Set(prev).add(overNode.id));
+    }, 600);
+    return () => {
+      if (expandTimerRef.current) clearTimeout(expandTimerRef.current);
+    };
+  }, [overId, activeNode, flat, expanded]);
 
   // onDragOver: compute zone dựa vào vị trí con trỏ trong rect của over.
   // Throttle 16ms (60fps) bằng setState — React batch update đã đủ smooth,
@@ -509,7 +588,7 @@ function TreeRow({
     transition,
   };
 
-  const Icon = TYPE_ICON(node.level);
+  const levelStyle = getLevelStyle(node.level);
   const indentPx = (node.level - 1) * 16;
   const scrap = Number(node.scrapPercent);
 
@@ -555,6 +634,21 @@ function TreeRow({
     >
       {beforeBar}
       {afterBar}
+      {/* Connector guide lines — render 1 vertical line per ancestor level
+           (level 2..n) để tạo tree-view cổ điển như Finder/Explorer. */}
+      {node.level > 1 &&
+        Array.from({ length: node.level - 1 }).map((_, i) => {
+          const left = 20 + i * 16; // 20 = grip(16) + gap(4), 16 = indent step
+          return (
+            <span
+              key={`guide-${i}`}
+              aria-hidden="true"
+              className="pointer-events-none absolute top-0 bottom-0 w-px bg-zinc-200"
+              style={{ left: `${left}px` }}
+            />
+          );
+        })}
+
       {/* drag handle */}
       <button
         type="button"
@@ -578,6 +672,7 @@ function TreeRow({
           }}
           className="inline-flex h-5 w-5 items-center justify-center rounded-sm text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
           aria-label={isExpanded ? "Thu gọn" : "Mở rộng"}
+          title={isExpanded ? "Thu gọn (←)" : "Mở rộng (→)"}
         >
           {isExpanded ? (
             <ChevronDown className="h-3 w-3" aria-hidden="true" />
@@ -589,17 +684,19 @@ function TreeRow({
         <div className="h-5 w-5" aria-hidden="true" />
       )}
 
-      <Icon
+      {/* Level badge — circle chứa L{n} với color riêng biệt theo độ sâu */}
+      <span
         className={cn(
-          "h-4 w-4 shrink-0",
-          node.level === 1
-            ? "text-indigo-500"
-            : node.level === 2
-              ? "text-emerald-500"
-              : "text-zinc-400",
+          "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full ring-1 text-[10px] font-semibold tabular-nums",
+          levelStyle.bg,
+          levelStyle.ring,
+          levelStyle.text,
         )}
-        aria-hidden="true"
-      />
+        aria-label={`Level ${node.level}`}
+        title={`Cấp ${node.level}`}
+      >
+        {node.level}
+      </span>
 
       {/* SKU mono — w-28 */}
       <span className="w-28 shrink-0 truncate font-mono text-sm text-zinc-700">

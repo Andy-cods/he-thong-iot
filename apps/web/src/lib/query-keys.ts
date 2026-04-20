@@ -173,6 +173,8 @@ export interface WorkOrderFilter {
     | "CANCELLED"
   )[];
   orderId?: string;
+  /** V1.6 — filter WO theo BOM template (JOIN qua sales_order.bom_template_id). */
+  bomTemplateId?: string;
   page?: number;
   pageSize?: number;
 }
@@ -191,6 +193,8 @@ export interface OrderFilter {
   customer?: string;
   dateFrom?: string;
   dateTo?: string;
+  /** V1.6 — filter orders theo BOM template. FK direct: sales_order.bom_template_id. */
+  bomTemplateId?: string;
   sort?: string;
   sortDir?: "asc" | "desc";
   page?: number;
@@ -272,6 +276,8 @@ export interface ShortageBoardFilter {
   itemId?: string[];
   supplierId?: string[];
   orderId?: string;
+  /** V1.6 — filter shortage theo BOM template (JOIN snapshot_line → sales_order). */
+  bomTemplateId?: string;
   minShortQty?: number;
   q?: string;
   limit?: number;
