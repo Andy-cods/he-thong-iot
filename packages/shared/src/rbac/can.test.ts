@@ -10,18 +10,18 @@ import {
 } from "./matrix";
 
 describe("RBAC matrix — shape + consistency", () => {
-  it("có đủ 4 role × 13 entity × 6 action", () => {
+  it("có đủ 4 role × 14 entity × 6 action (V1.4 Phase D thêm session)", () => {
     expect(Object.keys(RBAC_MATRIX)).toEqual([
       "admin",
       "planner",
       "operator",
       "warehouse",
     ]);
-    expect(RBAC_ENTITIES).toHaveLength(13);
+    expect(RBAC_ENTITIES).toHaveLength(14);
     expect(RBAC_ACTIONS).toHaveLength(6);
   });
 
-  it("admin có quyền trên tất cả 13 entity", () => {
+  it("admin có quyền trên tất cả entity", () => {
     for (const e of RBAC_ENTITIES) {
       expect(RBAC_MATRIX.admin[e]?.length ?? 0).toBeGreaterThan(0);
     }
