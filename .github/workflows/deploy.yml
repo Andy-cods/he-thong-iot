@@ -56,8 +56,6 @@ jobs:
             echo "$GH_TOKEN" | docker login ghcr.io -u andy-cods --password-stdin
             cd /opt/hethong-iot
             docker pull ghcr.io/andy-cods/hethong-iot:latest
-            docker compose up -d --force-recreate app worker
-            sleep 10
-            docker compose exec -T app node packages/db/migrate.js 2>/dev/null || true
+            docker compose up -d --force-recreate app worker caddy
             docker image prune -f
             echo "Deploy done: $(date)"
