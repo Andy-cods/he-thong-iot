@@ -30,8 +30,10 @@ import {
 import { buildWorkbookFromTemplate } from "@/lib/bom-grid/build-workbook";
 import {
   AssemblyPanel,
+  BomWorkspaceTopbar,
   BottomPanel,
   EcoPanel,
+  HistoryDrawer,
   OrdersPanel,
   ProcurementPanel,
   ShortagePanel,
@@ -214,6 +216,17 @@ export default function BomGridPage() {
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+      {/* V1.7-beta — Topbar h-12 render trong page (không phải layout) vì
+          client layout wrapper làm redirect() từ server page con không fire
+          HTTP 307. Xem comment trong bom/[id]/layout.tsx. */}
+      {template && (
+        <BomWorkspaceTopbar
+          template={template}
+          onOpenPanel={panel.setActivePanel}
+          onOpenHistory={() => panel.setDrawerHistory(true)}
+        />
+      )}
+
       {/* Strip actions h-10 — compact edit toolbar */}
       <div className="flex h-10 shrink-0 items-center gap-2 border-b border-zinc-200 bg-white px-3">
         <span className="inline-flex items-center gap-1.5 text-[11px] text-zinc-500">
@@ -333,6 +346,14 @@ export default function BomGridPage() {
         onOpenChange={setAddOpen}
         onSelect={handleSelectItem}
       />
+
+      {id && (
+        <HistoryDrawer
+          bomId={id}
+          open={panel.drawerHistory}
+          onOpenChange={panel.setDrawerHistory}
+        />
+      )}
     </div>
   );
 }
