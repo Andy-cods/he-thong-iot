@@ -60,6 +60,13 @@ COPY --from=builder /repo/apps/web/.next/standalone ./
 COPY --from=builder /repo/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder /repo/apps/web/public ./apps/web/public
 
+# Argon2 native prebuilds — Next standalone bundle argon2.cjs nhưng KHÔNG
+# copy prebuilds/linux-x64/*.node → runtime báo "No native build found for
+# abi=115". Copy thẳng thư mục prebuilds vào path mà error log chỉ ra.
+COPY --from=builder \
+     /repo/node_modules/.pnpm/argon2@0.40.3/node_modules/argon2/prebuilds \
+     ./node_modules/.pnpm/argon2@0.40.3/node_modules/argon2/prebuilds
+
 # Worker — deploy flattened (symlink-free, node_modules phẳng)
 COPY --from=worker-deploy /worker-out ./apps/worker-deploy
 
