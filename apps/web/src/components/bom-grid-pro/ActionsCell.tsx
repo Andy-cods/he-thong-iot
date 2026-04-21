@@ -19,11 +19,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { BomFlatRow } from "@/lib/bom-grid/flatten-tree";
+import { InventoryPopover } from "./InventoryPopover";
 
 export interface ActionsCellProps {
   row: BomFlatRow;
   onEdit?: (row: BomFlatRow) => void;
   onOrder?: (row: BomFlatRow) => void;
+  /** Nếu truthy → dùng InventoryPopover (V1.7-beta.2 Phase C3). Nếu không,
+   *  fallback gọi `onInventory?.(row)` (prop cũ — giữ back-compat placeholder). */
+  useInventoryPopover?: boolean;
   onInventory?: (row: BomFlatRow) => void;
   onDuplicate?: (row: BomFlatRow) => void;
   onDelete?: (row: BomFlatRow) => void;
@@ -31,16 +35,19 @@ export interface ActionsCellProps {
 }
 
 /**
- * V1.7-beta.2 — Actions cell per row.
+ * V1.7-beta.2 Phase C — Actions cell per row.
  *
  * Hiển thị 4 icon action + More dropdown. Row hover trigger các action visible
- * (row-based CSS `group-hover:opacity-100`). Placeholder handlers — Phase C
- * wire thực sự với BomLineSheet / PRQuickDialog / InventoryPopover.
+ * (row-based CSS `group-hover:opacity-100`). Phase C wire handler thực sự:
+ *   - Sửa → BomLineSheet (parent callback)
+ *   - Đặt mua → PRQuickDialog (parent callback)
+ *   - Xem tồn → InventoryPopover (wrapped inline)
  */
 export function ActionsCell({
   row,
   onEdit,
   onOrder,
+  useInventoryPopover = false,
   onInventory,
   onDuplicate,
   onDelete,
@@ -49,6 +56,23 @@ export function ActionsCell({
   if (row.isGroup) {
     return <div className="h-full w-full" />;
   }
+
+  const showInventoryAction = useInventoryPopover || !!onInventory;
+
+  const inventoryButton = showInventoryAction ? (
+    <Button
+      size="sm"
+      variant="ghost"
+      className="h-6 w-6 p-0"
+      title="Xem tồn kho"
+      onClick={(e) => {
+        e.stopPropagation();
+        if (!useInventoryPopover) onInventory?.(row);
+      }}
+    >
+      <Package className="h-3 w-3" aria-hidden />
+    </Button>
+  ) : null;
 
   return (
     <div className="flex h-full items-center justify-end gap-0.5 px-1 opacity-0 transition-opacity group-hover:opacity-100">
@@ -66,20 +90,19 @@ export function ActionsCell({
           <ShoppingCart className="h-3 w-3" aria-hidden />
         </Button>
       )}
-      {onInventory && (
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-6 w-6 p-0"
-          title="Xem tồn kho"
-          onClick={(e) => {
-            e.stopPropagation();
-            onInventory(row);
-          }}
-        >
-          <Package className="h-3 w-3" aria-hidden />
-        </Button>
-      )}
+      {inventoryButton ? (
+        useInventoryPopover ? (
+          <InventoryPopover
+            componentItemId={row.node.componentItemId}
+            componentSku={row.node.componentSku ?? ""}
+            componentName={row.node.componentName ?? ""}
+          >
+            {inventoryButton}
+          </InventoryPopover>
+        ) : (
+          inventoryButton
+        )
+      ) : null}
       {onEdit && (
         <Button
           size="sm"

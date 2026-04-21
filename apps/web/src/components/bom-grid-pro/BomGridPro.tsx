@@ -9,7 +9,7 @@ import {
 import { toast } from "sonner";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { BomTreeNodeRaw } from "@/hooks/useBom";
-import { useDeleteBomLine } from "@/hooks/useBom";
+import { useAddBomLine, useDeleteBomLine } from "@/hooks/useBom";
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/format";
 import {
@@ -19,6 +19,8 @@ import {
 import { DialogConfirm } from "@/components/ui/dialog";
 import { ProgressCell, type MaterialStatus } from "./ProgressCell";
 import { ActionsCell } from "./ActionsCell";
+import { BomLineSheet } from "./BomLineSheet";
+import { PRQuickDialog } from "./PRQuickDialog";
 
 /**
  * V1.7-beta.2 — Pro BOM Grid (thay Univer).
@@ -44,12 +46,14 @@ export interface BomGridProProps {
   tree: BomTreeNodeRaw[];
   /** Map componentItemId → MaterialStatus từ derivedStatus API (nếu có). */
   statusMap?: Record<string, MaterialStatus>;
-  /** Open side sheet sửa line chi tiết. Phase C2. */
+  /** V1.7-beta.2 Phase C — handler Sửa (override default BomLineSheet). */
   onEditLine?: (row: BomFlatRow) => void;
-  /** Open PR quick dialog. Phase C3. */
+  /** V1.7-beta.2 Phase C — handler Đặt mua (override default PRQuickDialog). */
   onOrderLine?: (row: BomFlatRow) => void;
-  /** Open inventory popover. Phase C4. */
+  /** V1.7-beta.2 Phase C — nếu set, fallback onClick (không dùng Popover). */
   onInventoryLine?: (row: BomFlatRow) => void;
+  /** V1.7-beta.2 Phase C — callback Xem lịch sử (mặc định navigate tới drawer). */
+  onHistoryLine?: (row: BomFlatRow) => void;
   /** Read-only mode (OBSOLETE BOM). */
   readOnly?: boolean;
 }
@@ -66,6 +70,7 @@ export function BomGridPro({
   onEditLine,
   onOrderLine,
   onInventoryLine,
+  onHistoryLine,
   readOnly,
 }: BomGridProProps) {
   const flat = React.useMemo(() => flattenBomTree(tree), [tree]);
@@ -75,8 +80,67 @@ export function BomGridPro({
     return new Set(flat.filter((r) => r.isGroup).map((r) => r.id));
   });
   const [deleteTarget, setDeleteTarget] = React.useState<BomFlatRow | null>(null);
+  // V1.7-beta.2 Phase C — targets cho BomLineSheet + PRQuickDialog (internal fallback).
+  const [editTarget, setEditTarget] = React.useState<BomFlatRow | null>(null);
+  const [orderTarget, setOrderTarget] = React.useState<BomFlatRow | null>(null);
 
   const deleteLine = useDeleteBomLine(templateId);
+  const addLine = useAddBomLine(templateId);
+
+  const handleEditRow = React.useCallback(
+    (row: BomFlatRow) => {
+      if (onEditLine) onEditLine(row);
+      else setEditTarget(row);
+    },
+    [onEditLine],
+  );
+
+  const handleOrderRow = React.useCallback(
+    (row: BomFlatRow) => {
+      if (onOrderLine) onOrderLine(row);
+      else setOrderTarget(row);
+    },
+    [onOrderLine],
+  );
+
+  const handleDuplicateRow = React.useCallback(
+    (row: BomFlatRow) => {
+      const n = row.node;
+      addLine.mutate(
+        {
+          componentItemId: n.componentItemId,
+          parentLineId: n.parentLineId ?? null,
+          qtyPerParent: Number(n.qtyPerParent) || 1,
+          scrapPercent: Number(n.scrapPercent) || 0,
+          uom: n.uom ?? undefined,
+          description: n.description ?? undefined,
+          supplierItemCode: n.supplierItemCode ?? undefined,
+          position: n.position + 1,
+        },
+        {
+          onSuccess: () => {
+            toast.success(`Đã nhân bản ${n.componentSku ?? "dòng"}.`);
+          },
+          onError: (err) => {
+            toast.error((err as Error).message ?? "Nhân bản thất bại");
+          },
+        },
+      );
+    },
+    [addLine],
+  );
+
+  const handleHistoryRow = React.useCallback(
+    (row: BomFlatRow) => {
+      if (onHistoryLine) onHistoryLine(row);
+      else {
+        toast.info(
+          `Lịch sử dòng ${row.node.componentSku ?? ""} — xem tab "Lịch sử" trên workspace.`,
+        );
+      }
+    },
+    [onHistoryLine],
+  );
 
   // Sync expanded khi tree reload — preserve user state, add new groups.
   React.useEffect(() => {
@@ -196,10 +260,9 @@ export function BomGridPro({
           <td className="sticky right-0 z-10 w-24 bg-indigo-50 border-l border-indigo-100 px-1">
             <ActionsCell
               row={row}
-              onEdit={readOnly ? undefined : onEditLine}
-              onDelete={
-                readOnly ? undefined : (r) => setDeleteTarget(r)
-              }
+              onEdit={readOnly ? undefined : handleEditRow}
+              onDelete={readOnly ? undefined : (r) => setDeleteTarget(r)}
+              onHistory={handleHistoryRow}
             />
           </td>
         </tr>
@@ -272,12 +335,13 @@ export function BomGridPro({
         <td className="sticky right-0 z-10 w-24 border-l border-zinc-100 bg-white px-1 group-hover:bg-zinc-50">
           <ActionsCell
             row={row}
-            onEdit={readOnly ? undefined : onEditLine}
-            onOrder={readOnly ? undefined : onOrderLine}
+            onEdit={readOnly ? undefined : handleEditRow}
+            onOrder={readOnly ? undefined : handleOrderRow}
+            useInventoryPopover={!onInventoryLine}
             onInventory={onInventoryLine}
-            onDelete={
-              readOnly ? undefined : (r) => setDeleteTarget(r)
-            }
+            onDuplicate={readOnly ? undefined : handleDuplicateRow}
+            onDelete={readOnly ? undefined : (r) => setDeleteTarget(r)}
+            onHistory={handleHistoryRow}
           />
         </td>
       </tr>
@@ -395,6 +459,25 @@ export function BomGridPro({
         actionLabel="Xoá"
         loading={deleteLine.isPending}
         onConfirm={handleDelete}
+      />
+
+      {/* V1.7-beta.2 Phase C1 — Sheet sửa line (internal mặc định). */}
+      <BomLineSheet
+        open={!!editTarget}
+        onOpenChange={(o) => !o && setEditTarget(null)}
+        templateId={templateId}
+        templateCode={templateCode}
+        line={editTarget}
+      />
+
+      {/* V1.7-beta.2 Phase C2 — Dialog đặt mua nhanh. */}
+      <PRQuickDialog
+        open={!!orderTarget}
+        onOpenChange={(o) => !o && setOrderTarget(null)}
+        templateId={templateId}
+        templateCode={templateCode}
+        parentQty={parentQty}
+        line={orderTarget}
       />
     </div>
   );

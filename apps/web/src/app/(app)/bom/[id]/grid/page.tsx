@@ -324,15 +324,7 @@ export default function BomGridPage() {
               tree={tree}
               statusMap={buildStatusMap(derivedStatusQuery.data?.data)}
               readOnly={isObsolete}
-              onEditLine={(row) =>
-                toast.info(`[Phase C2] BomLineSheet sắp có — chỉnh ${row.node.componentSku}`)
-              }
-              onOrderLine={(row) =>
-                toast.info(`[Phase C3] PRQuickDialog sắp có — đặt mua ${row.node.componentSku}`)
-              }
-              onInventoryLine={(row) =>
-                toast.info(`[Phase C4] Inventory popover sắp có — xem tồn ${row.node.componentSku}`)
-              }
+              onHistoryLine={() => panel.setDrawerHistory(true)}
             />
           ) : (
             <div className="h-full overflow-hidden rounded-md border border-zinc-200 bg-white shadow-sm">
