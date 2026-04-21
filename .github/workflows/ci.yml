@@ -17,8 +17,8 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 9
+        # version đọc từ "packageManager" trong root package.json (pnpm@9.12.0)
+        # → tránh ERR_PNPM_BAD_PM_VERSION khi GHA config != packageManager.
 
       - name: Setup Node 20
         uses: actions/setup-node@v4
