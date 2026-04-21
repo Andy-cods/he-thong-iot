@@ -258,3 +258,45 @@
 - Excel import `apps/web/src/server/services/excelImport*` có merge vs overwrite metadata — verify khi cook commit 7.
 
 ---
+
+## 2026-04-21 · Claude (Solution Brainstormer) · Grid Pro Redesign brainstorm
+
+**Goal:** Phản hồi feedback anh Hoạt từ 3 screenshot (BOM title chói, bottom panel tabs chưa nổi active, grid Univer không có progress + action per-row). Brainstorm hướng thay Univer bằng grid pro thật sự "giống Excel visual nhưng là MES app".
+
+**Changed:** 1 file mới
+- `plans/v1.7/grid-pro-redesign-brainstorm.md` (1900+ từ tiếng Việt) — covered:
+  - §1 Vấn đề cốt lõi Univer (event model thô, không render progress/action per-cell, bundle 800KB, không hiểu data model BOM).
+  - §2 Rank 4 option: **TanStack Table v8 (WINNER, 9.3/10)** > shadcn custom (8.2) > AG-Grid Comm (8.0) > Handsontable (loại vì license non-commercial).
+  - §3 Visual spec 13 cột (thêm TIẾN ĐỘ + ACTIONS), typography Inter+Mono chuẩn, 5 states progress mapping `MaterialStatus` enum có sẵn, inline edit pattern.
+  - §4 Data flow mới: per-field PATCH thay whole-snapshot JSON.
+  - §5 Data source progress: reuse `computeTemplateDerivedStatus()` V1.5 đã có — endpoint mới `GET /api/bom/templates/[id]/lines-with-status`.
+  - §6 6 actions per row + endpoints mapping (3 NEW endpoints: `PR from-bom-line`, `lines/[id]/clone`, `lines-with-status`).
+  - §7 Migration parallel 2 tuần feature flag `NEXT_PUBLIC_BOM_GRID_PRO`.
+  - §8 Roadmap 4 phase 8-11 ngày dev.
+  - §9 5 open questions cần anh Hoạt confirm (có fallback khuyến nghị nếu không reply 24h).
+
+**Decisions (tentative, chờ user duyệt):**
+- Tech stack grid mới: **TanStack Table v8 + TanStack Virtual + shadcn**. Loại bỏ Univer hoàn toàn sau migration period.
+- Progress column reuse enum `MaterialStatus` đã có trong `server/services/derivedStatus.ts` (PLANNED/PURCHASING/PARTIAL/AVAILABLE/ISSUED) — không tạo schema mới.
+- Snapshot `bom_grid_snapshot` retire sau migrate (user edit cũ chỉ có 3 fields đã lưu sẵn trong `bom_line`/`item`).
+- Bundle size dự kiến giảm ~720KB gzip sau cut-over.
+
+**Skipped (không làm ở brainstorm này):**
+- Không viết code (role Solution Brainstormer, YAGNI).
+- Không chốt component API chi tiết — để plan file `grid-pro-redesign-plan.md` làm.
+- Không benchmark POC TanStack virtual + sticky column — đánh dấu risk #3.
+
+**Verify:**
+- Đọc `build-workbook.ts`, `grid/page.tsx`, `UniverSpreadsheet.tsx`, `derivedStatus.ts` confirm enum map 1-1.
+- Đọc `ui-ux-audit.md` để không trùng ý đã phân tích trước.
+- `ls plans/v1.7/` → `grid-pro-redesign-brainstorm.md` xuất hiện.
+
+**Next (cho agent cook tiếp theo):**
+1. Anh Hoạt duyệt brainstorm + trả lời 5 open questions mục §9.
+2. Spawn `/plan plans/v1.7/grid-pro-redesign-brainstorm.md` → sinh `grid-pro-redesign-plan.md` với task breakdown per phase + API spec + component tree + test matrix.
+3. PoC 2h: TanStack Virtual + `position: sticky` right column flicker test (risk #3) trước khi cam kết Phase A.
+4. `/cook` Phase A (core grid replace) sau khi plan approved.
+
+**Commits:** `docs(v1.7): grid pro redesign brainstorm` (sẽ commit sau khi append xong).
+
+---
