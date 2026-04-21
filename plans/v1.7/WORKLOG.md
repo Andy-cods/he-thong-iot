@@ -153,3 +153,52 @@
 - V1.6 smoke 38/39 pass (1 fail vì expect /bom/[id]=200 outdated → V1.7 smoke thay thế)
 
 **Blockers:** none tại thời điểm này
+
+---
+
+## 2026-04-21 · Claude · V1.7-beta integrated workspace brainstorm
+
+**Goal:** Nhận feedback LIVE của anh Hoạt 3 điểm: (1) tự chốt Q1-Q5 kind-routing, (2) gộp 9 sub-routes vào Grid page theo ý "sidebar chỉ phụ theo BOM list", (3) redesign UI/UX toàn diện không chỉ column width. Output brainstorm chốt quyết định thay user.
+
+**Changed:**
+- `plans/v1.7/integrated-workspace-brainstorm.md` NEW — 8 section:
+  1. Chốt Q1-Q5 (silent override, giữ override, ghi nhận route beta.1 + auto cost GA, snapshot+link PR, prompt xác nhận fab→com)
+  2. Unified workspace → Pattern B (Grid + Bottom Panel h-9 tabs) + chip KPI Topbar
+  3. Bỏ ContextualSidebar, thêm BomWorkspaceTopbar h-12, global sidebar 220px full-label giữ
+  4. Redesign Grid visual polish + Bottom panel + Side Sheet quy trình + typography + motion
+  5. 7 module phụ: 6 tab bottom panel + 1 drawer history, effort ~19h
+  6. Roadmap 3 phase: beta (3-4d) + beta.1 (3-4d) + GA (5-7d) = 11-15d
+  7. 2 open question blocker (scope refactor CompactListTable + permalink sub-routes)
+  8. Deliverable + rủi ro Univer dataValidation
+
+**Decisions (quan trọng cho planner pick up):**
+- **Pattern B (Bottom Panel) là kiến trúc CHỐT** — Grid chiếm 65-70% viewport luôn visible, bottom panel h-9 tabs + resize drag + collapse persist localStorage
+- **BomWorkspaceTopbar h-12** thay thế ContextualSidebar 220px — KPI chips inline click = activate panel tương ứng
+- **Global sidebar 220px giữ full-label** cho UX nhất quán toàn app (bỏ thu gọn icon-only 56px khi vào workspace — V1.6 pattern deprecated)
+- **Side Sheet quy trình width 480px**, Radix dialog backdrop zinc-900/40, 2 tab shadcn Thương mại/Gia công
+- **Kind dropdown** dùng Univer `IDataValidation` list (A approach từ brainstorm cũ), persist `metadata.kind` JSONB
+- **Silent override + badge "⚠ override"** — không prompt khi đổi kind (Q1)
+- **History → drawer right 480px** mở qua menu ⋯ Topbar, KHÔNG phải tab bottom panel (log dài, timeline vertical)
+
+**Skipped (defer):**
+- Sketch mockup UI — auto-mode brainstorm đủ chi tiết, ui-ux-designer optional nếu anh Hoạt tin plan
+- Nghiên cứu `react-resizable-panels` library — để planner-researcher verify khi viết implementation plan
+- Decision migration 0009 index procurement chain — thuộc Phase 3 GA, chưa urgent
+
+**Verify:**
+- Đã đọc: `plans/v1.7/kind-routing-brainstorm.md`, `plans/v1.7/ui-ux-audit.md`, `plans/v1.7/duplication-report.md`, WORKLOG hiện tại, `apps/web/src/lib/contextual-nav.ts`, `apps/web/src/components/layout/ContextualSidebar.tsx`
+- Word count: ~2100 từ (trong khoảng 1500-2500 yêu cầu)
+
+**Next:**
+1. Anh Hoạt duyệt brainstorm + trả lời 2 blocker question (scope refactor CompactListTable + permalink sub-routes)
+2. Hand off `planner` viết implementation plan chi tiết V1.7-beta Phase 1 (layout refactor + column tuning + kind dropdown) với file-level breakdown + test plan
+3. `planner-researcher` verify Pattern B resize library (react-resizable-panels vs custom)
+4. Cook Phase 1 theo plan — deadline 2026-04-25
+
+**Commits:** (chờ anh Hoạt duyệt trước khi commit — tránh lock-in quyết định quan trọng)
+
+**Blockers:**
+- Cần anh Hoạt trả lời 2 blocker question ở section 7 của brainstorm trước khi planner có thể viết implementation plan chi tiết
+- Univer `IDataValidation` fill-down 20 dòng chưa verify — cần test thực tế ở Phase 1; có backup Shadcn Select overlay nếu fail
+
+---
