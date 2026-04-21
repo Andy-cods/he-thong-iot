@@ -300,3 +300,90 @@
 **Commits:** `docs(v1.7): grid pro redesign brainstorm` (sẽ commit sau khi append xong).
 
 ---
+
+## 2026-04-21 · planner · V1.7-beta.2 implementation plan (Grid Pro)
+
+**Goal:** Viết plan chi tiết thay Univer → TanStack Table v8 cho `/bom/[id]/grid`. Auto-chốt 5 open questions brainstorm (Drop Univer YES / Progress default PLANNED / No optimistic lock / PR prefill+confirm / Defer Excel import) để không block cook.
+
+**Changed:** 1 file mới
+- `plans/v1.7/v1.7-beta.2-plan.md` (~3500 từ tiếng Việt) — 12 section:
+  - §0 Auto-chốt 5 Qs
+  - §1 Goal + success criteria (bundle -720KB, 13 cột, 5 progress states, 55+/55+ smoke)
+  - §2 File matrix: 17 NEW + 5 MODIFY + 1-6 DELETE (Phase D-late)
+  - §3 Roadmap 4 phase × 11-12 commit: A (A1-A3 core grid 2-3d) / B (B1-B3 status 2d) / C (C1-C4 actions 3-4d) / D (D1-D2 polish + D3 retire 2 tuần sau)
+  - §4 25 critical file reference với line numbers
+  - §5 Testing: 12-15 smoke assertion mới + manual E2E matrix + typecheck/build guardrail
+  - §6 10 risks + mitigations (sticky+virtual flicker, query perf, schema patch, keyboard nav defer V1.8)
+  - §7 Rollout per-phase feature flag `NEXT_PUBLIC_BOM_GRID_PRO` + `?mode=univer` fallback 2 tuần
+  - §8 Timeline: ~38h effective / 8-11 ngày / GA v1.7.0 2026-05-14
+  - §9 2 Qs residual auto-decision (HTML thuần <table>, placeholder icon cột Ảnh)
+  - §10 Screenshot feedback polish detail (BOM title fs 13 zinc-900, tab bar indigo-600 border + divider + count badge font-mono, cột B/C dup GTAM auto-fix)
+  - §11 Appendix pseudocode (BomGridPro skeleton, ProgressCell, flatten-tree)
+  - §12 Deliverable checklist
+
+**Decisions (auto-chốt thay user):**
+- **Tech:** TanStack Table v8 + `@tanstack/react-virtual` (có sẵn) + shadcn. Bundle delta: +14KB gzip (table) - 800KB (Univer) = **-786KB net**.
+- **Q1 Drop Univer:** YES Phase D-late commit D3 sau 2 tuần feedback.
+- **Q2 Progress default:** PLANNED (amber 0%) cho mọi row ngay cả khi `ordersCount=0` — user biết "cần mua" ngay.
+- **Q3 Optimistic lock:** KHÔNG. Last-write-wins + React Query invalidate. Defer V2.
+- **Q4 Đặt mua:** Prefill `PRQuickDialog` + user confirm. Không auto-create PR.
+- **Q5 Excel import:** Defer V1.7 GA. Giữ route `/bom/import` hiện tại.
+- **Endpoint `/api/items/[id]/inventory`:** KHÔNG có → reuse `/api/items/[id]` return on-hand summary. Lot/serial defer V1.8.
+- **Commit sequence:** 11 main + D3 retire delay 14 ngày (separate chore commit).
+
+**Roadmap 11 commit:**
+1. A1 `feat(bom/grid-pro): extract flattenBomTreeToRows helper` — 45m+30m
+2. A2 `feat(bom/grid-pro): BomGridPro scaffold + 13 column defs` — 3h+2h
+3. A3 `feat(bom/grid-pro): column resize + sort + virtualization` — 3h
+4. B1 `feat(bom/api): lines-with-status endpoint` — 45m+1h
+5. B2 `feat(bom/grid-pro): ProgressCell 5 states + StatusFilterChips` — 1h+45m
+6. B3 `feat(bom/grid-pro): group row collapsible + hierarchy indent` — 1h
+7. C1 `feat(bom/grid-pro): ActionsCell sticky right + 4 icon buttons` — 1.5h
+8. C2 `feat(bom/grid-pro): BomLineSheet (Sửa) side sheet 480px` — 4h
+9. C3 `feat(bom/grid-pro): PRQuickDialog + from-bom-line endpoint` — 3h+1h
+10. C4 `feat(bom/grid-pro): InventoryPopover + RowMoreDropdown` — 1.5h+1h
+11. D1 `feat(bom/grid-pro): polish screenshot feedback + feature flag ON` — 1.5h
+12. D2 `docs(v1.7): beta.2 smoke tests + PROGRESS update` — 1h
++ D3 (sau 2 tuần): `chore(bom): retire Univer dependencies`
+
+**Target Phase D:**
+- `pnpm -r typecheck` 0 new error
+- `pnpm --filter @iot/web build` PASS (bundle `/bom/[id]/grid` ~400KB gzip vs ~1.2MB hiện tại)
+- Smoke 55-58/55-58 PASS (43 cũ + 12-15 mới)
+- Manual: hover row → 4 action visible; click Sửa → sheet save qty update DB; click Đặt mua PLANNED row → PR draft DB
+
+**Risks quản lý chính:**
+- R1 Sticky+virtual flicker — POC 30m commit A3, fallback horizontal scroll nếu fail
+- R3 Schema PATCH thiếu field — verify Drizzle bom_line cột `componentCategory`/`supplierItemCode` commit C2
+- R6 Keyboard nav defer V1.8 — chỉ Tab/Enter/Esc V1.7-beta.2, arrow nav ghi chú hint
+- R10 `/api/items/[id]/inventory` not exist — reuse `/api/items/[id]`
+
+**Skipped (YAGNI V1.7-beta.2):**
+- Excel drag-drop import grid mới (Univer có sẵn, defer V1.8)
+- Lot/serial detail view trong InventoryPopover
+- Optimistic lock multi-user edit
+- Keyboard arrow navigation Excel-style
+- Migration script `bom_grid_snapshot` → `bom_line` (bom_grid_snapshot giữ 3 tháng backup, snapshots user-edit chỉ 3 fields `description`/`supplierItemCode`/`componentCategory` đã nằm sẵn trong `bom_line`/`item`)
+
+**Verify:**
+- Đọc `grid-pro-redesign-brainstorm.md` (345 lines), WORKLOG (303 lines), `build-workbook.ts` (496 lines), `bom/[id]/grid/page.tsx` (359 lines), `derivedStatus.ts` (153 lines), `useBom.ts` (542 lines)
+- Confirm `@tanstack/react-virtual` already in `apps/web/package.json` L41, `@tanstack/react-table` NOT in deps → cần add
+- Confirm `PATCH /api/bom/templates/[id]/lines/[lineId]/route.ts` exists + `useUpdateBomLine` hook exists L276
+- Confirm `/api/items/[id]/inventory` NOT exist → reuse `/api/items/[id]`
+
+**Next (cook agent):**
+1. `git checkout -b feat/v1.7-beta.2` từ main
+2. Đọc plan §3 Phase A Commit A1 → implement `lib/bom-grid/flatten-tree.ts` + test
+3. Verify typecheck + test → commit A1 → push
+4. Tiếp A2, A3 tuần tự theo spec §3
+5. Sau Phase A → deploy staging → smoke 46/46 → promote prod
+6. Repeat B, C, D
+
+**Commits:** `docs(v1.7): v1.7-beta.2 plan · grid pro redesign` (sẽ commit sau khi append xong block này).
+
+**Blockers (non-blocking, giải quyết khi cook):**
+- Verify zod schema `packages/shared/src/schemas/bom.ts` `BomLineUpdate` có 5 field `{qtyPerParent, scrapPercent, description, supplierItemCode, componentCategory}` — commit C2.
+- Verify `componentCategory` column exist on `bom_line` (Drizzle schema) hay là field của `item` — commit C2 POC 20m.
+- PRQuickDialog: check existing `POST /api/purchase-requests` route signature — avoid conflict with `from-bom-line` subroute.
+
+---
