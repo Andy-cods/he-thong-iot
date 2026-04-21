@@ -79,16 +79,20 @@ else
   # Follow redirect lands on grid
   FINAL_URL=$(curl -sL -b "$COOKIE_JAR" -c "$COOKIE_JAR" -o /dev/null -w '%{url_effective}' "$BASE_URL/bom/$BOM_ID")
   expect "Follow /bom/[id] → /grid" "$BASE_URL/bom/$BOM_ID/grid" "$FINAL_URL"
-  # All workspace sub-routes 200 (including NEW /tree)
+  # Grid + tree vẫn 200
   expect "GET /bom/[id]/grid (default)" "200" "$(status "$BASE_URL/bom/$BOM_ID/grid")"
   expect "GET /bom/[id]/tree (V1.7 NEW)" "200" "$(status "$BASE_URL/bom/$BOM_ID/tree")"
-  expect "GET /bom/[id]/orders" "200" "$(status "$BASE_URL/bom/$BOM_ID/orders")"
-  expect "GET /bom/[id]/work-orders" "200" "$(status "$BASE_URL/bom/$BOM_ID/work-orders")"
-  expect "GET /bom/[id]/procurement" "200" "$(status "$BASE_URL/bom/$BOM_ID/procurement")"
-  expect "GET /bom/[id]/shortage" "200" "$(status "$BASE_URL/bom/$BOM_ID/shortage")"
-  expect "GET /bom/[id]/eco" "200" "$(status "$BASE_URL/bom/$BOM_ID/eco")"
-  expect "GET /bom/[id]/assembly" "200" "$(status "$BASE_URL/bom/$BOM_ID/assembly")"
-  expect "GET /bom/[id]/history" "200" "$(status "$BASE_URL/bom/$BOM_ID/history")"
+  # V1.7-beta — 7 sub-route redirect 307 sang /grid?panel=X (back-compat bookmark)
+  expect "GET /bom/[id]/orders (V1.7-beta 307)" "307" "$(status "$BASE_URL/bom/$BOM_ID/orders")"
+  expect "GET /bom/[id]/work-orders (V1.7-beta 307)" "307" "$(status "$BASE_URL/bom/$BOM_ID/work-orders")"
+  expect "GET /bom/[id]/procurement (V1.7-beta 307)" "307" "$(status "$BASE_URL/bom/$BOM_ID/procurement")"
+  expect "GET /bom/[id]/shortage (V1.7-beta 307)" "307" "$(status "$BASE_URL/bom/$BOM_ID/shortage")"
+  expect "GET /bom/[id]/eco (V1.7-beta 307)" "307" "$(status "$BASE_URL/bom/$BOM_ID/eco")"
+  expect "GET /bom/[id]/assembly (V1.7-beta 307)" "307" "$(status "$BASE_URL/bom/$BOM_ID/assembly")"
+  expect "GET /bom/[id]/history (V1.7-beta 307)" "307" "$(status "$BASE_URL/bom/$BOM_ID/history")"
+  # V1.7-beta — grid với panel query params (target redirect)
+  expect "GET /bom/[id]/grid?panel=orders" "200" "$(status "$BASE_URL/bom/$BOM_ID/grid?panel=orders&autoOpen=1")"
+  expect "GET /bom/[id]/grid?drawer=history" "200" "$(status "$BASE_URL/bom/$BOM_ID/grid?drawer=history")"
 
   echo
   echo "--- 4. Global filter API ?bomTemplateId ---"
