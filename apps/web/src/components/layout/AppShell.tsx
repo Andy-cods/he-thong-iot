@@ -13,9 +13,19 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { NAV_ITEMS, filterNavByRoles, type NavItem } from "@/lib/nav-items";
-import { matchBomWorkspace } from "@/lib/contextual-nav";
 import type { UserMenuUser } from "@/components/layout/UserMenu";
 import type { Role } from "@iot/shared";
+
+/** V1.7-beta — detect BOM workspace pathname để gỡ padding main khi cần
+ *  full-bleed grid. Thay thế matchBomWorkspace() V1.6 của contextual-nav
+ *  (đã bị xoá). BomWorkspaceTopbar render bên trong layout.tsx thay cho
+ *  ContextualSidebar cũ. */
+function isBomWorkspacePath(pathname: string): boolean {
+  const m = /^\/bom\/([0-9a-f-]{8,})(\/|$)/.exec(pathname);
+  if (!m) return false;
+  const id = m[1]!;
+  return id !== "new" && id !== "import";
+}
 
 /**
  * V2 AppShell — Linear-inspired grid layout.
@@ -54,16 +64,12 @@ export function AppShell({
     [navItems, userRoles],
   );
 
-  // V1.6 — khi user ở trong BOM workspace, thu gọn global sidebar thành
-  // icon-only 56px để không gian cho ContextualSidebar 220px (render bởi
-  // bom/[id]/layout.tsx). Mobile drawer không bị ảnh hưởng.
-  const workspace = React.useMemo(
-    () => matchBomWorkspace(pathname),
+  // V1.7-beta — bỏ icon-only mode. Global sidebar luôn full 220px.
+  // BOM workspace dùng Topbar h-12 thay ContextualSidebar (brainstorm §3).
+  const isWorkspace = React.useMemo(
+    () => isBomWorkspacePath(pathname),
     [pathname],
   );
-  const sidebarVariant: "full" | "icon-only" = workspace.isWorkspace
-    ? "icon-only"
-    : "full";
 
   // Đóng drawer mobile mỗi khi pathname đổi (điều hướng xong).
   React.useEffect(() => {
@@ -84,9 +90,9 @@ export function AppShell({
         ["--topbar-height" as string]: "2.75rem", // 44px
       }}
     >
-      {/* Desktop sidebar (md+) — 220px full hoặc 56px icon-only khi workspace */}
+      {/* Desktop sidebar (md+) — 220px full (V1.7-beta bỏ icon-only mode) */}
       <div className="hidden md:flex">
-        <Sidebar navItems={filteredNav} variant={sidebarVariant} />
+        <Sidebar navItems={filteredNav} variant="full" />
       </div>
 
       {/* Mobile sidebar drawer — 280px slide-in */}
@@ -121,9 +127,9 @@ export function AppShell({
         <main
           id="main"
           className={
-            workspace.isWorkspace
-              ? // Workspace mode: no padding — children (bom/[id]/layout) tự
-                // render ContextualSidebar + padding riêng cho mỗi sub-route.
+            isWorkspace
+              ? // Workspace mode: full-bleed, children (bom/[id]/layout)
+                // tự render Topbar + grid + bottom panel.
                 "flex-1 overflow-hidden"
               : // Global mode: padding standard
                 "flex-1 px-4 py-4 md:px-6 md:py-5 xl:mx-auto xl:w-full xl:max-w-[1440px]"
