@@ -56,3 +56,63 @@ export function useLotHistory(id: string | null) {
     staleTime: 10_000,
   });
 }
+
+/* ---------------- V1.7-beta.2.1 — List lot/serial ---------------- */
+
+export type LotStatus = "AVAILABLE" | "HOLD" | "CONSUMED" | "EXPIRED";
+
+export interface LotSerialListRow {
+  id: string;
+  lotCode: string | null;
+  serialCode: string | null;
+  status: LotStatus | string;
+  mfgDate: string | null;
+  expDate: string | null;
+  createdAt: string;
+  onHandQty: number;
+  itemId: string;
+  itemSku: string | null;
+  itemName: string | null;
+  itemUom: string | null;
+}
+
+export interface LotSerialListResponse {
+  data: LotSerialListRow[];
+  meta: { page: number; pageSize: number; total: number };
+}
+
+export interface LotSerialListFilter {
+  itemId?: string | null;
+  status?: LotStatus | "all" | null;
+  q?: string | null;
+  page?: number;
+  pageSize?: number;
+}
+
+function buildListUrl(f: LotSerialListFilter): string {
+  const p = new URLSearchParams();
+  if (f.itemId) p.set("itemId", f.itemId);
+  if (f.status && f.status !== "all") p.set("status", f.status);
+  if (f.q && f.q.trim()) p.set("q", f.q.trim());
+  p.set("page", String(f.page ?? 1));
+  p.set("pageSize", String(f.pageSize ?? 50));
+  return `/api/lot-serial?${p.toString()}`;
+}
+
+export function useLotSerialList(filter: LotSerialListFilter) {
+  return useQuery<LotSerialListResponse>({
+    queryKey: [
+      "lot-serial",
+      "list",
+      filter.itemId ?? null,
+      filter.status ?? null,
+      filter.q ?? null,
+      filter.page ?? 1,
+      filter.pageSize ?? 50,
+    ] as const,
+    queryFn: () =>
+      request<LotSerialListResponse>(buildListUrl(filter)),
+    staleTime: 15_000,
+    placeholderData: (prev) => prev,
+  });
+}
