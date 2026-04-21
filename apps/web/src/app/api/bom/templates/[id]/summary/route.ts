@@ -45,11 +45,15 @@ export async function GET(
         WHERE bom_template_id = ${id}
       ),
       wo_agg AS (
+        -- Dùng negative filter (NOT IN COMPLETED/CANCELLED) để tương thích
+        -- cả enum V1.3 (có QUEUED/PAUSED) lẫn V1.2 cũ trên VPS (chỉ
+        -- DRAFT/RELEASED/IN_PROGRESS/COMPLETED/CANCELLED — migration 0006a
+        -- chưa apply). Active = mọi WO chưa kết thúc.
         SELECT COUNT(wo.id)::int AS active
         FROM app.work_order wo
         JOIN app.sales_order so ON so.id = wo.linked_order_id
         WHERE so.bom_template_id = ${id}
-          AND wo.status IN ('DRAFT', 'QUEUED', 'RELEASED', 'IN_PROGRESS', 'PAUSED')
+          AND wo.status NOT IN ('COMPLETED', 'CANCELLED')
       ),
       shortage_agg AS (
         SELECT COUNT(DISTINCT bsl.component_item_id)::int AS components
