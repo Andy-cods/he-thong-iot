@@ -60,3 +60,87 @@
 ---
 
 <!-- Codex V1.7 Step 1 block sẽ bắt đầu từ đây -->
+
+## 2026-04-21 · Codex · Step 1 + Step 2 audit
+
+**Goal:** Audit UI/UX hiện tại (Step 1) + Duplication audit (Step 2) — không code, chỉ sinh tài liệu.
+
+**Changed:**
+- `plans/v1.7/ui-ux-audit.md` — top 15 issue theo priority + kiểm thử buttons Grid Editor
+- `plans/v1.7/duplication-report.md` — 10 cluster trùng lặp + thứ tự refactor đề xuất
+
+**Decisions:**
+- Grid Editor là điểm quyết định cảm giác "chuyên nghiệp" — nên làm trung tâm redesign V1.7
+- Mobile contextual nav bị mất ở `<md` → xếp P0
+- Undo Grid Editor capture snapshot SAU edit → đây là lỗi nghiệp vụ thật sự, không phải polish
+- Recursive grid hierarchy: `buildWorkbookFromTemplate` chỉ flatten root + direct children, BOM sâu > 2 level bị mất → P0
+- 4 refactor ưu tiên Step 5: `apiFetch<T>()`, `getStatusBadgeMeta`, `BomWorkspacePageHeader`, `ListPaginationFooter`
+
+**Skipped:**
+- Không benchmark BOM 500-line FPS vì production chưa có BOM đủ lớn (max ~30 dòng quan sát)
+- Không chạy browser automation screenshot vì runtime không expose Playwright ổn định
+
+**Verify:**
+- Đã đọc: dashboard / BOM workspace layout / 9 sub-route / BomTreeView / ContextualSidebar / StatusBadge / OrderListTable / bom-grid/*
+- Xác minh live read-only: health 200 / login admin OK / BOM list OK
+
+**Next cho agent implementation (Step 3-8):**
+- Ưu tiên P0 trước: mobile contextual nav, recursive grid flatten, undo logic
+- Step 4 `design-spec.md` dựa trên ui-ux-audit.md Grid Editor requirements
+
+**Commits:** (audit docs chưa commit — đợi agent sau gom batch)
+
+**Blockers:**
+- Không có BOM 500-line trên live để verify tree UX scale
+- Playwright runtime không khả dụng trong session Codex
+
+---
+
+## 2026-04-21 · Claude · V1.7-alpha Grid làm default + recursive + Undo + polish
+
+**Goal:** User feedback "design để bảng grid làm mặc định, đẹp chuyên nghiệp + đủ cột Excel + test buttons". Implement nhanh P0 từ ui-ux-audit.md.
+
+**Changed:**
+- `apps/web/src/app/(app)/bom/[id]/page.tsx` — replace tree detail → `redirect('/bom/[id]/grid')` (Next server redirect)
+- `apps/web/src/app/(app)/bom/[id]/tree/page.tsx` NEW — copy nguyên nội dung page.tsx cũ để giữ access tree view
+- `apps/web/src/lib/contextual-nav.ts` — entry đầu "Bảng Grid" (LayoutGrid icon, href `/bom/[id]/grid`) + "Cây linh kiện" (Network icon, href `/bom/[id]/tree`). Bỏ "Tổng quan" cũ. "Lịch sử" chuyển divider.
+- `apps/web/src/lib/bom-grid/build-workbook.ts`:
+  - Fix P0 recursive flatten DFS theo childrenMap (mọi depth 1→5)
+  - Indent SKU theo depth (3 space × depth) giữ hệ phân cấp trong grid phẳng
+  - Polish styles: Inter cho text, JetBrains Mono cho SKU/số/percent/formula
+  - Header zinc-50 + border-b zinc-900 đậm (thay nền đen trắng cũ — kiểu Linear/Vercel)
+  - Group row indigo-50 + indigo-700 (thay xám — phân biệt với band)
+  - Column width expand (2: 240→280, 1: 90→110, 10: 240→260, 8: 85→92)
+  - Row height 26→28, title row 36→40, header row 30→32
+- `apps/web/src/app/(app)/bom/[id]/grid/page.tsx`:
+  - Fix Undo: capture `prevSnapRef` TRƯỚC mutation (thay vì gridRef.save() sau debounce)
+  - Seed prevSnapRef từ initialSnapshot khi load
+  - Header redesign: code mono + name inline + parent qty font-mono + OBSOLETE badge ring-1 + hint copy "Tổng SL = SL/bộ × parent"
+  - Save indicator fallback `updatedAt` template khi chưa save session này (thay "Chưa lưu" mặc định gây hiểu lầm)
+  - Replace "Quay lại" button (loop redirect `/bom/[id]` → grid) → "Xem cây" link `/tree`
+
+**Decisions:**
+- Grid mặc định, tree giữ làm view phụ truy cập qua sidebar item "Cây linh kiện"
+- Recursive DFS giữ order parent→children theo level+position từ server, SKU indent chỉ dùng visually không ảnh hưởng logic
+- Font stack Univer dùng `ff` property trong style — inject Inter + JetBrains Mono qua IStyleData, không cần global CSS override
+- Undo timing: push `prevSnapRef` vào stack NGAY khi onEdit fire (không chờ debounce), mutate mới update `prevSnapRef.current = snap` sau khi save thành công
+- KHÔNG làm 11-cột mới từ scratch — giữ 11 cột canonical cũ (đã khớp audit: Ảnh/Mã/Tên/Loại/Vật liệu/NCC/SL/Kích thước/Tổng/Hao hụt/Ghi chú), chỉ polish style
+
+**Skipped (V1.7-beta defer):**
+- Mobile contextual drawer (4h effort, scope riêng)
+- Toolbar Univer custom hoá (cần Univer plugin API riêng)
+- Ảnh column hiển thị thumbnail (cần upload pipeline riêng)
+- Tree view font refresh (tree vẫn V1.6 style vì user chủ yếu dùng grid)
+
+**Verify:**
+- `pnpm --filter @iot/web typecheck` — 0 new error (4 pre-existing purchaseOrders preserved)
+- `pnpm --filter @iot/web build` — chạy background, pending khi viết block này
+
+**Next:**
+- Build OK → commit + push → wait CI deploy → smoke test (target 39/39 + verify `/bom/[id]` redirect 307→/grid → 200, `/bom/[id]/tree` 200, grid render đúng font)
+- V1.7-beta: Codex Step 3 (Performance Audit) và/hoặc Step 4 (Design Spec) dựa trên ui-ux-audit + duplication-report
+- Mobile contextual drawer (Codex Step 7 UI Implementation)
+
+**Commits:** (pending — sẽ append hash sau)
+
+**Blockers:** none tại thời điểm này

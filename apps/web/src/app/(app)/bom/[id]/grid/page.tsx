@@ -3,7 +3,15 @@
 import * as React from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Cloud, CloudOff, History, Loader2, Plus, RotateCcw } from "lucide-react";
+import {
+  Cloud,
+  CloudOff,
+  History,
+  Loader2,
+  Network,
+  Plus,
+  RotateCcw,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
@@ -50,8 +58,11 @@ export default function BomGridPage() {
   const [isSaving, setIsSaving] = React.useState(false);
   const autoSaveTimer = React.useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  // Client-side snapshot undo stack (last 5 saves)
+  // Client-side snapshot undo stack (last 5 saves).
+  // V1.7 fix P0: capture snapshot TRƯỚC mutation (lần đầu = initialSnapshot;
+  // các lần sau = snapshot last-saved trước khi user edit tiếp).
   const undoStack = React.useRef<UniverWorkbookSnapshot[]>([]);
+  const prevSnapRef = React.useRef<UniverWorkbookSnapshot | null>(null);
   const [canUndo, setCanUndo] = React.useState(false);
 
   const template = detailQuery.data?.data?.template;
@@ -78,20 +89,22 @@ export default function BomGridPage() {
 
   const handleEdit = React.useCallback(
     (snap: UniverWorkbookSnapshot) => {
-      // Debounce 2s auto-save
+      // Debounce 2s auto-save. V1.7 fix Undo:
+      // Khi user edit → push `prevSnapRef` (snapshot TRƯỚC edit) vào stack
+      // NGAY, rồi mutate. Sau khi save xong, cập nhật prevSnapRef = snap mới
+      // (để lần edit tiếp theo có baseline đúng).
+      if (prevSnapRef.current) {
+        undoStack.current = [prevSnapRef.current, ...undoStack.current].slice(0, 5);
+        setCanUndo(undoStack.current.length > 0);
+      }
       clearTimeout(autoSaveTimer.current);
       autoSaveTimer.current = setTimeout(() => {
         setIsSaving(true);
-        // Capture previous snapshot for undo before overwriting
-        const currentSnap = gridRef.current?.save();
-        if (currentSnap) {
-          undoStack.current = [currentSnap, ...undoStack.current].slice(0, 5);
-          setCanUndo(undoStack.current.length > 0);
-        }
         saveMutation
           .mutateAsync(snap)
           .then(() => {
             setLastSavedAt(new Date());
+            prevSnapRef.current = snap;
           })
           .catch(() => {
             toast.error("Auto-save thất bại — kiểm tra kết nối.");
@@ -101,6 +114,15 @@ export default function BomGridPage() {
     },
     [saveMutation],
   );
+
+  // Khi snapshot initial load xong, seed prevSnapRef để undo lần đầu
+  // không rỗng. Dùng useEffect vì initialSnapshot được memo-ize lazily.
+  React.useEffect(() => {
+    if (initialSnapshot && !prevSnapRef.current) {
+      prevSnapRef.current = initialSnapshot as UniverWorkbookSnapshot;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialSnapshot]);
 
   const handleUndo = React.useCallback(() => {
     const prev = undoStack.current.shift();
@@ -162,60 +184,75 @@ export default function BomGridPage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <header className="border-b border-zinc-200 bg-white px-6 py-4">
+      <header className="border-b border-zinc-200 bg-white px-6 py-3">
         <Breadcrumb
           items={[
             { label: "BOM Templates", href: "/bom" },
-            {
-              label: template?.code ?? "...",
-              href: `/bom/${id}`,
-            },
-            { label: "Grid Editor" },
+            { label: template?.code ?? "..." },
           ]}
         />
         <div className="mt-2 flex items-end justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
-              {template?.name ?? (
-                <span className="animate-pulse text-zinc-400">Đang tải…</span>
-              )}
-            </h1>
-            <p className="mt-0.5 text-xs text-zinc-500">
-              Mã:{" "}
-              <span className="font-mono font-medium text-zinc-700">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-sm font-medium text-zinc-600">
                 {template?.code ?? "—"}
               </span>
-              {template?.parentItemSku ? (
-                <>
-                  {" · "}
-                  <span className="font-mono">{template.parentItemSku}</span>
-                </>
-              ) : null}
-              {" · "}
-              <span>
-                Qty parent:{" "}
-                <span className="tabular-nums">{template?.targetQty ?? "—"}</span>
-              </span>
+              <h1 className="truncate text-xl font-semibold tracking-tight text-zinc-900">
+                {template?.name ?? (
+                  <span className="animate-pulse text-zinc-400">Đang tải…</span>
+                )}
+              </h1>
               {isObsolete && (
-                <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
+                <span className="inline-flex items-center rounded bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 ring-1 ring-red-200">
                   Ngừng dùng
                 </span>
               )}
+            </div>
+            <p className="mt-1 text-xs text-zinc-500">
+              {template?.parentItemSku ? (
+                <>
+                  Đầu ra:{" "}
+                  <span className="font-mono text-zinc-700">
+                    {template.parentItemSku}
+                  </span>
+                  {" · "}
+                </>
+              ) : null}
+              Số lượng parent:{" "}
+              <span className="font-mono font-medium tabular-nums text-zinc-700">
+                {template?.targetQty ?? "—"}
+              </span>
+              {" · "}
+              <span className="text-zinc-400">
+                Tổng SL = SL/bộ × Số lượng parent
+              </span>
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Save status indicator */}
-            <span className="flex items-center gap-1 text-xs text-zinc-500">
+            {/* Save status indicator — V1.7 đọc từ `updatedAt` template nếu
+                 chưa có save trong session này, để khỏi hiện "Chưa lưu" sai. */}
+            <span className="flex items-center gap-1.5 text-xs text-zinc-500">
               {isSaving ? (
                 <>
-                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <Loader2 className="h-3 w-3 animate-spin text-indigo-500" />
                   Đang lưu…
                 </>
               ) : lastSavedAt ? (
                 <>
                   <Cloud className="h-3 w-3 text-emerald-500" />
-                  {lastSavedAt.toLocaleTimeString("vi-VN")}
+                  Đã lưu {lastSavedAt.toLocaleTimeString("vi-VN")}
+                </>
+              ) : template?.updatedAt ? (
+                <>
+                  <Cloud className="h-3 w-3 text-zinc-400" />
+                  Lưu lần cuối{" "}
+                  {new Date(template.updatedAt).toLocaleString("vi-VN", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    day: "2-digit",
+                    month: "2-digit",
+                  })}
                 </>
               ) : (
                 <>
@@ -271,10 +308,13 @@ export default function BomGridPage() {
               Lưu Grid
             </Button>
 
+            {/* V1.7 — "Quay lại /bom/[id]" bị loop redirect. Thay bằng
+                  link "Cây linh kiện" để user chuyển view nếu cần phân cấp
+                  trực quan. Breadcrumb + ContextualSidebar đã đủ cho back. */}
             <Button asChild size="sm" variant="ghost">
-              <Link href={`/bom/${id}`}>
-                <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-                Quay lại
+              <Link href={`/bom/${id}/tree`}>
+                <Network className="h-3.5 w-3.5" aria-hidden />
+                Xem cây
               </Link>
             </Button>
           </div>

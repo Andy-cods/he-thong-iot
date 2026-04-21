@@ -42,6 +42,10 @@ const STYLE = {
   note: "s-note",
   percent: "s-percent",
   formula: "s-formula",
+  sku: "s-sku", // SKU mono column (V1.7)
+  skuBand: "s-sku-band", // SKU + row banding combined (V1.7)
+  qty: "s-qty", // Số lượng tabular mono (V1.7)
+  qtyBand: "s-qty-band",
 } as const;
 
 function cell(value: string | number | null, styleId?: string) {
@@ -264,36 +268,46 @@ export function buildWorkbookFromTemplate(
     cellData[1]![idx] = cell(h, STYLE.header);
   });
 
-  // Phân loại: group nodes (level=1, có con) vs component nodes
-  const groupIds = new Set(
-    tree.filter((n) => n.childCount > 0).map((n) => n.id),
-  );
+  // V1.7 — Recursive flatten đầy đủ mọi depth (P0 fix: BOM sâu > 2 level
+  // trước đây bị cắt — chỉ render root + direct children).
+  // Quy tắc: node có con → render là "group header", node lá → render data row.
+  // Indent SKU theo depth để mắt người dùng thấy hierarchy trong grid phẳng.
+  const childrenMap = new Map<string | null, BomTreeNodeRaw[]>();
+  for (const n of tree) {
+    const key = n.parentLineId;
+    if (!childrenMap.has(key)) childrenMap.set(key, []);
+    childrenMap.get(key)!.push(n);
+  }
+  // ORDER BY level,position đã có từ server nhưng vẫn sort phòng hờ.
+  childrenMap.forEach((arr) => arr.sort((a, b) => a.position - b.position));
 
-  // Flatten: group → rồi con của group, rồi root components không thuộc group nào
-  const ordered: Array<{ node: BomTreeNodeRaw; isGroup: boolean }> = [];
-  const rootGroups = tree.filter((n) => n.parentLineId === null && groupIds.has(n.id));
-  const rootComponents = tree.filter((n) => n.parentLineId === null && !groupIds.has(n.id));
-
-  for (const g of rootGroups) {
-    ordered.push({ node: g, isGroup: true });
-    const children = tree.filter((n) => n.parentLineId === g.id);
-    for (const c of children) {
-      ordered.push({ node: c, isGroup: false });
+  interface Flat {
+    node: BomTreeNodeRaw;
+    isGroup: boolean;
+    depth: number;
+  }
+  const ordered: Flat[] = [];
+  const dfs = (parentId: string | null, depth: number) => {
+    const children = childrenMap.get(parentId) ?? [];
+    for (const n of children) {
+      const isGroup = n.childCount > 0;
+      ordered.push({ node: n, isGroup, depth });
+      if (isGroup) dfs(n.id, depth + 1);
     }
-  }
-  for (const c of rootComponents) {
-    ordered.push({ node: c, isGroup: false });
-  }
+  };
+  dfs(null, 0);
 
   let dataRowIdx = 0;
-  ordered.forEach(({ node, isGroup }, i) => {
+  ordered.forEach(({ node, isGroup, depth }, i) => {
     const r = i + 2;
     if (isGroup) {
-      const childCount = tree.filter((n) => n.parentLineId === node.id).length;
+      const childCount = childrenMap.get(node.id)?.length ?? 0;
+      // Indent theo depth: L1=0 space, L2=2 space, ... (dễ nhận ra cấp trong grid).
+      const indent = "  ".repeat(depth);
       cellData[r] = {
         0: cell(""),
         1: cell(
-          `${KIND_LABEL.group.icon}  ${node.componentName ?? node.componentSku ?? node.id}  (${childCount} linh kiện)`,
+          `${indent}${KIND_LABEL.group.icon}  ${node.componentName ?? node.componentSku ?? node.id}  (${childCount} linh kiện)`,
           STYLE.group,
         ),
       };
@@ -307,15 +321,21 @@ export function buildWorkbookFromTemplate(
     const kindIcon = isFab ? KIND_LABEL.fab.icon : KIND_LABEL.com.icon;
     const kindText = isFab ? KIND_LABEL.fab.text : KIND_LABEL.com.text;
     const kindStyle = isFab ? STYLE.fab : STYLE.com;
+    // Indent SKU theo depth × 3 spaces để leaf sâu vẫn có hệ phân cấp rõ.
+    const skuIndent = "   ".repeat(Math.max(depth, 1));
 
+    // V1.7 — SKU và SL/bộ dùng font mono để ngay hàng các ký tự; các cột khác Inter.
+    const isBand = dataRowIdx % 2 === 1;
+    const skuStyle = isBand ? STYLE.skuBand : STYLE.sku;
+    const qtyStyle = isBand ? STYLE.qtyBand : STYLE.qty;
     cellData[r] = {
       0: cell("", bandStyle),
-      1: cell(`   ${node.componentSku ?? ""}`, bandStyle),
+      1: cell(`${skuIndent}${node.componentSku ?? ""}`, skuStyle),
       2: cell(node.componentName ?? "", bandStyle),
       3: cell(`${kindIcon} ${kindText}`, kindStyle),
       4: cell(node.componentCategory ?? "", bandStyle),
       5: cell(node.supplierItemCode ?? "", bandStyle),
-      6: cell(Number(node.qtyPerParent) || 1, bandStyle),
+      6: cell(Number(node.qtyPerParent) || 1, qtyStyle),
       7: cell("", bandStyle),
       8: formula(`=G${r + 1}*$K$1`, STYLE.formula),
       9: cell(Number(node.scrapPercent) / 100, STYLE.percent),
@@ -344,44 +364,128 @@ export function buildWorkbookFromTemplate(
         zoomRatio: 1,
         scrollTop: 0,
         scrollLeft: 0,
-        defaultColumnWidth: 100,
-        defaultRowHeight: 26,
+        defaultColumnWidth: 108,
+        defaultRowHeight: 28,
         mergeData,
         cellData,
-        rowData: { 0: { h: 36 }, 1: { h: 30 } },
+        rowData: { 0: { h: 40 }, 1: { h: 32 } },
         columnData: {
-          0: { w: 50 }, 1: { w: 90 }, 2: { w: 240 }, 3: { w: 130 },
-          4: { w: 180 }, 5: { w: 100 }, 6: { w: 70 }, 7: { w: 160 },
-          8: { w: 85 }, 9: { w: 90 }, 10: { w: 240 },
+          0: { w: 52 }, // Ảnh
+          1: { w: 110 }, // Mã linh kiện (mono)
+          2: { w: 280 }, // Tên / Mô tả
+          3: { w: 130 }, // Loại
+          4: { w: 200 }, // Vật liệu / Nhóm
+          5: { w: 110 }, // NCC
+          6: { w: 78 }, // SL/bộ
+          7: { w: 170 }, // Kích thước
+          8: { w: 92 }, // Tổng SL
+          9: { w: 92 }, // Hao hụt %
+          10: { w: 260 }, // Ghi chú
         },
         showGridlines: 1,
-        rowHeader: { visible: true, width: 46 },
-        columnHeader: { visible: true, height: 22 },
+        rowHeader: { visible: true, width: 48 },
+        columnHeader: { visible: true, height: 24 },
         selections: ["B3"],
         rightToLeft: 0,
       },
     },
+    // V1.7 redesign — font stack Inter (UI) + JetBrains Mono (mã + số).
+    // Header zinc-900 trắng đậm → nền zinc-50 border-b rất chuyên nghiệp kiểu Linear/Vercel.
     styles: {
-      [STYLE.title]: { bl: 1, fs: 13, vt: 2 },
+      [STYLE.title]: {
+        ff: "Inter, ui-sans-serif, system-ui, sans-serif",
+        bl: 1,
+        fs: 14,
+        cl: { rgb: "#0F172A" },
+        vt: 2,
+      },
       [STYLE.header]: {
-        bg: { rgb: "#18181B" }, cl: { rgb: "#FAFAFA" },
-        bl: 1, fs: 12, vt: 2, ht: 2,
-        bd: { b: { s: 1, cl: { rgb: "#27272A" } } },
+        ff: "Inter, ui-sans-serif, system-ui, sans-serif",
+        bg: { rgb: "#F4F4F5" },
+        cl: { rgb: "#27272A" },
+        bl: 1,
+        fs: 11,
+        vt: 2,
+        ht: 2,
+        bd: {
+          b: { s: 2, cl: { rgb: "#27272A" } },
+          t: { s: 1, cl: { rgb: "#D4D4D8" } },
+        },
       },
       [STYLE.group]: {
-        bg: { rgb: "#E4E4E7" }, bl: 1, fs: 12,
-        cl: { rgb: "#18181B" }, vt: 2,
+        ff: "Inter, ui-sans-serif, system-ui, sans-serif",
+        bg: { rgb: "#EEF2FF" },
+        bl: 1,
+        fs: 13,
+        cl: { rgb: "#3730A3" },
+        vt: 2,
+        bd: {
+          t: { s: 1, cl: { rgb: "#C7D2FE" } },
+          b: { s: 1, cl: { rgb: "#C7D2FE" } },
+        },
       },
-      [STYLE.band]: { bg: { rgb: "#F9FAFB" } },
+      [STYLE.band]: {
+        ff: "Inter, ui-sans-serif, system-ui, sans-serif",
+        bg: { rgb: "#FAFAFA" },
+      },
       [STYLE.fab]: {
-        bg: { rgb: "#DCFCE7" }, cl: { rgb: "#166534" }, bl: 1,
+        ff: "Inter, ui-sans-serif, system-ui, sans-serif",
+        bg: { rgb: "#DCFCE7" },
+        cl: { rgb: "#14532D" },
+        bl: 1,
+        fs: 12,
+        ht: 2,
       },
       [STYLE.com]: {
-        bg: { rgb: "#DBEAFE" }, cl: { rgb: "#1E40AF" }, bl: 1,
+        ff: "Inter, ui-sans-serif, system-ui, sans-serif",
+        bg: { rgb: "#DBEAFE" },
+        cl: { rgb: "#1E3A8A" },
+        bl: 1,
+        fs: 12,
+        ht: 2,
       },
-      [STYLE.note]: { cl: { rgb: "#71717A" }, it: 1 },
-      [STYLE.percent]: { n: { pattern: "0.0%" }, ht: 3 },
-      [STYLE.formula]: { bl: 1, ht: 3, cl: { rgb: "#0F172A" } },
+      [STYLE.note]: {
+        ff: "Inter, ui-sans-serif, system-ui, sans-serif",
+        cl: { rgb: "#71717A" },
+        it: 1,
+        fs: 12,
+      },
+      [STYLE.percent]: {
+        ff: "JetBrains Mono, ui-monospace, monospace",
+        n: { pattern: "0.0%" },
+        ht: 3,
+        cl: { rgb: "#ea580c" },
+      },
+      [STYLE.formula]: {
+        ff: "JetBrains Mono, ui-monospace, monospace",
+        bl: 1,
+        ht: 3,
+        cl: { rgb: "#0F172A" },
+      },
+      [STYLE.sku]: {
+        ff: "JetBrains Mono, ui-monospace, monospace",
+        fs: 12,
+        cl: { rgb: "#18181B" },
+      },
+      [STYLE.skuBand]: {
+        ff: "JetBrains Mono, ui-monospace, monospace",
+        fs: 12,
+        cl: { rgb: "#18181B" },
+        bg: { rgb: "#FAFAFA" },
+      },
+      [STYLE.qty]: {
+        ff: "JetBrains Mono, ui-monospace, monospace",
+        fs: 12,
+        ht: 3,
+        cl: { rgb: "#27272A" },
+      },
+      [STYLE.qtyBand]: {
+        ff: "JetBrains Mono, ui-monospace, monospace",
+        fs: 12,
+        ht: 3,
+        cl: { rgb: "#27272A" },
+        bg: { rgb: "#FAFAFA" },
+      },
     },
     resources: [],
   };

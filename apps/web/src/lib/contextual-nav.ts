@@ -6,6 +6,7 @@ import {
   GitBranch,
   History,
   LayoutGrid,
+  Network,
   PackageCheck,
   ShoppingCart,
   Wrench,
@@ -37,9 +38,16 @@ export function buildBomContextNav(
 ): ContextualNavItem[] {
   return [
     {
-      href: `/bom/${bomId}`,
-      label: "Tổng quan",
-      icon: FolderTree,
+      // V1.7 — "/bom/[id]" redirect sang /grid, nên entry mặc định = Bảng Grid.
+      href: `/bom/${bomId}/grid`,
+      label: "Bảng Grid",
+      icon: LayoutGrid,
+      entity: "bomTemplate",
+    },
+    {
+      href: `/bom/${bomId}/tree`,
+      label: "Cây linh kiện",
+      icon: Network,
       entity: "bomTemplate",
     },
     {
@@ -86,17 +94,11 @@ export function buildBomContextNav(
       badge: counts?.assembly,
     },
     {
-      href: `/bom/${bomId}/grid`,
-      label: "Bảng Grid",
-      icon: LayoutGrid,
-      entity: "bomTemplate",
-      divider: true,
-    },
-    {
       href: `/bom/${bomId}/history`,
       label: "Lịch sử",
       icon: History,
       entity: "bomTemplate",
+      divider: true,
     },
   ];
 }
