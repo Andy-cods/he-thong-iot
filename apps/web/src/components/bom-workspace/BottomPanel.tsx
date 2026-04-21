@@ -107,9 +107,11 @@ export function BottomPanel({
         />
       )}
 
-      {/* Tab bar */}
-      <div className="flex h-9 shrink-0 items-center gap-0.5 border-b border-zinc-200 bg-zinc-50/60 px-2">
-        <div className="flex flex-1 items-center gap-0.5 overflow-x-auto">
+      {/* Tab bar — V1.7-beta.2 polish per user feedback screenshot 1:
+           thêm divider dọc giữa tabs, active bold bottom border rõ hơn,
+           count badge luôn hiển thị (kể cả = 0 để user nhận ra tab có data). */}
+      <div className="flex h-9 shrink-0 items-center border-b border-zinc-200 bg-zinc-50/60 pl-1 pr-2">
+        <div className="flex flex-1 items-center divide-x divide-zinc-200 overflow-x-auto">
           {PANEL_KEYS.map((key, idx) => {
             const isActive = activePanel === key && !collapsed;
             const count = counts?.[key];
@@ -128,20 +130,25 @@ export function BottomPanel({
                 role="tab"
                 aria-selected={isActive}
                 className={cn(
-                  "relative inline-flex h-8 shrink-0 items-center gap-1.5 rounded-sm px-2.5 text-xs font-medium transition-colors duration-100",
+                  "relative inline-flex h-9 shrink-0 items-center gap-1.5 px-3 text-xs font-medium transition-colors duration-100",
+                  "after:pointer-events-none after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:transition-colors",
                   isActive
-                    ? "bg-white text-indigo-700 shadow-[inset_0_2px_0_0_#6366F1]"
-                    : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900",
+                    ? "bg-white text-indigo-700 after:bg-indigo-500"
+                    : "text-zinc-600 after:bg-transparent hover:bg-zinc-100 hover:text-zinc-900",
                 )}
               >
-                <span>{PANEL_LABELS[key]}</span>
-                {count !== undefined && count > 0 && (
+                <span className={cn(isActive && "font-semibold")}>
+                  {PANEL_LABELS[key]}
+                </span>
+                {count !== undefined && count !== null && (
                   <span
                     className={cn(
-                      "inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-mono tabular-nums",
+                      "inline-flex h-4 min-w-[18px] items-center justify-center rounded-full px-1 font-mono text-[10px] tabular-nums",
                       isActive
-                        ? "bg-indigo-100 text-indigo-700"
-                        : "bg-zinc-200 text-zinc-700",
+                        ? "bg-indigo-100 text-indigo-700 ring-1 ring-inset ring-indigo-200"
+                        : count > 0
+                          ? "bg-zinc-200 text-zinc-700"
+                          : "bg-zinc-100 text-zinc-400",
                     )}
                   >
                     {count}

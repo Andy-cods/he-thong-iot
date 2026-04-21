@@ -1,14 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { useParams } from "next/navigation";
-import {
-  Cloud,
-  CloudOff,
-  Loader2,
-  Plus,
-  RotateCcw,
-} from "lucide-react";
+import { useParams, useSearchParams } from "next/navigation";
+import { Cloud, CloudOff, Loader2, Plus, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { UniverSpreadsheetLazy } from "@/components/bom-grid/UniverSpreadsheetLazy";
@@ -22,12 +16,17 @@ import {
 } from "@/components/bom-grid/AddItemDialog";
 import {
   useBomDetail,
+  useBomDerivedStatus,
   useBomGrid,
   useBomTree,
   useBomWorkspaceSummary,
   useSaveBomGrid,
 } from "@/hooks/useBom";
 import { buildWorkbookFromTemplate } from "@/lib/bom-grid/build-workbook";
+import {
+  BomGridPro,
+  type MaterialStatus,
+} from "@/components/bom-grid-pro";
 import {
   AssemblyPanel,
   BomWorkspaceTopbar,
@@ -52,11 +51,17 @@ import {
 export default function BomGridPage() {
   const { id } = useParams<{ id: string }>();
 
+  const searchParams = useSearchParams();
+  // V1.7-beta.2 — default BomGridPro (Tanstack table). Fallback Univer
+  // classic qua ?mode=univer (2 tuần dual-mode trước khi retire).
+  const gridMode = searchParams?.get("mode") === "univer" ? "univer" : "pro";
+
   const detailQuery = useBomDetail(id);
   const gridQuery = useBomGrid(id);
   const treeQuery = useBomTree(id);
   const saveMutation = useSaveBomGrid(id);
   const summaryQuery = useBomWorkspaceSummary(id);
+  const derivedStatusQuery = useBomDerivedStatus(id, !!id);
 
   const gridRef = React.useRef<UniverSpreadsheetHandle>(null);
   const [addOpen, setAddOpen] = React.useState(false);
@@ -310,6 +315,25 @@ export default function BomGridPage() {
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Đang tải BOM…
             </div>
+          ) : gridMode === "pro" && template ? (
+            <BomGridPro
+              templateId={template.id}
+              templateName={template.name}
+              templateCode={template.code}
+              parentQty={Number(template.targetQty) || 1}
+              tree={tree}
+              statusMap={buildStatusMap(derivedStatusQuery.data?.data)}
+              readOnly={isObsolete}
+              onEditLine={(row) =>
+                toast.info(`[Phase C2] BomLineSheet sắp có — chỉnh ${row.node.componentSku}`)
+              }
+              onOrderLine={(row) =>
+                toast.info(`[Phase C3] PRQuickDialog sắp có — đặt mua ${row.node.componentSku}`)
+              }
+              onInventoryLine={(row) =>
+                toast.info(`[Phase C4] Inventory popover sắp có — xem tồn ${row.node.componentSku}`)
+              }
+            />
           ) : (
             <div className="h-full overflow-hidden rounded-md border border-zinc-200 bg-white shadow-sm">
               {initialSnapshot ? (
@@ -356,4 +380,21 @@ export default function BomGridPage() {
       )}
     </div>
   );
+}
+
+/**
+ * V1.7-beta.2 — map componentItemId → MaterialStatus từ derivedStatus API.
+ * Trả undefined cho component chưa có data → BomGridPro dùng default PLANNED.
+ */
+function buildStatusMap(
+  summary:
+    | { componentStatuses: Array<{ componentItemId: string; status: string }> }
+    | undefined,
+): Record<string, MaterialStatus> | undefined {
+  if (!summary?.componentStatuses) return undefined;
+  const map: Record<string, MaterialStatus> = {};
+  for (const c of summary.componentStatuses) {
+    map[c.componentItemId] = c.status as MaterialStatus;
+  }
+  return map;
 }
