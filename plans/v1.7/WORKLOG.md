@@ -429,3 +429,35 @@
 - Phase D (polish BomWorkspaceTopbar + retire Univer) chưa chạm — kế hoạch vẫn giữ nguyên D1 polish trong commit riêng.
 
 ---
+
+## 2026-04-21 · Claude · V1.7-beta.2.1 — kind interactive + lot list
+
+**Goal:** Fix 2 issue user feedback từ test LIVE:
+1. Link "Xem tất cả lot" trong InventoryPopover trỏ `/lot-serial?itemId=X` → 404 vì chưa có page list.
+2. Cột "Loại" trong BomGridPro chỉ là badge readonly — user muốn click đổi Thương mại/Gia công và form 2 flow **distinct**.
+
+**Changed (3 commit + file mới):**
+- `apps/web/src/app/api/lot-serial/route.ts` **NEW** — GET list lot/serial, filter `itemId/status/q`, pagination, JOIN `item`.
+- `apps/web/src/app/(app)/lot-serial/page.tsx` **NEW** — list page nuqs URL state, search + status tabs, item filter chip, row click → detail.
+- `apps/web/src/hooks/useLotSerial.ts` — thêm `useLotSerialList(filter)` + types.
+- `apps/web/src/components/bom-grid-pro/KindDropdown.tsx` **NEW** — dropdown cell 3 option (🛒 Thương mại / 🔧 Gia công / ↺ Mặc định) persist `metadata.kind`. Hiển thị badge `⚠ override` khi khác item master.
+- `apps/web/src/lib/bom-grid/flatten-tree.ts` — `deriveKind` ưu tiên `metadata.kind` override trước derive từ `componentItemType`.
+- `apps/web/src/components/bom-grid-pro/BomGridPro.tsx` — wire `KindDropdown` thay `KindBadge`, width cột Loại 130→150px.
+- `apps/web/src/components/bom-grid-pro/BomLineSheet.tsx` — restructure form 3 section: (1) Thông tin chung luôn show; (2A) Thương mại: supplierCode/leadTimeDays/moq/estimatedPrice → `metadata.sourcing`; (2B) Gia công: materialCode/blankSize/processRoute/technicalNotes → `metadata.routing`. Radio toggle pin top + card-style picker. Blank size mirror `metadata.size` để cột grid vẫn hiển thị. 2 flow không mix.
+
+**Không đổi schema:** `bomLineUpdateSchema.metadata` đã là `z.record(z.string(), z.unknown())` flexible, repo `updateLine` merge JSONB. Không cần migration.
+
+**Typecheck:** `pnpm --filter @iot/web typecheck` — 4 pre-existing errors `purchaseOrders.ts` (giữ nguyên, không liên quan), **0 new error** trên diff files (grep confirm).
+**Build:** `pnpm --filter @iot/web build` → **PASS**. Route `/lot-serial` xuất hiện 6.36 kB (127 kB first load).
+
+**Quyết định:**
+- API `/api/lot-serial` RBAC dùng `requireCan("read","reservation")` cho nhất quán với `/api/lot-serial/[id]/history` đã có. (Không có resource `inventory` trong enum hiện tại.)
+- `metadata.kind` override giữ nguyên sau khi user chọn "↺ Mặc định" (delete key) → derive lại từ item type. Badge `⚠ override` chỉ hiển thị khi override khác item derive để tránh noise UI.
+- `supplierItemCode` vẫn sync với `sourcing.supplierCode` để cột NCC trong grid (đọc supplierItemCode V1) khỏi broke back-compat.
+- Gia công data không auto-xoá khi chuyển sang Thương mại — giữ `metadata.routing` để user revert được. Chỉ swap section visibility.
+
+**Blockers / Next:**
+- Smoke `tests/smoke/v1.7-smoke.sh` chưa chạy tại đây (cần VPS env) — đề xuất user test trên LIVE sau CI deploy.
+- User cần manual verify: (1) click Loại → dropdown → đổi → reload giữ; (2) sửa linh kiện → chỉ thấy 1 trong 2 section đúng kind; (3) InventoryPopover → Xem tất cả lot → trang list filter đúng.
+
+---
