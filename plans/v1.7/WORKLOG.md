@@ -141,6 +141,15 @@
 - V1.7-beta: Codex Step 3 (Performance Audit) và/hoặc Step 4 (Design Spec) dựa trên ui-ux-audit + duplication-report
 - Mobile contextual drawer (Codex Step 7 UI Implementation)
 
-**Commits:** (pending — sẽ append hash sau)
+**Commits:**
+- `df0da84` feat(bom/grid): V1.7-alpha Grid default + recursive + Undo + polish
+- `fb96de1` fix(bom/redirect): Next 14.2 params sync (không Promise)
+
+**Verify final:**
+- Image LIVE: `7ace85add83b` (post-fb96de1)
+- `/bom/[id]` → 307 redirect → `/bom/[id]/grid` (correct, follow-redirect final 200)
+- `/bom/[id]/tree` → 200 (route mới, build output confirmed)
+- `tests/smoke/v1.7-smoke.sh` NEW — 41/41 PASS (+2 assertion vs V1.6: redirect + tree)
+- V1.6 smoke 38/39 pass (1 fail vì expect /bom/[id]=200 outdated → V1.7 smoke thay thế)
 
 **Blockers:** none tại thời điểm này
