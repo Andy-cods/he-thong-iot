@@ -29,9 +29,18 @@ export interface BomFlatRow {
   indentedSku: string;
 }
 
-/** Suy loại fab/com/group từ item type + có con hay không. */
+/**
+ * Suy loại fab/com/group.
+ *
+ * Thứ tự ưu tiên:
+ *   1. Có con → "group" (cụm lắp — luôn override).
+ *   2. `metadata.kind = "com" | "fab"` từ BOM line (V1.7-beta.2.1 override).
+ *   3. Derive từ `componentItemType`: FABRICATED/SUB_ASSEMBLY → "fab", còn lại → "com".
+ */
 function deriveKind(node: BomTreeNodeRaw, hasChildren: boolean): BomComponentKind {
   if (hasChildren) return "group";
+  const meta = (node.metadata ?? {}) as { kind?: unknown };
+  if (meta.kind === "com" || meta.kind === "fab") return meta.kind;
   const t = (node.componentItemType ?? "").toUpperCase();
   if (t === "FABRICATED" || t === "SUB_ASSEMBLY") return "fab";
   return "com";

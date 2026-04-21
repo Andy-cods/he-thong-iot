@@ -21,6 +21,7 @@ import { ProgressCell, type MaterialStatus } from "./ProgressCell";
 import { ActionsCell } from "./ActionsCell";
 import { BomLineSheet } from "./BomLineSheet";
 import { PRQuickDialog } from "./PRQuickDialog";
+import { KindDropdown } from "./KindDropdown";
 
 /**
  * V1.7-beta.2 — Pro BOM Grid (thay Univer).
@@ -295,9 +296,9 @@ export function BomGridPro({
             <span className="italic text-zinc-400">—</span>
           )}
         </td>
-        {/* Loại */}
-        <td className="w-[130px] px-2">
-          <KindBadge kind={row.kind} />
+        {/* Loại — V1.7-beta.2.1: dropdown interactive (override via metadata.kind) */}
+        <td className="w-[150px] px-2">
+          <KindDropdown templateId={templateId} row={row} readOnly={readOnly} />
         </td>
         {/* Vật liệu / Nhóm */}
         <td className="w-[160px] px-2 text-xs text-zinc-600 truncate">
@@ -384,7 +385,7 @@ export function BomGridPro({
               <th className="min-w-[240px] border-b border-zinc-900 px-2 text-left">
                 Tên / Mô tả
               </th>
-              <th className="w-[130px] border-b border-zinc-900 px-2 text-left">
+              <th className="w-[150px] border-b border-zinc-900 px-2 text-left">
                 Loại
               </th>
               <th className="w-[160px] border-b border-zinc-900 px-2 text-left">
@@ -483,17 +484,3 @@ export function BomGridPro({
   );
 }
 
-function KindBadge({ kind }: { kind: BomFlatRow["kind"] }) {
-  if (kind === "group") return null;
-  if (kind === "fab")
-    return (
-      <span className="inline-flex h-5 items-center gap-1 rounded bg-emerald-50 px-1.5 text-[11px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
-        🔧 Gia công
-      </span>
-    );
-  return (
-    <span className="inline-flex h-5 items-center gap-1 rounded bg-blue-50 px-1.5 text-[11px] font-medium text-blue-700 ring-1 ring-inset ring-blue-200">
-      🛒 Thương mại
-    </span>
-  );
-}
