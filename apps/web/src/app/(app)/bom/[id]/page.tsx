@@ -9,11 +9,11 @@ import { redirect } from "next/navigation";
  * Giữ đường truy cập Tree view qua `/bom/[id]/tree` (ContextualSidebar
  * item "Cây linh kiện").
  */
-export default async function BomWorkspaceRoot({
+// Next 14.2 dùng params sync (không Promise như Next 15).
+export default function BomWorkspaceRoot({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
-  const { id } = await params;
-  redirect(`/bom/${id}/grid`);
+  redirect(`/bom/${params.id}/grid`);
 }
