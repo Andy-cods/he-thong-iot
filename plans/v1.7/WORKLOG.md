@@ -202,3 +202,59 @@
 - Univer `IDataValidation` fill-down 20 dòng chưa verify — cần test thực tế ở Phase 1; có backup Shadcn Select overlay nếu fail
 
 ---
+
+## 2026-04-21 · planner · V1.7-beta implementation plan
+
+**Goal:** Viết implementation plan chi tiết cho V1.7-beta dựa trên 2 brainstorm (integrated-workspace + kind-routing) + ui-ux-audit + duplication-report. Auto-mode chốt 2 blocker thay user.
+
+**Changed:**
+- `plans/v1.7/v1.7-beta-plan.md` NEW — 10 section, ~3200 từ, 32 file change matrix, 9 commit roadmap với verify + rollback từng bước.
+
+**Decisions (auto-mode chốt thay user):**
+- **Blocker 1 — Refactor CompactListTable scope V1.7-beta:** CHỈ extract primitive mới + dùng cho bottom panel BOM workspace. KHÔNG migrate 6 file cũ (`OrderListTable`, `BomListTable`, `PRListTable`, `POListTable`, `ShortageListTable`, `SnapshotBoardTable`). Migrate defer V1.7 GA để giảm regression surface + ship nhanh.
+- **Blocker 2 — Sub-route cũ xử lý:** Giữ permalink qua server redirect 307 sang `/bom/[id]/grid?panel={name}&autoOpen=1`. 7 file route shell còn 3 dòng `redirect()`. Bảo toàn bookmark/share URL không vỡ. History → `?drawer=history` riêng.
+
+**Roadmap 9 commit:**
+1. Column widths tuning (Tổng 1682→1588px, header fs 11→10)
+2. BomWorkspaceTopbar h-12 + bỏ ContextualSidebar 220px (global sidebar full-label)
+3. BottomPanel skeleton (tab bar h-9 + resize drag + collapse + URL state `?bp_panel=`)
+4. OrdersPanel + WorkOrdersPanel (reuse useOrdersList/useWorkOrdersList)
+5. ProcurementPanel + ShortagePanel + EcoPanel + AssemblyPanel placeholder
+6. 7 sub-route redirect 307 + smoke test update (43 PASS)
+7. Kind dropdown Univer `IDataValidation` + PATCH `/api/bom/lines/[id]/metadata-kind` + badge override
+8. KindProcessSheet 480px Tier 1 (form com/fab) + PATCH metadata-kind-detail
+9. (optional) HistoryDrawer 440px + motion polish
+
+**Target:**
+- `pnpm -r typecheck` 0 new error
+- `pnpm --filter @iot/web build` PASS
+- Smoke 43-45/43-45 PASS (41 cũ - 7 sub=200 + 7 sub=307 + 2-4 panel/drawer + 1 PATCH API)
+- Manual flow: click BOM → grid + bottom panel → click tab → list data; edit kind → persist + reload OK; double-click → Side Sheet Tier 1 persist sourcing/routing
+
+**Timeline:** 3-4 ngày (2.5 ngày nếu 2 dev Claude+Codex parallel). Deadline 2026-04-25. 27.5h effective + 4-5h buffer.
+
+**File matrix tóm tắt:** 32 file (13 NEW / 16 MODIFY / 3 DELETE). Chi tiết section 2 của plan.
+
+**Risk quản lý:**
+- R1 ContextualSidebar import bên ngoài: grep trước DELETE.
+- R2 URL conflict: prefix `bp_` cho panel state.
+- R3 Univer dataValidation API compat: POC 2h commit 7, fallback Shadcn Select overlay +4h nếu fail.
+- R4 Excel import overwrite metadata: verify merge logic, fix nếu cần.
+- R5 Panel data fetch performance: lazy `enabled` conditional React Query.
+
+**Next:**
+1. Commit plan file này (docs-only, không ảnh hưởng code LIVE).
+2. Tạo branch `feat/v1.7-beta` từ main.
+3. `/cook` agent chạy Commit 1 (column tuning, 30m) → verify typecheck build → commit.
+4. Chạy tuần tự commit 2-8 (commit 9 optional polish).
+5. Manual smoke + deploy staging VPS → production.
+
+**Commits:** `docs(v1.7): v1.7-beta implementation plan · integrated workspace` (sẽ commit sau khi append WORKLOG này).
+
+**Blockers còn lại (non-blocking, giải quyết khi cook):**
+- Univer `IDataValidation` list API compat — POC 2h commit 7.
+- `useOrdersList` / `useWorkOrdersList` / `useEcoList` có param `bomTemplateId` chưa? Check khi cook commit 4-5.
+- `/api/procurement?bomTemplateId=` — defer migration 0009 GA, V1.7-beta fallback banner global list.
+- Excel import `apps/web/src/server/services/excelImport*` có merge vs overwrite metadata — verify khi cook commit 7.
+
+---
