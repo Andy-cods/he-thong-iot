@@ -39,15 +39,16 @@ export interface KindDropdownProps {
 type KindValue = "com" | "fab" | null;
 
 function BadgeInner({ kind }: { kind: "com" | "fab" }) {
+  // whitespace-nowrap + shrink-0 tránh wrap "Gia" / "công" khi cột hẹp.
   if (kind === "fab") {
     return (
-      <span className="inline-flex h-5 items-center gap-1 rounded bg-emerald-50 px-1.5 text-[11px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
+      <span className="inline-flex h-5 shrink-0 items-center gap-1 whitespace-nowrap rounded bg-emerald-50 px-1.5 text-[11px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
         🔧 Gia công
       </span>
     );
   }
   return (
-    <span className="inline-flex h-5 items-center gap-1 rounded bg-blue-50 px-1.5 text-[11px] font-medium text-blue-700 ring-1 ring-inset ring-blue-200">
+    <span className="inline-flex h-5 shrink-0 items-center gap-1 whitespace-nowrap rounded bg-blue-50 px-1.5 text-[11px] font-medium text-blue-700 ring-1 ring-inset ring-blue-200">
       🛒 Thương mại
     </span>
   );
@@ -156,13 +157,15 @@ export function KindDropdown({
 }
 
 function OverrideMark() {
+  // Icon-only để không đẩy badge kind vỡ layout trong cột Loại w-150.
+  // Tooltip hover cung cấp context đầy đủ cho user.
   return (
     <span
       title="Loại đã override khác với Item master"
-      className="inline-flex h-5 items-center gap-0.5 rounded bg-amber-50 px-1 text-[10px] font-medium text-amber-700 ring-1 ring-inset ring-amber-200"
+      aria-label="Override khác Item master"
+      className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200"
     >
-      <AlertTriangle className="h-2.5 w-2.5" aria-hidden />
-      override
+      <AlertTriangle className="h-3 w-3" aria-hidden />
     </span>
   );
 }

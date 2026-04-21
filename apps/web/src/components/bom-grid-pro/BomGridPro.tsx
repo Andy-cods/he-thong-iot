@@ -332,12 +332,13 @@ export function BomGridPro({
         <td className="min-w-[180px] max-w-[280px] px-2 text-xs italic text-zinc-500 truncate">
           {row.node.description ?? ""}
         </td>
-        {/* Actions — sticky right */}
+        {/* Actions — sticky right. V1.7-beta.2.2: phân nhánh com/fab. */}
         <td className="sticky right-0 z-10 w-24 border-l border-zinc-100 bg-white px-1 group-hover:bg-zinc-50">
           <ActionsCell
             row={row}
             onEdit={readOnly ? undefined : handleEditRow}
             onOrder={readOnly ? undefined : handleOrderRow}
+            onViewRoute={readOnly ? undefined : handleEditRow}
             useInventoryPopover={!onInventoryLine}
             onInventory={onInventoryLine}
             onDuplicate={readOnly ? undefined : handleDuplicateRow}
