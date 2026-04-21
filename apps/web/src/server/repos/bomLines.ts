@@ -113,6 +113,8 @@ export interface BomLineUpdateInput {
   uom?: string | null;
   description?: string | null;
   supplierItemCode?: string | null;
+  /** V1.7-beta.2 — metadata tự do (vd: `{ size: "50x50x10" }`). */
+  metadata?: Record<string, unknown> | null;
 }
 
 export async function updateLine(lineId: string, patch: BomLineUpdateInput) {
@@ -125,6 +127,7 @@ export async function updateLine(lineId: string, patch: BomLineUpdateInput) {
   if (patch.description !== undefined) values.description = patch.description;
   if (patch.supplierItemCode !== undefined)
     values.supplierItemCode = patch.supplierItemCode;
+  if (patch.metadata !== undefined) values.metadata = patch.metadata ?? {};
 
   const [row] = await db
     .update(bomLine)

@@ -118,6 +118,8 @@ export const bomLineUpdateSchema = z.object({
   uom: z.string().trim().max(32).optional().nullable(),
   description: z.string().trim().max(2000).optional().nullable(),
   supplierItemCode: z.string().trim().max(128).optional().nullable(),
+  /** V1.7-beta.2 — metadata tự do (vd: `{ size: "50x50x10" }`). */
+  metadata: z.record(z.string(), z.unknown()).optional().nullable(),
 });
 
 export const bomLineMoveSchema = z.object({

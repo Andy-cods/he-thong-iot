@@ -42,6 +42,7 @@ export async function PATCH(
       uom: body.data.uom ?? undefined,
       description: body.data.description ?? undefined,
       supplierItemCode: body.data.supplierItemCode ?? undefined,
+      metadata: body.data.metadata ?? undefined,
     });
     if (!after) return jsonError("NOT_FOUND", "Không tìm thấy linh kiện.", 404);
 
