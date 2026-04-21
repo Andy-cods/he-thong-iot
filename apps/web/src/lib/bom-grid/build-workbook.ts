@@ -369,18 +369,22 @@ export function buildWorkbookFromTemplate(
         mergeData,
         cellData,
         rowData: { 0: { h: 40 }, 1: { h: 32 } },
+        // V1.7-beta column width tuning (brainstorm kind-routing §1).
+        // Tổng 1682→1584px. Tăng SKU (140) chứa C1609-24-P-00154 đủ; Loại
+        // (150) chừa caret dropdown V1.7-beta; Ghi chú (290) wrap 2 dòng.
+        // Giảm Kích thước (140), Vật liệu (180), Tổng/Hao hụt (80).
         columnData: {
           0: { w: 52 }, // Ảnh
-          1: { w: 110 }, // Mã linh kiện (mono)
-          2: { w: 280 }, // Tên / Mô tả
-          3: { w: 130 }, // Loại
-          4: { w: 200 }, // Vật liệu / Nhóm
-          5: { w: 110 }, // NCC
-          6: { w: 78 }, // SL/bộ
-          7: { w: 170 }, // Kích thước
-          8: { w: 92 }, // Tổng SL
-          9: { w: 92 }, // Hao hụt %
-          10: { w: 260 }, // Ghi chú
+          1: { w: 140 }, // Mã linh kiện (mono, chứa 16 chars)
+          2: { w: 260 }, // Tên / Mô tả
+          3: { w: 150 }, // Loại (+caret dropdown)
+          4: { w: 180 }, // Vật liệu / Nhóm
+          5: { w: 120 }, // NCC
+          6: { w: 72 }, // SL/bộ
+          7: { w: 140 }, // Kích thước
+          8: { w: 80 }, // Tổng SL
+          9: { w: 80 }, // Hao hụt %
+          10: { w: 290 }, // Ghi chú (wrap 2 dòng)
         },
         showGridlines: 1,
         rowHeader: { visible: true, width: 48 },
@@ -404,7 +408,7 @@ export function buildWorkbookFromTemplate(
         bg: { rgb: "#F4F4F5" },
         cl: { rgb: "#27272A" },
         bl: 1,
-        fs: 11,
+        fs: 10, // V1.7-beta: 11→10 để không đè bóng border header
         vt: 2,
         ht: 2,
         bd: {

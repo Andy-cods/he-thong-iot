@@ -2,23 +2,24 @@
 
 import * as React from "react";
 import { useParams } from "next/navigation";
-import { BOM_STATUS_LABELS, type BomStatus } from "@iot/shared";
-import { useBomDetail, useBomWorkspaceSummary } from "@/hooks/useBom";
-import { useSession } from "@/hooks/useSession";
-import { ContextualSidebar } from "@/components/layout/ContextualSidebar";
+import { useBomDetail } from "@/hooks/useBom";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { BadgeStatus } from "@/components/domain/StatusBadge";
-import type { Role } from "@iot/shared";
+import { BomWorkspaceTopbar } from "@/components/bom-workspace/BomWorkspaceTopbar";
+import {
+  useBottomPanelState,
+  type PanelKey,
+} from "@/components/bom-workspace/useBottomPanelState";
+import { HistoryDrawer } from "@/components/bom-workspace/HistoryDrawer";
 
 /**
- * BOM Workspace Layout (V1.6) — render ContextualSidebar bên trái + children bên phải.
+ * BOM Workspace Layout V1.7-beta (brainstorm §2 Pattern B).
  *
- * Đây là nested layout nằm trong (app) layout. AppShell tự detect pathname
- * `/bom/[id]/*` để thu gọn global sidebar thành icon-only (56px), để không
- * gian cho ContextualSidebar (220px) tại đây.
+ * Thay thế ContextualSidebar V1.6 bằng BomWorkspaceTopbar h-12 ở trên
+ * cùng. Children (grid/tree/import/...) fill phần còn lại. Bottom Panel
+ * được render bên trong grid/page.tsx (gần state edit grid nhất).
  *
- * Các sub-route KHÔNG dùng workspace (new, import) được loại qua
- * matchBomWorkspace() trong AppShell.
+ * State Topbar/Panel/Drawer share qua URL search params — bookmark OK,
+ * refresh giữ state.
  */
 export default function BomWorkspaceLayout({
   children,
@@ -28,32 +29,26 @@ export default function BomWorkspaceLayout({
   const params = useParams<{ id: string }>();
   const bomId = params?.id ?? null;
   const detailQuery = useBomDetail(bomId);
-  const sessionQuery = useSession();
-  const summaryQuery = useBomWorkspaceSummary(bomId);
+  const panelState = useBottomPanelState();
 
   const template = detailQuery.data?.data?.template;
-  const summary = summaryQuery.data?.data;
 
-  // BOM mới/import/không hợp lệ: không render sidebar (fallback render children
-  // như trang bình thường). AppShell cũng xử lý riêng cho đường dẫn như vậy.
+  // Route phụ không phải workspace (new/import) → skip layout wrapper
   if (bomId === "new" || bomId === "import") {
     return <>{children}</>;
   }
 
   if (detailQuery.isLoading || !template) {
     return (
-      <div className="flex h-full">
-        <aside className="w-[220px] shrink-0 border-r border-zinc-200 bg-white p-4">
+      <div className="flex h-full flex-col">
+        <div className="flex h-12 items-center gap-3 border-b border-zinc-200 bg-white px-3">
+          <Skeleton className="h-4 w-12" />
           <Skeleton className="h-4 w-24" />
-          <Skeleton className="mt-2 h-5 w-36" />
-          <Skeleton className="mt-1 h-4 w-20" />
-          <div className="mt-6 space-y-2">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="h-7 w-full" />
-            ))}
-          </div>
-        </aside>
-        <div className="flex-1 overflow-auto">{children}</div>
+          <Skeleton className="h-4 w-40" />
+        </div>
+        <div className="flex-1 overflow-auto p-4">
+          <Skeleton className="h-full w-full" />
+        </div>
       </div>
     );
   }
@@ -62,51 +57,29 @@ export default function BomWorkspaceLayout({
     return <>{children}</>;
   }
 
-  const badge = bomStatusToBadge(template.status);
-  const userRoles: Role[] | undefined = sessionQuery.data?.roles;
+  const handleOpenPanel = (panel: PanelKey) => {
+    panelState.setActivePanel(panel);
+  };
+
+  const handleOpenHistory = () => {
+    panelState.setDrawerHistory(true);
+  };
 
   return (
-    <div className="flex h-full min-h-[calc(100vh-var(--topbar-height,44px))]">
-      {/* Contextual sidebar */}
-      <div className="hidden md:flex">
-        <ContextualSidebar
-          bomId={template.id}
-          bomCode={template.code}
-          bomName={template.name}
-          bomStatus={badge.badgeStatus}
-          bomStatusLabel={badge.label}
-          counts={
-            summary
-              ? {
-                  orders: summary.ordersActive,
-                  workOrders: summary.workOrdersActive,
-                  shortage: summary.shortageComponents,
-                  eco: summary.ecoActive,
-                }
-              : undefined
-          }
-          userRoles={userRoles}
-        />
-      </div>
-
-      {/* Main content */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-auto">
+    <div className="flex h-full min-h-[calc(100vh-var(--topbar-height,44px))] flex-col">
+      <BomWorkspaceTopbar
+        template={template}
+        onOpenPanel={handleOpenPanel}
+        onOpenHistory={handleOpenHistory}
+      />
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {children}
       </div>
+      <HistoryDrawer
+        bomId={template.id}
+        open={panelState.drawerHistory}
+        onOpenChange={panelState.setDrawerHistory}
+      />
     </div>
   );
-}
-
-function bomStatusToBadge(status: BomStatus): {
-  badgeStatus: BadgeStatus;
-  label: string;
-} {
-  switch (status) {
-    case "ACTIVE":
-      return { badgeStatus: "success", label: BOM_STATUS_LABELS.ACTIVE };
-    case "DRAFT":
-      return { badgeStatus: "draft", label: BOM_STATUS_LABELS.DRAFT };
-    case "OBSOLETE":
-      return { badgeStatus: "inactive", label: BOM_STATUS_LABELS.OBSOLETE };
-  }
 }
