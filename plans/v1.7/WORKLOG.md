@@ -387,3 +387,45 @@
 - PRQuickDialog: check existing `POST /api/purchase-requests` route signature — avoid conflict with `from-bom-line` subroute.
 
 ---
+
+## 2026-04-21 · V1.7-beta.2 Phase C cook (Claude Opus 4.7)
+
+**Tác vụ:** Wire 4 action button trong `BomGridPro` (Sửa / Đặt mua / Xem tồn / More) từ toast placeholder → hoạt động thực.
+
+**Files NEW (4):**
+- `apps/web/src/components/bom-grid-pro/BomLineSheet.tsx` — Side Sheet 480px sửa line qty/scrap/uom/description/supplierItemCode + metadata.size.
+- `apps/web/src/components/bom-grid-pro/PRQuickDialog.tsx` — Dialog đặt mua nhanh, POST /api/purchase-requests source=MANUAL, snapshotLineId = bom_line.id.
+- `apps/web/src/components/bom-grid-pro/InventoryPopover.tsx` — Popover 360px lazy fetch inventory + top 5 lots.
+- `apps/web/src/app/api/items/[id]/inventory-summary/route.ts` — Aggregate on-hand qua inventory_txn + lot_serial status + reservation ACTIVE.
+
+**Files MOD (6):**
+- `packages/shared/src/schemas/bom.ts` — thêm `metadata` optional field cho `bomLineUpdateSchema`.
+- `apps/web/src/server/repos/bomLines.ts` — `updateLine` accept `metadata`.
+- `apps/web/src/app/api/bom/templates/[id]/lines/[lid]/route.ts` — pass `metadata` → repo.
+- `apps/web/src/components/bom-grid-pro/ActionsCell.tsx` — thêm `useInventoryPopover` prop wrap button Xem tồn bằng `<InventoryPopover>` khi true.
+- `apps/web/src/components/bom-grid-pro/BomGridPro.tsx` — internal state `editTarget`/`orderTarget`, default handlers cho Sửa/Đặt mua/Nhân bản/Lịch sử qua `useAddBomLine`, render `<BomLineSheet>` + `<PRQuickDialog>` inline.
+- `apps/web/src/components/bom-grid-pro/index.ts` — barrel export thêm 3 component mới.
+- `apps/web/src/app/(app)/bom/[id]/grid/page.tsx` — bỏ 3 toast placeholder C2/C3/C4, thêm `onHistoryLine` mở HistoryDrawer.
+
+**Test plan:** [`plans/v1.7/v1.7-beta.2-phase-c-test.md`](./v1.7-beta.2-phase-c-test.md) — 8 nhóm test manual cho LIVE (11 checklist items).
+
+**Typecheck:** `pnpm --filter @iot/web typecheck` — 4 pre-existing errors trong `server/repos/purchaseOrders.ts` (không liên quan Phase C), **0 new error**.
+**Build:** `pnpm --filter @iot/web build` → **PASS exit 0**. `/bom/[id]/grid` = 24.5 kB page (222 kB first load JS).
+
+**Commits pushed main (4):**
+- `21efd5d` feat(bom/grid-pro): Phase C1 — BomLineSheet sửa line chi tiết
+- `7260fe4` feat(bom/grid-pro): Phase C2 — PRQuickDialog đặt mua nhanh
+- `441d68d` feat(bom/grid-pro): Phase C3 — InventoryPopover + inventory-summary API
+- `66fe7e2` feat(bom/grid-pro): Phase C4 — wire ActionsCell + onDuplicate + onHistory
+
+**Quyết định ngoài plan gốc:**
+- Lot status enum schema chỉ có `AVAILABLE/HOLD/CONSUMED/EXPIRED` (không có RESERVED/INBOUND_QC như plan viết) — đổi 4 KPI popover thành: Tổng tồn · Sẵn dùng · Giữ QC · Đã giữ chỗ (reserved từ bảng `reservation` ACTIVE).
+- Priority PR chưa có cột DB dedicated → encode prefix vào `notes` (`[Gấp] ...`) để không cần migration.
+- `snapshotLineId` trong PR line dùng `bom_line.id` để BackRef (khi tạo từ BOM grid). Audit PR detail sẽ thấy nguồn.
+- `useInventoryPopover` flag giữ back-compat: page grid hiện tại không cần set (default `!onInventoryLine=true`).
+
+**Blockers / Next (cho user test LIVE):**
+- Chờ CI deploy main → smoke 43/43 regression + manual test 11 checklist (xem test plan).
+- Phase D (polish BomWorkspaceTopbar + retire Univer) chưa chạm — kế hoạch vẫn giữ nguyên D1 polish trong commit riêng.
+
+---
