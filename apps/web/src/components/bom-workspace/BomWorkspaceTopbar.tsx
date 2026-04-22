@@ -137,21 +137,26 @@ export function BomWorkspaceTopbar({
   const isObsolete = template.status === "OBSOLETE";
 
   return (
-    <header className="flex h-12 shrink-0 items-center gap-3 border-b border-zinc-200 bg-white pl-3 pr-2">
-      {/* Left: back + breadcrumb + title */}
+    <header className="flex h-12 shrink-0 items-center gap-2 border-b border-zinc-200 bg-white pl-2 pr-2">
+      {/* Left: back + breadcrumb + title — V1.7-beta.2.3 compact polish */}
       <Link
         href="/bom"
-        className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs font-medium text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+        className="inline-flex h-7 items-center gap-1 rounded-md px-1.5 text-[11px] font-medium text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
         title="Thoát workspace về danh sách BOM"
       >
-        <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+        <ArrowLeft className="h-3 w-3" aria-hidden />
         BOM
       </Link>
-      <span className="text-xs text-zinc-300">/</span>
-      <span className="font-mono text-sm font-medium text-zinc-700">
+      <span className="text-xs text-zinc-300" aria-hidden>
+        ·
+      </span>
+      <span className="font-mono text-[13px] font-medium text-zinc-800">
         {template.code}
       </span>
-      <h1 className="truncate text-sm font-semibold text-zinc-900">
+      <span className="text-xs text-zinc-300" aria-hidden>
+        ·
+      </span>
+      <h1 className="truncate text-sm font-normal text-zinc-700">
         {template.name}
       </h1>
       <StatusBadge

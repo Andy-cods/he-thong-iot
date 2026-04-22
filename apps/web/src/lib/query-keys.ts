@@ -54,7 +54,6 @@ export const qk = {
     list: (filter: BomFilter) => ["bom", "list", filter] as const,
     detail: (id: string) => ["bom", "detail", id] as const,
     tree: (id: string) => ["bom", "tree", id] as const,
-    grid: (id: string) => ["bom", "grid", id] as const,
     derivedStatus: (id: string) => ["bom", "derived-status", id] as const,
     activityLog: (id: string) => ["bom", "activity-log", id] as const,
     codeCheck: (code: string, excludeId?: string) =>

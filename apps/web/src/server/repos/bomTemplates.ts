@@ -302,44 +302,10 @@ export async function loadTree(templateId: string): Promise<BomTreeNode[]> {
 }
 
 /**
- * Lấy snapshot Univer Grid từ metadata.univerSnapshot.
- * Trả null nếu template không tồn tại hoặc chưa có snapshot.
+ * V1.7-beta.2.3 — getGridSnapshot / saveGridSnapshot (Univer metadata.univerSnapshot)
+ * đã bị loại bỏ cùng Univer retirement. BOM grid hiện chỉ serialize qua
+ * `bom_line` table (không còn JSON snapshot layer).
  */
-export async function getGridSnapshot(
-  id: string,
-): Promise<Record<string, unknown> | null> {
-  const [row] = await db
-    .select({ metadata: bomTemplate.metadata })
-    .from(bomTemplate)
-    .where(eq(bomTemplate.id, id))
-    .limit(1);
-  if (!row) return null;
-  const meta = row.metadata as Record<string, unknown> | null;
-  return (meta?.univerSnapshot as Record<string, unknown>) ?? null;
-}
-
-/**
- * Lưu snapshot Univer Grid vào metadata.univerSnapshot (jsonb_set — safe partial update).
- * Không ảnh hưởng các key khác trong metadata.
- */
-export async function saveGridSnapshot(
-  id: string,
-  snapshot: Record<string, unknown>,
-): Promise<boolean> {
-  const result = await db
-    .update(bomTemplate)
-    .set({
-      metadata: sql`jsonb_set(
-        COALESCE(${bomTemplate.metadata}, '{}'::jsonb),
-        '{univerSnapshot}',
-        ${JSON.stringify(snapshot)}::jsonb
-      )`,
-      updatedAt: sql`now()`,
-    })
-    .where(eq(bomTemplate.id, id))
-    .returning({ id: bomTemplate.id });
-  return result.length > 0;
-}
 
 /** Clone 1 template + toàn bộ lines với UUID map parent chain. */
 export async function cloneTemplate(

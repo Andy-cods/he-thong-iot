@@ -405,45 +405,9 @@ export function useMoveBomLine(templateId: string) {
 }
 
 // ─────────────────────────────────────────────────────────
-// Grid snapshot hooks
-// ─────────────────────────────────────────────────────────
-
-interface GridSnapshotResponse {
-  data: Record<string, unknown> | null;
-}
-
-export function useBomGrid(templateId: string) {
-  return useQuery<GridSnapshotResponse>({
-    queryKey: qk.bom.grid(templateId),
-    queryFn: async () => {
-      const res = await fetch(`/api/bom/templates/${templateId}/grid`);
-      if (!res.ok) throw new Error("Không tải được Grid snapshot");
-      return (await res.json()) as GridSnapshotResponse;
-    },
-    staleTime: 30_000,
-    enabled: !!templateId,
-  });
-}
-
-export function useSaveBomGrid(templateId: string) {
-  const qc = useQueryClient();
-  return useMutation<{ data: { saved: boolean } }, Error, Record<string, unknown>>({
-    mutationFn: async (snapshot) => {
-      const res = await fetch(`/api/bom/templates/${templateId}/grid`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ snapshot }),
-      });
-      if (!res.ok) throw new Error("Lưu Grid snapshot thất bại");
-      return (await res.json()) as { data: { saved: boolean } };
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.bom.grid(templateId) });
-      qc.invalidateQueries({ queryKey: qk.bom.activityLog(templateId) });
-    },
-  });
-}
-
+// V1.7-beta.2.3 — Grid snapshot hooks (useBomGrid / useSaveBomGrid) đã bị
+// loại bỏ cùng Univer. BomGridPro dùng trực tiếp useBomTree +
+// useUpdateBomLine — không còn snapshot JSON layer.
 // ─────────────────────────────────────────────────────────
 // Activity log hook
 // ─────────────────────────────────────────────────────────

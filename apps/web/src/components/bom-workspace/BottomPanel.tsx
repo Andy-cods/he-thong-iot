@@ -107,14 +107,15 @@ export function BottomPanel({
         />
       )}
 
-      {/* Tab bar — V1.7-beta.2 polish per user feedback screenshot 1:
-           thêm divider dọc giữa tabs, active bold bottom border rõ hơn,
-           count badge luôn hiển thị (kể cả = 0 để user nhận ra tab có data). */}
+      {/* Tab bar — V1.7-beta.2.3 polish Linear-like:
+           active = border-b-2 indigo-500 (không after pill),
+           divider dọc giữa tabs, count = "—" khi 0 giảm noise. */}
       <div className="flex h-9 shrink-0 items-center border-b border-zinc-200 bg-zinc-50/60 pl-1 pr-2">
-        <div className="flex flex-1 items-center divide-x divide-zinc-200 overflow-x-auto">
+        <div className="flex flex-1 items-center overflow-x-auto">
           {PANEL_KEYS.map((key, idx) => {
             const isActive = activePanel === key && !collapsed;
             const count = counts?.[key];
+            const showDivider = idx > 0;
             return (
               <button
                 key={key}
@@ -131,10 +132,10 @@ export function BottomPanel({
                 aria-selected={isActive}
                 className={cn(
                   "relative inline-flex h-9 shrink-0 items-center gap-1.5 px-3 text-xs font-medium transition-colors duration-100",
-                  "after:pointer-events-none after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:transition-colors",
+                  showDivider && "border-l border-zinc-200",
                   isActive
-                    ? "bg-white text-indigo-700 after:bg-indigo-500"
-                    : "text-zinc-600 after:bg-transparent hover:bg-zinc-100 hover:text-zinc-900",
+                    ? "border-b-2 border-indigo-500 bg-white text-indigo-700"
+                    : "border-b-2 border-transparent text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900",
                 )}
               >
                 <span className={cn(isActive && "font-semibold")}>
@@ -148,10 +149,10 @@ export function BottomPanel({
                         ? "bg-indigo-100 text-indigo-700 ring-1 ring-inset ring-indigo-200"
                         : count > 0
                           ? "bg-zinc-200 text-zinc-700"
-                          : "bg-zinc-100 text-zinc-400",
+                          : "bg-transparent text-zinc-300",
                     )}
                   >
-                    {count}
+                    {count > 0 ? count : "—"}
                   </span>
                 )}
               </button>
