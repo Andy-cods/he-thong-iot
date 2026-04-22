@@ -438,6 +438,7 @@ export function BomLineSheet({
           .join(" → ");
         const q = new URLSearchParams();
         q.set("bomLineId", line.id);
+        q.set("bomTemplateId", templateId);
         if (line.node.componentSku) q.set("sku", line.node.componentSku);
         if (form.materialCode) q.set("materialCode", form.materialCode);
         if (form.processRoute.length > 0)

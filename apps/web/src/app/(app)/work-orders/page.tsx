@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Factory, Plus } from "lucide-react";
+import { Copy, Factory, Plus } from "lucide-react";
 import {
   parseAsInteger,
   parseAsString,
@@ -179,6 +179,7 @@ export default function WorkOrdersListPage() {
             <table className="w-full text-sm">
               <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
                 <tr>
+                  <th className="px-3 py-2 text-left">ID</th>
                   <th className="px-3 py-2 text-left">Số WO</th>
                   <th className="px-3 py-2 text-left">Đơn hàng</th>
                   <th className="px-3 py-2 text-left">Ưu tiên</th>
@@ -198,6 +199,35 @@ export default function WorkOrdersListPage() {
                       window.location.href = `/work-orders/${r.id}`;
                     }}
                   >
+                    <td className="px-3 py-2">
+                      <button
+                        type="button"
+                        className="group/id inline-flex items-center gap-1 rounded px-1 py-0.5 font-mono text-[11px] text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
+                        title={`Copy full UUID: ${r.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigator.clipboard
+                            .writeText(r.id)
+                            .then(() => {
+                              // Lazy import toast to keep bundle lean? Simpler: use window.alert fallback.
+                              // sonner đã có trên page khác — dùng alert nhẹ để tránh thêm import.
+                              const t = document.createElement("div");
+                              t.textContent = "Đã copy ID";
+                              t.className =
+                                "fixed bottom-4 right-4 z-50 rounded bg-zinc-900 px-3 py-1.5 text-xs text-white shadow-lg";
+                              document.body.appendChild(t);
+                              setTimeout(() => t.remove(), 1200);
+                            })
+                            .catch(() => void 0);
+                        }}
+                      >
+                        <span>{r.id.slice(0, 8)}</span>
+                        <Copy
+                          className="h-2.5 w-2.5 opacity-0 transition-opacity group-hover/id:opacity-100"
+                          aria-hidden
+                        />
+                      </button>
+                    </td>
                     <td className="px-3 py-2">
                       <Link
                         href={`/work-orders/${r.id}`}

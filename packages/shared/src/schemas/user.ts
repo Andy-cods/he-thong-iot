@@ -90,6 +90,8 @@ export const auditListQuerySchema = z.object({
     .transform((v) => (v === undefined ? undefined : Array.isArray(v) ? v : [v])),
   actorUsername: z.string().trim().max(64).optional(),
   userId: z.string().uuid().optional(),
+  /** V1.7-beta.2.6 — filter theo objectId (UUID) để load audit trail của 1 entity. */
+  objectId: z.string().uuid().optional(),
   from: z
     .string()
     .datetime()

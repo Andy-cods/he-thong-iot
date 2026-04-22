@@ -100,6 +100,10 @@ else
   expect "GET /api/work-orders?bomTemplateId" "200" "$(status "$BASE_URL/api/work-orders?bomTemplateId=$BOM_ID")"
   expect "GET /api/shortage?bomTemplateId" "200" "$(status "$BASE_URL/api/shortage?bomTemplateId=$BOM_ID")"
   expect "GET /api/eco?bomTemplateId" "200" "$(status "$BASE_URL/api/eco?bomTemplateId=$BOM_ID")"
+  # V1.7-beta.2.6 — fab-progress endpoint (kind-aware progress cell)
+  expect "GET /api/bom/templates/[id]/fab-progress (V1.7-beta.2.6)" "200" "$(status "$BASE_URL/api/bom/templates/$BOM_ID/fab-progress")"
+  FAB_PROG=$(body "$BASE_URL/api/bom/templates/$BOM_ID/fab-progress")
+  expect_body "fab-progress.progress (map)" "$FAB_PROG" "\"progress\""
 
   echo
   echo "--- 5. Global pages với chip filter ---"
@@ -142,6 +146,21 @@ if [[ "$PR_VALIDATION" == "400" || "$PR_VALIDATION" == "422" ]]; then
 else
   echo "❌ POST /api/purchase-requests (empty body): got $PR_VALIDATION, expected 400/422"
   FAIL=$((FAIL+1))
+fi
+
+echo
+echo "--- 5c. V1.7-beta.2.6 — Work Order detail + audit filter ---"
+WO_LIST=$(body "$BASE_URL/api/work-orders?pageSize=1")
+WO_ID=$(echo "$WO_LIST" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['data'][0]['id'] if d.get('data') else '')" 2>/dev/null || echo "")
+if [[ -z "$WO_ID" ]]; then
+  echo "⚠️  Không tìm thấy WO — bỏ qua detail tests"
+else
+  echo "ℹ️  WO ID: $WO_ID"
+  expect "GET /api/work-orders/[id]" "200" "$(status "$BASE_URL/api/work-orders/$WO_ID")"
+  expect "GET /api/work-orders/[id]/source-bom (V1.7-beta.2.6)" "200" "$(status "$BASE_URL/api/work-orders/$WO_ID/source-bom")"
+  expect "GET /work-orders/[id] (detail page)" "200" "$(status "$BASE_URL/work-orders/$WO_ID")"
+  # Audit filter by objectId (V1.7-beta.2.6 mới thêm)
+  expect "GET /api/admin/audit?entity=work_order&objectId" "200" "$(status "$BASE_URL/api/admin/audit?entity=work_order&objectId=$WO_ID&pageSize=10")"
 fi
 
 echo

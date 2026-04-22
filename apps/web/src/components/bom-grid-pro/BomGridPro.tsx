@@ -17,7 +17,12 @@ import {
   type BomFlatRow,
 } from "@/lib/bom-grid/flatten-tree";
 import { DialogConfirm } from "@/components/ui/dialog";
-import { ProgressCell, type MaterialStatus } from "./ProgressCell";
+import {
+  FabProgressCell,
+  ProgressCell,
+  mapWoStatusToFab,
+  type MaterialStatus,
+} from "./ProgressCell";
 import { ActionsCell } from "./ActionsCell";
 import { BomLineSheet } from "./BomLineSheet";
 import { PRQuickDialog } from "./PRQuickDialog";
@@ -47,6 +52,18 @@ export interface BomGridProProps {
   tree: BomTreeNodeRaw[];
   /** Map componentItemId → MaterialStatus từ derivedStatus API (nếu có). */
   statusMap?: Record<string, MaterialStatus>;
+  /** V1.7-beta.2.6 — Map bomLineId → WO progress cho fab row. */
+  fabProgressMap?: Record<
+    string,
+    {
+      woId: string;
+      woNo: string;
+      status: string;
+      plannedQty: string;
+      goodQty: string;
+      scrapQty: string;
+    }
+  >;
   /** V1.7-beta.2 Phase C — handler Sửa (override default BomLineSheet). */
   onEditLine?: (row: BomFlatRow) => void;
   /** V1.7-beta.2 Phase C — handler Đặt mua (override default PRQuickDialog). */
@@ -68,6 +85,7 @@ export function BomGridPro({
   parentQty,
   tree,
   statusMap,
+  fabProgressMap,
   onEditLine,
   onOrderLine,
   onInventoryLine,
@@ -325,9 +343,24 @@ export function BomGridPro({
         <td className="w-[80px] px-2 text-right font-mono text-xs tabular-nums text-orange-600">
           {scrap > 0 ? `${scrap.toFixed(1)}%` : "—"}
         </td>
-        {/* Tiến độ — NEW V1.7-beta.2 */}
+        {/* Tiến độ — V1.7-beta.2.6: kind-aware (fab → WO progress, com → material status) */}
         <td className="w-[150px] px-0">
-          <ProgressCell status={status} />
+          {row.kind === "fab" ? (
+            (() => {
+              const fab = fabProgressMap?.[row.id];
+              const fabStatus = mapWoStatusToFab(fab?.status);
+              return (
+                <FabProgressCell
+                  status={fabStatus}
+                  goodQty={fab ? Number(fab.goodQty) : undefined}
+                  plannedQty={fab ? Number(fab.plannedQty) : undefined}
+                  woNo={fab?.woNo}
+                />
+              );
+            })()
+          ) : (
+            <ProgressCell status={status} />
+          )}
         </td>
         {/* Ghi chú */}
         <td className="w-[180px] px-2 text-xs italic text-zinc-500 truncate">

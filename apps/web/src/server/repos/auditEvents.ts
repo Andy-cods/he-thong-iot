@@ -8,6 +8,7 @@ export interface AuditListQuery {
   action?: string[];
   actorUsername?: string;
   userId?: string;
+  objectId?: string;
   from?: Date;
   to?: Date;
   page: number;
@@ -49,6 +50,9 @@ export async function listAudit(q: AuditListQuery) {
   }
   if (q.userId) {
     where.push(eq(auditEvent.actorUserId, q.userId));
+  }
+  if (q.objectId) {
+    where.push(eq(auditEvent.objectId, q.objectId));
   }
   if (q.from) where.push(gte(auditEvent.occurredAt, q.from));
   if (q.to) where.push(lte(auditEvent.occurredAt, q.to));

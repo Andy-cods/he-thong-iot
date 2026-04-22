@@ -504,3 +504,41 @@ export function useBomDerivedStatus(templateId: string, enabled = true) {
     enabled: enabled && !!templateId,
   });
 }
+
+// ─────────────────────────────────────────────────────────
+// V1.7-beta.2.6 — Fab progress (WO linked to BOM fab lines)
+// ─────────────────────────────────────────────────────────
+
+export interface FabProgressEntry {
+  woId: string;
+  woNo: string;
+  status: string;
+  plannedQty: string;
+  goodQty: string;
+  scrapQty: string;
+}
+
+export interface FabProgressResponse {
+  data: {
+    bomTemplateId: string;
+    /** Map bomLineId → WO progress entry. */
+    progress: Record<string, FabProgressEntry>;
+  };
+}
+
+export function useBomFabProgress(templateId: string, enabled = true) {
+  return useQuery<FabProgressResponse>({
+    queryKey: ["bom", "fab-progress", templateId],
+    queryFn: async () => {
+      const res = await fetch(
+        `/api/bom/templates/${templateId}/fab-progress`,
+        { credentials: "include" },
+      );
+      if (!res.ok) throw new Error("Không tải được tiến độ gia công");
+      return (await res.json()) as FabProgressResponse;
+    },
+    staleTime: 15_000,
+    refetchInterval: 60_000,
+    enabled: enabled && !!templateId,
+  });
+}

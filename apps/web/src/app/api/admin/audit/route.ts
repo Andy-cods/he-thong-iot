@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
       action: data.action,
       actorUsername: data.actorUsername,
       userId: data.userId,
+      objectId: data.objectId,
       from: data.from,
       to: data.to,
       page,

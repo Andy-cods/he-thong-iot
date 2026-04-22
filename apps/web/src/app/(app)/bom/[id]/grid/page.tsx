@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import {
   useBomDerivedStatus,
   useBomDetail,
+  useBomFabProgress,
   useBomTree,
   useBomWorkspaceSummary,
 } from "@/hooks/useBom";
@@ -44,6 +45,7 @@ export default function BomGridPage() {
   const treeQuery = useBomTree(id);
   const summaryQuery = useBomWorkspaceSummary(id);
   const derivedStatusQuery = useBomDerivedStatus(id, !!id);
+  const fabProgressQuery = useBomFabProgress(id, !!id);
 
   const template = detailQuery.data?.data?.template;
   const tree = treeQuery.data?.data?.tree ?? [];
@@ -125,6 +127,7 @@ export default function BomGridPage() {
               parentQty={Number(template.targetQty) || 1}
               tree={tree}
               statusMap={buildStatusMap(derivedStatusQuery.data?.data)}
+              fabProgressMap={fabProgressQuery.data?.data.progress}
               readOnly={isObsolete}
               onHistoryLine={() => panel.setDrawerHistory(true)}
             />

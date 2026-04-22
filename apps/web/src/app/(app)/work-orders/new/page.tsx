@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { useOrdersList } from "@/hooks/useOrders";
 import { useSnapshotLines } from "@/hooks/useSnapshots";
 import { useCreateWorkOrder } from "@/hooks/useWorkOrders";
+import { useBomTree, useUpdateBomLine } from "@/hooks/useBom";
 
 export default function NewWorkOrderPage() {
   const router = useRouter();
@@ -28,11 +29,16 @@ export default function NewWorkOrderPage() {
   const prefillOrderId = params.get("orderId");
   // V1.7-beta.2.5 — prefill từ BOM line (button "Lưu + Tạo Lệnh SX" trong BomLineSheet).
   const bomLineId = params.get("bomLineId");
+  const bomTemplateId = params.get("bomTemplateId");
   const bomSku = params.get("sku");
   const bomMaterialCode = params.get("materialCode");
   const bomProcessRoute = params.get("processRoute");
   const bomNote = params.get("note");
   const fromBom = !!bomLineId;
+
+  // V1.7-beta.2.6 — bidirectional link: cần tree để lấy line hiện tại (merge metadata).
+  const bomTreeQuery = useBomTree(bomTemplateId);
+  const updateLineMut = useUpdateBomLine(bomTemplateId ?? "");
 
   const [selectedOrder, setSelectedOrder] = React.useState<string>(
     prefillOrderId ?? "",
@@ -98,6 +104,38 @@ export default function NewWorkOrderPage() {
         notes: notes || null,
       });
       toast.success(`Tạo WO ${result.data.woNo} thành công.`);
+
+      // V1.7-beta.2.6 — bidirectional link: PATCH bom line metadata.routing.linkedWorkOrderId
+      if (bomLineId && bomTemplateId && bomTreeQuery.data?.data.tree) {
+        const line = bomTreeQuery.data.data.tree.find((n) => n.id === bomLineId);
+        if (line) {
+          const existingMeta = (line.metadata ?? {}) as Record<string, unknown>;
+          const existingRouting =
+            (existingMeta.routing as Record<string, unknown> | undefined) ?? {};
+          const nextMeta = {
+            ...existingMeta,
+            routing: {
+              ...existingRouting,
+              linkedWorkOrderId: result.data.id,
+              linkedWorkOrderNo: result.data.woNo,
+            },
+          };
+          try {
+            await updateLineMut.mutateAsync({
+              lineId: bomLineId,
+              data: { metadata: nextMeta },
+            });
+          } catch (linkErr) {
+            // Không chặn flow — chỉ warn.
+            toast.warning(
+              `Tạo WO thành công nhưng chưa liên kết ngược được với BOM: ${
+                (linkErr as Error).message
+              }`,
+            );
+          }
+        }
+      }
+
       router.push(`/work-orders/${result.data.id}`);
     } catch (err) {
       toast.error((err as Error).message);
