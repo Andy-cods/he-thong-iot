@@ -110,6 +110,41 @@ else
 fi
 
 echo
+echo "--- 5b. V1.7-beta.2.4 — Inventory + PR end-to-end ---"
+# GET /api/items?pageSize=1 để lấy itemId thật, sau đó test inventory-summary
+ITEMS_LIST=$(body "$BASE_URL/api/items?pageSize=1&isActive=true")
+ITEM_ID=$(echo "$ITEMS_LIST" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['data'][0]['id'] if d.get('data') else '')" 2>/dev/null || echo "")
+
+if [[ -z "$ITEM_ID" ]]; then
+  echo "⚠️  Không tìm thấy item — bỏ qua inventory tests"
+else
+  echo "ℹ️  Item ID: $ITEM_ID"
+  # Inventory summary (BomGridPro Popover + /items/[id] tab Kho dùng chung)
+  expect "GET /api/items/[id]/inventory-summary" "200" "$(status "$BASE_URL/api/items/$ITEM_ID/inventory-summary")"
+  SUMMARY_JSON=$(body "$BASE_URL/api/items/$ITEM_ID/inventory-summary")
+  expect_body "inventory.summary.totalQty" "$SUMMARY_JSON" "\"totalQty\""
+  expect_body "inventory.summary.availableQty" "$SUMMARY_JSON" "\"availableQty\""
+  expect_body "inventory.summary.reservedQty" "$SUMMARY_JSON" "\"reservedQty\""
+  expect_body "inventory.lots (array)" "$SUMMARY_JSON" "\"lots\""
+  # Items Detail page render (tab=inventory deep-link từ InventoryPopover)
+  expect "GET /items/[id] (tab default)" "200" "$(status "$BASE_URL/items/$ITEM_ID")"
+  expect "GET /items/[id]?tab=inventory (deep-link)" "200" "$(status "$BASE_URL/items/$ITEM_ID?tab=inventory")"
+fi
+
+# PR create validation — body rỗng phải 400/422 (smoke check endpoint sống)
+PR_VALIDATION=$(curl -s -o /dev/null -w '%{http_code}' -b "$COOKIE_JAR" -c "$COOKIE_JAR" \
+  -H 'content-type: application/json' \
+  -X POST "$BASE_URL/api/purchase-requests" -d '{}')
+TOTAL=$((TOTAL+1))
+if [[ "$PR_VALIDATION" == "400" || "$PR_VALIDATION" == "422" ]]; then
+  echo "✅ POST /api/purchase-requests (empty body) → $PR_VALIDATION (validation OK)"
+  PASS=$((PASS+1))
+else
+  echo "❌ POST /api/purchase-requests (empty body): got $PR_VALIDATION, expected 400/422"
+  FAIL=$((FAIL+1))
+fi
+
+echo
 echo "--- 6. Core pages ---"
 expect "GET /" "200" "$(status "$BASE_URL/")"
 expect "GET /items" "200" "$(status "$BASE_URL/items")"
