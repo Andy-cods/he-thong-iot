@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown, AlertTriangle } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -104,19 +104,12 @@ export function KindDropdown({
     );
   };
 
-  // Check overrideKind có khác item derive không để show warning badge.
-  const itemType = (row.node.componentItemType ?? "").toUpperCase();
-  const derivedFromItem: "com" | "fab" =
-    itemType === "FABRICATED" || itemType === "SUB_ASSEMBLY" ? "fab" : "com";
-  const hasOverride = overrideKind !== null && overrideKind !== derivedFromItem;
+  // V1.7-beta.2.5: bỏ OverrideMark warning badge — user không muốn icon ⚠ vàng
+  // bên cạnh badge kind. Override vẫn lưu trong metadata.kind, chỉ không hiển
+  // thị badge phụ nữa cho UI gọn.
 
   if (readOnly) {
-    return (
-      <div className="flex items-center gap-1">
-        <BadgeInner kind={effectiveKind} />
-        {hasOverride ? <OverrideMark /> : null}
-      </div>
-    );
+    return <BadgeInner kind={effectiveKind} />;
   }
 
   return (
@@ -134,7 +127,6 @@ export function KindDropdown({
         >
           <BadgeInner kind={effectiveKind} />
           <ChevronDown className="h-3 w-3 text-zinc-400" aria-hidden />
-          {hasOverride ? <OverrideMark /> : null}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-[180px]">
@@ -157,16 +149,3 @@ export function KindDropdown({
   );
 }
 
-function OverrideMark() {
-  // Icon-only để không đẩy badge kind vỡ layout trong cột Loại w-150.
-  // Tooltip hover cung cấp context đầy đủ cho user.
-  return (
-    <span
-      title="Loại đã override khác với Item master"
-      aria-label="Override khác Item master"
-      className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200"
-    >
-      <AlertTriangle className="h-3 w-3" aria-hidden />
-    </span>
-  );
-}
