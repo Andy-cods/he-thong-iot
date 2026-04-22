@@ -259,7 +259,7 @@ export function BomGridPro({
               </span>
             </button>
           </td>
-          <td className="sticky right-0 z-10 w-24 bg-indigo-50 border-l border-indigo-100 px-1">
+          <td className="sticky right-0 z-10 w-[100px] bg-indigo-50 border-l border-indigo-100 px-1">
             <ActionsCell
               row={row}
               onEdit={readOnly ? undefined : handleEditRow}
@@ -288,11 +288,11 @@ export function BomGridPro({
           </div>
         </td>
         {/* Mã SKU */}
-        <td className="w-[140px] px-2 font-mono text-xs font-medium text-zinc-800">
+        <td className="w-[170px] px-2 font-mono text-xs font-medium text-zinc-800 truncate">
           <span className="tabular-nums">{row.indentedSku.trimStart() || "—"}</span>
         </td>
         {/* Tên */}
-        <td className="min-w-[240px] max-w-[300px] px-2 text-sm text-zinc-700 truncate">
+        <td className="w-[200px] px-2 text-sm text-zinc-700 truncate">
           {row.node.componentName ?? (
             <span className="italic text-zinc-400">—</span>
           )}
@@ -302,7 +302,7 @@ export function BomGridPro({
           <KindDropdown templateId={templateId} row={row} readOnly={readOnly} />
         </td>
         {/* Vật liệu / Nhóm */}
-        <td className="w-[160px] px-2 text-xs text-zinc-600 truncate">
+        <td className="w-[140px] px-2 text-xs text-zinc-600 truncate">
           {row.node.componentCategory ?? "—"}
         </td>
         {/* NCC */}
@@ -314,11 +314,11 @@ export function BomGridPro({
           {formatNumber(qty)}
         </td>
         {/* Kích thước */}
-        <td className="w-[140px] px-2 font-mono text-[11px] text-zinc-600 truncate">
+        <td className="w-[110px] px-2 font-mono text-[11px] text-zinc-600 truncate">
           {(row.node.metadata as { size?: string } | null)?.size ?? "—"}
         </td>
         {/* Tổng SL */}
-        <td className="w-[80px] px-2 text-right font-mono text-xs font-semibold tabular-nums text-zinc-900">
+        <td className="w-[70px] px-2 text-right font-mono text-xs font-semibold tabular-nums text-zinc-900">
           {formatNumber(total)}
         </td>
         {/* Hao hụt */}
@@ -326,15 +326,15 @@ export function BomGridPro({
           {scrap > 0 ? `${scrap.toFixed(1)}%` : "—"}
         </td>
         {/* Tiến độ — NEW V1.7-beta.2 */}
-        <td className="w-[140px] px-0">
+        <td className="w-[150px] px-0">
           <ProgressCell status={status} />
         </td>
         {/* Ghi chú */}
-        <td className="min-w-[180px] max-w-[280px] px-2 text-xs italic text-zinc-500 truncate">
+        <td className="w-[180px] px-2 text-xs italic text-zinc-500 truncate">
           {row.node.description ?? ""}
         </td>
         {/* Actions — sticky right. V1.7-beta.2.2: phân nhánh com/fab. */}
-        <td className="sticky right-0 z-10 w-24 border-l border-zinc-100 bg-white px-1 group-hover:bg-zinc-50">
+        <td className="sticky right-0 z-10 w-[100px] border-l border-zinc-100 bg-white px-1 group-hover:bg-zinc-50">
           <ActionsCell
             row={row}
             onEdit={readOnly ? undefined : handleEditRow}
@@ -381,16 +381,16 @@ export function BomGridPro({
               <th className="w-[52px] border-b border-zinc-900 px-2 text-center">
                 Ảnh
               </th>
-              <th className="w-[140px] border-b border-zinc-900 px-2 text-left">
+              <th className="w-[170px] border-b border-zinc-900 px-2 text-left">
                 Mã linh kiện
               </th>
-              <th className="min-w-[240px] border-b border-zinc-900 px-2 text-left">
+              <th className="w-[200px] border-b border-zinc-900 px-2 text-left">
                 Tên / Mô tả
               </th>
               <th className="w-[150px] border-b border-zinc-900 px-2 text-left">
                 Loại
               </th>
-              <th className="w-[160px] border-b border-zinc-900 px-2 text-left">
+              <th className="w-[140px] border-b border-zinc-900 px-2 text-left">
                 Vật liệu
               </th>
               <th className="w-[110px] border-b border-zinc-900 px-2 text-left">
@@ -399,22 +399,22 @@ export function BomGridPro({
               <th className="w-[72px] border-b border-zinc-900 px-2 text-right">
                 SL/bộ
               </th>
-              <th className="w-[140px] border-b border-zinc-900 px-2 text-left">
+              <th className="w-[110px] border-b border-zinc-900 px-2 text-left">
                 Kích thước
               </th>
-              <th className="w-[80px] border-b border-zinc-900 px-2 text-right">
+              <th className="w-[70px] border-b border-zinc-900 px-2 text-right">
                 Tổng SL
               </th>
               <th className="w-[80px] border-b border-zinc-900 px-2 text-right">
                 Hao hụt
               </th>
-              <th className="w-[140px] border-b border-zinc-900 px-2 text-left">
+              <th className="w-[150px] border-b border-zinc-900 px-2 text-left">
                 Tiến độ
               </th>
-              <th className="min-w-[180px] border-b border-zinc-900 px-2 text-left">
+              <th className="w-[180px] border-b border-zinc-900 px-2 text-left">
                 Ghi chú
               </th>
-              <th className="sticky right-0 z-30 w-24 border-b border-l border-zinc-900 bg-zinc-50 px-2 text-center">
+              <th className="sticky right-0 z-30 w-[100px] border-b border-l border-zinc-900 bg-zinc-50 px-2 text-center">
                 Thao tác
               </th>
             </tr>
