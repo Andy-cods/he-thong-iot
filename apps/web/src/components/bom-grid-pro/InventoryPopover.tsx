@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/format";
+import { InventoryKpiCards } from "@/components/inventory/InventoryKpiCards";
 
 /**
  * V1.7-beta.2 Phase C3 — Popover xem tồn kho nhanh 1 linh kiện.
@@ -129,28 +130,10 @@ export function InventoryPopover({
             />
           ) : query.data ? (
             <>
-              <div className="grid grid-cols-2 gap-2">
-                <Kpi
-                  label="Tổng tồn"
-                  value={query.data.data.summary.totalQty}
-                  accent="indigo"
-                />
-                <Kpi
-                  label="Sẵn dùng"
-                  value={query.data.data.summary.availableQty}
-                  accent="emerald"
-                />
-                <Kpi
-                  label="Giữ QC"
-                  value={query.data.data.summary.holdQty}
-                  accent="amber"
-                />
-                <Kpi
-                  label="Đã giữ chỗ"
-                  value={query.data.data.summary.reservedQty}
-                  accent="blue"
-                />
-              </div>
+              <InventoryKpiCards
+                summary={query.data.data.summary}
+                size="xs"
+              />
 
               <div className="mt-3">
                 <div className="mb-1.5 flex items-center justify-between">
@@ -207,44 +190,18 @@ export function InventoryPopover({
           <Link
             href={
               componentItemId
-                ? `/lot-serial?itemId=${encodeURIComponent(componentItemId)}`
-                : "/lot-serial"
+                ? `/items/${encodeURIComponent(componentItemId)}?tab=inventory`
+                : "/items"
             }
             className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-700"
+            title="Mở Danh mục vật tư — tab Tồn kho"
           >
-            Xem tất cả lot
+            Xem chi tiết tại Danh mục vật tư
             <ExternalLink className="h-3 w-3" aria-hidden />
           </Link>
         </div>
       </PopoverContent>
     </Popover>
-  );
-}
-
-function Kpi({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: number;
-  accent: "indigo" | "emerald" | "amber" | "blue";
-}) {
-  const cls = {
-    indigo: "text-indigo-700",
-    emerald: "text-emerald-700",
-    amber: "text-amber-700",
-    blue: "text-blue-700",
-  }[accent];
-  return (
-    <div className="rounded-md border border-zinc-100 bg-zinc-50/60 px-2 py-1.5">
-      <div className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-        {label}
-      </div>
-      <div className={cn("font-mono text-[15px] font-semibold tabular-nums", cls)}>
-        {formatNumber(value)}
-      </div>
-    </div>
   );
 }
 
