@@ -188,6 +188,10 @@ export function PRQuickDialog({
       }
       const prNotes = extraNotes.join(" · ") || null;
 
+      // V1.7-beta.2.5 fix: KHÔNG truyền snapshotLineId vì `line.id` là ID của
+      // bom_line (BOM TEMPLATE) chứ không phải bom_snapshot_line — truyền sẽ
+      // FK violation → DB insert fail → 500 "Không tạo được...".
+      // PR tạo từ BOM template không có snapshot context nên để null hợp lý.
       const res = await createPR.mutateAsync({
         title: `Đặt mua nhanh — ${sku || "linh kiện"}`,
         source: "MANUAL",
@@ -197,10 +201,7 @@ export function PRQuickDialog({
           {
             itemId: line.node.componentItemId,
             qty: qtyNum,
-            snapshotLineId: line.id,
             preferredSupplierId: supplier.id || null,
-            neededBy: null,
-            notes: null,
           },
         ],
       });
