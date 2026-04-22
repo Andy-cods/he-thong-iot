@@ -1,11 +1,13 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Command as CommandPrimitive } from "cmdk";
 import {
   Check,
   ChevronsUpDown,
+  Factory,
   GripVertical,
   Loader2,
   Search,
@@ -229,6 +231,7 @@ export function BomLineSheet({
   templateCode,
   line,
 }: BomLineSheetProps) {
+  const router = useRouter();
   const [form, setForm] = React.useState<FormState>(() => buildInitial(line));
   const [errors, setErrors] = React.useState<
     Partial<Record<keyof FormState, string>>
@@ -348,6 +351,10 @@ export function BomLineSheet({
     return Object.keys(next).length === 0;
   };
 
+  // V1.7-beta.2.5 — sau khi save thành công, có thể redirect sang /work-orders/new
+  // kèm prefill để user tạo WO cho linh kiện gia công.
+  const [createWOAfterSave, setCreateWOAfterSave] = React.useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!line) return;
@@ -421,6 +428,30 @@ export function BomLineSheet({
       });
       toast.success("Đã lưu thay đổi");
       onOpenChange(false);
+
+      if (createWOAfterSave && form.kind === "fab" && line) {
+        // Redirect sang /work-orders/new với prefill note (WO yêu cầu
+        // orderId + snapshotLineIds nên không thể prefill trực tiếp item —
+        // ghi chú sẽ giúp user biết ngữ cảnh).
+        const routeNames = form.processRoute
+          .map((c) => PROCESS_MAP.get(c)?.name ?? c)
+          .join(" → ");
+        const q = new URLSearchParams();
+        q.set("bomLineId", line.id);
+        if (line.node.componentSku) q.set("sku", line.node.componentSku);
+        if (form.materialCode) q.set("materialCode", form.materialCode);
+        if (form.processRoute.length > 0)
+          q.set("processRoute", form.processRoute.join(","));
+        const noteParts = [
+          `Tạo từ BOM ${templateCode}`,
+          `dòng ${line.node.componentSku ?? ""}`,
+        ];
+        if (form.materialCode) noteParts.push(`Vật liệu: ${form.materialCode}`);
+        if (routeNames) noteParts.push(`Quy trình: ${routeNames}`);
+        if (form.blankSize) noteParts.push(`Phôi: ${form.blankSize}`);
+        q.set("note", noteParts.join(" · "));
+        router.push(`/work-orders/new?${q.toString()}`);
+      }
     } catch (err) {
       toast.error((err as Error)?.message ?? "Không cập nhật được linh kiện");
     }
@@ -807,8 +838,28 @@ export function BomLineSheet({
             >
               Huỷ
             </Button>
-            <Button type="submit" disabled={pending}>
-              {pending ? (
+            {form.kind === "fab" && (
+              <Button
+                type="submit"
+                variant="secondary"
+                disabled={pending}
+                onClick={() => setCreateWOAfterSave(true)}
+                title="Lưu và chuyển sang trang tạo Lệnh Sản Xuất"
+              >
+                {pending && createWOAfterSave ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                ) : (
+                  <Factory className="h-3.5 w-3.5" aria-hidden />
+                )}
+                Lưu + Tạo Lệnh SX
+              </Button>
+            )}
+            <Button
+              type="submit"
+              disabled={pending}
+              onClick={() => setCreateWOAfterSave(false)}
+            >
+              {pending && !createWOAfterSave ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
               ) : null}
               Lưu

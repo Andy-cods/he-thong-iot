@@ -26,6 +26,13 @@ export default function NewWorkOrderPage() {
   const router = useRouter();
   const params = useSearchParams();
   const prefillOrderId = params.get("orderId");
+  // V1.7-beta.2.5 — prefill từ BOM line (button "Lưu + Tạo Lệnh SX" trong BomLineSheet).
+  const bomLineId = params.get("bomLineId");
+  const bomSku = params.get("sku");
+  const bomMaterialCode = params.get("materialCode");
+  const bomProcessRoute = params.get("processRoute");
+  const bomNote = params.get("note");
+  const fromBom = !!bomLineId;
 
   const [selectedOrder, setSelectedOrder] = React.useState<string>(
     prefillOrderId ?? "",
@@ -35,7 +42,7 @@ export default function NewWorkOrderPage() {
   >("NORMAL");
   const [plannedStart, setPlannedStart] = React.useState("");
   const [plannedEnd, setPlannedEnd] = React.useState("");
-  const [notes, setNotes] = React.useState("");
+  const [notes, setNotes] = React.useState(bomNote ?? "");
   const [selectedLineIds, setSelectedLineIds] = React.useState<Set<string>>(
     new Set(),
   );
@@ -123,6 +130,38 @@ export default function NewWorkOrderPage() {
 
       <form onSubmit={handleSubmit} className="flex-1 overflow-auto p-6">
         <div className="mx-auto max-w-4xl space-y-6">
+          {fromBom && (
+            <div className="rounded-md border border-emerald-200 bg-emerald-50/60 p-3 text-[12px] text-emerald-900">
+              <div className="mb-1 font-semibold">
+                Khởi tạo từ BOM
+                {bomSku ? (
+                  <span className="ml-1 font-mono text-emerald-700">
+                    — {bomSku}
+                  </span>
+                ) : null}
+              </div>
+              <div className="space-y-0.5 text-emerald-800">
+                {bomMaterialCode && (
+                  <div>
+                    Vật liệu:{" "}
+                    <span className="font-mono">{bomMaterialCode}</span>
+                  </div>
+                )}
+                {bomProcessRoute && (
+                  <div>
+                    Quy trình:{" "}
+                    <span className="font-mono">
+                      {bomProcessRoute.split(",").join(" → ")}
+                    </span>
+                  </div>
+                )}
+                <div className="mt-1 text-[11px] text-emerald-700">
+                  Ghi chú đã prefill bên dưới. Chọn đơn hàng + snapshot lines
+                  AVAILABLE để tiếp tục tạo WO.
+                </div>
+              </div>
+            </div>
+          )}
           <section className="rounded-md border border-zinc-200 bg-white p-4">
             <h2 className="mb-3 text-sm font-semibold text-zinc-800">
               1. Chọn đơn hàng
