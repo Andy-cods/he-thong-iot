@@ -250,7 +250,8 @@ export function BomGridPro({
                 <ChevronRight className="h-3.5 w-3.5" aria-hidden />
               )}
               <span className="font-mono text-xs">
-                {"  ".repeat(row.depth)}📁 {row.node.componentSku ?? "—"}
+                {"  ".repeat(row.depth)}
+                {row.node.componentSku ?? "—"}
               </span>
               <span>{row.node.componentName ?? "(cụm lắp)"}</span>
               <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-mono text-indigo-700">

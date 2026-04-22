@@ -40,16 +40,17 @@ type KindValue = "com" | "fab" | null;
 
 function BadgeInner({ kind }: { kind: "com" | "fab" }) {
   // whitespace-nowrap + shrink-0 tránh wrap "Gia" / "công" khi cột hẹp.
+  // V1.7-beta.2.3: bỏ emoji icon trước label (user yêu cầu professional).
   if (kind === "fab") {
     return (
-      <span className="inline-flex h-5 shrink-0 items-center gap-1 whitespace-nowrap rounded bg-emerald-50 px-1.5 text-[11px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
-        🔧 Gia công
+      <span className="inline-flex h-5 shrink-0 items-center whitespace-nowrap rounded bg-emerald-50 px-1.5 text-[11px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
+        Gia công
       </span>
     );
   }
   return (
-    <span className="inline-flex h-5 shrink-0 items-center gap-1 whitespace-nowrap rounded bg-blue-50 px-1.5 text-[11px] font-medium text-blue-700 ring-1 ring-inset ring-blue-200">
-      🛒 Thương mại
+    <span className="inline-flex h-5 shrink-0 items-center whitespace-nowrap rounded bg-blue-50 px-1.5 text-[11px] font-medium text-blue-700 ring-1 ring-inset ring-blue-200">
+      Thương mại
     </span>
   );
 }
@@ -139,17 +140,17 @@ export function KindDropdown({
       <DropdownMenuContent align="start" className="min-w-[180px]">
         <DropdownMenuLabel>Loại linh kiện</DropdownMenuLabel>
         <DropdownMenuItem onSelect={() => handleSelect("com")}>
-          🛒 Thương mại
+          Thương mại
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => handleSelect("fab")}>
-          🔧 Gia công
+          Gia công
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onSelect={() => handleSelect(null)}
           disabled={overrideKind === null}
         >
-          ↺ Mặc định (theo Item)
+          Mặc định (theo Item)
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
