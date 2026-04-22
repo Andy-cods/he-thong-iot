@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Copy, MoreHorizontal, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { ItemCreate } from "@iot/shared";
@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/tabs";
 import { BarcodeList } from "@/components/items/BarcodeList";
 import { ItemForm } from "@/components/items/ItemForm";
+import { ItemInventoryPanel } from "@/components/inventory/ItemInventoryPanel";
 import {
   useDeleteItem,
   useItem,
@@ -34,7 +35,6 @@ import {
   useUpdateItem,
   type RequestError,
 } from "@/hooks/useItems";
-import { formatNumber } from "@/lib/format";
 
 type ItemDetail = {
   id: string;
@@ -64,19 +64,34 @@ type ItemDetail = {
  *   Thông tin / Kho / Tracking / Ảnh.
  * - Content max-w 5xl mx-auto p-6.
  */
+type TabKey = "info" | "inventory" | "tracking" | "media";
+
+function parseTab(raw: string | null | undefined): TabKey {
+  if (raw === "inventory" || raw === "tracking" || raw === "media") return raw;
+  return "info";
+}
+
 export default function ItemDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? "";
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data, isLoading } = useItem(id);
   const update = useUpdateItem(id);
   const del = useDeleteItem();
   const restore = useRestoreItem();
 
   const [deleteOpen, setDeleteOpen] = React.useState(false);
-  const [tab, setTab] = React.useState<
-    "info" | "inventory" | "tracking" | "media"
-  >("info");
+  const [tab, setTab] = React.useState<TabKey>(() =>
+    parseTab(searchParams?.get("tab")),
+  );
+
+  // Sync tab khi query param thay đổi (back/forward, deep-link từ
+  // InventoryPopover → /items/[id]?tab=inventory).
+  React.useEffect(() => {
+    const next = parseTab(searchParams?.get("tab"));
+    setTab((prev) => (prev === next ? prev : next));
+  }, [searchParams]);
 
   const itemData = (data?.data as ItemDetail | undefined) ?? null;
 
@@ -265,22 +280,10 @@ export default function ItemDetailPage() {
 
         <TabsContent value="inventory">
           <div className="rounded-md border border-zinc-200 bg-white p-6">
-            <h3 className="text-base font-semibold text-zinc-900">
-              Tồn kho (V1.1 real)
-            </h3>
-            <p className="mt-1 text-sm text-zinc-500">
-              Dữ liệu mock — chờ module Inventory ở V1.1.
-            </p>
-            <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
-              <MiniStat label="On-hand" value="—" hint="Tồn thực tế" />
-              <MiniStat label="Reserved" value="—" hint="Đã giữ cho PO" />
-              <MiniStat label="Available" value="—" hint="Khả dụng" />
-              <MiniStat
-                label="Min stock"
-                value={formatNumber(Number(itemData.minStockQty) || 0)}
-                hint="Ngưỡng cảnh báo"
-              />
-            </div>
+            <ItemInventoryPanel
+              itemId={id}
+              minStockQty={Number(itemData.minStockQty) || 0}
+            />
           </div>
         </TabsContent>
 
@@ -319,26 +322,6 @@ export default function ItemDetailPage() {
           })
         }
       />
-    </div>
-  );
-}
-
-function MiniStat({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: React.ReactNode;
-  hint?: string;
-}) {
-  return (
-    <div className="rounded-md border border-zinc-200 p-3">
-      <p className="text-xs uppercase tracking-wide text-zinc-500">{label}</p>
-      <p className="mt-1 text-xl font-semibold tabular-nums text-zinc-900">
-        {value}
-      </p>
-      {hint && <p className="mt-0.5 text-sm text-zinc-500">{hint}</p>}
     </div>
   );
 }
