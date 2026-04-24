@@ -94,8 +94,15 @@ export const NAV_ITEMS: NavItem[] = [
     section: "production",
   },
   {
+    href: "/assembly",
+    label: "Lắp ráp",
+    icon: Wrench,
+    roles: ["admin", "planner", "operator"],
+    section: "production",
+  },
+  {
     href: "/lot-serial",
-    label: "Lắp ráp / Serial",
+    label: "Lot / Serial",
     icon: Wrench,
     roles: ["admin", "planner", "operator"],
     section: "production",
