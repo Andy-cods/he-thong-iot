@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -17,6 +17,7 @@ import {
 } from "@/components/bom-grid-pro";
 import {
   AssemblyPanel,
+  BomBarcodeSearchDialog,
   BomWorkspaceTopbar,
   BottomPanel,
   EcoPanel,
@@ -40,6 +41,8 @@ import {
  */
 export default function BomGridPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const detailQuery = useBomDetail(id);
   const treeQuery = useBomTree(id);
@@ -53,9 +56,27 @@ export default function BomGridPage() {
 
   const panel = useBottomPanelState();
 
+  // V1.8 Batch 7 — Barcode scan dialog state.
+  const [scanOpen, setScanOpen] = React.useState(false);
+
+  // Deep-link `?scan=open` → tự mở dialog 1 lần khi load. Sau khi mở, strip
+  // param khỏi URL để refresh không mở lại (giữ `highlightLine` nếu có).
+  const scanParam = searchParams?.get("scan") ?? null;
+  React.useEffect(() => {
+    if (scanParam === "open" && !scanOpen) {
+      setScanOpen(true);
+      const p = new URLSearchParams(searchParams?.toString() ?? "");
+      p.delete("scan");
+      const qs = p.toString();
+      router.replace(`/bom/${id}/grid${qs ? `?${qs}` : ""}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scanParam]);
+
   // Ctrl+Shift+A hotkey — V1.7-beta.2.3: luồng "Thêm linh kiện" dedicated
   // chưa có trong Pro Grid (Univer add dialog đã retire). Toast info đến
   // khi AddComponentDialog hoàn thiện V1.8.
+  // Alt+S — V1.8 Batch 7: mở BomBarcodeSearchDialog.
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey && (e.key === "A" || e.key === "a")) {
@@ -63,6 +84,17 @@ export default function BomGridPage() {
         toast.info(
           "Thêm linh kiện: dùng Actions cell trên dòng hiện có (Nhân bản) để tạo bản sao, hoặc chờ V1.8 có AddComponentDialog riêng.",
         );
+        return;
+      }
+      // Alt+S: skip khi focus trong input/textarea để không ăn phím khi user gõ.
+      if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === "s" || e.key === "S")) {
+        const tgt = e.target as HTMLElement | null;
+        const tag = tgt?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tgt?.isContentEditable) {
+          return;
+        }
+        e.preventDefault();
+        setScanOpen(true);
       }
     };
     window.addEventListener("keydown", handler);
@@ -109,6 +141,7 @@ export default function BomGridPage() {
           template={template}
           onOpenPanel={panel.setActivePanel}
           onOpenHistory={() => panel.setDrawerHistory(true)}
+          onOpenScan={() => setScanOpen(true)}
         />
       )}
 
@@ -158,6 +191,16 @@ export default function BomGridPage() {
           bomId={id}
           open={panel.drawerHistory}
           onOpenChange={panel.setDrawerHistory}
+        />
+      )}
+
+      {/* V1.8 Batch 7 — Barcode scan dialog (camera + manual) */}
+      {template && (
+        <BomBarcodeSearchDialog
+          open={scanOpen}
+          onOpenChange={setScanOpen}
+          bomTemplateId={template.id}
+          bomTemplateCode={template.code}
         />
       )}
     </div>

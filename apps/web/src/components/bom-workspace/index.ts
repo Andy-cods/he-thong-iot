@@ -1,6 +1,7 @@
 export { BomWorkspaceTopbar } from "./BomWorkspaceTopbar";
 export { BottomPanel } from "./BottomPanel";
 export { HistoryDrawer } from "./HistoryDrawer";
+export { BomBarcodeSearchDialog } from "./BomBarcodeSearchDialog";
 export {
   useBottomPanelState,
   PANEL_KEYS,

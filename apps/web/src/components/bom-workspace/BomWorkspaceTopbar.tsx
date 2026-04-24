@@ -11,6 +11,7 @@ import {
   History,
   MoreHorizontal,
   Rocket,
+  ScanLine,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -62,6 +63,8 @@ export interface BomWorkspaceTopbarProps {
   onOpenPanel: (panel: PanelKey) => void;
   /** Click History button → mở right drawer timeline. */
   onOpenHistory: () => void;
+  /** Click ScanLine button → mở BomBarcodeSearchDialog (V1.8 Batch 7). */
+  onOpenScan?: () => void;
 }
 
 /**
@@ -82,6 +85,7 @@ export function BomWorkspaceTopbar({
   template,
   onOpenPanel,
   onOpenHistory,
+  onOpenScan,
 }: BomWorkspaceTopbarProps) {
   const router = useRouter();
   const summaryQuery = useBomWorkspaceSummary(template.id);
@@ -197,6 +201,20 @@ export function BomWorkspaceTopbar({
           onClick={() => onOpenPanel("eco")}
         />
       </div>
+
+      {/* Scan barcode — V1.8 Batch 7 */}
+      {onOpenScan ? (
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={onOpenScan}
+          title="Quét barcode linh kiện (Alt+S)"
+          aria-label="Quét barcode linh kiện"
+        >
+          <ScanLine className="h-3.5 w-3.5" aria-hidden />
+          <span className="hidden sm:inline">Quét</span>
+        </Button>
+      ) : null}
 
       {/* History */}
       <Button size="sm" variant="ghost" onClick={onOpenHistory} title="Lịch sử thay đổi">
