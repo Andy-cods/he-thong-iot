@@ -54,6 +54,25 @@ export interface BomGridProProps {
   tree: BomTreeNodeRaw[];
   /** Map componentItemId → MaterialStatus từ derivedStatus API (nếu có). */
   statusMap?: Record<string, MaterialStatus>;
+  /**
+   * V1.9 Phase 2 — Map componentItemId → breakdown (pct, milestones, qty) cho
+   * ProgressCell com.
+   */
+  comProgressMap?: Record<
+    string,
+    {
+      pct: number;
+      milestones: {
+        planned: boolean;
+        purchasing: boolean;
+        purchased: boolean;
+        available: boolean;
+        issued: boolean;
+      };
+      requiredQty: number;
+      purchasedQty: number;
+    }
+  >;
   /** V1.7-beta.2.6 — Map bomLineId → WO progress cho fab row. */
   fabProgressMap?: Record<
     string,
@@ -64,6 +83,15 @@ export interface BomGridProProps {
       plannedQty: string;
       goodQty: string;
       scrapQty: string;
+      /** V1.9 Phase 2. */
+      pct?: number;
+      milestones?: {
+        waiting: boolean;
+        inProgress: boolean;
+        paused: boolean;
+        qc: boolean;
+        completed: boolean;
+      };
     }
   >;
   /** V1.7-beta.2 Phase C — handler Sửa (override default BomLineSheet). */
@@ -87,6 +115,7 @@ export function BomGridPro({
   parentQty,
   tree,
   statusMap,
+  comProgressMap,
   fabProgressMap,
   onEditLine,
   onOrderLine,
@@ -423,7 +452,8 @@ export function BomGridPro({
         <td className="w-[80px] px-2 text-right font-mono text-xs tabular-nums text-orange-600">
           {scrap > 0 ? `${scrap.toFixed(1)}%` : "—"}
         </td>
-        {/* Tiến độ — V1.7-beta.2.6: kind-aware (fab → WO progress, com → material status) */}
+        {/* Tiến độ — V1.7-beta.2.6: kind-aware (fab → WO progress, com → material status)
+            V1.9 Phase 2 — bar + milestone tooltip + qty sub-label */}
         <td className="w-[150px] px-0">
           {row.kind === "fab" ? (
             (() => {
@@ -434,12 +464,27 @@ export function BomGridPro({
                   status={fabStatus}
                   goodQty={fab ? Number(fab.goodQty) : undefined}
                   plannedQty={fab ? Number(fab.plannedQty) : undefined}
+                  scrapQty={fab ? Number(fab.scrapQty) : undefined}
                   woNo={fab?.woNo}
+                  pct={fab?.pct}
+                  milestones={fab?.milestones}
                 />
               );
             })()
           ) : (
-            <ProgressCell status={status} />
+            (() => {
+              const com = comProgressMap?.[row.node.componentItemId];
+              return (
+                <ProgressCell
+                  status={status}
+                  pct={com?.pct}
+                  milestones={com?.milestones}
+                  requiredQty={com?.requiredQty}
+                  purchasedQty={com?.purchasedQty}
+                  uom={row.node.componentUom ?? undefined}
+                />
+              );
+            })()
           )}
         </td>
         {/* Ghi chú */}

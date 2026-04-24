@@ -488,6 +488,19 @@ export interface ComponentMaterialStatus {
   totalShort: string;
   status: string;
   orderCount: number;
+  /** V1.9 Phase 2 — tiến độ % thật (0-100). */
+  pct?: number;
+  /** V1.9 Phase 2 — 5 mốc tiến độ kind=com. */
+  milestones?: {
+    planned: boolean;
+    purchasing: boolean;
+    purchased: boolean;
+    available: boolean;
+    issued: boolean;
+  };
+  totalPurchased?: string;
+  totalAvailable?: string;
+  totalIssued?: string;
 }
 
 export interface DerivedStatusSummary {
@@ -522,6 +535,16 @@ export interface FabProgressEntry {
   plannedQty: string;
   goodQty: string;
   scrapQty: string;
+  /** V1.9 Phase 2 — tiến độ % thật (0-100). */
+  pct?: number;
+  /** V1.9 Phase 2 — 5 mốc tiến độ kind=fab. */
+  milestones?: {
+    waiting: boolean;
+    inProgress: boolean;
+    paused: boolean;
+    qc: boolean;
+    completed: boolean;
+  };
 }
 
 export interface FabProgressResponse {

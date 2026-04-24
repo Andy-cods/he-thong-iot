@@ -66,9 +66,45 @@ export async function GET(
         plannedQty: string;
         goodQty: string;
         scrapQty: string;
+        /** V1.9 Phase 2 — tiến độ % thật (0-100) dựa trên good/planned + status. */
+        pct: number;
+        /** V1.9 Phase 2 — 5 mốc tiến độ kind=fab. */
+        milestones: {
+          waiting: boolean;
+          inProgress: boolean;
+          paused: boolean;
+          qc: boolean;
+          completed: boolean;
+        };
       }
     > = {};
     for (const r of rows) {
+      const planned = Number(r.planned_qty) || 0;
+      const good = Number(r.good_qty) || 0;
+      const scrap = Number(r.scrap_qty) || 0;
+      const totalDone = good + scrap;
+
+      // pct theo status
+      let pct = 0;
+      const st = r.status;
+      if (st === "COMPLETED") pct = 100;
+      else if (st === "CANCELLED") pct = 0;
+      else if (st === "IN_PROGRESS" || st === "PAUSED") {
+        pct = planned > 0 ? Math.min(100, Math.round((good / planned) * 100)) : 0;
+      } else if (st === "RELEASED" || st === "QUEUED") pct = 5;
+      else pct = 0;
+
+      // milestones
+      const waiting =
+        st === "DRAFT" || st === "QUEUED" || st === "RELEASED" ||
+        st === "IN_PROGRESS" || st === "PAUSED" || st === "COMPLETED";
+      const inProgress =
+        st === "IN_PROGRESS" || st === "PAUSED" || st === "COMPLETED" || totalDone > 0;
+      const paused = st === "PAUSED";
+      // QC mốc đạt khi good qty > 0 hoặc đã complete (pass QC)
+      const qc = good > 0 || st === "COMPLETED";
+      const completed = st === "COMPLETED";
+
       map[r.bom_line_id] = {
         woId: r.wo_id,
         woNo: r.wo_no,
@@ -76,6 +112,8 @@ export async function GET(
         plannedQty: r.planned_qty,
         goodQty: r.good_qty,
         scrapQty: r.scrap_qty,
+        pct,
+        milestones: { waiting, inProgress, paused, qc, completed },
       };
     }
 

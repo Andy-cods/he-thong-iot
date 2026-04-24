@@ -3,8 +3,10 @@
 import * as React from "react";
 import {
   Ban,
+  Check,
   CheckCircle,
   CheckCircle2,
+  Circle,
   Clock,
   Factory,
   Hammer,
@@ -15,14 +17,17 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SimpleTooltip } from "@/components/ui/tooltip";
 
 /**
  * V1.7-beta.2 — Progress cell với 5 states đồng bộ với MaterialStatus
  * (apps/web/src/server/services/derivedStatus.ts V1.5):
  *   NO_ORDERS / PLANNED / PURCHASING / PARTIAL / AVAILABLE / ISSUED
  *
- * Thêm: placeholder "PLANNED" khi BOM chưa có order để luôn hiện progress
- * (user feedback: "không hiển thị tiến độ" → show cho mọi row).
+ * V1.9 Phase 2 — thêm:
+ *   - pct thật từ backend (qty ratio)
+ *   - 5 mốc tiến độ (milestones) hiển thị trong tooltip
+ *   - sub-label "purchased/required · còn X"
  */
 
 export type MaterialStatus =
@@ -185,6 +190,117 @@ export function mapWoStatusToFab(status: string | null | undefined): FabStatus {
   }
 }
 
+/* --------- Milestone tooltip content --------- */
+
+interface MilestoneRowProps {
+  reached: boolean;
+  label: string;
+}
+
+function MilestoneRow({ reached, label }: MilestoneRowProps) {
+  return (
+    <div className="flex items-center gap-2 py-0.5">
+      {reached ? (
+        <Check className="h-3 w-3 text-emerald-400" aria-hidden />
+      ) : (
+        <Circle className="h-3 w-3 text-zinc-500" aria-hidden />
+      )}
+      <span
+        className={cn(
+          "text-[11px]",
+          reached ? "text-zinc-50" : "text-zinc-400",
+        )}
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
+
+export interface ComMilestones {
+  planned: boolean;
+  purchasing: boolean;
+  purchased: boolean;
+  available: boolean;
+  issued: boolean;
+}
+
+function ComMilestoneList({
+  milestones,
+  requiredQty,
+  purchasedQty,
+  uom,
+}: {
+  milestones: ComMilestones;
+  requiredQty?: number;
+  purchasedQty?: number;
+  uom?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-0 min-w-[180px]">
+      <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+        Mốc tiến độ
+      </div>
+      <MilestoneRow reached={milestones.planned} label="Lập kế hoạch" />
+      <MilestoneRow reached={milestones.purchasing} label="Đang mua (PR/PO)" />
+      <MilestoneRow reached={milestones.purchased} label="Đã mua xong" />
+      <MilestoneRow reached={milestones.available} label="Có sẵn kho" />
+      <MilestoneRow reached={milestones.issued} label="Đã xuất kho" />
+      {requiredQty !== undefined && requiredQty > 0 ? (
+        <div className="mt-1.5 border-t border-zinc-700 pt-1 font-mono text-[10px] tabular-nums text-zinc-400">
+          {purchasedQty ?? 0} / {requiredQty} {uom ?? ""}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export interface FabMilestones {
+  waiting: boolean;
+  inProgress: boolean;
+  paused: boolean;
+  qc: boolean;
+  completed: boolean;
+}
+
+function FabMilestoneList({
+  milestones,
+  plannedQty,
+  goodQty,
+  scrapQty,
+  woNo,
+}: {
+  milestones: FabMilestones;
+  plannedQty?: number;
+  goodQty?: number;
+  scrapQty?: number;
+  woNo?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-0 min-w-[180px]">
+      <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+        Mốc sản xuất {woNo ? `· ${woNo}` : ""}
+      </div>
+      <MilestoneRow reached={milestones.waiting} label="Chờ SX" />
+      <MilestoneRow reached={milestones.inProgress} label="Đang SX" />
+      <MilestoneRow
+        reached={milestones.paused}
+        label={milestones.paused ? "Tạm dừng" : "Không tạm dừng"}
+      />
+      <MilestoneRow reached={milestones.qc} label="QC đạt" />
+      <MilestoneRow reached={milestones.completed} label="Hoàn thành" />
+      {plannedQty !== undefined && plannedQty > 0 ? (
+        <div className="mt-1.5 border-t border-zinc-700 pt-1 font-mono text-[10px] tabular-nums text-zinc-400">
+          {goodQty ?? 0} / {plannedQty}
+          {scrapQty && scrapQty > 0 ? ` · phế ${scrapQty}` : ""}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/* --------- ProgressCell (com) --------- */
+
 export interface ProgressCellProps {
   status: MaterialStatus;
   /** 0-100; nếu không truyền dùng defaultPct theo status. */
@@ -192,6 +308,12 @@ export interface ProgressCellProps {
   /** Số thực tế (hiển thị dưới thanh progress): VD "3/10 đã nhận". */
   subLabel?: string;
   className?: string;
+  /** V1.9 Phase 2 — 5 mốc tiến độ; nếu truyền sẽ render tooltip. */
+  milestones?: ComMilestones;
+  /** V1.9 Phase 2 — breakdown qty cho tooltip + sub-label. */
+  requiredQty?: number;
+  purchasedQty?: number;
+  uom?: string;
 }
 
 export function ProgressCell({
@@ -199,13 +321,33 @@ export function ProgressCell({
   pct,
   subLabel,
   className,
+  milestones,
+  requiredQty,
+  purchasedQty,
+  uom,
 }: ProgressCellProps) {
   const meta = STATUS_META[status];
   const Icon = meta.icon;
   const fill = Math.max(0, Math.min(100, pct ?? meta.defaultPct));
 
-  return (
-    <div className={cn("flex flex-col justify-center gap-0.5 px-2 py-1", className)}>
+  // Auto-compute sub-label nếu có qty breakdown
+  const computedSubLabel = React.useMemo(() => {
+    if (subLabel) return subLabel;
+    if (requiredQty !== undefined && requiredQty > 0) {
+      const got = purchasedQty ?? 0;
+      const remain = Math.max(0, requiredQty - got);
+      return `${got} / ${requiredQty}${remain > 0 ? ` · còn ${remain}` : ""}`;
+    }
+    return undefined;
+  }, [subLabel, requiredQty, purchasedQty]);
+
+  const body = (
+    <div
+      className={cn(
+        "flex flex-col justify-center gap-0.5 px-2 py-1 cursor-default",
+        className,
+      )}
+    >
       <div className="flex items-center gap-1.5">
         <span
           className={cn(
@@ -236,55 +378,97 @@ export function ProgressCell({
           style={{ width: `${fill}%` }}
         />
       </div>
-      {subLabel && (
-        <span className="font-mono text-[10px] tabular-nums text-zinc-500">
-          {subLabel}
+      {computedSubLabel && (
+        <span className="font-mono text-[10px] tabular-nums text-zinc-500 truncate">
+          {computedSubLabel}
         </span>
       )}
     </div>
   );
+
+  if (milestones) {
+    return (
+      <SimpleTooltip
+        side="top"
+        content={
+          <ComMilestoneList
+            milestones={milestones}
+            requiredQty={requiredQty}
+            purchasedQty={purchasedQty}
+            uom={uom}
+          />
+        }
+      >
+        {body}
+      </SimpleTooltip>
+    );
+  }
+
+  return body;
 }
+
+/* --------- FabProgressCell (fab) --------- */
 
 export interface FabProgressCellProps {
   status: FabStatus;
   /** goodQty / plannedQty — chỉ dùng khi IN_PROGRESS hoặc PAUSED. */
   goodQty?: number;
   plannedQty?: number;
+  scrapQty?: number;
   /** Số WO hiển thị dạng chú thích (VD: "WO-2604-0001"). */
   woNo?: string;
   className?: string;
+  /** V1.9 Phase 2 — pct override từ backend. */
+  pct?: number;
+  /** V1.9 Phase 2 — 5 mốc tiến độ fab; nếu truyền render tooltip. */
+  milestones?: FabMilestones;
 }
 
 export function FabProgressCell({
   status,
   goodQty,
   plannedQty,
+  scrapQty,
   woNo,
   className,
+  pct,
+  milestones,
 }: FabProgressCellProps) {
   const meta = FAB_META[status];
   const Icon = meta.icon;
 
-  // Tính pct: NOT_STARTED=0, COMPLETED=100, CANCELLED=0, else good/planned.
-  let fill = meta.defaultPct;
-  if (status === "IN_PROGRESS" || status === "PAUSED") {
-    if (plannedQty && plannedQty > 0 && goodQty !== undefined) {
-      fill = Math.max(0, Math.min(100, Math.round((goodQty / plannedQty) * 100)));
-    }
-  } else if (status === "COMPLETED") {
-    fill = 100;
+  // Tính pct: ưu tiên prop pct từ backend; else fallback tự tính.
+  let fill: number;
+  if (pct !== undefined) {
+    fill = Math.max(0, Math.min(100, Math.round(pct)));
   } else {
-    fill = 0;
+    fill = meta.defaultPct;
+    if (status === "IN_PROGRESS" || status === "PAUSED") {
+      if (plannedQty && plannedQty > 0 && goodQty !== undefined) {
+        fill = Math.max(0, Math.min(100, Math.round((goodQty / plannedQty) * 100)));
+      }
+    } else if (status === "COMPLETED") {
+      fill = 100;
+    } else {
+      fill = 0;
+    }
   }
 
   const subLabel =
-    woNo && (status === "IN_PROGRESS" || status === "PAUSED" || status === "COMPLETED")
-      ? woNo
-      : undefined;
+    plannedQty && plannedQty > 0
+      ? `${goodQty ?? 0} / ${plannedQty}${
+          scrapQty && scrapQty > 0 ? ` · phế ${scrapQty}` : ""
+        }`
+      : woNo && (status === "IN_PROGRESS" || status === "PAUSED" || status === "COMPLETED")
+        ? woNo
+        : undefined;
 
-  return (
+  const body = (
     <div
-      className={cn("flex flex-col justify-center gap-0.5 px-2 py-1", className)}
+      className={cn(
+        "flex flex-col justify-center gap-0.5 px-2 py-1 cursor-default",
+        className,
+      )}
     >
       <div className="flex items-center gap-1.5">
         <span
@@ -326,6 +510,27 @@ export function FabProgressCell({
       )}
     </div>
   );
+
+  if (milestones) {
+    return (
+      <SimpleTooltip
+        side="top"
+        content={
+          <FabMilestoneList
+            milestones={milestones}
+            plannedQty={plannedQty}
+            goodQty={goodQty}
+            scrapQty={scrapQty}
+            woNo={woNo}
+          />
+        }
+      >
+        {body}
+      </SimpleTooltip>
+    );
+  }
+
+  return body;
 }
 
 // Safelist các class dynamic — giúp Tailwind JIT không purge.

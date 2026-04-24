@@ -107,6 +107,24 @@ else
   expect "GET /api/bom/templates/[id]/fab-progress (V1.7-beta.2.6)" "200" "$(status "$BASE_URL/api/bom/templates/$BOM_ID/fab-progress")"
   FAB_PROG=$(body "$BASE_URL/api/bom/templates/$BOM_ID/fab-progress")
   expect_body "fab-progress.progress (map)" "$FAB_PROG" "\"progress\""
+  # V1.9 Phase 2 — derived-status + fab-progress trả pct + milestones
+  expect "GET /api/bom/templates/[id]/derived-status (V1.9 P2)" "200" "$(status "$BASE_URL/api/bom/templates/$BOM_ID/derived-status")"
+  DERIVED=$(body "$BASE_URL/api/bom/templates/$BOM_ID/derived-status")
+  expect_body "derived-status.componentStatuses" "$DERIVED" "\"componentStatuses\""
+  # pct + milestones chỉ xuất hiện khi có component — skip gently nếu empty
+  if echo "$DERIVED" | grep -q '"componentStatuses":\[\]'; then
+    echo "ℹ️  derived-status: BOM không có component — skip pct/milestones check"
+  else
+    expect_body "derived-status.pct (V1.9 P2)" "$DERIVED" "\"pct\""
+    expect_body "derived-status.milestones (V1.9 P2)" "$DERIVED" "\"milestones\""
+  fi
+  # fab-progress pct/milestones — chỉ xuất hiện khi có fab row linked
+  if echo "$FAB_PROG" | grep -q '"progress":{}'; then
+    echo "ℹ️  fab-progress: không có fab row linked WO — skip pct/milestones check"
+  else
+    expect_body "fab-progress.pct (V1.9 P2)" "$FAB_PROG" "\"pct\""
+    expect_body "fab-progress.milestones (V1.9 P2)" "$FAB_PROG" "\"milestones\""
+  fi
 
   echo
   echo "--- 5. Global pages với chip filter ---"

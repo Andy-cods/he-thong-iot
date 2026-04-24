@@ -162,6 +162,7 @@ export default function BomGridPage() {
               parentQty={Number(template.targetQty) || 1}
               tree={tree}
               statusMap={buildStatusMap(derivedStatusQuery.data?.data)}
+              comProgressMap={buildComProgressMap(derivedStatusQuery.data?.data)}
               fabProgressMap={fabProgressQuery.data?.data.progress}
               readOnly={isObsolete}
               onHistoryLine={() => panel.setDrawerHistory(true)}
@@ -220,6 +221,73 @@ function buildStatusMap(
   const map: Record<string, MaterialStatus> = {};
   for (const c of summary.componentStatuses) {
     map[c.componentItemId] = c.status as MaterialStatus;
+  }
+  return map;
+}
+
+/**
+ * V1.9 Phase 2 — map componentItemId → breakdown (pct, milestones, qty)
+ * cho ProgressCell com. Dùng cùng derived-status API.
+ */
+function buildComProgressMap(
+  summary:
+    | {
+        componentStatuses: Array<{
+          componentItemId: string;
+          pct?: number;
+          milestones?: {
+            planned: boolean;
+            purchasing: boolean;
+            purchased: boolean;
+            available: boolean;
+            issued: boolean;
+          };
+          totalRequired?: string;
+          totalPurchased?: string;
+        }>;
+      }
+    | undefined,
+):
+  | Record<
+      string,
+      {
+        pct: number;
+        milestones: {
+          planned: boolean;
+          purchasing: boolean;
+          purchased: boolean;
+          available: boolean;
+          issued: boolean;
+        };
+        requiredQty: number;
+        purchasedQty: number;
+      }
+    >
+  | undefined {
+  if (!summary?.componentStatuses) return undefined;
+  const map: Record<
+    string,
+    {
+      pct: number;
+      milestones: {
+        planned: boolean;
+        purchasing: boolean;
+        purchased: boolean;
+        available: boolean;
+        issued: boolean;
+      };
+      requiredQty: number;
+      purchasedQty: number;
+    }
+  > = {};
+  for (const c of summary.componentStatuses) {
+    if (c.milestones === undefined) continue;
+    map[c.componentItemId] = {
+      pct: c.pct ?? 0,
+      milestones: c.milestones,
+      requiredQty: Number(c.totalRequired ?? 0),
+      purchasedQty: Number(c.totalPurchased ?? 0),
+    };
   }
   return map;
 }
