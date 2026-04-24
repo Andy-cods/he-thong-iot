@@ -1,13 +1,48 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query-keys";
 
 /**
- * Receiving events hooks — Phase B2.7.
+ * Receiving events hooks — Phase B2.7 + V1.8 Batch 6.
  * - useReplayQueue: POST /api/receiving/events batch replay from Dexie queue
  * - useReceivingHistory: GET events cho PO (V1.1-alpha trả [] stub)
+ * - usePOForReceiving: GET /api/po/[id] detail với receiving fields (V1.8 B6)
+ * - useSubmitReceivingEvent: wrap POST /api/receiving/events cho form
+ *   `/receiving/[poId]` (không qua Dexie queue — direct submit)
  */
+
+export interface POReceivingLine {
+  id: string;
+  lineNo: number;
+  itemId: string;
+  sku: string;
+  itemName: string;
+  uom: string;
+  orderedQty: number;
+  receivedQty: number;
+  remainingQty: number;
+  unitPrice: number;
+  expectedLotSerial: "LOT" | "SERIAL" | "NONE";
+}
+
+export interface POForReceiving {
+  poId: string;
+  poCode: string;
+  supplierId?: string;
+  supplierName: string;
+  supplierCode?: string | null;
+  status?: "DRAFT" | "SENT" | "PARTIAL" | "RECEIVED" | "CANCELLED" | "CLOSED";
+  expectedDate: string;
+  notes?: string | null;
+  lines: POReceivingLine[];
+  totals?: {
+    linesTotal: number;
+    orderedTotal: number;
+    receivedTotal: number;
+    receivedPct: number;
+  };
+}
 
 export interface ReceivingEventInput {
   id: string;
@@ -107,6 +142,48 @@ export function useReceivingHistory(poCode: string | null) {
     },
     enabled: !!poCode,
     staleTime: 30_000,
+  });
+}
+
+/**
+ * V1.8 Batch 6 — GET /api/po/[id] với receiving enrichment (orderedQty,
+ * receivedQty, remainingQty, expectedLotSerial per line).
+ */
+export function usePOForReceiving(id: string | null) {
+  return useQuery({
+    queryKey: id
+      ? qk.po.detail(id)
+      : ["po", "detail", "__none__"],
+    queryFn: async (): Promise<POForReceiving> => {
+      const json = await request<{ data: POForReceiving }>(
+        `/api/po/${encodeURIComponent(id!)}`,
+      );
+      return json.data;
+    },
+    enabled: !!id,
+    staleTime: 10_000,
+  });
+}
+
+/**
+ * V1.8 Batch 6 — direct submit receiving event (non-PWA /receiving/[poId] form).
+ *
+ * Backend `/api/receiving/events` nhận batch scan events → 7-table atomic.
+ * Shape events như PWA replay, nhưng đây là realtime submit + invalidate list.
+ */
+export function useSubmitReceivingEvent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (events: ReceivingEventInput[]) =>
+      request<ReplayResponse>("/api/receiving/events", {
+        method: "POST",
+        body: JSON.stringify({ events }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.procurement.orders.all });
+      qc.invalidateQueries({ queryKey: qk.receiving.all });
+      qc.invalidateQueries({ queryKey: ["po", "detail"] });
+    },
   });
 }
 

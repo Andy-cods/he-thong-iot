@@ -168,6 +168,41 @@ else
 fi
 
 echo
+echo "--- 5d. V1.8 Batch 6 — Receiving backend wire ---"
+# /receiving hub page 200 (client fetch real PO list)
+expect "GET /receiving (hub)" "200" "$(status "$BASE_URL/receiving")"
+# /api/po/[id] với UUID thật → 200, invalid UUID → 404
+PO_LIST=$(body "$BASE_URL/api/purchase-orders?pageSize=1")
+PO_UUID=$(echo "$PO_LIST" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['data'][0]['id'] if d.get('data') else '')" 2>/dev/null || echo "")
+if [[ -z "$PO_UUID" ]]; then
+  echo "⚠️  Không tìm thấy PO thật — bỏ qua /api/po/[id] UUID test"
+else
+  echo "ℹ️  PO UUID: $PO_UUID"
+  expect "GET /api/po/[uuid] (V1.8 B6 DB thật)" "200" "$(status "$BASE_URL/api/po/$PO_UUID")"
+  PO_DETAIL=$(body "$BASE_URL/api/po/$PO_UUID")
+  expect_body "po.detail.poCode" "$PO_DETAIL" "\"poCode\""
+  expect_body "po.detail.lines" "$PO_DETAIL" "\"lines\""
+  expect_body "po.detail.totals" "$PO_DETAIL" "\"totals\""
+  expect "GET /receiving/[poId] (form)" "200" "$(status "$BASE_URL/receiving/$PO_UUID")"
+fi
+# Demo stub vẫn OK (back-compat)
+expect "GET /api/po/demo (legacy stub)" "200" "$(status "$BASE_URL/api/po/demo")"
+# /api/po/[invalid] → 404
+expect "GET /api/po/not-a-uuid" "404" "$(status "$BASE_URL/api/po/not-a-uuid")"
+# /api/receiving/events với body rỗng → 400/422 (validation sống)
+RECV_VALIDATION=$(curl -s -o /dev/null -w '%{http_code}' -b "$COOKIE_JAR" -c "$COOKIE_JAR" \
+  -H 'content-type: application/json' \
+  -X POST "$BASE_URL/api/receiving/events" -d '{}')
+TOTAL=$((TOTAL+1))
+if [[ "$RECV_VALIDATION" == "400" || "$RECV_VALIDATION" == "422" ]]; then
+  echo "✅ POST /api/receiving/events (empty) → $RECV_VALIDATION (validation OK)"
+  PASS=$((PASS+1))
+else
+  echo "❌ POST /api/receiving/events (empty): got $RECV_VALIDATION, expected 400/422"
+  FAIL=$((FAIL+1))
+fi
+
+echo
 echo "--- 6. Core pages ---"
 # V1.8 Batch 1 — Landing / redirect 307 → /bom
 expect "GET / (V1.8 redirect 307)" "307" "$(status "$BASE_URL/")"
