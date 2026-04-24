@@ -200,3 +200,54 @@ export function useAuditList(filter: AuditFilter) {
     placeholderData: (prev) => prev,
   });
 }
+
+/**
+ * V1.8-batch5 — aggregate stats cho `/admin` landing dashboard.
+ */
+export interface AdminStatsPayload {
+  users: { active: number; total: number };
+  sessions: { last24h: number; activeNow: number };
+  audit: {
+    total24h: number;
+    byAction: Array<{ action: string; count: number }>;
+  };
+  rateLimits: { hits24h: number };
+  recentAuditEvents: Array<{
+    id: string;
+    at: string;
+    actorUsername: string | null;
+    action: string;
+    entity: string;
+    objectId: string | null;
+  }>;
+  recentActiveSessions: Array<{
+    id: string;
+    userId: string;
+    username: string | null;
+    fullName: string | null;
+    ip: string | null;
+    userAgent: string | null;
+    issuedAt: string;
+    lastSeenAt: string | null;
+  }>;
+  systemHealth: {
+    db: "ok" | "slow" | "down";
+    redis: "ok" | "down";
+    queueDepth: number;
+    lastBackup: string | null;
+  };
+  cachedAt: string;
+}
+
+export function useAdminStats() {
+  return useQuery({
+    queryKey: qk.admin.stats,
+    queryFn: () =>
+      request<{ data: AdminStatsPayload; cached: boolean }>(
+        `/api/admin/stats`,
+      ),
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+  });
+}

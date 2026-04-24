@@ -92,6 +92,7 @@ export const qk = {
       all: ["admin", "audit"] as const,
       list: (filter: AuditFilter) => ["admin", "audit", "list", filter] as const,
     },
+    stats: ["admin", "stats"] as const,
   },
   po: {
     detail: (id: string) => ["po", "detail", id] as const,
