@@ -106,9 +106,58 @@ export const auditListQuerySchema = z.object({
   pageSize: z.coerce.number().int().positive().max(200).default(50),
 });
 
+/**
+ * V1.9 P10 — RBAC per-user permission override.
+ * `granted = null` → remove override (về role-default).
+ */
+export const rbacEntitySchema = z.enum([
+  "item",
+  "supplier",
+  "bomTemplate",
+  "bomRevision",
+  "salesOrder",
+  "bomSnapshot",
+  "pr",
+  "po",
+  "wo",
+  "reservation",
+  "eco",
+  "audit",
+  "user",
+  "session",
+]);
+
+export const rbacActionSchema = z.enum([
+  "create",
+  "read",
+  "update",
+  "delete",
+  "approve",
+  "transition",
+]);
+
+export const userPermissionPatchSchema = z.object({
+  entity: rbacEntitySchema,
+  action: rbacActionSchema,
+  granted: z.boolean().nullable(),
+  reason: z.string().trim().max(500).optional().nullable(),
+  expiresAt: z
+    .string()
+    .datetime()
+    .optional()
+    .nullable()
+    .transform((v) => (v ? new Date(v) : null)),
+});
+
+export const userPermissionBulkSchema = z.object({
+  patches: z.array(userPermissionPatchSchema).min(1).max(200),
+});
+
 export type UserCreate = z.infer<typeof userCreateSchema>;
 export type UserUpdate = z.infer<typeof userUpdateSchema>;
 export type UserListQuery = z.infer<typeof userListQuerySchema>;
 export type ChangePassword = z.infer<typeof changePasswordSchema>;
 export type ResetPassword = z.infer<typeof resetPasswordSchema>;
 export type AuditListQuery = z.infer<typeof auditListQuerySchema>;
+export type UserPermissionPatch = z.infer<typeof userPermissionPatchSchema>;
+export type UserPermissionBulk = z.infer<typeof userPermissionBulkSchema>;

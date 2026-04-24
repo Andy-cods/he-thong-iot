@@ -9,6 +9,8 @@ import { can } from "@iot/shared";
 import { AUTH_COOKIE_NAME, verifyAccessToken } from "@/lib/auth";
 import { apiBurstRateLimit } from "./middlewares/rateLimit";
 import { tooManyRequests } from "./http";
+import { findActiveOverride } from "./repos/userPermissionOverrides";
+import { logger } from "@/lib/logger";
 
 export interface Session {
   userId: string;
@@ -100,8 +102,30 @@ export async function requireCan(
 
   const session = await getSession(req);
   if (!session) return { response: unauthorized() };
-  if (!can(session.roles, action, entity)) {
+
+  // V1.9 P10 — check override trước (deny wins, grant escalate).
+  // Fail-open nếu DB lỗi: fall back sang role-only check (logged warn).
+  let override: Awaited<ReturnType<typeof findActiveOverride>> = null;
+  try {
+    override = await findActiveOverride(session.userId, entity, action);
+  } catch (err) {
+    logger.warn(
+      { err, userId: session.userId, entity, action },
+      "permission override lookup failed, fallback to role-only",
+    );
+  }
+
+  // 1) Override deny → 403 ngay
+  if (override && override.granted === false) {
     return { response: forbidden() };
   }
-  return { session };
+  // 2) Role default
+  if (can(session.roles, action, entity)) {
+    return { session };
+  }
+  // 3) Override grant escalate
+  if (override && override.granted === true) {
+    return { session };
+  }
+  return { response: forbidden() };
 }

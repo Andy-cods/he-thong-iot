@@ -125,7 +125,46 @@ export const session = appSchema.table(
   }),
 );
 
+/**
+ * V1.9 P10 — per-user permission override.
+ * Một row = 1 cell trong matrix (user × entity × action) với flag granted.
+ * - granted = true  → escalate (thêm quyền role không có)
+ * - granted = false → revoke (thu hồi quyền role có)
+ * - expires_at = null → vĩnh viễn; > NOW() còn hiệu lực.
+ */
+export const userPermissionOverride = appSchema.table(
+  "user_permission_override",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => userAccount.id, { onDelete: "cascade" }),
+    entity: varchar("entity", { length: 50 }).notNull(),
+    action: varchar("action", { length: 50 }).notNull(),
+    granted: boolean("granted").notNull(),
+    reason: text("reason"),
+    grantedBy: uuid("granted_by").references(() => userAccount.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+  },
+  (t) => ({
+    userEntityActionUk: uniqueIndex("user_permission_override_uk").on(
+      t.userId,
+      t.entity,
+      t.action,
+    ),
+    userIdx: index("user_permission_override_user_idx").on(t.userId),
+  }),
+);
+
 export type UserAccount = typeof userAccount.$inferSelect;
 export type NewUserAccount = typeof userAccount.$inferInsert;
 export type Role = typeof role.$inferSelect;
 export type Session = typeof session.$inferSelect;
+export type UserPermissionOverride = typeof userPermissionOverride.$inferSelect;
+export type NewUserPermissionOverride =
+  typeof userPermissionOverride.$inferInsert;

@@ -178,6 +178,123 @@ export function useDeactivateUser() {
   });
 }
 
+/* ===========================================================================
+ * V1.9 P10 — RBAC per-user permission override hooks
+ * ===========================================================================
+ */
+
+export type RbacActionKey =
+  | "create"
+  | "read"
+  | "update"
+  | "delete"
+  | "approve"
+  | "transition";
+
+export type RbacEntityKey =
+  | "item"
+  | "supplier"
+  | "bomTemplate"
+  | "bomRevision"
+  | "salesOrder"
+  | "bomSnapshot"
+  | "pr"
+  | "po"
+  | "wo"
+  | "reservation"
+  | "eco"
+  | "audit"
+  | "user"
+  | "session";
+
+export type OverrideKind = "GRANT" | "DENY" | null;
+export type EffectiveSource = "role" | "override-grant" | "override-deny";
+
+export interface PermissionMatrixCell {
+  action: RbacActionKey;
+  roleAllowed: boolean;
+  override: OverrideKind;
+  effectiveAllowed: boolean;
+  source: EffectiveSource;
+  reason: string | null;
+  expiresAt: string | null;
+}
+
+export interface PermissionMatrixRow {
+  entity: RbacEntityKey;
+  actions: PermissionMatrixCell[];
+}
+
+export interface UserPermissionsPayload {
+  userId: string;
+  username: string;
+  roles: Role[];
+  matrix: PermissionMatrixRow[];
+}
+
+export function useUserPermissions(userId: string | null) {
+  return useQuery({
+    queryKey: userId
+      ? qk.admin.users.permissions(userId)
+      : ["admin", "users", "permissions", "__none__"],
+    queryFn: () =>
+      request<{ data: UserPermissionsPayload }>(
+        `/api/admin/users/${userId}/permissions`,
+      ),
+    enabled: !!userId,
+    staleTime: 15_000,
+  });
+}
+
+export interface UpdatePermissionInput {
+  entity: RbacEntityKey;
+  action: RbacActionKey;
+  granted: boolean | null;
+  reason?: string | null;
+  expiresAt?: string | null;
+}
+
+export function useUpdateUserPermission(userId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: UpdatePermissionInput) =>
+      request<{ data: unknown }>(
+        `/api/admin/users/${userId}/permissions`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(patch),
+        },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.admin.users.permissions(userId) });
+      qc.invalidateQueries({ queryKey: qk.admin.audit.all });
+    },
+  });
+}
+
+export function useBulkUpdateUserPermissions(userId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (patches: UpdatePermissionInput[]) =>
+      request<{
+        data: {
+          userId: string;
+          applied: number;
+          granted: number;
+          denied: number;
+          removed: number;
+        };
+      }>(`/api/admin/users/${userId}/permissions/bulk`, {
+        method: "POST",
+        body: JSON.stringify({ patches }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.admin.users.permissions(userId) });
+      qc.invalidateQueries({ queryKey: qk.admin.audit.all });
+    },
+  });
+}
+
 function buildAuditListUrl(f: AuditFilter): string {
   const p = new URLSearchParams();
   if (f.q && f.q.trim()) p.set("q", f.q.trim());

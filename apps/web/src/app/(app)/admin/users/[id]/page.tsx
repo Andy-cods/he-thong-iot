@@ -18,12 +18,14 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ResetPasswordDialog } from "@/components/admin/ResetPasswordDialog";
 import { UserForm, type UserFormState } from "@/components/admin/UserForm";
+import { UserPermissionMatrix } from "@/components/admin/UserPermissionMatrix";
 import {
   useAuditList,
   useDeactivateUser,
   useUpdateUser,
   useUserDetail,
 } from "@/hooks/useAdmin";
+import { useSession } from "@/hooks/useSession";
 import { cn } from "@/lib/utils";
 
 const ROLE_COLORS: Record<Role, string> = {
@@ -59,6 +61,7 @@ export default function AdminUserDetailPage({
   params: { id: string };
 }) {
   const router = useRouter();
+  const session = useSession();
   const query = useUserDetail(params.id);
   const update = useUpdateUser(params.id);
   const deactivate = useDeactivateUser();
@@ -228,6 +231,7 @@ export default function AdminUserDetailPage({
       <Tabs defaultValue="info">
         <TabsList>
           <TabsTrigger value="info">Thông tin</TabsTrigger>
+          <TabsTrigger value="permissions">Quyền</TabsTrigger>
           <TabsTrigger value="audit">
             Nhật ký hoạt động ({auditQuery.data?.meta.total ?? 0})
           </TabsTrigger>
@@ -284,6 +288,14 @@ export default function AdminUserDetailPage({
               </Button>
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="permissions">
+          <UserPermissionMatrix
+            userId={user.id}
+            isSelf={session.data?.id === user.id}
+            currentUserRoles={user.roles}
+          />
         </TabsContent>
 
         <TabsContent value="audit">
