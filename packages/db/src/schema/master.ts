@@ -3,6 +3,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   numeric,
   pgEnum,
   text,
@@ -139,12 +140,26 @@ export const supplier = appSchema.table(
     address: text("address"),
     taxCode: varchar("tax_code", { length: 32 }),
     isActive: boolean("is_active").notNull().default(true),
+    // V1.9 P7: địa chỉ cấu trúc + ngân hàng + liên hệ (migration 0012)
+    region: varchar("region", { length: 100 }),
+    city: varchar("city", { length: 100 }),
+    ward: varchar("ward", { length: 100 }),
+    streetAddress: text("street_address"),
+    factoryAddress: text("factory_address"),
+    latitude: numeric("latitude", { precision: 9, scale: 6 }),
+    longitude: numeric("longitude", { precision: 9, scale: 6 }),
+    website: varchar("website", { length: 255 }),
+    bankInfo: jsonb("bank_info"),
+    paymentTerms: varchar("payment_terms", { length: 100 }),
+    contactPersons: jsonb("contact_persons"),
+    internalNotes: text("internal_notes"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
   },
   (t) => ({
     codeIdx: uniqueIndex("supplier_code_uk").on(t.code),
+    regionIdx: index("supplier_region_idx").on(t.region),
   }),
 );
 
