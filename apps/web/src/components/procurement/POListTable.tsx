@@ -33,16 +33,25 @@ function statusToBadge(s: POStatus): { v: BadgeStatus; label: string } {
   }
 }
 
+function fmtVND(n: number | string | null | undefined): string {
+  if (n === null || n === undefined || n === "") return "0";
+  const num = typeof n === "string" ? Number(n) : n;
+  if (!Number.isFinite(num)) return "0";
+  return Math.round(num).toLocaleString("vi-VN");
+}
+
 export function POListTable({ rows, loading }: POListTableProps) {
   const parentRef = React.useRef<HTMLDivElement>(null);
   const virt = useVirtualizer({
     count: rows.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 36,
+    estimateSize: () => 40,
     overscan: 8,
   });
 
-  const gridCols = "grid-cols-[140px_minmax(0,1fr)_96px_112px_96px]";
+  // V1.9-P9: thêm cột Tổng tiền + approval status
+  const gridCols =
+    "grid-cols-[140px_minmax(0,1fr)_120px_110px_96px_112px_96px]";
 
   return (
     <div
@@ -59,6 +68,8 @@ export function POListTable({ rows, loading }: POListTableProps) {
       >
         <div>Số PO</div>
         <div>NCC</div>
+        <div className="text-right">Tổng (VND)</div>
+        <div>Duyệt</div>
         <div>ETA</div>
         <div>Trạng thái</div>
         <div>Ngày tạo</div>
@@ -70,12 +81,14 @@ export function POListTable({ rows, loading }: POListTableProps) {
             <div
               key={i}
               className={cn(
-                "grid h-9 items-center border-b border-zinc-100 px-3",
+                "grid h-10 items-center border-b border-zinc-100 px-3",
                 gridCols,
               )}
             >
               <Skeleton className="h-3 w-28" />
               <Skeleton className="h-3 w-32" />
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-3 w-16" />
               <Skeleton className="h-3 w-16" />
               <Skeleton className="h-4 w-20 rounded-sm" />
               <Skeleton className="h-3 w-16" />
@@ -92,6 +105,7 @@ export function POListTable({ rows, loading }: POListTableProps) {
           const row = rows[v.index];
           if (!row) return null;
           const badge = statusToBadge(row.status);
+          const approval = row.metadata?.approvalStatus;
           return (
             <div
               key={row.id}
@@ -106,13 +120,36 @@ export function POListTable({ rows, loading }: POListTableProps) {
             >
               <Link
                 href={`/procurement/purchase-orders/${row.id}`}
-                className="truncate font-mono text-sm text-zinc-700 hover:text-blue-600"
+                className="truncate font-mono text-sm text-zinc-700 hover:text-indigo-600"
                 title={row.poNo}
               >
                 {row.poNo}
               </Link>
               <div className="truncate pr-2 text-sm text-zinc-700">
                 {row.supplierName ?? row.supplierCode ?? `${row.supplierId.slice(0, 8)}…`}
+              </div>
+              <div className="text-right text-sm tabular-nums text-zinc-900">
+                {fmtVND(row.totalAmount)}
+              </div>
+              <div>
+                {approval === "pending" && (
+                  <span className="inline-flex items-center rounded-sm bg-amber-50 px-1.5 py-0.5 text-xs text-amber-700">
+                    Chờ
+                  </span>
+                )}
+                {approval === "approved" && (
+                  <span className="inline-flex items-center rounded-sm bg-emerald-50 px-1.5 py-0.5 text-xs text-emerald-700">
+                    Duyệt
+                  </span>
+                )}
+                {approval === "rejected" && (
+                  <span className="inline-flex items-center rounded-sm bg-red-50 px-1.5 py-0.5 text-xs text-red-700">
+                    Từ chối
+                  </span>
+                )}
+                {!approval && (
+                  <span className="text-xs text-zinc-400">—</span>
+                )}
               </div>
               <div className="text-sm text-zinc-600 tabular-nums">
                 {row.expectedEta

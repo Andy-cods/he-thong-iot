@@ -5,7 +5,14 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import type { POCreateInput, POUpdateInput, POStatus } from "@iot/shared";
+import type {
+  POCreateInput,
+  POUpdateInput,
+  POStatus,
+  POApproveInput,
+  PORejectInput,
+  POApprovalMetadata,
+} from "@iot/shared";
 import { qk, type POFilter } from "@/lib/query-keys";
 
 /**
@@ -27,11 +34,15 @@ export interface PORow {
   expectedEta: string | null;
   currency: string;
   totalAmount: string;
+  paymentTerms?: string | null;
+  deliveryAddress?: string | null;
+  actualDeliveryDate?: string | null;
   notes: string | null;
   sentAt: string | null;
   cancelledAt: string | null;
   createdAt: string;
   createdBy: string | null;
+  metadata?: POApprovalMetadata | null;
 }
 
 export interface POLineRow {
@@ -41,9 +52,12 @@ export interface POLineRow {
   itemId: string;
   itemSku?: string | null;
   itemName?: string | null;
+  itemUom?: string | null;
   orderedQty: string;
   receivedQty: string;
   unitPrice: string;
+  taxRate?: string;
+  lineTotal?: string;
   expectedEta: string | null;
   snapshotLineId: string | null;
   notes: string | null;
@@ -92,6 +106,8 @@ function buildListUrl(f: POFilter): string {
   if (f.supplierId) p.set("supplierId", f.supplierId);
   if (f.prId) p.set("prId", f.prId);
   if (f.bomTemplateId) p.set("bomTemplateId", f.bomTemplateId);
+  if (f.from) p.set("from", f.from);
+  if (f.to) p.set("to", f.to);
   if (f.page) p.set("page", String(f.page));
   if (f.pageSize) p.set("pageSize", String(f.pageSize));
   for (const s of f.status ?? []) p.append("status", s);
@@ -182,6 +198,96 @@ export function useSendPurchaseOrder(id: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.procurement.orders.all });
       qc.invalidateQueries({ queryKey: qk.procurement.orders.detail(id) });
+    },
+  });
+}
+
+/** V1.9-P9: DRAFT → pending approval. */
+export function useSubmitPOApproval(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      request<{ data: PORow }>(
+        `/api/purchase-orders/${id}/submit-approval`,
+        { method: "POST" },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.procurement.orders.all });
+      qc.invalidateQueries({ queryKey: qk.procurement.orders.detail(id) });
+    },
+  });
+}
+
+export function useApprovePO(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: POApproveInput) =>
+      request<{ data: PORow }>(`/api/purchase-orders/${id}/approve`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.procurement.orders.all });
+      qc.invalidateQueries({ queryKey: qk.procurement.orders.detail(id) });
+    },
+  });
+}
+
+export function useRejectPO(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: PORejectInput) =>
+      request<{ data: PORow }>(`/api/purchase-orders/${id}/reject`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.procurement.orders.all });
+      qc.invalidateQueries({ queryKey: qk.procurement.orders.detail(id) });
+    },
+  });
+}
+
+/**
+ * V1.9-P9: fetch Excel blob và trigger download.
+ * Không dùng react-query vì action, không cần cache.
+ */
+export function useExportPOExcel() {
+  return useMutation({
+    mutationFn: async (filter: {
+      status?: POStatus[];
+      supplierId?: string;
+      from?: string;
+      to?: string;
+    }) => {
+      const p = new URLSearchParams();
+      for (const s of filter.status ?? []) p.append("status", s);
+      if (filter.supplierId) p.set("supplierId", filter.supplierId);
+      if (filter.from) p.set("from", filter.from);
+      if (filter.to) p.set("to", filter.to);
+
+      const res = await fetch(
+        `/api/purchase-orders/export?${p.toString()}`,
+        { credentials: "include" },
+      );
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as {
+          error?: { message?: string };
+        };
+        throw new Error(body.error?.message ?? `HTTP ${res.status}`);
+      }
+      const blob = await res.blob();
+      const count = res.headers.get("X-Export-Count") ?? "0";
+      const ts = new Date().toISOString().slice(0, 10);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `purchase-orders-${ts}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      return { count: Number(count) };
     },
   });
 }

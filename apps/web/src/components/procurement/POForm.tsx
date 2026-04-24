@@ -47,10 +47,13 @@ export function POForm({ onSubmit, loading }: POFormProps) {
         linkedOrderId: null,
         expectedEta: expectedEta ? new Date(expectedEta) : null,
         currency: "VND",
+        autoApprove: false,
         notes: notes.trim() || null,
         lines: valid.map((l) => ({
           itemId: l.item!.id,
           orderedQty: Number(l.qty),
+          unitPrice: 0,
+          taxRate: 8,
           snapshotLineId: null,
           expectedEta: l.neededBy ? new Date(l.neededBy) : null,
           notes: l.notes?.trim() || null,

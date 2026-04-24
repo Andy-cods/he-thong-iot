@@ -281,6 +281,9 @@ export interface POFilter {
   prId?: string;
   /** V1.8 — filter PO theo BOM (JOIN via sales_order.bom_template_id). */
   bomTemplateId?: string;
+  /** V1.9-P9: filter orderDate range (ISO strings). */
+  from?: string;
+  to?: string;
   page?: number;
   pageSize?: number;
 }

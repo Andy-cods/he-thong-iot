@@ -4,6 +4,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   numeric,
   pgEnum,
   text,
@@ -92,6 +93,21 @@ export const purchaseOrder = appSchema.table(
     notes: text("notes"),
     sentAt: timestamp("sent_at", { withTimezone: true }),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    /**
+     * V1.9-P9: payment terms auto-fill từ supplier.paymentTerms khi tạo
+     * nhưng editable riêng trên PO.
+     */
+    paymentTerms: varchar("payment_terms", { length: 100 }),
+    /** V1.9-P9: địa chỉ giao hàng cho PO này (default "Xưởng Sông Châu"). */
+    deliveryAddress: text("delivery_address"),
+    /** V1.9-P9: ngày thực tế nhận đủ (dùng cho báo cáo on-time rate). */
+    actualDeliveryDate: date("actual_delivery_date"),
+    /**
+     * V1.9-P9: metadata jsonb — chứa approvalStatus (pending/approved/rejected),
+     * approvedBy, approvedAt, rejectedReason, submittedBy, submittedAt.
+     * KISS: không alter enum purchase_order_status → dùng metadata layer.
+     */
+    metadata: jsonb("metadata").notNull().default({}),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -122,6 +138,14 @@ export const purchaseOrderLine = appSchema.table(
       .notNull()
       .default("0"),
     unitPrice: numeric("unit_price", { precision: 18, scale: 4 })
+      .notNull()
+      .default("0"),
+    /** V1.9-P9: VAT % per line (default 8 %). */
+    taxRate: numeric("tax_rate", { precision: 5, scale: 2 })
+      .notNull()
+      .default("8"),
+    /** V1.9-P9: cache qty*price*(1+tax) — tính khi insert/update. */
+    lineTotal: numeric("line_total", { precision: 18, scale: 2 })
       .notNull()
       .default("0"),
     expectedEta: date("expected_eta"),

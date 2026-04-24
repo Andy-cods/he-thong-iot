@@ -25,12 +25,19 @@ export async function GET(req: NextRequest) {
   const q = parseSearchParams(req, poListQuerySchema);
   if ("response" in q) return q.response;
 
+  const url = new URL(req.url);
+  const fromParam = url.searchParams.get("from");
+  const toParam = url.searchParams.get("to");
+
   try {
     const result = await listPOs({
       status: q.data.status,
       supplierId: q.data.supplierId,
       prId: q.data.prId,
       bomTemplateId: q.data.bomTemplateId,
+      q: q.data.q,
+      from: fromParam ? new Date(fromParam) : null,
+      to: toParam ? new Date(toParam) : null,
       page: q.data.page,
       pageSize: q.data.pageSize,
     });
@@ -55,18 +62,28 @@ export async function POST(req: NextRequest) {
   const body = await parseJson(req, poCreateSchema);
   if ("response" in body) return body.response;
 
+  // V1.9-P9: auto-approve chỉ được phép khi user có quyền "approve", "po".
+  const canApprove =
+    body.data.autoApprove === true &&
+    guard.session.roles.some((r) => r === "admin");
+
   try {
     const row = await createPO({
       supplierId: body.data.supplierId,
+      prId: body.data.prId ?? null,
       linkedOrderId: body.data.linkedOrderId ?? null,
       expectedEta: body.data.expectedEta ?? null,
       currency: body.data.currency,
+      paymentTerms: body.data.paymentTerms ?? null,
+      deliveryAddress: body.data.deliveryAddress ?? null,
       notes: body.data.notes ?? null,
+      autoApprove: canApprove,
       createdBy: guard.session.userId,
       lines: body.data.lines.map((l) => ({
         itemId: l.itemId,
         orderedQty: l.orderedQty,
         unitPrice: l.unitPrice,
+        taxRate: l.taxRate,
         snapshotLineId: l.snapshotLineId ?? null,
         expectedEta: l.expectedEta ?? null,
         notes: l.notes ?? null,

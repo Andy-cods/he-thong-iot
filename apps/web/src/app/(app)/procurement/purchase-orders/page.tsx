@@ -11,10 +11,17 @@ import {
 } from "nuqs";
 import { PO_STATUSES, PO_STATUS_LABELS, type POStatus } from "@iot/shared";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
 import { POListTable } from "@/components/procurement/POListTable";
+import { PoExportDialog } from "@/components/procurement/PoExportDialog";
 import { usePurchaseOrdersList } from "@/hooks/usePurchaseOrders";
 import type { POFilter } from "@/lib/query-keys";
+
+function fmtVND(n: number): string {
+  if (!Number.isFinite(n)) return "0";
+  return Math.round(n).toLocaleString("vi-VN");
+}
 
 export default function PurchaseOrdersListPage() {
   const [urlState, setUrlState] = useQueryStates(
@@ -23,6 +30,8 @@ export default function PurchaseOrdersListPage() {
       page: parseAsInteger.withDefault(1),
       pageSize: parseAsInteger.withDefault(50),
       q: parseAsString.withDefault(""),
+      from: parseAsString.withDefault(""),
+      to: parseAsString.withDefault(""),
     },
     { history: "replace", shallow: true },
   );
@@ -36,6 +45,8 @@ export default function PurchaseOrdersListPage() {
       page: urlState.page,
       pageSize: urlState.pageSize,
       q: urlState.q || undefined,
+      from: urlState.from || undefined,
+      to: urlState.to || undefined,
     }),
     [urlState],
   );
@@ -45,7 +56,21 @@ export default function PurchaseOrdersListPage() {
   const rows = query.data?.data ?? [];
   const pageCount = Math.max(1, Math.ceil(total / urlState.pageSize));
   const isEmpty = !query.isLoading && rows.length === 0;
-  const hasFilter = urlState.status !== "all" || urlState.q !== "";
+  const hasFilter =
+    urlState.status !== "all" ||
+    urlState.q !== "" ||
+    urlState.from !== "" ||
+    urlState.to !== "";
+
+  // KPI row (compute from current page — cho UI nhanh; chính xác hơn nên có endpoint thống kê)
+  const openCount = rows.filter(
+    (r) => r.status === "DRAFT" || r.status === "SENT" || r.status === "PARTIAL",
+  ).length;
+  const pageSpend = rows.reduce(
+    (s, r) => s + (Number(r.totalAmount) || 0),
+    0,
+  );
+  const supplierCount = new Set(rows.map((r) => r.supplierId)).size;
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -65,15 +90,45 @@ export default function PurchaseOrdersListPage() {
             {total.toLocaleString("vi-VN")} PO
           </p>
         </div>
-        <Button asChild size="sm">
-          <Link href="/procurement/purchase-orders/new">
-            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-            Tạo PO
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <PoExportDialog />
+          <Button asChild size="sm">
+            <Link href="/procurement/purchase-orders/new">
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+              Tạo PO
+            </Link>
+          </Button>
+        </div>
       </header>
 
-      <div className="flex items-center gap-2 border-b border-zinc-200 bg-white px-6 py-2">
+      {/* KPI row */}
+      <div className="grid grid-cols-3 gap-3 border-b border-zinc-200 bg-white px-6 py-3">
+        <div className="rounded-md bg-zinc-50 px-3 py-2">
+          <div className="text-xs uppercase text-zinc-500">PO đang mở</div>
+          <div className="mt-0.5 text-lg font-semibold tabular-nums text-zinc-900">
+            {openCount}
+            <span className="ml-1 text-xs font-normal text-zinc-500">
+              / {rows.length} hiển thị
+            </span>
+          </div>
+        </div>
+        <div className="rounded-md bg-indigo-50 px-3 py-2">
+          <div className="text-xs uppercase text-indigo-700">
+            Tổng trang hiện tại
+          </div>
+          <div className="mt-0.5 text-lg font-semibold tabular-nums text-indigo-900">
+            {fmtVND(pageSpend)} VND
+          </div>
+        </div>
+        <div className="rounded-md bg-emerald-50 px-3 py-2">
+          <div className="text-xs uppercase text-emerald-700">Số NCC</div>
+          <div className="mt-0.5 text-lg font-semibold tabular-nums text-emerald-900">
+            {supplierCount}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 border-b border-zinc-200 bg-white px-6 py-2">
         <div className="flex gap-1">
           {["all", ...PO_STATUSES].map((s) => (
             <button
@@ -84,13 +139,65 @@ export default function PurchaseOrdersListPage() {
               }
               className={`h-7 rounded-md px-2.5 text-xs font-medium transition-colors ${
                 urlState.status === s
-                  ? "bg-blue-100 text-blue-700"
+                  ? "bg-indigo-100 text-indigo-700"
                   : "text-zinc-600 hover:bg-zinc-100"
               }`}
             >
               {s === "all" ? "Tất cả" : PO_STATUS_LABELS[s as POStatus]}
             </button>
           ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <Input
+            size="sm"
+            placeholder="Tìm theo mã PO / NCC..."
+            value={urlState.q}
+            onChange={(e) =>
+              void setUrlState({ q: e.target.value, page: 1 })
+            }
+            className="h-7 w-48"
+          />
+          <label className="flex items-center gap-1 text-xs text-zinc-500">
+            Từ:
+            <Input
+              type="date"
+              size="sm"
+              value={urlState.from}
+              onChange={(e) =>
+                void setUrlState({ from: e.target.value, page: 1 })
+              }
+              className="h-7 w-36"
+            />
+          </label>
+          <label className="flex items-center gap-1 text-xs text-zinc-500">
+            Đến:
+            <Input
+              type="date"
+              size="sm"
+              value={urlState.to}
+              onChange={(e) =>
+                void setUrlState({ to: e.target.value, page: 1 })
+              }
+              className="h-7 w-36"
+            />
+          </label>
+          {hasFilter && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() =>
+                void setUrlState({
+                  status: "all",
+                  q: "",
+                  from: "",
+                  to: "",
+                  page: 1,
+                })
+              }
+            >
+              Xoá lọc
+            </Button>
+          )}
         </div>
       </div>
 
@@ -105,7 +212,13 @@ export default function PurchaseOrdersListPage() {
                   variant="ghost"
                   size="sm"
                   onClick={() =>
-                    void setUrlState({ status: "all", q: "", page: 1 })
+                    void setUrlState({
+                      status: "all",
+                      q: "",
+                      from: "",
+                      to: "",
+                      page: 1,
+                    })
                   }
                 >
                   Xoá bộ lọc

@@ -121,7 +121,8 @@ export const prListQuerySchema = z.object({
 export const poLineInputSchema = z.object({
   itemId: uuid,
   orderedQty: positiveQty,
-  unitPrice: z.coerce.number().nonnegative().optional(),
+  unitPrice: z.coerce.number().nonnegative().optional().default(0),
+  taxRate: z.coerce.number().min(0).max(100).optional().default(8),
   snapshotLineId: uuid.optional().nullable(),
   expectedEta: dateStringOrDate.optional().nullable(),
   notes: z.string().trim().max(500).optional().nullable(),
@@ -129,11 +130,38 @@ export const poLineInputSchema = z.object({
 
 export const poCreateSchema = z.object({
   supplierId: uuid,
+  prId: uuid.optional().nullable(),
   linkedOrderId: uuid.optional().nullable(),
   expectedEta: dateStringOrDate.optional().nullable(),
   currency: z.string().trim().max(8).default("VND"),
+  paymentTerms: z.string().trim().max(100).optional().nullable(),
+  deliveryAddress: z.string().trim().max(2000).optional().nullable(),
   notes: z.string().trim().max(2000).optional().nullable(),
+  /** Nếu true + role có "approve" quyền → tạo + duyệt luôn (SENT). */
+  autoApprove: z.boolean().optional().default(false),
   lines: z.array(poLineInputSchema).min(1, "PO cần ít nhất 1 dòng"),
+});
+
+export const poApproveSchema = z.object({
+  notes: z.string().trim().max(500).optional().nullable(),
+});
+
+export const poRejectSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(3, "Lý do tối thiểu 3 ký tự")
+    .max(500, "Tối đa 500 ký tự"),
+});
+
+export const poExportQuerySchema = z.object({
+  status: z
+    .union([z.enum(PO_STATUSES), z.array(z.enum(PO_STATUSES))])
+    .optional()
+    .transform((v) => (v === undefined ? undefined : Array.isArray(v) ? v : [v])),
+  supplierId: uuid.optional(),
+  from: dateStringOrDate.optional().nullable(),
+  to: dateStringOrDate.optional().nullable(),
 });
 
 export const poCreateFromPRSchema = z.object({
@@ -176,3 +204,19 @@ export type POCreateInput = z.infer<typeof poCreateSchema>;
 export type POCreateFromPRInput = z.infer<typeof poCreateFromPRSchema>;
 export type POUpdateInput = z.infer<typeof poUpdateSchema>;
 export type POListQuery = z.infer<typeof poListQuerySchema>;
+export type POApproveInput = z.infer<typeof poApproveSchema>;
+export type PORejectInput = z.infer<typeof poRejectSchema>;
+export type POExportQuery = z.infer<typeof poExportQuerySchema>;
+
+/** V1.9-P9: cấu trúc metadata JSONB trên purchase_order. */
+export interface POApprovalMetadata {
+  approvalStatus?: "pending" | "approved" | "rejected";
+  submittedBy?: string;
+  submittedAt?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  approvalNotes?: string | null;
+  rejectedBy?: string;
+  rejectedAt?: string;
+  rejectedReason?: string;
+}
