@@ -1,17 +1,14 @@
 import {
-  AlertCircle,
   Building2,
   ClipboardList,
   Factory,
   FileSpreadsheet,
-  FolderKanban,
-  GitBranch,
-  LayoutDashboard,
   Network,
   Package,
   ShoppingCart,
   Shield,
   Truck,
+  Wrench,
   type LucideIcon,
 } from "lucide-react";
 import type { RbacEntity, Role } from "@iot/shared";
@@ -22,8 +19,16 @@ import { canAny } from "@iot/shared";
  * Nguồn dữ liệu duy nhất cho Sidebar + CommandPalette + Breadcrumb.
  * Role filter: item không có `roles` → hiển thị cho tất cả.
  *
- * @see docs design-spec §2.3 AppShell + §3.2 Sidebar.
+ * V1.8 — Batch 1:
+ *   - Bỏ landing Dashboard khỏi nav (landing `/` redirect `/bom`).
+ *   - Bỏ nav `/product-lines` (gộp chức năng vào `/items`).
+ *   - Bỏ nav `/eco` + `/shortage` (vẫn accessible trong BOM workspace).
+ *   - Thêm field `section` để Sidebar group 3 nhóm (Sản xuất / Kho & Mua sắm / Khác).
+ *
+ * @see docs design-spec §2.3 AppShell + §3.2 Sidebar + plans/260424-v1.8-ux-refresh-plan.md
  */
+export type NavSection = "production" | "inventory" | "other";
+
 export interface NavItem {
   href: string;
   label: string;
@@ -46,44 +51,69 @@ export interface NavItem {
   comingSoon?: string;
   /** Số hoặc chuỗi ngắn hiển thị bên phải label (VD: "3"). */
   badge?: number | string;
+  /**
+   * V1.8 — nhóm hiển thị trong Sidebar (tuỳ chọn).
+   * Nếu không set → item rơi vào group "other".
+   */
+  section?: NavSection;
 }
 
+export const NAV_SECTION_LABEL: Record<NavSection, string> = {
+  production: "Sản xuất",
+  inventory: "Kho & Mua sắm",
+  other: "Khác",
+};
+
+export const NAV_SECTION_ORDER: NavSection[] = [
+  "production",
+  "inventory",
+  "other",
+];
+
 export const NAV_ITEMS: NavItem[] = [
-  {
-    href: "/",
-    label: "Tổng quan",
-    icon: LayoutDashboard,
-    roles: ["admin", "planner"],
-  },
-  {
-    href: "/items",
-    label: "Danh mục vật tư",
-    icon: Package,
-    entity: "item",
-  },
-  {
-    href: "/import",
-    label: "Nhập Excel",
-    icon: FileSpreadsheet,
-    roles: ["admin", "planner"],
-  },
-  {
-    href: "/product-lines",
-    label: "Dòng sản phẩm",
-    icon: FolderKanban,
-    entity: "bomTemplate",
-  },
+  // --- Sản xuất ---
   {
     href: "/bom",
     label: "BOM Templates",
     icon: Network,
     entity: "bomTemplate",
+    section: "production",
   },
   {
     href: "/orders",
     label: "Đơn hàng",
     icon: ClipboardList,
     entity: "salesOrder",
+    section: "production",
+  },
+  {
+    href: "/work-orders",
+    label: "Lệnh sản xuất",
+    icon: Factory,
+    entity: "wo",
+    section: "production",
+  },
+  {
+    href: "/lot-serial",
+    label: "Lắp ráp / Serial",
+    icon: Wrench,
+    roles: ["admin", "planner", "operator"],
+    section: "production",
+  },
+  // --- Kho & Mua sắm ---
+  {
+    href: "/items",
+    label: "Danh mục vật tư",
+    icon: Package,
+    entity: "item",
+    section: "inventory",
+  },
+  {
+    href: "/suppliers",
+    label: "Nhà cung cấp",
+    icon: Building2,
+    entity: "supplier",
+    section: "inventory",
   },
   {
     href: "/procurement/purchase-requests",
@@ -91,51 +121,36 @@ export const NAV_ITEMS: NavItem[] = [
     icon: ShoppingCart,
     entity: "pr",
     roles: ["admin", "planner"],
+    section: "inventory",
   },
   {
     href: "/procurement/purchase-orders",
-    label: "Đặt hàng NCC (PO)",
+    label: "Đặt hàng (PO)",
     icon: ShoppingCart,
     entity: "po",
-  },
-  {
-    href: "/shortage",
-    label: "Thiếu hàng",
-    icon: AlertCircle,
-    roles: ["admin", "planner"],
-  },
-  {
-    href: "/work-orders",
-    label: "Lệnh sản xuất (WO)",
-    icon: Factory,
-    entity: "wo",
-  },
-  {
-    href: "/eco",
-    label: "ECO",
-    icon: GitBranch,
-    entity: "eco",
-    roles: ["admin", "planner"],
-  },
-  {
-    href: "/admin",
-    label: "Quản trị",
-    icon: Shield,
-    roles: ["admin"],
-    divider: true,
-  },
-  {
-    href: "/suppliers",
-    label: "Nhà cung cấp",
-    icon: Building2,
-    entity: "supplier",
+    section: "inventory",
   },
   {
     href: "/receiving",
     label: "Nhận hàng",
     icon: Truck,
     roles: ["admin", "warehouse"],
-    divider: true,
+    section: "inventory",
+  },
+  // --- Khác ---
+  {
+    href: "/import",
+    label: "Nhập Excel",
+    icon: FileSpreadsheet,
+    roles: ["admin", "planner"],
+    section: "other",
+  },
+  {
+    href: "/admin",
+    label: "Quản trị",
+    icon: Shield,
+    roles: ["admin"],
+    section: "other",
   },
 ];
 
@@ -160,4 +175,27 @@ export function filterNavByRoles(
     if (it.roles && !it.roles.some((r) => userRoles.includes(r))) return false;
     return true;
   });
+}
+
+/**
+ * Group nav items theo `section`. Items thiếu `section` → rơi vào `other`.
+ * Giữ thứ tự item trong mỗi group như trong NAV_ITEMS.
+ */
+export function groupNavBySection(
+  items: NavItem[],
+): Array<{ section: NavSection; label: string; items: NavItem[] }> {
+  const map: Record<NavSection, NavItem[]> = {
+    production: [],
+    inventory: [],
+    other: [],
+  };
+  for (const it of items) {
+    const sec: NavSection = it.section ?? "other";
+    map[sec].push(it);
+  }
+  return NAV_SECTION_ORDER.filter((s) => map[s].length > 0).map((s) => ({
+    section: s,
+    label: NAV_SECTION_LABEL[s],
+    items: map[s],
+  }));
 }

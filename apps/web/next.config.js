@@ -100,6 +100,21 @@ const nextConfig = {
       },
     ];
   },
+  // V1.8 Batch 1 — backward-compat redirects:
+  // - /eco + /shortage gộp vào BOM workspace BottomPanel → redirect về /bom.
+  // - /product-lines gộp vào /items (Danh mục vật tư).
+  // Các sub-route deep-link trong BOM workspace (/bom/[id]/eco, /shortage)
+  // giữ nguyên — KHÔNG match ở đây (chỉ match top-level prefix).
+  async redirects() {
+    return [
+      { source: "/eco", destination: "/bom", permanent: false },
+      { source: "/eco/:path*", destination: "/bom", permanent: false },
+      { source: "/shortage", destination: "/bom", permanent: false },
+      { source: "/shortage/:path*", destination: "/bom", permanent: false },
+      { source: "/product-lines", destination: "/items", permanent: false },
+      { source: "/product-lines/:path*", destination: "/items", permanent: false },
+    ];
+  },
 };
 
 module.exports = withPWA(nextConfig);

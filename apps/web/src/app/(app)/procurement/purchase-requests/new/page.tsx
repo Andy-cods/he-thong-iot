@@ -100,7 +100,7 @@ function NewPRInner() {
                 {submitting ? "Đang tạo…" : "Tạo PR tự động"}
               </Button>
               <Button variant="ghost" asChild>
-                <Link href="/shortage">Huỷ, quay lại Shortage Board</Link>
+                <Link href="/bom">Huỷ, quay lại BOM workspace</Link>
               </Button>
             </div>
           </div>

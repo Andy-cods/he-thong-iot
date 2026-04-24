@@ -5,13 +5,23 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Role } from "@iot/shared";
 import { cn } from "@/lib/utils";
-import { NAV_ITEMS, type NavItem } from "@/lib/nav-items";
+import {
+  NAV_ITEMS,
+  groupNavBySection,
+  type NavItem,
+} from "@/lib/nav-items";
 
 /**
- * V2 Sidebar — Linear-inspired FIXED 220px (bỏ collapsible V1).
- * Logo area h-12 (48px) — giảm từ V1 56. Nav item h-7 (28px), icon 16px,
- * font 13px, padding-x 12px. Active: bg-blue-50 text-blue-700 +
- * border-l-2 border-blue-500 (thay orange V1). Hover bg-zinc-100.
+ * V1.8 Sidebar — Linear-inspired FIXED 220px.
+ *
+ * Thay đổi so với V1.7:
+ *   - Group nav theo 3 section (Sản xuất / Kho & Mua sắm / Khác) — label
+ *     uppercase 10px zinc-400, padding-x 12px, margin-top 10px.
+ *   - Active state rõ hơn: border-left 2px indigo-500 + bg-indigo-50/60 +
+ *     text-indigo-700 + icon indigo-600. Hover smooth transition 150ms.
+ *   - Gap nhỏ hơn giữa item (gap-px) để gọn hơn.
+ *
+ * Logo area h-12 (48px). Nav item h-7 (28px), icon 16px, font 13px, padding-x 12px.
  * Mobile: 280px slide-in drawer (render bởi AppShell Sheet wrapper).
  */
 export type { Role, NavItem };
@@ -58,6 +68,12 @@ export function Sidebar({
 
   const isIconOnly = variant === "icon-only";
 
+  // V1.8 — group theo section (chỉ áp dụng cho variant full).
+  const groups = React.useMemo(
+    () => (isIconOnly ? null : groupNavBySection(items)),
+    [items, isIconOnly],
+  );
+
   return (
     <aside
       aria-label="Điều hướng chính"
@@ -88,26 +104,44 @@ export function Sidebar({
       </div>
 
       {/* Nav */}
-      <nav
-        className="flex-1 overflow-y-auto py-2"
-        aria-label="Menu"
-      >
-        <ul
-          className={cn(
-            "flex flex-col gap-0.5",
-            isIconOnly ? "px-1.5" : "px-2",
-          )}
-        >
-          {items.map((item, idx) => (
-            <SidebarItem
-              key={`${item.href}-${idx}`}
-              item={item}
-              pathname={pathname ?? "/"}
-              allHrefs={allHrefs}
-              iconOnly={isIconOnly}
-            />
-          ))}
-        </ul>
+      <nav className="flex-1 overflow-y-auto py-2" aria-label="Menu">
+        {isIconOnly ? (
+          <ul className="flex flex-col gap-0.5 px-1.5">
+            {items.map((item, idx) => (
+              <SidebarItem
+                key={`${item.href}-${idx}`}
+                item={item}
+                pathname={pathname ?? "/"}
+                allHrefs={allHrefs}
+                iconOnly
+              />
+            ))}
+          </ul>
+        ) : (
+          <div className="flex flex-col gap-2.5">
+            {groups?.map((group) => (
+              <div key={group.section} className="flex flex-col">
+                <p
+                  className="px-4 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400"
+                  aria-hidden="true"
+                >
+                  {group.label}
+                </p>
+                <ul className="flex flex-col gap-px px-2">
+                  {group.items.map((item, idx) => (
+                    <SidebarItem
+                      key={`${item.href}-${idx}`}
+                      item={item}
+                      pathname={pathname ?? "/"}
+                      allHrefs={allHrefs}
+                      iconOnly={false}
+                    />
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
       </nav>
     </aside>
   );
@@ -130,7 +164,7 @@ function SidebarItem({
   const content = iconOnly ? (
     <Icon
       className={cn(
-        "h-4 w-4 shrink-0 transition-colors duration-100",
+        "h-4 w-4 shrink-0 transition-colors duration-150",
         isActive ? "text-indigo-600" : "text-zinc-500",
       )}
       aria-hidden="true"
@@ -140,8 +174,10 @@ function SidebarItem({
     <>
       <Icon
         className={cn(
-          "h-4 w-4 shrink-0 transition-colors duration-100",
-          isActive ? "text-indigo-600" : "text-zinc-500",
+          "h-4 w-4 shrink-0 transition-colors duration-150",
+          isActive
+            ? "text-indigo-600"
+            : "text-zinc-500 group-hover:text-zinc-700",
         )}
         aria-hidden="true"
         strokeWidth={1.75}
@@ -156,16 +192,17 @@ function SidebarItem({
   );
 
   const baseClass = cn(
+    "group",
     iconOnly
       ? "relative flex h-9 items-center justify-center rounded-md"
       : "relative flex h-7 items-center gap-2 rounded-md px-3 text-base font-medium",
-    "transition-colors duration-100 ease-out",
+    "transition-all duration-150 ease-out",
     "focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 focus-visible:outline-offset-[-2px]",
     isActive && !iconOnly
-      ? "bg-indigo-50 text-indigo-700 pl-[10px] before:absolute before:left-0 before:top-1 before:h-5 before:w-0.5 before:rounded-r before:bg-indigo-500"
+      ? "bg-indigo-50/60 text-indigo-700 pl-[10px] before:absolute before:left-0 before:top-1 before:bottom-1 before:w-0.5 before:rounded-r before:bg-indigo-500"
       : isActive && iconOnly
-        ? "bg-indigo-50 text-indigo-700"
-        : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900",
+        ? "bg-indigo-50/60 text-indigo-700"
+        : "text-zinc-700 hover:bg-zinc-100/80 hover:text-zinc-900",
     item.disabled && "cursor-not-allowed text-zinc-400 hover:bg-transparent",
   );
 

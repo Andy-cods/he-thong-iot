@@ -109,8 +109,9 @@ else
   echo "--- 5. Global pages với chip filter ---"
   expect "GET /orders?bomTemplateId" "200" "$(status "$BASE_URL/orders?bomTemplateId=$BOM_ID")"
   expect "GET /work-orders?bomTemplateId" "200" "$(status "$BASE_URL/work-orders?bomTemplateId=$BOM_ID")"
-  expect "GET /shortage?bomTemplateId" "200" "$(status "$BASE_URL/shortage?bomTemplateId=$BOM_ID")"
-  expect "GET /eco?bomTemplateId" "200" "$(status "$BASE_URL/eco?bomTemplateId=$BOM_ID")"
+  # V1.8 — /shortage + /eco top-level đã xoá, redirect 307 về /bom
+  expect "GET /shortage?bomTemplateId (V1.8 307)" "307" "$(status "$BASE_URL/shortage?bomTemplateId=$BOM_ID")"
+  expect "GET /eco?bomTemplateId (V1.8 307)" "307" "$(status "$BASE_URL/eco?bomTemplateId=$BOM_ID")"
 fi
 
 echo
@@ -165,16 +166,26 @@ fi
 
 echo
 echo "--- 6. Core pages ---"
-expect "GET /" "200" "$(status "$BASE_URL/")"
+# V1.8 Batch 1 — Landing / redirect 307 → /bom
+expect "GET / (V1.8 redirect 307)" "307" "$(status "$BASE_URL/")"
+LANDING_FINAL=$(curl -sL -b "$COOKIE_JAR" -c "$COOKIE_JAR" -o /dev/null -w '%{url_effective}' "$BASE_URL/")
+expect "Follow / → /bom" "$BASE_URL/bom" "$LANDING_FINAL"
 expect "GET /items" "200" "$(status "$BASE_URL/items")"
 expect "GET /orders" "200" "$(status "$BASE_URL/orders")"
 expect "GET /work-orders" "200" "$(status "$BASE_URL/work-orders")"
-expect "GET /shortage" "200" "$(status "$BASE_URL/shortage")"
-expect "GET /eco" "200" "$(status "$BASE_URL/eco")"
 expect "GET /suppliers" "200" "$(status "$BASE_URL/suppliers")"
-expect "GET /product-lines" "200" "$(status "$BASE_URL/product-lines")"
 expect "GET /admin" "200" "$(status "$BASE_URL/admin")"
 expect "GET /bom (list)" "200" "$(status "$BASE_URL/bom")"
+# V1.8 Batch 1 — 3 route cũ redirect 307
+expect "GET /eco (V1.8 307 → /bom)" "307" "$(status "$BASE_URL/eco")"
+ECO_FINAL=$(curl -sL -b "$COOKIE_JAR" -c "$COOKIE_JAR" -o /dev/null -w '%{url_effective}' "$BASE_URL/eco")
+expect "Follow /eco → /bom" "$BASE_URL/bom" "$ECO_FINAL"
+expect "GET /shortage (V1.8 307 → /bom)" "307" "$(status "$BASE_URL/shortage")"
+SHORTAGE_FINAL=$(curl -sL -b "$COOKIE_JAR" -c "$COOKIE_JAR" -o /dev/null -w '%{url_effective}' "$BASE_URL/shortage")
+expect "Follow /shortage → /bom" "$BASE_URL/bom" "$SHORTAGE_FINAL"
+expect "GET /product-lines (V1.8 307 → /items)" "307" "$(status "$BASE_URL/product-lines")"
+PL_FINAL=$(curl -sL -b "$COOKIE_JAR" -c "$COOKIE_JAR" -o /dev/null -w '%{url_effective}' "$BASE_URL/product-lines")
+expect "Follow /product-lines → /items" "$BASE_URL/items" "$PL_FINAL"
 
 echo
 echo "=== SUMMARY ==="
