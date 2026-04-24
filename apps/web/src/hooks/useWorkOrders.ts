@@ -20,6 +20,29 @@ export type WorkOrderStatus =
   | "COMPLETED"
   | "CANCELLED";
 
+/** V1.9-P4 — routing step JSONB. */
+export interface RoutingStep {
+  step_no: number;
+  name: string;
+  machine?: string | null;
+  setup_min?: number | null;
+  cycle_min?: number | null;
+  operator_id?: string | null;
+  status?: "PENDING" | "IN_PROGRESS" | "DONE" | "SKIPPED";
+  notes?: string | null;
+}
+
+/** V1.9-P4 — material requirement JSONB. */
+export interface MaterialRequirement {
+  item_id?: string | null;
+  sku?: string | null;
+  name: string;
+  qty: number;
+  uom?: string | null;
+  allocated_qty?: number;
+  lot_codes?: string[];
+}
+
 export interface WorkOrderRow {
   id: string;
   woNo: string;
@@ -38,10 +61,44 @@ export interface WorkOrderRow {
   releasedAt: string | null;
   completedAt: string | null;
   notes: string | null;
+  /** V1.9-P4. */
+  routingPlan: RoutingStep[] | null;
+  materialRequirements: MaterialRequirement[] | null;
+  technicalDrawingUrl: string | null;
+  toleranceSpecs: Record<string, unknown> | null;
+  estimatedHours: string | null;
+  actualHours: string | null;
   versionLock: number;
   createdAt: string;
   createdBy: string | null;
   orderNo: string | null;
+}
+
+export type WoProgressStepType =
+  | "PROGRESS_REPORT"
+  | "PAUSE"
+  | "RESUME"
+  | "QC_PASS"
+  | "QC_FAIL"
+  | "ISSUE"
+  | "NOTE"
+  | "PHOTO";
+
+export interface WoProgressLogRow {
+  id: string;
+  workOrderId: string;
+  workOrderLineId: string | null;
+  stepType: WoProgressStepType;
+  qtyCompleted: string;
+  qtyScrap: string;
+  notes: string | null;
+  photoUrl: string | null;
+  operatorId: string | null;
+  operatorUsername: string | null;
+  operatorDisplayName: string | null;
+  station: string | null;
+  durationMinutes: number | null;
+  createdAt: string;
 }
 
 export interface WorkOrderLineRow {
@@ -201,6 +258,206 @@ export function useCancelWorkOrder(id: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.workOrders.detail(id) });
       qc.invalidateQueries({ queryKey: qk.workOrders.all });
+    },
+  });
+}
+
+// ============================================================================
+// V1.9 Phase 4 — progress log hooks
+// ============================================================================
+
+export function useWoProgressLog(woId: string | null) {
+  return useQuery({
+    queryKey: woId
+      ? qk.workOrders.progressLog(woId)
+      : (["workOrders", "__none__", "progress-log"] as const),
+    queryFn: () =>
+      request<{ data: WoProgressLogRow[]; meta: { total: number } }>(
+        `/api/work-orders/${woId}/progress-log`,
+      ),
+    enabled: !!woId,
+    staleTime: 10_000,
+  });
+}
+
+export interface ProgressLogInput {
+  workOrderLineId?: string | null;
+  stepType: WoProgressStepType;
+  qtyCompleted?: number;
+  qtyScrap?: number;
+  notes?: string | null;
+  photoUrl?: string | null;
+  station?: string | null;
+  durationMinutes?: number | null;
+}
+
+export function useCreateProgressLog(woId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: ProgressLogInput) =>
+      request<{ data: WoProgressLogRow }>(
+        `/api/work-orders/${woId}/progress-log`,
+        {
+          method: "POST",
+          body: JSON.stringify(data),
+        },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.workOrders.progressLog(woId) });
+      qc.invalidateQueries({ queryKey: qk.workOrders.detail(woId) });
+      qc.invalidateQueries({ queryKey: qk.workOrders.audit(woId) });
+    },
+  });
+}
+
+export function useDeleteProgressLog(woId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (entryId: string) =>
+      request<{ data: { id: string; deleted: boolean } }>(
+        `/api/work-orders/${woId}/progress-log/${entryId}`,
+        { method: "DELETE" },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.workOrders.progressLog(woId) });
+      qc.invalidateQueries({ queryKey: qk.workOrders.detail(woId) });
+    },
+  });
+}
+
+// ============================================================================
+// V1.9 Phase 4 — PATCH WO (routing/material/tolerance)
+// ============================================================================
+
+export interface UpdateWoInput {
+  priority?: "LOW" | "NORMAL" | "HIGH" | "URGENT";
+  plannedStart?: string | null;
+  plannedEnd?: string | null;
+  notes?: string | null;
+  routingPlan?: RoutingStep[];
+  materialRequirements?: MaterialRequirement[];
+  technicalDrawingUrl?: string | null;
+  toleranceSpecs?: Record<string, unknown>;
+  estimatedHours?: number | null;
+  versionLock: number;
+}
+
+export function useUpdateWorkOrder(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: UpdateWoInput) =>
+      request<{ data: WorkOrderRow }>(`/api/work-orders/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.workOrders.detail(id) });
+    },
+  });
+}
+
+// ============================================================================
+// V1.9 Phase 4 — QC check items hooks
+// ============================================================================
+
+export type QcCheckItemResult = "PENDING" | "PASS" | "FAIL" | "NA";
+export type QcCheckItemType = "BOOLEAN" | "MEASUREMENT" | "VISUAL";
+
+export interface QcCheckItemRow {
+  id: string;
+  qcCheckId: string;
+  description: string;
+  checkType: QcCheckItemType;
+  expectedValue: string | null;
+  actualValue: string | null;
+  result: QcCheckItemResult;
+  defectReason: string | null;
+  photoUrl: string | null;
+  checkedBy: string | null;
+  checkedAt: string | null;
+  sortOrder: number;
+  createdAt: string;
+}
+
+export function useQcCheckItems(checkId: string | null) {
+  return useQuery({
+    queryKey: checkId
+      ? qk.workOrders.qcItems(checkId)
+      : (["workOrders", "qc-items", "__none__"] as const),
+    queryFn: () =>
+      request<{ data: QcCheckItemRow[] }>(`/api/qc-checks/${checkId}/items`),
+    enabled: !!checkId,
+    staleTime: 5_000,
+  });
+}
+
+export function useBulkCreateQcItems(checkId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (
+      items: Array<{
+        description: string;
+        checkType?: QcCheckItemType;
+        expectedValue?: string | null;
+        sortOrder?: number;
+      }>,
+    ) =>
+      request<{ data: QcCheckItemRow[] }>(
+        `/api/qc-checks/${checkId}/items`,
+        { method: "POST", body: JSON.stringify({ items }) },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.workOrders.qcItems(checkId) });
+    },
+  });
+}
+
+export function useUpdateQcItem(checkId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      id: string;
+      description?: string;
+      checkType?: QcCheckItemType;
+      expectedValue?: string | null;
+      actualValue?: string | null;
+      result?: QcCheckItemResult;
+      defectReason?: string | null;
+      photoUrl?: string | null;
+      sortOrder?: number;
+    }) =>
+      request<{ data: QcCheckItemRow }>(
+        `/api/qc-checks/${checkId}/items/${data.id}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            description: data.description,
+            checkType: data.checkType,
+            expectedValue: data.expectedValue,
+            actualValue: data.actualValue,
+            result: data.result,
+            defectReason: data.defectReason,
+            photoUrl: data.photoUrl,
+            sortOrder: data.sortOrder,
+          }),
+        },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.workOrders.qcItems(checkId) });
+    },
+  });
+}
+
+export function useDeleteQcItem(checkId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      request<{ data: { id: string; deleted: boolean } }>(
+        `/api/qc-checks/${checkId}/items/${id}`,
+        { method: "DELETE" },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.workOrders.qcItems(checkId) });
     },
   });
 }

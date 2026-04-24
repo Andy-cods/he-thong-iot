@@ -136,6 +136,35 @@ if [[ -n "$SMOKE_ORDER_CODE" ]]; then
   fi
 fi
 
+# --- V1.9 Phase 4: WO detail endpoints (progress-log + qc-items) ---
+# Chạy khi có SMOKE_WO_ID (1 WO có thật trong DB).
+SMOKE_WO_ID="${SMOKE_WO_ID:-}"
+SMOKE_QC_CHECK_ID="${SMOKE_QC_CHECK_ID:-}"
+if [[ -n "$SMOKE_WO_ID" ]]; then
+  # GET progress-log — RBAC read wo (admin/planner/operator/warehouse đều ok).
+  check admin     GET "/api/work-orders/$SMOKE_WO_ID/progress-log"   "200"         "admin đọc progress-log"
+  check planner   GET "/api/work-orders/$SMOKE_WO_ID/progress-log"   "200"         "planner đọc progress-log"
+  check operator  GET "/api/work-orders/$SMOKE_WO_ID/progress-log"   "200"         "operator đọc progress-log"
+  check warehouse GET "/api/work-orders/$SMOKE_WO_ID/progress-log"   "200"         "warehouse đọc progress-log"
+
+  # POST progress-log body rỗng → 422 validation.
+  check admin     POST "/api/work-orders/$SMOKE_WO_ID/progress-log"  "400 422"     "POST progress-log empty → validation"
+
+  # DELETE entry không tồn tại — admin 404, non-admin 403.
+  check admin     DELETE "/api/work-orders/$SMOKE_WO_ID/progress-log/00000000-0000-0000-0000-000000000000" "404" "admin xóa entry không tồn tại → 404"
+  check planner   DELETE "/api/work-orders/$SMOKE_WO_ID/progress-log/00000000-0000-0000-0000-000000000000" "403" "planner KHÔNG xóa entry được → 403"
+  check operator  DELETE "/api/work-orders/$SMOKE_WO_ID/progress-log/00000000-0000-0000-0000-000000000000" "403" "operator KHÔNG xóa entry được → 403"
+
+  # PATCH WO routingPlan empty versionLock → 422.
+  check admin     PATCH "/api/work-orders/$SMOKE_WO_ID"              "400 422"     "PATCH wo empty → validation"
+fi
+
+if [[ -n "$SMOKE_QC_CHECK_ID" ]]; then
+  check admin     GET "/api/qc-checks/$SMOKE_QC_CHECK_ID/items"      "200"         "admin đọc qc-items"
+  check operator  GET "/api/qc-checks/$SMOKE_QC_CHECK_ID/items"      "200"         "operator đọc qc-items"
+  check admin     POST "/api/qc-checks/$SMOKE_QC_CHECK_ID/items"     "400 422"     "POST qc-items empty → validation"
+fi
+
 log "==============================="
 log "Total: $TOTAL  Pass: $PASS_COUNT  Fail: $FAIL_COUNT"
 if [[ "$FAIL_COUNT" -gt 0 ]]; then

@@ -143,6 +143,13 @@ export const qk = {
       ["workOrders", "list", filter] as const,
     detail: (id: string) => ["workOrders", "detail", id] as const,
     qcChecks: (id: string) => ["workOrders", "qc-checks", id] as const,
+    /** V1.9-P4 — nhật ký tiến độ thật. */
+    progressLog: (id: string) => ["workOrders", id, "progress-log"] as const,
+    /** V1.9-P4 — audit merged timeline. */
+    audit: (id: string) => ["workOrders", id, "audit"] as const,
+    /** V1.9-P4 — QC checklist items per stage. */
+    qcItems: (checkId: string) =>
+      ["workOrders", "qc-items", checkId] as const,
   },
   productLines: {
     all: ["productLines"] as const,

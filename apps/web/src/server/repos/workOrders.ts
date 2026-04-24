@@ -270,6 +270,12 @@ export interface UpdateWorkOrderInput {
   plannedStart?: Date | null;
   plannedEnd?: Date | null;
   notes?: string | null;
+  /** V1.9-P4 — JSONB metadata. */
+  routingPlan?: unknown;
+  materialRequirements?: unknown;
+  technicalDrawingUrl?: string | null;
+  toleranceSpecs?: unknown;
+  estimatedHours?: number | null;
   expectedVersionLock: number;
 }
 
@@ -288,6 +294,16 @@ export async function updateWorkOrder(
       ? patch.plannedEnd.toISOString().slice(0, 10)
       : null;
   if (patch.notes !== undefined) values.notes = patch.notes;
+  if (patch.routingPlan !== undefined) values.routingPlan = patch.routingPlan;
+  if (patch.materialRequirements !== undefined)
+    values.materialRequirements = patch.materialRequirements;
+  if (patch.technicalDrawingUrl !== undefined)
+    values.technicalDrawingUrl = patch.technicalDrawingUrl;
+  if (patch.toleranceSpecs !== undefined)
+    values.toleranceSpecs = patch.toleranceSpecs;
+  if (patch.estimatedHours !== undefined)
+    values.estimatedHours =
+      patch.estimatedHours === null ? null : String(patch.estimatedHours);
   values.versionLock = sql`${workOrder.versionLock} + 1`;
 
   const rows = await db

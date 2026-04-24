@@ -32,7 +32,7 @@ export const workOrderStatusEnum = pgEnum("work_order_status", [
   "CANCELLED",
 ]);
 
-/** Bảng 15a: work_order (V1.3 enhanced) */
+/** Bảng 15a: work_order (V1.3 enhanced + V1.9-P4 routing/material/tolerance). */
 export const workOrder = appSchema.table(
   "work_order",
   {
@@ -59,6 +59,17 @@ export const workOrder = appSchema.table(
     releasedAt: timestamp("released_at", { withTimezone: true }),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     notes: text("notes"),
+    /** V1.9-P4 — routing steps array JSONB. */
+    routingPlan: jsonb("routing_plan"),
+    /** V1.9-P4 — material requirements array JSONB. */
+    materialRequirements: jsonb("material_requirements"),
+    /** V1.9-P4 — URL bản vẽ kỹ thuật. */
+    technicalDrawingUrl: text("technical_drawing_url"),
+    /** V1.9-P4 — tolerance specs object JSONB. */
+    toleranceSpecs: jsonb("tolerance_specs"),
+    /** V1.9-P4 — giờ ước tính + giờ thực tế. */
+    estimatedHours: numeric("estimated_hours", { precision: 10, scale: 2 }),
+    actualHours: numeric("actual_hours", { precision: 10, scale: 2 }),
     versionLock: integer("version_lock").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -134,9 +145,61 @@ export const workOrderLine = appSchema.table(
   }),
 );
 
+/**
+ * V1.9-P4 — nhật ký tiến độ WO thời gian thực.
+ * step_type: PROGRESS_REPORT | PAUSE | RESUME | QC_PASS | QC_FAIL | ISSUE | NOTE | PHOTO.
+ */
+export const woProgressLog = appSchema.table(
+  "wo_progress_log",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    workOrderId: uuid("work_order_id")
+      .notNull()
+      .references(() => workOrder.id, { onDelete: "cascade" }),
+    workOrderLineId: uuid("work_order_line_id").references(
+      () => workOrderLine.id,
+      { onDelete: "cascade" },
+    ),
+    stepType: varchar("step_type", { length: 50 }).notNull(),
+    qtyCompleted: numeric("qty_completed", { precision: 18, scale: 4 })
+      .notNull()
+      .default("0"),
+    qtyScrap: numeric("qty_scrap", { precision: 18, scale: 4 })
+      .notNull()
+      .default("0"),
+    notes: text("notes"),
+    photoUrl: text("photo_url"),
+    operatorId: uuid("operator_id").references(() => userAccount.id, {
+      onDelete: "set null",
+    }),
+    station: varchar("station", { length: 100 }),
+    durationMinutes: integer("duration_minutes"),
+    metadata: jsonb("metadata").notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (t) => ({
+    woIdx: index("wo_progress_log_wo_idx").on(t.workOrderId, t.createdAt),
+    lineIdx: index("wo_progress_log_line_idx").on(t.workOrderLineId),
+    stepIdx: index("wo_progress_log_step_idx").on(t.workOrderId, t.stepType),
+  }),
+);
+
 export type WorkOrder = typeof workOrder.$inferSelect;
 export type NewWorkOrder = typeof workOrder.$inferInsert;
 export type WorkOrderProgress = typeof workOrderProgress.$inferSelect;
 export type WorkOrderLine = typeof workOrderLine.$inferSelect;
 export type NewWorkOrderLine = typeof workOrderLine.$inferInsert;
 export type WorkOrderStatus = (typeof workOrderStatusEnum.enumValues)[number];
+export type WoProgressLog = typeof woProgressLog.$inferSelect;
+export type NewWoProgressLog = typeof woProgressLog.$inferInsert;
+export type WoProgressStepType =
+  | "PROGRESS_REPORT"
+  | "PAUSE"
+  | "RESUME"
+  | "QC_PASS"
+  | "QC_FAIL"
+  | "ISSUE"
+  | "NOTE"
+  | "PHOTO";
