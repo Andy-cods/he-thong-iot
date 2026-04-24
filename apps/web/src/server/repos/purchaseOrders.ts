@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import {
   purchaseOrder,
   purchaseOrderLine,
@@ -35,6 +35,11 @@ export interface ListPOsQuery {
   prId?: string;
   /** V1.8 — filter PO theo BOM (JOIN qua sales_order.bom_template_id). */
   bomTemplateId?: string;
+  /** V1.9-P9: free-text search poNo / supplierName / supplierCode. */
+  q?: string;
+  /** V1.9-P9: filter theo orderDate range. */
+  from?: Date | null;
+  to?: Date | null;
   page: number;
   pageSize: number;
 }
@@ -54,6 +59,25 @@ export async function listPOs(q: ListPOsQuery) {
   if (q.bomTemplateId) {
     where.push(eq(salesOrder.bomTemplateId, q.bomTemplateId));
   }
+  if (q.q) {
+    const like = `%${q.q}%`;
+    const combined = or(
+      ilike(purchaseOrder.poNo, like),
+      ilike(supplier.code, like),
+      ilike(supplier.name, like),
+    );
+    if (combined) where.push(combined);
+  }
+  if (q.from) {
+    where.push(
+      sql`${purchaseOrder.orderDate} >= ${q.from.toISOString().slice(0, 10)}`,
+    );
+  }
+  if (q.to) {
+    where.push(
+      sql`${purchaseOrder.orderDate} <= ${q.to.toISOString().slice(0, 10)}`,
+    );
+  }
 
   const whereExpr = where.length > 0 ? and(...where) : sql`true`;
   const offset = (q.page - 1) * q.pageSize;
@@ -62,6 +86,7 @@ export async function listPOs(q: ListPOsQuery) {
     db
       .select({ count: sql<number>`count(*)::int` })
       .from(purchaseOrder)
+      .leftJoin(supplier, eq(purchaseOrder.supplierId, supplier.id))
       .leftJoin(salesOrder, eq(salesOrder.id, purchaseOrder.linkedOrderId))
       .where(whereExpr),
     db
@@ -80,9 +105,10 @@ export async function listPOs(q: ListPOsQuery) {
         linkedOrderId: purchaseOrder.linkedOrderId,
         notes: purchaseOrder.notes,
         sentAt: purchaseOrder.sentAt,
-        receivedAt: purchaseOrder.receivedAt,
+        cancelledAt: purchaseOrder.cancelledAt,
         createdAt: purchaseOrder.createdAt,
-        updatedAt: purchaseOrder.updatedAt,
+        createdBy: purchaseOrder.createdBy,
+        metadata: purchaseOrder.metadata,
       })
       .from(purchaseOrder)
       .leftJoin(supplier, eq(purchaseOrder.supplierId, supplier.id))
@@ -114,12 +140,14 @@ export async function getPOLines(poId: string) {
       itemId: purchaseOrderLine.itemId,
       itemSku: item.sku,
       itemName: item.name,
-      unit: purchaseOrderLine.unit,
+      itemUom: item.uom,
       orderedQty: purchaseOrderLine.orderedQty,
       receivedQty: purchaseOrderLine.receivedQty,
       unitPrice: purchaseOrderLine.unitPrice,
+      taxRate: purchaseOrderLine.taxRate,
       lineTotal: purchaseOrderLine.lineTotal,
       expectedEta: purchaseOrderLine.expectedEta,
+      snapshotLineId: purchaseOrderLine.snapshotLineId,
       notes: purchaseOrderLine.notes,
     })
     .from(purchaseOrderLine)
@@ -230,19 +258,29 @@ export async function createPOFromPR(
 
 export interface CreatePOManualInput {
   supplierId: string;
+  prId?: string | null;
   linkedOrderId?: string | null;
   expectedEta?: Date | null;
   currency?: string;
+  paymentTerms?: string | null;
+  deliveryAddress?: string | null;
   notes?: string | null;
+  autoApprove?: boolean;
   createdBy: string | null;
   lines: Array<{
     itemId: string;
     orderedQty: number;
     unitPrice?: number;
+    taxRate?: number;
     snapshotLineId?: string | null;
     expectedEta?: Date | null;
     notes?: string | null;
   }>;
+}
+
+/** V1.9-P9: tính line_total = qty * price * (1 + tax/100). */
+function computeLineTotal(qty: number, price: number, taxRate: number): number {
+  return Math.round(qty * price * (1 + taxRate / 100) * 100) / 100;
 }
 
 /** Tạo PO thủ công (không từ PR). */
@@ -261,34 +299,65 @@ export async function createPO(
     const cnt = (cntRows as unknown as Array<{ c: number }>)[0]?.c ?? 0;
     const poNo = `PO-${yymm}-MAN-${(cnt + 1).toString().padStart(3, "0")}`;
 
+    // Tính totalAmount từ lines.
+    let total = 0;
+    const linesPrepared = input.lines.map((l, idx) => {
+      const qty = Number(l.orderedQty);
+      const price = Number(l.unitPrice ?? 0);
+      const tax = Number(l.taxRate ?? 8);
+      const lineTotal = computeLineTotal(qty, price, tax);
+      total += lineTotal;
+      return {
+        poId: "",
+        lineNo: idx + 1,
+        itemId: l.itemId,
+        orderedQty: String(qty),
+        unitPrice: String(price),
+        taxRate: String(tax),
+        lineTotal: String(lineTotal),
+        snapshotLineId: l.snapshotLineId ?? null,
+        expectedEta: l.expectedEta
+          ? l.expectedEta.toISOString().slice(0, 10)
+          : null,
+        notes: l.notes ?? null,
+      };
+    });
+
+    const approve = input.autoApprove === true;
+    const now = new Date();
+    const metadata: Record<string, unknown> = approve
+      ? {
+          approvalStatus: "approved",
+          approvedBy: input.createdBy ?? undefined,
+          approvedAt: now.toISOString(),
+        }
+      : {};
+
     const [header] = await tx
       .insert(purchaseOrder)
       .values({
         poNo,
         supplierId: input.supplierId,
+        prId: input.prId ?? null,
         linkedOrderId: input.linkedOrderId ?? null,
         expectedEta: input.expectedEta
           ? input.expectedEta.toISOString().slice(0, 10)
           : null,
         currency: input.currency ?? "VND",
+        paymentTerms: input.paymentTerms ?? null,
+        deliveryAddress: input.deliveryAddress ?? null,
         notes: input.notes ?? null,
-        status: "DRAFT",
+        status: approve ? "SENT" : "DRAFT",
+        sentAt: approve ? now : null,
+        totalAmount: String(total),
+        metadata,
         createdBy: input.createdBy,
       })
       .returning();
     if (!header) throw new Error("PO_INSERT_FAILED");
 
     await tx.insert(purchaseOrderLine).values(
-      input.lines.map((l, idx) => ({
-        poId: header.id,
-        lineNo: idx + 1,
-        itemId: l.itemId,
-        orderedQty: String(l.orderedQty),
-        unitPrice: String(l.unitPrice ?? 0),
-        snapshotLineId: l.snapshotLineId ?? null,
-        expectedEta: l.expectedEta ? l.expectedEta.toISOString().slice(0, 10) : null,
-        notes: l.notes ?? null,
-      })),
+      linesPrepared.map((l) => ({ ...l, poId: header.id })),
     );
 
     return header;
@@ -302,4 +371,161 @@ export async function sendPO(id: string): Promise<PurchaseOrder | null> {
     .where(and(eq(purchaseOrder.id, id), eq(purchaseOrder.status, "DRAFT")))
     .returning();
   return row ?? null;
+}
+
+/**
+ * V1.9-P9: submit PO DRAFT → pending approval (metadata.approvalStatus).
+ */
+export async function submitPOForApproval(
+  id: string,
+  userId: string | null,
+): Promise<PurchaseOrder | null> {
+  const [before] = await db
+    .select()
+    .from(purchaseOrder)
+    .where(eq(purchaseOrder.id, id))
+    .limit(1);
+  if (!before) return null;
+  if (before.status !== "DRAFT") throw new Error("NOT_DRAFT");
+
+  const metadata = {
+    ...((before.metadata as Record<string, unknown>) ?? {}),
+    approvalStatus: "pending",
+    submittedBy: userId ?? undefined,
+    submittedAt: new Date().toISOString(),
+  };
+
+  const [row] = await db
+    .update(purchaseOrder)
+    .set({ metadata })
+    .where(eq(purchaseOrder.id, id))
+    .returning();
+  return row ?? null;
+}
+
+export async function approvePO(
+  id: string,
+  userId: string | null,
+  notes?: string | null,
+): Promise<PurchaseOrder | null> {
+  const [before] = await db
+    .select()
+    .from(purchaseOrder)
+    .where(eq(purchaseOrder.id, id))
+    .limit(1);
+  if (!before) return null;
+  if (before.status !== "DRAFT") throw new Error("NOT_DRAFT");
+
+  const metadata = {
+    ...((before.metadata as Record<string, unknown>) ?? {}),
+    approvalStatus: "approved",
+    approvedBy: userId ?? undefined,
+    approvedAt: new Date().toISOString(),
+    approvalNotes: notes ?? null,
+  };
+
+  const [row] = await db
+    .update(purchaseOrder)
+    .set({ metadata })
+    .where(eq(purchaseOrder.id, id))
+    .returning();
+  return row ?? null;
+}
+
+export async function rejectPO(
+  id: string,
+  userId: string | null,
+  reason: string,
+): Promise<PurchaseOrder | null> {
+  const [before] = await db
+    .select()
+    .from(purchaseOrder)
+    .where(eq(purchaseOrder.id, id))
+    .limit(1);
+  if (!before) return null;
+  if (before.status !== "DRAFT") throw new Error("NOT_DRAFT");
+
+  const metadata = {
+    ...((before.metadata as Record<string, unknown>) ?? {}),
+    approvalStatus: "rejected",
+    rejectedBy: userId ?? undefined,
+    rejectedAt: new Date().toISOString(),
+    rejectedReason: reason,
+  };
+
+  const [row] = await db
+    .update(purchaseOrder)
+    .set({ metadata })
+    .where(eq(purchaseOrder.id, id))
+    .returning();
+  return row ?? null;
+}
+
+/**
+ * V1.9-P9 — list PO cho export kế toán (join đầy đủ để xuất Excel).
+ */
+export async function listPOsForExport(q: {
+  status?: PurchaseOrderStatus[];
+  supplierId?: string;
+  from?: Date | null;
+  to?: Date | null;
+}) {
+  const where: SQL[] = [];
+  if (q.status && q.status.length > 0) {
+    where.push(
+      inArray(
+        purchaseOrder.status,
+        q.status as unknown as (typeof purchaseOrder.status.enumValues)[number][],
+      ),
+    );
+  }
+  if (q.supplierId) where.push(eq(purchaseOrder.supplierId, q.supplierId));
+  if (q.from) {
+    where.push(
+      sql`${purchaseOrder.orderDate} >= ${q.from.toISOString().slice(0, 10)}`,
+    );
+  }
+  if (q.to) {
+    where.push(
+      sql`${purchaseOrder.orderDate} <= ${q.to.toISOString().slice(0, 10)}`,
+    );
+  }
+  const whereExpr = where.length > 0 ? and(...where) : sql`true`;
+
+  const rows = await db
+    .select({
+      poId: purchaseOrder.id,
+      poNo: purchaseOrder.poNo,
+      orderDate: purchaseOrder.orderDate,
+      expectedEta: purchaseOrder.expectedEta,
+      actualDeliveryDate: purchaseOrder.actualDeliveryDate,
+      status: purchaseOrder.status,
+      totalAmount: purchaseOrder.totalAmount,
+      currency: purchaseOrder.currency,
+      prId: purchaseOrder.prId,
+      supplierId: purchaseOrder.supplierId,
+      supplierCode: supplier.code,
+      supplierName: supplier.name,
+      supplierTaxCode: supplier.taxCode,
+      createdByName: sql<string | null>`null`,
+      lineNo: purchaseOrderLine.lineNo,
+      itemSku: item.sku,
+      itemName: item.name,
+      itemUom: item.uom,
+      orderedQty: purchaseOrderLine.orderedQty,
+      unitPrice: purchaseOrderLine.unitPrice,
+      taxRate: purchaseOrderLine.taxRate,
+      lineTotal: purchaseOrderLine.lineTotal,
+    })
+    .from(purchaseOrder)
+    .innerJoin(
+      purchaseOrderLine,
+      eq(purchaseOrderLine.poId, purchaseOrder.id),
+    )
+    .leftJoin(supplier, eq(supplier.id, purchaseOrder.supplierId))
+    .leftJoin(item, eq(item.id, purchaseOrderLine.itemId))
+    .where(whereExpr)
+    .orderBy(desc(purchaseOrder.createdAt), purchaseOrderLine.lineNo);
+
+  return rows;
 }
