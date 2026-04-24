@@ -445,6 +445,8 @@ export default function OrderDetailPage({
 
           <TabsContent value="production">
             <ProductionProgressPanel
+              order={order}
+              orderCode={code}
               data={productionSummaryQuery.data?.data ?? null}
               loading={productionSummaryQuery.isLoading}
               error={
@@ -453,6 +455,14 @@ export default function OrderDetailPage({
                     "Không tải được dữ liệu sản xuất."
                   : null
               }
+              canEdit={
+                order.status !== "CLOSED" &&
+                order.status !== "CANCELLED" &&
+                (session.data?.roles?.some((r) =>
+                  ["admin", "planner", "operator"].includes(r),
+                ) ?? false)
+              }
+              isAdmin={isAdmin}
             />
           </TabsContent>
 

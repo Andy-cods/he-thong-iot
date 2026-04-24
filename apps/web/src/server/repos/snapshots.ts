@@ -485,6 +485,87 @@ export async function transitionState(
   return first;
 }
 
+export interface UpdateSnapshotLineInput {
+  lineId: string;
+  expectedVersionLock: number;
+  userId: string | null;
+  requiredQty?: number;
+  grossRequiredQty?: number;
+  qcPassQty?: number;
+  state?: BomSnapshotLineState;
+  notes?: string | null;
+}
+
+/**
+ * V1.9 Phase 3 — update 1 snapshot line từ tab Sản xuất order detail.
+ *
+ * Cho phép điều chỉnh required/gross/qcPass/state/notes trong 1 PATCH call.
+ * Nếu đổi state: validate transition (hoặc admin override ngoài repo).
+ * Optimistic lock versionLock giống transitionState.
+ */
+export async function updateSnapshotLine(
+  input: UpdateSnapshotLineInput,
+  options: { adminOverride?: boolean } = {},
+): Promise<BomSnapshotLine> {
+  const [current] = await db
+    .select({
+      state: bomSnapshotLine.state,
+      versionLock: bomSnapshotLine.versionLock,
+    })
+    .from(bomSnapshotLine)
+    .where(eq(bomSnapshotLine.id, input.lineId))
+    .limit(1);
+  if (!current) throw new Error("SNAPSHOT_LINE_NOT_FOUND");
+
+  const values: Record<string, unknown> = {
+    versionLock: current.versionLock + 1,
+    updatedAt: new Date(),
+  };
+
+  if (input.requiredQty !== undefined)
+    values.requiredQty = input.requiredQty.toFixed(6);
+  if (input.grossRequiredQty !== undefined)
+    values.grossRequiredQty = input.grossRequiredQty.toFixed(6);
+  if (input.qcPassQty !== undefined)
+    values.qcPassQty = input.qcPassQty.toFixed(6);
+  if (input.notes !== undefined) values.notes = input.notes;
+
+  if (input.state !== undefined && input.state !== current.state) {
+    if (
+      !canTransition(current.state, input.state, {
+        adminOverride: options.adminOverride,
+      })
+    ) {
+      throw new StateTransitionError(
+        `Không thể transition ${current.state} → ${input.state}`,
+      );
+    }
+    values.state = input.state;
+    values.transitionedAt = new Date();
+    values.transitionedBy = input.userId;
+  }
+
+  const rows = await db
+    .update(bomSnapshotLine)
+    .set(values)
+    .where(
+      and(
+        eq(bomSnapshotLine.id, input.lineId),
+        eq(bomSnapshotLine.versionLock, input.expectedVersionLock),
+      ),
+    )
+    .returning();
+
+  if (rows.length === 0) {
+    throw new ConflictError(
+      "Snapshot line đã bị sửa bởi người khác. Vui lòng tải lại trang.",
+    );
+  }
+  const first = rows[0];
+  if (!first) throw new Error("SNAPSHOT_LINE_UPDATE_FAILED");
+  return first;
+}
+
 /** Lấy template code của 1 revision — tiện cho API response. */
 export async function getRevisionTemplateCode(revisionId: string) {
   const [row] = await db

@@ -97,7 +97,21 @@ export const orderListQuerySchema = z.object({
   pageSize: z.coerce.number().int().positive().max(200).default(50),
 });
 
+/**
+ * V1.9 Phase 3 — PATCH ghi chú sản xuất cho 1 order.
+ * KISS: 1 textarea (thay thế notes cũ), lịch sử đi qua audit_event.
+ */
+export const orderProductionNotesSchema = z.object({
+  productionNotes: z
+    .string()
+    .trim()
+    .max(4000, "Ghi chú tối đa 4000 ký tự")
+    .optional()
+    .nullable(),
+});
+
 export type OrderCreate = z.infer<typeof orderCreateSchema>;
 export type OrderUpdate = z.infer<typeof orderUpdateSchema>;
 export type OrderClose = z.infer<typeof orderCloseSchema>;
 export type OrderListQuery = z.infer<typeof orderListQuerySchema>;
+export type OrderProductionNotesInput = z.infer<typeof orderProductionNotesSchema>;

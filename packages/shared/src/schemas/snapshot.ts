@@ -166,3 +166,46 @@ export const snapshotLineListQuerySchema = z.object({
 export type SnapshotTransitionInput = z.infer<typeof snapshotTransitionSchema>;
 export type SnapshotExplodeInput = z.infer<typeof snapshotExplodeSchema>;
 export type SnapshotLineListQuery = z.infer<typeof snapshotLineListQuerySchema>;
+
+/**
+ * V1.9 Phase 3 — PATCH 1 snapshot line từ tab Sản xuất của Order detail.
+ *
+ * Cho phép planner/admin/operator điều chỉnh required/available (qcPassQty)
+ * + state + notes. Mọi field optional (partial update), nhưng phải có ít
+ * nhất 1 field data. `expectedVersionLock` bắt buộc để chống race.
+ */
+export const snapshotLineUpdateSchema = z
+  .object({
+    requiredQty: z.coerce
+      .number()
+      .nonnegative("Số lượng yêu cầu phải >= 0")
+      .max(1_000_000_000, "Số lượng quá lớn")
+      .optional(),
+    grossRequiredQty: z.coerce
+      .number()
+      .nonnegative("Gross required phải >= 0")
+      .max(1_000_000_000, "Số lượng quá lớn")
+      .optional(),
+    qcPassQty: z.coerce
+      .number()
+      .nonnegative("Available phải >= 0")
+      .max(1_000_000_000, "Số lượng quá lớn")
+      .optional(),
+    state: bomSnapshotStateSchema.optional(),
+    notes: z.string().trim().max(2000, "Ghi chú tối đa 2000 ký tự").optional().nullable(),
+    expectedVersionLock: z.coerce.number().int().nonnegative(),
+  })
+  .refine(
+    (v) =>
+      v.requiredQty !== undefined ||
+      v.grossRequiredQty !== undefined ||
+      v.qcPassQty !== undefined ||
+      v.state !== undefined ||
+      v.notes !== undefined,
+    {
+      message: "Phải cung cấp ít nhất 1 trường dữ liệu cập nhật.",
+      path: ["_"],
+    },
+  );
+
+export type SnapshotLineUpdateInput = z.infer<typeof snapshotLineUpdateSchema>;

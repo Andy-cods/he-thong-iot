@@ -46,6 +46,14 @@ export const salesOrder = appSchema.table(
     snapshotAt: timestamp("snapshot_at", { withTimezone: true }),
     snapshotBy: uuid("snapshot_by").references(() => userAccount.id),
     closedAt: timestamp("closed_at", { withTimezone: true }),
+    /** V1.9 Phase 3: ghi chú sản xuất (1 textarea, lịch sử qua audit_event). */
+    productionNotes: text("production_notes"),
+    productionNotesUpdatedAt: timestamp("production_notes_updated_at", {
+      withTimezone: true,
+    }),
+    productionNotesUpdatedBy: uuid("production_notes_updated_by").references(
+      () => userAccount.id,
+    ),
     /** V1.2 optimistic lock — tăng mỗi UPDATE, WHERE version_lock = $expected */
     versionLock: integer("version_lock").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true })

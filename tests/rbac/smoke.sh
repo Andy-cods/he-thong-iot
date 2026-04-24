@@ -123,6 +123,19 @@ check planner   GET  /api/admin/users         "200" "planner đọc user"
 check operator  GET  /api/admin/users         "200" "operator đọc user"
 check warehouse GET  /api/admin/users         "200" "warehouse đọc user"
 
+# --- V1.9 Phase 3: order production endpoints ---
+# Cần 1 order có thật: expose qua env ORDER_CODE nếu muốn full test.
+SMOKE_ORDER_CODE="${SMOKE_ORDER_CODE:-}"
+SMOKE_SNAPSHOT_LINE_ID="${SMOKE_SNAPSHOT_LINE_ID:-}"
+if [[ -n "$SMOKE_ORDER_CODE" ]]; then
+  check admin     GET   "/api/orders/$SMOKE_ORDER_CODE"                "200"           "admin đọc order detail"
+  check admin     GET   "/api/orders/$SMOKE_ORDER_CODE/activity-log"   "200"           "admin đọc activity log"
+  check admin     PATCH "/api/orders/$SMOKE_ORDER_CODE/notes"          "400 422"       "PATCH notes empty → validation error"
+  if [[ -n "$SMOKE_SNAPSHOT_LINE_ID" ]]; then
+    check admin   PATCH "/api/orders/$SMOKE_ORDER_CODE/snapshot-lines/$SMOKE_SNAPSHOT_LINE_ID" "400 422" "PATCH snapshot-line empty → validation error"
+  fi
+fi
+
 log "==============================="
 log "Total: $TOTAL  Pass: $PASS_COUNT  Fail: $FAIL_COUNT"
 if [[ "$FAIL_COUNT" -gt 0 ]]; then

@@ -7,6 +7,7 @@ import {
   jsonb,
   numeric,
   pgEnum,
+  text,
   timestamp,
   uuid,
   varchar,
@@ -109,6 +110,8 @@ export const bomSnapshotLine = appSchema.table(
     transitionedAt: timestamp("transitioned_at", { withTimezone: true }),
     transitionedBy: uuid("transitioned_by").references(() => userAccount.id),
     versionLock: integer("version_lock").notNull().default(0),
+    /** V1.9 Phase 3: ghi chú tự do cho snapshot line. */
+    notes: text("notes"),
     metadata: jsonb("metadata").notNull().default(sql`'{}'::jsonb`),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

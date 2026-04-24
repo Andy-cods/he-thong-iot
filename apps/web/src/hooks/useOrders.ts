@@ -9,10 +9,12 @@ import type {
   OrderCreate,
   OrderUpdate,
   OrderClose,
+  OrderProductionNotesInput,
   SalesOrderStatus,
 } from "@iot/shared";
 import { qk, type OrderFilter } from "@/lib/query-keys";
 import type { OrderProductionSummary } from "@/app/api/orders/[code]/production-summary/route";
+import type { OrderActivityLogRow } from "@/app/api/orders/[code]/activity-log/route";
 
 /**
  * Order TanStack Query hooks — V1.2 Phase B1.
@@ -37,6 +39,10 @@ export interface SalesOrderRow {
   orderQty: string;
   dueDate: string | null;
   notes: string | null;
+  /** V1.9 Phase 3: ghi chú sản xuất riêng (tự do, không versionLock). */
+  productionNotes: string | null;
+  productionNotesUpdatedAt: string | null;
+  productionNotesUpdatedBy: string | null;
   snapshotAt: string | null;
   snapshotBy: string | null;
   closedAt: string | null;
@@ -192,6 +198,44 @@ export function useOrderProductionSummary(code: string | null) {
       ),
     enabled: !!code,
     staleTime: 30_000,
+  });
+}
+
+/**
+ * V1.9 Phase 3 — PATCH production_notes cho order.
+ * Không versionLock (last-write-wins), audit ghi before/after.
+ */
+export function useUpdateProductionNotes(code: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: OrderProductionNotesInput) =>
+      request<{ data: SalesOrderRow }>(`/api/orders/${code}/notes`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.orders.detail(code) });
+      qc.invalidateQueries({
+        queryKey: ["orders", code, "activity-log"] as const,
+      });
+    },
+  });
+}
+
+/**
+ * V1.9 Phase 3 — GET timeline audit cho order (sales_order + snapshot lines).
+ */
+export function useOrderActivityLog(code: string | null) {
+  return useQuery({
+    queryKey: code
+      ? (["orders", code, "activity-log"] as const)
+      : (["orders", "__none__", "activity-log"] as const),
+    queryFn: () =>
+      request<{ data: OrderActivityLogRow[] }>(
+        `/api/orders/${code}/activity-log`,
+      ),
+    enabled: !!code,
+    staleTime: 15_000,
   });
 }
 

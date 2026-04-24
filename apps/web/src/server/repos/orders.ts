@@ -199,6 +199,33 @@ export async function updateOrder(
   return first;
 }
 
+/**
+ * V1.9 Phase 3 — update `production_notes` cho order.
+ *
+ * Khác `updateOrder` (chỉ cho phép DRAFT) — notes production có thể
+ * cập nhật ở mọi status != CLOSED/CANCELLED. Không dùng versionLock
+ * để tránh conflict khi nhiều thao tác song song (notes là free-text,
+ * last-write-wins là chấp nhận được).
+ */
+export async function updateProductionNotes(
+  id: string,
+  notes: string | null,
+  userId: string | null,
+): Promise<SalesOrder | null> {
+  const [row] = await db
+    .update(salesOrder)
+    .set({
+      productionNotes: notes,
+      productionNotesUpdatedAt: new Date(),
+      productionNotesUpdatedBy: userId,
+      updatedAt: new Date(),
+      versionLock: sql`${salesOrder.versionLock} + 1`,
+    })
+    .where(eq(salesOrder.id, id))
+    .returning();
+  return row ?? null;
+}
+
 export async function closeOrder(id: string): Promise<SalesOrder | null> {
   const [row] = await db
     .update(salesOrder)

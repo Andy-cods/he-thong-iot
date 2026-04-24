@@ -8,6 +8,7 @@ import {
 import type {
   BomSnapshotState,
   SnapshotExplodeInput,
+  SnapshotLineUpdateInput,
   SnapshotTransitionInput,
 } from "@iot/shared";
 import { qk, type SnapshotFilter } from "@/lib/query-keys";
@@ -46,6 +47,8 @@ export interface SnapshotLineRow {
   transitionedAt: string | null;
   transitionedBy: string | null;
   versionLock: number;
+  /** V1.9 Phase 3: ghi chú tự do cho line. */
+  notes: string | null;
   metadata: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
@@ -164,6 +167,38 @@ export function useExplodeSnapshot(orderCode: string) {
       qc.invalidateQueries({ queryKey: qk.orders.detail(orderCode) });
       qc.invalidateQueries({ queryKey: qk.orders.all });
       qc.invalidateQueries({ queryKey: qk.dashboard.overview });
+    },
+  });
+}
+
+/**
+ * V1.9 Phase 3 — PATCH 1 snapshot line từ tab Sản xuất của Order detail.
+ * Không optimistic (form-based, user chờ phản hồi); invalidate list + summary + activity log.
+ */
+export function useUpdateSnapshotLine(orderCode: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      lineId: string;
+      data: SnapshotLineUpdateInput;
+    }) =>
+      request<{ data: SnapshotLineRow }>(
+        `/api/orders/${orderCode}/snapshot-lines/${input.lineId}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(input.data),
+        },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.snapshots.all });
+      qc.invalidateQueries({ queryKey: qk.snapshots.summary(orderCode) });
+      qc.invalidateQueries({ queryKey: qk.orders.detail(orderCode) });
+      qc.invalidateQueries({
+        queryKey: qk.orders.productionSummary(orderCode),
+      });
+      qc.invalidateQueries({
+        queryKey: ["orders", orderCode, "activity-log"] as const,
+      });
     },
   });
 }
