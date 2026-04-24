@@ -168,9 +168,15 @@ else
 fi
 
 echo
-echo "--- 5d. V1.8 Batch 6 — Receiving backend wire ---"
+echo "--- 5d. V1.8 Batch 6 + V1.9 P0 — Receiving backend wire ---"
 # /receiving hub page 200 (client fetch real PO list)
 expect "GET /receiving (hub)" "200" "$(status "$BASE_URL/receiving")"
+# V1.9 P0: hub fetch PO list với status array [SENT, PARTIAL] — parse đúng array
+expect "GET /api/purchase-orders?status=SENT&status=PARTIAL (array)" "200" \
+  "$(status "$BASE_URL/api/purchase-orders?status=SENT&status=PARTIAL&pageSize=5")"
+PO_ARRAY_RES=$(body "$BASE_URL/api/purchase-orders?status=SENT&status=PARTIAL&pageSize=5")
+expect_body "purchase-orders.list (array status).data" "$PO_ARRAY_RES" "\"data\""
+expect_body "purchase-orders.list (array status).meta" "$PO_ARRAY_RES" "\"meta\""
 # /api/po/[id] với UUID thật → 200, invalid UUID → 404
 PO_LIST=$(body "$BASE_URL/api/purchase-orders?pageSize=1")
 PO_UUID=$(echo "$PO_LIST" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['data'][0]['id'] if d.get('data') else '')" 2>/dev/null || echo "")
@@ -181,8 +187,11 @@ else
   expect "GET /api/po/[uuid] (V1.8 B6 DB thật)" "200" "$(status "$BASE_URL/api/po/$PO_UUID")"
   PO_DETAIL=$(body "$BASE_URL/api/po/$PO_UUID")
   expect_body "po.detail.poCode" "$PO_DETAIL" "\"poCode\""
+  expect_body "po.detail.supplierId" "$PO_DETAIL" "\"supplierId\""
   expect_body "po.detail.lines" "$PO_DETAIL" "\"lines\""
   expect_body "po.detail.totals" "$PO_DETAIL" "\"totals\""
+  expect_body "po.detail.totals.orderedTotal" "$PO_DETAIL" "\"orderedTotal\""
+  expect_body "po.detail.totals.receivedTotal" "$PO_DETAIL" "\"receivedTotal\""
   expect "GET /receiving/[poId] (form)" "200" "$(status "$BASE_URL/receiving/$PO_UUID")"
 fi
 # Demo stub vẫn OK (back-compat)

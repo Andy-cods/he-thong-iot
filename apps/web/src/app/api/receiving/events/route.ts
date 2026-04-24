@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { item, purchaseOrder, purchaseOrderLine } from "@iot/db/schema";
 import { receivingEventsBatchSchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
@@ -94,10 +94,19 @@ export async function POST(req: NextRequest) {
         rejected.push({ id: e.id, reason: `SKU ${e.sku} không tồn tại` });
         continue;
       }
+      // BUGFIX V1.9 P0: phải filter cả poId + itemId, tránh match nhầm PO
+      // khác cũng chứa item này (trước đây eq(itemId) only → received_qty
+      // cộng sai vào PO đầu tiên trong DB có chứa SKU, không phải PO đang
+      // nhận hàng).
       const [poLine] = await db
         .select()
         .from(purchaseOrderLine)
-        .where(eq(purchaseOrderLine.itemId, itm.id))
+        .where(
+          and(
+            eq(purchaseOrderLine.poId, po.id),
+            eq(purchaseOrderLine.itemId, itm.id),
+          ),
+        )
         .limit(1);
       if (!poLine) {
         rejected.push({
