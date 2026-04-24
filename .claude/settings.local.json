@@ -13,7 +13,14 @@
       "Bash(pnpm add *)",
       "Bash(ssh -i ~/.ssh/iot_vps root@123.30.48.215 \"docker system df\")",
       "Bash(git add *)",
-      "Bash(ssh -i ~/.ssh/iot_vps -o ConnectTimeout=15 root@123.30.48.215 \"docker images | grep hethong && echo '---' && df -h /\")"
+      "Bash(ssh -i ~/.ssh/iot_vps -o ConnectTimeout=15 root@123.30.48.215 \"docker images | grep hethong && echo '---' && df -h /\")",
+      "Bash(scp -i ~/.ssh/iot_vps c:/dev/he-thong-iot/Dockerfile root@123.30.48.215:/opt/hethong-iot/repo-v1.5/Dockerfile)",
+      "Bash(ssh -i ~/.ssh/iot_vps root@45.124.94.13 \"docker ps --format 'table {{.Names}}\\\\t{{.Status}}'; echo '---'; curl -s -o /dev/null -w '%{http_code}' https://mes.songchau.vn/api/health\")",
+      "Bash(ssh -i ~/.ssh/iot_vps root@45.124.94.13 \"docker logs iot_app --tail 20 2>&1; echo '===WORKER==='; docker logs iot_worker --tail 10 2>&1; echo '===CADDY==='; docker ps | grep caddy\")",
+      "Bash(ssh -i ~/.ssh/iot_vps root@45.124.94.13 \"docker run --rm ghcr.io/andy-cods/hethong-iot:latest ls /app/apps/web/ 2>&1 | head -20; echo '---'; docker run --rm ghcr.io/andy-cods/hethong-iot:latest ls /app/apps/ 2>&1\")",
+      "Bash(ssh -i ~/.ssh/iot_vps root@45.124.94.13 \"docker run --rm ghcr.io/andy-cods/hethong-iot:latest ls /app/ 2>&1\")",
+      "Bash(git commit -m 'fix\\(ci\\): build --target runtime \\(web stage\\), not default worker-runtime *)",
+      "Bash(git push *)"
     ]
   }
 }
