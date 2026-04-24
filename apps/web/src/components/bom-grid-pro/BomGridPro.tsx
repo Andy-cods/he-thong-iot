@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   ChevronDown,
   ChevronRight,
@@ -218,6 +220,61 @@ export function BomGridPro({
     enabled: useVirtualize,
   });
 
+  // V1.8 Batch 3 — Deep-link highlight: đọc `?highlightLine=<lineId>` từ
+  // query param (khi navigate từ /items/[id] tab "Dùng trong BOM"). Nếu match:
+  //   1. Ensure row visible (expand ancestor groups).
+  //   2. Scroll vào view (block: center).
+  //   3. Highlight bg-yellow-100 + ring-yellow-400 trong 3s rồi tự clear.
+  const searchParams = useSearchParams();
+  const highlightParam = searchParams?.get("highlightLine") ?? null;
+  const [highlightedLineId, setHighlightedLineId] = React.useState<
+    string | null
+  >(null);
+
+  React.useEffect(() => {
+    if (!highlightParam) return;
+    // Ensure ancestor groups of target line are expanded.
+    const idsToExpand = new Set<string>();
+    const flatById = new Map(flat.map((r) => [r.id, r]));
+    let cursor: string | null = highlightParam;
+    // Walk ancestors through parentLineId.
+    const guard = new Set<string>();
+    while (cursor && !guard.has(cursor)) {
+      guard.add(cursor);
+      const row = flatById.get(cursor);
+      if (!row) break;
+      const parent = row.node.parentLineId;
+      if (parent) idsToExpand.add(parent);
+      cursor = parent ?? null;
+    }
+    if (idsToExpand.size) {
+      setExpanded((prev) => {
+        const next = new Set(prev);
+        idsToExpand.forEach((x) => next.add(x));
+        return next;
+      });
+    }
+
+    setHighlightedLineId(highlightParam);
+    // Scroll after next paint (allow expand to render).
+    const scrollTimer = window.setTimeout(() => {
+      const el = document.getElementById(`bom-line-${highlightParam}`);
+      if (el && typeof el.scrollIntoView === "function") {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 80);
+
+    // Clear highlight after 3s.
+    const clearTimer = window.setTimeout(() => {
+      setHighlightedLineId(null);
+    }, 3000);
+
+    return () => {
+      window.clearTimeout(scrollTimer);
+      window.clearTimeout(clearTimer);
+    };
+  }, [highlightParam, flat]);
+
   const handleDelete = () => {
     if (!deleteTarget) return;
     deleteLine.mutate(
@@ -243,14 +300,19 @@ export function BomGridPro({
     const qty = Number(row.node.qtyPerParent) || 0;
     const total = qty * parentQty;
 
+    const isHighlighted = highlightedLineId === row.id;
+
     if (isGroup) {
       return (
         <tr
           key={row.id}
+          id={`bom-line-${row.id}`}
           style={style}
           className={cn(
             "group border-b border-indigo-100 bg-indigo-50 transition-colors",
             "hover:bg-indigo-100/70",
+            isHighlighted &&
+              "!bg-yellow-100 ring-2 ring-inset ring-yellow-400",
           )}
         >
           <td className="w-10 px-2 text-[11px] font-mono text-indigo-400 tabular-nums">
@@ -292,8 +354,13 @@ export function BomGridPro({
     return (
       <tr
         key={row.id}
+        id={`bom-line-${row.id}`}
         style={style}
-        className="group border-b border-zinc-100 bg-white transition-colors hover:bg-zinc-50"
+        className={cn(
+          "group border-b border-zinc-100 bg-white transition-colors hover:bg-zinc-50",
+          isHighlighted &&
+            "!bg-yellow-100 ring-2 ring-inset ring-yellow-400",
+        )}
       >
         {/* # */}
         <td className="w-10 px-2 text-[11px] font-mono tabular-nums text-zinc-400">
@@ -305,9 +372,22 @@ export function BomGridPro({
             <Package className="h-3.5 w-3.5 text-zinc-300" aria-hidden />
           </div>
         </td>
-        {/* Mã SKU */}
+        {/* Mã SKU — V1.8 Batch 3: link về /items/[componentItemId] */}
         <td className="w-[170px] px-2 font-mono text-xs font-medium text-zinc-800 truncate">
-          <span className="tabular-nums">{row.indentedSku.trimStart() || "—"}</span>
+          {row.node.componentItemId ? (
+            <Link
+              href={`/items/${row.node.componentItemId}`}
+              className="tabular-nums text-zinc-800 underline-offset-2 hover:text-indigo-700 hover:underline"
+              title={`Xem chi tiết vật tư ${row.node.componentSku ?? ""}`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {row.indentedSku.trimStart() || "—"}
+            </Link>
+          ) : (
+            <span className="tabular-nums">
+              {row.indentedSku.trimStart() || "—"}
+            </span>
+          )}
         </td>
         {/* Tên */}
         <td className="w-[200px] px-2 text-sm text-zinc-700 truncate">

@@ -98,6 +98,46 @@ export function useItem(id: string | null) {
   });
 }
 
+/** V1.8 Batch 3 — shape response của GET /api/items/[id]/bom-usages. */
+export interface ItemBomUsageLine {
+  lineId: string;
+  quantityPer: number;
+  scrapPct: number;
+  metadata: unknown;
+  childCount: number;
+  parentItemId: string | null;
+}
+
+export interface ItemBomUsageTemplate {
+  templateId: string;
+  templateCode: string;
+  templateName: string;
+  templateStatus: "DRAFT" | "ACTIVE" | "OBSOLETE";
+  usages: ItemBomUsageLine[];
+}
+
+export interface ItemBomUsagesResponse {
+  itemId: string;
+  totalUsages: number;
+  byTemplate: ItemBomUsageTemplate[];
+}
+
+/**
+ * V1.8 Batch 3 — hook danh sách BOM đang dùng 1 linh kiện.
+ * Dùng trong tab "Dùng trong BOM" của `/items/[id]`.
+ */
+export function useItemBomUsages(id: string | null) {
+  return useQuery({
+    queryKey: id ? qk.items.bomUsages(id) : ["items", "bom-usages", "__none__"],
+    queryFn: () =>
+      request<{ data: ItemBomUsagesResponse }>(
+        `/api/items/${id}/bom-usages`,
+      ),
+    enabled: !!id,
+    staleTime: 30_000,
+  });
+}
+
 export function useCheckSku(sku: string) {
   return useQuery({
     queryKey: qk.items.skuCheck(sku),

@@ -26,6 +26,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { BarcodeList } from "@/components/items/BarcodeList";
+import { ItemBomUsagesPanel } from "@/components/items/ItemBomUsagesPanel";
 import { ItemForm } from "@/components/items/ItemForm";
 import { ItemInventoryPanel } from "@/components/inventory/ItemInventoryPanel";
 import {
@@ -64,10 +65,21 @@ type ItemDetail = {
  *   Thông tin / Kho / Tracking / Ảnh.
  * - Content max-w 5xl mx-auto p-6.
  */
-type TabKey = "info" | "inventory" | "tracking" | "media";
+type TabKey =
+  | "info"
+  | "inventory"
+  | "tracking"
+  | "media"
+  | "bom-usages";
 
 function parseTab(raw: string | null | undefined): TabKey {
-  if (raw === "inventory" || raw === "tracking" || raw === "media") return raw;
+  if (
+    raw === "inventory" ||
+    raw === "tracking" ||
+    raw === "media" ||
+    raw === "bom-usages"
+  )
+    return raw;
   return "info";
 }
 
@@ -232,6 +244,7 @@ export default function ItemDetailPage() {
         <TabsList>
           <TabsTrigger value="info">Thông tin</TabsTrigger>
           <TabsTrigger value="inventory">Kho</TabsTrigger>
+          <TabsTrigger value="bom-usages">Dùng trong BOM</TabsTrigger>
           <TabsTrigger value="tracking">Tracking</TabsTrigger>
           <TabsTrigger value="media">Ảnh</TabsTrigger>
         </TabsList>
@@ -285,6 +298,10 @@ export default function ItemDetailPage() {
               minStockQty={Number(itemData.minStockQty) || 0}
             />
           </div>
+        </TabsContent>
+
+        <TabsContent value="bom-usages">
+          <ItemBomUsagesPanel itemId={id} />
         </TabsContent>
 
         <TabsContent value="tracking">
