@@ -95,6 +95,7 @@ function buildListUrl(f: PRFilter): string {
   const p = new URLSearchParams();
   if (f.q) p.set("q", f.q);
   if (f.linkedOrderId) p.set("linkedOrderId", f.linkedOrderId);
+  if (f.bomTemplateId) p.set("bomTemplateId", f.bomTemplateId);
   if (f.requestedBy) p.set("requestedBy", f.requestedBy);
   if (f.page) p.set("page", String(f.page));
   if (f.pageSize) p.set("pageSize", String(f.pageSize));

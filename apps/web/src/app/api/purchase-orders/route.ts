@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
       status: q.data.status,
       supplierId: q.data.supplierId,
       prId: q.data.prId,
+      bomTemplateId: q.data.bomTemplateId,
       page: q.data.page,
       pageSize: q.data.pageSize,
     });

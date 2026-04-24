@@ -108,6 +108,8 @@ export const prListQuerySchema = z.object({
     .optional()
     .transform((v) => (v === undefined ? undefined : Array.isArray(v) ? v : [v])),
   linkedOrderId: uuid.optional(),
+  /** V1.8 — filter PR theo BOM (JOIN qua sales_order.bom_template_id). */
+  bomTemplateId: uuid.optional(),
   requestedBy: uuid.optional(),
   q: z.string().trim().max(120).optional(),
   page: z.coerce.number().int().positive().default(1),
@@ -152,6 +154,8 @@ export const poListQuerySchema = z.object({
     .transform((v) => (v === undefined ? undefined : Array.isArray(v) ? v : [v])),
   supplierId: uuid.optional(),
   prId: uuid.optional(),
+  /** V1.8 — filter PO theo BOM (JOIN qua sales_order.bom_template_id). */
+  bomTemplateId: uuid.optional(),
   q: z.string().trim().max(120).optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(200).default(50),

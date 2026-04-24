@@ -4,6 +4,7 @@ import {
   purchaseOrderLine,
   purchaseRequest,
   purchaseRequestLine,
+  salesOrder,
   supplier,
   item,
 } from "@iot/db/schema";
@@ -32,6 +33,8 @@ export interface ListPOsQuery {
   status?: PurchaseOrderStatus[];
   supplierId?: string;
   prId?: string;
+  /** V1.8 — filter PO theo BOM (JOIN qua sales_order.bom_template_id). */
+  bomTemplateId?: string;
   page: number;
   pageSize: number;
 }
@@ -48,6 +51,9 @@ export async function listPOs(q: ListPOsQuery) {
   }
   if (q.supplierId) where.push(eq(purchaseOrder.supplierId, q.supplierId));
   if (q.prId) where.push(eq(purchaseOrder.prId, q.prId));
+  if (q.bomTemplateId) {
+    where.push(eq(salesOrder.bomTemplateId, q.bomTemplateId));
+  }
 
   const whereExpr = where.length > 0 ? and(...where) : sql`true`;
   const offset = (q.page - 1) * q.pageSize;
@@ -56,6 +62,7 @@ export async function listPOs(q: ListPOsQuery) {
     db
       .select({ count: sql<number>`count(*)::int` })
       .from(purchaseOrder)
+      .leftJoin(salesOrder, eq(salesOrder.id, purchaseOrder.linkedOrderId))
       .where(whereExpr),
     db
       .select({
@@ -79,6 +86,7 @@ export async function listPOs(q: ListPOsQuery) {
       })
       .from(purchaseOrder)
       .leftJoin(supplier, eq(purchaseOrder.supplierId, supplier.id))
+      .leftJoin(salesOrder, eq(salesOrder.id, purchaseOrder.linkedOrderId))
       .where(whereExpr)
       .orderBy(desc(purchaseOrder.createdAt))
       .limit(q.pageSize)

@@ -417,9 +417,15 @@ export interface BomWorkspaceSummary {
   ordersTotal: number;
   ordersActive: number;
   workOrdersActive: number;
+  /** V1.8 batch 4 — WO IN_PROGRESS|PAUSED (cho tab Lắp ráp badge). */
+  assemblyInProgress: number;
   shortageComponents: number;
   ecoTotal: number;
   ecoActive: number;
+  /** V1.8 batch 4 — PR chưa CONVERTED/REJECTED + PO chưa RECEIVED/CANCELLED/CLOSED. */
+  procurementActive: number;
+  prActive: number;
+  poActive: number;
   lineCount: number;
 }
 

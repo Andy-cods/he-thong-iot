@@ -251,6 +251,8 @@ export interface PRFilter {
     | "REJECTED"
   )[];
   linkedOrderId?: string;
+  /** V1.8 — filter PR theo BOM (JOIN via sales_order.bom_template_id). */
+  bomTemplateId?: string;
   requestedBy?: string;
   page?: number;
   pageSize?: number;
@@ -268,6 +270,8 @@ export interface POFilter {
   )[];
   supplierId?: string;
   prId?: string;
+  /** V1.8 — filter PO theo BOM (JOIN via sales_order.bom_template_id). */
+  bomTemplateId?: string;
   page?: number;
   pageSize?: number;
 }

@@ -68,7 +68,7 @@ else
   expect "GET /api/bom/templates/[id]/summary" "200" "$(status "$BASE_URL/api/bom/templates/$BOM_ID/summary")"
 
   SUMMARY=$(body "$BASE_URL/api/bom/templates/$BOM_ID/summary")
-  for key in "ordersTotal" "ordersActive" "workOrdersActive" "shortageComponents" "ecoTotal" "ecoActive" "lineCount"; do
+  for key in "ordersTotal" "ordersActive" "workOrdersActive" "assemblyInProgress" "shortageComponents" "ecoTotal" "ecoActive" "procurementActive" "prActive" "poActive" "lineCount"; do
     expect_body "summary.$key" "$SUMMARY" "\"$key\""
   done
 
@@ -100,6 +100,9 @@ else
   expect "GET /api/work-orders?bomTemplateId" "200" "$(status "$BASE_URL/api/work-orders?bomTemplateId=$BOM_ID")"
   expect "GET /api/shortage?bomTemplateId" "200" "$(status "$BASE_URL/api/shortage?bomTemplateId=$BOM_ID")"
   expect "GET /api/eco?bomTemplateId" "200" "$(status "$BASE_URL/api/eco?bomTemplateId=$BOM_ID")"
+  # V1.8 batch 4 — procurement filter bomTemplateId (JOIN via sales_order)
+  expect "GET /api/purchase-requests?bomTemplateId (V1.8)" "200" "$(status "$BASE_URL/api/purchase-requests?bomTemplateId=$BOM_ID")"
+  expect "GET /api/purchase-orders?bomTemplateId (V1.8)" "200" "$(status "$BASE_URL/api/purchase-orders?bomTemplateId=$BOM_ID")"
   # V1.7-beta.2.6 — fab-progress endpoint (kind-aware progress cell)
   expect "GET /api/bom/templates/[id]/fab-progress (V1.7-beta.2.6)" "200" "$(status "$BASE_URL/api/bom/templates/$BOM_ID/fab-progress")"
   FAB_PROG=$(body "$BASE_URL/api/bom/templates/$BOM_ID/fab-progress")

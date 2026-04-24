@@ -4,6 +4,7 @@ import {
   item,
   purchaseRequest,
   purchaseRequestLine,
+  salesOrder,
 } from "@iot/db/schema";
 import type {
   PurchaseRequest,
@@ -22,6 +23,8 @@ import { db } from "@/lib/db";
 export interface ListPRsQuery {
   status?: PurchaseRequestStatus[];
   linkedOrderId?: string;
+  /** V1.8 — filter PR theo BOM (JOIN qua sales_order.bom_template_id). */
+  bomTemplateId?: string;
   requestedBy?: string;
   page: number;
   pageSize: number;
@@ -44,25 +47,37 @@ export async function listPRs(q: ListPRsQuery): Promise<ListPRsResult> {
   }
   if (q.linkedOrderId) where.push(eq(purchaseRequest.linkedOrderId, q.linkedOrderId));
   if (q.requestedBy) where.push(eq(purchaseRequest.requestedBy, q.requestedBy));
+  if (q.bomTemplateId) {
+    // V1.8 — PR.linked_order_id → sales_order.bom_template_id. PR manual không
+    // gắn linked_order_id sẽ không lọt vào workspace scope — đúng ý đồ.
+    where.push(eq(salesOrder.bomTemplateId, q.bomTemplateId));
+  }
 
   const whereExpr = where.length > 0 ? and(...where) : sql`true`;
   const offset = (q.page - 1) * q.pageSize;
+
+  const baseQuery = db
+    .select({ pr: purchaseRequest })
+    .from(purchaseRequest)
+    .leftJoin(salesOrder, eq(salesOrder.id, purchaseRequest.linkedOrderId));
 
   const [totalResult, rows] = await Promise.all([
     db
       .select({ count: sql<number>`count(*)::int` })
       .from(purchaseRequest)
+      .leftJoin(salesOrder, eq(salesOrder.id, purchaseRequest.linkedOrderId))
       .where(whereExpr),
-    db
-      .select()
-      .from(purchaseRequest)
+    baseQuery
       .where(whereExpr)
       .orderBy(desc(purchaseRequest.createdAt))
       .limit(q.pageSize)
       .offset(offset),
   ]);
 
-  return { rows, total: totalResult[0]?.count ?? 0 };
+  return {
+    rows: rows.map((r) => r.pr),
+    total: totalResult[0]?.count ?? 0,
+  };
 }
 
 export async function getPR(id: string): Promise<PurchaseRequest | null> {

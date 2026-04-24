@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
     const result = await listPRs({
       status: q.data.status,
       linkedOrderId: q.data.linkedOrderId,
+      bomTemplateId: q.data.bomTemplateId,
       requestedBy: q.data.requestedBy,
       page: q.data.page,
       pageSize: q.data.pageSize,

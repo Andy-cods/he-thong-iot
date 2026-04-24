@@ -91,6 +91,7 @@ function buildListUrl(f: POFilter): string {
   if (f.q) p.set("q", f.q);
   if (f.supplierId) p.set("supplierId", f.supplierId);
   if (f.prId) p.set("prId", f.prId);
+  if (f.bomTemplateId) p.set("bomTemplateId", f.bomTemplateId);
   if (f.page) p.set("page", String(f.page));
   if (f.pageSize) p.set("pageSize", String(f.pageSize));
   for (const s of f.status ?? []) p.append("status", s);

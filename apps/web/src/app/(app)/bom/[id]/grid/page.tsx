@@ -95,8 +95,10 @@ export default function BomGridPage() {
     ? {
         orders: summary.ordersActive,
         "work-orders": summary.workOrdersActive,
+        procurement: summary.procurementActive,
         shortage: summary.shortageComponents,
         eco: summary.ecoActive,
+        assembly: summary.assemblyInProgress,
       }
     : undefined;
 

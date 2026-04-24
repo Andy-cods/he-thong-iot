@@ -49,7 +49,11 @@ export async function GET(
         -- cả enum V1.3 (có QUEUED/PAUSED) lẫn V1.2 cũ trên VPS (chỉ
         -- DRAFT/RELEASED/IN_PROGRESS/COMPLETED/CANCELLED — migration 0006a
         -- chưa apply). Active = mọi WO chưa kết thúc.
-        SELECT COUNT(wo.id)::int AS active
+        SELECT
+          COUNT(wo.id)::int AS active,
+          COUNT(wo.id) FILTER (
+            WHERE wo.status IN ('IN_PROGRESS', 'PAUSED')
+          )::int AS in_progress
         FROM app.work_order wo
         JOIN app.sales_order so ON so.id = wo.linked_order_id
         WHERE so.bom_template_id = ${id}
@@ -71,6 +75,23 @@ export async function GET(
         FROM app.eco_change
         WHERE affected_template_id = ${id}
       ),
+      -- V1.8 batch 4 — procurement counts (PR + PO active) join qua
+      -- linked_order_id → sales_order.bom_template_id. Manual PR/PO không
+      -- gắn order không tính vào BOM scope.
+      pr_agg AS (
+        SELECT COUNT(pr.id)::int AS active
+        FROM app.purchase_request pr
+        JOIN app.sales_order so ON so.id = pr.linked_order_id
+        WHERE so.bom_template_id = ${id}
+          AND pr.status NOT IN ('CONVERTED', 'REJECTED')
+      ),
+      po_agg AS (
+        SELECT COUNT(po.id)::int AS active
+        FROM app.purchase_order po
+        JOIN app.sales_order so ON so.id = po.linked_order_id
+        WHERE so.bom_template_id = ${id}
+          AND po.status NOT IN ('RECEIVED', 'CANCELLED', 'CLOSED')
+      ),
       bom_lines AS (
         SELECT COUNT(*)::int AS total
         FROM app.bom_line
@@ -80,22 +101,32 @@ export async function GET(
         o.total AS orders_total,
         o.active AS orders_active,
         w.active AS work_orders_active,
+        w.in_progress AS assembly_in_progress,
         s.components AS shortage_components,
         e.total AS eco_total,
         e.active AS eco_active,
+        (pr.active + po.active) AS procurement_active,
+        pr.active AS pr_active,
+        po.active AS po_active,
         b.total AS line_count
       FROM orders_agg o
       CROSS JOIN wo_agg w
       CROSS JOIN shortage_agg s
       CROSS JOIN eco_agg e
+      CROSS JOIN pr_agg pr
+      CROSS JOIN po_agg po
       CROSS JOIN bom_lines b
     `)) as unknown as Array<{
       orders_total: number;
       orders_active: number;
       work_orders_active: number;
+      assembly_in_progress: number;
       shortage_components: number;
       eco_total: number;
       eco_active: number;
+      procurement_active: number;
+      pr_active: number;
+      po_active: number;
       line_count: number;
     }>;
 
@@ -103,9 +134,13 @@ export async function GET(
       orders_total: 0,
       orders_active: 0,
       work_orders_active: 0,
+      assembly_in_progress: 0,
       shortage_components: 0,
       eco_total: 0,
       eco_active: 0,
+      procurement_active: 0,
+      pr_active: 0,
+      po_active: 0,
       line_count: 0,
     };
 
@@ -115,9 +150,13 @@ export async function GET(
         ordersTotal: row.orders_total,
         ordersActive: row.orders_active,
         workOrdersActive: row.work_orders_active,
+        assemblyInProgress: row.assembly_in_progress,
         shortageComponents: row.shortage_components,
         ecoTotal: row.eco_total,
         ecoActive: row.eco_active,
+        procurementActive: row.procurement_active,
+        prActive: row.pr_active,
+        poActive: row.po_active,
         lineCount: row.line_count,
       },
     });
