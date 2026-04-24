@@ -44,6 +44,9 @@ function buildItemListUrl(q: Partial<ItemListQuery>): string {
   for (const t of q.type ?? []) p.append("type", t);
   for (const u of q.uom ?? []) p.append("uom", u);
   for (const s of q.status ?? []) p.append("status", s);
+  // V1.9 P6 — category filter (single)
+  if (q.category) p.set("category", q.category);
+  for (const c of q.categories ?? []) p.append("categories", c);
   return `/api/items?${p.toString()}`;
 }
 
@@ -77,7 +80,28 @@ export function filterToListQuery(
   } else {
     query.isActive = true;
   }
+  if (filter.category && filter.category.trim()) {
+    query.category = filter.category.trim();
+  }
   return query;
+}
+
+/**
+ * V1.9 P6 — list distinct categories với count.
+ * Dùng cho Filter dropdown "Danh mục" trong /items page.
+ * Stale 5 phút vì category hiếm thay đổi.
+ */
+export interface ItemCategory {
+  category: string;
+  count: number;
+}
+
+export function useItemCategories() {
+  return useQuery({
+    queryKey: qk.items.categories,
+    queryFn: () => request<{ data: ItemCategory[] }>(`/api/items/categories`),
+    staleTime: 5 * 60_000,
+  });
 }
 
 export function useItemsList<T = unknown>(filter: ItemFilter) {

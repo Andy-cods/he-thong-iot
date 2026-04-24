@@ -30,6 +30,7 @@ export const qk = {
     barcodes: (id: string) => ["items", id, "barcodes"] as const,
     suppliers: (id: string) => ["items", id, "suppliers"] as const,
     bomUsages: (id: string) => ["items", id, "bom-usages"] as const,
+    categories: ["items", "categories"] as const,
     bulkExport: (ids: string[]) =>
       ["items", "bulk-export", ids.slice().sort().join(",")] as const,
   },

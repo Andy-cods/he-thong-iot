@@ -16,6 +16,12 @@ import type {
 } from "@iot/shared";
 import { db } from "@/lib/db";
 
+export interface ItemInventorySummary {
+  totalQty: number;
+  availableQty: number;
+  reservedQty: number;
+}
+
 export interface ItemListRow {
   id: string;
   sku: string;
@@ -30,7 +36,14 @@ export interface ItemListRow {
   leadTimeDays: number;
   primaryBarcode: string | null;
   supplierCount: number;
+  /** V1.9 P6: inventory aggregate (totalQty via inventory_txn, available/reserved via lot_serial). */
+  inventorySummary: ItemInventorySummary;
   updatedAt: Date;
+}
+
+export interface CategoryCount {
+  category: string;
+  count: number;
 }
 
 export interface ListItemsResult {
@@ -93,6 +106,14 @@ export async function listItems(q: ItemListQuery): Promise<ListItemsResult> {
     );
   }
 
+  // V1.9 P6 — filter theo category (single) hoặc categories[] (multi).
+  if (q.category && q.category.length > 0) {
+    where.push(eq(item.category, q.category));
+  }
+  if (q.categories && q.categories.length > 0) {
+    where.push(inArray(item.category, q.categories));
+  }
+
   const whereExpr = where.length > 0 ? and(...where) : undefined;
   const sort = SORT_MAP[q.sort] ?? SORT_MAP["-updatedAt"]!;
   const orderExpr = sort!.dir === "asc" ? asc(sort!.col as never) : desc(sort!.col as never);
@@ -128,6 +149,24 @@ export async function listItems(q: ItemListQuery): Promise<ListItemsResult> {
           SELECT count(*)::int FROM ${itemSupplier} s
           WHERE s.item_id = ${item.id}
         )`,
+        // V1.9 P6 — inventory aggregate subqueries (indexed item_id):
+        totalQty: sql<string>`(
+          SELECT COALESCE(SUM(
+            CASE
+              WHEN t.tx_type IN ('IN_RECEIPT','ADJUST_PLUS','PROD_IN') THEN t.qty
+              WHEN t.tx_type IN ('OUT_ISSUE','ADJUST_MINUS','PROD_OUT','ASSEMBLY_CONSUME') THEN -t.qty
+              ELSE 0
+            END
+          ), 0)::text
+          FROM app.inventory_txn t
+          WHERE t.item_id = ${item.id}
+        )`,
+        reservedQty: sql<string>`(
+          SELECT COALESCE(SUM(r.reserved_qty), 0)::text
+          FROM app.reservation r
+          JOIN app.inventory_lot_serial ll ON ll.id = r.lot_serial_id
+          WHERE ll.item_id = ${item.id} AND r.status = 'ACTIVE'
+        )`,
       })
       .from(item)
       .where(whereExpr ?? sql`true`)
@@ -136,10 +175,60 @@ export async function listItems(q: ItemListQuery): Promise<ListItemsResult> {
       .offset(offset),
   ]);
 
+  // Map rows → ItemListRow: totalQty/reservedQty text → number, availableQty = total - reserved.
+  type RawRow = Omit<ItemListRow, "inventorySummary"> & {
+    totalQty: string;
+    reservedQty: string;
+  };
+  const mapped: ItemListRow[] = (rows as RawRow[]).map((r) => {
+    const total = Number(r.totalQty ?? 0) || 0;
+    const reserved = Number(r.reservedQty ?? 0) || 0;
+    return {
+      id: r.id,
+      sku: r.sku,
+      name: r.name,
+      itemType: r.itemType,
+      uom: r.uom,
+      status: r.status,
+      category: r.category,
+      isActive: r.isActive,
+      minStockQty: r.minStockQty,
+      reorderQty: r.reorderQty,
+      leadTimeDays: r.leadTimeDays,
+      primaryBarcode: r.primaryBarcode,
+      supplierCount: r.supplierCount,
+      updatedAt: r.updatedAt,
+      inventorySummary: {
+        totalQty: total,
+        availableQty: Math.max(0, total - reserved),
+        reservedQty: reserved,
+      },
+    };
+  });
+
   return {
-    rows: rows as ItemListRow[],
+    rows: mapped,
     total: totalResult[0]?.count ?? 0,
   };
+}
+
+/**
+ * V1.9 P6 — distinct categories + count. Dùng cho dropdown filter.
+ * Chỉ đếm category NOT NULL, chỉ active items (isActive=true) để tránh
+ * confuse user với category của soft-deleted items.
+ */
+export async function listItemCategories(): Promise<CategoryCount[]> {
+  const rows = (await db.execute(sql`
+    SELECT
+      category::text AS category,
+      COUNT(*)::int AS count
+    FROM app.item
+    WHERE category IS NOT NULL AND is_active = true
+    GROUP BY category
+    ORDER BY count DESC, category ASC
+  `)) as unknown as Array<{ category: string; count: number }>;
+
+  return rows.map((r) => ({ category: r.category, count: Number(r.count) }));
 }
 
 export async function getItemById(id: string) {

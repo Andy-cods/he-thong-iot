@@ -28,6 +28,13 @@ export interface ItemRow {
   isActive: boolean;
   primaryBarcode: string | null;
   supplierCount: number;
+  /** V1.9 P6 — inventory aggregate từ API (totalQty, availableQty, reservedQty). */
+  inventorySummary?: {
+    totalQty: number;
+    availableQty: number;
+    reservedQty: number;
+  };
+  /** @deprecated legacy — dùng inventorySummary.totalQty thay thế. */
   onHand?: number | null;
   updatedAt: string | Date;
 }
@@ -101,9 +108,10 @@ export function ItemListTable({
   }, []);
 
   // Mobile: 4 col (checkbox/SKU/Tên/Status). md+: full 9 col với Loại/UoM/Danh mục/Tồn/Actions.
+  // V1.9 P6: tăng cột Tồn kho lên 128px (2-line display) + gap-x-3 giữa các cột.
   const gridCols = cn(
-    "grid-cols-[32px_96px_minmax(0,1fr)_80px]",
-    "md:grid-cols-[32px_128px_minmax(0,1fr)_96px_64px_112px_80px_80px_96px]",
+    "grid-cols-[32px_96px_minmax(0,1fr)_80px] gap-x-2",
+    "md:grid-cols-[32px_128px_minmax(0,1fr)_96px_64px_112px_128px_80px_96px] md:gap-x-3",
   );
 
   return (
@@ -263,11 +271,36 @@ export function ItemListTable({
                 {row.category ?? "—"}
               </div>
 
-              {/* Tồn kho — right tabular-nums (ẩn < md) */}
-              <div className="hidden text-right tabular-nums text-zinc-700 md:block">
-                {row.onHand !== null && row.onHand !== undefined
-                  ? formatNumber(row.onHand)
-                  : "—"}
+              {/* Tồn kho — V1.9 P6: 2-line (total + available/reserved sub) tabular-nums */}
+              <div className="hidden flex-col items-end justify-center whitespace-nowrap pr-2 tabular-nums text-zinc-700 md:flex">
+                {row.inventorySummary ? (
+                  <>
+                    <span className="text-sm font-medium text-zinc-900">
+                      {formatNumber(row.inventorySummary.totalQty)}{" "}
+                      <span className="text-xs font-normal text-zinc-500">
+                        {row.uom}
+                      </span>
+                    </span>
+                    <span className="text-[10px] leading-tight text-zinc-500">
+                      SD:{" "}
+                      <span className="tabular-nums text-zinc-700">
+                        {formatNumber(row.inventorySummary.availableQty)}
+                      </span>
+                      {row.inventorySummary.reservedQty > 0 && (
+                        <>
+                          {" · Giữ: "}
+                          <span className="tabular-nums text-amber-600">
+                            {formatNumber(row.inventorySummary.reservedQty)}
+                          </span>
+                        </>
+                      )}
+                    </span>
+                  </>
+                ) : row.onHand !== null && row.onHand !== undefined ? (
+                  <span>{formatNumber(row.onHand)}</span>
+                ) : (
+                  <span>—</span>
+                )}
               </div>
 
               {/* Status badge sm V2 */}

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown, Filter, Search, X } from "lucide-react";
+import { ChevronDown, Filter, Search, Tag, X } from "lucide-react";
 import {
   ITEM_TYPES,
   ITEM_TYPE_LABELS,
@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useItemCategories } from "@/hooks/useItems";
 import { cn } from "@/lib/utils";
 
 export interface FilterBarState {
@@ -77,6 +78,10 @@ export function FilterBar({
     state.active === null ? "all" : state.active ? "active" : "inactive";
 
   const chips = buildFilterChips(state);
+
+  // V1.9 P6 — fetch categories cho dropdown filter
+  const categoriesQ = useItemCategories();
+  const categoryOptions = categoriesQ.data?.data ?? [];
 
   return (
     <div className="border-b border-zinc-200 bg-white px-4 py-2">
@@ -200,6 +205,101 @@ export function FilterBar({
           })}
         </div>
 
+        {/* V1.9 P6 — Category filter Popover (dropdown + count, single-select) */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1.5 border border-zinc-200"
+              aria-label="Lọc theo danh mục"
+            >
+              <Tag className="h-3.5 w-3.5 text-zinc-500" aria-hidden="true" />
+              <span>
+                {state.category
+                  ? state.category.length > 20
+                    ? state.category.slice(0, 20) + "…"
+                    : state.category
+                  : "Danh mục"}
+              </span>
+              {state.category && (
+                <span className="rounded-sm bg-indigo-50 px-1 text-xs font-medium text-indigo-700">
+                  1
+                </span>
+              )}
+              <ChevronDown
+                className="h-3.5 w-3.5 text-zinc-500"
+                aria-hidden="true"
+              />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[280px] p-0" align="start">
+            <div className="border-b border-zinc-200 px-3 py-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                Chọn danh mục
+              </p>
+            </div>
+            <ul className="max-h-[320px] overflow-y-auto py-1 text-base">
+              <li>
+                <button
+                  type="button"
+                  onClick={() => onChange({ category: "" })}
+                  className={cn(
+                    "flex h-8 w-full cursor-pointer items-center justify-between px-3 hover:bg-zinc-50",
+                    state.category === "" &&
+                      "bg-indigo-50 text-indigo-700 font-medium",
+                  )}
+                >
+                  <span>Tất cả danh mục</span>
+                </button>
+              </li>
+              {categoriesQ.isLoading && (
+                <li className="px-3 py-2 text-xs text-zinc-500">
+                  Đang tải…
+                </li>
+              )}
+              {!categoriesQ.isLoading && categoryOptions.length === 0 && (
+                <li className="px-3 py-2 text-xs text-zinc-500">
+                  Chưa có danh mục
+                </li>
+              )}
+              {categoryOptions.map((opt) => {
+                const selected = state.category === opt.category;
+                return (
+                  <li key={opt.category}>
+                    <button
+                      type="button"
+                      onClick={() => onChange({ category: opt.category })}
+                      className={cn(
+                        "flex h-8 w-full cursor-pointer items-center justify-between gap-2 px-3 hover:bg-zinc-50",
+                        selected && "bg-indigo-50 text-indigo-700 font-medium",
+                      )}
+                    >
+                      <span className="truncate text-zinc-900">
+                        {opt.category}
+                      </span>
+                      <span className="shrink-0 rounded-sm bg-zinc-100 px-1.5 py-0.5 text-xs tabular-nums text-zinc-600">
+                        {opt.count.toLocaleString("vi-VN")}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            {state.category && (
+              <div className="border-t border-zinc-200 p-2">
+                <button
+                  type="button"
+                  onClick={() => onChange({ category: "" })}
+                  className="w-full rounded-sm px-2 py-1 text-left text-sm text-indigo-600 hover:bg-zinc-50"
+                >
+                  Xoá lọc danh mục
+                </button>
+              </div>
+            )}
+          </PopoverContent>
+        </Popover>
+
         {/* Advanced filter Popover */}
         <Popover>
           <PopoverTrigger asChild>
@@ -220,19 +320,7 @@ export function FilterBar({
           </PopoverTrigger>
           <PopoverContent className="w-[320px] p-4" align="start">
             <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2 space-y-1">
-                <Label htmlFor="filter-category" uppercase>
-                  Danh mục
-                </Label>
-                <Input
-                  id="filter-category"
-                  size="sm"
-                  placeholder="VD: Thép tấm"
-                  value={state.category}
-                  onChange={(e) => onChange({ category: e.target.value })}
-                />
-              </div>
-
+              {/* V1.9 P6: danh mục đã chuyển lên Row 1 (dropdown), bỏ input ở đây. */}
               <div className="col-span-2 space-y-1">
                 <Label htmlFor="filter-supplier" uppercase>
                   Nhà cung cấp

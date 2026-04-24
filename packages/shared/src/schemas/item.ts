@@ -73,6 +73,25 @@ export const itemListQuerySchema = z.object({
     .union([itemStatusSchema, z.array(itemStatusSchema)])
     .optional()
     .transform((v) => (v === undefined ? undefined : Array.isArray(v) ? v : [v])),
+  /**
+   * V1.9 P6: filter category (single) hoặc categories[] (multi).
+   * Empty string sẽ bị strip về undefined để match "no filter".
+   */
+  category: z
+    .string()
+    .trim()
+    .max(64)
+    .optional()
+    .transform((v) => (v === "" ? undefined : v)),
+  categories: z
+    .union([z.string().trim().max(64), z.array(z.string().trim().max(64))])
+    .optional()
+    .transform((v) => {
+      if (v === undefined) return undefined;
+      const arr = Array.isArray(v) ? v : [v];
+      const cleaned = arr.filter((x) => x.length > 0);
+      return cleaned.length > 0 ? cleaned : undefined;
+    }),
   isActive: z
     .union([z.enum(["true", "false"]), z.boolean()])
     .optional()
