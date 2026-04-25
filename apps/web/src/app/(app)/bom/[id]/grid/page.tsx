@@ -11,6 +11,9 @@ import {
   useBomTree,
   useBomWorkspaceSummary,
 } from "@/hooks/useBom";
+import { useBomSheetsList } from "@/hooks/useBomSheets";
+import { BomSheetTabs } from "@/components/bom/BomSheetTabs";
+import { AddBomSheetDialog } from "@/components/bom/AddBomSheetDialog";
 import {
   BomGridPro,
   type MaterialStatus,
@@ -58,6 +61,22 @@ export default function BomGridPage() {
 
   // V1.8 Batch 7 — Barcode scan dialog state.
   const [scanOpen, setScanOpen] = React.useState(false);
+
+  // V2.0 Sprint 6 — multi-sheet state.
+  const sheetsQuery = useBomSheetsList(id ?? null);
+  const sheets = sheetsQuery.data?.data ?? [];
+  const [activeSheetId, setActiveSheetId] = React.useState<string | null>(null);
+  const [addSheetOpen, setAddSheetOpen] = React.useState(false);
+
+  // Tự active sheet đầu tiên (PROJECT) khi sheets load xong.
+  React.useEffect(() => {
+    if (sheets.length === 0) return;
+    if (!activeSheetId || !sheets.find((s) => s.id === activeSheetId)) {
+      const firstProject =
+        sheets.find((s) => s.kind === "PROJECT") ?? sheets[0];
+      if (firstProject) setActiveSheetId(firstProject.id);
+    }
+  }, [sheets, activeSheetId]);
 
   // Deep-link `?scan=open` → tự mở dialog 1 lần khi load. Sau khi mở, strip
   // param khỏi URL để refresh không mở lại (giữ `highlightLine` nếu có).
@@ -145,6 +164,18 @@ export default function BomGridPage() {
         />
       )}
 
+      {/* V2.0 Sprint 6 — Sheet tabs (PROJECT / MATERIAL_REF / PROCESS_REF / CUSTOM) */}
+      {template && id ? (
+        <BomSheetTabs
+          sheets={sheets}
+          activeSheetId={activeSheetId}
+          onChange={setActiveSheetId}
+          onAddSheet={() => setAddSheetOpen(true)}
+          loading={sheetsQuery.isLoading}
+          canAddSheet={!isObsolete}
+        />
+      ) : null}
+
       {/* Grid area flex-1 — strip actions đã retire (Univer save/undo); BomGridPro
           có header riêng render BOM title + parent qty chip. */}
       <div className="flex min-h-0 flex-1 overflow-hidden bg-zinc-50">
@@ -204,6 +235,16 @@ export default function BomGridPage() {
           bomTemplateCode={template.code}
         />
       )}
+
+      {/* V2.0 Sprint 6 — Add sheet dialog */}
+      {id ? (
+        <AddBomSheetDialog
+          templateId={id}
+          open={addSheetOpen}
+          onOpenChange={setAddSheetOpen}
+          onCreated={(sheetId) => setActiveSheetId(sheetId)}
+        />
+      ) : null}
     </div>
   );
 }
