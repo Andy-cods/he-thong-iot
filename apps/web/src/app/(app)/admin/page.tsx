@@ -5,13 +5,11 @@ import Link from "next/link";
 import {
   Activity,
   AlertTriangle,
-  Beaker,
   ChevronRight,
   Database,
   FileText,
   Globe,
   Laptop,
-  Layers,
   Monitor,
   Server,
   Settings as SettingsIcon,
@@ -233,7 +231,7 @@ export default function AdminIndexPage() {
       {/* 3) Quick actions */}
       <section
         aria-label="Quick actions"
-        className="grid grid-cols-2 gap-3 lg:grid-cols-3"
+        className="grid grid-cols-2 gap-3 lg:grid-cols-4"
       >
         <QuickLink
           href="/admin/users"
@@ -252,18 +250,6 @@ export default function AdminIndexPage() {
           icon={<Monitor className="h-4 w-4" aria-hidden="true" />}
           title="Phiên làm việc"
           description="Phiên hoạt động của bạn"
-        />
-        <QuickLink
-          href="/admin/materials"
-          icon={<Beaker className="h-4 w-4" aria-hidden="true" />}
-          title="Master vật liệu"
-          description="POM / AL6061 / SUS304 + giá/kg"
-        />
-        <QuickLink
-          href="/admin/processes"
-          icon={<Layers className="h-4 w-4" aria-hidden="true" />}
-          title="Master quy trình"
-          description="MCT / Milling / Anodizing + giá/giờ"
         />
         <QuickLink
           href="/admin/settings"

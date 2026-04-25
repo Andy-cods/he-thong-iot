@@ -22,7 +22,8 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireSession(req, "admin");
+  // Read open cho mọi role login (BOM editor cần load detail).
+  const guard = await requireSession(req);
   if ("response" in guard) return guard.response;
 
   try {
@@ -40,7 +41,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireSession(req, "admin");
+  const guard = await requireSession(req, "admin", "planner");
   if ("response" in guard) return guard.response;
 
   const body = await parseJson(req, materialMasterUpdateSchema);
@@ -81,7 +82,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireSession(req, "admin");
+  const guard = await requireSession(req, "admin", "planner");
   if ("response" in guard) return guard.response;
 
   try {

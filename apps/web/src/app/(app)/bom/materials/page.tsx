@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { ChevronRight, Plus, Search, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { PROCESS_PRICING_UNITS } from "@iot/shared";
+import { MATERIAL_CATEGORIES } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,32 +26,36 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  useCreateProcess,
-  useDeactivateProcess,
-  useProcessesList,
-  useUpdateProcess,
-  type ProcessRow,
+  useCreateMaterial,
+  useDeactivateMaterial,
+  useMaterialsList,
+  useUpdateMaterial,
+  type MaterialRow,
 } from "@/hooks/useMasterData";
 import { cn } from "@/lib/utils";
 
 /**
- * /admin/processes — V2.0 Sprint 5 admin CRUD master quy trình.
+ * /admin/materials — V2.0 Sprint 5 admin CRUD master vật liệu.
+ *
+ * Sections:
+ *   1. Breadcrumb + header + nút "Thêm vật liệu"
+ *   2. Filter bar: search + category dropdown + active toggle
+ *   3. Table list (code · name · category · giá/kg · density · trạng thái · actions)
+ *   4. Modal create/edit (Dialog) với form Zod-validated
+ *
+ * Quyền: chỉ admin (API guard requireSession(req, "admin")).
  */
 
-const PRICING_UNIT_LABEL: Record<"HOUR" | "CM2" | "OTHER", string> = {
-  HOUR: "đ/giờ",
-  CM2: "đ/cm²",
-  OTHER: "khác",
-};
-
-export default function AdminProcessesPage() {
+export default function AdminMaterialsPage() {
   const [q, setQ] = React.useState("");
+  const [category, setCategory] = React.useState<string>("all");
   const [showInactive, setShowInactive] = React.useState(false);
-  const [editing, setEditing] = React.useState<ProcessRow | null>(null);
+  const [editing, setEditing] = React.useState<MaterialRow | null>(null);
   const [creating, setCreating] = React.useState(false);
 
-  const list = useProcessesList({
+  const list = useMaterialsList({
     q: q || undefined,
+    category: category !== "all" ? category : undefined,
     isActive: showInactive ? undefined : true,
     sort: "code",
     order: "asc",
@@ -72,28 +76,28 @@ export default function AdminProcessesPage() {
           Tổng quan
         </Link>
         <ChevronRight className="h-3 w-3" aria-hidden="true" />
-        <Link href="/admin" className="hover:text-zinc-900">
-          Quản trị
+        <Link href="/bom" className="hover:text-zinc-900">
+          BOM Templates
         </Link>
         <ChevronRight className="h-3 w-3" aria-hidden="true" />
-        <span className="text-zinc-900">Quy trình</span>
+        <span className="text-zinc-900">Vật liệu</span>
       </nav>
 
       <header className="flex items-end justify-between">
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
-            Master quy trình
+            Master vật liệu
           </h1>
           <p className="mt-1 text-xs text-zinc-500">
-            Danh mục quy trình gia công (MCT/Milling/Anodizing/…) + giá/giờ
-            hoặc đặc thù (vd Anodizing 115đ/cm²).
+            Danh mục vật liệu (POM/PB108/AL6061/SUS304/…) + giá/kg + density.
+            Dùng làm dropdown khi tạo BOM line + tính giá thành sản phẩm.
           </p>
         </div>
         <Button
           onClick={() => setCreating(true)}
           className="bg-indigo-600 hover:bg-indigo-700"
         >
-          <Plus className="mr-1.5 h-3.5 w-3.5" /> Thêm quy trình
+          <Plus className="mr-1.5 h-3.5 w-3.5" /> Thêm vật liệu
         </Button>
       </header>
 
@@ -116,6 +120,22 @@ export default function AdminProcessesPage() {
             />
           </div>
         </div>
+        <div className="min-w-[200px]">
+          <Label className="text-xs uppercase">Nhóm vật liệu</Label>
+          <Select value={category} onValueChange={setCategory}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tất cả</SelectItem>
+              {MATERIAL_CATEGORIES.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-700">
           <input
             type="checkbox"
@@ -123,15 +143,15 @@ export default function AdminProcessesPage() {
             onChange={(e) => setShowInactive(e.target.checked)}
             className="h-3.5 w-3.5"
           />
-          Hiện cả quy trình đã ẩn
+          Hiện cả vật liệu đã ẩn
         </label>
         <span className="ml-auto text-xs text-zinc-500">
-          {total} quy trình
+          {total} vật liệu
         </span>
       </section>
 
       <section
-        aria-label="Danh sách quy trình"
+        aria-label="Danh sách vật liệu"
         className="overflow-hidden rounded-md border border-zinc-200 bg-white"
       >
         {list.isLoading ? (
@@ -142,8 +162,8 @@ export default function AdminProcessesPage() {
           </div>
         ) : rows.length === 0 ? (
           <EmptyState
-            title="Chưa có quy trình"
-            description="Tạo quy trình đầu tiên hoặc apply migration 0017 để seed 11 quy trình mặc định."
+            title="Chưa có vật liệu"
+            description="Tạo vật liệu đầu tiên hoặc apply migration 0017 để seed 23 vật liệu mặc định."
           />
         ) : (
           <table className="w-full text-sm">
@@ -152,9 +172,9 @@ export default function AdminProcessesPage() {
                 <th className="px-3 py-2 text-left">Code</th>
                 <th className="px-3 py-2 text-left">Tên VN</th>
                 <th className="px-3 py-2 text-left">Tên EN</th>
-                <th className="px-3 py-2 text-right">Giá / đơn vị</th>
-                <th className="px-3 py-2 text-left">Đơn vị</th>
-                <th className="px-3 py-2 text-left">Ghi chú giá</th>
+                <th className="px-3 py-2 text-left">Nhóm</th>
+                <th className="px-3 py-2 text-right">Giá/kg (VND)</th>
+                <th className="px-3 py-2 text-right">Density</th>
                 <th className="px-3 py-2 text-left">Trạng thái</th>
                 <th className="px-3 py-2 text-right">Hành động</th>
               </tr>
@@ -173,16 +193,22 @@ export default function AdminProcessesPage() {
                   </td>
                   <td className="px-3 py-2">{r.nameVn}</td>
                   <td className="px-3 py-2 text-zinc-600">{r.nameEn}</td>
+                  <td className="px-3 py-2">
+                    {r.category ? (
+                      <span className="inline-flex items-center rounded-sm bg-zinc-100 px-1.5 py-0.5 font-mono text-[11px] text-zinc-700">
+                        {r.category}
+                      </span>
+                    ) : (
+                      <span className="text-zinc-400">—</span>
+                    )}
+                  </td>
                   <td className="px-3 py-2 text-right tabular-nums">
-                    {r.pricePerUnit
-                      ? Number(r.pricePerUnit).toLocaleString("vi-VN")
+                    {r.pricePerKg
+                      ? Number(r.pricePerKg).toLocaleString("vi-VN")
                       : "—"}
                   </td>
-                  <td className="px-3 py-2 text-zinc-500">
-                    {PRICING_UNIT_LABEL[r.pricingUnit]}
-                  </td>
-                  <td className="px-3 py-2 text-zinc-500">
-                    {r.pricingNote ?? "—"}
+                  <td className="px-3 py-2 text-right tabular-nums text-zinc-500">
+                    {r.densityKgM3 ?? "—"}
                   </td>
                   <td className="px-3 py-2">
                     {r.isActive ? (
@@ -209,51 +235,55 @@ export default function AdminProcessesPage() {
       </section>
 
       {creating ? (
-        <ProcessFormDialog
+        <MaterialFormDialog
           open={creating}
           onOpenChange={(v) => setCreating(v)}
           mode="create"
         />
       ) : null}
       {editing ? (
-        <ProcessFormDialog
+        <MaterialFormDialog
           open={!!editing}
           onOpenChange={(v) => !v && setEditing(null)}
           mode="edit"
-          process={editing}
+          material={editing}
         />
       ) : null}
     </div>
   );
 }
 
-interface ProcessFormDialogProps {
+// ---------------------------------------------------------------------------
+// Form Dialog
+// ---------------------------------------------------------------------------
+
+interface MaterialFormDialogProps {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   mode: "create" | "edit";
-  process?: ProcessRow;
+  material?: MaterialRow;
 }
 
-function ProcessFormDialog({
+function MaterialFormDialog({
   open,
   onOpenChange,
   mode,
-  process,
-}: ProcessFormDialogProps) {
-  const create = useCreateProcess();
-  const update = useUpdateProcess();
-  const deactivate = useDeactivateProcess();
+  material,
+}: MaterialFormDialogProps) {
+  const create = useCreateMaterial();
+  const update = useUpdateMaterial();
+  const deactivate = useDeactivateMaterial();
   const isPending = create.isPending || update.isPending || deactivate.isPending;
 
   const [form, setForm] = React.useState({
-    code: process?.code ?? "",
-    nameEn: process?.nameEn ?? "",
-    nameVn: process?.nameVn ?? "",
-    pricePerUnit: process?.pricePerUnit ?? "",
-    pricingUnit:
-      (process?.pricingUnit as "HOUR" | "CM2" | "OTHER") ?? "HOUR",
-    pricingNote: process?.pricingNote ?? "",
-    isActive: process?.isActive ?? true,
+    code: material?.code ?? "",
+    nameEn: material?.nameEn ?? "",
+    nameVn: material?.nameVn ?? "",
+    category: material?.category ?? "",
+    pricePerKg: material?.pricePerKg ?? "",
+    densityKgM3: material?.densityKgM3 ?? "",
+    notes: material?.notes ?? "",
+    isActive: material?.isActive ?? true,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -264,27 +294,31 @@ function ProcessFormDialog({
           code: form.code.toUpperCase().trim(),
           nameEn: form.nameEn.trim(),
           nameVn: form.nameVn.trim(),
-          pricePerUnit: form.pricePerUnit ? Number(form.pricePerUnit) : null,
-          pricingUnit: form.pricingUnit,
-          pricingNote: form.pricingNote.trim() || null,
+          category: form.category
+            ? (form.category as (typeof MATERIAL_CATEGORIES)[number])
+            : null,
+          pricePerKg: form.pricePerKg ? Number(form.pricePerKg) : null,
+          densityKgM3: form.densityKgM3 ? Number(form.densityKgM3) : null,
           isActive: form.isActive,
+          notes: form.notes.trim() || null,
         });
-        toast.success(`Đã tạo quy trình ${form.code.toUpperCase()}`);
-      } else if (process) {
+        toast.success(`Đã tạo vật liệu ${form.code.toUpperCase()}`);
+      } else if (material) {
         await update.mutateAsync({
-          id: process.id,
+          id: material.id,
           patch: {
             nameEn: form.nameEn.trim(),
             nameVn: form.nameVn.trim(),
-            pricePerUnit: form.pricePerUnit
-              ? Number(form.pricePerUnit)
+            category: form.category
+              ? (form.category as (typeof MATERIAL_CATEGORIES)[number])
               : null,
-            pricingUnit: form.pricingUnit,
-            pricingNote: form.pricingNote.trim() || null,
+            pricePerKg: form.pricePerKg ? Number(form.pricePerKg) : null,
+            densityKgM3: form.densityKgM3 ? Number(form.densityKgM3) : null,
             isActive: form.isActive,
+            notes: form.notes.trim() || null,
           },
         });
-        toast.success(`Đã cập nhật ${process.code}`);
+        toast.success(`Đã cập nhật ${material.code}`);
       }
       onOpenChange(false);
     } catch (err) {
@@ -293,11 +327,18 @@ function ProcessFormDialog({
   };
 
   const handleDelete = async () => {
-    if (!process) return;
-    if (!confirm(`Ẩn quy trình '${process.code}'?`)) return;
+    if (!material) return;
+    if (
+      !confirm(
+        `Ẩn vật liệu '${material.code}'?\n\n(Soft delete — chỉ ẩn khỏi UI; item.material_code đang ref sẽ giữ nguyên.)`,
+      )
+    )
+      return;
     try {
-      await deactivate.mutateAsync(process.id);
-      toast.success("Đã ẩn quy trình");
+      const res = await deactivate.mutateAsync(material.id);
+      toast.success("Đã ẩn vật liệu", {
+        description: res.warning ?? undefined,
+      });
       onOpenChange(false);
     } catch (err) {
       toast.error((err as Error).message);
@@ -309,12 +350,12 @@ function ProcessFormDialog({
       <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>
-            {mode === "create" ? "Thêm quy trình" : `Sửa ${process?.code}`}
+            {mode === "create" ? "Thêm vật liệu" : `Sửa ${material?.code}`}
           </DialogTitle>
           <DialogDescription>
             {mode === "create"
-              ? "Mã sẽ uppercase tự động. Vd: MCT, MILLING, ANODIZING."
-              : "Mã không thể đổi."}
+              ? "Mã sẽ uppercase tự động. Đặt theo format A-Z 0-9 _ (vd AL6061, POM_ESD_BLK)."
+              : "Mã không thể đổi. Tạo mới nếu cần đổi mã."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
@@ -326,7 +367,7 @@ function ProcessFormDialog({
                 onChange={(e) =>
                   setForm({ ...form, code: e.target.value.toUpperCase() })
                 }
-                placeholder="MILLING"
+                placeholder="AL6061"
                 required
                 disabled={mode === "edit"}
                 pattern="[A-Z0-9_]+"
@@ -334,23 +375,18 @@ function ProcessFormDialog({
               />
             </div>
             <div>
-              <Label uppercase>Đơn vị giá</Label>
+              <Label uppercase>Nhóm</Label>
               <Select
-                value={form.pricingUnit}
-                onValueChange={(v) =>
-                  setForm({
-                    ...form,
-                    pricingUnit: v as "HOUR" | "CM2" | "OTHER",
-                  })
-                }
+                value={form.category}
+                onValueChange={(v) => setForm({ ...form, category: v })}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="(không nhóm)" />
                 </SelectTrigger>
                 <SelectContent>
-                  {PROCESS_PRICING_UNITS.map((u) => (
-                    <SelectItem key={u} value={u}>
-                      {PRICING_UNIT_LABEL[u]} ({u})
+                  {MATERIAL_CATEGORIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -375,29 +411,42 @@ function ProcessFormDialog({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label uppercase>Giá / đơn vị</Label>
+              <Label uppercase>Giá / kg (VND)</Label>
               <Input
                 type="number"
-                inputMode="decimal"
+                inputMode="numeric"
                 min={0}
-                step={100}
-                value={form.pricePerUnit}
+                step={1000}
+                value={form.pricePerKg}
                 onChange={(e) =>
-                  setForm({ ...form, pricePerUnit: e.target.value })
+                  setForm({ ...form, pricePerKg: e.target.value })
                 }
-                placeholder="200000"
+                placeholder="140000"
               />
             </div>
             <div>
-              <Label uppercase>Ghi chú giá</Label>
+              <Label uppercase>Density kg/m³</Label>
               <Input
-                value={form.pricingNote}
+                type="number"
+                inputMode="decimal"
+                step={0.01}
+                min={0}
+                value={form.densityKgM3}
                 onChange={(e) =>
-                  setForm({ ...form, pricingNote: e.target.value })
+                  setForm({ ...form, densityKgM3: e.target.value })
                 }
-                placeholder="Vd: 115đ/cm² cho Anodizing"
+                placeholder="2.70"
               />
             </div>
+          </div>
+          <div>
+            <Label uppercase>Ghi chú</Label>
+            <textarea
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              rows={2}
+              className="w-full rounded-md border border-zinc-200 px-3 py-2 text-sm"
+            />
           </div>
           <label className="flex cursor-pointer items-center gap-2 text-sm">
             <input

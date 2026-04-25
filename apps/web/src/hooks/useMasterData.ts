@@ -95,7 +95,7 @@ export function useMaterialsList(filter: MaterialFilter) {
       });
       const qs = params.toString();
       return apiFetch<ListResponse<MaterialRow>>(
-        `/api/admin/materials${qs ? `?${qs}` : ""}`,
+        `/api/master-data/materials${qs ? `?${qs}` : ""}`,
       );
     },
     placeholderData: keepPreviousData,
@@ -106,7 +106,7 @@ export function useCreateMaterial() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: MaterialMasterCreate) =>
-      apiFetch<{ data: MaterialRow }>("/api/admin/materials", {
+      apiFetch<{ data: MaterialRow }>("/api/master-data/materials", {
         method: "POST",
         body: JSON.stringify(input),
       }),
@@ -120,7 +120,7 @@ export function useUpdateMaterial() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: { id: string; patch: MaterialMasterUpdate }) =>
-      apiFetch<{ data: MaterialRow }>(`/api/admin/materials/${input.id}`, {
+      apiFetch<{ data: MaterialRow }>(`/api/master-data/materials/${input.id}`, {
         method: "PATCH",
         body: JSON.stringify(input.patch),
       }),
@@ -136,7 +136,7 @@ export function useDeactivateMaterial() {
   return useMutation({
     mutationFn: (id: string) =>
       apiFetch<{ data: MaterialRow; warning?: string | null }>(
-        `/api/admin/materials/${id}`,
+        `/api/master-data/materials/${id}`,
         { method: "DELETE" },
       ),
     onSuccess: () => {
@@ -171,7 +171,7 @@ export function useProcessesList(filter: ProcessFilter) {
       });
       const qs = params.toString();
       return apiFetch<ListResponse<ProcessRow>>(
-        `/api/admin/processes${qs ? `?${qs}` : ""}`,
+        `/api/master-data/processes${qs ? `?${qs}` : ""}`,
       );
     },
     placeholderData: keepPreviousData,
@@ -182,7 +182,7 @@ export function useCreateProcess() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: ProcessMasterCreate) =>
-      apiFetch<{ data: ProcessRow }>("/api/admin/processes", {
+      apiFetch<{ data: ProcessRow }>("/api/master-data/processes", {
         method: "POST",
         body: JSON.stringify(input),
       }),
@@ -196,7 +196,7 @@ export function useUpdateProcess() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: { id: string; patch: ProcessMasterUpdate }) =>
-      apiFetch<{ data: ProcessRow }>(`/api/admin/processes/${input.id}`, {
+      apiFetch<{ data: ProcessRow }>(`/api/master-data/processes/${input.id}`, {
         method: "PATCH",
         body: JSON.stringify(input.patch),
       }),
@@ -211,7 +211,7 @@ export function useDeactivateProcess() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
-      apiFetch<{ data: ProcessRow }>(`/api/admin/processes/${id}`, {
+      apiFetch<{ data: ProcessRow }>(`/api/master-data/processes/${id}`, {
         method: "DELETE",
       }),
     onSuccess: () => {

@@ -20,7 +20,9 @@
       "Bash(ssh -i ~/.ssh/iot_vps root@45.124.94.13 \"docker run --rm ghcr.io/andy-cods/hethong-iot:latest ls /app/apps/web/ 2>&1 | head -20; echo '---'; docker run --rm ghcr.io/andy-cods/hethong-iot:latest ls /app/apps/ 2>&1\")",
       "Bash(ssh -i ~/.ssh/iot_vps root@45.124.94.13 \"docker run --rm ghcr.io/andy-cods/hethong-iot:latest ls /app/ 2>&1\")",
       "Bash(git commit -m 'fix\\(ci\\): build --target runtime \\(web stage\\), not default worker-runtime *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(ssh -i ~/.ssh/iot_vps root@45.124.94.13:*)",
+      "Bash(scp -i ~/.ssh/iot_vps:*)"
     ]
   }
 }

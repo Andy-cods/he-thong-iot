@@ -1,12 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { processMasterCreateSchema, PROCESS_PRICING_UNITS } from "@iot/shared";
+import { materialMasterCreateSchema, MATERIAL_CATEGORIES } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import {
-  createProcess,
-  getProcessByCode,
-  listProcesses,
-} from "@/server/repos/processMaster";
+  createMaterial,
+  getMaterialByCode,
+  listMaterials,
+} from "@/server/repos/materialMaster";
 import {
   extractRequestMeta,
   jsonError,
@@ -21,25 +21,29 @@ export const dynamic = "force-dynamic";
 
 const listQuerySchema = z.object({
   q: z.string().optional(),
-  pricingUnit: z.enum(PROCESS_PRICING_UNITS).optional(),
+  category: z.enum(["all", ...MATERIAL_CATEGORIES]).optional(),
   isActive: z.coerce.boolean().optional(),
-  sort: z.enum(["code", "nameVn", "pricePerUnit", "createdAt"]).optional(),
+  sort: z
+    .enum(["code", "nameVn", "category", "pricePerKg", "createdAt"])
+    .optional(),
   order: z.enum(["asc", "desc"]).optional(),
   page: z.coerce.number().int().min(1).optional().default(1),
   pageSize: z.coerce.number().int().min(1).max(200).optional().default(50),
 });
 
 export async function GET(req: NextRequest) {
-  const guard = await requireSession(req, "admin");
+  // V2.0: master vật liệu thuộc Bộ phận Kỹ thuật — mọi role đã login đều xem
+  // được (operator BOM grid cần dropdown). Chỉ admin/planner mới được mutate.
+  const guard = await requireSession(req);
   if ("response" in guard) return guard.response;
 
   const q = parseSearchParams(req, listQuerySchema);
   if ("response" in q) return q.response;
 
   try {
-    const result = await listProcesses({
+    const result = await listMaterials({
       q: q.data.q,
-      pricingUnit: q.data.pricingUnit,
+      category: q.data.category,
       isActive: q.data.isActive,
       sort: q.data.sort,
       order: q.data.order,
@@ -55,20 +59,22 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (err) {
-    logger.error({ err }, "list processes failed");
-    return jsonError("INTERNAL", "Lỗi tải danh sách quy trình.", 500);
+    logger.error({ err }, "list materials failed");
+    return jsonError("INTERNAL", "Lỗi tải danh sách vật liệu.", 500);
   }
 }
 
 export async function POST(req: NextRequest) {
-  const guard = await requireSession(req, "admin");
+  // CRUD vật liệu — admin (toàn quyền) hoặc planner (kỹ thuật trưởng).
+  const guard = await requireSession(req, "admin", "planner");
   if ("response" in guard) return guard.response;
 
-  const body = await parseJson(req, processMasterCreateSchema);
+  const body = await parseJson(req, materialMasterCreateSchema);
   if ("response" in body) return body.response;
 
   try {
-    const existing = await getProcessByCode(body.data.code);
+    // Check duplicate code (UNIQUE constraint sẽ throw nhưng UX tốt hơn nếu trả 409).
+    const existing = await getMaterialByCode(body.data.code);
     if (existing) {
       return jsonError(
         "DUPLICATE_CODE",
@@ -77,12 +83,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const row = await createProcess(body.data, guard.session.userId);
+    const row = await createMaterial(body.data, guard.session.userId);
     const meta = extractRequestMeta(req);
     await writeAudit({
       actor: guard.session,
       action: "CREATE",
-      objectType: "process_master",
+      objectType: "material_master",
       objectId: row.id,
       after: row,
       ...meta,
@@ -90,7 +96,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ data: row }, { status: 201 });
   } catch (err) {
-    logger.error({ err }, "create process failed");
-    return jsonError("INTERNAL", "Lỗi tạo quy trình.", 500);
+    logger.error({ err }, "create material failed");
+    return jsonError("INTERNAL", "Lỗi tạo vật liệu.", 500);
   }
 }
