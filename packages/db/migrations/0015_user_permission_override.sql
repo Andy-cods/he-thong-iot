@@ -29,9 +29,11 @@ CREATE TABLE IF NOT EXISTS app.user_permission_override (
 CREATE INDEX IF NOT EXISTS user_permission_override_user_idx
   ON app.user_permission_override (user_id);
 
+-- Partial index không dùng NOW() vì Postgres yêu cầu IMMUTABLE trong index predicate.
+-- Index phủ lookup (user_id, entity, action) — repo filter expires_at runtime.
 CREATE INDEX IF NOT EXISTS user_permission_override_active_idx
   ON app.user_permission_override (user_id, entity, action)
-  WHERE expires_at IS NULL OR expires_at > NOW();
+  INCLUDE (granted, expires_at);
 
 COMMENT ON TABLE app.user_permission_override IS
   'V1.9 P10: per-user override permissions. granted=true thêm quyền (role không có), granted=false thu hồi (role có nhưng deny user này).';
