@@ -149,7 +149,9 @@ export async function listItems(q: ItemListQuery): Promise<ListItemsResult> {
           SELECT count(*)::int FROM ${itemSupplier} s
           WHERE s.item_id = ${item.id}
         )`,
-        // V1.9 P6 — inventory aggregate subqueries (indexed item_id):
+        // V1.9 P6 — inventory aggregate subqueries (indexed item_id).
+        // Dùng tên qualified `app.item.id` để tránh ambiguous khi outer FROM
+        // không có alias (Drizzle gen `FROM "app"."item"`, không alias `item`).
         totalQty: sql<string>`(
           SELECT COALESCE(SUM(
             CASE
@@ -159,13 +161,13 @@ export async function listItems(q: ItemListQuery): Promise<ListItemsResult> {
             END
           ), 0)::text
           FROM app.inventory_txn t
-          WHERE t.item_id = ${item.id}
+          WHERE t.item_id = app.item.id
         )`,
         reservedQty: sql<string>`(
           SELECT COALESCE(SUM(r.reserved_qty), 0)::text
           FROM app.reservation r
           JOIN app.inventory_lot_serial ll ON ll.id = r.lot_serial_id
-          WHERE ll.item_id = ${item.id} AND r.status = 'ACTIVE'
+          WHERE ll.item_id = app.item.id AND r.status = 'ACTIVE'
         )`,
       })
       .from(item)
