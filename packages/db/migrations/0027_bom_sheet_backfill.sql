@@ -35,8 +35,14 @@ WHERE NOT EXISTS (
 );
 
 -- ---------------------------------------------------------------------------
--- 2) Backfill bom_line.sheet_id cho lines chưa có
+-- 2) Backfill bom_line.sheet_id — DISABLE trigger cross-sheet check vì batch
+--    UPDATE Postgres không đảm bảo parent updated trước child. Trigger sẽ
+--    fail khi child được update mà parent chưa có sheet_id.
+--    Sau backfill xong (tất cả lines đều cùng template → cùng sheet),
+--    re-enable trigger để enforce mọi insert/update sau migration.
 -- ---------------------------------------------------------------------------
+ALTER TABLE app.bom_line DISABLE TRIGGER bom_line_check_parent_sheet_trg;
+
 UPDATE app.bom_line bl
 SET sheet_id = bs.id
 FROM app.bom_sheet bs
@@ -44,6 +50,8 @@ WHERE bs.template_id = bl.template_id
   AND bs.kind = 'PROJECT'
   AND bs.position = 1
   AND bl.sheet_id IS NULL;
+
+ALTER TABLE app.bom_line ENABLE TRIGGER bom_line_check_parent_sheet_trg;
 
 -- ---------------------------------------------------------------------------
 -- 3) Verify zero null trước khi SET NOT NULL
