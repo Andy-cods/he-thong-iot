@@ -495,13 +495,23 @@ export function autoMapHeaders(headers: string[]): Record<string, string | null>
     }
 
     // Pass 1: exact/substring.
+    // V3 fix: substring match (`includes`) chỉ áp dụng khi BOTH ≥ 3 ký tự để
+    // tránh false positive 2-char tokens ("id"/"no"/"ma"/"so" leak vào header
+    // dài). Token 3-char domain-specific như "ncc", "stt", "sku", "qty" vẫn
+    // hoạt động — verified bằng test "Bản chính thức" Z0000002.
     let matched: string | null = null;
     for (const [target, tokens] of Object.entries(BOM_SYNONYM_DICT)) {
       if (claimed.has(target) && !MULTI_VALUE_TARGETS.has(target)) continue;
       for (const t of tokens) {
-        if (n === t || n.includes(t) || t.includes(n)) {
+        if (n === t) {
           matched = target;
           break;
+        }
+        if (t.length >= 3 && n.length >= 3) {
+          if (n.includes(t) || t.includes(n)) {
+            matched = target;
+            break;
+          }
         }
       }
       if (matched) break;
