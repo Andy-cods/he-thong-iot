@@ -26,6 +26,9 @@ phải apply thủ công qua `psql` bằng script
 | `0017_material_process_master.sql` | `hethong_app`| **V2.0** — material_master + process_master + seed 23 vật liệu + 11 quy trình từ Excel sheet 3 |
 | `0018_item_dimensions_weight.sql`  | `hethong_app`| **V2.0** — item.dimensions(jsonb) + weight_g + material_code FK material_master |
 | `0019_bom_line_position_code.sql`  | `hethong_app`| **V2.0** — bom_line.position_code (R01/S40) + bom_line.notes |
+| `0025_bom_sheet.sql`               | `hethong_app`| **V2.0 Sprint 6** — bom_sheet table (PROJECT/MATERIAL_REF/PROCESS_REF/CUSTOM) — 1 BOM List có nhiều sheet |
+| `0026_bom_line_sheet_link.sql`     | `hethong_app`| **V2.0 Sprint 6** — bom_line.sheet_id FK + trigger enforce parent same sheet |
+| `0027_bom_sheet_backfill.sql`      | `hethong_app`| **V2.0 Sprint 6** — backfill 1 sheet PROJECT cho mỗi BOM cũ + SET NOT NULL bom_line.sheet_id |
 
 ### Flow apply V1.1-alpha
 

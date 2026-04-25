@@ -77,6 +77,12 @@ export const bomLine = appSchema.table(
     componentItemId: uuid("component_item_id")
       .notNull()
       .references(() => item.id),
+    /**
+     * V2.0 Sprint 6 — sheet chứa line này. Migration 0026 thêm cột (nullable),
+     * 0027 backfill + SET NOT NULL. FK tới `bom_sheet.id` (xem bom-sheet.ts).
+     * Trigger DB enforce: parent_line_id phải cùng sheet_id.
+     */
+    sheetId: uuid("sheet_id"),
     level: integer("level").notNull().default(1),
     position: integer("position").notNull().default(1),
     /**
@@ -124,6 +130,7 @@ export const bomLine = appSchema.table(
       t.templateId,
       t.positionCode,
     ),
+    sheetIdx: index("bom_line_sheet_idx").on(t.sheetId, t.position),
   }),
 );
 
