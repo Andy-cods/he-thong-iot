@@ -98,7 +98,7 @@ export const purchaseOrder = appSchema.table(
      * nhưng editable riêng trên PO.
      */
     paymentTerms: varchar("payment_terms", { length: 100 }),
-    /** V1.9-P9: địa chỉ giao hàng cho PO này (default "Xưởng Sông Châu"). */
+    /** V1.9-P9: địa chỉ giao hàng cho PO này (default "Xưởng Song Châu"). */
     deliveryAddress: text("delivery_address"),
     /** V1.9-P9: ngày thực tế nhận đủ (dùng cho báo cáo on-time rate). */
     actualDeliveryDate: date("actual_delivery_date"),

@@ -74,7 +74,7 @@ function LoginContent() {
             <span className="text-sm font-semibold text-white">SC</span>
           </div>
           <div>
-            <p className="text-lg font-semibold text-white">Sông Châu MES</p>
+            <p className="text-lg font-semibold text-white">Song Châu MES</p>
             <p className="text-xs text-indigo-100/80">
               Hệ thống điều hành sản xuất BOM-centric
             </p>
@@ -135,7 +135,7 @@ function LoginContent() {
 }
 
 /**
- * BuildLine — hiển thị "Sông Châu MES · v{VERSION} · build {SHA7}".
+ * BuildLine — hiển thị "Song Châu MES · v{VERSION} · build {SHA7}".
  * Đọc env vars `NEXT_PUBLIC_BUILD_VERSION` + `NEXT_PUBLIC_BUILD_SHA` (set ở
  * CI/Docker build). Fallback `dev` nếu chạy local.
  */
@@ -145,7 +145,7 @@ function BuildLine() {
   const shortSha = sha.length > 7 ? sha.slice(0, 7) : sha;
   return (
     <span className="font-mono">
-      Sông Châu MES · {version} · build {shortSha}
+      Song Châu MES · {version} · build {shortSha}
     </span>
   );
 }

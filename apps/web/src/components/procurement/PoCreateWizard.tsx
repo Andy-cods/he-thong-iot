@@ -42,7 +42,7 @@ interface WizardState {
   notes: string;
 }
 
-const DEFAULT_DELIVERY = "Xưởng Sông Châu";
+const DEFAULT_DELIVERY = "Xưởng Song Châu";
 
 function StepIndicator({
   step,

@@ -84,7 +84,7 @@ inserted_pos AS (
     NOW() - (g * INTERVAL '2 days'),
     (SELECT id FROM admin_user),
     (ARRAY['Net 30','Net 30','Net 15','COD','Net 45'])[((g - 1) % 5) + 1],
-    'Xưởng Sông Châu — KCN Đại Đồng, Tiên Du, Bắc Ninh',
+    'Xưởng Song Châu — KCN Đại Đồng, Tiên Du, Bắc Ninh',
     CASE
       WHEN g IN (4,5,6,7,8,9,10,11,12,13,14) THEN
         jsonb_build_object('approvalStatus', 'approved', 'approvedAt', NOW() - INTERVAL '1 day')

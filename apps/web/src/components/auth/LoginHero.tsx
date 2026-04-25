@@ -6,7 +6,7 @@ import { Boxes, ClipboardList, Package, ScanLine } from "lucide-react";
 /**
  * V1.8 LoginHero — panel trái trang đăng nhập.
  *
- * Gradient indigo-600 → indigo-900 + lớp SVG dot-grid nhẹ. Brand "Sông Châu
+ * Gradient indigo-600 → indigo-900 + lớp SVG dot-grid nhẹ. Brand "Song Châu
  * MES" + subtitle + 4 feature bullets minh hoạ scope V1 (BOM, WO, Inventory,
  * Audit). Dùng server-friendly className, không animation nặng.
  */
@@ -62,7 +62,7 @@ export function LoginHero({ className }: { className?: string }) {
             </span>
           </div>
           <div>
-            <p className="text-sm font-medium text-indigo-100">Sông Châu MES</p>
+            <p className="text-sm font-medium text-indigo-100">Song Châu MES</p>
             <p className="text-xs text-indigo-200/80">
               v1.8 · BOM-centric manufacturing
             </p>
@@ -73,7 +73,7 @@ export function LoginHero({ className }: { className?: string }) {
       {/* Headline + bullets — middle */}
       <div className="relative z-10 mt-10 max-w-md">
         <h1 className="text-3xl font-semibold leading-tight tracking-tight text-white sm:text-4xl">
-          Sông Châu MES
+          Song Châu MES
         </h1>
         <p className="mt-4 text-base leading-relaxed text-indigo-100/90">
           Hệ thống điều hành sản xuất BOM-centric cho xưởng cơ khí — thay thế
@@ -106,7 +106,7 @@ export function LoginHero({ className }: { className?: string }) {
 
       {/* Footer — bottom */}
       <div className="relative z-10 mt-10 text-xs text-indigo-200/70">
-        © {new Date().getFullYear()} Sông Châu. Nội bộ xưởng cơ khí.
+        © {new Date().getFullYear()} Song Châu. Nội bộ xưởng cơ khí.
       </div>
     </aside>
   );
