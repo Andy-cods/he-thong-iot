@@ -23,6 +23,9 @@ phải apply thủ công qua `psql` bằng script
 | `0003b_bom_tables.sql`        | `hethong_app`| `bom_template`, `bom_line` (self-ref tree), `receiving_event`|
 | `0003c_bom_indexes.sql`       | `hethong_app`| GIN trgm + btree + trigger updated_at (reuse `f_unaccent`)   |
 | `0003d_seed_demo.sql`         | `hethong_app`| Seed 4 role + BOM demo `CNC-ABC-DEMO` (idempotent)           |
+| `0017_material_process_master.sql` | `hethong_app`| **V2.0** — material_master + process_master + seed 23 vật liệu + 11 quy trình từ Excel sheet 3 |
+| `0018_item_dimensions_weight.sql`  | `hethong_app`| **V2.0** — item.dimensions(jsonb) + weight_g + material_code FK material_master |
+| `0019_bom_line_position_code.sql`  | `hethong_app`| **V2.0** — bom_line.position_code (R01/S40) + bom_line.notes |
 
 ### Flow apply V1.1-alpha
 

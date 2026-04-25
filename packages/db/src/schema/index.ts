@@ -1,5 +1,6 @@
 export * from "./auth";
 export * from "./master";
+export * from "./master-data";
 export * from "./bom";
 export * from "./product-line";
 export * from "./order";

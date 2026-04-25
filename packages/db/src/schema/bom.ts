@@ -79,6 +79,11 @@ export const bomLine = appSchema.table(
       .references(() => item.id),
     level: integer("level").notNull().default(1),
     position: integer("position").notNull().default(1),
+    /**
+     * V2.0 — chuỗi mã vị trí trong BOM (vd "R01", "S40"). Map từ Excel
+     * "ID Number" của file Bản chính thức. Migration 0019.
+     */
+    positionCode: varchar("position_code", { length: 16 }),
     qtyPerParent: numeric("qty_per_parent", { precision: 18, scale: 6 })
       .notNull()
       .default("1"),
@@ -88,6 +93,12 @@ export const bomLine = appSchema.table(
     uom: varchar("uom", { length: 32 }),
     description: text("description"),
     supplierItemCode: varchar("supplier_item_code", { length: 128 }),
+    /**
+     * V2.0 phase 1 — note free-text per line. Concat từ Note 1/2/3 trong
+     * file Excel khi import. Phase 2 sẽ tách bảng `bom_line_note` audit
+     * trail + @mention (migration 0020). Đến phase 2 cột này sẽ deprecate.
+     */
+    notes: text("notes"),
     metadata: jsonb("metadata").notNull().default(sql`'{}'::jsonb`),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -109,6 +120,10 @@ export const bomLine = appSchema.table(
     ),
     parentIdx: index("bom_line_parent_idx").on(t.parentLineId),
     componentIdx: index("bom_line_component_idx").on(t.componentItemId),
+    positionCodeIdx: index("bom_line_position_code_idx").on(
+      t.templateId,
+      t.positionCode,
+    ),
   }),
 );
 

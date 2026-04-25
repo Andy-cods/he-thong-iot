@@ -78,6 +78,19 @@ export const item = appSchema.table(
     description: text("description"),
     specJson: text("spec_json"),
     imageUrl: text("image_url"),
+    /**
+     * V2.0 — kích thước vật lý jsonb `{length, width, height, unit}` (mm mặc
+     * định). Parse từ Excel "Visible Part Size" như "601.0 X 21.0 X 20.0".
+     * Migration: 0018_item_dimensions_weight.sql.
+     */
+    dimensions: jsonb("dimensions"),
+    /** V2.0 — trọng lượng gram. Có thể auto-fill = dimensions × material density. */
+    weightG: numeric("weight_g", { precision: 12, scale: 3 }),
+    /**
+     * V2.0 — FK soft tới `material_master.code` (vd "AL6061", "SUS304_20_40").
+     * NULL với item không phải vật liệu (assembly, packaging, tool…).
+     */
+    materialCode: varchar("material_code", { length: 64 }),
     defaultLocationId: uuid("default_location_id"),
     minStockQty: numeric("min_stock_qty", { precision: 18, scale: 4 })
       .notNull()
@@ -102,6 +115,7 @@ export const item = appSchema.table(
     typeIdx: index("item_type_idx").on(t.itemType),
     statusIdx: index("item_status_idx").on(t.status),
     nameSearchIdx: index("item_name_trgm_idx").on(t.name),
+    materialIdx: index("item_material_code_idx").on(t.materialCode),
   }),
 );
 
