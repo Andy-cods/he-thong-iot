@@ -29,11 +29,31 @@ export interface BomSheetMeta {
   };
 }
 
+/** Phân loại sheet trong file Excel BOM theo template chính thức. */
+export type OfficialSheetKind =
+  /** Sheet BOM project (Z0000002-XXXXXX_BANG TAI ...). */
+  | "PROJECT"
+  /** Sheet master vật liệu + quy trình (Material&Process). */
+  | "MASTER_MATERIAL_PROCESS"
+  /** Sheet không thuộc template chính thức (legacy / generic). */
+  | "UNKNOWN";
+
+export interface OfficialFormatInfo {
+  /** True nếu file có ≥1 sheet PROJECT khớp template "Bản chính thức". */
+  isOfficial: boolean;
+  /** Lý do nhận diện / từ chối — hiển thị UI cho user biết. */
+  reason: string;
+  /** Phân loại từng sheet theo tên + topTitle + headers. */
+  sheetKinds: Record<string, OfficialSheetKind>;
+}
+
 export interface BomParseResult {
   fileHash: string;
   sheets: BomSheetMeta[];
   /** All rows per sheet, dùng cho worker commit. */
   allRowsBySheet: Record<string, Array<{ rowNumber: number; data: Record<string, unknown> }>>;
+  /** V3: nhận diện format chính thức (Bản chính thức Z0000002-...). */
+  officialFormat: OfficialFormatInfo;
 }
 
 export async function computeSha256(buffer: Uint8Array): Promise<string> {
@@ -96,6 +116,111 @@ function readRowCells(ws: ExcelJS.Worksheet, rowNumber: number): string[] {
     cells.push(cellToString(cell.value));
   });
   return cells;
+}
+
+/**
+ * V3 — Regex nhận diện project code "Bản chính thức".
+ * Ví dụ topTitle: "Z0000002-502653_BANG TAI DIPPING R01"
+ *                 "Z0000002-502654_BANG TAI DIPPING L01"
+ * Pattern: Z<7-9 digits>-<6 digits>_<text>
+ */
+const OFFICIAL_PROJECT_TITLE_RE = /^Z\d{6,10}-\d{4,8}_/i;
+
+/**
+ * V3 — Pattern nhận diện sheet master Material&Process.
+ */
+const OFFICIAL_MASTER_NAME_RE = /material\s*[&+]?\s*process|materialprocess/i;
+
+/**
+ * V3 — header tối thiểu để confirm sheet là PROJECT (không tính title).
+ * Cần ≥ 4/6 trong các canonical headers.
+ */
+const OFFICIAL_PROJECT_HEADERS_REQUIRED = [
+  "idnumber",
+  "quantity",
+  "standardnumber",
+  "ncc",
+  "subcategory",
+  "visiblepartsize",
+];
+
+function classifyOfficialSheet(sheet: BomSheetMeta): OfficialSheetKind {
+  const nameNorm = normHeader(sheet.sheetName);
+  if (OFFICIAL_MASTER_NAME_RE.test(sheet.sheetName)) {
+    return "MASTER_MATERIAL_PROCESS";
+  }
+  if (
+    sheet.topTitle &&
+    OFFICIAL_PROJECT_TITLE_RE.test(sheet.topTitle.trim())
+  ) {
+    // Verify thêm: header có đủ canonical fields.
+    const headerSet = new Set(sheet.headersDetected.map((h) => normHeader(h)));
+    let matchCount = 0;
+    for (const req of OFFICIAL_PROJECT_HEADERS_REQUIRED) {
+      for (const h of headerSet) {
+        if (h.includes(req) || req.includes(h)) {
+          matchCount++;
+          break;
+        }
+      }
+    }
+    if (matchCount >= 4) return "PROJECT";
+  }
+  // Header signature fallback: nếu sheet có ≥ 5 canonical headers → vẫn nhận PROJECT
+  // (kể cả khi topTitle thiếu — file có thể bị tách header riêng).
+  const headerSet = new Set(sheet.headersDetected.map((h) => normHeader(h)));
+  let signatureCount = 0;
+  for (const req of OFFICIAL_PROJECT_HEADERS_REQUIRED) {
+    for (const h of headerSet) {
+      if (h.includes(req) || req.includes(h)) {
+        signatureCount++;
+        break;
+      }
+    }
+  }
+  if (signatureCount >= 5) return "PROJECT";
+  // Tên sheet match pattern "BOM trien khai" / "BOM triển khai" cũng là project hint.
+  if (/bomtrienkhai/i.test(nameNorm)) return "PROJECT";
+  return "UNKNOWN";
+}
+
+/**
+ * V3 — filter footer summary rows trong sheet PROJECT.
+ *
+ * Pattern footer (ví dụ R46-R58 trong file mẫu Z0000002-502653):
+ *   - ID Number empty
+ *   - Standard Number empty
+ *   - Quantity empty
+ *   - Chỉ có cột NCC + Note có giá trị (tổng kết status per-NCC)
+ *
+ * Logic: row được coi là footer summary nếu KHÔNG có cả `componentSku`-like
+ * lẫn `idnumber`-like value, trong khi có ≥ 1 cột NCC/Note có giá trị.
+ */
+function isFooterSummaryRow(
+  data: Record<string, unknown>,
+): boolean {
+  const keys = Object.keys(data);
+  // Tìm key SKU (Standard Number) + key ID (ID Number).
+  let skuVal = "";
+  let idVal = "";
+  let hasNccOrNote = false;
+  for (const k of keys) {
+    const norm = normHeader(k);
+    const valStr = String(data[k] ?? "").trim();
+    if (norm.includes("standardnumber") || norm === "sku") {
+      skuVal = valStr;
+    } else if (norm === "idnumber" || norm === "stt" || norm === "no") {
+      idVal = valStr;
+    } else if (
+      norm.includes("ncc") ||
+      norm.includes("note") ||
+      norm.includes("ghichu")
+    ) {
+      if (valStr) hasNccOrNote = true;
+    }
+  }
+  // Footer = SKU empty + ID empty + có NCC/Note.
+  return skuVal === "" && idVal === "" && hasNccOrNote;
 }
 
 export async function parseBomImport(buffer: Buffer): Promise<BomParseResult> {
@@ -197,14 +322,24 @@ export async function parseBomImport(buffer: Buffer): Promise<BomParseResult> {
       return row;
     });
 
+    // V3: filter footer summary rows (tổng kết per-NCC) trước khi return.
+    const filteredDataRows = dataRows.filter(
+      (r) => !isFooterSummaryRow(r.data),
+    );
+    const skippedFooterCount = dataRows.length - filteredDataRows.length;
+
     sheets.push({
       sheetName: ws.name,
-      rowCount: dataRows.length,
+      rowCount: filteredDataRows.length,
       headerRow,
       headersDetected: headers,
       previewRows,
       topTitle,
-      headerWarning,
+      headerWarning:
+        headerWarning ??
+        (skippedFooterCount > 0
+          ? `Đã bỏ qua ${skippedFooterCount} dòng tổng kết ở cuối sheet.`
+          : null),
       headerScanInfo: {
         scannedRows: scanned.map((r) => ({
           rowNumber: r.rowNumber,
@@ -213,10 +348,33 @@ export async function parseBomImport(buffer: Buffer): Promise<BomParseResult> {
         })),
       },
     });
-    allRowsBySheet[ws.name] = dataRows;
+    allRowsBySheet[ws.name] = filteredDataRows;
   });
 
-  return { fileHash, sheets, allRowsBySheet };
+  // V3: classify từng sheet + detect official format.
+  const sheetKinds: Record<string, OfficialSheetKind> = {};
+  let projectCount = 0;
+  let masterCount = 0;
+  for (const s of sheets) {
+    const kind = classifyOfficialSheet(s);
+    sheetKinds[s.sheetName] = kind;
+    if (kind === "PROJECT") projectCount++;
+    if (kind === "MASTER_MATERIAL_PROCESS") masterCount++;
+  }
+  const isOfficial = projectCount >= 1;
+  const officialFormat: OfficialFormatInfo = {
+    isOfficial,
+    reason: isOfficial
+      ? `Đã nhận diện ${projectCount} sheet BOM project${
+          masterCount > 0
+            ? ` + ${masterCount} sheet master Material&Process (sẽ bỏ qua phase 1)`
+            : ""
+        }.`
+      : 'Không nhận diện được template "Bản chính thức". File phải có ít nhất 1 sheet với title `Z<số>-<số>_BANG TAI...` và header chuẩn (ID Number, Quantity, Standard Number, NCC).',
+    sheetKinds,
+  };
+
+  return { fileHash, sheets, allRowsBySheet, officialFormat };
 }
 
 /**
@@ -321,6 +479,14 @@ function levenshtein(a: string, b: string): number {
  */
 export function autoMapHeaders(headers: string[]): Record<string, string | null> {
   const mapping: Record<string, string | null> = {};
+  // V3: claim target — 1 target chỉ map cho 1 header (header đầu tiên thắng).
+  // Tránh case Excel "Bản chính thức" có cả "Quantity" + "Số lượng" cùng map
+  // qtyPerParent → 2 cột cùng target → conflict ở worker commit.
+  // Multi-value targets (vd notes có Note 1/2/3) → cho phép trùng (giữ tất cả
+  // map vào notes; worker commit sẽ concat).
+  const MULTI_VALUE_TARGETS = new Set(["notes"]);
+  const claimed = new Set<string>();
+
   for (const h of headers) {
     const n = normHeader(h);
     if (!n) {
@@ -331,6 +497,7 @@ export function autoMapHeaders(headers: string[]): Record<string, string | null>
     // Pass 1: exact/substring.
     let matched: string | null = null;
     for (const [target, tokens] of Object.entries(BOM_SYNONYM_DICT)) {
+      if (claimed.has(target) && !MULTI_VALUE_TARGETS.has(target)) continue;
       for (const t of tokens) {
         if (n === t || n.includes(t) || t.includes(n)) {
           matched = target;
@@ -344,6 +511,7 @@ export function autoMapHeaders(headers: string[]): Record<string, string | null>
     if (!matched && n.length >= 4) {
       let best: { target: string; dist: number } | null = null;
       for (const [target, tokens] of Object.entries(BOM_SYNONYM_DICT)) {
+        if (claimed.has(target) && !MULTI_VALUE_TARGETS.has(target)) continue;
         for (const t of tokens) {
           if (t.length < 4) continue;
           const dist = levenshtein(n, t);
@@ -355,6 +523,9 @@ export function autoMapHeaders(headers: string[]): Record<string, string | null>
       if (best) matched = best.target;
     }
 
+    if (matched && !MULTI_VALUE_TARGETS.has(matched)) {
+      claimed.add(matched);
+    }
     mapping[h] = matched;
   }
   return mapping;

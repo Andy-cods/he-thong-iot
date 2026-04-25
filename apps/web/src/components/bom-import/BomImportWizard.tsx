@@ -113,8 +113,21 @@ export function BomImportWizard() {
     try {
       const res = await upload.mutateAsync({ file, duplicateMode });
       setUploadData(res);
-      // Auto-select tất cả sheet
-      setSelectedSheets(res.sheets.map((s) => s.sheetName));
+      // V3: nếu format chính thức → pre-select PROJECT sheets, exclude
+      // MASTER_MATERIAL_PROCESS (sẽ import ở phase 2). Format không chính
+      // thức → fallback select tất cả sheets như V2.
+      const kinds = res.officialFormat?.sheetKinds ?? {};
+      const isOfficial = res.officialFormat?.isOfficial === true;
+      const initialSelected = isOfficial
+        ? res.sheets
+            .filter((s) => kinds[s.sheetName] === "PROJECT")
+            .map((s) => s.sheetName)
+        : res.sheets.map((s) => s.sheetName);
+      setSelectedSheets(
+        initialSelected.length > 0
+          ? initialSelected
+          : res.sheets.map((s) => s.sheetName),
+      );
       // Seed mappings từ autoMappings
       setMappings(res.autoMappings);
       if (res.reused) {
@@ -296,6 +309,57 @@ export function BomImportWizard() {
 
       {step === "select" && uploadData && (
         <section className="space-y-4 rounded-lg border border-zinc-200 bg-white p-6">
+          {uploadData.officialFormat ? (
+            <div
+              role="status"
+              className={cn(
+                "flex items-start gap-2 rounded-md border px-3 py-2 text-sm",
+                uploadData.officialFormat.isOfficial
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                  : "border-amber-200 bg-amber-50 text-amber-800",
+              )}
+            >
+              {uploadData.officialFormat.isOfficial ? (
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
+              ) : (
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
+              )}
+              <div className="flex flex-col gap-1">
+                <p className="font-medium">
+                  {uploadData.officialFormat.isOfficial
+                    ? "🎯 Đã nhận diện file Bản chính thức"
+                    : "Không nhận diện được template chính thức"}
+                </p>
+                <p className="text-xs">{uploadData.officialFormat.reason}</p>
+                {Object.keys(uploadData.officialFormat.sheetKinds).length > 0 ? (
+                  <ul className="mt-1 flex flex-wrap gap-1.5 text-xs">
+                    {Object.entries(uploadData.officialFormat.sheetKinds).map(
+                      ([name, kind]) => (
+                        <li
+                          key={name}
+                          className={cn(
+                            "inline-flex items-center rounded-sm border px-1.5 py-0.5 font-mono",
+                            kind === "PROJECT"
+                              ? "border-emerald-300 bg-white text-emerald-700"
+                              : kind === "MASTER_MATERIAL_PROCESS"
+                                ? "border-zinc-300 bg-white text-zinc-500"
+                                : "border-amber-300 bg-white text-amber-700",
+                          )}
+                        >
+                          {name} →{" "}
+                          {kind === "PROJECT"
+                            ? "Project BOM"
+                            : kind === "MASTER_MATERIAL_PROCESS"
+                              ? "Master (skip phase 1)"
+                              : "Không xác định"}
+                        </li>
+                      ),
+                    )}
+                  </ul>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
           <SheetSelectorStep
             sheets={uploadData.sheets}
             selectedSheets={selectedSheets}

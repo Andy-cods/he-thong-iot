@@ -133,6 +133,8 @@ export async function POST(req: NextRequest) {
         sheets: parsed.sheets,
         autoMappings,
         duplicateMode,
+        // V3: nhận diện format chính thức (Bản chính thức Z0000002-...).
+        officialFormat: parsed.officialFormat,
       },
     },
     { status: 201 },

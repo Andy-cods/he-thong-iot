@@ -28,6 +28,18 @@ export interface BomImportSheet {
   };
 }
 
+/** V3 — phân loại sheet theo template chính thức (xem bomImportParser.ts). */
+export type OfficialSheetKind =
+  | "PROJECT"
+  | "MASTER_MATERIAL_PROCESS"
+  | "UNKNOWN";
+
+export interface OfficialFormatInfo {
+  isOfficial: boolean;
+  reason: string;
+  sheetKinds: Record<string, OfficialSheetKind>;
+}
+
 export interface BomUploadResult {
   batchId: string;
   reused: boolean;
@@ -36,6 +48,8 @@ export interface BomUploadResult {
   sheets: BomImportSheet[];
   autoMappings: Record<string, Record<string, string | null>>;
   duplicateMode: string;
+  /** V3 — nhận diện template "Bản chính thức". Optional vì server cũ chưa trả. */
+  officialFormat?: OfficialFormatInfo;
 }
 
 export interface BomImportErrorPreview {
