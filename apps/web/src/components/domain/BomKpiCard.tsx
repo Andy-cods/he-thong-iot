@@ -5,7 +5,7 @@ import { KpiCard } from "./KpiCard";
 import { useBomList } from "@/hooks/useBom";
 
 /**
- * BomKpiCard — client wrapper hiển thị KPI "BOM Templates" với count thật
+ * BomKpiCard — client wrapper hiển thị KPI "BOM List" với count thật
  * từ API. Dùng trong dashboard RSC (truyền qua Client boundary OK).
  */
 export function BomKpiCard() {
@@ -14,7 +14,7 @@ export function BomKpiCard() {
 
   return (
     <KpiCard
-      label="BOM Templates"
+      label="BOM List"
       value={total}
       status="info"
       icon={<Network className="h-3.5 w-3.5" aria-hidden="true" />}

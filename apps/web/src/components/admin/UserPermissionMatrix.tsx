@@ -33,7 +33,7 @@ import { cn } from "@/lib/utils";
 const ENTITY_LABELS: Record<RbacEntityKey, string> = {
   item: "Vật tư",
   supplier: "Nhà cung cấp",
-  bomTemplate: "BOM Template",
+  bomTemplate: "BOM List",
   bomRevision: "BOM Revision",
   salesOrder: "Đơn hàng",
   bomSnapshot: "BOM Snapshot",

@@ -212,10 +212,10 @@ export default function BomListPage() {
       <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
-            BOM Templates
+            BOM List
           </h1>
           <p className="mt-0.5 text-xs text-zinc-500">
-            Công thức sản xuất · {total.toLocaleString("vi-VN")} template
+            Danh sách BOM · {total.toLocaleString("vi-VN")} BOM
           </p>
         </div>
         <div className="flex items-center gap-2">

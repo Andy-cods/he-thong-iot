@@ -110,7 +110,7 @@ export function BomListTable({
       ref={parentRef}
       className="relative h-full w-full overflow-auto rounded-md border border-zinc-200 bg-white"
       role="region"
-      aria-label="Danh sách BOM templates"
+      aria-label="Danh sách BOM"
     >
       {/* Header */}
       <div

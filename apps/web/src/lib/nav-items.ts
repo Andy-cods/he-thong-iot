@@ -1,11 +1,9 @@
 import {
-  Beaker,
   Building2,
   Calculator,
   ClipboardList,
   Factory,
   FileSpreadsheet,
-  Layers,
   LayoutDashboard,
   Network,
   Package,
@@ -132,23 +130,9 @@ export const NAV_ITEMS: NavItem[] = [
   // --- Bộ phận Kỹ thuật ---
   {
     href: "/bom",
-    label: "BOM Templates",
+    label: "BOM List",
     icon: Network,
     entity: "bomTemplate",
-    section: "engineering",
-  },
-  {
-    href: "/bom/materials",
-    label: "Vật liệu",
-    icon: Beaker,
-    roles: ["admin", "planner", "operator"],
-    section: "engineering",
-  },
-  {
-    href: "/bom/processes",
-    label: "Quy trình gia công",
-    icon: Layers,
-    roles: ["admin", "planner", "operator"],
     section: "engineering",
   },
   {

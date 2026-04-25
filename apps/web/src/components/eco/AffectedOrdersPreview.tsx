@@ -22,7 +22,7 @@ export function AffectedOrdersPreview({ code }: { code: string }) {
   if (rows.length === 0) {
     return (
       <p className="text-sm text-zinc-500">
-        Chưa có đơn hàng active nào dùng BOM template này.
+        Chưa có đơn hàng active nào dùng BOM này.
       </p>
     );
   }

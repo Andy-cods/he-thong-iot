@@ -41,7 +41,7 @@ export default function BomNewPage() {
           Tạo BOM mới
         </h1>
         <p className="mt-0.5 text-xs text-zinc-500">
-          Tạo template công thức · Có thể thêm linh kiện ở bước tiếp theo
+          Tạo BOM mới · Có thể thêm linh kiện ở bước tiếp theo
         </p>
       </header>
 

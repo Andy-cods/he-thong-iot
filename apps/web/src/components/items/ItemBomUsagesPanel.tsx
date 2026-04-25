@@ -103,10 +103,10 @@ export function ItemBomUsagesPanel({ itemId }: ItemBomUsagesPanelProps) {
         <EmptyState
           preset="no-data"
           title="Chưa được dùng trong BOM nào"
-          description="Linh kiện này hiện chưa xuất hiện trong bất kỳ BOM template nào. Vào mục BOM để thêm."
+          description="Linh kiện này hiện chưa xuất hiện trong bất kỳ BOM nào. Vào mục BOM List để thêm."
           actions={
             <Button asChild size="sm" variant="outline">
-              <Link href="/bom">Đi tới BOM Templates</Link>
+              <Link href="/bom">Đi tới BOM List</Link>
             </Button>
           }
         />
@@ -125,7 +125,7 @@ export function ItemBomUsagesPanel({ itemId }: ItemBomUsagesPanelProps) {
           <div className="text-sm font-medium text-zinc-900">
             Linh kiện này được dùng trong{" "}
             <span className="font-semibold text-indigo-700">
-              {data.byTemplate.length} BOM template
+              {data.byTemplate.length} BOM
             </span>
             ,{" "}
             <span className="font-semibold text-indigo-700">

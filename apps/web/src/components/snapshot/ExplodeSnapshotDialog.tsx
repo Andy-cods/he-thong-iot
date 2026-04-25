@@ -103,9 +103,9 @@ export function ExplodeSnapshotDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent size="md">
           <DialogHeader>
-            <DialogTitle>Đơn hàng chưa gắn BOM template</DialogTitle>
+            <DialogTitle>Đơn hàng chưa gắn BOM</DialogTitle>
             <DialogDescription>
-              Vui lòng vào tab "Thông tin" để chọn BOM template cho đơn hàng
+              Vui lòng vào tab "Thông tin" để chọn BOM cho đơn hàng
               trước khi explode snapshot.
             </DialogDescription>
           </DialogHeader>

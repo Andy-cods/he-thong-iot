@@ -69,14 +69,12 @@ describe("NAV_ITEMS V3 cấu trúc 6 section", () => {
     ]);
   });
 
-  it("Bộ phận Kỹ thuật có BOM + materials + processes + orders + WO + assembly + PR + import", () => {
+  it("Bộ phận Kỹ thuật có BOM + orders + WO + assembly + PR + import", () => {
     const engHrefs = NAV_ITEMS.filter(
       (i) => i.section === "engineering",
     ).map((i) => i.href);
     expect(engHrefs).toEqual([
       "/bom",
-      "/bom/materials",
-      "/bom/processes",
       "/orders",
       "/work-orders",
       "/assembly",

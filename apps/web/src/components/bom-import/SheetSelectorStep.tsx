@@ -42,7 +42,7 @@ export function SheetSelectorStep({
             Chọn sheet để import
           </h2>
           <p className="mt-1 text-xs text-zinc-500">
-            Mỗi sheet tương ứng 1 BOM template. Chọn các sheet cần nạp.
+            Mỗi sheet tương ứng 1 BOM. Chọn các sheet cần nạp.
           </p>
         </div>
         <button
