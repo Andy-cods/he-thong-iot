@@ -7,6 +7,7 @@ import { PO_STATUS_LABELS } from "@iot/shared";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/domain/StatusBadge";
 import { PoApprovalWorkflow } from "@/components/procurement/PoApprovalWorkflow";
+import { PoQuickReceiveTable } from "@/components/procurement/PoQuickReceiveTable";
 import { usePurchaseOrderDetail } from "@/hooks/usePurchaseOrders";
 import { formatDate } from "@/lib/format";
 
@@ -116,6 +117,7 @@ export default function PurchaseOrderDetailPage() {
             <TabsTrigger value="info">Thông tin</TabsTrigger>
             <TabsTrigger value="lines">Dòng hàng ({po.lines.length})</TabsTrigger>
             <TabsTrigger value="approval">Duyệt</TabsTrigger>
+            <TabsTrigger value="quick-receive">Nhận nhanh</TabsTrigger>
             <TabsTrigger value="receiving">Lịch sử nhận</TabsTrigger>
             <TabsTrigger value="audit">Audit</TabsTrigger>
           </TabsList>
@@ -297,16 +299,28 @@ export default function PurchaseOrderDetailPage() {
             </div>
           </TabsContent>
 
+          <TabsContent value="quick-receive">
+            <PoQuickReceiveTable
+              poId={po.id}
+              readOnly={
+                po.status === "DRAFT" ||
+                po.status === "CANCELLED" ||
+                approvalStatus === "pending" ||
+                approvalStatus === "rejected"
+              }
+            />
+          </TabsContent>
+
           <TabsContent value="receiving">
             <div className="space-y-3">
               <p className="text-sm text-zinc-600">
-                Màn hình nhận hàng thực tế qua barcode scan.
+                Màn hình nhận hàng đầy đủ — có lot/serial + QC per dòng.
               </p>
               <Link
                 href={`/receiving/${po.id}`}
                 className="inline-flex h-9 items-center rounded-md bg-indigo-600 px-4 text-sm font-medium text-white hover:bg-indigo-700"
               >
-                Mở màn hình nhận hàng →
+                Mở màn hình nhận hàng đầy đủ →
               </Link>
               <div className="mt-4 rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-500">
                 Lịch sử receipt chi tiết: xem audit tab hoặc /admin/audit với

@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { BarcodeScanInput } from "@/components/ui/BarcodeScanInput";
 import { StatusBadge } from "@/components/domain/StatusBadge";
 import { cn } from "@/lib/utils";
 import { uuidv7 } from "@/lib/uuid-v7";
@@ -86,6 +87,48 @@ export default function ReceivingDetailPage({
       [lineId]: { ...(prev[lineId] ?? emptyLineInput()), ...patch },
     }));
   };
+
+  // SKU → line lookup O(1) cho barcode scan.
+  const skuMap = React.useMemo(() => {
+    const m = new Map<string, POReceivingLine>();
+    if (po?.lines) {
+      for (const ln of po.lines) {
+        if (ln.sku) m.set(ln.sku.toUpperCase(), ln);
+      }
+    }
+    return m;
+  }, [po?.lines]);
+
+  const handleBarcodeScan = React.useCallback(
+    (code: string) => {
+      const ln = skuMap.get(code.toUpperCase());
+      if (!ln) {
+        toast.warning("Không tìm thấy SKU", {
+          description: `Mã '${code}' không có trong PO này.`,
+        });
+        return;
+      }
+      if (ln.remainingQty <= 0) {
+        toast.info("Đã đủ", {
+          description: `${ln.sku} đã nhận đủ ${ln.orderedQty}.`,
+        });
+        return;
+      }
+      const lineId = ln.id!;
+      setInputs((prev) => {
+        const cur = prev[lineId] ?? emptyLineInput();
+        const curQty = Number(cur.qty);
+        const safe = Number.isFinite(curQty) && curQty > 0 ? curQty : 0;
+        const nextQty = Math.min(ln.remainingQty, safe + 1);
+        return {
+          ...prev,
+          [lineId]: { ...cur, qty: String(nextQty) },
+        };
+      });
+      toast.success(`${ln.sku} +1`, { duration: 1200 });
+    },
+    [skuMap],
+  );
 
   const activeLines = React.useMemo(() => {
     if (!po) return [];
@@ -260,6 +303,15 @@ export default function ReceivingDetailPage({
           <CheckCircle2 className="mr-1 inline h-4 w-4" aria-hidden="true" />
           PO đã {po.status}. Không thể ghi thêm lô hàng.
         </div>
+      ) : null}
+
+      {!isComplete ? (
+        <BarcodeScanInput
+          onScan={handleBarcodeScan}
+          hint="Scanner USB sẽ tự gửi Enter sau khi quét — focus tự động về ô này sau mỗi mã."
+          className="max-w-md"
+          disabled={isComplete}
+        />
       ) : null}
 
       {/* Bảng lines + input */}
