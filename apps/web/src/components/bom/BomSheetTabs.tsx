@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Plus, FileText, Beaker, Layers, FileEdit } from "lucide-react";
+import { Plus, FileText, Beaker, Layers, FileEdit, Sparkles } from "lucide-react";
 import { BOM_SHEET_KIND_LABELS, type BomSheetKind } from "@iot/shared";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -152,11 +152,23 @@ export function BomSheetTabs({
           onClick={onAddSheet}
           className="ml-1 inline-flex h-7 items-center gap-1 rounded-sm border border-dashed border-zinc-300 px-2 text-xs font-medium text-zinc-500 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
           aria-label="Thêm sheet mới"
-          title="Thêm sheet mới vào BOM này"
+          title="Thêm sheet Vật liệu / Quy trình / Tuỳ chỉnh"
         >
           <Plus className="h-3 w-3" />
           Thêm sheet
         </button>
+      ) : null}
+
+      {/* V2.0 Sprint 6 FIX — gợi ý khi BOM chưa có sheet MATERIAL/PROCESS.
+          Pattern: nếu BOM chỉ có sheet PROJECT, hiển thị nudge nhỏ. */}
+      {sheets.length > 0 &&
+      !sheets.some((s) => s.kind === "MATERIAL") &&
+      onAddSheet &&
+      canAddSheet ? (
+        <span className="ml-2 inline-flex items-center gap-1 text-xs text-amber-600">
+          <Sparkles className="h-3 w-3" aria-hidden="true" />
+          <span>Thêm sheet "Vật liệu" để theo dõi giá + phôi cho BOM này</span>
+        </span>
       ) : null}
     </div>
   );

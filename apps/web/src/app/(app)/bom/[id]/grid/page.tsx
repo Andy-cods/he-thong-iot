@@ -16,6 +16,7 @@ import { BomSheetTabs } from "@/components/bom/BomSheetTabs";
 import { AddBomSheetDialog } from "@/components/bom/AddBomSheetDialog";
 import { MaterialSheetView } from "@/components/bom/MaterialSheetView";
 import { ProcessSheetView } from "@/components/bom/ProcessSheetView";
+import { CustomSheetView } from "@/components/bom/CustomSheetView";
 import {
   BomGridPro,
   type MaterialStatus,
@@ -209,12 +210,13 @@ export default function BomGridPage() {
                   />
                 );
               }
-              if (sheetKind === "CUSTOM") {
+              if (sheetKind === "CUSTOM" && activeSheet && id) {
                 return (
-                  <div className="flex h-full items-center justify-center bg-white p-6 text-center text-sm text-zinc-500">
-                    Sheet CUSTOM — markdown viewer sẽ ra mắt trong sprint sau.
-                    Hiện tại chỉ lưu metadata.
-                  </div>
+                  <CustomSheetView
+                    templateId={id}
+                    sheet={activeSheet}
+                    readOnly={isObsolete}
+                  />
                 );
               }
               // PROJECT (default) — BomGridPro
