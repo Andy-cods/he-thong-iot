@@ -33,6 +33,7 @@ phải apply thủ công qua `psql` bằng script
 | `0029_bom_sheet_material_row.sql`  | `hethong_app`| **V2.0 Sprint 6 FIX** — bảng material rows per-BOM (giá deal, phôi, status 5-state) |
 | `0030_bom_sheet_process_row.sql`   | `hethong_app`| **V2.0 Sprint 6 FIX** — bảng process rows per-BOM (giờ, đơn giá, trạm) |
 | `0031_seed_full_master_catalog.sql`| `hethong_app`| **V2.0 Sprint 6** — seed FULL Excel sheet 3 (60 materials + 19 processes) |
+| `0032_backfill_full_catalog_to_all_bom_sheets.sql` | `hethong_app`| **V2.0 Sprint 6** — auto-populate 63 mat + 19 proc rows vào MỌI MATERIAL sheet (tạo sheet mới cho BOM thiếu) |
 
 ### Flow apply V1.1-alpha
 

@@ -1,5 +1,14 @@
 import { and, asc, desc, eq, inArray, isNotNull, sql, type SQL } from "drizzle-orm";
-import { bomLine, bomSheet, bomTemplate, item } from "@iot/db/schema";
+import {
+  bomLine,
+  bomSheet,
+  bomSheetMaterialRow,
+  bomSheetProcessRow,
+  bomTemplate,
+  item,
+  materialMaster,
+  processMaster,
+} from "@iot/db/schema";
 import { db } from "@/lib/db";
 
 export type BomStatus = "DRAFT" | "ACTIVE" | "OBSOLETE";
@@ -180,11 +189,14 @@ export async function createTemplate(
   input: BomTemplateCreateInput,
   actorId: string | null,
 ) {
-  // V2.0 Sprint 6 — auto-create 2 default sheets khi BOM mới (user feedback
-  // 2026-04-26): "tôi muốn đây là sheet mặc định luôn có khi tạo BOM list mới".
+  // V2.0 Sprint 6 — auto-create 2 default sheets + auto-populate full catalog
+  // (user feedback 2026-04-27): "tôi muốn nó có đầy đủ sẵn luôn ở tất cả bom
+  // list hiện tại chứ không phải giờ mới thêm mới vào từng vật liệu 1".
+  //
   // 1. Sheet PROJECT "Sheet 1" — chứa bom_lines (cấu trúc).
-  // 2. Sheet MATERIAL "Material & Process" — chứa material_rows + process_rows
-  //    side-by-side (giống Excel sheet 3 trong template "Bản chính thức").
+  // 2. Sheet MATERIAL "Material & Process" — auto-populate FULL catalog
+  //    (~63 material_master + ~19 process_master active rows). User chỉ
+  //    cần fill price/qty/status thay vì click + Thêm từng cái.
   return await db.transaction(async (tx) => {
     const [row] = await tx
       .insert(bomTemplate)
@@ -200,24 +212,80 @@ export async function createTemplate(
       .returning();
     if (!row) return null;
 
-    await tx.insert(bomSheet).values([
-      {
-        templateId: row.id,
-        name: "Sheet 1",
-        kind: "PROJECT",
-        position: 1,
-        metadata: { defaultSheet: true },
-        createdBy: actorId,
-      },
-      {
-        templateId: row.id,
-        name: "Material & Process",
-        kind: "MATERIAL",
-        position: 2,
-        metadata: { defaultSheet: true, combined: true },
-        createdBy: actorId,
-      },
-    ]);
+    const [, materialSheet] = await tx
+      .insert(bomSheet)
+      .values([
+        {
+          templateId: row.id,
+          name: "Sheet 1",
+          kind: "PROJECT",
+          position: 1,
+          metadata: { defaultSheet: true },
+          createdBy: actorId,
+        },
+        {
+          templateId: row.id,
+          name: "Material & Process",
+          kind: "MATERIAL",
+          position: 2,
+          metadata: { defaultSheet: true, combined: true },
+          createdBy: actorId,
+        },
+      ])
+      .returning();
+
+    // Auto-populate full catalog vào MATERIAL sheet vừa tạo.
+    if (materialSheet) {
+      const allMaterials = await tx
+        .select({
+          code: materialMaster.code,
+          nameVn: materialMaster.nameVn,
+          pricePerKg: materialMaster.pricePerKg,
+        })
+        .from(materialMaster)
+        .where(eq(materialMaster.isActive, true))
+        .orderBy(asc(materialMaster.category), asc(materialMaster.code));
+
+      if (allMaterials.length > 0) {
+        await tx.insert(bomSheetMaterialRow).values(
+          allMaterials.map((m, idx) => ({
+            sheetId: materialSheet.id,
+            materialCode: m.code,
+            nameOverride: m.nameVn,
+            pricePerKg: m.pricePerKg,
+            status: "PLANNED" as const,
+            position: idx + 1,
+            blankSize: {} as Record<string, unknown>,
+            createdBy: actorId,
+          })),
+        );
+      }
+
+      const allProcesses = await tx
+        .select({
+          code: processMaster.code,
+          nameVn: processMaster.nameVn,
+          pricePerUnit: processMaster.pricePerUnit,
+          pricingUnit: processMaster.pricingUnit,
+        })
+        .from(processMaster)
+        .where(eq(processMaster.isActive, true))
+        .orderBy(asc(processMaster.code));
+
+      if (allProcesses.length > 0) {
+        await tx.insert(bomSheetProcessRow).values(
+          allProcesses.map((p, idx) => ({
+            sheetId: materialSheet.id,
+            processCode: p.code,
+            nameOverride: p.nameVn,
+            pricePerUnit: p.pricePerUnit,
+            pricingUnit: p.pricingUnit as string,
+            position: idx + 1,
+            createdBy: actorId,
+          })),
+        );
+      }
+    }
 
     return row;
   });

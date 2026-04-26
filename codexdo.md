@@ -201,6 +201,30 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 
 ---
 
+### TASK-20260427-006 — Auto-populate full catalog (63 mat + 19 proc) vào MỌI BOM Material&Process sheet
+- **Trạng thái:** IN_PROGRESS
+- **Tạo:** 2026-04-27 00:10 (+07) bởi Claude (planner)
+- **Phụ trách:** Claude (executor)
+- **Bắt đầu:** 2026-04-27 00:11 (+07)
+- **Ưu tiên:** P1
+- **Phụ thuộc:** TASK-20260426-001
+
+**Mô tả:** User feedback: "tôi muốn nó có đầy đủ sẵn luôn ở tất cả bom list hiện tại chứ không phải giờ mới thêm mới vào từng vật liệu 1". Backfill tất cả material_master (63) + process_master (19) vào mỗi MATERIAL sheet hiện có, và update `createTemplate` để BOM mới tự auto-populate full catalog.
+
+**Acceptance criteria:**
+- [ ] Migration `0032_backfill_full_catalog_to_all_bom_sheets.sql` viết xong
+- [ ] Apply VPS, verify mỗi MATERIAL sheet có ≥63 mat rows + ≥19 proc rows
+- [ ] `createTemplate` repo update: sau INSERT bom_sheet "Material & Process" → bulk INSERT all materials + processes
+- [ ] BOM mới tạo qua API có 63+19 rows trong Material&Process tab
+- [ ] BOM cũ (id `6dead934-...`) tab Material&Process hiển thị full catalog
+- [ ] Idempotent: chạy lại migration không nhân đôi rows
+
+**File path:**
+- `packages/db/migrations/0032_backfill_full_catalog_to_all_bom_sheets.sql` (mới)
+- `apps/web/src/server/repos/bomTemplates.ts` (update createTemplate)
+
+---
+
 ### TASK-20260426-005 — Re-seed BOM real với material aliases full
 - **Trạng thái:** TODO
 - **Tạo:** 2026-04-26 23:55 (+07) bởi Claude (planner)
