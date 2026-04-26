@@ -89,7 +89,7 @@ export function BottomPanel({
 
   return (
     <div
-      className="flex shrink-0 flex-col border-t border-zinc-200 bg-white"
+      className="relative z-30 flex shrink-0 flex-col border-t border-zinc-200 bg-white"
       style={{ height: `${panelHeight}px` }}
     >
       {/* Resize drag handle (chỉ visible khi expanded) */}

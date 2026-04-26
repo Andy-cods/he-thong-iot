@@ -16,6 +16,13 @@ export async function GET(
   const template = await getTemplateById(params.id);
   if (!template) return jsonError("NOT_FOUND", "Không tìm thấy BOM.", 404);
 
-  const tree = await loadTree(params.id);
+  // V2.0 Sprint 6 — accept optional ?sheetId= filter (UUID validation).
+  const sheetIdParam = req.nextUrl.searchParams.get("sheetId");
+  const sheetId =
+    sheetIdParam && /^[0-9a-f-]{36}$/i.test(sheetIdParam)
+      ? sheetIdParam
+      : undefined;
+
+  const tree = await loadTree(params.id, sheetId);
   return NextResponse.json({ data: { tree } });
 }

@@ -253,12 +253,20 @@ export interface BomTreeNode {
   childCount: number;
 }
 
-export async function loadTree(templateId: string): Promise<BomTreeNode[]> {
+export async function loadTree(
+  templateId: string,
+  sheetId?: string,
+): Promise<BomTreeNode[]> {
+  // V2.0 Sprint 6 — filter optional theo sheet_id. Khi user mở tab sheet
+  // PROJECT cụ thể, frontend pass activeSheetId → grid chỉ render lines
+  // của sheet đó. KHÔNG truyền sheetId = legacy fallback (toàn template).
   const rows = await db.execute(sql`
     WITH RECURSIVE tree AS (
       SELECT l.*, 1::int AS depth
       FROM app.bom_line l
-      WHERE l.template_id = ${templateId} AND l.parent_line_id IS NULL
+      WHERE l.template_id = ${templateId}
+        AND l.parent_line_id IS NULL
+        ${sheetId ? sql`AND l.sheet_id = ${sheetId}` : sql``}
       UNION ALL
       SELECT l.*, t.depth + 1
       FROM app.bom_line l

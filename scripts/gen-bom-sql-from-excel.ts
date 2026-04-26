@@ -283,12 +283,31 @@ async function main() {
   sql.push("");
 
   // 1. Items (auto-create with ON CONFLICT DO NOTHING)
+  // V2.0 Sprint 6 fix: item.category KHÔNG = supplier code (gây UI duplicate
+  // cột "Loại" + "Vật liệu"). Set category = null (item chưa phân loại) hoặc
+  // nhóm vật liệu chính (vd "STAINLESS_STEEL" cho SUS304_*). NCC ở
+  // bom_line.supplier_item_code.
   sql.push("-- 1) Auto-create items mới (ON CONFLICT DO NOTHING)");
   for (const [, sk] of distinctSkus) {
     const matCode = findMaterialCode(sk.subCategory);
     const specJson = sk.size ? JSON.stringify({ dimensionText: sk.size }) : null;
+    // Category = nhóm vật liệu chính (extracted từ matCode prefix nếu có).
+    // Vd matCode "SUS304_4_10" → category "STAINLESS_STEEL".
+    const categoryFromMaterial = matCode
+      ? matCode.startsWith("SUS")
+        ? "STAINLESS_STEEL"
+        : matCode.startsWith("AL")
+          ? "ALUMINIUM"
+          : matCode.startsWith("S45C") || matCode.startsWith("SK")
+            ? "STEEL"
+            : matCode.startsWith("CU")
+              ? "COPPER"
+              : matCode.startsWith("POM")
+                ? "POM"
+                : null
+      : null;
     sql.push(
-      `INSERT INTO app.item (sku, name, item_type, uom, status, category, material_code, spec_json) VALUES (${sqlEscape(sk.sku)}, ${sqlEscape(sk.subCategory.slice(0, 255) || sk.sku)}, 'PURCHASED', 'PCS', 'ACTIVE', ${sqlEscape(sk.supplier.slice(0, 64) || null)}, ${sqlEscape(matCode)}, ${sqlEscape(specJson)}) ON CONFLICT (sku) DO NOTHING;`,
+      `INSERT INTO app.item (sku, name, item_type, uom, status, category, material_code, spec_json) VALUES (${sqlEscape(sk.sku)}, ${sqlEscape(sk.subCategory.slice(0, 255) || sk.sku)}, 'PURCHASED', 'PCS', 'ACTIVE', ${sqlEscape(categoryFromMaterial)}, ${sqlEscape(matCode)}, ${sqlEscape(specJson)}) ON CONFLICT (sku) DO NOTHING;`,
     );
   }
   sql.push("");

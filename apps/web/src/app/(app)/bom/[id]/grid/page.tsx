@@ -51,13 +51,11 @@ export default function BomGridPage() {
   const searchParams = useSearchParams();
 
   const detailQuery = useBomDetail(id);
-  const treeQuery = useBomTree(id);
   const summaryQuery = useBomWorkspaceSummary(id);
   const derivedStatusQuery = useBomDerivedStatus(id, !!id);
   const fabProgressQuery = useBomFabProgress(id, !!id);
 
   const template = detailQuery.data?.data?.template;
-  const tree = treeQuery.data?.data?.tree ?? [];
   const summary = summaryQuery.data?.data;
 
   const panel = useBottomPanelState();
@@ -80,6 +78,15 @@ export default function BomGridPage() {
       if (firstProject) setActiveSheetId(firstProject.id);
     }
   }, [sheets, activeSheetId]);
+
+  // V2.0 Sprint 6 — fetch tree filtered theo activeSheetId. Sheet PROJECT
+  // active nào → grid chỉ render lines của sheet đó (KHÔNG render full
+  // template như V1 → tránh duplicate UI khi BOM có 2+ sheet PROJECT).
+  const activeSheetKind = sheets.find((s) => s.id === activeSheetId)?.kind;
+  const treeSheetId =
+    activeSheetKind === "PROJECT" ? activeSheetId : null;
+  const treeQuery = useBomTree(id, treeSheetId);
+  const tree = treeQuery.data?.data?.tree ?? [];
 
   // Deep-link `?scan=open` → tự mở dialog 1 lần khi load. Sau khi mở, strip
   // param khỏi URL để refresh không mở lại (giữ `highlightLine` nếu có).

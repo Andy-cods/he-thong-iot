@@ -150,12 +150,32 @@ export interface BomTreeResponse {
   data: { tree: BomTreeNodeRaw[] };
 }
 
-/** Dedicated tree fetch — dùng khi cần re-fetch độc lập metadata. */
-export function useBomTree(id: string | null) {
+/**
+ * Dedicated tree fetch — dùng khi cần re-fetch độc lập metadata.
+ *
+ * V2.0 Sprint 6 — `sheetId` optional. Khi BOM multi-sheet, frontend pass
+ * activeSheetId để chỉ fetch lines của 1 sheet PROJECT (khắc phục issue
+ * grid render duplicate khi BOM có 2+ sheets).
+ *
+ * Cache key bao gồm sheetId — switch tab = cache miss lần đầu, sau đó hit.
+ * Mutation invalidate prefix `["bom", "tree", id]` cover all sheets.
+ */
+export function useBomTree(
+  id: string | null,
+  sheetId?: string | null,
+) {
   return useQuery({
-    queryKey: id ? qk.bom.tree(id) : ["bom", "tree", "__none__"],
-    queryFn: () =>
-      request<BomTreeResponse>(`/api/bom/templates/${id}/tree`),
+    queryKey: id
+      ? sheetId
+        ? [...qk.bom.tree(id), sheetId]
+        : qk.bom.tree(id)
+      : ["bom", "tree", "__none__"],
+    queryFn: () => {
+      const qs = sheetId ? `?sheetId=${encodeURIComponent(sheetId)}` : "";
+      return request<BomTreeResponse>(`/api/bom/templates/${id}/tree${qs}`);
+    },
+    // Chờ activeSheetId set xong khi BOM multi-sheet — tránh fetch all rồi
+    // fetch lại theo sheet (gây "flash" duplicate rows trên UI).
     enabled: !!id,
     staleTime: 5_000,
   });

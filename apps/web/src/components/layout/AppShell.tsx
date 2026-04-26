@@ -130,7 +130,10 @@ export function AppShell({
             isWorkspace
               ? // Workspace mode: full-bleed, children (bom/[id]/layout)
                 // tự render Topbar + grid + bottom panel.
-                "flex-1 overflow-hidden"
+                // V2.0 Sprint 6 — `min-h-0` rất quan trọng: flex children
+                // mặc định min-height: auto → inner flex column không tôn
+                // trọng parent height → bottom panel "đè" lên grid.
+                "flex min-h-0 flex-1 flex-col overflow-hidden"
               : // Global mode: padding standard
                 "flex-1 px-4 py-4 md:px-6 md:py-5 xl:mx-auto xl:w-full xl:max-w-[1440px]"
           }

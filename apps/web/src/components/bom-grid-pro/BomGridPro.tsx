@@ -530,49 +530,66 @@ export function BomGridPro({
         </span>
       </div>
 
-      {/* Table */}
+      {/* Table — V2.0 Sprint 6 fix: table-fixed + colgroup để truncate hoạt
+          động đúng. sticky top trên từng <th> (border-collapse fix). */}
       <div ref={parentRef} className="flex-1 overflow-auto">
-        <table className="w-full border-separate border-spacing-0 text-sm">
-          <thead className="sticky top-0 z-20 bg-zinc-50/95 backdrop-blur-sm">
-            <tr className="h-8 border-b border-zinc-900 text-[10px] font-medium uppercase tracking-wide text-zinc-600">
-              <th className="w-10 border-b border-zinc-900 px-2 text-right">#</th>
-              <th className="w-[52px] border-b border-zinc-900 px-2 text-center">
+        <table className="w-full table-fixed border-collapse text-sm">
+          <colgroup>
+            <col style={{ width: "40px" }} />
+            <col style={{ width: "52px" }} />
+            <col style={{ width: "170px" }} />
+            <col style={{ width: "200px" }} />
+            <col style={{ width: "150px" }} />
+            <col style={{ width: "140px" }} />
+            <col style={{ width: "110px" }} />
+            <col style={{ width: "72px" }} />
+            <col style={{ width: "110px" }} />
+            <col style={{ width: "70px" }} />
+            <col style={{ width: "80px" }} />
+            <col style={{ width: "150px" }} />
+            <col style={{ width: "180px" }} />
+            <col style={{ width: "100px" }} />
+          </colgroup>
+          <thead>
+            <tr className="h-8 text-[10px] font-medium uppercase tracking-wide text-zinc-600">
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-right">#</th>
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-center">
                 Ảnh
               </th>
-              <th className="w-[170px] border-b border-zinc-900 px-2 text-left">
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
                 Mã linh kiện
               </th>
-              <th className="w-[200px] border-b border-zinc-900 px-2 text-left">
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
                 Tên / Mô tả
               </th>
-              <th className="w-[150px] border-b border-zinc-900 px-2 text-left">
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
                 Loại
               </th>
-              <th className="w-[140px] border-b border-zinc-900 px-2 text-left">
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
                 Vật liệu
               </th>
-              <th className="w-[110px] border-b border-zinc-900 px-2 text-left">
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
                 NCC
               </th>
-              <th className="w-[72px] border-b border-zinc-900 px-2 text-right">
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-right">
                 SL/bộ
               </th>
-              <th className="w-[110px] border-b border-zinc-900 px-2 text-left">
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
                 Kích thước
               </th>
-              <th className="w-[70px] border-b border-zinc-900 px-2 text-right">
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-right">
                 Tổng SL
               </th>
-              <th className="w-[80px] border-b border-zinc-900 px-2 text-right">
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-right">
                 Hao hụt
               </th>
-              <th className="w-[150px] border-b border-zinc-900 px-2 text-left">
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
                 Tiến độ
               </th>
-              <th className="w-[180px] border-b border-zinc-900 px-2 text-left">
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
                 Ghi chú
               </th>
-              <th className="sticky right-0 z-30 w-[100px] border-b border-l border-zinc-900 bg-zinc-50 px-2 text-center">
+              <th className="sticky right-0 top-0 z-30 border-b-2 border-l border-zinc-900 bg-zinc-50 px-2 text-center">
                 Thao tác
               </th>
             </tr>
