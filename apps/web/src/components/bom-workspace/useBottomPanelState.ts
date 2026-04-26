@@ -5,11 +5,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 export const PANEL_KEYS = [
   "orders",
+  "snapshot",
+  "production",
   "work-orders",
   "procurement",
   "shortage",
   "eco",
   "assembly",
+  "audit",
 ] as const;
 
 export type PanelKey = (typeof PANEL_KEYS)[number];
@@ -127,9 +130,12 @@ export function useBottomPanelState(): BottomPanelState {
 
 export const PANEL_LABELS: Record<PanelKey, string> = {
   orders: "Đơn hàng",
+  snapshot: "Snapshot Board",
+  production: "Sản xuất",
   "work-orders": "Lệnh SX",
   procurement: "Mua sắm",
-  shortage: "Thiếu hàng",
+  shortage: "Thiếu vật tư",
   eco: "ECO",
   assembly: "Lắp ráp",
+  audit: "Lịch sử",
 };

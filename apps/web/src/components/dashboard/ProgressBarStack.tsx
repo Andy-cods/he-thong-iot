@@ -14,15 +14,23 @@ import { ProgressBarCard } from "./ProgressBarCard";
 import type { DashboardOverviewV2Payload } from "@/app/api/dashboard/overview-v2/route";
 
 /**
- * V3 ProgressBarStack — container 6 thanh tiến độ trên trang Tổng quan.
+ * V3.1 ProgressBarStack — container 6 thanh tiến độ trên trang Tổng quan.
  *
- * Layout responsive (theo plans/redesign-v3/ui-redesign.md §B.3):
- *   - Desktop ≥1280: 3 cột × 2 hàng (lg:grid-cols-3)
- *   - Tablet 768-1280: 2 cột × 3 hàng (md:grid-cols-2)
- *   - Mobile <768: 1 cột × 6 hàng
+ * Layout responsive (TASK-20260427-010):
+ *   - Mobile <375: 1 cột
+ *   - Tablet ≥375 (sm): 2 cột
+ *   - Desktop ≥768 (md+): 3 cột
+ *
+ * Color semantics gắn cứng theo metric (KHÔNG đổi theo % giá trị):
+ *   - Linh kiện sẵn sàng → emerald
+ *   - Lắp ráp → blue
+ *   - Đặt mua → amber
+ *   - Nhận hàng → indigo
+ *   - Sản xuất nội bộ → rose
+ *   - Yêu cầu mua (PR) → violet
  *
  * Drilldown URLs (theo addendum-user-answers + brainstorm Q7 — route filter,
- * KHÔNG modal):
+ * KHÔNG modal). Click toàn bộ card → navigate.
  */
 const DRILLDOWN_URLS = {
   componentsAvailable: "/bom?state=AVAILABLE",
@@ -62,7 +70,7 @@ export function ProgressBarStack({
   return (
     <div
       className={cn(
-        "grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3",
+        "grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3",
         className,
       )}
       aria-label="Thanh tiến độ tổng quan"
@@ -70,6 +78,8 @@ export function ProgressBarStack({
       <ProgressBarCard
         label="Linh kiện sẵn sàng"
         icon={Boxes}
+        tone="emerald"
+        moduleLabel="BOM"
         loading={loading || !p}
         percent={p?.componentsAvailable.percent ?? 0}
         numerator={p?.componentsAvailable.numerator ?? 0}
@@ -81,6 +91,8 @@ export function ProgressBarStack({
       <ProgressBarCard
         label="Lắp ráp"
         icon={Wrench}
+        tone="blue"
+        moduleLabel="Lắp ráp"
         loading={loading || !p}
         percent={p?.assembly.percent ?? 0}
         numerator={p?.assembly.numerator ?? 0}
@@ -92,6 +104,8 @@ export function ProgressBarStack({
       <ProgressBarCard
         label="Đặt mua"
         icon={ShoppingCart}
+        tone="amber"
+        moduleLabel="Đặt mua"
         loading={loading || !p}
         percent={p?.purchasing.percent ?? 0}
         numerator={p?.purchasing.numerator ?? 0}
@@ -103,6 +117,8 @@ export function ProgressBarStack({
       <ProgressBarCard
         label="Nhận hàng"
         icon={Truck}
+        tone="indigo"
+        moduleLabel="Nhận hàng"
         loading={loading || !p}
         percent={p?.receiving.percent ?? 0}
         numerator={p?.receiving.numerator ?? 0}
@@ -114,6 +130,8 @@ export function ProgressBarStack({
       <ProgressBarCard
         label="Sản xuất nội bộ"
         icon={Factory}
+        tone="rose"
+        moduleLabel="Sản xuất"
         loading={loading || !p}
         percent={p?.production.percent ?? 0}
         numerator={p?.production.numerator ?? 0}
@@ -125,6 +143,8 @@ export function ProgressBarStack({
       <ProgressBarCard
         label="Yêu cầu mua (PR)"
         icon={ClipboardList}
+        tone="violet"
+        moduleLabel="Yêu cầu mua"
         loading={loading || !p}
         percent={p?.purchaseRequests.percent ?? 0}
         numerator={p?.purchaseRequests.numerator ?? 0}

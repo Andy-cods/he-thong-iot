@@ -22,7 +22,10 @@ import {
 } from "@/components/bom-grid-pro";
 import {
   AssemblyPanel,
+  BomAuditPanel,
   BomBarcodeSearchDialog,
+  BomProductionPanel,
+  BomSnapshotPanel,
   BomWorkspaceTopbar,
   BottomPanel,
   EcoPanel,
@@ -138,6 +141,10 @@ export default function BomGridPage() {
     switch (key) {
       case "orders":
         return <OrdersPanel bomId={id} />;
+      case "snapshot":
+        return <BomSnapshotPanel bomId={id} />;
+      case "production":
+        return <BomProductionPanel bomId={id} />;
       case "work-orders":
         return <WorkOrdersPanel bomId={id} />;
       case "procurement":
@@ -148,12 +155,18 @@ export default function BomGridPage() {
         return <EcoPanel bomId={id} />;
       case "assembly":
         return <AssemblyPanel bomId={id} />;
+      case "audit":
+        return <BomAuditPanel bomId={id} />;
     }
   };
 
   const panelCounts = summary
     ? {
         orders: summary.ordersActive,
+        // V2.0 P2 W6 — TASK-20260427-013: snapshot/production/audit chưa có counter
+        // riêng trong workspace summary; reuse workOrdersActive cho production (=
+        // số WO chưa kết thúc, ngầm = "đang sản xuất").
+        production: summary.workOrdersActive,
         "work-orders": summary.workOrdersActive,
         procurement: summary.procurementActive,
         shortage: summary.shortageComponents,

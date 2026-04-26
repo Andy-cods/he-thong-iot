@@ -15,3 +15,7 @@ export { ShortagePanel } from "./panels/ShortagePanel";
 export { EcoPanel } from "./panels/EcoPanel";
 export { ProcurementPanel } from "./panels/ProcurementPanel";
 export { AssemblyPanel } from "./panels/AssemblyPanel";
+// V2.0 P2 W6 — TASK-20260427-013 — gộp Order detail tabs vào BOM workspace.
+export { BomSnapshotPanel } from "./panels/BomSnapshotPanel";
+export { BomProductionPanel } from "./panels/BomProductionPanel";
+export { BomAuditPanel } from "./panels/BomAuditPanel";

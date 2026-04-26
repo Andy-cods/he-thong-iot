@@ -462,6 +462,116 @@ export async function rejectPO(
 }
 
 /**
+ * V3 (TASK-20260427-014) — Aggregate qty đã nhận trên 1 PO (sum lines).
+ *
+ * Trả `{ ordered, received, ratio }`. Dùng làm guard cho approve receiving
+ * (yêu cầu received >= 95% ordered).
+ */
+export async function getPOReceivingTotals(id: string): Promise<{
+  ordered: number;
+  received: number;
+  ratio: number;
+}> {
+  const [row] = await db
+    .select({
+      ordered: sql<string>`COALESCE(SUM(${purchaseOrderLine.orderedQty}), 0)::text`,
+      received: sql<string>`COALESCE(SUM(${purchaseOrderLine.receivedQty}), 0)::text`,
+    })
+    .from(purchaseOrderLine)
+    .where(eq(purchaseOrderLine.poId, id));
+
+  const ordered = Number(row?.ordered ?? "0");
+  const received = Number(row?.received ?? "0");
+  const ratio = ordered > 0 ? received / ordered : 0;
+  return { ordered, received, ratio };
+}
+
+/**
+ * V3 (TASK-20260427-014) — Approve PO sau khi nhận hàng.
+ *
+ * SENT/PARTIAL → RECEIVED. Lưu actualDeliveryDate=now, metadata receivedBy/At/note.
+ * Caller phải check threshold 95% trước khi gọi (để tách validation/db).
+ */
+export async function markPOReceived(
+  id: string,
+  userId: string | null,
+  note?: string | null,
+): Promise<PurchaseOrder | null> {
+  const [before] = await db
+    .select()
+    .from(purchaseOrder)
+    .where(eq(purchaseOrder.id, id))
+    .limit(1);
+  if (!before) return null;
+
+  const metadata = {
+    ...((before.metadata as Record<string, unknown>) ?? {}),
+    receivedBy: userId ?? undefined,
+    receivedAt: new Date().toISOString(),
+    receivedNote: note ?? null,
+  };
+
+  const [row] = await db
+    .update(purchaseOrder)
+    .set({
+      status: "RECEIVED",
+      actualDeliveryDate: sql`CURRENT_DATE`,
+      metadata,
+    })
+    .where(
+      and(
+        eq(purchaseOrder.id, id),
+        inArray(purchaseOrder.status, ["SENT", "PARTIAL"]),
+      ),
+    )
+    .returning();
+  return row ?? null;
+}
+
+/**
+ * V3 (TASK-20260427-014) — Reject PO sau khi nhận hàng (hư hỏng, sai item, …).
+ *
+ * SENT/PARTIAL → CANCELLED + metadata.rejectedReason. KHÔNG có enum REJECTED
+ * cho PO trong V1, dùng CANCELLED + metadata để đánh dấu bị từ chối.
+ */
+export async function rejectReceivingPO(
+  id: string,
+  userId: string | null,
+  reason: string,
+): Promise<PurchaseOrder | null> {
+  const [before] = await db
+    .select()
+    .from(purchaseOrder)
+    .where(eq(purchaseOrder.id, id))
+    .limit(1);
+  if (!before) return null;
+
+  const metadata = {
+    ...((before.metadata as Record<string, unknown>) ?? {}),
+    rejectedBy: userId ?? undefined,
+    rejectedAt: new Date().toISOString(),
+    rejectedReason: reason,
+    rejectedStage: "RECEIVING",
+  };
+
+  const [row] = await db
+    .update(purchaseOrder)
+    .set({
+      status: "CANCELLED",
+      cancelledAt: new Date(),
+      metadata,
+    })
+    .where(
+      and(
+        eq(purchaseOrder.id, id),
+        inArray(purchaseOrder.status, ["SENT", "PARTIAL"]),
+      ),
+    )
+    .returning();
+  return row ?? null;
+}
+
+/**
  * V1.9-P9 — list PO cho export kế toán (join đầy đủ để xuất Excel).
  */
 export async function listPOsForExport(q: {

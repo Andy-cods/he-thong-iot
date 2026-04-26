@@ -1,6 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export type LotEventKind = "TXN" | "RESERVE" | "RELEASE" | "SCAN";
 
@@ -114,5 +115,88 @@ export function useLotSerialList(filter: LotSerialListFilter) {
       request<LotSerialListResponse>(buildListUrl(filter)),
     staleTime: 15_000,
     placeholderData: (prev) => prev,
+  });
+}
+
+/* ---------------- V3 (TASK-20260427-014) — Hold / Release ---------------- */
+
+export interface LotMutationResponse {
+  ok: true;
+  lotSerial: {
+    id: string;
+    status: LotStatus | string;
+    holdReason: string | null;
+    lotCode: string | null;
+    serialCode: string | null;
+    itemId: string;
+  };
+}
+
+async function mutateRequest<T>(
+  input: string,
+  body?: unknown,
+): Promise<T> {
+  const res = await fetch(input, {
+    method: "POST",
+    credentials: "include",
+    headers: { "content-type": "application/json" },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    const json = (await res.json().catch(() => ({}))) as {
+      error?: { message?: string; code?: string };
+    };
+    throw new Error(
+      json.error?.message ?? `HTTP ${res.status}`,
+    );
+  }
+  return (await res.json()) as T;
+}
+
+/**
+ * `useHoldLot` — đặt lot vào trạng thái HOLD (lý do bắt buộc).
+ *
+ * Invalidate cả list + detail history. Toast success / error.
+ */
+export function useHoldLot() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      mutateRequest<LotMutationResponse>(
+        `/api/lot-serial/${encodeURIComponent(id)}/hold`,
+        { reason },
+      ),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: ["lot-serial"] });
+      void qc.invalidateQueries({
+        queryKey: ["lot-serial", "history", vars.id],
+      });
+      toast.success("Đã đặt lot vào HOLD.");
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
+    },
+  });
+}
+
+/** `useReleaseLot` — release HOLD → AVAILABLE. */
+export function useReleaseLot() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, note }: { id: string; note?: string | null }) =>
+      mutateRequest<LotMutationResponse>(
+        `/api/lot-serial/${encodeURIComponent(id)}/release`,
+        note ? { note } : {},
+      ),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: ["lot-serial"] });
+      void qc.invalidateQueries({
+        queryKey: ["lot-serial", "history", vars.id],
+      });
+      toast.success("Đã release lot — chuyển AVAILABLE.");
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
+    },
   });
 }

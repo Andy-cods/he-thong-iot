@@ -426,7 +426,6 @@ export function BomLineSheet({
           metadata: nextMeta,
         },
       });
-      toast.success("Đã lưu thay đổi");
       onOpenChange(false);
 
       if (createWOAfterSave && form.kind === "fab" && line) {
@@ -451,7 +450,16 @@ export function BomLineSheet({
         if (routeNames) noteParts.push(`Quy trình: ${routeNames}`);
         if (form.blankSize) noteParts.push(`Phôi: ${form.blankSize}`);
         q.set("note", noteParts.join(" · "));
-        router.push(`/work-orders/new?${q.toString()}`);
+        const woHref = `/work-orders/new?${q.toString()}`;
+        toast.success("Đã lưu — chuyển sang tạo Lệnh SX", {
+          action: {
+            label: "Mở Lệnh SX",
+            onClick: () => router.push(woHref),
+          },
+        });
+        router.push(woHref);
+      } else {
+        toast.success("Đã lưu thay đổi");
       }
     } catch (err) {
       toast.error((err as Error)?.message ?? "Không cập nhật được linh kiện");

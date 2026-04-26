@@ -1,15 +1,12 @@
 import {
   Building2,
   Calculator,
-  ClipboardList,
   Factory,
-  FileSpreadsheet,
   LayoutDashboard,
   Network,
-  Package,
   ShoppingCart,
   Shield,
-  Truck,
+  Warehouse,
   Wrench,
   type LucideIcon,
 } from "lucide-react";
@@ -92,24 +89,10 @@ export const NAV_ITEMS: NavItem[] = [
   },
   // --- Bộ phận Kho ---
   {
-    href: "/items",
-    label: "Danh mục vật tư",
-    icon: Package,
+    href: "/warehouse",
+    label: "Quản lí kho",
+    icon: Warehouse,
     entity: "item",
-    section: "warehouse",
-  },
-  {
-    href: "/lot-serial",
-    label: "Lot / Serial",
-    icon: Wrench,
-    roles: ["admin", "planner", "operator", "warehouse"],
-    section: "warehouse",
-  },
-  {
-    href: "/receiving",
-    label: "Nhận hàng",
-    icon: Truck,
-    roles: ["admin", "warehouse"],
     section: "warehouse",
   },
   // --- Bộ phận Mua bán ---
@@ -136,13 +119,6 @@ export const NAV_ITEMS: NavItem[] = [
     section: "engineering",
   },
   {
-    href: "/orders",
-    label: "Đơn hàng",
-    icon: ClipboardList,
-    entity: "salesOrder",
-    section: "engineering",
-  },
-  {
     href: "/work-orders",
     label: "Lệnh sản xuất",
     icon: Factory,
@@ -161,13 +137,6 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Yêu cầu mua (PR)",
     icon: ShoppingCart,
     entity: "pr",
-    roles: ["admin", "planner"],
-    section: "engineering",
-  },
-  {
-    href: "/import",
-    label: "Nhập Excel",
-    icon: FileSpreadsheet,
     roles: ["admin", "planner"],
     section: "engineering",
   },

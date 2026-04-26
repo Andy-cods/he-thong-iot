@@ -123,6 +123,121 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
+### TASK-20260427-010 — Redesign Dashboard "Tổng quan" (6 KPI cards)
+- **Trạng thái:** DONE
+- **Tạo:** 2026-04-27 14:30 (+07) bởi Claude (planner)
+- **Phụ trách:** Claude (executor) + ui-ux-designer
+- **Bắt đầu:** 2026-04-27 14:30 (+07)
+- **Hoàn thành:** 2026-04-27 14:55 (+07)
+- **Ưu tiên:** P1
+
+**Mô tả:** User: "redesign lại toàn bộ ui/ux của cái này".
+
+**Acceptance criteria:**
+- [x] Hierarchy: card có data dùng `bg-{tone}-50` solid + value text-3xl bold; card empty dùng border-dashed + CTA "Vào module ↗"
+- [x] Color semantics gắn cứng theo metric (emerald/blue/amber/indigo/rose/violet)
+- [x] Responsive grid `sm:grid-cols-2 md:grid-cols-3` (mobile 1 / tablet 2 / desktop 3)
+- [x] Click toàn bộ card (wrap `<Link>`)
+- [x] Hero section gradient + icon Activity + last-update pill pulse
+- [x] Hover scale-[1.01] + shadow-md transition; WCAG AAA contrast
+
+**Output / log:** Sửa `ProgressBarCard.tsx`, `ProgressBarStack.tsx`, `DashboardHeader.tsx`. Build full PASS, typecheck 0 errors.
+
+---
+
+### TASK-20260427-011 — Wire PRQuickDialog + ExplodeSnapshotDialog redirect sang module thật
+- **Trạng thái:** DONE
+- **Tạo:** 2026-04-27 14:30 (+07) bởi Claude (planner)
+- **Phụ trách:** Claude (executor)
+- **Bắt đầu:** 2026-04-27 14:30 (+07)
+- **Hoàn thành:** 2026-04-27 14:35 (+07)
+- **Ưu tiên:** P0
+
+**Mô tả:** User: "khi tạo đơn mua hoặc sản xuất nó sẽ về thẳng các function tương ứng".
+
+**Acceptance criteria:**
+- [x] PRQuickDialog: tick checkbox "Mở PR sau khi tạo" → router.push `/procurement/purchase-requests/[id]`. Toast luôn có action button "Mở PR ngay".
+- [x] BomLineSheet "Lưu + Tạo Lệnh SX" → router.push `/work-orders/new?prefill=...` + toast action "Mở Lệnh SX". (Form `/work-orders/new` đã có sẵn redirect tới detail sau create.)
+- [x] Toast lib `sonner` action API.
+
+**Output / log:** Sửa `PRQuickDialog.tsx` + `BomLineSheet.tsx`. Typecheck PASS. Note: 1-click create-WO trực tiếp từ BOM line cần orderId picker (vượt scope, để task sau).
+
+---
+
+### TASK-20260427-012 — Sidebar refactor: bỏ "Đơn hàng" + "Nhập Excel", gộp 3 Kho → "Quản lí kho"
+- **Trạng thái:** DONE
+- **Tạo:** 2026-04-27 14:30 (+07) bởi Claude (planner)
+- **Phụ trách:** Claude (executor)
+- **Bắt đầu:** 2026-04-27 14:30 (+07)
+- **Hoàn thành:** 2026-04-27 14:32 (+07)
+- **Ưu tiên:** P0
+
+**Mô tả:** Bỏ "Đơn hàng" + "Nhập Excel"; gộp 3 menu kho thành 1 "Quản lí kho" route `/warehouse`.
+
+**Acceptance criteria:**
+- [x] `nav-items.ts`: 14 → 10 items, gộp warehouse 3 → 1 (icon Warehouse)
+- [x] `/items` `/lot-serial` `/receiving` redirect sang `/warehouse?tab=...`
+- [x] `/orders` redirect sang `/bom` (giữ nguyên `/orders/[code]` để BOM detail tham chiếu)
+
+**Output / log:** Sửa 5 file (nav-items + 4 page redirect). Typecheck PASS.
+
+---
+
+### TASK-20260427-013 — BOM detail: gộp tabs Đơn hàng (Snapshot/Sản xuất/Thiếu vật tư/Lịch sử)
+- **Trạng thái:** DONE
+- **Tạo:** 2026-04-27 14:30 (+07) bởi Claude (planner)
+- **Phụ trách:** Claude (executor)
+- **Bắt đầu:** 2026-04-27 14:30 (+07)
+- **Hoàn thành:** 2026-04-27 15:10 (+07)
+- **Ưu tiên:** P1
+- **Phụ thuộc:** TASK-20260427-012
+
+**Mô tả:** BOM detail có thêm tabs Snapshot Board, Sản xuất, Thiếu vật tư, Lịch sử. Tabs phải hoạt động THẬT — join orders qua bom_template_id.
+
+**Acceptance criteria:**
+- [x] Tabs render thật, không stub — 3 panel mới (snapshot, production, audit) + tab shortage hiện tại đã đúng logic
+- [x] Tab Sản xuất: aggregate WO theo bom_template_id (qua sales_order JOIN)
+- [x] Reuse component pattern từ `components/orders/` (KPI cards, WO progress bar, badges)
+
+**Log:**
+- API mới: `/api/bom/templates/[id]/snapshot-lines`, `/api/bom/templates/[id]/production-summary`, `/api/bom/templates/[id]/audit`.
+- Hooks mới trong `useBom.ts`: `useBomSnapshotLines`, `useBomProductionSummary`, `useBomAuditLog`.
+- Panels mới trong `bom-workspace/panels/`: `BomSnapshotPanel`, `BomProductionPanel`, `BomAuditPanel`.
+- Mở rộng `PANEL_KEYS` thêm `snapshot` / `production` / `audit`. Tab "Thiếu vật tư" reuse `ShortagePanel` đã có (đã đúng logic aggregate qua bom_template_id).
+- `pnpm --filter @iot/web typecheck` PASS (exit 0).
+
+---
+
+### TASK-20260427-014 — Quản lí kho unified (Items + Lot/Serial + Receiving + approval API)
+- **Trạng thái:** DONE
+- **Tạo:** 2026-04-27 14:30 (+07) bởi Claude (planner)
+- **Phụ trách:** Claude (executor) + ui-ux-designer
+- **Bắt đầu:** 2026-04-27 14:30 (+07)
+- **Hoàn thành:** 2026-04-27 15:25 (+07)
+- **Ưu tiên:** P0
+- **Phụ thuộc:** TASK-20260427-012
+
+**Mô tả:** Trang `/warehouse` 4 tabs + 4 API endpoint mới ghi DB thật.
+
+**Acceptance criteria:**
+- [x] `/warehouse/page.tsx` Server Component đọc `searchParams.tab` (overview/items/lot-serial/receiving)
+- [x] `WarehouseTabsNav` + 4 component tab (`OverviewTab`, `ItemsTab`, `LotSerialTab`, `ReceivingTab`)
+- [x] `POST /api/lot-serial/[id]/hold` (body reason, audit HOLD)
+- [x] `POST /api/lot-serial/[id]/release` (guard phải đang HOLD, audit RELEASE)
+- [x] `POST /api/receiving/[poId]/approve` (guard 95% threshold, status → RECEIVED, audit APPROVE)
+- [x] `POST /api/receiving/[poId]/reject` (status → CANCELLED + metadata.rejectedReason, audit REJECT)
+- [x] Hooks `useHoldLot`, `useReleaseLot`, `useApproveReceiving`, `useRejectReceiving`
+- [x] Repo extend `getPOReceivingTotals`, `markPOReceived`, `rejectReceivingPO`
+
+**Schema gaps phát hiện (defer):**
+- `purchase_order` thiếu `received_at`/`received_by`/`rejection_reason` — dùng `metadata` jsonb thay thế
+- Status `REJECTED` enum chưa có → dùng `CANCELLED` + `metadata.rejectedStage='RECEIVING'`
+- RBAC matrix chưa có entity `lot_serial` — tạm dùng `update`/`reservation`
+
+**Output / log:** 9 file mới + 3 file sửa. Typecheck PASS exit 0.
+
+---
+
 ### TASK-20260426-001 — Migration 0031 seed FULL master catalog (60+ mat / 19 proc)
 - **Trạng thái:** DONE
 - **Tạo:** 2026-04-26 23:40 (+07) bởi Claude (planner)

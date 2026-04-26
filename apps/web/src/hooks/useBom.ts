@@ -593,3 +593,172 @@ export function useBomFabProgress(templateId: string, enabled = true) {
     enabled: enabled && !!templateId,
   });
 }
+
+// ─────────────────────────────────────────────────────────
+// V2.0 P2 W6 — TASK-20260427-013
+// Gộp tabs Order detail (Snapshot Board / Sản xuất / Lịch sử) vào BOM workspace.
+// ─────────────────────────────────────────────────────────
+
+export interface BomSnapshotLineRow {
+  id: string;
+  orderId: string;
+  orderNo: string;
+  customerName: string;
+  revisionId: string;
+  parentSnapshotLineId: string | null;
+  level: number;
+  path: string;
+  componentItemId: string;
+  componentSku: string;
+  componentName: string;
+  requiredQty: string;
+  grossRequiredQty: string;
+  openPurchaseQty: string;
+  receivedQty: string;
+  qcPassQty: string;
+  reservedQty: string;
+  issuedQty: string;
+  assembledQty: string;
+  remainingShortQty: string | null;
+  state:
+    | "PLANNED"
+    | "PURCHASING"
+    | "IN_PRODUCTION"
+    | "INBOUND_QC"
+    | "PROD_QC"
+    | "AVAILABLE"
+    | "RESERVED"
+    | "ISSUED"
+    | "ASSEMBLED"
+    | "CLOSED";
+  transitionedAt: string | null;
+  transitionedBy: string | null;
+  versionLock: number;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BomSnapshotLinesResponse {
+  data: BomSnapshotLineRow[];
+  meta: {
+    page: number;
+    pageSize: number;
+    total: number;
+    byState: { state: string; count: number }[];
+  };
+}
+
+export interface BomSnapshotLinesFilter {
+  state?: string[];
+  q?: string;
+  orderCode?: string;
+  shortOnly?: boolean;
+  page?: number;
+  pageSize?: number;
+}
+
+function buildBomSnapshotUrl(
+  bomId: string,
+  filter: BomSnapshotLinesFilter,
+): string {
+  const p = new URLSearchParams();
+  for (const s of filter.state ?? []) p.append("state", s);
+  if (filter.q && filter.q.trim()) p.set("q", filter.q.trim());
+  if (filter.orderCode && filter.orderCode.trim())
+    p.set("orderCode", filter.orderCode.trim());
+  if (filter.shortOnly) p.set("shortOnly", "1");
+  if (filter.page) p.set("page", String(filter.page));
+  if (filter.pageSize) p.set("pageSize", String(filter.pageSize));
+  const qs = p.toString();
+  return `/api/bom/templates/${bomId}/snapshot-lines${qs ? `?${qs}` : ""}`;
+}
+
+export function useBomSnapshotLines(
+  bomId: string | null,
+  filter: BomSnapshotLinesFilter = {},
+  enabled = true,
+) {
+  return useQuery<BomSnapshotLinesResponse>({
+    queryKey: ["bom", "snapshot-lines", bomId, filter],
+    queryFn: () =>
+      request<BomSnapshotLinesResponse>(
+        buildBomSnapshotUrl(bomId as string, filter),
+      ),
+    enabled: enabled && !!bomId,
+    staleTime: 15_000,
+    placeholderData: (prev) => prev,
+  });
+}
+
+export interface BomWorkOrderSummaryItem {
+  id: string;
+  woNo: string;
+  status: string;
+  priority: string;
+  orderNo: string | null;
+  plannedQty: number;
+  goodQty: number;
+  scrapQty: number;
+  progressPct: number;
+  plannedStart: string | null;
+  plannedEnd: string | null;
+}
+
+export interface BomProductionSummary {
+  bomTemplateId: string;
+  totalWorkOrders: number;
+  doneWorkOrders: number;
+  inProgressWorkOrders: number;
+  donePct: number;
+  totalPlannedQty: number;
+  totalGoodQty: number;
+  totalScrapQty: number;
+  qtyDonePct: number;
+  recentWorkOrders: BomWorkOrderSummaryItem[];
+  snapshotSummary: {
+    totalLines: number;
+    shortageLines: number;
+    materialReadyPct: number;
+  } | null;
+}
+
+export function useBomProductionSummary(
+  bomId: string | null,
+  enabled = true,
+) {
+  return useQuery<{ data: BomProductionSummary }>({
+    queryKey: ["bom", "production-summary", bomId],
+    queryFn: () =>
+      request<{ data: BomProductionSummary }>(
+        `/api/bom/templates/${bomId}/production-summary`,
+      ),
+    enabled: enabled && !!bomId,
+    staleTime: 15_000,
+    refetchInterval: 60_000,
+  });
+}
+
+export interface BomAuditLogRow {
+  id: string;
+  action: string;
+  objectType: string;
+  objectId: string | null;
+  actorUsername: string | null;
+  notes: string | null;
+  beforeJson: unknown;
+  afterJson: unknown;
+  occurredAt: string;
+}
+
+export function useBomAuditLog(bomId: string | null, enabled = true) {
+  return useQuery<{ data: BomAuditLogRow[] }>({
+    queryKey: ["bom", "audit-log", bomId],
+    queryFn: () =>
+      request<{ data: BomAuditLogRow[] }>(
+        `/api/bom/templates/${bomId}/audit`,
+      ),
+    enabled: enabled && !!bomId,
+    staleTime: 30_000,
+  });
+}

@@ -207,11 +207,25 @@ export function PRQuickDialog({
       });
 
       const created = res.data;
-      toast.success(`Đã tạo PR ${created.code ?? ""}`);
+      const prHref = created.id
+        ? `/procurement/purchase-requests/${created.id}`
+        : null;
+
+      toast.success(
+        `Đã tạo PR ${created.code ?? ""}`.trim(),
+        prHref
+          ? {
+              action: {
+                label: "Mở PR ngay",
+                onClick: () => router.push(prHref),
+              },
+            }
+          : undefined,
+      );
       onOpenChange(false);
 
-      if (openAfterCreate && created.id) {
-        router.push(`/procurement/purchase-requests/${created.id}`);
+      if (openAfterCreate && prHref) {
+        router.push(prHref);
       }
     } catch (err) {
       toast.error((err as Error)?.message ?? "Không tạo được PR");
