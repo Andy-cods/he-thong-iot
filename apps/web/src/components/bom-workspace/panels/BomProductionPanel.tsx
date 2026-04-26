@@ -39,6 +39,26 @@ export function BomProductionPanel({ bomId }: { bomId: string }) {
   const query = useBomProductionSummary(bomId);
   const data = query.data?.data;
 
+  const [dateFrom, setDateFrom] = React.useState<string>("");
+  const [dateTo, setDateTo] = React.useState<string>("");
+
+  const filteredWOs = React.useMemo(() => {
+    if (!data) return [];
+    return data.recentWorkOrders.filter((wo) => {
+      const ps = wo.plannedStart ? new Date(wo.plannedStart).getTime() : null;
+      if (dateFrom) {
+        const from = new Date(dateFrom).getTime();
+        if (ps === null || ps < from) return false;
+      }
+      if (dateTo) {
+        // include end-of-day
+        const to = new Date(dateTo).getTime() + 24 * 60 * 60 * 1000 - 1;
+        if (ps === null || ps > to) return false;
+      }
+      return true;
+    });
+  }, [data, dateFrom, dateTo]);
+
   if (query.isLoading && !data) {
     return (
       <div className="space-y-2 p-3">
@@ -66,7 +86,20 @@ export function BomProductionPanel({ bomId }: { bomId: string }) {
   }
 
   return (
-    <div className="flex h-full flex-col gap-3 overflow-auto p-3">
+    <div className="flex h-full flex-col">
+      {/* Inline toolbar — date filter (client-side over recentWorkOrders). */}
+      <ProductionToolbar
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        onChange={(f, t) => {
+          setDateFrom(f);
+          setDateTo(t);
+        }}
+        totalCount={data.recentWorkOrders.length}
+        filteredCount={filteredWOs.length}
+      />
+
+      <div className="flex flex-1 flex-col gap-3 overflow-auto p-3">
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
         <KpiCard
@@ -130,15 +163,17 @@ export function BomProductionPanel({ bomId }: { bomId: string }) {
           <h3 className="text-xs font-medium text-zinc-900">
             Work Orders gần đây
           </h3>
-          {data.recentWorkOrders.length > 0 && (
+          {filteredWOs.length > 0 && (
             <span className="text-[10px] text-zinc-400">
-              {data.recentWorkOrders.length} WO
+              {filteredWOs.length} / {data.recentWorkOrders.length} WO
             </span>
           )}
         </div>
-        {data.recentWorkOrders.length === 0 ? (
+        {filteredWOs.length === 0 ? (
           <div className="px-3 py-6 text-center text-xs text-zinc-500">
-            Chưa có Work Order nào cho BOM này.
+            {data.recentWorkOrders.length === 0
+              ? "Chưa có Work Order nào cho BOM này."
+              : "Không có WO nào trong khoảng ngày đã chọn."}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -157,7 +192,7 @@ export function BomProductionPanel({ bomId }: { bomId: string }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {data.recentWorkOrders.map((wo) => {
+                {filteredWOs.map((wo) => {
                   const badge = WO_STATUS_BADGE[wo.status] ?? {
                     label: wo.status,
                     className: "bg-zinc-100 text-zinc-600",
@@ -222,6 +257,56 @@ export function BomProductionPanel({ bomId }: { bomId: string }) {
           </div>
         )}
       </section>
+      </div>
+    </div>
+  );
+}
+
+function ProductionToolbar({
+  dateFrom,
+  dateTo,
+  onChange,
+  totalCount,
+  filteredCount,
+}: {
+  dateFrom: string;
+  dateTo: string;
+  onChange: (from: string, to: string) => void;
+  totalCount: number;
+  filteredCount: number;
+}) {
+  return (
+    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-zinc-200 bg-zinc-50/60 px-3 py-2">
+      <label className="flex items-center gap-1 text-[11px] text-zinc-600">
+        Từ
+        <input
+          type="date"
+          value={dateFrom}
+          onChange={(e) => onChange(e.target.value, dateTo)}
+          className="h-6 rounded-sm border border-zinc-200 bg-white px-1.5 text-[11px] tabular-nums focus:border-indigo-500 focus:outline-none"
+        />
+      </label>
+      <label className="flex items-center gap-1 text-[11px] text-zinc-600">
+        Đến
+        <input
+          type="date"
+          value={dateTo}
+          onChange={(e) => onChange(dateFrom, e.target.value)}
+          className="h-6 rounded-sm border border-zinc-200 bg-white px-1.5 text-[11px] tabular-nums focus:border-indigo-500 focus:outline-none"
+        />
+      </label>
+      {(dateFrom || dateTo) && (
+        <button
+          type="button"
+          onClick={() => onChange("", "")}
+          className="text-[10px] text-zinc-500 underline hover:text-zinc-700"
+        >
+          Bỏ lọc
+        </button>
+      )}
+      <span className="ml-auto text-[10px] uppercase tracking-wide text-zinc-500">
+        {filteredCount} / {totalCount} WO theo planned_start
+      </span>
     </div>
   );
 }

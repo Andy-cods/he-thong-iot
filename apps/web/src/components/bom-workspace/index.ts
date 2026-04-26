@@ -1,14 +1,15 @@
 export { BomWorkspaceTopbar } from "./BomWorkspaceTopbar";
-export { BottomPanel } from "./BottomPanel";
+export { TopTabBar } from "./TopTabBar";
 export { HistoryDrawer } from "./HistoryDrawer";
 export { BomBarcodeSearchDialog } from "./BomBarcodeSearchDialog";
+export { CreateOrderDialog } from "./CreateOrderDialog";
 export {
-  useBottomPanelState,
-  PANEL_KEYS,
-  PANEL_LABELS,
-  type PanelKey,
-  type BottomPanelState,
-} from "./useBottomPanelState";
+  useTopTabState,
+  TOP_TAB_KEYS,
+  TOP_TAB_LABELS,
+  type TopTabKey,
+  type TopTabState,
+} from "./useTopTabState";
 export { OrdersPanel } from "./panels/OrdersPanel";
 export { WorkOrdersPanel } from "./panels/WorkOrdersPanel";
 export { ShortagePanel } from "./panels/ShortagePanel";
@@ -19,3 +20,11 @@ export { AssemblyPanel } from "./panels/AssemblyPanel";
 export { BomSnapshotPanel } from "./panels/BomSnapshotPanel";
 export { BomProductionPanel } from "./panels/BomProductionPanel";
 export { BomAuditPanel } from "./panels/BomAuditPanel";
+
+// V2.0 P2 W6 — TASK-20260427-015 NOTE:
+//
+// `useBottomPanelState` + `BottomPanel` đã retire — workspace dùng
+// `useTopTabState` + `TopTabBar` (top sticky tab navigation). Hai file cũ
+// `useBottomPanelState.ts` và `BottomPanel.tsx` được giữ trong source tree
+// để git history rõ ràng nhưng KHÔNG còn export — re-introduce sau khi cần
+// fallback rất unlikely.

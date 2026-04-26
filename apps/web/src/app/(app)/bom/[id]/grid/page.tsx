@@ -27,25 +27,32 @@ import {
   BomProductionPanel,
   BomSnapshotPanel,
   BomWorkspaceTopbar,
-  BottomPanel,
   EcoPanel,
   HistoryDrawer,
   OrdersPanel,
   ProcurementPanel,
   ShortagePanel,
+  TopTabBar,
   WorkOrdersPanel,
-  useBottomPanelState,
-  type PanelKey,
+  useTopTabState,
+  type TopTabKey,
 } from "@/components/bom-workspace";
 
 /**
- * V1.7-beta.2.3 — Integrated BOM Grid Workspace (BomGridPro only).
+ * V2.0 P2 W6 — TASK-20260427-015 — BOM Workspace với top tab navigation.
  *
- * Layout: [BomWorkspaceTopbar h-12] → [BomGridPro flex-1] → [BottomPanel]
- *         → [HistoryDrawer right 440px].
+ * Layout:
+ *   [BomWorkspaceTopbar h-12]
+ *   [TopTabBar h-9 sticky top-0 z-20]
+ *     ├ Vật tư & Quy trình (default — BOM grid + sheet tabs)
+ *     ├ Đơn hàng / Snapshot / Sản xuất / Lệnh SX / Mua sắm / ...
+ *   [Content area — render panel theo activeTab]
+ *   [HistoryDrawer right 440px]
  *
- * Univer retired (V1.7-beta.2 Phase D) — chỉ còn Pro Grid (Tanstack table +
- * custom rendering + BomLineSheet edit). Bundle giảm đáng kể (≈24KB → <5KB).
+ * Khác V1.7-beta:
+ *  - BỎ BottomPanel (collapsed bar chiếm slot dưới grid).
+ *  - Mỗi tab có toolbar inline action ở đầu (tạo dialog/sheet, KHÔNG redirect).
+ *  - URL state ?tab=... (legacy ?panel=... vẫn redirect được).
  */
 export default function BomGridPage() {
   const { id } = useParams<{ id: string }>();
@@ -60,7 +67,7 @@ export default function BomGridPage() {
   const template = detailQuery.data?.data?.template;
   const summary = summaryQuery.data?.data;
 
-  const panel = useBottomPanelState();
+  const tabs = useTopTabState();
 
   // V1.8 Batch 7 — Barcode scan dialog state.
   const [scanOpen, setScanOpen] = React.useState(false);
@@ -81,17 +88,13 @@ export default function BomGridPage() {
     }
   }, [sheets, activeSheetId]);
 
-  // V2.0 Sprint 6 — fetch tree filtered theo activeSheetId. Sheet PROJECT
-  // active nào → grid chỉ render lines của sheet đó (KHÔNG render full
-  // template như V1 → tránh duplicate UI khi BOM có 2+ sheet PROJECT).
   const activeSheetKind = sheets.find((s) => s.id === activeSheetId)?.kind;
   const treeSheetId =
     activeSheetKind === "PROJECT" ? activeSheetId : null;
   const treeQuery = useBomTree(id, treeSheetId);
   const tree = treeQuery.data?.data?.tree ?? [];
 
-  // Deep-link `?scan=open` → tự mở dialog 1 lần khi load. Sau khi mở, strip
-  // param khỏi URL để refresh không mở lại (giữ `highlightLine` nếu có).
+  // Deep-link `?scan=open` → tự mở dialog 1 lần khi load.
   const scanParam = searchParams?.get("scan") ?? null;
   React.useEffect(() => {
     if (scanParam === "open" && !scanOpen) {
@@ -104,10 +107,7 @@ export default function BomGridPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scanParam]);
 
-  // Ctrl+Shift+A hotkey — V1.7-beta.2.3: luồng "Thêm linh kiện" dedicated
-  // chưa có trong Pro Grid (Univer add dialog đã retire). Toast info đến
-  // khi AddComponentDialog hoàn thiện V1.8.
-  // Alt+S — V1.8 Batch 7: mở BomBarcodeSearchDialog.
+  // Hotkeys: Ctrl+Shift+A (V1.7-beta.2.3 placeholder) + Alt+S (barcode scan).
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey && (e.key === "A" || e.key === "a")) {
@@ -117,11 +117,19 @@ export default function BomGridPage() {
         );
         return;
       }
-      // Alt+S: skip khi focus trong input/textarea để không ăn phím khi user gõ.
-      if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === "s" || e.key === "S")) {
+      if (
+        e.altKey &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        (e.key === "s" || e.key === "S")
+      ) {
         const tgt = e.target as HTMLElement | null;
         const tag = tgt?.tagName;
-        if (tag === "INPUT" || tag === "TEXTAREA" || tgt?.isContentEditable) {
+        if (
+          tag === "INPUT" ||
+          tag === "TEXTAREA" ||
+          tgt?.isContentEditable
+        ) {
           return;
         }
         e.preventDefault();
@@ -135,12 +143,97 @@ export default function BomGridPage() {
   const isLoading = detailQuery.isLoading || treeQuery.isLoading;
   const isObsolete = template?.status === "OBSOLETE";
 
-  // BottomPanel render helper
-  const renderPanel = (key: PanelKey) => {
-    if (!id) return null;
+  const tabCounts: Partial<Record<TopTabKey, number>> = summary
+    ? {
+        orders: summary.ordersActive,
+        production: summary.workOrdersActive,
+        "work-orders": summary.workOrdersActive,
+        procurement: summary.procurementActive,
+        shortage: summary.shortageComponents,
+        eco: summary.ecoActive,
+        assembly: summary.assemblyInProgress,
+      }
+    : {};
+
+  const renderTab = (key: TopTabKey): React.ReactNode => {
+    if (!id || !template) return null;
+    if (key === "materials") {
+      // Default tab — BOM grid (PROJECT sheet) hoặc Material&Process sheet.
+      return (
+        <div className="flex h-full min-h-0 flex-col bg-zinc-50">
+          {/* Sheet tabs (PROJECT / MATERIAL / PROCESS / CUSTOM) */}
+          <BomSheetTabs
+            sheets={sheets}
+            activeSheetId={activeSheetId}
+            onChange={setActiveSheetId}
+            onAddSheet={() => setAddSheetOpen(true)}
+            loading={sheetsQuery.isLoading}
+            canAddSheet={!isObsolete}
+          />
+          <div className="flex min-h-0 flex-1 overflow-hidden">
+            <div className="flex-1 overflow-hidden">
+              {isLoading ? (
+                <div className="flex h-full items-center justify-center bg-white text-sm text-zinc-500">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Đang tải BOM…
+                </div>
+              ) : (
+                (() => {
+                  const activeSheet = sheets.find(
+                    (s) => s.id === activeSheetId,
+                  );
+                  const sheetKind = activeSheet?.kind ?? "PROJECT";
+                  if (
+                    (sheetKind === "MATERIAL" || sheetKind === "PROCESS") &&
+                    activeSheetId
+                  ) {
+                    return (
+                      <MaterialProcessSheetView
+                        sheetId={activeSheetId}
+                        readOnly={isObsolete}
+                      />
+                    );
+                  }
+                  if (sheetKind === "CUSTOM" && activeSheet) {
+                    return (
+                      <CustomSheetView
+                        templateId={id}
+                        sheet={activeSheet}
+                        readOnly={isObsolete}
+                      />
+                    );
+                  }
+                  // PROJECT (default) — BomGridPro
+                  return (
+                    <div className="h-full p-3">
+                      <BomGridPro
+                        templateId={template.id}
+                        templateName={template.name}
+                        templateCode={template.code}
+                        parentQty={Number(template.targetQty) || 1}
+                        tree={tree}
+                        statusMap={buildStatusMap(
+                          derivedStatusQuery.data?.data,
+                        )}
+                        comProgressMap={buildComProgressMap(
+                          derivedStatusQuery.data?.data,
+                        )}
+                        fabProgressMap={fabProgressQuery.data?.data.progress}
+                        readOnly={isObsolete}
+                        onHistoryLine={() => tabs.setDrawerHistory(true)}
+                      />
+                    </div>
+                  );
+                })()
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
     switch (key) {
       case "orders":
-        return <OrdersPanel bomId={id} />;
+        return <OrdersPanel bomId={id} bomCode={template.code} />;
       case "snapshot":
         return <BomSnapshotPanel bomId={id} />;
       case "production":
@@ -148,9 +241,9 @@ export default function BomGridPage() {
       case "work-orders":
         return <WorkOrdersPanel bomId={id} />;
       case "procurement":
-        return <ProcurementPanel bomId={id} />;
+        return <ProcurementPanel bomId={id} bomCode={template.code} />;
       case "shortage":
-        return <ShortagePanel bomId={id} />;
+        return <ShortagePanel bomId={id} bomCode={template.code} />;
       case "eco":
         return <EcoPanel bomId={id} />;
       case "assembly":
@@ -160,127 +253,51 @@ export default function BomGridPage() {
     }
   };
 
-  const panelCounts = summary
-    ? {
-        orders: summary.ordersActive,
-        // V2.0 P2 W6 — TASK-20260427-013: snapshot/production/audit chưa có counter
-        // riêng trong workspace summary; reuse workOrdersActive cho production (=
-        // số WO chưa kết thúc, ngầm = "đang sản xuất").
-        production: summary.workOrdersActive,
-        "work-orders": summary.workOrdersActive,
-        procurement: summary.procurementActive,
-        shortage: summary.shortageComponents,
-        eco: summary.ecoActive,
-        assembly: summary.assemblyInProgress,
-      }
-    : undefined;
-
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
       {template && (
         <BomWorkspaceTopbar
           template={template}
-          onOpenPanel={panel.setActivePanel}
-          onOpenHistory={() => panel.setDrawerHistory(true)}
+          onOpenTab={tabs.setActiveTab}
+          onOpenHistory={() => tabs.setDrawerHistory(true)}
           onOpenScan={() => setScanOpen(true)}
         />
       )}
 
-      {/* V2.0 Sprint 6 — Sheet tabs (PROJECT / MATERIAL / PROCESS / CUSTOM) */}
-      {template && id ? (
-        <BomSheetTabs
-          sheets={sheets}
-          activeSheetId={activeSheetId}
-          onChange={setActiveSheetId}
-          onAddSheet={() => setAddSheetOpen(true)}
-          loading={sheetsQuery.isLoading}
-          canAddSheet={!isObsolete}
-        />
-      ) : null}
+      <TopTabBar
+        activeTab={tabs.activeTab}
+        onSelect={tabs.setActiveTab}
+        counts={tabCounts}
+      />
 
-      {/* V2.0 Sprint 6 FIX — render content per active sheet kind:
-          PROJECT → BomGridPro, MATERIAL → MaterialSheetView, PROCESS →
-          ProcessSheetView, CUSTOM → markdown viewer (defer). */}
       <div className="flex min-h-0 flex-1 overflow-hidden bg-zinc-50">
-        <div className="flex-1 overflow-hidden">
-          {isLoading ? (
+        <div
+          className="flex h-full min-h-0 flex-1 flex-col overflow-hidden"
+          role="tabpanel"
+          aria-labelledby={`tab-${tabs.activeTab}`}
+        >
+          {!template ? (
             <div className="flex h-full items-center justify-center bg-white text-sm text-zinc-500">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Đang tải BOM…
+              {detailQuery.isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Đang tải BOM…
+                </>
+              ) : (
+                "Không tải được dữ liệu BOM."
+              )}
             </div>
-          ) : template ? (
-            (() => {
-              const activeSheet = sheets.find((s) => s.id === activeSheetId);
-              const sheetKind = activeSheet?.kind ?? "PROJECT";
-
-              // V2.0 Sprint 6 user feedback: gộp MATERIAL + PROCESS vào 1
-              // sheet "Material & Process" giống Excel. Cả 2 kind đều render
-              // combined view (material rows + process rows side-by-side).
-              if (
-                (sheetKind === "MATERIAL" || sheetKind === "PROCESS") &&
-                activeSheetId
-              ) {
-                return (
-                  <MaterialProcessSheetView
-                    sheetId={activeSheetId}
-                    readOnly={isObsolete}
-                  />
-                );
-              }
-              if (sheetKind === "CUSTOM" && activeSheet && id) {
-                return (
-                  <CustomSheetView
-                    templateId={id}
-                    sheet={activeSheet}
-                    readOnly={isObsolete}
-                  />
-                );
-              }
-              // PROJECT (default) — BomGridPro
-              return (
-                <div className="h-full p-3">
-                  <BomGridPro
-                    templateId={template.id}
-                    templateName={template.name}
-                    templateCode={template.code}
-                    parentQty={Number(template.targetQty) || 1}
-                    tree={tree}
-                    statusMap={buildStatusMap(derivedStatusQuery.data?.data)}
-                    comProgressMap={buildComProgressMap(
-                      derivedStatusQuery.data?.data,
-                    )}
-                    fabProgressMap={fabProgressQuery.data?.data.progress}
-                    readOnly={isObsolete}
-                    onHistoryLine={() => panel.setDrawerHistory(true)}
-                  />
-                </div>
-              );
-            })()
           ) : (
-            <div className="flex h-full items-center justify-center rounded-md border border-zinc-200 bg-white text-sm text-zinc-500">
-              Không tải được dữ liệu BOM.
-            </div>
+            renderTab(tabs.activeTab)
           )}
         </div>
       </div>
 
-      {/* Bottom Panel — 6 tabs: orders/WO/procurement/shortage/eco/assembly */}
-      <BottomPanel
-        activePanel={panel.activePanel}
-        collapsed={panel.collapsed}
-        height={panel.height}
-        onSelectPanel={panel.setActivePanel}
-        onToggleCollapsed={panel.toggleCollapsed}
-        onSetHeight={panel.setHeight}
-        renderPanel={renderPanel}
-        counts={panelCounts}
-      />
-
       {id && (
         <HistoryDrawer
           bomId={id}
-          open={panel.drawerHistory}
-          onOpenChange={panel.setDrawerHistory}
+          open={tabs.drawerHistory}
+          onOpenChange={tabs.setDrawerHistory}
         />
       )}
 

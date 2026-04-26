@@ -71,12 +71,10 @@ export function AssemblyPanel({ bomId }: { bomId: string }) {
       <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-xs text-zinc-500">
         <Wrench className="h-5 w-5 text-zinc-300" aria-hidden />
         <span>Chưa có lệnh SX đang lắp ráp cho BOM này.</span>
-        <Link
-          href={`/work-orders?bomTemplateId=${bomId}`}
-          className="inline-flex items-center gap-1 text-indigo-600 hover:underline"
-        >
-          Xem toàn bộ lệnh SX <ExternalLink className="h-3 w-3" aria-hidden />
-        </Link>
+        <span className="text-[10px] text-zinc-400">
+          Lắp ráp xuất hiện khi có WO ở trạng thái IN_PROGRESS / PAUSED /
+          COMPLETED. Xem tab Lệnh SX để tạo WO.
+        </span>
       </div>
     );
   }

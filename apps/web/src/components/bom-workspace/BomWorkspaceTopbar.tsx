@@ -38,10 +38,7 @@ import {
 import { useBomRevisions } from "@/hooks/useBomRevisions";
 import { ReleaseRevisionDialog } from "@/components/bom-revision/ReleaseRevisionDialog";
 import { cn } from "@/lib/utils";
-import {
-  PANEL_LABELS,
-  type PanelKey,
-} from "./useBottomPanelState";
+import { TOP_TAB_LABELS, type TopTabKey } from "./useTopTabState";
 
 function bomStatusToBadge(status: BomStatus): {
   badgeStatus: BadgeStatus;
@@ -59,8 +56,8 @@ function bomStatusToBadge(status: BomStatus): {
 
 export interface BomWorkspaceTopbarProps {
   template: BomTemplateDetail;
-  /** Click KPI chip → mở bottom panel tương ứng. */
-  onOpenPanel: (panel: PanelKey) => void;
+  /** Click KPI chip → mở top tab tương ứng (orders/work-orders/shortage/eco). */
+  onOpenTab: (tab: TopTabKey) => void;
   /** Click History button → mở right drawer timeline. */
   onOpenHistory: () => void;
   /** Click ScanLine button → mở BomBarcodeSearchDialog (V1.8 Batch 7). */
@@ -83,7 +80,7 @@ export interface BomWorkspaceTopbarProps {
  */
 export function BomWorkspaceTopbar({
   template,
-  onOpenPanel,
+  onOpenTab,
   onOpenHistory,
   onOpenScan,
 }: BomWorkspaceTopbarProps) {
@@ -180,25 +177,25 @@ export function BomWorkspaceTopbar({
       {/* KPI chips */}
       <div className="hidden items-center gap-1 text-xs md:flex">
         <KpiChip
-          label={PANEL_LABELS.orders}
+          label={TOP_TAB_LABELS.orders}
           count={summary?.ordersActive}
-          onClick={() => onOpenPanel("orders")}
+          onClick={() => onOpenTab("orders")}
         />
         <KpiChip
-          label={PANEL_LABELS["work-orders"]}
+          label={TOP_TAB_LABELS["work-orders"]}
           count={summary?.workOrdersActive}
-          onClick={() => onOpenPanel("work-orders")}
+          onClick={() => onOpenTab("work-orders")}
         />
         <KpiChip
-          label={PANEL_LABELS.shortage}
+          label={TOP_TAB_LABELS.shortage}
           count={summary?.shortageComponents}
           tone="orange"
-          onClick={() => onOpenPanel("shortage")}
+          onClick={() => onOpenTab("shortage")}
         />
         <KpiChip
-          label={PANEL_LABELS.eco}
+          label={TOP_TAB_LABELS.eco}
           count={summary?.ecoActive}
-          onClick={() => onOpenPanel("eco")}
+          onClick={() => onOpenTab("eco")}
         />
       </div>
 

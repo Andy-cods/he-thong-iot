@@ -123,6 +123,39 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
+### TASK-20260427-015 — BOM detail: đẩy tabs lên đầu + inline actions theo trạng thái
+- **Trạng thái:** DONE
+- **Tạo:** 2026-04-27 15:50 (+07) bởi Claude (planner)
+- **Phụ trách:** Claude (executor)
+- **Bắt đầu:** 2026-04-27 15:50 (+07)
+- **Hoàn thành:** 2026-04-27 16:10 (+07)
+- **Ưu tiên:** P1
+- **Phụ thuộc:** TASK-20260427-013
+
+**Output / log:** TopTabBar sticky top + 10 tab. Default `materials`. Inline action: CreateOrderDialog, bulk PR from shortage, batch snapshot transition (loop sequential), WO status filter, audit date+entity filter, procurement PR/PO segment. KHÔNG redirect (trừ /eco/new mở tab mới + PRQuickDialog cũ giữ TASK-011). Typecheck PASS.
+
+**Mô tả:** User: "đẩy tab này lên đầu bom list, và có các tác vụ hiển thị với mỗi trạng thái khi tôi nhấn vào luôn để đỡ phải redirect sang page khác". Hiện tại 9 tab (Đơn hàng/Snapshot/Sản xuất/Lệnh SX/Mua sắm/Thiếu vật tư/ECO/Lắp ráp/Lịch sử) ở BOTTOM panel — phải scroll xuống mới thấy. Yêu cầu: dời tab lên TOP (ngay dưới breadcrumb/title), mỗi panel có toolbar action inline phù hợp trạng thái thay vì redirect sang module khác.
+
+**Acceptance criteria:**
+- [ ] Tab navigation ở TOP (sticky) ngay dưới BOM header, KHÔNG ở bottom panel nữa
+- [ ] Tab "Vật tư & Quy trình" (grid hiện tại) trở thành tab default đầu tiên
+- [ ] Mỗi tab có toolbar action inline:
+  - Đơn hàng: nút "Tạo đơn từ BOM" (mở dialog)
+  - Lệnh SX: nút "Tạo lệnh SX" + filter status (DRAFT/QUEUED/RUNNING/DONE)
+  - Mua sắm: nút "Tạo PR" + tab con PR/PO
+  - Thiếu vật tư: nút "Tạo PR cho tất cả" (bulk PR từ shortage)
+  - Snapshot: filter state + nút "Transition" inline cho row chọn
+  - Lịch sử: filter date range + entity type
+- [ ] Inline action mở dialog/sheet, KHÔNG redirect sang `/orders/new`, `/work-orders/new`...
+- [ ] Layout: tab ở top sticky, content fill viewport, không bottom panel resizable nữa (hoặc collapsed default)
+
+**File path:**
+- `apps/web/src/app/(app)/bom/[id]/grid/page.tsx` — main layout
+- `apps/web/src/components/bom-workspace/*` — refactor tab nav lên top
+- `apps/web/src/components/bom-workspace/panels/*` — thêm toolbar mỗi panel
+
+---
+
 ### TASK-20260427-010 — Redesign Dashboard "Tổng quan" (6 KPI cards)
 - **Trạng thái:** DONE
 - **Tạo:** 2026-04-27 14:30 (+07) bởi Claude (planner)
