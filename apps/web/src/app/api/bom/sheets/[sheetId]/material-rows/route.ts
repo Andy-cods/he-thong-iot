@@ -31,10 +31,12 @@ export async function GET(
   try {
     const sheet = await getSheetById(params.sheetId);
     if (!sheet) return jsonError("NOT_FOUND", "Không tìm thấy sheet.", 404);
-    if (sheet.kind !== "MATERIAL") {
+    // V2.0 Sprint 6: combined Material&Process — sheet MATERIAL hoặc PROCESS
+    // đều cho phép cả material_rows + process_rows attach. UI render side-by-side.
+    if (sheet.kind !== "MATERIAL" && sheet.kind !== "PROCESS") {
       return jsonError(
         "WRONG_SHEET_KIND",
-        `Sheet kind="${sheet.kind}" không hỗ trợ material rows. Cần MATERIAL.`,
+        `Sheet kind="${sheet.kind}" không hỗ trợ material rows.`,
         409,
       );
     }
@@ -55,10 +57,10 @@ export async function POST(
 
   const sheet = await getSheetById(params.sheetId);
   if (!sheet) return jsonError("NOT_FOUND", "Không tìm thấy sheet.", 404);
-  if (sheet.kind !== "MATERIAL") {
+  if (sheet.kind !== "MATERIAL" && sheet.kind !== "PROCESS") {
     return jsonError(
       "WRONG_SHEET_KIND",
-      "Sheet không phải kind MATERIAL.",
+      "Sheet không hỗ trợ material rows.",
       409,
     );
   }

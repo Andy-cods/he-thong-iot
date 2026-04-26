@@ -27,10 +27,12 @@ export async function GET(
   try {
     const sheet = await getSheetById(params.sheetId);
     if (!sheet) return jsonError("NOT_FOUND", "Không tìm thấy sheet.", 404);
-    if (sheet.kind !== "PROCESS") {
+    // V2.0 Sprint 6: combined Material&Process — sheet MATERIAL hoặc PROCESS
+    // đều cho phép cả material_rows + process_rows attach.
+    if (sheet.kind !== "MATERIAL" && sheet.kind !== "PROCESS") {
       return jsonError(
         "WRONG_SHEET_KIND",
-        `Sheet kind="${sheet.kind}" không hỗ trợ process rows. Cần PROCESS.`,
+        `Sheet kind="${sheet.kind}" không hỗ trợ process rows.`,
         409,
       );
     }
@@ -51,8 +53,8 @@ export async function POST(
 
   const sheet = await getSheetById(params.sheetId);
   if (!sheet) return jsonError("NOT_FOUND", "Không tìm thấy sheet.", 404);
-  if (sheet.kind !== "PROCESS") {
-    return jsonError("WRONG_SHEET_KIND", "Sheet không phải kind PROCESS.", 409);
+  if (sheet.kind !== "MATERIAL" && sheet.kind !== "PROCESS") {
+    return jsonError("WRONG_SHEET_KIND", "Sheet không hỗ trợ process rows.", 409);
   }
 
   const body = await parseJson(req, processRowCreateSchema);
