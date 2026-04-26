@@ -14,6 +14,8 @@ import {
 import { useBomSheetsList } from "@/hooks/useBomSheets";
 import { BomSheetTabs } from "@/components/bom/BomSheetTabs";
 import { AddBomSheetDialog } from "@/components/bom/AddBomSheetDialog";
+import { MaterialSheetView } from "@/components/bom/MaterialSheetView";
+import { ProcessSheetView } from "@/components/bom/ProcessSheetView";
 import {
   BomGridPro,
   type MaterialStatus,
@@ -164,7 +166,7 @@ export default function BomGridPage() {
         />
       )}
 
-      {/* V2.0 Sprint 6 — Sheet tabs (PROJECT / MATERIAL_REF / PROCESS_REF / CUSTOM) */}
+      {/* V2.0 Sprint 6 — Sheet tabs (PROJECT / MATERIAL / PROCESS / CUSTOM) */}
       {template && id ? (
         <BomSheetTabs
           sheets={sheets}
@@ -176,28 +178,65 @@ export default function BomGridPage() {
         />
       ) : null}
 
-      {/* Grid area flex-1 — strip actions đã retire (Univer save/undo); BomGridPro
-          có header riêng render BOM title + parent qty chip. */}
+      {/* V2.0 Sprint 6 FIX — render content per active sheet kind:
+          PROJECT → BomGridPro, MATERIAL → MaterialSheetView, PROCESS →
+          ProcessSheetView, CUSTOM → markdown viewer (defer). */}
       <div className="flex min-h-0 flex-1 overflow-hidden bg-zinc-50">
-        <div className="flex-1 overflow-hidden p-3">
+        <div className="flex-1 overflow-hidden">
           {isLoading ? (
-            <div className="flex h-full items-center justify-center rounded-md border border-zinc-200 bg-white text-sm text-zinc-500">
+            <div className="flex h-full items-center justify-center bg-white text-sm text-zinc-500">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Đang tải BOM…
             </div>
           ) : template ? (
-            <BomGridPro
-              templateId={template.id}
-              templateName={template.name}
-              templateCode={template.code}
-              parentQty={Number(template.targetQty) || 1}
-              tree={tree}
-              statusMap={buildStatusMap(derivedStatusQuery.data?.data)}
-              comProgressMap={buildComProgressMap(derivedStatusQuery.data?.data)}
-              fabProgressMap={fabProgressQuery.data?.data.progress}
-              readOnly={isObsolete}
-              onHistoryLine={() => panel.setDrawerHistory(true)}
-            />
+            (() => {
+              const activeSheet = sheets.find((s) => s.id === activeSheetId);
+              const sheetKind = activeSheet?.kind ?? "PROJECT";
+
+              if (sheetKind === "MATERIAL" && activeSheetId) {
+                return (
+                  <MaterialSheetView
+                    sheetId={activeSheetId}
+                    readOnly={isObsolete}
+                  />
+                );
+              }
+              if (sheetKind === "PROCESS" && activeSheetId) {
+                return (
+                  <ProcessSheetView
+                    sheetId={activeSheetId}
+                    readOnly={isObsolete}
+                  />
+                );
+              }
+              if (sheetKind === "CUSTOM") {
+                return (
+                  <div className="flex h-full items-center justify-center bg-white p-6 text-center text-sm text-zinc-500">
+                    Sheet CUSTOM — markdown viewer sẽ ra mắt trong sprint sau.
+                    Hiện tại chỉ lưu metadata.
+                  </div>
+                );
+              }
+              // PROJECT (default) — BomGridPro
+              return (
+                <div className="h-full p-3">
+                  <BomGridPro
+                    templateId={template.id}
+                    templateName={template.name}
+                    templateCode={template.code}
+                    parentQty={Number(template.targetQty) || 1}
+                    tree={tree}
+                    statusMap={buildStatusMap(derivedStatusQuery.data?.data)}
+                    comProgressMap={buildComProgressMap(
+                      derivedStatusQuery.data?.data,
+                    )}
+                    fabProgressMap={fabProgressQuery.data?.data.progress}
+                    readOnly={isObsolete}
+                    onHistoryLine={() => panel.setDrawerHistory(true)}
+                  />
+                </div>
+              );
+            })()
           ) : (
             <div className="flex h-full items-center justify-center rounded-md border border-zinc-200 bg-white text-sm text-zinc-500">
               Không tải được dữ liệu BOM.
