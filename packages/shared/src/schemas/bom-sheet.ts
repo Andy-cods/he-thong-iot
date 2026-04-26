@@ -7,16 +7,16 @@ import { z } from "zod";
 
 export const BOM_SHEET_KINDS = [
   "PROJECT",
-  "MATERIAL_REF",
-  "PROCESS_REF",
+  "MATERIAL",
+  "PROCESS",
   "CUSTOM",
 ] as const;
 export type BomSheetKind = (typeof BOM_SHEET_KINDS)[number];
 
 export const BOM_SHEET_KIND_LABELS: Record<BomSheetKind, string> = {
   PROJECT: "Cấu trúc BOM",
-  MATERIAL_REF: "Vật liệu",
-  PROCESS_REF: "Quy trình gia công",
+  MATERIAL: "Vật liệu",
+  PROCESS: "Quy trình gia công",
   CUSTOM: "Tuỳ chỉnh",
 };
 

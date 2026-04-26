@@ -32,8 +32,8 @@ import { bomTemplate } from "./bom";
 
 export const bomSheetKindEnum = pgEnum("bom_sheet_kind", [
   "PROJECT",
-  "MATERIAL_REF",
-  "PROCESS_REF",
+  "MATERIAL",
+  "PROCESS",
   "CUSTOM",
 ]);
 
@@ -84,7 +84,7 @@ export type BomSheetKind = (typeof bomSheetKindEnum.enumValues)[number];
 
 export const BOM_SHEET_KIND_LABELS: Record<BomSheetKind, string> = {
   PROJECT: "Cấu trúc BOM",
-  MATERIAL_REF: "Vật liệu",
-  PROCESS_REF: "Quy trình gia công",
+  MATERIAL: "Vật liệu",
+  PROCESS: "Quy trình gia công",
   CUSTOM: "Tuỳ chỉnh",
 };

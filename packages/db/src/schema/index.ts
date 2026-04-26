@@ -3,6 +3,7 @@ export * from "./master";
 export * from "./master-data";
 export * from "./bom";
 export * from "./bom-sheet";
+export * from "./bom-sheet-row";
 export * from "./product-line";
 export * from "./order";
 export * from "./snapshot";

@@ -30,7 +30,7 @@ import { useCreateBomSheet } from "@/hooks/useBomSheets";
 /**
  * V2.0 Sprint 6 — Dialog thêm sheet mới vào BOM List hiện có.
  *
- * Pattern: chọn loại trước (PROJECT/MATERIAL_REF/PROCESS_REF/CUSTOM) →
+ * Pattern: chọn loại trước (PROJECT/MATERIAL/PROCESS/CUSTOM) →
  * nhập tên → confirm. Sau khi tạo xong tự switch active sang sheet mới.
  */
 
@@ -44,10 +44,10 @@ interface AddBomSheetDialogProps {
 
 const KIND_DESCRIPTION: Record<BomSheetKind, string> = {
   PROJECT: "Sheet chứa danh sách linh kiện / cấu trúc sản phẩm (bom_lines).",
-  MATERIAL_REF:
+  MATERIAL:
     "Reference master vật liệu — chỉ filter, không lưu data riêng. Data thật ở Master vật liệu toàn cục.",
-  PROCESS_REF:
-    "Reference master quy trình gia công — tương tự MATERIAL_REF.",
+  PROCESS:
+    "Reference master quy trình gia công — tương tự MATERIAL.",
   CUSTOM:
     "Sheet tự do (note, hướng dẫn, đặc tả khách). Không cấu trúc cố định.",
 };
@@ -101,7 +101,7 @@ export function AddBomSheetDialog({
           <DialogTitle>Thêm sheet mới</DialogTitle>
           <DialogDescription>
             Thêm 1 sheet vào BOM List hiện tại. Sheet PROJECT chứa cấu trúc
-            sản phẩm; MATERIAL_REF / PROCESS_REF link tới master toàn cục;
+            sản phẩm; MATERIAL / PROCESS link tới master toàn cục;
             CUSTOM cho note/đặc tả tự do.
           </DialogDescription>
         </DialogHeader>
@@ -135,9 +135,9 @@ export function AddBomSheetDialog({
               placeholder={
                 kind === "PROJECT"
                   ? "Ví dụ: Sheet chính / Phụ kiện điện / Module B…"
-                  : kind === "MATERIAL_REF"
+                  : kind === "MATERIAL"
                     ? "Ví dụ: Vật liệu sử dụng"
-                    : kind === "PROCESS_REF"
+                    : kind === "PROCESS"
                       ? "Ví dụ: Quy trình gia công"
                       : "Ví dụ: Ghi chú khách hàng / Hướng dẫn lắp"
               }

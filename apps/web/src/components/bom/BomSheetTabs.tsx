@@ -30,15 +30,15 @@ export interface BomSheetTabsProps {
 
 const KIND_ICON: Record<BomSheetKind, React.ElementType> = {
   PROJECT: FileText,
-  MATERIAL_REF: Beaker,
-  PROCESS_REF: Layers,
+  MATERIAL: Beaker,
+  PROCESS: Layers,
   CUSTOM: FileEdit,
 };
 
 const KIND_COLOR: Record<BomSheetKind, string> = {
   PROJECT: "text-indigo-600",
-  MATERIAL_REF: "text-emerald-600",
-  PROCESS_REF: "text-amber-600",
+  MATERIAL: "text-emerald-600",
+  PROCESS: "text-amber-600",
   CUSTOM: "text-zinc-600",
 };
 

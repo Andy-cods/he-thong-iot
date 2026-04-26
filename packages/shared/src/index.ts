@@ -14,4 +14,5 @@ export * from "./schemas/procurement";
 export * from "./schemas/shortage";
 export * from "./schemas/master-data";
 export * from "./schemas/bom-sheet";
+export * from "./schemas/bom-sheet-row";
 export * from "./rbac";
