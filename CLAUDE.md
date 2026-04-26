@@ -27,6 +27,20 @@ Bạn là kỹ sư chính của hệ thống BOM-centric cho xưởng cơ khí. 
 - `/test`, `/review`, `/debug`, `/docs`, `/watzup` theo nhu cầu
 - ui-ux-pro-max skill tự kích hoạt khi có yêu cầu UI
 
+## 📋 Workflow planning với [`codexdo.md`](codexdo.md)
+
+User feedback 2026-04-26: Claude làm **planner**, Codex (hoặc Claude executor) **đọc + execute**. File [`codexdo.md`](codexdo.md) là task queue chung.
+
+**Quy tắc bắt buộc cho mọi agent:**
+1. **Trước khi nhận user prompt mới** — search [`codexdo.md`](codexdo.md) keyword. Nếu task tương tự đã `TODO`/`IN_PROGRESS` → comment vào task cũ, KHÔNG tạo mới (anti-duplicate).
+2. **Khi user yêu cầu việc lớn** → Claude (planner) tạo task ID `TASK-YYYYMMDD-NNN` ở section "🚀 Tasks" với DoD rõ ràng.
+3. **Khi execute** → đổi `TODO → IN_PROGRESS` + ghi `Bắt đầu: <YYYY-MM-DD HH:MM (+07)>`. Skip nếu đã `IN_PROGRESS` bởi agent khác.
+4. **Khi xong** → đổi `DONE` + ghi `Hoàn thành: <timestamp>` + paste log (commit hash, test result).
+5. **KHÔNG xoá** task cũ — giữ làm reference + audit trail. Move sang `codexdo-archive.md` sau 30 ngày DONE.
+6. **Format timestamp**: `YYYY-MM-DD HH:MM (+07)` Asia/Ho_Chi_Minh.
+
+**Execute order**: lọc TODO → sort theo Ưu tiên (P0→P3) + Tạo ASC → skip task có Phụ thuộc chưa DONE.
+
 ## Agents có sẵn (trong `.claude/agents/`)
 planner, planner-researcher, researcher, system-architecture, solution-brainstormer, project-manager, code-reviewer, tester, debugger, docs-manager, git-manager, ui-ux-designer, ui-ux-developer.
 

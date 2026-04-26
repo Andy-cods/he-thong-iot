@@ -152,31 +152,93 @@ function parseSheet(ws: ExcelJS.Worksheet): ParsedSheet {
 }
 
 /**
- * 23 material codes hard-coded từ migration 0017 seed.
- * Match Sub Category → code via prefix substring.
+ * Material codes catalog — 63 codes sau migration 0031 (full Excel sheet 3).
+ * Match Sub Category → code via aliases substring (lowercased).
+ *
+ * Refs: packages/db/migrations/0017_material_process_master.sql + 0031_seed_full_master_catalog.sql
  */
 const MATERIAL_CATALOG: Array<{ code: string; aliases: string[] }> = [
-  { code: "POM", aliases: ["pom", "acetal"] },
+  // POM family
   { code: "POM_ESD_BLK", aliases: ["pom esd black", "pom esd blk"] },
   { code: "POM_ESD_WHT", aliases: ["pom esd white", "pom esd wht"] },
+  { code: "POM", aliases: ["pom", "acetal"] },
+  // PB108 family
+  { code: "PB108_ESD_BLK", aliases: ["pb108 esd black", "pb108 esd blk"] },
+  { code: "PB108_ESD_WHT", aliases: ["pb108 esd white", "pb108 esd wht"] },
   { code: "PB108", aliases: ["pb108"] },
+  // PM107, MC501
+  { code: "PM107", aliases: ["pm107"] },
+  { code: "MC501", aliases: ["mc501"] },
+  // PVC family
+  { code: "PVC_ESD", aliases: ["pvc esd"] },
   { code: "PVC", aliases: ["pvc"] },
+  // URETHANE family
+  { code: "URETHANE_ESD", aliases: ["urethane esd"] },
+  { code: "URETHANE_50", aliases: ["urethane 50"] },
+  { code: "URETHANE_70", aliases: ["urethane 70"] },
+  { code: "URETHANE_90", aliases: ["urethane 90"] },
   { code: "URETHANE", aliases: ["urethane"] },
+  // TEFLON family
+  { code: "TEFLON_ESD", aliases: ["teflon esd"] },
   { code: "TEFLON", aliases: ["teflon", "ptfe"] },
+  // BAKELITE family
+  { code: "BAKELITE_ESD", aliases: ["bakelite esd"] },
   { code: "BAKELITE", aliases: ["bakelite"] },
-  { code: "PC", aliases: [" pc ", "polycarbonate"] },
+  // MIKA family
+  { code: "MIKA_ESD", aliases: ["mika esd", "mica esd"] },
+  { code: "MIKA", aliases: ["mika", "mica trong"] },
+  // PC family
+  { code: "PC_GF20", aliases: ["pc gf20", "pc-gf20"] },
+  { code: "PC_ESD", aliases: ["pc esd"] },
+  { code: "PC", aliases: ["polycarbonate", "pc thường", "pc thuong"] },
+  // PEEK
   { code: "PEEK", aliases: ["peek"] },
+  // ULTEM family
+  { code: "ULTEM_1000", aliases: ["ultem 1000", "ul tem 1000"] },
+  { code: "ULTEM", aliases: ["ultem", "ul tem"] },
+  // ALUMINIUM family
   { code: "AL6061", aliases: ["al6061", "nhôm 6061", "aluminum 6061", "aluminium 6061"] },
-  { code: "CU_BRASS", aliases: ["brass", "cu brass", "đồng thau"] },
+  { code: "AL7075", aliases: ["al7075", "aluminium 7075"] },
+  { code: "AL5052", aliases: ["al5052", "aluminium 5052"] },
+  // COPPER family
+  { code: "CU_BRASS", aliases: ["brass", "cu brass", "đồng thau", "dong thau"] },
+  { code: "CU_COPPER", aliases: ["cu copper", "đồng đỏ", "dong do"] },
+  { code: "CU_BRONZE", aliases: ["cu bronze", "bronze", "đồng xám"] },
+  // STEEL family
   { code: "S45C", aliases: ["s45c"] },
+  { code: "SK4", aliases: ["sk4"] },
   { code: "SK5", aliases: ["sk5"] },
+  { code: "SKH51", aliases: ["skh51"] },
+  { code: "SM20C", aliases: ["sm20c"] },
+  { code: "SM45C", aliases: ["sm45c"] },
+  { code: "SM55C", aliases: ["sm55c"] },
+  { code: "SS400", aliases: ["ss400"] },
+  { code: "STAVAX", aliases: ["stavax"] },
+  { code: "SKD11", aliases: ["skd11"] },
+  { code: "SKD61", aliases: ["skd61"] },
+  { code: "STD11", aliases: ["std11"] },
+  { code: "STD61", aliases: ["std61"] },
+  { code: "MC901", aliases: ["mc901"] },
+  { code: "KP4M", aliases: ["kp4m"] },
+  { code: "HSS", aliases: ["hss", "thép gió"] },
+  { code: "SUJ_2", aliases: ["suj-2", "suj2"] },
+  // STAINLESS STEEL — order longer-prefix first cho thickness match
+  { code: "SUS304_20_40", aliases: ["sus304 20-40", "sus304 (20-40", "sus304 dày 20-40"] },
+  { code: "SUS304_10_20", aliases: ["sus304 10-20", "sus304 (10-20", "sus304 dày 10-20"] },
+  { code: "SUS304_4_10", aliases: ["sus304 4-10", "sus304 (4-10", "sus304 dày 4-10"] },
+  { code: "SUS316", aliases: ["sus316"] },
   { code: "SUS201", aliases: ["sus201"] },
   { code: "SUS303", aliases: ["sus303"] },
-  { code: "SUS304_20_40", aliases: ["sus304 20-40", "sus304 (20-40"] },
-  { code: "SUS304_10_20", aliases: ["sus304 10-20", "sus304 (10-20"] },
-  { code: "SUS304_4_10", aliases: ["sus304 4-10", "sus304 (4-10"] },
-  { code: "BAKELITE_ESD", aliases: ["bakelite esd"] },
-  { code: "URETHANE_90", aliases: ["urethane 90"] },
+  // Đặc biệt
+  { code: "DUROSTONE", aliases: ["durostone", "đá cách nhiệt"] },
+  { code: "PI108", aliases: ["pi108"] },
+  { code: "PE_FOAM", aliases: ["pe foam"] },
+  // SILICON family
+  { code: "SILICON_45", aliases: ["silicon 45", "silicon độ cứng 45"] },
+  { code: "SILICON_40", aliases: ["silicon 40", "silicon độ cứng 40"] },
+  { code: "SILICON", aliases: ["silicon"] },
+  // TITAN
+  { code: "TITAN", aliases: ["titan", "titanium"] },
 ];
 
 // Generic SUS304 fallback nếu không match thickness

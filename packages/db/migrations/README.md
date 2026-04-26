@@ -29,6 +29,10 @@ phải apply thủ công qua `psql` bằng script
 | `0025_bom_sheet.sql`               | `hethong_app`| **V2.0 Sprint 6** — bom_sheet table (PROJECT/MATERIAL_REF/PROCESS_REF/CUSTOM) — 1 BOM List có nhiều sheet |
 | `0026_bom_line_sheet_link.sql`     | `hethong_app`| **V2.0 Sprint 6** — bom_line.sheet_id FK + trigger enforce parent same sheet |
 | `0027_bom_sheet_backfill.sql`      | `hethong_app`| **V2.0 Sprint 6** — backfill 1 sheet PROJECT cho mỗi BOM cũ + SET NOT NULL bom_line.sheet_id |
+| `0028_rename_sheet_kinds.sql`      | `hethong_app`| **V2.0 Sprint 6 FIX** — ALTER TYPE rename MATERIAL_REF→MATERIAL, PROCESS_REF→PROCESS |
+| `0029_bom_sheet_material_row.sql`  | `hethong_app`| **V2.0 Sprint 6 FIX** — bảng material rows per-BOM (giá deal, phôi, status 5-state) |
+| `0030_bom_sheet_process_row.sql`   | `hethong_app`| **V2.0 Sprint 6 FIX** — bảng process rows per-BOM (giờ, đơn giá, trạm) |
+| `0031_seed_full_master_catalog.sql`| `hethong_app`| **V2.0 Sprint 6** — seed FULL Excel sheet 3 (60 materials + 19 processes) |
 
 ### Flow apply V1.1-alpha
 
