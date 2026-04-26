@@ -372,11 +372,15 @@ async function main() {
     sql.push("");
   }
 
-  // 4. Sheet MATERIAL + auto-populate rows
-  sql.push("  -- Sheet MATERIAL (auto-populate từ used materials)");
-  const matSheetName = "Vật liệu sử dụng";
-  sql.push(`  INSERT INTO app.bom_sheet (template_id, name, kind, position, metadata) VALUES (v_template_id, ${sqlEscape(matSheetName)}, 'MATERIAL', ${projectSheets.length + 1}, ${sqlEscape(JSON.stringify({ autoPopulatedFrom: "Sub Category column" }))}::jsonb) ON CONFLICT (template_id, name) DO NOTHING;`);
+  // 4. Sheet COMBINED MATERIAL + PROCESS — gộp giống Excel sheet 3
+  // (user feedback 2026-04-26): material rows + process rows attach cùng
+  // sheet_id (kind=MATERIAL). UI render side-by-side panels.
+  sql.push("  -- Sheet \"Material & Process\" (gộp - giống Excel sheet 3)");
+  const matSheetName = "Material & Process";
+  sql.push(`  INSERT INTO app.bom_sheet (template_id, name, kind, position, metadata) VALUES (v_template_id, ${sqlEscape(matSheetName)}, 'MATERIAL', ${projectSheets.length + 1}, ${sqlEscape(JSON.stringify({ autoPopulatedFrom: "Sub Category + process_master common", combined: true }))}::jsonb) ON CONFLICT (template_id, name) DO NOTHING;`);
   sql.push(`  SELECT id INTO v_sheet_id FROM app.bom_sheet WHERE template_id = v_template_id AND name = ${sqlEscape(matSheetName)};`);
+
+  // Material rows
   let matPos = 1;
   for (const code of usedMaterials) {
     sql.push(
@@ -384,14 +388,8 @@ async function main() {
     );
     matPos++;
   }
-  sql.push("");
 
-  // 5. Sheet PROCESS + 5 process phổ biến
-  sql.push("  -- Sheet PROCESS (auto-populate 5 process master phổ biến)");
-  const procSheetName = "Quy trình gia công";
-  sql.push(`  INSERT INTO app.bom_sheet (template_id, name, kind, position, metadata) VALUES (v_template_id, ${sqlEscape(procSheetName)}, 'PROCESS', ${projectSheets.length + 2}, ${sqlEscape(JSON.stringify({ autoPopulatedFrom: "process_master common" }))}::jsonb) ON CONFLICT (template_id, name) DO NOTHING;`);
-  sql.push(`  SELECT id INTO v_sheet_id FROM app.bom_sheet WHERE template_id = v_template_id AND name = ${sqlEscape(procSheetName)};`);
-  // Insert top-5 process từ master sorted by code
+  // Process rows (5 process phổ biến) — attach cùng sheet_id
   const commonProcCodes = ["MCT", "MILLING", "DRILLING", "LATHE", "ANODIZING"];
   let procPos = 1;
   for (const code of commonProcCodes) {
@@ -407,7 +405,7 @@ async function main() {
   sql.push("END $$;");
   sql.push("");
   sql.push("-- Verify");
-  sql.push(`SELECT bt.code, bt.name, COUNT(DISTINCT bs.id) FILTER (WHERE bs.kind = 'PROJECT') AS project_sheets, COUNT(DISTINCT bs.id) FILTER (WHERE bs.kind = 'MATERIAL') AS material_sheets, COUNT(DISTINCT bs.id) FILTER (WHERE bs.kind = 'PROCESS') AS process_sheets, COUNT(DISTINCT bl.id) AS lines, COUNT(DISTINCT bsmr.id) AS mat_rows, COUNT(DISTINCT bspr.id) AS proc_rows FROM app.bom_template bt LEFT JOIN app.bom_sheet bs ON bs.template_id = bt.id LEFT JOIN app.bom_line bl ON bl.template_id = bt.id LEFT JOIN app.bom_sheet_material_row bsmr ON bsmr.sheet_id = bs.id LEFT JOIN app.bom_sheet_process_row bspr ON bspr.sheet_id = bs.id WHERE bt.code = ${sqlEscape(bomCode)} GROUP BY bt.code, bt.name;`);
+  sql.push(`SELECT bt.code, bt.name, COUNT(DISTINCT bs.id) FILTER (WHERE bs.kind = 'PROJECT') AS project_sheets, COUNT(DISTINCT bs.id) FILTER (WHERE bs.kind = 'MATERIAL') AS material_sheets, COUNT(DISTINCT bl.id) AS lines, COUNT(DISTINCT bsmr.id) AS mat_rows, COUNT(DISTINCT bspr.id) AS proc_rows FROM app.bom_template bt LEFT JOIN app.bom_sheet bs ON bs.template_id = bt.id LEFT JOIN app.bom_line bl ON bl.template_id = bt.id LEFT JOIN app.bom_sheet_material_row bsmr ON bsmr.sheet_id = bs.id LEFT JOIN app.bom_sheet_process_row bspr ON bspr.sheet_id = bs.id WHERE bt.code = ${sqlEscape(bomCode)} GROUP BY bt.code, bt.name;`);
   sql.push("");
   sql.push("COMMIT;");
   sql.push("");

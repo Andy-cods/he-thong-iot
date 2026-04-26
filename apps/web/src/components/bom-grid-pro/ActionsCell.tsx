@@ -88,7 +88,9 @@ export function ActionsCell({
   ) : null;
 
   return (
-    <div className="flex h-full items-center justify-end gap-0.5 px-1 opacity-0 transition-opacity group-hover:opacity-100">
+    <div className="flex h-full items-center justify-end gap-0.5 px-1">
+      {/* V2.0 Sprint 6 — icons always visible (user feedback). Trước đây
+          opacity-0 group-hover:opacity-100 để gọn UI nhưng user muốn rõ ngay. */}
       {/* Kind-specific primary action */}
       {!isFab && onOrder && (
         <Button

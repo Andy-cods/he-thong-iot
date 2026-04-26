@@ -14,8 +14,7 @@ import {
 import { useBomSheetsList } from "@/hooks/useBomSheets";
 import { BomSheetTabs } from "@/components/bom/BomSheetTabs";
 import { AddBomSheetDialog } from "@/components/bom/AddBomSheetDialog";
-import { MaterialSheetView } from "@/components/bom/MaterialSheetView";
-import { ProcessSheetView } from "@/components/bom/ProcessSheetView";
+import { MaterialProcessSheetView } from "@/components/bom/MaterialProcessSheetView";
 import { CustomSheetView } from "@/components/bom/CustomSheetView";
 import {
   BomGridPro,
@@ -201,17 +200,15 @@ export default function BomGridPage() {
               const activeSheet = sheets.find((s) => s.id === activeSheetId);
               const sheetKind = activeSheet?.kind ?? "PROJECT";
 
-              if (sheetKind === "MATERIAL" && activeSheetId) {
+              // V2.0 Sprint 6 user feedback: gộp MATERIAL + PROCESS vào 1
+              // sheet "Material & Process" giống Excel. Cả 2 kind đều render
+              // combined view (material rows + process rows side-by-side).
+              if (
+                (sheetKind === "MATERIAL" || sheetKind === "PROCESS") &&
+                activeSheetId
+              ) {
                 return (
-                  <MaterialSheetView
-                    sheetId={activeSheetId}
-                    readOnly={isObsolete}
-                  />
-                );
-              }
-              if (sheetKind === "PROCESS" && activeSheetId) {
-                return (
-                  <ProcessSheetView
+                  <MaterialProcessSheetView
                     sheetId={activeSheetId}
                     readOnly={isObsolete}
                   />

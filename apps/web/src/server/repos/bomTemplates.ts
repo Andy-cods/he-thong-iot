@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, inArray, isNotNull, sql, type SQL } from "drizzle-orm";
-import { bomLine, bomTemplate, item } from "@iot/db/schema";
+import { bomLine, bomSheet, bomTemplate, item } from "@iot/db/schema";
 import { db } from "@/lib/db";
 
 export type BomStatus = "DRAFT" | "ACTIVE" | "OBSOLETE";
@@ -180,19 +180,47 @@ export async function createTemplate(
   input: BomTemplateCreateInput,
   actorId: string | null,
 ) {
-  const [row] = await db
-    .insert(bomTemplate)
-    .values({
-      code: input.code,
-      name: input.name,
-      description: input.description ?? null,
-      parentItemId: input.parentItemId ?? null,
-      targetQty: String(input.targetQty),
-      status: "DRAFT",
-      createdBy: actorId,
-    })
-    .returning();
-  return row;
+  // V2.0 Sprint 6 — auto-create 2 default sheets khi BOM mới (user feedback
+  // 2026-04-26): "tôi muốn đây là sheet mặc định luôn có khi tạo BOM list mới".
+  // 1. Sheet PROJECT "Sheet 1" — chứa bom_lines (cấu trúc).
+  // 2. Sheet MATERIAL "Material & Process" — chứa material_rows + process_rows
+  //    side-by-side (giống Excel sheet 3 trong template "Bản chính thức").
+  return await db.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(bomTemplate)
+      .values({
+        code: input.code,
+        name: input.name,
+        description: input.description ?? null,
+        parentItemId: input.parentItemId ?? null,
+        targetQty: String(input.targetQty),
+        status: "DRAFT",
+        createdBy: actorId,
+      })
+      .returning();
+    if (!row) return null;
+
+    await tx.insert(bomSheet).values([
+      {
+        templateId: row.id,
+        name: "Sheet 1",
+        kind: "PROJECT",
+        position: 1,
+        metadata: { defaultSheet: true },
+        createdBy: actorId,
+      },
+      {
+        templateId: row.id,
+        name: "Material & Process",
+        kind: "MATERIAL",
+        position: 2,
+        metadata: { defaultSheet: true, combined: true },
+        createdBy: actorId,
+      },
+    ]);
+
+    return row;
+  });
 }
 
 export interface BomTemplateUpdateInput {

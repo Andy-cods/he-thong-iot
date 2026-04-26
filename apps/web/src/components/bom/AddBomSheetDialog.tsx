@@ -62,22 +62,12 @@ const KIND_PRESETS: KindPreset[] = [
   {
     kind: "MATERIAL",
     icon: Beaker,
-    label: "Vật liệu",
+    label: "Material & Process",
     description:
-      "Bảng vật liệu cho dự án này: giá deal, phôi, NCC, trạng thái mua hàng",
-    placeholder: "Ví dụ: Vật liệu sử dụng / Phôi nguyên liệu",
+      "Bảng vật liệu + bảng quy trình gia công song song trong 1 sheet (như Excel sheet 3)",
+    placeholder: "Ví dụ: Material & Process",
     iconColor: "text-emerald-600",
     borderActive: "border-emerald-500 bg-emerald-50",
-  },
-  {
-    kind: "PROCESS",
-    icon: Layers,
-    label: "Quy trình gia công",
-    description:
-      "Bảng quy trình: giờ ước tính, đơn giá deal, trạm thực hiện",
-    placeholder: "Ví dụ: Quy trình gia công",
-    iconColor: "text-amber-600",
-    borderActive: "border-amber-500 bg-amber-50",
   },
   {
     kind: "CUSTOM",
