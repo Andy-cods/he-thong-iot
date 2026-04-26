@@ -392,17 +392,32 @@ export function BomGridPro({
         )}
       >
         {/* # */}
-        <td className="w-10 px-2 text-[11px] font-mono tabular-nums text-zinc-400">
+        <td className="px-2 text-[11px] font-mono tabular-nums text-zinc-400">
           {idx + 1}
         </td>
+        {/* Loại — V1.7-beta.2.1: dropdown interactive (override via metadata.kind).
+            V2.0 Sprint 6: moved to position 2 (sau # — đầu hàng theo yêu cầu user). */}
+        <td className="px-2">
+          <KindDropdown templateId={templateId} row={row} readOnly={readOnly} />
+        </td>
         {/* Ảnh */}
-        <td className="w-[52px] px-1">
+        <td className="px-1">
           <div className="flex h-7 w-7 items-center justify-center rounded bg-zinc-50 ring-1 ring-inset ring-zinc-200">
             <Package className="h-3.5 w-3.5 text-zinc-300" aria-hidden />
           </div>
         </td>
-        {/* Mã SKU — V1.8 Batch 3: link về /items/[componentItemId] */}
-        <td className="w-[170px] px-2 font-mono text-xs font-medium text-zinc-800 truncate">
+        {/* ID Number — V2.0 Sprint 6: chuỗi vị trí từ Excel (R01, S40). */}
+        <td className="px-2 font-mono text-xs font-medium text-indigo-700 truncate">
+          {row.node.positionCode ?? (
+            <span className="text-zinc-300">—</span>
+          )}
+        </td>
+        {/* SL/bộ */}
+        <td className="px-2 text-right font-mono text-xs tabular-nums text-zinc-700">
+          {formatNumber(qty)}
+        </td>
+        {/* Mã linh kiện (Standard Number) — V1.8 Batch 3: link về /items/[componentItemId] */}
+        <td className="px-2 font-mono text-xs font-medium text-zinc-800 truncate">
           {row.node.componentItemId ? (
             <Link
               href={`/items/${row.node.componentItemId}`}
@@ -418,43 +433,43 @@ export function BomGridPro({
             </span>
           )}
         </td>
-        {/* Tên */}
-        <td className="w-[200px] px-2 text-sm text-zinc-700 truncate">
-          {row.node.componentName ?? (
+        {/* Tên / Mô tả (Sub Category) */}
+        <td className="px-2 text-sm text-zinc-700 truncate">
+          {row.node.description ?? row.node.componentName ?? (
             <span className="italic text-zinc-400">—</span>
           )}
         </td>
-        {/* Loại — V1.7-beta.2.1: dropdown interactive (override via metadata.kind) */}
-        <td className="w-[150px] px-2">
-          <KindDropdown templateId={templateId} row={row} readOnly={readOnly} />
+        {/* Kích thước (Visible Part Size) */}
+        <td className="px-2 font-mono text-[11px] text-zinc-600 truncate">
+          {(() => {
+            const md = row.node.metadata as { size?: string } | null;
+            const spec = md?.size;
+            if (spec) return spec;
+            // Fallback: parse từ item.specJson (dimensionText) đã set lúc import.
+            return "—";
+          })()}
         </td>
-        {/* Vật liệu / Nhóm */}
-        <td className="w-[140px] px-2 text-xs text-zinc-600 truncate">
-          {row.node.componentCategory ?? "—"}
-        </td>
-        {/* NCC */}
-        <td className="w-[110px] px-2 font-mono text-xs text-zinc-600 truncate">
+        {/* NCC / Vật tư */}
+        <td className="px-2 font-mono text-xs text-zinc-600 truncate">
           {row.node.supplierItemCode ?? "—"}
         </td>
-        {/* SL/bộ */}
-        <td className="w-[72px] px-2 text-right font-mono text-xs tabular-nums text-zinc-700">
-          {formatNumber(qty)}
-        </td>
-        {/* Kích thước */}
-        <td className="w-[110px] px-2 font-mono text-[11px] text-zinc-600 truncate">
-          {(row.node.metadata as { size?: string } | null)?.size ?? "—"}
-        </td>
         {/* Tổng SL */}
-        <td className="w-[70px] px-2 text-right font-mono text-xs font-semibold tabular-nums text-zinc-900">
+        <td className="px-2 text-right font-mono text-xs font-semibold tabular-nums text-zinc-900">
           {formatNumber(total)}
         </td>
+        {/* Ghi chú (Note 1/2/3 concat) */}
+        <td className="px-2 text-xs italic text-zinc-500 truncate">
+          {row.node.metadata && (row.node.metadata as { notes?: string }).notes
+            ? (row.node.metadata as { notes: string }).notes
+            : ""}
+        </td>
         {/* Hao hụt */}
-        <td className="w-[80px] px-2 text-right font-mono text-xs tabular-nums text-orange-600">
+        <td className="px-2 text-right font-mono text-xs tabular-nums text-orange-600">
           {scrap > 0 ? `${scrap.toFixed(1)}%` : "—"}
         </td>
         {/* Tiến độ — V1.7-beta.2.6: kind-aware (fab → WO progress, com → material status)
             V1.9 Phase 2 — bar + milestone tooltip + qty sub-label */}
-        <td className="w-[150px] px-0">
+        <td className="px-0">
           {row.kind === "fab" ? (
             (() => {
               const fab = fabProgressMap?.[row.id];
@@ -487,12 +502,8 @@ export function BomGridPro({
             })()
           )}
         </td>
-        {/* Ghi chú */}
-        <td className="w-[180px] px-2 text-xs italic text-zinc-500 truncate">
-          {row.node.description ?? ""}
-        </td>
         {/* Actions — sticky right. V1.7-beta.2.2: phân nhánh com/fab. */}
-        <td className="sticky right-0 z-10 w-[100px] border-l border-zinc-100 bg-white px-1 group-hover:bg-zinc-50">
+        <td className="sticky right-0 z-10 border-l border-zinc-100 bg-white px-1 group-hover:bg-zinc-50">
           <ActionsCell
             row={row}
             onEdit={readOnly ? undefined : handleEditRow}
@@ -531,30 +542,43 @@ export function BomGridPro({
       </div>
 
       {/* Table — V2.0 Sprint 6 fix: table-fixed + colgroup để truncate hoạt
-          động đúng. sticky top trên từng <th> (border-collapse fix). */}
+          động đúng. sticky top trên từng <th> (border-collapse fix).
+          Column order match Excel "Bản chính thức" (user feedback 2026-04-26):
+          # | Loại | Ảnh | ID Number | SL/bộ | Mã linh kiện | Tên/Mô tả |
+          Kích thước | NCC/Vật tư | Tổng SL | Ghi chú | Hao hụt | Tiến độ |
+          Thao tác. Cột "Loại" (kind dropdown) đặt trước Ảnh theo yêu cầu. */}
       <div ref={parentRef} className="flex-1 overflow-auto">
         <table className="w-full table-fixed border-collapse text-sm">
           <colgroup>
-            <col style={{ width: "40px" }} />
-            <col style={{ width: "52px" }} />
-            <col style={{ width: "170px" }} />
-            <col style={{ width: "200px" }} />
-            <col style={{ width: "150px" }} />
-            <col style={{ width: "140px" }} />
-            <col style={{ width: "110px" }} />
-            <col style={{ width: "72px" }} />
-            <col style={{ width: "110px" }} />
-            <col style={{ width: "70px" }} />
-            <col style={{ width: "80px" }} />
-            <col style={{ width: "150px" }} />
-            <col style={{ width: "180px" }} />
-            <col style={{ width: "100px" }} />
+            <col style={{ width: "40px" }} />   {/* # */}
+            <col style={{ width: "120px" }} />  {/* Loại */}
+            <col style={{ width: "52px" }} />   {/* Ảnh */}
+            <col style={{ width: "70px" }} />   {/* ID Number (R01) */}
+            <col style={{ width: "60px" }} />   {/* SL/bộ */}
+            <col style={{ width: "180px" }} />  {/* Mã linh kiện */}
+            <col style={{ width: "200px" }} />  {/* Tên / Mô tả */}
+            <col style={{ width: "120px" }} />  {/* Kích thước */}
+            <col style={{ width: "110px" }} />  {/* NCC */}
+            <col style={{ width: "70px" }} />   {/* Tổng SL */}
+            <col style={{ width: "180px" }} />  {/* Ghi chú */}
+            <col style={{ width: "70px" }} />   {/* Hao hụt */}
+            <col style={{ width: "150px" }} />  {/* Tiến độ */}
+            <col style={{ width: "100px" }} />  {/* Thao tác */}
           </colgroup>
           <thead>
             <tr className="h-8 text-[10px] font-medium uppercase tracking-wide text-zinc-600">
               <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-right">#</th>
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
+                Loại
+              </th>
               <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-center">
                 Ảnh
+              </th>
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
+                ID
+              </th>
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-right">
+                SL/bộ
               </th>
               <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
                 Mã linh kiện
@@ -563,31 +587,22 @@ export function BomGridPro({
                 Tên / Mô tả
               </th>
               <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
-                Loại
-              </th>
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
-                Vật liệu
-              </th>
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
-                NCC
-              </th>
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-right">
-                SL/bộ
-              </th>
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
                 Kích thước
+              </th>
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
+                NCC / Vật tư
               </th>
               <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-right">
                 Tổng SL
+              </th>
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
+                Ghi chú
               </th>
               <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-right">
                 Hao hụt
               </th>
               <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
                 Tiến độ
-              </th>
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
-                Ghi chú
               </th>
               <th className="sticky right-0 top-0 z-30 border-b-2 border-l border-zinc-900 bg-zinc-50 px-2 text-center">
                 Thao tác

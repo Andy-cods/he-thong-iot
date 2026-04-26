@@ -53,6 +53,8 @@ export interface BomTreeNodeRaw {
   componentItemType: string | null;
   level: number;
   position: number;
+  /** V2.0 Sprint 6 — chuỗi vị trí (R01, S40) từ Excel "ID Number". */
+  positionCode: string | null;
   qtyPerParent: string;
   scrapPercent: string;
   uom: string | null;

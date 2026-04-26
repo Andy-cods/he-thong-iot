@@ -244,6 +244,8 @@ export interface BomTreeNode {
   componentItemType: string | null;
   level: number;
   position: number;
+  /** V2.0 Sprint 6 — chuỗi mã vị trí (R01, S40) từ Excel "ID Number". */
+  positionCode: string | null;
   qtyPerParent: string;
   scrapPercent: string;
   uom: string | null;
@@ -275,7 +277,7 @@ export async function loadTree(
     )
     SELECT
       t.id, t.parent_line_id, t.template_id, t.component_item_id,
-      t.level, t.position, t.qty_per_parent, t.scrap_percent,
+      t.level, t.position, t.position_code, t.qty_per_parent, t.scrap_percent,
       t.uom, t.description, t.supplier_item_code, t.metadata,
       i.sku AS component_sku, i.name AS component_name, i.uom AS component_uom,
       i.category AS component_category, i.item_type AS component_item_type,
@@ -299,6 +301,7 @@ export async function loadTree(
     componentItemType: (r.component_item_type as string | null) ?? null,
     level: Number(r.level),
     position: Number(r.position),
+    positionCode: (r.position_code as string | null) ?? null,
     qtyPerParent: String(r.qty_per_parent),
     scrapPercent: String(r.scrap_percent),
     uom: (r.uom as string | null) ?? null,
