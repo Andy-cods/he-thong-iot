@@ -5,23 +5,29 @@ import Link from "next/link";
 import {
   ArrowRight,
   Layers,
-  MapPin,
   PackageCheck,
+  Search,
   Tag,
   TriangleAlert,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useItemsList } from "@/hooks/useItems";
+import {
+  useInventoryBalance,
+  type InventoryBalanceRow,
+} from "@/hooks/useInventory";
 import { useLotSerialList } from "@/hooks/useLotSerial";
 import { usePurchaseOrdersList } from "@/hooks/usePurchaseOrders";
+import { formatNumber } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 /**
  * V3 (TASK-20260427-014) — Overview tab "Tổng quan kho".
- *
- * Card grid 4 KPI: SKU · Lot · PO chờ nhận · Lot HOLD. Mỗi card có deep-link
- * sang tab tương ứng. Placeholder banner cho "Vị trí kệ/bin" V2.
- *
- * Reuse existing list hooks với pageSize=1 để chỉ lấy meta.total — nhanh
- * và không phá cache.
+ * V3.1 (TASK-20260427-017) — Bổ sung bảng "Cân đối kho theo SKU"
+ *   (on_hand / reserved / available / hold) trả lời câu hỏi "tồn 6, BOM cần 3
+ *   chưa SX → hệ thống đã giữ chỗ".
  */
 
 interface KpiRow {
@@ -46,18 +52,43 @@ function fmt(n: number | null | undefined): string {
   return n.toLocaleString("vi-VN");
 }
 
+type StockStatus = "EMPTY" | "LOW" | "OK";
+
+function deriveStatus(row: InventoryBalanceRow): StockStatus {
+  if (row.available <= 0) return "EMPTY";
+  if (row.minStockQty > 0 && row.available < row.minStockQty) return "LOW";
+  return "OK";
+}
+
+function StockBadge({ status }: { status: StockStatus }) {
+  if (status === "EMPTY")
+    return (
+      <Badge variant="danger" size="sm">
+        Hết
+      </Badge>
+    );
+  if (status === "LOW")
+    return (
+      <Badge variant="warning" size="sm">
+        Thiếu
+      </Badge>
+    );
+  return (
+    <Badge variant="success" size="sm">
+      Đủ
+    </Badge>
+  );
+}
+
 export function OverviewTab() {
-  // Items list: chỉ cần total
+  // KPI cards — chỉ cần meta total
   const itemsQuery = useItemsList<{ id: string }>({ page: 1, pageSize: 1 });
-  // Lot total (all status)
   const lotsAllQuery = useLotSerialList({ page: 1, pageSize: 1 });
-  // Lot HOLD only — số cần kiểm tra
   const lotsHoldQuery = useLotSerialList({
     page: 1,
     pageSize: 1,
     status: "HOLD",
   });
-  // PO đang chờ nhận: SENT + PARTIAL
   const sentQuery = usePurchaseOrdersList({
     page: 1,
     pageSize: 1,
@@ -115,6 +146,32 @@ export function OverviewTab() {
     },
   ];
 
+  // ----- Bảng cân đối kho -----
+  const [search, setSearch] = React.useState("");
+  const [onlyShortage, setOnlyShortage] = React.useState(false);
+
+  const balanceQuery = useInventoryBalance({
+    page: 1,
+    pageSize: 200,
+    hasLotOnly: false,
+  });
+  const allRows: InventoryBalanceRow[] = balanceQuery.data?.data ?? [];
+
+  const filteredRows = React.useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return allRows.filter((r) => {
+      if (needle) {
+        const hay = `${r.sku} ${r.name}`.toLowerCase();
+        if (!hay.includes(needle)) return false;
+      }
+      if (onlyShortage) {
+        const s = deriveStatus(r);
+        if (s === "OK") return false;
+      }
+      return true;
+    });
+  }, [allRows, search, onlyShortage]);
+
   return (
     <div className="flex flex-col gap-5 p-6">
       <section
@@ -152,17 +209,182 @@ export function OverviewTab() {
       </section>
 
       <section
-        aria-label="Roadmap V2"
-        className="rounded-lg border border-dashed border-indigo-200 bg-indigo-50/40 p-4"
+        aria-label="Cân đối kho theo SKU"
+        className="rounded-lg border border-zinc-200 bg-white"
       >
-        <header className="flex items-center gap-2 text-sm font-medium text-indigo-900">
-          <MapPin className="h-4 w-4" aria-hidden="true" />
-          Vị trí kệ / bin (V2)
+        <header className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 px-4 py-3">
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-900">
+              Cân đối kho theo SKU
+            </h2>
+            <p className="text-[11px] text-zinc-500">
+              <span className="font-medium text-zinc-700">Available</span> ={" "}
+              <span className="font-medium">On-hand</span> −{" "}
+              <span className="font-medium text-amber-700">Reserved</span>.
+              Reserved = số đã giữ chỗ cho BOM/đơn chưa sản xuất.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="relative w-60">
+              <Search
+                className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400"
+                aria-hidden
+              />
+              <Input
+                placeholder="Tìm SKU, tên…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-8 pl-7 text-xs"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setOnlyShortage((v) => !v)}
+              className={cn(
+                "h-7 rounded-md border px-2 text-[11px] font-medium transition-colors",
+                onlyShortage
+                  ? "border-amber-300 bg-amber-50 text-amber-800"
+                  : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300",
+              )}
+            >
+              Chỉ thiếu / hết
+            </button>
+          </div>
         </header>
-        <p className="mt-1 text-xs text-indigo-800/80">
-          Sắp tới sẽ hiển thị bản đồ kệ — vật tư đang ở kệ nào, số lượng bao
-          nhiêu. V1 hiện đang focus lot/serial + PO; vị trí kệ là roadmap V2.
-        </p>
+
+        <div className="max-h-[420px] overflow-auto">
+          {balanceQuery.isLoading ? (
+            <div className="py-10 text-center text-xs text-zinc-500">
+              Đang tải số dư kho…
+            </div>
+          ) : filteredRows.length === 0 ? (
+            <div className="py-10 text-center text-xs text-zinc-500">
+              {search || onlyShortage
+                ? "Không có SKU khớp bộ lọc."
+                : "Chưa có lot nào trong kho."}
+            </div>
+          ) : (
+            <table className="w-full border-separate border-spacing-0 text-sm">
+              <thead className="sticky top-0 z-10 bg-zinc-50 text-[10px] font-medium uppercase tracking-wide text-zinc-600">
+                <tr className="h-8">
+                  <th className="border-b border-zinc-200 px-3 text-left">
+                    SKU
+                  </th>
+                  <th className="border-b border-zinc-200 px-3 text-left">
+                    Tên
+                  </th>
+                  <th className="border-b border-zinc-200 px-3 text-center">
+                    Đơn vị
+                  </th>
+                  <th className="border-b border-zinc-200 px-3 text-right">
+                    On-hand
+                  </th>
+                  <th
+                    className="border-b border-zinc-200 px-3 text-right"
+                    title="Đã giữ chỗ cho BOM/đơn chưa sản xuất"
+                  >
+                    Reserved
+                  </th>
+                  <th className="border-b border-zinc-200 px-3 text-right">
+                    Available
+                  </th>
+                  <th
+                    className="border-b border-zinc-200 px-3 text-right"
+                    title="Lot đang HOLD chờ QC"
+                  >
+                    Hold (QC)
+                  </th>
+                  <th className="border-b border-zinc-200 px-3 text-center">
+                    Trạng thái
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRows.map((r) => {
+                  const status = deriveStatus(r);
+                  return (
+                    <tr
+                      key={r.itemId}
+                      className="border-b border-zinc-100 transition-colors hover:bg-zinc-50"
+                      title={
+                        r.reserved > 0
+                          ? `Reserved = đã giữ chỗ cho BOM/đơn chưa sản xuất (${formatNumber(r.reserved)} ${r.uom})`
+                          : undefined
+                      }
+                    >
+                      <td className="px-3 py-2 font-mono text-[12px] font-medium text-zinc-900">
+                        {r.sku}
+                      </td>
+                      <td className="px-3 py-2 text-[12px] text-zinc-700">
+                        {r.name}
+                      </td>
+                      <td className="px-3 py-2 text-center text-[11px] text-zinc-500">
+                        {r.uom}
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono text-[12px] tabular-nums text-zinc-900">
+                        {formatNumber(r.onHand)}
+                      </td>
+                      <td
+                        className={cn(
+                          "px-3 py-2 text-right font-mono text-[12px] tabular-nums",
+                          r.reserved > 0
+                            ? "text-amber-700"
+                            : "text-zinc-300",
+                        )}
+                      >
+                        {r.reserved > 0 ? formatNumber(r.reserved) : "—"}
+                      </td>
+                      <td
+                        className={cn(
+                          "px-3 py-2 text-right font-mono text-[12px] tabular-nums font-semibold",
+                          status === "EMPTY"
+                            ? "text-rose-700"
+                            : status === "LOW"
+                              ? "text-amber-700"
+                              : "text-emerald-700",
+                        )}
+                      >
+                        {formatNumber(r.available)}
+                      </td>
+                      <td
+                        className={cn(
+                          "px-3 py-2 text-right font-mono text-[12px] tabular-nums",
+                          r.holdQty > 0 ? "text-rose-700" : "text-zinc-300",
+                        )}
+                      >
+                        {r.holdQty > 0 ? formatNumber(r.holdQty) : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <StockBadge status={status} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        <footer className="flex items-center justify-between border-t border-zinc-100 px-4 py-2 text-[11px] text-zinc-500">
+          <span>
+            Hiển thị {filteredRows.length.toLocaleString("vi-VN")} /{" "}
+            {allRows.length.toLocaleString("vi-VN")} SKU
+          </span>
+          {balanceQuery.data?.meta &&
+          balanceQuery.data.meta.total > allRows.length ? (
+            <span className="text-amber-700">
+              Còn {balanceQuery.data.meta.total - allRows.length} SKU chưa
+              hiển thị (giới hạn 200/trang)
+            </span>
+          ) : (
+            <Link
+              href="/warehouse?tab=items"
+              className="text-indigo-600 hover:underline"
+            >
+              Xem tất cả vật tư →
+            </Link>
+          )}
+        </footer>
       </section>
 
       <section

@@ -34,6 +34,8 @@ export interface ItemRow {
     availableQty: number;
     reservedQty: number;
   };
+  /** TASK-20260427-017 — min stock threshold để render badge "Thiếu" amber. */
+  minStockQty?: number | string | null;
   /** @deprecated legacy — dùng inventorySummary.totalQty thay thế. */
   onHand?: number | null;
   updatedAt: string | Date;
@@ -271,31 +273,50 @@ export function ItemListTable({
                 {row.category ?? "—"}
               </div>
 
-              {/* Tồn kho — V1.9 P6: 2-line (total + available/reserved sub) tabular-nums */}
+              {/* Tồn kho — V1.9 P6 + TASK-20260427-017:
+                    - Available cell color đỏ nếu ≤ 0, amber nếu < minStock.
+                    - Tooltip hiển thị on-hand / reserved chi tiết. */}
               <div className="hidden flex-col items-end justify-center whitespace-nowrap pr-2 tabular-nums text-zinc-700 md:flex">
                 {row.inventorySummary ? (
-                  <>
-                    <span className="text-sm font-medium text-zinc-900">
-                      {formatNumber(row.inventorySummary.totalQty)}{" "}
-                      <span className="text-xs font-normal text-zinc-500">
-                        {row.uom}
-                      </span>
-                    </span>
-                    <span className="text-[10px] leading-tight text-zinc-500">
-                      SD:{" "}
-                      <span className="tabular-nums text-zinc-700">
-                        {formatNumber(row.inventorySummary.availableQty)}
-                      </span>
-                      {row.inventorySummary.reservedQty > 0 && (
-                        <>
-                          {" · Giữ: "}
-                          <span className="tabular-nums text-amber-600">
-                            {formatNumber(row.inventorySummary.reservedQty)}
+                  (() => {
+                    const sum = row.inventorySummary;
+                    const minStock = Number(row.minStockQty ?? 0) || 0;
+                    const availColor =
+                      sum.availableQty <= 0
+                        ? "text-rose-700"
+                        : minStock > 0 && sum.availableQty < minStock
+                          ? "text-amber-700"
+                          : "text-zinc-900";
+                    return (
+                      <span
+                        title={`On-hand: ${formatNumber(sum.totalQty)} ${row.uom}\nReserved: ${formatNumber(sum.reservedQty)} ${row.uom}\nAvailable: ${formatNumber(sum.availableQty)} ${row.uom}${minStock > 0 ? `\nMin stock: ${formatNumber(minStock)}` : ""}`}
+                        className="flex flex-col items-end"
+                      >
+                        <span
+                          className={`text-sm font-medium ${availColor}`}
+                        >
+                          {formatNumber(sum.availableQty)}{" "}
+                          <span className="text-xs font-normal text-zinc-500">
+                            {row.uom}
                           </span>
-                        </>
-                      )}
-                    </span>
-                  </>
+                        </span>
+                        <span className="text-[10px] leading-tight text-zinc-500">
+                          Tổng:{" "}
+                          <span className="tabular-nums text-zinc-700">
+                            {formatNumber(sum.totalQty)}
+                          </span>
+                          {sum.reservedQty > 0 && (
+                            <>
+                              {" · Giữ: "}
+                              <span className="tabular-nums text-amber-600">
+                                {formatNumber(sum.reservedQty)}
+                              </span>
+                            </>
+                          )}
+                        </span>
+                      </span>
+                    );
+                  })()
                 ) : row.onHand !== null && row.onHand !== undefined ? (
                   <span>{formatNumber(row.onHand)}</span>
                 ) : (

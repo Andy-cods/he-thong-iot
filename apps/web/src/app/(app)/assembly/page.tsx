@@ -3,572 +3,315 @@
 import * as React from "react";
 import Link from "next/link";
 import {
-  CheckCircle2,
+  ArrowRight,
   ClipboardList,
-  ExternalLink,
   Factory,
-  History,
   Loader2,
-  Package,
-  Smartphone,
+  Search,
   Wrench,
 } from "lucide-react";
-import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { BarcodeScanInput } from "@/components/scan/BarcodeScanInput";
-import { useWorkOrdersList } from "@/hooks/useWorkOrders";
-import {
-  useAssemblyScan,
-  useCompleteWoViaAssembly,
-  useWoProgress,
-  type AssemblyScanInput,
-} from "@/hooks/useAssembly";
-import { uuidv7 } from "@/lib/uuid-v7";
+import { Input } from "@/components/ui/input";
+import { useWorkOrdersList, type WorkOrderRow } from "@/hooks/useWorkOrders";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
 /**
- * V1.9 Phase 5 — Assembly page (desktop).
+ * V2.0-P2-W6 — Assembly landing.
  *
- * Layout 2 cột:
- *   - Header: chọn WO đang IN_PROGRESS (Select dropdown).
- *   - Scan area: BarcodeScanInput đặt trên cùng — scanner USB/BT gõ vào + Enter.
- *   - Cột trái: Bảng BOM lines (SKU, Tên, Required, Issued, Remaining, Trạng thái).
- *   - Cột phải: Activity log scan gần nhất (50 entries, timestamp + code + kết
- *     quả match/no-match).
- *   - Footer: Button "Hoàn tất WO" chỉ bật khi progress ≥ 100%.
+ * Hiển thị danh sách các Work Order đang sẵn sàng lắp ráp:
+ *   - status IN_PROGRESS hoặc QUEUED hoặc RELEASED
+ *   - chưa hoàn thành (goodQty < plannedQty)
  *
- * Flow scan:
- *   1. Barcode nhận được → GET /api/items/by-barcode/[code] (tìm item tương ứng).
- *   2. Nếu item khớp với 1 line trong WO (theo componentSku) → match reservation
- *      đầu tiên còn ACTIVE → gọi POST /api/assembly/scan với qty=1.
- *   3. Nếu không khớp → toast error + log activity "no-match".
- *
- * Lưu ý:
- *   - Desktop chỉ dùng barcode wedge + click — không camera (PWA có).
- *   - Activity log lưu client state (không persist DB) — trace tạm thời.
+ * Mỗi WO là 1 card có progress bar, click để vào workspace
+ * `/assembly/[woId]`.
  */
 
-interface ScanLog {
-  id: string;
-  code: string;
-  at: number;
-  status: "ok" | "no-match" | "error";
-  message: string;
+const STATUS_FILTERS = [
+  { value: "ALL", label: "Tất cả" },
+  { value: "IN_PROGRESS", label: "Đang lắp" },
+  { value: "QUEUED", label: "Đang chờ" },
+  { value: "RELEASED", label: "Sẵn sàng" },
+] as const;
+
+type StatusFilter = (typeof STATUS_FILTERS)[number]["value"];
+
+function num(v: string | number | null | undefined): number {
+  if (v == null) return 0;
+  const n = typeof v === "string" ? parseFloat(v) : v;
+  return Number.isFinite(n) ? n : 0;
 }
 
-function formatTime(ts: number): string {
-  return new Date(ts).toLocaleTimeString("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-}
-
-export default function AssemblyPage() {
-  const [selectedWoId, setSelectedWoId] = React.useState<string>("");
-  const [log, setLog] = React.useState<ScanLog[]>([]);
-
-  // WO list — chỉ load IN_PROGRESS
-  const woListQuery = useWorkOrdersList({
-    status: ["IN_PROGRESS"],
-    page: 1,
-    pageSize: 50,
-  });
-  const woRows = woListQuery.data?.data ?? [];
-
-  // Progress của WO đang chọn
-  const progressQuery = useWoProgress(selectedWoId || null);
-  const progress = progressQuery.data?.data;
-
-  const scanMut = useAssemblyScan(selectedWoId);
-  const completeMut = useCompleteWoViaAssembly(selectedWoId);
-
-  // Auto-chọn WO đầu tiên khi có
-  React.useEffect(() => {
-    if (!selectedWoId && woRows.length > 0) {
-      setSelectedWoId(woRows[0]!.id);
-    }
-  }, [selectedWoId, woRows]);
-
-  const addLog = React.useCallback((entry: Omit<ScanLog, "id" | "at">) => {
-    setLog((prev) =>
-      [{ id: uuidv7(), at: Date.now(), ...entry }, ...prev].slice(0, 50),
-    );
-  }, []);
-
-  const handleScan = React.useCallback(
-    async (raw: string) => {
-      const code = raw.trim();
-      if (!code) return;
-
-      if (!selectedWoId || !progress) {
-        addLog({
-          code,
-          status: "error",
-          message: "Chưa chọn WO để lắp ráp.",
-        });
-        toast.error("Chọn một lệnh sản xuất (WO) trước khi quét.");
-        return;
-      }
-
-      // 1. Tìm item theo barcode
-      try {
-        const res = await fetch(
-          `/api/items/by-barcode/${encodeURIComponent(code)}`,
-          { credentials: "include" },
-        );
-        if (!res.ok) {
-          addLog({
-            code,
-            status: "error",
-            message: `Lookup lỗi HTTP ${res.status}`,
-          });
-          toast.error(`Không tra cứu được mã "${code}".`);
-          return;
-        }
-        const body = (await res.json()) as {
-          data: { itemId: string; sku: string; name: string } | null;
-        };
-
-        // Fallback: nếu không match item → vẫn thử match trực tiếp theo lot_code
-        // trong reservations (AssemblyConsole đã dùng cách này).
-        if (!body.data) {
-          // Match lot code trực tiếp
-          const uc = code.toUpperCase();
-          for (const line of progress.lines) {
-            for (const r of line.reservations) {
-              if (r.status !== "ACTIVE") continue;
-              const lotCode = (r.lotCode ?? "").toUpperCase();
-              if (lotCode === uc || uc.startsWith(lotCode)) {
-                await submitScan(line.snapshotLineId, r.lotId, code, line);
-                return;
-              }
-            }
-          }
-          addLog({
-            code,
-            status: "no-match",
-            message: "Không tìm thấy barcode trong catalog.",
-          });
-          toast.error(`Barcode "${code}" không thuộc catalog.`);
-          return;
-        }
-
-        const { sku, name } = body.data;
-
-        // 2. Match component SKU trong lines
-        const line = progress.lines.find((l) => l.componentSku === sku);
-        if (!line) {
-          addLog({
-            code,
-            status: "no-match",
-            message: `${sku} (${name}) không thuộc WO này.`,
-          });
-          toast.error(`"${sku}" không thuộc WO đang lắp.`);
-          return;
-        }
-
-        // Kiểm remaining
-        const remaining = line.requiredQty - line.completedQty;
-        if (remaining <= 0) {
-          addLog({
-            code,
-            status: "no-match",
-            message: `${sku} đã đủ số lượng.`,
-          });
-          toast.warning(`"${sku}" đã đủ số lượng yêu cầu.`);
-          return;
-        }
-
-        // Pick reservation còn ACTIVE, đủ qty
-        const reservation = line.reservations.find(
-          (r) => r.status === "ACTIVE" && r.reservedQty > 0,
-        );
-        if (!reservation) {
-          addLog({
-            code,
-            status: "error",
-            message: `${sku}: chưa có lot reservation.`,
-          });
-          toast.error(
-            `"${sku}" chưa có lot reservation ACTIVE — cần reserve lot trước.`,
-          );
-          return;
-        }
-
-        await submitScan(
-          line.snapshotLineId,
-          reservation.lotId,
-          code,
-          {
-            componentSku: sku,
-            componentName: name,
-          },
-        );
-      } catch (err) {
-        addLog({
-          code,
-          status: "error",
-          message: (err as Error).message,
-        });
-        toast.error((err as Error).message);
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectedWoId, progress, addLog],
-  );
-
-  async function submitScan(
-    snapshotLineId: string,
-    lotSerialId: string,
-    barcode: string,
-    info: { componentSku: string; componentName: string },
-  ) {
-    const input: AssemblyScanInput = {
-      scanId: uuidv7(),
-      woId: selectedWoId,
-      snapshotLineId,
-      lotSerialId,
-      qty: 1,
-      barcode,
-      scannedAt: new Date().toISOString(),
-      deviceId: "desktop-web",
-    };
-    try {
-      const out = await scanMut.mutateAsync(input);
-      addLog({
-        code: barcode,
-        status: "ok",
-        message: `${info.componentSku} · ${out.data.completedQty}/${out.data.requiredQty}${
-          out.data.idempotent ? " (idempotent)" : ""
-        }`,
-      });
-      toast.success(
-        `Đã ghi nhận ${info.componentSku}: ${out.data.completedQty}/${out.data.requiredQty}.`,
-      );
-    } catch (err) {
-      addLog({
-        code: barcode,
-        status: "error",
-        message: (err as Error).message,
-      });
-      toast.error((err as Error).message);
-    }
+function statusVariant(s: string): "success" | "info" | "warning" | "outline" {
+  switch (s) {
+    case "IN_PROGRESS":
+      return "info";
+    case "QUEUED":
+      return "warning";
+    case "RELEASED":
+      return "success";
+    default:
+      return "outline";
   }
+}
 
-  const handleComplete = async () => {
-    if (!selectedWoId) return;
-    if (
-      !confirm(
-        "Xác nhận hoàn thành WO? Yêu cầu tất cả line phải đủ số lượng trước.",
-      )
-    ) {
-      return;
-    }
-    try {
-      await completeMut.mutateAsync();
-      toast.success("WO đã hoàn thành.");
-      // Reset chọn WO
-      setSelectedWoId("");
-    } catch (err) {
-      toast.error((err as Error).message);
-    }
-  };
+function statusLabel(s: string): string {
+  switch (s) {
+    case "IN_PROGRESS":
+      return "Đang lắp";
+    case "QUEUED":
+      return "Chờ lắp";
+    case "RELEASED":
+      return "Sẵn sàng";
+    case "PAUSED":
+      return "Tạm dừng";
+    default:
+      return s;
+  }
+}
 
-  const totalRequired = progress?.totalRequired ?? 0;
-  const totalCompleted = progress?.totalCompleted ?? 0;
-  const progressPct = progress?.progressPercent ?? 0;
-  const canComplete =
-    progress && progress.status === "IN_PROGRESS" && progressPct >= 100;
+function WoCard({ wo }: { wo: WorkOrderRow }) {
+  const planned = num(wo.plannedQty);
+  const good = num(wo.goodQty);
+  const remaining = Math.max(0, planned - good);
+  const pct = planned > 0 ? Math.min(100, Math.round((good / planned) * 100)) : 0;
+  const done = pct >= 100;
 
-  const selectedWo = woRows.find((w) => w.id === selectedWoId);
+  return (
+    <Link
+      href={`/assembly/${wo.id}`}
+      className={cn(
+        "group flex flex-col gap-3 rounded-md border border-zinc-200 bg-white p-4 transition-all hover:border-indigo-400 hover:shadow-sm",
+        done && "border-emerald-200 bg-emerald-50/30",
+      )}
+    >
+      {/* Header */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <code className="font-mono text-sm font-semibold text-zinc-900">
+              {wo.woNo}
+            </code>
+            <Badge variant={statusVariant(wo.status)} className="text-[10px]">
+              {statusLabel(wo.status)}
+            </Badge>
+          </div>
+          {wo.orderNo ? (
+            <p className="mt-1 truncate text-xs text-zinc-500">
+              Đơn hàng: <span className="font-medium">{wo.orderNo}</span>
+            </p>
+          ) : null}
+        </div>
+        <ArrowRight
+          className="h-4 w-4 shrink-0 text-zinc-300 transition-colors group-hover:text-indigo-500"
+          aria-hidden
+        />
+      </div>
+
+      {/* Quantity + progress */}
+      <div>
+        <div className="mb-1 flex items-baseline justify-between text-xs">
+          <span className="text-zinc-500">
+            <span className="font-semibold tabular-nums text-zinc-900">
+              {good}
+            </span>
+            <span className="text-zinc-400"> / {planned}</span>
+            {" cái"}
+          </span>
+          <span
+            className={cn(
+              "tabular-nums font-medium",
+              done ? "text-emerald-700" : "text-indigo-700",
+            )}
+          >
+            {pct}%
+          </span>
+        </div>
+        <div className="relative h-1.5 overflow-hidden rounded-full bg-zinc-100">
+          <div
+            className={cn(
+              "absolute inset-y-0 left-0 rounded-full transition-all duration-300",
+              done ? "bg-emerald-500" : "bg-indigo-500",
+            )}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        {remaining > 0 ? (
+          <p className="mt-1.5 text-[11px] text-zinc-500">
+            Còn{" "}
+            <span className="font-semibold text-zinc-700">{remaining}</span>{" "}
+            cái cần lắp
+          </p>
+        ) : (
+          <p className="mt-1.5 text-[11px] text-emerald-600">
+            Đã đủ số lượng
+          </p>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between border-t border-zinc-100 pt-2 text-[11px] text-zinc-500">
+        <span className="inline-flex items-center gap-1">
+          <ClipboardList className="h-3 w-3" aria-hidden />
+          Ưu tiên {wo.priority}
+        </span>
+        <span className="font-medium text-indigo-600 group-hover:underline">
+          Bắt đầu lắp ráp →
+        </span>
+      </div>
+    </Link>
+  );
+}
+
+export default function AssemblyLandingPage() {
+  const [search, setSearch] = React.useState("");
+  const [status, setStatus] = React.useState<StatusFilter>("ALL");
+
+  // Tải nhiều status (server filter chỉ chấp nhận status chọn)
+  const statusFilter: WorkOrderRow["status"][] =
+    status === "ALL"
+      ? (["IN_PROGRESS", "QUEUED", "RELEASED"] as const).slice()
+      : [status as WorkOrderRow["status"]];
+
+  const query = useWorkOrdersList({
+    status: statusFilter,
+    q: search.trim() || undefined,
+    page: 1,
+    pageSize: 100,
+  });
+
+  const rows = query.data?.data ?? [];
+
+  // Lọc thêm: chỉ hiển thị WO chưa hoàn tất (good < planned)
+  const visible = React.useMemo(() => {
+    return rows.filter((r) => num(r.goodQty) < num(r.plannedQty));
+  }, [rows]);
+
+  const grouped = React.useMemo(() => {
+    const inProg = visible.filter((r) => r.status === "IN_PROGRESS");
+    const others = visible.filter((r) => r.status !== "IN_PROGRESS");
+    return { inProg, others };
+  }, [visible]);
 
   return (
     <div className="flex flex-col gap-5">
+      {/* Title */}
       <section>
         <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight text-zinc-900">
-          <Wrench className="h-5 w-5 text-zinc-500" aria-hidden="true" />
+          <Wrench className="h-5 w-5 text-zinc-500" aria-hidden />
           Lắp ráp
         </h1>
         <p className="mt-1 text-xs text-zinc-500">
-          Quét barcode component để ghi nhận đã xuất kho cho lắp ráp. Máy quét
-          USB/Bluetooth hoạt động như bàn phím — cắm vào, quét, hệ thống tự
-          nhận. Nếu không có máy quét, dùng ô nhập tay rồi bấm Enter.
+          Chọn một lệnh sản xuất (WO) để vào màn quét barcode lắp ráp. Card hiển
+          thị tiến độ + số cần lắp tiếp.
         </p>
       </section>
 
-      {/* Header: chọn WO + action */}
-      <section className="rounded-md border border-zinc-200 bg-white p-4">
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="flex-1 min-w-[280px]">
-            <label
-              htmlFor="wo-select"
-              className="mb-1 block text-xs font-medium text-zinc-700"
+      {/* Filter bar */}
+      <section className="flex flex-wrap items-center gap-3 rounded-md border border-zinc-200 bg-white p-3">
+        <div className="relative min-w-[260px] flex-1">
+          <Search
+            className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400"
+            aria-hidden
+          />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Tìm theo WO, mã đơn..."
+            className="pl-8"
+          />
+        </div>
+        <div className="flex items-center gap-1">
+          {STATUS_FILTERS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setStatus(opt.value)}
+              className={cn(
+                "rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
+                status === opt.value
+                  ? "border-indigo-300 bg-indigo-50 text-indigo-700"
+                  : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50",
+              )}
             >
-              <span className="inline-flex items-center gap-1">
-                <Factory className="h-3.5 w-3.5" aria-hidden="true" />
-                Lệnh sản xuất đang lắp (IN_PROGRESS)
-              </span>
-            </label>
-            {woListQuery.isLoading ? (
-              <div className="flex h-9 items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 text-xs text-zinc-500">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                Đang tải danh sách WO…
-              </div>
-            ) : woRows.length === 0 ? (
-              <div className="flex h-9 items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 text-xs text-amber-800">
-                Chưa có WO nào ở trạng thái IN_PROGRESS.
-              </div>
-            ) : (
-              <Select
-                value={selectedWoId}
-                onValueChange={(v) => setSelectedWoId(v)}
-              >
-                <SelectTrigger id="wo-select">
-                  <SelectValue placeholder="— Chọn WO —" />
-                </SelectTrigger>
-                <SelectContent>
-                  {woRows.map((wo) => (
-                    <SelectItem key={wo.id} value={wo.id}>
-                      <span className="font-mono text-xs">{wo.woNo}</span>
-                      {wo.orderNo ? (
-                        <span className="ml-2 text-xs text-zinc-500">
-                          · Đơn {wo.orderNo}
-                        </span>
-                      ) : null}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <div className="ml-auto text-xs text-zinc-500">
+          {query.isLoading ? (
+            <span className="inline-flex items-center gap-1">
+              <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+              Đang tải…
+            </span>
+          ) : (
+            <span>
+              {visible.length} WO •{" "}
+              {grouped.inProg.length} đang lắp,{" "}
+              {grouped.others.length} chờ
+            </span>
+          )}
+        </div>
+      </section>
 
-          {selectedWo ? (
-            <div className="flex items-center gap-3 text-xs">
-              <Badge variant="info">{selectedWo.status}</Badge>
-              <span className="text-zinc-500">
-                Kế hoạch {selectedWo.plannedQty} · Good {selectedWo.goodQty}
-              </span>
-              <Link
-                href={`/work-orders/${selectedWo.id}`}
-                className="inline-flex items-center gap-1 text-indigo-600 hover:underline"
-              >
-                <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-                Chi tiết
-              </Link>
-              <Link
-                href={`/pwa/assembly/${selectedWo.id}`}
-                className="inline-flex items-center gap-1 text-indigo-600 hover:underline"
-              >
-                <Smartphone className="h-3.5 w-3.5" aria-hidden />
-                Mở PWA
-              </Link>
-            </div>
+      {/* List */}
+      {query.isLoading ? (
+        <div className="flex items-center justify-center gap-2 py-12 text-sm text-zinc-500">
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          Đang tải danh sách WO…
+        </div>
+      ) : query.isError ? (
+        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          Lỗi tải danh sách:{" "}
+          {(query.error as Error | null)?.message ?? "Không rõ"}
+        </div>
+      ) : visible.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-zinc-200 bg-zinc-50/50 py-16 text-center">
+          <Factory className="h-8 w-8 text-zinc-300" aria-hidden />
+          <p className="text-sm font-medium text-zinc-700">
+            Không có WO nào sẵn sàng lắp ráp
+          </p>
+          <p className="max-w-md text-xs text-zinc-500">
+            Tạo WO mới ở trang{" "}
+            <Link
+              href="/work-orders"
+              className="text-indigo-600 hover:underline"
+            >
+              Lệnh sản xuất
+            </Link>{" "}
+            hoặc đổi trạng thái sang Released/Queued để bắt đầu lắp ráp.
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-6">
+          {grouped.inProg.length > 0 ? (
+            <section>
+              <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                Đang lắp ráp ({grouped.inProg.length})
+              </h2>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {grouped.inProg.map((wo) => (
+                  <WoCard key={wo.id} wo={wo} />
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          {grouped.others.length > 0 ? (
+            <section>
+              <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                Chờ lắp ráp ({grouped.others.length})
+              </h2>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {grouped.others.map((wo) => (
+                  <WoCard key={wo.id} wo={wo} />
+                ))}
+              </div>
+            </section>
           ) : null}
         </div>
-
-        {/* Progress bar */}
-        {progress ? (
-          <div className="mt-4 flex items-center gap-3">
-            <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-zinc-100">
-              <div
-                className={cn(
-                  "absolute inset-y-0 left-0 rounded-full transition-all duration-300",
-                  progressPct >= 100 ? "bg-emerald-500" : "bg-indigo-500",
-                )}
-                style={{ width: `${Math.min(100, progressPct)}%` }}
-              />
-            </div>
-            <span className="text-xs tabular-nums text-zinc-600">
-              {totalCompleted}/{totalRequired} ({progressPct}%)
-            </span>
-            {canComplete ? (
-              <Button
-                size="sm"
-                onClick={() => void handleComplete()}
-                disabled={completeMut.isPending}
-              >
-                <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
-                Hoàn thành WO
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
-      </section>
-
-      {/* Scan area */}
-      <section className="rounded-md border border-zinc-200 bg-white p-4">
-        <BarcodeScanInput
-          onScan={(code) => void handleScan(code)}
-          placeholder="Quét barcode component (máy quét USB/BT gõ tự động + Enter)"
-          disabled={!selectedWoId || scanMut.isPending}
-          autoFocus
-          label="Quét / Nhập mã barcode"
-        />
-        {scanMut.isPending ? (
-          <p className="mt-2 inline-flex items-center gap-1 text-xs text-zinc-500">
-            <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
-            Đang ghi nhận scan…
-          </p>
-        ) : null}
-      </section>
-
-      {/* 2 column: BOM lines + Activity log */}
-      <section className="grid gap-4 lg:grid-cols-[1fr,380px]">
-        {/* BOM lines */}
-        <div className="overflow-hidden rounded-md border border-zinc-200 bg-white">
-          <header className="flex h-9 items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
-            <ClipboardList className="h-3.5 w-3.5" aria-hidden />
-            BOM lines {progress ? `(${progress.lines.length})` : ""}
-          </header>
-          {!selectedWoId ? (
-            <div className="px-4 py-8 text-center text-xs text-zinc-500">
-              Chọn một WO để xem BOM lines.
-            </div>
-          ) : progressQuery.isLoading ? (
-            <div className="flex items-center justify-center gap-2 py-8 text-xs text-zinc-500">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-              Đang tải tiến độ…
-            </div>
-          ) : !progress || progress.lines.length === 0 ? (
-            <div className="px-4 py-8 text-center text-xs text-zinc-500">
-              WO này không có BOM line nào.
-            </div>
-          ) : (
-            <table className="w-full text-xs">
-              <thead className="border-b border-zinc-200 bg-zinc-50 text-[10px] uppercase tracking-wider text-zinc-500">
-                <tr>
-                  <th className="px-3 py-2 text-left font-medium">SKU</th>
-                  <th className="px-3 py-2 text-left font-medium">Tên</th>
-                  <th className="px-3 py-2 text-right font-medium">Req</th>
-                  <th className="px-3 py-2 text-right font-medium">Done</th>
-                  <th className="px-3 py-2 text-right font-medium">Còn</th>
-                  <th className="px-3 py-2 text-center font-medium">Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody>
-                {progress.lines.map((l) => {
-                  const remaining = Math.max(
-                    0,
-                    l.requiredQty - l.completedQty,
-                  );
-                  const done = remaining === 0;
-                  return (
-                    <tr
-                      key={l.snapshotLineId}
-                      className={cn(
-                        "border-t border-zinc-100 transition-colors",
-                        done && "bg-emerald-50/40",
-                      )}
-                    >
-                      <td className="px-3 py-2">
-                        <div className="flex items-center gap-1">
-                          <Package
-                            className={cn(
-                              "h-3.5 w-3.5",
-                              done ? "text-emerald-500" : "text-zinc-400",
-                            )}
-                            aria-hidden
-                          />
-                          <code className="font-mono text-xs font-semibold">
-                            {l.componentSku}
-                          </code>
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 text-zinc-700">
-                        {l.componentName}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums">
-                        {l.requiredQty}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums font-semibold">
-                        {l.completedQty}
-                      </td>
-                      <td
-                        className={cn(
-                          "px-3 py-2 text-right tabular-nums",
-                          done ? "text-emerald-700" : "text-zinc-600",
-                        )}
-                      >
-                        {remaining}
-                      </td>
-                      <td className="px-3 py-2 text-center">
-                        <Badge
-                          variant={done ? "success" : "outline"}
-                          className="text-[10px]"
-                        >
-                          {done ? "Đủ" : l.state}
-                        </Badge>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-
-        {/* Activity log */}
-        <aside className="overflow-hidden rounded-md border border-zinc-200 bg-white">
-          <header className="flex h-9 items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
-            <History className="h-3.5 w-3.5" aria-hidden />
-            Hoạt động quét ({log.length})
-          </header>
-          {log.length === 0 ? (
-            <div className="px-4 py-8 text-center text-xs text-zinc-500">
-              Chưa có scan nào. Quét barcode để bắt đầu.
-            </div>
-          ) : (
-            <ul className="max-h-[480px] divide-y divide-zinc-100 overflow-y-auto">
-              {log.map((e) => (
-                <li key={e.id} className="px-3 py-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        "h-1.5 w-1.5 shrink-0 rounded-full",
-                        e.status === "ok"
-                          ? "bg-emerald-500"
-                          : e.status === "no-match"
-                            ? "bg-amber-500"
-                            : "bg-red-500",
-                      )}
-                      aria-hidden
-                    />
-                    <code className="flex-1 truncate font-mono text-[11px] text-zinc-900">
-                      {e.code}
-                    </code>
-                    <span className="shrink-0 text-[10px] tabular-nums text-zinc-400">
-                      {formatTime(e.at)}
-                    </span>
-                  </div>
-                  <p
-                    className={cn(
-                      "mt-0.5 truncate pl-3.5 text-[11px]",
-                      e.status === "ok"
-                        ? "text-emerald-700"
-                        : e.status === "no-match"
-                          ? "text-amber-700"
-                          : "text-red-700",
-                    )}
-                  >
-                    {e.message}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </aside>
-      </section>
+      )}
     </div>
   );
 }

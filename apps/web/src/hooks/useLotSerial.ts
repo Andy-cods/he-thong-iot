@@ -67,10 +67,15 @@ export interface LotSerialListRow {
   lotCode: string | null;
   serialCode: string | null;
   status: LotStatus | string;
+  holdReason: string | null;
   mfgDate: string | null;
   expDate: string | null;
   createdAt: string;
   onHandQty: number;
+  /** TASK-20260427-017: tổng reservation ACTIVE cho lot. */
+  reservedQty: number;
+  /** Danh sách order_no (CSV) đang giữ chỗ lot. */
+  reservedForOrders: string | null;
   itemId: string;
   itemSku: string | null;
   itemName: string | null;
@@ -171,6 +176,8 @@ export function useHoldLot() {
       void qc.invalidateQueries({
         queryKey: ["lot-serial", "history", vars.id],
       });
+      // TASK-20260427-017 — onHand/holdQty đổi.
+      void qc.invalidateQueries({ queryKey: ["inventory"] });
       toast.success("Đã đặt lot vào HOLD.");
     },
     onError: (err: Error) => {
@@ -193,6 +200,8 @@ export function useReleaseLot() {
       void qc.invalidateQueries({
         queryKey: ["lot-serial", "history", vars.id],
       });
+      // TASK-20260427-017 — onHand/holdQty đổi.
+      void qc.invalidateQueries({ queryKey: ["inventory"] });
       toast.success("Đã release lot — chuyển AVAILABLE.");
     },
     onError: (err: Error) => {

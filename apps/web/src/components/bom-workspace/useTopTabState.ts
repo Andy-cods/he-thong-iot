@@ -16,15 +16,15 @@ import { useRouter, useSearchParams } from "next/navigation";
  * sang `?tab=...` để 7 sub-route redirect cũ và bookmark cũ không vỡ.
  */
 
+// TASK-20260427-016 — bỏ 3 tab `snapshot`, `shortage`, `eco` khỏi BOM workspace.
+// Legacy URL `?tab=snapshot|shortage|eco` rớt vào fallback `materials` (logic
+// `useTopTabState` bên dưới — invalid key → `materials`).
 export const TOP_TAB_KEYS = [
   "materials",
   "orders",
-  "snapshot",
   "production",
   "work-orders",
   "procurement",
-  "shortage",
-  "eco",
   "assembly",
   "audit",
 ] as const;
@@ -34,12 +34,9 @@ export type TopTabKey = (typeof TOP_TAB_KEYS)[number];
 export const TOP_TAB_LABELS: Record<TopTabKey, string> = {
   materials: "Vật tư & Quy trình",
   orders: "Đơn hàng",
-  snapshot: "Snapshot Board",
   production: "Sản xuất",
   "work-orders": "Lệnh SX",
   procurement: "Mua sắm",
-  shortage: "Thiếu vật tư",
-  eco: "ECO",
   assembly: "Lắp ráp",
   audit: "Lịch sử",
 };

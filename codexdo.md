@@ -123,6 +123,131 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
+### TASK-20260427-016 — BOM detail: bỏ 3 tab (Snapshot Board, ECO, Thiếu vật tư)
+- **Trạng thái:** DONE
+- **Tạo:** 2026-04-27 17:00 (+07) bởi Claude (planner)
+- **Phụ trách:** Claude (executor)
+- **Bắt đầu:** 2026-04-27 17:00 (+07)
+- **Hoàn thành:** 2026-04-27 17:10 (+07)
+- **Ưu tiên:** P0
+
+**Acceptance criteria:**
+- [x] `TOP_TAB_KEYS` còn 7 tab
+- [x] Fallback materials xử lý legacy keys
+- [x] Bỏ render switch + import 3 panel + KPI chips topbar
+- [x] Panel files giữ làm dead code với DEPRECATED comment
+
+**Output / log:** Sửa 5 file (useTopTabState, index, page.tsx, BomWorkspaceTopbar + 3 panel comment). Typecheck PASS.
+
+---
+
+### TASK-20260427-017 — Stock reservation thông minh (UI Quản lí kho 3 cột số)
+- **Trạng thái:** DONE
+- **Tạo:** 2026-04-27 17:00 (+07) bởi Claude (planner)
+- **Phụ trách:** Claude (executor)
+- **Bắt đầu:** 2026-04-27 17:00 (+07)
+- **Hoàn thành:** 2026-04-27 18:30 (+07)
+- **Ưu tiên:** P1
+
+**Mô tả:** User: "hàng tồn kho là 6, BOM cần 3 chưa SX → chưa trừ nhưng giữ chỗ (QC hoặc reserved)". Schema `reservation` đã có (1:N snapshot_line ↔ lot_serial, status ACTIVE/RELEASED/CONSUMED). Việc cần làm: API + UI hiển thị 3 con số `on_hand` / `reserved` / `available` per item.
+
+**Acceptance criteria:**
+- [x] API `GET /api/inventory/balance?itemId=...` trả on_hand/reserved/available (compute từ inventory_txn AVAILABLE − reservation ACTIVE) — workaround vì lot_serial không có cột qty
+- [x] Tab "Tổng quan" trong /warehouse hiển thị bảng: SKU | On-hand | Reserved | Available | Hold | Status (Đủ/Thiếu/Hết)
+- [x] Tab Lot/Serial có cột "Đã giữ chỗ cho" + chip "Chờ QC" cho lot HOLD
+- [x] Tab Vật tư hiển thị Available với cell color (red ≤0, amber < minStock) + tooltip on-hand/reserved
+- [x] Invalidation: ["inventory"] thêm vào useReservations / useReceivingApprove / useLotSerial
+- [x] `pnpm --filter @iot/web typecheck` exit 0
+
+**File mới:**
+- `apps/web/src/app/api/inventory/balance/route.ts` (GET endpoint)
+- `apps/web/src/server/repos/inventory.ts` (`getInventoryBalance`)
+- `apps/web/src/hooks/useInventory.ts` (`useInventoryBalance`)
+
+**File sửa:**
+- `apps/web/src/components/warehouse/OverviewTab.tsx` (bảng cân đối kho)
+- `apps/web/src/components/warehouse/LotSerialTab.tsx` (cột Đã giữ chỗ cho + Chờ QC chip)
+- `apps/web/src/components/items/ItemListTable.tsx` (Available cell color + tooltip)
+- `apps/web/src/app/api/lot-serial/route.ts` (JOIN reservation → reservedQty + reservedForOrders)
+- `apps/web/src/hooks/useLotSerial.ts` (LotSerialListRow thêm reservedQty/reservedForOrders/holdReason)
+- `apps/web/src/hooks/useReservations.ts`, `useReceivingApprove.ts` (invalidate inventory)
+
+**Schema gap:** `inventory_lot_serial` KHÔNG có cột `qty` → on-hand phải compute từ `inventory_txn` aggregate (IN−OUT). Pattern này đã được áp dụng tại `repos/items.ts` và `api/lot-serial/route.ts` từ V1.9 P6.
+
+---
+
+### TASK-20260427-018 — Fix Work Orders create flow + verify end-to-end
+- **Trạng thái:** DONE
+- **Tạo:** 2026-04-27 17:00 (+07) bởi Claude (planner)
+- **Phụ trách:** Claude (executor)
+- **Bắt đầu:** 2026-04-27 17:00 (+07)
+- **Hoàn thành:** 2026-04-27 17:55 (+07)
+- **Ưu tiên:** P0
+
+**Acceptance criteria:**
+- [x] Form `/work-orders/new` refactor thành Wizard 3 step (pickOrder/pickLines/review) — validate rõ ràng từng step, toast error cụ thể
+- [x] Cache invalidation đã có sẵn từ trước (`qk.workOrders.all` + `qk.dashboard.overview`) — verified
+- [x] Bug "tạo xong reload vẫn 3 demo" → root cause: form cũ ẩn lỗi khi snapshot không AVAILABLE; UX wizard mới hiện rõ
+- [x] Empty state Step 1 (CTA /orders) + Step 2 (CTA quay lại Step 1)
+
+**Output / log:** Full rewrite `/work-orders/new/page.tsx` dùng Wizard component (TASK-020). Typecheck PASS.
+
+---
+
+### TASK-20260427-019 — Function Lắp ráp: enhance UX (đã có barcode scan)
+- **Trạng thái:** DONE
+- **Tạo:** 2026-04-27 17:00 (+07) bởi Claude (planner)
+- **Phụ trách:** Claude (executor) + ui-ux-designer
+- **Bắt đầu:** 2026-04-27 17:00 (+07)
+- **Hoàn thành:** 2026-04-27 17:35 (+07)
+- **Ưu tiên:** P2
+
+**Mô tả:** User: "function Lắp ráp cần làm cho nó hoạt động được, hiện tại đang khá sơ sài". Code đã có (barcode scan + atomic update + audit). Cần audit UX + thêm: (a) preview BOM lines trước scan, (b) progress bar real-time, (c) FG serial output flow, (d) error recovery khi scan trùng/sai SKU.
+
+**Acceptance criteria:**
+- [x] Trang `/assembly/[woId]` hiển thị: thông tin WO + bảng BOM lines (Required/Picked/Done/Remaining) + zone scan
+- [x] Khi scan SKU đúng → +1 line, animation feedback (BarcodeScanInput + toast.success "Đã pick 1 SKU")
+- [x] Khi scan SKU sai/dư → toast error đỏ, không ghi DB (no-match path không gọi /api/assembly/scan)
+- [x] Khi đủ lines → enable nút "Hoàn tất WO" + dialog FG (qty + lot + note)
+- [x] Sự kiện scan ghi audit + reservation tự release (đã có sẵn ở backend `recordAssemblyScanAtomic`)
+
+**Log thực thi:**
+- Sửa `apps/web/src/app/(app)/assembly/page.tsx` → biến landing thành **list cards WO** (filter status + search, group đang lắp / chờ).
+- Tạo mới `apps/web/src/app/(app)/assembly/[woId]/page.tsx` → workspace cho 1 WO: header sticky · BOM table 60% · scan + activity log 40% · pause/complete buttons · dialog FG output · dialog confirm scan trùng (<2s).
+- Reuse APIs sẵn có: `GET /api/assembly/wo/[id]/progress`, `POST /api/assembly/scan`, `POST /api/assembly/wo/[id]/complete`, `POST /api/work-orders/[id]/pause` — KHÔNG tạo API mới.
+- `pnpm --filter @iot/web typecheck` → exit 0.
+
+---
+
+### TASK-20260427-020 — Wizard multi-step cho 3 form (Lệnh SX / PR / Nhận hàng)
+- **Trạng thái:** DONE
+- **Tạo:** 2026-04-27 17:00 (+07) bởi Claude (planner)
+- **Phụ trách:** Claude (executor) + ui-ux-designer
+- **Bắt đầu:** 2026-04-27 17:00 (+07)
+- **Ưu tiên:** P1
+
+**Mô tả:** User: "redesign mục này thành các page con là các step liên tiếp nhau, tôi muốn áp dụng cho cả Yêu cầu mua và Nhận hàng". 3 form hiện single-page → tách thành wizard multi-step.
+
+**Acceptance criteria:**
+- [x] Component `<Wizard>` reusable (`Step1`, `Step2`, ... với progress indicator) — `apps/web/src/components/wizard/Wizard.tsx` + `useWizard.ts` + `index.ts`
+- [ ] `/work-orders/new` → 3 step (1: chọn Order, 2: chọn snapshot lines, 3: review + submit) — agent kế tiếp làm, dùng Wizard component đã có
+- [x] `/procurement/purchase-requests/new` → 3 step (info / lines / review)
+- [x] `/warehouse?tab=receiving` deep-link tới `/receiving/[poId]/wizard` → 3 step (check / capture / qc + duyệt)
+- [x] Mỗi step có "Tiếp" / "Quay lại", validate trước khi next (toast error nếu fail)
+- [x] Step state persist URL `?step=info|lines|review` (PR) / `?step=check|capture|qc` (Receiving)
+
+**Log thực thi (2026-04-27 17:35 +07):**
+- Tạo `components/wizard/Wizard.tsx`: progress chevron 1→2→3 (active indigo, done emerald + check), sticky footer Quay lại/Tiếp/Hoàn tất, validate async, allowJump optional, WizardSummary component cho review step.
+- Tạo `components/wizard/useWizard.ts`: hook bind step ↔ URL searchParam (router.replace, scroll false).
+- Refactor `app/(app)/procurement/purchase-requests/new/page.tsx`: tách 3 step, share state ở wrapper, re-use `PRLineEditor`. Mode `?fromShortage` GIỮ NGUYÊN auto-create (không vào wizard).
+- Tạo mới `app/(app)/receiving/[poId]/wizard/page.tsx`: 3 step check/capture/qc + barcode scan, sau submit `/api/receiving/events` show button "Duyệt PO ngay" gọi `/api/receiving/[poId]/approve` nếu received ≥ 95%. Form cũ `/receiving/[poId]/page.tsx` GIỮ NGUYÊN cho PWA.
+- Sửa `components/warehouse/ReceivingTab.tsx`: button chính "Mở wizard desktop" (→ wizard mới), button phụ "Mở form nhận (single page)" (→ form cũ).
+- `pnpm --filter @iot/web typecheck` → exit 0.
+
+**File path:** `components/wizard/Wizard.tsx` (mới), 3 form refactor.
+
+---
+
 ### TASK-20260427-015 — BOM detail: đẩy tabs lên đầu + inline actions theo trạng thái
 - **Trạng thái:** DONE
 - **Tạo:** 2026-04-27 15:50 (+07) bởi Claude (planner)

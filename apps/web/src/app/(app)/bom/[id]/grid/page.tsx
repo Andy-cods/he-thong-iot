@@ -25,13 +25,10 @@ import {
   BomAuditPanel,
   BomBarcodeSearchDialog,
   BomProductionPanel,
-  BomSnapshotPanel,
   BomWorkspaceTopbar,
-  EcoPanel,
   HistoryDrawer,
   OrdersPanel,
   ProcurementPanel,
-  ShortagePanel,
   TopTabBar,
   WorkOrdersPanel,
   useTopTabState,
@@ -143,14 +140,13 @@ export default function BomGridPage() {
   const isLoading = detailQuery.isLoading || treeQuery.isLoading;
   const isObsolete = template?.status === "OBSOLETE";
 
+  // TASK-20260427-016 — `shortage`/`eco` tabs retired; bỏ counts tương ứng.
   const tabCounts: Partial<Record<TopTabKey, number>> = summary
     ? {
         orders: summary.ordersActive,
         production: summary.workOrdersActive,
         "work-orders": summary.workOrdersActive,
         procurement: summary.procurementActive,
-        shortage: summary.shortageComponents,
-        eco: summary.ecoActive,
         assembly: summary.assemblyInProgress,
       }
     : {};
@@ -234,18 +230,12 @@ export default function BomGridPage() {
     switch (key) {
       case "orders":
         return <OrdersPanel bomId={id} bomCode={template.code} />;
-      case "snapshot":
-        return <BomSnapshotPanel bomId={id} />;
       case "production":
         return <BomProductionPanel bomId={id} />;
       case "work-orders":
         return <WorkOrdersPanel bomId={id} />;
       case "procurement":
         return <ProcurementPanel bomId={id} bomCode={template.code} />;
-      case "shortage":
-        return <ShortagePanel bomId={id} bomCode={template.code} />;
-      case "eco":
-        return <EcoPanel bomId={id} />;
       case "assembly":
         return <AssemblyPanel bomId={id} />;
       case "audit":

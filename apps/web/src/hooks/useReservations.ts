@@ -71,6 +71,8 @@ export function useReserveLine() {
         queryKey: qk.reservations.bySnapshot(vars.snapshotLineId),
       });
       qc.invalidateQueries({ queryKey: qk.reservations.all });
+      // TASK-20260427-017 — reserved/available đổi.
+      qc.invalidateQueries({ queryKey: ["inventory"] });
     },
   });
 }
@@ -86,6 +88,7 @@ export function useBulkReserve() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.snapshots.all });
       qc.invalidateQueries({ queryKey: qk.reservations.all });
+      qc.invalidateQueries({ queryKey: ["inventory"] });
     },
   });
 }
@@ -101,6 +104,7 @@ export function useReleaseReservation() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.snapshots.all });
       qc.invalidateQueries({ queryKey: qk.reservations.all });
+      qc.invalidateQueries({ queryKey: ["inventory"] });
     },
   });
 }

@@ -84,6 +84,9 @@ function invalidatePO(qc: ReturnType<typeof useQueryClient>, poId: string) {
   void qc.invalidateQueries({ queryKey: qk.receiving.all });
   void qc.invalidateQueries({ queryKey: qk.po.detail(poId) });
   void qc.invalidateQueries({ queryKey: ["po", "detail"] });
+  // TASK-20260427-017 — receiving approve tạo lot mới → on-hand đổi.
+  void qc.invalidateQueries({ queryKey: ["inventory"] });
+  void qc.invalidateQueries({ queryKey: ["lot-serial"] });
 }
 
 export function useApproveReceiving() {

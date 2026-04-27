@@ -264,6 +264,9 @@ export function LotSerialTab() {
                     Trạng thái
                   </th>
                   <th className="border-b border-zinc-200 px-3 text-left">
+                    Đã giữ chỗ cho
+                  </th>
+                  <th className="border-b border-zinc-200 px-3 text-left">
                     NSX / HSD
                   </th>
                   <th className="border-b border-zinc-200 px-3 text-left">
@@ -307,7 +310,36 @@ export function LotSerialTab() {
                       </span>
                     </td>
                     <td className="px-3 py-2">
-                      <StatusBadge status={r.status} />
+                      <div className="flex flex-col gap-0.5">
+                        <StatusBadge status={r.status} />
+                        {r.status === "HOLD" && r.holdReason ? (
+                          <span
+                            className="text-[10px] text-amber-700"
+                            title={r.holdReason}
+                          >
+                            Chờ QC
+                          </span>
+                        ) : null}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 text-[11px] text-zinc-700">
+                      {r.reservedQty > 0 ? (
+                        <div className="flex flex-col">
+                          <span className="font-mono tabular-nums text-amber-700">
+                            {formatNumber(r.reservedQty)} {r.itemUom ?? ""}
+                          </span>
+                          <span
+                            className="truncate text-[10px] text-zinc-500"
+                            title={
+                              r.reservedForOrders ?? "Không có đơn liên kết"
+                            }
+                          >
+                            {r.reservedForOrders ?? "—"}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-zinc-300">—</span>
+                      )}
                     </td>
                     <td className="px-3 py-2 text-[11px] text-zinc-600">
                       {r.mfgDate ?? "—"}

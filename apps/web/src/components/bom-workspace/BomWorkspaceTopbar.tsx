@@ -186,17 +186,7 @@ export function BomWorkspaceTopbar({
           count={summary?.workOrdersActive}
           onClick={() => onOpenTab("work-orders")}
         />
-        <KpiChip
-          label={TOP_TAB_LABELS.shortage}
-          count={summary?.shortageComponents}
-          tone="orange"
-          onClick={() => onOpenTab("shortage")}
-        />
-        <KpiChip
-          label={TOP_TAB_LABELS.eco}
-          count={summary?.ecoActive}
-          onClick={() => onOpenTab("eco")}
-        />
+        {/* TASK-20260427-016 — KPI `Thiếu vật tư` & `ECO` retired cùng tab tương ứng. */}
       </div>
 
       {/* Scan barcode — V1.8 Batch 7 */}

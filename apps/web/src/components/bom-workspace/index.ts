@@ -12,12 +12,12 @@ export {
 } from "./useTopTabState";
 export { OrdersPanel } from "./panels/OrdersPanel";
 export { WorkOrdersPanel } from "./panels/WorkOrdersPanel";
-export { ShortagePanel } from "./panels/ShortagePanel";
-export { EcoPanel } from "./panels/EcoPanel";
+// TASK-20260427-016 — `ShortagePanel`, `EcoPanel`, `BomSnapshotPanel` retired khỏi
+// BOM tabs. File panel vẫn giữ trong source tree (dead code) để dễ restore — chỉ bỏ
+// re-export ở barrel này.
 export { ProcurementPanel } from "./panels/ProcurementPanel";
 export { AssemblyPanel } from "./panels/AssemblyPanel";
 // V2.0 P2 W6 — TASK-20260427-013 — gộp Order detail tabs vào BOM workspace.
-export { BomSnapshotPanel } from "./panels/BomSnapshotPanel";
 export { BomProductionPanel } from "./panels/BomProductionPanel";
 export { BomAuditPanel } from "./panels/BomAuditPanel";
 

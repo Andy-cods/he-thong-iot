@@ -44,6 +44,10 @@ interface ListRow {
   item_sku: string | null;
   item_name: string | null;
   item_uom: string | null;
+  /** TASK-20260427-017: reservation snapshot for "Đã giữ chỗ cho" column. */
+  reserved_qty: string;
+  reserved_for_orders: string | null;
+  hold_reason: string | null;
 }
 
 interface CountRow {
@@ -71,6 +75,7 @@ export async function GET(req: NextRequest) {
         l.exp_date::text AS exp_date,
         l.created_at::text AS created_at,
         l.item_id::text AS item_id,
+        l.hold_reason AS hold_reason,
         i.sku AS item_sku,
         i.name AS item_name,
         i.uom::text AS item_uom,
@@ -82,7 +87,19 @@ export async function GET(req: NextRequest) {
               ELSE 0
             END
           ) FROM app.inventory_txn t WHERE t.lot_serial_id = l.id
-        ), 0)::text AS on_hand
+        ), 0)::text AS on_hand,
+        COALESCE((
+          SELECT SUM(r.reserved_qty)
+          FROM app.reservation r
+          WHERE r.lot_serial_id = l.id AND r.status = 'ACTIVE'
+        ), 0)::text AS reserved_qty,
+        (
+          SELECT string_agg(DISTINCT so.order_no, ', ')
+          FROM app.reservation r
+          JOIN app.bom_snapshot_line bsl ON bsl.id = r.snapshot_line_id
+          JOIN app.sales_order so ON so.id = bsl.order_id
+          WHERE r.lot_serial_id = l.id AND r.status = 'ACTIVE'
+        ) AS reserved_for_orders
       FROM app.inventory_lot_serial l
       JOIN app.item i ON i.id = l.item_id
       WHERE 1=1
@@ -119,10 +136,13 @@ export async function GET(req: NextRequest) {
         lotCode: r.lot_code,
         serialCode: r.serial_code,
         status: r.status,
+        holdReason: r.hold_reason,
         mfgDate: r.mfg_date,
         expDate: r.exp_date,
         createdAt: r.created_at,
         onHandQty: Number(r.on_hand),
+        reservedQty: Number(r.reserved_qty),
+        reservedForOrders: r.reserved_for_orders,
         itemId: r.item_id,
         itemSku: r.item_sku,
         itemName: r.item_name,

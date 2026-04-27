@@ -314,11 +314,17 @@ function POCard({
 
       <div className="flex flex-col gap-2 border-t border-zinc-100 pt-3">
         <Link
-          href={`/receiving/${po.id}`}
+          href={`/receiving/${po.id}/wizard`}
           className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-indigo-600 px-3 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
         >
           <Truck className="h-3.5 w-3.5" aria-hidden="true" />
-          Mở form nhận
+          Mở wizard desktop
+        </Link>
+        <Link
+          href={`/receiving/${po.id}`}
+          className="inline-flex h-7 items-center justify-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+        >
+          Mở form nhận (single page)
         </Link>
         <div className="grid grid-cols-2 gap-2">
           <Button

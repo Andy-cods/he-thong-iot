@@ -1,3 +1,4 @@
+// DEPRECATED: removed from BOM tabs 2026-04-27 (TASK-016). Kept for potential restore.
 "use client";
 
 import * as React from "react";
