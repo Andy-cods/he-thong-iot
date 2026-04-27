@@ -83,47 +83,55 @@ export const NAV_SECTION_ORDER: NavSection[] = [
   "other",
 ];
 
+/**
+ * V3.3 — STRICT phòng ban: mỗi nav tab chỉ hiển thị cho role thuộc phòng ban đó
+ * + admin (toàn quyền). User không thuộc bộ phận sẽ KHÔNG thấy tab khác —
+ * khớp yêu cầu "chỉ thấy của bộ phận mình + Tổng quan".
+ *
+ * Tổng quan hiển thị cho mọi user đã đăng nhập.
+ * Quản trị chỉ admin.
+ */
 export const NAV_ITEMS: NavItem[] = [
-  // --- Tổng quan ---
+  // --- Tổng quan (mọi role đã đăng nhập) ---
   {
     href: "/",
     label: "Tổng quan",
     icon: LayoutDashboard,
     section: "dashboard",
   },
-  // --- Bộ phận Kho (đã gộp ở TASK-014) ---
+  // --- Bộ phận Kho — chỉ warehouse + admin ---
   {
     href: "/warehouse",
     label: "Bộ phận Kho",
     icon: Warehouse,
-    entity: "item",
+    roles: ["admin", "warehouse"],
     section: "warehouse",
   },
-  // --- Bộ phận Thu mua (gộp Suppliers + PO + Kế toán) ---
+  // --- Bộ phận Thu mua — chỉ purchaser + admin ---
   {
     href: "/sales",
     label: "Bộ phận Thu mua",
     icon: ShoppingBag,
-    entities: ["supplier", "po"],
+    roles: ["admin", "purchaser"],
     section: "finance",
   },
-  // --- Bộ phận Thiết kế (gộp BOM + WO + PR ở TASK-025) ---
+  // --- Bộ phận Thiết kế — chỉ planner + admin ---
   {
     href: "/engineering",
     label: "Bộ phận Thiết kế",
     icon: Layers,
-    entities: ["bomTemplate", "wo", "pr"],
+    roles: ["admin", "planner"],
     section: "engineering",
   },
-  // --- Bộ phận Vận hành (mới ở TASK-025) ---
+  // --- Bộ phận Vận hành — chỉ operator + admin ---
   {
     href: "/operations",
     label: "Bộ phận Vận hành",
     icon: Factory,
-    roles: ["admin", "planner", "operator"],
+    roles: ["admin", "operator"],
     section: "operations",
   },
-  // --- Quản trị ---
+  // --- Quản trị (chỉ admin) ---
   {
     href: "/admin",
     label: "Quản trị",

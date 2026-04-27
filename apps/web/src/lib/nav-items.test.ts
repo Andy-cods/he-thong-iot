@@ -104,19 +104,43 @@ describe("filterNavByRoles", () => {
     expect(filtered.length).toBe(NAV_ITEMS.length);
   });
 
-  it("role warehouse: thấy /warehouse, không thấy /admin", () => {
+  it("V3.3 — role warehouse CHỈ thấy Tổng quan + /warehouse (strict)", () => {
     const filtered = filterNavByRoles(NAV_ITEMS, ["warehouse"]);
     const hrefs = filtered.map((i) => i.href);
+    expect(hrefs).toContain("/");
     expect(hrefs).toContain("/warehouse");
     expect(hrefs).not.toContain("/admin");
+    expect(hrefs).not.toContain("/sales");
+    expect(hrefs).not.toContain("/engineering");
+    expect(hrefs).not.toContain("/operations");
   });
 
-  it("role admin: thấy hầu hết items kể cả /admin", () => {
+  it("V3.3 — role planner CHỈ thấy Tổng quan + /engineering", () => {
+    const filtered = filterNavByRoles(NAV_ITEMS, ["planner"]);
+    const hrefs = filtered.map((i) => i.href);
+    expect(hrefs).toEqual(["/", "/engineering"]);
+  });
+
+  it("V3.3 — role purchaser CHỈ thấy Tổng quan + /sales", () => {
+    const filtered = filterNavByRoles(NAV_ITEMS, ["purchaser"]);
+    const hrefs = filtered.map((i) => i.href);
+    expect(hrefs).toEqual(["/", "/sales"]);
+  });
+
+  it("V3.3 — role operator CHỈ thấy Tổng quan + /operations", () => {
+    const filtered = filterNavByRoles(NAV_ITEMS, ["operator"]);
+    const hrefs = filtered.map((i) => i.href);
+    expect(hrefs).toEqual(["/", "/operations"]);
+  });
+
+  it("V3.3 — admin thấy toàn bộ", () => {
     const filtered = filterNavByRoles(NAV_ITEMS, ["admin"]);
     const hrefs = filtered.map((i) => i.href);
     expect(hrefs).toContain("/admin");
     expect(hrefs).toContain("/engineering");
     expect(hrefs).toContain("/sales");
     expect(hrefs).toContain("/operations");
+    expect(hrefs).toContain("/warehouse");
+    expect(hrefs).toContain("/");
   });
 });

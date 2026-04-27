@@ -16,6 +16,32 @@ const FORCE_CHANGE_EXEMPT = [
 ];
 
 /**
+ * V3.3 — Route → required roles map (server-side guard).
+ * Mỗi prefix path chỉ cho phép user có ít nhất 1 trong các roles này.
+ * Admin bypass tất cả. User không thuộc → redirect về /.
+ *
+ * KHỚP với NAV_ITEMS roles trong nav-items.ts.
+ */
+const ROUTE_ROLE_GUARD: Array<{ prefix: string; roles: Role[] }> = [
+  { prefix: "/admin",        roles: ["admin"] },
+  { prefix: "/warehouse",    roles: ["admin", "warehouse"] },
+  { prefix: "/sales",        roles: ["admin", "purchaser"] },
+  { prefix: "/engineering",  roles: ["admin", "planner"] },
+  { prefix: "/operations",   roles: ["admin", "operator"] },
+  // BOM workspace, WO, PR detail pages → cho engineer (planner) + admin
+  { prefix: "/bom",          roles: ["admin", "planner"] },
+  { prefix: "/work-orders",  roles: ["admin", "planner", "operator"] },
+  { prefix: "/procurement",  roles: ["admin", "planner", "purchaser"] },
+  // Receiving + assembly: chỉ kho/vận hành/admin
+  { prefix: "/receiving",    roles: ["admin", "warehouse"] },
+  { prefix: "/assembly",     roles: ["admin", "operator"] },
+  // Material requests: planner tạo + warehouse fulfil
+  { prefix: "/material-requests", roles: ["admin", "planner", "warehouse"] },
+  // Notifications + items + orders: ai cũng xem được (read-only ở các path)
+  // /notifications, /items, /orders, /, /pwa → không guard
+];
+
+/**
  * Direction B — `(app)` layout.
  *
  * - Server component: auth check + fetch user profile + roles.
@@ -66,6 +92,20 @@ export default async function AppLayout({
     .where(eq(userRole.userId, userRow.id));
 
   const roleCodes = roles.map((r) => r.code) as Role[];
+
+  // V3.3 — Route guard: chặn user truy cập trang ngoài bộ phận.
+  // Admin bypass mọi guard.
+  if (!roleCodes.includes("admin")) {
+    for (const guard of ROUTE_ROLE_GUARD) {
+      if (currentPath.startsWith(guard.prefix)) {
+        const allowed = guard.roles.some((r) => roleCodes.includes(r));
+        if (!allowed) {
+          redirect("/?denied=1");
+        }
+        break;
+      }
+    }
+  }
 
   return (
     <AppShell
