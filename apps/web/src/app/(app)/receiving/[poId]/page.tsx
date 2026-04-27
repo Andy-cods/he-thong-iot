@@ -237,46 +237,56 @@ export default function ReceivingDetailPage({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <Link
-            href="/receiving"
-            className="inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-900"
+            href="/warehouse?tab=receiving"
+            className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-indigo-600"
           >
-            <ArrowLeft className="h-3 w-3" aria-hidden="true" />
-            Về danh sách PO
+            <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+            Về danh sách PO chờ nhận
           </Link>
-          <h1 className="mt-2 flex items-center gap-2 text-xl font-semibold tracking-tight text-zinc-900">
-            <Truck className="h-5 w-5 text-zinc-500" aria-hidden="true" />
-            Nhận hàng — {po.poCode}
-          </h1>
-          <p className="mt-1 text-xs text-zinc-500">
-            NCC <strong>{po.supplierName}</strong>
-            {po.expectedDate ? ` · Dự kiến ${po.expectedDate}` : ""} ·{" "}
-            {totals?.linesTotal ?? po.lines.length} dòng
-          </p>
+          <div className="mt-2 flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-100">
+              <Truck className="h-6 w-6 text-indigo-700" aria-hidden />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
+                Nhận hàng (form đơn giản)
+              </h1>
+              <p className="mt-0.5 text-sm text-zinc-500">
+                <span className="font-mono font-semibold text-zinc-700">{po.poCode}</span>
+                {po.supplierName && <> · {po.supplierName}</>}
+                {po.expectedDate && <> · ETA {po.expectedDate}</>}
+                {" · "}{totals?.linesTotal ?? po.lines.length} dòng
+              </p>
+            </div>
+          </div>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
-          {po.status ? (
-            <StatusBadge
-              status={
-                po.status === "PARTIAL"
-                  ? "partial"
-                  : po.status === "RECEIVED" || po.status === "CLOSED"
-                    ? "ready"
-                    : po.status === "CANCELLED"
-                      ? "inactive"
-                      : "pending"
-              }
-              size="sm"
-              label={po.status}
-            />
-          ) : null}
+          {po.status && (
+            <span className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset",
+              po.status === "PARTIAL" ? "bg-amber-50 text-amber-700 ring-amber-200" :
+              po.status === "RECEIVED" || po.status === "CLOSED" ? "bg-emerald-50 text-emerald-700 ring-emerald-200" :
+              po.status === "CANCELLED" ? "bg-red-50 text-red-700 ring-red-200" :
+              "bg-blue-50 text-blue-700 ring-blue-200",
+            )}>
+              <span className={cn(
+                "h-2 w-2 rounded-full",
+                po.status === "PARTIAL" ? "bg-amber-500 animate-pulse" :
+                po.status === "RECEIVED" || po.status === "CLOSED" ? "bg-emerald-500" :
+                po.status === "CANCELLED" ? "bg-red-500" :
+                "bg-blue-500",
+              )} aria-hidden />
+              {po.status}
+            </span>
+          )}
           <Link
             href={`/pwa/receive/${po.poId}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex h-7 items-center gap-1 rounded-md border border-zinc-300 bg-white px-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
           >
-            <Smartphone className="h-3 w-3" aria-hidden="true" />
-            Mở PWA
+            <Smartphone className="h-3.5 w-3.5" aria-hidden />
+            Mở PWA tablet
           </Link>
         </div>
       </div>
