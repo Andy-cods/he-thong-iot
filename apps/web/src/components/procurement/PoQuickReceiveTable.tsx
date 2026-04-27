@@ -45,6 +45,7 @@ type Action =
   | { type: "tick"; lineId: string; remaining: number }
   | { type: "untick"; lineId: string }
   | { type: "set-qty"; lineId: string; qty: string }
+  | { type: "set-qty-clamp"; lineId: string; remaining: number }
   | {
       type: "scan-increment";
       lineId: string;
@@ -84,9 +85,22 @@ function reducer(
     }
     case "set-qty": {
       const cur = state[action.lineId] ?? { ticked: false, qty: "" };
+      // V3.2 — clamp qty trong reducer để vừa cho phép typing tự do, vừa hard-cap
+      // ở blur (xem set-qty-clamp). Ở đây giữ raw để user typing không bị nhảy.
       return {
         ...state,
         [action.lineId]: { ...cur, qty: action.qty },
+      };
+    }
+    case "set-qty-clamp": {
+      const cur = state[action.lineId] ?? { ticked: false, qty: "" };
+      const v = Number(cur.qty);
+      if (!Number.isFinite(v) || v <= 0) return state;
+      const clamped = Math.min(v, action.remaining);
+      if (clamped === v) return state;
+      return {
+        ...state,
+        [action.lineId]: { ...cur, qty: String(clamped) },
       };
     }
     case "scan-increment": {
@@ -393,6 +407,13 @@ export function PoQuickReceiveTable({
                           type: "set-qty",
                           lineId: ln.id,
                           qty: e.target.value,
+                        })
+                      }
+                      onBlur={() =>
+                        dispatch({
+                          type: "set-qty-clamp",
+                          lineId: ln.id,
+                          remaining: ln.remainingQty,
                         })
                       }
                       disabled={!s.ticked || readOnly || isDone}

@@ -145,6 +145,65 @@ export function useReceivingHistory(poCode: string | null) {
   });
 }
 
+/* ── V3.2 — Receiving audit history theo poId ────────────────────────────── */
+
+export interface ReceivingAuditReceipt {
+  id: string;
+  receiptNo: string;
+  receivedAt: string;
+  receivedBy: string | null;
+  qcFlag: string;
+  qcNotes: string | null;
+}
+
+export interface ReceivingAuditReceiptLine {
+  id: string;
+  receiptId: string;
+  poLineId: string;
+  itemId: string;
+  itemSku: string | null;
+  itemName: string | null;
+  itemUom: string | null;
+  receivedQty: string;
+  lotCode: string | null;
+  serialCode: string | null;
+  notes: string | null;
+}
+
+export interface ReceivingAuditScanEvent {
+  id: string;
+  scanId: string;
+  poCode: string;
+  sku: string;
+  qty: number;
+  lotNo: string | null;
+  qcStatus: string;
+  scannedAt: string;
+  receivedBy: string | null;
+  rawCode: string | null;
+  metadata: Record<string, unknown> | null;
+  receivedAt: string;
+}
+
+export interface ReceivingAuditResponse {
+  data: {
+    po: { id: string; poNo: string; status: string };
+    receipts: ReceivingAuditReceipt[];
+    receiptLines: ReceivingAuditReceiptLine[];
+    scanEvents: ReceivingAuditScanEvent[];
+  };
+}
+
+export function useReceivingAudit(poId: string | null) {
+  return useQuery({
+    queryKey: poId ? ["receiving", "audit", poId] : ["receiving", "audit", "__none__"],
+    queryFn: () =>
+      request<ReceivingAuditResponse>(`/api/receiving/${encodeURIComponent(poId!)}/events`),
+    enabled: !!poId,
+    staleTime: 15_000,
+  });
+}
+
 /**
  * V1.8 Batch 6 — GET /api/po/[id] với receiving enrichment (orderedQty,
  * receivedQty, remainingQty, expectedLotSerial per line).

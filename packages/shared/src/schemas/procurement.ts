@@ -208,8 +208,12 @@ export type POApproveInput = z.infer<typeof poApproveSchema>;
 export type PORejectInput = z.infer<typeof poRejectSchema>;
 export type POExportQuery = z.infer<typeof poExportQuerySchema>;
 
-/** V1.9-P9: cấu trúc metadata JSONB trên purchase_order. */
+/**
+ * V1.9-P9 / V3.2 — cấu trúc metadata JSONB trên purchase_order.
+ * Chứa state approval (independent với column status) + receiving meta + payment meta.
+ */
 export interface POApprovalMetadata {
+  // Approval workflow (V1.9-P9)
   approvalStatus?: "pending" | "approved" | "rejected";
   submittedBy?: string;
   submittedAt?: string;
@@ -219,4 +223,44 @@ export interface POApprovalMetadata {
   rejectedBy?: string;
   rejectedAt?: string;
   rejectedReason?: string;
+  // Auto-approve flag (V3.2)
+  autoApproved?: boolean;
+  // Receiving approval (V3.2)
+  receivingApprovedBy?: string;
+  receivingApprovedAt?: string;
+  receivingApprovalNotes?: string;
+  receivingRejectedBy?: string;
+  receivingRejectedAt?: string;
+  receivingRejectedReason?: string;
+  // Payment tracking (V3.2)
+  paidAt?: string;
+  paidAmount?: number;
+  paidBy?: string;
+  paymentNotes?: string;
 }
+
+/** Zod validator cho metadata khi PATCH (lỏng — phần lớn fields optional). */
+export const poApprovalMetadataSchema = z
+  .object({
+    approvalStatus: z.enum(["pending", "approved", "rejected"]).optional(),
+    submittedBy: z.string().uuid().optional(),
+    submittedAt: z.string().optional(),
+    approvedBy: z.string().uuid().optional(),
+    approvedAt: z.string().optional(),
+    approvalNotes: z.string().nullable().optional(),
+    rejectedBy: z.string().uuid().optional(),
+    rejectedAt: z.string().optional(),
+    rejectedReason: z.string().optional(),
+    autoApproved: z.boolean().optional(),
+    receivingApprovedBy: z.string().uuid().optional(),
+    receivingApprovedAt: z.string().optional(),
+    receivingApprovalNotes: z.string().optional(),
+    receivingRejectedBy: z.string().uuid().optional(),
+    receivingRejectedAt: z.string().optional(),
+    receivingRejectedReason: z.string().optional(),
+    paidAt: z.string().optional(),
+    paidAmount: z.number().nonnegative().optional(),
+    paidBy: z.string().uuid().optional(),
+    paymentNotes: z.string().optional(),
+  })
+  .partial();

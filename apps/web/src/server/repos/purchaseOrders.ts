@@ -122,6 +122,76 @@ export async function listPOs(q: ListPOsQuery) {
   return { rows, total: totalResult[0]?.count ?? 0 };
 }
 
+/**
+ * Aggregate stats cho tất cả PO (không phân trang) — dùng cho KPI cards.
+ * Trả về: total count, open count (DRAFT/SENT/PARTIAL), totalSpend (tổng amount tất cả PO),
+ * supplierCount distinct, overdueCount (SENT|PARTIAL với expectedEta < now).
+ */
+export async function getPOStats(q: Pick<ListPOsQuery, "status" | "supplierId" | "prId" | "bomTemplateId" | "q" | "from" | "to">) {
+  const where: SQL[] = [];
+  if (q.status && q.status.length > 0) {
+    where.push(
+      inArray(
+        purchaseOrder.status,
+        q.status as unknown as (typeof purchaseOrder.status.enumValues)[number][],
+      ),
+    );
+  }
+  if (q.supplierId) where.push(eq(purchaseOrder.supplierId, q.supplierId));
+  if (q.prId) where.push(eq(purchaseOrder.prId, q.prId));
+  if (q.bomTemplateId) where.push(eq(salesOrder.bomTemplateId, q.bomTemplateId));
+  if (q.q) {
+    const like = `%${q.q}%`;
+    const combined = or(
+      ilike(purchaseOrder.poNo, like),
+      ilike(supplier.code, like),
+      ilike(supplier.name, like),
+    );
+    if (combined) where.push(combined);
+  }
+  if (q.from) {
+    where.push(sql`${purchaseOrder.orderDate} >= ${q.from.toISOString().slice(0, 10)}`);
+  }
+  if (q.to) {
+    where.push(sql`${purchaseOrder.orderDate} <= ${q.to.toISOString().slice(0, 10)}`);
+  }
+
+  const whereExpr = where.length > 0 ? and(...where) : sql`true`;
+
+  const [stats] = await db
+    .select({
+      total: sql<number>`count(*)::int`,
+      openCount: sql<number>`count(*) filter (where ${purchaseOrder.status} in ('DRAFT','SENT','PARTIAL'))::int`,
+      sentCount: sql<number>`count(*) filter (where ${purchaseOrder.status} = 'SENT')::int`,
+      partialCount: sql<number>`count(*) filter (where ${purchaseOrder.status} = 'PARTIAL')::int`,
+      receivedCount: sql<number>`count(*) filter (where ${purchaseOrder.status} in ('RECEIVED','CLOSED'))::int`,
+      cancelledCount: sql<number>`count(*) filter (where ${purchaseOrder.status} = 'CANCELLED')::int`,
+      totalSpend: sql<string>`coalesce(sum(${purchaseOrder.totalAmount})::numeric::text, '0')`,
+      receivedSpend: sql<string>`coalesce(sum(${purchaseOrder.totalAmount}) filter (where ${purchaseOrder.status} in ('RECEIVED','CLOSED'))::numeric::text, '0')`,
+      pendingSpend: sql<string>`coalesce(sum(${purchaseOrder.totalAmount}) filter (where ${purchaseOrder.status} in ('SENT','PARTIAL'))::numeric::text, '0')`,
+      supplierCount: sql<number>`count(distinct ${purchaseOrder.supplierId})::int`,
+      overdueCount: sql<number>`count(*) filter (where ${purchaseOrder.status} in ('SENT','PARTIAL') and ${purchaseOrder.expectedEta} is not null and ${purchaseOrder.expectedEta} < current_date)::int`,
+    })
+    .from(purchaseOrder)
+    .leftJoin(supplier, eq(purchaseOrder.supplierId, supplier.id))
+    .leftJoin(salesOrder, eq(salesOrder.id, purchaseOrder.linkedOrderId))
+    .where(whereExpr);
+
+  return {
+    total: stats?.total ?? 0,
+    openCount: stats?.openCount ?? 0,
+    sentCount: stats?.sentCount ?? 0,
+    partialCount: stats?.partialCount ?? 0,
+    receivedCount: stats?.receivedCount ?? 0,
+    cancelledCount: stats?.cancelledCount ?? 0,
+    totalSpend: stats?.totalSpend ?? "0",
+    receivedSpend: stats?.receivedSpend ?? "0",
+    pendingSpend: stats?.pendingSpend ?? "0",
+    supplierCount: stats?.supplierCount ?? 0,
+    overdueCount: stats?.overdueCount ?? 0,
+  };
+}
+
 export async function getPO(id: string): Promise<PurchaseOrder | null> {
   const [row] = await db
     .select()

@@ -123,6 +123,42 @@ export function usePurchaseOrdersList(filter: POFilter) {
   });
 }
 
+export interface POStatsResponse {
+  data: {
+    total: number;
+    openCount: number;
+    sentCount: number;
+    partialCount: number;
+    receivedCount: number;
+    cancelledCount: number;
+    totalSpend: string;
+    receivedSpend: string;
+    pendingSpend: string;
+    supplierCount: number;
+    overdueCount: number;
+  };
+}
+
+/** V3.2 — KPI stats aggregate cho toàn bộ PO khớp filter (không phân trang). */
+export function usePurchaseOrdersStats(filter: Omit<POFilter, "page" | "pageSize">) {
+  return useQuery({
+    queryKey: [...qk.procurement.orders.all, "stats", filter] as const,
+    queryFn: () => {
+      const p = new URLSearchParams();
+      if (filter.q) p.set("q", filter.q);
+      if (filter.supplierId) p.set("supplierId", filter.supplierId);
+      if (filter.prId) p.set("prId", filter.prId);
+      if (filter.bomTemplateId) p.set("bomTemplateId", filter.bomTemplateId);
+      if (filter.from) p.set("from", filter.from);
+      if (filter.to) p.set("to", filter.to);
+      for (const s of filter.status ?? []) p.append("status", s);
+      return request<POStatsResponse>(`/api/purchase-orders/stats?${p.toString()}`);
+    },
+    staleTime: 30_000,
+    placeholderData: (prev) => prev,
+  });
+}
+
 export function usePurchaseOrderDetail(id: string | null) {
   return useQuery({
     queryKey: id

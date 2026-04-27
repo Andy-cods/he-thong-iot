@@ -167,6 +167,8 @@ export function AccountingTab() {
   }).length;
   const receivedAmt   = receivedPOs.reduce((s, p) => s + Number(p.totalAmount), 0);
   const pendingAmt    = pendingPOs.reduce((s, p)  => s + Number(p.totalAmount), 0);
+  const receivedCount = receivedPOs.length;
+  const pendingCount  = pendingPOs.length;
 
   return (
     <div className="flex flex-col gap-0">
@@ -196,7 +198,8 @@ export function AccountingTab() {
       <div className="flex-1 overflow-auto bg-zinc-50 px-6 py-6">
         {activeTab === "dashboard" && (
           <DashboardTab allPOs={allPOs} isLoading={poQuery.isLoading}
-            totalAmount={totalAmount} receivedAmt={receivedAmt} pendingAmt={pendingAmt} overdueCount={overdueCount} />
+            totalAmount={totalAmount} receivedAmt={receivedAmt} pendingAmt={pendingAmt}
+            overdueCount={overdueCount} receivedCount={receivedCount} pendingCount={pendingCount} />
         )}
         {activeTab === "payable" && (
           <PayableTab allPOs={allPOs} isLoading={poQuery.isLoading} />
@@ -214,13 +217,15 @@ export function AccountingTab() {
 
 // ─── Dashboard Tab ────────────────────────────────────────────────────────────
 
-function DashboardTab({ allPOs, isLoading, totalAmount, receivedAmt, pendingAmt, overdueCount }: {
+function DashboardTab({ allPOs, isLoading, totalAmount, receivedAmt, pendingAmt, overdueCount, receivedCount, pendingCount }: {
   allPOs: POForAccounting[];
   isLoading: boolean;
   totalAmount: number;
   receivedAmt: number;
   pendingAmt: number;
   overdueCount: number;
+  receivedCount: number;
+  pendingCount: number;
 }) {
   // Group by supplier
   const bySupplier = React.useMemo(() => {
@@ -246,8 +251,8 @@ function DashboardTab({ allPOs, isLoading, totalAmount, receivedAmt, pendingAmt,
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <KpiCard label="Tổng giá trị PO"   value={fmtVND(totalAmount)} sub={`${allPOs.length} đơn hàng`} icon={Receipt}  accent="indigo" />
-        <KpiCard label="Đã thanh toán"      value={fmtVND(receivedAmt)} sub={`${receivedPOs(allPOs)} đơn`} icon={CheckCircle2} accent="emerald" />
-        <KpiCard label="Chờ thanh toán"     value={fmtVND(pendingAmt)}  sub={`${pendingPOs(allPOs)} đơn`} icon={Clock}    accent="amber" />
+        <KpiCard label="Đã thanh toán"      value={fmtVND(receivedAmt)} sub={`${receivedCount} đơn`} icon={CheckCircle2} accent="emerald" />
+        <KpiCard label="Chờ thanh toán"     value={fmtVND(pendingAmt)}  sub={`${pendingCount} đơn`} icon={Clock}    accent="amber" />
         <KpiCard label="Quá hạn"            value={String(overdueCount)} sub="đơn chưa nhận hàng" icon={AlertTriangle} accent={overdueCount > 0 ? "red" : "zinc"} />
       </div>
 

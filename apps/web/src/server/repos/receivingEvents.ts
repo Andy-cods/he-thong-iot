@@ -108,6 +108,10 @@ export interface PostReceivingResult {
   overDelivery: boolean;
 }
 
+/** V3.2 — soft over-delivery threshold (warning), hard block ngưỡng. */
+const OVER_DELIVERY_WARN_RATIO = 1.05; // > 105%: log warning
+const OVER_DELIVERY_HARD_RATIO = 1.20; // > 120%: throw OVER_DELIVERY_REJECTED
+
 export async function postReceivingAtomic(
   input: PostReceivingInput,
 ): Promise<PostReceivingResult> {
@@ -119,6 +123,18 @@ export async function postReceivingAtomic(
       .where(eq(purchaseOrderLine.id, input.poLineId))
       .limit(1);
     if (!poLine) throw new Error("PO_LINE_NOT_FOUND");
+
+    // 1b) V3.2 — hard block over-delivery > 120% để tránh nhập sai SL nghiêm trọng
+    {
+      const ordered = Number.parseFloat(poLine.orderedQty);
+      const already = Number.parseFloat(poLine.receivedQty);
+      const projected = already + input.qty;
+      if (ordered > 0 && projected > ordered * OVER_DELIVERY_HARD_RATIO) {
+        throw new Error(
+          `OVER_DELIVERY_REJECTED: nhận ${projected.toFixed(2)} > ${(ordered * OVER_DELIVERY_HARD_RATIO).toFixed(2)} (${Math.round(OVER_DELIVERY_HARD_RATIO * 100)}% của ${ordered}). Liên hệ admin để chỉnh đặt hàng.`,
+        );
+      }
+    }
 
     // 2) Find/create inbound_receipt header (1 per po + ngày)
     const today = new Date().toISOString().slice(0, 10);
@@ -319,7 +335,7 @@ export async function postReceivingAtomic(
     const orderedNum = Number.parseFloat(poLine.orderedQty);
     const receivedAfter =
       Number.parseFloat(poLine.receivedQty) + input.qty;
-    const overDelivery = orderedNum > 0 && receivedAfter > orderedNum * 1.05;
+    const overDelivery = orderedNum > 0 && receivedAfter > orderedNum * OVER_DELIVERY_WARN_RATIO;
 
     // 8) UPDATE bom_snapshot_line + transition state theo qcStatus
     //    - qty snapshot: receivedQty luôn += input.qty.
