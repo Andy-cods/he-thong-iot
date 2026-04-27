@@ -1,20 +1,22 @@
 "use client";
 
 import * as React from "react";
-import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { Bell, Menu, Search } from "lucide-react";
 import { Breadcrumb, useBreadcrumb } from "@/components/ui/breadcrumb";
 import { UserMenu, type UserMenuUser } from "@/components/layout/UserMenu";
 import { formatShortcut } from "@/lib/shortcuts";
 import { cn } from "@/lib/utils";
+import type { NavItem } from "@/lib/nav-items";
 
 /**
- * V2 TopBar — Linear-inspired compact.
- * Desktop h-11 (44px) — giảm từ V1 56. Mobile h-14 (56px).
- * Logo nhỏ 20px mobile, breadcrumb inline desktop.
- * Ctrl+K trigger button ghost (text zinc-500 hover zinc-700).
- * Notification bell 28px icon 16px, badge red-500.
- * UserMenu right với avatar 24px.
+ * V3 TopBar — horizontal nav baked in.
+ *
+ * Layout (desktop):
+ *   Row 1 (h-11): [Logo | Breadcrumb] ···· [Search Ctrl+K | Bell | User]
+ *   Row 2 (h-10): [Nav items nằm ngang — icon + label]
+ *
+ * Mobile: chỉ Row 1 với hamburger, nav ẩn (dùng Sheet drawer).
  */
 
 export interface TopBarProps {
@@ -24,6 +26,23 @@ export interface TopBarProps {
   onCommandOpen?: () => void;
   notificationCount?: number;
   className?: string;
+  /** V3 — nav items để render horizontal nav (desktop) */
+  navItems?: NavItem[];
+  pathname?: string;
+  allHrefs?: string[];
+}
+
+function matchActive(pathname: string, href: string, allHrefs: string[] = []): boolean {
+  if (href === "/") return pathname === "/";
+  if (pathname === href) return true;
+  if (!pathname.startsWith(`${href}/`)) return false;
+  for (const other of allHrefs) {
+    if (other === href || other === "/") continue;
+    if (other.startsWith(`${href}/`)) {
+      if (pathname === other || pathname.startsWith(`${other}/`)) return false;
+    }
+  }
+  return true;
 }
 
 export function TopBar({
@@ -33,102 +52,147 @@ export function TopBar({
   onCommandOpen,
   notificationCount = 0,
   className,
+  navItems = [],
+  pathname = "/",
+  allHrefs = [],
 }: TopBarProps) {
-  const pathname = usePathname();
-  const breadcrumbs = useBreadcrumb(pathname ?? "/");
+  const breadcrumbs = useBreadcrumb(pathname);
   const shortcutLabel = formatShortcut("Mod+K");
 
   return (
     <header
       role="banner"
       className={cn(
-        "sticky top-0 z-topbar flex h-14 md:h-11 items-center justify-between border-b border-zinc-200 bg-white px-4 xl:px-6",
+        "sticky top-0 z-topbar border-b border-zinc-200 bg-white shadow-sm",
         className,
       )}
     >
-      {/* Left */}
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        {onSidebarToggle ? (
+      {/* ── Row 1: Brand + utilities ── */}
+      <div className="flex h-12 items-center justify-between px-4 xl:px-6">
+        {/* Left */}
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          {/* Mobile hamburger */}
+          {onSidebarToggle && (
+            <button
+              type="button"
+              onClick={onSidebarToggle}
+              aria-label="Mở menu"
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors md:hidden"
+            >
+              <Menu className="h-4 w-4" aria-hidden />
+            </button>
+          )}
+
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-2 shrink-0">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-zinc-900 text-[11px] font-bold text-white shadow-sm">
+              CN
+            </div>
+            <span className="hidden font-semibold text-zinc-900 sm:inline">Xưởng IoT</span>
+          </Link>
+
+          <div className="mx-1 hidden h-4 w-px bg-zinc-200 sm:block" />
+
+          {/* Breadcrumb */}
+          <div className="hidden min-w-0 md:block">
+            <Breadcrumb items={breadcrumbs} />
+          </div>
+        </div>
+
+        {/* Right — search + bell + user */}
+        <div className="flex shrink-0 items-center gap-1">
+          {/* Search full (xl) */}
           <button
             type="button"
-            onClick={onSidebarToggle}
-            aria-label="Mở menu"
-            className={cn(
-              "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-zinc-600 transition-colors duration-100 hover:bg-zinc-100 hover:text-zinc-900 md:hidden",
-              "focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
-            )}
+            onClick={onCommandOpen}
+            aria-label={`Tìm kiếm và lệnh (${shortcutLabel})`}
+            className="hidden h-8 items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-sm text-zinc-500 hover:border-zinc-300 hover:bg-white hover:text-zinc-700 transition-colors xl:flex"
+            style={{ minWidth: 200 }}
           >
-            <Menu className="h-4 w-4" aria-hidden="true" />
+            <Search className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span className="flex-1 text-left">Tìm kiếm và lệnh...</span>
+            <kbd className="rounded border border-zinc-200 bg-white px-1.5 font-mono text-[10px] text-zinc-400">{shortcutLabel}</kbd>
           </button>
-        ) : null}
-        {/* Logo mobile thay breadcrumb */}
-        <span
-          aria-hidden="true"
-          className="inline-flex h-5 w-5 items-center justify-center rounded-sm bg-zinc-900 text-[9px] font-bold text-white md:hidden"
-        >
-          CN
-        </span>
-        <div className="hidden min-w-0 md:block">
-          <Breadcrumb items={breadcrumbs} />
+
+          {/* Search icon (md-xl) */}
+          <button
+            type="button"
+            onClick={onCommandOpen}
+            aria-label={`Tìm kiếm (${shortcutLabel})`}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors xl:hidden"
+          >
+            <Search className="h-4 w-4" aria-hidden />
+          </button>
+
+          {/* Bell */}
+          <button
+            type="button"
+            aria-label={`Thông báo · ${notificationCount} mới`}
+            className="relative inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
+          >
+            <Bell className="h-4 w-4" aria-hidden />
+            {notificationCount > 0 && (
+              <span className="absolute right-1 top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+                {notificationCount > 99 ? "99+" : notificationCount}
+              </span>
+            )}
+          </button>
+
+          <UserMenu user={user} onLogout={onLogout} />
         </div>
       </div>
 
-      {/* Center — command palette trigger (xl only, ở giữa) */}
-      <div className="mx-4 hidden max-w-md flex-1 xl:block">
-        <button
-          type="button"
-          onClick={onCommandOpen}
-          aria-label={`Mở tìm kiếm và lệnh (${shortcutLabel})`}
-          aria-keyshortcuts="Control+K"
-          className={cn(
-            "group inline-flex h-8 w-full items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-2.5 text-sm text-zinc-500 transition-colors duration-100 ease-out",
-            "hover:border-zinc-300 hover:bg-white hover:text-zinc-700",
-            "focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
-          )}
+      {/* ── Row 2: Horizontal nav (desktop md+) ── */}
+      {navItems.length > 0 && (
+        <nav
+          aria-label="Điều hướng chính"
+          className="hidden md:flex items-center gap-0.5 border-t border-zinc-100 bg-white px-4 xl:px-6"
         >
-          <Search className="h-3.5 w-3.5" aria-hidden="true" />
-          <span className="flex-1 text-left">Tìm kiếm và lệnh...</span>
-          <kbd className="rounded-sm border border-zinc-200 bg-white px-1.5 py-0 font-mono text-[10px] text-zinc-500">
-            {shortcutLabel}
-          </kbd>
-        </button>
-      </div>
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = matchActive(pathname, item.href, allHrefs);
 
-      {/* Right */}
-      <div className="flex shrink-0 items-center gap-0.5">
-        {/* Command trigger collapsed cho md-lg (icon only) */}
-        <button
-          type="button"
-          onClick={onCommandOpen}
-          aria-label={`Mở tìm kiếm và lệnh (${shortcutLabel})`}
-          aria-keyshortcuts="Control+K"
-          className={cn(
-            "relative hidden h-8 w-8 items-center justify-center rounded-md text-zinc-600 transition-colors duration-100 hover:bg-zinc-100 hover:text-zinc-900 md:inline-flex xl:hidden",
-            "focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
-          )}
-        >
-          <Search className="h-4 w-4" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          aria-label={`Thông báo · ${notificationCount} mới`}
-          className={cn(
-            "relative inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-600 transition-colors duration-100 hover:bg-zinc-100 hover:text-zinc-900",
-            "focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
-          )}
-        >
-          <Bell className="h-4 w-4" aria-hidden="true" />
-          {notificationCount > 0 ? (
-            <span
-              aria-hidden="true"
-              className="absolute right-1 top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white tabular-nums"
-            >
-              {notificationCount > 99 ? "99+" : notificationCount}
-            </span>
-          ) : null}
-        </button>
-        <UserMenu user={user} onLogout={onLogout} />
-      </div>
+            if (item.disabled) {
+              return (
+                <span
+                  key={item.href}
+                  className="relative flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-zinc-300 cursor-not-allowed select-none"
+                >
+                  <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} aria-hidden />
+                  <span>{item.label}</span>
+                </span>
+              );
+            }
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={isActive ? "page" : undefined}
+                className={cn(
+                  "relative flex items-center gap-2 px-3 py-2.5 text-sm font-medium transition-colors duration-150 whitespace-nowrap",
+                  "after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:rounded-t-full after:transition-all after:duration-150",
+                  isActive
+                    ? "text-indigo-600 after:bg-indigo-600"
+                    : "text-zinc-600 hover:text-zinc-900 after:bg-transparent hover:after:bg-zinc-200",
+                )}
+              >
+                <Icon
+                  className={cn("h-4 w-4 shrink-0 transition-colors", isActive ? "text-indigo-600" : "text-zinc-400")}
+                  strokeWidth={1.75}
+                  aria-hidden
+                />
+                <span>{item.label}</span>
+                {item.badge && (
+                  <span className="ml-0.5 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">
+                    {item.badge}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+      )}
     </header>
   );
 }

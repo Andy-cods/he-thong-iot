@@ -94,15 +94,15 @@ export const NAV_ITEMS: NavItem[] = [
   // --- Bộ phận Kho (đã gộp ở TASK-014) ---
   {
     href: "/warehouse",
-    label: "Quản lí kho",
+    label: "Bộ phận Kho",
     icon: Warehouse,
     entity: "item",
     section: "warehouse",
   },
-  // --- Tài chính & Mua bán (gộp Suppliers + PO + Kế toán) ---
+  // --- Bộ phận Thu mua (gộp Suppliers + PO + Kế toán) ---
   {
     href: "/sales",
-    label: "Mua bán & Kế toán",
+    label: "Bộ phận Thu mua",
     icon: ShoppingBag,
     entities: ["supplier", "po"],
     section: "finance",
@@ -110,7 +110,7 @@ export const NAV_ITEMS: NavItem[] = [
   // --- Bộ phận Thiết kế (gộp BOM + WO + PR ở TASK-025) ---
   {
     href: "/engineering",
-    label: "Thiết kế & Sản xuất",
+    label: "Bộ phận Thiết kế",
     icon: Layers,
     entities: ["bomTemplate", "wo", "pr"],
     section: "engineering",
@@ -118,7 +118,7 @@ export const NAV_ITEMS: NavItem[] = [
   // --- Bộ phận Vận hành (mới ở TASK-025) ---
   {
     href: "/operations",
-    label: "Vận hành",
+    label: "Bộ phận Vận hành",
     icon: Factory,
     roles: ["admin", "planner", "operator"],
     section: "operations",
