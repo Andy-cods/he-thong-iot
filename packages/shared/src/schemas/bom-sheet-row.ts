@@ -60,6 +60,12 @@ export const blankSizeSchema = z
     shape: z.string().trim().max(64).optional(),
     qty_pcs: z.number().int().positive().optional(),
     freeText: z.string().trim().max(255).optional(),
+    /**
+     * V2.0 TASK-20260427-026 — % hao hụt vật liệu (0..100). Lưu vào blankSize
+     * jsonb để tránh migration mới trên DB. Chỉ áp dụng cho material row;
+     * Process row chưa hỗ trợ.
+     */
+    scrapPct: z.number().min(0).max(100).optional(),
   })
   .strict()
   .partial();

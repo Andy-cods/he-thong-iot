@@ -123,6 +123,68 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
+### TASK-20260427-024 — Fix cột "KÍCH THƯỚC" BOM grid hiển thị toàn "—"
+- **Trạng thái:** DONE
+- **Tạo:** 2026-04-27 18:50 (+07) bởi Claude (planner)
+- **Phụ trách:** Claude (executor)
+- **Bắt đầu:** 2026-04-27 18:50 (+07)
+- **Hoàn thành:** 2026-04-27 19:25 (+07)
+- **Ưu tiên:** P0
+
+**Mô tả:** User: "tại sao cái kích thước lại trống mất không thấy hiển thị gì". Code `BomGridPro.tsx:444-450` chỉ đọc `row.node.metadata.size`, fallback "—". Item DB có 2 nguồn dimension không dùng: `item.dimensions` (jsonb, V2.0 migration 0018) + `item.specJson.dimensionText` (set khi import Excel). API list components KHÔNG SELECT các field này → frontend không có data.
+
+**Acceptance criteria:**
+- [x] API GET `/api/bom/templates/[id]/tree` (loadTree repo) SELECT thêm `item.dimensions`, `item.spec_json`
+- [x] BomGridPro render cột Kích thước theo thứ tự fallback: `metadata.size` → `itemDimensions` (format L×W×H + unit) → `itemSpecJson.dimensionText` → "—"
+
+**Log:**
+- `apps/web/src/server/repos/bomTemplates.ts` — `loadTree` SQL SELECT thêm `i.dimensions AS item_dimensions, i.spec_json AS item_spec_json`; map vào `BomTreeNode.itemDimensions / itemSpecJson`.
+- `apps/web/src/hooks/useBom.ts` — `BomTreeNodeRaw` thêm 2 field `itemDimensions`, `itemSpecJson`.
+- `apps/web/src/components/bom-grid-pro/BomGridPro.tsx` — cột Kích thước fallback chain 4 bước (metadata.size → dimensions L×W×H + unit → specJson.dimensionText với try/catch JSON.parse → "—"); zero/empty parts được lọc bỏ.
+- `MaterialProcessSheetView.tsx` không có cột Kích thước nên skip.
+- `pnpm --filter @iot/web typecheck` exit 0.
+
+---
+
+### TASK-20260427-025 — Refactor sidebar: gộp sections theo bộ phận
+- **Trạng thái:** IN_PROGRESS
+- **Tạo:** 2026-04-27 18:50 (+07) bởi Claude (planner)
+- **Phụ trách:** Claude (executor)
+- **Bắt đầu:** 2026-04-27 18:50 (+07)
+- **Ưu tiên:** P1
+
+**Mô tả:** User: gộp 4 nhóm function vào 4 bộ phận. Sidebar hiện 8 mục → 5 mục thực dùng + 2 admin/disabled.
+
+**Acceptance criteria:**
+- [ ] Bộ phận MUA BÁN: gộp Nhà cung cấp + Đặt hàng (PO) → 1 page `/sales` với 2 tab
+- [ ] Bộ phận THIẾT KẾ (đổi từ KỸ THUẬT): gộp BOM List + Lệnh sản xuất + Yêu cầu mua → 1 page `/engineering` với 3 tab
+- [ ] Bộ phận VẬN HÀNH (mới): chứa Lắp ráp (giữ /assembly), tab nav để mở rộng
+- [ ] Routes cũ /suppliers /purchase-orders /work-orders /procurement/purchase-requests redirect sang page mới
+
+---
+
+### TASK-20260427-026 — Material/Process form sync với grid columns mới
+- **Trạng thái:** DONE
+- **Tạo:** 2026-04-27 18:50 (+07) bởi Claude (planner)
+- **Phụ trách:** Claude (executor)
+- **Bắt đầu:** 2026-04-27 18:50 (+07)
+- **Hoàn thành:** 2026-04-27 19:30 (+07)
+- **Ưu tiên:** P1
+
+**Mô tả:** User: "sửa lại 2 form sau cho đúng với format mới của các cột". 2 form thêm/sửa Material và Process row trong BOM grid cần thêm field tương ứng với cột grid (Kích thước, NCC, Hao hụt, Ghi chú).
+
+**Acceptance criteria:**
+- [x] Form Material: thêm input Kích thước (blankSize.freeText), Hao hụt % (blankSize.scrapPct), NCC (supplierCode), Ghi chú (notes)
+- [x] Form Process: thêm input Trạm/Máy (stationCode), Thời gian phút (hoursEstimated × 60), Ghi chú (notes). Đơn giá + Đơn vị giữ nguyên.
+- [x] Submit ghi đúng vào DB qua API existing — không cần migration.
+
+**Log thực hiện:**
+- File sửa: `apps/web/src/components/bom/MaterialProcessSheetView.tsx` (Material panel + Process panel mở rộng cột inline edit), `packages/shared/src/schemas/bom-sheet-row.ts` (mở rộng `blankSizeSchema` thêm `scrapPct: 0..100`).
+- Schema gap: process row DB không có jsonb metadata → "Hao hụt %" cho process bỏ qua (không có chỗ lưu); material thì lưu vào `blank_size` jsonb hiện có.
+- Typecheck: `pnpm --filter @iot/web typecheck` ✓ và `pnpm --filter @iot/shared typecheck` ✓.
+
+---
+
 ### TASK-20260427-021 — BOM sheet rename + delete (UI + API)
 - **Trạng thái:** DONE
 - **Hoàn thành:** 2026-04-27 18:30 (+07)

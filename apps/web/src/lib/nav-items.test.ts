@@ -8,10 +8,13 @@ import {
 } from "./nav-items";
 
 /**
- * V3 — Unit tests cho nav-items 6-section regroup theo bộ phận.
+ * V3 (TASK-20260427-025) — Unit tests cho nav-items 7-section regroup theo
+ * bộ phận với hub gộp:
+ *   - dashboard / warehouse / purchasing / engineering / operations /
+ *     accounting / other.
  */
 
-describe("NAV_ITEMS V3 cấu trúc 6 section", () => {
+describe("NAV_ITEMS V3 cấu trúc 7 section (post-TASK-025)", () => {
   it("có item Tổng quan section dashboard", () => {
     const dashboard = NAV_ITEMS.find((i) => i.href === "/");
     expect(dashboard).toBeDefined();
@@ -26,61 +29,56 @@ describe("NAV_ITEMS V3 cấu trúc 6 section", () => {
     expect(acc?.badge).toBe("Sắp ra mắt");
   });
 
-  it("section labels có đủ 6 bộ phận", () => {
+  it("section labels có đủ 7 bộ phận", () => {
     expect(NAV_SECTION_LABEL).toEqual({
       dashboard: "Tổng quan",
       warehouse: "Bộ phận Kho",
       purchasing: "Bộ phận Mua bán",
-      engineering: "Bộ phận Kỹ thuật",
+      engineering: "Bộ phận Thiết kế",
+      operations: "Bộ phận Vận hành",
       accounting: "Bộ phận Kế toán",
       other: "Quản trị",
     });
   });
 
-  it("section order: dashboard → warehouse → purchasing → engineering → accounting → other", () => {
+  it("section order: dashboard → warehouse → purchasing → engineering → operations → accounting → other", () => {
     expect(NAV_SECTION_ORDER).toEqual([
       "dashboard",
       "warehouse",
       "purchasing",
       "engineering",
+      "operations",
       "accounting",
       "other",
     ]);
   });
 
-  it("Bộ phận Kho có items + lot-serial + receiving", () => {
+  it("Bộ phận Kho có 1 hub /warehouse", () => {
     const warehouseHrefs = NAV_ITEMS.filter(
       (i) => i.section === "warehouse",
     ).map((i) => i.href);
-    expect(warehouseHrefs).toEqual([
-      "/items",
-      "/lot-serial",
-      "/receiving",
-    ]);
+    expect(warehouseHrefs).toEqual(["/warehouse"]);
   });
 
-  it("Bộ phận Mua bán có suppliers + PO", () => {
+  it("Bộ phận Mua bán có 1 hub /sales", () => {
     const purchasingHrefs = NAV_ITEMS.filter(
       (i) => i.section === "purchasing",
     ).map((i) => i.href);
-    expect(purchasingHrefs).toEqual([
-      "/suppliers",
-      "/procurement/purchase-orders",
-    ]);
+    expect(purchasingHrefs).toEqual(["/sales"]);
   });
 
-  it("Bộ phận Kỹ thuật có BOM + orders + WO + assembly + PR + import", () => {
+  it("Bộ phận Thiết kế có 1 hub /engineering", () => {
     const engHrefs = NAV_ITEMS.filter(
       (i) => i.section === "engineering",
     ).map((i) => i.href);
-    expect(engHrefs).toEqual([
-      "/bom",
-      "/orders",
-      "/work-orders",
-      "/assembly",
-      "/procurement/purchase-requests",
-      "/import",
-    ]);
+    expect(engHrefs).toEqual(["/engineering"]);
+  });
+
+  it("Bộ phận Vận hành có 1 hub /operations", () => {
+    const opsHrefs = NAV_ITEMS.filter((i) => i.section === "operations").map(
+      (i) => i.href,
+    );
+    expect(opsHrefs).toEqual(["/operations"]);
   });
 });
 
@@ -88,13 +86,15 @@ describe("groupNavBySection", () => {
   it("preserve thứ tự section ORDER", () => {
     const groups = groupNavBySection(NAV_ITEMS);
     const sections = groups.map((g) => g.section);
-    // Thứ tự phải khớp NAV_SECTION_ORDER (chỉ section có item).
     expect(sections[0]).toBe("dashboard");
     expect(sections.indexOf("warehouse")).toBeLessThan(
       sections.indexOf("purchasing"),
     );
     expect(sections.indexOf("purchasing")).toBeLessThan(
       sections.indexOf("engineering"),
+    );
+    expect(sections.indexOf("engineering")).toBeLessThan(
+      sections.indexOf("operations"),
     );
   });
 
@@ -124,12 +124,10 @@ describe("filterNavByRoles", () => {
     expect(filtered.length).toBe(NAV_ITEMS.length);
   });
 
-  it("role warehouse: thấy /items + /lot-serial + /receiving (không thấy /admin)", () => {
+  it("role warehouse: thấy /warehouse, không thấy /admin", () => {
     const filtered = filterNavByRoles(NAV_ITEMS, ["warehouse"]);
     const hrefs = filtered.map((i) => i.href);
-    expect(hrefs).toContain("/items");
-    expect(hrefs).toContain("/lot-serial");
-    expect(hrefs).toContain("/receiving");
+    expect(hrefs).toContain("/warehouse");
     expect(hrefs).not.toContain("/admin");
   });
 
@@ -137,7 +135,8 @@ describe("filterNavByRoles", () => {
     const filtered = filterNavByRoles(NAV_ITEMS, ["admin"]);
     const hrefs = filtered.map((i) => i.href);
     expect(hrefs).toContain("/admin");
-    expect(hrefs).toContain("/bom");
-    expect(hrefs).toContain("/work-orders");
+    expect(hrefs).toContain("/engineering");
+    expect(hrefs).toContain("/sales");
+    expect(hrefs).toContain("/operations");
   });
 });

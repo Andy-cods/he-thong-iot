@@ -439,13 +439,55 @@ export function BomGridPro({
             <span className="italic text-zinc-400">—</span>
           )}
         </td>
-        {/* Kích thước (Visible Part Size) */}
+        {/* Kích thước (Visible Part Size) — TASK-20260427-024 fallback chain.
+            1. metadata.size  (set qua form Material/Process / sheet edit)
+            2. item.dimensions  (jsonb {length,width,height,unit} từ Excel import)
+            3. item.specJson.dimensionText (chuỗi raw "601 X 21 X 20" từ import)
+            4. "—" */}
         <td className="px-2 font-mono text-[11px] text-zinc-600 truncate">
           {(() => {
+            // (1) metadata.size override
             const md = row.node.metadata as { size?: string } | null;
-            const spec = md?.size;
-            if (spec) return spec;
-            // Fallback: parse từ item.specJson (dimensionText) đã set lúc import.
+            if (md?.size && md.size.trim()) return md.size;
+
+            // (2) item.dimensions jsonb
+            const dim = row.node.itemDimensions as
+              | {
+                  length?: number | string;
+                  width?: number | string;
+                  height?: number | string;
+                  unit?: string;
+                }
+              | null;
+            if (dim) {
+              const parts = [dim.length, dim.width, dim.height]
+                .map((v) => (v === 0 || v === "0" ? null : v))
+                .filter((v): v is number | string => v != null && v !== "");
+              if (parts.length > 0) {
+                const unit = dim.unit ? ` ${dim.unit}` : "";
+                return `${parts.join("×")}${unit}`;
+              }
+            }
+
+            // (3) item.specJson.dimensionText (raw text từ Excel import)
+            const rawSpec = row.node.itemSpecJson;
+            if (rawSpec && rawSpec.trim()) {
+              try {
+                const parsed = JSON.parse(rawSpec) as {
+                  dimensionText?: unknown;
+                };
+                if (
+                  typeof parsed.dimensionText === "string" &&
+                  parsed.dimensionText.trim()
+                ) {
+                  return parsed.dimensionText;
+                }
+              } catch {
+                // specJson không phải JSON hợp lệ — coi như text thuần.
+                return rawSpec;
+              }
+            }
+
             return "—";
           })()}
         </td>

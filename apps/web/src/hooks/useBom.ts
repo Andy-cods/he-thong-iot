@@ -61,6 +61,16 @@ export interface BomTreeNodeRaw {
   description: string | null;
   supplierItemCode: string | null;
   metadata: Record<string, unknown>;
+  /**
+   * V2.0 — `item.dimensions` jsonb `{length, width, height, unit}` (mm mặc
+   * định). NULL nếu item chưa map. TASK-20260427-024.
+   */
+  itemDimensions: Record<string, unknown> | null;
+  /**
+   * V2.0 — `item.spec_json` text (JSON string `{ dimensionText, ... }`),
+   * parse client-side để fallback render Kích thước. TASK-20260427-024.
+   */
+  itemSpecJson: string | null;
   childCount: number;
 }
 

@@ -1,13 +1,11 @@
 import {
-  Building2,
   Calculator,
   Factory,
   LayoutDashboard,
-  Network,
-  ShoppingCart,
+  Layers,
   Shield,
+  ShoppingBag,
   Warehouse,
-  Wrench,
   type LucideIcon,
 } from "lucide-react";
 import type { RbacEntity, Role } from "@iot/shared";
@@ -17,13 +15,15 @@ import { canAny } from "@iot/shared";
  * Redesign V3 — nav-items registry.
  * Nguồn dữ liệu duy nhất cho Sidebar + CommandPalette + Breadcrumb.
  *
- * Group theo BỘ PHẬN thay vì function (V1.8) để khớp workflow xưởng:
- *   - dashboard:   Tổng quan (Trang chủ /)
- *   - warehouse:   Bộ phận Kho (Items + Lot/Serial + Receiving)
- *   - purchasing:  Bộ phận Mua bán (Suppliers + PO)
- *   - engineering: Bộ phận Kỹ thuật (BOM + Orders + WO + Assembly + PR + Import)
- *   - accounting:  Bộ phận Kế toán (Coming soon)
- *   - other:       Quản trị (Admin)
+ * Group theo BỘ PHẬN thay vì function. Sau TASK-20260427-025 mỗi bộ phận có
+ * 1 hub duy nhất (tabs bên trong) thay vì nhiều entry rời:
+ *   - dashboard:   Tổng quan          (/)
+ *   - warehouse:   Bộ phận Kho        (/warehouse)
+ *   - purchasing:  Bộ phận Mua bán    (/sales — tab Suppliers + PO)
+ *   - engineering: Bộ phận Thiết kế   (/engineering — tab BOM + WO + PR)
+ *   - operations:  Bộ phận Vận hành   (/operations — tab Assembly + future QC/Maint)
+ *   - accounting:  Bộ phận Kế toán    (Coming soon)
+ *   - other:       Quản trị           (/admin)
  *
  * @see plans/redesign-v3/{brainstorm,ui-redesign,implementation-plan,addendum-user-answers}.md
  */
@@ -32,6 +32,7 @@ export type NavSection =
   | "warehouse"
   | "purchasing"
   | "engineering"
+  | "operations"
   | "accounting"
   | "other";
 
@@ -49,6 +50,11 @@ export interface NavItem {
    * BẤT KỲ quyền nào trên entity (`canAny(userRoles, entity)`).
    */
   entity?: RbacEntity;
+  /**
+   * V3 (TASK-025) — array of entities; item hiển thị nếu user có quyền trên
+   * BẤT KỲ entity nào (OR). Dùng cho hub gộp nhiều entity (sales, engineering).
+   */
+  entities?: RbacEntity[];
   /** True → render divider phía trên item này. */
   divider?: boolean;
   /** True → hiển thị mờ, disable click (feature chưa bật). */
@@ -65,7 +71,8 @@ export const NAV_SECTION_LABEL: Record<NavSection, string> = {
   dashboard: "Tổng quan",
   warehouse: "Bộ phận Kho",
   purchasing: "Bộ phận Mua bán",
-  engineering: "Bộ phận Kỹ thuật",
+  engineering: "Bộ phận Thiết kế",
+  operations: "Bộ phận Vận hành",
   accounting: "Bộ phận Kế toán",
   other: "Quản trị",
 };
@@ -75,6 +82,7 @@ export const NAV_SECTION_ORDER: NavSection[] = [
   "warehouse",
   "purchasing",
   "engineering",
+  "operations",
   "accounting",
   "other",
 ];
@@ -87,7 +95,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: LayoutDashboard,
     section: "dashboard",
   },
-  // --- Bộ phận Kho ---
+  // --- Bộ phận Kho (đã gộp ở TASK-014) ---
   {
     href: "/warehouse",
     label: "Quản lí kho",
@@ -95,50 +103,29 @@ export const NAV_ITEMS: NavItem[] = [
     entity: "item",
     section: "warehouse",
   },
-  // --- Bộ phận Mua bán ---
+  // --- Bộ phận Mua bán (gộp Suppliers + PO ở TASK-025) ---
   {
-    href: "/suppliers",
-    label: "Nhà cung cấp",
-    icon: Building2,
-    entity: "supplier",
+    href: "/sales",
+    label: "Mua bán",
+    icon: ShoppingBag,
+    entities: ["supplier", "po"],
     section: "purchasing",
   },
+  // --- Bộ phận Thiết kế (gộp BOM + WO + PR ở TASK-025) ---
   {
-    href: "/procurement/purchase-orders",
-    label: "Đặt hàng (PO)",
-    icon: ShoppingCart,
-    entity: "po",
-    section: "purchasing",
-  },
-  // --- Bộ phận Kỹ thuật ---
-  {
-    href: "/bom",
-    label: "BOM List",
-    icon: Network,
-    entity: "bomTemplate",
+    href: "/engineering",
+    label: "Thiết kế & Sản xuất",
+    icon: Layers,
+    entities: ["bomTemplate", "wo", "pr"],
     section: "engineering",
   },
+  // --- Bộ phận Vận hành (mới ở TASK-025) ---
   {
-    href: "/work-orders",
-    label: "Lệnh sản xuất",
+    href: "/operations",
+    label: "Vận hành",
     icon: Factory,
-    entity: "wo",
-    section: "engineering",
-  },
-  {
-    href: "/assembly",
-    label: "Lắp ráp",
-    icon: Wrench,
     roles: ["admin", "planner", "operator"],
-    section: "engineering",
-  },
-  {
-    href: "/procurement/purchase-requests",
-    label: "Yêu cầu mua (PR)",
-    icon: ShoppingCart,
-    entity: "pr",
-    roles: ["admin", "planner"],
-    section: "engineering",
+    section: "operations",
   },
   // --- Bộ phận Kế toán (coming soon — Phase 2 V2.0) ---
   {
@@ -163,11 +150,12 @@ export const NAV_ITEMS: NavItem[] = [
 /**
  * Lọc nav items theo roles của user hiện tại.
  *
- * Logic V1.4 (giữ nguyên):
+ * Logic:
+ *   - Nếu item có `entities` → user phải có quyền trên BẤT KỲ entity nào (OR).
  *   - Nếu item có `entity` → dùng `canAny(userRoles, entity)` (RBAC matrix).
  *   - Nếu chỉ có `roles` → fallback role-match (legacy).
- *   - Nếu không có cả 2 → hiển thị cho mọi user đã đăng nhập.
- *   - Nếu user có CẢ `roles` lẫn `entity` set → AND (phải thoả cả hai).
+ *   - Nếu không có cả 3 → hiển thị cho mọi user đã đăng nhập.
+ *   - Nếu user có CẢ `roles` lẫn `entity`/`entities` set → AND.
  *
  * Nếu `userRoles` undefined → giữ toàn bộ (dev/fallback).
  *
@@ -179,7 +167,12 @@ export function filterNavByRoles(
 ): NavItem[] {
   if (!userRoles || userRoles.length === 0) return items;
   return items.filter((it) => {
-    if (it.entity && !canAny(userRoles, it.entity)) return false;
+    if (it.entities && it.entities.length > 0) {
+      const anyEntity = it.entities.some((e) => canAny(userRoles, e));
+      if (!anyEntity) return false;
+    } else if (it.entity && !canAny(userRoles, it.entity)) {
+      return false;
+    }
     if (it.roles && !it.roles.some((r) => userRoles.includes(r))) return false;
     return true;
   });
@@ -189,7 +182,6 @@ export function filterNavByRoles(
  * Group nav items theo `section`. Items thiếu `section` → rơi vào `other`.
  * Giữ thứ tự item trong mỗi group như trong NAV_ITEMS.
  *
- * V3: với 6 section (dashboard/warehouse/purchasing/engineering/accounting/other).
  * Section rỗng (không có item nào sau filter role) sẽ KHÔNG render.
  */
 export function groupNavBySection(
@@ -200,6 +192,7 @@ export function groupNavBySection(
     warehouse: [],
     purchasing: [],
     engineering: [],
+    operations: [],
     accounting: [],
     other: [],
   };

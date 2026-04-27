@@ -357,6 +357,17 @@ export interface BomTreeNode {
   description: string | null;
   supplierItemCode: string | null;
   metadata: Record<string, unknown>;
+  /**
+   * V2.0 — kích thước vật lý jsonb từ `item.dimensions`
+   * (`{length, width, height, unit}` mm). Null nếu item chưa map dimensions.
+   * TASK-20260427-024 — bù field cho cột "KÍCH THƯỚC" của BomGridPro.
+   */
+  itemDimensions: Record<string, unknown> | null;
+  /**
+   * V2.0 — `item.spec_json` (text). Parse `{ dimensionText }` ở client làm
+   * fallback cuối khi chưa có `dimensions` jsonb. TASK-20260427-024.
+   */
+  itemSpecJson: string | null;
   childCount: number;
 }
 
@@ -386,6 +397,7 @@ export async function loadTree(
       t.uom, t.description, t.supplier_item_code, t.metadata,
       i.sku AS component_sku, i.name AS component_name, i.uom AS component_uom,
       i.category AS component_category, i.item_type AS component_item_type,
+      i.dimensions AS item_dimensions, i.spec_json AS item_spec_json,
       (SELECT count(*)::int FROM app.bom_line c WHERE c.parent_line_id = t.id) AS child_count
     FROM tree t
     LEFT JOIN app.item i ON i.id = t.component_item_id
@@ -413,6 +425,9 @@ export async function loadTree(
     description: (r.description as string | null) ?? null,
     supplierItemCode: (r.supplier_item_code as string | null) ?? null,
     metadata: (r.metadata as Record<string, unknown>) ?? {},
+    itemDimensions:
+      (r.item_dimensions as Record<string, unknown> | null) ?? null,
+    itemSpecJson: (r.item_spec_json as string | null) ?? null,
     childCount: Number(r.child_count ?? 0),
   }));
 }
