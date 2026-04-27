@@ -1,135 +1,171 @@
 "use client";
 
 import * as React from "react";
-import { Boxes, ClipboardList, Package, ScanLine } from "lucide-react";
+import Image from "next/image";
 
 /**
- * V1.8 LoginHero — panel trái trang đăng nhập.
+ * V3.2 — LoginHero full-screen image background.
  *
- * Gradient indigo-600 → indigo-900 + lớp SVG dot-grid nhẹ. Brand "Song Châu
- * MES" + subtitle + 4 feature bullets minh hoạ scope V1 (BOM, WO, Inventory,
- * Audit). Dùng server-friendly className, không animation nặng.
+ * Ảnh smart factory MES SONG CHAU (1.5MB, 1500×1000+ ratio) đặt tại
+ * /public/login-hero.png. Component này render ảnh full-cover với:
+ *   - Fade-in zoom 1.12 → 1 trong 1.2s khi mount
+ *   - Parallax tilt nhẹ theo mouse position (desktop)
+ *   - Animated data dots (cyan + amber) blink ngẫu nhiên overlay
+ *   - Feature badges glassmorphism slide-in từ trái với delay stagger
+ *   - Vignette gradient phải để fade sang form column
  */
-export function LoginHero({ className }: { className?: string }) {
+export function LoginHero() {
+  const heroRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const el = heroRef.current;
+    if (!el) return;
+    let raf = 0;
+    const handleMove = (e: MouseEvent) => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const rect = el.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width - 0.5;
+        const y = (e.clientY - rect.top) / rect.height - 0.5;
+        el.style.setProperty("--shift-x", `${x * 12}px`);
+        el.style.setProperty("--shift-y", `${y * 8}px`);
+      });
+    };
+    const handleLeave = () => {
+      el.style.setProperty("--shift-x", "0px");
+      el.style.setProperty("--shift-y", "0px");
+    };
+    el.addEventListener("mousemove", handleMove);
+    el.addEventListener("mouseleave", handleLeave);
+    return () => {
+      el.removeEventListener("mousemove", handleMove);
+      el.removeEventListener("mouseleave", handleLeave);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+
   return (
-    <aside
-      className={
-        className ??
-        "relative flex h-full w-full flex-col justify-between overflow-hidden bg-gradient-to-br from-indigo-600 via-indigo-700 to-indigo-900 p-10 text-white lg:p-14"
-      }
+    <div
+      ref={heroRef}
+      className="login-hero relative h-full w-full overflow-hidden bg-[#020617]"
+      aria-label="MES Song Châu — Hệ thống điều hành sản xuất thông minh"
     >
-      {/* Subtle dot pattern */}
-      <svg
-        className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.08]"
-        viewBox="0 0 400 400"
-        fill="none"
-        aria-hidden="true"
+      {/* Background image — fade-in zoom + parallax shift */}
+      <div
+        className="absolute inset-0 will-change-transform"
+        style={{
+          transform: "translate3d(var(--shift-x, 0), var(--shift-y, 0), 0)",
+          transition: "transform 0.4s cubic-bezier(0.22, 1, 0.36, 1)",
+        }}
       >
-        <defs>
-          <pattern
-            id="login-hero-dots"
-            x="0"
-            y="0"
-            width="24"
-            height="24"
-            patternUnits="userSpaceOnUse"
-          >
-            <circle cx="1" cy="1" r="1" fill="currentColor" />
-          </pattern>
-        </defs>
-        <rect width="400" height="400" fill="url(#login-hero-dots)" />
-      </svg>
-
-      {/* Soft geometric glow */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full bg-indigo-400/20 blur-3xl"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -bottom-40 -left-20 h-96 w-96 rounded-full bg-indigo-950/40 blur-3xl"
-      />
-
-      {/* Brand — top */}
-      <div className="relative z-10">
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-10 w-10 items-center justify-center rounded-md bg-white/15 ring-1 ring-white/25 backdrop-blur-sm animate-in fade-in zoom-in-95 duration-500"
-            aria-hidden="true"
-          >
-            <span className="font-heading text-sm font-semibold tracking-tight text-white">
-              SC
-            </span>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-indigo-100">Song Châu MES</p>
-            <p className="text-xs text-indigo-200/80">
-              v1.8 · BOM-centric manufacturing
-            </p>
-          </div>
-        </div>
+        <Image
+          src="/login-hero.png"
+          alt=""
+          fill
+          priority
+          quality={92}
+          sizes="(max-width: 1024px) 100vw, 60vw"
+          className="login-hero-img object-cover object-center"
+        />
       </div>
 
-      {/* Headline + bullets — middle */}
-      <div className="relative z-10 mt-10 max-w-md">
-        <h1 className="text-3xl font-semibold leading-tight tracking-tight text-white sm:text-4xl">
-          Song Châu MES
-        </h1>
-        <p className="mt-4 text-base leading-relaxed text-indigo-100/90">
-          Hệ thống điều hành sản xuất BOM-centric cho xưởng cơ khí — thay thế
-          Excel, minh bạch từ công thức đến kho.
-        </p>
+      {/* Vignette overlays */}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-[#020617]/60" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#020617]/30 via-transparent to-[#020617]/70" />
 
-        <ul className="mt-8 space-y-3 text-sm text-indigo-50">
-          <FeatureBullet
-            icon={<Boxes className="h-4 w-4" aria-hidden="true" />}
-            title="BOM tree 5 cấp"
-            description="Quản lý công thức sản phẩm, revision, ECO."
-          />
-          <FeatureBullet
-            icon={<ClipboardList className="h-4 w-4" aria-hidden="true" />}
-            title="Work Order + Assembly"
-            description="Theo dõi lệnh sản xuất, tiến độ, QC."
-          />
-          <FeatureBullet
-            icon={<Package className="h-4 w-4" aria-hidden="true" />}
-            title="Inventory + Barcode"
-            description="Nhận hàng, tồn kho realtime, quét mã."
-          />
-          <FeatureBullet
-            icon={<ScanLine className="h-4 w-4" aria-hidden="true" />}
-            title="Audit log đầy đủ"
-            description="Mọi thay đổi đều được ghi lại, có thể truy vết."
-          />
-        </ul>
+      {/* Animated data dots */}
+      <div className="pointer-events-none absolute inset-0 z-10">
+        <span className="data-dot" style={{ top: "18%", left: "22%", animationDelay: "0.3s" }} />
+        <span className="data-dot" style={{ top: "32%", left: "48%", animationDelay: "0.9s" }} />
+        <span className="data-dot" style={{ top: "55%", left: "15%", animationDelay: "1.6s" }} />
+        <span className="data-dot" style={{ top: "70%", left: "58%", animationDelay: "0.5s" }} />
+        <span className="data-dot data-dot-amber" style={{ top: "42%", left: "68%", animationDelay: "1.2s" }} />
+        <span className="data-dot" style={{ top: "82%", left: "30%", animationDelay: "2.0s" }} />
+        <span className="data-dot data-dot-amber" style={{ top: "12%", left: "62%", animationDelay: "0.7s" }} />
       </div>
 
-      {/* Footer — bottom */}
-      <div className="relative z-10 mt-10 text-xs text-indigo-200/70">
-        © {new Date().getFullYear()} Song Châu. Nội bộ xưởng cơ khí.
+      {/* Feature badges bottom-left */}
+      <div className="absolute bottom-12 left-12 z-20 hidden flex-col gap-3 lg:flex">
+        <FeatureBadge index={0} label="Real-time OEE & Production Tracking" />
+        <FeatureBadge index={1} label="BOM-centric · Atomic Receiving · QC Flow" />
+        <FeatureBadge index={2} label="PWA · Offline-capable barcode scan" />
       </div>
-    </aside>
+
+      {/* Build line bottom-right */}
+      <div className="absolute bottom-4 right-6 z-20 font-mono text-[10px] tracking-wider text-white/40">
+        v1.0 · MES SONG CHAU
+      </div>
+
+      <style jsx>{`
+        :global(.login-hero-img) {
+          animation: hero-zoom-in 1.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+        @keyframes hero-zoom-in {
+          from {
+            opacity: 0;
+            transform: scale(1.12);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        .data-dot {
+          position: absolute;
+          width: 6px;
+          height: 6px;
+          border-radius: 9999px;
+          background: rgba(99, 241, 255, 0.95);
+          box-shadow:
+            0 0 8px rgba(99, 241, 255, 0.8),
+            0 0 16px rgba(99, 241, 255, 0.5);
+          animation: dot-blink 2.4s ease-in-out infinite;
+        }
+        .data-dot-amber {
+          background: rgba(252, 211, 77, 0.95);
+          box-shadow:
+            0 0 8px rgba(252, 211, 77, 0.8),
+            0 0 16px rgba(252, 211, 77, 0.5);
+        }
+        @keyframes dot-blink {
+          0%, 100% {
+            opacity: 0.2;
+            transform: scale(0.8);
+          }
+          50% {
+            opacity: 1;
+            transform: scale(1.2);
+          }
+        }
+      `}</style>
+    </div>
   );
 }
 
-function FeatureBullet({
-  icon,
-  title,
-  description,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}) {
+function FeatureBadge({ label, index }: { label: string; index: number }) {
   return (
-    <li className="flex items-start gap-3">
-      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/10 text-indigo-100 ring-1 ring-white/15">
-        {icon}
-      </span>
-      <div>
-        <p className="font-medium text-white">{title}</p>
-        <p className="text-sm text-indigo-100/80">{description}</p>
-      </div>
-    </li>
+    <div
+      className="feature-badge inline-flex items-center gap-2.5 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-medium text-white backdrop-blur-md"
+      style={{ animationDelay: `${0.6 + index * 0.15}s` }}
+    >
+      <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+      {label}
+      <style jsx>{`
+        .feature-badge {
+          animation: badge-slide-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+          opacity: 0;
+        }
+        @keyframes badge-slide-in {
+          from {
+            opacity: 0;
+            transform: translateX(-24px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+      `}</style>
+    </div>
   );
 }
