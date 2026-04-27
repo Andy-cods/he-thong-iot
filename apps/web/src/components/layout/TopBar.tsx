@@ -146,7 +146,7 @@ export function TopBar({
       {navItems.length > 0 && (
         <nav
           aria-label="Điều hướng chính"
-          className="hidden md:flex items-center gap-0.5 border-t border-zinc-100 bg-white px-4 xl:px-6"
+          className="hidden md:flex items-center justify-center gap-1 border-t border-zinc-100 bg-white px-4 xl:px-6"
         >
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -156,9 +156,9 @@ export function TopBar({
               return (
                 <span
                   key={item.href}
-                  className="relative flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-zinc-300 cursor-not-allowed select-none"
+                  className="relative flex items-center gap-2.5 px-4 py-3 text-[15px] font-medium text-zinc-300 cursor-not-allowed select-none"
                 >
-                  <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} aria-hidden />
+                  <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.75} aria-hidden />
                   <span>{item.label}</span>
                 </span>
               );
@@ -170,7 +170,7 @@ export function TopBar({
                 href={item.href}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "relative flex items-center gap-2 px-3 py-2.5 text-sm font-medium transition-colors duration-150 whitespace-nowrap",
+                  "relative flex items-center gap-2.5 px-4 py-3 text-[15px] font-medium transition-colors duration-150 whitespace-nowrap",
                   "after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:rounded-t-full after:transition-all after:duration-150",
                   isActive
                     ? "text-indigo-600 after:bg-indigo-600"
@@ -178,7 +178,7 @@ export function TopBar({
                 )}
               >
                 <Icon
-                  className={cn("h-4 w-4 shrink-0 transition-colors", isActive ? "text-indigo-600" : "text-zinc-400")}
+                  className={cn("h-[18px] w-[18px] shrink-0 transition-colors", isActive ? "text-indigo-600" : "text-zinc-400")}
                   strokeWidth={1.75}
                   aria-hidden
                 />
