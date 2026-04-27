@@ -2,9 +2,10 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Bell, Menu, Search } from "lucide-react";
+import { Menu, Search } from "lucide-react";
 import { Breadcrumb, useBreadcrumb } from "@/components/ui/breadcrumb";
 import { UserMenu, type UserMenuUser } from "@/components/layout/UserMenu";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 import { formatShortcut } from "@/lib/shortcuts";
 import { cn } from "@/lib/utils";
 import type { NavItem } from "@/lib/nav-items";
@@ -124,19 +125,8 @@ export function TopBar({
             <Search className="h-4 w-4" aria-hidden />
           </button>
 
-          {/* Bell */}
-          <button
-            type="button"
-            aria-label={`Thông báo · ${notificationCount} mới`}
-            className="relative inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
-          >
-            <Bell className="h-4 w-4" aria-hidden />
-            {notificationCount > 0 && (
-              <span className="absolute right-1 top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
-                {notificationCount > 99 ? "99+" : notificationCount}
-              </span>
-            )}
-          </button>
+          {/* V3.3 Real notification bell với dropdown panel */}
+          <NotificationBell />
 
           <UserMenu user={user} onLogout={onLogout} />
         </div>

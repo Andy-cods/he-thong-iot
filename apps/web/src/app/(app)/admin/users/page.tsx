@@ -23,14 +23,16 @@ type ActiveMode = (typeof ACTIVE_MODES)[number];
 const ROLE_OPTIONS: { code: Role | "all"; label: string }[] = [
   { code: "all", label: "Tất cả vai trò" },
   { code: "admin", label: "Admin" },
-  { code: "planner", label: "Planner" },
-  { code: "warehouse", label: "Warehouse" },
-  { code: "operator", label: "Operator" },
+  { code: "planner", label: "Bộ phận Thiết kế" },
+  { code: "purchaser", label: "Bộ phận Thu mua" },
+  { code: "warehouse", label: "Bộ phận Kho" },
+  { code: "operator", label: "Bộ phận Vận hành" },
 ];
 
 const ROLE_COLORS: Record<Role, string> = {
   admin: "bg-purple-50 text-purple-700 border-purple-200",
   planner: "bg-blue-50 text-blue-700 border-blue-200",
+  purchaser: "bg-pink-50 text-pink-700 border-pink-200",
   warehouse: "bg-amber-50 text-amber-700 border-amber-200",
   operator: "bg-zinc-100 text-zinc-700 border-zinc-200",
 };

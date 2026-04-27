@@ -10,12 +10,13 @@ import {
 } from "./matrix";
 
 describe("RBAC matrix — shape + consistency", () => {
-  it("có đủ 4 role × 14 entity × 6 action (V1.4 Phase D thêm session)", () => {
+  it("có đủ 5 role × 14 entity × 6 action (V3.3 thêm purchaser)", () => {
     expect(Object.keys(RBAC_MATRIX)).toEqual([
       "admin",
       "planner",
       "operator",
       "warehouse",
+      "purchaser",
     ]);
     expect(RBAC_ENTITIES).toHaveLength(14);
     expect(RBAC_ACTIONS).toHaveLength(6);

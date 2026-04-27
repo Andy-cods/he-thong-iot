@@ -8,6 +8,7 @@ import {
   parseJson,
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
+import { notifyPRApproved } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -54,6 +55,16 @@ export async function POST(
       after: { status: row.status, approvedBy: row.approvedBy },
       notes: body.data.notes ?? null,
       ...meta,
+    });
+
+    // V3.3 — Notify creator (engineer) khi PR approved
+    void notifyPRApproved({
+      prId: params.id,
+      prNo: before.code,
+      title: before.title ?? null,
+      actorUserId: guard.session.userId,
+      actorUsername: guard.session.username,
+      creatorUserId: before.requestedBy,
     });
 
     return NextResponse.json({ data: row });

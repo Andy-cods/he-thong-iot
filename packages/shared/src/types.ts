@@ -1,5 +1,14 @@
-/** Role cứng V1 — khớp Drizzle enum trong packages/db. */
-export const ROLES = ["admin", "planner", "warehouse", "operator"] as const;
+/**
+ * Role cứng — khớp Drizzle enum trong packages/db.
+ * V3.3: thêm "purchaser" (Bộ phận Thu mua) để tách quyền duyệt PR/PO khỏi planner.
+ * Mapping bộ phận:
+ *   - planner    → engineer (Bộ phận Thiết kế)
+ *   - purchaser  → Bộ phận Thu mua
+ *   - warehouse  → Bộ phận Kho
+ *   - operator   → Bộ phận Vận hành
+ *   - admin      → toàn quyền
+ */
+export const ROLES = ["admin", "planner", "warehouse", "operator", "purchaser"] as const;
 export type Role = (typeof ROLES)[number];
 
 /** JWT access token payload (tối thiểu). */

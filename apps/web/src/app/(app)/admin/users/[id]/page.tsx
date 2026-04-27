@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 const ROLE_COLORS: Record<Role, string> = {
   admin: "bg-purple-50 text-purple-700 border-purple-200",
   planner: "bg-blue-50 text-blue-700 border-blue-200",
+  purchaser: "bg-pink-50 text-pink-700 border-pink-200",
   warehouse: "bg-amber-50 text-amber-700 border-amber-200",
   operator: "bg-zinc-100 text-zinc-700 border-zinc-200",
 };

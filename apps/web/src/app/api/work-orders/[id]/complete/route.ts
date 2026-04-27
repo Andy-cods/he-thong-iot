@@ -14,6 +14,7 @@ import {
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { insertActivityLog } from "@/server/repos/activityLogs";
+import { notifyWOCompleted } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -55,6 +56,17 @@ export async function POST(
       diffJson: { status: wo.status, completedAt: wo.completedAt },
       ipAddress: meta.ipAddress ?? null,
       userAgent: meta.userAgent ?? null,
+    });
+
+    void notifyWOCompleted({
+      woId: wo.id,
+      woNo: wo.woNo,
+      productName: null,
+      plannedQty: wo.plannedQty,
+      goodQty: wo.goodQty,
+      actorUserId: guard.session.userId,
+      actorUsername: guard.session.username,
+      creatorUserId: wo.createdBy,
     });
 
     return NextResponse.json({ data: wo });

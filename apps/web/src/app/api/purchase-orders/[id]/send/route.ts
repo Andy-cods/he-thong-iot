@@ -3,6 +3,7 @@ import { logger } from "@/lib/logger";
 import { getPO, sendPO } from "@/server/repos/purchaseOrders";
 import { extractRequestMeta, jsonError } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
+import { notifyPOSent } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -45,6 +46,14 @@ export async function POST(
       after: { status: "SENT", sentAt: row.sentAt },
       notes: "V1.2 stub: không gửi email, chỉ mark status",
       ...meta,
+    });
+
+    void notifyPOSent({
+      poId: params.id,
+      poNo: before.poNo,
+      supplierName: null, // best-effort, có thể join supplier sau nếu cần
+      actorUserId: guard.session.userId,
+      actorUsername: guard.session.username,
     });
 
     return NextResponse.json({ data: row });

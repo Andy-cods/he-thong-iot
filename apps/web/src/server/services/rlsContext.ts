@@ -22,8 +22,9 @@ import { logger } from "@/lib/logger";
  *   });
  */
 const ROLE_PRIORITY: Record<Role, number> = {
-  admin: 4,
-  planner: 3,
+  admin: 5,
+  planner: 4,
+  purchaser: 3,
   warehouse: 2,
   operator: 1,
 };
@@ -31,6 +32,7 @@ const ROLE_PRIORITY: Record<Role, number> = {
 const ROLE_TO_PG: Record<Role, string> = {
   admin: "iot_admin",
   planner: "iot_planner",
+  purchaser: "iot_purchaser",
   operator: "iot_operator",
   warehouse: "iot_warehouse",
 };

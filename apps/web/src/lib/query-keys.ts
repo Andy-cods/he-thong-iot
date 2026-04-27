@@ -214,7 +214,7 @@ export interface OrderFilter {
 
 export interface UserFilter {
   q?: string;
-  role?: "admin" | "planner" | "warehouse" | "operator";
+  role?: "admin" | "planner" | "warehouse" | "operator" | "purchaser";
   isActive?: boolean;
   page?: number;
   pageSize?: number;

@@ -12,12 +12,16 @@ import {
 } from "drizzle-orm/pg-core";
 import { appSchema } from "./_schema";
 
-/** 4 role cứng V1 theo plan 2.1 + 5.3. */
+/**
+ * Role cứng — V3.3 thêm "purchaser" (Bộ phận Thu mua).
+ * Khớp với ROLES trong @iot/shared.
+ */
 export const roleCodeEnum = pgEnum("role_code", [
   "admin",
   "planner",
   "warehouse",
   "operator",
+  "purchaser",
 ]);
 
 /** Bảng 1: user_account */

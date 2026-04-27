@@ -8,6 +8,7 @@ import {
   parseJson,
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
+import { notifyPRRejected } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -54,6 +55,16 @@ export async function POST(
       after: { status: row.status },
       notes: body.data.reason,
       ...meta,
+    });
+
+    void notifyPRRejected({
+      prId: params.id,
+      prNo: before.code,
+      title: before.title ?? null,
+      actorUserId: guard.session.userId,
+      actorUsername: guard.session.username,
+      creatorUserId: before.requestedBy,
+      reason: body.data.reason,
     });
 
     return NextResponse.json({ data: row });

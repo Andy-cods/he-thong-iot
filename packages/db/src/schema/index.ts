@@ -16,4 +16,6 @@ export * from "./eco";
 export * from "./qc";
 export * from "./audit";
 export * from "./import";
+export * from "./notification";
+export * from "./material-request";
 export { appSchema } from "./_schema";

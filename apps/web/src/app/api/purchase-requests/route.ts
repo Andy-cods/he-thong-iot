@@ -9,6 +9,7 @@ import {
   parseSearchParams,
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
+import { notifyPRSubmitted } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -87,6 +88,17 @@ export async function POST(req: NextRequest) {
       },
       ...meta,
     });
+
+    // V3.3 — Notify purchaser role (fire-and-forget) khi PR tạo + submit ngay
+    if (row.status === "SUBMITTED") {
+      void notifyPRSubmitted({
+        prId: row.id,
+        prNo: row.code,
+        title: body.data.title ?? null,
+        actorUserId: guard.session.userId,
+        actorUsername: guard.session.username,
+      });
+    }
 
     return NextResponse.json({ data: row }, { status: 201 });
   } catch (err) {

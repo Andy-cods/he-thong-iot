@@ -12,7 +12,9 @@ import {
   parseJson,
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
+import { notifyPOReceivedFull } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
+import { getPR } from "@/server/repos/purchaseRequests";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -106,6 +108,21 @@ export async function POST(
       },
       notes: note ?? `Receiving approved · ${(totals.ratio * 100).toFixed(1)}%`,
       ...meta,
+    });
+
+    // V3.3 — Notify purchaser + engineer creator + warehouse
+    let prCreatorUserId: string | null = null;
+    if (before.prId) {
+      const pr = await getPR(before.prId).catch(() => null);
+      prCreatorUserId = pr?.requestedBy ?? null;
+    }
+    void notifyPOReceivedFull({
+      poId: params.poId,
+      poNo: before.poNo,
+      supplierName: null,
+      actorUserId: guard.session.userId,
+      actorUsername: guard.session.username,
+      prCreatorUserId,
     });
 
     return NextResponse.json({

@@ -112,6 +112,23 @@ export const RBAC_MATRIX: Matrix = {
     user: ["read"],
     session: ["read"],
   },
+  // V3.3 — Purchaser (Bộ phận Thu mua): full PR/PO + read supplier/item/BOM
+  purchaser: {
+    item: ["read"],
+    supplier: ["create", "read", "update"],
+    bomTemplate: ["read"],
+    bomRevision: ["read"],
+    salesOrder: ["read"],
+    bomSnapshot: ["read"],
+    pr: ["read", "update", "approve"],
+    po: ["create", "read", "update", "approve", "transition"],
+    wo: ["read"],
+    reservation: ["read"],
+    eco: ["read"],
+    audit: ["read"],
+    user: ["read"],
+    session: ["read"],
+  },
 };
 
 /** Danh sách entity/action để iterate khi build test hoặc UI. */
