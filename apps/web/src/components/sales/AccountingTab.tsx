@@ -171,7 +171,18 @@ export function AccountingTab() {
   const pendingCount  = pendingPOs.length;
 
   return (
-    <div className="flex flex-col gap-0">
+    <div className="flex h-full flex-col">
+      {/* ── Header ── */}
+      <header className="border-b border-zinc-200 bg-white px-6 py-5">
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-zinc-900">
+          <Banknote className="h-6 w-6 text-indigo-600" aria-hidden />
+          Kế toán &amp; Thanh toán
+        </h1>
+        <p className="mt-1 text-sm text-zinc-500">
+          Theo dõi giá trị PO, công nợ phải trả và lịch sử thanh toán nhà cung cấp.
+        </p>
+      </header>
+
       {/* ── Sub-tab nav ── */}
       <div className="border-b border-zinc-200 bg-white px-6">
         <div className="flex gap-1">
@@ -181,10 +192,11 @@ export function AccountingTab() {
               type="button"
               onClick={() => setActiveTab(t.key)}
               className={cn(
-                "flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
+                "relative flex items-center gap-2 px-4 py-3 text-sm font-semibold transition-colors",
+                "after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:rounded-t-full after:transition-all",
                 activeTab === t.key
-                  ? "border-indigo-600 text-indigo-600"
-                  : "border-transparent text-zinc-500 hover:text-zinc-800",
+                  ? "text-indigo-700 after:bg-indigo-600"
+                  : "text-zinc-500 hover:text-zinc-800 after:bg-transparent",
               )}
             >
               <t.icon className="h-4 w-4" />
@@ -195,7 +207,7 @@ export function AccountingTab() {
       </div>
 
       {/* ── Content ── */}
-      <div className="flex-1 overflow-auto bg-zinc-50 px-6 py-6">
+      <div className="flex-1 overflow-auto bg-zinc-50/40 px-6 py-6">
         {activeTab === "dashboard" && (
           <DashboardTab allPOs={allPOs} isLoading={poQuery.isLoading}
             totalAmount={totalAmount} receivedAmt={receivedAmt} pendingAmt={pendingAmt}
@@ -334,13 +346,6 @@ function DashboardTab({ allPOs, isLoading, totalAmount, receivedAmt, pendingAmt,
       </div>
     </div>
   );
-}
-
-function receivedPOs(pos: POForAccounting[]) {
-  return pos.filter(p => p.status === "RECEIVED" || p.status === "CLOSED").length;
-}
-function pendingPOs(pos: POForAccounting[]) {
-  return pos.filter(p => p.status === "SENT" || p.status === "PARTIAL").length;
 }
 
 function StatusDistribution({ allPOs, totalAmount }: { allPOs: POForAccounting[]; totalAmount: number }) {

@@ -317,46 +317,52 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
   };
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
-      <header className="border-b border-zinc-200 bg-white px-6 py-4">
+    <div className="flex h-full flex-col overflow-hidden bg-zinc-50/30">
+      <header className="border-b border-zinc-200 bg-white px-6 py-5">
         <nav aria-label="Breadcrumb" className="text-xs text-zinc-500">
-          <Link href="/" className="hover:text-zinc-900 hover:underline">
-            Tổng quan
-          </Link>
+          <Link href="/" className="hover:text-zinc-900 hover:underline">Tổng quan</Link>
           <span className="mx-1.5 text-zinc-300">›</span>
-          <Link
-            href="/warehouse?tab=receiving"
-            className="hover:text-zinc-900 hover:underline"
-          >
-            Quản lí kho
+          <Link href="/warehouse?tab=receiving" className="hover:text-zinc-900 hover:underline">
+            Quản lý kho
           </Link>
           <span className="mx-1.5 text-zinc-300">›</span>
           <span className="text-zinc-700">Nhận hàng</span>
           <span className="mx-1.5 text-zinc-300">›</span>
-          <span className="font-medium text-zinc-900">
-            Wizard {po.poCode}
-          </span>
+          <span className="font-medium text-zinc-900">Wizard {po.poCode}</span>
         </nav>
-        <div className="mt-1 flex items-center justify-between gap-3">
-          <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight text-zinc-900">
-            <Truck className="h-5 w-5 text-zinc-500" aria-hidden="true" />
-            Nhận hàng — {po.poCode}
-          </h1>
-          {po.status ? (
-            <StatusBadge
-              status={
-                po.status === "PARTIAL"
-                  ? "partial"
-                  : po.status === "RECEIVED" || po.status === "CLOSED"
-                    ? "ready"
-                    : po.status === "CANCELLED"
-                      ? "inactive"
-                      : "pending"
-              }
-              size="sm"
-              label={po.status}
-            />
-          ) : null}
+        <div className="mt-2 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100">
+              <Truck className="h-6 w-6 text-indigo-700" aria-hidden />
+            </div>
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
+                Wizard nhận hàng
+              </h1>
+              <p className="mt-0.5 text-sm text-zinc-500">
+                <span className="font-mono font-semibold text-zinc-700">{po.poCode}</span>
+                {po.supplierName && <> · {po.supplierName}</>}
+              </p>
+            </div>
+          </div>
+          {po.status && (
+            <span className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset",
+              po.status === "PARTIAL" ? "bg-amber-50 text-amber-700 ring-amber-200" :
+              po.status === "RECEIVED" || po.status === "CLOSED" ? "bg-emerald-50 text-emerald-700 ring-emerald-200" :
+              po.status === "CANCELLED" ? "bg-red-50 text-red-700 ring-red-200" :
+              "bg-blue-50 text-blue-700 ring-blue-200",
+            )}>
+              <span className={cn(
+                "h-2 w-2 rounded-full",
+                po.status === "PARTIAL" ? "bg-amber-500 animate-pulse" :
+                po.status === "RECEIVED" || po.status === "CLOSED" ? "bg-emerald-500" :
+                po.status === "CANCELLED" ? "bg-red-500" :
+                "bg-blue-500",
+              )} aria-hidden />
+              {po.status}
+            </span>
+          )}
         </div>
       </header>
 

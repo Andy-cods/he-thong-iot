@@ -3,12 +3,12 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * V3 (TASK-20260427-025) — Generic Hub tabs nav (server-rendered).
+ * V3.2 — Generic Hub tabs nav (server-rendered).
  *
  * Tabs dùng URL search params `?tab=...` để giữ deep link + back/forward + SSR.
  * Dùng chung cho 4 hub pages: Warehouse / Sales / Engineering / Operations.
  *
- * Pattern kế thừa từ `WarehouseTabsNav` (TASK-014) và generalize lại.
+ * V3.2 redesign: tăng kích thước icon + label, thêm hover background, underline indicator dày hơn.
  */
 
 export interface HubTabDef<K extends string = string> {
@@ -40,20 +40,15 @@ export function HubTabsNav<K extends string>({
                 href={`${basePath}?tab=${t.key}`}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "relative flex h-10 items-center gap-1.5 px-3 text-sm font-medium transition-colors",
+                  "relative flex h-12 items-center gap-2 rounded-t-md px-4 text-sm font-semibold transition-colors",
+                  "after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-t-full after:transition-all",
                   isActive
-                    ? "text-indigo-700"
-                    : "text-zinc-600 hover:text-zinc-900",
+                    ? "text-indigo-700 after:bg-indigo-600"
+                    : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900 after:bg-transparent",
                 )}
               >
-                <Icon className="h-4 w-4" aria-hidden="true" />
+                <Icon className={cn("h-4 w-4", isActive ? "text-indigo-600" : "text-zinc-400")} aria-hidden="true" />
                 {t.label}
-                {isActive ? (
-                  <span
-                    className="absolute inset-x-2 bottom-0 h-0.5 rounded-t bg-indigo-600"
-                    aria-hidden="true"
-                  />
-                ) : null}
               </Link>
             </li>
           );
