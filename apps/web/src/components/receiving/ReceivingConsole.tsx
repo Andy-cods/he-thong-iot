@@ -23,6 +23,8 @@ import { uuidv7 } from "@/lib/uuid-v7";
 import { cn } from "@/lib/utils";
 
 const REPLAY_DELAY_MS = 500; // Sequential FIFO, tránh race condition
+const MAX_RETRY_COUNT = 5; // V3.2: stop retry sau 5 lần fail (poison message)
+const BACKOFF_BASE_MS = 1000; // V3.2: exponential backoff base (1s)
 
 /**
  * V2 ReceivingConsole — design-spec §2.8 + §3.7.1.
@@ -130,11 +132,14 @@ export function ReceivingConsole({
     replayingRef.current = true;
     try {
       const db = getDB();
-      // Query cả pending + failed (retry fail) nhưng KHÔNG re-sync các row "synced"
+      // V3.2: skip events ≥ MAX_RETRY_COUNT (poison) — user phải manual reset hoặc xoá
       const pending = await db.scanQueue
         .where("poId")
         .equals(poId)
-        .filter((e) => e.status === "pending" || e.status === "failed")
+        .filter((e) =>
+          (e.status === "pending" || e.status === "failed") &&
+          (e.retryCount ?? 0) < MAX_RETRY_COUNT,
+        )
         .sortBy("createdAt"); // FIFO (uuidv7 embed ms)
 
       if (pending.length === 0) {
@@ -220,18 +225,20 @@ export function ReceivingConsole({
               failedCount++;
             }
           } else {
-            // 5xx → retry backoff (để lại pending)
+            // 5xx → retry exponential backoff (để lại pending)
             const body = (await res.json().catch(() => ({}))) as {
               error?: { message?: string };
             };
+            const newRetryCount = (ev.retryCount ?? 0) + 1;
             await db.scanQueue.update(ev.id, {
               status: "failed",
               lastError: body.error?.message ?? `HTTP ${res.status}`,
-              retryCount: (ev.retryCount ?? 0) + 1,
+              retryCount: newRetryCount,
             });
             failedCount++;
-            // Backoff delay khi server lỗi
-            await new Promise((r) => setTimeout(r, 2000));
+            // V3.2: exponential backoff (1s → 2s → 4s → 8s → 16s, cap 30s)
+            const backoff = Math.min(30_000, BACKOFF_BASE_MS * 2 ** Math.min(newRetryCount - 1, 5));
+            await new Promise((r) => setTimeout(r, backoff));
           }
         } catch (err) {
           await db.scanQueue.update(ev.id, {

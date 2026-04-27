@@ -284,6 +284,42 @@ export function useRejectPO(id: string) {
   });
 }
 
+/* ── V3.2 — Audit trail hook ─────────────────────────────────────────────── */
+
+export interface POAuditEvent {
+  id: string;
+  actorUserId: string | null;
+  actorUsername: string | null;
+  action: string;
+  objectType: string;
+  objectId: string | null;
+  beforeJson: unknown;
+  afterJson: unknown;
+  notes: string | null;
+  occurredAt: string;
+  requestId: string | null;
+  ipAddress: string | null;
+}
+
+export interface POAuditTrailResponse {
+  data: {
+    po: { id: string; poNo: string; status: string };
+    events: POAuditEvent[];
+  };
+}
+
+export function usePOAuditTrail(poId: string | null) {
+  return useQuery({
+    queryKey: poId ? ["po", "audit-trail", poId] : ["po", "audit-trail", "__none__"],
+    queryFn: () =>
+      request<POAuditTrailResponse>(
+        `/api/purchase-orders/${encodeURIComponent(poId!)}/audit-trail`,
+      ),
+    enabled: !!poId,
+    staleTime: 30_000,
+  });
+}
+
 /**
  * V1.9-P9: fetch Excel blob và trigger download.
  * Không dùng react-query vì action, không cần cache.
