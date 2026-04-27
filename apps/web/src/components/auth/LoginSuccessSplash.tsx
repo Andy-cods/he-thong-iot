@@ -29,7 +29,7 @@ export interface LoginSuccessSplashProps {
   durationMs?: number;
 }
 
-const DEFAULT_DURATION = 7400;
+const DEFAULT_DURATION = 6400;
 const PROGRESS_START_DELAY = 900;
 const EXIT_DURATION = 100;
 
@@ -120,7 +120,7 @@ export function LoginSuccessSplash({
       </div>
 
       {/* Center content */}
-      <div className="relative z-10 flex flex-col items-center gap-7 text-center">
+      <div className="relative z-10 flex w-full max-w-[480px] flex-col items-center gap-7 px-8 text-center">
         {/* Logo + checkmark */}
         <div className="splash-logo-wrap relative">
           <div className="splash-glow-ring absolute inset-0 -m-4 rounded-full bg-gradient-to-r from-indigo-500/40 via-cyan-400/40 to-indigo-500/40 blur-2xl" />
@@ -166,7 +166,7 @@ export function LoginSuccessSplash({
         </div>
 
         {/* Progress section */}
-        <div className="splash-progress-section mt-2 w-[340px] sm:w-[420px]">
+        <div className="splash-progress-section mt-2 w-full">
           {/* Header: % + active task */}
           <div className="mb-2.5 flex items-baseline justify-between gap-3 px-1">
             <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-500 truncate">
@@ -276,13 +276,13 @@ export function LoginSuccessSplash({
           opacity: 0;
         }
         .splash-scanline-1 {
-          animation: scanline-sweep 2.2s cubic-bezier(0.22, 1, 0.36, 1) 0.1s forwards;
+          animation: scanline-sweep 2s cubic-bezier(0.22, 1, 0.36, 1) 0.1s forwards;
         }
         .splash-scanline-2 {
-          animation: scanline-sweep 2.2s cubic-bezier(0.22, 1, 0.36, 1) 2.5s forwards;
+          animation: scanline-sweep 2s cubic-bezier(0.22, 1, 0.36, 1) 2.2s forwards;
         }
         .splash-scanline-3 {
-          animation: scanline-sweep 2.2s cubic-bezier(0.22, 1, 0.36, 1) 4.9s forwards;
+          animation: scanline-sweep 2s cubic-bezier(0.22, 1, 0.36, 1) 4.2s forwards;
         }
         @keyframes scanline-sweep {
           0% {
