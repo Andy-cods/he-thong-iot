@@ -43,10 +43,11 @@ async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as {
-      error?: { message?: string; code?: string };
+      error?: { message?: string; code?: string; details?: unknown };
     };
     const err = new Error(body.error?.message ?? `HTTP ${res.status}`);
     (err as { code?: string }).code = body.error?.code;
+    (err as { details?: unknown }).details = body.error?.details;
     throw err;
   }
   return (await res.json()) as T;
@@ -100,14 +101,33 @@ export function useUpdateBomSheet(templateId: string) {
   });
 }
 
+/**
+ * TASK-20260427-021 — Delete BOM sheet với force confirm 2 bước.
+ *
+ * Lần 1: gọi không kèm `force` → API trả 409 SHEET_HAS_ROWS với count nếu
+ * sheet còn data → UI hỏi user confirm.
+ * Lần 2: gọi với `force=true` → bỏ qua check, cascade xoá data.
+ *
+ * Lỗi LAST_SHEET / LAST_PROJECT_SHEET → throw để UI toast.
+ */
 export function useDeleteBomSheet(templateId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (sheetId: string) =>
-      apiFetch<{ data: BomSheetRow }>(
-        `/api/bom/templates/${templateId}/sheets/${sheetId}`,
-        { method: "DELETE" },
-      ),
+    mutationFn: (input: { sheetId: string; force?: boolean }) => {
+      const url = `/api/bom/templates/${templateId}/sheets/${input.sheetId}${
+        input.force ? "?force=true" : ""
+      }`;
+      return apiFetch<{
+        data: BomSheetRow & {
+          deletedRowCounts?: {
+            lineCount: number;
+            materialCount: number;
+            processCount: number;
+            total: number;
+          };
+        };
+      }>(url, { method: "DELETE" });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: sheetsKey(templateId) });
     },

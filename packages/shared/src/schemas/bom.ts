@@ -68,6 +68,18 @@ export const bomTemplateListQuerySchema = z.object({
       if (typeof v === "boolean") return v;
       return v === "true";
     }),
+  /**
+   * V2.0 P2 W6 — TASK-20260427-021. Mặc định không trả BOM OBSOLETE.
+   * Truyền `includeObsolete=true` để hiển thị (vd cho trang archive).
+   */
+  includeObsolete: z
+    .union([z.enum(["true", "false"]), z.boolean()])
+    .optional()
+    .transform((v) => {
+      if (v === undefined) return undefined;
+      if (typeof v === "boolean") return v;
+      return v === "true";
+    }),
   sort: z.enum(["updatedAt", "code", "name"]).default("updatedAt"),
   sortDir: z.enum(["asc", "desc"]).default("desc"),
   page: z.coerce.number().int().positive().default(1),

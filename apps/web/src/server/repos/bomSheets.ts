@@ -1,5 +1,10 @@
 import { and, asc, eq, max, sql, type SQL } from "drizzle-orm";
-import { bomSheet, bomLine } from "@iot/db/schema";
+import {
+  bomSheet,
+  bomLine,
+  bomSheetMaterialRow,
+  bomSheetProcessRow,
+} from "@iot/db/schema";
 import type { BomSheetCreate, BomSheetKind, BomSheetUpdate } from "@iot/shared";
 import { db } from "@/lib/db";
 
@@ -135,6 +140,52 @@ export async function deleteSheet(id: string) {
     .where(eq(bomSheet.id, id))
     .returning();
   return row ?? null;
+}
+
+/**
+ * Tổng số sheet (mọi kind) của template — chặn xoá sheet cuối cùng
+ * (TASK-20260427-021).
+ */
+export async function countSheets(templateId: string): Promise<number> {
+  const [r] = await db
+    .select({ c: sql<number>`COUNT(*)::int` })
+    .from(bomSheet)
+    .where(eq(bomSheet.templateId, templateId));
+  return r?.c ?? 0;
+}
+
+/**
+ * Đếm số dòng dữ liệu thuộc 1 sheet (gộp bom_line + material_row + process_row)
+ * — UI cảnh báo khi user xoá sheet còn data, hoặc fail-soft trả 409 nếu
+ * chưa truyền `force=true`.
+ */
+export async function countRowsInSheet(sheetId: string): Promise<{
+  lineCount: number;
+  materialCount: number;
+  processCount: number;
+  total: number;
+}> {
+  const [lineR] = await db
+    .select({ c: sql<number>`COUNT(*)::int` })
+    .from(bomLine)
+    .where(eq(bomLine.sheetId, sheetId));
+  const [matR] = await db
+    .select({ c: sql<number>`COUNT(*)::int` })
+    .from(bomSheetMaterialRow)
+    .where(eq(bomSheetMaterialRow.sheetId, sheetId));
+  const [procR] = await db
+    .select({ c: sql<number>`COUNT(*)::int` })
+    .from(bomSheetProcessRow)
+    .where(eq(bomSheetProcessRow.sheetId, sheetId));
+  const lineCount = lineR?.c ?? 0;
+  const materialCount = matR?.c ?? 0;
+  const processCount = procR?.c ?? 0;
+  return {
+    lineCount,
+    materialCount,
+    processCount,
+    total: lineCount + materialCount + processCount,
+  };
 }
 
 /**

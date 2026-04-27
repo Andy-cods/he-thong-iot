@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNotNull, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, ne, sql, type SQL } from "drizzle-orm";
 import {
   bomLine,
   bomSheet,
@@ -16,6 +16,12 @@ export type BomStatus = "DRAFT" | "ACTIVE" | "OBSOLETE";
 export interface BomTemplateListQuery {
   q?: string;
   status?: BomStatus[];
+  /**
+   * V2.0 P2 W6 — TASK-20260427-021. Mặc định FALSE → ẩn BOM OBSOLETE
+   * khỏi list (tránh lộn với BOM đang dùng). User truyền explicit
+   * `?includeObsolete=true` hoặc `?status=OBSOLETE` để xem.
+   */
+  includeObsolete?: boolean;
   hasComponents?: boolean;
   sort?: "updatedAt" | "code" | "name";
   sortDir?: "asc" | "desc";
@@ -61,6 +67,9 @@ export async function listTemplates(
         q.status as unknown as (typeof bomTemplate.status.enumValues)[number][],
       ),
     );
+  } else if (!q.includeObsolete) {
+    // Default: hide OBSOLETE (soft-deleted BOM Lists).
+    where.push(ne(bomTemplate.status, "OBSOLETE"));
   }
   if (q.q && q.q.trim().length > 0) {
     const needle = q.q.trim();

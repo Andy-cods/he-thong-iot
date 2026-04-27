@@ -165,6 +165,11 @@ export default function BomGridPage() {
             onAddSheet={() => setAddSheetOpen(true)}
             loading={sheetsQuery.isLoading}
             canAddSheet={!isObsolete}
+            templateId={id}
+            readOnly={isObsolete}
+            onSheetDeleted={(deletedId, fallbackId) => {
+              if (activeSheetId === deletedId) setActiveSheetId(fallbackId);
+            }}
           />
           <div className="flex min-h-0 flex-1 overflow-hidden">
             <div className="flex-1 overflow-hidden">

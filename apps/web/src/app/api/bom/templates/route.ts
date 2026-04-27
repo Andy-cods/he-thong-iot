@@ -31,6 +31,10 @@ export async function GET(req: NextRequest) {
     const result = await listTemplates({
       q: q.data.q,
       status: q.data.status as ("DRAFT" | "ACTIVE" | "OBSOLETE")[] | undefined,
+      includeObsolete:
+        typeof q.data.includeObsolete === "boolean"
+          ? q.data.includeObsolete
+          : undefined,
       hasComponents:
         typeof q.data.hasComponents === "boolean"
           ? q.data.hasComponents

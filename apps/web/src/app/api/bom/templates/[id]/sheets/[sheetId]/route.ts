@@ -3,6 +3,8 @@ import { bomSheetUpdateSchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import {
   countProjectSheets,
+  countRowsInSheet,
+  countSheets,
   deleteSheet,
   getSheetById,
   updateSheet,
@@ -75,9 +77,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 /**
  * DELETE /api/bom/templates/[id]/sheets/[sheetId]
  *
- * Cascade delete: bom_lines của sheet sẽ bị xoá theo (FK ON DELETE CASCADE).
- * Chặn xóa sheet PROJECT cuối cùng — BOM List phải có ≥1 sheet PROJECT
- * (theo brainstorm Q-E).
+ * Cascade delete: bom_lines / material_rows / process_rows của sheet sẽ bị
+ * xoá theo (FK ON DELETE CASCADE).
+ *
+ * Guards:
+ *  - Không thể xoá sheet cuối cùng của template (≥1 sheet bắt buộc).
+ *  - Không thể xoá sheet PROJECT cuối cùng nếu còn sheets khác.
+ *  - Nếu sheet còn data (lines / rows) và `?force=true` chưa truyền →
+ *    trả 409 với count để UI confirm 2 bước.
  */
 export async function DELETE(req: NextRequest, { params }: Params) {
   const guard = await requireCan(req, "update", "bomTemplate");
@@ -86,6 +93,16 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   const before = await getSheetById(params.sheetId);
   if (!before || before.templateId !== params.id) {
     return jsonError("NOT_FOUND", "Không tìm thấy sheet.", 404);
+  }
+
+  // TASK-20260427-021 — chặn xoá sheet cuối cùng (kind bất kỳ).
+  const total = await countSheets(params.id);
+  if (total <= 1) {
+    return jsonError(
+      "LAST_SHEET",
+      "Không thể xoá sheet cuối cùng. BOM List phải còn ít nhất 1 sheet.",
+      409,
+    );
   }
 
   if (before.kind === "PROJECT") {
@@ -99,6 +116,23 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     }
   }
 
+  // Force confirm khi sheet còn data — frontend gọi lần 1 nhận count, hỏi
+  // user, gọi lần 2 với ?force=true.
+  const force = req.nextUrl.searchParams.get("force") === "true";
+  const counts = await countRowsInSheet(params.sheetId);
+  if (counts.total > 0 && !force) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "SHEET_HAS_ROWS",
+          message: `Sheet "${before.name}" còn ${counts.total} dòng dữ liệu. Truyền force=true để xoá kèm dữ liệu.`,
+          details: counts,
+        },
+      },
+      { status: 409 },
+    );
+  }
+
   try {
     const deleted = await deleteSheet(params.sheetId);
     if (!deleted) return jsonError("NOT_FOUND", "Không tìm thấy sheet.", 404);
@@ -110,11 +144,11 @@ export async function DELETE(req: NextRequest, { params }: Params) {
       objectType: "bom_sheet",
       objectId: deleted.id,
       before,
-      after: deleted,
+      after: { ...deleted, deletedRowCounts: counts },
       ...meta,
     });
 
-    return NextResponse.json({ data: deleted });
+    return NextResponse.json({ data: { ...deleted, deletedRowCounts: counts } });
   } catch (err) {
     logger.error({ err }, "delete bom sheet failed");
     return jsonError("INTERNAL", "Lỗi xoá sheet.", 500);
