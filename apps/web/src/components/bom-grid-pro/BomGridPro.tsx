@@ -327,7 +327,6 @@ export function BomGridPro({
       statusMap?.[row.node.componentItemId] ?? DEFAULT_STATUS;
     const scrap = Number(row.node.scrapPercent);
     const qty = Number(row.node.qtyPerParent) || 0;
-    const total = qty * parentQty;
 
     const isHighlighted = highlightedLineId === row.id;
 
@@ -347,7 +346,7 @@ export function BomGridPro({
           <td className="w-10 px-2 text-[11px] font-mono text-indigo-400 tabular-nums">
             {idx + 1}
           </td>
-          <td colSpan={12} className="px-2 py-1.5">
+          <td colSpan={11} className="px-2 py-1.5">
             <button
               type="button"
               onClick={() => toggleExpand(row.id)}
@@ -495,10 +494,6 @@ export function BomGridPro({
         <td className="px-2 font-mono text-xs text-zinc-600 truncate">
           {row.node.supplierItemCode ?? "—"}
         </td>
-        {/* Tổng SL */}
-        <td className="px-2 text-right font-mono text-xs font-semibold tabular-nums text-zinc-900">
-          {formatNumber(total)}
-        </td>
         {/* Ghi chú (Note 1/2/3 concat) */}
         <td className="px-2 text-xs italic text-zinc-500 truncate">
           {row.node.metadata && (row.node.metadata as { notes?: string }).notes
@@ -595,15 +590,14 @@ export function BomGridPro({
             <col style={{ width: "40px" }} />   {/* # */}
             <col style={{ width: "120px" }} />  {/* Loại */}
             <col style={{ width: "52px" }} />   {/* Ảnh */}
-            <col style={{ width: "70px" }} />   {/* ID Number (R01) */}
-            <col style={{ width: "60px" }} />   {/* SL/bộ */}
+            <col style={{ width: "50px" }} />   {/* ID Number (R01) */}
+            <col style={{ width: "52px" }} />   {/* SL/bộ */}
             <col style={{ width: "180px" }} />  {/* Mã linh kiện */}
             <col style={{ width: "200px" }} />  {/* Tên / Mô tả */}
             <col style={{ width: "120px" }} />  {/* Kích thước */}
             <col style={{ width: "110px" }} />  {/* NCC */}
-            <col style={{ width: "70px" }} />   {/* Tổng SL */}
-            <col style={{ width: "180px" }} />  {/* Ghi chú */}
-            <col style={{ width: "70px" }} />   {/* Hao hụt */}
+            <col style={{ width: "120px" }} />  {/* Ghi chú */}
+            <col style={{ width: "60px" }} />   {/* Hao hụt */}
             <col style={{ width: "150px" }} />  {/* Tiến độ */}
             <col style={{ width: "100px" }} />  {/* Thao tác */}
           </colgroup>
@@ -633,9 +627,6 @@ export function BomGridPro({
               </th>
               <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
                 NCC / Vật tư
-              </th>
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-right">
-                Tổng SL
               </th>
               <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
                 Ghi chú
@@ -672,7 +663,7 @@ export function BomGridPro({
             )}
             {visibleRows.length === 0 && (
               <tr>
-                <td colSpan={14} className="py-8 text-center text-xs text-zinc-400">
+                <td colSpan={13} className="py-8 text-center text-xs text-zinc-400">
                   BOM chưa có linh kiện nào.
                 </td>
               </tr>

@@ -206,7 +206,7 @@ export default function BomGridPage() {
                   }
                   // PROJECT (default) — BomGridPro
                   return (
-                    <div className="h-full p-3">
+                    <div className="h-full p-1.5">
                       <BomGridPro
                         templateId={template.id}
                         templateName={template.name}
