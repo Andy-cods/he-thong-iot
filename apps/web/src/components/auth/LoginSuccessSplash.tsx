@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, Sparkles } from "lucide-react";
+import { Check } from "lucide-react";
 
 /**
  * V3.2 — Cinematic splash khi login thành công.
@@ -32,7 +32,7 @@ export function LoginSuccessSplash({
   fullName,
   username,
   onComplete,
-  durationMs = 1400,
+  durationMs = 3400,
 }: LoginSuccessSplashProps) {
   const [stage, setStage] = React.useState<"in" | "out">("in");
 
@@ -115,8 +115,7 @@ export function LoginSuccessSplash({
 
         {/* Welcome text */}
         <div className="splash-welcome">
-          <p className="flex items-center justify-center gap-2 text-base text-zinc-300">
-            <Sparkles className="h-4 w-4 text-amber-300" aria-hidden />
+          <p className="text-base text-zinc-300">
             {greeting},{" "}
             <span className="font-semibold text-white">{displayName}</span>
           </p>
@@ -188,7 +187,7 @@ export function LoginSuccessSplash({
         .splash-scanline {
           background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.8), transparent);
           box-shadow: 0 0 12px rgba(34, 211, 238, 0.6);
-          animation: scanline-sweep 1.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+          animation: scanline-sweep 1.8s cubic-bezier(0.22, 1, 0.36, 1) forwards, scanline-sweep 1.8s cubic-bezier(0.22, 1, 0.36, 1) 1.5s forwards;
         }
         @keyframes scanline-sweep {
           0% {
@@ -290,7 +289,7 @@ export function LoginSuccessSplash({
         }
         .splash-progress-fill {
           width: 0%;
-          animation: progress-fill 0.55s cubic-bezier(0.4, 0, 0.2, 1) 0.9s both;
+          animation: progress-fill 2.4s cubic-bezier(0.4, 0, 0.2, 1) 0.9s both;
           box-shadow: 0 0 12px rgba(99, 102, 241, 0.6);
         }
         @keyframes progress-fill {
