@@ -117,7 +117,7 @@ export default async function DashboardLandingPage() {
   const { data, error } = await loadOverviewServer();
 
   return (
-    <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-4 py-6 lg:px-6">
+    <div className="relative mx-auto flex w-full max-w-[1440px] flex-col gap-6 px-4 py-6 lg:px-6">
       <DashboardClient initialData={data} initialError={error} />
     </div>
   );

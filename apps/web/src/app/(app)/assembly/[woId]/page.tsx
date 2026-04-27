@@ -2,18 +2,24 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
+  AlertTriangle,
   ArrowLeft,
   CheckCircle2,
   ClipboardList,
   ExternalLink,
   History,
+  Keyboard,
   Loader2,
+  Minus,
   Package,
   PauseCircle,
+  Plus,
+  ScanLine,
   Smartphone,
   Wrench,
+  NotebookPen,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -31,9 +37,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { BarcodeScanInput } from "@/components/scan/BarcodeScanInput";
 import {
   useAssemblyScan,
+  useAssemblySessions,
   useCompleteWoViaAssembly,
   useWoProgress,
   type AssemblyScanInput,
+  type AssemblySession,
   type WoProgressLine,
 } from "@/hooks/useAssembly";
 import {
@@ -48,18 +56,15 @@ export const dynamic = "force-dynamic";
 /**
  * V2.0-P2-W6 — Assembly workspace cho 1 WO.
  *
- * Layout:
- *   - Header sticky: woNo · sản phẩm · qty progress · nút Pause + Hoàn tất.
- *   - Cột trái 60%: bảng BOM lines cần lắp (SKU, tên, req, picked, còn lại, trạng thái).
- *   - Cột phải 40%: vùng quét barcode + activity log 10 scan gần nhất.
- *   - Footer hành động.
+ * Layout 3 tab (URL `?mode=manual|barcode|sessions`):
+ *   - Manual (default): bảng BOM lines + input qty/lot/note + nút "Lưu pick".
+ *   - Barcode: UI quét barcode hiện tại.
+ *   - Sessions: sổ ghi chép đợt lắp ráp (group scan theo window 30 phút).
  *
- * Flow scan: tra `/api/items/by-barcode/[code]` → match `componentSku` trong
- * progress.lines → submit POST /api/assembly/scan với reservation ACTIVE.
+ * Header sticky giữ nguyên (woNo, status, progress, nút Pause/Hoàn tất).
  *
- * Reuse:
- *   - useWoProgress, useAssemblyScan, useCompleteWoViaAssembly (đã có).
- *   - BarcodeScanInput (auto focus, beep, vibrate, USB wedge).
+ * Empty state "WO không có BOM line" có CTA rõ ràng → link sang trang
+ * snapshot order để explode trước khi lắp ráp.
  */
 
 interface ScanLog {
@@ -73,12 +78,36 @@ interface ScanLog {
   message: string;
 }
 
+type TabMode = "manual" | "barcode" | "sessions";
+
 function formatTime(ts: number): string {
   return new Date(ts).toLocaleTimeString("vi-VN", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
   });
+}
+
+function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatDurationMs(ms: number): string {
+  if (ms < 1000) return "<1s";
+  const sec = Math.round(ms / 1000);
+  if (sec < 60) return `${sec}s`;
+  const min = Math.floor(sec / 60);
+  const remSec = sec % 60;
+  if (min < 60) return `${min}p ${remSec}s`;
+  const hr = Math.floor(min / 60);
+  const remMin = min % 60;
+  return `${hr}h ${remMin}p`;
 }
 
 function num(v: string | number | null | undefined): number {
@@ -90,7 +119,25 @@ function num(v: string | number | null | undefined): number {
 export default function AssemblyWorkspacePage() {
   const params = useParams<{ woId: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const woId = params?.woId ?? "";
+
+  const rawMode = (searchParams?.get("mode") ?? "manual") as TabMode;
+  const tabMode: TabMode =
+    rawMode === "barcode" || rawMode === "sessions" ? rawMode : "manual";
+
+  const setTab = React.useCallback(
+    (mode: TabMode) => {
+      const sp = new URLSearchParams(searchParams?.toString() ?? "");
+      if (mode === "manual") sp.delete("mode");
+      else sp.set("mode", mode);
+      const qs = sp.toString();
+      router.replace(`/assembly/${woId}${qs ? `?${qs}` : ""}`, {
+        scroll: false,
+      });
+    },
+    [router, searchParams, woId],
+  );
 
   const [log, setLog] = React.useState<ScanLog[]>([]);
   const [completeOpen, setCompleteOpen] = React.useState(false);
@@ -106,6 +153,9 @@ export default function AssemblyWorkspacePage() {
 
   const woQuery = useWorkOrderDetail(woId || null);
   const progressQuery = useWoProgress(woId || null);
+  const sessionsQuery = useAssemblySessions(
+    tabMode === "sessions" && woId ? woId : null,
+  );
   const wo = woQuery.data?.data;
   const progress = progressQuery.data?.data;
 
@@ -119,49 +169,64 @@ export default function AssemblyWorkspacePage() {
     );
   }, []);
 
-  /**
-   * Submit 1 scan với reservation đầu tiên ACTIVE còn qty.
-   */
-  const submitScan = React.useCallback(
+  /** Pick chung (manual + barcode), submit scan API. */
+  const submitPick = React.useCallback(
     async (
       line: WoProgressLine,
       lotSerialId: string,
-      barcode: string,
-    ): Promise<void> => {
+      qty: number,
+      opts: {
+        barcode?: string;
+        lotCode?: string | null;
+        mode: "barcode" | "manual";
+        note?: string | null;
+      },
+    ): Promise<boolean> => {
       const input: AssemblyScanInput = {
         scanId: uuidv7(),
         woId,
         snapshotLineId: line.snapshotLineId,
         lotSerialId,
-        qty: 1,
-        barcode,
+        qty,
+        barcode: opts.barcode ?? "",
         scannedAt: new Date().toISOString(),
-        deviceId: "desktop-web",
+        deviceId: opts.mode === "manual" ? "manual-entry" : "desktop-web",
+        mode: opts.mode,
+        lotCode: opts.lotCode ?? null,
+        note: opts.note ?? null,
       };
       try {
         const out = await scanMut.mutateAsync(input);
         addLog({
-          code: barcode,
+          code:
+            opts.barcode ??
+            opts.lotCode ??
+            `manual:${line.componentSku}`,
           status: "ok",
-          kind: "PICK",
+          kind: opts.mode === "manual" ? "MANUAL" : "PICK",
           sku: line.componentSku,
-          qty: 1,
-          message: `${line.componentSku} · ${out.data.completedQty}/${out.data.requiredQty}${
+          qty,
+          message: `${line.componentSku} · +${qty} → ${out.data.completedQty}/${out.data.requiredQty}${
             out.data.idempotent ? " (idempotent)" : ""
           }`,
         });
-        toast.success(`Đã pick 1 ${line.componentSku}`, {
-          description: `${out.data.completedQty}/${out.data.requiredQty}`,
-        });
+        toast.success(
+          `Đã pick ${qty} × ${line.componentSku}`,
+          {
+            description: `${out.data.completedQty}/${out.data.requiredQty}`,
+          },
+        );
+        return true;
       } catch (err) {
         addLog({
-          code: barcode,
+          code: opts.barcode ?? opts.lotCode ?? line.componentSku,
           status: "error",
-          kind: "PICK",
+          kind: opts.mode === "manual" ? "MANUAL" : "PICK",
           sku: line.componentSku,
           message: (err as Error).message,
         });
         toast.error((err as Error).message);
+        return false;
       }
     },
     [woId, scanMut, addLog],
@@ -182,7 +247,6 @@ export default function AssemblyWorkspacePage() {
         return;
       }
 
-      // Dedupe trong 2s — confirm
       const now = Date.now();
       if (
         lastScanRef.current &&
@@ -194,7 +258,6 @@ export default function AssemblyWorkspacePage() {
       }
       lastScanRef.current = { code, at: now };
 
-      // 1. Tra item theo barcode
       try {
         const res = await fetch(
           `/api/items/by-barcode/${encodeURIComponent(code)}`,
@@ -222,7 +285,10 @@ export default function AssemblyWorkspacePage() {
               if (r.status !== "ACTIVE") continue;
               const lotCode = (r.lotCode ?? "").toUpperCase();
               if (lotCode === uc || uc.startsWith(lotCode)) {
-                await submitScan(line, r.lotId, code);
+                await submitPick(line, r.lotId, 1, {
+                  barcode: code,
+                  mode: "barcode",
+                });
                 return;
               }
             }
@@ -239,7 +305,6 @@ export default function AssemblyWorkspacePage() {
 
         const { sku, name } = body.data;
 
-        // 2. Match component SKU
         const line = progress.lines.find((l) => l.componentSku === sku);
         if (!line) {
           addLog({
@@ -253,7 +318,6 @@ export default function AssemblyWorkspacePage() {
           return;
         }
 
-        // 3. Check remaining
         const remaining = line.requiredQty - line.completedQty;
         if (remaining <= 0) {
           addLog({
@@ -267,7 +331,6 @@ export default function AssemblyWorkspacePage() {
           return;
         }
 
-        // 4. Reservation ACTIVE
         const reservation = line.reservations.find(
           (r) => r.status === "ACTIVE" && r.reservedQty > 0,
         );
@@ -285,7 +348,10 @@ export default function AssemblyWorkspacePage() {
           return;
         }
 
-        await submitScan(line, reservation.lotId, code);
+        await submitPick(line, reservation.lotId, 1, {
+          barcode: code,
+          mode: "barcode",
+        });
       } catch (err) {
         addLog({
           code,
@@ -296,15 +362,14 @@ export default function AssemblyWorkspacePage() {
         toast.error((err as Error).message);
       }
     },
-    [progress, addLog, submitScan],
+    [progress, addLog, submitPick],
   );
 
-  // Confirm duplicate scan → submit lại
   const handleConfirmDuplicate = React.useCallback(() => {
     const code = duplicateConfirm;
     setDuplicateConfirm(null);
     if (!code) return;
-    lastScanRef.current = { code, at: 0 }; // reset
+    lastScanRef.current = { code, at: 0 };
     void handleScan(code);
   }, [duplicateConfirm, handleScan]);
 
@@ -387,9 +452,9 @@ export default function AssemblyWorkspacePage() {
     progress &&
     progress.status === "IN_PROGRESS" &&
     progressPct >= 100 &&
-    progress.lines.every(
-      (l) => l.requiredQty - l.completedQty <= 0,
-    );
+    progress.lines.every((l) => l.requiredQty - l.completedQty <= 0);
+
+  const noLines = !progress || progress.lines.length === 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -422,7 +487,6 @@ export default function AssemblyWorkspacePage() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Compact progress */}
             {progress ? (
               <div className="hidden items-center gap-2 sm:flex">
                 <div className="relative h-1.5 w-32 overflow-hidden rounded-full bg-zinc-100">
@@ -479,180 +543,85 @@ export default function AssemblyWorkspacePage() {
             </div>
           </div>
         </div>
+
+        {/* Tab nav 3 mode */}
+        <nav className="mt-3 flex items-center gap-1 border-b border-zinc-200 -mb-3">
+          <TabButton
+            active={tabMode === "manual"}
+            onClick={() => setTab("manual")}
+            icon={<Keyboard className="h-3.5 w-3.5" aria-hidden />}
+            label="Nhập thủ công"
+            sub="Mặc định"
+          />
+          <TabButton
+            active={tabMode === "barcode"}
+            onClick={() => setTab("barcode")}
+            icon={<ScanLine className="h-3.5 w-3.5" aria-hidden />}
+            label="Quét barcode"
+            sub="Tuỳ chọn"
+          />
+          <TabButton
+            active={tabMode === "sessions"}
+            onClick={() => setTab("sessions")}
+            icon={<NotebookPen className="h-3.5 w-3.5" aria-hidden />}
+            label="Đợt lắp ráp"
+            sub={
+              sessionsQuery.data
+                ? `${sessionsQuery.data.data.sessions.length} đợt`
+                : undefined
+            }
+          />
+        </nav>
       </header>
 
-      {/* 2 cols: BOM lines (60%) + scan area (40%) */}
-      <section className="grid gap-4 lg:grid-cols-[3fr,2fr]">
-        {/* BOM lines table */}
-        <div className="overflow-hidden rounded-md border border-zinc-200 bg-white">
-          <header className="flex h-9 items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
-            <ClipboardList className="h-3.5 w-3.5" aria-hidden />
-            BOM lines cần lắp{" "}
-            {progress ? `(${progress.lines.length})` : ""}
-          </header>
-          {!progress || progress.lines.length === 0 ? (
-            <div className="px-4 py-12 text-center text-xs text-zinc-500">
-              WO này không có BOM line — cần snapshot order BOM trước.
-            </div>
-          ) : (
-            <table className="w-full text-xs">
-              <thead className="border-b border-zinc-200 bg-zinc-50 text-[10px] uppercase tracking-wider text-zinc-500">
-                <tr>
-                  <th className="px-3 py-2 text-left font-medium">SKU</th>
-                  <th className="px-3 py-2 text-left font-medium">Tên</th>
-                  <th className="px-3 py-2 text-right font-medium">
-                    Yêu cầu
-                  </th>
-                  <th className="px-3 py-2 text-right font-medium">Đã pick</th>
-                  <th className="px-3 py-2 text-right font-medium">Còn lại</th>
-                  <th className="px-3 py-2 text-center font-medium">
-                    Trạng thái
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {progress.lines.map((l) => {
-                  const remaining = Math.max(
-                    0,
-                    l.requiredQty - l.completedQty,
-                  );
-                  const done = remaining === 0;
-                  return (
-                    <tr
-                      key={l.snapshotLineId}
-                      className={cn(
-                        "border-t border-zinc-100 transition-colors",
-                        done && "bg-emerald-50/40",
-                      )}
-                    >
-                      <td className="px-3 py-2">
-                        <div className="flex items-center gap-1">
-                          <Package
-                            className={cn(
-                              "h-3.5 w-3.5",
-                              done ? "text-emerald-500" : "text-zinc-400",
-                            )}
-                            aria-hidden
-                          />
-                          <code className="font-mono text-xs font-semibold">
-                            {l.componentSku}
-                          </code>
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 text-zinc-700">
-                        {l.componentName}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums">
-                        {l.requiredQty}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums font-semibold">
-                        {l.completedQty}
-                      </td>
-                      <td
-                        className={cn(
-                          "px-3 py-2 text-right tabular-nums",
-                          done ? "text-emerald-700" : "text-zinc-600",
-                        )}
-                      >
-                        {remaining}
-                      </td>
-                      <td className="px-3 py-2 text-center">
-                        <Badge
-                          variant={done ? "success" : "outline"}
-                          className="text-[10px]"
-                        >
-                          {done ? "Đủ" : l.state}
-                        </Badge>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
+      {/* Empty state with strong CTA */}
+      {noLines ? (
+        <EmptyBomLineState
+          orderNo={wo.orderNo}
+          plannedQty={num(wo.plannedQty)}
+        />
+      ) : null}
 
-        {/* Right column: scan + log */}
-        <div className="flex flex-col gap-3">
-          {/* Scan area */}
-          <div className="rounded-md border border-zinc-200 bg-white p-3">
-            <BarcodeScanInput
-              onScan={(code) => void handleScan(code)}
-              placeholder="Quét barcode component (USB/BT + Enter)"
-              disabled={scanMut.isPending}
-              autoFocus
-              label="Quét / Nhập mã barcode"
-            />
-            {scanMut.isPending ? (
-              <p className="mt-2 inline-flex items-center gap-1 text-[11px] text-zinc-500">
-                <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
-                Đang ghi nhận scan…
-              </p>
-            ) : (
-              <p className="mt-2 text-[11px] text-zinc-400">
-                Tip: ô luôn auto-focus. Nếu mất focus, click vào ô. Phím
-                tắt: gõ tay rồi Enter.
-              </p>
-            )}
-          </div>
+      {/* Tab content */}
+      {!noLines && tabMode === "manual" ? (
+        <ManualPickPanel
+          progress={progress!}
+          onPick={(line, qty, lotCode, note) => {
+            const reservation = line.reservations.find(
+              (r) => r.status === "ACTIVE" && r.reservedQty > 0,
+            );
+            if (!reservation) {
+              toast.error(
+                `${line.componentSku} chưa có reservation ACTIVE — cần reserve lot trước`,
+              );
+              return;
+            }
+            return submitPick(line, reservation.lotId, qty, {
+              mode: "manual",
+              lotCode,
+              note,
+            });
+          }}
+          isSubmitting={scanMut.isPending}
+        />
+      ) : null}
 
-          {/* Activity log */}
-          <div className="overflow-hidden rounded-md border border-zinc-200 bg-white">
-            <header className="flex h-9 items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
-              <History className="h-3.5 w-3.5" aria-hidden />
-              10 scan gần nhất ({log.length})
-            </header>
-            {log.length === 0 ? (
-              <div className="px-4 py-8 text-center text-xs text-zinc-500">
-                Chưa có scan nào. Quét barcode để bắt đầu.
-              </div>
-            ) : (
-              <ul className="max-h-[420px] divide-y divide-zinc-100 overflow-y-auto">
-                {log.map((e) => (
-                  <li key={e.id} className="px-3 py-2 text-xs">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={cn(
-                          "h-1.5 w-1.5 shrink-0 rounded-full",
-                          e.status === "ok"
-                            ? "bg-emerald-500"
-                            : e.status === "warn"
-                              ? "bg-amber-500"
-                              : e.status === "no-match"
-                                ? "bg-amber-500"
-                                : "bg-red-500",
-                        )}
-                        aria-hidden
-                      />
-                      <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
-                        {e.kind}
-                      </span>
-                      <code className="flex-1 truncate font-mono text-[11px] text-zinc-900">
-                        {e.code}
-                      </code>
-                      <span className="shrink-0 text-[10px] tabular-nums text-zinc-400">
-                        {formatTime(e.at)}
-                      </span>
-                    </div>
-                    <p
-                      className={cn(
-                        "mt-0.5 truncate pl-3.5 text-[11px]",
-                        e.status === "ok"
-                          ? "text-emerald-700"
-                          : e.status === "warn" || e.status === "no-match"
-                            ? "text-amber-700"
-                            : "text-red-700",
-                      )}
-                    >
-                      {e.message}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-      </section>
+      {!noLines && tabMode === "barcode" ? (
+        <BarcodeModePanel
+          progress={progress!}
+          log={log}
+          isPending={scanMut.isPending}
+          onScan={(code) => void handleScan(code)}
+        />
+      ) : null}
+
+      {tabMode === "sessions" ? (
+        <SessionsPanel
+          isLoading={sessionsQuery.isLoading}
+          sessions={sessionsQuery.data?.data.sessions ?? []}
+          gapMinutes={sessionsQuery.data?.data.gapMinutes ?? 30}
+        />
+      ) : null}
 
       {/* Duplicate scan confirm */}
       <Dialog
@@ -676,9 +645,7 @@ export default function AssemblyWorkspacePage() {
             >
               Bỏ qua
             </Button>
-            <Button onClick={handleConfirmDuplicate}>
-              Quét lại
-            </Button>
+            <Button onClick={handleConfirmDuplicate}>Quét lại</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -776,5 +743,736 @@ export default function AssemblyWorkspacePage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// ---------------- TabButton ----------------
+
+function TabButton({
+  active,
+  onClick,
+  icon,
+  label,
+  sub,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  sub?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition-colors",
+        active
+          ? "border-indigo-500 text-indigo-700"
+          : "border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700",
+      )}
+      aria-current={active ? "page" : undefined}
+    >
+      {icon}
+      <span>{label}</span>
+      {sub ? (
+        <span className="ml-1 text-[10px] text-zinc-400">{sub}</span>
+      ) : null}
+    </button>
+  );
+}
+
+// ---------------- EmptyBomLineState ----------------
+
+function EmptyBomLineState({
+  orderNo,
+  plannedQty,
+}: {
+  orderNo: string | null;
+  plannedQty: number;
+}) {
+  return (
+    <section className="rounded-md border border-amber-200 bg-amber-50 p-5">
+      <div className="flex items-start gap-3">
+        <AlertTriangle
+          className="h-5 w-5 shrink-0 text-amber-500"
+          aria-hidden
+        />
+        <div className="flex-1">
+          <h3 className="text-sm font-semibold text-amber-900">
+            WO này chưa có BOM line — cần explode snapshot order
+          </h3>
+          <p className="mt-1 text-xs text-amber-800">
+            Đơn hàng{" "}
+            <code className="font-mono">{orderNo ?? "(không liên kết)"}</code>{" "}
+            chưa có snapshot BOM. Bạn cần vào trang đơn hàng → tab{" "}
+            <strong>Snapshot</strong> → bấm{" "}
+            <strong>"Explode snapshot"</strong> với revision RELEASED và target
+            qty = {plannedQty}. Sau đó quay lại đây để bắt đầu lắp ráp.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {orderNo ? (
+              <Link
+                href={`/orders/${encodeURIComponent(orderNo)}`}
+                className="inline-flex items-center gap-1 rounded-md bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-700"
+              >
+                <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                Mở đơn {orderNo}
+              </Link>
+            ) : null}
+            <Link
+              href="/orders"
+              className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100"
+            >
+              Danh sách đơn hàng
+            </Link>
+            <Link
+              href="/assembly"
+              className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+              Quay lại danh sách lắp ráp
+            </Link>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ---------------- ManualPickPanel ----------------
+
+interface ManualRowState {
+  qty: string;
+  lot: string;
+  note: string;
+}
+
+function ManualPickPanel({
+  progress,
+  onPick,
+  isSubmitting,
+}: {
+  progress: NonNullable<ReturnType<typeof useWoProgress>["data"]>["data"];
+  onPick: (
+    line: WoProgressLine,
+    qty: number,
+    lotCode: string | null,
+    note: string | null,
+  ) => Promise<boolean> | boolean | void;
+  isSubmitting: boolean;
+}) {
+  const [rows, setRows] = React.useState<Record<string, ManualRowState>>({});
+
+  const updateRow = (
+    snapshotLineId: string,
+    patch: Partial<ManualRowState>,
+  ) => {
+    setRows((prev) => ({
+      ...prev,
+      [snapshotLineId]: {
+        qty: prev[snapshotLineId]?.qty ?? "",
+        lot: prev[snapshotLineId]?.lot ?? "",
+        note: prev[snapshotLineId]?.note ?? "",
+        ...patch,
+      },
+    }));
+  };
+
+  const handlePickAll = () => {
+    const next: Record<string, ManualRowState> = { ...rows };
+    for (const l of progress.lines) {
+      const remaining = Math.max(0, l.requiredQty - l.completedQty);
+      if (remaining <= 0) continue;
+      next[l.snapshotLineId] = {
+        qty: String(remaining),
+        lot: rows[l.snapshotLineId]?.lot ?? "",
+        note: rows[l.snapshotLineId]?.note ?? "",
+      };
+    }
+    setRows(next);
+  };
+
+  const submitRow = async (line: WoProgressLine) => {
+    const r = rows[line.snapshotLineId];
+    const qty = num(r?.qty);
+    const remaining = Math.max(0, line.requiredQty - line.completedQty);
+    if (qty <= 0) {
+      toast.warning("Nhập số lượng pick > 0");
+      return;
+    }
+    if (qty > remaining) {
+      toast.error(`Chỉ còn ${remaining} cần lắp cho ${line.componentSku}`);
+      return;
+    }
+    const ok = await onPick(
+      line,
+      qty,
+      r?.lot?.trim() || null,
+      r?.note?.trim() || null,
+    );
+    if (ok) {
+      // reset row
+      setRows((prev) => ({
+        ...prev,
+        [line.snapshotLineId]: { qty: "", lot: "", note: "" },
+      }));
+    }
+  };
+
+  return (
+    <section className="overflow-hidden rounded-md border border-zinc-200 bg-white">
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 bg-zinc-50 px-3 py-2">
+        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-zinc-500">
+          <ClipboardList className="h-3.5 w-3.5" aria-hidden />
+          Bảng nhập thủ công ({progress.lines.length} dòng BOM)
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handlePickAll}
+            disabled={isSubmitting}
+            title="Tự động điền số lượng = Còn lại cho mọi dòng"
+          >
+            <Plus className="h-3.5 w-3.5" aria-hidden />
+            Pick tất cả còn lại
+          </Button>
+        </div>
+      </header>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead className="border-b border-zinc-200 bg-zinc-50 text-[10px] uppercase tracking-wider text-zinc-500">
+            <tr>
+              <th className="w-10 px-2 py-2 text-left font-medium">#</th>
+              <th className="px-3 py-2 text-left font-medium">SKU</th>
+              <th className="px-3 py-2 text-left font-medium">Tên</th>
+              <th className="px-3 py-2 text-right font-medium">Yêu cầu</th>
+              <th className="px-3 py-2 text-right font-medium">Đã pick</th>
+              <th className="px-3 py-2 text-right font-medium">Còn lại</th>
+              <th className="w-44 px-3 py-2 text-center font-medium">
+                Pick lần này
+              </th>
+              <th className="w-44 px-3 py-2 text-left font-medium">
+                Lot/Serial
+              </th>
+              <th className="px-3 py-2 text-left font-medium">Ghi chú</th>
+              <th className="w-24 px-3 py-2 text-center font-medium">
+                Hành động
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {progress.lines.map((l, idx) => {
+              const remaining = Math.max(0, l.requiredQty - l.completedQty);
+              const done = remaining === 0;
+              const r = rows[l.snapshotLineId] ?? {
+                qty: "",
+                lot: "",
+                note: "",
+              };
+              const reservation = l.reservations.find(
+                (x) => x.status === "ACTIVE" && x.reservedQty > 0,
+              );
+              return (
+                <tr
+                  key={l.snapshotLineId}
+                  className={cn(
+                    "border-t border-zinc-100 align-top transition-colors",
+                    done && "bg-emerald-50/40",
+                  )}
+                >
+                  <td className="px-2 py-2 text-zinc-400 tabular-nums">
+                    {idx + 1}
+                  </td>
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-1">
+                      <Package
+                        className={cn(
+                          "h-3.5 w-3.5",
+                          done ? "text-emerald-500" : "text-zinc-400",
+                        )}
+                        aria-hidden
+                      />
+                      <code className="font-mono text-xs font-semibold">
+                        {l.componentSku}
+                      </code>
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 text-zinc-700">
+                    {l.componentName}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {l.requiredQty}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums font-semibold">
+                    {l.completedQty}
+                  </td>
+                  <td
+                    className={cn(
+                      "px-3 py-2 text-right tabular-nums",
+                      done ? "text-emerald-700" : "text-zinc-600",
+                    )}
+                  >
+                    {remaining}
+                  </td>
+                  <td className="px-3 py-2">
+                    {done ? (
+                      <Badge variant="success" className="text-[10px]">
+                        Đã đủ
+                      </Badge>
+                    ) : (
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          type="button"
+                          className="inline-flex h-6 w-6 items-center justify-center rounded border border-zinc-200 text-zinc-600 hover:bg-zinc-100 disabled:opacity-50"
+                          onClick={() =>
+                            updateRow(l.snapshotLineId, {
+                              qty: String(Math.max(0, num(r.qty) - 1)),
+                            })
+                          }
+                          disabled={isSubmitting || num(r.qty) <= 0}
+                          aria-label="Giảm 1"
+                        >
+                          <Minus className="h-3 w-3" aria-hidden />
+                        </button>
+                        <Input
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          max={remaining}
+                          value={r.qty}
+                          onChange={(e) =>
+                            updateRow(l.snapshotLineId, {
+                              qty: e.target.value,
+                            })
+                          }
+                          placeholder="0"
+                          className="h-7 w-16 text-center text-xs"
+                          disabled={isSubmitting}
+                        />
+                        <button
+                          type="button"
+                          className="inline-flex h-6 w-6 items-center justify-center rounded border border-zinc-200 text-zinc-600 hover:bg-zinc-100 disabled:opacity-50"
+                          onClick={() =>
+                            updateRow(l.snapshotLineId, {
+                              qty: String(
+                                Math.min(remaining, num(r.qty) + 1),
+                              ),
+                            })
+                          }
+                          disabled={isSubmitting || num(r.qty) >= remaining}
+                          aria-label="Tăng 1"
+                        >
+                          <Plus className="h-3 w-3" aria-hidden />
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    <Input
+                      value={r.lot}
+                      onChange={(e) =>
+                        updateRow(l.snapshotLineId, { lot: e.target.value })
+                      }
+                      placeholder={
+                        reservation?.lotCode
+                          ? `Mặc định: ${reservation.lotCode}`
+                          : "Lot/Serial (tuỳ chọn)"
+                      }
+                      className="h-7 text-xs"
+                      disabled={done || isSubmitting}
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <Input
+                      value={r.note}
+                      onChange={(e) =>
+                        updateRow(l.snapshotLineId, { note: e.target.value })
+                      }
+                      placeholder="Ghi chú (tuỳ chọn)"
+                      className="h-7 text-xs"
+                      disabled={done || isSubmitting}
+                    />
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    {done ? (
+                      <span className="text-[11px] text-emerald-700">—</span>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void submitRow(l)}
+                        disabled={isSubmitting || num(r.qty) <= 0}
+                      >
+                        Lưu pick
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <footer className="border-t border-zinc-200 bg-zinc-50 px-3 py-2 text-[11px] text-zinc-500">
+        Tip: nhập tay khi linh kiện không có barcode. Lot/Serial tuỳ chọn —
+        nếu để trống sẽ dùng lot reservation mặc định.
+      </footer>
+    </section>
+  );
+}
+
+// ---------------- BarcodeModePanel ----------------
+
+function BarcodeModePanel({
+  progress,
+  log,
+  isPending,
+  onScan,
+}: {
+  progress: NonNullable<ReturnType<typeof useWoProgress>["data"]>["data"];
+  log: ScanLog[];
+  isPending: boolean;
+  onScan: (code: string) => void;
+}) {
+  return (
+    <section className="grid gap-4 lg:grid-cols-[3fr,2fr]">
+      {/* BOM lines table */}
+      <div className="overflow-hidden rounded-md border border-zinc-200 bg-white">
+        <header className="flex h-9 items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
+          <ClipboardList className="h-3.5 w-3.5" aria-hidden />
+          BOM lines cần lắp ({progress.lines.length})
+        </header>
+        <table className="w-full text-xs">
+          <thead className="border-b border-zinc-200 bg-zinc-50 text-[10px] uppercase tracking-wider text-zinc-500">
+            <tr>
+              <th className="px-3 py-2 text-left font-medium">SKU</th>
+              <th className="px-3 py-2 text-left font-medium">Tên</th>
+              <th className="px-3 py-2 text-right font-medium">Yêu cầu</th>
+              <th className="px-3 py-2 text-right font-medium">Đã pick</th>
+              <th className="px-3 py-2 text-right font-medium">Còn lại</th>
+              <th className="px-3 py-2 text-center font-medium">Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody>
+            {progress.lines.map((l) => {
+              const remaining = Math.max(0, l.requiredQty - l.completedQty);
+              const done = remaining === 0;
+              return (
+                <tr
+                  key={l.snapshotLineId}
+                  className={cn(
+                    "border-t border-zinc-100 transition-colors",
+                    done && "bg-emerald-50/40",
+                  )}
+                >
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-1">
+                      <Package
+                        className={cn(
+                          "h-3.5 w-3.5",
+                          done ? "text-emerald-500" : "text-zinc-400",
+                        )}
+                        aria-hidden
+                      />
+                      <code className="font-mono text-xs font-semibold">
+                        {l.componentSku}
+                      </code>
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 text-zinc-700">
+                    {l.componentName}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {l.requiredQty}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums font-semibold">
+                    {l.completedQty}
+                  </td>
+                  <td
+                    className={cn(
+                      "px-3 py-2 text-right tabular-nums",
+                      done ? "text-emerald-700" : "text-zinc-600",
+                    )}
+                  >
+                    {remaining}
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    <Badge
+                      variant={done ? "success" : "outline"}
+                      className="text-[10px]"
+                    >
+                      {done ? "Đủ" : l.state}
+                    </Badge>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <div className="rounded-md border border-zinc-200 bg-white p-3">
+          <BarcodeScanInput
+            onScan={onScan}
+            placeholder="Quét barcode component (USB/BT + Enter)"
+            disabled={isPending}
+            autoFocus
+            label="Quét / Nhập mã barcode"
+          />
+          {isPending ? (
+            <p className="mt-2 inline-flex items-center gap-1 text-[11px] text-zinc-500">
+              <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+              Đang ghi nhận scan…
+            </p>
+          ) : (
+            <p className="mt-2 text-[11px] text-zinc-400">
+              Tip: ô luôn auto-focus. Nếu mất focus, click vào ô. Phím tắt: gõ
+              tay rồi Enter.
+            </p>
+          )}
+        </div>
+
+        <div className="overflow-hidden rounded-md border border-zinc-200 bg-white">
+          <header className="flex h-9 items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
+            <History className="h-3.5 w-3.5" aria-hidden />
+            10 scan gần nhất ({log.length})
+          </header>
+          {log.length === 0 ? (
+            <div className="px-4 py-8 text-center text-xs text-zinc-500">
+              Chưa có scan nào. Quét barcode để bắt đầu.
+            </div>
+          ) : (
+            <ul className="max-h-[420px] divide-y divide-zinc-100 overflow-y-auto">
+              {log.map((e) => (
+                <li key={e.id} className="px-3 py-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "h-1.5 w-1.5 shrink-0 rounded-full",
+                        e.status === "ok"
+                          ? "bg-emerald-500"
+                          : e.status === "warn"
+                            ? "bg-amber-500"
+                            : e.status === "no-match"
+                              ? "bg-amber-500"
+                              : "bg-red-500",
+                      )}
+                      aria-hidden
+                    />
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
+                      {e.kind}
+                    </span>
+                    <code className="flex-1 truncate font-mono text-[11px] text-zinc-900">
+                      {e.code}
+                    </code>
+                    <span className="shrink-0 text-[10px] tabular-nums text-zinc-400">
+                      {formatTime(e.at)}
+                    </span>
+                  </div>
+                  <p
+                    className={cn(
+                      "mt-0.5 truncate pl-3.5 text-[11px]",
+                      e.status === "ok"
+                        ? "text-emerald-700"
+                        : e.status === "warn" || e.status === "no-match"
+                          ? "text-amber-700"
+                          : "text-red-700",
+                    )}
+                  >
+                    {e.message}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ---------------- SessionsPanel ----------------
+
+function SessionsPanel({
+  isLoading,
+  sessions,
+  gapMinutes,
+}: {
+  isLoading: boolean;
+  sessions: AssemblySession[];
+  gapMinutes: number;
+}) {
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center gap-2 py-12 text-sm text-zinc-500">
+        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+        Đang tải sổ ghi chép đợt lắp ráp…
+      </div>
+    );
+  }
+
+  if (sessions.length === 0) {
+    return (
+      <div className="rounded-md border border-dashed border-zinc-200 bg-zinc-50/50 p-6 text-center">
+        <NotebookPen
+          className="mx-auto h-8 w-8 text-zinc-300"
+          aria-hidden
+        />
+        <p className="mt-2 text-sm font-medium text-zinc-700">
+          Chưa có đợt lắp ráp nào
+        </p>
+        <p className="mt-1 text-xs text-zinc-500">
+          Pick linh kiện ở tab Nhập thủ công hoặc Quét barcode để bắt đầu đợt
+          đầu tiên. Sổ ghi chép sẽ tự nhóm theo cửa sổ {gapMinutes} phút.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-[11px] text-zinc-500">
+        Hệ thống tự nhóm các lần pick thành <strong>đợt</strong> nếu khoảng
+        cách giữa 2 lần &lt; {gapMinutes} phút và cùng người lắp. Mỗi đợt là
+        một bản ghi đóng — bạn không cần thao tác bắt đầu/đóng đợt thủ công.
+      </div>
+
+      {sessions
+        .slice()
+        .reverse()
+        .map((s) => (
+          <SessionCard key={s.sessionNo} session={s} />
+        ))}
+    </section>
+  );
+}
+
+function SessionCard({ session }: { session: AssemblySession }) {
+  const [expanded, setExpanded] = React.useState(session.isLive);
+
+  return (
+    <article
+      className={cn(
+        "overflow-hidden rounded-md border bg-white transition-colors",
+        session.isLive
+          ? "border-indigo-300 ring-1 ring-indigo-100"
+          : "border-zinc-200",
+      )}
+    >
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 px-3 py-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <Badge
+            variant={session.isLive ? "info" : "outline"}
+            className="text-[10px]"
+          >
+            Đợt #{session.sessionNo}
+          </Badge>
+          {session.isLive ? (
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-700">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-indigo-500" />
+              Đang chạy
+            </span>
+          ) : (
+            <span className="text-[11px] text-zinc-500">Đã đóng</span>
+          )}
+          <span className="truncate text-[11px] text-zinc-500">
+            {formatDateTime(session.startedAt)} →{" "}
+            {formatDateTime(session.endedAt)} ·{" "}
+            {formatDurationMs(session.durationMs)}
+          </span>
+        </div>
+        <div className="flex items-center gap-3 text-[11px] text-zinc-600">
+          <span>
+            Người lắp:{" "}
+            <strong className="text-zinc-900">
+              {session.userName ?? "Không rõ"}
+            </strong>
+          </span>
+          <span>
+            <strong className="tabular-nums text-zinc-900">
+              {session.totalLines}
+            </strong>{" "}
+            dòng
+          </span>
+          <span>
+            <strong className="tabular-nums text-zinc-900">
+              {session.totalQty}
+            </strong>{" "}
+            qty
+          </span>
+          <span>
+            <strong className="tabular-nums text-zinc-900">
+              {session.totalScans}
+            </strong>{" "}
+            lần pick
+          </span>
+          <button
+            type="button"
+            className="rounded border border-zinc-200 px-2 py-0.5 text-[11px] text-indigo-600 hover:bg-zinc-50"
+            onClick={() => setExpanded((v) => !v)}
+          >
+            {expanded ? "Ẩn chi tiết" : "Xem chi tiết"}
+          </button>
+        </div>
+      </header>
+
+      {expanded ? (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead className="bg-zinc-50 text-[10px] uppercase tracking-wider text-zinc-500">
+              <tr>
+                <th className="px-3 py-1.5 text-left font-medium">Thời gian</th>
+                <th className="px-3 py-1.5 text-left font-medium">SKU</th>
+                <th className="px-3 py-1.5 text-left font-medium">Tên</th>
+                <th className="px-3 py-1.5 text-right font-medium">Qty</th>
+                <th className="px-3 py-1.5 text-left font-medium">Mã/Lot</th>
+                <th className="px-3 py-1.5 text-center font-medium">Nguồn</th>
+              </tr>
+            </thead>
+            <tbody>
+              {session.lines.map((l) => (
+                <tr
+                  key={l.scanId}
+                  className="border-t border-zinc-100 hover:bg-zinc-50/40"
+                >
+                  <td className="px-3 py-1.5 text-zinc-500 tabular-nums">
+                    {formatTime(new Date(l.scannedAt).getTime())}
+                  </td>
+                  <td className="px-3 py-1.5">
+                    <code className="font-mono text-xs">
+                      {l.componentSku ?? "—"}
+                    </code>
+                  </td>
+                  <td className="px-3 py-1.5 text-zinc-700">
+                    {l.componentName ?? "—"}
+                  </td>
+                  <td className="px-3 py-1.5 text-right tabular-nums font-semibold">
+                    {l.qty}
+                  </td>
+                  <td className="px-3 py-1.5">
+                    <code className="font-mono text-[11px] text-zinc-600">
+                      {l.barcode || "—"}
+                    </code>
+                  </td>
+                  <td className="px-3 py-1.5 text-center">
+                    <Badge
+                      variant={l.mode === "manual" ? "warning" : "info"}
+                      className="text-[10px]"
+                    >
+                      {l.mode === "manual" ? "Thủ công" : "Barcode"}
+                    </Badge>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+    </article>
   );
 }

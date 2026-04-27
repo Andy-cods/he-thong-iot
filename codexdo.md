@@ -123,6 +123,86 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
+### TASK-20260427-027 — Redesign Dashboard "Tổng quan" v2 (hiện đại + bento + activity)
+- **Trạng thái:** DONE
+- **Tạo:** 2026-04-27 19:45 (+07)
+- **Bắt đầu:** 2026-04-27 21:30 (+07) bởi Claude (ui-ux-designer)
+- **Hoàn thành:** 2026-04-27 22:15 (+07)
+- **Ưu tiên:** P1
+
+**Mô tả:** User: "redesign lại toàn bộ phần frontend, hiện đại + chuyên nghiệp hơn, giờ còn sơ xài". T-010 đã đẹp nhưng cần upgrade level: bento grid + activity feed + sparklines + glass layers.
+
+**Output / log:**
+
+API mới (3 endpoint, cache Redis):
+- `apps/web/src/app/api/dashboard/activity/route.ts` — GET 10 audit_event gần nhất (LEFT JOIN userAccount lấy fullName), cache 30s.
+- `apps/web/src/app/api/dashboard/action-items/route.ts` — GET aggregate 3 group: prDraft (PR DRAFT), poOverdue (PO chưa đóng + ETA quá hạn), woOverdue (WO IN_PROGRESS quá planned_end), cache 30s.
+- `apps/web/src/app/api/dashboard/wo-trend/route.ts` — GET 7 ngày COMPLETED (timezone Asia/Ho_Chi_Minh, generate_series LEFT JOIN), cache 5 phút.
+
+Component mới (5 file):
+- `apps/web/src/components/dashboard/HeroOverviewCard.tsx` — Hero glass + ambient gradient + 3 quick stats (WO running / SKU active / PR pending) + grid pattern + live status pulse.
+- `apps/web/src/components/dashboard/MetricCard.tsx` — Replacement của ProgressBarCard với glass layer, gradient blob hông, count-up animation (useCountUp easeOutQuart 700ms, respect prefers-reduced-motion), variant `default|large` (large = sparkline + sub-stat slot), stagger fade-in qua CSS var `--stagger-delay`.
+- `apps/web/src/components/dashboard/Sparkline.tsx` — SVG inline mini bar chart, 3 tone, bar cuối tô đậm.
+- `apps/web/src/components/dashboard/RecentActivityCard.tsx` — Vertical timeline 10 audit, icon + tone gắn cứng theo action enum (CREATE/UPDATE/WO_*/ECO_*…), polling 60s + relative time tick 30s, empty/loading state.
+- `apps/web/src/components/dashboard/ActionItemsCard.tsx` — 3 row PR/PO/WO với count badge, zero state ShieldCheck "Tất cả ổn định".
+- `apps/web/src/components/dashboard/LowStockCard.tsx` — Bảng top 5 SKU (filter client-side `available < minStockQty`, sort gap desc), 2 state badge (Sắp hết / Thiếu gấp <30%), polling 120s.
+
+File sửa:
+- `apps/web/src/components/dashboard/DashboardClient.tsx` — Refactor sang bento 12-col: row1 Hero, row2 metrics (4+4 + large rose row-span-2 cột phải, sau đó 3+3+2), row3 Activity 8 + ActionItems 4, row4 LowStock 12. Fetch wo-trend riêng polling 5 phút.
+- `apps/web/src/app/(app)/page.tsx` — max-w 1280 → 1440 cho bento thoáng.
+- `apps/web/src/app/globals.css` — keyframes `dashboard-fade-up` + class `.dashboard-stagger-fade` với CSS var `--stagger-delay`, reduced-motion guard.
+
+File legacy giữ nguyên (không có ai import nữa, để tránh phá khả năng rollback): `DashboardHeader.tsx`, `ProgressBarStack.tsx`, `ProgressBarCard.tsx`.
+
+Verify: `pnpm.cmd --filter @iot/web typecheck` exit 0.
+
+---
+
+### TASK-20260427-028 — Vận hành (Lắp ráp) — manual entry + session log
+- **Trạng thái:** DONE
+- **Bắt đầu:** 2026-04-27 20:30 (+07) bởi Claude (executor)
+- **Hoàn thành:** 2026-04-27 21:00 (+07)
+- **Ưu tiên:** P0
+
+**Mô tả:** User: "barcode chỉ là option, nhiều linh kiện không thể quét → phải nhập thủ công. 1 BOM có nhiều đợt lắp ráp → cần sổ ghi chép từng lần". Workspace cần 3 tab (manual default + barcode + sessions) + assembly session log + fix bug "WO không có BOM line".
+
+**Output / log:**
+- File sửa: `apps/web/src/app/(app)/assembly/[woId]/page.tsx` (rewrite 3-tab layout: Manual default + Barcode + Sessions; URL `?mode=manual|barcode|sessions`); `apps/web/src/app/api/assembly/scan/route.ts` (mở rộng schema: `mode`, `lotCode`, `note`, `qty` default 1; audit ghi mode + note); `apps/web/src/hooks/useAssembly.ts` (thêm `mode/lotCode/note` + hook `useAssemblySessions` + invalidate sessions key).
+- File mới: `apps/web/src/app/api/assembly/wo/[id]/sessions/route.ts` — group `assembly_scan` theo window 30 phút (gap > 30 min hoặc đổi user → session mới); session cuối còn trong window → `isLive=true`. KHÔNG migration — phương án window-based.
+- Empty state "WO không có BOM line": replace text mờ bằng card amber có CTA mở `/orders/{orderNo}` để explode snapshot, kèm hint revision RELEASED + targetQty.
+- API scan request body new shape: `{ woId, snapshotLineId, lotSerialId, qty=1, scanId, barcode='', scannedAt, deviceId?, mode?='barcode'|'manual', lotCode?, note? }`. Manual mode → `deviceId='manual-entry'`, audit notes ghi rõ mode + note.
+- Sessions tab UI: card per session (đợt #N, timestamp, người lắp, total lines/qty/scans, live indicator), expand chi tiết hiển thị bảng từng scan với badge Thủ công/Barcode.
+- Manual tab UI: bảng inline edit qty/lot/note, nút +/- bên qty, "Pick tất cả còn lại" auto-fill, "Lưu pick" per row. Done row → bg-emerald + badge "Đã đủ".
+- `pnpm --filter @iot/web typecheck` exit 0.
+
+---
+
+### TASK-20260427-029 — BOM List redesign professional
+- **Trạng thái:** DONE
+- **Ưu tiên:** P1
+- **Bắt đầu:** 2026-04-27 (+07)
+- **Hoàn thành:** 2026-04-27 (+07)
+
+**Mô tả:** User: "design lại BOM LIST đẹp + chuyên nghiệp". Toggle Table↔Card view, filter rich, sort, hover preview, empty state.
+
+**Log:**
+- `apps/web/src/components/bom/BomFilterBarPlus.tsx` (NEW, 422 lines) — Search 260px + multi-status chip group (Tất cả + 3 status với colored dot) + advanced filter popover (dateFrom/dateTo + minComponents range slider 0-200 step 5 + hasSheet checkbox) + native sort `<select>` 6 options + view toggle table↔card. Active filter count badge khi có advanced filter.
+- `apps/web/src/components/bom/BomCardGrid.tsx` (NEW, 371 lines) — Grid 1/2/3/4 col responsive. Mỗi card: code mono + StatusDotBadge (colored dot prefix), name line-clamp-2, parent SKU + description preview, 3 stat boxes (Linh kiện · Sheet · Cập nhật) trong panel zinc-50, hover overlay 4 actions (Grid · Mở · Sao chép · Xoá) với shadow-md + lift. Card click → push `/bom/[id]/grid`. Skeleton loader 8 cards.
+- `apps/web/src/components/bom/BomListTable.tsx` (UPDATED, 544 lines) — Sort header click với Icon ArrowUp/Down/UpDown indicator (Mã BOM · Tên · Linh kiện · Cập nhật cols sortable). Status badge replace `<StatusBadge>` → `<StatusDotPill>` rounded-full với colored dot prefix (DRAFT amber · ACTIVE emerald · OBSOLETE zinc). Mỗi row wrapped trong Radix Tooltip với hover preview 400ms delay: code + name + grid 2x2 (Parent SKU/Sheet/Linh kiện/Cập nhật) + description line-clamp-3. Thêm `onDelete` action (Trash2 icon, red-500). Thêm `description?` + `sheetCount?` field vào `BomRow`.
+- `apps/web/src/components/engineering/BomTab.tsx` (UPDATED, 575 lines) — Replace `BomFilterBar` → `BomFilterBarPlus`. URL nuqs state extend: `view` (table|card), `sort` (6 enum), `dateFrom`, `dateTo`, `minComponents`, `hasSheet`, `statuses` (CSV). Server filter: q + status + hasComponents + sort. Client-side post-filter: dateRange (updatedAt as proxy) + minComponents (componentCount). Sort header click toggle dir. Empty state pro với Layers icon 56px indigo-300 + 3 CTA (Tạo + Import + Xem hướng dẫn). Single-row delete confirm dialog typed XOA.
+- `pnpm.cmd --filter @iot/web typecheck` exit 0.
+
+---
+
+### TASK-20260427-030 — Receiving form simplify (bỏ scan, manual rõ ràng)
+- **Trạng thái:** DONE
+- **Hoàn thành:** 2026-04-27 20:35 (+07)
+- **Ưu tiên:** P0
+
+**Output / log:** Sửa `apps/web/src/app/(app)/receiving/[poId]/wizard/page.tsx`. Bỏ BarcodeScanInput + skuMap + handleBarcodeScan. Step 2 thành bảng 10 cột (#/SKU/Tên/Đặt/Đã/Còn/Nhận thực tế input/Lô-Serial input/QC OK-NG-Chờ/↺). Thêm fillAll/resetAll/resetLine handlers. Step 3 chip stats OK/NG/Chờ với màu green/red/amber + nút "← Quay lại sửa". Form cũ /receiving/[poId]/page.tsx (PWA) giữ nguyên. Typecheck PASS.
+
+---
+
 ### TASK-20260427-024 — Fix cột "KÍCH THƯỚC" BOM grid hiển thị toàn "—"
 - **Trạng thái:** DONE
 - **Tạo:** 2026-04-27 18:50 (+07) bởi Claude (planner)

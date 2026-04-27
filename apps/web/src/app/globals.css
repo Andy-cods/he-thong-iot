@@ -433,6 +433,33 @@
   .row-selected {
     @apply bg-indigo-50 border-l-2 border-indigo-500;
   }
+
+  /* ============================================================
+   * V3.2 Dashboard — stagger fade-in (TASK-20260427-027).
+   * Mỗi card có CSS variable `--stagger-delay` (default 0ms).
+   * Container set `--stagger-delay: <Nms>` qua inline style.
+   * ============================================================ */
+  .dashboard-stagger-fade {
+    animation: dashboard-fade-up 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: var(--stagger-delay, 0ms);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dashboard-stagger-fade {
+      animation: none !important;
+    }
+  }
+}
+
+@keyframes dashboard-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ============================================================

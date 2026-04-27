@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FileUp, Plus, Sparkles } from "lucide-react";
+import { BookOpen, FileUp, Layers, Plus, Sparkles } from "lucide-react";
 import {
   parseAsInteger,
   parseAsString,
@@ -11,16 +11,24 @@ import {
   useQueryStates,
 } from "nuqs";
 import { toast } from "sonner";
+import { type BomStatus } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DialogConfirm } from "@/components/ui/dialog";
 import { BulkActionBar } from "@/components/items/BulkActionBar";
 import {
-  BomFilterBar,
-  type BomFilterBarState,
-  type BomStatusMode,
-} from "@/components/bom/BomFilterBar";
-import { BomListTable, type BomRow } from "@/components/bom/BomListTable";
+  BomFilterBarPlus,
+  initialBomFilterPlusState,
+  type BomFilterPlusState,
+  type BomSortKey,
+  type BomViewMode,
+} from "@/components/bom/BomFilterBarPlus";
+import {
+  BomListTable,
+  type BomRow,
+  type BomSortField,
+} from "@/components/bom/BomListTable";
+import { BomCardGrid, type BomCardItem } from "@/components/bom/BomCardGrid";
 import { useBomList, useDeleteBomTemplate } from "@/hooks/useBom";
 import {
   isSelected,
@@ -31,15 +39,30 @@ import {
 import type { BomFilter, ItemFilter } from "@/lib/query-keys";
 import { useHotkey } from "@/lib/shortcuts";
 
-const STATUS_MODES = ["all", "active", "draft-obsolete"] as const;
+const VIEW_MODES = ["table", "card"] as const;
+const SORT_KEYS = [
+  "updatedAt:desc",
+  "updatedAt:asc",
+  "name:asc",
+  "name:desc",
+  "componentCount:desc",
+  "componentCount:asc",
+] as const;
 
 /**
- * V2 `/bom` list page — Linear compact, reuse pattern `/items`.
+ * V2.1 BomTab — TASK-20260427-029.
  *
- * - Virtualized table 36px + sticky code mono.
- * - URL nuqs state: q, statusMode, page, pageSize, sort.
- * - Bulk delete dialog type-to-confirm "XOA".
- * - Keyboard: /jke Space.
+ * Engineering hub `/engineering?tab=bom` BOM List redesign:
+ * - Toggle table ↔ card view (URL `?view=`).
+ * - Filter rich: search + multi-status chips + dateRange + minComponents
+ *   slider + hasSheet boolean (URL persisted).
+ * - Sort dropdown 6 modes.
+ * - Hover preview tooltip (in table mode).
+ * - Empty state pro với CTA Tạo + Import + Hướng dẫn.
+ *
+ * Filter mapping:
+ * - q, statuses, hasSheet → SERVER (BomFilter API).
+ * - dateFrom, dateTo, minComponents → CLIENT-side (API chưa hỗ trợ).
  */
 export function BomTab() {
   const router = useRouter();
@@ -47,16 +70,37 @@ export function BomTab() {
   const [urlState, setUrlState] = useQueryStates(
     {
       q: parseAsString.withDefault(""),
-      statusMode: parseAsStringEnum([...STATUS_MODES]).withDefault("all"),
+      statuses: parseAsString.withDefault(""), // CSV "DRAFT,ACTIVE"
+      view: parseAsStringEnum([...VIEW_MODES]).withDefault("table"),
+      sort: parseAsStringEnum([...SORT_KEYS]).withDefault("updatedAt:desc"),
+      dateFrom: parseAsString.withDefault(""),
+      dateTo: parseAsString.withDefault(""),
+      minComponents: parseAsInteger.withDefault(0),
+      hasSheet: parseAsString.withDefault(""), // "1" or ""
       page: parseAsInteger.withDefault(1),
       pageSize: parseAsInteger.withDefault(50),
-      sort: parseAsString.withDefault("updatedAt"),
-      sortDir: parseAsStringEnum(["asc", "desc"]).withDefault("desc"),
     },
     { history: "replace", shallow: true, throttleMs: 250 },
   );
 
-  const [searchInput, setSearchInput] = React.useState(urlState.q);
+  const view = urlState.view as BomViewMode;
+  const sort = urlState.sort as BomSortKey;
+
+  const filterState: BomFilterPlusState = React.useMemo(() => {
+    const statuses = urlState.statuses
+      ? (urlState.statuses.split(",").filter(Boolean) as BomStatus[])
+      : [];
+    return {
+      q: urlState.q,
+      statuses,
+      dateFrom: urlState.dateFrom,
+      dateTo: urlState.dateTo,
+      minComponents: urlState.minComponents,
+      hasSheet: urlState.hasSheet === "1",
+    };
+  }, [urlState]);
+
+  const [searchInput, setSearchInput] = React.useState(filterState.q);
   React.useEffect(() => {
     const t = setTimeout(() => {
       if (searchInput !== urlState.q) {
@@ -74,17 +118,16 @@ export function BomTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlState.q]);
 
-  const statusMode = urlState.statusMode as BomStatusMode;
-
-  const filterState: BomFilterBarState = {
-    q: searchInput,
-    statusMode,
-  };
-
-  const handleFilterChange = (patch: Partial<BomFilterBarState>) => {
+  const handleFilterChange = (patch: Partial<BomFilterPlusState>) => {
     const next: Parameters<typeof setUrlState>[0] = { page: 1 };
     if (patch.q !== undefined) next.q = patch.q;
-    if (patch.statusMode !== undefined) next.statusMode = patch.statusMode;
+    if (patch.statuses !== undefined)
+      next.statuses = patch.statuses.join(",");
+    if (patch.dateFrom !== undefined) next.dateFrom = patch.dateFrom;
+    if (patch.dateTo !== undefined) next.dateTo = patch.dateTo;
+    if (patch.minComponents !== undefined)
+      next.minComponents = patch.minComponents;
+    if (patch.hasSheet !== undefined) next.hasSheet = patch.hasSheet ? "1" : "";
     void setUrlState(next);
   };
 
@@ -92,33 +135,40 @@ export function BomTab() {
     setSearchInput("");
     void setUrlState({
       q: "",
-      statusMode: "all",
+      statuses: "",
+      dateFrom: "",
+      dateTo: "",
+      minComponents: 0,
+      hasSheet: "",
       page: 1,
     });
   };
 
-  const queryFilter: BomFilter = React.useMemo(() => {
-    let status: BomFilter["status"];
-    if (statusMode === "active") status = ["ACTIVE"];
-    else if (statusMode === "draft-obsolete") status = ["DRAFT", "OBSOLETE"];
-    return {
-      q: urlState.q || undefined,
-      status,
+  // Map sort key → server params.
+  const [sortField, sortDir] = sort.split(":") as [BomSortField, "asc" | "desc"];
+
+  const queryFilter: BomFilter = React.useMemo(
+    () => ({
+      q: filterState.q || undefined,
+      status: filterState.statuses.length > 0 ? filterState.statuses : undefined,
+      hasComponents: filterState.hasSheet ? true : undefined,
       page: urlState.page,
       pageSize: urlState.pageSize,
-      sort: urlState.sort,
-      sortDir: urlState.sortDir as "asc" | "desc",
-    };
-  }, [urlState, statusMode]);
+      sort: sortField,
+      sortDir,
+    }),
+    [filterState, urlState.page, urlState.pageSize, sortField, sortDir],
+  );
 
   const query = useBomList(queryFilter);
-  const total = query.data?.meta.total ?? 0;
-  const rows: BomRow[] = React.useMemo(
+  const totalRaw = query.data?.meta.total ?? 0;
+  const rowsRaw: BomRow[] = React.useMemo(
     () =>
       (query.data?.data ?? []).map((r) => ({
         id: r.id,
         code: r.code,
         name: r.name,
+        description: r.description,
         parentItemSku: r.parentItemSku,
         parentItemName: r.parentItemName,
         targetQty: r.targetQty,
@@ -128,17 +178,42 @@ export function BomTab() {
       })),
     [query.data],
   );
-  const pageCount = Math.max(1, Math.ceil(total / urlState.pageSize));
 
-  // useSelection typed by ItemFilter, ta cast qua shape tương thích.
+  // CLIENT-side post-filter: dateRange + minComponents (API chưa hỗ trợ).
+  const rows: BomRow[] = React.useMemo(() => {
+    const fromTs = filterState.dateFrom
+      ? new Date(filterState.dateFrom).getTime()
+      : null;
+    const toTs = filterState.dateTo
+      ? new Date(filterState.dateTo).getTime() + 24 * 60 * 60 * 1000 // inclusive end-of-day
+      : null;
+    return rowsRaw.filter((r) => {
+      if (filterState.minComponents > 0 && r.componentCount < filterState.minComponents) {
+        return false;
+      }
+      if (fromTs !== null || toTs !== null) {
+        // updatedAt as proxy for "thời điểm tạo/cập nhật"
+        const t = new Date(r.updatedAt).getTime();
+        if (fromTs !== null && t < fromTs) return false;
+        if (toTs !== null && t > toTs) return false;
+      }
+      return true;
+    });
+  }, [rowsRaw, filterState.minComponents, filterState.dateFrom, filterState.dateTo]);
+
+  const total = rows.length === rowsRaw.length ? totalRaw : rows.length;
+  const pageCount = Math.max(1, Math.ceil(totalRaw / urlState.pageSize));
+
   const [selection, selectionActions] = useSelection(
     queryFilter as unknown as ItemFilter,
   );
   const selCount = selectionCount(selection, total);
 
   const [focusedIndex, setFocusedIndex] = React.useState(-1);
-
   const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
+  const [singleDeleteRow, setSingleDeleteRow] = React.useState<BomRow | null>(
+    null,
+  );
   const deleteBom = useDeleteBomTemplate();
 
   const searchRef = React.useRef<HTMLInputElement>(null);
@@ -200,26 +275,83 @@ export function BomTab() {
     setBulkDeleteOpen(false);
   };
 
+  const handleSingleDelete = async () => {
+    if (!singleDeleteRow) return;
+    try {
+      await deleteBom.mutateAsync(singleDeleteRow.id);
+      toast.success(`Đã xoá BOM ${singleDeleteRow.code}.`);
+    } catch (err) {
+      toast.error(
+        (err as Error)?.message ?? "Không xoá được BOM. Vui lòng thử lại.",
+      );
+    } finally {
+      setSingleDeleteRow(null);
+    }
+  };
+
   const handleExportStub = () => {
     toast.info("Xuất Excel: sẽ có ở V1.2.");
   };
 
+  const handleSortHeaderClick = (field: BomSortField) => {
+    // Toggle direction when clicking same field, else default desc.
+    const isSame = field === sortField;
+    const nextDir: "asc" | "desc" = isSame
+      ? sortDir === "asc"
+        ? "desc"
+        : "asc"
+      : "desc";
+    void setUrlState({ sort: `${field}:${nextDir}` as BomSortKey, page: 1 });
+  };
+
   const isEmpty = !query.isLoading && rows.length === 0;
-  const hasFilter = urlState.q !== "" || statusMode !== "all";
+  const hasFilter =
+    filterState.q !== "" ||
+    filterState.statuses.length > 0 ||
+    filterState.dateFrom !== "" ||
+    filterState.dateTo !== "" ||
+    filterState.minComponents > 0 ||
+    filterState.hasSheet;
+
+  // Card-view items
+  const cardItems: BomCardItem[] = React.useMemo(
+    () =>
+      rows.map((r) => ({
+        id: r.id,
+        code: r.code,
+        name: r.name,
+        description: r.description,
+        parentItemSku: r.parentItemSku,
+        status: r.status,
+        componentCount: r.componentCount,
+        sheetCount: r.componentCount > 0 ? 1 : 0, // proxy
+        updatedAt: r.updatedAt,
+      })),
+    [rows],
+  );
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
-      <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-4">
+    <div className="flex h-full flex-col overflow-hidden bg-zinc-50/40">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-white px-6 py-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
             BOM List
           </h1>
           <p className="mt-0.5 text-xs text-zinc-500">
-            Danh sách BOM · {total.toLocaleString("vi-VN")} BOM
+            Danh sách BOM ·{" "}
+            <span className="tabular-nums">
+              {totalRaw.toLocaleString("vi-VN")}
+            </span>{" "}
+            BOM
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button asChild variant="outline" size="sm" className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100">
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+          >
             <Link href="/playground/univer">
               <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
               Thử Grid mới (Excel-like)
@@ -240,22 +372,26 @@ export function BomTab() {
         </div>
       </header>
 
-      <BomFilterBar
+      <BomFilterBarPlus
         state={filterState}
         onChange={handleFilterChange}
         onReset={handleReset}
-        totalCount={total}
-        onSearchInput={setSearchInput}
+        onSearchInput={(v) => setSearchInput(v)}
         searchInputRef={searchRef}
+        totalCount={total}
+        view={view}
+        onViewChange={(v) => void setUrlState({ view: v })}
+        sort={sort}
+        onSortChange={(s) => void setUrlState({ sort: s, page: 1 })}
       />
 
-      <div className="flex-1 overflow-hidden p-4">
+      <div className="flex-1 overflow-auto p-4">
         {isEmpty ? (
           hasFilter ? (
             <EmptyState
               preset="no-filter-match"
               title="Không tìm thấy BOM khớp bộ lọc"
-              description="Thử thay đổi từ khoá hoặc xoá bộ lọc trạng thái."
+              description="Thử thay đổi từ khoá hoặc xoá bộ lọc đang áp dụng."
               actions={
                 <Button variant="ghost" size="sm" onClick={handleReset}>
                   Xoá bộ lọc
@@ -264,9 +400,16 @@ export function BomTab() {
             />
           ) : (
             <EmptyState
-              preset="no-bom"
+              icon={
+                <Layers
+                  className="text-indigo-300"
+                  size={56}
+                  strokeWidth={1.5}
+                  aria-hidden="true"
+                />
+              }
               title="Chưa có BOM nào"
-              description="Tạo BOM mới hoặc nhập từ Excel để bắt đầu."
+              description="Tạo BOM đầu tiên hoặc nhập từ Excel — mỗi BOM bao gồm danh sách linh kiện, sheet vật liệu và quy trình sản xuất."
               actions={
                 <>
                   <Button asChild size="sm">
@@ -275,27 +418,50 @@ export function BomTab() {
                       Tạo BOM mới
                     </Link>
                   </Button>
-                  <Button asChild variant="ghost" size="sm">
+                  <Button asChild variant="outline" size="sm">
                     <Link href="/bom/import">
                       <FileUp className="h-3.5 w-3.5" aria-hidden="true" />
-                      Nhập Excel
+                      Import Excel
+                    </Link>
+                  </Button>
+                  <Button asChild variant="ghost" size="sm">
+                    <Link href="/docs/context-part-2.md" target="_blank">
+                      <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
+                      Xem hướng dẫn
                     </Link>
                   </Button>
                 </>
               }
             />
           )
-        ) : (
-          <BomListTable
-            rows={rows}
+        ) : view === "card" ? (
+          <BomCardGrid
+            rows={cardItems}
             loading={query.isLoading}
-            selection={selection}
-            onToggleRow={(id) => selectionActions.toggleRow(id, true)}
-            onTogglePage={(ids) => selectionActions.togglePage(ids)}
-            onEdit={(row) => router.push(`/bom/${row.id}`)}
-            onPreview={(row) => router.push(`/bom/${row.id}`)}
-            focusedIndex={focusedIndex}
+            onOpen={(r) => router.push(`/bom/${r.id}/grid`)}
+            onClone={(r) => router.push(`/bom/${r.id}`)}
+            onDelete={(r) => {
+              const match = rows.find((x) => x.id === r.id);
+              if (match) setSingleDeleteRow(match);
+            }}
           />
+        ) : (
+          <div className="h-full">
+            <BomListTable
+              rows={rows}
+              loading={query.isLoading}
+              selection={selection}
+              onToggleRow={(id) => selectionActions.toggleRow(id, true)}
+              onTogglePage={(ids) => selectionActions.togglePage(ids)}
+              onEdit={(row) => router.push(`/bom/${row.id}`)}
+              onPreview={(row) => router.push(`/bom/${row.id}`)}
+              onDelete={(row) => setSingleDeleteRow(row)}
+              focusedIndex={focusedIndex}
+              sortField={sortField}
+              sortDir={sortDir}
+              onSortChange={handleSortHeaderClick}
+            />
+          </div>
         )}
       </div>
 
@@ -308,7 +474,7 @@ export function BomTab() {
           </span>{" "}
           /{" "}
           <span className="tabular-nums text-zinc-900">
-            {total.toLocaleString("vi-VN")}
+            {totalRaw.toLocaleString("vi-VN")}
           </span>
         </div>
         <div className="flex items-center gap-1">
@@ -384,6 +550,26 @@ export function BomTab() {
         loading={deleteBom.isPending}
         onConfirm={() => void handleBulkDelete()}
       />
+
+      <DialogConfirm
+        open={singleDeleteRow !== null}
+        onOpenChange={(open) => {
+          if (!open) setSingleDeleteRow(null);
+        }}
+        title={
+          singleDeleteRow
+            ? `Xoá BOM ${singleDeleteRow.code}?`
+            : "Xoá BOM"
+        }
+        description={`BOM sẽ chuyển sang trạng thái OBSOLETE (soft-delete) và không hiện trong danh sách. Gõ "XOA" để xác nhận.`}
+        confirmText="XOA"
+        actionLabel="Xoá BOM"
+        loading={deleteBom.isPending}
+        onConfirm={() => void handleSingleDelete()}
+      />
     </div>
   );
 }
+
+// Re-export for back-compat with potential consumers.
+export { initialBomFilterPlusState };

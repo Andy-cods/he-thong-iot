@@ -78,6 +78,12 @@ export interface AssemblyScanInput {
   barcode: string;
   scannedAt: string;
   deviceId?: string | null;
+  /** V2.0-P2-W6 — phân biệt manual entry vs barcode scan. */
+  mode?: "barcode" | "manual";
+  /** Lot/serial gõ tay (manual). */
+  lotCode?: string | null;
+  /** Ghi chú dòng pick. */
+  note?: string | null;
 }
 
 export function useAssemblyScan(woId: string) {
@@ -94,6 +100,7 @@ export function useAssemblyScan(woId: string) {
           reservationStatus: string;
           completedQty: number;
           requiredQty: number;
+          mode?: "barcode" | "manual";
         };
       }>(`/api/assembly/scan`, {
         method: "POST",
@@ -104,7 +111,62 @@ export function useAssemblyScan(woId: string) {
       qc.invalidateQueries({
         queryKey: [...qk.workOrders.detail(woId), "progress"],
       });
+      qc.invalidateQueries({
+        queryKey: [...qk.workOrders.detail(woId), "sessions"],
+      });
     },
+  });
+}
+
+/**
+ * V2.0-P2-W6 — assembly sessions (sổ ghi chép đợt lắp ráp).
+ * Group scans theo window 30 phút.
+ */
+export interface AssemblySessionLine {
+  scanId: string;
+  snapshotLineId: string | null;
+  componentSku: string | null;
+  componentName: string | null;
+  qty: number;
+  barcode: string;
+  lotSerialId: string | null;
+  scannedAt: string;
+  deviceId: string | null;
+  mode: "manual" | "barcode";
+}
+
+export interface AssemblySession {
+  sessionNo: number;
+  startedAt: string;
+  endedAt: string;
+  durationMs: number;
+  userId: string | null;
+  userName: string | null;
+  totalLines: number;
+  totalQty: number;
+  totalScans: number;
+  isLive: boolean;
+  lines: AssemblySessionLine[];
+}
+
+export interface AssemblySessionsResponse {
+  woId: string;
+  woNo: string;
+  sessions: AssemblySession[];
+  gapMinutes: number;
+}
+
+export function useAssemblySessions(woId: string | null) {
+  return useQuery({
+    queryKey: woId
+      ? ([...qk.workOrders.detail(woId), "sessions"] as const)
+      : (["workOrders", "sessions", "__none__"] as const),
+    queryFn: () =>
+      request<{ data: AssemblySessionsResponse }>(
+        `/api/assembly/wo/${woId}/sessions`,
+      ),
+    enabled: !!woId,
+    staleTime: 10_000,
   });
 }
 

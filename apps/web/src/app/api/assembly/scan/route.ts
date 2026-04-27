@@ -20,11 +20,17 @@ const schema = z.object({
   woId: z.string().uuid(),
   snapshotLineId: z.string().uuid(),
   lotSerialId: z.string().uuid(),
-  qty: z.number().positive(),
+  qty: z.number().positive().default(1),
   scanId: z.string().min(8), // offline queue id / uuidv7
   barcode: z.string().max(128).default(""),
   scannedAt: z.string().datetime(),
   deviceId: z.string().max(64).optional().nullable(),
+  /** V2.0-P2-W6 — phân biệt nguồn pick để audit + sessions UI. */
+  mode: z.enum(["barcode", "manual"]).optional().default("barcode"),
+  /** Lot/serial code do user gõ (manual entry). */
+  lotCode: z.string().max(128).optional().nullable(),
+  /** Ghi chú cho từng dòng pick (manual). */
+  note: z.string().max(500).optional().nullable(),
 });
 
 /** POST /api/assembly/scan — 1 scan atomic (admin/operator/warehouse). */
@@ -36,15 +42,24 @@ export async function POST(req: NextRequest) {
   if ("response" in body) return body.response;
 
   try {
+    const mode = body.data.mode ?? "barcode";
+    // Manual entry: barcode trống nhưng vẫn yêu cầu identifier để audit/log.
+    // Build barcode field: lotCode > barcode > lotSerialId.
+    const effectiveBarcode =
+      (body.data.barcode && body.data.barcode.trim()) ||
+      (body.data.lotCode && body.data.lotCode.trim()) ||
+      body.data.lotSerialId;
+
     const result = await recordAssemblyScanAtomic({
       woId: body.data.woId,
       snapshotLineId: body.data.snapshotLineId,
       lotSerialId: body.data.lotSerialId,
       qty: body.data.qty,
       offlineQueueId: body.data.scanId,
-      barcode: body.data.barcode || body.data.lotSerialId,
+      barcode: effectiveBarcode,
       scannedAt: new Date(body.data.scannedAt),
-      deviceId: body.data.deviceId ?? null,
+      deviceId:
+        body.data.deviceId ?? (mode === "manual" ? "manual-entry" : null),
       userId: guard.session.userId,
     });
 
@@ -60,13 +75,21 @@ export async function POST(req: NextRequest) {
           snapshotLineId: body.data.snapshotLineId,
           lotId: body.data.lotSerialId,
           qty: body.data.qty,
+          mode,
+          lotCode: body.data.lotCode ?? null,
+          note: body.data.note ?? null,
         },
-        notes: `Assembly scan qty ${body.data.qty}`,
+        notes: `Assembly ${mode} pick qty ${body.data.qty}${
+          body.data.note ? ` — ${body.data.note}` : ""
+        }`,
         ...meta,
       });
     }
 
-    return NextResponse.json({ data: result }, { status: 201 });
+    return NextResponse.json(
+      { data: { ...result, mode } },
+      { status: 201 },
+    );
   } catch (err) {
     if (err instanceof AssemblyScanError) {
       return jsonError(err.code, err.message, err.httpStatus);
