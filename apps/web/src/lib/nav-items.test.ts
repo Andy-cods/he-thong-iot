@@ -8,13 +8,12 @@ import {
 } from "./nav-items";
 
 /**
- * V3 (TASK-20260427-025) — Unit tests cho nav-items 7-section regroup theo
- * bộ phận với hub gộp:
- *   - dashboard / warehouse / purchasing / engineering / operations /
- *     accounting / other.
+ * V3.1 — Unit tests cho nav-items sau khi gộp Kế toán + Mua bán thành
+ * section "finance" (Tài chính & Mua bán). 6 sections: dashboard / warehouse /
+ * finance / engineering / operations / other.
  */
 
-describe("NAV_ITEMS V3 cấu trúc 7 section (post-TASK-025)", () => {
+describe("NAV_ITEMS V3.1 cấu trúc 6 section", () => {
   it("có item Tổng quan section dashboard", () => {
     const dashboard = NAV_ITEMS.find((i) => i.href === "/");
     expect(dashboard).toBeDefined();
@@ -22,62 +21,51 @@ describe("NAV_ITEMS V3 cấu trúc 7 section (post-TASK-025)", () => {
     expect(dashboard?.label).toBe("Tổng quan");
   });
 
-  it("có item Kế toán placeholder disabled", () => {
-    const acc = NAV_ITEMS.find((i) => i.section === "accounting");
-    expect(acc).toBeDefined();
-    expect(acc?.disabled).toBe(true);
-    expect(acc?.badge).toBe("Sắp ra mắt");
+  it("Mua bán & Kế toán nằm trong section finance", () => {
+    const fin = NAV_ITEMS.find((i) => i.section === "finance");
+    expect(fin).toBeDefined();
+    expect(fin?.href).toBe("/sales");
   });
 
-  it("section labels có đủ 7 bộ phận", () => {
+  it("section labels có đủ 6 bộ phận", () => {
     expect(NAV_SECTION_LABEL).toEqual({
-      dashboard: "Tổng quan",
-      warehouse: "Bộ phận Kho",
-      purchasing: "Bộ phận Mua bán",
+      dashboard:   "Tổng quan",
+      warehouse:   "Bộ phận Kho",
+      finance:     "Tài chính & Mua bán",
       engineering: "Bộ phận Thiết kế",
-      operations: "Bộ phận Vận hành",
-      accounting: "Bộ phận Kế toán",
-      other: "Quản trị",
+      operations:  "Bộ phận Vận hành",
+      other:       "Quản trị",
     });
   });
 
-  it("section order: dashboard → warehouse → purchasing → engineering → operations → accounting → other", () => {
+  it("section order: dashboard → warehouse → finance → engineering → operations → other", () => {
     expect(NAV_SECTION_ORDER).toEqual([
       "dashboard",
       "warehouse",
-      "purchasing",
+      "finance",
       "engineering",
       "operations",
-      "accounting",
       "other",
     ]);
   });
 
   it("Bộ phận Kho có 1 hub /warehouse", () => {
-    const warehouseHrefs = NAV_ITEMS.filter(
-      (i) => i.section === "warehouse",
-    ).map((i) => i.href);
+    const warehouseHrefs = NAV_ITEMS.filter((i) => i.section === "warehouse").map((i) => i.href);
     expect(warehouseHrefs).toEqual(["/warehouse"]);
   });
 
-  it("Bộ phận Mua bán có 1 hub /sales", () => {
-    const purchasingHrefs = NAV_ITEMS.filter(
-      (i) => i.section === "purchasing",
-    ).map((i) => i.href);
-    expect(purchasingHrefs).toEqual(["/sales"]);
+  it("Finance section có 1 hub /sales", () => {
+    const finHrefs = NAV_ITEMS.filter((i) => i.section === "finance").map((i) => i.href);
+    expect(finHrefs).toEqual(["/sales"]);
   });
 
   it("Bộ phận Thiết kế có 1 hub /engineering", () => {
-    const engHrefs = NAV_ITEMS.filter(
-      (i) => i.section === "engineering",
-    ).map((i) => i.href);
+    const engHrefs = NAV_ITEMS.filter((i) => i.section === "engineering").map((i) => i.href);
     expect(engHrefs).toEqual(["/engineering"]);
   });
 
   it("Bộ phận Vận hành có 1 hub /operations", () => {
-    const opsHrefs = NAV_ITEMS.filter((i) => i.section === "operations").map(
-      (i) => i.href,
-    );
+    const opsHrefs = NAV_ITEMS.filter((i) => i.section === "operations").map((i) => i.href);
     expect(opsHrefs).toEqual(["/operations"]);
   });
 });
@@ -87,15 +75,9 @@ describe("groupNavBySection", () => {
     const groups = groupNavBySection(NAV_ITEMS);
     const sections = groups.map((g) => g.section);
     expect(sections[0]).toBe("dashboard");
-    expect(sections.indexOf("warehouse")).toBeLessThan(
-      sections.indexOf("purchasing"),
-    );
-    expect(sections.indexOf("purchasing")).toBeLessThan(
-      sections.indexOf("engineering"),
-    );
-    expect(sections.indexOf("engineering")).toBeLessThan(
-      sections.indexOf("operations"),
-    );
+    expect(sections.indexOf("warehouse")).toBeLessThan(sections.indexOf("finance"));
+    expect(sections.indexOf("finance")).toBeLessThan(sections.indexOf("engineering"));
+    expect(sections.indexOf("engineering")).toBeLessThan(sections.indexOf("operations"));
   });
 
   it("section rỗng (sau filter) sẽ KHÔNG xuất hiện trong groups", () => {
@@ -105,9 +87,7 @@ describe("groupNavBySection", () => {
 
   it("item không có section → vào group other", () => {
     const firstIcon = NAV_ITEMS[0]!.icon;
-    const groups = groupNavBySection([
-      { href: "/x", label: "X", icon: firstIcon },
-    ]);
+    const groups = groupNavBySection([{ href: "/x", label: "X", icon: firstIcon }]);
     expect(groups).toHaveLength(1);
     expect(groups[0]!.section).toBe("other");
   });

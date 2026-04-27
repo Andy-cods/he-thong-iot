@@ -1,5 +1,4 @@
 import {
-  Calculator,
   Factory,
   LayoutDashboard,
   Layers,
@@ -30,10 +29,9 @@ import { canAny } from "@iot/shared";
 export type NavSection =
   | "dashboard"
   | "warehouse"
-  | "purchasing"
+  | "finance"
   | "engineering"
   | "operations"
-  | "accounting"
   | "other";
 
 export interface NavItem {
@@ -70,20 +68,18 @@ export interface NavItem {
 export const NAV_SECTION_LABEL: Record<NavSection, string> = {
   dashboard: "Tổng quan",
   warehouse: "Bộ phận Kho",
-  purchasing: "Bộ phận Mua bán",
+  finance: "Tài chính & Mua bán",
   engineering: "Bộ phận Thiết kế",
   operations: "Bộ phận Vận hành",
-  accounting: "Bộ phận Kế toán",
   other: "Quản trị",
 };
 
 export const NAV_SECTION_ORDER: NavSection[] = [
   "dashboard",
   "warehouse",
-  "purchasing",
+  "finance",
   "engineering",
   "operations",
-  "accounting",
   "other",
 ];
 
@@ -103,13 +99,13 @@ export const NAV_ITEMS: NavItem[] = [
     entity: "item",
     section: "warehouse",
   },
-  // --- Bộ phận Mua bán (gộp Suppliers + PO ở TASK-025) ---
+  // --- Tài chính & Mua bán (gộp Suppliers + PO + Kế toán) ---
   {
     href: "/sales",
-    label: "Mua bán",
+    label: "Mua bán & Kế toán",
     icon: ShoppingBag,
     entities: ["supplier", "po"],
-    section: "purchasing",
+    section: "finance",
   },
   // --- Bộ phận Thiết kế (gộp BOM + WO + PR ở TASK-025) ---
   {
@@ -126,16 +122,6 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Factory,
     roles: ["admin", "planner", "operator"],
     section: "operations",
-  },
-  // --- Bộ phận Kế toán (coming soon — Phase 2 V2.0) ---
-  {
-    href: "/accounting",
-    label: "Kế toán",
-    icon: Calculator,
-    section: "accounting",
-    disabled: true,
-    badge: "Sắp ra mắt",
-    comingSoon: "Phase 2 V2.0 — payment log + công nợ NCC",
   },
   // --- Quản trị ---
   {
@@ -190,10 +176,9 @@ export function groupNavBySection(
   const map: Record<NavSection, NavItem[]> = {
     dashboard: [],
     warehouse: [],
-    purchasing: [],
+    finance: [],
     engineering: [],
     operations: [],
-    accounting: [],
     other: [],
   };
   for (const it of items) {
