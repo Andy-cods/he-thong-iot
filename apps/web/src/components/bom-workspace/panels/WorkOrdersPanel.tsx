@@ -2,59 +2,53 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ExternalLink, Plus } from "lucide-react";
+import { ArrowUpRight, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  StatusBadge,
-  type BadgeStatus,
-} from "@/components/domain/StatusBadge";
-import {
-  useWorkOrdersList,
-  type WorkOrderStatus,
-} from "@/hooks/useWorkOrders";
+import { useWorkOrdersList, type WorkOrderStatus } from "@/hooks/useWorkOrders";
 import { formatDate, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const WO_STATUS_LABELS: Record<WorkOrderStatus, string> = {
-  DRAFT: "Nháp",
-  QUEUED: "Chờ",
-  RELEASED: "Đã phát",
-  IN_PROGRESS: "Đang SX",
-  PAUSED: "Tạm dừng",
-  COMPLETED: "Hoàn thành",
-  CANCELLED: "Đã huỷ",
+/* ── Status config ────────────────────────────────────────────────────────── */
+const WO_STATUS: Record<WorkOrderStatus, { label: string; cls: string; dot: string }> = {
+  DRAFT:       { label: "Nháp",        cls: "bg-zinc-100 text-zinc-600 ring-zinc-200",     dot: "bg-zinc-400"   },
+  QUEUED:      { label: "Chờ",         cls: "bg-blue-50 text-blue-700 ring-blue-200",      dot: "bg-blue-400"   },
+  RELEASED:    { label: "Đã phát",     cls: "bg-indigo-50 text-indigo-700 ring-indigo-200",dot: "bg-indigo-500" },
+  IN_PROGRESS: { label: "Đang SX",     cls: "bg-amber-50 text-amber-700 ring-amber-200",   dot: "bg-amber-500 animate-pulse" },
+  PAUSED:      { label: "Tạm dừng",    cls: "bg-orange-50 text-orange-700 ring-orange-200",dot: "bg-orange-400" },
+  COMPLETED:   { label: "Hoàn thành",  cls: "bg-emerald-50 text-emerald-700 ring-emerald-200", dot: "bg-emerald-500" },
+  CANCELLED:   { label: "Đã huỷ",      cls: "bg-red-50 text-red-600 ring-red-200",         dot: "bg-red-400"    },
 };
 
-const WO_FILTER_KEYS: WorkOrderStatus[] = [
-  "DRAFT",
-  "QUEUED",
-  "RELEASED",
-  "IN_PROGRESS",
-  "PAUSED",
-  "COMPLETED",
-  "CANCELLED",
-];
+const FILTER_KEYS: WorkOrderStatus[] = ["DRAFT","QUEUED","RELEASED","IN_PROGRESS","PAUSED","COMPLETED","CANCELLED"];
 
-function statusToBadge(status: WorkOrderStatus): BadgeStatus {
-  switch (status) {
-    case "DRAFT":
-      return "draft";
-    case "QUEUED":
-    case "RELEASED":
-      return "info";
-    case "IN_PROGRESS":
-    case "PAUSED":
-      return "warning";
-    case "COMPLETED":
-      return "success";
-    case "CANCELLED":
-      return "danger";
-    default:
-      return "info";
-  }
+function WoStatusBadge({ status }: { status: WorkOrderStatus }) {
+  const s = WO_STATUS[status] ?? { label: status, cls: "bg-zinc-100 text-zinc-600 ring-zinc-200", dot: "bg-zinc-400" };
+  return (
+    <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset", s.cls)}>
+      <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", s.dot)} aria-hidden />
+      {s.label}
+    </span>
+  );
 }
 
+function ProgressBar({ pct }: { pct: number }) {
+  const clamped = Math.max(0, Math.min(100, pct));
+  return (
+    <div className="flex items-center gap-2.5">
+      <div className="relative h-2 w-24 overflow-hidden rounded-full bg-zinc-100">
+        <div
+          className={cn("absolute inset-y-0 left-0 rounded-full transition-all",
+            clamped >= 100 ? "bg-emerald-500" : clamped > 0 ? "bg-indigo-500" : "bg-zinc-300")}
+          style={{ width: `${clamped}%` }}
+        />
+      </div>
+      <span className="min-w-[2.5rem] font-mono text-xs tabular-nums text-zinc-600">{clamped}%</span>
+    </div>
+  );
+}
+
+/* ── Component ────────────────────────────────────────────────────────────── */
 export function WorkOrdersPanel({ bomId }: { bomId: string }) {
   const [statuses, setStatuses] = React.useState<WorkOrderStatus[]>([]);
 
@@ -66,57 +60,48 @@ export function WorkOrdersPanel({ bomId }: { bomId: string }) {
   });
   const rows = query.data?.data ?? [];
 
-  const toggleStatus = (s: WorkOrderStatus) => {
-    setStatuses((prev) =>
-      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
-    );
-  };
+  const toggleStatus = (s: WorkOrderStatus) =>
+    setStatuses((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]);
 
   return (
     <div className="flex h-full flex-col">
-      {/* Inline toolbar — filter chips + create button */}
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-zinc-200 bg-zinc-50/60 px-3 py-2">
-        <div className="flex flex-wrap items-center gap-1">
-          {WO_FILTER_KEYS.map((s) => {
+      {/* Toolbar */}
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-zinc-200 bg-white px-5 py-3">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {FILTER_KEYS.map((s) => {
             const active = statuses.includes(s);
+            const cfg = WO_STATUS[s];
             return (
               <button
                 key={s}
                 type="button"
                 onClick={() => toggleStatus(s)}
-                className={cn(
-                  "inline-flex h-6 items-center rounded-sm border px-2 text-[11px] font-medium transition-colors",
-                  active
-                    ? "border-indigo-300 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200"
-                    : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-100",
-                )}
                 aria-pressed={active}
+                className={cn(
+                  "inline-flex h-7 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors",
+                  active
+                    ? cn("ring-1 ring-inset", cfg.cls)
+                    : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50",
+                )}
               >
-                {WO_STATUS_LABELS[s]}
+                <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", active ? cfg.dot : "bg-zinc-300")} aria-hidden />
+                {cfg.label}
               </button>
             );
           })}
-          {statuses.length > 0 ? (
-            <button
-              type="button"
-              onClick={() => setStatuses([])}
-              className="ml-1 text-[10px] text-zinc-500 underline hover:text-zinc-700"
-            >
+          {statuses.length > 0 && (
+            <button type="button" onClick={() => setStatuses([])}
+              className="text-xs text-indigo-600 hover:text-indigo-800 hover:underline px-1">
               Bỏ lọc
             </button>
-          ) : null}
+          )}
         </div>
-
-        <div className="ml-auto flex items-center gap-2">
-          <span className="text-[10px] uppercase tracking-wide text-zinc-500">
-            {rows.length} WO
+        <div className="ml-auto flex items-center gap-3">
+          <span className="text-sm text-zinc-500">
+            <span className="font-semibold text-zinc-900 tabular-nums">{rows.length}</span> WO
           </span>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled
-            title="Tạo WO cần chọn đơn hàng + snapshot lines — vui lòng vào tab Snapshot Board của 1 đơn để tạo (tránh nhập sai data)."
-          >
+          <Button size="sm" variant="outline" disabled
+            title="Tạo WO cần chọn đơn hàng — vào tab Đơn hàng để tạo WO từ đơn đã snapshot.">
             <Plus className="h-3.5 w-3.5" aria-hidden />
             Tạo lệnh SX
           </Button>
@@ -126,76 +111,62 @@ export function WorkOrdersPanel({ bomId }: { bomId: string }) {
       {/* Content */}
       <div className="flex-1 overflow-auto">
         {query.isLoading ? (
-          <div className="space-y-1 p-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-8 w-full" />
-            ))}
+          <div className="space-y-2 p-5">
+            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}
           </div>
         ) : rows.length === 0 ? (
-          <div className="flex h-full items-center justify-center p-6 text-xs text-zinc-500">
-            {statuses.length > 0
-              ? "Không có WO nào match filter."
-              : "Chưa có Work Order cho BOM này."}
+          <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
+            <p className="text-sm font-medium text-zinc-700">
+              {statuses.length > 0 ? "Không có WO nào khớp bộ lọc." : "Chưa có lệnh sản xuất nào."}
+            </p>
+            <p className="text-xs text-zinc-500">Chọn đơn hàng và tạo WO từ tab Đơn hàng.</p>
           </div>
         ) : (
-          <table className="w-full text-xs">
-            <thead className="sticky top-0 z-10 bg-zinc-50/80 backdrop-blur-sm">
-              <tr className="border-b border-zinc-200 text-[10px] uppercase tracking-wide text-zinc-500">
-                <th className="px-3 py-1.5 text-left font-medium">Mã WO</th>
-                <th className="px-3 py-1.5 text-left font-medium">Đơn hàng</th>
-                <th className="px-3 py-1.5 text-right font-medium">KH</th>
-                <th className="px-3 py-1.5 text-right font-medium">Đã SX</th>
-                <th className="px-3 py-1.5 text-left font-medium">
-                  Trạng thái
-                </th>
-                <th className="px-3 py-1.5 text-left font-medium">Due</th>
-                <th className="px-3 py-1.5 w-8" />
+          <table className="w-full border-collapse">
+            <thead className="sticky top-0 z-10 bg-white">
+              <tr className="border-b-2 border-zinc-100">
+                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400">Mã WO</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400">Đơn hàng</th>
+                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400">Kế hoạch</th>
+                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400">Đã SX</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400">Trạng thái</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400">Ngày giao</th>
+                <th className="w-12 px-3 py-3" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100">
+            <tbody>
               {rows.map((row) => {
                 const planned = Number(row.plannedQty);
                 const good = Number(row.goodQty);
-                const pct =
-                  planned > 0
-                    ? Math.min(100, Math.round((good / planned) * 100))
-                    : 0;
+                const pct = planned > 0 ? Math.min(100, Math.round((good / planned) * 100)) : 0;
                 return (
-                  <tr key={row.id} className="h-8 hover:bg-zinc-50">
-                    <td className="px-3 font-mono text-[11px] font-semibold text-indigo-600">
-                      {row.woNo}
+                  <tr key={row.id} className="group border-b border-zinc-50 transition-colors hover:bg-zinc-50/70">
+                    <td className="px-5 py-3.5">
+                      <span className="font-mono text-sm font-bold text-indigo-600">{row.woNo}</span>
                     </td>
-                    <td className="px-3 font-mono text-[11px] text-zinc-700">
-                      {row.orderNo ?? "—"}
+                    <td className="px-5 py-3.5">
+                      <span className="font-mono text-sm text-zinc-700">{row.orderNo ?? "—"}</span>
                     </td>
-                    <td className="px-3 text-right font-mono tabular-nums text-zinc-700">
-                      {formatNumber(planned)}
+                    <td className="px-5 py-3.5 text-right">
+                      <span className="font-mono text-sm font-semibold tabular-nums text-zinc-700">{formatNumber(planned)}</span>
                     </td>
-                    <td className="px-3 text-right font-mono tabular-nums text-zinc-700">
-                      {formatNumber(good)}{" "}
-                      <span className="text-[10px] text-zinc-400">
-                        ({pct}%)
+                    <td className="px-5 py-3.5 text-right">
+                      <span className="font-mono text-sm font-semibold tabular-nums text-zinc-800">{formatNumber(good)}</span>
+                      <span className="ml-1.5 text-xs text-zinc-400">({pct}%)</span>
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <WoStatusBadge status={row.status} />
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <span className="text-sm text-zinc-600">
+                        {row.plannedEnd ? formatDate(row.plannedEnd, "dd/MM/yyyy") : "—"}
                       </span>
                     </td>
-                    <td className="px-3">
-                      <StatusBadge
-                        status={statusToBadge(row.status)}
-                        size="sm"
-                        label={WO_STATUS_LABELS[row.status]}
-                      />
-                    </td>
-                    <td className="px-3 text-zinc-500">
-                      {row.plannedEnd
-                        ? formatDate(row.plannedEnd, "dd/MM/yyyy")
-                        : "—"}
-                    </td>
-                    <td className="px-1">
-                      <Link
-                        href={`/work-orders/${row.id}`}
-                        className="inline-flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-indigo-600"
-                        title="Mở chi tiết WO"
-                      >
-                        <ExternalLink className="h-3 w-3" aria-hidden />
+                    <td className="px-3 py-3.5">
+                      <Link href={`/work-orders/${row.id}`}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 opacity-0 transition-all hover:bg-indigo-50 hover:text-indigo-600 group-hover:opacity-100"
+                        title="Mở chi tiết WO">
+                        <ArrowUpRight className="h-4 w-4" aria-hidden />
                       </Link>
                     </td>
                   </tr>
