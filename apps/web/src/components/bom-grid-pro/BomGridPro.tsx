@@ -7,6 +7,7 @@ import {
   ChevronDown,
   ChevronRight,
   Package,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -29,6 +30,7 @@ import { ActionsCell } from "./ActionsCell";
 import { BomLineSheet } from "./BomLineSheet";
 import { PRQuickDialog } from "./PRQuickDialog";
 import { KindDropdown } from "./KindDropdown";
+import { AddBomLineDialog } from "./AddBomLineDialog";
 
 /**
  * V1.7-beta.2 — Pro BOM Grid (thay Univer).
@@ -133,6 +135,7 @@ export function BomGridPro({
   // V1.7-beta.2 Phase C — targets cho BomLineSheet + PRQuickDialog (internal fallback).
   const [editTarget, setEditTarget] = React.useState<BomFlatRow | null>(null);
   const [orderTarget, setOrderTarget] = React.useState<BomFlatRow | null>(null);
+  const [addLineOpen, setAddLineOpen] = React.useState(false);
 
   const deleteLine = useDeleteBomLine(templateId);
   const addLine = useAddBomLine(templateId);
@@ -671,6 +674,26 @@ export function BomGridPro({
           </tbody>
         </table>
       </div>
+
+      {/* Footer — nút thêm dòng mới */}
+      {!readOnly && (
+        <div className="flex shrink-0 items-center border-t border-zinc-200 bg-zinc-50 px-3 py-1.5">
+          <button
+            type="button"
+            onClick={() => setAddLineOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5" aria-hidden />
+            Thêm dòng
+          </button>
+        </div>
+      )}
+
+      <AddBomLineDialog
+        open={addLineOpen}
+        onOpenChange={setAddLineOpen}
+        templateId={templateId}
+      />
 
       <DialogConfirm
         open={!!deleteTarget}
