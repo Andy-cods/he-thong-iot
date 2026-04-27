@@ -64,14 +64,18 @@ export function LoginHero() {
           fill
           priority
           quality={92}
-          sizes="(max-width: 1024px) 100vw, 60vw"
+          sizes="(max-width: 1024px) 100vw, 70vw"
           className="login-hero-img object-cover object-center"
+          style={{ filter: "brightness(1.12) saturate(1.05)" }}
         />
       </div>
 
-      {/* Vignette overlays */}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-[#020617]/60" />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#020617]/30 via-transparent to-[#020617]/70" />
+      {/* Vignette overlays — V3.2.1 giảm độ đậm để ảnh sáng hơn */}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-[#020617]/25" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#020617]/40" />
+
+      {/* Brightness boost overlay */}
+      <div className="pointer-events-none absolute inset-0 bg-white/[0.04] mix-blend-overlay" />
 
       {/* Animated data dots */}
       <div className="pointer-events-none absolute inset-0 z-10">

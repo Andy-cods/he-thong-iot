@@ -114,7 +114,7 @@ export function LoginForm() {
           Tài khoản
         </label>
         <div className="group relative">
-          <User className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500 transition-colors group-focus-within:text-cyan-400" aria-hidden />
+          <User className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-zinc-500 transition-colors group-focus-within:text-cyan-400" aria-hidden />
           <input
             ref={usernameRef}
             id="username"
@@ -128,7 +128,8 @@ export function LoginForm() {
             onChange={(e) => setUsername(e.target.value)}
             disabled={disabled}
             placeholder="admin"
-            className="h-12 w-full rounded-xl border border-white/10 bg-white/5 pl-10 pr-4 text-sm text-white placeholder:text-zinc-500 backdrop-blur-md transition-all focus:border-cyan-400/50 focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 disabled:opacity-50"
+            className="h-13 w-full rounded-xl border border-white/10 bg-white/5 pl-11 pr-4 text-base font-medium text-white placeholder:text-zinc-500 backdrop-blur-md transition-all focus:border-cyan-400/50 focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 disabled:opacity-50"
+            style={{ height: "52px" }}
           />
         </div>
       </div>
@@ -142,7 +143,7 @@ export function LoginForm() {
           <span className="text-xs text-zinc-500">Quên? Liên hệ IT</span>
         </div>
         <div className="group relative">
-          <LockKeyhole className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500 transition-colors group-focus-within:text-cyan-400" aria-hidden />
+          <LockKeyhole className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-zinc-500 transition-colors group-focus-within:text-cyan-400" aria-hidden />
           <input
             ref={passwordRef}
             id="password"
@@ -154,7 +155,8 @@ export function LoginForm() {
             onChange={(e) => setPassword(e.target.value)}
             disabled={disabled}
             placeholder="••••••••"
-            className="h-12 w-full rounded-xl border border-white/10 bg-white/5 pl-10 pr-12 text-sm text-white placeholder:text-zinc-500 backdrop-blur-md transition-all focus:border-cyan-400/50 focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 disabled:opacity-50"
+            className="h-13 w-full rounded-xl border border-white/10 bg-white/5 pl-11 pr-12 text-base font-medium text-white placeholder:text-zinc-500 backdrop-blur-md transition-all focus:border-cyan-400/50 focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 disabled:opacity-50"
+            style={{ height: "52px" }}
           />
           <button
             type="button"
@@ -214,7 +216,8 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={disabled}
-        className="group relative mt-2 flex h-12 items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 via-blue-600 to-cyan-500 text-sm font-semibold text-white shadow-lg shadow-indigo-500/40 transition-all hover:shadow-cyan-500/40 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+        style={{ height: "52px" }}
+        className="group relative mt-2 flex items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 via-blue-600 to-cyan-500 text-base font-semibold text-white shadow-lg shadow-indigo-500/40 transition-all hover:shadow-cyan-500/40 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
       >
         <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" aria-hidden />
         {loading ? (

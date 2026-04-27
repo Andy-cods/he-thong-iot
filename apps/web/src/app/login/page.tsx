@@ -39,7 +39,7 @@ function LoginFallback() {
 
 function LoginContent() {
   return (
-    <div className="relative grid min-h-screen grid-cols-1 bg-[#020617] lg:grid-cols-[3fr_2fr]">
+    <div className="relative grid min-h-screen grid-cols-1 bg-[#020617] lg:grid-cols-[1fr_420px] xl:grid-cols-[1fr_460px]">
       {/* Hero (left 60%) — full background */}
       <div className="relative h-full min-h-[40vh] lg:min-h-screen">
         <LoginHero />
