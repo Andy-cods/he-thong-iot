@@ -469,6 +469,49 @@ export default function AssemblyWorkspacePage() {
             >
               <ArrowLeft className="h-4 w-4" aria-hidden />
             </Link>
+
+            {/* SVG Progress Ring */}
+            {progress ? (() => {
+              const R = 18;
+              const C = 2 * Math.PI * R;
+              const offset = C - (progressPct / 100) * C;
+              return (
+                <div className="relative flex h-12 w-12 shrink-0 items-center justify-center">
+                  <svg
+                    width="48"
+                    height="48"
+                    viewBox="0 0 48 48"
+                    className="-rotate-90"
+                    aria-hidden
+                  >
+                    <circle
+                      cx="24"
+                      cy="24"
+                      r={R}
+                      fill="none"
+                      stroke="#e4e4e7"
+                      strokeWidth="4"
+                    />
+                    <circle
+                      cx="24"
+                      cy="24"
+                      r={R}
+                      fill="none"
+                      stroke={progressPct >= 100 ? "#10b981" : "#6366f1"}
+                      strokeWidth="4"
+                      strokeLinecap="round"
+                      strokeDasharray={C}
+                      strokeDashoffset={offset}
+                      style={{ transition: "stroke-dashoffset 0.5s ease" }}
+                    />
+                  </svg>
+                  <span className="absolute text-[10px] font-bold tabular-nums text-zinc-700">
+                    {progressPct}%
+                  </span>
+                </div>
+              );
+            })() : null}
+
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <Wrench className="h-4 w-4 text-zinc-500" aria-hidden />
@@ -941,6 +984,49 @@ function ManualPickPanel({
         </div>
       </header>
 
+      {/* KPI strip */}
+      <div className="grid grid-cols-4 divide-x divide-zinc-200 border-b border-zinc-200 bg-white">
+        {[
+          {
+            label: "Tổng cần",
+            value: progress.totalRequired,
+            color: "text-zinc-800",
+          },
+          {
+            label: "Đã pick",
+            value: progress.totalCompleted,
+            color: "text-indigo-700",
+          },
+          {
+            label: "Còn lại",
+            value: Math.max(0, progress.totalRequired - progress.totalCompleted),
+            color: "text-amber-700",
+          },
+          {
+            label: "Hoàn thành",
+            value: `${progress.progressPercent}%`,
+            color:
+              progress.progressPercent >= 100
+                ? "text-emerald-700"
+                : "text-zinc-600",
+          },
+        ].map((k) => (
+          <div key={k.label} className="px-4 py-2.5 text-center">
+            <p className="text-[10px] uppercase tracking-wide text-zinc-500">
+              {k.label}
+            </p>
+            <p
+              className={cn(
+                "font-mono text-xl font-bold tabular-nums",
+                k.color,
+              )}
+            >
+              {k.value}
+            </p>
+          </div>
+        ))}
+      </div>
+
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead className="border-b border-zinc-200 bg-zinc-50 text-[10px] uppercase tracking-wider text-zinc-500">
@@ -980,7 +1066,9 @@ function ManualPickPanel({
                   key={l.snapshotLineId}
                   className={cn(
                     "border-t border-zinc-100 align-top transition-colors",
-                    done && "bg-emerald-50/40",
+                    done
+                      ? "bg-emerald-50/60"
+                      : "bg-white hover:bg-indigo-50/30",
                   )}
                 >
                   <td className="px-2 py-2 text-zinc-400 tabular-nums">

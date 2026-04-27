@@ -29,7 +29,7 @@ import {
   type BomSortField,
 } from "@/components/bom/BomListTable";
 import { BomCardGrid, type BomCardItem } from "@/components/bom/BomCardGrid";
-import { useBomList, useDeleteBomTemplate } from "@/hooks/useBom";
+import { useBomList, useDeleteBomTemplate, useUpdateBomTemplate } from "@/hooks/useBom";
 import {
   isSelected,
   selectionCount,
@@ -215,6 +215,19 @@ export function BomTab() {
     null,
   );
   const deleteBom = useDeleteBomTemplate();
+
+  const [renamingId, setRenamingId] = React.useState<string | null>(null);
+  const renameMut = useUpdateBomTemplate(renamingId ?? "skip");
+
+  const handleRename = async (row: BomRow, newName: string) => {
+    setRenamingId(row.id);
+    try {
+      await renameMut.mutateAsync({ name: newName });
+      toast.success("Đã đổi tên BOM");
+    } finally {
+      setRenamingId(null);
+    }
+  };
 
   const searchRef = React.useRef<HTMLInputElement>(null);
 
@@ -456,6 +469,7 @@ export function BomTab() {
               onEdit={(row) => router.push(`/bom/${row.id}`)}
               onPreview={(row) => router.push(`/bom/${row.id}`)}
               onDelete={(row) => setSingleDeleteRow(row)}
+              onRename={handleRename}
               focusedIndex={focusedIndex}
               sortField={sortField}
               sortDir={sortDir}

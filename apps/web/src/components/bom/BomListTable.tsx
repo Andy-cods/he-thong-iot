@@ -60,6 +60,7 @@ export interface BomListTableProps {
   onPreview?: (row: BomRow) => void;
   onClone?: (row: BomRow) => void;
   onDelete?: (row: BomRow) => void;
+  onRename?: (row: BomRow, newName: string) => Promise<void>;
   focusedIndex?: number;
   /** V2.1 — sort state for header click. */
   sortField?: BomSortField;
@@ -170,6 +171,78 @@ function SortHeader({
   );
 }
 
+function InlineRenameCell({
+  row,
+  onRename,
+}: {
+  row: BomRow;
+  onRename?: (row: BomRow, newName: string) => Promise<void>;
+}) {
+  const [editing, setEditing] = React.useState(false);
+  const [val, setVal] = React.useState(row.name);
+  const [saving, setSaving] = React.useState(false);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  const save = async () => {
+    const trimmed = val.trim();
+    if (!trimmed || trimmed === row.name) {
+      setEditing(false);
+      setVal(row.name);
+      return;
+    }
+    setSaving(true);
+    try {
+      await onRename?.(row, trimmed);
+      setEditing(false);
+    } catch {
+      setVal(row.name);
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        autoFocus
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") void save();
+          if (e.key === "Escape") {
+            setEditing(false);
+            setVal(row.name);
+          }
+        }}
+        onBlur={() => void save()}
+        className="w-full rounded border border-indigo-400 bg-white px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        disabled={saving}
+      />
+    );
+  }
+
+  return (
+    <span className="group/name flex items-center gap-1 min-w-0">
+      <span className={cn("truncate", saving && "opacity-50")}>{row.name}</span>
+      {onRename && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setEditing(true);
+          }}
+          className="invisible shrink-0 rounded p-0.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 group-hover/name:visible"
+          title="Đổi tên BOM"
+        >
+          <Pencil className="h-3 w-3" aria-hidden />
+        </button>
+      )}
+    </span>
+  );
+}
+
 /**
  * V2 BomListTable — compact row 36px theo pattern ItemListTable.
  *
@@ -186,6 +259,7 @@ export function BomListTable({
   onPreview,
   onClone,
   onDelete,
+  onRename,
   focusedIndex,
   sortField,
   sortDir,
@@ -380,13 +454,19 @@ export function BomListTable({
                 {row.code}
               </Link>
 
-              <Link
-                href={`/bom/${row.id}`}
-                className="truncate pr-2 text-zinc-900 hover:text-indigo-600 focus-visible:outline-none focus-visible:text-indigo-600"
-                title={row.name}
-              >
-                {row.name}
-              </Link>
+              <div className="min-w-0 pr-2">
+                {onRename ? (
+                  <InlineRenameCell row={row} onRename={onRename} />
+                ) : (
+                  <Link
+                    href={`/bom/${row.id}`}
+                    className="truncate text-zinc-900 hover:text-indigo-600 focus-visible:outline-none focus-visible:text-indigo-600"
+                    title={row.name}
+                  >
+                    {row.name}
+                  </Link>
+                )}
+              </div>
 
               <div
                 className="hidden truncate font-mono text-sm text-zinc-600 md:block"
