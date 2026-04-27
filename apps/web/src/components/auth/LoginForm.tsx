@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertCircle, ArrowRight, Loader2, LockKeyhole, User } from "lucide-react";
+import { LoginSuccessSplash } from "./LoginSuccessSplash";
 
 /**
  * V3.2 LoginForm — dark theme matching login hero (cyan accent + glassmorphism).
@@ -26,6 +27,11 @@ export function LoginForm() {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [retryAfter, setRetryAfter] = React.useState<number>(0);
+  // V3.2 — splash success state
+  const [splashUser, setSplashUser] = React.useState<{
+    username: string;
+    fullName?: string | null;
+  } | null>(null);
   const usernameRef = React.useRef<HTMLInputElement>(null);
   const passwordRef = React.useRef<HTMLInputElement>(null);
 
@@ -74,7 +80,7 @@ export function LoginForm() {
       }
 
       const json = (await res.json().catch(() => ({}))) as
-        | { user: { username: string } }
+        | { user: { username: string; fullName?: string | null } }
         | { error: { message: string } }
         | Record<string, never>;
 
@@ -91,8 +97,17 @@ export function LoginForm() {
         return;
       }
 
-      router.push(nextPath);
-      router.refresh();
+      // V3.2 — Hiện splash trước khi navigate cho cinematic transition
+      const userInfo =
+        typeof json === "object" && "user" in json
+          ? json.user
+          : { username, fullName: null };
+      setSplashUser({
+        username: userInfo.username || username,
+        fullName: userInfo.fullName,
+      });
+      // Prefetch dashboard để khi splash xong là render ngay không lag
+      router.prefetch(nextPath);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Lỗi kết nối — vui lòng thử lại.");
     } finally {
@@ -101,6 +116,17 @@ export function LoginForm() {
   }
 
   return (
+    <>
+      {splashUser && (
+        <LoginSuccessSplash
+          username={splashUser.username}
+          fullName={splashUser.fullName}
+          onComplete={() => {
+            router.push(nextPath);
+            router.refresh();
+          }}
+        />
+      )}
     <form
       onSubmit={onSubmit}
       onKeyDown={(e) => { if (e.key === "Escape") setPassword(""); }}
@@ -246,6 +272,7 @@ export function LoginForm() {
         }
       `}</style>
     </form>
+    </>
   );
 }
 
