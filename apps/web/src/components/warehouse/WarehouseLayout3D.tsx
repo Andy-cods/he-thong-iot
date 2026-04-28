@@ -411,26 +411,68 @@ function Rack3DView({
   const rackLeftX = TIER_LABEL_W + RACK_PAD + POST_W;
 
   // V3.7.3 — Zoom + pan controls
+  // V3.7.5 — Default zoom = fit-to-container, không phóng to sát.
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const [zoom, setZoom] = React.useState(1);
   const [pan, setPan] = React.useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = React.useState(false);
+  const [autoFit, setAutoFit] = React.useState(true);
   const dragStart = React.useRef({ x: 0, y: 0, panX: 0, panY: 0 });
 
-  const ZOOM_MIN = 0.4;
+  const ZOOM_MIN = 0.3;
   const ZOOM_MAX = 3;
-  const ZOOM_STEP = 0.2;
+  const ZOOM_STEP = 0.15;
 
-  const zoomIn = () => setZoom((z) => Math.min(ZOOM_MAX, +(z + ZOOM_STEP).toFixed(2)));
-  const zoomOut = () => setZoom((z) => Math.max(ZOOM_MIN, +(z - ZOOM_STEP).toFixed(2)));
+  // V3.7.5 — Tính fit-to-container zoom: đảm bảo toàn bộ kệ hiển thị vừa khung.
+  const computeFitZoom = React.useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return 1;
+    const cw = el.clientWidth - 32; // trừ padding p-4
+    const ch = el.clientHeight - 32;
+    if (cw <= 0 || ch <= 0) return 1;
+    const fit = Math.min(cw / svgWidth, ch / svgHeight);
+    return Math.max(ZOOM_MIN, Math.min(1, +fit.toFixed(2)));
+  }, [svgWidth, svgHeight]);
+
+  // Auto-fit lần đầu render + mỗi khi resize
+  React.useEffect(() => {
+    if (!autoFit) return;
+    const apply = () => {
+      const fit = computeFitZoom();
+      setZoom(fit);
+      setPan({ x: 0, y: 0 });
+    };
+    apply();
+    const el = containerRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => {
+      if (autoFit) apply();
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [computeFitZoom, autoFit]);
+
+  // User chỉnh zoom thủ công → tắt auto-fit
+  const zoomIn = () => {
+    setAutoFit(false);
+    setZoom((z) => Math.min(ZOOM_MAX, +(z + ZOOM_STEP).toFixed(2)));
+  };
+  const zoomOut = () => {
+    setAutoFit(false);
+    setZoom((z) => Math.max(ZOOM_MIN, +(z - ZOOM_STEP).toFixed(2)));
+  };
   const zoomReset = () => {
-    setZoom(1);
+    // Reset = fit toàn bộ kệ vào khung
+    setAutoFit(true);
+    const fit = computeFitZoom();
+    setZoom(fit);
     setPan({ x: 0, y: 0 });
   };
 
   const handleWheel = (e: React.WheelEvent) => {
     if (!e.ctrlKey && !e.metaKey) return; // chỉ zoom khi giữ Ctrl/Cmd
     e.preventDefault();
+    setAutoFit(false);
     const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
     setZoom((z) => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, +(z + delta).toFixed(2))));
   };
@@ -490,9 +532,12 @@ function Rack3DView({
         <button
           type="button"
           onClick={zoomReset}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100"
-          aria-label="Reset zoom"
-          title="Reset (1:1)"
+          className={cn(
+            "inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100",
+            autoFit && "bg-indigo-50 text-indigo-700",
+          )}
+          aria-label="Vừa khung"
+          title="Vừa khung (auto-fit toàn bộ kệ)"
         >
           <Maximize2 className="h-4 w-4" />
         </button>
@@ -503,8 +548,15 @@ function Rack3DView({
 
       <div
         style={{
+          width: svgWidth * zoom,
+          height: svgHeight * zoom,
+          transition: isDragging ? "none" : "width 0.15s, height 0.15s",
+        }}
+      >
+      <div
+        style={{
           transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-          transformOrigin: "center center",
+          transformOrigin: "top left",
           transition: isDragging ? "none" : "transform 0.15s ease-out",
         }}
       >
@@ -851,6 +903,7 @@ function Rack3DView({
           }
         `}</style>
       </svg>
+      </div>
       </div>
     </div>
   );
