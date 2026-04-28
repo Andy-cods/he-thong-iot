@@ -230,7 +230,7 @@ export function WarehouseLayoutTab() {
       )}
 
       {/* Body: 3D layout + side panel */}
-      <div className="relative flex flex-1 overflow-hidden">
+      <div className="relative flex flex-1 overflow-hidden min-h-[600px]">
         <div className="relative flex-1">
           {layoutQuery.isLoading ? (
             <div className="flex h-full items-center justify-center gap-2 text-sm text-zinc-500">
@@ -246,7 +246,7 @@ export function WarehouseLayoutTab() {
               </p>
             </div>
           ) : (
-            <div className="absolute inset-4">
+            <div className="h-full p-4">
               <WarehouseLayout3D
                 bins={bins}
                 selectedBinId={selectedBinId}

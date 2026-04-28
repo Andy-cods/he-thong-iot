@@ -129,16 +129,22 @@ export function WarehouseLayout3D({
     }
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     for (const p of projected) {
-      if (p.px < minX) minX = p.px;
-      if (p.px + BIN_W > maxX) maxX = p.px + BIN_W;
-      if (p.py - BIN_H - BIN_D < minY) minY = p.py - BIN_H - BIN_D;
-      if (p.py + BIN_D > maxY) maxY = p.py + BIN_D;
+      // Bin chiếm không gian: top-left corner = (px, py - BIN_H), nhưng có
+      // depth lệch sang phải BIN_D*COS30 và lên trên BIN_D*SIN30.
+      const left = p.px;
+      const right = p.px + BIN_W + BIN_D * COS30;
+      const top = p.py - BIN_H - BIN_D * SIN30;
+      const bottom = p.py;
+      if (left < minX) minX = left;
+      if (right > maxX) maxX = right;
+      if (top < minY) minY = top;
+      if (bottom > maxY) maxY = bottom;
     }
     return {
-      minX: minX - 60,
-      minY: minY - 60,
-      maxX: maxX + 60,
-      maxY: maxY + 60,
+      minX: minX - 80,
+      minY: minY - 80,
+      maxX: maxX + 80,
+      maxY: maxY + 80,
     };
   }, [projected]);
 
@@ -167,12 +173,13 @@ export function WarehouseLayout3D({
   }, [projected]);
 
   return (
-    <div className={cn("relative h-full w-full overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900", className)}>
-      {/* Grid floor */}
+    <div className={cn("relative h-full w-full overflow-auto rounded-2xl bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900", className)}>
+      {/* SVG fixed pixel size để bins render đủ to + container scroll khi vượt */}
       <svg
-        className="absolute inset-0 h-full w-full"
+        width={viewWidth}
+        height={viewHeight}
         viewBox={`${bounds.minX} ${bounds.minY} ${viewWidth} ${viewHeight}`}
-        preserveAspectRatio="xMidYMid meet"
+        style={{ display: "block", margin: "0 auto" }}
       >
         <defs>
           <pattern id="grid-pattern" width="60" height="35" patternUnits="userSpaceOnUse">
