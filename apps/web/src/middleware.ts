@@ -30,6 +30,15 @@ const PROTECTED_PREFIXES = [
   "/qc-checks",
   "/lot-serial",
   "/shortage",
+  // V3.3 — Hub pages + module mới
+  "/sales",
+  "/warehouse",
+  "/engineering",
+  "/operations",
+  "/notifications",
+  "/material-requests",
+  "/assembly",
+  "/procurement",
 ];
 
 function isProtected(pathname: string): boolean {
@@ -98,5 +107,14 @@ export const config = {
     "/qc-checks/:path*",
     "/lot-serial/:path*",
     "/shortage/:path*",
+    // V3.3 — Hub pages + module mới
+    "/sales/:path*",
+    "/warehouse/:path*",
+    "/engineering/:path*",
+    "/operations/:path*",
+    "/notifications/:path*",
+    "/material-requests/:path*",
+    "/assembly/:path*",
+    "/procurement/:path*",
   ],
 };
