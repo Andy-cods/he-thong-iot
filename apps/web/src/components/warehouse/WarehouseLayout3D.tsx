@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Box, Layers, Maximize2, MoreVertical, ZoomIn, ZoomOut } from "lucide-react";
+import { Box, Layers, MoreVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -410,156 +410,8 @@ function Rack3DView({
   const svgHeight = RACK_PAD + totalRackHeight + baseHeight + positionTagH + groundLabelH + RACK_PAD;
   const rackLeftX = TIER_LABEL_W + RACK_PAD + POST_W;
 
-  // V3.7.3 — Zoom + pan controls
-  // V3.7.5 — Default zoom = fit-to-container, không phóng to sát.
-  const containerRef = React.useRef<HTMLDivElement | null>(null);
-  const [zoom, setZoom] = React.useState(1);
-  const [pan, setPan] = React.useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = React.useState(false);
-  const [autoFit, setAutoFit] = React.useState(true);
-  const dragStart = React.useRef({ x: 0, y: 0, panX: 0, panY: 0 });
-
-  const ZOOM_MIN = 0.3;
-  const ZOOM_MAX = 3;
-  const ZOOM_STEP = 0.15;
-
-  // V3.7.5 — Tính fit-to-container zoom: đảm bảo toàn bộ kệ hiển thị vừa khung.
-  const computeFitZoom = React.useCallback(() => {
-    const el = containerRef.current;
-    if (!el) return 1;
-    const cw = el.clientWidth - 32; // trừ padding p-4
-    const ch = el.clientHeight - 32;
-    if (cw <= 0 || ch <= 0) return 1;
-    const fit = Math.min(cw / svgWidth, ch / svgHeight);
-    return Math.max(ZOOM_MIN, Math.min(1, +fit.toFixed(2)));
-  }, [svgWidth, svgHeight]);
-
-  // Auto-fit lần đầu render + mỗi khi resize
-  React.useEffect(() => {
-    if (!autoFit) return;
-    const apply = () => {
-      const fit = computeFitZoom();
-      setZoom(fit);
-      setPan({ x: 0, y: 0 });
-    };
-    apply();
-    const el = containerRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(() => {
-      if (autoFit) apply();
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [computeFitZoom, autoFit]);
-
-  // User chỉnh zoom thủ công → tắt auto-fit
-  const zoomIn = () => {
-    setAutoFit(false);
-    setZoom((z) => Math.min(ZOOM_MAX, +(z + ZOOM_STEP).toFixed(2)));
-  };
-  const zoomOut = () => {
-    setAutoFit(false);
-    setZoom((z) => Math.max(ZOOM_MIN, +(z - ZOOM_STEP).toFixed(2)));
-  };
-  const zoomReset = () => {
-    // Reset = fit toàn bộ kệ vào khung
-    setAutoFit(true);
-    const fit = computeFitZoom();
-    setZoom(fit);
-    setPan({ x: 0, y: 0 });
-  };
-
-  const handleWheel = (e: React.WheelEvent) => {
-    if (!e.ctrlKey && !e.metaKey) return; // chỉ zoom khi giữ Ctrl/Cmd
-    e.preventDefault();
-    setAutoFit(false);
-    const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
-    setZoom((z) => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, +(z + delta).toFixed(2))));
-  };
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    // Chỉ pan khi giữ Space hoặc middle-click
-    if (e.button !== 1 && !e.shiftKey) return;
-    e.preventDefault();
-    setIsDragging(true);
-    dragStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging) return;
-    setPan({
-      x: dragStart.current.panX + (e.clientX - dragStart.current.x),
-      y: dragStart.current.panY + (e.clientY - dragStart.current.y),
-    });
-  };
-
-  const handleMouseUp = () => {
-    if (isDragging) setIsDragging(false);
-  };
-
   return (
-    <div
-      ref={containerRef}
-      className="relative flex h-full items-center justify-center overflow-auto p-4"
-      onWheel={handleWheel}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      style={{ cursor: isDragging ? "grabbing" : undefined }}
-    >
-      {/* Zoom controls overlay */}
-      <div className="absolute right-4 top-4 z-10 flex flex-col gap-1 rounded-lg border border-zinc-200 bg-white p-1 shadow-md">
-        <button
-          type="button"
-          onClick={zoomIn}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100"
-          aria-label="Phóng to"
-          title="Phóng to (Ctrl + cuộn)"
-        >
-          <ZoomIn className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          onClick={zoomOut}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100"
-          aria-label="Thu nhỏ"
-          title="Thu nhỏ (Ctrl + cuộn)"
-        >
-          <ZoomOut className="h-4 w-4" />
-        </button>
-        <div className="my-0.5 h-px bg-zinc-200" />
-        <button
-          type="button"
-          onClick={zoomReset}
-          className={cn(
-            "inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100",
-            autoFit && "bg-indigo-50 text-indigo-700",
-          )}
-          aria-label="Vừa khung"
-          title="Vừa khung (auto-fit toàn bộ kệ)"
-        >
-          <Maximize2 className="h-4 w-4" />
-        </button>
-        <div className="px-1 pt-1 text-center text-[10px] font-mono font-semibold text-zinc-500">
-          {Math.round(zoom * 100)}%
-        </div>
-      </div>
-
-      <div
-        style={{
-          width: svgWidth * zoom,
-          height: svgHeight * zoom,
-          transition: isDragging ? "none" : "width 0.15s, height 0.15s",
-        }}
-      >
-      <div
-        style={{
-          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-          transformOrigin: "top left",
-          transition: isDragging ? "none" : "transform 0.15s ease-out",
-        }}
-      >
+    <div className="flex h-full items-center justify-center overflow-auto p-4">
       <svg width={svgWidth} height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`} style={{ display: "block" }}>
         <defs>
           {/* Bin gradients per theme */}
@@ -903,8 +755,6 @@ function Rack3DView({
           }
         `}</style>
       </svg>
-      </div>
-      </div>
     </div>
   );
 }
