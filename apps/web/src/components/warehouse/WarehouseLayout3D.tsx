@@ -5,15 +5,16 @@ import { Box, Layers, MoreVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * V3.6.4 — Enterprise warehouse rack với pallet/hộp hàng 3D thật.
+ * V3.6.5 — Premium warehouse rack design.
  *
- * Theo design tham khảo của user:
- * - Khung kệ kim loại realistic: 4 posts + 3 horizontal shelves + sàn base
- * - Mỗi ô có pallet (stack hộp carton) phía trên
- * - Bin = parallelogram box indigo gradient với mã ô + SKU + qty
- * - Position labels (01-06) ở dưới đáy như metal tags
- * - "MẶT ĐỨNG KỆ A-01" label dưới sàn
- * - Tier labels "Tầng X / Cao 2.0m" bên trái
+ * Cải tiến lớn so với V3.6.4:
+ * - 6 themes theo fill level: FULL/HIGH/MID/LOW/WARNING/EMPTY (+inactive)
+ * - Pallet pyramid stacking 3 rows giảm dần với 3 tone cardboard
+ * - Wood pallet 3 slats realistic
+ * - Glass reflection vertical stripe trên front
+ * - LED status indicator (corner) với pulse glow
+ * - Soft drop shadow ellipse beneath bin
+ * - Better typography + status pill header
  */
 
 export interface BinNode {
@@ -44,30 +45,33 @@ export interface WarehouseLayout3DProps {
   onBinClick: (bin: BinNode) => void;
   onBinHover: (binId: string | null) => void;
   className?: string;
-  /** External viewMode controlled (optional). */
   viewMode?: "3d" | "2d";
   onViewModeChange?: (mode: "3d" | "2d") => void;
-  /** External rack selection controlled (optional). */
   selectedRack?: string;
   onRackChange?: (key: string) => void;
 }
 
 type ViewMode = "3d" | "2d";
 
-/** Constants for 3D layout */
-const BIN_W = 175;        // mỗi ô rộng
-const BIN_H = 105;        // mỗi ô cao (vùng front face)
-const PALLET_H = 52;      // chiều cao pallet+boxes phía trên
-const BIN_DEPTH = 30;     // depth 3D
+const BIN_W = 175;
+const BIN_H = 110;
+const PALLET_H = 56;
+const BIN_DEPTH = 32;
 const GAP_X = 18;
 const SHELF_THICKNESS = 10;
 const POST_W = 12;
 const TIER_LABEL_W = 90;
 const RACK_PAD = 32;
 
+/** 6 fill-level themes + 2 special states. */
+type ThemeKey = "full" | "high" | "mid" | "low" | "warning" | "empty" | "inactive";
+
 interface BinTheme {
-  frontStops: [string, string, string];
+  /** 4-stop gradient cho front face */
+  frontStops: [string, string, string, string];
+  /** Top face — sáng nhất (light source above-front) */
   topStops: [string, string];
+  /** Side face — tối, có depth */
   sideStops: [string, string];
   stroke: string;
   shadow: string;
@@ -75,77 +79,151 @@ interface BinTheme {
   textSecondary: string;
   progressFill: string;
   progressTrack: string;
-  highlight: string;
-  /** Color cho cardboard boxes phía trên */
-  palletTone: "indigo" | "amber" | "empty" | "gray";
+  /** Glass reflection stripe color (rgba) */
+  glassRef: string;
+  /** LED indicator (top-right corner) */
+  led: string;
+  ledGlow: string;
+  /** Status label text */
+  statusLabel: string;
+  /** Cardboard tone group cho pallet boxes */
+  palletTone: "indigo" | "blue" | "teal" | "amber" | "gray" | "empty";
 }
 
-const THEMES: Record<"normal" | "low" | "empty" | "inactive", BinTheme> = {
-  normal: {
-    frontStops: ["#6366f1", "#5b58e8", "#4338ca"],
-    topStops: ["#818cf8", "#6366f1"],
+const THEMES: Record<ThemeKey, BinTheme> = {
+  // FULL: >85% capacity — đậm indigo→violet
+  full: {
+    frontStops: ["#8b5cf6", "#6d5df6", "#5b21b6", "#4c1d95"],
+    topStops: ["#a78bfa", "#8b5cf6"],
+    sideStops: ["#5b21b6", "#3b0764"],
+    stroke: "#4c1d95",
+    shadow: "rgba(91, 33, 182, 0.45)",
+    textPrimary: "#ffffff",
+    textSecondary: "rgba(243, 232, 255, 0.9)",
+    progressFill: "#fcd34d",
+    progressTrack: "rgba(255, 255, 255, 0.25)",
+    glassRef: "rgba(255, 255, 255, 0.35)",
+    led: "#fbbf24",
+    ledGlow: "rgba(251, 191, 36, 0.6)",
+    statusLabel: "Đầy",
+    palletTone: "indigo",
+  },
+  // HIGH: 60-85% — indigo
+  high: {
+    frontStops: ["#818cf8", "#6366f1", "#4f46e5", "#4338ca"],
+    topStops: ["#a5b4fc", "#818cf8"],
     sideStops: ["#3730a3", "#312e81"],
     stroke: "#3730a3",
     shadow: "rgba(67, 56, 202, 0.4)",
     textPrimary: "#ffffff",
-    textSecondary: "rgba(255, 255, 255, 0.85)",
-    progressFill: "#ffffff",
+    textSecondary: "rgba(224, 231, 255, 0.9)",
+    progressFill: "#34d399",
     progressTrack: "rgba(255, 255, 255, 0.25)",
-    highlight: "rgba(255, 255, 255, 0.3)",
+    glassRef: "rgba(255, 255, 255, 0.32)",
+    led: "#10b981",
+    ledGlow: "rgba(16, 185, 129, 0.6)",
+    statusLabel: "Có hàng",
     palletTone: "indigo",
   },
+  // MID: 30-60% — blue
+  mid: {
+    frontStops: ["#60a5fa", "#3b82f6", "#2563eb", "#1d4ed8"],
+    topStops: ["#93c5fd", "#60a5fa"],
+    sideStops: ["#1e40af", "#1e3a8a"],
+    stroke: "#1e40af",
+    shadow: "rgba(30, 64, 175, 0.4)",
+    textPrimary: "#ffffff",
+    textSecondary: "rgba(219, 234, 254, 0.9)",
+    progressFill: "#34d399",
+    progressTrack: "rgba(255, 255, 255, 0.25)",
+    glassRef: "rgba(255, 255, 255, 0.3)",
+    led: "#10b981",
+    ledGlow: "rgba(16, 185, 129, 0.6)",
+    statusLabel: "Có hàng",
+    palletTone: "blue",
+  },
+  // LOW: <30% but >lowThreshold — teal (light)
   low: {
-    frontStops: ["#fbbf24", "#f59e0b", "#b45309"],
-    topStops: ["#fcd34d", "#fbbf24"],
+    frontStops: ["#5eead4", "#2dd4bf", "#14b8a6", "#0d9488"],
+    topStops: ["#99f6e4", "#5eead4"],
+    sideStops: ["#0f766e", "#115e59"],
+    stroke: "#0f766e",
+    shadow: "rgba(15, 118, 110, 0.4)",
+    textPrimary: "#ffffff",
+    textSecondary: "rgba(204, 251, 241, 0.95)",
+    progressFill: "#fbbf24",
+    progressTrack: "rgba(255, 255, 255, 0.3)",
+    glassRef: "rgba(255, 255, 255, 0.32)",
+    led: "#fbbf24",
+    ledGlow: "rgba(251, 191, 36, 0.6)",
+    statusLabel: "Còn ít",
+    palletTone: "teal",
+  },
+  // WARNING: dưới lowThreshold — amber pulse
+  warning: {
+    frontStops: ["#fbbf24", "#f59e0b", "#d97706", "#b45309"],
+    topStops: ["#fde68a", "#fbbf24"],
     sideStops: ["#92400e", "#78350f"],
     stroke: "#92400e",
-    shadow: "rgba(180, 83, 9, 0.4)",
+    shadow: "rgba(180, 83, 9, 0.45)",
     textPrimary: "#ffffff",
-    textSecondary: "rgba(255, 255, 255, 0.9)",
+    textSecondary: "rgba(254, 243, 199, 0.95)",
     progressFill: "#ffffff",
     progressTrack: "rgba(255, 255, 255, 0.3)",
-    highlight: "rgba(255, 255, 255, 0.4)",
+    glassRef: "rgba(255, 255, 255, 0.4)",
+    led: "#ef4444",
+    ledGlow: "rgba(239, 68, 68, 0.7)",
+    statusLabel: "Sắp hết",
     palletTone: "amber",
   },
+  // EMPTY: trống
   empty: {
-    frontStops: ["#f1f5f9", "#e2e8f0", "#cbd5e1"],
-    topStops: ["#f8fafc", "#e2e8f0"],
+    frontStops: ["#f8fafc", "#f1f5f9", "#e2e8f0", "#cbd5e1"],
+    topStops: ["#ffffff", "#e2e8f0"],
     sideStops: ["#94a3b8", "#64748b"],
     stroke: "#cbd5e1",
     shadow: "rgba(100, 116, 139, 0.18)",
-    textPrimary: "#94a3b8",
-    textSecondary: "#cbd5e1",
+    textPrimary: "#64748b",
+    textSecondary: "#94a3b8",
     progressFill: "#cbd5e1",
     progressTrack: "rgba(203, 213, 225, 0.5)",
-    highlight: "rgba(255, 255, 255, 0.6)",
+    glassRef: "rgba(255, 255, 255, 0.6)",
+    led: "#cbd5e1",
+    ledGlow: "rgba(203, 213, 225, 0.3)",
+    statusLabel: "Trống",
     palletTone: "empty",
   },
+  // INACTIVE
   inactive: {
-    frontStops: ["#a1a1aa", "#71717a", "#52525b"],
+    frontStops: ["#a1a1aa", "#71717a", "#52525b", "#3f3f46"],
     topStops: ["#d4d4d8", "#a1a1aa"],
-    sideStops: ["#52525b", "#3f3f46"],
+    sideStops: ["#52525b", "#27272a"],
     stroke: "#3f3f46",
     shadow: "rgba(63, 63, 70, 0.35)",
     textPrimary: "#fafafa",
     textSecondary: "#e4e4e7",
     progressFill: "#fafafa",
     progressTrack: "rgba(255, 255, 255, 0.2)",
-    highlight: "rgba(255, 255, 255, 0.25)",
+    glassRef: "rgba(255, 255, 255, 0.18)",
+    led: "#71717a",
+    ledGlow: "rgba(113, 113, 122, 0.4)",
+    statusLabel: "Khoá",
     palletTone: "gray",
   },
 };
 
-function getBinTone(bin: BinNode): "normal" | "low" | "empty" | "inactive" {
-  if (!bin.isActive) return "inactive";
-  if (bin.totalQty <= 0) return "empty";
-  if (bin.isLow) return "low";
-  return "normal";
-}
-
-function fillPercent(bin: BinNode): number {
+function getBinTheme(bin: BinNode): { key: ThemeKey; theme: BinTheme; pct: number } {
   const cap = Number(bin.capacity ?? "0");
-  if (cap <= 0) return 0;
-  return Math.min(100, Math.max(0, (bin.totalQty / cap) * 100));
+  const pct = cap > 0 ? Math.min(100, Math.max(0, (bin.totalQty / cap) * 100)) : 0;
+  let key: ThemeKey;
+  if (!bin.isActive) key = "inactive";
+  else if (bin.totalQty <= 0) key = "empty";
+  else if (bin.isLow) key = "warning";
+  else if (pct > 85) key = "full";
+  else if (pct > 60) key = "high";
+  else if (pct > 30) key = "mid";
+  else key = "low";
+  return { key, theme: THEMES[key], pct };
 }
 
 export function WarehouseLayout3D({
@@ -211,13 +289,10 @@ export function WarehouseLayout3D({
 
   return (
     <div className={cn("flex h-full w-full flex-col gap-3", className)}>
-      {/* Inline rack tabs nếu không bị control external */}
       {!extSelectedRack && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-white p-2.5 shadow-sm">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="ml-2 mr-1 text-xs font-bold uppercase tracking-wider text-zinc-500">
-              Chọn kệ
-            </span>
+            <span className="ml-2 mr-1 text-xs font-bold uppercase tracking-wider text-zinc-500">Chọn kệ</span>
             {racks.map((r) => {
               const isActive = r.key === selectedRack;
               const occupied = r.items.filter((b) => b.totalQty > 0).length;
@@ -293,7 +368,7 @@ export function WarehouseLayout3D({
 }
 
 /* ─────────────────────────────────────────────────────────────────────── */
-/* 3D RACK VIEW — pallet stack + metallic frame                             */
+/* 3D RACK VIEW — pallet pyramid + glass reflection + LED                   */
 /* ─────────────────────────────────────────────────────────────────────── */
 
 function Rack3DView({
@@ -323,29 +398,28 @@ function Rack3DView({
   const tierH = PALLET_H + BIN_H + SHELF_THICKNESS;
   const rackContentWidth = positionsPerLevel * BIN_W + (positionsPerLevel - 1) * GAP_X;
 
-  // SVG dimensions
-  const baseHeight = 36;          // sàn nền dưới đáy
-  const positionTagH = 22;        // dải nhãn position 01-06
-  const groundLabelH = 26;        // "MẶT ĐỨNG KỆ A-01"
-  const totalRackHeight = levels * tierH + SHELF_THICKNESS; // shelves bottom
+  const baseHeight = 36;
+  const positionTagH = 22;
+  const groundLabelH = 26;
+  const totalRackHeight = levels * tierH + SHELF_THICKNESS;
   const svgWidth = TIER_LABEL_W + RACK_PAD * 2 + rackContentWidth + POST_W * 2 + BIN_DEPTH;
   const svgHeight = RACK_PAD + totalRackHeight + baseHeight + positionTagH + groundLabelH + RACK_PAD;
-
   const rackLeftX = TIER_LABEL_W + RACK_PAD + POST_W;
 
   return (
     <div className="flex h-full items-center justify-center p-4">
       <svg width={svgWidth} height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`} style={{ display: "block" }}>
         <defs>
-          {/* Bin gradients */}
-          {(["normal", "low", "empty", "inactive"] as const).map((tone) => {
+          {/* Bin gradients per theme */}
+          {(Object.keys(THEMES) as ThemeKey[]).map((tone) => {
             const t = THEMES[tone];
             return (
               <React.Fragment key={tone}>
                 <linearGradient id={`bin-front-${tone}`} x1="0%" y1="0%" x2="0%" y2="100%">
                   <stop offset="0%" stopColor={t.frontStops[0]} />
-                  <stop offset="50%" stopColor={t.frontStops[1]} />
-                  <stop offset="100%" stopColor={t.frontStops[2]} />
+                  <stop offset="35%" stopColor={t.frontStops[1]} />
+                  <stop offset="70%" stopColor={t.frontStops[2]} />
+                  <stop offset="100%" stopColor={t.frontStops[3]} />
                 </linearGradient>
                 <linearGradient id={`bin-top-${tone}`} x1="20%" y1="0%" x2="80%" y2="100%">
                   <stop offset="0%" stopColor={t.topStops[0]} />
@@ -359,31 +433,46 @@ function Rack3DView({
             );
           })}
 
-          {/* Cardboard pallet gradients */}
-          <linearGradient id="cardboard-grad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#d4a574" />
-            <stop offset="50%" stopColor="#b8895c" />
-            <stop offset="100%" stopColor="#8b6240" />
-          </linearGradient>
-          <linearGradient id="cardboard-top" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#e6b88a" />
-            <stop offset="100%" stopColor="#c19975" />
-          </linearGradient>
-          <linearGradient id="empty-pallet" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#f1f5f9" />
-            <stop offset="100%" stopColor="#cbd5e1" />
+          {/* Cardboard tones */}
+          {[
+            { id: "card-light", from: "#f0d9a8", mid: "#d4af7a", to: "#a8845a" },
+            { id: "card-medium", from: "#dda874", mid: "#b8895c", to: "#8b6240" },
+            { id: "card-dark", from: "#c4956a", mid: "#9a7048", to: "#705030" },
+          ].map((c) => (
+            <linearGradient key={c.id} id={c.id} x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor={c.from} />
+              <stop offset="50%" stopColor={c.mid} />
+              <stop offset="100%" stopColor={c.to} />
+            </linearGradient>
+          ))}
+          <linearGradient id="card-top-light" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#f5e1b8" />
+            <stop offset="100%" stopColor="#d4af7a" />
           </linearGradient>
 
-          {/* Metallic post gradient */}
+          {/* Wood pallet */}
+          <linearGradient id="wood-pallet" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#a8896b" />
+            <stop offset="50%" stopColor="#7c5e44" />
+            <stop offset="100%" stopColor="#52401d" />
+          </linearGradient>
+
+          {/* Empty pallet */}
+          <linearGradient id="empty-pallet" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#e2e8f0" />
+            <stop offset="100%" stopColor="#94a3b8" />
+          </linearGradient>
+
+          {/* Metallic post */}
           <linearGradient id="metal-post" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#52525b" />
-            <stop offset="40%" stopColor="#a1a1aa" />
-            <stop offset="60%" stopColor="#a1a1aa" />
-            <stop offset="100%" stopColor="#52525b" />
+            <stop offset="0%" stopColor="#3f3f46" />
+            <stop offset="35%" stopColor="#a1a1aa" />
+            <stop offset="65%" stopColor="#a1a1aa" />
+            <stop offset="100%" stopColor="#3f3f46" />
           </linearGradient>
           <linearGradient id="metal-shelf" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#a1a1aa" />
-            <stop offset="50%" stopColor="#71717a" />
+            <stop offset="0%" stopColor="#d4d4d8" />
+            <stop offset="50%" stopColor="#a1a1aa" />
             <stop offset="100%" stopColor="#52525b" />
           </linearGradient>
           <linearGradient id="metal-base" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -391,58 +480,54 @@ function Rack3DView({
             <stop offset="100%" stopColor="#3f3f46" />
           </linearGradient>
 
-          <filter id="bin-shadow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur in="SourceAlpha" stdDeviation="2.5" />
-            <feOffset dx="0" dy="4" />
+          {/* Drop shadow filter */}
+          <filter id="bin-drop-shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
+            <feOffset dx="0" dy="5" />
             <feComponentTransfer>
-              <feFuncA type="linear" slope="0.35" />
+              <feFuncA type="linear" slope="0.4" />
             </feComponentTransfer>
             <feMerge>
               <feMergeNode />
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
+
+          {/* LED glow */}
+          <radialGradient id="led-glow-green" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="rgba(16, 185, 129, 0.7)" />
+            <stop offset="100%" stopColor="rgba(16, 185, 129, 0)" />
+          </radialGradient>
+          <radialGradient id="led-glow-amber" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="rgba(251, 191, 36, 0.7)" />
+            <stop offset="100%" stopColor="rgba(251, 191, 36, 0)" />
+          </radialGradient>
+          <radialGradient id="led-glow-red" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="rgba(239, 68, 68, 0.8)" />
+            <stop offset="100%" stopColor="rgba(239, 68, 68, 0)" />
+          </radialGradient>
         </defs>
 
-        {/* Tier labels (left side) */}
+        {/* Tier labels */}
         {tierData.map((tier, idx) => {
           const y = RACK_PAD + idx * tierH + (PALLET_H + BIN_H) / 2;
           return (
             <g key={tier.lvl}>
-              <text
-                x={TIER_LABEL_W / 2 + 6}
-                y={y - 6}
-                textAnchor="middle"
-                fontSize="13"
-                fontWeight="700"
-                fill="#1e293b"
-              >
-                {tier.label}
-              </text>
-              <text
-                x={TIER_LABEL_W / 2 + 6}
-                y={y + 12}
-                textAnchor="middle"
-                fontSize="10"
-                fontWeight="500"
-                fill="#94a3b8"
-              >
-                {tier.height}
-              </text>
+              <text x={TIER_LABEL_W / 2 + 6} y={y - 6} textAnchor="middle" fontSize="13" fontWeight="700" fill="#1e293b">{tier.label}</text>
+              <text x={TIER_LABEL_W / 2 + 6} y={y + 12} textAnchor="middle" fontSize="10" fontWeight="500" fill="#94a3b8">{tier.height}</text>
             </g>
           );
         })}
 
-        {/* RACK STRUCTURE: vertical posts (left + right) */}
+        {/* Posts */}
         <RackPost x={rackLeftX - POST_W} yTop={RACK_PAD} height={totalRackHeight} />
         <RackPost x={rackLeftX + rackContentWidth} yTop={RACK_PAD} height={totalRackHeight} />
 
-        {/* Horizontal shelves — at bottom of each tier */}
+        {/* Shelves */}
         {tierData.map((_, idx) => {
           const shelfY = RACK_PAD + idx * tierH + PALLET_H + BIN_H;
           return (
             <g key={`shelf-${idx}`}>
-              {/* Shelf horizontal bar */}
               <rect
                 x={rackLeftX - POST_W - 4}
                 y={shelfY}
@@ -451,19 +536,18 @@ function Rack3DView({
                 fill="url(#metal-shelf)"
                 rx={2}
               />
-              {/* Shelf top edge highlight */}
               <rect
                 x={rackLeftX - POST_W - 4}
                 y={shelfY}
                 width={rackContentWidth + POST_W * 2 + 8}
                 height={2}
-                fill="#d4d4d8"
+                fill="#e4e4e7"
               />
             </g>
           );
         })}
 
-        {/* Bins (with pallets) — render top tier first to handle overlap */}
+        {/* Bins */}
         {rack.items.map((bin) => {
           const lvl = bin.levelNo ?? 1;
           const pos = parseInt(bin.position ?? "1", 10) || 1;
@@ -473,7 +557,7 @@ function Rack3DView({
           const y = RACK_PAD + row * tierH;
 
           return (
-            <Bin3DWithPallet
+            <BinPro3D
               key={bin.id}
               bin={bin}
               x={x}
@@ -487,7 +571,7 @@ function Rack3DView({
           );
         })}
 
-        {/* BASE PLATFORM — sàn dưới đáy */}
+        {/* Base platform */}
         <g>
           <rect
             x={rackLeftX - POST_W - 16}
@@ -497,7 +581,6 @@ function Rack3DView({
             fill="url(#metal-base)"
             rx={3}
           />
-          {/* Base top highlight */}
           <rect
             x={rackLeftX - POST_W - 16}
             y={RACK_PAD + totalRackHeight}
@@ -507,59 +590,29 @@ function Rack3DView({
           />
         </g>
 
-        {/* POSITION TAGS — 01, 02, 03... at bottom */}
+        {/* Position tags */}
         {Array.from({ length: positionsPerLevel }).map((_, col) => {
           const x = rackLeftX + col * cellW + GAP_X / 2 + BIN_W / 2;
           const y = RACK_PAD + totalRackHeight + baseHeight + 8;
           const posLabel = String(col + 1).padStart(2, "0");
           return (
             <g key={`pos-${col}`}>
-              <rect
-                x={x - 18}
-                y={y}
-                width={36}
-                height={positionTagH}
-                rx={6}
-                fill="#fff"
-                stroke="#cbd5e1"
-                strokeWidth="1.5"
-              />
-              <text
-                x={x}
-                y={y + positionTagH / 2 + 1}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fontSize="11"
-                fontWeight="700"
-                fill="#475569"
-                fontFamily="ui-monospace, SFMono-Regular, monospace"
-              >
+              <rect x={x - 18} y={y} width={36} height={positionTagH} rx={6} fill="#fff" stroke="#cbd5e1" strokeWidth="1.5" />
+              <text x={x} y={y + positionTagH / 2 + 1} textAnchor="middle" dominantBaseline="middle"
+                fontSize="11" fontWeight="700" fill="#475569" fontFamily="ui-monospace, SFMono-Regular, monospace">
                 {posLabel}
               </text>
             </g>
           );
         })}
 
-        {/* GROUND LABEL — "MẶT ĐỨNG KỆ A-01" */}
+        {/* Ground label */}
         <g>
-          <rect
-            x={rackLeftX - 4}
-            y={RACK_PAD + totalRackHeight + baseHeight + positionTagH + 6}
-            width={rackContentWidth + 8}
-            height={groundLabelH - 6}
-            rx={4}
-            fill="#1e293b"
-          />
-          <text
-            x={rackLeftX + rackContentWidth / 2}
+          <rect x={rackLeftX - 4} y={RACK_PAD + totalRackHeight + baseHeight + positionTagH + 6}
+            width={rackContentWidth + 8} height={groundLabelH - 6} rx={4} fill="#1e293b" />
+          <text x={rackLeftX + rackContentWidth / 2}
             y={RACK_PAD + totalRackHeight + baseHeight + positionTagH + 6 + (groundLabelH - 6) / 2 + 1}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            fontSize="11"
-            fontWeight="700"
-            fill="#fff"
-            letterSpacing="1.5"
-          >
+            textAnchor="middle" dominantBaseline="middle" fontSize="11" fontWeight="700" fill="#fff" letterSpacing="1.5">
             MẶT ĐỨNG KỆ {rack.area}-{rack.rack}
           </text>
         </g>
@@ -570,7 +623,14 @@ function Rack3DView({
           }
           @keyframes bin-pulse {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.8; }
+            50% { opacity: 0.78; }
+          }
+          :global(.led-pulse) {
+            animation: led-blink 1.6s ease-in-out infinite;
+          }
+          @keyframes led-blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
           }
         `}</style>
       </svg>
@@ -578,22 +638,19 @@ function Rack3DView({
   );
 }
 
-/** Vertical metallic post của khung kệ. */
 function RackPost({ x, yTop, height }: { x: number; yTop: number; height: number }) {
   return (
     <g>
       <rect x={x} y={yTop - 8} width={POST_W} height={height + 16} fill="url(#metal-post)" rx={2} />
-      {/* Top cap */}
       <rect x={x - 2} y={yTop - 12} width={POST_W + 4} height={5} rx={2} fill="#52525b" />
-      {/* Bolts highlight */}
       <circle cx={x + POST_W / 2} cy={yTop + 8} r={1.5} fill="#1f1f23" />
       <circle cx={x + POST_W / 2} cy={yTop + height - 8} r={1.5} fill="#1f1f23" />
     </g>
   );
 }
 
-/** Bin 3D với pallet/boxes phía trên. */
-function Bin3DWithPallet({
+/** Pro 3D bin với glass reflection + LED indicator + status pill. */
+function BinPro3D({
   bin, x, y, isSelected, isHovered, onClick, onMouseEnter, onMouseLeave,
 }: {
   bin: BinNode;
@@ -605,27 +662,23 @@ function Bin3DWithPallet({
   onMouseEnter: () => void;
   onMouseLeave: () => void;
 }) {
-  const tone = getBinTone(bin);
-  const theme = THEMES[tone];
-  const pct = fillPercent(bin);
+  const { key: tone, theme, pct } = getBinTheme(bin);
   const hasStock = bin.totalQty > 0;
+  const isWarning = tone === "warning";
 
-  // Front face top-left
+  // Front face coords
   const fxL = x;
   const fxR = x + BIN_W;
-  const fyT = y + PALLET_H;        // bin starts BELOW pallet area
+  const fyT = y + PALLET_H;
   const fyB = y + PALLET_H + BIN_H;
 
-  // 3D depth offset (right + up for top face, right for side)
   const dx = BIN_DEPTH * 0.7;
   const dy = -BIN_DEPTH * 0.5;
   const bxR = fxR + dx;
   const byT = fyT + dy;
   const byB = fyB + dy;
 
-  // Pallet area (top of bin)
   const palletYTop = y;
-  const palletYBottom = y + PALLET_H;
 
   return (
     <g
@@ -634,120 +687,181 @@ function Bin3DWithPallet({
         transformOrigin: `${x + BIN_W / 2}px ${fyT + BIN_H / 2}px`,
         transformBox: "fill-box",
         transform: isSelected
-          ? "translateY(-6px) scale(1.03)"
+          ? "translateY(-7px) scale(1.04)"
           : isHovered
             ? "translateY(-3px)"
             : undefined,
-        transition: "transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1)",
+        transition: "transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)",
       }}
-      className={cn(bin.isLow && hasStock && "warehouse-bin-pulse")}
+      className={cn(isWarning && hasStock && "warehouse-bin-pulse")}
       onClick={onClick}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      filter="url(#bin-shadow)"
     >
-      {/* PALLET / BOXES STACK on top */}
+      {/* Soft drop shadow ellipse beneath bin (separate from filter) */}
+      <ellipse
+        cx={x + BIN_W / 2 + 4}
+        cy={fyB + 6}
+        rx={BIN_W / 2.3}
+        ry={6}
+        fill="rgba(0, 0, 0, 0.18)"
+        filter="blur(3px)"
+      />
+
+      {/* PALLET STACK on top */}
       {hasStock ? (
-        <PalletStack
-          x={fxL + 8}
-          y={palletYTop + 4}
-          width={BIN_W - 16}
-          height={PALLET_H - 6}
-          fillRatio={pct / 100}
+        <PalletPyramid
+          x={fxL + 6}
+          y={palletYTop + 2}
+          width={BIN_W - 12}
+          height={PALLET_H - 4}
+          fillRatio={Math.min(1, bin.totalQty / Math.max(1, Number(bin.capacity ?? "100")))}
           tone={theme.palletTone}
         />
       ) : tone === "empty" ? (
-        // Empty: chỉ pallet phẳng (không có boxes)
-        <EmptyPallet x={fxL + 12} y={palletYBottom - 12} width={BIN_W - 24} />
+        <EmptyWoodPallet x={fxL + 14} y={palletYTop + PALLET_H - 14} width={BIN_W - 28} />
       ) : null}
 
-      {/* BIN BODY 3D */}
-      {/* Top face */}
-      <path
-        d={`M${fxL},${fyT} L${fxR},${fyT} L${bxR},${byT} L${fxL + dx},${byT} Z`}
-        fill={`url(#bin-top-${tone})`}
-        stroke={theme.stroke}
-        strokeWidth="0.8"
-      />
-      {/* Right side face */}
-      <path
-        d={`M${fxR},${fyT} L${bxR},${byT} L${bxR},${byB} L${fxR},${fyB} Z`}
-        fill={`url(#bin-side-${tone})`}
-        stroke={theme.stroke}
-        strokeWidth="0.8"
-      />
-      {/* Front face (rounded rect) */}
-      <rect
-        x={fxL}
-        y={fyT}
-        width={BIN_W}
-        height={BIN_H}
-        rx={6}
-        ry={6}
-        fill={`url(#bin-front-${tone})`}
-        stroke={theme.stroke}
-        strokeWidth="1"
-      />
+      {/* === BIN BODY 3D === */}
+      <g filter="url(#bin-drop-shadow)">
+        {/* Top face (parallelogram) */}
+        <path
+          d={`M${fxL},${fyT} L${fxR},${fyT} L${bxR},${byT} L${fxL + dx},${byT} Z`}
+          fill={`url(#bin-top-${tone})`}
+          stroke={theme.stroke}
+          strokeWidth="0.8"
+        />
+        {/* Right side face */}
+        <path
+          d={`M${fxR},${fyT} L${bxR},${byT} L${bxR},${byB} L${fxR},${fyB} Z`}
+          fill={`url(#bin-side-${tone})`}
+          stroke={theme.stroke}
+          strokeWidth="0.8"
+        />
+        {/* Front face (rounded rect) */}
+        <rect
+          x={fxL}
+          y={fyT}
+          width={BIN_W}
+          height={BIN_H}
+          rx={8}
+          ry={8}
+          fill={`url(#bin-front-${tone})`}
+          stroke={theme.stroke}
+          strokeWidth="1"
+        />
+      </g>
 
-      {/* Top edge highlight */}
-      <rect
-        x={fxL + 3}
-        y={fyT + 3}
-        width={BIN_W - 6}
-        height={3}
-        rx={1.5}
-        fill={theme.highlight}
-        pointerEvents="none"
-      />
+      {/* === GLASS REFLECTION STRIPE on front === */}
+      <g pointerEvents="none">
+        {/* Top inner highlight (above the band) */}
+        <rect
+          x={fxL + 4}
+          y={fyT + 3}
+          width={BIN_W - 8}
+          height={10}
+          rx={4}
+          fill={theme.glassRef}
+          opacity="0.7"
+        />
+        {/* Vertical reflection stripe (glass shine) */}
+        <polygon
+          points={`
+            ${fxL + BIN_W * 0.18},${fyT + 6}
+            ${fxL + BIN_W * 0.32},${fyT + 6}
+            ${fxL + BIN_W * 0.22},${fyT + BIN_H - 8}
+            ${fxL + BIN_W * 0.08},${fyT + BIN_H - 8}
+          `}
+          fill={theme.glassRef}
+          opacity="0.35"
+        />
+      </g>
 
-      {/* CONTENT TEXT */}
-      {/* Header line: "Ô 01" + ⋮ */}
-      <g>
-        {/* Box icon */}
-        <rect x={fxL + 10} y={fyT + 11} width={14} height={14} rx={3} fill="rgba(255,255,255,0.2)" />
-        <rect x={fxL + 12} y={fyT + 13} width={10} height={3} fill="rgba(255,255,255,0.6)" />
+      {/* === STATUS PILL HEADER === */}
+      <g pointerEvents="none">
+        {/* Status pill background */}
+        <rect
+          x={fxL + 8}
+          y={fyT + 8}
+          width={68}
+          height={18}
+          rx={9}
+          fill="rgba(255, 255, 255, 0.22)"
+          stroke="rgba(255, 255, 255, 0.35)"
+          strokeWidth="0.8"
+        />
+        {/* Status dot */}
+        <circle cx={fxL + 17} cy={fyT + 17} r={3} fill={theme.led} />
+        {/* Status text */}
         <text
-          x={fxL + 30}
-          y={fyT + 22}
-          fontSize="12"
+          x={fxL + 25}
+          y={fyT + 17}
+          dominantBaseline="middle"
+          fontSize="10"
           fontWeight="700"
           fill={theme.textPrimary}
           fontFamily="ui-sans-serif, system-ui, sans-serif"
-          pointerEvents="none"
         >
-          Ô {bin.position}
-        </text>
-        {/* Menu dots */}
-        <text
-          x={fxR - 14}
-          y={fyT + 22}
-          fontSize="14"
-          fontWeight="700"
-          fill={theme.textSecondary}
-          textAnchor="middle"
-          pointerEvents="none"
-        >
-          ⋮
+          {theme.statusLabel}
         </text>
       </g>
 
-      {/* Mã ô */}
+      {/* === LED INDICATOR (top-right corner) === */}
+      <g pointerEvents="none">
+        {/* Glow */}
+        <circle
+          cx={fxR - 14}
+          cy={fyT + 17}
+          r={9}
+          fill={
+            theme.led === "#10b981" ? "url(#led-glow-green)" :
+            theme.led === "#fbbf24" ? "url(#led-glow-amber)" :
+            theme.led === "#ef4444" ? "url(#led-glow-red)" :
+            "url(#led-glow-amber)"
+          }
+        />
+        {/* LED bulb */}
+        <circle
+          cx={fxR - 14}
+          cy={fyT + 17}
+          r={3.5}
+          fill={theme.led}
+          className={isWarning ? "led-pulse" : undefined}
+        />
+        {/* LED inner shine */}
+        <circle cx={fxR - 14.5} cy={fyT + 16} r={1.2} fill="rgba(255, 255, 255, 0.8)" />
+      </g>
+
+      {/* === MENU DOTS === */}
+      <text
+        x={fxR - 14}
+        y={fyT + 32}
+        textAnchor="middle"
+        fontSize="13"
+        fontWeight="700"
+        fill={theme.textSecondary}
+        pointerEvents="none"
+      >
+        ⋮
+      </text>
+
+      {/* === FULL CODE === */}
       <text
         x={fxL + 12}
-        y={fyT + 42}
+        y={fyT + 44}
         fontSize="10"
         fontWeight="600"
         fill={theme.textSecondary}
         fontFamily="ui-monospace, SFMono-Regular, monospace"
         pointerEvents="none"
       >
-        {bin.fullCode.replace(/^[A-Z]/, "")}
+        {bin.fullCode}
       </text>
 
-      {/* SKU */}
+      {/* === SKU === */}
       <text
         x={fxL + 12}
-        y={fyT + 60}
+        y={fyT + 62}
         fontSize="11"
         fontWeight="700"
         fill={theme.textPrimary}
@@ -755,21 +869,22 @@ function Bin3DWithPallet({
         pointerEvents="none"
       >
         {bin.primarySku
-          ? `SKU: ${bin.primarySku.length > 13 ? bin.primarySku.slice(0, 11) + "…" : bin.primarySku}`
+          ? `SKU: ${bin.primarySku.length > 12 ? bin.primarySku.slice(0, 11) + "…" : bin.primarySku}`
           : hasStock
-            ? `SKU: ${bin.skuCount} loại`
+            ? `${bin.skuCount} SKU · ${bin.lotCount} lot`
             : "Trống"}
       </text>
 
-      {/* Qty / Capacity */}
+      {/* === QTY === */}
       <text
         x={fxL + 12}
-        y={fyT + 80}
-        fontSize="13"
+        y={fyT + 84}
+        fontSize="15"
         fontWeight="800"
         fill={theme.textPrimary}
         fontFamily="ui-monospace, SFMono-Regular, monospace"
         pointerEvents="none"
+        style={{ textShadow: hasStock ? "0 1px 2px rgba(0,0,0,0.3)" : "none" }}
       >
         {Math.round(bin.totalQty).toLocaleString("vi-VN")}
         {" "}
@@ -778,19 +893,61 @@ function Bin3DWithPallet({
         </tspan>
       </text>
 
-      {/* Progress bar */}
-      <rect x={fxL + 12} y={fyT + BIN_H - 12} width={BIN_W - 24} height={3.5} rx={1.75} fill={theme.progressTrack} />
-      <rect x={fxL + 12} y={fyT + BIN_H - 12} width={(BIN_W - 24) * (pct / 100)} height={3.5} rx={1.75} fill={theme.progressFill} />
+      {/* === PROGRESS BAR === */}
+      <g pointerEvents="none">
+        {/* Track */}
+        <rect
+          x={fxL + 12}
+          y={fyT + BIN_H - 14}
+          width={BIN_W - 24}
+          height={4}
+          rx={2}
+          fill={theme.progressTrack}
+        />
+        {/* Fill */}
+        <rect
+          x={fxL + 12}
+          y={fyT + BIN_H - 14}
+          width={(BIN_W - 24) * (pct / 100)}
+          height={4}
+          rx={2}
+          fill={theme.progressFill}
+        />
+        {/* Fill highlight (top edge) */}
+        {pct > 0 && (
+          <rect
+            x={fxL + 12}
+            y={fyT + BIN_H - 14}
+            width={(BIN_W - 24) * (pct / 100)}
+            height={1.5}
+            rx={2}
+            fill="rgba(255, 255, 255, 0.5)"
+          />
+        )}
+        {/* Pct label */}
+        <text
+          x={fxR - 12}
+          y={fyT + BIN_H - 17}
+          textAnchor="end"
+          fontSize="9"
+          fontWeight="700"
+          fill={theme.textPrimary}
+          fontFamily="ui-monospace, SFMono-Regular, monospace"
+          opacity="0.85"
+        >
+          {Math.round(pct)}%
+        </text>
+      </g>
 
-      {/* Selection ring */}
+      {/* === SELECTION RING === */}
       {isSelected && (
         <rect
           x={fxL - 4}
           y={fyT - 4}
           width={BIN_W + 8}
           height={BIN_H + 8}
-          rx={10}
-          ry={10}
+          rx={12}
+          ry={12}
           fill="none"
           stroke="#fbbf24"
           strokeWidth="2.5"
@@ -803,46 +960,71 @@ function Bin3DWithPallet({
   );
 }
 
-/** Stack hộp carton phía trên bin (mô phỏng pallet). */
-function PalletStack({
+/**
+ * Pallet pyramid stack — 3 rows giảm dần với 3 cardboard tones.
+ * Số rows tỷ lệ với fillRatio.
+ */
+function PalletPyramid({
   x, y, width, height, fillRatio, tone,
 }: {
-  x: number; y: number; width: number; height: number; fillRatio: number; tone: "indigo" | "amber" | "empty" | "gray";
+  x: number; y: number; width: number; height: number; fillRatio: number; tone: "indigo" | "blue" | "teal" | "amber" | "gray" | "empty";
 }) {
-  // Số "hàng" boxes hiển thị tỷ lệ với fillRatio
-  const rows = Math.max(1, Math.round(fillRatio * 2.5));
-  const palletH = 6;
+  const palletH = 8;
   const stackH = height - palletH - 2;
-  const rowH = Math.min(stackH / rows, 14);
-  const boxesPerRow = 4;
-  const boxW = (width - 4) / boxesPerRow - 1;
+  // Number of rows based on fillRatio: 1 → 3 rows
+  const maxRows = 3;
+  const rows = Math.max(1, Math.min(maxRows, Math.round(fillRatio * maxRows + 0.5)));
+  const rowH = (stackH - 2) / maxRows;
+
+  // Cardboard tones rotation
+  const cardGradients = ["card-light", "card-medium", "card-dark"];
 
   return (
     <g pointerEvents="none">
-      {/* Pallet base (wood gray) */}
-      <rect x={x} y={y + height - palletH} width={width} height={palletH} fill="#52525b" rx={1} />
-      <rect x={x} y={y + height - palletH} width={width} height={1.5} fill="#71717a" />
+      {/* Wood pallet base (3 slats visible) */}
+      <rect x={x} y={y + height - palletH} width={width} height={palletH} fill="url(#wood-pallet)" rx={1} />
+      {/* Pallet slats (3 horizontal lines) */}
+      <line x1={x + 3} y1={y + height - palletH + 2} x2={x + width - 3} y2={y + height - palletH + 2} stroke="#52401d" strokeWidth="0.5" />
+      <line x1={x + 3} y1={y + height - palletH + palletH / 2} x2={x + width - 3} y2={y + height - palletH + palletH / 2} stroke="#52401d" strokeWidth="0.5" />
+      <line x1={x + 3} y1={y + height - 2} x2={x + width - 3} y2={y + height - 2} stroke="#3a2810" strokeWidth="0.5" />
+      {/* Pallet feet */}
+      <rect x={x + 6} y={y + height - 2} width={6} height={2} fill="#3a2810" />
+      <rect x={x + width / 2 - 3} y={y + height - 2} width={6} height={2} fill="#3a2810" />
+      <rect x={x + width - 12} y={y + height - 2} width={6} height={2} fill="#3a2810" />
 
-      {/* Boxes stack */}
+      {/* Boxes pyramid (giảm dần từ dưới lên) */}
       {Array.from({ length: rows }).map((_, rowIdx) => {
+        // Row 0 = bottom (full width), top rows shrink
+        const shrinkRatio = 1 - rowIdx * 0.12; // top rows narrower by 12% each
+        const rowWidth = width * shrinkRatio;
+        const rowX = x + (width - rowWidth) / 2;
         const rowY = y + height - palletH - (rowIdx + 1) * rowH;
+        const boxesPerRow = Math.max(2, 4 - rowIdx); // 4 → 3 → 2
+        const boxW = (rowWidth - (boxesPerRow + 1)) / boxesPerRow;
+        const cardId = cardGradients[rowIdx % cardGradients.length]!;
+
         return (
           <g key={rowIdx}>
             {Array.from({ length: boxesPerRow }).map((_, colIdx) => {
-              const bx = x + 2 + colIdx * (boxW + 1);
+              const bx = rowX + 1 + colIdx * (boxW + 1);
               return (
                 <g key={colIdx}>
-                  <rect x={bx} y={rowY} width={boxW} height={rowH - 1} fill="url(#cardboard-grad)" rx={0.5} />
-                  <rect x={bx} y={rowY} width={boxW} height={1.5} fill="url(#cardboard-top)" />
-                  {/* Tape line giữa */}
+                  {/* Box body */}
+                  <rect x={bx} y={rowY} width={boxW} height={rowH - 1} fill={`url(#${cardId})`} rx={0.5} />
+                  {/* Top edge highlight */}
+                  <rect x={bx} y={rowY} width={boxW} height={1.5} fill="url(#card-top-light)" opacity="0.8" />
+                  {/* Tape line vertical center */}
                   <line
                     x1={bx + boxW / 2}
                     y1={rowY}
                     x2={bx + boxW / 2}
                     y2={rowY + rowH - 1}
-                    stroke="#8b6240"
-                    strokeWidth="0.3"
+                    stroke="#5a3d1f"
+                    strokeWidth="0.4"
+                    opacity="0.6"
                   />
+                  {/* Box label dot */}
+                  <circle cx={bx + boxW - 3} cy={rowY + 3} r={0.8} fill="#7a5530" opacity="0.6" />
                 </g>
               );
             })}
@@ -853,12 +1035,13 @@ function PalletStack({
   );
 }
 
-/** Pallet phẳng cho bin trống. */
-function EmptyPallet({ x, y, width }: { x: number; y: number; width: number }) {
+/** Pallet trống — chỉ pallet gỗ phẳng. */
+function EmptyWoodPallet({ x, y, width }: { x: number; y: number; width: number }) {
   return (
     <g pointerEvents="none">
-      <rect x={x} y={y} width={width} height={8} fill="url(#empty-pallet)" rx={1} />
-      <line x1={x} y1={y + 4} x2={x + width} y2={y + 4} stroke="#94a3b8" strokeWidth="0.5" />
+      <rect x={x} y={y} width={width} height={8} fill="url(#wood-pallet)" rx={1} opacity="0.6" />
+      <line x1={x + 3} y1={y + 2} x2={x + width - 3} y2={y + 2} stroke="#52401d" strokeWidth="0.5" opacity="0.5" />
+      <line x1={x + 3} y1={y + 6} x2={x + width - 3} y2={y + 6} stroke="#52401d" strokeWidth="0.5" opacity="0.5" />
     </g>
   );
 }
@@ -898,7 +1081,7 @@ function Rack2DView({
               </div>
               <div className="flex gap-3">
                 {items.map((bin) => (
-                  <Bin2D
+                  <Bin2DPro
                     key={bin.id}
                     bin={bin}
                     isSelected={bin.id === selectedBinId}
@@ -917,7 +1100,7 @@ function Rack2DView({
   );
 }
 
-function Bin2D({
+function Bin2DPro({
   bin, isSelected, isHovered, onClick, onMouseEnter, onMouseLeave,
 }: {
   bin: BinNode;
@@ -927,9 +1110,8 @@ function Bin2D({
   onMouseEnter: () => void;
   onMouseLeave: () => void;
 }) {
-  const tone = getBinTone(bin);
-  const theme = THEMES[tone];
-  const fillPct = fillPercent(bin);
+  const { theme, pct } = getBinTheme(bin);
+  const hasStock = bin.totalQty > 0;
 
   return (
     <button
@@ -938,48 +1120,76 @@ function Bin2D({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       style={{
-        width: 150,
-        height: 110,
-        background: `linear-gradient(180deg, ${theme.frontStops[0]}, ${theme.frontStops[1]} 50%, ${theme.frontStops[2]})`,
+        width: 160,
+        height: 120,
+        background: `linear-gradient(180deg, ${theme.frontStops[0]}, ${theme.frontStops[1]} 35%, ${theme.frontStops[2]} 70%, ${theme.frontStops[3]})`,
         borderColor: theme.stroke,
         boxShadow: isSelected
-          ? `0 0 0 3px #fbbf24, 0 8px 24px ${theme.shadow}`
+          ? `0 0 0 3px #fbbf24, 0 10px 30px ${theme.shadow}`
           : isHovered
-            ? `0 6px 18px ${theme.shadow}`
-            : `0 2px 8px ${theme.shadow}`,
+            ? `0 8px 22px ${theme.shadow}`
+            : `0 3px 10px ${theme.shadow}`,
         transform: isSelected ? "translateY(-4px) scale(1.02)" : isHovered ? "translateY(-2px)" : undefined,
         transition: "transform 0.2s, box-shadow 0.2s",
       }}
       className={cn(
         "group relative flex flex-col justify-between overflow-hidden rounded-lg border p-3 text-left",
-        bin.isLow && bin.totalQty > 0 && "warehouse-bin-pulse",
+        bin.isLow && hasStock && "warehouse-bin-pulse",
       )}
     >
-      <div aria-hidden className="absolute inset-x-2 top-1.5 h-3 rounded-md" style={{ background: theme.highlight, opacity: 0.6 }} />
+      {/* Glass reflection top */}
+      <div aria-hidden className="absolute inset-x-1.5 top-1.5 h-3 rounded-md" style={{ background: theme.glassRef, opacity: 0.7 }} />
+      {/* Diagonal reflection stripe */}
+      <div
+        aria-hidden
+        className="absolute pointer-events-none"
+        style={{
+          left: "12%",
+          top: "10%",
+          width: "20%",
+          height: "75%",
+          background: theme.glassRef,
+          opacity: 0.25,
+          transform: "skewX(-12deg)",
+          borderRadius: "4px",
+        }}
+      />
+
       <div className="relative flex items-start justify-between">
-        <div>
-          <p className="text-[10px] font-bold leading-none flex items-center gap-1" style={{ color: theme.textPrimary }}>
-            <span className="inline-block h-3 w-3 rounded bg-white/20" />
-            Ô {bin.position}
-          </p>
-          <p className="mt-1 font-mono text-[10px]" style={{ color: theme.textSecondary }}>
-            {bin.fullCode.replace(/^[A-Z]/, "")}
-          </p>
+        <div className="inline-flex items-center gap-1 rounded-full bg-white/20 px-1.5 py-0.5 backdrop-blur-sm border border-white/30">
+          <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: theme.led }} />
+          <span className="text-[9px] font-bold leading-none" style={{ color: theme.textPrimary }}>
+            {theme.statusLabel}
+          </span>
         </div>
-        <MoreVertical className="h-3.5 w-3.5" style={{ color: theme.textSecondary }} />
+        <div className="relative">
+          {/* LED glow background */}
+          <div
+            className="absolute inset-0 rounded-full blur-md"
+            style={{ backgroundColor: theme.ledGlow }}
+          />
+          <div className="relative h-2.5 w-2.5 rounded-full" style={{ backgroundColor: theme.led }} />
+        </div>
       </div>
+
       <div className="relative">
-        <p className="font-mono text-[11px] font-bold truncate" style={{ color: theme.textPrimary }}>
-          {bin.primarySku ? `SKU: ${bin.primarySku.slice(0, 12)}` : bin.totalQty > 0 ? `${bin.skuCount} SKU` : "Trống"}
+        <p className="font-mono text-[10px] font-semibold leading-none mb-1" style={{ color: theme.textSecondary }}>
+          {bin.fullCode}
         </p>
-        <p className="mt-0.5 font-mono text-[12px] font-extrabold" style={{ color: theme.textPrimary }}>
+        <p className="font-mono text-[12px] font-bold truncate" style={{ color: theme.textPrimary }}>
+          {bin.primarySku ? `SKU: ${bin.primarySku.slice(0, 11)}` : hasStock ? `${bin.skuCount} SKU` : "Trống"}
+        </p>
+        <p className="mt-1 font-mono text-[14px] font-extrabold" style={{ color: theme.textPrimary }}>
           {Math.round(bin.totalQty).toLocaleString("vi-VN")}
-          <span className="font-normal text-[10px]" style={{ color: theme.textSecondary }}>
-            {" / "}{bin.capacity ? Math.round(Number(bin.capacity)).toLocaleString("vi-VN") : "—"}
+          <span className="font-normal text-[10px] ml-1" style={{ color: theme.textSecondary }}>
+            / {bin.capacity ? Math.round(Number(bin.capacity)).toLocaleString("vi-VN") : "—"}
           </span>
         </p>
-        <div className="mt-1 h-1 rounded-full" style={{ background: theme.progressTrack }}>
-          <div className="h-full rounded-full transition-all" style={{ width: `${fillPct}%`, background: theme.progressFill }} />
+        <div className="mt-1 flex items-center gap-1.5">
+          <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: theme.progressTrack }}>
+            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: theme.progressFill }} />
+          </div>
+          <span className="text-[9px] font-bold tabular-nums" style={{ color: theme.textPrimary }}>{Math.round(pct)}%</span>
         </div>
       </div>
     </button>
