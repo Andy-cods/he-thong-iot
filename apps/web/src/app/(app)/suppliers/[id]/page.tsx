@@ -5,13 +5,16 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
   Building2,
+  Edit3,
   ExternalLink,
   Mail,
   MapPin,
   Package,
   Phone,
+  Save,
   Trash2,
   TrendingUp,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { SupplierUpdate } from "@iot/shared";
@@ -71,6 +74,7 @@ export default function SupplierDetailPage() {
   const del = useDeleteSupplier();
 
   const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const [editing, setEditing] = React.useState(false);
   const [tab, setTab] = React.useState<TabKey>("info");
   const [itemsSearch, setItemsSearch] = React.useState("");
   const [itemsCategory, setItemsCategory] = React.useState<string>("");
@@ -136,15 +140,29 @@ export default function SupplierDetailPage() {
             {supplier.code}
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setDeleteOpen(true)}
-          disabled={!supplier.isActive}
-        >
-          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-          {supplier.isActive ? "Ngưng hoạt động" : "Đã ngưng"}
-        </Button>
+        <div className="flex items-center gap-2">
+          {supplier.isActive && !editing && (
+            <Button
+              size="sm"
+              onClick={() => {
+                setTab("info");
+                setEditing(true);
+              }}
+            >
+              <Edit3 className="h-3.5 w-3.5" aria-hidden="true" />
+              Chỉnh sửa
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setDeleteOpen(true)}
+            disabled={!supplier.isActive}
+          >
+            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+            {supplier.isActive ? "Ngưng hoạt động" : "Đã ngưng"}
+          </Button>
+        </div>
       </header>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
@@ -156,72 +174,90 @@ export default function SupplierDetailPage() {
 
         {/* TAB 1 — Thông tin */}
         <TabsContent value="info">
-          <InfoTab supplier={supplier} />
-          <div className="mt-6">
-            <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
-              Chỉnh sửa
-            </h3>
-            <SupplierForm
-              defaultValues={{
-                code: supplier.code,
-                name: supplier.name,
-                contactName: supplier.contactName,
-                phone: supplier.phone,
-                email: supplier.email,
-                address: supplier.address,
-                taxCode: supplier.taxCode,
-                region: supplier.region ?? null,
-                city: supplier.city ?? null,
-                ward: supplier.ward ?? null,
-                streetAddress: supplier.streetAddress ?? null,
-                factoryAddress: supplier.factoryAddress ?? null,
-                latitude: supplier.latitude
-                  ? (Number(supplier.latitude) as unknown as number)
-                  : null,
-                longitude: supplier.longitude
-                  ? (Number(supplier.longitude) as unknown as number)
-                  : null,
-                website: supplier.website ?? null,
-                bankInfo: supplier.bankInfo ?? {
-                  name: null,
-                  account: null,
-                  branch: null,
-                },
-                paymentTerms: supplier.paymentTerms ?? null,
-                contactPersons: supplier.contactPersons ?? [],
-                internalNotes: supplier.internalNotes ?? null,
-              }}
-              submitting={update.isPending}
-              onSubmit={async (data) => {
-                try {
-                  const patch: SupplierUpdate = {
-                    name: data.name,
-                    contactName: data.contactName,
-                    phone: data.phone,
-                    email: data.email,
-                    address: data.address,
-                    taxCode: data.taxCode,
-                    region: data.region,
-                    city: data.city,
-                    ward: data.ward,
-                    streetAddress: data.streetAddress,
-                    factoryAddress: data.factoryAddress,
-                    latitude: data.latitude,
-                    longitude: data.longitude,
-                    website: data.website,
-                    bankInfo: data.bankInfo,
-                    paymentTerms: data.paymentTerms,
-                    contactPersons: data.contactPersons,
-                    internalNotes: data.internalNotes,
-                  };
-                  await update.mutateAsync(patch);
-                  toast.success("Đã cập nhật NCC.");
-                } catch (err) {
-                  toast.error((err as Error).message);
-                }
-              }}
-            />
-          </div>
+          {editing ? (
+            <div className="rounded-2xl border border-indigo-200 bg-indigo-50/30 p-5 shadow-sm">
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Edit3 className="h-4 w-4 text-indigo-600" aria-hidden />
+                  <h3 className="text-sm font-semibold text-zinc-900">
+                    Chỉnh sửa thông tin nhà cung cấp
+                  </h3>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setEditing(false)}
+                  disabled={update.isPending}
+                >
+                  <X className="h-3.5 w-3.5" aria-hidden /> Đóng
+                </Button>
+              </div>
+
+              <SupplierForm
+                defaultValues={{
+                  code: supplier.code,
+                  name: supplier.name,
+                  contactName: supplier.contactName,
+                  phone: supplier.phone,
+                  email: supplier.email,
+                  address: supplier.address,
+                  taxCode: supplier.taxCode,
+                  region: supplier.region ?? null,
+                  city: supplier.city ?? null,
+                  ward: supplier.ward ?? null,
+                  streetAddress: supplier.streetAddress ?? null,
+                  factoryAddress: supplier.factoryAddress ?? null,
+                  latitude: supplier.latitude
+                    ? (Number(supplier.latitude) as unknown as number)
+                    : null,
+                  longitude: supplier.longitude
+                    ? (Number(supplier.longitude) as unknown as number)
+                    : null,
+                  website: supplier.website ?? null,
+                  bankInfo: supplier.bankInfo ?? {
+                    name: null,
+                    account: null,
+                    branch: null,
+                  },
+                  paymentTerms: supplier.paymentTerms ?? null,
+                  contactPersons: supplier.contactPersons ?? [],
+                  internalNotes: supplier.internalNotes ?? null,
+                }}
+                submitting={update.isPending}
+                onSubmit={async (data) => {
+                  try {
+                    const patch: SupplierUpdate = {
+                      name: data.name,
+                      contactName: data.contactName,
+                      phone: data.phone,
+                      email: data.email,
+                      address: data.address,
+                      taxCode: data.taxCode,
+                      region: data.region,
+                      city: data.city,
+                      ward: data.ward,
+                      streetAddress: data.streetAddress,
+                      factoryAddress: data.factoryAddress,
+                      latitude: data.latitude,
+                      longitude: data.longitude,
+                      website: data.website,
+                      bankInfo: data.bankInfo,
+                      paymentTerms: data.paymentTerms,
+                      contactPersons: data.contactPersons,
+                      internalNotes: data.internalNotes,
+                    };
+                    await update.mutateAsync(patch);
+                    toast.success("Đã cập nhật nhà cung cấp");
+                    setEditing(false);
+                  } catch (err) {
+                    toast.error((err as Error).message);
+                  }
+                }}
+              />
+            </div>
+          ) : (
+            <InfoTab supplier={supplier} />
+          )}
         </TabsContent>
 
         {/* TAB 2 — Vật liệu cung cấp */}
