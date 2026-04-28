@@ -55,10 +55,12 @@ type ViewMode = "3d" | "2d";
 
 const BIN_W = 175;
 const BIN_H = 110;
-/** V3.7.1 — pallet đã bỏ; giữ nhỏ làm breathing-room giữa tier. */
-const PALLET_H = 12;
-const BIN_DEPTH = 32;
-const GAP_X = 18;
+/** V3.7.1 — top breathing-room giữa tầng. */
+const PALLET_H = 10;
+/** V3.7.2 — pallet gỗ UNDER bin (bin sitting on wooden pallet). */
+const PALLET_BASE_H = 16;
+const BIN_DEPTH = 36;
+const GAP_X = 30;
 const SHELF_THICKNESS = 10;
 const POST_W = 12;
 const TIER_LABEL_W = 90;
@@ -396,7 +398,7 @@ function Rack3DView({
   ];
 
   const cellW = BIN_W + GAP_X;
-  const tierH = PALLET_H + BIN_H + SHELF_THICKNESS;
+  const tierH = PALLET_H + BIN_H + PALLET_BASE_H + SHELF_THICKNESS;
   const rackContentWidth = positionsPerLevel * BIN_W + (positionsPerLevel - 1) * GAP_X;
 
   const baseHeight = 36;
@@ -456,6 +458,11 @@ function Rack3DView({
             <stop offset="0%" stopColor="#a8896b" />
             <stop offset="50%" stopColor="#7c5e44" />
             <stop offset="100%" stopColor="#52401d" />
+          </linearGradient>
+          {/* Wood pallet side (darker depth) */}
+          <linearGradient id="wood-pallet-side" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#5c4220" />
+            <stop offset="100%" stopColor="#2e1a08" />
           </linearGradient>
 
           {/* Empty pallet */}
@@ -523,7 +530,7 @@ function Rack3DView({
 
         {/* Tier labels */}
         {tierData.map((tier, idx) => {
-          const y = RACK_PAD + idx * tierH + (PALLET_H + BIN_H) / 2;
+          const y = RACK_PAD + idx * tierH + PALLET_H + BIN_H / 2;
           return (
             <g key={tier.lvl}>
               <text x={TIER_LABEL_W / 2 + 6} y={y - 6} textAnchor="middle" fontSize="13" fontWeight="700" fill="#1e293b">{tier.label}</text>
@@ -657,7 +664,7 @@ function Rack3DView({
 
         {/* Shelves */}
         {tierData.map((_, idx) => {
-          const shelfY = RACK_PAD + idx * tierH + PALLET_H + BIN_H;
+          const shelfY = RACK_PAD + idx * tierH + PALLET_H + BIN_H + PALLET_BASE_H;
           return (
             <g key={`shelf-${idx}`}>
               <rect
@@ -811,17 +818,62 @@ function BinPro3D({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      {/* Soft drop shadow ellipse beneath bin (separate from filter) */}
+      {/* Soft drop shadow ellipse beneath PALLET (lower for realism) */}
       <ellipse
         cx={x + BIN_W / 2 + 4}
-        cy={fyB + 6}
+        cy={fyB + PALLET_BASE_H + 2}
         rx={BIN_W / 2.3}
-        ry={6}
-        fill="rgba(0, 0, 0, 0.18)"
+        ry={5}
+        fill="rgba(0, 0, 0, 0.22)"
         filter="blur(3px)"
       />
 
-      {/* PALLET STACK đã được loại bỏ theo feedback user (2026-04-28) */}
+      {/* === WOODEN PALLET BASE (under bin) === */}
+      <g>
+        {/* Right side face (depth) */}
+        <polygon
+          points={`${fxR},${fyB} ${bxR},${fyB + dy} ${bxR},${fyB + PALLET_BASE_H + dy} ${fxR},${fyB + PALLET_BASE_H}`}
+          fill="url(#wood-pallet-side)"
+        />
+        {/* Front face — 3 plank pattern with gap and feet */}
+        {/* Top plank */}
+        <rect
+          x={fxL}
+          y={fyB}
+          width={BIN_W}
+          height={5}
+          fill="url(#wood-pallet)"
+        />
+        <line x1={fxL} y1={fyB} x2={fxR} y2={fyB} stroke="#c9a47a" strokeWidth="0.6" />
+        {/* Middle dark gap */}
+        <rect
+          x={fxL}
+          y={fyB + 5}
+          width={BIN_W}
+          height={6}
+          fill="#2a1a0a"
+        />
+        {/* 3 vertical feet visible in middle gap */}
+        <rect x={fxL + 8} y={fyB + 5} width={22} height={6} fill="url(#wood-pallet)" />
+        <rect x={fxL + (BIN_W - 22) / 2} y={fyB + 5} width={22} height={6} fill="url(#wood-pallet)" />
+        <rect x={fxL + BIN_W - 30} y={fyB + 5} width={22} height={6} fill="url(#wood-pallet)" />
+        {/* Bottom plank */}
+        <rect
+          x={fxL}
+          y={fyB + 11}
+          width={BIN_W}
+          height={5}
+          fill="url(#wood-pallet)"
+        />
+        <line
+          x1={fxL}
+          y1={fyB + PALLET_BASE_H - 0.5}
+          x2={fxR}
+          y2={fyB + PALLET_BASE_H - 0.5}
+          stroke="#1a0f04"
+          strokeWidth="0.6"
+        />
+      </g>
 
       {/* === BIN BODY 3D === */}
       <g filter="url(#bin-drop-shadow)">
