@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BarChart3, Layers, Map, PackageCheck, ScanLine, Tag } from "lucide-react";
+import { BarChart3, Layers, Map, PackageCheck, Tag, Truck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -31,9 +31,9 @@ export const WAREHOUSE_TABS = [
     icon: PackageCheck,
   },
   {
-    key: "picking" as const,
-    label: "Pick FIFO",
-    icon: ScanLine,
+    key: "issue" as const,
+    label: "Xuất hàng",
+    icon: Truck,
   },
   {
     key: "report" as const,
