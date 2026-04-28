@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Boxes, Layers, PackageCheck, Tag } from "lucide-react";
+import { Layers, Map, PackageCheck, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -11,9 +11,9 @@ import { cn } from "@/lib/utils";
 
 export const WAREHOUSE_TABS = [
   {
-    key: "overview" as const,
-    label: "Tổng quan",
-    icon: Boxes,
+    key: "layout" as const,
+    label: "Sơ đồ kho",
+    icon: Map,
   },
   {
     key: "items" as const,

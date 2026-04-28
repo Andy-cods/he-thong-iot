@@ -4,7 +4,7 @@ import {
   WarehouseTabsNav,
   type WarehouseTab,
 } from "@/components/warehouse/WarehouseTabsNav";
-import { OverviewTab } from "@/components/warehouse/OverviewTab";
+import { WarehouseLayoutTab } from "@/components/warehouse/WarehouseLayoutTab";
 import { ItemsTab } from "@/components/warehouse/ItemsTab";
 import { LotSerialTab } from "@/components/warehouse/LotSerialTab";
 import { ReceivingTab } from "@/components/warehouse/ReceivingTab";
@@ -34,8 +34,10 @@ interface WarehousePageProps {
 }
 
 function resolveTab(raw: string | undefined): WarehouseTab {
+  // Backward compat: ?tab=overview → "layout" (Tổng quan đã thay bằng Sơ đồ kho)
+  if (raw === "overview") return "layout";
   const found = WAREHOUSE_TABS.find((t) => t.key === raw);
-  return found ? found.key : "overview";
+  return found ? found.key : "layout";
 }
 
 export default function WarehousePage({ searchParams }: WarehousePageProps) {
@@ -69,8 +71,8 @@ export default function WarehousePage({ searchParams }: WarehousePageProps) {
       <WarehouseTabsNav active={active} />
 
       <div className="flex-1 min-h-0 overflow-auto">
-        {active === "overview" ? (
-          <OverviewTab />
+        {active === "layout" ? (
+          <WarehouseLayoutTab />
         ) : active === "items" ? (
           <ItemsTab />
         ) : active === "lot-serial" ? (

@@ -6,6 +6,7 @@ import {
   jsonb,
   numeric,
   pgEnum,
+  smallint,
   text,
   timestamp,
   uniqueIndex,
@@ -207,7 +208,7 @@ export const itemSupplier = appSchema.table(
   }),
 );
 
-/** Bảng 7: location_bin (1 warehouse V1, gộp luôn warehouse vào cột) */
+/** Bảng 7: location_bin — V3.6 mở rộng Khu-Kệ-Ngăn-Ô + 3D coords */
 export const locationBin = appSchema.table(
   "location_bin",
   {
@@ -223,6 +224,17 @@ export const locationBin = appSchema.table(
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
+    // V3.6 — Khu-Kệ-Ngăn-Ô (A-01-2-03)
+    area: varchar("area", { length: 8 }),
+    rack: varchar("rack", { length: 8 }),
+    levelNo: smallint("level_no"),
+    position: varchar("position", { length: 8 }),
+    fullCode: varchar("full_code", { length: 64 }),
+    capacity: numeric("capacity", { precision: 18, scale: 4 }),
+    lowThreshold: numeric("low_threshold", { precision: 18, scale: 4 }),
+    coordX: numeric("coord_x", { precision: 8, scale: 2 }),
+    coordY: numeric("coord_y", { precision: 8, scale: 2 }),
+    coordZ: numeric("coord_z", { precision: 8, scale: 2 }),
   },
   (t) => ({
     uniq: uniqueIndex("location_bin_uk").on(
@@ -230,6 +242,8 @@ export const locationBin = appSchema.table(
       t.zone,
       t.binCode,
     ),
+    fullCodeIdx: index("location_bin_full_code_idx").on(t.fullCode),
+    areaRackIdx: index("location_bin_area_rack_idx").on(t.area, t.rack),
   }),
 );
 

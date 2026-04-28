@@ -18,4 +18,5 @@ export * from "./audit";
 export * from "./import";
 export * from "./notification";
 export * from "./material-request";
+export * from "./warehouse-location";
 export { appSchema } from "./_schema";
