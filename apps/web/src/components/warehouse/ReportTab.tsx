@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Loader2, Package, AlertTriangle, Box } from "lucide-react";
+import { Loader2, Package, AlertTriangle, Box, RefreshCw, Printer, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -52,8 +52,10 @@ interface ItemRow {
 
 export function ReportTab() {
   const [data, setData] = React.useState<WarehouseLayoutResp | null>(null);
+  const [topItems, setTopItems] = React.useState<ItemRow[]>([]);
   const [unslotted, setUnslotted] = React.useState<ItemRow[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [refreshTick, setRefreshTick] = React.useState(0);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -70,8 +72,18 @@ export function ReportTab() {
         const itemsJson = (await itemsRes.json()) as { data: ItemRow[] };
         if (!cancelled) {
           setData(layoutJson.data);
-          setUnslotted(
-            (itemsJson.data ?? []).filter((i) => !i.defaultBinCode),
+          const items = itemsJson.data ?? [];
+          setUnslotted(items.filter((i) => !i.defaultBinCode));
+          // Top 8 SKU by qty
+          setTopItems(
+            items
+              .filter((i) => (i.inventorySummary?.totalQty ?? 0) > 0)
+              .sort(
+                (a, b) =>
+                  (b.inventorySummary?.totalQty ?? 0) -
+                  (a.inventorySummary?.totalQty ?? 0),
+              )
+              .slice(0, 8),
           );
         }
       } finally {
@@ -81,7 +93,12 @@ export function ReportTab() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshTick]);
+
+  const handleRefresh = () => setRefreshTick((t) => t + 1);
+  const handlePrint = () => {
+    if (typeof window !== "undefined") window.print();
+  };
 
   if (loading) {
     return (
@@ -139,13 +156,33 @@ export function ReportTab() {
 
   return (
     <div className="flex h-full flex-col gap-4 overflow-auto p-6">
-      <header>
-        <h2 className="text-lg font-semibold tracking-tight text-zinc-900">
-          Báo cáo kho
-        </h2>
-        <p className="mt-0.5 text-sm text-zinc-500">
-          Tổng quan utilization, bins thấp tồn và SKU chưa gán vị trí.
-        </p>
+      <header className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight text-zinc-900">
+            Báo cáo kho
+          </h2>
+          <p className="mt-0.5 text-sm text-zinc-500">
+            Tổng quan utilization, bins thấp tồn, top SKU và SKU chưa gán vị trí.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 print:hidden">
+          <button
+            type="button"
+            onClick={handleRefresh}
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-200 px-3 text-xs font-semibold text-zinc-600 hover:bg-zinc-50"
+            title="Tải lại dữ liệu"
+          >
+            <RefreshCw className="h-3.5 w-3.5" /> Làm mới
+          </button>
+          <button
+            type="button"
+            onClick={handlePrint}
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-200 px-3 text-xs font-semibold text-zinc-600 hover:bg-zinc-50"
+            title="In / Xuất PDF (Ctrl+P)"
+          >
+            <Printer className="h-3.5 w-3.5" /> In / PDF
+          </button>
+        </div>
       </header>
 
       {/* Stats KPI cards */}
@@ -265,6 +302,64 @@ export function ReportTab() {
               );
             })}
           </div>
+        )}
+      </section>
+
+      {/* Top SKU by qty */}
+      <section className="rounded-md border border-zinc-200 bg-white">
+        <header className="border-b border-zinc-200 p-4">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
+            <TrendingUp className="h-4 w-4 text-indigo-600" />
+            Top SKU theo tồn kho ({topItems.length})
+          </h3>
+        </header>
+        {topItems.length === 0 ? (
+          <p className="px-4 py-6 text-center text-sm text-zinc-500">
+            Chưa có SKU nào có tồn.
+          </p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
+              <tr>
+                <th className="w-10 px-3 py-2 text-left">#</th>
+                <th className="px-3 py-2 text-left">SKU</th>
+                <th className="px-3 py-2 text-left">Tên</th>
+                <th className="px-3 py-2 text-left">Bin</th>
+                <th className="px-3 py-2 text-right">Tồn</th>
+              </tr>
+            </thead>
+            <tbody>
+              {topItems.map((it, idx) => (
+                <tr key={it.id} className="border-t border-zinc-100">
+                  <td className="px-3 py-2 text-xs tabular-nums text-zinc-500">
+                    {idx + 1}
+                  </td>
+                  <td className="px-3 py-2 font-mono text-xs font-semibold text-zinc-900">
+                    {it.sku}
+                  </td>
+                  <td className="px-3 py-2 text-xs text-zinc-700">
+                    <span className="block truncate" title={it.name}>
+                      {it.name}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2">
+                    {it.defaultBinCode ? (
+                      <span className="rounded bg-blue-50 px-1.5 py-0.5 font-mono text-xs font-medium text-blue-700">
+                        {it.defaultBinCode}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-zinc-400">—</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-right text-sm font-semibold tabular-nums text-emerald-700">
+                    {(it.inventorySummary?.totalQty ?? 0).toLocaleString(
+                      "vi-VN",
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </section>
 

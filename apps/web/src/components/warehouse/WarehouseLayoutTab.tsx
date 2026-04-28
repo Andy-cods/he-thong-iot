@@ -22,6 +22,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { WarehouseLayout3D, type BinNode } from "./WarehouseLayout3D";
+import { BinActionsBar, useBinMutationRefresh } from "./BinActions";
 
 /**
  * V3.6.4 — WarehouseLayoutTab redesign theo design tham khảo của user.
@@ -82,6 +83,7 @@ interface LayoutResponse {
 type SubTab = "layout" | "list";
 
 export function WarehouseLayoutTab() {
+  const refreshBins = useBinMutationRefresh();
   const [selectedBinId, setSelectedBinId] = React.useState<string | null>(null);
   const [hoveredBinId, setHoveredBinId] = React.useState<string | null>(null);
   const [search, setSearch] = React.useState("");
@@ -619,6 +621,36 @@ export function WarehouseLayoutTab() {
                 </p>
               </div>
             )}
+
+            {/* V3.7.4 — Bin actions: + thêm / - rút / chuyển */}
+            <BinActionsBar
+              bin={{
+                id: selectedBin.id,
+                fullCode: selectedBin.fullCode,
+                isActive: selectedBin.isActive,
+                capacity: selectedBin.capacity,
+                totalQty: selectedBin.totalQty,
+              }}
+              contents={(binDetailQuery.data?.data.content ?? []).map((c) => ({
+                lotSerialId: c.lotSerialId,
+                lotCode: c.lotCode,
+                itemId: c.itemId,
+                itemSku: c.itemSku,
+                itemName: c.itemName,
+                itemUom: c.itemUom,
+                qty: c.qty,
+                status: c.status,
+              }))}
+              allBins={binsWithSku.map((b) => ({
+                id: b.id,
+                fullCode: b.fullCode,
+                isActive: b.isActive,
+                capacity: b.capacity,
+                totalQty: b.totalQty,
+              }))}
+              onMutated={refreshBins}
+            />
+
             <div>
               <h3 className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-zinc-500">
                 Nội dung
