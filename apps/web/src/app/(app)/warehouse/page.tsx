@@ -6,7 +6,6 @@ import {
 } from "@/components/warehouse/WarehouseTabsNav";
 import { WarehouseLayoutTab } from "@/components/warehouse/WarehouseLayoutTab";
 import { ItemsTab } from "@/components/warehouse/ItemsTab";
-import { LotSerialTab } from "@/components/warehouse/LotSerialTab";
 import { ReceivingTab } from "@/components/warehouse/ReceivingTab";
 import { IssueTab } from "@/components/warehouse/IssueTab";
 import { ReportTab } from "@/components/warehouse/ReportTab";
@@ -40,6 +39,8 @@ function resolveTab(raw: string | undefined): WarehouseTab {
   if (raw === "overview") return "layout";
   // V3.7.7 — picking tab renamed → issue
   if (raw === "picking") return "issue";
+  // V3.7.8 — lot-serial gộp vào items (xem chi tiết qua drawer item)
+  if (raw === "lot-serial") return "items";
   const found = WAREHOUSE_TABS.find((t) => t.key === raw);
   return found ? found.key : "layout";
 }
@@ -79,8 +80,6 @@ export default function WarehousePage({ searchParams }: WarehousePageProps) {
           <WarehouseLayoutTab />
         ) : active === "items" ? (
           <ItemsTab />
-        ) : active === "lot-serial" ? (
-          <LotSerialTab />
         ) : active === "receiving" ? (
           <ReceivingTab />
         ) : active === "issue" ? (

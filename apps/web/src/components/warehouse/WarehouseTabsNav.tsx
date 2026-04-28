@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BarChart3, Layers, Map, PackageCheck, Tag, Truck } from "lucide-react";
+import { BarChart3, Map, PackageCheck, Tag, Truck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -19,11 +19,6 @@ export const WAREHOUSE_TABS = [
     key: "items" as const,
     label: "Vật tư",
     icon: Tag,
-  },
-  {
-    key: "lot-serial" as const,
-    label: "Lô & Serial",
-    icon: Layers,
   },
   {
     key: "receiving" as const,

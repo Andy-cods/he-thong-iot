@@ -2,9 +2,14 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ExternalLink, X } from "lucide-react";
+import { ExternalLink, Loader2, Lock, Unlock, X } from "lucide-react";
 import { toast } from "sonner";
 import type { ItemCreate } from "@iot/shared";
+import {
+  useLotSerialList,
+  useHoldLot,
+  useReleaseLot,
+} from "@/hooks/useLotSerial";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -208,6 +213,9 @@ export function ItemQuickEditSheet({
                       onSaved?.(null);
                     }}
                   />
+                </div>
+                <div className="mt-3 rounded-md border border-zinc-200 bg-white p-3">
+                  <LotsPanel itemId={item.id} />
                 </div>
               </>
             )}
@@ -424,6 +432,151 @@ function SlottingPanel({
       </div>
       {loading && (
         <p className="mt-1 text-xs text-zinc-400">Đang tải danh sách bin…</p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * V3.7.8 — Panel danh sách Lô / Serial của 1 SKU bên trong drawer Vật tư.
+ * Thay cho tab Lô & Serial cũ (đã gộp vào).
+ *
+ * Tính năng:
+ *   - List lots filtered theo itemId
+ *   - Hold (lý do bắt buộc) / Release inline
+ *   - Auto-refresh sau mutation
+ */
+function LotsPanel({ itemId }: { itemId: string }) {
+  const { data, isLoading, refetch } = useLotSerialList({
+    itemId,
+    page: 1,
+    pageSize: 50,
+  });
+  const holdMut = useHoldLot();
+  const releaseMut = useReleaseLot();
+  const rows = data?.data ?? [];
+
+  const handleHold = async (lotId: string, lotCode: string | null) => {
+    const reason = window.prompt(
+      `Lý do hold lot ${lotCode ?? lotId.slice(0, 8)}?`,
+    );
+    if (!reason || !reason.trim()) return;
+    try {
+      await holdMut.mutateAsync({ id: lotId, reason: reason.trim() });
+      toast.success("Đã HOLD lot.");
+      void refetch();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Lỗi hold");
+    }
+  };
+
+  const handleRelease = async (lotId: string) => {
+    try {
+      await releaseMut.mutateAsync({ id: lotId });
+      toast.success("Đã release lot → AVAILABLE.");
+      void refetch();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Lỗi release");
+    }
+  };
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-sm font-medium text-zinc-700">
+          Lô &amp; Serial ({rows.length})
+        </span>
+        <span className="text-xs text-zinc-500">Hold / Release inline</span>
+      </div>
+
+      {isLoading ? (
+        <p className="inline-flex items-center gap-1 text-xs text-zinc-500">
+          <Loader2 className="h-3 w-3 animate-spin" /> Đang tải…
+        </p>
+      ) : rows.length === 0 ? (
+        <p className="rounded-md border border-dashed border-zinc-200 bg-zinc-50 px-3 py-3 text-center text-xs text-zinc-500">
+          SKU này chưa có lot nào.
+        </p>
+      ) : (
+        <div className="overflow-x-auto rounded-md border border-zinc-200">
+          <table className="w-full text-xs">
+            <thead className="bg-zinc-50 text-[10px] uppercase tracking-wide text-zinc-500">
+              <tr>
+                <th className="px-2 py-1.5 text-left">Lô / Serial</th>
+                <th className="px-2 py-1.5 text-right">Tồn</th>
+                <th className="px-2 py-1.5 text-left">Trạng thái</th>
+                <th className="px-2 py-1.5 text-center w-16">Hành động</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id} className="border-t border-zinc-100">
+                  <td className="px-2 py-1.5">
+                    <code className="font-mono text-[11px] font-medium text-zinc-900">
+                      {r.lotCode ?? r.serialCode ?? r.id.slice(0, 8)}
+                    </code>
+                    {r.expDate && (
+                      <span className="ml-1 text-[10px] text-zinc-500">
+                        HSD {new Date(r.expDate).toLocaleDateString("vi-VN")}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-2 py-1.5 text-right tabular-nums font-semibold text-emerald-700">
+                    {r.onHandQty.toLocaleString("vi-VN")}
+                  </td>
+                  <td className="px-2 py-1.5">
+                    <span
+                      className={
+                        r.status === "AVAILABLE"
+                          ? "rounded bg-emerald-50 px-1.5 py-0.5 text-emerald-700"
+                          : r.status === "HOLD"
+                            ? "rounded bg-amber-50 px-1.5 py-0.5 text-amber-700"
+                            : r.status === "CONSUMED"
+                              ? "rounded bg-zinc-100 px-1.5 py-0.5 text-zinc-500"
+                              : "rounded bg-rose-50 px-1.5 py-0.5 text-rose-700"
+                      }
+                    >
+                      {r.status}
+                    </span>
+                    {r.holdReason && (
+                      <span
+                        className="ml-1 cursor-help text-[10px] text-amber-600"
+                        title={r.holdReason}
+                      >
+                        ⓘ
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-2 py-1.5 text-center">
+                    {r.status === "AVAILABLE" ? (
+                      <button
+                        type="button"
+                        onClick={() => handleHold(r.id, r.lotCode)}
+                        disabled={holdMut.isPending}
+                        className="inline-flex h-6 items-center gap-0.5 rounded bg-amber-50 px-1.5 text-[10px] font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                        title="Hold (giữ lại — không pick)"
+                      >
+                        <Lock className="h-3 w-3" /> Hold
+                      </button>
+                    ) : r.status === "HOLD" ? (
+                      <button
+                        type="button"
+                        onClick={() => handleRelease(r.id)}
+                        disabled={releaseMut.isPending}
+                        className="inline-flex h-6 items-center gap-0.5 rounded bg-emerald-50 px-1.5 text-[10px] font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                        title="Release → AVAILABLE"
+                      >
+                        <Unlock className="h-3 w-3" /> Release
+                      </button>
+                    ) : (
+                      <span className="text-[10px] text-zinc-400">—</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
