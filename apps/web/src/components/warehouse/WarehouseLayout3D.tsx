@@ -477,7 +477,19 @@ function Rack3DView({
           </linearGradient>
           <linearGradient id="metal-base" x1="0%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" stopColor="#71717a" />
-            <stop offset="100%" stopColor="#3f3f46" />
+            <stop offset="50%" stopColor="#52525b" />
+            <stop offset="100%" stopColor="#27272a" />
+          </linearGradient>
+          {/* 3D base platform — top face (concrete/metal floor) */}
+          <linearGradient id="base-top" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#f1f5f9" />
+            <stop offset="50%" stopColor="#cbd5e1" />
+            <stop offset="100%" stopColor="#94a3b8" />
+          </linearGradient>
+          {/* 3D base platform — right side face (deep shadow) */}
+          <linearGradient id="base-side" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#3f3f46" />
+            <stop offset="100%" stopColor="#18181b" />
           </linearGradient>
 
           {/* Drop shadow filter */}
@@ -518,6 +530,125 @@ function Rack3DView({
             </g>
           );
         })}
+
+        {/* Base platform — 3D isometric (drawn BEFORE posts/bins so they appear on top of floor) */}
+        {(() => {
+          const baseLeftX = rackLeftX - POST_W - 16;
+          const baseRightX = rackLeftX + rackContentWidth + POST_W + 16;
+          const baseTopY = RACK_PAD + totalRackHeight;
+          const baseBotY = baseTopY + baseHeight;
+          const dxBase = 22;
+          const dyBase = -16;
+          const baseW = baseRightX - baseLeftX;
+          return (
+            <g>
+              {/* Right side face (depth) */}
+              <polygon
+                points={`${baseRightX},${baseTopY} ${baseRightX + dxBase},${baseTopY + dyBase} ${baseRightX + dxBase},${baseBotY + dyBase} ${baseRightX},${baseBotY}`}
+                fill="url(#base-side)"
+              />
+              {/* Right side bevel highlight (top edge) */}
+              <line
+                x1={baseRightX}
+                y1={baseTopY}
+                x2={baseRightX + dxBase}
+                y2={baseTopY + dyBase}
+                stroke="#71717a"
+                strokeWidth="1"
+              />
+              {/* Front face (steel band) */}
+              <rect
+                x={baseLeftX}
+                y={baseTopY}
+                width={baseW}
+                height={baseHeight}
+                fill="url(#metal-base)"
+              />
+              {/* Front face — top bevel highlight */}
+              <rect
+                x={baseLeftX}
+                y={baseTopY}
+                width={baseW}
+                height={2.5}
+                fill="#a1a1aa"
+              />
+              {/* Front face — bottom shadow line */}
+              <rect
+                x={baseLeftX}
+                y={baseBotY - 1.5}
+                width={baseW}
+                height={1.5}
+                fill="#09090b"
+              />
+              {/* Vertical rivet/seam decorations on front face */}
+              {Array.from({ length: positionsPerLevel + 1 }).map((_, idx) => {
+                const rx = baseLeftX + 16 + idx * ((baseW - 32) / positionsPerLevel);
+                return (
+                  <g key={`rivet-${idx}`}>
+                    <circle cx={rx} cy={baseTopY + 7} r="1.5" fill="#27272a" />
+                    <circle cx={rx} cy={baseTopY + 7} r="0.7" fill="#71717a" />
+                    <circle cx={rx} cy={baseBotY - 7} r="1.5" fill="#27272a" />
+                    <circle cx={rx} cy={baseBotY - 7} r="0.7" fill="#71717a" />
+                  </g>
+                );
+              })}
+              {/* Top face (parallelogram floor — concrete) */}
+              <polygon
+                points={`${baseLeftX},${baseTopY} ${baseRightX},${baseTopY} ${baseRightX + dxBase},${baseTopY + dyBase} ${baseLeftX + dxBase},${baseTopY + dyBase}`}
+                fill="url(#base-top)"
+                stroke="#94a3b8"
+                strokeWidth="0.6"
+                strokeOpacity="0.6"
+              />
+              {/* Top face front bevel highlight (catches light) */}
+              <line
+                x1={baseLeftX}
+                y1={baseTopY}
+                x2={baseRightX}
+                y2={baseTopY}
+                stroke="#f8fafc"
+                strokeWidth="1"
+                opacity="0.7"
+              />
+              {/* Floor seams under each position — isometric diagonal lines */}
+              {Array.from({ length: positionsPerLevel - 1 }).map((_, idx) => {
+                const seamX = rackLeftX + (idx + 1) * cellW - GAP_X / 2;
+                return (
+                  <line
+                    key={`seam-${idx}`}
+                    x1={seamX}
+                    y1={baseTopY}
+                    x2={seamX + dxBase}
+                    y2={baseTopY + dyBase}
+                    stroke="#64748b"
+                    strokeWidth="0.7"
+                    strokeDasharray="3,3"
+                    opacity="0.5"
+                  />
+                );
+              })}
+              {/* Side face — vertical seam */}
+              <line
+                x1={baseRightX + dxBase * 0.5}
+                y1={baseTopY + dyBase * 0.5}
+                x2={baseRightX + dxBase * 0.5}
+                y2={baseBotY + dyBase * 0.5}
+                stroke="#27272a"
+                strokeWidth="0.5"
+                opacity="0.5"
+              />
+              {/* Ground shadow (under entire base) */}
+              <ellipse
+                cx={baseLeftX + baseW / 2 + dxBase / 2}
+                cy={baseBotY + 6}
+                rx={baseW / 2 + 18}
+                ry={5}
+                fill="rgba(0, 0, 0, 0.22)"
+                filter="blur(3px)"
+              />
+            </g>
+          );
+        })()}
 
         {/* Posts */}
         <RackPost x={rackLeftX - POST_W} yTop={RACK_PAD} height={totalRackHeight} />
@@ -570,25 +701,6 @@ function Rack3DView({
             />
           );
         })}
-
-        {/* Base platform */}
-        <g>
-          <rect
-            x={rackLeftX - POST_W - 16}
-            y={RACK_PAD + totalRackHeight}
-            width={rackContentWidth + POST_W * 2 + 32}
-            height={baseHeight}
-            fill="url(#metal-base)"
-            rx={3}
-          />
-          <rect
-            x={rackLeftX - POST_W - 16}
-            y={RACK_PAD + totalRackHeight}
-            width={rackContentWidth + POST_W * 2 + 32}
-            height={3}
-            fill="#a1a1aa"
-          />
-        </g>
 
         {/* Position tags */}
         {Array.from({ length: positionsPerLevel }).map((_, col) => {
