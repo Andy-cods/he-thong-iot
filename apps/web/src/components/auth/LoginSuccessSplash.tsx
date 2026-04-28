@@ -29,7 +29,7 @@ export interface LoginSuccessSplashProps {
   durationMs?: number;
 }
 
-const DEFAULT_DURATION = 6400;
+const DEFAULT_DURATION = 3400;
 const PROGRESS_START_DELAY = 900;
 const EXIT_DURATION = 100;
 
@@ -276,13 +276,13 @@ export function LoginSuccessSplash({
           opacity: 0;
         }
         .splash-scanline-1 {
-          animation: scanline-sweep 2s cubic-bezier(0.22, 1, 0.36, 1) 0.1s forwards;
+          animation: scanline-sweep 1.5s cubic-bezier(0.22, 1, 0.36, 1) 0.1s forwards;
         }
         .splash-scanline-2 {
-          animation: scanline-sweep 2s cubic-bezier(0.22, 1, 0.36, 1) 2.2s forwards;
+          animation: scanline-sweep 1.5s cubic-bezier(0.22, 1, 0.36, 1) 1.7s forwards;
         }
         .splash-scanline-3 {
-          animation: scanline-sweep 2s cubic-bezier(0.22, 1, 0.36, 1) 4.2s forwards;
+          animation: none;
         }
         @keyframes scanline-sweep {
           0% {
