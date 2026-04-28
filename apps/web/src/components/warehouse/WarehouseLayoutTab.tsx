@@ -89,6 +89,11 @@ export function WarehouseLayoutTab() {
   const [viewMode, setViewMode] = React.useState<"3d" | "2d">("3d");
   const [subTab, setSubTab] = React.useState<SubTab>("layout");
   const [selectedRackKey, setSelectedRackKey] = React.useState<string>("");
+  /** V3.7.3 — Filter bins theo fill status. */
+  const [statusFilter, setStatusFilter] = React.useState<
+    "all" | "occupied" | "empty" | "low"
+  >("all");
+  const [filterOpen, setFilterOpen] = React.useState(false);
 
   React.useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
@@ -175,6 +180,32 @@ export function WarehouseLayoutTab() {
   // Note: Để hiển thị SKU trên mỗi bin trong 3D layout, lý tưởng là API /layout trả primarySku.
   // Tạm thời hiển thị "X SKU loại" như fallback.
   const binsWithSku: BinNode[] = data?.bins ?? [];
+
+  // V3.7.3 — Apply status filter to currentRack.items
+  const filteredItems = React.useMemo(() => {
+    if (!currentRack) return [];
+    if (statusFilter === "all") return currentRack.items;
+    if (statusFilter === "occupied") {
+      return currentRack.items.filter((b) => b.totalQty > 0);
+    }
+    if (statusFilter === "empty") {
+      return currentRack.items.filter((b) => b.totalQty === 0);
+    }
+    return currentRack.items.filter((b) => b.isLow);
+  }, [currentRack, statusFilter]);
+
+  // V3.7.3 — bins prop cho 3D view: chỉ filter trong rack hiện tại,
+  // giữ nguyên các rack khác để rack-switcher còn options.
+  const visibleBins = React.useMemo(() => {
+    if (statusFilter === "all") return binsWithSku;
+    return binsWithSku.filter((b) => {
+      const rackKey = `${b.area ?? ""}-${b.rack ?? ""}`;
+      if (rackKey !== selectedRackKey) return true;
+      if (statusFilter === "occupied") return b.totalQty > 0;
+      if (statusFilter === "empty") return b.totalQty === 0;
+      return b.isLow;
+    });
+  }, [binsWithSku, statusFilter, selectedRackKey]);
 
   const selectedBin = binsWithSku.find((b) => b.id === selectedBinId) ?? null;
 
@@ -370,9 +401,55 @@ export function WarehouseLayoutTab() {
                   </button>
                 )}
               </div>
-              <button className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 hover:bg-zinc-50">
-                <Filter className="h-4 w-4" />
-              </button>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setFilterOpen((o) => !o)}
+                  className={cn(
+                    "inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-200 px-2.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-50",
+                    statusFilter !== "all" &&
+                      "border-indigo-500 bg-indigo-50 text-indigo-700",
+                  )}
+                >
+                  <Filter className="h-4 w-4" />
+                  {statusFilter === "all"
+                    ? "Lọc"
+                    : statusFilter === "occupied"
+                      ? "Có hàng"
+                      : statusFilter === "empty"
+                        ? "Trống"
+                        : "Sắp hết"}
+                </button>
+                {filterOpen && (
+                  <div className="absolute right-0 top-full mt-1 w-44 rounded-lg border border-zinc-200 bg-white py-1 shadow-lg z-20">
+                    {(
+                      [
+                        { value: "all", label: "Tất cả" },
+                        { value: "occupied", label: "Có hàng" },
+                        { value: "empty", label: "Trống" },
+                        { value: "low", label: "Sắp hết / cảnh báo" },
+                      ] as const
+                    ).map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => {
+                          setStatusFilter(opt.value);
+                          setFilterOpen(false);
+                        }}
+                        className={cn(
+                          "block w-full px-3 py-1.5 text-left text-xs",
+                          statusFilter === opt.value
+                            ? "bg-indigo-50 font-semibold text-indigo-700"
+                            : "text-zinc-600 hover:bg-zinc-50",
+                        )}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <div className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-zinc-100 p-0.5">
                 <button
                   type="button"
@@ -446,7 +523,7 @@ export function WarehouseLayoutTab() {
               </div>
             ) : subTab === "layout" ? (
               <WarehouseLayout3D
-                bins={binsWithSku}
+                bins={visibleBins}
                 selectedBinId={selectedBinId}
                 hoveredBinId={hoveredBinId}
                 onBinClick={(b) => setSelectedBinId(b.id)}
@@ -457,7 +534,7 @@ export function WarehouseLayoutTab() {
                 onRackChange={setSelectedRackKey}
               />
             ) : (
-              <BinListView bins={currentRack?.items ?? []} onSelect={setSelectedBinId} />
+              <BinListView bins={filteredItems} onSelect={setSelectedBinId} />
             )}
           </div>
 
@@ -496,10 +573,13 @@ export function WarehouseLayoutTab() {
               <div className="ml-auto">
                 <Button
                   size="sm"
+                  asChild
                   className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-md"
                 >
-                  <TrendingUp className="h-3.5 w-3.5" />
-                  Xem báo cáo chi tiết
+                  <a href="/warehouse?tab=report">
+                    <TrendingUp className="h-3.5 w-3.5" />
+                    Xem báo cáo chi tiết
+                  </a>
                 </Button>
               </div>
             </div>

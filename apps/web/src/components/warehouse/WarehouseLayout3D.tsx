@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Box, Layers, MoreVertical } from "lucide-react";
+import { Box, Layers, Maximize2, MoreVertical, ZoomIn, ZoomOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -53,18 +53,19 @@ export interface WarehouseLayout3DProps {
 
 type ViewMode = "3d" | "2d";
 
-const BIN_W = 175;
-const BIN_H = 110;
-/** V3.7.1 — top breathing-room giữa tầng. */
+/** V3.7.3 — bigger bins + fonts theo feedback user. */
+const BIN_W = 230;
+const BIN_H = 160;
 const PALLET_H = 10;
-/** V3.7.2 — pallet gỗ UNDER bin (bin sitting on wooden pallet). */
-const PALLET_BASE_H = 16;
-const BIN_DEPTH = 36;
-const GAP_X = 30;
-const SHELF_THICKNESS = 10;
-const POST_W = 12;
-const TIER_LABEL_W = 90;
-const RACK_PAD = 32;
+const PALLET_BASE_H = 20;
+const BIN_DEPTH = 44;
+const GAP_X = 36;
+const SHELF_THICKNESS = 12;
+const POST_W = 14;
+const TIER_LABEL_W = 100;
+const RACK_PAD = 36;
+/** V3.7.3 — base extends wider beyond rack content. */
+const BASE_OVERHANG = 36;
 
 /** 6 fill-level themes + 2 special states. */
 type ThemeKey = "full" | "high" | "mid" | "low" | "warning" | "empty" | "inactive";
@@ -401,16 +402,112 @@ function Rack3DView({
   const tierH = PALLET_H + BIN_H + PALLET_BASE_H + SHELF_THICKNESS;
   const rackContentWidth = positionsPerLevel * BIN_W + (positionsPerLevel - 1) * GAP_X;
 
-  const baseHeight = 36;
-  const positionTagH = 22;
-  const groundLabelH = 26;
+  const baseHeight = 44;
+  const positionTagH = 26;
+  const groundLabelH = 32;
   const totalRackHeight = levels * tierH + SHELF_THICKNESS;
   const svgWidth = TIER_LABEL_W + RACK_PAD * 2 + rackContentWidth + POST_W * 2 + BIN_DEPTH;
   const svgHeight = RACK_PAD + totalRackHeight + baseHeight + positionTagH + groundLabelH + RACK_PAD;
   const rackLeftX = TIER_LABEL_W + RACK_PAD + POST_W;
 
+  // V3.7.3 — Zoom + pan controls
+  const containerRef = React.useRef<HTMLDivElement | null>(null);
+  const [zoom, setZoom] = React.useState(1);
+  const [pan, setPan] = React.useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = React.useState(false);
+  const dragStart = React.useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+
+  const ZOOM_MIN = 0.4;
+  const ZOOM_MAX = 3;
+  const ZOOM_STEP = 0.2;
+
+  const zoomIn = () => setZoom((z) => Math.min(ZOOM_MAX, +(z + ZOOM_STEP).toFixed(2)));
+  const zoomOut = () => setZoom((z) => Math.max(ZOOM_MIN, +(z - ZOOM_STEP).toFixed(2)));
+  const zoomReset = () => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    if (!e.ctrlKey && !e.metaKey) return; // chỉ zoom khi giữ Ctrl/Cmd
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+    setZoom((z) => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, +(z + delta).toFixed(2))));
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // Chỉ pan khi giữ Space hoặc middle-click
+    if (e.button !== 1 && !e.shiftKey) return;
+    e.preventDefault();
+    setIsDragging(true);
+    dragStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    setPan({
+      x: dragStart.current.panX + (e.clientX - dragStart.current.x),
+      y: dragStart.current.panY + (e.clientY - dragStart.current.y),
+    });
+  };
+
+  const handleMouseUp = () => {
+    if (isDragging) setIsDragging(false);
+  };
+
   return (
-    <div className="flex h-full items-center justify-center p-4">
+    <div
+      ref={containerRef}
+      className="relative flex h-full items-center justify-center overflow-auto p-4"
+      onWheel={handleWheel}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      style={{ cursor: isDragging ? "grabbing" : undefined }}
+    >
+      {/* Zoom controls overlay */}
+      <div className="absolute right-4 top-4 z-10 flex flex-col gap-1 rounded-lg border border-zinc-200 bg-white p-1 shadow-md">
+        <button
+          type="button"
+          onClick={zoomIn}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100"
+          aria-label="Phóng to"
+          title="Phóng to (Ctrl + cuộn)"
+        >
+          <ZoomIn className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={zoomOut}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100"
+          aria-label="Thu nhỏ"
+          title="Thu nhỏ (Ctrl + cuộn)"
+        >
+          <ZoomOut className="h-4 w-4" />
+        </button>
+        <div className="my-0.5 h-px bg-zinc-200" />
+        <button
+          type="button"
+          onClick={zoomReset}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100"
+          aria-label="Reset zoom"
+          title="Reset (1:1)"
+        >
+          <Maximize2 className="h-4 w-4" />
+        </button>
+        <div className="px-1 pt-1 text-center text-[10px] font-mono font-semibold text-zinc-500">
+          {Math.round(zoom * 100)}%
+        </div>
+      </div>
+
+      <div
+        style={{
+          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+          transformOrigin: "center center",
+          transition: isDragging ? "none" : "transform 0.15s ease-out",
+        }}
+      >
       <svg width={svgWidth} height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`} style={{ display: "block" }}>
         <defs>
           {/* Bin gradients per theme */}
@@ -533,16 +630,16 @@ function Rack3DView({
           const y = RACK_PAD + idx * tierH + PALLET_H + BIN_H / 2;
           return (
             <g key={tier.lvl}>
-              <text x={TIER_LABEL_W / 2 + 6} y={y - 6} textAnchor="middle" fontSize="13" fontWeight="700" fill="#1e293b">{tier.label}</text>
-              <text x={TIER_LABEL_W / 2 + 6} y={y + 12} textAnchor="middle" fontSize="10" fontWeight="500" fill="#94a3b8">{tier.height}</text>
+              <text x={TIER_LABEL_W / 2 + 6} y={y - 8} textAnchor="middle" fontSize="16" fontWeight="700" fill="#1e293b">{tier.label}</text>
+              <text x={TIER_LABEL_W / 2 + 6} y={y + 14} textAnchor="middle" fontSize="12" fontWeight="500" fill="#94a3b8">{tier.height}</text>
             </g>
           );
         })}
 
         {/* Base platform — 3D isometric (drawn BEFORE posts/bins so they appear on top of floor) */}
         {(() => {
-          const baseLeftX = rackLeftX - POST_W - 16;
-          const baseRightX = rackLeftX + rackContentWidth + POST_W + 16;
+          const baseLeftX = rackLeftX - POST_W - BASE_OVERHANG;
+          const baseRightX = rackLeftX + rackContentWidth + POST_W + BASE_OVERHANG;
           const baseTopY = RACK_PAD + totalRackHeight;
           const baseBotY = baseTopY + baseHeight;
           const dxBase = 22;
@@ -713,13 +810,13 @@ function Rack3DView({
         {/* Position tags */}
         {Array.from({ length: positionsPerLevel }).map((_, col) => {
           const x = rackLeftX + col * cellW + GAP_X / 2 + BIN_W / 2;
-          const y = RACK_PAD + totalRackHeight + baseHeight + 8;
+          const y = RACK_PAD + totalRackHeight + baseHeight + 10;
           const posLabel = String(col + 1).padStart(2, "0");
           return (
             <g key={`pos-${col}`}>
-              <rect x={x - 18} y={y} width={36} height={positionTagH} rx={6} fill="#fff" stroke="#cbd5e1" strokeWidth="1.5" />
+              <rect x={x - 22} y={y} width={44} height={positionTagH} rx={6} fill="#fff" stroke="#cbd5e1" strokeWidth="1.5" />
               <text x={x} y={y + positionTagH / 2 + 1} textAnchor="middle" dominantBaseline="middle"
-                fontSize="11" fontWeight="700" fill="#475569" fontFamily="ui-monospace, SFMono-Regular, monospace">
+                fontSize="13" fontWeight="700" fill="#475569" fontFamily="ui-monospace, SFMono-Regular, monospace">
                 {posLabel}
               </text>
             </g>
@@ -728,11 +825,11 @@ function Rack3DView({
 
         {/* Ground label */}
         <g>
-          <rect x={rackLeftX - 4} y={RACK_PAD + totalRackHeight + baseHeight + positionTagH + 6}
+          <rect x={rackLeftX - 4} y={RACK_PAD + totalRackHeight + baseHeight + positionTagH + 8}
             width={rackContentWidth + 8} height={groundLabelH - 6} rx={4} fill="#1e293b" />
           <text x={rackLeftX + rackContentWidth / 2}
-            y={RACK_PAD + totalRackHeight + baseHeight + positionTagH + 6 + (groundLabelH - 6) / 2 + 1}
-            textAnchor="middle" dominantBaseline="middle" fontSize="11" fontWeight="700" fill="#fff" letterSpacing="1.5">
+            y={RACK_PAD + totalRackHeight + baseHeight + positionTagH + 8 + (groundLabelH - 6) / 2 + 1}
+            textAnchor="middle" dominantBaseline="middle" fontSize="14" fontWeight="700" fill="#fff" letterSpacing="1.8">
             MẶT ĐỨNG KỆ {rack.area}-{rack.rack}
           </text>
         </g>
@@ -754,6 +851,7 @@ function Rack3DView({
           }
         `}</style>
       </svg>
+      </div>
     </div>
   );
 }
@@ -944,13 +1042,13 @@ function BinPro3D({
           strokeWidth="0.8"
         />
         {/* Status dot */}
-        <circle cx={fxL + 17} cy={fyT + 17} r={3} fill={theme.led} />
+        <circle cx={fxL + 22} cy={fyT + 22} r={4} fill={theme.led} />
         {/* Status text */}
         <text
-          x={fxL + 25}
-          y={fyT + 17}
+          x={fxL + 32}
+          y={fyT + 22}
           dominantBaseline="middle"
-          fontSize="10"
+          fontSize="13"
           fontWeight="700"
           fill={theme.textPrimary}
           fontFamily="ui-sans-serif, system-ui, sans-serif"
@@ -963,9 +1061,9 @@ function BinPro3D({
       <g pointerEvents="none">
         {/* Glow */}
         <circle
-          cx={fxR - 14}
-          cy={fyT + 17}
-          r={9}
+          cx={fxR - 18}
+          cy={fyT + 22}
+          r={11}
           fill={
             theme.led === "#10b981" ? "url(#led-glow-green)" :
             theme.led === "#fbbf24" ? "url(#led-glow-amber)" :
@@ -975,22 +1073,22 @@ function BinPro3D({
         />
         {/* LED bulb */}
         <circle
-          cx={fxR - 14}
-          cy={fyT + 17}
-          r={3.5}
+          cx={fxR - 18}
+          cy={fyT + 22}
+          r={4.5}
           fill={theme.led}
           className={isWarning ? "led-pulse" : undefined}
         />
         {/* LED inner shine */}
-        <circle cx={fxR - 14.5} cy={fyT + 16} r={1.2} fill="rgba(255, 255, 255, 0.8)" />
+        <circle cx={fxR - 18.5} cy={fyT + 21} r={1.5} fill="rgba(255, 255, 255, 0.8)" />
       </g>
 
       {/* === MENU DOTS === */}
       <text
-        x={fxR - 14}
-        y={fyT + 32}
+        x={fxR - 18}
+        y={fyT + 42}
         textAnchor="middle"
-        fontSize="13"
+        fontSize="17"
         fontWeight="700"
         fill={theme.textSecondary}
         pointerEvents="none"
@@ -1000,9 +1098,9 @@ function BinPro3D({
 
       {/* === FULL CODE === */}
       <text
-        x={fxL + 12}
-        y={fyT + 44}
-        fontSize="10"
+        x={fxL + 16}
+        y={fyT + 60}
+        fontSize="13"
         fontWeight="600"
         fill={theme.textSecondary}
         fontFamily="ui-monospace, SFMono-Regular, monospace"
@@ -1013,16 +1111,16 @@ function BinPro3D({
 
       {/* === SKU === */}
       <text
-        x={fxL + 12}
-        y={fyT + 62}
-        fontSize="11"
+        x={fxL + 16}
+        y={fyT + 84}
+        fontSize="14"
         fontWeight="700"
         fill={theme.textPrimary}
         fontFamily="ui-monospace, SFMono-Regular, monospace"
         pointerEvents="none"
       >
         {bin.primarySku
-          ? `SKU: ${bin.primarySku.length > 12 ? bin.primarySku.slice(0, 11) + "…" : bin.primarySku}`
+          ? `SKU: ${bin.primarySku.length > 16 ? bin.primarySku.slice(0, 15) + "…" : bin.primarySku}`
           : hasStock
             ? `${bin.skuCount} SKU · ${bin.lotCount} lot`
             : "Trống"}
@@ -1030,9 +1128,9 @@ function BinPro3D({
 
       {/* === QTY === */}
       <text
-        x={fxL + 12}
-        y={fyT + 84}
-        fontSize="15"
+        x={fxL + 16}
+        y={fyT + 116}
+        fontSize="22"
         fontWeight="800"
         fill={theme.textPrimary}
         fontFamily="ui-monospace, SFMono-Regular, monospace"
@@ -1041,7 +1139,7 @@ function BinPro3D({
       >
         {Math.round(bin.totalQty).toLocaleString("vi-VN")}
         {" "}
-        <tspan fontSize="10" fontWeight="500" fill={theme.textSecondary}>
+        <tspan fontSize="13" fontWeight="500" fill={theme.textSecondary}>
           / {bin.capacity ? Math.round(Number(bin.capacity)).toLocaleString("vi-VN") : "—"}
         </tspan>
       </text>
@@ -1050,39 +1148,39 @@ function BinPro3D({
       <g pointerEvents="none">
         {/* Track */}
         <rect
-          x={fxL + 12}
-          y={fyT + BIN_H - 14}
-          width={BIN_W - 24}
-          height={4}
-          rx={2}
+          x={fxL + 16}
+          y={fyT + BIN_H - 18}
+          width={BIN_W - 32}
+          height={6}
+          rx={3}
           fill={theme.progressTrack}
         />
         {/* Fill */}
         <rect
-          x={fxL + 12}
-          y={fyT + BIN_H - 14}
-          width={(BIN_W - 24) * (pct / 100)}
-          height={4}
-          rx={2}
+          x={fxL + 16}
+          y={fyT + BIN_H - 18}
+          width={(BIN_W - 32) * (pct / 100)}
+          height={6}
+          rx={3}
           fill={theme.progressFill}
         />
         {/* Fill highlight (top edge) */}
         {pct > 0 && (
           <rect
-            x={fxL + 12}
-            y={fyT + BIN_H - 14}
-            width={(BIN_W - 24) * (pct / 100)}
-            height={1.5}
+            x={fxL + 16}
+            y={fyT + BIN_H - 18}
+            width={(BIN_W - 32) * (pct / 100)}
+            height={2}
             rx={2}
             fill="rgba(255, 255, 255, 0.5)"
           />
         )}
         {/* Pct label */}
         <text
-          x={fxR - 12}
-          y={fyT + BIN_H - 17}
+          x={fxR - 16}
+          y={fyT + BIN_H - 22}
           textAnchor="end"
-          fontSize="9"
+          fontSize="12"
           fontWeight="700"
           fill={theme.textPrimary}
           fontFamily="ui-monospace, SFMono-Regular, monospace"
