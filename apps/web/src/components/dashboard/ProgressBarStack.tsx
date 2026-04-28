@@ -10,16 +10,11 @@ import {
   ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ProgressBarCard } from "./ProgressBarCard";
+import { BigStatCard } from "./BigStatCard";
 import type { DashboardOverviewV2Payload } from "@/app/api/dashboard/overview-v2/route";
 
 /**
- * V3.1 ProgressBarStack — container 6 thanh tiến độ trên trang Tổng quan.
- *
- * Layout responsive (TASK-20260427-010):
- *   - Mobile <375: 1 cột
- *   - Tablet ≥375 (sm): 2 cột
- *   - Desktop ≥768 (md+): 3 cột
+ * V3.5 ProgressBarStack — 6 BigStatCards với gradient backgrounds.
  *
  * Color semantics gắn cứng theo metric (KHÔNG đổi theo % giá trị):
  *   - Linh kiện sẵn sàng → emerald
@@ -28,36 +23,24 @@ import type { DashboardOverviewV2Payload } from "@/app/api/dashboard/overview-v2
  *   - Nhận hàng → indigo
  *   - Sản xuất nội bộ → rose
  *   - Yêu cầu mua (PR) → violet
- *
- * Drilldown URLs (theo addendum-user-answers + brainstorm Q7 — route filter,
- * KHÔNG modal). Click toàn bộ card → navigate.
  */
 const DRILLDOWN_URLS = {
-  componentsAvailable: "/bom?state=AVAILABLE",
-  assembly: "/assembly?status=in-progress",
-  purchasing: "/procurement/purchase-orders?status=SENT",
-  receiving: "/receiving?pending=true",
-  production: "/work-orders?status=IN_PROGRESS",
-  purchaseRequests: "/procurement/purchase-requests?status=PENDING",
-} as const;
-
-const TOOLTIPS = {
-  componentsAvailable:
-    "Tỷ lệ linh kiện đã sẵn sàng (đã về kho QC pass / dự trữ / xuất / lắp ráp / đóng).",
-  assembly: "Tổng số lượng đã lắp ráp / tổng số lượng yêu cầu của tất cả BOM.",
-  purchasing:
-    "Tổng số lượng đã đặt mua (PO open) / tổng yêu cầu — phản ánh độ phủ đặt hàng.",
-  receiving: "Tổng số lượng đã nhận về kho / tổng yêu cầu của tất cả BOM.",
-  production:
-    "Số lệnh sản xuất đang chạy / tổng lệnh đã release + đang chạy + hoàn tất.",
-  purchaseRequests:
-    "Yêu cầu mua đã duyệt hoặc chuyển PO / tổng yêu cầu mua — đánh giá tốc độ duyệt.",
+  componentsAvailable: "/engineering?tab=bom",
+  assembly: "/operations",
+  purchasing: "/sales?tab=po",
+  receiving: "/warehouse?tab=receiving",
+  production: "/engineering?tab=work-orders",
+  purchaseRequests: "/engineering?tab=pr",
 } as const;
 
 export interface ProgressBarStackProps {
   data: DashboardOverviewV2Payload | null;
   loading?: boolean;
   className?: string;
+}
+
+function formatNum(n: number): string {
+  return Number(n || 0).toLocaleString("vi-VN");
 }
 
 export function ProgressBarStack({
@@ -70,88 +53,118 @@ export function ProgressBarStack({
   return (
     <div
       className={cn(
-        "grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3",
+        "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3",
         className,
       )}
-      aria-label="Thanh tiến độ tổng quan"
+      aria-label="Tổng quan các bộ phận"
     >
-      <ProgressBarCard
+      <BigStatCard
         label="Linh kiện sẵn sàng"
         icon={Boxes}
         tone="emerald"
         moduleLabel="BOM"
-        loading={loading || !p}
+        href={DRILLDOWN_URLS.componentsAvailable}
+        value={p?.componentsAvailable.percent ?? 0}
+        valueSuffix="%"
         percent={p?.componentsAvailable.percent ?? 0}
         numerator={p?.componentsAvailable.numerator ?? 0}
         denominator={p?.componentsAvailable.denominator ?? 0}
-        unitLabel="linh kiện"
-        tooltip={TOOLTIPS.componentsAvailable}
-        drilldownHref={DRILLDOWN_URLS.componentsAvailable}
+        subText={
+          p && p.componentsAvailable.denominator > 0
+            ? `${formatNum(p.componentsAvailable.numerator)} / ${formatNum(p.componentsAvailable.denominator)} linh kiện`
+            : undefined
+        }
+        loading={loading}
       />
-      <ProgressBarCard
+      <BigStatCard
         label="Lắp ráp"
         icon={Wrench}
         tone="blue"
         moduleLabel="Lắp ráp"
-        loading={loading || !p}
+        href={DRILLDOWN_URLS.assembly}
+        value={p?.assembly.percent ?? 0}
+        valueSuffix="%"
         percent={p?.assembly.percent ?? 0}
         numerator={p?.assembly.numerator ?? 0}
         denominator={p?.assembly.denominator ?? 0}
-        unitLabel="đơn vị"
-        tooltip={TOOLTIPS.assembly}
-        drilldownHref={DRILLDOWN_URLS.assembly}
+        subText={
+          p && p.assembly.denominator > 0
+            ? `${formatNum(p.assembly.numerator)} / ${formatNum(p.assembly.denominator)} đơn vị`
+            : undefined
+        }
+        loading={loading}
       />
-      <ProgressBarCard
+      <BigStatCard
         label="Đặt mua"
         icon={ShoppingCart}
         tone="amber"
         moduleLabel="Đặt mua"
-        loading={loading || !p}
+        href={DRILLDOWN_URLS.purchasing}
+        value={p?.purchasing.percent ?? 0}
+        valueSuffix="%"
         percent={p?.purchasing.percent ?? 0}
         numerator={p?.purchasing.numerator ?? 0}
         denominator={p?.purchasing.denominator ?? 0}
-        unitLabel="đơn vị"
-        tooltip={TOOLTIPS.purchasing}
-        drilldownHref={DRILLDOWN_URLS.purchasing}
+        subText={
+          p && p.purchasing.denominator > 0
+            ? `${formatNum(p.purchasing.numerator)} / ${formatNum(p.purchasing.denominator)} đơn vị`
+            : undefined
+        }
+        loading={loading}
       />
-      <ProgressBarCard
+      <BigStatCard
         label="Nhận hàng"
         icon={Truck}
         tone="indigo"
         moduleLabel="Nhận hàng"
-        loading={loading || !p}
+        href={DRILLDOWN_URLS.receiving}
+        value={p?.receiving.percent ?? 0}
+        valueSuffix="%"
         percent={p?.receiving.percent ?? 0}
         numerator={p?.receiving.numerator ?? 0}
         denominator={p?.receiving.denominator ?? 0}
-        unitLabel="đơn vị"
-        tooltip={TOOLTIPS.receiving}
-        drilldownHref={DRILLDOWN_URLS.receiving}
+        subText={
+          p && p.receiving.denominator > 0
+            ? `${formatNum(p.receiving.numerator)} / ${formatNum(p.receiving.denominator)} đơn vị`
+            : undefined
+        }
+        loading={loading}
       />
-      <ProgressBarCard
+      <BigStatCard
         label="Sản xuất nội bộ"
         icon={Factory}
         tone="rose"
         moduleLabel="Sản xuất"
-        loading={loading || !p}
+        href={DRILLDOWN_URLS.production}
+        value={p?.production.percent ?? 0}
+        valueSuffix="%"
         percent={p?.production.percent ?? 0}
         numerator={p?.production.numerator ?? 0}
         denominator={p?.production.denominator ?? 0}
-        unitLabel="lệnh"
-        tooltip={TOOLTIPS.production}
-        drilldownHref={DRILLDOWN_URLS.production}
+        subText={
+          p && p.production.denominator > 0
+            ? `${formatNum(p.production.numerator)} / ${formatNum(p.production.denominator)} lệnh`
+            : undefined
+        }
+        loading={loading}
       />
-      <ProgressBarCard
+      <BigStatCard
         label="Yêu cầu mua (PR)"
         icon={ClipboardList}
         tone="violet"
         moduleLabel="Yêu cầu mua"
-        loading={loading || !p}
+        href={DRILLDOWN_URLS.purchaseRequests}
+        value={p?.purchaseRequests.percent ?? 0}
+        valueSuffix="%"
         percent={p?.purchaseRequests.percent ?? 0}
         numerator={p?.purchaseRequests.numerator ?? 0}
         denominator={p?.purchaseRequests.denominator ?? 0}
-        unitLabel="yêu cầu"
-        tooltip={TOOLTIPS.purchaseRequests}
-        drilldownHref={DRILLDOWN_URLS.purchaseRequests}
+        subText={
+          p && p.purchaseRequests.denominator > 0
+            ? `${formatNum(p.purchaseRequests.numerator)} / ${formatNum(p.purchaseRequests.denominator)} yêu cầu`
+            : undefined
+        }
+        loading={loading}
       />
     </div>
   );
