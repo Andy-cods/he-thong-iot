@@ -55,7 +55,8 @@ type ViewMode = "3d" | "2d";
 
 const BIN_W = 175;
 const BIN_H = 110;
-const PALLET_H = 56;
+/** V3.7.1 — pallet đã bỏ; giữ nhỏ làm breathing-room giữa tier. */
+const PALLET_H = 12;
 const BIN_DEPTH = 32;
 const GAP_X = 18;
 const SHELF_THICKNESS = 10;
@@ -820,19 +821,7 @@ function BinPro3D({
         filter="blur(3px)"
       />
 
-      {/* PALLET STACK on top */}
-      {hasStock ? (
-        <PalletPyramid
-          x={fxL + 6}
-          y={palletYTop + 2}
-          width={BIN_W - 12}
-          height={PALLET_H - 4}
-          fillRatio={Math.min(1, bin.totalQty / Math.max(1, Number(bin.capacity ?? "100")))}
-          tone={theme.palletTone}
-        />
-      ) : tone === "empty" ? (
-        <EmptyWoodPallet x={fxL + 14} y={palletYTop + PALLET_H - 14} width={BIN_W - 28} />
-      ) : null}
+      {/* PALLET STACK đã được loại bỏ theo feedback user (2026-04-28) */}
 
       {/* === BIN BODY 3D === */}
       <g filter="url(#bin-drop-shadow)">
