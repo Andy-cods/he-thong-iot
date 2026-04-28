@@ -38,8 +38,16 @@ type ItemDetail = {
   isLotTracked: boolean;
   isSerialTracked: boolean;
   isActive: boolean;
+  /** V3.7 — slotting bin mặc định */
+  defaultBinId?: string | null;
   updatedAt?: string;
 };
+
+interface BinOption {
+  id: string;
+  fullCode: string;
+  isActive: boolean;
+}
 
 export interface ItemQuickEditSheetProps {
   itemId: string | null;
@@ -148,48 +156,60 @@ export function ItemQuickEditSheet({
                 <Skeleton className="h-20 w-full" />
               </div>
             ) : (
-              <ItemForm
-                mode="edit"
-                submitting={update.isPending}
-                onDirtyChange={setIsDirty}
-                hideFormActions
-                defaultValues={{
-                  sku: item.sku,
-                  name: item.name,
-                  itemType: item.itemType,
-                  uom: item.uom,
-                  status: item.status,
-                  category: item.category ?? "",
-                  description: item.description ?? "",
-                  minStockQty: Number(item.minStockQty ?? 0),
-                  reorderQty: Number(item.reorderQty ?? 0),
-                  leadTimeDays: item.leadTimeDays,
-                  isLotTracked: item.isLotTracked,
-                  isSerialTracked: item.isSerialTracked,
-                }}
-                onSubmit={async (values) => {
-                  try {
-                    const res = await update.mutateAsync({
-                      data: values,
-                      baseUpdatedAt: item.updatedAt ?? null,
-                    });
-                    toast.success("Đã cập nhật.");
-                    setIsDirty(false);
-                    onSaved?.(res.data);
-                    onClose();
-                  } catch (err) {
-                    const e = err as RequestError;
-                    if (e.status === 409) {
-                      setConflict({
+              <>
+                <ItemForm
+                  mode="edit"
+                  submitting={update.isPending}
+                  onDirtyChange={setIsDirty}
+                  hideFormActions
+                  defaultValues={{
+                    sku: item.sku,
+                    name: item.name,
+                    itemType: item.itemType,
+                    uom: item.uom,
+                    status: item.status,
+                    category: item.category ?? "",
+                    description: item.description ?? "",
+                    minStockQty: Number(item.minStockQty ?? 0),
+                    reorderQty: Number(item.reorderQty ?? 0),
+                    leadTimeDays: item.leadTimeDays,
+                    isLotTracked: item.isLotTracked,
+                    isSerialTracked: item.isSerialTracked,
+                  }}
+                  onSubmit={async (values) => {
+                    try {
+                      const res = await update.mutateAsync({
+                        data: values,
                         baseUpdatedAt: item.updatedAt ?? null,
                       });
-                    } else {
-                      toast.error(e.message);
+                      toast.success("Đã cập nhật.");
+                      setIsDirty(false);
+                      onSaved?.(res.data);
+                      onClose();
+                    } catch (err) {
+                      const e = err as RequestError;
+                      if (e.status === 409) {
+                        setConflict({
+                          baseUpdatedAt: item.updatedAt ?? null,
+                        });
+                      } else {
+                        toast.error(e.message);
+                      }
                     }
-                  }
-                }}
-                formId="item-quick-edit-form"
-              />
+                  }}
+                  formId="item-quick-edit-form"
+                />
+                <div className="mt-4 rounded-md border border-zinc-200 bg-zinc-50 p-3">
+                  <SlottingPanel
+                    itemId={item.id}
+                    currentBinId={item.defaultBinId ?? null}
+                    onSaved={() => {
+                      void refetch();
+                      onSaved?.(null);
+                    }}
+                  />
+                </div>
+              </>
             )}
           </div>
 
@@ -295,5 +315,116 @@ export function ItemQuickEditSheet({
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+/**
+ * V3.7 — Slotting panel: gán bin mặc định cho SKU.
+ * - Fetch tất cả bin active từ /api/warehouse/layout
+ * - Group theo area-rack-level
+ * - Save → PATCH /api/items/[id] với defaultBinId
+ */
+function SlottingPanel({
+  itemId,
+  currentBinId,
+  onSaved,
+}: {
+  itemId: string;
+  currentBinId: string | null;
+  onSaved: () => void;
+}) {
+  const [bins, setBins] = React.useState<BinOption[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [selected, setSelected] = React.useState<string>(currentBinId ?? "");
+  const [saving, setSaving] = React.useState(false);
+
+  React.useEffect(() => {
+    setSelected(currentBinId ?? "");
+  }, [currentBinId, itemId]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/warehouse/layout");
+        const json = (await res.json()) as { data?: { bins?: BinOption[] } };
+        if (!cancelled) {
+          const list = (json.data?.bins ?? []).filter((b) => b.isActive);
+          setBins(list);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/items/${itemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ defaultBinId: selected || null }),
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => null)) as
+          | { message?: string }
+          | null;
+        throw new Error(err?.message ?? "Lỗi cập nhật bin.");
+      }
+      const newCode = bins.find((b) => b.id === selected)?.fullCode ?? null;
+      toast.success(
+        newCode ? `Đã gán bin ${newCode}.` : "Đã bỏ gán bin mặc định.",
+      );
+      onSaved();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Lỗi cập nhật.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const dirty = (currentBinId ?? "") !== selected;
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-sm font-medium text-zinc-700">
+          Vị trí kho mặc định
+        </span>
+        <span className="text-xs text-zinc-500">
+          (auto-putaway khi nhận hàng)
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        <select
+          value={selected}
+          onChange={(e) => setSelected(e.target.value)}
+          disabled={loading || saving}
+          className="flex-1 rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-sm text-zinc-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-zinc-100"
+        >
+          <option value="">— Không gán —</option>
+          {bins.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.fullCode}
+            </option>
+          ))}
+        </select>
+        <Button
+          size="sm"
+          disabled={!dirty || saving || loading}
+          onClick={handleSave}
+        >
+          {saving ? "..." : "Gán"}
+        </Button>
+      </div>
+      {loading && (
+        <p className="mt-1 text-xs text-zinc-400">Đang tải danh sách bin…</p>
+      )}
+    </div>
   );
 }

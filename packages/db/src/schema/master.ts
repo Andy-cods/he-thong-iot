@@ -93,6 +93,8 @@ export const item = appSchema.table(
      */
     materialCode: varchar("material_code", { length: 64 }),
     defaultLocationId: uuid("default_location_id"),
+    /** V3.7 — bin mặc định cho slotting + auto-putaway khi nhận hàng. */
+    defaultBinId: uuid("default_bin_id"),
     minStockQty: numeric("min_stock_qty", { precision: 18, scale: 4 })
       .notNull()
       .default("0"),

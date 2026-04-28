@@ -57,6 +57,8 @@ export const itemUpdateSchema = itemCreateSchema
   .partial()
   .extend({
     isActive: z.coerce.boolean().optional(),
+    /** V3.7 — slotting: gán bin mặc định (uuid) hoặc null để bỏ gán. */
+    defaultBinId: z.string().uuid().nullable().optional(),
   });
 
 export const itemListQuerySchema = z.object({

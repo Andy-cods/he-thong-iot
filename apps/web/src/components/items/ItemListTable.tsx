@@ -28,6 +28,9 @@ export interface ItemRow {
   isActive: boolean;
   primaryBarcode: string | null;
   supplierCount: number;
+  /** V3.7 — slotting bin mặc định (NULL nếu chưa gán). */
+  defaultBinId?: string | null;
+  defaultBinCode?: string | null;
   /** V1.9 P6 — inventory aggregate từ API (totalQty, availableQty, reservedQty). */
   inventorySummary?: {
     totalQty: number;
@@ -113,7 +116,7 @@ export function ItemListTable({
   // V1.9 P6: tăng cột Tồn kho lên 128px (2-line display) + gap-x-3 giữa các cột.
   const gridCols = cn(
     "grid-cols-[32px_96px_minmax(0,1fr)_80px] gap-x-2",
-    "md:grid-cols-[32px_128px_minmax(0,1fr)_96px_64px_112px_128px_80px_96px] md:gap-x-3",
+    "md:grid-cols-[32px_128px_minmax(0,1fr)_96px_64px_112px_104px_128px_80px_96px] md:gap-x-3",
   );
 
   return (
@@ -157,6 +160,9 @@ export function ItemListTable({
         <div role="columnheader" className="hidden md:block">
           Danh mục
         </div>
+        <div role="columnheader" className="hidden md:block">
+          Vị trí kho
+        </div>
         <div role="columnheader" className="hidden text-right md:block">
           Tồn kho
         </div>
@@ -183,6 +189,7 @@ export function ItemListTable({
               <Skeleton className="hidden h-3 w-16 md:block" />
               <Skeleton className="hidden h-3 w-8 md:block" />
               <Skeleton className="hidden h-3 w-16 md:block" />
+              <Skeleton className="hidden h-3 w-20 md:block" />
               <Skeleton className="hidden h-3 w-12 md:block" />
               <Skeleton className="h-4 w-16 rounded-sm" />
               <Skeleton className="hidden h-3 w-16 md:block" />
@@ -271,6 +278,20 @@ export function ItemListTable({
                 title={row.category ?? ""}
               >
                 {row.category ?? "—"}
+              </div>
+
+              {/* V3.7 — Vị trí kho (default bin) */}
+              <div
+                className="hidden truncate md:block"
+                title={row.defaultBinCode ?? "Chưa gán bin"}
+              >
+                {row.defaultBinCode ? (
+                  <span className="inline-flex items-center rounded bg-blue-50 px-1.5 py-0.5 font-mono text-xs font-medium text-blue-700">
+                    {row.defaultBinCode}
+                  </span>
+                ) : (
+                  <span className="text-xs text-zinc-400">—</span>
+                )}
               </div>
 
               {/* Tồn kho — V1.9 P6 + TASK-20260427-017:

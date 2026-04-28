@@ -38,6 +38,9 @@ export interface ItemListRow {
   supplierCount: number;
   /** V1.9 P6: inventory aggregate (totalQty via inventory_txn, available/reserved via lot_serial). */
   inventorySummary: ItemInventorySummary;
+  /** V3.7 — bin slotting (mặc định khi nhận hàng). */
+  defaultBinId: string | null;
+  defaultBinCode: string | null;
   updatedAt: Date;
 }
 
@@ -169,6 +172,12 @@ export async function listItems(q: ItemListQuery): Promise<ListItemsResult> {
           JOIN app.inventory_lot_serial ll ON ll.id = r.lot_serial_id
           WHERE ll.item_id = app.item.id AND r.status = 'ACTIVE'
         )`,
+        defaultBinId: item.defaultBinId,
+        defaultBinCode: sql<string | null>`(
+          SELECT b.full_code FROM app.location_bin b
+          WHERE b.id = app.item.default_bin_id
+          LIMIT 1
+        )`,
       })
       .from(item)
       .where(whereExpr ?? sql`true`)
@@ -199,6 +208,8 @@ export async function listItems(q: ItemListQuery): Promise<ListItemsResult> {
       leadTimeDays: r.leadTimeDays,
       primaryBarcode: r.primaryBarcode,
       supplierCount: r.supplierCount,
+      defaultBinId: r.defaultBinId,
+      defaultBinCode: r.defaultBinCode,
       updatedAt: r.updatedAt,
       inventorySummary: {
         totalQty: total,
@@ -301,6 +312,7 @@ export async function updateItem(
   if (input.isLotTracked !== undefined) patch.isLotTracked = input.isLotTracked;
   if (input.isSerialTracked !== undefined) patch.isSerialTracked = input.isSerialTracked;
   if (input.isActive !== undefined) patch.isActive = input.isActive;
+  if (input.defaultBinId !== undefined) patch.defaultBinId = input.defaultBinId;
 
   const [row] = await db
     .update(item)

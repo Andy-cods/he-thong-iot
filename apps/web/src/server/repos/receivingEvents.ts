@@ -5,6 +5,7 @@ import {
   inboundReceiptLine,
   inventoryLotSerial,
   inventoryTxn,
+  item,
   purchaseOrder,
   purchaseOrderLine,
   receivingEvent,
@@ -124,6 +125,17 @@ export async function postReceivingAtomic(
       .limit(1);
     if (!poLine) throw new Error("PO_LINE_NOT_FOUND");
 
+    // V3.7 — Slotting: nếu caller không truyền locationBinId, fallback default_bin_id của item.
+    let resolvedBinId: string | null = input.locationBinId ?? null;
+    if (!resolvedBinId) {
+      const [itm] = await tx
+        .select({ defaultBinId: item.defaultBinId })
+        .from(item)
+        .where(eq(item.id, input.itemId))
+        .limit(1);
+      if (itm?.defaultBinId) resolvedBinId = itm.defaultBinId;
+    }
+
     // 1b) V3.2 — hard block over-delivery > 120% để tránh nhập sai SL nghiêm trọng
     {
       const ordered = Number.parseFloat(poLine.orderedQty);
@@ -182,7 +194,7 @@ export async function postReceivingAtomic(
         poLineId: input.poLineId,
         itemId: input.itemId,
         receivedQty: String(input.qty),
-        locationBinId: input.locationBinId ?? null,
+        locationBinId: resolvedBinId,
         lotCode: input.lotCode ?? null,
         serialCode: input.serialCode ?? null,
         notes: input.notes ?? null,
@@ -273,7 +285,7 @@ export async function postReceivingAtomic(
         txType: "IN_RECEIPT",
         itemId: input.itemId,
         qty: String(input.qty),
-        toBinId: input.locationBinId ?? null,
+        toBinId: resolvedBinId,
         lotSerialId,
         refTable: "inbound_receipt_line",
         refId: receiptLine.id,
