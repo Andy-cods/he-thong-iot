@@ -59,10 +59,12 @@ interface LineInput {
   qty: string;
   lotCode: string;
   qcStatus: "OK" | "NG" | "PENDING";
+  /** V3.7 — bin override; "" = dùng default bin của SKU. */
+  binId: string;
 }
 
 function emptyLineInput(): LineInput {
-  return { qty: "", lotCode: "", qcStatus: "PENDING" };
+  return { qty: "", lotCode: "", qcStatus: "PENDING", binId: "" };
 }
 
 export default function ReceivingWizardPage({
@@ -96,6 +98,32 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
   const [notes, setNotes] = React.useState("");
   const [submitted, setSubmitted] = React.useState(false);
 
+  // V3.7 — fetch danh sách bin để dropdown override.
+  const [bins, setBins] = React.useState<
+    Array<{ id: string; fullCode: string; isActive: boolean }>
+  >([]);
+  React.useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/warehouse/layout");
+        const json = (await res.json()) as {
+          data?: {
+            bins?: Array<{ id: string; fullCode: string; isActive: boolean }>;
+          };
+        };
+        if (!cancelled) {
+          setBins((json.data?.bins ?? []).filter((b) => b.isActive));
+        }
+      } catch {
+        // ignore — UI will show no bins
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   React.useEffect(() => {
     if (!po) return;
     setInputs((prev) => {
@@ -125,6 +153,7 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
           qty: String(ln.remainingQty),
           lotCode: prev[ln.id!]?.lotCode ?? "",
           qcStatus: "OK",
+          binId: prev[ln.id!]?.binId ?? "",
         };
         filled += 1;
       }
@@ -282,6 +311,8 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
         qcStatus: input.qcStatus,
         scannedAt,
         rawCode: ln.sku,
+        // V3.7 — pass bin override; if empty server falls back to item.defaultBinId.
+        locationBinId: input.binId || ln.defaultBinId || null,
         metadata: {
           source: "receiving-wizard",
           poId: po.poId,
@@ -382,6 +413,7 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
           <StepCapture
             po={po}
             inputs={inputs}
+            bins={bins}
             onUpdate={updateLine}
             onResetLine={resetLine}
             onFillAll={fillAll}
@@ -553,6 +585,7 @@ function StepCheck({
 function StepCapture({
   po,
   inputs,
+  bins,
   onUpdate,
   onResetLine,
   onFillAll,
@@ -561,6 +594,7 @@ function StepCapture({
 }: {
   po: NonNullable<ReturnType<typeof usePOForReceiving>["data"]>;
   inputs: Record<string, LineInput>;
+  bins: Array<{ id: string; fullCode: string; isActive: boolean }>;
   onUpdate: (lineId: string, patch: Partial<LineInput>) => void;
   onResetLine: (lineId: string) => void;
   onFillAll: () => void;
@@ -643,6 +677,9 @@ function StepCapture({
                 <th scope="col" className="px-3 py-2 text-left">
                   Lô / Serial
                 </th>
+                <th scope="col" className="px-3 py-2 text-left">
+                  Vị trí lưu
+                </th>
                 <th scope="col" className="px-3 py-2 text-center">
                   QC
                 </th>
@@ -660,6 +697,7 @@ function StepCapture({
                 <LineRow
                   key={ln.id}
                   ln={ln}
+                  bins={bins}
                   input={inputs[ln.id!] ?? emptyLineInput()}
                   disabled={disabled}
                   onChange={(patch) => onUpdate(ln.id!, patch)}
@@ -681,12 +719,14 @@ function StepCapture({
 
 function LineRow({
   ln,
+  bins,
   input,
   disabled,
   onChange,
   onReset,
 }: {
   ln: POReceivingLine;
+  bins: Array<{ id: string; fullCode: string; isActive: boolean }>;
   input: LineInput;
   disabled: boolean;
   onChange: (patch: Partial<LineInput>) => void;
@@ -772,6 +812,35 @@ function LineRow({
           className="h-9 w-40"
           aria-label={`Số lô ${ln.sku}`}
         />
+      </td>
+      {/* V3.7 — Vị trí lưu (bin override) */}
+      <td className="px-3 py-2">
+        <div className="flex flex-col gap-0.5">
+          <select
+            value={input.binId || ln.defaultBinId || ""}
+            onChange={(e) => onChange({ binId: e.target.value })}
+            disabled={disabled || isDone}
+            className="h-9 w-32 rounded-md border border-zinc-300 bg-white px-2 font-mono text-xs text-zinc-700 disabled:bg-zinc-100"
+            aria-label={`Vị trí lưu ${ln.sku}`}
+          >
+            <option value="">— Chưa gán —</option>
+            {bins.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.fullCode}
+              </option>
+            ))}
+          </select>
+          {ln.defaultBinCode && !input.binId && (
+            <span className="text-[10px] text-emerald-600">
+              ✓ Mặc định {ln.defaultBinCode}
+            </span>
+          )}
+          {input.binId && input.binId !== ln.defaultBinId && (
+            <span className="text-[10px] text-amber-600">
+              Đã đổi vị trí
+            </span>
+          )}
+        </div>
       </td>
       <td className="px-3 py-2">
         <div

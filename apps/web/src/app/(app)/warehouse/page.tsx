@@ -8,6 +8,8 @@ import { WarehouseLayoutTab } from "@/components/warehouse/WarehouseLayoutTab";
 import { ItemsTab } from "@/components/warehouse/ItemsTab";
 import { LotSerialTab } from "@/components/warehouse/LotSerialTab";
 import { ReceivingTab } from "@/components/warehouse/ReceivingTab";
+import { PickingTab } from "@/components/warehouse/PickingTab";
+import { ReportTab } from "@/components/warehouse/ReportTab";
 
 export const dynamic = "force-dynamic";
 
@@ -77,8 +79,12 @@ export default function WarehousePage({ searchParams }: WarehousePageProps) {
           <ItemsTab />
         ) : active === "lot-serial" ? (
           <LotSerialTab />
-        ) : (
+        ) : active === "receiving" ? (
           <ReceivingTab />
+        ) : active === "picking" ? (
+          <PickingTab />
+        ) : (
+          <ReportTab />
         )}
       </div>
     </div>

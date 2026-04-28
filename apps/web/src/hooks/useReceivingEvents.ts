@@ -24,6 +24,9 @@ export interface POReceivingLine {
   remainingQty: number;
   unitPrice: number;
   expectedLotSerial: "LOT" | "SERIAL" | "NONE";
+  /** V3.7 — slotting bin suggest. */
+  defaultBinId?: string | null;
+  defaultBinCode?: string | null;
 }
 
 export interface POForReceiving {
@@ -54,6 +57,8 @@ export interface ReceivingEventInput {
   qcStatus: "OK" | "NG" | "PENDING";
   scannedAt: string;
   rawCode?: string | null;
+  /** V3.7 — bin override. NULL → fallback item.defaultBinId server-side. */
+  locationBinId?: string | null;
   metadata?: Record<string, unknown>;
 }
 

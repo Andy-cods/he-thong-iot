@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { eq } from "drizzle-orm";
-import { item, purchaseOrder, purchaseOrderLine, supplier } from "@iot/db/schema";
+import { item, locationBin, purchaseOrder, purchaseOrderLine, supplier } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import { jsonError } from "@/server/http";
 import { requireCan } from "@/server/session";
@@ -38,6 +38,9 @@ interface POLine {
   remainingQty?: number;
   unitPrice?: number;
   expectedLotSerial?: "LOT" | "SERIAL" | "NONE";
+  /** V3.7 — bin slotting cho auto-putaway suggest. */
+  defaultBinId?: string | null;
+  defaultBinCode?: string | null;
 }
 
 interface POStub {
@@ -160,9 +163,12 @@ export async function GET(
       orderedQty: purchaseOrderLine.orderedQty,
       receivedQty: purchaseOrderLine.receivedQty,
       unitPrice: purchaseOrderLine.unitPrice,
+      defaultBinId: item.defaultBinId,
+      defaultBinCode: locationBin.fullCode,
     })
     .from(purchaseOrderLine)
     .leftJoin(item, eq(item.id, purchaseOrderLine.itemId))
+    .leftJoin(locationBin, eq(locationBin.id, item.defaultBinId))
     .where(eq(purchaseOrderLine.poId, rawId))
     .orderBy(purchaseOrderLine.lineNo);
 
@@ -193,6 +199,8 @@ export async function GET(
       expectedQty: orderedQty, // legacy PWA alias
       unitPrice: toNumber(r.unitPrice),
       expectedLotSerial,
+      defaultBinId: r.defaultBinId,
+      defaultBinCode: r.defaultBinCode,
     };
   });
 

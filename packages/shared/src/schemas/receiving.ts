@@ -30,6 +30,8 @@ export const receivingEventSchema = z.object({
   qcStatus: z.enum(RECEIVING_QC_STATUSES).default("PENDING"),
   scannedAt: z.string().datetime({ message: "scannedAt phải ISO8601" }),
   rawCode: z.string().max(256).optional().nullable(),
+  /** V3.7 — bin override. NULL/undefined → fallback item.defaultBinId. */
+  locationBinId: z.string().uuid().optional().nullable(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 

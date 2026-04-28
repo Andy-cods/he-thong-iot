@@ -124,6 +124,7 @@ export async function POST(req: NextRequest) {
         itemId: itm.id,
         qty: e.qty,
         lotCode: e.lotNo ?? null,
+        locationBinId: e.locationBinId ?? null,
         userId: guard.session.userId,
         qcStatus: e.qcStatus ?? "PENDING",
       });
