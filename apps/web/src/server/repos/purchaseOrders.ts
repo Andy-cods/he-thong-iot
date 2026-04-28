@@ -299,9 +299,16 @@ export interface ConvertPRResult {
   linesBySupplier: Record<string, number>;
 }
 
+/**
+ * V3.4 — Tạo PO từ PR. Nếu line thiếu preferred_supplier, caller có thể truyền
+ * `supplierOverrides: Record<lineId, supplierId>` để gán nhanh khi convert.
+ *  - Nếu vẫn còn line không có supplier sau override → throw MISSING_PREFERRED_SUPPLIER
+ *  - Override sẽ ghi vào DB (update purchase_request_line) trước khi group.
+ */
 export async function createPOFromPR(
   prId: string,
   userId: string | null,
+  supplierOverrides?: Record<string, string>,
 ): Promise<ConvertPRResult> {
   return db.transaction(async (tx) => {
     const [pr] = await tx
@@ -314,11 +321,27 @@ export async function createPOFromPR(
       throw new Error(`PR_NOT_APPROVED (status=${pr.status})`);
     }
 
-    const lines = await tx
+    let lines = await tx
       .select()
       .from(purchaseRequestLine)
       .where(eq(purchaseRequestLine.prId, prId));
     if (lines.length === 0) throw new Error("PR_EMPTY");
+
+    // V3.4 — Apply overrides nếu có
+    if (supplierOverrides && Object.keys(supplierOverrides).length > 0) {
+      for (const [lineId, supplierId] of Object.entries(supplierOverrides)) {
+        if (!supplierId) continue;
+        await tx
+          .update(purchaseRequestLine)
+          .set({ preferredSupplierId: supplierId })
+          .where(eq(purchaseRequestLine.id, lineId));
+      }
+      // Refresh lines
+      lines = await tx
+        .select()
+        .from(purchaseRequestLine)
+        .where(eq(purchaseRequestLine.prId, prId));
+    }
 
     // Guard: toàn bộ line phải có preferred_supplier_id
     const missing = lines.filter((l) => !l.preferredSupplierId);

@@ -171,6 +171,13 @@ export function PRQuickDialog({
       setQtyError(`Tối thiểu ${minQty}`);
       return;
     }
+    // V3.4 — bắt buộc chọn supplier để PR có thể convert sang PO sau khi duyệt
+    if (!supplier.id) {
+      toast.error("Vui lòng chọn Nhà cung cấp", {
+        description: "Cần có NCC ưu tiên để tạo được PO sau khi duyệt PR.",
+      });
+      return;
+    }
     setQtyError(null);
 
     try {
@@ -315,13 +322,13 @@ export function PRQuickDialog({
             {/* Right column — Supplier + sourcing hints */}
             <div className="space-y-3">
               <div className="space-y-1">
-                <Label>Nhà cung cấp</Label>
+                <Label required>Nhà cung cấp</Label>
                 <SupplierCombobox
                   value={supplier}
                   onChange={setSupplier}
                 />
                 <p className="text-[11px] text-zinc-400">
-                  Prefill từ BOM line · có thể đổi NCC khác.
+                  Bắt buộc — cần có NCC để convert PR → PO sau khi duyệt.
                 </p>
               </div>
 

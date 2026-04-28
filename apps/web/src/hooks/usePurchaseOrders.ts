@@ -190,15 +190,32 @@ export interface ConvertPRResult {
   linesBySupplier: Record<string, number>;
 }
 
+/**
+ * V3.4 — Accept optional supplierOverrides để gán supplier cho line thiếu
+ * preferred_supplier ngay tại lúc convert.
+ */
+export interface ConvertPRInput {
+  prId: string;
+  supplierOverrides?: Record<string, string>;
+}
+
 export function useConvertPRToPOs() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (prId: string) =>
-      request<{ data: ConvertPRResult }>(
+    mutationFn: (input: string | ConvertPRInput) => {
+      const prId = typeof input === "string" ? input : input.prId;
+      const overrides =
+        typeof input === "string" ? undefined : input.supplierOverrides;
+      return request<{ data: ConvertPRResult }>(
         `/api/purchase-orders/from-pr/${prId}`,
-        { method: "POST" },
-      ),
-    onSuccess: (_data, prId) => {
+        {
+          method: "POST",
+          body: overrides ? JSON.stringify({ supplierOverrides: overrides }) : undefined,
+        },
+      );
+    },
+    onSuccess: (_data, input) => {
+      const prId = typeof input === "string" ? input : input.prId;
       qc.invalidateQueries({ queryKey: qk.procurement.orders.all });
       qc.invalidateQueries({ queryKey: qk.procurement.requests.all });
       qc.invalidateQueries({ queryKey: qk.procurement.requests.detail(prId) });

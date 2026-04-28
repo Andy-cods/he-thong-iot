@@ -51,6 +51,7 @@ import {
 import { useConvertPRToPOs } from "@/hooks/usePurchaseOrders";
 import { formatDate, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { ConvertPRToPODialog } from "@/components/procurement/ConvertPRToPODialog";
 
 /**
  * V3.4 — Purchase Request detail page redesign hoàn toàn.
@@ -114,6 +115,7 @@ export default function PurchaseRequestDetailPage() {
   const [debouncedQ, setDebouncedQ] = React.useState("");
   const [rejectOpen, setRejectOpen] = React.useState(false);
   const [rejectReason, setRejectReason] = React.useState("");
+  const [convertOpen, setConvertOpen] = React.useState(false);
 
   React.useEffect(() => {
     const t = setTimeout(() => setDebouncedQ(search), 300);
@@ -253,19 +255,9 @@ export default function PurchaseRequestDetailPage() {
     }
   };
 
-  const handleConvert = async () => {
-    try {
-      const res = await convert.mutateAsync(id);
-      const count = res.data.createdPOs.length;
-      toast.success(`Đã tạo ${count} PO từ PR`);
-      if (count === 1 && res.data.createdPOs[0]) {
-        router.push(`/procurement/purchase-orders/${res.data.createdPOs[0].id}`);
-      } else {
-        router.push("/procurement/purchase-orders");
-      }
-    } catch (err) {
-      toast.error(`Tạo PO thất bại: ${(err as Error).message}`);
-    }
+  const handleConvert = () => {
+    // V3.4 — luôn mở dialog để user chọn/xác nhận supplier per line
+    setConvertOpen(true);
   };
 
   return (
@@ -340,7 +332,7 @@ export default function PurchaseRequestDetailPage() {
                   </Button>
                 )}
                 {canConvert && (
-                  <Button size="sm" onClick={() => void handleConvert()} disabled={convert.isPending}>
+                  <Button size="sm" onClick={handleConvert} disabled={convert.isPending}>
                     {convert.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
                     Tạo PO
                   </Button>
@@ -510,6 +502,7 @@ export default function PurchaseRequestDetailPage() {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400">Tên linh kiện</th>
                     <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400">Số lượng</th>
                     {!editing && <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400">Còn thiếu</th>}
+                    {!editing && <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400">NCC</th>}
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400">{editing ? "Ghi chú" : "Cần"}</th>
                     {editing && <th className="w-12" />}
                   </tr>
@@ -561,6 +554,17 @@ export default function PurchaseRequestDetailPage() {
                           </td>
                           <td className="px-4 py-3.5 text-right font-mono text-sm text-amber-700">
                             {l.remainingShortQty ? formatNumber(Number(l.remainingShortQty)) : "—"}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            {l.preferredSupplierId ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                                <Check className="h-3 w-3" /> Đã có NCC
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200">
+                                <AlertCircle className="h-3 w-3" /> Chưa có NCC
+                              </span>
+                            )}
                           </td>
                           <td className="px-4 py-3.5 text-sm text-zinc-600">
                             {l.neededBy ? formatDate(l.neededBy, "dd/MM/yyyy") : "—"}
@@ -631,6 +635,22 @@ export default function PurchaseRequestDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* V3.4 — Convert PR → PO dialog với supplier picker */}
+      <ConvertPRToPODialog
+        open={convertOpen}
+        onOpenChange={setConvertOpen}
+        prId={pr.id}
+        prCode={pr.code}
+        lines={pr.lines.map((l) => ({
+          id: l.id,
+          lineNo: l.lineNo,
+          sku: l.sku ?? null,
+          name: l.name ?? null,
+          qty: String(l.qty),
+          preferredSupplierId: l.preferredSupplierId ?? null,
+        }))}
+      />
     </div>
   );
 }
