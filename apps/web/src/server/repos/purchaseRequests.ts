@@ -211,6 +211,44 @@ export async function createPRFromShortage(
 }
 
 /**
+ * V3.4 — Replace toàn bộ lines của PR (DRAFT/SUBMITTED only).
+ * Strategy: delete tất cả + insert lại theo input. Đơn giản hơn diff cá nhân
+ * từng line, dù cost cao hơn 1 chút (PR thường < 50 lines).
+ */
+export interface ReplacePRLineInput {
+  itemId: string;
+  qty: number;
+  preferredSupplierId?: string | null;
+  snapshotLineId?: string | null;
+  neededBy?: Date | null;
+  notes?: string | null;
+}
+
+export async function replacePRLines(
+  prId: string,
+  lines: ReplacePRLineInput[],
+): Promise<void> {
+  if (lines.length === 0) throw new Error("PR_MUST_HAVE_LINES");
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(purchaseRequestLine)
+      .where(eq(purchaseRequestLine.prId, prId));
+    await tx.insert(purchaseRequestLine).values(
+      lines.map((l, idx) => ({
+        prId,
+        lineNo: idx + 1,
+        itemId: l.itemId,
+        qty: String(l.qty),
+        preferredSupplierId: l.preferredSupplierId ?? null,
+        snapshotLineId: l.snapshotLineId ?? null,
+        neededBy: l.neededBy ? l.neededBy.toISOString().slice(0, 10) : null,
+        notes: l.notes ?? null,
+      })),
+    );
+  });
+}
+
+/**
  * Submit PR DRAFT → SUBMITTED.
  */
 export async function submitPR(id: string): Promise<PurchaseRequest | null> {

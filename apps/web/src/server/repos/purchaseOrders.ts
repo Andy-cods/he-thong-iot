@@ -227,6 +227,67 @@ export async function getPOLines(poId: string) {
 }
 
 /**
+ * V3.4 — Replace toàn bộ lines của PO + recompute totalAmount header.
+ * Chỉ allowed khi status DRAFT (caller cần check).
+ *
+ * Sau khi insert lines, totalAmount = SUM(orderedQty * unitPrice * (1 + taxRate/100)).
+ * lineTotal mỗi line = orderedQty * unitPrice * (1 + taxRate/100).
+ */
+export interface ReplacePOLineInput {
+  itemId: string;
+  orderedQty: number;
+  unitPrice?: number;
+  taxRate?: number;
+  snapshotLineId?: string | null;
+  expectedEta?: Date | null;
+  notes?: string | null;
+}
+
+export async function replacePOLines(
+  poId: string,
+  lines: ReplacePOLineInput[],
+): Promise<{ totalAmount: string }> {
+  if (lines.length === 0) throw new Error("PO_MUST_HAVE_LINES");
+  return db.transaction(async (tx) => {
+    await tx
+      .delete(purchaseOrderLine)
+      .where(eq(purchaseOrderLine.poId, poId));
+
+    let runningTotal = 0;
+    const valuesToInsert = lines.map((l, idx) => {
+      const qty = Number(l.orderedQty);
+      const price = Number(l.unitPrice ?? 0);
+      const taxPct = Number(l.taxRate ?? 8);
+      const lineTotal = qty * price * (1 + taxPct / 100);
+      runningTotal += lineTotal;
+      return {
+        poId,
+        lineNo: idx + 1,
+        itemId: l.itemId,
+        orderedQty: String(qty),
+        receivedQty: "0",
+        unitPrice: String(price),
+        taxRate: String(taxPct),
+        lineTotal: String(lineTotal),
+        expectedEta: l.expectedEta ? l.expectedEta.toISOString().slice(0, 10) : null,
+        snapshotLineId: l.snapshotLineId ?? null,
+        notes: l.notes ?? null,
+      };
+    });
+
+    await tx.insert(purchaseOrderLine).values(valuesToInsert);
+
+    const totalAmount = runningTotal.toFixed(2);
+    await tx
+      .update(purchaseOrder)
+      .set({ totalAmount })
+      .where(eq(purchaseOrder.id, poId));
+
+    return { totalAmount };
+  });
+}
+
+/**
  * Convert 1 PR APPROVED thành N PO theo preferred_supplier_id grouping.
  * Atomic transaction — nếu 1 item line không có preferred supplier → reject
  * toàn bộ (user cần fix PR trước).

@@ -88,6 +88,26 @@ export const prCreateFromShortageSchema = z.object({
 export const prUpdateSchema = z.object({
   title: z.string().trim().max(255).optional().nullable(),
   notes: z.string().trim().max(2000).optional().nullable(),
+  /**
+   * V3.4 — full lines edit (replace toàn bộ lines).
+   * Chỉ allowed khi status DRAFT/SUBMITTED.
+   * Nếu omit → giữ nguyên lines hiện tại.
+   */
+  lines: z
+    .array(
+      z.object({
+        /** Existing line id để update (omit → insert mới). */
+        id: uuid.optional(),
+        itemId: uuid,
+        qty: positiveQty,
+        preferredSupplierId: uuid.optional().nullable(),
+        snapshotLineId: uuid.optional().nullable(),
+        neededBy: dateStringOrDate.optional().nullable(),
+        notes: z.string().trim().max(500).optional().nullable(),
+      }),
+    )
+    .min(1, "PR cần ít nhất 1 dòng")
+    .optional(),
 });
 
 export const prApproveSchema = z.object({
@@ -173,6 +193,29 @@ export const poUpdateSchema = z.object({
   actualDeliveryDate: dateStringOrDate.optional().nullable(),
   notes: z.string().trim().max(2000).optional().nullable(),
   status: z.enum(PO_STATUSES).optional(),
+  // V3.4 — header full edit (chỉ allowed khi DRAFT)
+  paymentTerms: z.string().trim().max(100).optional().nullable(),
+  deliveryAddress: z.string().trim().max(2000).optional().nullable(),
+  supplierId: uuid.optional(),
+  /**
+   * V3.4 — full lines replace.
+   * Chỉ allowed khi status DRAFT.
+   */
+  lines: z
+    .array(
+      z.object({
+        id: uuid.optional(),
+        itemId: uuid,
+        orderedQty: positiveQty,
+        unitPrice: z.coerce.number().nonnegative().optional().default(0),
+        taxRate: z.coerce.number().min(0).max(100).optional().default(8),
+        snapshotLineId: uuid.optional().nullable(),
+        expectedEta: dateStringOrDate.optional().nullable(),
+        notes: z.string().trim().max(500).optional().nullable(),
+      }),
+    )
+    .min(1, "PO cần ít nhất 1 dòng")
+    .optional(),
 });
 
 export const poListQuerySchema = z.object({

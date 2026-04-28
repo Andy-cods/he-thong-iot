@@ -1,11 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prUpdateSchema } from "@iot/shared";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { purchaseRequest } from "@iot/db/schema";
 import { logger } from "@/lib/logger";
 import {
   getPR,
   getPRLinesEnriched,
+  replacePRLines,
 } from "@/server/repos/purchaseRequests";
 import {
   extractRequestMeta,
@@ -20,8 +21,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/purchase-requests/[id] — detail PR + enriched lines (join item + snapshot).
- * PATCH /api/purchase-requests/[id] — update title/notes (chỉ DRAFT).
+ * GET /api/purchase-requests/[id] — detail PR + enriched lines.
+ * PATCH /api/purchase-requests/[id] — V3.4: full edit (title/notes/lines)
+ *   khi status DRAFT hoặc SUBMITTED. Status APPROVED/CONVERTED/REJECTED → 409.
  */
 export async function GET(
   _req: NextRequest,
@@ -37,6 +39,8 @@ export async function GET(
   return NextResponse.json({ data: { ...row, lines } });
 }
 
+const EDITABLE_STATUSES = ["DRAFT", "SUBMITTED"] as const;
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } },
@@ -46,10 +50,12 @@ export async function PATCH(
 
   const before = await getPR(params.id);
   if (!before) return jsonError("NOT_FOUND", "Không tìm thấy PR.", 404);
-  if (before.status !== "DRAFT") {
+  if (
+    !(EDITABLE_STATUSES as readonly string[]).includes(before.status as string)
+  ) {
     return jsonError(
       "NOT_EDITABLE",
-      `PR đang ở trạng thái ${before.status} — không sửa được.`,
+      `PR đang ở trạng thái ${before.status} — chỉ sửa được khi DRAFT hoặc SUBMITTED.`,
       409,
     );
   }
@@ -58,14 +64,20 @@ export async function PATCH(
   if ("response" in body) return body.response;
 
   try {
+    // Update header
+    const headerPatch: Record<string, unknown> = { updatedAt: new Date() };
+    if (body.data.title !== undefined) headerPatch.title = body.data.title;
+    if (body.data.notes !== undefined) headerPatch.notes = body.data.notes;
+
     const [after] = await db
       .update(purchaseRequest)
-      .set({
-        title: body.data.title ?? null,
-        notes: body.data.notes ?? null,
-        updatedAt: new Date(),
-      })
-      .where(and(eq(purchaseRequest.id, params.id), eq(purchaseRequest.status, "DRAFT")))
+      .set(headerPatch)
+      .where(
+        and(
+          eq(purchaseRequest.id, params.id),
+          inArray(purchaseRequest.status, [...EDITABLE_STATUSES]),
+        ),
+      )
       .returning();
 
     if (!after)
@@ -74,6 +86,21 @@ export async function PATCH(
         "PR đã chuyển trạng thái khi đang sửa.",
         409,
       );
+
+    // V3.4 — Replace lines if provided
+    if (body.data.lines && body.data.lines.length > 0) {
+      await replacePRLines(
+        params.id,
+        body.data.lines.map((l) => ({
+          itemId: l.itemId,
+          qty: l.qty,
+          preferredSupplierId: l.preferredSupplierId ?? null,
+          snapshotLineId: l.snapshotLineId ?? null,
+          neededBy: l.neededBy ? new Date(l.neededBy) : null,
+          notes: l.notes ?? null,
+        })),
+      );
+    }
 
     const meta = extractRequestMeta(req);
     const diff = diffObjects(
@@ -86,7 +113,10 @@ export async function PATCH(
       objectType: "purchase_request",
       objectId: params.id,
       before: diff.before,
-      after: diff.after,
+      after: {
+        ...diff.after,
+        ...(body.data.lines ? { lineCount: body.data.lines.length } : {}),
+      },
       ...meta,
     });
 
