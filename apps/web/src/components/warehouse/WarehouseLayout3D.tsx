@@ -52,9 +52,9 @@ export interface WarehouseLayout3DProps {
   className?: string;
 }
 
-const BIN_W = 60;   // px width (front face)
-const BIN_H = 50;   // px height (front face)
-const BIN_D = 40;   // px depth (side face)
+const BIN_W = 50;   // px width (front face)
+const BIN_H = 55;   // px height (front face)
+const BIN_D = 35;   // px depth (side face)
 const ISO_ANGLE = 30; // degrees
 
 // Cosine + sine 30°
@@ -67,15 +67,22 @@ interface ProjectedPos {
 }
 
 /**
- * Project (x, y, z) world coords → (px, py) screen coords.
- * x: kệ ngang (rack ➡)
- * z: ô dọc kệ (position)
- * y: ngăn dọc (level — cao thấp)
+ * V3.6.1 — Project (x, y, z) → screen (px, py).
+ *
+ * Convention từ DB seed (migration 0034):
+ *   coord_x = (rack - 1) * 1.5   → kệ trải ngang (sàn X, max ~6m cho 5 kệ)
+ *   coord_y = (position - 1) * 0.5 → ô dọc theo kệ (sàn Y, max ~2.5m cho 6 ô)
+ *   coord_z = (level - 1) * 0.8  → ngăn cao (vertical, max ~1.6m cho 3 ngăn)
+ *
+ * Isometric 30°. SCALE đủ lớn để 90 bins không overlap.
  */
+const FLOOR_SCALE = 130; // px per meter (sàn)
+const VERT_SCALE = 90;   // px per meter (cao)
+
 function project(x: number, y: number, z: number): ProjectedPos {
   return {
-    px: (x - z) * COS30 * 50,
-    py: (x + z) * SIN30 * 50 - y * 70,
+    px: (x - y) * COS30 * FLOOR_SCALE,
+    py: (x + y) * SIN30 * FLOOR_SCALE - z * VERT_SCALE,
   };
 }
 
@@ -138,16 +145,24 @@ export function WarehouseLayout3D({
   const viewWidth = bounds.maxX - bounds.minX;
   const viewHeight = bounds.maxY - bounds.minY;
 
-  // Sort projected for paint order: back-to-front (higher py first, lower y first)
+  // V3.6.1 — Paint order: back-to-front + bottom-to-top.
+  //   Back: higher coord_y (xa người xem) vẽ trước
+  //   Bottom: thấp coord_z vẽ trước (ngăn dưới che ngăn trên)
+  //   Đối với cùng (y,z): kệ phía sau (low x) vẽ trước
   const sorted = React.useMemo(() => {
     return [...projected].sort((a, b) => {
       const ay = Number(a.bin.coordY ?? "0");
       const by = Number(b.bin.coordY ?? "0");
       const az = Number(a.bin.coordZ ?? "0");
       const bz = Number(b.bin.coordZ ?? "0");
-      // Back-most first (low y, high z)
-      if (ay !== by) return ay - by;
-      return bz - az;
+      const ax = Number(a.bin.coordX ?? "0");
+      const bx = Number(b.bin.coordX ?? "0");
+      // Back row first
+      if (ay !== by) return by - ay;
+      // Bottom level first
+      if (az !== bz) return az - bz;
+      // Left rack first
+      return ax - bx;
     });
   }, [projected]);
 
@@ -160,8 +175,8 @@ export function WarehouseLayout3D({
         preserveAspectRatio="xMidYMid meet"
       >
         <defs>
-          <pattern id="grid-pattern" width="40" height="23" patternUnits="userSpaceOnUse" patternTransform={`skewX(-${90 - ISO_ANGLE * 2})`}>
-            <path d="M 40 0 L 0 0 0 23" fill="none" stroke="rgba(99,102,241,0.08)" strokeWidth="1" />
+          <pattern id="grid-pattern" width="60" height="35" patternUnits="userSpaceOnUse">
+            <path d="M 60 0 L 0 0 0 35" fill="none" stroke="rgba(99,102,241,0.10)" strokeWidth="1" />
           </pattern>
           <radialGradient id="floor-glow" cx="50%" cy="50%">
             <stop offset="0%" stopColor="rgba(99,102,241,0.12)" />
