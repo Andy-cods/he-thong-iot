@@ -292,8 +292,25 @@ function StepInfo({
   setLinkedOrderId: (v: string) => void;
 }) {
   return (
-    <section className="space-y-4 rounded-md border border-zinc-200 bg-white p-6">
-      <div className="grid gap-4 md:grid-cols-2">
+    <section className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
+      <header className="flex items-center gap-2 border-b border-zinc-100 bg-gradient-to-r from-violet-50 to-purple-50/40 px-6 py-4">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-md shadow-violet-200">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="h-4 w-4"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="16" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12.01" y2="8" />
+          </svg>
+        </div>
+        <h2 className="text-base font-bold text-zinc-900">Thông tin chung</h2>
+      </header>
+      <div className="grid gap-4 p-6 md:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="pr-title" uppercase>
             Tiêu đề
@@ -304,8 +321,9 @@ function StepInfo({
             onChange={(e) => setTitle(e.target.value)}
             placeholder="VD: PR nguyên vật liệu Q2-2026"
             maxLength={255}
+            className="h-10"
           />
-          <p className="text-xs text-zinc-500">
+          <p className="text-[11px] text-zinc-500">
             Tuỳ chọn — bỏ trống để hệ thống tự sinh từ ID.
           </p>
         </div>
@@ -319,8 +337,9 @@ function StepInfo({
             type="date"
             value={defaultNeededBy}
             onChange={(e) => setDefaultNeededBy(e.target.value)}
+            className="h-10"
           />
-          <p className="text-xs text-zinc-500">
+          <p className="text-[11px] text-zinc-500">
             Áp dụng cho mọi dòng chưa set ngày riêng. Có thể override ở step kế.
           </p>
         </div>
@@ -334,8 +353,9 @@ function StepInfo({
             value={linkedOrderId}
             onChange={(e) => setLinkedOrderId(e.target.value)}
             placeholder="Bỏ trống nếu PR độc lập"
+            className="h-10 font-mono text-xs"
           />
-          <p className="text-xs text-zinc-500">
+          <p className="text-[11px] text-zinc-500">
             Tuỳ chọn — gán PR vào sales order/BOM cụ thể (V1.8+).
           </p>
         </div>

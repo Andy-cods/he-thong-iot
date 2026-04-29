@@ -56,22 +56,23 @@ function StepIndicator({
   const done = current > step;
   const active = current === step;
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2.5">
       <div
         className={cn(
-          "flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold",
-          done && "bg-indigo-600 text-white",
-          active && "bg-indigo-100 text-indigo-700 ring-2 ring-indigo-600",
-          !done && !active && "bg-zinc-100 text-zinc-500",
+          "flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold transition-all",
+          done && "bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md shadow-blue-200",
+          active && "bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-300 ring-4 ring-blue-100",
+          !done && !active && "bg-white text-zinc-400 ring-2 ring-zinc-200",
         )}
       >
-        {done ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : step}
+        {done ? <Check className="h-4 w-4" aria-hidden="true" /> : step}
       </div>
       <span
         className={cn(
-          "text-sm",
-          active && "font-medium text-zinc-900",
-          !active && "text-zinc-500",
+          "text-sm font-semibold transition-colors",
+          active && "text-blue-700",
+          done && "text-zinc-900",
+          !active && !done && "text-zinc-400",
         )}
       >
         {label}
@@ -193,37 +194,37 @@ export function PoCreateWizard() {
 
   return (
     <div className="space-y-6">
-      {/* Step indicator */}
+      {/* V3.7.15 — Step indicator with progress lines */}
       <nav
         aria-label="Các bước"
-        className="flex items-center gap-4 border-b border-zinc-200 pb-4"
+        className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-5 py-4 shadow-sm"
       >
         <StepIndicator step={1} current={step} label="Nguồn" />
-        <ChevronRight className="h-4 w-4 text-zinc-300" aria-hidden="true" />
+        <div className={cn("h-0.5 flex-1 transition-colors", step >= 2 ? "bg-gradient-to-r from-blue-500 to-indigo-600" : "bg-zinc-200")} />
         <StepIndicator step={2} current={step} label="NCC + dòng hàng" />
-        <ChevronRight className="h-4 w-4 text-zinc-300" aria-hidden="true" />
+        <div className={cn("h-0.5 flex-1 transition-colors", step >= 3 ? "bg-gradient-to-r from-blue-500 to-indigo-600" : "bg-zinc-200")} />
         <StepIndicator step={3} current={step} label="Điều khoản & Duyệt" />
       </nav>
 
-      {/* Step 1 */}
+      {/* Step 1 — V3.7.15 redesign */}
       {step === 1 && (
-        <section className="space-y-4">
+        <section className="space-y-5">
           <div>
-            <h2 className="text-lg font-semibold text-zinc-900">
+            <h2 className="text-xl font-bold tracking-tight text-zinc-900">
               Chọn nguồn PO
             </h2>
-            <p className="text-sm text-zinc-500">
-              Tạo thủ công hoặc từ một PR đã duyệt.
+            <p className="mt-0.5 text-sm text-zinc-500">
+              Bắt đầu từ đầu hoặc kế thừa dữ liệu từ Yêu cầu mua đã duyệt.
             </p>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2">
             <label
               className={cn(
-                "flex cursor-pointer items-start gap-3 rounded-md border p-4 transition-colors",
+                "group relative flex cursor-pointer flex-col gap-2 rounded-2xl border-2 p-5 transition-all",
                 state.source === "MANUAL"
-                  ? "border-indigo-500 bg-indigo-50"
-                  : "border-zinc-200 bg-white hover:bg-zinc-50",
+                  ? "border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-md ring-2 ring-blue-100"
+                  : "border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm",
               )}
             >
               <input
@@ -233,24 +234,37 @@ export function PoCreateWizard() {
                 onChange={() =>
                   setState((s) => ({ ...s, source: "MANUAL", prId: null }))
                 }
-                className="mt-0.5"
+                className="absolute right-4 top-4 h-4 w-4 accent-blue-600"
               />
+              <div
+                className={cn(
+                  "flex h-10 w-10 items-center justify-center rounded-xl transition-all",
+                  state.source === "MANUAL"
+                    ? "bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md shadow-blue-200"
+                    : "bg-zinc-100 text-zinc-600 group-hover:bg-zinc-200",
+                )}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                </svg>
+              </div>
               <div>
-                <div className="text-sm font-medium text-zinc-900">
+                <div className="text-base font-bold text-zinc-900">
                   Tạo mới thủ công
                 </div>
-                <div className="text-xs text-zinc-500">
-                  Nhập tay dòng hàng, giá, thuế.
-                </div>
+                <p className="mt-0.5 text-xs text-zinc-600">
+                  Nhập trực tiếp dòng hàng, giá, thuế. Phù hợp khi chưa có PR.
+                </p>
               </div>
             </label>
 
             <label
               className={cn(
-                "flex cursor-pointer items-start gap-3 rounded-md border p-4 transition-colors",
+                "group relative flex cursor-pointer flex-col gap-2 rounded-2xl border-2 p-5 transition-all",
                 state.source === "FROM_PR"
-                  ? "border-indigo-500 bg-indigo-50"
-                  : "border-zinc-200 bg-white hover:bg-zinc-50",
+                  ? "border-violet-500 bg-gradient-to-br from-violet-50 to-purple-50 shadow-md ring-2 ring-violet-100"
+                  : "border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm",
               )}
             >
               <input
@@ -260,15 +274,29 @@ export function PoCreateWizard() {
                 onChange={() =>
                   setState((s) => ({ ...s, source: "FROM_PR" }))
                 }
-                className="mt-0.5"
+                className="absolute right-4 top-4 h-4 w-4 accent-violet-600"
               />
+              <div
+                className={cn(
+                  "flex h-10 w-10 items-center justify-center rounded-xl transition-all",
+                  state.source === "FROM_PR"
+                    ? "bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-md shadow-violet-200"
+                    : "bg-zinc-100 text-zinc-600 group-hover:bg-zinc-200",
+                )}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <polyline points="9 15 11 17 15 13" />
+                </svg>
+              </div>
               <div>
-                <div className="text-sm font-medium text-zinc-900">
+                <div className="text-base font-bold text-zinc-900">
                   Từ PR đã duyệt
                 </div>
-                <div className="text-xs text-zinc-500">
-                  Auto-fill dòng hàng từ Purchase Request APPROVED.
-                </div>
+                <p className="mt-0.5 text-xs text-zinc-600">
+                  Auto-fill toàn bộ dòng hàng từ Purchase Request đã được duyệt.
+                </p>
               </div>
             </label>
           </div>

@@ -335,12 +335,15 @@ function DashboardTab({ allPOs, isLoading, totalAmount, receivedAmt, pendingAmt,
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Top nhà cung cấp */}
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-zinc-400" />
-            <p className="text-sm font-semibold text-zinc-800">Top nhà cung cấp</p>
-          </div>
+        {/* Top nhà cung cấp — V3.7.15 polish */}
+        <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
+          <header className="flex items-center gap-2 border-b border-zinc-100 bg-gradient-to-r from-indigo-50 to-violet-50/40 px-5 py-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md shadow-indigo-200">
+              <Building2 className="h-4 w-4" />
+            </div>
+            <p className="text-sm font-bold text-zinc-900">Top nhà cung cấp</p>
+          </header>
+          <div className="p-5">
           {bySupplier.length === 0 ? (
             <p className="py-6 text-center text-sm text-zinc-400">Chưa có dữ liệu.</p>
           ) : (
@@ -365,19 +368,23 @@ function DashboardTab({ allPOs, isLoading, totalAmount, receivedAmt, pendingAmt,
               })}
             </div>
           )}
+          </div>
         </div>
 
-        {/* PO gần đây */}
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center justify-between">
+        {/* PO gần đây — V3.7.15 polish */}
+        <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
+          <header className="flex items-center justify-between border-b border-zinc-100 bg-gradient-to-r from-emerald-50 to-teal-50/40 px-5 py-3">
             <div className="flex items-center gap-2">
-              <Receipt className="h-4 w-4 text-zinc-400" />
-              <p className="text-sm font-semibold text-zinc-800">PO gần đây</p>
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-200">
+                <Receipt className="h-4 w-4" />
+              </div>
+              <p className="text-sm font-bold text-zinc-900">PO gần đây</p>
             </div>
-            <Link href="/sales?tab=po" className="text-xs text-indigo-600 hover:underline flex items-center gap-0.5">
+            <Link href="/sales?tab=po" className="inline-flex items-center gap-0.5 text-xs font-semibold text-emerald-700 hover:underline">
               Xem tất cả <ChevronRight className="h-3 w-3" />
             </Link>
-          </div>
+          </header>
+          <div className="p-5">
           {recentPOs.length === 0 ? (
             <p className="py-6 text-center text-sm text-zinc-400">Chưa có PO nào.</p>
           ) : (
@@ -399,16 +406,21 @@ function DashboardTab({ allPOs, isLoading, totalAmount, receivedAmt, pendingAmt,
               ))}
             </div>
           )}
+          </div>
         </div>
       </div>
 
-      {/* Biểu đồ phân bố trạng thái */}
-      <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex items-center gap-2">
-          <BarChart3 className="h-4 w-4 text-zinc-400" />
-          <p className="text-sm font-semibold text-zinc-800">Phân bố trạng thái PO</p>
+      {/* Biểu đồ phân bố trạng thái — V3.7.15 polish */}
+      <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
+        <header className="flex items-center gap-2 border-b border-zinc-100 bg-gradient-to-r from-amber-50 to-orange-50/40 px-5 py-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-md shadow-amber-200">
+            <BarChart3 className="h-4 w-4" />
+          </div>
+          <p className="text-sm font-bold text-zinc-900">Phân bố trạng thái PO</p>
+        </header>
+        <div className="p-5">
+          <StatusDistribution allPOs={allPOs} totalAmount={totalAmount} />
         </div>
-        <StatusDistribution allPOs={allPOs} totalAmount={totalAmount} />
       </div>
     </div>
   );
@@ -464,12 +476,26 @@ function PayableTab({ allPOs, isLoading }: { allPOs: POForAccounting[]; isLoadin
         <KpiCard label="Trong hạn"      value={String(pendingPOList.filter(p => !p.expectedEta || new Date(p.expectedEta) >= now).length)} sub="đơn đang xử lý" icon={Clock} accent="indigo" />
       </div>
 
-      {/* Filter chips */}
+      {/* V3.7.15 — Filter chips premium */}
       <div className="flex gap-2">
-        {([["all", "Tất cả"], ["overdue", "Quá hạn"], ["pending", "Trong hạn"]] as const).map(([k, l]) => (
-          <button key={k} type="button" onClick={() => setFilter(k)}
-            className={cn("rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-              filter === k ? "bg-indigo-600 text-white" : "bg-white border border-zinc-300 text-zinc-600 hover:border-zinc-400")}>
+        {(
+          [
+            ["all", "Tất cả", "from-zinc-500 to-zinc-700"],
+            ["overdue", "Quá hạn", "from-rose-500 to-red-600"],
+            ["pending", "Trong hạn", "from-blue-500 to-indigo-600"],
+          ] as const
+        ).map(([k, l, grad]) => (
+          <button
+            key={k}
+            type="button"
+            onClick={() => setFilter(k)}
+            className={cn(
+              "rounded-full px-4 py-1.5 text-xs font-bold transition-all",
+              filter === k
+                ? `bg-gradient-to-r ${grad} text-white shadow-md`
+                : "border border-zinc-300 bg-white text-zinc-600 hover:border-zinc-400 hover:bg-zinc-50",
+            )}
+          >
             {l}
           </button>
         ))}
