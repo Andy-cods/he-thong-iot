@@ -233,12 +233,19 @@ export function WorkOrdersTab() {
               <p className="text-xs text-zinc-500">Quản lý và theo dõi tiến độ</p>
             </div>
           </div>
-          <Button asChild size="sm">
-            <Link href="/work-orders/new">
-              <Plus className="h-3.5 w-3.5" aria-hidden />
-              Tạo WO mới
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button asChild size="sm" className="bg-orange-600 hover:bg-orange-700">
+              <Link href="/work-orders/quick-new">
+                <Plus className="h-3.5 w-3.5" aria-hidden />
+                Tạo WO nhanh
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/work-orders/new" title="Wizard từ snapshot order">
+                Wizard cũ
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}

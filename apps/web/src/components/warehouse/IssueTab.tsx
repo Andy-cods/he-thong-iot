@@ -6,7 +6,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   ClipboardList,
-  FileSignature,
   Loader2,
   Plus,
   Search,
@@ -17,7 +16,6 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useSession } from "@/hooks/useSession";
 import { cn } from "@/lib/utils";
 
 /**
@@ -79,18 +77,11 @@ function uuid() {
 
 export function IssueTab() {
   const qc = useQueryClient();
-  const session = useSession();
-  const roles = (session.data?.roles ?? []) as string[];
-  const isWarehouse = roles.includes("warehouse") || roles.includes("admin");
-
-  // V3.7.9 — 2 modes: "request" (gửi yêu cầu cần Kho duyệt) | "direct" (xuất ngay, warehouse only)
-  const [mode, setMode] = React.useState<"request" | "direct">(
-    isWarehouse ? "direct" : "request",
-  );
-  React.useEffect(() => {
-    // Khi session load xong + user không phải warehouse → buộc mode = request
-    if (!isWarehouse) setMode("request");
-  }, [isWarehouse]);
+  // V3.7.10 — Tab Xuất hàng chỉ dành cho Kho:
+  //   - Xuất ngay (mode duy nhất)
+  //   - Pending requests list (yêu cầu từ Vận hành/operations qua tạo WO)
+  // Mode 'Tạo yêu cầu' đã chuyển sang /work-orders/quick-new (Vận hành tạo).
+  const mode = "direct" as const;
 
   const [lines, setLines] = React.useState<IssueLine[]>([
     {
@@ -313,40 +304,8 @@ export function IssueTab() {
         </div>
       </header>
 
-      {/* V3.7.9 — Mode toggle */}
-      {isWarehouse && (
-        <div className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white p-1 self-start">
-          <button
-            type="button"
-            onClick={() => setMode("request")}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors",
-              mode === "request"
-                ? "bg-indigo-600 text-white"
-                : "text-zinc-600 hover:bg-zinc-100",
-            )}
-          >
-            <FileSignature className="h-3.5 w-3.5" />
-            Tạo yêu cầu (chờ duyệt)
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("direct")}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors",
-              mode === "direct"
-                ? "bg-rose-600 text-white"
-                : "text-zinc-600 hover:bg-zinc-100",
-            )}
-          >
-            <Truck className="h-3.5 w-3.5" />
-            Xuất ngay (Kho/Admin)
-          </button>
-        </div>
-      )}
-
-      {/* V3.7.9 — Pending requests panel (warehouse only) */}
-      {isWarehouse && <PendingRequestsPanel />}
+      {/* V3.7.10 — Pending requests panel (yêu cầu từ Vận hành) */}
+      <PendingRequestsPanel />
 
       {/* LINES */}
       <section className="space-y-3">
@@ -424,22 +383,10 @@ export function IssueTab() {
           <Button
             onClick={handleSubmit}
             disabled={submitting || totalLines === 0 || totalQty === 0}
-            className={cn(
-              mode === "direct"
-                ? "bg-rose-600 hover:bg-rose-700"
-                : "bg-indigo-600 hover:bg-indigo-700",
-            )}
+            className="bg-rose-600 hover:bg-rose-700"
           >
-            {mode === "direct" ? (
-              <Truck className="h-3.5 w-3.5" />
-            ) : (
-              <FileSignature className="h-3.5 w-3.5" />
-            )}
-            {submitting
-              ? "Đang gửi…"
-              : mode === "direct"
-                ? "Xuất hàng ngay"
-                : "Gửi yêu cầu xuất"}
+            <Truck className="h-3.5 w-3.5" />
+            {submitting ? "Đang xuất…" : "Xuất hàng ngay"}
           </Button>
         </div>
       </section>
