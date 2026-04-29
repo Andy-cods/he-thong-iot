@@ -1,10 +1,13 @@
 import { sql } from "drizzle-orm";
 import {
   index,
+  jsonb,
   numeric,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
+  varchar,
 } from "drizzle-orm/pg-core";
 import { appSchema } from "./_schema";
 import { userAccount } from "./auth";
@@ -52,3 +55,54 @@ export const warehousePutaway = appSchema.table(
 
 export type WarehousePutaway = typeof warehousePutaway.$inferSelect;
 export type NewWarehousePutaway = typeof warehousePutaway.$inferInsert;
+
+/**
+ * V3.7.9 — Yêu cầu xuất kho cần Kho duyệt.
+ *
+ * Workflow: bộ phận khác (operator/planner) tạo PENDING với picksJson plan
+ * → Kho APPROVED (tự động execute OUT_ISSUE inventory_txn) hoặc REJECTED.
+ */
+export const warehouseIssueRequest = appSchema.table(
+  "warehouse_issue_request",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    requestNo: varchar("request_no", { length: 64 }).notNull(),
+    status: varchar("status", { length: 16 }).notNull().default("PENDING"),
+    reason: varchar("reason", { length: 32 }).notNull().default("manual"),
+    reference: varchar("reference", { length: 64 }),
+    notes: text("notes"),
+    /** Plan picks: [{ itemId, sku, picks: [{lotSerialId, lotCode, binId, binCode, qty}] }] */
+    picksJson: jsonb("picks_json").notNull().default(sql`'[]'::jsonb`),
+    totalQty: numeric("total_qty", { precision: 18, scale: 4 })
+      .notNull()
+      .default("0"),
+    requestedBy: uuid("requested_by")
+      .notNull()
+      .references(() => userAccount.id),
+    approvedBy: uuid("approved_by").references(() => userAccount.id),
+    rejectedBy: uuid("rejected_by").references(() => userAccount.id),
+    rejectReason: text("reject_reason"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (t) => ({
+    requestNoUk: uniqueIndex("issue_request_no_uk").on(t.requestNo),
+    statusIdx: index("issue_request_status_idx").on(t.status, t.createdAt),
+    requesterIdx: index("issue_request_requester_idx").on(
+      t.requestedBy,
+      t.createdAt,
+    ),
+  }),
+);
+
+export type WarehouseIssueRequest =
+  typeof warehouseIssueRequest.$inferSelect;
+export type NewWarehouseIssueRequest =
+  typeof warehouseIssueRequest.$inferInsert;

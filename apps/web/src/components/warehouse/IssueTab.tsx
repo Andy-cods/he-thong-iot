@@ -1,19 +1,23 @@
 "use client";
 
 import * as React from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   CheckCircle2,
+  ClipboardList,
+  FileSignature,
   Loader2,
   Plus,
   Search,
   Trash2,
   Truck,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useSession } from "@/hooks/useSession";
 import { cn } from "@/lib/utils";
 
 /**
@@ -75,6 +79,19 @@ function uuid() {
 
 export function IssueTab() {
   const qc = useQueryClient();
+  const session = useSession();
+  const roles = (session.data?.roles ?? []) as string[];
+  const isWarehouse = roles.includes("warehouse") || roles.includes("admin");
+
+  // V3.7.9 — 2 modes: "request" (gửi yêu cầu cần Kho duyệt) | "direct" (xuất ngay, warehouse only)
+  const [mode, setMode] = React.useState<"request" | "direct">(
+    isWarehouse ? "direct" : "request",
+  );
+  React.useEffect(() => {
+    // Khi session load xong + user không phải warehouse → buộc mode = request
+    if (!isWarehouse) setMode("request");
+  }, [isWarehouse]);
+
   const [lines, setLines] = React.useState<IssueLine[]>([
     {
       rowId: uuid(),
@@ -180,7 +197,7 @@ export function IssueTab() {
       toast.error("Chưa có dòng xuất hợp lệ.");
       return;
     }
-    if (hasShortage) {
+    if (hasShortage && mode === "direct") {
       const ok = window.confirm(
         "Một số dòng đang thiếu tồn — vẫn xuất phần có sẵn?",
       );
@@ -188,41 +205,62 @@ export function IssueTab() {
     }
     setSubmitting(true);
     try {
-      const res = await fetch("/api/warehouse/issue", {
+      const linesPayload = validLines.map((l) => ({
+        itemId: l.item!.id,
+        sku: l.item!.sku,
+        picks: l.picks
+          .filter((p) => p.qty > 0)
+          .map((p) => ({
+            lotSerialId: p.lotSerialId,
+            lotCode: p.lotCode,
+            binId: p.binId,
+            binCode: p.binFullCode,
+            qty: p.qty,
+          })),
+      }));
+      const endpoint =
+        mode === "direct"
+          ? "/api/warehouse/issue"
+          : "/api/warehouse/issue-request";
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           reason,
           reference: reference.trim() || null,
           notes: notes.trim() || null,
-          lines: validLines.map((l) => ({
-            itemId: l.item!.id,
-            picks: l.picks
-              .filter((p) => p.qty > 0)
-              .map((p) => ({
-                lotSerialId: p.lotSerialId,
-                binId: p.binId,
-                qty: p.qty,
-              })),
-          })),
+          lines: linesPayload,
         }),
       });
       const json = (await res.json()) as {
-        data?: { txnIds: string[]; totalQty: number; consumedLots: number };
+        data?: {
+          txnIds?: string[];
+          totalQty?: number;
+          consumedLots?: number;
+          requestNo?: string;
+          id?: string;
+        };
         error?: { message?: string };
       };
       if (!res.ok || !json.data) {
         toast.error(json.error?.message ?? "Lỗi xuất hàng");
         return;
       }
-      toast.success(
-        `Đã xuất ${json.data.totalQty} qty · ${json.data.txnIds.length} pick${
-          json.data.consumedLots > 0
-            ? ` · ${json.data.consumedLots} lot CONSUMED`
-            : ""
-        }.`,
-      );
+      if (mode === "direct") {
+        toast.success(
+          `Đã xuất ${json.data.totalQty} qty · ${json.data.txnIds?.length ?? 0} pick${
+            (json.data.consumedLots ?? 0) > 0
+              ? ` · ${json.data.consumedLots} lot CONSUMED`
+              : ""
+          }.`,
+        );
+      } else {
+        toast.success(
+          `Đã gửi yêu cầu ${json.data.requestNo} · chờ Kho duyệt.`,
+        );
+      }
       void qc.invalidateQueries({ queryKey: ["warehouse"] });
+      void qc.invalidateQueries({ queryKey: ["issue-request"] });
       // Reset form
       setLines([
         {
@@ -250,8 +288,9 @@ export function IssueTab() {
             Xuất hàng
           </h2>
           <p className="mt-0.5 text-sm text-zinc-500">
-            Xuất kho theo nguyên tắc FIFO. Hỗ trợ nhiều SKU mỗi lần xuất.
-            Hệ thống tự đề xuất lot cũ nhất, có thể override.
+            {mode === "direct"
+              ? "Xuất kho ngay (chỉ Kho/Admin). Tạo OUT_ISSUE inventory_txn trực tiếp."
+              : "Tạo yêu cầu xuất kho. Bộ phận Kho sẽ kiểm tra và duyệt."}
           </p>
         </div>
         <div className="hidden gap-3 text-right text-xs lg:flex">
@@ -273,6 +312,41 @@ export function IssueTab() {
           )}
         </div>
       </header>
+
+      {/* V3.7.9 — Mode toggle */}
+      {isWarehouse && (
+        <div className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white p-1 self-start">
+          <button
+            type="button"
+            onClick={() => setMode("request")}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors",
+              mode === "request"
+                ? "bg-indigo-600 text-white"
+                : "text-zinc-600 hover:bg-zinc-100",
+            )}
+          >
+            <FileSignature className="h-3.5 w-3.5" />
+            Tạo yêu cầu (chờ duyệt)
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("direct")}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors",
+              mode === "direct"
+                ? "bg-rose-600 text-white"
+                : "text-zinc-600 hover:bg-zinc-100",
+            )}
+          >
+            <Truck className="h-3.5 w-3.5" />
+            Xuất ngay (Kho/Admin)
+          </button>
+        </div>
+      )}
+
+      {/* V3.7.9 — Pending requests panel (warehouse only) */}
+      {isWarehouse && <PendingRequestsPanel />}
 
       {/* LINES */}
       <section className="space-y-3">
@@ -350,10 +424,22 @@ export function IssueTab() {
           <Button
             onClick={handleSubmit}
             disabled={submitting || totalLines === 0 || totalQty === 0}
-            className="bg-rose-600 hover:bg-rose-700"
+            className={cn(
+              mode === "direct"
+                ? "bg-rose-600 hover:bg-rose-700"
+                : "bg-indigo-600 hover:bg-indigo-700",
+            )}
           >
-            <Truck className="h-3.5 w-3.5" />
-            {submitting ? "Đang xuất…" : "Xuất hàng"}
+            {mode === "direct" ? (
+              <Truck className="h-3.5 w-3.5" />
+            ) : (
+              <FileSignature className="h-3.5 w-3.5" />
+            )}
+            {submitting
+              ? "Đang gửi…"
+              : mode === "direct"
+                ? "Xuất hàng ngay"
+                : "Gửi yêu cầu xuất"}
           </Button>
         </div>
       </section>
@@ -695,5 +781,231 @@ function LineCard({
         )}
       </div>
     </div>
+  );
+}
+
+/* ============================================================ */
+/* PendingRequestsPanel — Kho duyệt yêu cầu xuất                */
+/* ============================================================ */
+
+interface IssueRequestRow {
+  id: string;
+  requestNo: string;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "COMPLETED";
+  reason: string;
+  reference: string | null;
+  notes: string | null;
+  totalQty: string;
+  picksJson: Array<{
+    itemId: string;
+    sku?: string | null;
+    picks: Array<{
+      lotSerialId: string;
+      lotCode?: string | null;
+      binId: string;
+      binCode?: string | null;
+      qty: number;
+    }>;
+  }>;
+  requesterUsername: string | null;
+  rejectReason: string | null;
+  createdAt: string;
+}
+
+function PendingRequestsPanel() {
+  const qc = useQueryClient();
+  const { data, isLoading, refetch } = useQuery<{ data: IssueRequestRow[] }>({
+    queryKey: ["issue-request", "pending"],
+    queryFn: async () => {
+      const res = await fetch(
+        "/api/warehouse/issue-request?status=PENDING&pageSize=50",
+      );
+      return res.json();
+    },
+    staleTime: 15_000,
+  });
+
+  const [acting, setActing] = React.useState<string | null>(null);
+
+  const handleApprove = async (id: string, reqNo: string) => {
+    if (!window.confirm(`Duyệt + xuất kho yêu cầu ${reqNo}?`)) return;
+    setActing(id);
+    try {
+      const res = await fetch(`/api/warehouse/issue-request/${id}/approve`, {
+        method: "POST",
+      });
+      const json = (await res.json()) as {
+        data?: { totalQty: number; txnIds: string[] };
+        error?: { message?: string };
+      };
+      if (!res.ok || !json.data) {
+        toast.error(json.error?.message ?? "Lỗi duyệt");
+        return;
+      }
+      toast.success(
+        `Đã duyệt + xuất ${reqNo} · ${json.data.totalQty} qty · ${json.data.txnIds.length} pick.`,
+      );
+      void qc.invalidateQueries({ queryKey: ["warehouse"] });
+      void refetch();
+    } finally {
+      setActing(null);
+    }
+  };
+
+  const handleReject = async (id: string, reqNo: string) => {
+    const reason = window.prompt(`Lý do từ chối yêu cầu ${reqNo}?`);
+    if (!reason || !reason.trim()) return;
+    setActing(id);
+    try {
+      const res = await fetch(`/api/warehouse/issue-request/${id}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: reason.trim() }),
+      });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => null)) as
+          | { error?: { message?: string } }
+          | null;
+        toast.error(j?.error?.message ?? "Lỗi từ chối");
+        return;
+      }
+      toast.success(`Đã từ chối ${reqNo}.`);
+      void refetch();
+    } finally {
+      setActing(null);
+    }
+  };
+
+  const rows = data?.data ?? [];
+
+  return (
+    <section className="rounded-lg border border-amber-200 bg-amber-50/40 p-4">
+      <header className="mb-3 flex items-center justify-between">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-amber-900">
+          <ClipboardList className="h-4 w-4" />
+          Yêu cầu chờ duyệt ({rows.length})
+        </h3>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="text-xs text-amber-700 hover:underline"
+        >
+          Làm mới
+        </button>
+      </header>
+
+      {isLoading ? (
+        <p className="inline-flex items-center gap-1 text-xs text-zinc-500">
+          <Loader2 className="h-3 w-3 animate-spin" /> Đang tải…
+        </p>
+      ) : rows.length === 0 ? (
+        <p className="rounded-md border border-dashed border-amber-200 bg-white px-3 py-3 text-center text-xs text-zinc-500">
+          Không có yêu cầu nào đang chờ duyệt.
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {rows.map((r) => {
+            const totalLines = r.picksJson.length;
+            const totalPicks = r.picksJson.reduce(
+              (s, l) => s + l.picks.length,
+              0,
+            );
+            return (
+              <li
+                key={r.id}
+                className="rounded-md border border-zinc-200 bg-white p-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <code className="font-mono text-sm font-semibold text-indigo-900">
+                        {r.requestNo}
+                      </code>
+                      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+                        {r.reason}
+                      </span>
+                      {r.reference && (
+                        <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-700">
+                          {r.reference}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 text-xs text-zinc-600">
+                      Người tạo:{" "}
+                      <span className="font-semibold text-zinc-800">
+                        {r.requesterUsername ?? "?"}
+                      </span>{" "}
+                      ·{" "}
+                      <span className="tabular-nums">
+                        {totalLines} SKU / {totalPicks} pick / tổng{" "}
+                        {Number(r.totalQty).toLocaleString("vi-VN")}
+                      </span>
+                    </p>
+                    {r.notes && (
+                      <p className="mt-0.5 text-xs italic text-zinc-500">
+                        &quot;{r.notes}&quot;
+                      </p>
+                    )}
+                    <details className="mt-1.5">
+                      <summary className="cursor-pointer text-[11px] text-indigo-600 hover:underline">
+                        Chi tiết picks
+                      </summary>
+                      <div className="mt-1 max-h-40 overflow-auto rounded border border-zinc-100 bg-zinc-50 p-2 text-[11px]">
+                        {r.picksJson.map((line, li) => (
+                          <div key={li} className="mb-1.5">
+                            <code className="font-mono font-semibold text-zinc-700">
+                              {line.sku ?? line.itemId.slice(0, 8)}
+                            </code>
+                            <ul className="ml-3 mt-0.5 space-y-0.5">
+                              {line.picks.map((p, pi) => (
+                                <li
+                                  key={pi}
+                                  className="flex items-center gap-2 text-zinc-600"
+                                >
+                                  <span className="rounded bg-blue-50 px-1 font-mono text-[10px] text-blue-700">
+                                    {p.binCode ?? p.binId.slice(0, 8)}
+                                  </span>
+                                  <span className="font-mono">
+                                    {p.lotCode ?? "anon"}
+                                  </span>
+                                  <span className="ml-auto font-semibold tabular-nums">
+                                    {p.qty}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  </div>
+                  <div className="flex shrink-0 flex-col gap-1">
+                    <Button
+                      size="sm"
+                      disabled={acting === r.id}
+                      onClick={() => handleApprove(r.id, r.requestNo)}
+                      className="bg-emerald-600 hover:bg-emerald-700"
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Duyệt + xuất
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={acting === r.id}
+                      onClick={() => handleReject(r.id, r.requestNo)}
+                      className="border-rose-300 text-rose-700 hover:bg-rose-50"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      Từ chối
+                    </Button>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
   );
 }
