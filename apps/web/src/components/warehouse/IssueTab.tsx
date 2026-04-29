@@ -3,10 +3,11 @@
 import * as React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  AlertTriangle,
+  AlertCircle,
   CheckCircle2,
   ClipboardList,
   Loader2,
+  Package,
   Plus,
   Search,
   Trash2,
@@ -19,17 +20,12 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 /**
- * V3.7.7 — Tab "Xuất hàng" (thay cho Pick FIFO).
+ * V3.7.14 — Tab "Xuất hàng" — redesign đơn giản theo feedback user 2026-04-30.
  *
  * Workflow:
- *   1. Thêm dòng: chọn SKU + qty cần xuất
- *   2. Hệ thống auto-fill picks theo FIFO (lot cũ trước)
- *   3. User có thể override pick (chọn lot khác / chỉnh qty)
- *   4. Xem tổng cộng + thiếu hụt
- *   5. Chọn lý do xuất + ghi chú + chứng từ tham chiếu
- *   6. Submit → POST /api/warehouse/issue
- *      → Tạo inventory_txn OUT_ISSUE per pick
- *      → Bin layout + stats auto-refresh
+ *   1. Pending requests panel (yêu cầu từ Vận hành) — Kho duyệt 1-click
+ *   2. Form xuất nhanh: list SKU + qty (không pick editor — auto FIFO)
+ *   3. Submit → server auto FIFO → tạo OUT_ISSUE
  */
 
 interface ItemRef {
@@ -40,24 +36,10 @@ interface ItemRef {
   totalQty: number;
 }
 
-interface Pick {
-  lotSerialId: string;
-  lotCode: string | null;
-  binId: string;
-  binFullCode: string;
-  qty: number; // qty user muốn lấy từ pick này
-  available: number; // qty hiện có trong (bin, lot)
-  receivedAt: string;
-  expDate: string | null;
-}
-
 interface IssueLine {
-  rowId: string; // local id (uuid) for rendering
+  rowId: string;
   item: ItemRef | null;
-  qtyNeeded: string;
-  picks: Pick[];
-  loadingPicks: boolean;
-  shortage: number;
+  qty: string;
 }
 
 const REASONS = [
@@ -77,192 +59,108 @@ function uuid() {
 
 export function IssueTab() {
   const qc = useQueryClient();
-  // V3.7.10 — Tab Xuất hàng chỉ dành cho Kho:
-  //   - Xuất ngay (mode duy nhất)
-  //   - Pending requests list (yêu cầu từ Vận hành/operations qua tạo WO)
-  // Mode 'Tạo yêu cầu' đã chuyển sang /work-orders/quick-new (Vận hành tạo).
-  const mode = "direct" as const;
-
   const [lines, setLines] = React.useState<IssueLine[]>([
-    {
-      rowId: uuid(),
-      item: null,
-      qtyNeeded: "",
-      picks: [],
-      loadingPicks: false,
-      shortage: 0,
-    },
+    { rowId: uuid(), item: null, qty: "" },
   ]);
   const [reason, setReason] = React.useState<Reason>("manual");
   const [reference, setReference] = React.useState("");
   const [notes, setNotes] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
 
-  // Stats tổng
-  const totalLines = lines.filter((l) => l.item).length;
-  const totalQty = lines.reduce(
-    (s, l) => s + l.picks.reduce((sp, p) => sp + p.qty, 0),
-    0,
-  );
-  const hasShortage = lines.some((l) => l.shortage > 0);
+  const validLines = lines.filter((l) => l.item && Number(l.qty) > 0);
+  const totalLines = validLines.length;
+  const totalQty = validLines.reduce((s, l) => s + Number(l.qty), 0);
+  const totalShortage = validLines.reduce((s, l) => {
+    const need = Number(l.qty);
+    const have = l.item?.totalQty ?? 0;
+    return s + Math.max(0, need - have);
+  }, 0);
 
-  const addLine = () => {
-    setLines((prev) => [
-      ...prev,
-      {
-        rowId: uuid(),
-        item: null,
-        qtyNeeded: "",
-        picks: [],
-        loadingPicks: false,
-        shortage: 0,
-      },
-    ]);
-  };
-
-  const removeLine = (rowId: string) => {
-    setLines((prev) => prev.filter((l) => l.rowId !== rowId));
-  };
-
-  const updateLine = (rowId: string, patch: Partial<IssueLine>) => {
-    setLines((prev) =>
-      prev.map((l) => (l.rowId === rowId ? { ...l, ...patch } : l)),
+  const addLine = () =>
+    setLines((p) => [...p, { rowId: uuid(), item: null, qty: "" }]);
+  const removeLine = (rowId: string) =>
+    setLines((p) => p.filter((l) => l.rowId !== rowId));
+  const updateLine = (rowId: string, patch: Partial<IssueLine>) =>
+    setLines((p) =>
+      p.map((l) => (l.rowId === rowId ? { ...l, ...patch } : l)),
     );
-  };
-
-  const fetchFifoForLine = async (rowId: string, item: ItemRef, qty: number) => {
-    updateLine(rowId, { loadingPicks: true });
-    try {
-      const res = await fetch("/api/warehouse/fifo-pick", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itemId: item.id, qty }),
-      });
-      const json = (await res.json()) as {
-        data?: {
-          picks: Array<{
-            lotSerialId: string;
-            lotCode: string | null;
-            binId: string;
-            binFullCode: string;
-            qty: number;
-            receivedAt: string;
-            expDate: string | null;
-          }>;
-          covered: number;
-          shortage: number;
-        };
-        error?: { message?: string };
-      };
-      if (!res.ok || !json.data) {
-        toast.error(json.error?.message ?? "Không lấy được FIFO plan.");
-        updateLine(rowId, { loadingPicks: false });
-        return;
-      }
-      const picks: Pick[] = json.data.picks.map((p) => ({
-        lotSerialId: p.lotSerialId,
-        lotCode: p.lotCode,
-        binId: p.binId,
-        binFullCode: p.binFullCode,
-        qty: p.qty,
-        available: p.qty, // từ FIFO: qty đề xuất = qty còn dùng được
-        receivedAt: p.receivedAt,
-        expDate: p.expDate,
-      }));
-      updateLine(rowId, {
-        picks,
-        loadingPicks: false,
-        shortage: json.data.shortage,
-      });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Lỗi FIFO.");
-      updateLine(rowId, { loadingPicks: false });
-    }
-  };
 
   const handleSubmit = async () => {
-    const validLines = lines.filter(
-      (l) => l.item && l.picks.length > 0 && l.picks.every((p) => p.qty > 0),
-    );
     if (validLines.length === 0) {
-      toast.error("Chưa có dòng xuất hợp lệ.");
+      toast.error("Cần ít nhất 1 dòng SKU + qty.");
       return;
     }
-    if (hasShortage && mode === "direct") {
+    if (totalShortage > 0) {
       const ok = window.confirm(
-        "Một số dòng đang thiếu tồn — vẫn xuất phần có sẵn?",
+        `⚠ Thiếu tồn ${totalShortage} đơn vị. Vẫn xuất phần có sẵn?`,
       );
       if (!ok) return;
     }
     setSubmitting(true);
     try {
-      const linesPayload = validLines.map((l) => ({
-        itemId: l.item!.id,
-        sku: l.item!.sku,
-        picks: l.picks
-          .filter((p) => p.qty > 0)
-          .map((p) => ({
+      // Step 1: gọi FIFO cho từng line để có picks
+      const allLines: Array<{
+        itemId: string;
+        picks: Array<{ lotSerialId: string; binId: string; qty: number }>;
+      }> = [];
+      for (const l of validLines) {
+        const fifoRes = await fetch("/api/warehouse/fifo-pick", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ itemId: l.item!.id, qty: Number(l.qty) }),
+        });
+        const fifoJson = (await fifoRes.json()) as {
+          data?: {
+            picks: Array<{
+              lotSerialId: string;
+              binId: string;
+              qty: number;
+            }>;
+          };
+        };
+        if (!fifoRes.ok || !fifoJson.data) {
+          toast.error(`Không pick FIFO được cho ${l.item!.sku}`);
+          return;
+        }
+        if (fifoJson.data.picks.length === 0) {
+          toast.error(`SKU ${l.item!.sku} không có tồn AVAILABLE.`);
+          return;
+        }
+        allLines.push({
+          itemId: l.item!.id,
+          picks: fifoJson.data.picks.map((p) => ({
             lotSerialId: p.lotSerialId,
-            lotCode: p.lotCode,
             binId: p.binId,
-            binCode: p.binFullCode,
             qty: p.qty,
           })),
-      }));
-      const endpoint =
-        mode === "direct"
-          ? "/api/warehouse/issue"
-          : "/api/warehouse/issue-request";
-      const res = await fetch(endpoint, {
+        });
+      }
+
+      // Step 2: gửi issue
+      const res = await fetch("/api/warehouse/issue", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           reason,
           reference: reference.trim() || null,
           notes: notes.trim() || null,
-          lines: linesPayload,
+          lines: allLines,
         }),
       });
       const json = (await res.json()) as {
-        data?: {
-          txnIds?: string[];
-          totalQty?: number;
-          consumedLots?: number;
-          requestNo?: string;
-          id?: string;
-        };
+        data?: { txnIds: string[]; totalQty: number; consumedLots: number };
         error?: { message?: string };
       };
       if (!res.ok || !json.data) {
         toast.error(json.error?.message ?? "Lỗi xuất hàng");
         return;
       }
-      if (mode === "direct") {
-        toast.success(
-          `Đã xuất ${json.data.totalQty} qty · ${json.data.txnIds?.length ?? 0} pick${
-            (json.data.consumedLots ?? 0) > 0
-              ? ` · ${json.data.consumedLots} lot CONSUMED`
-              : ""
-          }.`,
-        );
-      } else {
-        toast.success(
-          `Đã gửi yêu cầu ${json.data.requestNo} · chờ Kho duyệt.`,
-        );
-      }
+      toast.success(
+        `Đã xuất ${json.data.totalQty} qty từ ${json.data.txnIds.length} bin · ${totalLines} SKU.`,
+      );
       void qc.invalidateQueries({ queryKey: ["warehouse"] });
-      void qc.invalidateQueries({ queryKey: ["issue-request"] });
-      // Reset form
-      setLines([
-        {
-          rowId: uuid(),
-          item: null,
-          qtyNeeded: "",
-          picks: [],
-          loadingPicks: false,
-          shortage: 0,
-        },
-      ]);
+      // Reset
+      setLines([{ rowId: uuid(), item: null, qty: "" }]);
       setReference("");
       setNotes("");
     } finally {
@@ -271,123 +169,158 @@ export function IssueTab() {
   };
 
   return (
-    <div className="flex h-full flex-col gap-4 overflow-auto p-6">
+    <div className="flex h-full flex-col gap-4 overflow-auto bg-gradient-to-br from-zinc-50 to-rose-50/30 p-6">
+      {/* HEADER */}
       <header className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-zinc-900">
-            <Truck className="h-5 w-5 text-rose-600" />
-            Xuất hàng
-          </h2>
-          <p className="mt-0.5 text-sm text-zinc-500">
-            {mode === "direct"
-              ? "Xuất kho ngay (chỉ Kho/Admin). Tạo OUT_ISSUE inventory_txn trực tiếp."
-              : "Tạo yêu cầu xuất kho. Bộ phận Kho sẽ kiểm tra và duyệt."}
-          </p>
-        </div>
-        <div className="hidden gap-3 text-right text-xs lg:flex">
-          <div className="rounded border border-zinc-200 bg-white px-3 py-1.5">
-            <span className="text-zinc-500">Số dòng:</span>{" "}
-            <span className="font-semibold tabular-nums">{totalLines}</span>
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 shadow-lg shadow-rose-200">
+            <Truck className="h-6 w-6 text-white" />
           </div>
-          <div className="rounded border border-emerald-200 bg-emerald-50 px-3 py-1.5">
-            <span className="text-emerald-700">Tổng qty:</span>{" "}
-            <span className="font-semibold tabular-nums text-emerald-900">
-              {totalQty.toLocaleString("vi-VN")}
-            </span>
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight text-zinc-900">
+              Xuất hàng
+            </h2>
+            <p className="mt-0.5 text-sm text-zinc-500">
+              Kho xuất ngay (auto FIFO) · duyệt yêu cầu từ Vận hành
+            </p>
           </div>
-          {hasShortage && (
-            <div className="rounded border border-amber-200 bg-amber-50 px-3 py-1.5">
-              <AlertTriangle className="mr-1 inline h-3 w-3 text-amber-600" />
-              <span className="text-amber-700">Thiếu tồn</span>
-            </div>
-          )}
         </div>
+        {totalLines > 0 && (
+          <div className="hidden items-center gap-2 lg:flex">
+            <Stat label="Số SKU" value={String(totalLines)} />
+            <Stat
+              label="Tổng SL"
+              value={totalQty.toLocaleString("vi-VN")}
+              tone="emerald"
+            />
+            {totalShortage > 0 && (
+              <Stat
+                label="Thiếu"
+                value={totalShortage.toLocaleString("vi-VN")}
+                tone="amber"
+              />
+            )}
+          </div>
+        )}
       </header>
 
-      {/* V3.7.10 — Pending requests panel (yêu cầu từ Vận hành) */}
+      {/* PENDING REQUESTS — Kho duyệt yêu cầu từ Vận hành */}
       <PendingRequestsPanel />
 
-      {/* LINES */}
-      <section className="space-y-3">
-        {lines.map((line, idx) => (
-          <LineCard
-            key={line.rowId}
-            line={line}
-            index={idx}
-            onUpdate={(patch) => updateLine(line.rowId, patch)}
-            onRemove={() => removeLine(line.rowId)}
-            onFetchFifo={(item, qty) =>
-              fetchFifoForLine(line.rowId, item, qty)
-            }
+      {/* QUICK ISSUE FORM — đơn giản */}
+      <section className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
+        <header className="flex items-center gap-2 border-b border-zinc-100 px-5 py-3">
+          <Package className="h-4 w-4 text-rose-600" />
+          <h3 className="text-sm font-bold text-zinc-900">Xuất nhanh</h3>
+          <span className="text-xs text-zinc-500">
+            · Hệ thống tự pick FIFO (lô cũ trước)
+          </span>
+        </header>
+
+        <div className="p-5">
+          {/* Lines */}
+          <div className="space-y-2">
+            {lines.map((line, idx) => (
+              <SimpleLineRow
+                key={line.rowId}
+                line={line}
+                index={idx}
+                onUpdate={(p) => updateLine(line.rowId, p)}
+                onRemove={() => removeLine(line.rowId)}
+                disabled={submitting}
+                removable={lines.length > 1}
+              />
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={addLine}
             disabled={submitting}
-            removable={lines.length > 1}
-          />
-        ))}
-        <button
-          type="button"
-          onClick={addLine}
-          disabled={submitting}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-300 bg-white px-3 py-3 text-sm font-medium text-zinc-600 hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700"
-        >
-          <Plus className="h-4 w-4" />
-          Thêm dòng xuất
-        </button>
-      </section>
-
-      {/* META + SUBMIT */}
-      <section className="rounded-md border border-zinc-200 bg-white p-4">
-        <h3 className="mb-3 text-sm font-semibold text-zinc-900">
-          Thông tin xuất
-        </h3>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          <div>
-            <label className="text-xs font-medium text-zinc-700">Lý do</label>
-            <select
-              value={reason}
-              onChange={(e) => setReason(e.target.value as Reason)}
-              disabled={submitting}
-              className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm"
-            >
-              {REASONS.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-zinc-700">
-              Số chứng từ tham chiếu
-            </label>
-            <Input
-              value={reference}
-              onChange={(e) => setReference(e.target.value)}
-              placeholder="VD: WO-2026-001 / SO-..."
-              className="mt-1 font-mono"
-              disabled={submitting}
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-zinc-700">Ghi chú</label>
-            <Input
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Tuỳ chọn..."
-              className="mt-1"
-              disabled={submitting}
-            />
-          </div>
-        </div>
-
-        <div className="mt-4 flex items-center justify-end gap-2">
-          <Button
-            onClick={handleSubmit}
-            disabled={submitting || totalLines === 0 || totalQty === 0}
-            className="bg-rose-600 hover:bg-rose-700"
+            className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-600 hover:border-rose-400 hover:bg-rose-50/50 hover:text-rose-700"
           >
-            <Truck className="h-3.5 w-3.5" />
-            {submitting ? "Đang xuất…" : "Xuất hàng ngay"}
-          </Button>
+            <Plus className="h-3.5 w-3.5" />
+            Thêm dòng
+          </button>
+
+          {/* Meta */}
+          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
+                Lý do
+              </label>
+              <select
+                value={reason}
+                onChange={(e) => setReason(e.target.value as Reason)}
+                disabled={submitting}
+                className="mt-1.5 block h-10 w-full rounded-md border border-zinc-300 bg-white px-2 text-sm"
+              >
+                {REASONS.map((r) => (
+                  <option key={r.value} value={r.value}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
+                Chứng từ tham chiếu
+              </label>
+              <Input
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+                placeholder="VD: WO-2026-001 · SO-..."
+                className="mt-1.5 h-10 font-mono"
+                disabled={submitting}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
+                Ghi chú
+              </label>
+              <Input
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Tuỳ chọn..."
+                className="mt-1.5 h-10"
+                disabled={submitting}
+              />
+            </div>
+          </div>
+
+          {/* Submit */}
+          <div className="mt-5 flex items-center justify-between gap-3 rounded-lg bg-zinc-50 p-3">
+            <div className="text-xs text-zinc-600">
+              {totalLines === 0 ? (
+                "Chưa có dòng nào để xuất."
+              ) : totalShortage > 0 ? (
+                <span className="text-amber-700">
+                  ⚠ Thiếu {totalShortage} đơn vị, vẫn xuất phần có sẵn.
+                </span>
+              ) : (
+                <span className="text-emerald-700">
+                  ✓ Đủ tồn cho {totalLines} SKU · tổng {totalQty.toLocaleString("vi-VN")} qty.
+                </span>
+              )}
+            </div>
+            <Button
+              onClick={handleSubmit}
+              disabled={submitting || totalLines === 0}
+              className="h-10 bg-gradient-to-r from-rose-500 to-pink-600 px-5 text-sm font-bold shadow-md hover:from-rose-600 hover:to-pink-700"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Đang xuất…
+                </>
+              ) : (
+                <>
+                  <Truck className="h-4 w-4" />
+                  Xuất hàng ngay
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </section>
     </div>
@@ -395,15 +328,14 @@ export function IssueTab() {
 }
 
 /* ============================================================ */
-/* LineCard — 1 dòng xuất với SKU + qty + picks                 */
+/* SimpleLineRow — 1 dòng đơn giản: SKU + qty                   */
 /* ============================================================ */
 
-function LineCard({
+function SimpleLineRow({
   line,
   index,
   onUpdate,
   onRemove,
-  onFetchFifo,
   disabled,
   removable,
 }: {
@@ -411,9 +343,133 @@ function LineCard({
   index: number;
   onUpdate: (patch: Partial<IssueLine>) => void;
   onRemove: () => void;
-  onFetchFifo: (item: ItemRef, qty: number) => void;
   disabled: boolean;
   removable: boolean;
+}) {
+  const need = Number(line.qty);
+  const have = line.item?.totalQty ?? 0;
+  const shortage = Math.max(0, need - have);
+  const ok = line.item && need > 0 && shortage === 0;
+
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-2 rounded-xl border bg-white p-2.5 transition-all",
+        ok && "border-emerald-300 bg-emerald-50/30",
+        shortage > 0 && "border-amber-300 bg-amber-50/30",
+        !line.item && "border-zinc-200",
+      )}
+    >
+      <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-bold text-zinc-600">
+        {index + 1}
+      </span>
+      <div className="grid flex-1 grid-cols-1 gap-2 md:grid-cols-[1fr_140px]">
+        <ItemPicker
+          value={line.item}
+          onChange={(v) => onUpdate({ item: v })}
+          disabled={disabled}
+        />
+        <div className="flex items-center gap-1">
+          <Input
+            type="number"
+            min={0}
+            step={0.0001}
+            value={line.qty}
+            onChange={(e) => onUpdate({ qty: e.target.value })}
+            placeholder="SL"
+            className="h-10 text-right tabular-nums"
+            disabled={disabled || !line.item}
+          />
+          {line.item && (
+            <span className="text-[10px] text-zinc-500 whitespace-nowrap">
+              {line.item.uom}
+            </span>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-1 text-[11px]">
+        {line.item && need > 0 && (
+          <>
+            {ok ? (
+              <span className="inline-flex items-center gap-0.5 rounded bg-emerald-100 px-1.5 py-0.5 font-medium text-emerald-700">
+                <CheckCircle2 className="h-3 w-3" />
+                Đủ
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-0.5 rounded bg-amber-100 px-1.5 py-0.5 font-medium text-amber-700">
+                <AlertCircle className="h-3 w-3" />
+                Thiếu {shortage}
+              </span>
+            )}
+          </>
+        )}
+        {line.item && (
+          <span
+            className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] text-zinc-500"
+            title={`Tồn: ${have} ${line.item.uom}`}
+          >
+            tồn {have.toLocaleString("vi-VN")}
+          </span>
+        )}
+        {removable && (
+          <button
+            type="button"
+            onClick={onRemove}
+            disabled={disabled}
+            className="ml-1 inline-flex h-7 w-7 items-center justify-center rounded text-zinc-400 hover:bg-rose-50 hover:text-rose-600"
+            title="Xoá dòng"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================ */
+/* Stat — chip hiển thị stat ở header                           */
+/* ============================================================ */
+
+function Stat({
+  label,
+  value,
+  tone = "zinc",
+}: {
+  label: string;
+  value: string;
+  tone?: "zinc" | "emerald" | "amber";
+}) {
+  const tones = {
+    zinc: "bg-white border-zinc-200 text-zinc-700",
+    emerald: "bg-emerald-50 border-emerald-200 text-emerald-700",
+    amber: "bg-amber-50 border-amber-200 text-amber-700",
+  };
+  return (
+    <div
+      className={cn(
+        "rounded-md border px-3 py-1.5 text-xs",
+        tones[tone],
+      )}
+    >
+      <span className="opacity-70">{label}: </span>
+      <span className="font-bold tabular-nums">{value}</span>
+    </div>
+  );
+}
+
+/* ============================================================ */
+/* ItemPicker — search + select                                 */
+/* ============================================================ */
+
+function ItemPicker({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: ItemRef | null;
+  onChange: (v: ItemRef | null) => void;
+  disabled?: boolean;
 }) {
   const [searchTerm, setSearchTerm] = React.useState("");
   const [results, setResults] = React.useState<ItemRef[]>([]);
@@ -462,277 +518,82 @@ function LineCard({
     };
   }, [searchTerm]);
 
-  const triggerFifo = () => {
-    if (!line.item) return;
-    const q = Number(line.qtyNeeded);
-    if (!Number.isFinite(q) || q <= 0) {
-      toast.error("Số lượng phải > 0.");
-      return;
-    }
-    onFetchFifo(line.item, q);
-  };
-
-  const totalPicked = line.picks.reduce((s, p) => s + p.qty, 0);
-  const qtyNeededNum = Number(line.qtyNeeded) || 0;
-  const isComplete =
-    line.picks.length > 0 && totalPicked === qtyNeededNum && qtyNeededNum > 0;
+  if (value) {
+    return (
+      <div className="flex h-10 items-center justify-between gap-2 rounded-md border border-rose-200 bg-rose-50 px-3">
+        <div className="min-w-0">
+          <code className="font-mono text-xs font-bold text-rose-900">
+            {value.sku}
+          </code>
+          <p className="truncate text-[10px] text-rose-700">{value.name}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => onChange(null)}
+          disabled={disabled}
+          className="text-[10px] text-zinc-500 hover:text-zinc-900"
+        >
+          Đổi
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white shadow-sm">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-2 border-b border-zinc-100 px-4 py-2">
-        <div className="flex items-center gap-2">
-          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-zinc-100 text-xs font-semibold text-zinc-700">
-            {index + 1}
-          </span>
-          <span className="text-sm font-medium text-zinc-700">
-            {line.item ? line.item.sku : "Chọn vật tư..."}
-          </span>
-          {isComplete && (
-            <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-700">
-              <CheckCircle2 className="h-3 w-3" /> Đủ
-            </span>
-          )}
-          {line.shortage > 0 && (
-            <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700">
-              <AlertTriangle className="h-3 w-3" /> Thiếu {line.shortage}
-            </span>
-          )}
-        </div>
-        {removable && (
-          <button
-            type="button"
-            onClick={onRemove}
-            disabled={disabled}
-            className="text-zinc-400 hover:text-rose-600"
-            title="Xoá dòng"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        )}
-      </div>
-
-      {/* Body */}
-      <div className="p-4">
-        {/* Item picker */}
-        {!line.item ? (
-          <div>
-            <label className="text-xs font-medium text-zinc-700">
-              Tìm SKU
-            </label>
-            <div className="relative mt-1">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
-              <Input
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="SKU hoặc tên (≥ 2 ký tự)…"
-                className="pl-8"
-                disabled={disabled}
-              />
-            </div>
-            {searching && (
-              <p className="mt-1 inline-flex items-center gap-1 text-xs text-zinc-500">
-                <Loader2 className="h-3 w-3 animate-spin" /> Đang tìm…
-              </p>
-            )}
-            {results.length > 0 && (
-              <ul className="mt-1 max-h-48 divide-y divide-zinc-100 overflow-auto rounded-md border border-zinc-200">
-                {results.map((r) => (
-                  <li key={r.id}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onUpdate({ item: r });
-                        setSearchTerm("");
-                        setResults([]);
-                      }}
-                      className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-sm hover:bg-zinc-50"
-                    >
-                      <div className="min-w-0">
-                        <code className="font-mono text-xs font-semibold text-zinc-900">
-                          {r.sku}
-                        </code>
-                        <p className="truncate text-xs text-zinc-600">
-                          {r.name}
-                        </p>
-                      </div>
-                      <span
-                        className={cn(
-                          "shrink-0 rounded px-1.5 py-0.5 text-xs font-medium tabular-nums",
-                          r.totalQty > 0
-                            ? "bg-emerald-50 text-emerald-700"
-                            : "bg-zinc-100 text-zinc-500",
-                        )}
-                      >
-                        {r.totalQty.toLocaleString("vi-VN")} {r.uom}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        ) : (
-          <>
-            {/* SKU info + qty */}
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_140px_120px]">
-              <div className="rounded-md border border-indigo-200 bg-indigo-50 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <code className="font-mono text-sm font-semibold text-indigo-900">
-                    {line.item.sku}
+    <div className="relative">
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+      <Input
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        placeholder="Tìm SKU hoặc tên (≥ 2 ký tự)…"
+        className="h-10 pl-9"
+        disabled={disabled}
+      />
+      {searching && (
+        <Loader2 className="absolute right-3 top-1/2 h-3 w-3 -translate-y-1/2 animate-spin text-zinc-400" />
+      )}
+      {results.length > 0 && (
+        <ul className="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 divide-y divide-zinc-100 overflow-auto rounded-lg border border-zinc-200 bg-white shadow-lg">
+          {results.map((r) => (
+            <li key={r.id}>
+              <button
+                type="button"
+                onClick={() => {
+                  onChange(r);
+                  setSearchTerm("");
+                  setResults([]);
+                }}
+                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-rose-50"
+              >
+                <div className="min-w-0">
+                  <code className="font-mono text-xs font-bold text-zinc-900">
+                    {r.sku}
                   </code>
-                  <span className="rounded bg-white px-1.5 py-0.5 text-xs font-medium tabular-nums text-zinc-700">
-                    Tồn: {line.item.totalQty.toLocaleString("vi-VN")}{" "}
-                    {line.item.uom}
-                  </span>
+                  <p className="truncate text-[10px] text-zinc-600">
+                    {r.name}
+                  </p>
                 </div>
-                <p className="truncate text-xs text-indigo-700">
-                  {line.item.name}
-                </p>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-zinc-700">
-                  SL cần xuất
-                </label>
-                <Input
-                  type="number"
-                  min={0}
-                  step={0.0001}
-                  value={line.qtyNeeded}
-                  onChange={(e) => onUpdate({ qtyNeeded: e.target.value })}
-                  placeholder="0"
-                  className="mt-1 text-right tabular-nums"
-                  disabled={disabled}
-                />
-              </div>
-              <div className="flex items-end gap-1">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={triggerFifo}
-                  disabled={disabled || !line.qtyNeeded}
-                  className="w-full"
+                <span
+                  className={cn(
+                    "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold tabular-nums",
+                    r.totalQty > 0
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "bg-zinc-100 text-zinc-500",
+                  )}
                 >
-                  {line.loadingPicks ? "..." : "Đề xuất FIFO"}
-                </Button>
-                <button
-                  type="button"
-                  onClick={() => onUpdate({ item: null, picks: [], qtyNeeded: "" })}
-                  className="text-xs text-zinc-500 hover:text-zinc-900"
-                  title="Đổi SKU"
-                >
-                  Đổi
-                </button>
-              </div>
-            </div>
-
-            {/* Picks table */}
-            {line.picks.length > 0 && (
-              <div className="mt-3 overflow-x-auto rounded-md border border-zinc-200">
-                <table className="w-full text-sm">
-                  <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
-                    <tr>
-                      <th className="px-3 py-1.5 text-left">Bin</th>
-                      <th className="px-3 py-1.5 text-left">Lô</th>
-                      <th className="px-3 py-1.5 text-left">Ngày nhập</th>
-                      <th className="px-3 py-1.5 text-right">Có</th>
-                      <th className="px-3 py-1.5 text-right">Lấy</th>
-                      <th className="px-3 py-1.5 text-center w-10">Bỏ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {line.picks.map((p, pi) => (
-                      <tr key={`${p.lotSerialId}-${p.binId}`} className="border-t border-zinc-100">
-                        <td className="px-3 py-1.5">
-                          <span className="rounded bg-blue-50 px-1.5 py-0.5 font-mono text-xs font-medium text-blue-700">
-                            {p.binFullCode}
-                          </span>
-                        </td>
-                        <td className="px-3 py-1.5 font-mono text-xs text-zinc-700">
-                          {p.lotCode ?? "—"}
-                        </td>
-                        <td className="px-3 py-1.5 text-xs text-zinc-600">
-                          {p.receivedAt
-                            ? new Date(p.receivedAt).toLocaleDateString(
-                                "vi-VN",
-                              )
-                            : "—"}
-                        </td>
-                        <td className="px-3 py-1.5 text-right text-xs tabular-nums text-zinc-500">
-                          {p.available}
-                        </td>
-                        <td className="px-3 py-1.5">
-                          <Input
-                            type="number"
-                            min={0}
-                            max={p.available}
-                            step={0.0001}
-                            value={p.qty}
-                            onChange={(e) => {
-                              const v = Number(e.target.value);
-                              const nextPicks = [...line.picks];
-                              nextPicks[pi] = {
-                                ...p,
-                                qty: Number.isFinite(v) ? v : 0,
-                              };
-                              onUpdate({ picks: nextPicks });
-                            }}
-                            className="h-7 w-20 text-right text-xs tabular-nums"
-                            disabled={disabled}
-                          />
-                        </td>
-                        <td className="px-3 py-1.5 text-center">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              onUpdate({
-                                picks: line.picks.filter((_, i) => i !== pi),
-                              });
-                            }}
-                            disabled={disabled}
-                            className="text-zinc-400 hover:text-rose-600"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t border-zinc-200 bg-zinc-50">
-                      <td colSpan={4} className="px-3 py-1.5 text-right text-xs font-semibold text-zinc-700">
-                        Tổng lấy:
-                      </td>
-                      <td className="px-3 py-1.5 text-right">
-                        <span
-                          className={cn(
-                            "font-semibold tabular-nums",
-                            isComplete
-                              ? "text-emerald-700"
-                              : totalPicked > qtyNeededNum
-                                ? "text-rose-700"
-                                : "text-amber-700",
-                          )}
-                        >
-                          {totalPicked.toLocaleString("vi-VN")} /{" "}
-                          {qtyNeededNum.toLocaleString("vi-VN")}
-                        </span>
-                      </td>
-                      <td />
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            )}
-          </>
-        )}
-      </div>
+                  {r.totalQty.toLocaleString("vi-VN")} {r.uom}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
 
 /* ============================================================ */
-/* PendingRequestsPanel — Kho duyệt yêu cầu xuất                */
+/* PendingRequestsPanel — Kho duyệt yêu cầu từ Vận hành         */
 /* ============================================================ */
 
 interface IssueRequestRow {
@@ -773,6 +634,7 @@ function PendingRequestsPanel() {
   });
 
   const [acting, setActing] = React.useState<string | null>(null);
+  const [collapsed, setCollapsed] = React.useState(false);
 
   const handleApprove = async (id: string, reqNo: string) => {
     if (!window.confirm(`Duyệt + xuất kho yêu cầu ${reqNo}?`)) return;
@@ -790,7 +652,7 @@ function PendingRequestsPanel() {
         return;
       }
       toast.success(
-        `Đã duyệt + xuất ${reqNo} · ${json.data.totalQty} qty · ${json.data.txnIds.length} pick.`,
+        `Duyệt + xuất ${reqNo} · ${json.data.totalQty} qty · ${json.data.txnIds.length} pick.`,
       );
       void qc.invalidateQueries({ queryKey: ["warehouse"] });
       void refetch();
@@ -825,133 +687,151 @@ function PendingRequestsPanel() {
 
   const rows = data?.data ?? [];
 
+  if (rows.length === 0 && !isLoading) {
+    return null; // ẩn panel khi không có request nào
+  }
+
   return (
-    <section className="rounded-lg border border-amber-200 bg-amber-50/40 p-4">
-      <header className="mb-3 flex items-center justify-between">
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-amber-900">
+    <section className="rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50/50 shadow-sm">
+      <header className="flex items-center justify-between border-b border-amber-200 px-5 py-3">
+        <button
+          type="button"
+          onClick={() => setCollapsed((c) => !c)}
+          className="flex items-center gap-2 text-sm font-bold text-amber-900 hover:opacity-80"
+        >
           <ClipboardList className="h-4 w-4" />
-          Yêu cầu chờ duyệt ({rows.length})
-        </h3>
+          <span>
+            Yêu cầu chờ duyệt từ Vận hành ({rows.length})
+          </span>
+          <span className="text-xs font-normal text-amber-700">
+            {collapsed ? "▶" : "▼"}
+          </span>
+        </button>
         <button
           type="button"
           onClick={() => refetch()}
-          className="text-xs text-amber-700 hover:underline"
+          className="text-xs font-medium text-amber-700 hover:underline"
         >
-          Làm mới
+          ↻ Làm mới
         </button>
       </header>
 
-      {isLoading ? (
-        <p className="inline-flex items-center gap-1 text-xs text-zinc-500">
-          <Loader2 className="h-3 w-3 animate-spin" /> Đang tải…
-        </p>
-      ) : rows.length === 0 ? (
-        <p className="rounded-md border border-dashed border-amber-200 bg-white px-3 py-3 text-center text-xs text-zinc-500">
-          Không có yêu cầu nào đang chờ duyệt.
-        </p>
-      ) : (
-        <ul className="space-y-2">
-          {rows.map((r) => {
-            const totalLines = r.picksJson.length;
-            const totalPicks = r.picksJson.reduce(
-              (s, l) => s + l.picks.length,
-              0,
-            );
-            return (
-              <li
-                key={r.id}
-                className="rounded-md border border-zinc-200 bg-white p-3"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <code className="font-mono text-sm font-semibold text-indigo-900">
-                        {r.requestNo}
-                      </code>
-                      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
-                        {r.reason}
-                      </span>
-                      {r.reference && (
-                        <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-700">
-                          {r.reference}
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-1 text-xs text-zinc-600">
-                      Người tạo:{" "}
-                      <span className="font-semibold text-zinc-800">
-                        {r.requesterUsername ?? "?"}
-                      </span>{" "}
-                      ·{" "}
-                      <span className="tabular-nums">
-                        {totalLines} SKU / {totalPicks} pick / tổng{" "}
-                        {Number(r.totalQty).toLocaleString("vi-VN")}
-                      </span>
-                    </p>
-                    {r.notes && (
-                      <p className="mt-0.5 text-xs italic text-zinc-500">
-                        &quot;{r.notes}&quot;
-                      </p>
-                    )}
-                    <details className="mt-1.5">
-                      <summary className="cursor-pointer text-[11px] text-indigo-600 hover:underline">
-                        Chi tiết picks
-                      </summary>
-                      <div className="mt-1 max-h-40 overflow-auto rounded border border-zinc-100 bg-zinc-50 p-2 text-[11px]">
-                        {r.picksJson.map((line, li) => (
-                          <div key={li} className="mb-1.5">
-                            <code className="font-mono font-semibold text-zinc-700">
-                              {line.sku ?? line.itemId.slice(0, 8)}
-                            </code>
-                            <ul className="ml-3 mt-0.5 space-y-0.5">
-                              {line.picks.map((p, pi) => (
-                                <li
-                                  key={pi}
-                                  className="flex items-center gap-2 text-zinc-600"
-                                >
-                                  <span className="rounded bg-blue-50 px-1 font-mono text-[10px] text-blue-700">
-                                    {p.binCode ?? p.binId.slice(0, 8)}
-                                  </span>
-                                  <span className="font-mono">
-                                    {p.lotCode ?? "anon"}
-                                  </span>
-                                  <span className="ml-auto font-semibold tabular-nums">
-                                    {p.qty}
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
+      {!collapsed && (
+        <div className="p-3">
+          {isLoading ? (
+            <p className="inline-flex items-center gap-1 text-xs text-zinc-500">
+              <Loader2 className="h-3 w-3 animate-spin" /> Đang tải…
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {rows.map((r) => {
+                const totalLines = r.picksJson.length;
+                const totalPicks = r.picksJson.reduce(
+                  (s, l) => s + l.picks.length,
+                  0,
+                );
+                return (
+                  <li
+                    key={r.id}
+                    className="rounded-xl border border-zinc-200 bg-white p-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <code className="font-mono text-sm font-bold text-indigo-900">
+                            {r.requestNo}
+                          </code>
+                          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+                            {r.reason}
+                          </span>
+                          {r.reference && (
+                            <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-700">
+                              {r.reference}
+                            </span>
+                          )}
+                          <span className="text-[10px] text-zinc-500">
+                            {new Date(r.createdAt).toLocaleString("vi-VN")}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs text-zinc-600">
+                          Người tạo:{" "}
+                          <span className="font-semibold text-zinc-800">
+                            {r.requesterUsername ?? "?"}
+                          </span>{" "}
+                          ·{" "}
+                          <span className="tabular-nums">
+                            {totalLines} SKU / {totalPicks} pick / tổng{" "}
+                            <span className="font-semibold text-emerald-700">
+                              {Number(r.totalQty).toLocaleString("vi-VN")}
+                            </span>
+                          </span>
+                        </p>
+                        {r.notes && (
+                          <p className="mt-0.5 text-xs italic text-zinc-500">
+                            &quot;{r.notes}&quot;
+                          </p>
+                        )}
+                        <details className="mt-1.5">
+                          <summary className="cursor-pointer text-[11px] font-medium text-indigo-600 hover:underline">
+                            Chi tiết picks ({totalPicks})
+                          </summary>
+                          <div className="mt-1 max-h-40 overflow-auto rounded border border-zinc-100 bg-zinc-50 p-2 text-[11px]">
+                            {r.picksJson.map((line, li) => (
+                              <div key={li} className="mb-1.5">
+                                <code className="font-mono font-semibold text-zinc-700">
+                                  {line.sku ?? line.itemId.slice(0, 8)}
+                                </code>
+                                <ul className="ml-3 mt-0.5 space-y-0.5">
+                                  {line.picks.map((p, pi) => (
+                                    <li
+                                      key={pi}
+                                      className="flex items-center gap-2 text-zinc-600"
+                                    >
+                                      <span className="rounded bg-blue-50 px-1 font-mono text-[10px] text-blue-700">
+                                        {p.binCode ?? p.binId.slice(0, 8)}
+                                      </span>
+                                      <span className="font-mono">
+                                        {p.lotCode ?? "anon"}
+                                      </span>
+                                      <span className="ml-auto font-semibold tabular-nums">
+                                        {p.qty}
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        </details>
                       </div>
-                    </details>
-                  </div>
-                  <div className="flex shrink-0 flex-col gap-1">
-                    <Button
-                      size="sm"
-                      disabled={acting === r.id}
-                      onClick={() => handleApprove(r.id, r.requestNo)}
-                      className="bg-emerald-600 hover:bg-emerald-700"
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      Duyệt + xuất
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={acting === r.id}
-                      onClick={() => handleReject(r.id, r.requestNo)}
-                      className="border-rose-300 text-rose-700 hover:bg-rose-50"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                      Từ chối
-                    </Button>
-                  </div>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                      <div className="flex shrink-0 flex-col gap-1">
+                        <Button
+                          size="sm"
+                          disabled={acting === r.id}
+                          onClick={() => handleApprove(r.id, r.requestNo)}
+                          className="bg-emerald-600 hover:bg-emerald-700"
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Duyệt + xuất
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={acting === r.id}
+                          onClick={() => handleReject(r.id, r.requestNo)}
+                          className="border-rose-300 text-rose-700 hover:bg-rose-50"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          Từ chối
+                        </Button>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
       )}
     </section>
   );

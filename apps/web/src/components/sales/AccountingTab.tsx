@@ -88,43 +88,79 @@ function KpiCard({
   accent?: "zinc" | "emerald" | "red" | "indigo" | "amber";
   trend?: { dir: "up" | "down"; text: string };
 }) {
-  const bg: Record<string, string> = {
-    zinc:    "bg-white border-zinc-200",
-    emerald: "bg-emerald-50/60 border-emerald-200",
-    red:     "bg-red-50/60 border-red-200",
-    indigo:  "bg-indigo-50/60 border-indigo-200",
-    amber:   "bg-amber-50/60 border-amber-200",
+  // V3.7.14 — KPI card với gradient + shadow
+  const cardStyle: Record<string, string> = {
+    zinc: "bg-white border-zinc-200",
+    emerald: "bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-200",
+    red: "bg-gradient-to-br from-rose-50 to-red-50 border-rose-200",
+    indigo: "bg-gradient-to-br from-indigo-50 to-violet-50 border-indigo-200",
+    amber: "bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200",
   };
-  const iconBg: Record<string, string> = {
-    zinc:    "bg-zinc-100 text-zinc-600",
-    emerald: "bg-emerald-100 text-emerald-700",
-    red:     "bg-red-100 text-red-600",
-    indigo:  "bg-indigo-100 text-indigo-700",
-    amber:   "bg-amber-100 text-amber-700",
+  const iconStyle: Record<string, string> = {
+    zinc: "bg-gradient-to-br from-zinc-100 to-zinc-200 text-zinc-700",
+    emerald:
+      "bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-200",
+    red: "bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-md shadow-rose-200",
+    indigo:
+      "bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md shadow-indigo-200",
+    amber:
+      "bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-md shadow-amber-200",
   };
   const valColor: Record<string, string> = {
-    zinc:    "text-zinc-900",
+    zinc: "text-zinc-900",
     emerald: "text-emerald-700",
-    red:     "text-red-600",
-    indigo:  "text-indigo-700",
-    amber:   "text-amber-700",
+    red: "text-rose-600",
+    indigo: "text-indigo-700",
+    amber: "text-amber-700",
   };
   return (
-    <div className={cn("rounded-2xl border p-5 shadow-sm", bg[accent])}>
-      <div className="flex items-start justify-between mb-3">
-        <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", iconBg[accent])}>
+    <div
+      className={cn(
+        "group relative overflow-hidden rounded-2xl border p-5 shadow-sm transition-all hover:shadow-md",
+        cardStyle[accent],
+      )}
+    >
+      <div className="mb-3 flex items-start justify-between">
+        <div
+          className={cn(
+            "flex h-11 w-11 items-center justify-center rounded-xl transition-transform group-hover:scale-110",
+            iconStyle[accent],
+          )}
+        >
           <Icon className="h-5 w-5" />
         </div>
         {trend && (
-          <span className={cn("flex items-center gap-0.5 text-xs font-medium", trend.dir === "up" ? "text-emerald-600" : "text-red-500")}>
-            {trend.dir === "up" ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+          <span
+            className={cn(
+              "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-semibold",
+              trend.dir === "up"
+                ? "bg-emerald-100 text-emerald-700"
+                : "bg-rose-100 text-rose-600",
+            )}
+          >
+            {trend.dir === "up" ? (
+              <ArrowUpRight className="h-3 w-3" />
+            ) : (
+              <ArrowDownRight className="h-3 w-3" />
+            )}
             {trend.text}
           </span>
         )}
       </div>
-      <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500">{label}</p>
-      <p className={cn("mt-1 font-mono text-2xl font-bold tabular-nums", valColor[accent])}>{value}</p>
-      {sub && <p className="mt-0.5 text-[11px] text-zinc-400">{sub}</p>}
+      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+        {label}
+      </p>
+      <p
+        className={cn(
+          "mt-1 font-mono text-2xl font-extrabold tabular-nums",
+          valColor[accent],
+        )}
+      >
+        {value}
+      </p>
+      {sub && (
+        <p className="mt-0.5 text-[11px] font-medium text-zinc-500">{sub}</p>
+      )}
     </div>
   );
 }
@@ -171,35 +207,65 @@ export function AccountingTab() {
   const pendingCount  = pendingPOs.length;
 
   return (
-    <div className="flex h-full flex-col">
-      {/* ── Header ── */}
+    <div className="flex h-full flex-col bg-gradient-to-br from-zinc-50 to-emerald-50/30">
+      {/* ── Header (V3.7.14 redesign) ── */}
       <header className="border-b border-zinc-200 bg-white px-6 py-5">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-zinc-900">
-          <Banknote className="h-6 w-6 text-indigo-600" aria-hidden />
-          Kế toán &amp; Thanh toán
-        </h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Theo dõi giá trị PO, công nợ phải trả và lịch sử thanh toán nhà cung cấp.
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-200">
+              <Banknote className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-zinc-900">
+                Kế toán &amp; Thanh toán
+              </h1>
+              <p className="mt-0.5 text-sm text-zinc-500">
+                Giá trị PO · công nợ phải trả · lịch sử thanh toán NCC
+              </p>
+            </div>
+          </div>
+          {!poQuery.isLoading && (
+            <div className="hidden items-center gap-2 lg:flex">
+              <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2 shadow-sm">
+                <p className="text-[10px] uppercase tracking-wide text-zinc-500">
+                  Tổng PO
+                </p>
+                <p className="font-mono text-lg font-bold tabular-nums text-zinc-900">
+                  {allPOs.length}
+                </p>
+              </div>
+              {overdueCount > 0 && (
+                <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 shadow-sm">
+                  <p className="text-[10px] uppercase tracking-wide text-rose-600">
+                    Quá hạn
+                  </p>
+                  <p className="font-mono text-lg font-bold tabular-nums text-rose-700">
+                    {overdueCount}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </header>
 
-      {/* ── Sub-tab nav ── */}
+      {/* ── Sub-tab nav (V3.7.14 — pill-style) ── */}
       <div className="border-b border-zinc-200 bg-white px-6">
-        <div className="flex gap-1">
+        <div className="flex gap-0.5 overflow-x-auto">
           {ACC_TABS.map((t) => (
             <button
               key={t.key}
               type="button"
               onClick={() => setActiveTab(t.key)}
               className={cn(
-                "relative flex items-center gap-2 px-4 py-3 text-sm font-semibold transition-colors",
-                "after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:rounded-t-full after:transition-all",
+                "relative inline-flex items-center gap-2 whitespace-nowrap px-4 py-3 text-sm font-semibold transition-all",
+                "after:absolute after:bottom-0 after:left-2 after:right-2 after:h-1 after:rounded-t-full after:transition-all",
                 activeTab === t.key
-                  ? "text-indigo-700 after:bg-indigo-600"
+                  ? "text-emerald-700 after:bg-gradient-to-r after:from-emerald-500 after:to-teal-600"
                   : "text-zinc-500 hover:text-zinc-800 after:bg-transparent",
               )}
             >
-              <t.icon className="h-4 w-4" />
+              <t.icon className={cn("h-4 w-4", activeTab === t.key && "text-emerald-600")} />
               {t.label}
             </button>
           ))}
@@ -207,7 +273,7 @@ export function AccountingTab() {
       </div>
 
       {/* ── Content ── */}
-      <div className="flex-1 overflow-auto bg-zinc-50/40 px-6 py-6">
+      <div className="flex-1 overflow-auto px-6 py-6">
         {activeTab === "dashboard" && (
           <DashboardTab allPOs={allPOs} isLoading={poQuery.isLoading}
             totalAmount={totalAmount} receivedAmt={receivedAmt} pendingAmt={pendingAmt}
