@@ -61,45 +61,6 @@ interface POStub {
   };
 }
 
-const DEMO_POS: Record<string, POStub> = {
-  demo: {
-    poId: "demo",
-    poCode: "PO-DEMO-001",
-    supplierName: "NCC Demo",
-    expectedDate: "2026-04-20",
-    lines: [
-      { lineNo: 1, sku: "RM-THEP-C45", itemName: "Thép C45 tấm 10mm", expectedQty: 50, uom: "KG" },
-      { lineNo: 2, sku: "RM-BULON-M8", itemName: "Bu lông M8x25", expectedQty: 200, uom: "PCS" },
-      { lineNo: 3, sku: "RM-DAU-ISO46", itemName: "Dầu bôi trơn ISO 46", expectedQty: 10, uom: "L" },
-    ],
-  },
-  "demo-small": {
-    poId: "demo-small",
-    poCode: "PO-DEMO-SMALL",
-    supplierName: "NCC Demo Small",
-    expectedDate: "2026-04-20",
-    lines: [
-      { lineNo: 1, sku: "RM-THEP-C45", itemName: "Thép C45 tấm 10mm", expectedQty: 20, uom: "KG" },
-    ],
-  },
-  "demo-large": {
-    poId: "demo-large",
-    poCode: "PO-DEMO-LARGE",
-    supplierName: "NCC Demo Large",
-    expectedDate: "2026-04-25",
-    lines: [
-      { lineNo: 1, sku: "RM-THEP-C45", itemName: "Thép C45 tấm 10mm", expectedQty: 200, uom: "KG" },
-      { lineNo: 2, sku: "RM-THEP-S50C", itemName: "Thép S50C 20mm", expectedQty: 150, uom: "KG" },
-      { lineNo: 3, sku: "RM-BULON-M8", itemName: "Bu lông M8x25", expectedQty: 500, uom: "PCS" },
-      { lineNo: 4, sku: "RM-BULON-M10", itemName: "Bu lông M10x30", expectedQty: 300, uom: "PCS" },
-      { lineNo: 5, sku: "RM-DAU-ISO46", itemName: "Dầu bôi trơn ISO 46", expectedQty: 30, uom: "L" },
-      { lineNo: 6, sku: "RM-DAU-ISO68", itemName: "Dầu bôi trơn ISO 68", expectedQty: 20, uom: "L" },
-      { lineNo: 7, sku: "RM-BANH-RANG-M2", itemName: "Bánh răng M2", expectedQty: 50, uom: "PCS" },
-      { lineNo: 8, sku: "RM-VONG-BI-6205", itemName: "Vòng bi 6205", expectedQty: 80, uom: "PCS" },
-    ],
-  },
-};
-
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -117,15 +78,7 @@ export async function GET(
   if ("response" in guard) return guard.response;
 
   const rawId = params.id;
-  const id = rawId.toLowerCase();
 
-  // Fallback stub cho PWA demo path (back-compat V1.1-alpha).
-  if (id.startsWith("demo")) {
-    const po = DEMO_POS[id] ?? DEMO_POS.demo;
-    return NextResponse.json({ data: po });
-  }
-
-  // V1.8 Batch 6 — DB thật.
   if (!UUID_RE.test(rawId)) {
     return jsonError("PO_NOT_FOUND", "Mã PO không hợp lệ.", 404);
   }
