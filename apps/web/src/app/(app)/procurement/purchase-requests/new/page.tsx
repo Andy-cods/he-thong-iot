@@ -172,11 +172,18 @@ function ManualWizard({ router }: { router: ReturnType<typeof useRouter> }) {
   };
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
-      <header className="border-b border-zinc-200 bg-white px-6 py-4">
+    <div className="flex h-full flex-col overflow-hidden bg-gradient-to-br from-zinc-50 to-violet-50/30">
+      <header className="border-b border-zinc-200 bg-white px-6 py-5">
         <nav aria-label="Breadcrumb" className="text-xs text-zinc-500">
           <Link href="/" className="hover:text-zinc-900 hover:underline">
             Tổng quan
+          </Link>
+          <span className="mx-1.5 text-zinc-300">›</span>
+          <Link
+            href="/procurement"
+            className="hover:text-zinc-900 hover:underline"
+          >
+            Thu mua
           </Link>
           <span className="mx-1.5 text-zinc-300">›</span>
           <Link
@@ -186,11 +193,35 @@ function ManualWizard({ router }: { router: ReturnType<typeof useRouter> }) {
             Yêu cầu mua hàng
           </Link>
           <span className="mx-1.5 text-zinc-300">›</span>
-          <span className="text-zinc-900">Tạo mới</span>
+          <span className="font-medium text-zinc-900">Tạo mới</span>
         </nav>
-        <h1 className="mt-1 text-xl font-semibold tracking-tight text-zinc-900">
-          Tạo Yêu cầu mua hàng
-        </h1>
+        <div className="mt-2 flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-lg shadow-violet-200">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-6 w-6 text-white"
+            >
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="9" y1="13" x2="15" y2="13" />
+              <line x1="9" y1="17" x2="13" y2="17" />
+            </svg>
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-900">
+              Yêu cầu mua hàng
+            </h1>
+            <p className="mt-0.5 text-sm text-zinc-500">
+              Wizard 3 bước · thông tin chung → vật tư cần mua → review &amp; gửi
+            </p>
+          </div>
+        </div>
       </header>
 
       <Wizard
