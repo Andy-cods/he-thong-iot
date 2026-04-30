@@ -174,7 +174,7 @@ async function main() {
     const checks = [
       ["Layout tab", "/api/warehouse/layout"],
       ["Items tab", "/api/items?pageSize=10"],
-      ["Receiving tab — PO list", "/api/purchase-orders?status=SENT,PARTIAL&pageSize=10"],
+      ["Receiving tab — PO list", "/api/purchase-orders?status=SENT&status=PARTIAL&pageSize=10"],
       ["Issue tab — ISR list", "/api/warehouse/issue-request?status=PENDING&pageSize=10"],
       ["Lot/Serial inquiry", "/api/inventory/balance?pageSize=10"],
       ["Notifications", "/api/notifications?limit=20"],
@@ -186,15 +186,15 @@ async function main() {
            : fail("C.KHO", name, `HTTP ${r.status} body=${JSON.stringify(r.body).slice(0,200)}`);
     }
 
-    // Bin transfer test (cần ≥2 bin có stock)
+    // Layout health check
     const layout = await call("KHO-A", "GET", "/api/warehouse/layout");
-    const allBins = (layout.body?.data?.zones ?? [])
-      .flatMap(z => z.racks ?? [])
-      .flatMap(r => r.bins ?? []);
-    const occupied = allBins.filter(b => (b.totalQty ?? 0) > 0);
-    summary(`Layout zones: ${layout.body?.data?.zones?.length ?? 0}, occupied bins: ${occupied.length}`,
-      occupied.length > 0, `${occupied.length} bins có hàng`);
-    if (occupied.length === 0) warn("C.KHO", "No occupied bins", "Layout không có bin nào có hàng — receiving chưa tạo movement?");
+    const stats = layout.body?.data?.stats ?? {};
+    const occupied = stats.occupiedBins ?? 0;
+    const totalQty = stats.totalQty ?? 0;
+    summary(`Layout: ${stats.totalBins ?? 0} bins, ${occupied} occupied, totalQty=${totalQty}`,
+      occupied > 0, `${occupied} bins có hàng`);
+    if (occupied === 0) warn("C.KHO", "No occupied bins", "Layout không có bin nào có hàng — chưa có inventory hay receiving fail?");
+    else pass("C.KHO", "Layout health", `${occupied}/${stats.totalBins} bins, qty=${totalQty}`);
   }
 
   // ===== D. SALES/PROCUREMENT TABS (TM-A) =====
