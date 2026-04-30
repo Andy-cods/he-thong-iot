@@ -80,18 +80,29 @@ const HEADER_SCAN_DEPTH = 5;
 /** Ngưỡng tối thiểu non-empty cell để 1 row trở thành ứng viên header. */
 const MIN_HEADER_CELLS = 3;
 
-function cellToString(v: unknown): string {
+function cellToString(v: unknown, depth = 0): string {
   if (v === null || v === undefined) return "";
   if (typeof v === "string") return v;
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  if (v instanceof Date) return v.toISOString();
+  if (depth > 4) return "";
   if (typeof v === "object") {
-    if ("text" in (v as Record<string, unknown>)) return String((v as { text: string }).text ?? "");
-    if ("result" in (v as Record<string, unknown>)) return String((v as { result: unknown }).result ?? "");
-    if ("richText" in (v as Record<string, unknown>)) {
-      const rt = (v as { richText: Array<{ text: string }> }).richText ?? [];
-      return rt.map((r) => r.text).join("");
+    const obj = v as Record<string, unknown>;
+    if ("richText" in obj && Array.isArray(obj.richText)) {
+      return (obj.richText as Array<{ text?: unknown }>)
+        .map((r) => cellToString(r?.text, depth + 1))
+        .join("");
     }
+    if ("text" in obj) return cellToString(obj.text, depth + 1);
+    if ("result" in obj) return cellToString(obj.result, depth + 1);
+    if ("hyperlink" in obj && "tooltip" in obj) {
+      return cellToString(obj.tooltip, depth + 1);
+    }
+    if ("error" in obj) return "";
+    if ("value" in obj) return cellToString(obj.value, depth + 1);
   }
-  return String(v);
+  const s = String(v);
+  return s === "[object Object]" ? "" : s;
 }
 
 function countHeaderMatches(cells: string[]): number {
