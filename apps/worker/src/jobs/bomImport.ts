@@ -2,6 +2,7 @@ import type { Job } from "bullmq";
 import { eq, sql } from "drizzle-orm";
 import {
   bomLine,
+  bomSheet,
   bomTemplate,
   importBatch,
   item,
@@ -126,12 +127,42 @@ export async function processBomImportCommit(
       templatesCreated++;
     }
 
+    // Tìm hoặc tạo bom_sheet kind=PROJECT (mọi bom_line phải có sheet_id NOT NULL).
+    const [existingSheet] = await db
+      .select({ id: bomSheet.id })
+      .from(bomSheet)
+      .where(
+        sql`${bomSheet.templateId} = ${templateId} AND ${bomSheet.kind} = 'PROJECT'`,
+      )
+      .limit(1);
+
+    let sheetId: string;
+    if (existingSheet) {
+      sheetId = existingSheet.id;
+    } else {
+      const [createdSheet] = await db
+        .insert(bomSheet)
+        .values({
+          templateId,
+          name: sheetName.slice(0, 250),
+          kind: "PROJECT",
+          position: 1,
+          createdBy: actorId,
+          metadata: { sourceSheetName: sheetName, importedFromBatch: batchId },
+        })
+        .returning({ id: bomSheet.id });
+      if (!createdSheet)
+        throw new Error(`Không tạo được bom_sheet cho ${sheetName}`);
+      sheetId = createdSheet.id;
+    }
+
     // Process rows per chunk 100
     for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
       const chunk = rows.slice(i, i + CHUNK_SIZE);
       const result = await processChunk({
         chunk,
         templateId,
+        sheetId,
         sheetName,
         mapping: sheetMapping,
         autoCreateMissingItems,
@@ -184,6 +215,7 @@ async function nextRootPosition(templateId: string): Promise<number> {
 interface ProcessChunkInput {
   chunk: StoredRow[];
   templateId: string;
+  sheetId: string;
   sheetName: string;
   mapping: Record<string, string | null>;
   autoCreateMissingItems: boolean;
@@ -338,6 +370,7 @@ async function processChunk(
 
         await tx.insert(bomLine).values({
           templateId: input.templateId,
+          sheetId: input.sheetId,
           parentLineId: null, // V1.1-alpha: import flat level 1
           componentItemId,
           level: 1,
