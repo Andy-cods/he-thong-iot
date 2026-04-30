@@ -130,12 +130,14 @@ function readRowCells(ws: ExcelJS.Worksheet, rowNumber: number): string[] {
 }
 
 /**
- * V3 — Regex nhận diện project code "Bản chính thức".
- * Ví dụ topTitle: "Z0000002-502653_BANG TAI DIPPING R01"
- *                 "Z0000002-502654_BANG TAI DIPPING L01"
- * Pattern: Z<7-9 digits>-<6 digits>_<text>
+ * V3.7.34 — Regex nhận diện project code "Bản chính thức" (NEW final template).
+ * Match Z<digits>-<digits> ANYWHERE in title (không bắt buộc đầu chuỗi).
+ * Ví dụ topTitle:
+ *   "Z0000002-502653_BANG TAI DIPPING R01"           (V1 cũ)
+ *   "CONVEYOR_Z0000002-508684_ Code_Conveyor_Shutter 2" (V2 final — user)
+ * Pattern: Z<6-10 digits>-<4-8 digits>
  */
-const OFFICIAL_PROJECT_TITLE_RE = /^Z\d{6,10}-\d{4,8}_/i;
+const OFFICIAL_PROJECT_TITLE_RE = /Z\d{6,10}-\d{4,8}/i;
 
 /**
  * V3 — Pattern nhận diện sheet master Material&Process.
@@ -143,14 +145,28 @@ const OFFICIAL_PROJECT_TITLE_RE = /^Z\d{6,10}-\d{4,8}_/i;
 const OFFICIAL_MASTER_NAME_RE = /material\s*[&+]?\s*process|materialprocess/i;
 
 /**
- * V3 — header tối thiểu để confirm sheet là PROJECT (không tính title).
- * Cần ≥ 4/6 trong các canonical headers.
+ * V3.7.34 — header chuẩn cho NEW final template (10 cột tiếng Việt).
+ * normHeader chuẩn hóa: lowercase + bỏ ký tự non-alphanumeric.
+ *   "BOM gốc" → "bomgoc"
+ *   "Quantity (hệ số)" → "quantityheso"
+ *   "Quy cách (tham khảo)" → "quycachthamkhao"
+ *   "Ghi chú" → "ghichu"
+ *   "ID Number" → "idnumber"
+ * Cần match ≥ 5/10 → PROJECT (kể cả title không match).
  */
 const OFFICIAL_PROJECT_HEADERS_REQUIRED = [
+  // NEW final template (V3.7.34) — tiếng Việt
   "idnumber",
-  "quantity",
-  "standardnumber",
+  "quantity", // matches "quantityheso" via includes()
+  "bomgoc",
+  "ghichu",
+  "category",
+  "quycach", // matches "quycachthamkhao"
   "ncc",
+  "pic",
+  "sl",
+  // Legacy English headers (V1 — backward compat)
+  "standardnumber",
   "subcategory",
   "visiblepartsize",
 ];
@@ -381,7 +397,7 @@ export async function parseBomImport(buffer: Buffer): Promise<BomParseResult> {
             ? ` + ${masterCount} sheet master Material&Process (sẽ bỏ qua phase 1)`
             : ""
         }.`
-      : 'Không nhận diện được template "Bản chính thức". File phải có ít nhất 1 sheet với title `Z<số>-<số>_BANG TAI...` và header chuẩn (ID Number, Quantity, Standard Number, NCC).',
+      : 'Không nhận diện được template "Bản chính thức". File chuẩn cần ít nhất 1 sheet có code Z<số>-<số> trong title VÀ header gồm: ID Number, Quantity (hệ số), BOM gốc, Ghi chú, Category, Quy cách (tham khảo), NCC, PIC, SL.',
     sheetKinds,
   };
 
