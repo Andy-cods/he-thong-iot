@@ -207,7 +207,7 @@ export function BomImportWizard() {
   };
 
   const activeSheetName = selectedSheets[activeSheetIdx] ?? "";
-  const activeSheet: BomImportSheet | undefined = uploadData?.sheets.find(
+  const activeSheet: BomImportSheet | undefined = uploadData?.sheets?.find(
     (s) => s.sheetName === activeSheetName,
   );
 
