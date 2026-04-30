@@ -334,6 +334,17 @@ export async function softDeleteTemplate(id: string) {
 }
 
 /**
+ * V3.7.36 — Hard delete BOM template + cascade.
+ * bom_sheet, bom_line, bom_revision đã ON DELETE CASCADE → tự xoá.
+ * material_request.bom_template_id ON DELETE SET NULL → giữ lại record.
+ * eco / sales_order / product_line_member NO ACTION → throw 23503 nếu
+ * có tham chiếu (caller xử lý trả 409 HAS_REFERENCES).
+ */
+export async function hardDeleteTemplate(id: string): Promise<void> {
+  await db.delete(bomTemplate).where(eq(bomTemplate.id, id));
+}
+
+/**
  * Load toàn bộ tree của 1 template (depth ≤ 5) dạng flat array + metadata.
  * Dùng recursive CTE server-side để tránh N+1.
  */

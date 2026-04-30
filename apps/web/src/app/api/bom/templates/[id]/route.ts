@@ -3,6 +3,7 @@ import { bomTemplateUpdateSchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import {
   getTemplateById,
+  hardDeleteTemplate,
   loadTree,
   softDeleteTemplate,
   updateTemplate,
@@ -121,13 +122,60 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  // Soft delete: admin (delete/bomTemplate). Planner không được trong matrix.
   const guard = await requireCan(req, "delete", "bomTemplate");
   if ("response" in guard) return guard.response;
 
   const before = await getTemplateById(params.id);
   if (!before) return jsonError("NOT_FOUND", "Không tìm thấy BOM.", 404);
 
+  // V3.7.36 — Hard delete với ?hard=true (admin only). Yêu cầu BOM phải
+  // OBSOLETE trước (delete 2 bước: soft → hard) để tránh accidental wipe.
+  const isHard = req.nextUrl.searchParams.get("hard") === "true";
+  if (isHard) {
+    if (!guard.session.roles.includes("admin")) {
+      return jsonError(
+        "FORBIDDEN",
+        "Chỉ admin được hard-delete BOM.",
+        403,
+      );
+    }
+    if (before.status !== "OBSOLETE") {
+      return jsonError(
+        "MUST_BE_OBSOLETE",
+        "BOM phải ở trạng thái OBSOLETE (đã soft-delete) trước khi hard-delete.",
+        409,
+      );
+    }
+    try {
+      await hardDeleteTemplate(params.id);
+    } catch (err) {
+      const e = err as { code?: string; message?: string };
+      logger.error({ err, id: params.id }, "hard delete bom template failed");
+      // PG FK violation 23503 — BOM đang được tham chiếu bởi ECO/SO/product_line
+      if (e.code === "23503" || (e.message ?? "").includes("foreign key")) {
+        return jsonError(
+          "HAS_REFERENCES",
+          "BOM đang được tham chiếu bởi ECO / Sales Order / Product Line. Phải xoá các tham chiếu trước.",
+          409,
+        );
+      }
+      return jsonError("INTERNAL", "Không xoá được BOM.", 500);
+    }
+    const meta = extractRequestMeta(req);
+    await writeAudit({
+      actor: guard.session,
+      action: "DELETE",
+      objectType: "bom_template",
+      objectId: params.id,
+      before: { code: before.code, status: before.status },
+      after: null,
+      notes: "HARD delete (đã xoá khỏi DB)",
+      ...meta,
+    });
+    return NextResponse.json({ data: { id: params.id, hardDeleted: true } });
+  }
+
+  // Soft delete (mặc định)
   if (before.status === "OBSOLETE") {
     return jsonError("ALREADY_OBSOLETE", "BOM đã ở trạng thái ngừng dùng.", 400);
   }
