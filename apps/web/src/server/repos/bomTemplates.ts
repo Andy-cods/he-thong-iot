@@ -356,6 +356,14 @@ export interface BomTreeNode {
   uom: string | null;
   description: string | null;
   supplierItemCode: string | null;
+  /** V3.7.18 — PIC user matched từ Excel */
+  assignedToUserId: string | null;
+  assignedToFullName: string | null;
+  assignedToName: string | null;
+  /** V3.7.19 — Tracking PIC update */
+  receivedQty: string | null;
+  expectedEta: string | null;
+  statusNote: string | null;
   metadata: Record<string, unknown>;
   /**
    * V2.0 — kích thước vật lý jsonb từ `item.dimensions`
@@ -395,12 +403,16 @@ export async function loadTree(
       t.id, t.parent_line_id, t.template_id, t.component_item_id,
       t.level, t.position, t.position_code, t.qty_per_parent, t.scrap_percent,
       t.uom, t.description, t.supplier_item_code, t.metadata,
+      t.assigned_to_user_id, t.assigned_to_name,
+      t.received_qty, t.expected_eta, t.status_note,
+      pic.full_name AS assigned_to_full_name,
       i.sku AS component_sku, i.name AS component_name, i.uom AS component_uom,
       i.category AS component_category, i.item_type AS component_item_type,
       i.dimensions AS item_dimensions, i.spec_json AS item_spec_json,
       (SELECT count(*)::int FROM app.bom_line c WHERE c.parent_line_id = t.id) AS child_count
     FROM tree t
     LEFT JOIN app.item i ON i.id = t.component_item_id
+    LEFT JOIN app.user_account pic ON pic.id = t.assigned_to_user_id
     ORDER BY t.level, t.position
   `);
 
@@ -424,6 +436,12 @@ export async function loadTree(
     uom: (r.uom as string | null) ?? null,
     description: (r.description as string | null) ?? null,
     supplierItemCode: (r.supplier_item_code as string | null) ?? null,
+    assignedToUserId: (r.assigned_to_user_id as string | null) ?? null,
+    assignedToFullName: (r.assigned_to_full_name as string | null) ?? null,
+    assignedToName: (r.assigned_to_name as string | null) ?? null,
+    receivedQty: r.received_qty != null ? String(r.received_qty) : null,
+    expectedEta: (r.expected_eta as string | null) ?? null,
+    statusNote: (r.status_note as string | null) ?? null,
     metadata: (r.metadata as Record<string, unknown>) ?? {},
     itemDimensions:
       (r.item_dimensions as Record<string, unknown> | null) ?? null,

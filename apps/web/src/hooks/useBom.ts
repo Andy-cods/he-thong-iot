@@ -60,6 +60,15 @@ export interface BomTreeNodeRaw {
   uom: string | null;
   description: string | null;
   supplierItemCode: string | null;
+  /** V3.7.18 — PIC user matched từ Excel "PIC" column. NULL nếu không match. */
+  assignedToUserId: string | null;
+  assignedToFullName: string | null;
+  /** V3.7.18 — Raw PIC text từ Excel khi không match user. */
+  assignedToName: string | null;
+  /** V3.7.19 — Tracking PIC update */
+  receivedQty: string | null;
+  expectedEta: string | null;
+  statusNote: string | null;
   metadata: Record<string, unknown>;
   /**
    * V2.0 — `item.dimensions` jsonb `{length, width, height, unit}` (mm mặc

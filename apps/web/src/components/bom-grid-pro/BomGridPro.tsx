@@ -545,6 +545,28 @@ export function BomGridPro({
         <td className="px-2 font-mono text-xs text-zinc-600 truncate">
           {row.node.supplierItemCode ?? "—"}
         </td>
+        {/* PIC — V3.7.19 */}
+        <td className="px-2 truncate">
+          {row.node.assignedToFullName ? (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700"
+              title={`PIC: ${row.node.assignedToFullName} (${row.node.assignedToName ?? "matched"})`}
+            >
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-indigo-500" />
+              {row.node.assignedToFullName}
+            </span>
+          ) : row.node.assignedToName ? (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700"
+              title={`Chưa match user: "${row.node.assignedToName}"`}
+            >
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
+              {row.node.assignedToName}
+            </span>
+          ) : (
+            <span className="text-xs text-zinc-300">—</span>
+          )}
+        </td>
         {/* Ghi chú (Note 1/2/3 concat) */}
         <td className="px-2 text-xs italic text-zinc-500 truncate">
           {row.node.metadata && (row.node.metadata as { notes?: string }).notes
@@ -647,6 +669,7 @@ export function BomGridPro({
             <col style={{ width: "200px" }} />  {/* Tên / Mô tả */}
             <col style={{ width: "120px" }} />  {/* Kích thước */}
             <col style={{ width: "110px" }} />  {/* NCC */}
+            <col style={{ width: "100px" }} />  {/* PIC (V3.7.19) */}
             <col style={{ width: "120px" }} />  {/* Ghi chú */}
             <col style={{ width: "60px" }} />   {/* Hao hụt */}
             <col style={{ width: "150px" }} />  {/* Tiến độ */}
@@ -736,6 +759,9 @@ export function BomGridPro({
                     </div>
                   )}
                 </div>
+              </th>
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
+                PIC
               </th>
               <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
                 Ghi chú

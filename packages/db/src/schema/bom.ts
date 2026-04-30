@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  date,
   foreignKey,
   index,
   integer,
@@ -117,6 +118,17 @@ export const bomLine = appSchema.table(
      * (vd "Tiến/Cường" multi-PIC, "Đức" chỉ first name không có full match).
      */
     assignedToName: varchar("assigned_to_name", { length: 255 }),
+    /** V3.7.19 — SL đã về (manual tracker bởi PIC, không thay inventory_txn). */
+    receivedQty: numeric("received_qty", { precision: 18, scale: 4 })
+      .notNull()
+      .default("0"),
+    /** V3.7.19 — Ngày NCC giao dự kiến (PIC tự update). */
+    expectedEta: date("expected_eta"),
+    /** V3.7.19 — Note tiến độ ngắn ('đã đặt', 'về đủ',...). */
+    statusNote: varchar("status_note", { length: 255 }),
+    /** V3.7.19 — Audit khi PIC update lần cuối. */
+    picUpdatedAt: timestamp("pic_updated_at", { withTimezone: true }),
+    picUpdatedBy: uuid("pic_updated_by"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
