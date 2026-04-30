@@ -487,6 +487,49 @@ export async function cloneTemplate(
 
     if (!cloned) throw new Error("Không clone được template");
 
+    // V3.7.31 — Clone bom_sheet rows trước (line.sheetId NOT NULL).
+    // Build sheetId map (old → new) để re-map khi copy lines.
+    const sourceSheets = await tx
+      .select()
+      .from(bomSheet)
+      .where(eq(bomSheet.templateId, sourceId))
+      .orderBy(asc(bomSheet.position));
+
+    const sheetIdMap = new Map<string, string>();
+    for (const s of sourceSheets) {
+      const [insertedSheet] = await tx
+        .insert(bomSheet)
+        .values({
+          templateId: cloned.id,
+          name: s.name,
+          kind: s.kind,
+          position: s.position,
+          metadata: s.metadata,
+          createdBy: actorId,
+        })
+        .returning({ id: bomSheet.id });
+      if (insertedSheet) sheetIdMap.set(s.id, insertedSheet.id);
+    }
+
+    // Nếu source không có sheet (BOM cũ pre-V2.0) → tạo PROJECT default.
+    if (sheetIdMap.size === 0) {
+      const [fallback] = await tx
+        .insert(bomSheet)
+        .values({
+          templateId: cloned.id,
+          name: "Sheet 1",
+          kind: "PROJECT",
+          position: 1,
+          metadata: { defaultSheet: true, autoOnClone: true },
+          createdBy: actorId,
+        })
+        .returning({ id: bomSheet.id });
+      if (fallback) {
+        // Map ALL old sheetIds (including null) → fallback
+        sheetIdMap.set("__fallback__", fallback.id);
+      }
+    }
+
     // Load toàn bộ lines nguồn ORDER BY level
     const sourceLines = await tx
       .select()
@@ -500,10 +543,17 @@ export async function cloneTemplate(
       const newParentLineId = line.parentLineId
         ? idMap.get(line.parentLineId) ?? null
         : null;
+      const newSheetId = line.sheetId
+        ? sheetIdMap.get(line.sheetId)
+        : sheetIdMap.get("__fallback__") ?? Array.from(sheetIdMap.values())[0];
+      if (!newSheetId) {
+        throw new Error("Không resolve được sheet_id mới cho line clone");
+      }
       const [inserted] = await tx
         .insert(bomLine)
         .values({
           templateId: cloned.id,
+          sheetId: newSheetId,
           parentLineId: newParentLineId,
           componentItemId: line.componentItemId,
           level: line.level,
