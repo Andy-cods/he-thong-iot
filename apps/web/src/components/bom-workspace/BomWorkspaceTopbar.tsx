@@ -11,6 +11,7 @@ import {
   History,
   MoreHorizontal,
   Pencil,
+  RefreshCw,
   Rocket,
   ScanLine,
   Trash2,
@@ -155,6 +156,17 @@ export function BomWorkspaceTopbar({
     }
   };
 
+  // V3.7.35 — Khôi phục BOM OBSOLETE → DRAFT.
+  const handleRestore = async () => {
+    if (!confirm(`Khôi phục BOM "${template.code}" về trạng thái DRAFT?`)) return;
+    try {
+      await updateBom.mutateAsync({ status: "DRAFT" });
+      toast.success(`Đã khôi phục BOM "${template.code}" về DRAFT.`);
+    } catch (err) {
+      toast.error((err as Error).message ?? "Không khôi phục được BOM.");
+    }
+  };
+
   const isObsolete = template.status === "OBSOLETE";
 
   return (
@@ -248,6 +260,12 @@ export function BomWorkspaceTopbar({
             <DropdownMenuItem onClick={() => void handleRename()}>
               <Pencil className="h-3.5 w-3.5" aria-hidden />
               Đổi tên BOM
+            </DropdownMenuItem>
+          )}
+          {isObsolete && (
+            <DropdownMenuItem onClick={() => void handleRestore()}>
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+              Khôi phục về DRAFT
             </DropdownMenuItem>
           )}
           <DropdownMenuItem onClick={() => void handleClone()}>

@@ -46,13 +46,32 @@ export async function PATCH(
   const before = await getTemplateById(params.id);
   if (!before) return jsonError("NOT_FOUND", "Không tìm thấy BOM.", 404);
 
-  // Transition rule: OBSOLETE là trạng thái cuối — không cho transition ra
-  if (before.status === "OBSOLETE" && body.data.status && body.data.status !== "OBSOLETE") {
-    return jsonError(
-      "INVALID_STATUS_TRANSITION",
-      "BOM đã ngừng dùng — không thể đổi trạng thái.",
-      409,
-    );
+  // V3.7.35 — OBSOLETE → DRAFT (khôi phục) chỉ cho admin/planner.
+  // Trước đây OBSOLETE là trạng thái cuối — không revive được, user xoá nhầm
+  // phải nhờ admin update DB. Giờ planner+admin tự khôi phục được.
+  if (
+    before.status === "OBSOLETE" &&
+    body.data.status &&
+    body.data.status !== "OBSOLETE"
+  ) {
+    if (body.data.status !== "DRAFT") {
+      return jsonError(
+        "INVALID_STATUS_TRANSITION",
+        "BOM ngừng dùng chỉ khôi phục được sang DRAFT (không phải ACTIVE).",
+        409,
+      );
+    }
+    if (
+      !guard.session.roles.includes("admin") &&
+      !guard.session.roles.includes("planner")
+    ) {
+      return jsonError(
+        "FORBIDDEN",
+        "Chỉ admin hoặc planner được khôi phục BOM.",
+        403,
+      );
+    }
+    // Pass-through — allow OBSOLETE → DRAFT revive.
   }
   // ACTIVE → OBSOLETE chỉ admin
   if (
