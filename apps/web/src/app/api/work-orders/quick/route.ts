@@ -9,7 +9,7 @@ import {
 import { db } from "@/lib/db";
 import { suggestFifoPicks } from "@/server/repos/warehouseLocation";
 import { jsonError, parseJson } from "@/server/http";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 import { writeAudit } from "@/server/services/audit";
 import { notifyIssueRequestNew } from "@/server/services/notifications";
 
@@ -52,7 +52,10 @@ const schema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const guard = await requireSession(req);
+  // V3.7.28 — RBAC enforce: chỉ planner/operator/admin được tạo WO.
+  // Trước đây dùng requireSession → bất kỳ logged-in user nào cũng tạo được
+  // (TM-A purchaser, KHO-A warehouse) — vi phạm RBAC matrix.
+  const guard = await requireCan(req, "create", "wo");
   if ("response" in guard) return guard.response;
 
   const body = await parseJson(req, schema);
