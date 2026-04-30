@@ -18,7 +18,11 @@ import { LoginSuccessSplash } from "./LoginSuccessSplash";
 export function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const nextPath = params.get("next") || "/bom";
+  // V3.7.30 — Default landing là `/` (Tổng quan) thay vì `/bom`.
+  // `/bom` redirect sang `/engineering` (V3) → role purchaser/operator/warehouse
+  // không có quyền truy cập → bị denied / redirect loop.
+  // `/` ai cũng vào được; sidebar tự lọc tab theo role.
+  const nextPath = params.get("next") || "/";
 
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
