@@ -7,6 +7,7 @@ import {
   salesOrder,
   supplier,
   item,
+  itemSupplier,
 } from "@iot/db/schema";
 import type {
   PurchaseOrder,
@@ -337,6 +338,30 @@ export async function createPOFromPR(
           .where(eq(purchaseRequestLine.id, lineId));
       }
       // Refresh lines
+      lines = await tx
+        .select()
+        .from(purchaseRequestLine)
+        .where(eq(purchaseRequestLine.prId, prId));
+    }
+
+    // V3.7.17 — Fallback: nếu line vẫn chưa có supplier, auto-pick từ
+    // item_supplier (preferred=true ưu tiên, nếu không có thì pick bất kỳ).
+    const stillMissing = lines.filter((l) => !l.preferredSupplierId);
+    if (stillMissing.length > 0) {
+      for (const line of stillMissing) {
+        const [pref] = await tx
+          .select({ supplierId: itemSupplier.supplierId })
+          .from(itemSupplier)
+          .where(eq(itemSupplier.itemId, line.itemId))
+          .orderBy(desc(itemSupplier.isPreferred))
+          .limit(1);
+        if (pref?.supplierId) {
+          await tx
+            .update(purchaseRequestLine)
+            .set({ preferredSupplierId: pref.supplierId })
+            .where(eq(purchaseRequestLine.id, line.id));
+        }
+      }
       lines = await tx
         .select()
         .from(purchaseRequestLine)

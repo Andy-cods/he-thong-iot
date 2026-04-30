@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prCreateSchema, prListQuerySchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
-import { createPR, listPRs } from "@/server/repos/purchaseRequests";
+import { createPR, listPRs, submitPR } from "@/server/repos/purchaseRequests";
 import {
   extractRequestMeta,
   jsonError,
@@ -74,6 +74,15 @@ export async function POST(req: NextRequest) {
       })),
     });
 
+    // V3.7.17 — Auto-submit PR ngay sau create (fix bottleneck E2E):
+    // PR DRAFT không bắn notification → Thu mua không biết. Tự động submit
+    // để notifyPRSubmitted bắn tới purchaser.
+    let finalStatus = row.status;
+    if (finalStatus === "DRAFT") {
+      const submitted = await submitPR(row.id);
+      if (submitted) finalStatus = submitted.status;
+    }
+
     const meta = extractRequestMeta(req);
     await writeAudit({
       actor: guard.session,
@@ -82,7 +91,7 @@ export async function POST(req: NextRequest) {
       objectId: row.id,
       after: {
         code: row.code,
-        status: row.status,
+        status: finalStatus,
         source: body.data.source,
         lineCount: body.data.lines.length,
       },
@@ -90,7 +99,7 @@ export async function POST(req: NextRequest) {
     });
 
     // V3.3 — Notify purchaser role (fire-and-forget) khi PR tạo + submit ngay
-    if (row.status === "SUBMITTED") {
+    if (finalStatus === "SUBMITTED") {
       void notifyPRSubmitted({
         prId: row.id,
         prNo: row.code,
@@ -100,7 +109,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({ data: row }, { status: 201 });
+    return NextResponse.json({ data: { ...row, status: finalStatus } }, { status: 201 });
   } catch (err) {
     logger.error({ err }, "create PR failed");
     const msg = (err as Error).message ?? "";

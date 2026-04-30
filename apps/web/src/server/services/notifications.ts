@@ -30,7 +30,11 @@ export type NotificationEventType =
   | "MATERIAL_REQUEST_PICKING"
   | "MATERIAL_REQUEST_READY"
   | "MATERIAL_REQUEST_DELIVERED"
-  | "MATERIAL_REQUEST_CANCELLED";
+  | "MATERIAL_REQUEST_CANCELLED"
+  // V3.7.17 — Warehouse Issue Request flow
+  | "ISSUE_REQUEST_NEW"
+  | "ISSUE_REQUEST_APPROVED"
+  | "ISSUE_REQUEST_REJECTED";
 
 export interface EmitNotificationInput {
   /** User cụ thể (đếm vào unread badge). Bỏ qua nếu chỉ broadcast role. */
@@ -367,6 +371,77 @@ export async function notifyMaterialRequestDelivered(
     message: "Linh kiện đã được trao tay người yêu cầu.",
     link: `/material-requests/${ctx.requestId}`,
     severity: "success",
+  });
+}
+
+/* ── V3.7.17 — Warehouse Issue Request notifications ─────────────────────── */
+
+interface IssueRequestNotifyContext {
+  requestId: string;
+  requestNo: string;
+  actorUserId: string;
+  actorUsername?: string | null;
+  requesterUserId?: string | null;
+  reference?: string | null;
+  totalQty?: number | null;
+}
+
+/** Operations tạo ISR PENDING → notify warehouse role broadcast */
+export async function notifyIssueRequestNew(ctx: IssueRequestNotifyContext) {
+  await emitNotification({
+    recipientRole: "warehouse",
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "ISSUE_REQUEST_NEW",
+    entityType: "warehouse_issue_request",
+    entityId: ctx.requestId,
+    entityCode: ctx.requestNo,
+    title: `Yêu cầu xuất kho: ${ctx.requestNo}`,
+    message: ctx.reference
+      ? `Tham chiếu ${ctx.reference}${ctx.totalQty ? ` · ${ctx.totalQty} qty` : ""}`
+      : "Chờ duyệt xuất kho",
+    link: `/warehouse?tab=issue`,
+    severity: "info",
+  });
+}
+
+/** Warehouse APPROVE ISR (COMPLETED) → notify requester */
+export async function notifyIssueRequestApproved(ctx: IssueRequestNotifyContext) {
+  if (!ctx.requesterUserId) return;
+  await emitNotification({
+    recipientUser: ctx.requesterUserId,
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "ISSUE_REQUEST_APPROVED",
+    entityType: "warehouse_issue_request",
+    entityId: ctx.requestId,
+    entityCode: ctx.requestNo,
+    title: `${ctx.requestNo} đã được duyệt + xuất kho`,
+    message: ctx.totalQty
+      ? `Đã xuất ${ctx.totalQty} qty. Liên hệ Kho để nhận linh kiện.`
+      : "Hàng đã sẵn sàng giao. Liên hệ Kho.",
+    link: `/operations`,
+    severity: "success",
+  });
+}
+
+/** Warehouse REJECT ISR → notify requester */
+export async function notifyIssueRequestRejected(
+  ctx: IssueRequestNotifyContext & { reason?: string },
+) {
+  if (!ctx.requesterUserId) return;
+  await emitNotification({
+    recipientUser: ctx.requesterUserId,
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "ISSUE_REQUEST_REJECTED",
+    entityType: "warehouse_issue_request",
+    entityId: ctx.requestId,
+    entityCode: ctx.requestNo,
+    title: `${ctx.requestNo} bị Kho từ chối`,
+    message: ctx.reason ?? "Liên hệ Kho để biết lý do.",
+    link: `/operations`,
+    severity: "warning",
   });
 }
 

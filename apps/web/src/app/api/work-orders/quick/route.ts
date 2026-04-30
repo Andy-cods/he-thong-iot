@@ -11,6 +11,7 @@ import { suggestFifoPicks } from "@/server/repos/warehouseLocation";
 import { jsonError, parseJson } from "@/server/http";
 import { requireSession } from "@/server/session";
 import { writeAudit } from "@/server/services/audit";
+import { notifyIssueRequestNew } from "@/server/services/notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -202,6 +203,16 @@ export async function POST(req: NextRequest) {
         requestNo: result.request.requestNo,
       },
       notes: `Tạo WO nhanh ${result.wo.woNo} → ${result.request.requestNo} (${materials.length} vật tư)`,
+    });
+
+    // V3.7.17 — Notify warehouse role có ISR mới chờ duyệt
+    void notifyIssueRequestNew({
+      requestId: result.request.id,
+      requestNo: result.request.requestNo,
+      actorUserId: guard.session.userId,
+      actorUsername: guard.session.username,
+      reference: result.wo.woNo,
+      totalQty,
     });
 
     return NextResponse.json({

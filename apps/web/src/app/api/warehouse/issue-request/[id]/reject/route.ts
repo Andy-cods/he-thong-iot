@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { jsonError, parseJson } from "@/server/http";
 import { requireCan } from "@/server/session";
 import { writeAudit } from "@/server/services/audit";
+import { notifyIssueRequestRejected } from "@/server/services/notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,6 +35,7 @@ export async function POST(
       id: warehouseIssueRequest.id,
       requestNo: warehouseIssueRequest.requestNo,
       status: warehouseIssueRequest.status,
+      requestedBy: warehouseIssueRequest.requestedBy,
     })
     .from(warehouseIssueRequest)
     .where(eq(warehouseIssueRequest.id, params.id))
@@ -59,6 +61,16 @@ export async function POST(
       updatedAt: now,
     })
     .where(eq(warehouseIssueRequest.id, params.id));
+
+  // V3.7.17 — Notify requester về reject
+  void notifyIssueRequestRejected({
+    requestId: current.id,
+    requestNo: current.requestNo,
+    actorUserId: guard.session.userId,
+    actorUsername: guard.session.username,
+    requesterUserId: current.requestedBy,
+    reason: body.data.reason,
+  });
 
   await writeAudit({
     actor: guard.session,

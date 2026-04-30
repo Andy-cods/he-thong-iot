@@ -9,6 +9,7 @@ import { db } from "@/lib/db";
 import { jsonError, parseJson } from "@/server/http";
 import { requireSession } from "@/server/session";
 import { writeAudit } from "@/server/services/audit";
+import { notifyIssueRequestNew } from "@/server/services/notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -159,6 +160,16 @@ export async function POST(req: NextRequest) {
       objectId: created!.id,
       after: { requestNo, reason, lines: lines.length, totalQty },
       notes: `Tạo yêu cầu xuất kho ${requestNo} · ${lines.length} SKU · ${totalQty} qty`,
+    });
+
+    // V3.7.17 — Notify warehouse role khi có ISR mới
+    void notifyIssueRequestNew({
+      requestId: created!.id,
+      requestNo: created!.requestNo,
+      actorUserId: guard.session.userId,
+      actorUsername: guard.session.username,
+      reference: reference ?? null,
+      totalQty,
     });
 
     return NextResponse.json({ data: created });

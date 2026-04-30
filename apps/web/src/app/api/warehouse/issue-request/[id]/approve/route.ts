@@ -9,6 +9,7 @@ import { db } from "@/lib/db";
 import { jsonError } from "@/server/http";
 import { requireCan } from "@/server/session";
 import { writeAudit } from "@/server/services/audit";
+import { notifyIssueRequestApproved } from "@/server/services/notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -158,6 +159,16 @@ export async function POST(
         txnCount: result.txnIds.length,
       },
       notes: `Duyệt + xuất ${request.requestNo} · ${result.txnIds.length} pick · ${result.totalQty} qty`,
+    });
+
+    // V3.7.17 — Notify requester (Vận hành) về xuất kho thành công
+    void notifyIssueRequestApproved({
+      requestId: request.id,
+      requestNo: request.requestNo,
+      actorUserId: guard.session.userId,
+      actorUsername: guard.session.username,
+      requesterUserId: request.requestedBy,
+      totalQty: result.totalQty,
     });
 
     return NextResponse.json({ data: result });
