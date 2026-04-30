@@ -175,21 +175,22 @@ async function main() {
   // ===================================================================
   console.log(c("\n--- Step 1: TK-A tạo Purchase Request ---", "bold"));
   if (loginResults["TK-A"]?.ok) {
-    // fetch items có tồn (filter type RAW để tránh dùng FG)
-    const items = await call("TK-A", "GET", "/api/items?type=RAW&pageSize=20&isActive=true");
+    // V3.7.17 — Pick items PURCHASED có DEMO supplier.
+    // Filter type=PURCHASED để loại FG (FG items không có supplier).
+    const items = await call("TK-A", "GET", "/api/items?type=PURCHASED&q=DEMO-&pageSize=20");
     if (!items.ok) {
-      fail(1, "GET /api/items", items.status, items.body, "TK-A không list được items (RBAC?). Kiểm tra requireCan('read','item') cho role planner.");
+      fail(1, "GET /api/items", items.status, items.body, "TK-A không list được items.");
       step("Step 1", false, "Không lấy được items, abort tạo PR");
     } else {
-      const rows = items.body?.data ?? [];
-      logInfo(`Items (RAW) found: ${rows.length}`);
+      const rows = (items.body?.data ?? []).filter(
+        (r) => r.sku && r.sku.startsWith("DEMO-"),
+      );
+      logInfo(`Items DEMO- (có supplier) found: ${rows.length}`);
       if (rows.length < 2) {
-        // fallback: lấy bất kỳ
+        // fallback: bất kỳ
         const any = await call("TK-A", "GET", "/api/items?pageSize=10");
         const anyRows = any.body?.data ?? [];
-        if (anyRows.length >= 2) {
-          rows.push(...anyRows.slice(0, 2));
-        }
+        if (anyRows.length >= 2) rows.push(...anyRows.slice(0, 2 - rows.length));
       }
       if (rows.length < 2) {
         fail(1, "GET /api/items", items.status, items.body, "DB không đủ 2 item để tạo PR — seed thêm items hoặc check filter.");
@@ -401,13 +402,13 @@ async function main() {
       if (lines.length === 0) {
         warn(3, "GET /api/purchase-orders/[id]", "PO detail không có lines — có thể schema khác.");
       } else {
-        const events = lines.map((l, idx) => ({
-          id: `e2e-${TS}-${idx}-${Math.random().toString(36).slice(2,8)}`,
-          scanId: `e2e-scan-${TS}-${idx}-${Math.random().toString(36).slice(2,8)}`,
+        const events = lines.map((l) => ({
+          id: crypto.randomUUID(),
+          scanId: crypto.randomUUID(),
           poCode: created.poCode,
           sku: l.sku ?? l.itemSku ?? l.item?.sku,
           qty: Number(l.orderedQty ?? l.qty),
-          qcStatus: "PASS",
+          qcStatus: "OK",
           scannedAt: new Date().toISOString(),
         }));
         if (events.some(e => !e.sku)) {
@@ -436,12 +437,16 @@ async function main() {
       }
     }
 
-    // 3e approve receiving
+    // 3e approve receiving — PO có thể đã auto-RECEIVED sau scan đủ qty
     if (created.poId) {
       const approve = await call("KHO-A", "POST", `/api/receiving/${created.poId}/approve`, { body: {} });
       if (approve.ok) {
         logInfo(`PO RECEIVED ratio=${(approve.body?.totals?.ratio * 100).toFixed(1)}%`);
         step("Step 3", true, `KHO-A nhận + RECEIVED ${created.poCode}`);
+      } else if (approve.body?.error?.code === "ALREADY_RECEIVED") {
+        // V3.7.17 — Khi scan đủ 100%, PO tự transition RECEIVED → approve idempotent.
+        logInfo(`PO ${created.poCode} đã auto-RECEIVED (scan đủ 100%) — OK`);
+        step("Step 3", true, `KHO-A nhận xong ${created.poCode} (auto-RECEIVED)`);
       } else {
         fail(3, `POST /api/receiving/${created.poId}/approve`, approve.status, approve.body,
           "KHO-A không duyệt RECEIVED. Có thể chưa nhận đủ 95% hoặc PO state sai.");
@@ -477,15 +482,21 @@ async function main() {
     const notif = await call("VH-A", "GET", "/api/notifications?unread=1&limit=20");
     if (notif.ok) logInfo(`VH-A unread=${notif.body?.data?.length ?? 0}`);
 
-    // tìm 1 product (FG) + 1 raw có tồn
+    // V3.7.17 — Pick FG để làm product, PURCHASED có stock để làm material.
     const fg = await call("VH-A", "GET", "/api/items?type=FG&pageSize=10");
-    const raw = await call("VH-A", "GET", "/api/items?type=RAW&pageSize=10");
+    const purchased = await call("VH-A", "GET", "/api/items?q=B6203ZZ&pageSize=5");
     const product = fg.body?.data?.[0];
-    const material = raw.body?.data?.[0];
+    // Filter material có totalQty > 0 để FIFO không thiếu
+    const materialCandidates = (purchased.body?.data ?? []).filter(
+      (i) => (i.inventorySummary?.totalQty ?? 0) > 0,
+    );
+    const material = materialCandidates[0];
     if (!product || !material) {
-      fail(4, "GET /api/items", null, null, `VH-A không tìm đủ FG/RAW: fg=${fg.body?.data?.length ?? 0} raw=${raw.body?.data?.length ?? 0}.`);
+      fail(4, "GET /api/items", null, null,
+        `VH-A không tìm đủ FG hoặc material có tồn: fg=${fg.body?.data?.length ?? 0} mat=${materialCandidates.length}.`);
       step("Step 4", false, "Không đủ items để tạo WO");
     } else {
+      logInfo(`Pick product=${product.sku} material=${material.sku} (tồn=${material.inventorySummary?.totalQty})`);
       const wo = await call("VH-A", "POST", "/api/work-orders/quick", {
         body: {
           productItemId: product.id,
