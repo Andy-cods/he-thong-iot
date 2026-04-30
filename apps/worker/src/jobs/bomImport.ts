@@ -5,6 +5,7 @@ import {
   bomTemplate,
   importBatch,
   item,
+  userAccount,
 } from "@iot/db/schema";
 import { db } from "../db.js";
 
@@ -299,11 +300,39 @@ async function processChunk(
           invMapping.notes && row.data[invMapping.notes]
             ? String(row.data[invMapping.notes])
             : null;
+        // V3.7.18 — Extended fields: PIC, category, totalQty
+        const categoryMeta =
+          invMapping.category && row.data[invMapping.category]
+            ? String(row.data[invMapping.category]).slice(0, 64)
+            : null;
+        const totalQtyMeta =
+          invMapping.totalQty && row.data[invMapping.totalQty]
+            ? String(row.data[invMapping.totalQty])
+            : null;
+        const picRaw =
+          invMapping.assignedToName && row.data[invMapping.assignedToName]
+            ? String(row.data[invMapping.assignedToName]).trim().slice(0, 255)
+            : null;
+
+        // V3.7.18 — Lookup PIC user theo full_name (ILIKE substring match).
+        // Nếu không match → giữ raw text trong assigned_to_name để resolve sau.
+        let assignedToUserId: string | null = null;
+        if (picRaw) {
+          const [user] = await tx
+            .select({ id: userAccount.id })
+            .from(userAccount)
+            .where(sql`${userAccount.fullName} ILIKE ${"%" + picRaw + "%"}`)
+            .limit(1);
+          if (user) assignedToUserId = user.id;
+        }
 
         const metadata: Record<string, unknown> = {};
         if (sizeMeta) metadata.size = sizeMeta;
         if (seqMeta) metadata.seq = seqMeta;
         if (notesMeta) metadata.note = notesMeta;
+        if (categoryMeta) metadata.category = categoryMeta;
+        if (totalQtyMeta) metadata.totalQty = totalQtyMeta;
+        if (picRaw) metadata.picRaw = picRaw;
         metadata.importedFromSheet = input.sheetName;
         metadata.importedRow = row.rowNumber;
 
@@ -317,6 +346,8 @@ async function processChunk(
           scrapPercent: "0",
           description,
           supplierItemCode,
+          assignedToUserId,
+          assignedToName: picRaw,
           metadata,
         });
 

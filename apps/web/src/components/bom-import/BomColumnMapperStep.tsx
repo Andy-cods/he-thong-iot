@@ -91,21 +91,54 @@ const BOM_SYNONYMS: Record<string, string[]> = {
     "remark",
     "remarks",
   ],
+  // V3.7.18 — PIC (Person In Charge) cho row-level access control
+  assignedToName: [
+    "pic",
+    "personincharge",
+    "responsible",
+    "nguoiphutrach",
+    "phutrach",
+    "owner",
+    "assignee",
+    "incharge",
+  ],
+  // V3.7.18 — Category (loại linh kiện): Thương mại / Đặt gia công ngoài / GTAM
+  category: [
+    "category",
+    "loai",
+    "loailinhkien",
+    "phanloai",
+    "categoryno",
+    "macategory",
+  ],
+  // V3.7.18 — Total quantity (SL = qty × hệ số nhân cho N bộ máy)
+  totalQty: [
+    "totalqty",
+    "totalquantity",
+    "soluongtotal",
+    "soluongtongtone",
+    "tongsoluong",
+    "soluong",
+    "sl",
+  ],
 };
 
 const BOM_TARGETS: TargetField[] = [
-  { key: "componentSku", label: "Mã linh kiện", required: true, type: "string" },
-  { key: "qtyPerParent", label: "Số lượng / cha", required: true, type: "number" },
-  { key: "componentSeq", label: "Số thứ tự", required: false, type: "number" },
+  { key: "componentSku", label: "Mã linh kiện (BOM gốc)", required: true, type: "string" },
+  { key: "qtyPerParent", label: "Số lượng / cha (Quantity hệ số)", required: true, type: "number" },
+  { key: "componentSeq", label: "ID Number (vị trí)", required: false, type: "number" },
   {
     key: "supplierItemCode",
-    label: "Mã NCC",
+    label: "NCC",
     required: false,
     type: "string",
   },
-  { key: "description", label: "Mô tả", required: false, type: "string" },
-  { key: "size", label: "Kích thước", required: false, type: "string" },
-  { key: "notes", label: "Ghi chú", required: false, type: "string" },
+  { key: "category", label: "Category (loại)", required: false, type: "string" },
+  { key: "description", label: "Ghi chú (mô tả vật liệu)", required: false, type: "string" },
+  { key: "size", label: "Quy cách (kích thước)", required: false, type: "string" },
+  { key: "totalQty", label: "SL (tổng)", required: false, type: "number" },
+  { key: "assignedToName", label: "PIC (người phụ trách)", required: false, type: "string" },
+  { key: "notes", label: "Ghi chú khác", required: false, type: "string" },
 ];
 
 function bomAutoMap(sourceHeaders: string[]): Record<string, string | null> {

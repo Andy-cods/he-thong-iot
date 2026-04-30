@@ -106,6 +106,17 @@ export const bomLine = appSchema.table(
      */
     notes: text("notes"),
     metadata: jsonb("metadata").notNull().default(sql`'{}'::jsonb`),
+    /**
+     * V3.7.18 — PIC (Person In Charge): người chịu trách nhiệm dòng này.
+     * Match theo full_name từ cột "PIC" Excel ("Vương Anh", "Nguyện"...).
+     * NULL nếu không match user → dùng assignedToName để resolve sau.
+     */
+    assignedToUserId: uuid("assigned_to_user_id"),
+    /**
+     * V3.7.18 — Raw PIC text từ Excel khi chưa có user matching
+     * (vd "Tiến/Cường" multi-PIC, "Đức" chỉ first name không có full match).
+     */
+    assignedToName: varchar("assigned_to_name", { length: 255 }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),

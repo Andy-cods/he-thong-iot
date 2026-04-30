@@ -23,6 +23,10 @@ export const BOM_IMPORT_TARGET_FIELDS = [
   "size",
   "componentSeq",
   "notes",
+  // V3.7.18 — Extended for "BOM FINAL" file format
+  "category",
+  "totalQty",
+  "assignedToName",
 ] as const;
 export type BomImportTargetField = (typeof BOM_IMPORT_TARGET_FIELDS)[number];
 

@@ -189,6 +189,9 @@ export function BomImportWizard() {
               | "description"
               | "size"
               | "notes"
+              | "category"
+              | "totalQty"
+              | "assignedToName"
               | null
             >
           >,
