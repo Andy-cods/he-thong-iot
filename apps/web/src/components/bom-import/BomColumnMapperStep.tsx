@@ -37,6 +37,11 @@ const BOM_SYNONYMS: Record<string, string[]> = {
     "partnumber",
     "partno",
     "pn",
+    // V3.7.22 — file BOM FINAL
+    "bomgoc",
+    "bomgoclinhkien",
+    "malinhkien",
+    "macuabomgoc",
   ],
   componentSeq: [
     "idnumber",
@@ -47,6 +52,9 @@ const BOM_SYNONYMS: Record<string, string[]> = {
     "seq",
     "orderno",
     "no",
+    // V3.7.22
+    "vitri",
+    "rcode",
   ],
   supplierItemCode: [
     "ncc",
@@ -56,15 +64,25 @@ const BOM_SYNONYMS: Record<string, string[]> = {
     "mancc",
     "maccncc",
     "vendorcode",
+    "vendor",
+    "supplier",
+    "nhacungcap",
   ],
   qtyPerParent: [
     "quantity",
     "qty",
-    "soluong",
-    "sl",
     "amount",
     "qtyperparent",
     "qtyparent",
+    // V3.7.22 — Excel "Quantity (hệ số)" → normalize "quantityheso"
+    "quantityheso",
+    "soluongheso",
+    "qtyheso",
+    "heso",
+    "soluongbo",
+    "perset",
+    "permachine",
+    "permay",
   ],
   description: [
     "subcategory",
@@ -73,6 +91,8 @@ const BOM_SYNONYMS: Record<string, string[]> = {
     "ghichu",
     "phanloaiphu",
     "chungloai",
+    "ghichumota",
+    "motavatlieu",
   ],
   size: [
     "size",
@@ -82,6 +102,12 @@ const BOM_SYNONYMS: Record<string, string[]> = {
     "quycach",
     "specs",
     "spec",
+    // V3.7.22 — "Quy cách (tham khảo)" → "quycachthamkhao"
+    "quycachthamkhao",
+    "kichthuocthamkhao",
+    "dimension",
+    "dimensions",
+    "lwh",
   ],
   notes: [
     "note",
@@ -90,6 +116,7 @@ const BOM_SYNONYMS: Record<string, string[]> = {
     "diengchai",
     "remark",
     "remarks",
+    "ghichukhac",
   ],
   // V3.7.18 — PIC (Person In Charge) cho row-level access control
   assignedToName: [
@@ -110,6 +137,8 @@ const BOM_SYNONYMS: Record<string, string[]> = {
     "phanloai",
     "categoryno",
     "macategory",
+    "loaivattu",
+    "danhmuc",
   ],
   // V3.7.18 — Total quantity (SL = qty × hệ số nhân cho N bộ máy)
   totalQty: [
@@ -120,6 +149,7 @@ const BOM_SYNONYMS: Record<string, string[]> = {
     "tongsoluong",
     "soluong",
     "sl",
+    "tongsl",
   ],
 };
 
@@ -141,30 +171,59 @@ const BOM_TARGETS: TargetField[] = [
   { key: "notes", label: "Ghi chú khác", required: false, type: "string" },
 ];
 
+/**
+ * V3.7.22 — Improved auto-map với scoring.
+ *
+ * Score per (header, target):
+ *   100 — exact equal normalized header với synonym
+ *    80 — header BẮT ĐẦU bằng synonym (vd "quycachthamkhao" starts with "quycach")
+ *    60 — synonym là substring trong header
+ *    40 — header là substring trong synonym (header ngắn hơn)
+ *
+ * Pick best match per header. Mỗi target chỉ được claim 1 lần (header có
+ * score cao hơn thắng).
+ */
 function bomAutoMap(sourceHeaders: string[]): Record<string, string | null> {
-  const mapping: Record<string, string | null> = {};
-  const claimed = new Set<string>();
+  type Candidate = { header: string; targetKey: string; score: number };
+  const allCandidates: Candidate[] = [];
 
   for (const h of sourceHeaders) {
     const norm = normalizeHeader(h);
-    if (!norm) {
-      mapping[h] = null;
-      continue;
-    }
-    let match: string | null = null;
+    if (!norm) continue;
     for (const t of BOM_TARGETS) {
-      const cands = BOM_SYNONYMS[t.key] ?? [];
-      if (cands.includes(norm) || normalizeHeader(t.label) === norm) {
-        match = t.key;
-        break;
+      const synonyms = [
+        ...(BOM_SYNONYMS[t.key] ?? []),
+        normalizeHeader(t.label),
+        normalizeHeader(t.key),
+      ].filter(Boolean);
+      let bestForTarget = 0;
+      for (const syn of synonyms) {
+        if (!syn) continue;
+        let score = 0;
+        if (norm === syn) score = 100;
+        else if (norm.startsWith(syn) && syn.length >= 3) score = 80;
+        else if (norm.includes(syn) && syn.length >= 4) score = 60;
+        else if (syn.includes(norm) && norm.length >= 4) score = 40;
+        if (score > bestForTarget) bestForTarget = score;
+      }
+      if (bestForTarget > 0) {
+        allCandidates.push({ header: h, targetKey: t.key, score: bestForTarget });
       }
     }
-    if (match && !claimed.has(match)) {
-      mapping[h] = match;
-      claimed.add(match);
-    } else {
-      mapping[h] = null;
-    }
+  }
+
+  // Sort by score desc, claim greedily
+  allCandidates.sort((a, b) => b.score - a.score);
+  const mapping: Record<string, string | null> = {};
+  for (const h of sourceHeaders) mapping[h] = null;
+  const claimedTargets = new Set<string>();
+  const claimedHeaders = new Set<string>();
+  for (const c of allCandidates) {
+    if (claimedTargets.has(c.targetKey)) continue;
+    if (claimedHeaders.has(c.header)) continue;
+    mapping[c.header] = c.targetKey;
+    claimedTargets.add(c.targetKey);
+    claimedHeaders.add(c.header);
   }
   return mapping;
 }
