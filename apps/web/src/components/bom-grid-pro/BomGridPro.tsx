@@ -13,8 +13,10 @@ import { toast } from "sonner";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { BomTreeNodeRaw } from "@/hooks/useBom";
 import { useAddBomLine, useDeleteBomLine } from "@/hooks/useBom";
+import { useSession } from "@/hooks/useSession";
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/format";
+import { PicEditDialog } from "./PicEditDialog";
 import {
   flattenBomTree,
   type BomFlatRow,
@@ -136,6 +138,11 @@ export function BomGridPro({
   const [editTarget, setEditTarget] = React.useState<BomFlatRow | null>(null);
   const [orderTarget, setOrderTarget] = React.useState<BomFlatRow | null>(null);
   const [addLineOpen, setAddLineOpen] = React.useState(false);
+  // V3.7.20 — PIC edit dialog
+  const [picEditTarget, setPicEditTarget] = React.useState<BomFlatRow | null>(null);
+  const session = useSession();
+  const currentUserId = session.data?.id ?? null;
+  const isAdmin = (session.data?.roles ?? []).includes("admin");
 
   const deleteLine = useDeleteBomLine(templateId);
   const addLine = useAddBomLine(templateId);
@@ -545,27 +552,55 @@ export function BomGridPro({
         <td className="px-2 font-mono text-xs text-zinc-600 truncate">
           {row.node.supplierItemCode ?? "—"}
         </td>
-        {/* PIC — V3.7.19 */}
+        {/* PIC — V3.7.19/20 */}
         <td className="px-2 truncate">
-          {row.node.assignedToFullName ? (
-            <span
-              className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700"
-              title={`PIC: ${row.node.assignedToFullName} (${row.node.assignedToName ?? "matched"})`}
-            >
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-indigo-500" />
-              {row.node.assignedToFullName}
-            </span>
-          ) : row.node.assignedToName ? (
-            <span
-              className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700"
-              title={`Chưa match user: "${row.node.assignedToName}"`}
-            >
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
-              {row.node.assignedToName}
-            </span>
-          ) : (
-            <span className="text-xs text-zinc-300">—</span>
-          )}
+          {(() => {
+            const canEdit =
+              isAdmin ||
+              (!!currentUserId &&
+                row.node.assignedToUserId === currentUserId);
+            if (row.node.assignedToFullName) {
+              return (
+                <button
+                  type="button"
+                  onClick={canEdit ? () => setPicEditTarget(row) : undefined}
+                  disabled={!canEdit}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700",
+                    canEdit && "cursor-pointer hover:bg-indigo-100 hover:ring-1 hover:ring-indigo-300",
+                    !canEdit && "cursor-default",
+                  )}
+                  title={
+                    canEdit
+                      ? `Bấm để cập nhật tiến độ (PIC: ${row.node.assignedToFullName})`
+                      : `PIC: ${row.node.assignedToFullName}`
+                  }
+                >
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-indigo-500" />
+                  {row.node.assignedToFullName}
+                  {canEdit && <span className="ml-0.5 text-[9px]">✎</span>}
+                </button>
+              );
+            }
+            if (row.node.assignedToName) {
+              return (
+                <button
+                  type="button"
+                  onClick={isAdmin ? () => setPicEditTarget(row) : undefined}
+                  disabled={!isAdmin}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700",
+                    isAdmin && "cursor-pointer hover:bg-amber-100",
+                  )}
+                  title={`Chưa match user: "${row.node.assignedToName}"`}
+                >
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
+                  {row.node.assignedToName}
+                </button>
+              );
+            }
+            return <span className="text-xs text-zinc-300">—</span>;
+          })()}
         </td>
         {/* Ghi chú (Note 1/2/3 concat) */}
         <td className="px-2 text-xs italic text-zinc-500 truncate">
@@ -860,6 +895,24 @@ export function BomGridPro({
         parentQty={parentQty}
         line={orderTarget}
       />
+
+      {/* V3.7.20 — PIC update tiến độ dialog. */}
+      {picEditTarget && (
+        <PicEditDialog
+          open={!!picEditTarget}
+          onClose={() => setPicEditTarget(null)}
+          line={{
+            id: picEditTarget.id,
+            sku: picEditTarget.node.componentSku ?? null,
+            componentName: picEditTarget.node.componentName ?? null,
+            qtyPerParent: picEditTarget.node.qtyPerParent,
+            assignedToFullName: picEditTarget.node.assignedToFullName ?? null,
+            receivedQty: picEditTarget.node.receivedQty ?? null,
+            expectedEta: picEditTarget.node.expectedEta ?? null,
+            statusNote: picEditTarget.node.statusNote ?? null,
+          }}
+        />
+      )}
     </div>
   );
 }
