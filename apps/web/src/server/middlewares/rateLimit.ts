@@ -125,11 +125,32 @@ export function getClientIp(req: NextRequest): string {
   return "0.0.0.0";
 }
 
-/** Helper preset: login IP-based 5/60s. */
+/**
+ * V3.7.29 — Login IP-based 60/60s (nới từ 5/60s).
+ *
+ * Lý do: 5/60s/IP chặn hoàn toàn văn phòng nhiều user cùng IP NAT — 1 cty
+ * 5+ nhân viên login buổi sáng đã quá quota. Vẫn defend IP-level abuse,
+ * brute-force trên 1 account cụ thể đã được bảo vệ bởi
+ * `loginRateLimitByUsername` (5/60s/username) + failedLoginCount lock.
+ */
 export function loginRateLimit(req: NextRequest) {
   return rateLimit({
-    bucket: "login",
+    bucket: "login-ip",
     key: getClientIp(req),
+    limit: 60,
+    windowSec: 60,
+  });
+}
+
+/**
+ * V3.7.29 — Login per-username 5/60s. Defend brute-force trên 1 acc cụ thể
+ * bất kể attacker đến từ IP nào (botnet rotating IPs). Phải gọi SAU khi
+ * parse body để có username.
+ */
+export function loginRateLimitByUsername(username: string) {
+  return rateLimit({
+    bucket: "login-user",
+    key: username.toLowerCase().trim(),
     limit: 5,
     windowSec: 60,
   });

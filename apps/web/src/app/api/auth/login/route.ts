@@ -15,7 +15,10 @@ import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { apiErrorCounter, loginCounter } from "@/lib/metrics";
 import { extractRequestMeta, tooManyRequests } from "@/server/http";
-import { loginRateLimit } from "@/server/middlewares/rateLimit";
+import {
+  loginRateLimit,
+  loginRateLimitByUsername,
+} from "@/server/middlewares/rateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,13 +29,15 @@ const LoginSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  // V1.4: rate limit IP 5/60s trước khi verify password (brute-force defense).
-  const rl = await loginRateLimit(req);
-  if (!rl.ok) {
+  // V3.7.29 — Rate limit IP nới lên 60/60s (cho văn phòng NAT nhiều user
+  // cùng IP). Brute-force trên 1 acc vẫn bị chặn bởi per-username limit
+  // 5/60s và failedLoginCount lock.
+  const rlIp = await loginRateLimit(req);
+  if (!rlIp.ok) {
     loginCounter.add(1, { result: "rate_limited" });
     return tooManyRequests(
-      rl.retryAfter,
-      `Quá nhiều lần đăng nhập. Vui lòng thử lại sau ${rl.retryAfter}s.`,
+      rlIp.retryAfter,
+      `IP gửi quá nhiều request đăng nhập. Vui lòng thử lại sau ${rlIp.retryAfter}s.`,
     );
   }
 
@@ -51,6 +56,16 @@ export async function POST(req: NextRequest) {
   }
 
   const { username, password } = parsed.data;
+
+  // V3.7.29 — Rate limit per-username 5/60s (defend brute-force 1 acc).
+  const rlUser = await loginRateLimitByUsername(username);
+  if (!rlUser.ok) {
+    loginCounter.add(1, { result: "rate_limited" });
+    return tooManyRequests(
+      rlUser.retryAfter,
+      `Tài khoản "${username}" có quá nhiều lần đăng nhập sai. Thử lại sau ${rlUser.retryAfter}s.`,
+    );
+  }
 
   const [user] = await db
     .select({
