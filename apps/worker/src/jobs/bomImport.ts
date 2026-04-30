@@ -1,11 +1,17 @@
 import type { Job } from "bullmq";
-import { eq, sql } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import {
   bomLine,
   bomSheet,
+  bomSheetMaterialRow,
+  bomSheetProcessRow,
   bomTemplate,
   importBatch,
   item,
+  itemSupplier,
+  materialMaster,
+  processMaster,
+  supplier,
   userAccount,
 } from "@iot/db/schema";
 import { db } from "../db.js";
@@ -108,6 +114,7 @@ export async function processBomImportCommit(
       .limit(1);
 
     let templateId: string;
+    let isNewTemplate = false;
     if (existing) {
       templateId = existing.id;
     } else {
@@ -125,6 +132,14 @@ export async function processBomImportCommit(
       if (!created) throw new Error(`Không tạo được template cho sheet ${sheetName}`);
       templateId = created.id;
       templatesCreated++;
+      isNewTemplate = true;
+    }
+
+    // V3.7.27 — Auto-create MATERIAL sheet + populate full catalog cho template mới.
+    // Bằng với behavior của manual createTemplate (apps/web bomTemplates.ts).
+    // User feedback 2026-04-30: "sheet Vật liệu phải tự động tạo khi tạo BOM list".
+    if (isNewTemplate) {
+      await ensureMaterialSheetWithCatalog(templateId, actorId);
     }
 
     // Tìm hoặc tạo bom_sheet kind=PROJECT (mọi bom_line phải có sheet_id NOT NULL).
@@ -198,6 +213,135 @@ export async function processBomImportCommit(
     .where(eq(importBatch.id, batchId));
 
   return { success: totalSuccess, fail: totalFail, templatesCreated };
+}
+
+/**
+ * V3.7.27 — Tạo MATERIAL sheet + populate toàn bộ material_master/process_master
+ * giống manual createTemplate (apps/web/src/server/repos/bomTemplates.ts).
+ * Idempotent: nếu sheet MATERIAL đã có, skip.
+ */
+async function ensureMaterialSheetWithCatalog(
+  templateId: string,
+  actorId: string,
+): Promise<void> {
+  const [existingMat] = await db
+    .select({ id: bomSheet.id })
+    .from(bomSheet)
+    .where(
+      sql`${bomSheet.templateId} = ${templateId} AND ${bomSheet.kind} = 'MATERIAL'`,
+    )
+    .limit(1);
+  if (existingMat) return;
+
+  const [created] = await db
+    .insert(bomSheet)
+    .values({
+      templateId,
+      name: "Material & Process",
+      kind: "MATERIAL",
+      position: 2,
+      metadata: { defaultSheet: true, combined: true },
+      createdBy: actorId,
+    })
+    .returning({ id: bomSheet.id });
+  if (!created) return;
+
+  const allMaterials = await db
+    .select({
+      code: materialMaster.code,
+      nameVn: materialMaster.nameVn,
+      pricePerKg: materialMaster.pricePerKg,
+    })
+    .from(materialMaster)
+    .where(eq(materialMaster.isActive, true))
+    .orderBy(asc(materialMaster.category), asc(materialMaster.code));
+
+  if (allMaterials.length > 0) {
+    await db.insert(bomSheetMaterialRow).values(
+      allMaterials.map((m, idx) => ({
+        sheetId: created.id,
+        materialCode: m.code,
+        nameOverride: m.nameVn,
+        pricePerKg: m.pricePerKg,
+        status: "PLANNED" as const,
+        position: idx + 1,
+        blankSize: {} as Record<string, unknown>,
+        createdBy: actorId,
+      })),
+    );
+  }
+
+  const allProcesses = await db
+    .select({
+      code: processMaster.code,
+      nameVn: processMaster.nameVn,
+      pricePerUnit: processMaster.pricePerUnit,
+      pricingUnit: processMaster.pricingUnit,
+    })
+    .from(processMaster)
+    .where(eq(processMaster.isActive, true))
+    .orderBy(asc(processMaster.code));
+
+  if (allProcesses.length > 0) {
+    await db.insert(bomSheetProcessRow).values(
+      allProcesses.map((p, idx) => ({
+        sheetId: created.id,
+        processCode: p.code,
+        nameOverride: p.nameVn,
+        pricePerUnit: p.pricePerUnit,
+        pricingUnit: p.pricingUnit as string,
+        position: idx + 1,
+        createdBy: actorId,
+      })),
+    );
+  }
+}
+
+/**
+ * V3.7.27 — Lookup supplier by name (case-insensitive) hoặc tạo mới.
+ * Code auto-derive từ name (UPPER + slug). Race-safe via onConflictDoNothing.
+ * Trả supplier_id để link item_supplier.
+ */
+async function lookupOrCreateSupplier(
+  tx: typeof db,
+  name: string,
+): Promise<string | null> {
+  const trimmed = name.trim();
+  if (!trimmed) return null;
+
+  const [existingSup] = await tx
+    .select({ id: supplier.id })
+    .from(supplier)
+    .where(sql`LOWER(${supplier.name}) = LOWER(${trimmed})`)
+    .limit(1);
+  if (existingSup) return existingSup.id;
+
+  const code = (
+    trimmed
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 60) || `NCC-${Date.now()}`
+  ).slice(0, 64);
+
+  const [created] = await tx
+    .insert(supplier)
+    .values({
+      code,
+      name: trimmed.slice(0, 255),
+      isActive: true,
+    })
+    .onConflictDoNothing({ target: supplier.code })
+    .returning({ id: supplier.id });
+  if (created) return created.id;
+
+  // Conflict by code: tên khác nhau nhưng slug trùng → re-lookup by code
+  const [byCode] = await tx
+    .select({ id: supplier.id })
+    .from(supplier)
+    .where(eq(supplier.code, code))
+    .limit(1);
+  return byCode?.id ?? null;
 }
 
 async function nextRootPosition(templateId: string): Promise<number> {
@@ -358,6 +502,29 @@ async function processChunk(
           if (user) assignedToUserId = user.id;
         }
 
+        // V3.7.27 — NCC text → lookup/create supplier + link item_supplier.
+        // Giữ supplierItemCode (snapshot text cho UI filter NCC) + thêm
+        // supplier_id vào metadata cho procurement module sau dùng.
+        let supplierIdResolved: string | null = null;
+        if (supplierItemCode) {
+          supplierIdResolved = await lookupOrCreateSupplier(
+            tx as typeof db,
+            supplierItemCode,
+          );
+          if (supplierIdResolved) {
+            // Link item ↔ supplier (idempotent — uniqueIndex(item_id, supplier_id))
+            await tx
+              .insert(itemSupplier)
+              .values({
+                itemId: componentItemId,
+                supplierId: supplierIdResolved,
+              })
+              .onConflictDoNothing({
+                target: [itemSupplier.itemId, itemSupplier.supplierId],
+              });
+          }
+        }
+
         const metadata: Record<string, unknown> = {};
         if (sizeMeta) metadata.size = sizeMeta;
         if (seqMeta) metadata.seq = seqMeta;
@@ -365,6 +532,7 @@ async function processChunk(
         if (categoryMeta) metadata.category = categoryMeta;
         if (totalQtyMeta) metadata.totalQty = totalQtyMeta;
         if (picRaw) metadata.picRaw = picRaw;
+        if (supplierIdResolved) metadata.supplierId = supplierIdResolved;
         metadata.importedFromSheet = input.sheetName;
         metadata.importedRow = row.rowNumber;
 

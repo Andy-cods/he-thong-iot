@@ -10,6 +10,7 @@ import {
   GitBranch,
   History,
   MoreHorizontal,
+  Pencil,
   Rocket,
   ScanLine,
   Trash2,
@@ -33,6 +34,7 @@ import {
   useBomWorkspaceSummary,
   useCloneBomTemplate,
   useDeleteBomTemplate,
+  useUpdateBomTemplate,
   type BomTemplateDetail,
 } from "@/hooks/useBom";
 import { useBomRevisions } from "@/hooks/useBomRevisions";
@@ -107,6 +109,24 @@ export function BomWorkspaceTopbar({
 
   const cloneBom = useCloneBomTemplate();
   const deleteBom = useDeleteBomTemplate();
+  const updateBom = useUpdateBomTemplate(template.id);
+
+  const handleRename = async () => {
+    const next = prompt("Đổi tên BOM:", template.name);
+    if (next === null) return;
+    const trimmed = next.trim();
+    if (!trimmed) {
+      toast.error("Tên BOM không được để trống.");
+      return;
+    }
+    if (trimmed === template.name) return;
+    try {
+      await updateBom.mutateAsync({ name: trimmed.slice(0, 250) });
+      toast.success(`Đã đổi tên BOM thành "${trimmed}".`);
+    } catch (err) {
+      toast.error((err as Error).message ?? "Không đổi được tên BOM.");
+    }
+  };
 
   const handleClone = async () => {
     const suggested = prompt("Nhập mã BOM mới:", `${template.code}_COPY`);
@@ -222,6 +242,12 @@ export function BomWorkspaceTopbar({
             <DropdownMenuItem onClick={() => setReleaseOpen(true)}>
               <Rocket className="h-3.5 w-3.5" aria-hidden />
               Release revision {nextRevisionNoHint}
+            </DropdownMenuItem>
+          )}
+          {!isObsolete && (
+            <DropdownMenuItem onClick={() => void handleRename()}>
+              <Pencil className="h-3.5 w-3.5" aria-hidden />
+              Đổi tên BOM
             </DropdownMenuItem>
           )}
           <DropdownMenuItem onClick={() => void handleClone()}>
