@@ -63,18 +63,32 @@ export async function POST(req: NextRequest) {
 
   // Idempotency check: file_hash + kind=bom trong 60 phút
   const existing = await findRecentByHash(parsed.fileHash, "bom", 60);
-  if (existing && existing.status !== "failed") {
+  if (existing && existing.status !== "failed" && existing.status !== "done") {
+    // V3.7.24 — Trả full shape (sheets + autoMappings + officialFormat) từ
+    // previewJson cũ. Trước đây chỉ trả {batchId,reused,status} → client
+    // crash vì uploadData.sheets undefined.
+    const preview = (existing.previewJson ?? {}) as {
+      sheets?: typeof parsed.sheets;
+      autoMappings?: Record<string, Record<string, string | null>>;
+    };
     return NextResponse.json(
       {
         data: {
           batchId: existing.id,
           reused: true,
           status: existing.status,
+          fileHash: parsed.fileHash,
+          sheets: preview.sheets ?? parsed.sheets,
+          autoMappings: preview.autoMappings ?? {},
+          duplicateMode,
+          officialFormat: parsed.officialFormat,
         },
       },
       { status: 200 },
     );
   }
+  // Nếu existing.status === "done" → tạo batch mới (cho phép re-import file
+  // đã commit lần trước với mapping mới).
 
   // Tạo auto-mapping cho mỗi sheet
   const autoMappings: Record<string, Record<string, string | null>> = {};
