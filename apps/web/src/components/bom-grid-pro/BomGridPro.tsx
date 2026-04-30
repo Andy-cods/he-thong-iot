@@ -296,6 +296,47 @@ export function BomGridPro({
     return result;
   }, [flat, expanded, supplierFilter]);
 
+  // V3.7.21 — Auto-hide empty columns: cột nào không có data thì ẩn,
+  // user có thể toggle để hiện lại tất cả.
+  const [showAllColumns, setShowAllColumns] = React.useState(false);
+  const colHasData = React.useMemo(() => {
+    const has = {
+      positionCode: false,
+      dimensions: false,
+      supplier: false,
+      pic: false,
+      notes: false,
+      scrap: false,
+      progress: false, // Tiến độ
+    };
+    for (const r of visibleRows) {
+      if (r.isGroup) continue;
+      if (r.node.positionCode) has.positionCode = true;
+      if (
+        r.node.supplierItemCode ||
+        r.node.assignedToName /* fallback group hiện vì có PIC */
+      ) {
+        // Stop early once we know all columns
+      }
+      if (r.node.supplierItemCode) has.supplier = true;
+      if (r.node.assignedToFullName || r.node.assignedToName) has.pic = true;
+      const meta = r.node.metadata as
+        | { notes?: string; note?: string; size?: string; seq?: string }
+        | undefined;
+      if (meta?.notes || meta?.note) has.notes = true;
+      if (meta?.size || r.node.itemDimensions) has.dimensions = true;
+      if (Number(r.node.scrapPercent) > 0) has.scrap = true;
+      if (r.node.receivedQty || r.node.expectedEta || r.node.statusNote) {
+        has.progress = true;
+      }
+    }
+    return has;
+  }, [visibleRows]);
+
+  // Helper: cột có hiển thị không (showAll override hoặc có data)
+  const showCol = (key: keyof typeof colHasData) =>
+    showAllColumns || colHasData[key];
+
   // Virtualizer setup
   const parentRef = React.useRef<HTMLDivElement>(null);
   const useVirtualize = visibleRows.length > 80;
@@ -464,11 +505,13 @@ export function BomGridPro({
           </div>
         </td>
         {/* ID Number — V2.0 Sprint 6: chuỗi vị trí từ Excel (R01, S40). */}
-        <td className="px-2 font-mono text-xs font-medium text-indigo-700 truncate">
-          {row.node.positionCode ?? (
-            <span className="text-zinc-300">—</span>
-          )}
-        </td>
+        {showCol("positionCode") && (
+          <td className="px-2 font-mono text-xs font-medium text-indigo-700 truncate">
+            {row.node.positionCode ?? (
+              <span className="text-zinc-300">—</span>
+            )}
+          </td>
+        )}
         {/* SL/bộ */}
         <td className="px-2 text-right font-mono text-xs tabular-nums text-zinc-700">
           {formatNumber(qty)}
@@ -501,6 +544,7 @@ export function BomGridPro({
             2. item.dimensions  (jsonb {length,width,height,unit} từ Excel import)
             3. item.specJson.dimensionText (chuỗi raw "601 X 21 X 20" từ import)
             4. "—" */}
+        {showCol("dimensions") && (
         <td className="px-2 font-mono text-[11px] text-zinc-600 truncate">
           {(() => {
             // (1) metadata.size override
@@ -548,11 +592,15 @@ export function BomGridPro({
             return "—";
           })()}
         </td>
+        )}
         {/* NCC / Vật tư */}
+        {showCol("supplier") && (
         <td className="px-2 font-mono text-xs text-zinc-600 truncate">
           {row.node.supplierItemCode ?? "—"}
         </td>
+        )}
         {/* PIC — V3.7.19/20 */}
+        {showCol("pic") && (
         <td className="px-2 truncate">
           {(() => {
             const canEdit =
@@ -602,18 +650,24 @@ export function BomGridPro({
             return <span className="text-xs text-zinc-300">—</span>;
           })()}
         </td>
+        )}
         {/* Ghi chú (Note 1/2/3 concat) */}
+        {showCol("notes") && (
         <td className="px-2 text-xs italic text-zinc-500 truncate">
           {row.node.metadata && (row.node.metadata as { notes?: string }).notes
             ? (row.node.metadata as { notes: string }).notes
             : ""}
         </td>
+        )}
         {/* Hao hụt */}
+        {showCol("scrap") && (
         <td className="px-2 text-right font-mono text-xs tabular-nums text-orange-600">
           {scrap > 0 ? `${scrap.toFixed(1)}%` : "—"}
         </td>
+        )}
         {/* Tiến độ — V1.7-beta.2.6: kind-aware (fab → WO progress, com → material status)
             V1.9 Phase 2 — bar + milestone tooltip + qty sub-label */}
+        {showCol("progress") && (
         <td className="px-0">
           {row.kind === "fab" ? (
             (() => {
@@ -647,6 +701,7 @@ export function BomGridPro({
             })()
           )}
         </td>
+        )}
         {/* Actions — sticky right. V1.7-beta.2.2: phân nhánh com/fab. */}
         <td className="sticky right-0 z-10 border-l border-zinc-100 bg-white px-1 group-hover:bg-zinc-50">
           <ActionsCell
@@ -684,6 +739,44 @@ export function BomGridPro({
         <span className="text-[10px] text-zinc-400">
           Tổng SL = SL/bộ × parent
         </span>
+        {/* V3.7.21 — Auto-hide empty columns toggle */}
+        <button
+          type="button"
+          onClick={() => setShowAllColumns((v) => !v)}
+          className={cn(
+            "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium transition-colors",
+            showAllColumns
+              ? "border-zinc-300 bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+              : "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
+          )}
+          title={
+            showAllColumns
+              ? "Đang hiện tất cả cột — bấm để ẩn cột rỗng"
+              : "Đang ẩn cột rỗng — bấm để hiện tất cả"
+          }
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="h-3 w-3"
+          >
+            {showAllColumns ? (
+              <>
+                <path d="M3 12c0-2 4-7 9-7s9 5 9 7-4 7-9 7-9-5-9-7z" />
+                <circle cx="12" cy="12" r="3" />
+              </>
+            ) : (
+              <>
+                <path d="M3 3l18 18" />
+                <path d="M10.5 5.5A12 12 0 0 1 21 12c-1.5 3-4 5-7 6" />
+              </>
+            )}
+          </svg>
+          {showAllColumns ? "Tất cả cột" : "Tự ẩn cột rỗng"}
+        </button>
       </div>
 
       {/* Table — V2.0 Sprint 6 fix: table-fixed + colgroup để truncate hoạt
@@ -698,16 +791,16 @@ export function BomGridPro({
             <col style={{ width: "40px" }} />   {/* # */}
             <col style={{ width: "120px" }} />  {/* Loại */}
             <col style={{ width: "52px" }} />   {/* Ảnh */}
-            <col style={{ width: "50px" }} />   {/* ID Number (R01) */}
+            {showCol("positionCode") && <col style={{ width: "50px" }} />}
             <col style={{ width: "52px" }} />   {/* SL/bộ */}
             <col style={{ width: "180px" }} />  {/* Mã linh kiện */}
             <col style={{ width: "200px" }} />  {/* Tên / Mô tả */}
-            <col style={{ width: "120px" }} />  {/* Kích thước */}
-            <col style={{ width: "110px" }} />  {/* NCC */}
-            <col style={{ width: "100px" }} />  {/* PIC (V3.7.19) */}
-            <col style={{ width: "120px" }} />  {/* Ghi chú */}
-            <col style={{ width: "60px" }} />   {/* Hao hụt */}
-            <col style={{ width: "150px" }} />  {/* Tiến độ */}
+            {showCol("dimensions") && <col style={{ width: "120px" }} />}
+            {showCol("supplier") && <col style={{ width: "110px" }} />}
+            {showCol("pic") && <col style={{ width: "100px" }} />}
+            {showCol("notes") && <col style={{ width: "120px" }} />}
+            {showCol("scrap") && <col style={{ width: "60px" }} />}
+            {showCol("progress") && <col style={{ width: "150px" }} />}
             <col style={{ width: "100px" }} />  {/* Thao tác */}
           </colgroup>
           <thead>
@@ -719,9 +812,11 @@ export function BomGridPro({
               <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-center">
                 Ảnh
               </th>
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
-                ID
-              </th>
+              {showCol("positionCode") && (
+                <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
+                  ID
+                </th>
+              )}
               <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-right">
                 SL/bộ
               </th>
@@ -731,9 +826,12 @@ export function BomGridPro({
               <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
                 Tên / Mô tả
               </th>
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
-                Kích thước
-              </th>
+              {showCol("dimensions") && (
+                <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
+                  Kích thước
+                </th>
+              )}
+              {showCol("supplier") && (
               <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
                 <div className="relative inline-flex items-center gap-1">
                   <span>NCC / Vật tư</span>
@@ -795,18 +893,27 @@ export function BomGridPro({
                   )}
                 </div>
               </th>
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
-                PIC
-              </th>
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
-                Ghi chú
-              </th>
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-right">
-                Hao hụt
-              </th>
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
-                Tiến độ
-              </th>
+              )}
+              {showCol("pic") && (
+                <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
+                  PIC
+                </th>
+              )}
+              {showCol("notes") && (
+                <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
+                  Ghi chú
+                </th>
+              )}
+              {showCol("scrap") && (
+                <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-right">
+                  Hao hụt
+                </th>
+              )}
+              {showCol("progress") && (
+                <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
+                  Tiến độ
+                </th>
+              )}
               <th className="sticky right-0 top-0 z-30 border-b-2 border-l border-zinc-900 bg-zinc-50 px-2 text-center">
                 Thao tác
               </th>
