@@ -1,5 +1,5 @@
 import { and, asc, eq, sql } from "drizzle-orm";
-import { bomLine } from "@iot/db/schema";
+import { bomLine, bomSheet } from "@iot/db/schema";
 import { db } from "@/lib/db";
 
 export interface BomLineInsertInput {
@@ -70,6 +70,36 @@ async function nextPosition(
   return Number(list[0]?.next_pos ?? 1);
 }
 
+/**
+ * V3.7.31 — Lookup PROJECT sheet for a template (or inherit from parent line).
+ * Bắt buộc: bom_line.sheet_id NOT NULL (migration 0027). UI add-line
+ * chưa set sheetId → 500 INTERNAL khi insert. Fix: nếu có parent → lấy
+ * sheetId của parent (cùng sheet); nếu là root line → lấy default
+ * PROJECT sheet của template.
+ */
+async function resolveSheetId(
+  templateId: string,
+  parentLineId: string | null,
+): Promise<string | null> {
+  if (parentLineId) {
+    const [p] = await db
+      .select({ sheetId: bomLine.sheetId })
+      .from(bomLine)
+      .where(eq(bomLine.id, parentLineId))
+      .limit(1);
+    if (p?.sheetId) return p.sheetId;
+  }
+  const [s] = await db
+    .select({ id: bomSheet.id })
+    .from(bomSheet)
+    .where(
+      sql`${bomSheet.templateId} = ${templateId} AND ${bomSheet.kind} = 'PROJECT'`,
+    )
+    .orderBy(asc(bomSheet.position))
+    .limit(1);
+  return s?.id ?? null;
+}
+
 export async function addLine(input: BomLineInsertInput) {
   const level = await resolveLevel(input.parentLineId);
   if (level > BOM_MAX_LEVEL) {
@@ -89,10 +119,18 @@ export async function addLine(input: BomLineInsertInput) {
     input.position ??
     (await nextPosition(input.templateId, input.parentLineId ?? null));
 
+  const sheetId = await resolveSheetId(input.templateId, input.parentLineId);
+  if (!sheetId) {
+    const err = new Error("NO_PROJECT_SHEET");
+    (err as unknown as { code: string }).code = "NO_PROJECT_SHEET";
+    throw err;
+  }
+
   const [row] = await db
     .insert(bomLine)
     .values({
       templateId: input.templateId,
+      sheetId,
       parentLineId: input.parentLineId,
       componentItemId: input.componentItemId,
       level,

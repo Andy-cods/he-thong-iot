@@ -68,7 +68,7 @@ export const RBAC_MATRIX: Matrix = {
   planner: {
     item: ["create", "read", "update"],
     supplier: ["create", "read", "update"],
-    bomTemplate: ["create", "read", "update"],
+    bomTemplate: ["create", "read", "update", "delete"],
     bomRevision: ["create", "read", "update", "approve"],
     salesOrder: ["create", "read", "update", "transition"],
     bomSnapshot: ["create", "read", "transition"],
@@ -89,8 +89,10 @@ export const RBAC_MATRIX: Matrix = {
     bomSnapshot: ["read", "transition"],
     pr: ["read"],
     po: ["read"],
-    wo: ["read", "transition"],
-    reservation: ["read", "transition"],
+    // V3.7.31 — operator được create wo (quick WO) + create reservation
+    // (auto-FIFO ISR). Workflow xưởng: tự tạo WO khi nhận đơn nội bộ.
+    wo: ["create", "read", "transition"],
+    reservation: ["create", "read", "transition"],
     eco: ["read"],
     audit: ["read"],
     user: ["read"],

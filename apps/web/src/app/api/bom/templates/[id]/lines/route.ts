@@ -75,6 +75,13 @@ export async function POST(
         404,
       );
     }
+    if (e.code === "NO_PROJECT_SHEET") {
+      return jsonError(
+        "NO_PROJECT_SHEET",
+        "BOM chưa có sheet PROJECT — không thể thêm linh kiện. Liên hệ admin.",
+        422,
+      );
+    }
     logger.error({ err, id: params.id }, "add bom line failed");
     return jsonError("INTERNAL", "Không tạo được linh kiện.", 500);
   }
