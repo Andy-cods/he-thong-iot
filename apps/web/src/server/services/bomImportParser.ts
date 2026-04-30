@@ -396,29 +396,37 @@ export const BOM_SYNONYM_DICT: Record<string, string[]> = {
     "itemcode",
     "materialcode",
     "code",
+    // V3.7.23 — file BOM FINAL
+    "bomgoc",
+    "malinhkien",
   ],
   qtyPerParent: [
     "quantity",
-    "sl",
-    "soluong",
     "qty",
     "qtyperparent",
     "amount",
     "qtyper",
+    // V3.7.23 — Excel "Quantity (hệ số)" → "quantityheso"
+    "quantityheso",
+    "soluongheso",
+    "qtyheso",
+    "soluongbo",
+    "perset",
+    "permachine",
+    // LOẠI sl/soluong (gây xung đột với totalQty)
   ],
-  componentSeq: ["idnumber", "stt", "id", "so", "seq", "sequence", "no", "thutu"],
+  componentSeq: ["idnumber", "stt", "id", "so", "seq", "sequence", "no", "thutu", "vitri"],
   description: [
     "subcategory",
     "mota",
     "description",
     "desc",
-    "name",
-    "ten",
-    "tenvt",
-    "tenvattu",
-    "productname",
+    "ghichu",
+    "ghichumota",
+    "motavatlieu",
     "spec",
     "specification",
+    // LOẠI name/ten (description ≠ tên SKU)
   ],
   supplierItemCode: [
     "ncc",
@@ -438,8 +446,33 @@ export const BOM_SYNONYM_DICT: Record<string, string[]> = {
     "dimension",
     "dimensions",
     "dim",
+    // V3.7.23
+    "quycach",
+    "quycachthamkhao",
+    "kichthuocthamkhao",
   ],
-  notes: ["note", "notes", "ghichu", "comment", "comments", "remark", "remarks"],
+  notes: ["note", "notes", "comment", "comments", "remark", "remarks", "ghichukhac"],
+  // V3.7.23 — fields mới cho BOM FINAL
+  category: ["category", "loai", "loailinhkien", "phanloai", "loaivattu", "danhmuc"],
+  totalQty: [
+    "totalqty",
+    "totalquantity",
+    "tongsoluong",
+    "tongsl",
+    "soluongtotal",
+    "sl",
+    "soluong",
+  ],
+  assignedToName: [
+    "pic",
+    "personincharge",
+    "responsible",
+    "nguoiphutrach",
+    "phutrach",
+    "owner",
+    "assignee",
+    "incharge",
+  ],
 };
 
 /** Levenshtein edit distance (iterative, O(mn) space-optimized). */
