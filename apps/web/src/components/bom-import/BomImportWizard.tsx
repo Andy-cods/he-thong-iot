@@ -405,8 +405,8 @@ export function BomImportWizard() {
 
           <BomColumnMapperStep
             sheetName={activeSheetName}
-            sourceHeaders={activeSheet.headersDetected}
-            sampleRows={activeSheet.previewRows as unknown[][]}
+            sourceHeaders={activeSheet.headersDetected ?? []}
+            sampleRows={(activeSheet.previewRows as unknown[][]) ?? []}
             initialMapping={mappings[activeSheetName] ?? {}}
             onChange={(m) =>
               setMappings((prev) => ({ ...prev, [activeSheetName]: m }))

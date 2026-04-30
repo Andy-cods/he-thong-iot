@@ -248,14 +248,25 @@ function rowKey(index: number, header: string): string {
 
 export function BomColumnMapperStep({
   sheetName,
-  sourceHeaders,
-  sampleRows = [],
+  sourceHeaders: rawSourceHeaders,
+  sampleRows: rawSampleRows = [],
   initialMapping,
   onChange,
   headerRow,
   headerWarning,
   topTitle,
 }: BomColumnMapperStepProps) {
+  // V3.7.23 — Guard defensive: nếu prop trả undefined (server malformed),
+  // default array thay vì crash khi access .length / .map.
+  const sourceHeaders = React.useMemo(
+    () => (Array.isArray(rawSourceHeaders) ? rawSourceHeaders : []),
+    [rawSourceHeaders],
+  );
+  const sampleRows = React.useMemo(
+    () => (Array.isArray(rawSampleRows) ? rawSampleRows : []),
+    [rawSampleRows],
+  );
+
   const headerCounts = React.useMemo(() => {
     const counts: Record<string, number> = {};
     for (const h of sourceHeaders) counts[h] = (counts[h] ?? 0) + 1;
