@@ -1,0 +1,677 @@
+{
+  "timestamp": "2026-04-30T13-04-20",
+  "base": "https://mes.songchau.vn",
+  "tag": "[AUDIT--04-20]",
+  "summary": {
+    "total": 93,
+    "pass": 92,
+    "fail": 0,
+    "warn": 0,
+    "skip": 1
+  },
+  "created": {
+    "existingBomId": "e1b4598f-a4a6-4a04-bc80-9de6feca60d5",
+    "existingBomCode": "AUDIT-13-03-35_COPY",
+    "bomId": "92f8e7b8-5791-4bbf-8354-9c8fd73ecc06",
+    "bomCode": "AUDIT-13-04-20",
+    "lineId": "ab0b1f07-5b69-498b-a908-1c9e3f418733",
+    "clonedBomId": "b8b40812-48a7-4dd5-acec-8482503f9f94",
+    "itemId": "8674208e-a031-4036-8e43-581a59b1547c",
+    "supplierId": "d05c3819-4121-4cf2-9f8b-74e0a3596915",
+    "prId": "533e58cd-2c56-4675-abb6-1fd5b16952d8",
+    "prCode": "PR-2604-0031"
+  },
+  "results": [
+    {
+      "section": "PRE",
+      "name": "Login admin",
+      "status": "PASS",
+      "http": 200,
+      "detail": "password=ChangeMe!234"
+    },
+    {
+      "section": "PRE",
+      "name": "Login TK-A",
+      "status": "PASS",
+      "http": 200,
+      "detail": "password=Test@1234"
+    },
+    {
+      "section": "PRE",
+      "name": "Login TM-A",
+      "status": "PASS",
+      "http": 200,
+      "detail": "password=Test@1234"
+    },
+    {
+      "section": "PRE",
+      "name": "Login KHO-A",
+      "status": "PASS",
+      "http": 200,
+      "detail": "password=Test@1234"
+    },
+    {
+      "section": "PRE",
+      "name": "Login VH-A",
+      "status": "PASS",
+      "http": 200,
+      "detail": "password=Test@1234"
+    },
+    {
+      "section": "A.1",
+      "name": "admin GET /",
+      "status": "PASS",
+      "http": 200,
+      "detail": "accessible"
+    },
+    {
+      "section": "A.1",
+      "name": "admin GET /warehouse",
+      "status": "PASS",
+      "http": 200,
+      "detail": "accessible"
+    },
+    {
+      "section": "A.1",
+      "name": "admin GET /sales",
+      "status": "PASS",
+      "http": 200,
+      "detail": "accessible"
+    },
+    {
+      "section": "A.1",
+      "name": "admin GET /engineering",
+      "status": "PASS",
+      "http": 200,
+      "detail": "accessible"
+    },
+    {
+      "section": "A.1",
+      "name": "admin GET /operations",
+      "status": "PASS",
+      "http": 200,
+      "detail": "accessible"
+    },
+    {
+      "section": "A.1",
+      "name": "admin GET /admin",
+      "status": "PASS",
+      "http": 200,
+      "detail": "accessible"
+    },
+    {
+      "section": "A.1",
+      "name": "TK-A GET /",
+      "status": "PASS",
+      "http": 200,
+      "detail": "accessible"
+    },
+    {
+      "section": "A.1",
+      "name": "TK-A GET /engineering",
+      "status": "PASS",
+      "http": 200,
+      "detail": "accessible"
+    },
+    {
+      "section": "A.1",
+      "name": "TM-A GET /",
+      "status": "PASS",
+      "http": 200,
+      "detail": "accessible"
+    },
+    {
+      "section": "A.1",
+      "name": "TM-A GET /sales",
+      "status": "PASS",
+      "http": 200,
+      "detail": "accessible"
+    },
+    {
+      "section": "A.1",
+      "name": "KHO-A GET /",
+      "status": "PASS",
+      "http": 200,
+      "detail": "accessible"
+    },
+    {
+      "section": "A.1",
+      "name": "KHO-A GET /warehouse",
+      "status": "PASS",
+      "http": 200,
+      "detail": "accessible"
+    },
+    {
+      "section": "A.1",
+      "name": "VH-A GET /",
+      "status": "PASS",
+      "http": 200,
+      "detail": "accessible"
+    },
+    {
+      "section": "A.1",
+      "name": "VH-A GET /operations",
+      "status": "PASS",
+      "http": 200,
+      "detail": "accessible"
+    },
+    {
+      "section": "A.2",
+      "name": "TK-A blocked from /warehouse",
+      "status": "PASS",
+      "http": 307,
+      "detail": "blocked (307)"
+    },
+    {
+      "section": "A.2",
+      "name": "TK-A blocked from /sales",
+      "status": "PASS",
+      "http": 307,
+      "detail": "blocked (307)"
+    },
+    {
+      "section": "A.2",
+      "name": "TM-A blocked from /warehouse",
+      "status": "PASS",
+      "http": 307,
+      "detail": "blocked (307)"
+    },
+    {
+      "section": "A.2",
+      "name": "TM-A blocked from /engineering",
+      "status": "PASS",
+      "http": 307,
+      "detail": "blocked (307)"
+    },
+    {
+      "section": "A.2",
+      "name": "TM-A blocked from /operations",
+      "status": "PASS",
+      "http": 307,
+      "detail": "blocked (307)"
+    },
+    {
+      "section": "A.2",
+      "name": "KHO-A blocked from /sales",
+      "status": "PASS",
+      "http": 307,
+      "detail": "blocked (307)"
+    },
+    {
+      "section": "A.2",
+      "name": "KHO-A blocked from /engineering",
+      "status": "PASS",
+      "http": 307,
+      "detail": "blocked (307)"
+    },
+    {
+      "section": "A.2",
+      "name": "VH-A blocked from /warehouse",
+      "status": "PASS",
+      "http": 307,
+      "detail": "blocked (307)"
+    },
+    {
+      "section": "A.2",
+      "name": "VH-A blocked from /sales",
+      "status": "PASS",
+      "http": 307,
+      "detail": "blocked (307)"
+    },
+    {
+      "section": "A.2",
+      "name": "VH-A blocked from /engineering",
+      "status": "PASS",
+      "http": 307,
+      "detail": "blocked (307)"
+    },
+    {
+      "section": "A.2",
+      "name": "TK-A blocked from /admin",
+      "status": "PASS",
+      "http": 307,
+      "detail": "blocked (307)"
+    },
+    {
+      "section": "A.2",
+      "name": "TM-A blocked from /admin",
+      "status": "PASS",
+      "http": 307,
+      "detail": "blocked (307)"
+    },
+    {
+      "section": "A.2",
+      "name": "KHO-A blocked from /admin",
+      "status": "PASS",
+      "http": 307,
+      "detail": "blocked (307)"
+    },
+    {
+      "section": "A.2",
+      "name": "VH-A blocked from /admin",
+      "status": "PASS",
+      "http": 307,
+      "detail": "blocked (307)"
+    },
+    {
+      "section": "A.3",
+      "name": "warehouse blocked from PR create",
+      "status": "PASS",
+      "http": 403,
+      "detail": "denied"
+    },
+    {
+      "section": "A.3",
+      "name": "warehouse blocked from PR approve",
+      "status": "PASS",
+      "http": 403,
+      "detail": "denied"
+    },
+    {
+      "section": "A.3",
+      "name": "warehouse blocked from BOM create",
+      "status": "PASS",
+      "http": 403,
+      "detail": "denied"
+    },
+    {
+      "section": "A.3",
+      "name": "purchaser blocked from WO create",
+      "status": "PASS",
+      "http": 403,
+      "detail": "denied"
+    },
+    {
+      "section": "A.3",
+      "name": "purchaser blocked from BOM create",
+      "status": "PASS",
+      "http": 403,
+      "detail": "denied"
+    },
+    {
+      "section": "A.3",
+      "name": "operator blocked from BOM create",
+      "status": "PASS",
+      "http": 403,
+      "detail": "denied"
+    },
+    {
+      "section": "A.3",
+      "name": "operator blocked from PR create",
+      "status": "PASS",
+      "http": 403,
+      "detail": "denied"
+    },
+    {
+      "section": "A.3",
+      "name": "operator blocked from supplier create",
+      "status": "PASS",
+      "http": 403,
+      "detail": "denied"
+    },
+    {
+      "section": "A.4",
+      "name": "planner reads BOM",
+      "status": "PASS",
+      "http": 200,
+      "detail": "allowed"
+    },
+    {
+      "section": "A.4",
+      "name": "purchaser reads suppliers",
+      "status": "PASS",
+      "http": 200,
+      "detail": "allowed"
+    },
+    {
+      "section": "A.4",
+      "name": "warehouse reads layout",
+      "status": "PASS",
+      "http": 200,
+      "detail": "allowed"
+    },
+    {
+      "section": "A.4",
+      "name": "operator reads WO",
+      "status": "PASS",
+      "http": 200,
+      "detail": "allowed"
+    },
+    {
+      "section": "A.4",
+      "name": "admin reads users",
+      "status": "PASS",
+      "http": 200,
+      "detail": "allowed"
+    },
+    {
+      "section": "B.1",
+      "name": "List BOM templates",
+      "status": "PASS",
+      "http": 200,
+      "detail": "7 rows, total=7"
+    },
+    {
+      "section": "B.2",
+      "name": "Detail AUDIT-13-03-35_COPY",
+      "status": "PASS",
+      "http": 200,
+      "detail": "tree=1 lines"
+    },
+    {
+      "section": "B.2",
+      "name": "Sheets PROJECT + MATERIAL (V3.7.27)",
+      "status": "PASS",
+      "http": 200,
+      "detail": "2 sheets, P=true M=true"
+    },
+    {
+      "section": "B.3",
+      "name": "Create BOM",
+      "status": "PASS",
+      "http": 201,
+      "detail": "code=AUDIT-13-04-20"
+    },
+    {
+      "section": "B.4",
+      "name": "MATERIAL sheet auto-created",
+      "status": "PASS",
+      "http": 200,
+      "detail": "2 sheets, MATERIAL=Material & Process"
+    },
+    {
+      "section": "B.4",
+      "name": "MATERIAL rows populated",
+      "status": "PASS",
+      "http": 200,
+      "detail": "63 material rows"
+    },
+    {
+      "section": "B.5",
+      "name": "Add BOM line",
+      "status": "PASS",
+      "http": 201,
+      "detail": "lineId=ab0b1f07"
+    },
+    {
+      "section": "B.6",
+      "name": "Rename BOM",
+      "status": "PASS",
+      "http": 200,
+      "detail": "name=Audit BOM [AUDIT--04-20] [renamed]"
+    },
+    {
+      "section": "B.7",
+      "name": "Clone BOM",
+      "status": "PASS",
+      "http": 201,
+      "detail": "clonedId=b8b40812, lines=1"
+    },
+    {
+      "section": "B.8",
+      "name": "Soft-delete clone",
+      "status": "PASS",
+      "http": 200,
+      "detail": "OBSOLETE"
+    },
+    {
+      "section": "C.1",
+      "name": "List items",
+      "status": "PASS",
+      "http": 200,
+      "detail": "5 rows"
+    },
+    {
+      "section": "C.1",
+      "name": "Create item",
+      "status": "PASS",
+      "http": 201,
+      "detail": "sku=AUDIT-ITEM-13-04-20"
+    },
+    {
+      "section": "C.1",
+      "name": "Update item",
+      "status": "PASS",
+      "http": 200,
+      "detail": "ok"
+    },
+    {
+      "section": "C.2",
+      "name": "List suppliers",
+      "status": "PASS",
+      "http": 200,
+      "detail": "5 rows"
+    },
+    {
+      "section": "C.2",
+      "name": "Create supplier (TM-A)",
+      "status": "PASS",
+      "http": 201,
+      "detail": "id=d05c3819"
+    },
+    {
+      "section": "C.2",
+      "name": "Update supplier",
+      "status": "PASS",
+      "http": 200,
+      "detail": ""
+    },
+    {
+      "section": "C.2",
+      "name": "Supplier PO stats",
+      "status": "PASS",
+      "http": 200,
+      "detail": ""
+    },
+    {
+      "section": "D.1",
+      "name": "Pick 2 DEMO items",
+      "status": "PASS",
+      "http": null,
+      "detail": "DEMO-AL6061-001, DEMO-AL6061-002"
+    },
+    {
+      "section": "D.1",
+      "name": "Create PR",
+      "status": "PASS",
+      "http": 201,
+      "detail": "code=PR-2604-0031 status=SUBMITTED"
+    },
+    {
+      "section": "D.2",
+      "name": "PR_SUBMITTED notif → TM-A",
+      "status": "PASS",
+      "http": null,
+      "detail": "title=\"Yêu cầu mua mới: PR-2604-0031\""
+    },
+    {
+      "section": "D.3",
+      "name": "Approve PR",
+      "status": "PASS",
+      "http": 200,
+      "detail": "status=APPROVED"
+    },
+    {
+      "section": "D.4",
+      "name": "Create PO from PR",
+      "status": "PASS",
+      "http": 200,
+      "detail": "created"
+    },
+    {
+      "section": "D.4",
+      "name": "PO details",
+      "status": "PASS",
+      "http": null,
+      "detail": "code=undefined"
+    },
+    {
+      "section": "E.1",
+      "name": "Create WO (FG=DEMO-FG-CNC-001, mat=DEMO-AL6061-002)",
+      "status": "PASS",
+      "http": 200,
+      "detail": "wo=undefined"
+    },
+    {
+      "section": "E.1",
+      "name": "Auto-ISR undefined",
+      "status": "PASS",
+      "http": null,
+      "detail": "shortage=1"
+    },
+    {
+      "section": "F.1",
+      "name": "Layout stats",
+      "status": "PASS",
+      "http": 200,
+      "detail": "90 bins, 17 occupied, qty=7572"
+    },
+    {
+      "section": "F.2",
+      "name": "Inventory balance",
+      "status": "PASS",
+      "http": 200,
+      "detail": "5 items"
+    },
+    {
+      "section": "F.3",
+      "name": "ISR PENDING list",
+      "status": "PASS",
+      "http": 200,
+      "detail": "3 pending"
+    },
+    {
+      "section": "F.4",
+      "name": "PO list SENT/PARTIAL",
+      "status": "PASS",
+      "http": 200,
+      "detail": "1 POs"
+    },
+    {
+      "section": "F.5",
+      "name": "Bin detail undefined",
+      "status": "PASS",
+      "http": 200,
+      "detail": "lots=0"
+    },
+    {
+      "section": "G",
+      "name": "TK-A list",
+      "status": "PASS",
+      "http": 200,
+      "detail": "total=11 unread=1"
+    },
+    {
+      "section": "G",
+      "name": "TK-A mark-read",
+      "status": "PASS",
+      "http": 200,
+      "detail": ""
+    },
+    {
+      "section": "G",
+      "name": "TM-A list",
+      "status": "PASS",
+      "http": 200,
+      "detail": "total=10 unread=10"
+    },
+    {
+      "section": "G",
+      "name": "TM-A mark-read",
+      "status": "PASS",
+      "http": 200,
+      "detail": ""
+    },
+    {
+      "section": "G",
+      "name": "KHO-A list",
+      "status": "PASS",
+      "http": 200,
+      "detail": "total=11 unread=11"
+    },
+    {
+      "section": "G",
+      "name": "KHO-A mark-read",
+      "status": "PASS",
+      "http": 200,
+      "detail": ""
+    },
+    {
+      "section": "G",
+      "name": "VH-A list",
+      "status": "PASS",
+      "http": 200,
+      "detail": "total=3 unread=0"
+    },
+    {
+      "section": "G",
+      "name": "TK-A mark-all-read",
+      "status": "PASS",
+      "http": 200,
+      "detail": "marked=?"
+    },
+    {
+      "section": "H",
+      "name": "Super-workflow",
+      "status": "SKIP",
+      "http": null,
+      "detail": "missing entities from D/E"
+    },
+    {
+      "section": "I",
+      "name": "admin dashboard",
+      "status": "PASS",
+      "http": 200,
+      "detail": ""
+    },
+    {
+      "section": "I",
+      "name": "TK-A dashboard",
+      "status": "PASS",
+      "http": 200,
+      "detail": ""
+    },
+    {
+      "section": "I",
+      "name": "TM-A dashboard",
+      "status": "PASS",
+      "http": 200,
+      "detail": ""
+    },
+    {
+      "section": "I",
+      "name": "KHO-A dashboard",
+      "status": "PASS",
+      "http": 200,
+      "detail": ""
+    },
+    {
+      "section": "I",
+      "name": "VH-A dashboard",
+      "status": "PASS",
+      "http": 200,
+      "detail": ""
+    },
+    {
+      "section": "J",
+      "name": "List users",
+      "status": "PASS",
+      "http": 200,
+      "detail": "9 users"
+    },
+    {
+      "section": "J",
+      "name": "Audit log",
+      "status": "PASS",
+      "http": 200,
+      "detail": "50 entries"
+    },
+    {
+      "section": "J",
+      "name": "System stats",
+      "status": "PASS",
+      "http": 200,
+      "detail": "ok"
+    }
+  ]
+}

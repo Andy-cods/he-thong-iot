@@ -47,7 +47,19 @@ function recordCookies(jar, scs) {
   return [...map.entries()].map(([k, v]) => `${k}=${v}`).join("; ");
 }
 
+// V3.7.32 — Throttle inter-request 1100ms để tránh apiBurstRateLimit (60/60s/IP).
+// Audit có ~93 reqs cùng IP trong <60s → bắt buộc throttle.
+const THROTTLE_MS = 1100;
+let lastReqAt = 0;
+async function throttle() {
+  const now = Date.now();
+  const wait = THROTTLE_MS - (now - lastReqAt);
+  if (wait > 0) await new Promise(r => setTimeout(r, wait));
+  lastReqAt = Date.now();
+}
+
 async function call(role, method, path, body) {
+  await throttle();
   const headers = { "Content-Type": "application/json" };
   const jar = userJars.get(role);
   if (jar) headers.Cookie = jar;
