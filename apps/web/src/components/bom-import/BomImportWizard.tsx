@@ -118,15 +118,16 @@ export function BomImportWizard() {
       // thức → fallback select tất cả sheets như V2.
       const kinds = res.officialFormat?.sheetKinds ?? {};
       const isOfficial = res.officialFormat?.isOfficial === true;
+      const sheets = res.sheets ?? [];
       const initialSelected = isOfficial
-        ? res.sheets
+        ? sheets
             .filter((s) => kinds[s.sheetName] === "PROJECT")
             .map((s) => s.sheetName)
-        : res.sheets.map((s) => s.sheetName);
+        : sheets.map((s) => s.sheetName);
       setSelectedSheets(
         initialSelected.length > 0
           ? initialSelected
-          : res.sheets.map((s) => s.sheetName),
+          : sheets.map((s) => s.sheetName),
       );
       // Seed mappings từ autoMappings
       setMappings(res.autoMappings);
@@ -223,7 +224,7 @@ export function BomImportWizard() {
   };
 
   const totalSelectedRows = React.useMemo(() => {
-    if (!uploadData) return 0;
+    if (!uploadData?.sheets) return 0;
     return uploadData.sheets
       .filter((s) => selectedSheets.includes(s.sheetName))
       .reduce((acc, s) => acc + s.rowCount, 0);
