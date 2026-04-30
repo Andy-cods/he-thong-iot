@@ -22,7 +22,7 @@ export default function BomImportPage() {
           Nhập BOM từ Excel
         </h1>
         <p className="mt-0.5 text-xs text-zinc-500">
-          Upload file .xlsx · Chọn sheet · Khớp cột · Commit nền
+          3 bước: Tải file · Xem trước & khớp cột · Hoàn tất
         </p>
       </header>
 

@@ -521,7 +521,7 @@ export function BomLineSheet({
                   </div>
                 </div>
                 <div className="col-span-2 space-y-1">
-                  <Label>Tên linh kiện</Label>
+                  <Label>BOM gốc — tên linh kiện</Label>
                   <div className="flex min-h-9 items-center rounded-md border border-zinc-100 bg-zinc-50 px-3 text-[13px] text-zinc-600">
                     {name}
                   </div>
@@ -529,7 +529,7 @@ export function BomLineSheet({
 
                 <div className="space-y-1">
                   <Label htmlFor="bls-qty" required>
-                    Số lượng / bộ
+                    Quantity (hệ số)
                   </Label>
                   <Input
                     id="bls-qty"
@@ -582,14 +582,14 @@ export function BomLineSheet({
                 </div>
 
                 <div className="col-span-2 space-y-1">
-                  <Label htmlFor="bls-desc">Mô tả / Ghi chú</Label>
+                  <Label htmlFor="bls-desc">Ghi chú (Excel: cột Ghi chú)</Label>
                   <Textarea
                     id="bls-desc"
                     maxLength={500}
                     rows={2}
                     value={form.description}
                     onChange={updateInput("description")}
-                    placeholder="Ghi chú chi tiết…"
+                    placeholder="VD: TTBU250T5-100 → đổi sang C-TTBN250T5-150"
                     error={!!errors.description}
                   />
                   <div className="flex items-center justify-between text-[11px]">
@@ -615,7 +615,7 @@ export function BomLineSheet({
               >
                 <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2 space-y-1">
-                    <Label>Nhà cung cấp</Label>
+                    <Label>NCC (Excel: cột NCC)</Label>
                     <SupplierCombobox
                       value={{
                         id: form.supplierId,
@@ -759,7 +759,7 @@ export function BomLineSheet({
                   </div>
 
                   <div className="col-span-2 space-y-1">
-                    <Label htmlFor="bls-blank">Kích thước phôi</Label>
+                    <Label htmlFor="bls-blank">Quy cách (tham khảo) — kích thước phôi</Label>
                     <Input
                       id="bls-blank"
                       maxLength={64}
@@ -774,7 +774,7 @@ export function BomLineSheet({
                       </p>
                     ) : (
                       <p className="text-[11px] text-zinc-400">
-                        Định dạng DxRxS (mm). Hiển thị ở cột "Kích thước" Grid.
+                        Định dạng DxRxS (mm). Hiển thị ở cột "Quy cách" theo Excel.
                       </p>
                     )}
                   </div>

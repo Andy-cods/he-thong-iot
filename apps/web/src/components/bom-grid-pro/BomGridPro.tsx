@@ -298,6 +298,7 @@ export function BomGridPro({
 
   // V3.7.21 — Auto-hide empty columns: cột nào không có data thì ẩn,
   // user có thể toggle để hiện lại tất cả.
+  // V3.7.33 — positionCode auto-show khi có metadata.seq (Excel ID Number AB01...).
   const [showAllColumns, setShowAllColumns] = React.useState(false);
   const colHasData = React.useMemo(() => {
     const has = {
@@ -311,18 +312,12 @@ export function BomGridPro({
     };
     for (const r of visibleRows) {
       if (r.isGroup) continue;
-      if (r.node.positionCode) has.positionCode = true;
-      if (
-        r.node.supplierItemCode ||
-        r.node.assignedToName /* fallback group hiện vì có PIC */
-      ) {
-        // Stop early once we know all columns
-      }
+      const meta = r.node.metadata as
+        | { notes?: string; note?: string; size?: string; seq?: string; category?: string }
+        | undefined;
+      if (r.node.positionCode || meta?.seq) has.positionCode = true;
       if (r.node.supplierItemCode) has.supplier = true;
       if (r.node.assignedToFullName || r.node.assignedToName) has.pic = true;
-      const meta = r.node.metadata as
-        | { notes?: string; note?: string; size?: string; seq?: string }
-        | undefined;
       if (meta?.notes || meta?.note) has.notes = true;
       if (meta?.size || r.node.itemDimensions) has.dimensions = true;
       if (Number(r.node.scrapPercent) > 0) has.scrap = true;
@@ -445,7 +440,7 @@ export function BomGridPro({
           <td className="w-10 px-2 text-[11px] font-mono text-indigo-400 tabular-nums">
             {idx + 1}
           </td>
-          <td colSpan={11} className="px-2 py-1.5">
+          <td colSpan={13} className="px-2 py-1.5">
             <button
               type="button"
               onClick={() => toggleExpand(row.id)}
@@ -489,34 +484,31 @@ export function BomGridPro({
             "!bg-yellow-100 ring-2 ring-inset ring-yellow-400",
         )}
       >
+        {/* V3.7.33 — Excel order: # | Image | ID Number | Quantity | BOM gốc | Ghi chú | Category | ... */}
         {/* # */}
         <td className="px-2 text-[11px] font-mono tabular-nums text-zinc-400">
           {idx + 1}
         </td>
-        {/* Loại — V1.7-beta.2.1: dropdown interactive (override via metadata.kind).
-            V2.0 Sprint 6: moved to position 2 (sau # — đầu hàng theo yêu cầu user). */}
-        <td className="px-2">
-          <KindDropdown templateId={templateId} row={row} readOnly={readOnly} />
-        </td>
-        {/* Ảnh */}
+        {/* Image */}
         <td className="px-1">
           <div className="flex h-7 w-7 items-center justify-center rounded bg-zinc-50 ring-1 ring-inset ring-zinc-200">
             <Package className="h-3.5 w-3.5 text-zinc-300" aria-hidden />
           </div>
         </td>
-        {/* ID Number — V2.0 Sprint 6: chuỗi vị trí từ Excel (R01, S40). */}
+        {/* ID Number — Excel "ID Number" cột AB01..AB40, fallback positionCode */}
         {showCol("positionCode") && (
           <td className="px-2 font-mono text-xs font-medium text-indigo-700 truncate">
-            {row.node.positionCode ?? (
-              <span className="text-zinc-300">—</span>
-            )}
+            {row.node.positionCode ??
+              (row.node.metadata as { seq?: string } | null)?.seq ?? (
+                <span className="text-zinc-300">—</span>
+              )}
           </td>
         )}
-        {/* SL/bộ */}
+        {/* Quantity (hệ số) — Excel "Quantity (hệ số)" = qtyPerParent */}
         <td className="px-2 text-right font-mono text-xs tabular-nums text-zinc-700">
           {formatNumber(qty)}
         </td>
-        {/* Mã linh kiện (Standard Number) — V1.8 Batch 3: link về /items/[componentItemId] */}
+        {/* BOM gốc — Excel "BOM gốc" = SKU/mã linh kiện */}
         <td className="px-2 font-mono text-xs font-medium text-zinc-800 truncate">
           {row.node.componentItemId ? (
             <Link
@@ -533,11 +525,15 @@ export function BomGridPro({
             </span>
           )}
         </td>
-        {/* Tên / Mô tả (Sub Category) */}
+        {/* Ghi chú — Excel "Ghi chú" = description */}
         <td className="px-2 text-sm text-zinc-700 truncate">
           {row.node.description ?? row.node.componentName ?? (
             <span className="italic text-zinc-400">—</span>
           )}
+        </td>
+        {/* Category — Excel "Category" = Loại linh kiện (KindDropdown override) */}
+        <td className="px-2">
+          <KindDropdown templateId={templateId} row={row} readOnly={readOnly} />
         </td>
         {/* Kích thước (Visible Part Size) — TASK-20260427-024 fallback chain.
             1. metadata.size  (set qua form Material/Process / sheet edit)
@@ -651,7 +647,11 @@ export function BomGridPro({
           })()}
         </td>
         )}
-        {/* Ghi chú (Note 1/2/3 concat) */}
+        {/* SL (total) — Excel "SL" = Quantity × parentQty */}
+        <td className="px-2 text-right font-mono text-xs font-semibold tabular-nums text-zinc-900">
+          {formatNumber(qty * parentQty)}
+        </td>
+        {/* Note phụ (metadata.notes — V3.7.33 hiếm khi có data) */}
         {showCol("notes") && (
         <td className="px-2 text-xs italic text-zinc-500 truncate">
           {row.node.metadata && (row.node.metadata as { notes?: string }).notes
@@ -779,62 +779,70 @@ export function BomGridPro({
         </button>
       </div>
 
-      {/* Table — V2.0 Sprint 6 fix: table-fixed + colgroup để truncate hoạt
-          động đúng. sticky top trên từng <th> (border-collapse fix).
-          Column order match Excel "Bản chính thức" (user feedback 2026-04-26):
-          # | Loại | Ảnh | ID Number | SL/bộ | Mã linh kiện | Tên/Mô tả |
-          Kích thước | NCC/Vật tư | Tổng SL | Ghi chú | Hao hụt | Tiến độ |
-          Thao tác. Cột "Loại" (kind dropdown) đặt trước Ảnh theo yêu cầu. */}
+      {/* Table — V3.7.33: Column order match Excel "Bản chính thức" CHÍNH XÁC.
+          # | Image | ID Number | Quantity (hệ số) | BOM gốc | Ghi chú |
+          Category | Quy cách (tham khảo) | NCC | PIC | SL | Tiến độ | Thao tác.
+          Header label tiếng Việt khớp Excel. Cột Hao hụt/notes phụ chỉ hiện
+          khi showAllColumns=true. */}
       <div ref={parentRef} className="flex-1 overflow-auto">
         <table className="w-full table-fixed border-collapse text-sm">
           <colgroup>
             <col style={{ width: "40px" }} />   {/* # */}
-            <col style={{ width: "120px" }} />  {/* Loại */}
-            <col style={{ width: "52px" }} />   {/* Ảnh */}
-            {showCol("positionCode") && <col style={{ width: "50px" }} />}
-            <col style={{ width: "52px" }} />   {/* SL/bộ */}
-            <col style={{ width: "180px" }} />  {/* Mã linh kiện */}
-            <col style={{ width: "200px" }} />  {/* Tên / Mô tả */}
-            {showCol("dimensions") && <col style={{ width: "120px" }} />}
-            {showCol("supplier") && <col style={{ width: "110px" }} />}
-            {showCol("pic") && <col style={{ width: "100px" }} />}
-            {showCol("notes") && <col style={{ width: "120px" }} />}
-            {showCol("scrap") && <col style={{ width: "60px" }} />}
-            {showCol("progress") && <col style={{ width: "150px" }} />}
+            <col style={{ width: "52px" }} />   {/* Image */}
+            {showCol("positionCode") && <col style={{ width: "70px" }} />}{/* ID Number */}
+            <col style={{ width: "70px" }} />   {/* Quantity (hệ số) */}
+            <col style={{ width: "180px" }} />  {/* BOM gốc */}
+            <col style={{ width: "200px" }} />  {/* Ghi chú */}
+            <col style={{ width: "120px" }} />  {/* Category */}
+            {showCol("dimensions") && <col style={{ width: "130px" }} />}{/* Quy cách */}
+            {showCol("supplier") && <col style={{ width: "110px" }} />}{/* NCC */}
+            {showCol("pic") && <col style={{ width: "110px" }} />}{/* PIC */}
+            <col style={{ width: "60px" }} />   {/* SL (total) */}
+            {showCol("notes") && <col style={{ width: "120px" }} />}{/* Ghi chú phụ */}
+            {showCol("scrap") && <col style={{ width: "60px" }} />}{/* Hao hụt */}
+            {showCol("progress") && <col style={{ width: "150px" }} />}{/* Tiến độ */}
             <col style={{ width: "100px" }} />  {/* Thao tác */}
           </colgroup>
           <thead>
             <tr className="h-8 text-[10px] font-medium uppercase tracking-wide text-zinc-600">
+              {/* # */}
               <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-right">#</th>
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
-                Loại
-              </th>
+              {/* Image */}
               <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-center">
-                Ảnh
+                Image
               </th>
+              {/* ID Number */}
               {showCol("positionCode") && (
                 <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
-                  ID
+                  ID Number
                 </th>
               )}
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-right">
-                SL/bộ
+              {/* Quantity (hệ số) */}
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-right" title="Quantity (hệ số) — số lượng linh kiện trên 1 sản phẩm">
+                Quantity
               </th>
+              {/* BOM gốc */}
               <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
-                Mã linh kiện
+                BOM gốc
               </th>
+              {/* Ghi chú */}
               <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
-                Tên / Mô tả
+                Ghi chú
               </th>
+              {/* Category — was Loại */}
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
+                Category
+              </th>
+              {/* Quy cách (tham khảo) */}
               {showCol("dimensions") && (
-                <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
-                  Kích thước
+                <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left" title="Quy cách (tham khảo)">
+                  Quy cách
                 </th>
               )}
               {showCol("supplier") && (
               <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
                 <div className="relative inline-flex items-center gap-1">
-                  <span>NCC / Vật tư</span>
+                  <span>NCC</span>
                   <button
                     type="button"
                     onClick={() => setSupplierFilterOpen((o) => !o)}
@@ -899,9 +907,13 @@ export function BomGridPro({
                   PIC
                 </th>
               )}
+              {/* SL (total) — Quantity (hệ số) × parentQty. V3.7.33 column theo Excel. */}
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-right" title={`SL = Quantity × ${parentQty} (số lượng parent)`}>
+                SL
+              </th>
               {showCol("notes") && (
-                <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
-                  Ghi chú
+                <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left" title="Ghi chú phụ từ metadata.notes">
+                  Note phụ
                 </th>
               )}
               {showCol("scrap") && (
@@ -940,7 +952,7 @@ export function BomGridPro({
             )}
             {visibleRows.length === 0 && (
               <tr>
-                <td colSpan={13} className="py-8 text-center text-xs text-zinc-400">
+                <td colSpan={15} className="py-8 text-center text-xs text-zinc-400">
                   BOM chưa có linh kiện nào.
                 </td>
               </tr>
