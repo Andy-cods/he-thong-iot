@@ -18,9 +18,10 @@ export const dynamic = "force-dynamic";
  * không gian cho data, đồng thời thông tin contextual hơn (KPI, action buttons).
  */
 
+// V3.7.16 — Order: PO trước, Nhà cung cấp sau, Kế toán cuối (theo feedback user)
 const SALES_TABS = [
-  { key: "suppliers",  label: "Nhà cung cấp",  icon: Building2    },
   { key: "po",         label: "Đặt hàng (PO)",  icon: ShoppingCart },
+  { key: "suppliers",  label: "Nhà cung cấp",  icon: Building2    },
   { key: "accounting", label: "Kế toán",        icon: Calculator   },
 ] as const satisfies ReadonlyArray<HubTabDef>;
 
@@ -32,7 +33,7 @@ interface SalesPageProps {
 
 function resolveTab(raw: string | undefined): SalesTab {
   const found = SALES_TABS.find((t) => t.key === raw);
-  return found ? found.key : "suppliers";
+  return found ? found.key : "po";
 }
 
 export default function SalesPage({ searchParams }: SalesPageProps) {

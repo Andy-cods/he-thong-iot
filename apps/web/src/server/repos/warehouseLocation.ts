@@ -39,6 +39,10 @@ export interface BinWithStock extends BinRow {
   lotCount: number;
   /** True nếu < lowThreshold. */
   isLow: boolean;
+  /** V3.7.16 — Danh sách SKU đã được "slot" (default_bin_id) vào bin này, dù chưa có tồn. */
+  slottedSkus: string[];
+  /** V3.7.16 — Số SKU đã slot (kể cả không có tồn). */
+  slotCount: number;
 }
 
 /** Liệt kê tất cả bins với stock summary — dùng cho 3D layout map. */
@@ -60,6 +64,8 @@ export async function listBinsWithStock(): Promise<BinWithStock[]> {
     total_qty: string | null;
     sku_count: number;
     lot_count: number;
+    slotted_skus: string | null;
+    slot_count: number;
   }>(sql`
     SELECT
       lb.id,
@@ -69,19 +75,38 @@ export async function listBinsWithStock(): Promise<BinWithStock[]> {
       lb.coord_x::text, lb.coord_y::text, lb.coord_z::text,
       lb.is_active,
       lb.description,
-      COALESCE(SUM(bi.qty_on_hand), 0)::text AS total_qty,
-      COUNT(DISTINCT bi.item_id)::int        AS sku_count,
-      COUNT(DISTINCT bi.lot_serial_id)::int  AS lot_count
+      COALESCE(stock.total_qty, 0)::text AS total_qty,
+      COALESCE(stock.sku_count, 0)        AS sku_count,
+      COALESCE(stock.lot_count, 0)        AS lot_count,
+      slot.slotted_skus                   AS slotted_skus,
+      COALESCE(slot.slot_count, 0)        AS slot_count
     FROM app.location_bin lb
-    LEFT JOIN app.bin_inventory bi ON bi.bin_id = lb.id
+    LEFT JOIN LATERAL (
+      SELECT
+        SUM(bi.qty_on_hand)             AS total_qty,
+        COUNT(DISTINCT bi.item_id)::int AS sku_count,
+        COUNT(DISTINCT bi.lot_serial_id)::int AS lot_count
+      FROM app.bin_inventory bi
+      WHERE bi.bin_id = lb.id
+    ) stock ON TRUE
+    LEFT JOIN LATERAL (
+      SELECT
+        STRING_AGG(i.sku, ',' ORDER BY i.sku) AS slotted_skus,
+        COUNT(*)::int                          AS slot_count
+      FROM app.item i
+      WHERE i.default_bin_id = lb.id
+        AND i.is_active = TRUE
+    ) slot ON TRUE
     WHERE lb.is_active = TRUE
-    GROUP BY lb.id
     ORDER BY lb.area, lb.rack, lb.level_no, lb.position
   `);
 
   return (rows as unknown as Array<typeof rows[number]>).map((r) => {
     const total = Number(r.total_qty ?? "0");
     const lowT = Number(r.low_threshold ?? "0");
+    const slottedSkus = r.slotted_skus
+      ? r.slotted_skus.split(",").filter(Boolean)
+      : [];
     return {
       id: r.id,
       fullCode: r.full_code,
@@ -100,6 +125,8 @@ export async function listBinsWithStock(): Promise<BinWithStock[]> {
       skuCount: r.sku_count,
       lotCount: r.lot_count,
       isLow: lowT > 0 && total > 0 && total < lowT,
+      slottedSkus,
+      slotCount: r.slot_count,
     };
   });
 }

@@ -88,23 +88,20 @@ function KpiCard({
   accent?: "zinc" | "emerald" | "red" | "indigo" | "amber";
   trend?: { dir: "up" | "down"; text: string };
 }) {
-  // V3.7.14 — KPI card với gradient + shadow
+  // V3.7.16 — KPI card đơn giản hơn (theo feedback): bỏ gradient màu mè
   const cardStyle: Record<string, string> = {
     zinc: "bg-white border-zinc-200",
-    emerald: "bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-200",
-    red: "bg-gradient-to-br from-rose-50 to-red-50 border-rose-200",
-    indigo: "bg-gradient-to-br from-indigo-50 to-violet-50 border-indigo-200",
-    amber: "bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200",
+    emerald: "bg-white border-zinc-200",
+    red: "bg-white border-zinc-200",
+    indigo: "bg-white border-zinc-200",
+    amber: "bg-white border-zinc-200",
   };
   const iconStyle: Record<string, string> = {
-    zinc: "bg-gradient-to-br from-zinc-100 to-zinc-200 text-zinc-700",
-    emerald:
-      "bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-200",
-    red: "bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-md shadow-rose-200",
-    indigo:
-      "bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md shadow-indigo-200",
-    amber:
-      "bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-md shadow-amber-200",
+    zinc: "bg-zinc-100 text-zinc-600",
+    emerald: "bg-emerald-50 text-emerald-700",
+    red: "bg-rose-50 text-rose-600",
+    indigo: "bg-indigo-50 text-indigo-700",
+    amber: "bg-amber-50 text-amber-700",
   };
   const valColor: Record<string, string> = {
     zinc: "text-zinc-900",
@@ -123,11 +120,11 @@ function KpiCard({
       <div className="mb-3 flex items-start justify-between">
         <div
           className={cn(
-            "flex h-11 w-11 items-center justify-center rounded-xl transition-transform group-hover:scale-110",
+            "flex h-10 w-10 items-center justify-center rounded-lg",
             iconStyle[accent],
           )}
         >
-          <Icon className="h-5 w-5" />
+          <Icon className="h-4 w-4" />
         </div>
         {trend && (
           <span
@@ -212,11 +209,11 @@ export function AccountingTab() {
       <header className="border-b border-zinc-200 bg-white px-6 py-5">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-200">
-              <Banknote className="h-6 w-6 text-white" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+              <Banknote className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-zinc-900">
+              <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
                 Kế toán &amp; Thanh toán
               </h1>
               <p className="mt-0.5 text-sm text-zinc-500">
@@ -337,11 +334,11 @@ function DashboardTab({ allPOs, isLoading, totalAmount, receivedAmt, pendingAmt,
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Top nhà cung cấp — V3.7.15 polish */}
         <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
-          <header className="flex items-center gap-2 border-b border-zinc-100 bg-gradient-to-r from-indigo-50 to-violet-50/40 px-5 py-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md shadow-indigo-200">
+          <header className="flex items-center gap-2 border-b border-zinc-100 bg-zinc-50/50 px-5 py-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 text-zinc-600">
               <Building2 className="h-4 w-4" />
             </div>
-            <p className="text-sm font-bold text-zinc-900">Top nhà cung cấp</p>
+            <p className="text-sm font-semibold text-zinc-900">Top nhà cung cấp</p>
           </header>
           <div className="p-5">
           {bySupplier.length === 0 ? (
@@ -373,14 +370,14 @@ function DashboardTab({ allPOs, isLoading, totalAmount, receivedAmt, pendingAmt,
 
         {/* PO gần đây — V3.7.15 polish */}
         <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
-          <header className="flex items-center justify-between border-b border-zinc-100 bg-gradient-to-r from-emerald-50 to-teal-50/40 px-5 py-3">
+          <header className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50/50 px-5 py-3">
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-200">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 text-zinc-600">
                 <Receipt className="h-4 w-4" />
               </div>
-              <p className="text-sm font-bold text-zinc-900">PO gần đây</p>
+              <p className="text-sm font-semibold text-zinc-900">PO gần đây</p>
             </div>
-            <Link href="/sales?tab=po" className="inline-flex items-center gap-0.5 text-xs font-semibold text-emerald-700 hover:underline">
+            <Link href="/sales?tab=po" className="inline-flex items-center gap-0.5 text-xs font-semibold text-indigo-600 hover:underline">
               Xem tất cả <ChevronRight className="h-3 w-3" />
             </Link>
           </header>
@@ -412,11 +409,11 @@ function DashboardTab({ allPOs, isLoading, totalAmount, receivedAmt, pendingAmt,
 
       {/* Biểu đồ phân bố trạng thái — V3.7.15 polish */}
       <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
-        <header className="flex items-center gap-2 border-b border-zinc-100 bg-gradient-to-r from-amber-50 to-orange-50/40 px-5 py-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-md shadow-amber-200">
+        <header className="flex items-center gap-2 border-b border-zinc-100 bg-zinc-50/50 px-5 py-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 text-zinc-600">
             <BarChart3 className="h-4 w-4" />
           </div>
-          <p className="text-sm font-bold text-zinc-900">Phân bố trạng thái PO</p>
+          <p className="text-sm font-semibold text-zinc-900">Phân bố trạng thái PO</p>
         </header>
         <div className="p-5">
           <StatusDistribution allPOs={allPOs} totalAmount={totalAmount} />

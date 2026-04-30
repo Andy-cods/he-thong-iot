@@ -36,6 +36,9 @@ export interface BinNode {
   lotCount: number;
   isLow: boolean;
   primarySku?: string | null;
+  /** V3.7.16 — SKU đã slot vào bin (default_bin_id), hiện kể cả khi chưa có tồn. */
+  slottedSkus?: string[];
+  slotCount?: number;
 }
 
 export interface WarehouseLayout3DProps {
@@ -68,7 +71,7 @@ const RACK_PAD = 36;
 const BASE_OVERHANG = 36;
 
 /** 6 fill-level themes + 2 special states. */
-type ThemeKey = "full" | "high" | "mid" | "low" | "warning" | "empty" | "inactive";
+type ThemeKey = "full" | "high" | "mid" | "low" | "warning" | "slotted" | "empty" | "inactive";
 
 interface BinTheme {
   /** 4-stop gradient cho front face */
@@ -197,6 +200,23 @@ const THEMES: Record<ThemeKey, BinTheme> = {
     statusLabel: "Trống",
     palletTone: "empty",
   },
+  // V3.7.16 — SLOTTED: bin đã được gán SKU nhưng chưa nhập hàng (sky blue)
+  slotted: {
+    frontStops: ["#bae6fd", "#7dd3fc", "#38bdf8", "#0284c7"],
+    topStops: ["#e0f2fe", "#bae6fd"],
+    sideStops: ["#0369a1", "#0c4a6e"],
+    stroke: "#0369a1",
+    shadow: "rgba(14, 165, 233, 0.35)",
+    textPrimary: "#0c4a6e",
+    textSecondary: "rgba(12, 74, 110, 0.85)",
+    progressFill: "#38bdf8",
+    progressTrack: "rgba(14, 165, 233, 0.2)",
+    glassRef: "rgba(255, 255, 255, 0.5)",
+    led: "#0ea5e9",
+    ledGlow: "rgba(14, 165, 233, 0.5)",
+    statusLabel: "Đã gán",
+    palletTone: "blue",
+  },
   // INACTIVE
   inactive: {
     frontStops: ["#a1a1aa", "#71717a", "#52525b", "#3f3f46"],
@@ -221,7 +241,10 @@ function getBinTheme(bin: BinNode): { key: ThemeKey; theme: BinTheme; pct: numbe
   const pct = cap > 0 ? Math.min(100, Math.max(0, (bin.totalQty / cap) * 100)) : 0;
   let key: ThemeKey;
   if (!bin.isActive) key = "inactive";
-  else if (bin.totalQty <= 0) key = "empty";
+  else if (bin.totalQty <= 0) {
+    // V3.7.16 — Bin chưa có tồn nhưng đã gán SKU → theme "slotted" (sky-blue) thay "empty" gray
+    key = (bin.slotCount ?? 0) > 0 ? "slotted" : "empty";
+  }
   else if (bin.isLow) key = "warning";
   else if (pct > 85) key = "full";
   else if (pct > 60) key = "high";
@@ -1012,7 +1035,7 @@ function BinPro3D({
         {bin.fullCode}
       </text>
 
-      {/* === SKU === */}
+      {/* === SKU === V3.7.16: hiển thị slotted SKU khi chưa có tồn */}
       <text
         x={fxL + 16}
         y={fyT + 84}
@@ -1026,7 +1049,11 @@ function BinPro3D({
           ? `SKU: ${bin.primarySku.length > 16 ? bin.primarySku.slice(0, 15) + "…" : bin.primarySku}`
           : hasStock
             ? `${bin.skuCount} SKU · ${bin.lotCount} lot`
-            : "Trống"}
+            : (bin.slotCount ?? 0) > 0
+              ? bin.slottedSkus && bin.slottedSkus[0]
+                ? `Đã gán: ${bin.slottedSkus[0].length > 14 ? bin.slottedSkus[0].slice(0, 13) + "…" : bin.slottedSkus[0]}${bin.slotCount! > 1 ? ` +${bin.slotCount! - 1}` : ""}`
+                : `Đã gán ${bin.slotCount} SKU`
+              : "Trống"}
       </text>
 
       {/* === QTY === */}
