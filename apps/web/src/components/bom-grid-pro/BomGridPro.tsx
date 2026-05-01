@@ -31,7 +31,7 @@ import {
 import { ActionsCell } from "./ActionsCell";
 import { BomLineSheet } from "./BomLineSheet";
 import { PRQuickDialog } from "./PRQuickDialog";
-import { KindDropdown } from "./KindDropdown";
+import { CategoryBadge } from "./CategoryBadge";
 import { AddBomLineDialog } from "./AddBomLineDialog";
 
 /**
@@ -233,6 +233,9 @@ export function BomGridPro({
   // V3.7.11 — Filter NCC: lọc rows theo supplier_item_code (tên/mã NCC).
   const [supplierFilter, setSupplierFilter] = React.useState("");
   const [supplierFilterOpen, setSupplierFilterOpen] = React.useState(false);
+  // V3.7.37 — Filter PIC tương tự NCC.
+  const [picFilter, setPicFilter] = React.useState("");
+  const [picFilterOpen, setPicFilterOpen] = React.useState(false);
 
   // Tập hợp danh sách NCC unique để gợi ý
   const supplierOptions = React.useMemo(() => {
@@ -244,40 +247,47 @@ export function BomGridPro({
     return Array.from(set).sort();
   }, [flat]);
 
-  // Compute visible rows dựa trên expanded state + supplier filter
+  // V3.7.37 — Tập PIC unique (assignedToFullName ưu tiên, fallback assignedToName raw).
+  const picOptions = React.useMemo(() => {
+    const set = new Set<string>();
+    for (const r of flat) {
+      const p = r.node.assignedToFullName ?? r.node.assignedToName;
+      if (p && p.trim()) set.add(p.trim());
+    }
+    return Array.from(set).sort();
+  }, [flat]);
+
+  // V3.7.37 — Compute visible rows: NCC filter + PIC filter (AND logic).
   const visibleRows = React.useMemo(() => {
     const hiddenParents = new Set<string>();
     const result: BomFlatRow[] = [];
-    const needle = supplierFilter.trim().toLowerCase();
+    const supNeedle = supplierFilter.trim().toLowerCase();
+    const picNeedle = picFilter.trim().toLowerCase();
 
-    // Khi có filter NCC: chỉ giữ rows có supplierItemCode khớp + expand parent.
-    // Strategy: 2-pass — pass 1 đánh dấu rows match + ancestors; pass 2 tạo result.
     let allowed: Set<string> | null = null;
-    if (needle) {
+    if (supNeedle || picNeedle) {
       const matchIds = new Set<string>();
       for (const r of flat) {
         const s = (r.node.supplierItemCode ?? "").toLowerCase();
-        if (s.includes(needle)) matchIds.add(r.id);
+        const p = (
+          r.node.assignedToFullName ??
+          r.node.assignedToName ??
+          ""
+        ).toLowerCase();
+        const supOk = !supNeedle || s.includes(supNeedle);
+        const picOk = !picNeedle || p.includes(picNeedle);
+        if (supOk && picOk) matchIds.add(r.id);
       }
-      // Add ancestors để giữ tree path
+      // Add ancestors giữ tree path
       const idToRow = new Map(flat.map((r) => [r.id, r]));
-      const expandedParents = new Set<string>();
-      for (const id of matchIds) {
+      for (const id of [...matchIds]) {
         let cur = idToRow.get(id);
         while (cur?.node.parentLineId) {
-          expandedParents.add(cur.node.parentLineId);
           matchIds.add(cur.node.parentLineId);
           cur = idToRow.get(cur.node.parentLineId);
         }
       }
       allowed = matchIds;
-      // Tự động expand các parent có match
-      // (không gọi setExpanded để tránh re-render loop; chỉ ảnh hưởng rendering qua override)
-      for (const r of flat) {
-        if (r.isGroup && expandedParents.has(r.id) && !expanded.has(r.id)) {
-          // ép visible bằng cách bỏ qua hidden parent logic dưới
-        }
-      }
     }
 
     for (const row of flat) {
@@ -288,13 +298,12 @@ export function BomGridPro({
         continue;
       }
       result.push(row);
-      // Khi filter active: tự động expand toàn bộ parent có match.
       if (row.isGroup && !expanded.has(row.id) && !allowed) {
         hiddenParents.add(row.id);
       }
     }
     return result;
-  }, [flat, expanded, supplierFilter]);
+  }, [flat, expanded, supplierFilter, picFilter]);
 
   // V3.7.21 — Auto-hide empty columns: cột nào không có data thì ẩn,
   // user có thể toggle để hiện lại tất cả.
@@ -531,9 +540,11 @@ export function BomGridPro({
             <span className="italic text-zinc-400">—</span>
           )}
         </td>
-        {/* Category — Excel "Category" = Loại linh kiện (KindDropdown override) */}
+        {/* Category — Excel "Category" = display badge từ metadata.category.
+            V3.7.37: thay KindDropdown — hiển thị raw text (Thương mại / GTAM /
+            Đặt gia công ngoài) màu phân biệt. Edit qua BomLineSheet. */}
         <td className="px-2">
-          <KindDropdown templateId={templateId} row={row} readOnly={readOnly} />
+          <CategoryBadge row={row} />
         </td>
         {/* Kích thước (Visible Part Size) — TASK-20260427-024 fallback chain.
             1. metadata.size  (set qua form Material/Process / sheet edit)
@@ -647,9 +658,18 @@ export function BomGridPro({
           })()}
         </td>
         )}
-        {/* SL (total) — Excel "SL" = Quantity × parentQty */}
+        {/* SL — Excel "SL" = số lượng đặt thực tế (totalQty từ Excel).
+            V3.7.37: Lấy từ metadata.totalQty (raw từ Excel) thay vì tính
+            qty × parentQty. Vì SL Excel thường = qty × số set khách đặt
+            (ví dụ 14 set băng tải) — không cố định bằng parentQty hệ thống.
+            Fallback qty × parentQty nếu metadata.totalQty rỗng (manual added). */}
         <td className="px-2 text-right font-mono text-xs font-semibold tabular-nums text-zinc-900">
-          {formatNumber(qty * parentQty)}
+          {(() => {
+            const meta = row.node.metadata as { totalQty?: string | number } | null;
+            const fromExcel = meta?.totalQty != null ? Number(meta.totalQty) : NaN;
+            if (Number.isFinite(fromExcel) && fromExcel > 0) return formatNumber(fromExcel);
+            return formatNumber(qty * parentQty);
+          })()}
         </td>
         {/* Note phụ (metadata.notes — V3.7.33 hiếm khi có data) */}
         {showCol("notes") && (
@@ -904,7 +924,65 @@ export function BomGridPro({
               )}
               {showCol("pic") && (
                 <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
-                  PIC
+                  <div className="relative inline-flex items-center gap-1">
+                    <span>PIC</span>
+                    <button
+                      type="button"
+                      onClick={() => setPicFilterOpen((o) => !o)}
+                      className={cn(
+                        "inline-flex h-4 w-4 items-center justify-center rounded text-zinc-400 hover:text-zinc-700",
+                        picFilter && "bg-indigo-600 text-white hover:bg-indigo-700",
+                      )}
+                      title="Lọc theo PIC"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        className="h-3 w-3"
+                      >
+                        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                      </svg>
+                    </button>
+                    {picFilterOpen && (
+                      <div
+                        className="absolute left-0 top-full z-30 mt-1 w-56 rounded-md border border-zinc-200 bg-white p-2 shadow-lg"
+                        onMouseLeave={() => setPicFilterOpen(false)}
+                      >
+                        <input
+                          type="text"
+                          value={picFilter}
+                          onChange={(e) => setPicFilter(e.target.value)}
+                          placeholder="Tìm PIC…"
+                          autoFocus
+                          list="pic-options"
+                          className="block w-full rounded border border-zinc-300 px-2 py-1 text-xs"
+                        />
+                        <datalist id="pic-options">
+                          {picOptions.map((p) => (
+                            <option key={p} value={p} />
+                          ))}
+                        </datalist>
+                        {picFilter && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPicFilter("");
+                              setPicFilterOpen(false);
+                            }}
+                            className="mt-1 w-full rounded text-xs text-rose-600 hover:bg-rose-50 px-2 py-1 text-left"
+                          >
+                            ✕ Xoá filter
+                          </button>
+                        )}
+                        <p className="mt-1 text-[10px] text-zinc-500">
+                          {picOptions.length} PIC trong BOM
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </th>
               )}
               {/* SL (total) — Quantity (hệ số) × parentQty. V3.7.33 column theo Excel. */}
