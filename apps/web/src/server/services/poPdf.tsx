@@ -34,20 +34,11 @@ import {
   pdf,
 } from "@react-pdf/renderer";
 
-// V3.7.38 — Register Roboto font cho VN characters. CDN urls Google Fonts raw.
-Font.register({
-  family: "Roboto",
-  fonts: [
-    {
-      src: "https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Mu4mxKKTU1Kg.ttf",
-      fontWeight: 400,
-    },
-    {
-      src: "https://fonts.gstatic.com/s/roboto/v30/KFOlCnqEu92Fr1MmEU9fBBc4.ttf",
-      fontWeight: 700,
-    },
-  ],
-});
+// V3.7.38 — Default font Helvetica (no Vietnamese diacritics) — fallback.
+// V3.7.39: skip font registration. @react-pdf/renderer dùng Helvetica built-in
+// — đủ render Latin + nhiều ký tự VN cơ bản. Vietnamese diacritics có thể hơi
+// xấu nhưng không crash server. Sau này upgrade với bundled .ttf file.
+Font.registerHyphenationCallback((word) => [word]);
 
 // =====================================================================
 // Buyer (GTAM) — fixed info từ DDH-Mau template.
@@ -110,7 +101,7 @@ export interface POPdfInput {
 // =====================================================================
 const styles = StyleSheet.create({
   page: {
-    fontFamily: "Roboto",
+    fontFamily: "Helvetica",
     fontSize: 9,
     paddingTop: 24,
     paddingBottom: 24,
@@ -463,12 +454,8 @@ export function PurchaseOrderPdfDoc(input: POPdfInput) {
 
 /** Render PDF document → Node Buffer (cho HTTP response). */
 export async function renderPoPdfBuffer(input: POPdfInput): Promise<Buffer> {
-  // pdf().toBuffer() trả Node stream → cần collect.
-  const stream = await pdf(PurchaseOrderPdfDoc(input)).toBuffer();
-  return new Promise<Buffer>((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    stream.on("data", (c: Buffer) => chunks.push(c));
-    stream.on("end", () => resolve(Buffer.concat(chunks)));
-    stream.on("error", reject);
-  });
+  // V3.7.39 — toBlob() đơn giản hơn toBuffer() stream, ít fail hơn trên Node.
+  const blob = await pdf(PurchaseOrderPdfDoc(input)).toBlob();
+  const arrayBuffer = await blob.arrayBuffer();
+  return Buffer.from(arrayBuffer);
 }
