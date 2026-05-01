@@ -24,6 +24,8 @@
  */
 
 import * as React from "react";
+import fs from "node:fs";
+import path from "node:path";
 import {
   Document,
   Font,
@@ -34,11 +36,44 @@ import {
   pdf,
 } from "@react-pdf/renderer";
 
-// V3.7.38 — Default font Helvetica (no Vietnamese diacritics) — fallback.
-// V3.7.39: skip font registration. @react-pdf/renderer dùng Helvetica built-in
-// — đủ render Latin + nhiều ký tự VN cơ bản. Vietnamese diacritics có thể hơi
-// xấu nhưng không crash server. Sau này upgrade với bundled .ttf file.
-Font.registerHyphenationCallback((word) => [word]);
+// V3.7.40 — Roboto bundled TTF (hỗ trợ tiếng Việt diacritics đầy đủ).
+// Path resolution multi-mode:
+//   - Dev:    cwd = apps/web  → public/fonts/
+//   - Docker: cwd = /app      → apps/web/public/fonts/
+const FONT_CANDIDATES = [
+  path.join(process.cwd(), "public/fonts"),
+  path.join(process.cwd(), "apps/web/public/fonts"),
+];
+let fontsRegistered = false;
+function ensureFontsRegistered() {
+  if (fontsRegistered) return;
+  for (const dir of FONT_CANDIDATES) {
+    try {
+      const regularPath = path.join(dir, "Roboto-Regular.ttf");
+      const boldPath = path.join(dir, "Roboto-Bold.ttf");
+      if (fs.existsSync(regularPath) && fs.existsSync(boldPath)) {
+        Font.register({
+          family: "Roboto",
+          fonts: [
+            { src: regularPath, fontWeight: 400 },
+            { src: boldPath, fontWeight: 700 },
+          ],
+        });
+        Font.registerHyphenationCallback((word) => [word]);
+        fontsRegistered = true;
+        return;
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("[poPdf] Font register failed", err);
+    }
+  }
+  // eslint-disable-next-line no-console
+  console.warn(
+    "[poPdf] Roboto TTF not found in:",
+    FONT_CANDIDATES.join(", "),
+  );
+}
 
 // =====================================================================
 // Buyer (GTAM) — fixed info từ DDH-Mau template.
@@ -101,7 +136,7 @@ export interface POPdfInput {
 // =====================================================================
 const styles = StyleSheet.create({
   page: {
-    fontFamily: "Helvetica",
+    fontFamily: "Roboto",
     fontSize: 9,
     paddingTop: 24,
     paddingBottom: 24,
@@ -454,7 +489,8 @@ export function PurchaseOrderPdfDoc(input: POPdfInput) {
 
 /** Render PDF document → Node Buffer (cho HTTP response). */
 export async function renderPoPdfBuffer(input: POPdfInput): Promise<Buffer> {
-  // V3.7.39 — toBlob() đơn giản hơn toBuffer() stream, ít fail hơn trên Node.
+  // V3.7.40 — Register Roboto fonts trước khi render (lazy, idempotent).
+  ensureFontsRegistered();
   const blob = await pdf(PurchaseOrderPdfDoc(input)).toBlob();
   const arrayBuffer = await blob.arrayBuffer();
   return Buffer.from(arrayBuffer);
