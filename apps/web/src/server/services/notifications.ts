@@ -22,6 +22,8 @@ export type NotificationEventType =
   | "PO_SENT"
   | "PO_RECEIVED_PARTIAL"
   | "PO_RECEIVED_FULL"
+  // V3.7.43 — PO Subcontract (gia công ngoài) DRAFT cần TM-A chốt giá + duyệt
+  | "PO_SUBCONTRACT_DRAFT"
   // Work Order flow
   | "WO_RELEASED"
   | "WO_COMPLETED"

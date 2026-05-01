@@ -306,13 +306,26 @@ export default function PurchaseOrderDetailPage() {
               <Receipt className="h-6 w-6 text-white" />
             </div>
             <div className="min-w-0">
-              <span className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset",
-                cfg.cls,
-              )}>
-                <span className={cn("h-1.5 w-1.5 rounded-full", cfg.dot)} />
-                {PO_STATUS_LABELS[po.status as POStatus]}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset",
+                  cfg.cls,
+                )}>
+                  <span className={cn("h-1.5 w-1.5 rounded-full", cfg.dot)} />
+                  {PO_STATUS_LABELS[po.status as POStatus]}
+                </span>
+                {/* V3.7.43 — Badge phân loại PO type */}
+                {po.poType === "SUBCONTRACT" && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold text-orange-700 ring-1 ring-inset ring-orange-200">
+                    Gia công ngoài
+                  </span>
+                )}
+                {(!po.poType || po.poType === "COMMERCIAL") && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-200">
+                    Thương mại
+                  </span>
+                )}
+              </div>
               <h1 className="mt-1 truncate text-2xl font-bold tracking-tight text-zinc-900">
                 {po.poNo}
               </h1>
@@ -346,20 +359,22 @@ export default function PurchaseOrderDetailPage() {
                 Gửi NCC
               </Button>
             )}
-            {/* V3.7.38 — Tải PDF Đơn đặt hàng theo template DDH-Mau */}
-            {!editing && (
+            {/* V3.7.38 → V3.7.43 — Tải DDH PDF chỉ hiện cho PO Subcontract.
+                Commercial PO sẽ có template riêng V3.8+. */}
+            {!editing && po.poType === "SUBCONTRACT" && (
               <Button
                 variant="outline"
                 size="sm"
                 asChild
                 title="Tải Đơn đặt hàng PDF (theo mẫu DDH)"
+                className="border-orange-300 text-orange-700 hover:bg-orange-50"
               >
                 <a
                   href={`/api/purchase-orders/${po.id}/pdf`}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <Download className="h-3.5 w-3.5" /> Tải PDF
+                  <Download className="h-3.5 w-3.5" /> Tải DDH PDF
                 </a>
               </Button>
             )}

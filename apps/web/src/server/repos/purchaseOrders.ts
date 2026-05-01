@@ -220,6 +220,7 @@ export async function getPOLines(poId: string) {
       expectedEta: purchaseOrderLine.expectedEta,
       snapshotLineId: purchaseOrderLine.snapshotLineId,
       notes: purchaseOrderLine.notes,
+      spec: purchaseOrderLine.spec,
     })
     .from(purchaseOrderLine)
     .leftJoin(item, eq(purchaseOrderLine.itemId, item.id))
@@ -439,6 +440,8 @@ export interface CreatePOManualInput {
   supplierId: string;
   prId?: string | null;
   linkedOrderId?: string | null;
+  /** V3.7.43 — COMMERCIAL (default) | SUBCONTRACT (gia công ngoài, dùng DDH form). */
+  poType?: "COMMERCIAL" | "SUBCONTRACT";
   expectedEta?: Date | null;
   currency?: string;
   paymentTerms?: string | null;
@@ -454,6 +457,8 @@ export interface CreatePOManualInput {
     snapshotLineId?: string | null;
     expectedEta?: Date | null;
     notes?: string | null;
+    /** V3.7.43 — Vật liệu/Quy cách (cho subcontract). */
+    spec?: string | null;
   }>;
 }
 
@@ -499,6 +504,7 @@ export async function createPO(
           ? l.expectedEta.toISOString().slice(0, 10)
           : null,
         notes: l.notes ?? null,
+        spec: l.spec ?? null,
       };
     });
 
@@ -519,6 +525,7 @@ export async function createPO(
         supplierId: input.supplierId,
         prId: input.prId ?? null,
         linkedOrderId: input.linkedOrderId ?? null,
+        poType: input.poType ?? "COMMERCIAL",
         expectedEta: input.expectedEta
           ? input.expectedEta.toISOString().slice(0, 10)
           : null,

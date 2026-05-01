@@ -3,11 +3,13 @@
 import * as React from "react";
 import {
   Copy,
+  Factory,
   History,
   MoreHorizontal,
   Package,
   Pencil,
   Route,
+  Send,
   ShoppingCart,
   Trash2,
   Wrench,
@@ -29,6 +31,10 @@ export interface ActionsCellProps {
   onEdit?: (row: BomFlatRow) => void;
   /** Thương mại (com): đặt mua nhanh → PRQuickDialog. */
   onOrder?: (row: BomFlatRow) => void;
+  /** V3.7.43 — GTAM: tạo Đơn gia công SX (Work Order simple mode). */
+  onCreateWO?: (row: BomFlatRow) => void;
+  /** V3.7.43 — Đặt gia công ngoài: tạo PO Subcontract. */
+  onCreateSubcontract?: (row: BomFlatRow) => void;
   /** Gia công (fab) only: mở tab Quy trình của BomLineSheet. */
   onViewRoute?: (row: BomFlatRow) => void;
   /** Nếu truthy → dùng InventoryPopover (V1.7-beta.2 Phase C3). Nếu không,
@@ -38,6 +44,28 @@ export interface ActionsCellProps {
   onDuplicate?: (row: BomFlatRow) => void;
   onDelete?: (row: BomFlatRow) => void;
   onHistory?: (row: BomFlatRow) => void;
+}
+
+/**
+ * V3.7.43 — Phân loại Category từ metadata.category. 3 giá trị chuẩn:
+ * Thương mại / GTAM / Đặt gia công ngoài. Text khác → fallback "thuong-mai".
+ */
+type CategoryKind = "thuong-mai" | "gtam" | "gia-cong-ngoai";
+function classifyAction(row: BomFlatRow): CategoryKind {
+  const meta = (row.node.metadata ?? {}) as { category?: unknown };
+  const raw =
+    typeof meta.category === "string" ? meta.category.trim().toLowerCase() : "";
+  if (raw === "gtam") return "gtam";
+  if (
+    raw.includes("đặt gia công ngoài") ||
+    raw.includes("dat gia cong ngoai") ||
+    raw.includes("gia công ngoài") ||
+    raw === "out" ||
+    raw === "outsource"
+  )
+    return "gia-cong-ngoai";
+  // Default Thương mại + fallback (legacy line không có category)
+  return "thuong-mai";
 }
 
 /**
@@ -58,6 +86,8 @@ export function ActionsCell({
   row,
   onEdit,
   onOrder,
+  onCreateWO,
+  onCreateSubcontract,
   onViewRoute,
   useInventoryPopover = false,
   onInventory,
@@ -71,6 +101,8 @@ export function ActionsCell({
 
   const showInventoryAction = useInventoryPopover || !!onInventory;
   const isFab = row.kind === "fab";
+  // V3.7.43 — Action button theo Category (metadata.category từ Excel).
+  const category = classifyAction(row);
 
   const inventoryButton = showInventoryAction ? (
     <Button
@@ -91,8 +123,11 @@ export function ActionsCell({
     <div className="flex h-full items-center justify-end gap-0.5 px-1">
       {/* V2.0 Sprint 6 — icons always visible (user feedback). Trước đây
           opacity-0 group-hover:opacity-100 để gọn UI nhưng user muốn rõ ngay. */}
-      {/* Kind-specific primary action */}
-      {!isFab && onOrder && (
+      {/* V3.7.43 — Category-specific primary action.
+          Thương mại → 🛒 PR Quick (existing flow)
+          GTAM       → 🏭 Tạo Đơn gia công SX (NEW)
+          Đặt gia công ngoài → 📤 Tạo PO Subcontract (NEW) */}
+      {category === "thuong-mai" && !isFab && onOrder && (
         <Button
           size="sm"
           variant="ghost"
@@ -106,7 +141,35 @@ export function ActionsCell({
           <ShoppingCart className="h-3 w-3" aria-hidden />
         </Button>
       )}
-      {isFab && onViewRoute && (
+      {category === "gtam" && onCreateWO && (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-6 w-6 p-0 text-purple-600 hover:bg-purple-50 hover:text-purple-700"
+          title="Tạo Đơn gia công sản xuất (GTAM nội bộ)"
+          onClick={(e) => {
+            e.stopPropagation();
+            onCreateWO(row);
+          }}
+        >
+          <Factory className="h-3 w-3" aria-hidden />
+        </Button>
+      )}
+      {category === "gia-cong-ngoai" && onCreateSubcontract && (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-6 w-6 p-0 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
+          title="Tạo PO Đặt gia công ngoài (sẽ có DDH PDF)"
+          onClick={(e) => {
+            e.stopPropagation();
+            onCreateSubcontract(row);
+          }}
+        >
+          <Send className="h-3 w-3" aria-hidden />
+        </Button>
+      )}
+      {isFab && onViewRoute && category === "thuong-mai" && (
         <Button
           size="sm"
           variant="ghost"
@@ -185,10 +248,22 @@ export function ActionsCell({
               Quy trình gia công
             </DropdownMenuItem>
           )}
-          {!isFab && onOrder && (
+          {category === "thuong-mai" && !isFab && onOrder && (
             <DropdownMenuItem onClick={() => onOrder(row)}>
               <ShoppingCart className="h-3 w-3" aria-hidden />
               Đặt mua nhanh
+            </DropdownMenuItem>
+          )}
+          {category === "gtam" && onCreateWO && (
+            <DropdownMenuItem onClick={() => onCreateWO(row)}>
+              <Factory className="h-3 w-3" aria-hidden />
+              Tạo Đơn gia công SX
+            </DropdownMenuItem>
+          )}
+          {category === "gia-cong-ngoai" && onCreateSubcontract && (
+            <DropdownMenuItem onClick={() => onCreateSubcontract(row)}>
+              <Send className="h-3 w-3" aria-hidden />
+              Tạo PO gia công ngoài
             </DropdownMenuItem>
           )}
           {onHistory && (

@@ -31,6 +31,8 @@ import {
 import { ActionsCell } from "./ActionsCell";
 import { BomLineSheet } from "./BomLineSheet";
 import { PRQuickDialog } from "./PRQuickDialog";
+import { WOQuickDialog } from "./WOQuickDialog";
+import { SubcontractPOQuickDialog } from "./SubcontractPOQuickDialog";
 import { CategoryBadge } from "./CategoryBadge";
 import { AddBomLineDialog } from "./AddBomLineDialog";
 
@@ -137,6 +139,10 @@ export function BomGridPro({
   // V1.7-beta.2 Phase C — targets cho BomLineSheet + PRQuickDialog (internal fallback).
   const [editTarget, setEditTarget] = React.useState<BomFlatRow | null>(null);
   const [orderTarget, setOrderTarget] = React.useState<BomFlatRow | null>(null);
+  // V3.7.43 — Targets cho 2 dialog mới (GTAM WO + Subcontract PO)
+  const [woTarget, setWoTarget] = React.useState<BomFlatRow | null>(null);
+  const [subcontractTarget, setSubcontractTarget] =
+    React.useState<BomFlatRow | null>(null);
   const [addLineOpen, setAddLineOpen] = React.useState(false);
   // V3.7.20 — PIC edit dialog
   const [picEditTarget, setPicEditTarget] = React.useState<BomFlatRow | null>(null);
@@ -162,6 +168,14 @@ export function BomGridPro({
     },
     [onOrderLine],
   );
+
+  // V3.7.43 — Handlers cho GTAM (WO) và Đặt gia công ngoài (Subcontract PO).
+  const handleCreateWO = React.useCallback((row: BomFlatRow) => {
+    setWoTarget(row);
+  }, []);
+  const handleCreateSubcontract = React.useCallback((row: BomFlatRow) => {
+    setSubcontractTarget(row);
+  }, []);
 
   const handleDuplicateRow = React.useCallback(
     (row: BomFlatRow) => {
@@ -728,6 +742,8 @@ export function BomGridPro({
             row={row}
             onEdit={readOnly ? undefined : handleEditRow}
             onOrder={readOnly ? undefined : handleOrderRow}
+            onCreateWO={readOnly ? undefined : handleCreateWO}
+            onCreateSubcontract={readOnly ? undefined : handleCreateSubcontract}
             onViewRoute={readOnly ? undefined : handleEditRow}
             useInventoryPopover={!onInventoryLine}
             onInventory={onInventoryLine}
@@ -1083,7 +1099,7 @@ export function BomGridPro({
         line={editTarget}
       />
 
-      {/* V1.7-beta.2 Phase C2 — Dialog đặt mua nhanh. */}
+      {/* V1.7-beta.2 Phase C2 — Dialog đặt mua nhanh (Thương mại → PR Quick). */}
       <PRQuickDialog
         open={!!orderTarget}
         onOpenChange={(o) => !o && setOrderTarget(null)}
@@ -1091,6 +1107,22 @@ export function BomGridPro({
         templateCode={templateCode}
         parentQty={parentQty}
         line={orderTarget}
+      />
+
+      {/* V3.7.43 — Dialog Tạo Đơn gia công SX (GTAM → Work Order). */}
+      <WOQuickDialog
+        open={!!woTarget}
+        onOpenChange={(o) => !o && setWoTarget(null)}
+        templateCode={templateCode}
+        line={woTarget}
+      />
+
+      {/* V3.7.43 — Dialog Tạo PO Đặt gia công ngoài (Subcontract → DDH-Mau PDF). */}
+      <SubcontractPOQuickDialog
+        open={!!subcontractTarget}
+        onOpenChange={(o) => !o && setSubcontractTarget(null)}
+        templateCode={templateCode}
+        line={subcontractTarget}
       />
 
       {/* V3.7.20 — PIC update tiến độ dialog. */}

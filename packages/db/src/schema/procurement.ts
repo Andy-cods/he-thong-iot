@@ -27,6 +27,15 @@ export const purchaseOrderStatusEnum = pgEnum("purchase_order_status", [
   "CLOSED",
 ]);
 
+/**
+ * V3.7.43 — Phân loại PO: COMMERCIAL (mua hàng có sẵn từ NCC) vs
+ * SUBCONTRACT (gia công ngoài theo bản vẽ, dùng DDH-Mau template).
+ */
+export const purchaseOrderTypeEnum = pgEnum("purchase_order_type", [
+  "COMMERCIAL",
+  "SUBCONTRACT",
+]);
+
 export const qcFlagEnum = pgEnum("qc_flag", ["PENDING", "PASS", "FAIL"]);
 
 /**
@@ -81,6 +90,8 @@ export const purchaseOrder = appSchema.table(
       .notNull()
       .references(() => supplier.id),
     status: purchaseOrderStatusEnum("status").notNull().default("DRAFT"),
+    /** V3.7.43 — Phân loại PO. COMMERCIAL default, SUBCONTRACT cho gia công ngoài. */
+    poType: purchaseOrderTypeEnum("po_type").notNull().default("COMMERCIAL"),
     linkedOrderId: uuid("linked_order_id").references(() => salesOrder.id),
     /** V1.2: link PO tới PR nguồn (nullable — support PO tạo manual không qua PR) */
     prId: uuid("pr_id").references(() => purchaseRequest.id),
@@ -118,6 +129,7 @@ export const purchaseOrder = appSchema.table(
     statusIdx: index("purchase_order_status_idx").on(t.status),
     supplierIdx: index("purchase_order_supplier_idx").on(t.supplierId),
     prIdx: index("po_pr_idx").on(t.prId),
+    typeIdx: index("purchase_order_type_idx").on(t.poType),
   }),
 );
 
@@ -140,6 +152,8 @@ export const purchaseOrderLine = appSchema.table(
     unitPrice: numeric("unit_price", { precision: 18, scale: 4 })
       .notNull()
       .default("0"),
+    /** V3.7.43 — Vật liệu/Quy cách (cho subcontract line). VD "SUS304 25x53x51mm". */
+    spec: varchar("spec", { length: 255 }),
     /** V1.9-P9: VAT % per line (default 8 %). */
     taxRate: numeric("tax_rate", { precision: 5, scale: 2 })
       .notNull()

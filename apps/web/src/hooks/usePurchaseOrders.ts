@@ -28,6 +28,8 @@ export interface PORow {
   supplierName?: string | null;
   supplierCode?: string | null;
   status: POStatus;
+  /** V3.7.43 — COMMERCIAL (default) | SUBCONTRACT (gia công ngoài, có DDH PDF). */
+  poType?: "COMMERCIAL" | "SUBCONTRACT";
   linkedOrderId: string | null;
   prId: string | null;
   orderDate: string;
@@ -61,6 +63,8 @@ export interface POLineRow {
   expectedEta: string | null;
   snapshotLineId: string | null;
   notes: string | null;
+  /** V3.7.43 — Vật liệu/Quy cách (cho subcontract). */
+  spec?: string | null;
 }
 
 export interface POListResponse {

@@ -28,6 +28,16 @@ export async function GET(
   const po = await getPO(params.id);
   if (!po) return jsonError("NOT_FOUND", "Không tìm thấy PO.", 404);
 
+  // V3.7.43 — Guard: DDH-Mau template chỉ dùng cho PO gia công ngoài.
+  // PO commercial sẽ có template riêng V3.8+.
+  if (po.poType !== "SUBCONTRACT") {
+    return jsonError(
+      "INVALID_PO_TYPE",
+      "DDH PDF chỉ dùng cho PO Đặt gia công ngoài. PO Thương mại sẽ có mẫu riêng.",
+      400,
+    );
+  }
+
   const lines = await getPOLines(params.id);
 
   // Lookup supplier info

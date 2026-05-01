@@ -227,6 +227,8 @@ export const poListQuerySchema = z.object({
   prId: uuid.optional(),
   /** V1.8 — filter PO theo BOM (JOIN qua sales_order.bom_template_id). */
   bomTemplateId: uuid.optional(),
+  /** V3.7.43 — filter theo loại PO. */
+  poType: z.enum(["COMMERCIAL", "SUBCONTRACT"]).optional(),
   q: z.string().trim().max(120).optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(200).default(50),
