@@ -295,6 +295,8 @@ export default function WorkOrderDetailPage() {
 
   const roles = session.data?.roles ?? [];
   const isAdmin      = roles.includes("admin");
+  // V3.7.46 — Chỉ operator/admin được approve/reject YCSX (planner là creator).
+  const canApprove   = isAdmin || roles.includes("operator");
   const isPlannerPlus = roles.includes("admin") || roles.includes("planner");
   const canOperate   = roles.includes("admin") || roles.includes("planner") || roles.includes("operator");
   const canComplete  = roles.includes("admin") || roles.includes("planner");
@@ -364,6 +366,7 @@ export default function WorkOrderDetailPage() {
                 canOperate={canOperate}
                 canComplete={canComplete}
                 canCancel={isAdmin}
+                canApprove={canApprove}
               />
             </div>
           </div>
@@ -695,7 +698,7 @@ export default function WorkOrderDetailPage() {
             {wo.status !== "COMPLETED" && wo.status !== "CANCELLED" && (
               <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
                 <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-400">Thao tác</p>
-                <WorkOrderActions woId={wo.id} status={wo.status} versionLock={wo.versionLock} canOperate={canOperate} canComplete={canComplete} canCancel={isAdmin} size="sm" />
+                <WorkOrderActions woId={wo.id} status={wo.status} versionLock={wo.versionLock} canOperate={canOperate} canComplete={canComplete} canCancel={isAdmin} canApprove={canApprove} size="sm" />
               </div>
             )}
 

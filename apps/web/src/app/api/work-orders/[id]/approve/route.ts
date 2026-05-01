@@ -36,6 +36,17 @@ export async function POST(
   const guard = await requireCan(req, "transition", "wo");
   if ("response" in guard) return guard.response;
 
+  // V3.7.46 — Chỉ operator (VH-A) hoặc admin mới được duyệt YCSX.
+  // Planner (TK-A) là người TẠO yêu cầu — không được tự duyệt (separation of duties).
+  const roles = guard.session.roles;
+  if (!roles.includes("admin") && !roles.includes("operator")) {
+    return jsonError(
+      "FORBIDDEN",
+      "Chỉ Bộ phận Vận hành (operator) hoặc admin được duyệt yêu cầu sản xuất.",
+      403,
+    );
+  }
+
   const body = await parseJson(req, bodySchema);
   if ("response" in body) return body.response;
 

@@ -25,6 +25,8 @@ export function WorkOrderActions({
   canOperate,
   canComplete,
   canCancel,
+  /** V3.7.46 — Chỉ operator/admin mới approve/reject YCSX (planner = creator). */
+  canApprove = false,
   size = "sm",
 }: {
   woId: string;
@@ -33,6 +35,7 @@ export function WorkOrderActions({
   canOperate: boolean;
   canComplete: boolean;
   canCancel: boolean;
+  canApprove?: boolean;
   size?: "sm" | "md";
 }) {
   const startMut = useStartWorkOrder(woId);
@@ -156,8 +159,9 @@ export function WorkOrderActions({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {/* V3.7.46 — DRAFT = Yêu cầu SX. VH-A approve/reject. */}
-      {status === "DRAFT" && canOperate && (
+      {/* V3.7.46 — DRAFT = Yêu cầu SX. CHỈ operator/admin (canApprove)
+          mới hiện 2 nút Duyệt/Từ chối. Planner thấy badge "Chờ Vận hành duyệt". */}
+      {status === "DRAFT" && canApprove && (
         <>
           <Button
             size={size}
@@ -179,6 +183,11 @@ export function WorkOrderActions({
             Từ chối
           </Button>
         </>
+      )}
+      {status === "DRAFT" && !canApprove && (
+        <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200">
+          ⏳ Chờ Bộ phận Vận hành duyệt
+        </span>
       )}
       {/* QUEUED → start (legacy flow). Sau V3.7.46 không tạo QUEUED nữa.
           DRAFT giờ phải approve trước → RELEASED → start. */}
