@@ -102,6 +102,9 @@ const PROCESS_MAP = new Map(PROCESSES.map((p) => [p.code, p]));
 interface FormState {
   // Common
   kind: KindMode;
+  /** V3.7.45 — Category Excel ("Thương mại" / "GTAM" / "Đặt gia công ngoài").
+   *  Lưu trong metadata.category. Quyết định nút action trong grid (cart/factory/send). */
+  category: string;
   qtyPerParent: string;
   scrapPercent: string;
   uom: string;
@@ -143,6 +146,7 @@ function buildInitial(line: BomFlatRow | null): FormState {
   if (!line) {
     return {
       kind: "com",
+      category: "Thương mại",
       qtyPerParent: "1",
       scrapPercent: "0",
       uom: "",
@@ -165,6 +169,7 @@ function buildInitial(line: BomFlatRow | null): FormState {
   }
   const meta = (line.node.metadata ?? {}) as {
     size?: unknown;
+    category?: unknown;
     sourcing?: Record<string, unknown>;
     routing?: Record<string, unknown>;
   };
@@ -197,6 +202,10 @@ function buildInitial(line: BomFlatRow | null): FormState {
 
   return {
     kind: deriveDefaultKind(line),
+    category:
+      typeof meta.category === "string" && meta.category.trim()
+        ? meta.category.trim()
+        : "Thương mại",
     qtyPerParent: String(line.node.qtyPerParent ?? "1"),
     scrapPercent: String(line.node.scrapPercent ?? "0"),
     uom: line.node.uom ?? "",
@@ -363,6 +372,13 @@ export function BomLineSheet({
     const existingMeta = (line.node.metadata ?? {}) as Record<string, unknown>;
     const nextMeta: Record<string, unknown> = { ...existingMeta };
     nextMeta.kind = form.kind;
+    // V3.7.45 — Save category (Excel column) → grid CategoryBadge + ActionsCell
+    // tự update icon (cart/factory/send) khi user chọn 1 trong 3 option.
+    if (form.category && form.category.trim()) {
+      nextMeta.category = form.category.trim();
+    } else {
+      delete nextMeta.category;
+    }
 
     if (form.kind === "com") {
       const sourcing: Record<string, unknown> = {};
@@ -525,6 +541,35 @@ export function BomLineSheet({
                   <div className="flex min-h-9 items-center rounded-md border border-zinc-100 bg-zinc-50 px-3 text-[13px] text-zinc-600">
                     {name}
                   </div>
+                </div>
+
+                {/* V3.7.45 — Category Excel: 3 fixed options. Quyết định nút action
+                    trong grid (🛒 Thương mại / 🏭 GTAM / 📤 Đặt gia công ngoài). */}
+                <div className="col-span-2 space-y-1">
+                  <Label htmlFor="bls-category" required>
+                    Category (Excel)
+                  </Label>
+                  <select
+                    id="bls-category"
+                    value={form.category}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, category: e.target.value }))
+                    }
+                    className="block h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  >
+                    <option value="Thương mại">
+                      🔵 Thương mại — Có sẵn, mua từ NCC
+                    </option>
+                    <option value="GTAM">
+                      🟣 GTAM — Tự gia công nội bộ
+                    </option>
+                    <option value="Đặt gia công ngoài">
+                      🟠 Đặt gia công ngoài — Đặt NCC gia công theo bản vẽ
+                    </option>
+                  </select>
+                  <p className="text-[11px] text-zinc-500">
+                    Quyết định nút action (cart/factory/send) trong cột THAO TÁC.
+                  </p>
                 </div>
 
                 <div className="space-y-1">
