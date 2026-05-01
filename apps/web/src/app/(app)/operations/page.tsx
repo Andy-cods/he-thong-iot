@@ -1,17 +1,26 @@
 import Link from "next/link";
-import { Factory, Wrench } from "lucide-react";
+import { Factory, Inbox, Wrench } from "lucide-react";
 import { HubTabsNav, type HubTabDef } from "@/components/common/HubTabsNav";
 import { WorkOrdersTab } from "@/components/engineering/WorkOrdersTab";
+import { AssemblyOverviewTab } from "@/components/operations/AssemblyOverviewTab";
 
 export const dynamic = "force-dynamic";
 
 /**
- * V3.1 — `/operations` Bộ phận Vận hành.
- * Gộp "Sản xuất" + "Lệnh SX" thành 1 tab duy nhất với toggle table/card.
+ * V3.7.47 — `/operations` Bộ phận Vận hành (3 tabs).
+ *
+ * Tabs:
+ *   - requests   — Yêu cầu sản xuất (DRAFT WOs từ TK-A) — VH-A duyệt/từ chối
+ *   - orders     — Lệnh sản xuất (RELEASED+) — đang/đã sản xuất
+ *   - assembly   — Quy trình lắp ráp (xưởng + scan barcode)
+ *
+ * Phân biệt rõ ràng giữa "yêu cầu" (chờ duyệt) và "lệnh chính thức".
  */
 
 const OPERATIONS_TABS = [
-  { key: "wo", label: "Lệnh sản xuất", icon: Factory },
+  { key: "requests", label: "Yêu cầu sản xuất", icon: Inbox },
+  { key: "orders", label: "Lệnh sản xuất", icon: Factory },
+  { key: "assembly", label: "Quy trình lắp ráp", icon: Wrench },
 ] as const satisfies ReadonlyArray<HubTabDef>;
 
 type OperationsTab = (typeof OPERATIONS_TABS)[number]["key"];
@@ -22,11 +31,13 @@ interface OperationsPageProps {
 
 function resolveTab(raw: string | undefined): OperationsTab {
   const found = OPERATIONS_TABS.find((t) => t.key === raw);
-  return found ? found.key : "wo";
+  return found ? found.key : "requests";
 }
 
 export default function OperationsPage({ searchParams }: OperationsPageProps) {
   const active = resolveTab(searchParams.tab);
+  const tabLabel =
+    OPERATIONS_TABS.find((t) => t.key === active)?.label ?? "Yêu cầu sản xuất";
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -36,25 +47,16 @@ export default function OperationsPage({ searchParams }: OperationsPageProps) {
             Tổng quan
           </Link>
           <span className="mx-1.5 text-zinc-300">›</span>
-          <span className="font-medium text-zinc-900">Bộ phận Vận hành</span>
+          <span className="text-zinc-500">Bộ phận Vận hành</span>
+          <span className="mx-1.5 text-zinc-300">›</span>
+          <span className="font-medium text-zinc-900">{tabLabel}</span>
         </nav>
-        <div className="mt-1.5 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
-              Vận hành
-            </h1>
-            <p className="mt-0.5 text-xs text-zinc-500">
-              Quản lý lệnh sản xuất · vào xưởng lắp ráp từ mỗi WO.
-            </p>
-          </div>
-          <Link
-            href="/assembly"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs font-medium text-orange-700 hover:bg-orange-100 transition-colors"
-          >
-            <Wrench className="h-3.5 w-3.5" aria-hidden />
-            Xưởng lắp ráp
-          </Link>
-        </div>
+        <h1 className="mt-1.5 text-xl font-semibold tracking-tight text-zinc-900">
+          Vận hành
+        </h1>
+        <p className="mt-0.5 text-xs text-zinc-500">
+          Duyệt yêu cầu Thiết kế · Theo dõi lệnh sản xuất · Quy trình lắp ráp xưởng.
+        </p>
       </div>
 
       <HubTabsNav
@@ -65,7 +67,13 @@ export default function OperationsPage({ searchParams }: OperationsPageProps) {
       />
 
       <div className="flex-1 min-h-0 overflow-hidden">
-        <WorkOrdersTab />
+        {active === "requests" ? (
+          <WorkOrdersTab variant="operations-requests" />
+        ) : active === "orders" ? (
+          <WorkOrdersTab variant="operations-orders" />
+        ) : (
+          <AssemblyOverviewTab />
+        )}
       </div>
     </div>
   );

@@ -19,9 +19,11 @@ export const dynamic = "force-dynamic";
  * Detail pages (/bom/[id]/grid, /work-orders/[id], ...) giữ nguyên.
  */
 
+// V3.7.47: TK-A chỉ tạo "Yêu cầu sản xuất" (DRAFT WO) — VH-A duyệt mới
+// thành Lệnh SX chính thức. Đổi label tương ứng.
 const ENGINEERING_TABS = [
   { key: "bom", label: "BOM List", icon: Network },
-  { key: "work-orders", label: "Lệnh sản xuất", icon: Factory },
+  { key: "work-orders", label: "Yêu cầu sản xuất", icon: Factory },
   { key: "pr", label: "Yêu cầu mua", icon: ShoppingCart },
 ] as const satisfies ReadonlyArray<HubTabDef>;
 
@@ -59,7 +61,7 @@ export default function EngineeringPage({
           Thiết kế & Sản xuất
         </h1>
         <p className="mt-0.5 text-xs text-zinc-500">
-          Trang gộp BOM List · Lệnh sản xuất · Yêu cầu mua.
+          BOM List · Yêu cầu sản xuất (gửi Vận hành duyệt) · Yêu cầu mua.
         </p>
       </div>
 

@@ -144,13 +144,32 @@ function WoCard({ wo }: { wo: WorkOrderRow }) {
 
 /* ─── Main component ────────────────────────────────────────────────────── */
 
-export function WorkOrdersTab() {
+export interface WorkOrdersTabProps {
+  /**
+   * V3.7.47 — variant của tab:
+   *  - "engineering" (default): hiển thị YÊU CẦU sản xuất (DRAFT) — TK-A
+   *    đã tạo, chờ Vận hành duyệt.
+   *  - "operations-requests": dành cho VH-A xem yêu cầu chờ duyệt (DRAFT).
+   *  - "operations-orders": dành cho VH-A xem lệnh SX đã duyệt + đang chạy.
+   */
+  variant?: "engineering" | "operations-requests" | "operations-orders";
+}
+
+export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = {}) {
+  // V3.7.47 — Default status filter theo variant.
+  const defaultStatus =
+    variant === "operations-orders"
+      ? "active"
+      : variant === "operations-requests"
+        ? "DRAFT"
+        : "DRAFT"; // engineering: tab "Yêu cầu SX" → DRAFT
+
   const [urlState, setUrlState] = useQueryStates(
     {
       q:            parseAsString.withDefault(""),
-      status:       parseAsString.withDefault("active"),
+      status:       parseAsString.withDefault(defaultStatus),
       bomTemplateId:parseAsString.withDefault(""),
-      view:         parseAsString.withDefault("table"), // "table" | "card"
+      view:         parseAsString.withDefault("table"),
       page:         parseAsInteger.withDefault(1),
       pageSize:     parseAsInteger.withDefault(50),
     },
@@ -229,8 +248,20 @@ export function WorkOrdersTab() {
               <Factory className="h-5 w-5 text-orange-600" aria-hidden />
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-zinc-900">Lệnh sản xuất</h1>
-              <p className="text-xs text-zinc-500">Quản lý và theo dõi tiến độ</p>
+              <h1 className="text-lg font-semibold text-zinc-900">
+                {variant === "operations-orders"
+                  ? "Lệnh sản xuất"
+                  : variant === "operations-requests"
+                    ? "Yêu cầu sản xuất chờ duyệt"
+                    : "Yêu cầu sản xuất"}
+              </h1>
+              <p className="text-xs text-zinc-500">
+                {variant === "operations-orders"
+                  ? "Lệnh đã được duyệt — đang/đã sản xuất"
+                  : variant === "operations-requests"
+                    ? "Yêu cầu từ Bộ phận Thiết kế chờ Vận hành xem xét"
+                    : "Yêu cầu Thiết kế gửi sang Vận hành để duyệt"}
+              </p>
             </div>
           </div>
           <Button asChild size="sm" className="bg-orange-600 hover:bg-orange-700">
