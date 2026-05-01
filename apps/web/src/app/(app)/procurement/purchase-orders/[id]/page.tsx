@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Clock,
   CreditCard,
+  Download,
   Edit3,
   FileText,
   History,
@@ -343,6 +344,23 @@ export default function PurchaseOrderDetailPage() {
               >
                 {send.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                 Gửi NCC
+              </Button>
+            )}
+            {/* V3.7.38 — Tải PDF Đơn đặt hàng theo template DDH-Mau */}
+            {!editing && (
+              <Button
+                variant="outline"
+                size="sm"
+                asChild
+                title="Tải Đơn đặt hàng PDF (theo mẫu DDH)"
+              >
+                <a
+                  href={`/api/purchase-orders/${po.id}/pdf`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Download className="h-3.5 w-3.5" /> Tải PDF
+                </a>
               </Button>
             )}
           </div>
