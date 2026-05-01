@@ -365,7 +365,7 @@ export function PurchaseOrderPdfDoc(input: POPdfInput) {
               <Text>{BUYER.email}</Text>
             </View>
             <View style={[styles.partyLine, { marginTop: 4 }]}>
-              <Text style={{ fontStyle: "italic" }}>
+              <Text style={{ fontSize: 8, color: "#555" }}>
                 Công ty {BUYER.shortName} xác nhận đặt hàng tại Quý công ty
                 theo mẫu yêu cầu sau:
               </Text>
