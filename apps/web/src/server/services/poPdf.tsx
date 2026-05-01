@@ -490,7 +490,13 @@ export function PurchaseOrderPdfDoc(input: POPdfInput) {
 /** Render PDF document → Node Buffer (cho HTTP response). */
 export async function renderPoPdfBuffer(input: POPdfInput): Promise<Buffer> {
   // V3.7.40 — Register Roboto fonts trước khi render (lazy, idempotent).
+  // V3.7.41 — Throw nếu register fail để upstream catch + báo lỗi rõ.
   ensureFontsRegistered();
+  if (!fontsRegistered) {
+    throw new Error(
+      `Roboto TTF không tìm thấy. cwd=${process.cwd()}, candidates=${FONT_CANDIDATES.join(",")}`,
+    );
+  }
   const blob = await pdf(PurchaseOrderPdfDoc(input)).toBlob();
   const arrayBuffer = await blob.arrayBuffer();
   return Buffer.from(arrayBuffer);

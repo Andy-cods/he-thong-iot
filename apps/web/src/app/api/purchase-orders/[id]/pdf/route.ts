@@ -114,7 +114,13 @@ export async function GET(
       },
     });
   } catch (err) {
-    logger.error({ err, poId: params.id }, "PO PDF render failed");
-    return jsonError("INTERNAL", "Không tạo được PDF.", 500);
+    const e = err as Error;
+    logger.error({ err, poId: params.id, msg: e.message, stack: e.stack }, "PO PDF render failed");
+    // V3.7.41 — return detail message để debug trên client.
+    return jsonError(
+      "INTERNAL",
+      `Không tạo được PDF: ${e.message ?? "unknown"}`,
+      500,
+    );
   }
 }
