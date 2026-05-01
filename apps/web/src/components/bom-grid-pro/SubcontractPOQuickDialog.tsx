@@ -96,13 +96,13 @@ export function SubcontractPOQuickDialog({
   const [notes, setNotes] = React.useState("");
   const [openAfter, setOpenAfter] = React.useState(true);
 
-  // Fetch supplier list (active only)
+  // Fetch supplier list (max 100/page; nếu nhiều hơn → user có thể tạo NCC mới
+  // ở /sales tab Suppliers rồi quay lại). isActive filter bỏ vì list endpoint
+  // không support; tạm thời hiện tất cả.
   const suppliersQuery = useQuery({
-    queryKey: ["suppliers", "active"],
+    queryKey: ["suppliers", "for-subcontract"],
     queryFn: () =>
-      apiRequest<{ data: SupplierOption[] }>(
-        "/api/suppliers?pageSize=200&isActive=true",
-      ),
+      apiRequest<{ data: SupplierOption[] }>("/api/suppliers?pageSize=100"),
     enabled: open,
     staleTime: 60_000,
   });
