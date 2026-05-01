@@ -44,11 +44,10 @@ async function apiRequest<T>(input: string, init?: RequestInit): Promise<T> {
 }
 
 /**
- * V3.7.43 — Dialog "Tạo Đơn gia công SX" cho BOM line Category="GTAM".
+ * V3.7.43 → V3.7.46 — Dialog "Gửi yêu cầu sản xuất" cho BOM line Category="GTAM".
  *
- * Simple WO mode (theo decision của user 2026-05-01): không bắt buộc
- * routing/material, KHÔNG auto-issue ISR. WO tạo status=RELEASED, giao
- * cho VH-A tự xử lý phôi.
+ * V3.7.46 thay đổi: Tạo YÊU CẦU SX (status=DRAFT) thay vì lệnh chính thức.
+ * VH-A duyệt mới chuyển sang LỆNH SX (RELEASED) bắt đầu sản xuất.
  *
  * Inputs:
  *   - plannedQty (auto từ metadata.totalQty SL Excel, override được)
@@ -127,7 +126,9 @@ export function WOQuickDialog({
     },
     onSuccess: (res) => {
       const wo = res.data;
-      toast.success(`Đã tạo Đơn gia công ${wo.woNo}`);
+      toast.success(`Đã gửi yêu cầu sản xuất ${wo.woNo}`, {
+        description: "Bộ phận Vận hành sẽ xem xét + duyệt.",
+      });
       qc.invalidateQueries({ queryKey: qk.bom.all });
       onOpenChange(false);
       if (openAfter) router.push(`/work-orders/${wo.id}`);
@@ -147,12 +148,17 @@ export function WOQuickDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Factory className="h-5 w-5 text-purple-600" aria-hidden />
-            Tạo Đơn gia công sản xuất
+            Gửi yêu cầu sản xuất GTAM
           </DialogTitle>
           <DialogDescription>
             BOM <span className="font-mono">{templateCode}</span> · Linh kiện{" "}
             <span className="font-mono">{sku}</span>
             {name ? ` — ${name}` : ""}
+            <br />
+            <span className="text-purple-700 font-medium text-xs">
+              ℹ️ Đây là <strong>yêu cầu sản xuất</strong> — Bộ phận Vận hành sẽ
+              duyệt rồi mới chuyển thành lệnh sản xuất chính thức.
+            </span>
           </DialogDescription>
         </DialogHeader>
 
@@ -185,8 +191,8 @@ export function WOQuickDialog({
             )}
             {!meta.routing && (
               <p className="mt-1 text-amber-700 text-[11px]">
-                ℹ️ BOM line chưa cấu hình routing/material. Tạo Simple WO —
-                VH-A tự xử lý phôi. Có thể bổ sung sau qua Edit linh kiện.
+                ℹ️ BOM line chưa cấu hình routing/material. Yêu cầu Simple —
+                VH-A tự xử lý phôi nếu duyệt. Có thể bổ sung sau qua Edit linh kiện.
               </p>
             )}
           </div>
@@ -266,7 +272,7 @@ export function WOQuickDialog({
               checked={openAfter}
               onCheckedChange={(v) => setOpenAfter(v === true)}
             />
-            <span>Mở WO sau khi tạo</span>
+            <span>Mở yêu cầu sau khi gửi (theo dõi VH-A duyệt)</span>
           </label>
         </div>
 
@@ -284,7 +290,7 @@ export function WOQuickDialog({
             ) : (
               <Factory className="h-3.5 w-3.5" />
             )}
-            Tạo Đơn gia công
+            Gửi yêu cầu sản xuất
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -24,7 +24,10 @@ import { logger } from "@/lib/logger";
  */
 
 const ALLOWED_TRANSITIONS: Record<WorkOrderStatus, WorkOrderStatus[]> = {
-  DRAFT: ["QUEUED", "IN_PROGRESS", "CANCELLED"],
+  // V3.7.46: DRAFT = Yêu cầu SX (TK-A submit). VH-A approve → RELEASED (lệnh
+  // chính thức). Hoặc reject → CANCELLED. Vẫn giữ DRAFT → IN_PROGRESS cho
+  // legacy snapshot flow + DRAFT → QUEUED cho schedule pipeline.
+  DRAFT: ["QUEUED", "RELEASED", "IN_PROGRESS", "CANCELLED"],
   QUEUED: ["IN_PROGRESS", "CANCELLED"],
   RELEASED: ["IN_PROGRESS", "CANCELLED"],
   IN_PROGRESS: ["PAUSED", "COMPLETED", "CANCELLED"],

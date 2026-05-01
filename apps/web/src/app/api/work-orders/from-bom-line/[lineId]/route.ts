@@ -1,17 +1,25 @@
 /**
- * V3.7.43 — POST /api/work-orders/from-bom-line/[lineId]
- * Tạo Đơn gia công sản xuất (WO simple mode) từ BOM line "GTAM".
+ * V3.7.43 → V3.7.46 — POST /api/work-orders/from-bom-line/[lineId]
  *
- * Khác /quick: không yêu cầu materials list. WO tạo với materials=[],
- * KHÔNG auto-issue ISR. VH-A tự lấy phôi sau (manual).
+ * V3.7.46: Đổi flow → tạo YÊU CẦU SẢN XUẤT (WO status=DRAFT) thay vì
+ * lệnh chính thức (RELEASED). VH-A phải approve mới chuyển RELEASED.
+ *
+ * Workflow mới:
+ *   TK-A click 🏭 GTAM trên BOM line
+ *     → POST /work-orders/from-bom-line  (status=DRAFT — yêu cầu)
+ *     → notify VH-A "WO_REQUEST_SUBMITTED"
+ *   VH-A xem yêu cầu → POST /work-orders/[id]/approve
+ *     → status: DRAFT → RELEASED
+ *     → notify TK-A "WO_APPROVED"
+ *   VH-A reject → POST /work-orders/[id]/reject (reason required)
+ *     → status: DRAFT → CANCELLED
+ *     → notify TK-A "WO_REJECTED"
  *
  * Body:
- *   - plannedQty: positive number (default = bom_line.metadata.totalQty)
- *   - priority: LOW/NORMAL/HIGH/URGENT (default NORMAL)
- *   - plannedStart / plannedEnd: optional ISO date
- *   - notes: optional
- *
- * Output: WO mới status=RELEASED, materialRequirements=[].
+ *   - plannedQty (default metadata.totalQty)
+ *   - priority (default NORMAL)
+ *   - plannedStart / plannedEnd (optional)
+ *   - notes (optional)
  */
 
 import { NextResponse, type NextRequest } from "next/server";
@@ -23,7 +31,7 @@ import { logger } from "@/lib/logger";
 import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
 import { getLineById } from "@/server/repos/bomLines";
 import { writeAudit } from "@/server/services/audit";
-import { notifyWOReleased } from "@/server/services/notifications";
+import { notifyWORequestSubmitted } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -94,7 +102,7 @@ export async function POST(
   // Compose notes
   const notesText =
     body.data.notes ??
-    `Đơn gia công nội bộ GTAM cho ${it.sku}${
+    `Yêu cầu sản xuất GTAM cho ${it.sku}${
       line.description ? ` — ${line.description}` : ""
     }${meta.size ? ` · Quy cách ${meta.size}` : ""}`;
 
@@ -105,20 +113,22 @@ export async function POST(
       : null;
 
   try {
+    // V3.7.46 — status=DRAFT (yêu cầu chờ duyệt). releasedAt=null.
+    // VH-A approve sẽ set RELEASED + releasedAt.
     const [wo] = await db
       .insert(workOrder)
       .values({
         woNo,
         productItemId: line.componentItemId,
         plannedQty: String(plannedQty),
-        status: "RELEASED",
+        status: "DRAFT",
         priority: body.data.priority,
         plannedStart: body.data.plannedStart || null,
         plannedEnd: body.data.plannedEnd || null,
         notes: notesText,
-        materialRequirements: [], // Simple WO: VH-A tự xử lý phôi
+        materialRequirements: [],
         routingPlan: routingPlan as Record<string, unknown> | null,
-        releasedAt: new Date(),
+        releasedAt: null,
         createdBy: guard.session.userId,
       })
       .returning();
@@ -137,14 +147,15 @@ export async function POST(
         productSku: it.sku,
         plannedQty,
         bomLineId: params.lineId,
-        mode: "simple_no_materials",
+        mode: "production_request_draft",
+        status: "DRAFT",
       },
-      notes: `Simple WO from BOM line GTAM ${it.sku} (qty=${plannedQty})`,
+      notes: `Yêu cầu SX GTAM từ BOM line ${it.sku} (qty=${plannedQty}) — chờ VH duyệt`,
       ...reqMeta,
     });
 
-    // Notify operator (VH-A) về WO mới
-    await notifyWOReleased({
+    // V3.7.46 — Notify operator (VH-A) về YÊU CẦU sản xuất mới
+    await notifyWORequestSubmitted({
       woId: wo.id,
       woNo: wo.woNo,
       productName: it.name ?? it.sku,
@@ -152,7 +163,7 @@ export async function POST(
       actorUserId: guard.session.userId,
       actorUsername: guard.session.username,
     }).catch((err) => {
-      logger.warn({ err, woId: wo.id }, "notify WO released failed");
+      logger.warn({ err, woId: wo.id }, "notify WO request submitted failed");
     });
 
     return NextResponse.json({ data: wo }, { status: 201 });

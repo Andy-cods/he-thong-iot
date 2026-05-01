@@ -27,6 +27,12 @@ export type NotificationEventType =
   // Work Order flow
   | "WO_RELEASED"
   | "WO_COMPLETED"
+  // V3.7.46 — Production Request approval flow:
+  // TK-A submit YCSX → VH-A approve/reject → notify TK-A
+  | "WO_REQUEST_SUBMITTED"
+  | "WO_APPROVED"
+  | "WO_REJECTED"
+  | "WO_PROGRESS_UPDATED"
   // Material Request flow
   | "MATERIAL_REQUEST_NEW"
   | "MATERIAL_REQUEST_PICKING"
@@ -257,7 +263,102 @@ export interface WONotifyContext {
   creatorUserId?: string | null;
 }
 
-/** Engineer release WO → notify operator role */
+/**
+ * V3.7.46 — Engineer (TK-A) submit YÊU CẦU sản xuất → notify operator role
+ * (broadcast tất cả VH để duyệt). Khác notifyWOReleased: yêu cầu chứ chưa
+ * phải lệnh chính thức.
+ */
+export async function notifyWORequestSubmitted(ctx: WONotifyContext) {
+  await emitNotification({
+    recipientRole: "operator",
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "WO_REQUEST_SUBMITTED",
+    entityType: "work_order",
+    entityId: ctx.woId,
+    entityCode: ctx.woNo,
+    title: `Yêu cầu sản xuất mới: ${ctx.woNo}`,
+    message: ctx.productName
+      ? `${ctx.productName}${ctx.plannedQty ? ` × ${ctx.plannedQty}` : ""} — chờ duyệt`
+      : "Bộ phận Thiết kế gửi yêu cầu — chờ Vận hành duyệt",
+    link: `/work-orders/${ctx.woId}`,
+    severity: "info",
+  });
+}
+
+/**
+ * V3.7.46 — Operator (VH-A) approve YCSX → DRAFT→RELEASED → notify creator (TK-A).
+ */
+export async function notifyWOApproved(ctx: WONotifyContext) {
+  if (!ctx.creatorUserId) return;
+  await emitNotification({
+    recipientUser: ctx.creatorUserId,
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "WO_APPROVED",
+    entityType: "work_order",
+    entityId: ctx.woId,
+    entityCode: ctx.woNo,
+    title: `Yêu cầu SX ${ctx.woNo} đã được duyệt`,
+    message: "Vận hành đã chấp nhận, đang tiến hành sản xuất.",
+    link: `/work-orders/${ctx.woId}`,
+    severity: "success",
+  });
+}
+
+/**
+ * V3.7.46 — Operator reject YCSX → DRAFT→CANCELLED → notify creator.
+ */
+export async function notifyWORejected(
+  ctx: WONotifyContext & { reason?: string },
+) {
+  if (!ctx.creatorUserId) return;
+  await emitNotification({
+    recipientUser: ctx.creatorUserId,
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "WO_REJECTED",
+    entityType: "work_order",
+    entityId: ctx.woId,
+    entityCode: ctx.woNo,
+    title: `Yêu cầu SX ${ctx.woNo} bị từ chối`,
+    message: ctx.reason
+      ? `Lý do: ${ctx.reason}`
+      : "Vận hành đã từ chối yêu cầu.",
+    link: `/work-orders/${ctx.woId}`,
+    severity: "warning",
+  });
+}
+
+/**
+ * V3.7.46 — Operator báo cáo tiến độ → notify creator (TK-A).
+ */
+export async function notifyWOProgressUpdated(
+  ctx: WONotifyContext & {
+    percentCompleted?: number | string;
+    goodQty?: number | string;
+  },
+) {
+  if (!ctx.creatorUserId) return;
+  const pct = ctx.percentCompleted ? `${ctx.percentCompleted}%` : "";
+  await emitNotification({
+    recipientUser: ctx.creatorUserId,
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "WO_PROGRESS_UPDATED",
+    entityType: "work_order",
+    entityId: ctx.woId,
+    entityCode: ctx.woNo,
+    title: `Tiến độ ${ctx.woNo}${pct ? ` — ${pct}` : ""}`,
+    message: ctx.goodQty
+      ? `Đã hoàn thành ${ctx.goodQty}${ctx.plannedQty ? `/${ctx.plannedQty}` : ""}`
+      : "Cập nhật tiến độ mới",
+    link: `/work-orders/${ctx.woId}`,
+    severity: "info",
+  });
+}
+
+/** Engineer release WO → notify operator role (legacy /quick endpoint) */
 export async function notifyWOReleased(ctx: WONotifyContext) {
   await emitNotification({
     recipientRole: "operator",

@@ -146,7 +146,7 @@ export function ActionsCell({
           size="sm"
           variant="ghost"
           className="h-6 w-6 p-0 text-purple-600 hover:bg-purple-50 hover:text-purple-700"
-          title="Tạo Đơn gia công sản xuất (GTAM nội bộ)"
+          title="Gửi yêu cầu sản xuất GTAM (chờ Vận hành duyệt)"
           onClick={(e) => {
             e.stopPropagation();
             onCreateWO(row);
@@ -257,7 +257,7 @@ export function ActionsCell({
           {category === "gtam" && onCreateWO && (
             <DropdownMenuItem onClick={() => onCreateWO(row)}>
               <Factory className="h-3 w-3" aria-hidden />
-              Tạo Đơn gia công SX
+              Gửi yêu cầu sản xuất
             </DropdownMenuItem>
           )}
           {category === "gia-cong-ngoai" && onCreateSubcontract && (

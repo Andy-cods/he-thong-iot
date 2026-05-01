@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CheckCircle2, Pause, Play, RefreshCw, XCircle } from "lucide-react";
+import { CheckCircle2, Pause, Play, RefreshCw, ThumbsUp, ThumbsDown, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   useCancelWorkOrder,
@@ -38,6 +39,71 @@ export function WorkOrderActions({
   const pauseMut = usePauseWorkOrder(woId);
   const completeMut = useCompleteWorkOrder(woId);
   const cancelMut = useCancelWorkOrder(woId);
+
+  // V3.7.46 — Approve/Reject Yêu cầu sản xuất (DRAFT only)
+  const qc = useQueryClient();
+  const approveMut = useMutation({
+    mutationFn: async (notes?: string) => {
+      const res = await fetch(`/api/work-orders/${woId}/approve`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ notes: notes || null }),
+      });
+      if (!res.ok) {
+        const b = await res.json().catch(() => ({}));
+        throw new Error(b?.error?.message ?? `HTTP ${res.status}`);
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["work-orders"] });
+      qc.invalidateQueries({ queryKey: ["wo-detail", woId] });
+    },
+  });
+  const rejectMut = useMutation({
+    mutationFn: async (reason: string) => {
+      const res = await fetch(`/api/work-orders/${woId}/reject`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ reason }),
+      });
+      if (!res.ok) {
+        const b = await res.json().catch(() => ({}));
+        throw new Error(b?.error?.message ?? `HTTP ${res.status}`);
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["work-orders"] });
+      qc.invalidateQueries({ queryKey: ["wo-detail", woId] });
+    },
+  });
+
+  const onApprove = async () => {
+    const notes = prompt("Ghi chú khi duyệt (tuỳ chọn):") ?? "";
+    try {
+      await approveMut.mutateAsync(notes || undefined);
+      toast.success("Đã duyệt yêu cầu — chuyển thành Lệnh sản xuất chính thức.");
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+
+  const onReject = async () => {
+    const reason = prompt("Lý do từ chối (bắt buộc, tối thiểu 5 ký tự):") ?? "";
+    if (reason.trim().length < 5) {
+      toast.error("Lý do tối thiểu 5 ký tự.");
+      return;
+    }
+    try {
+      await rejectMut.mutateAsync(reason.trim());
+      toast.success("Đã từ chối yêu cầu sản xuất.");
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
 
   const onStart = async () => {
     try {
@@ -90,10 +156,36 @@ export function WorkOrderActions({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {(status === "DRAFT" || status === "QUEUED") && canOperate && (
+      {/* V3.7.46 — DRAFT = Yêu cầu SX. VH-A approve/reject. */}
+      {status === "DRAFT" && canOperate && (
+        <>
+          <Button
+            size={size}
+            onClick={onApprove}
+            disabled={approveMut.isPending}
+            className="bg-emerald-600 hover:bg-emerald-700"
+          >
+            <ThumbsUp className="h-3.5 w-3.5" />
+            Duyệt YCSX
+          </Button>
+          <Button
+            size={size}
+            variant="outline"
+            onClick={onReject}
+            disabled={rejectMut.isPending}
+            className="border-red-300 text-red-700 hover:bg-red-50"
+          >
+            <ThumbsDown className="h-3.5 w-3.5" />
+            Từ chối
+          </Button>
+        </>
+      )}
+      {/* QUEUED → start (legacy flow). Sau V3.7.46 không tạo QUEUED nữa.
+          DRAFT giờ phải approve trước → RELEASED → start. */}
+      {(status === "RELEASED" || status === "QUEUED") && canOperate && (
         <Button size={size} onClick={onStart} disabled={startMut.isPending}>
           <Play className="h-3.5 w-3.5" />
-          Bắt đầu
+          Bắt đầu sản xuất
         </Button>
       )}
       {status === "IN_PROGRESS" && canOperate && (
