@@ -1135,6 +1135,15 @@ export function BomGridPro({
             sku: picEditTarget.node.componentSku ?? null,
             componentName: picEditTarget.node.componentName ?? null,
             qtyPerParent: picEditTarget.node.qtyPerParent,
+            // V3.7.49 — Truyền SL Excel (totalQty) để dialog hiển thị "X cần"
+            // theo số lượng đặt thực tế (vd 14 set), không phải hệ số (1).
+            totalQty: (() => {
+              const meta = picEditTarget.node.metadata as { totalQty?: string | number } | null;
+              const fromExcel = meta?.totalQty != null ? Number(meta.totalQty) : NaN;
+              if (Number.isFinite(fromExcel) && fromExcel > 0) return fromExcel;
+              // Fallback: qtyPerParent × parentQty (legacy)
+              return Number(picEditTarget.node.qtyPerParent ?? 1) * parentQty;
+            })(),
             assignedToFullName: picEditTarget.node.assignedToFullName ?? null,
             receivedQty: picEditTarget.node.receivedQty ?? null,
             expectedEta: picEditTarget.node.expectedEta ?? null,

@@ -34,6 +34,12 @@ export interface PicEditDialogProps {
     sku: string | null;
     componentName: string | null;
     qtyPerParent: string;
+    /**
+     * V3.7.49 — Tổng SL cần (từ Excel cột SL = metadata.totalQty,
+     * vd 14 set băng tải). PIC compare receivedQty với totalQty này,
+     * KHÔNG phải qtyPerParent (hệ số = 1).
+     */
+    totalQty?: number;
     assignedToFullName: string | null;
     receivedQty: string | null;
     expectedEta: string | null;
@@ -52,7 +58,12 @@ const COMMON_NOTES = [
 
 export function PicEditDialog({ open, onClose, line }: PicEditDialogProps) {
   const qc = useQueryClient();
-  const [receivedQty, setReceivedQty] = React.useState(line.receivedQty ?? "");
+  // V3.7.49 — Init = floor(receivedQty) integer
+  const [receivedQty, setReceivedQty] = React.useState(
+    line.receivedQty
+      ? String(Math.floor(Number(line.receivedQty) || 0))
+      : "",
+  );
   const [expectedEta, setExpectedEta] = React.useState(line.expectedEta ?? "");
   const [statusNote, setStatusNote] = React.useState(line.statusNote ?? "");
   const [submitting, setSubmitting] = React.useState(false);
@@ -60,7 +71,11 @@ export function PicEditDialog({ open, onClose, line }: PicEditDialogProps) {
   // Reset state when dialog opens for a new line
   React.useEffect(() => {
     if (open) {
-      setReceivedQty(line.receivedQty ?? "");
+      setReceivedQty(
+        line.receivedQty
+          ? String(Math.floor(Number(line.receivedQty) || 0))
+          : "",
+      );
       setExpectedEta(line.expectedEta ?? "");
       setStatusNote(line.statusNote ?? "");
     }
@@ -73,7 +88,11 @@ export function PicEditDialog({ open, onClose, line }: PicEditDialogProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          receivedQty: receivedQty === "" ? 0 : Number(receivedQty),
+          // V3.7.49 — submit integer value
+          receivedQty:
+            receivedQty === ""
+              ? 0
+              : Math.max(0, Math.floor(Number(receivedQty) || 0)),
           expectedEta: expectedEta || null,
           statusNote: statusNote || null,
         }),
@@ -95,7 +114,11 @@ export function PicEditDialog({ open, onClose, line }: PicEditDialogProps) {
     }
   };
 
-  const need = Number(line.qtyPerParent);
+  // V3.7.49 — "need" = SL Excel (totalQty), không phải hệ số.
+  // Fallback qtyPerParent nếu thiếu data (legacy line).
+  const need = line.totalQty && line.totalQty > 0
+    ? line.totalQty
+    : Number(line.qtyPerParent) || 1;
   const have = Number(receivedQty || 0);
   const remaining = Math.max(0, need - have);
   const completePct = need > 0 ? Math.min(100, Math.round((have / need) * 100)) : 0;
@@ -135,9 +158,20 @@ export function PicEditDialog({ open, onClose, line }: PicEditDialogProps) {
               <Input
                 type="number"
                 min={0}
-                step={0.0001}
-                value={receivedQty}
-                onChange={(e) => setReceivedQty(e.target.value)}
+                step={1}
+                max={need}
+                value={
+                  receivedQty === ""
+                    ? ""
+                    : String(Math.floor(Number(receivedQty) || 0))
+                }
+                onChange={(e) => {
+                  // Chỉ chấp nhận số nguyên dương
+                  const raw = e.target.value;
+                  if (raw === "") return setReceivedQty("");
+                  const n = Math.max(0, Math.floor(Number(raw) || 0));
+                  setReceivedQty(String(n));
+                }}
                 disabled={submitting}
                 className="h-10 flex-1 text-right tabular-nums"
                 placeholder="0"
