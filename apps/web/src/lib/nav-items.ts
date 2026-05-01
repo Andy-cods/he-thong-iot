@@ -74,12 +74,14 @@ export const NAV_SECTION_LABEL: Record<NavSection, string> = {
   other: "Quản trị",
 };
 
+// V3.7.48 — Order theo workflow nghiệp vụ thực tế: Thiết kế đề xuất → Vận hành
+// duyệt sản xuất → Thu mua mua vật tư → Kho nhận hàng → Quản trị (admin).
 export const NAV_SECTION_ORDER: NavSection[] = [
   "dashboard",
-  "warehouse",
-  "finance",
   "engineering",
   "operations",
+  "finance",
+  "warehouse",
   "other",
 ];
 
@@ -91,6 +93,8 @@ export const NAV_SECTION_ORDER: NavSection[] = [
  * Tổng quan hiển thị cho mọi user đã đăng nhập.
  * Quản trị chỉ admin.
  */
+// V3.7.48 — Reorder theo workflow nghiệp vụ:
+// Thiết kế (đề xuất) → Vận hành (duyệt+SX) → Thu mua (mua) → Kho (nhận) → Admin
 export const NAV_ITEMS: NavItem[] = [
   // --- Tổng quan (mọi role đã đăng nhập) ---
   {
@@ -98,22 +102,6 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Tổng quan",
     icon: LayoutDashboard,
     section: "dashboard",
-  },
-  // --- Bộ phận Kho — chỉ warehouse + admin ---
-  {
-    href: "/warehouse",
-    label: "Bộ phận Kho",
-    icon: Warehouse,
-    roles: ["admin", "warehouse"],
-    section: "warehouse",
-  },
-  // --- Bộ phận Thu mua — chỉ purchaser + admin ---
-  {
-    href: "/sales",
-    label: "Bộ phận Thu mua",
-    icon: ShoppingBag,
-    roles: ["admin", "purchaser"],
-    section: "finance",
   },
   // --- Bộ phận Thiết kế — chỉ planner + admin ---
   {
@@ -130,6 +118,22 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Factory,
     roles: ["admin", "operator"],
     section: "operations",
+  },
+  // --- Bộ phận Thu mua — chỉ purchaser + admin ---
+  {
+    href: "/sales",
+    label: "Bộ phận Thu mua",
+    icon: ShoppingBag,
+    roles: ["admin", "purchaser"],
+    section: "finance",
+  },
+  // --- Bộ phận Kho — chỉ warehouse + admin ---
+  {
+    href: "/warehouse",
+    label: "Bộ phận Kho",
+    icon: Warehouse,
+    roles: ["admin", "warehouse"],
+    section: "warehouse",
   },
   // --- Quản trị (chỉ admin) ---
   {
