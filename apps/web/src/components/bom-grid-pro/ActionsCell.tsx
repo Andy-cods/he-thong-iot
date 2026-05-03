@@ -146,7 +146,7 @@ export function ActionsCell({
           size="sm"
           variant="ghost"
           className="h-6 w-6 p-0 text-purple-600 hover:bg-purple-50 hover:text-purple-700"
-          title="Gửi yêu cầu sản xuất GTAM (chờ Vận hành duyệt)"
+          title="Gửi yêu cầu sản xuất GTAM (chờ Gia công duyệt)"
           onClick={(e) => {
             e.stopPropagation();
             onCreateWO(row);

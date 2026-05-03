@@ -264,7 +264,7 @@ export function AssemblyOverviewTab() {
               description={
                 searchQ
                   ? "Thử từ khoá khác hoặc xoá tìm kiếm."
-                  : "Lệnh sản xuất sẽ xuất hiện sau khi Vận hành duyệt yêu cầu từ Thiết kế."
+                  : "Lệnh sản xuất sẽ xuất hiện sau khi Gia công duyệt yêu cầu từ Thiết kế."
               }
             />
           ) : (

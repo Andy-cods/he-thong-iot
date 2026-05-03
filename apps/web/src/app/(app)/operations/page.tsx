@@ -7,7 +7,7 @@ import { AssemblyOverviewTab } from "@/components/operations/AssemblyOverviewTab
 export const dynamic = "force-dynamic";
 
 /**
- * V3.7.47 — `/operations` Bộ phận Vận hành (3 tabs).
+ * V3.7.47 — `/operations` Bộ phận Gia công (3 tabs).
  *
  * Tabs:
  *   - requests   — Yêu cầu sản xuất (DRAFT WOs từ TK-A) — VH-A duyệt/từ chối
@@ -47,12 +47,12 @@ export default function OperationsPage({ searchParams }: OperationsPageProps) {
             Tổng quan
           </Link>
           <span className="mx-1.5 text-zinc-300">›</span>
-          <span className="text-zinc-500">Bộ phận Vận hành</span>
+          <span className="text-zinc-500">Bộ phận Gia công</span>
           <span className="mx-1.5 text-zinc-300">›</span>
           <span className="font-medium text-zinc-900">{tabLabel}</span>
         </nav>
         <h1 className="mt-1.5 text-xl font-semibold tracking-tight text-zinc-900">
-          Vận hành
+          Gia công
         </h1>
         <p className="mt-0.5 text-xs text-zinc-500">
           Duyệt yêu cầu Thiết kế · Theo dõi lệnh sản xuất · Quy trình lắp ráp xưởng.

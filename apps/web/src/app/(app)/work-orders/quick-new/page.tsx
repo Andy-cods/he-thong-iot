@@ -171,7 +171,7 @@ export default function QuickNewWorkOrderPage() {
             href="/operations"
             className="hover:text-zinc-900 hover:underline"
           >
-            Vận hành
+            Gia công
           </Link>
           <span className="mx-1.5 text-zinc-300">›</span>
           <span className="font-medium text-zinc-900">Tạo lệnh sản xuất</span>

@@ -85,7 +85,7 @@ export function DashboardHeader({
           </span>
           <div className="flex min-w-0 flex-col gap-0.5">
             <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-[1.625rem]">
-              Tổng quan vận hành
+              Tổng quan gia công
             </h1>
             <p className="text-sm text-zinc-600">
               Tiến độ tổng hợp các bộ phận · cập nhật mỗi 30 giây

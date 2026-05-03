@@ -61,7 +61,7 @@ export default function EngineeringPage({
           Thiết kế & Sản xuất
         </h1>
         <p className="mt-0.5 text-xs text-zinc-500">
-          BOM List · Yêu cầu sản xuất (gửi Vận hành duyệt) · Yêu cầu mua.
+          BOM List · Yêu cầu sản xuất (gửi Gia công duyệt) · Yêu cầu mua.
         </p>
       </div>
 

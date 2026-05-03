@@ -20,7 +20,7 @@ import { canAny } from "@iot/shared";
  *   - warehouse:   Bộ phận Kho        (/warehouse)
  *   - purchasing:  Bộ phận Mua bán    (/sales — tab Suppliers + PO)
  *   - engineering: Bộ phận Thiết kế   (/engineering — tab BOM + WO + PR)
- *   - operations:  Bộ phận Vận hành   (/operations — tab Assembly + future QC/Maint)
+ *   - operations:  Bộ phận Gia công   (/operations — tab Assembly + future QC/Maint)
  *   - accounting:  Bộ phận Kế toán    (Coming soon)
  *   - other:       Quản trị           (/admin)
  *
@@ -70,7 +70,7 @@ export const NAV_SECTION_LABEL: Record<NavSection, string> = {
   warehouse: "Bộ phận Kho",
   finance: "Tài chính & Mua bán",
   engineering: "Bộ phận Thiết kế",
-  operations: "Bộ phận Vận hành",
+  operations: "Bộ phận Gia công",
   other: "Quản trị",
 };
 
@@ -111,10 +111,10 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ["admin", "planner"],
     section: "engineering",
   },
-  // --- Bộ phận Vận hành — chỉ operator + admin ---
+  // --- Bộ phận Gia công — chỉ operator + admin ---
   {
     href: "/operations",
-    label: "Bộ phận Vận hành",
+    label: "Bộ phận Gia công",
     icon: Factory,
     roles: ["admin", "operator"],
     section: "operations",

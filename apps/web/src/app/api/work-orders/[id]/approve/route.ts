@@ -42,7 +42,7 @@ export async function POST(
   if (!roles.includes("admin") && !roles.includes("operator")) {
     return jsonError(
       "FORBIDDEN",
-      "Chỉ Bộ phận Vận hành (operator) hoặc admin được duyệt yêu cầu sản xuất.",
+      "Chỉ Bộ phận Gia công (operator) hoặc admin được duyệt yêu cầu sản xuất.",
       403,
     );
   }

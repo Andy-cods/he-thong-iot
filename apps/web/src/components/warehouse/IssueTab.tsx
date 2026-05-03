@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
  * V3.7.14 — Tab "Xuất hàng" — redesign đơn giản theo feedback user 2026-04-30.
  *
  * Workflow:
- *   1. Pending requests panel (yêu cầu từ Vận hành) — Kho duyệt 1-click
+ *   1. Pending requests panel (yêu cầu từ Gia công) — Kho duyệt 1-click
  *   2. Form xuất nhanh: list SKU + qty (không pick editor — auto FIFO)
  *   3. Submit → server auto FIFO → tạo OUT_ISSUE
  */
@@ -181,7 +181,7 @@ export function IssueTab() {
               Xuất hàng
             </h2>
             <p className="mt-0.5 text-sm text-zinc-500">
-              Kho xuất ngay (auto FIFO) · duyệt yêu cầu từ Vận hành
+              Kho xuất ngay (auto FIFO) · duyệt yêu cầu từ Gia công
             </p>
           </div>
         </div>
@@ -204,7 +204,7 @@ export function IssueTab() {
         )}
       </header>
 
-      {/* PENDING REQUESTS — Kho duyệt yêu cầu từ Vận hành */}
+      {/* PENDING REQUESTS — Kho duyệt yêu cầu từ Gia công */}
       <PendingRequestsPanel />
 
       {/* QUICK ISSUE FORM — đơn giản */}
@@ -593,7 +593,7 @@ function ItemPicker({
 }
 
 /* ============================================================ */
-/* PendingRequestsPanel — Kho duyệt yêu cầu từ Vận hành         */
+/* PendingRequestsPanel — Kho duyệt yêu cầu từ Gia công         */
 /* ============================================================ */
 
 interface IssueRequestRow {
@@ -701,7 +701,7 @@ function PendingRequestsPanel() {
         >
           <ClipboardList className="h-4 w-4" />
           <span>
-            Yêu cầu chờ duyệt từ Vận hành ({rows.length})
+            Yêu cầu chờ duyệt từ Gia công ({rows.length})
           </span>
           <span className="text-xs font-normal text-amber-700">
             {collapsed ? "▶" : "▼"}

@@ -26,7 +26,7 @@ const ROLE_OPTIONS: { code: Role | "all"; label: string }[] = [
   { code: "planner", label: "Bộ phận Thiết kế" },
   { code: "purchaser", label: "Bộ phận Thu mua" },
   { code: "warehouse", label: "Bộ phận Kho" },
-  { code: "operator", label: "Bộ phận Vận hành" },
+  { code: "operator", label: "Bộ phận Gia công" },
 ];
 
 const ROLE_COLORS: Record<Role, string> = {

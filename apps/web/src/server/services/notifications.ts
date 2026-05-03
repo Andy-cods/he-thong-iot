@@ -280,7 +280,7 @@ export async function notifyWORequestSubmitted(ctx: WONotifyContext) {
     title: `Yêu cầu sản xuất mới: ${ctx.woNo}`,
     message: ctx.productName
       ? `${ctx.productName}${ctx.plannedQty ? ` × ${ctx.plannedQty}` : ""} — chờ duyệt`
-      : "Bộ phận Thiết kế gửi yêu cầu — chờ Vận hành duyệt",
+      : "Bộ phận Thiết kế gửi yêu cầu — chờ Gia công duyệt",
     link: `/work-orders/${ctx.woId}`,
     severity: "info",
   });
@@ -300,7 +300,7 @@ export async function notifyWOApproved(ctx: WONotifyContext) {
     entityId: ctx.woId,
     entityCode: ctx.woNo,
     title: `Yêu cầu SX ${ctx.woNo} đã được duyệt`,
-    message: "Vận hành đã chấp nhận, đang tiến hành sản xuất.",
+    message: "Gia công đã chấp nhận, đang tiến hành sản xuất.",
     link: `/work-orders/${ctx.woId}`,
     severity: "success",
   });
@@ -324,7 +324,7 @@ export async function notifyWORejected(
     title: `Yêu cầu SX ${ctx.woNo} bị từ chối`,
     message: ctx.reason
       ? `Lý do: ${ctx.reason}`
-      : "Vận hành đã từ chối yêu cầu.",
+      : "Gia công đã từ chối yêu cầu.",
     link: `/work-orders/${ctx.woId}`,
     severity: "warning",
   });
@@ -371,7 +371,7 @@ export async function notifyWOReleased(ctx: WONotifyContext) {
     title: `Lệnh sản xuất mới: ${ctx.woNo}`,
     message: ctx.productName
       ? `${ctx.productName}${ctx.plannedQty ? ` × ${ctx.plannedQty}` : ""}`
-      : "Vào tab Vận hành để bắt đầu sản xuất",
+      : "Vào tab Gia công để bắt đầu sản xuất",
     link: `/work-orders/${ctx.woId}`,
     severity: "info",
   });

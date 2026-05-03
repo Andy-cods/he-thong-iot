@@ -160,7 +160,7 @@ export function WorkOrderActions({
   return (
     <div className="flex flex-wrap items-center gap-2">
       {/* V3.7.46 — DRAFT = Yêu cầu SX. CHỈ operator/admin (canApprove)
-          mới hiện 2 nút Duyệt/Từ chối. Planner thấy badge "Chờ Vận hành duyệt". */}
+          mới hiện 2 nút Duyệt/Từ chối. Planner thấy badge "Chờ Gia công duyệt". */}
       {status === "DRAFT" && canApprove && (
         <>
           <Button
@@ -186,7 +186,7 @@ export function WorkOrderActions({
       )}
       {status === "DRAFT" && !canApprove && (
         <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200">
-          ⏳ Chờ Bộ phận Vận hành duyệt
+          ⏳ Chờ Bộ phận Gia công duyệt
         </span>
       )}
       {/* QUEUED → start (legacy flow). Sau V3.7.46 không tạo QUEUED nữa.

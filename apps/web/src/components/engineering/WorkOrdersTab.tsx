@@ -148,7 +148,7 @@ export interface WorkOrdersTabProps {
   /**
    * V3.7.47 — variant của tab:
    *  - "engineering" (default): hiển thị YÊU CẦU sản xuất (DRAFT) — TK-A
-   *    đã tạo, chờ Vận hành duyệt.
+   *    đã tạo, chờ Gia công duyệt.
    *  - "operations-requests": dành cho VH-A xem yêu cầu chờ duyệt (DRAFT).
    *  - "operations-orders": dành cho VH-A xem lệnh SX đã duyệt + đang chạy.
    */
@@ -259,8 +259,8 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
                 {variant === "operations-orders"
                   ? "Lệnh đã được duyệt — đang/đã sản xuất"
                   : variant === "operations-requests"
-                    ? "Yêu cầu từ Bộ phận Thiết kế chờ Vận hành xem xét"
-                    : "Yêu cầu Thiết kế gửi sang Vận hành để duyệt"}
+                    ? "Yêu cầu từ Bộ phận Thiết kế chờ Gia công xem xét"
+                    : "Yêu cầu Thiết kế gửi sang Gia công để duyệt"}
               </p>
             </div>
           </div>

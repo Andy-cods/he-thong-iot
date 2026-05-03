@@ -120,13 +120,13 @@ export function HeroOverviewCard({
               <Activity className="h-5 w-5" strokeWidth={2.25} />
             </span>
             <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-indigo-700/80">
-              Trung tâm vận hành
+              Trung tâm gia công
             </span>
           </div>
 
           <div className="flex flex-col gap-1.5">
             <h1 className="text-balance text-3xl font-bold leading-tight tracking-tight text-zinc-900 sm:text-4xl">
-              Tổng quan vận hành
+              Tổng quan gia công
             </h1>
             <p className="max-w-xl text-[13.5px] leading-relaxed text-zinc-600 sm:text-sm">
               Theo dõi tiến độ tổng hợp các bộ phận theo thời gian thực — BOM,

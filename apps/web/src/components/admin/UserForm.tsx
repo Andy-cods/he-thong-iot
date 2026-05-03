@@ -23,7 +23,7 @@ export const ALL_ROLES: { code: Role; label: string; desc: string }[] = [
   { code: "admin", label: "Admin", desc: "Toàn quyền — quản trị user + audit" },
   { code: "planner", label: "Planner", desc: "Kế hoạch SX — BOM, Orders" },
   { code: "warehouse", label: "Warehouse", desc: "Kho — nhận hàng, tồn kho" },
-  { code: "operator", label: "Operator", desc: "Vận hành xưởng" },
+  { code: "operator", label: "Operator", desc: "Gia công xưởng" },
 ];
 
 export interface UserFormProps {

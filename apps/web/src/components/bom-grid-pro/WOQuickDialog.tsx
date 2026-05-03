@@ -127,7 +127,7 @@ export function WOQuickDialog({
     onSuccess: (res) => {
       const wo = res.data;
       toast.success(`Đã gửi yêu cầu sản xuất ${wo.woNo}`, {
-        description: "Bộ phận Vận hành sẽ xem xét + duyệt.",
+        description: "Bộ phận Gia công sẽ xem xét + duyệt.",
       });
       qc.invalidateQueries({ queryKey: qk.bom.all });
       onOpenChange(false);
@@ -156,7 +156,7 @@ export function WOQuickDialog({
             {name ? ` — ${name}` : ""}
             <br />
             <span className="text-purple-700 font-medium text-xs">
-              ℹ️ Đây là <strong>yêu cầu sản xuất</strong> — Bộ phận Vận hành sẽ
+              ℹ️ Đây là <strong>yêu cầu sản xuất</strong> — Bộ phận Gia công sẽ
               duyệt rồi mới chuyển thành lệnh sản xuất chính thức.
             </span>
           </DialogDescription>

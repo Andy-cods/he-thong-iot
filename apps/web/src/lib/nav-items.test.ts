@@ -33,7 +33,7 @@ describe("NAV_ITEMS V3.1 cấu trúc 6 section", () => {
       warehouse:   "Bộ phận Kho",
       finance:     "Tài chính & Mua bán",
       engineering: "Bộ phận Thiết kế",
-      operations:  "Bộ phận Vận hành",
+      operations:  "Bộ phận Gia công",
       other:       "Quản trị",
     });
   });
@@ -64,7 +64,7 @@ describe("NAV_ITEMS V3.1 cấu trúc 6 section", () => {
     expect(engHrefs).toEqual(["/engineering"]);
   });
 
-  it("Bộ phận Vận hành có 1 hub /operations", () => {
+  it("Bộ phận Gia công có 1 hub /operations", () => {
     const opsHrefs = NAV_ITEMS.filter((i) => i.section === "operations").map((i) => i.href);
     expect(opsHrefs).toEqual(["/operations"]);
   });
