@@ -95,7 +95,7 @@ const STATUS_META: Record<MaterialStatus, StatusMeta> = {
     defaultPct: 100,
   },
   ISSUED: {
-    label: "Đã xuất SX",
+    label: "Hoàn thiện",
     icon: Factory,
     bar: "bg-violet-500",
     barBg: "bg-violet-100",
@@ -118,7 +118,7 @@ export type FabStatus =
 
 const FAB_META: Record<FabStatus, StatusMeta> = {
   NOT_STARTED: {
-    label: "Chờ SX",
+    label: "Chưa sản xuất",
     icon: Clock,
     bar: "bg-zinc-300",
     barBg: "bg-zinc-100",
@@ -245,7 +245,7 @@ function ComMilestoneList({
       <MilestoneRow reached={milestones.purchasing} label="Đang mua (PR/PO)" />
       <MilestoneRow reached={milestones.purchased} label="Đã mua xong" />
       <MilestoneRow reached={milestones.available} label="Có sẵn kho" />
-      <MilestoneRow reached={milestones.issued} label="Đã xuất kho" />
+      <MilestoneRow reached={milestones.issued} label="Hoàn thiện" />
       {requiredQty !== undefined && requiredQty > 0 ? (
         <div className="mt-1.5 border-t border-zinc-700 pt-1 font-mono text-[10px] tabular-nums text-zinc-400">
           {purchasedQty ?? 0} / {requiredQty} {uom ?? ""}
@@ -281,7 +281,7 @@ function FabMilestoneList({
       <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-zinc-400">
         Mốc sản xuất {woNo ? `· ${woNo}` : ""}
       </div>
-      <MilestoneRow reached={milestones.waiting} label="Chờ SX" />
+      <MilestoneRow reached={milestones.waiting} label="Chưa sản xuất" />
       <MilestoneRow reached={milestones.inProgress} label="Đang SX" />
       <MilestoneRow
         reached={milestones.paused}

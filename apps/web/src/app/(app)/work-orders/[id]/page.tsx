@@ -629,7 +629,7 @@ export default function WorkOrderDetailPage() {
               </div>
             </div>
 
-            <MaterialRequirementsTable woId={wo.id} requirements={wo.materialRequirements} versionLock={wo.versionLock} canEdit={isPlannerPlus} />
+            <MaterialRequirementsTable woId={wo.id} woNo={wo.woNo} requirements={wo.materialRequirements} versionLock={wo.versionLock} canEdit={isPlannerPlus} canRequestPR={canOperate} />
           </>
         )}
 

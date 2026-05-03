@@ -556,11 +556,16 @@ export function useBomDerivedStatus(templateId: string, enabled = true) {
   return useQuery<{ data: DerivedStatusSummary }>({
     queryKey: qk.bom.derivedStatus(templateId),
     queryFn: async () => {
-      const res = await fetch(`/api/bom/templates/${templateId}/derived-status`);
+      const res = await fetch(`/api/bom/templates/${templateId}/derived-status`, {
+        credentials: "include",
+      });
       if (!res.ok) throw new Error("Không tải được material status");
       return (await res.json()) as { data: DerivedStatusSummary };
     },
-    staleTime: 30_000,
+    // V3.7.50 — auto refresh giống fab-progress để bắt PO/Stock mới mà không cần reload.
+    staleTime: 15_000,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
     enabled: enabled && !!templateId,
   });
 }

@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { toast } from "sonner";
-import { Package, Plus, Save, Trash2, X } from "lucide-react";
+import { Loader2, Package, Plus, Save, ShoppingCart, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,23 +18,93 @@ import {
   useUpdateWorkOrder,
   type MaterialRequirement,
 } from "@/hooks/useWorkOrders";
+import { useCreatePurchaseRequest } from "@/hooks/usePurchaseRequests";
 
 /**
  * V1.9-P4 — hiển thị + sửa material_requirements (JSONB) của WO.
+ *
+ * V3.7.50 — thêm action "Yêu cầu mua phôi" cho từng dòng vật liệu thiếu hụt.
+ * Khi click → tạo Purchase Request gửi sang bộ phận Thu mua, gắn link WO trong
+ * notes để Procurement biết phôi cho lệnh sản xuất nào.
  */
 export function MaterialRequirementsTable({
   woId,
+  woNo,
   requirements,
   versionLock,
   canEdit,
+  canRequestPR,
 }: {
   woId: string;
+  woNo?: string;
   requirements: MaterialRequirement[] | null;
   versionLock: number;
   canEdit: boolean;
+  /** V3.7.50 — quyền gửi Yêu cầu mua phôi (operator/planner/admin). */
+  canRequestPR?: boolean;
 }) {
   const [open, setOpen] = React.useState(false);
+  const [requestingIdx, setRequestingIdx] = React.useState<number | null>(null);
   const rows = requirements ?? [];
+  const createPR = useCreatePurchaseRequest();
+
+  const handleRequestPR = async (row: MaterialRequirement, idx: number) => {
+    if (!row.item_id) {
+      toast.error("Cần SKU/item_id để gửi yêu cầu", {
+        description: "Sửa vật liệu và gắn item từ danh mục trước.",
+      });
+      return;
+    }
+    const qty = Math.max(0, Number(row.qty || 0) - Number(row.allocated_qty ?? 0));
+    if (qty <= 0) {
+      toast.info("Không thiếu hụt — không cần mua thêm.");
+      return;
+    }
+    if (
+      !window.confirm(
+        `Gửi yêu cầu mua ${qty.toLocaleString("vi-VN")} ${row.uom ?? ""} ${row.name} đến bộ phận Thu mua?`,
+      )
+    ) {
+      return;
+    }
+    setRequestingIdx(idx);
+    try {
+      const woRef = woNo ? `WO ${woNo}` : `WO ${woId.slice(0, 8)}`;
+      const res = await createPR.mutateAsync({
+        title: `Yêu cầu mua phôi — ${woRef} · ${row.sku ?? row.name}`,
+        source: "MANUAL",
+        linkedOrderId: null,
+        notes: `Phôi cho ${woRef} · vật liệu "${row.name}"${row.sku ? ` (SKU ${row.sku})` : ""}`,
+        lines: [
+          {
+            itemId: row.item_id,
+            qty,
+            preferredSupplierId: null,
+            notes: `Phôi cho ${woRef}`,
+          },
+        ],
+      });
+      const created = res.data;
+      const prHref = created.id
+        ? `/procurement/purchase-requests/${created.id}`
+        : null;
+      toast.success(`Đã gửi PR ${created.code ?? ""} đến Thu mua`.trim(), {
+        description: "Bộ phận Thu mua sẽ duyệt và chuyển thành PO.",
+        action: prHref
+          ? {
+              label: "Mở PR",
+              onClick: () => {
+                window.location.href = prHref;
+              },
+            }
+          : undefined,
+      });
+    } catch (e) {
+      toast.error((e as Error).message ?? "Không gửi được yêu cầu mua phôi");
+    } finally {
+      setRequestingIdx(null);
+    }
+  };
 
   return (
     <>
@@ -68,8 +139,12 @@ export function MaterialRequirementsTable({
                 <th className="px-3 py-2 text-left">Tên</th>
                 <th className="px-3 py-2 text-right">Yêu cầu</th>
                 <th className="px-3 py-2 text-right">Đã cấp</th>
+                <th className="px-3 py-2 text-right">Thiếu</th>
                 <th className="px-3 py-2 text-left">UoM</th>
                 <th className="px-3 py-2 text-left">Lot codes</th>
+                {canRequestPR && (
+                  <th className="px-3 py-2 text-right">Hành động</th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
@@ -77,6 +152,7 @@ export function MaterialRequirementsTable({
                 const qty = Number(r.qty);
                 const allocated = Number(r.allocated_qty ?? 0);
                 const shortage = qty - allocated;
+                const canBuy = !!r.item_id && shortage > 0;
                 return (
                   <tr key={i}>
                     <td className="px-3 py-2 font-mono text-xs">
@@ -95,17 +171,61 @@ export function MaterialRequirementsTable({
                     >
                       {allocated.toLocaleString("vi-VN")}
                     </td>
+                    <td
+                      className={`px-3 py-2 text-right tabular-nums text-xs ${
+                        shortage > 0 ? "font-semibold text-amber-700" : "text-zinc-400"
+                      }`}
+                    >
+                      {shortage > 0 ? shortage.toLocaleString("vi-VN") : "—"}
+                    </td>
                     <td className="px-3 py-2 text-xs text-zinc-600">
                       {r.uom ?? "—"}
                     </td>
                     <td className="px-3 py-2 font-mono text-[11px] text-zinc-500">
                       {(r.lot_codes ?? []).join(", ") || "—"}
                     </td>
+                    {canRequestPR && (
+                      <td className="px-3 py-2 text-right">
+                        <Button
+                          size="sm"
+                          variant={canBuy ? "secondary" : "ghost"}
+                          disabled={!canBuy || requestingIdx === i}
+                          onClick={() => handleRequestPR(r, i)}
+                          title={
+                            !r.item_id
+                              ? "Chưa có item_id — cần sửa vật liệu để gắn SKU"
+                              : shortage <= 0
+                                ? "Đủ vật liệu — không cần mua thêm"
+                                : "Gửi yêu cầu mua phôi đến Thu mua"
+                          }
+                          className="h-7 gap-1 text-[11px]"
+                        >
+                          {requestingIdx === i ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <ShoppingCart className="h-3 w-3" />
+                          )}
+                          Yêu cầu mua
+                        </Button>
+                      </td>
+                    )}
                   </tr>
                 );
               })}
             </tbody>
           </table>
+        )}
+        {canRequestPR && rows.length > 0 && (
+          <div className="border-t border-zinc-100 bg-zinc-50/50 px-3 py-2 text-[11px] text-zinc-500">
+            Yêu cầu mua phôi sẽ tạo Purchase Request gửi đến{" "}
+            <Link
+              href="/procurement/purchase-requests"
+              className="font-medium text-indigo-600 hover:underline"
+            >
+              bộ phận Thu mua
+            </Link>{" "}
+            để duyệt và đặt PO.
+          </div>
         )}
       </div>
 
