@@ -59,11 +59,11 @@ export function ProgressBarStack({
       aria-label="Tổng quan các bộ phận"
     >
       <BigStatCard
-        label="Linh kiện sẵn sàng"
-        icon={Boxes}
+        label="Đơn hàng đang sản xuất"
+        icon={Factory}
         tone="emerald"
-        moduleLabel="BOM"
-        href={DRILLDOWN_URLS.componentsAvailable}
+        moduleLabel="Gia công"
+        href={DRILLDOWN_URLS.assembly}
         value={p?.componentsAvailable.percent ?? 0}
         valueSuffix="%"
         percent={p?.componentsAvailable.percent ?? 0}
@@ -71,7 +71,7 @@ export function ProgressBarStack({
         denominator={p?.componentsAvailable.denominator ?? 0}
         subText={
           p && p.componentsAvailable.denominator > 0
-            ? `${formatNum(p.componentsAvailable.numerator)} / ${formatNum(p.componentsAvailable.denominator)} linh kiện`
+            ? `${formatNum(p.componentsAvailable.numerator)} / ${formatNum(p.componentsAvailable.denominator)} đơn hàng`
             : undefined
         }
         loading={loading}
