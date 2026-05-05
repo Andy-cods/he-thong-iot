@@ -104,6 +104,13 @@ export interface CreatePRLineInput {
   snapshotLineId?: string | null;
   neededBy?: Date | null;
   notes?: string | null;
+  // V3.7.55 — MRF GTAM fields
+  specification?: string | null;
+  uom?: string | null;
+  priority?: "URGENT" | "NORMAL" | "RESERVE" | null;
+  category?: "TOOL" | "CONSUMABLE" | "MATERIAL" | "OTHER" | null;
+  estimatedUnitPrice?: number | null;
+  referenceCode?: string | null;
 }
 
 export interface CreatePRInput {
@@ -113,6 +120,10 @@ export interface CreatePRInput {
   requestedBy: string | null;
   notes?: string | null;
   lines: CreatePRLineInput[];
+  // V3.7.55 — MRF GTAM header fields
+  targetDepartment?: string | null;
+  proposingDepartment?: string | null;
+  requestReason?: string | null;
 }
 
 async function genPRCode(): Promise<string> {
@@ -141,6 +152,9 @@ export async function createPR(input: CreatePRInput): Promise<PurchaseRequest> {
         linkedOrderId: input.linkedOrderId ?? null,
         requestedBy: input.requestedBy,
         notes: input.notes ?? null,
+        targetDepartment: input.targetDepartment ?? null,
+        proposingDepartment: input.proposingDepartment ?? null,
+        requestReason: input.requestReason ?? null,
       })
       .returning();
     if (!header) throw new Error("PR_INSERT_FAILED");
@@ -155,6 +169,14 @@ export async function createPR(input: CreatePRInput): Promise<PurchaseRequest> {
         snapshotLineId: l.snapshotLineId ?? null,
         neededBy: l.neededBy ? l.neededBy.toISOString().slice(0, 10) : null,
         notes: l.notes ?? null,
+        // V3.7.55 — MRF GTAM line fields
+        specification: l.specification ?? null,
+        uom: l.uom ?? null,
+        priority: l.priority ?? "NORMAL",
+        category: l.category ?? null,
+        estimatedUnitPrice:
+          l.estimatedUnitPrice != null ? String(l.estimatedUnitPrice) : null,
+        referenceCode: l.referenceCode ?? null,
       })),
     );
 
@@ -222,6 +244,13 @@ export interface ReplacePRLineInput {
   snapshotLineId?: string | null;
   neededBy?: Date | null;
   notes?: string | null;
+  // V3.7.55 — MRF GTAM fields
+  specification?: string | null;
+  uom?: string | null;
+  priority?: "URGENT" | "NORMAL" | "RESERVE" | null;
+  category?: "TOOL" | "CONSUMABLE" | "MATERIAL" | "OTHER" | null;
+  estimatedUnitPrice?: number | null;
+  referenceCode?: string | null;
 }
 
 export async function replacePRLines(
@@ -243,6 +272,14 @@ export async function replacePRLines(
         snapshotLineId: l.snapshotLineId ?? null,
         neededBy: l.neededBy ? l.neededBy.toISOString().slice(0, 10) : null,
         notes: l.notes ?? null,
+        // V3.7.55 — MRF GTAM line fields
+        specification: l.specification ?? null,
+        uom: l.uom ?? null,
+        priority: l.priority ?? "NORMAL",
+        category: l.category ?? null,
+        estimatedUnitPrice:
+          l.estimatedUnitPrice != null ? String(l.estimatedUnitPrice) : null,
+        referenceCode: l.referenceCode ?? null,
       })),
     );
   });
@@ -328,6 +365,15 @@ export async function getPRLinesEnriched(prId: string) {
       notes: purchaseRequestLine.notes,
       grossRequiredQty: bomSnapshotLine.grossRequiredQty,
       remainingShortQty: bomSnapshotLine.remainingShortQty,
+      // V3.7.55 — MRF GTAM line fields
+      specification: purchaseRequestLine.specification,
+      uom: purchaseRequestLine.uom,
+      priority: purchaseRequestLine.priority,
+      category: purchaseRequestLine.category,
+      estimatedUnitPrice: purchaseRequestLine.estimatedUnitPrice,
+      referenceCode: purchaseRequestLine.referenceCode,
+      approvedQty: purchaseRequestLine.approvedQty,
+      itemUom: item.uom,
     })
     .from(purchaseRequestLine)
     .innerJoin(item, eq(item.id, purchaseRequestLine.itemId))

@@ -51,7 +51,7 @@ export const purchaseRequestStatusEnum = pgEnum("purchase_request_status", [
   "REJECTED",
 ]);
 
-/** V1.2 — Purchase Request (header) */
+/** V1.2 — Purchase Request (header). V3.7.55 thêm fields theo form MRF GTAM. */
 export const purchaseRequest = appSchema.table(
   "purchase_request",
   {
@@ -65,6 +65,12 @@ export const purchaseRequest = appSchema.table(
     approvedBy: uuid("approved_by").references(() => userAccount.id),
     approvedAt: timestamp("approved_at", { withTimezone: true }),
     notes: text("notes"),
+    /** V3.7.55 MRF — "Kính gửi" (phòng/ban nhận đề xuất). */
+    targetDepartment: varchar("target_department", { length: 64 }),
+    /** V3.7.55 MRF — Bộ phận đề xuất. */
+    proposingDepartment: varchar("proposing_department", { length: 64 }),
+    /** V3.7.55 MRF — Lý do đề xuất. */
+    requestReason: text("request_reason"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -179,7 +185,7 @@ export const purchaseOrderLine = appSchema.table(
   }),
 );
 
-/** V1.2 — Purchase Request Line */
+/** V1.2 — Purchase Request Line. V3.7.55 thêm fields theo form MRF GTAM. */
 export const purchaseRequestLine = appSchema.table(
   "purchase_request_line",
   {
@@ -199,12 +205,31 @@ export const purchaseRequestLine = appSchema.table(
     snapshotLineId: uuid("snapshot_line_id"),
     neededBy: date("needed_by"),
     notes: text("notes"),
+    /** V3.7.55 MRF — Quy cách chi tiết (VD "D6x50xL100"). */
+    specification: varchar("specification", { length: 512 }),
+    /** V3.7.55 MRF — ĐVT override theo line (mặc định kế thừa từ item.uom). */
+    uom: varchar("uom", { length: 16 }),
+    /** V3.7.55 MRF — Ưu tiên: URGENT (Khẩn) / NORMAL (Bình thường) / RESERVE (Dự phòng). */
+    priority: varchar("priority", { length: 16 }).default("NORMAL"),
+    /** V3.7.55 MRF — Phân loại: TOOL (CCDC) / CONSUMABLE (Tiêu hao) / MATERIAL / OTHER. */
+    category: varchar("category", { length: 32 }),
+    /** V3.7.55 MRF — Đơn giá dự kiến (VND). Tổng tiền = qty × unit_price. */
+    estimatedUnitPrice: numeric("estimated_unit_price", {
+      precision: 18,
+      scale: 2,
+    }),
+    /** V3.7.55 MRF — Mã tham chiếu (link/PO cũ/sản phẩm NCC). */
+    referenceCode: varchar("reference_code", { length: 128 }),
+    /** V3.7.55 MRF — SL được duyệt sau review (≤ qty). NULL = chưa duyệt. */
+    approvedQty: numeric("approved_qty", { precision: 18, scale: 6 }),
   },
   (t) => ({
     prIdx: index("pr_line_pr_idx").on(t.prId),
     itemIdx: index("pr_line_item_idx").on(t.itemId),
     supplierIdx: index("pr_line_supplier_idx").on(t.preferredSupplierId),
     snapshotIdx: index("pr_line_snapshot_idx").on(t.snapshotLineId),
+    priorityIdx: index("pr_line_priority_idx").on(t.priority),
+    categoryIdx: index("pr_line_category_idx").on(t.category),
     uniq: uniqueIndex("pr_line_uk").on(t.prId, t.lineNo),
   }),
 );

@@ -62,6 +62,14 @@ const dateStringOrDate = z
 
 /** ==== Purchase Request ==== */
 
+/** V3.7.55 MRF — Ưu tiên line. */
+export const PR_PRIORITIES = ["URGENT", "NORMAL", "RESERVE"] as const;
+export type PrPriority = (typeof PR_PRIORITIES)[number];
+
+/** V3.7.55 MRF — Phân loại vật tư. */
+export const PR_CATEGORIES = ["TOOL", "CONSUMABLE", "MATERIAL", "OTHER"] as const;
+export type PrCategory = (typeof PR_CATEGORIES)[number];
+
 export const prLineInputSchema = z.object({
   itemId: uuid,
   qty: positiveQty,
@@ -69,6 +77,13 @@ export const prLineInputSchema = z.object({
   snapshotLineId: uuid.optional().nullable(),
   neededBy: dateStringOrDate.optional().nullable(),
   notes: z.string().trim().max(500).optional().nullable(),
+  // V3.7.55 — MRF GTAM fields
+  specification: z.string().trim().max(512).optional().nullable(),
+  uom: z.string().trim().max(16).optional().nullable(),
+  priority: z.enum(PR_PRIORITIES).optional().nullable(),
+  category: z.enum(PR_CATEGORIES).optional().nullable(),
+  estimatedUnitPrice: z.coerce.number().nonnegative().optional().nullable(),
+  referenceCode: z.string().trim().max(128).optional().nullable(),
 });
 
 export const prCreateSchema = z.object({
@@ -77,6 +92,10 @@ export const prCreateSchema = z.object({
   linkedOrderId: uuid.optional().nullable(),
   notes: z.string().trim().max(2000).optional().nullable(),
   lines: z.array(prLineInputSchema).min(1, "PR cần ít nhất 1 dòng"),
+  // V3.7.55 — MRF GTAM header fields
+  targetDepartment: z.string().trim().max(64).optional().nullable(),
+  proposingDepartment: z.string().trim().max(64).optional().nullable(),
+  requestReason: z.string().trim().max(2000).optional().nullable(),
 });
 
 export const prCreateFromShortageSchema = z.object({
@@ -88,6 +107,10 @@ export const prCreateFromShortageSchema = z.object({
 export const prUpdateSchema = z.object({
   title: z.string().trim().max(255).optional().nullable(),
   notes: z.string().trim().max(2000).optional().nullable(),
+  // V3.7.55 — MRF GTAM header fields
+  targetDepartment: z.string().trim().max(64).optional().nullable(),
+  proposingDepartment: z.string().trim().max(64).optional().nullable(),
+  requestReason: z.string().trim().max(2000).optional().nullable(),
   /**
    * V3.4 — full lines edit (replace toàn bộ lines).
    * Chỉ allowed khi status DRAFT/SUBMITTED.
@@ -104,6 +127,14 @@ export const prUpdateSchema = z.object({
         snapshotLineId: uuid.optional().nullable(),
         neededBy: dateStringOrDate.optional().nullable(),
         notes: z.string().trim().max(500).optional().nullable(),
+        // V3.7.55 — MRF GTAM line fields
+        specification: z.string().trim().max(512).optional().nullable(),
+        uom: z.string().trim().max(16).optional().nullable(),
+        priority: z.enum(PR_PRIORITIES).optional().nullable(),
+        category: z.enum(PR_CATEGORIES).optional().nullable(),
+        estimatedUnitPrice: z.coerce.number().nonnegative().optional().nullable(),
+        referenceCode: z.string().trim().max(128).optional().nullable(),
+        approvedQty: z.coerce.number().nonnegative().optional().nullable(),
       }),
     )
     .min(1, "PR cần ít nhất 1 dòng")

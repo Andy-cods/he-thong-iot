@@ -69,10 +69,16 @@ export function PRTab() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button asChild size="sm" variant="secondary" title="Form MRF GTAM chuẩn — quy cách, ưu tiên, phân loại đầy đủ">
+            <Link href="/procurement/purchase-requests/new-mrf">
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+              Phiếu MRF GTAM
+            </Link>
+          </Button>
           <Button asChild size="sm">
             <Link href="/procurement/purchase-requests/new">
               <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-              Tạo PR
+              Tạo PR nhanh
             </Link>
           </Button>
         </div>

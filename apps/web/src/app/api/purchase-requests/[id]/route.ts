@@ -68,6 +68,13 @@ export async function PATCH(
     const headerPatch: Record<string, unknown> = { updatedAt: new Date() };
     if (body.data.title !== undefined) headerPatch.title = body.data.title;
     if (body.data.notes !== undefined) headerPatch.notes = body.data.notes;
+    // V3.7.55 — MRF GTAM header fields
+    if (body.data.targetDepartment !== undefined)
+      headerPatch.targetDepartment = body.data.targetDepartment;
+    if (body.data.proposingDepartment !== undefined)
+      headerPatch.proposingDepartment = body.data.proposingDepartment;
+    if (body.data.requestReason !== undefined)
+      headerPatch.requestReason = body.data.requestReason;
 
     const [after] = await db
       .update(purchaseRequest)
@@ -98,6 +105,13 @@ export async function PATCH(
           snapshotLineId: l.snapshotLineId ?? null,
           neededBy: l.neededBy ? new Date(l.neededBy) : null,
           notes: l.notes ?? null,
+          // V3.7.55 — MRF GTAM line fields
+          specification: l.specification ?? null,
+          uom: l.uom ?? null,
+          priority: l.priority ?? null,
+          category: l.category ?? null,
+          estimatedUnitPrice: l.estimatedUnitPrice ?? null,
+          referenceCode: l.referenceCode ?? null,
         })),
       );
     }

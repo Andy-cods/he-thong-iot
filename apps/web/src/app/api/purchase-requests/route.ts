@@ -64,6 +64,10 @@ export async function POST(req: NextRequest) {
       linkedOrderId: body.data.linkedOrderId ?? null,
       notes: body.data.notes ?? null,
       requestedBy: guard.session.userId,
+      // V3.7.55 — MRF GTAM header fields
+      targetDepartment: body.data.targetDepartment ?? null,
+      proposingDepartment: body.data.proposingDepartment ?? null,
+      requestReason: body.data.requestReason ?? null,
       lines: body.data.lines.map((l) => ({
         itemId: l.itemId,
         qty: l.qty,
@@ -71,6 +75,13 @@ export async function POST(req: NextRequest) {
         snapshotLineId: l.snapshotLineId ?? null,
         neededBy: l.neededBy ?? null,
         notes: l.notes ?? null,
+        // V3.7.55 — MRF GTAM line fields
+        specification: l.specification ?? null,
+        uom: l.uom ?? null,
+        priority: l.priority ?? null,
+        category: l.category ?? null,
+        estimatedUnitPrice: l.estimatedUnitPrice ?? null,
+        referenceCode: l.referenceCode ?? null,
       })),
     });
 
