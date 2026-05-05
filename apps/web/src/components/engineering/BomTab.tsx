@@ -30,6 +30,7 @@ import {
 } from "@/components/bom/BomListTable";
 import { BomCardGrid, type BomCardItem } from "@/components/bom/BomCardGrid";
 import { useBomList, useDeleteBomTemplate, useUpdateBomTemplate } from "@/hooks/useBom";
+import { useSession } from "@/hooks/useSession";
 import {
   isSelected,
   selectionCount,
@@ -66,6 +67,11 @@ const SORT_KEYS = [
  */
 export function BomTab() {
   const router = useRouter();
+  // V3.7.57 — chỉ admin/planner sửa BOM. Các role khác xem read-only.
+  const session = useSession();
+  const sessionRoles = session.data?.roles ?? [];
+  const canEditBom =
+    sessionRoles.includes("admin") || sessionRoles.includes("planner");
 
   const [urlState, setUrlState] = useQueryStates(
     {
@@ -359,18 +365,23 @@ export function BomTab() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/bom/import">
-              <FileUp className="h-3.5 w-3.5" aria-hidden="true" />
-              Nhập Excel
-            </Link>
-          </Button>
-          <Button asChild size="sm">
-            <Link href="/bom/new">
-              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-              Tạo BOM mới
-            </Link>
-          </Button>
+          {/* V3.7.57 — chỉ admin/planner (Bộ phận Thiết kế) tạo/import BOM */}
+          {canEditBom && (
+            <>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/bom/import">
+                  <FileUp className="h-3.5 w-3.5" aria-hidden="true" />
+                  Nhập Excel
+                </Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link href="/bom/new">
+                  <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                  Tạo BOM mới
+                </Link>
+              </Button>
+            </>
+          )}
         </div>
       </header>
 
@@ -441,11 +452,15 @@ export function BomTab() {
             rows={cardItems}
             loading={query.isLoading}
             onOpen={(r) => router.push(`/bom/${r.id}/grid`)}
-            onClone={(r) => router.push(`/bom/${r.id}`)}
-            onDelete={(r) => {
-              const match = rows.find((x) => x.id === r.id);
-              if (match) setSingleDeleteRow(match);
-            }}
+            onClone={canEditBom ? (r) => router.push(`/bom/${r.id}`) : undefined}
+            onDelete={
+              canEditBom
+                ? (r) => {
+                    const match = rows.find((x) => x.id === r.id);
+                    if (match) setSingleDeleteRow(match);
+                  }
+                : undefined
+            }
           />
         ) : (
           <div className="h-full">
@@ -457,8 +472,10 @@ export function BomTab() {
               onTogglePage={(ids) => selectionActions.togglePage(ids)}
               onEdit={(row) => router.push(`/bom/${row.id}`)}
               onPreview={(row) => router.push(`/bom/${row.id}`)}
-              onDelete={(row) => setSingleDeleteRow(row)}
-              onRename={handleRename}
+              onDelete={
+                canEditBom ? (row) => setSingleDeleteRow(row) : undefined
+              }
+              onRename={canEditBom ? handleRename : undefined}
               focusedIndex={focusedIndex}
               sortField={sortField}
               sortDir={sortDir}

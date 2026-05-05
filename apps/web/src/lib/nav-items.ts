@@ -103,13 +103,14 @@ export const NAV_ITEMS: NavItem[] = [
     icon: LayoutDashboard,
     section: "dashboard",
   },
-  // --- Bộ phận Thiết kế — planner + admin (full); warehouse + operator chỉ
-  // thấy tab BOM (read-only) + tab PR (tạo Phiếu MRF GTAM gửi Thu mua duyệt) ---
+  // V3.7.57 — Hub Thiết kế / BOM List cho TẤT CẢ bộ phận. Tab visibility filter
+  // theo role bên trong page (admin/planner: full; operator/warehouse: BOM + PR;
+  // purchaser: BOM read-only — duyệt PR vào /sales).
   {
     href: "/engineering",
     label: "Bộ phận Thiết kế",
     icon: Layers,
-    roles: ["admin", "planner", "warehouse", "operator"],
+    roles: ["admin", "planner", "warehouse", "operator", "purchaser"],
     section: "engineering",
   },
   // --- Bộ phận Gia công — chỉ operator + admin ---

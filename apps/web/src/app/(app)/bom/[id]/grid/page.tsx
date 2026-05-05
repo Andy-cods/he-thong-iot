@@ -11,6 +11,7 @@ import {
   useBomTree,
   useBomWorkspaceSummary,
 } from "@/hooks/useBom";
+import { useSession } from "@/hooks/useSession";
 import { useBomSheetsList } from "@/hooks/useBomSheets";
 import { BomSheetTabs } from "@/components/bom/BomSheetTabs";
 import { AddBomSheetDialog } from "@/components/bom/AddBomSheetDialog";
@@ -140,6 +141,14 @@ export default function BomGridPage() {
   const isLoading = detailQuery.isLoading || treeQuery.isLoading;
   const isObsolete = template?.status === "OBSOLETE";
 
+  // V3.7.57 — RBAC read-only: chỉ admin + planner sửa BOM. Các role khác
+  // (warehouse/operator/purchaser) xem được nhưng không sửa lines.
+  const session = useSession();
+  const sessionRoles = session.data?.roles ?? [];
+  const canEditBom =
+    sessionRoles.includes("admin") || sessionRoles.includes("planner");
+  const readOnly = isObsolete || !canEditBom;
+
   // TASK-20260427-016 — `shortage`/`eco` tabs retired; bỏ counts tương ứng.
   const tabCounts: Partial<Record<TopTabKey, number>> = summary
     ? {
@@ -164,9 +173,9 @@ export default function BomGridPage() {
             onChange={setActiveSheetId}
             onAddSheet={() => setAddSheetOpen(true)}
             loading={sheetsQuery.isLoading}
-            canAddSheet={!isObsolete}
+            canAddSheet={!readOnly}
             templateId={id}
-            readOnly={isObsolete}
+            readOnly={readOnly}
             onSheetDeleted={(deletedId, fallbackId) => {
               if (activeSheetId === deletedId) setActiveSheetId(fallbackId);
             }}
@@ -191,7 +200,7 @@ export default function BomGridPage() {
                     return (
                       <MaterialProcessSheetView
                         sheetId={activeSheetId}
-                        readOnly={isObsolete}
+                        readOnly={readOnly}
                       />
                     );
                   }
@@ -200,7 +209,7 @@ export default function BomGridPage() {
                       <CustomSheetView
                         templateId={id}
                         sheet={activeSheet}
-                        readOnly={isObsolete}
+                        readOnly={readOnly}
                       />
                     );
                   }
@@ -220,7 +229,7 @@ export default function BomGridPage() {
                           derivedStatusQuery.data?.data,
                         )}
                         fabProgressMap={fabProgressQuery.data?.data.progress}
-                        readOnly={isObsolete}
+                        readOnly={readOnly}
                         onHistoryLine={() => tabs.setDrawerHistory(true)}
                       />
                     </div>

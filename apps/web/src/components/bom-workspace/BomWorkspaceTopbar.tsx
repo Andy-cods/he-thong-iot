@@ -38,6 +38,7 @@ import {
   type BomTemplateDetail,
 } from "@/hooks/useBom";
 import { useBomRevisions } from "@/hooks/useBomRevisions";
+import { useSession } from "@/hooks/useSession";
 import { ReleaseRevisionDialog } from "@/components/bom-revision/ReleaseRevisionDialog";
 import { cn } from "@/lib/utils";
 import { TOP_TAB_LABELS, type TopTabKey } from "./useTopTabState";
@@ -106,6 +107,12 @@ export function BomWorkspaceTopbar({
   const badge = bomStatusToBadge(template.status);
   const [releaseOpen, setReleaseOpen] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
+
+  // V3.7.57 — chỉ admin + planner sửa BOM. Các role khác chỉ xem.
+  const session = useSession();
+  const sessionRoles = session.data?.roles ?? [];
+  const canEditBom =
+    sessionRoles.includes("admin") || sessionRoles.includes("planner");
 
   const cloneBom = useCloneBomTemplate();
   const deleteBom = useDeleteBomTemplate();
@@ -235,8 +242,8 @@ export function BomWorkspaceTopbar({
       ) : null}
 
       {/* V3.7.54 — Nút "Kích hoạt BOM" hiển thị rõ khi BOM đang DRAFT.
-          Click → ReleaseRevisionDialog → tạo R01 + auto-promote status ACTIVE. */}
-      {template.status === "DRAFT" && (
+          V3.7.57 — chỉ admin/planner thấy. Các role khác xem read-only. */}
+      {canEditBom && template.status === "DRAFT" && (
         <Button
           size="sm"
           onClick={() => setReleaseOpen(true)}
@@ -248,47 +255,49 @@ export function BomWorkspaceTopbar({
         </Button>
       )}
 
-      {/* History */}
+      {/* History — mọi role đều xem được */}
       <Button size="sm" variant="ghost" onClick={onOpenHistory} title="Lịch sử thay đổi">
         <History className="h-3.5 w-3.5" aria-hidden />
         <span className="hidden sm:inline">Lịch sử</span>
       </Button>
 
-      {/* Actions dropdown */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button size="sm" variant="ghost">
-            <MoreHorizontal className="h-3.5 w-3.5" aria-hidden />
-            <ChevronDown className="h-3 w-3" aria-hidden />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {!isObsolete && (
-            <DropdownMenuItem onClick={() => void handleRename()}>
-              <Pencil className="h-3.5 w-3.5" aria-hidden />
-              Đổi tên BOM
+      {/* Actions dropdown — chỉ admin/planner */}
+      {canEditBom && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="ghost">
+              <MoreHorizontal className="h-3.5 w-3.5" aria-hidden />
+              <ChevronDown className="h-3 w-3" aria-hidden />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {!isObsolete && (
+              <DropdownMenuItem onClick={() => void handleRename()}>
+                <Pencil className="h-3.5 w-3.5" aria-hidden />
+                Đổi tên BOM
+              </DropdownMenuItem>
+            )}
+            {isObsolete && (
+              <DropdownMenuItem onClick={() => void handleRestore()}>
+                <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+                Khôi phục về DRAFT
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onClick={() => void handleClone()}>
+              <Copy className="h-3.5 w-3.5" aria-hidden />
+              Nhân bản BOM
             </DropdownMenuItem>
-          )}
-          {isObsolete && (
-            <DropdownMenuItem onClick={() => void handleRestore()}>
-              <RefreshCw className="h-3.5 w-3.5" aria-hidden />
-              Khôi phục về DRAFT
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="danger"
+              onClick={() => setDeleteOpen(true)}
+            >
+              <Trash2 className="h-3.5 w-3.5" aria-hidden />
+              Xoá (ngừng dùng)
             </DropdownMenuItem>
-          )}
-          <DropdownMenuItem onClick={() => void handleClone()}>
-            <Copy className="h-3.5 w-3.5" aria-hidden />
-            Nhân bản BOM
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            variant="danger"
-            onClick={() => setDeleteOpen(true)}
-          >
-            <Trash2 className="h-3.5 w-3.5" aria-hidden />
-            Xoá (ngừng dùng)
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
 
       <ReleaseRevisionDialog
         open={releaseOpen}
