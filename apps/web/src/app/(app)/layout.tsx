@@ -27,12 +27,14 @@ const ROUTE_ROLE_GUARD: Array<{ prefix: string; roles: Role[] }> = [
   { prefix: "/warehouse",    roles: ["admin", "warehouse"] },
   { prefix: "/sales",        roles: ["admin", "purchaser"] },
   // V3.7.53 — warehouse có thể xem BOM (read-only) để theo dõi tồn kho linh kiện.
-  { prefix: "/engineering",  roles: ["admin", "planner", "warehouse"] },
+  // V3.7.55 — operator (Gia công) cũng vào /engineering để tạo Phiếu MRF GTAM.
+  { prefix: "/engineering",  roles: ["admin", "planner", "warehouse", "operator"] },
   { prefix: "/operations",   roles: ["admin", "operator"] },
   // BOM workspace, WO, PR detail pages → cho engineer (planner) + admin + warehouse (read-only)
   { prefix: "/bom",          roles: ["admin", "planner", "warehouse"] },
   { prefix: "/work-orders",  roles: ["admin", "planner", "operator"] },
-  { prefix: "/procurement",  roles: ["admin", "planner", "purchaser"] },
+  // V3.7.55 — operator + warehouse access /procurement để tạo MRF GTAM (PR submit gửi Thu mua duyệt).
+  { prefix: "/procurement",  roles: ["admin", "planner", "purchaser", "operator", "warehouse"] },
   // Receiving + assembly: chỉ kho/vận hành/admin
   { prefix: "/receiving",    roles: ["admin", "warehouse"] },
   { prefix: "/assembly",     roles: ["admin", "operator"] },

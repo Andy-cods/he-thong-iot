@@ -89,7 +89,8 @@ export const RBAC_MATRIX: Matrix = {
     bomRevision: ["read"],
     salesOrder: ["read"],
     bomSnapshot: ["read", "transition"],
-    pr: ["read"],
+    // V3.7.55 — Bộ phận Gia công tạo Phiếu MRF GTAM gửi Thu mua duyệt.
+    pr: ["create", "read"],
     po: ["read"],
     // V3.7.31 — operator được create wo (quick WO) + create reservation
     // (auto-FIFO ISR). Workflow xưởng: tự tạo WO khi nhận đơn nội bộ.
@@ -107,7 +108,8 @@ export const RBAC_MATRIX: Matrix = {
     bomRevision: ["read"],
     salesOrder: ["read"],
     bomSnapshot: ["read", "transition"],
-    pr: ["read"],
+    // V3.7.55 — Bộ phận Kho tạo Phiếu MRF GTAM gửi Thu mua duyệt.
+    pr: ["create", "read"],
     po: ["read", "update", "transition"],
     wo: ["read"],
     reservation: ["read"],

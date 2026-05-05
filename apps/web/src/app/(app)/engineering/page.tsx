@@ -33,29 +33,51 @@ export default function EngineeringPage() {
   const session = useSession();
   const roles = session.data?.roles ?? [];
 
-  // V3.7.53 — warehouse chỉ thấy BOM (xem tồn kho), không thấy WO/PR.
-  const isWarehouseOnly =
-    roles.includes("warehouse") &&
-    !roles.includes("admin") &&
-    !roles.includes("planner");
+  // V3.7.55 — Filter tabs theo role:
+  //   - admin/planner: full 3 tabs (BOM + WO + PR)
+  //   - warehouse: BOM (read-only) + PR (tạo MRF GTAM)
+  //   - operator: PR only (tạo MRF GTAM) — BOM/WO đã có ở /operations + /work-orders
+  const isAdminOrPlanner =
+    roles.includes("admin") || roles.includes("planner");
+  const isWarehouse = roles.includes("warehouse");
+  const isOperator = roles.includes("operator");
 
-  const tabs = React.useMemo(
-    () => (isWarehouseOnly ? ALL_TABS.filter((t) => t.key === "bom") : ALL_TABS),
-    [isWarehouseOnly],
-  );
+  const tabs = React.useMemo(() => {
+    if (isAdminOrPlanner) return ALL_TABS;
+    const allowedKeys = new Set<string>();
+    if (isWarehouse) {
+      allowedKeys.add("bom");
+      allowedKeys.add("pr");
+    }
+    if (isOperator) {
+      allowedKeys.add("pr");
+    }
+    return ALL_TABS.filter((t) => allowedKeys.has(t.key));
+  }, [isAdminOrPlanner, isWarehouse, isOperator]);
 
   const rawTab = searchParams?.get("tab") ?? undefined;
   const found = tabs.find((t) => t.key === rawTab);
-  const active: EngineeringTab = found ? found.key : "bom";
+  const defaultTab = (tabs[0]?.key ?? "bom") as EngineeringTab;
+  const active: EngineeringTab = found ? found.key : defaultTab;
   const tabLabel = tabs.find((t) => t.key === active)?.label ?? "BOM List";
 
-  const breadcrumbDept = isWarehouseOnly ? "Bộ phận Kho" : "Bộ phận Thiết kế";
-  const pageTitle = isWarehouseOnly
-    ? "BOM List · Theo dõi tồn kho"
-    : "Thiết kế & Sản xuất";
-  const pageSubtitle = isWarehouseOnly
-    ? "Xem BOM List · điều chỉnh tồn kho linh kiện trực tiếp."
-    : "BOM List · Yêu cầu sản xuất (gửi Gia công duyệt) · Yêu cầu mua.";
+  const breadcrumbDept = isAdminOrPlanner
+    ? "Bộ phận Thiết kế"
+    : isWarehouse
+      ? "Bộ phận Kho"
+      : isOperator
+        ? "Bộ phận Gia công"
+        : "Bộ phận";
+  const pageTitle = isAdminOrPlanner
+    ? "Thiết kế & Sản xuất"
+    : isWarehouse
+      ? "Theo dõi vật tư & Đề xuất mua"
+      : "Đề xuất mua vật tư";
+  const pageSubtitle = isAdminOrPlanner
+    ? "BOM List · Yêu cầu sản xuất (gửi Gia công duyệt) · Yêu cầu mua."
+    : isWarehouse
+      ? "Xem BOM List · điều chỉnh tồn kho · gửi Phiếu MRF GTAM đến Thu mua."
+      : "Tạo Phiếu MRF GTAM gửi Bộ phận Thu mua duyệt + đặt PO.";
 
   return (
     <div className="flex h-full flex-col overflow-hidden">

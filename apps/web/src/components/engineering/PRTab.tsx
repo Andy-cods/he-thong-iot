@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PRListTable } from "@/components/procurement/PRListTable";
 import { usePurchaseRequestsList } from "@/hooks/usePurchaseRequests";
+import { useSession } from "@/hooks/useSession";
 import type { PRFilter } from "@/lib/query-keys";
 
 /**
@@ -50,6 +51,17 @@ export function PRTab() {
   const isEmpty = !query.isLoading && rows.length === 0;
   const hasFilter = urlState.status !== "all" || urlState.q !== "";
 
+  // V3.7.55 — phân quyền nút tạo PR theo role:
+  //   - admin: cả 2 nút (MRF + PR nhanh)
+  //   - planner: PR nhanh (wizard) — không tạo MRF GTAM
+  //   - operator (Gia công) + warehouse (Kho): chỉ MRF GTAM
+  //   - purchaser: không tạo, chỉ duyệt
+  const session = useSession();
+  const roles = session.data?.roles ?? [];
+  const isAdmin = roles.includes("admin");
+  const canCreateMRF = isAdmin || roles.includes("operator") || roles.includes("warehouse");
+  const canCreateQuickPR = isAdmin || roles.includes("planner");
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-4">
@@ -69,18 +81,22 @@ export function PRTab() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button asChild size="sm" variant="secondary" title="Form MRF GTAM chuẩn — quy cách, ưu tiên, phân loại đầy đủ">
-            <Link href="/procurement/purchase-requests/new-mrf">
-              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-              Phiếu MRF GTAM
-            </Link>
-          </Button>
-          <Button asChild size="sm">
-            <Link href="/procurement/purchase-requests/new">
-              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-              Tạo PR nhanh
-            </Link>
-          </Button>
+          {canCreateMRF && (
+            <Button asChild size="sm" variant={canCreateQuickPR ? "secondary" : "default"} title="Phiếu Đề xuất mua vật tư GTAM — gửi Bộ phận Thu mua duyệt">
+              <Link href="/procurement/purchase-requests/new-mrf">
+                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                Phiếu MRF GTAM
+              </Link>
+            </Button>
+          )}
+          {canCreateQuickPR && (
+            <Button asChild size="sm">
+              <Link href="/procurement/purchase-requests/new">
+                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                Tạo PR nhanh
+              </Link>
+            </Button>
+          )}
         </div>
       </header>
 
