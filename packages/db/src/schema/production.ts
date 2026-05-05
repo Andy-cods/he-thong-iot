@@ -70,6 +70,14 @@ export const workOrder = appSchema.table(
     /** V1.9-P4 — giờ ước tính + giờ thực tế. */
     estimatedHours: numeric("estimated_hours", { precision: 10, scale: 2 }),
     actualHours: numeric("actual_hours", { precision: 10, scale: 2 }),
+    /** V3.7.58 LSX — Loại lệnh: NEW (Sản xuất mới) / REPAIR (Sửa chữa) / TRIAL (Thí nghiệm). */
+    orderType: varchar("order_type", { length: 32 }).default("NEW"),
+    /** V3.7.58 LSX — Bộ phận lập (Kế hoạch SX / Thiết kế / Gia công). */
+    creatorDepartment: varchar("creator_department", { length: 64 }),
+    /** V3.7.58 LSX — Section VI: dao cụ/CCDC array {name, code, machine, qty, uom, status, notes}. */
+    toolsRequired: jsonb("tools_required").default(sql`'[]'::jsonb`),
+    /** V3.7.58 LSX — Section I: {dimensions, technicalRequirements, notes}. */
+    productSpecification: jsonb("product_specification").default(sql`'{}'::jsonb`),
     versionLock: integer("version_lock").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -80,6 +88,7 @@ export const workOrder = appSchema.table(
     woNoIdx: uniqueIndex("work_order_no_uk").on(t.woNo),
     statusIdx: index("work_order_status_idx").on(t.status),
     productIdx: index("work_order_product_idx").on(t.productItemId),
+    orderTypeIdx: index("wo_order_type_idx").on(t.orderType),
   }),
 );
 

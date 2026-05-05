@@ -264,12 +264,20 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
               </p>
             </div>
           </div>
-          <Button asChild size="sm" className="bg-orange-600 hover:bg-orange-700">
-            <Link href="/work-orders/quick-new">
-              <Plus className="h-3.5 w-3.5" aria-hidden />
-              Tạo lệnh sản xuất
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button asChild size="sm" variant="secondary" title="Phiếu LSX GTAM — form chuẩn đầy đủ Routing + NVL + Dao cụ + Print A4">
+              <Link href="/work-orders/new-lsx">
+                <Plus className="h-3.5 w-3.5" aria-hidden />
+                Phiếu LSX GTAM
+              </Link>
+            </Button>
+            <Button asChild size="sm" className="bg-orange-600 hover:bg-orange-700">
+              <Link href="/work-orders/quick-new">
+                <Plus className="h-3.5 w-3.5" aria-hidden />
+                Tạo nhanh
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}

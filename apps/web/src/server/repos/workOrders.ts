@@ -279,7 +279,90 @@ export interface UpdateWorkOrderInput {
   technicalDrawingUrl?: string | null;
   toleranceSpecs?: unknown;
   estimatedHours?: number | null;
+  /** V3.7.58 LSX. */
+  orderType?: string | null;
+  creatorDepartment?: string | null;
+  toolsRequired?: unknown;
+  productSpecification?: unknown;
   expectedVersionLock: number;
+}
+
+/**
+ * V3.7.58 — Tạo Work Order standalone (không cần snapshot/sales order) theo
+ * form LSX (Lệnh Sản Xuất GTAM). Operator/Planner/Admin tạo trực tiếp với
+ * đầy đủ routing + materials + tools + product spec.
+ */
+export interface CreateLsxWorkOrderInput {
+  productItemId: string;
+  plannedQty: number;
+  priority?: "LOW" | "NORMAL" | "HIGH" | "URGENT";
+  plannedStart?: Date | null;
+  plannedEnd?: Date | null;
+  notes?: string | null;
+  orderType?: "NEW" | "REPAIR" | "TRIAL";
+  creatorDepartment?: string | null;
+  routingPlan?: unknown;
+  materialRequirements?: unknown;
+  toolsRequired?: unknown;
+  productSpecification?: unknown;
+  technicalDrawingUrl?: string | null;
+  estimatedHours?: number | null;
+  userId: string | null;
+}
+
+export async function createLsxWorkOrder(
+  input: CreateLsxWorkOrderInput,
+): Promise<WorkOrder> {
+  if (input.plannedQty <= 0) {
+    throw new Error("PLANNED_QTY_REQUIRED");
+  }
+
+  return db.transaction(async (tx) => {
+    // Generate WO no — WO-YYMM-####
+    const cntRows = (await tx.execute(sql`
+      SELECT COUNT(*)::int AS cnt FROM app.work_order
+      WHERE to_char(created_at, 'YYMM') = to_char(now(), 'YYMM')
+    `)) as unknown as Array<{ cnt: number }>;
+    const monthCnt = cntRows[0]?.cnt ?? 0;
+    const woNo = `WO-${new Date()
+      .toISOString()
+      .slice(2, 7)
+      .replace("-", "")}-${String(monthCnt + 1).padStart(4, "0")}`;
+
+    const [newWo] = await tx
+      .insert(workOrder)
+      .values({
+        woNo,
+        productItemId: input.productItemId,
+        linkedOrderId: null,
+        plannedQty: String(input.plannedQty),
+        priority: input.priority ?? "NORMAL",
+        plannedStart: input.plannedStart
+          ? input.plannedStart.toISOString().slice(0, 10)
+          : null,
+        plannedEnd: input.plannedEnd
+          ? input.plannedEnd.toISOString().slice(0, 10)
+          : null,
+        notes: input.notes ?? null,
+        status: "DRAFT",
+        createdBy: input.userId,
+        // V3.7.58 LSX fields
+        orderType: input.orderType ?? "NEW",
+        creatorDepartment: input.creatorDepartment ?? null,
+        routingPlan: input.routingPlan ?? null,
+        materialRequirements: input.materialRequirements ?? null,
+        toolsRequired: input.toolsRequired ?? null,
+        productSpecification: input.productSpecification ?? null,
+        technicalDrawingUrl: input.technicalDrawingUrl ?? null,
+        estimatedHours:
+          input.estimatedHours != null ? String(input.estimatedHours) : null,
+      })
+      .returning();
+    if (!newWo) throw new Error("WO_INSERT_FAILED");
+
+    logger.info({ woId: newWo.id, woNo, type: "LSX" }, "LSX work order created");
+    return newWo;
+  });
 }
 
 export async function updateWorkOrder(
@@ -307,6 +390,13 @@ export async function updateWorkOrder(
   if (patch.estimatedHours !== undefined)
     values.estimatedHours =
       patch.estimatedHours === null ? null : String(patch.estimatedHours);
+  // V3.7.58 LSX fields
+  if (patch.orderType !== undefined) values.orderType = patch.orderType;
+  if (patch.creatorDepartment !== undefined)
+    values.creatorDepartment = patch.creatorDepartment;
+  if (patch.toolsRequired !== undefined) values.toolsRequired = patch.toolsRequired;
+  if (patch.productSpecification !== undefined)
+    values.productSpecification = patch.productSpecification;
   values.versionLock = sql`${workOrder.versionLock} + 1`;
 
   const rows = await db

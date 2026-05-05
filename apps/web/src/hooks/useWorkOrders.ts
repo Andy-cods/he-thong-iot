@@ -20,19 +20,27 @@ export type WorkOrderStatus =
   | "COMPLETED"
   | "CANCELLED";
 
-/** V1.9-P4 — routing step JSONB. */
+/** V1.9-P4 — routing step JSONB. V3.7.58 LSX thêm equipment + qc_required. */
 export interface RoutingStep {
   step_no: number;
   name: string;
   machine?: string | null;
+  /** V3.7.58 LSX — "Thiết bị" — alias dễ đọc; nếu chỉ dùng `machine` cũng OK. */
+  equipment?: string | null;
   setup_min?: number | null;
   cycle_min?: number | null;
+  /** V3.7.58 LSX — "Thời gian (phút)" tổng cho step (alternative cho setup+cycle). */
+  duration_min?: number | null;
   operator_id?: string | null;
+  /** V3.7.58 LSX — "Người phụ trách" (free text fallback khi không có user_id). */
+  assigned_operator?: string | null;
+  /** V3.7.58 LSX — Section III "QC yêu cầu" per step. */
+  qc_required?: boolean;
   status?: "PENDING" | "IN_PROGRESS" | "DONE" | "SKIPPED";
   notes?: string | null;
 }
 
-/** V1.9-P4 — material requirement JSONB. */
+/** V1.9-P4 — material requirement JSONB. V3.7.58 LSX thêm warehouse_code. */
 export interface MaterialRequirement {
   item_id?: string | null;
   sku?: string | null;
@@ -41,7 +49,36 @@ export interface MaterialRequirement {
   uom?: string | null;
   allocated_qty?: number;
   lot_codes?: string[];
+  /** V3.7.58 LSX — "Kho cấp" (vd "WH-01", "Khu A"). */
+  warehouse_code?: string | null;
 }
+
+/** V3.7.58 LSX — Section VI: dao cụ/công cụ dụng cụ. */
+export interface ToolRequirement {
+  name: string;
+  /** Mã hiệu (vd "R3-D8-60-4F"). */
+  code?: string | null;
+  /** Máy sử dụng (vd "CNC 01+02+05"). */
+  machine?: string | null;
+  qty?: number;
+  uom?: string | null;
+  /** Tình trạng: OK / WORN (mòn) / DAMAGED (hỏng) / MISSING (thiếu). */
+  status?: "OK" | "WORN" | "DAMAGED" | "MISSING" | string | null;
+  notes?: string | null;
+}
+
+/** V3.7.58 LSX — Section I: thông tin sản phẩm (đi kèm productItemId). */
+export interface ProductSpecification {
+  /** Kích thước, vd "124,5x13x8" hoặc "Φ100x250". */
+  dimensions?: string | null;
+  /** Yêu cầu kỹ thuật (free text / multiline). */
+  technicalRequirements?: string | null;
+  notes?: string | null;
+}
+
+/** V3.7.58 LSX — Loại lệnh sản xuất. */
+export const WO_ORDER_TYPES = ["NEW", "REPAIR", "TRIAL"] as const;
+export type WoOrderType = (typeof WO_ORDER_TYPES)[number];
 
 export interface WorkOrderRow {
   id: string;
@@ -68,6 +105,11 @@ export interface WorkOrderRow {
   toleranceSpecs: Record<string, unknown> | null;
   estimatedHours: string | null;
   actualHours: string | null;
+  /** V3.7.58 LSX. */
+  orderType?: WoOrderType | null;
+  creatorDepartment?: string | null;
+  toolsRequired?: ToolRequirement[] | null;
+  productSpecification?: ProductSpecification | null;
   versionLock: number;
   createdAt: string;
   createdBy: string | null;
@@ -192,6 +234,39 @@ export function useCreateWorkOrder() {
   return useMutation({
     mutationFn: (data: CreateWoInput) =>
       request<{ data: WorkOrderRow }>(`/api/work-orders`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.workOrders.all });
+      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
+    },
+  });
+}
+
+/** V3.7.58 — LSX (Lệnh Sản Xuất) input — standalone, không cần snapshot. */
+export interface CreateLsxWoInput {
+  productItemId: string;
+  plannedQty: number;
+  priority?: "LOW" | "NORMAL" | "HIGH" | "URGENT";
+  plannedStart?: string;
+  plannedEnd?: string;
+  notes?: string | null;
+  orderType?: WoOrderType;
+  creatorDepartment?: string | null;
+  routingPlan?: RoutingStep[];
+  materialRequirements?: MaterialRequirement[];
+  toolsRequired?: ToolRequirement[];
+  productSpecification?: ProductSpecification;
+  technicalDrawingUrl?: string | null;
+  estimatedHours?: number | null;
+}
+
+export function useCreateLsxWorkOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateLsxWoInput) =>
+      request<{ data: WorkOrderRow }>(`/api/work-orders/lsx`, {
         method: "POST",
         body: JSON.stringify(data),
       }),
