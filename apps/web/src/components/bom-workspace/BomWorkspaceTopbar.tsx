@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   ChevronDown,
   Copy,
-  GitBranch,
   History,
   MoreHorizontal,
   Pencil,
@@ -235,6 +234,20 @@ export function BomWorkspaceTopbar({
         </Button>
       ) : null}
 
+      {/* V3.7.54 — Nút "Kích hoạt BOM" hiển thị rõ khi BOM đang DRAFT.
+          Click → ReleaseRevisionDialog → tạo R01 + auto-promote status ACTIVE. */}
+      {template.status === "DRAFT" && (
+        <Button
+          size="sm"
+          onClick={() => setReleaseOpen(true)}
+          title="Kích hoạt BOM (chuyển từ Nháp → Hoạt động)"
+          className="bg-emerald-600 hover:bg-emerald-700"
+        >
+          <Rocket className="h-3.5 w-3.5" aria-hidden />
+          <span className="hidden sm:inline">Kích hoạt BOM</span>
+        </Button>
+      )}
+
       {/* History */}
       <Button size="sm" variant="ghost" onClick={onOpenHistory} title="Lịch sử thay đổi">
         <History className="h-3.5 w-3.5" aria-hidden />
@@ -251,12 +264,6 @@ export function BomWorkspaceTopbar({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           {!isObsolete && (
-            <DropdownMenuItem onClick={() => setReleaseOpen(true)}>
-              <Rocket className="h-3.5 w-3.5" aria-hidden />
-              Release revision {nextRevisionNoHint}
-            </DropdownMenuItem>
-          )}
-          {!isObsolete && (
             <DropdownMenuItem onClick={() => void handleRename()}>
               <Pencil className="h-3.5 w-3.5" aria-hidden />
               Đổi tên BOM
@@ -271,12 +278,6 @@ export function BomWorkspaceTopbar({
           <DropdownMenuItem onClick={() => void handleClone()}>
             <Copy className="h-3.5 w-3.5" aria-hidden />
             Nhân bản BOM
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href={`/bom/${template.id}/tree`}>
-              <GitBranch className="h-3.5 w-3.5" aria-hidden />
-              Xem cây linh kiện
-            </Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem

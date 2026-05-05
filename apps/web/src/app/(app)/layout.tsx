@@ -26,10 +26,11 @@ const ROUTE_ROLE_GUARD: Array<{ prefix: string; roles: Role[] }> = [
   { prefix: "/admin",        roles: ["admin"] },
   { prefix: "/warehouse",    roles: ["admin", "warehouse"] },
   { prefix: "/sales",        roles: ["admin", "purchaser"] },
-  { prefix: "/engineering",  roles: ["admin", "planner"] },
+  // V3.7.53 — warehouse có thể xem BOM (read-only) để theo dõi tồn kho linh kiện.
+  { prefix: "/engineering",  roles: ["admin", "planner", "warehouse"] },
   { prefix: "/operations",   roles: ["admin", "operator"] },
-  // BOM workspace, WO, PR detail pages → cho engineer (planner) + admin
-  { prefix: "/bom",          roles: ["admin", "planner"] },
+  // BOM workspace, WO, PR detail pages → cho engineer (planner) + admin + warehouse (read-only)
+  { prefix: "/bom",          roles: ["admin", "planner", "warehouse"] },
   { prefix: "/work-orders",  roles: ["admin", "planner", "operator"] },
   { prefix: "/procurement",  roles: ["admin", "planner", "purchaser"] },
   // Receiving + assembly: chỉ kho/vận hành/admin
