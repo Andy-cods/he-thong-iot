@@ -33,7 +33,8 @@ export type RbacEntity =
   | "eco"
   | "audit"
   | "user"
-  | "session";
+  | "session"
+  | "inventory";
 
 /** Partial vì không phải role nào cũng có action trên mọi entity. */
 type Matrix = Record<Role, Partial<Record<RbacEntity, RbacAction[]>>>;
@@ -64,6 +65,7 @@ export const RBAC_MATRIX: Matrix = {
     audit: ["read"],
     user: ["create", "read", "update", "delete"],
     session: ["read", "delete"],
+    inventory: ["create", "read", "update", "delete"],
   },
   planner: {
     item: ["create", "read", "update"],
@@ -113,6 +115,9 @@ export const RBAC_MATRIX: Matrix = {
     audit: ["read"],
     user: ["read"],
     session: ["read"],
+    // V3.7.53 — warehouse có quyền điều chỉnh tồn kho thủ công (manual adjust)
+    // qua BOM list popover + receiving + transfer + putaway.
+    inventory: ["create", "read", "update"],
   },
   // V3.3 — Purchaser (Bộ phận Thu mua): full PR/PO + read supplier/item/BOM
   purchaser: {
@@ -149,6 +154,7 @@ export const RBAC_ENTITIES: RbacEntity[] = [
   "audit",
   "user",
   "session",
+  "inventory",
 ];
 
 export const RBAC_ACTIONS: RbacAction[] = [

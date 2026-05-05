@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { ExternalLink, Loader2, Warehouse } from "lucide-react";
+import { ExternalLink, Loader2, PackagePlus, Warehouse } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -12,13 +12,17 @@ import {
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/format";
 import { InventoryKpiCards } from "@/components/inventory/InventoryKpiCards";
+import { useSession } from "@/hooks/useSession";
+import { AdjustInventoryDialog } from "./AdjustInventoryDialog";
 
 /**
  * V1.7-beta.2 Phase C3 — Popover xem tồn kho nhanh 1 linh kiện.
  *
  * Mở popover → lazy fetch `/api/items/{id}/inventory-summary` (endpoint mới).
  * Hiển thị 4 KPI (Tổng / Sẵn dùng / Giữ QC / Đã giữ chỗ) + top 5 lot gần nhất.
- * Graceful fallback: nếu fetch fail → show "Chưa có dữ liệu tồn".
+ *
+ * V3.7.53 — thêm nút "Điều chỉnh tồn" cho role warehouse + admin: mở
+ * AdjustInventoryDialog cho phép bổ sung/giảm qty trực tiếp tại 1 bin (kệ).
  */
 
 export interface InventoryPopoverProps {
@@ -71,6 +75,11 @@ export function InventoryPopover({
   children,
 }: InventoryPopoverProps) {
   const [open, setOpen] = React.useState(false);
+  const [adjustOpen, setAdjustOpen] = React.useState(false);
+
+  const session = useSession();
+  const roles = session.data?.roles ?? [];
+  const canAdjust = roles.includes("warehouse") || roles.includes("admin");
 
   const query = useQuery<InventorySummaryResponse>({
     queryKey: ["inventory-summary", componentItemId],
@@ -186,7 +195,20 @@ export function InventoryPopover({
           )}
         </div>
 
-        <div className="flex items-center justify-end border-t border-zinc-100 bg-zinc-50/60 px-3 py-1.5">
+        <div className="flex items-center justify-between gap-2 border-t border-zinc-100 bg-zinc-50/60 px-3 py-1.5">
+          {canAdjust && componentItemId ? (
+            <button
+              type="button"
+              onClick={() => setAdjustOpen(true)}
+              className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-[11px] font-medium text-white transition-colors hover:bg-emerald-700"
+              title="Bổ sung / điều chỉnh tồn kho cho linh kiện này"
+            >
+              <PackagePlus className="h-3 w-3" aria-hidden />
+              Điều chỉnh tồn
+            </button>
+          ) : (
+            <span />
+          )}
           <Link
             href={
               componentItemId
@@ -196,11 +218,24 @@ export function InventoryPopover({
             className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-700"
             title="Mở Danh mục vật tư — tab Tồn kho"
           >
-            Xem chi tiết tại Danh mục vật tư
+            Xem chi tiết
             <ExternalLink className="h-3 w-3" aria-hidden />
           </Link>
         </div>
       </PopoverContent>
+      {canAdjust && componentItemId ? (
+        <AdjustInventoryDialog
+          open={adjustOpen}
+          onOpenChange={setAdjustOpen}
+          itemId={componentItemId}
+          itemSku={componentSku}
+          itemName={componentName}
+          onSuccess={() => {
+            // Đóng popover sau khi adjust xong để user thấy data mới khi mở lại
+            setOpen(false);
+          }}
+        />
+      ) : null}
     </Popover>
   );
 }

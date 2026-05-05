@@ -47,7 +47,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireCan(req, "transition", "po");
+  const guard = await requireCan(req, "update", "inventory");
   if ("response" in guard) return guard.response;
 
   if (!/^[0-9a-f-]{36}$/i.test(params.id)) {

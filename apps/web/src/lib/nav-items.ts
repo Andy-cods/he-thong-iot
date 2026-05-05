@@ -103,12 +103,12 @@ export const NAV_ITEMS: NavItem[] = [
     icon: LayoutDashboard,
     section: "dashboard",
   },
-  // --- Bộ phận Thiết kế — chỉ planner + admin ---
+  // --- Bộ phận Thiết kế — planner + admin (full); warehouse chỉ thấy tab BOM ---
   {
     href: "/engineering",
     label: "Bộ phận Thiết kế",
     icon: Layers,
-    roles: ["admin", "planner"],
+    roles: ["admin", "planner", "warehouse"],
     section: "engineering",
   },
   // --- Bộ phận Gia công — chỉ operator + admin ---
