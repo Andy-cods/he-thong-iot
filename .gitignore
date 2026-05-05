@@ -71,3 +71,47 @@ pgdata/
 
 # Uploads local
 uploads/
+
+# V3.7.59 — Test/debug artifacts root level (script outputs, JSON dumps, Excel temp).
+# Repo phải giữ sạch — tránh commit nhầm 100+ file rác như V3.7.58.
+/all_*.json
+/batch_*.txt
+/commit_*.json
+/cur_*.json
+/list_*.json
+/notif_*.json
+/po_*.json
+/po_*.txt
+/real_resp*.json
+/reject_*.json
+/sub_*.json
+/sup_*.json
+/task1_*.json
+/task2_*.json
+/task2_*.txt
+/templates*.json
+/tk_*.json
+/tm_*.json
+/tpl_*.json
+/upload_*.json
+/v34_*.json
+/v34_*.txt
+/wo_test.json
+/ycsx.json
+/draft_pr_ids.txt
+/submitted_pr_ids.txt
+/to_delete.txt
+/test_*.xlsx
+/test_*.pdf
+/sub_pdf.pdf
+/Z0000002-*.xlsx
+/20260*_*.xlsx
+/Bản chính thức*.xlsx
+
+# Debug scripts (tạo runtime, không commit)
+apps/web/inspect.mjs
+apps/web/inspect_target.xlsx
+
+# Claude agent local
+.claude/settings.json
+.claude/scheduled_tasks.lock
