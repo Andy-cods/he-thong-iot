@@ -474,15 +474,31 @@ export async function getEmployeeProductivity(
 }
 
 function formatPeriodLabel(from: Date, to: Date): string {
-  // Convert sang VN time để label hiển thị đúng tháng nghiệp vụ.
+  // Convert sang VN time để label hiển thị đúng theo nghiệp vụ.
   const VN_OFFSET_MS = 7 * 3600_000;
   const fromVn = new Date(from.getTime() + VN_OFFSET_MS);
   const toVnInclusive = new Date(to.getTime() + VN_OFFSET_MS - 1000);
   const fromYm = fromVn.toISOString().slice(0, 7);
   const toYm = toVnInclusive.toISOString().slice(0, 7);
+  const fromYear = fromVn.getUTCFullYear();
+  const fromMonth0 = fromVn.getUTCMonth(); // 0-11
+  const toMonth0 = toVnInclusive.getUTCMonth();
+
+  // Cùng 1 tháng → "Tháng X/YYYY"
   if (fromYm === toYm) {
-    const [y, m] = fromYm.split("-");
-    return `Tháng ${parseInt(m!, 10)}/${y}`;
+    return `Tháng ${fromMonth0 + 1}/${fromYear}`;
+  }
+  // Cùng 1 năm + boundary là quý (Jan-Mar / Apr-Jun / ...)
+  if (fromVn.getUTCFullYear() === toVnInclusive.getUTCFullYear()) {
+    const fromQ = Math.floor(fromMonth0 / 3);
+    const toQ = Math.floor(toMonth0 / 3);
+    if (fromQ === toQ && fromMonth0 === fromQ * 3 && toMonth0 === fromQ * 3 + 2) {
+      return `Quý ${fromQ + 1}/${fromYear}`;
+    }
+    // Cả năm: tháng 1 → 12
+    if (fromMonth0 === 0 && toMonth0 === 11) {
+      return `Năm ${fromYear}`;
+    }
   }
   return `${fromVn.toISOString().slice(0, 10)} → ${toVnInclusive.toISOString().slice(0, 10)}`;
 }
