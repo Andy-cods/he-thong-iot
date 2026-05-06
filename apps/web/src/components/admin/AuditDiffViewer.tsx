@@ -42,7 +42,7 @@ export function AuditDiffViewer({
   if (!beforeJson && afterJson) {
     return (
       <div className="overflow-hidden rounded-md border border-emerald-200 bg-emerald-50">
-        <div className="border-b border-emerald-200 bg-emerald-100 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
+        <div className="border-b border-emerald-200 bg-emerald-100 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-normal text-emerald-700">
           Bản ghi mới (CREATE)
         </div>
         <pre className="overflow-x-auto p-3 font-mono text-[11px] leading-relaxed text-emerald-900">
@@ -55,11 +55,11 @@ export function AuditDiffViewer({
   // DELETE: only before
   if (beforeJson && !afterJson) {
     return (
-      <div className="overflow-hidden rounded-md border border-red-200 bg-red-50">
-        <div className="border-b border-red-200 bg-red-100 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-red-700">
+      <div className="overflow-hidden rounded-md border border-rose-200 bg-rose-50">
+        <div className="border-b border-rose-200 bg-rose-100 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-normal text-rose-700">
           Bản ghi bị xoá (DELETE)
         </div>
-        <pre className="overflow-x-auto p-3 font-mono text-[11px] leading-relaxed text-red-900">
+        <pre className="overflow-x-auto p-3 font-mono text-[11px] leading-relaxed text-rose-900">
           {before}
         </pre>
       </div>

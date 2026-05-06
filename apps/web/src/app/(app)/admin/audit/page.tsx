@@ -1,8 +1,7 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
-import { ChevronRight, Download, Search, X } from "lucide-react";
+import { Download, Search, X } from "lucide-react";
 import {
   parseAsArrayOf,
   parseAsInteger,
@@ -15,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AuditRow } from "@/components/admin/AuditRow";
+import { AdminPageShell } from "@/components/admin/AdminPageShell";
 import { useAuditList } from "@/hooks/useAdmin";
 import { cn } from "@/lib/utils";
 
@@ -35,8 +35,14 @@ const ACTION_OPTIONS = [
   { code: "LOGOUT", label: "Đăng xuất" },
 ];
 
-// grid cols: time / user / action / entity / [entityId md+] / [diff md+]
-// Mobile: 4 col (time/user/action/entity). md+: full 6 col.
+const ACTION_PILL: Record<string, string> = {
+  CREATE: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  UPDATE: "bg-sky-50 text-sky-700 ring-sky-200",
+  DELETE: "bg-rose-50 text-rose-700 ring-rose-200",
+  LOGIN: "bg-indigo-50 text-indigo-700 ring-indigo-200",
+  LOGOUT: "bg-zinc-100 text-zinc-600 ring-zinc-200",
+};
+
 const GRID_COLS =
   "grid-cols-[120px,100px,70px,minmax(0,1fr)] md:grid-cols-[170px,130px,80px,140px,90px,minmax(0,1fr)]";
 
@@ -111,7 +117,6 @@ export default function AdminAuditPage() {
     void setUrlState({ action: next, page: 1 });
   };
 
-  // Virtualize khi > 50 rows
   const parentRef = React.useRef<HTMLDivElement>(null);
   const virtualize = rows.length > 50;
   const virt = useVirtualizer({
@@ -169,31 +174,24 @@ export default function AdminAuditPage() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-120px)] flex-col gap-4">
-      <nav
-        aria-label="Breadcrumb"
-        className="flex items-center gap-1 text-xs text-zinc-500"
-      >
-        <Link href="/" className="hover:text-zinc-900">
-          Tổng quan
-        </Link>
-        <ChevronRight className="h-3 w-3" aria-hidden="true" />
-        <Link href="/admin" className="hover:text-zinc-900">
-          Quản trị
-        </Link>
-        <ChevronRight className="h-3 w-3" aria-hidden="true" />
-        <span className="text-zinc-900">Nhật ký hệ thống</span>
-      </nav>
-
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
-            Nhật ký hệ thống
-          </h1>
-          <p className="mt-0.5 text-xs text-zinc-500">
+    <AdminPageShell
+      breadcrumb={[
+        { label: "Trang chủ", href: "/" },
+        { label: "Quản trị", href: "/admin" },
+        { label: "Audit log" },
+      ]}
+      title="Nhật ký hệ thống"
+      description={
+        <>
+          Theo dõi toàn bộ thao tác ghi (CREATE / UPDATE / DELETE) và sự kiện
+          phiên đăng nhập.{" "}
+          <span className="font-medium text-zinc-700">
             {total.toLocaleString("vi-VN")} bản ghi
-          </p>
-        </div>
+          </span>
+          .
+        </>
+      }
+      actions={
         <Button
           variant="outline"
           size="sm"
@@ -203,248 +201,259 @@ export default function AdminAuditPage() {
           <Download className="h-3.5 w-3.5" aria-hidden="true" />
           {exporting ? "Đang xuất…" : "Xuất Excel"}
         </Button>
-      </header>
-
-      {/* Filter bar */}
-      <section className="rounded-md border border-zinc-200 bg-white p-3">
-        <div className="flex flex-wrap items-end gap-2">
-          <div className="flex-1 min-w-[200px]">
-            <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-zinc-500">
-              Tìm kiếm
-            </label>
-            <div className="relative">
-              <Search
-                className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400"
-                aria-hidden="true"
-              />
+      }
+    >
+      <div className="flex flex-col gap-4">
+        {/* Filter bar */}
+        <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="min-w-[220px] flex-1">
+              <FilterLabel>Tìm kiếm</FilterLabel>
+              <div className="relative mt-1">
+                <Search
+                  className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400"
+                  aria-hidden="true"
+                />
+                <Input
+                  value={urlState.q}
+                  onChange={(e) =>
+                    void setUrlState({ q: e.target.value, page: 1 })
+                  }
+                  placeholder="Entity / notes…"
+                  className="h-9 pl-8"
+                />
+              </div>
+            </div>
+            <div className="min-w-[150px]">
+              <FilterLabel>Username</FilterLabel>
               <Input
-                value={urlState.q}
+                value={urlState.userQ}
                 onChange={(e) =>
-                  void setUrlState({ q: e.target.value, page: 1 })
+                  void setUrlState({ userQ: e.target.value, page: 1 })
                 }
-                placeholder="Entity / notes…"
-                className="h-8 pl-7"
+                placeholder="username"
+                className="mt-1 h-9"
               />
             </div>
-          </div>
-          <div className="min-w-[150px]">
-            <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-zinc-500">
-              User
-            </label>
-            <Input
-              value={urlState.userQ}
-              onChange={(e) =>
-                void setUrlState({ userQ: e.target.value, page: 1 })
-              }
-              placeholder="username"
-              className="h-8"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-zinc-500">
-              Từ ngày
-            </label>
-            <Input
-              type="date"
-              value={urlState.from}
-              onChange={(e) =>
-                void setUrlState({ from: e.target.value, page: 1 })
-              }
-              className="h-8 w-[140px]"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-zinc-500">
-              Đến ngày
-            </label>
-            <Input
-              type="date"
-              value={urlState.to}
-              onChange={(e) =>
-                void setUrlState({ to: e.target.value, page: 1 })
-              }
-              className="h-8 w-[140px]"
-            />
-          </div>
-          {hasFilter ? (
-            <Button variant="ghost" size="sm" onClick={handleReset}>
-              <X className="h-3.5 w-3.5" aria-hidden="true" />
-              Xoá lọc
-            </Button>
-          ) : null}
-        </div>
-
-        <div className="mt-3 flex flex-wrap items-center gap-1">
-          <span className="mr-1 text-[10px] font-medium uppercase tracking-wider text-zinc-500">
-            Entity:
-          </span>
-          {ENTITY_OPTIONS.map((o) => {
-            const active = urlState.entity.includes(o.code);
-            return (
-              <button
-                key={o.code}
-                type="button"
-                onClick={() => toggleEntity(o.code)}
-                className={cn(
-                  "inline-flex h-6 items-center rounded-sm border px-2 text-[11px] font-medium transition-colors",
-                  active
-                    ? "border-blue-400 bg-blue-50 text-blue-700"
-                    : "border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-50",
-                )}
-              >
-                {o.label}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="mt-2 flex flex-wrap items-center gap-1">
-          <span className="mr-1 text-[10px] font-medium uppercase tracking-wider text-zinc-500">
-            Action:
-          </span>
-          {ACTION_OPTIONS.map((o) => {
-            const active = urlState.action.includes(o.code);
-            return (
-              <button
-                key={o.code}
-                type="button"
-                onClick={() => toggleAction(o.code)}
-                className={cn(
-                  "inline-flex h-6 items-center rounded-sm border px-2 font-mono text-[10px] font-semibold uppercase transition-colors",
-                  active
-                    ? "border-blue-400 bg-blue-50 text-blue-700"
-                    : "border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-50",
-                )}
-              >
-                {o.code}
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Table */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-zinc-200 bg-white">
-        <div
-          className={cn(
-            "sticky top-0 z-sticky grid h-8 items-center border-b border-zinc-200 bg-zinc-50 px-4 text-xs font-medium uppercase tracking-wide text-zinc-500",
-            GRID_COLS,
-          )}
-        >
-          <span>Timestamp</span>
-          <span>User</span>
-          <span>Action</span>
-          <span>Entity</span>
-          <span className="hidden md:block">Entity ID</span>
-          <span className="hidden md:block">Thay đổi</span>
-        </div>
-
-        {query.isLoading ? (
-          <div className="flex-1 p-6 text-center text-sm text-zinc-500">
-            Đang tải…
-          </div>
-        ) : rows.length === 0 ? (
-          <div className="flex-1 p-4">
-            <EmptyState
-              preset={hasFilter ? "no-filter-match" : "no-data"}
-              title={
-                hasFilter
-                  ? "Không có bản ghi khớp bộ lọc"
-                  : "Chưa có hoạt động nào"
-              }
-              description={
-                hasFilter
-                  ? "Thử mở rộng khoảng thời gian hoặc xoá bộ lọc."
-                  : "Nhật ký sẽ hiển thị khi user thực hiện các thao tác."
-              }
-              actions={
-                hasFilter ? (
-                  <Button variant="ghost" size="sm" onClick={handleReset}>
-                    Xoá bộ lọc
-                  </Button>
-                ) : null
-              }
-            />
-          </div>
-        ) : virtualize ? (
-          <div ref={parentRef} className="flex-1 overflow-auto">
-            <div
-              style={{
-                height: `${virt.getTotalSize()}px`,
-                position: "relative",
-                width: "100%",
-              }}
-            >
-              {virt.getVirtualItems().map((vr) => {
-                const row = rows[vr.index];
-                if (!row) return null;
-                return (
-                  <div
-                    key={row.id}
-                    style={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      width: "100%",
-                      transform: `translateY(${vr.start}px)`,
-                    }}
-                  >
-                    <AuditRow row={row} gridCols={GRID_COLS} />
-                  </div>
-                );
-              })}
+            <div>
+              <FilterLabel>Từ ngày</FilterLabel>
+              <Input
+                type="date"
+                value={urlState.from}
+                onChange={(e) =>
+                  void setUrlState({ from: e.target.value, page: 1 })
+                }
+                className="mt-1 h-9 w-[150px]"
+              />
             </div>
+            <div>
+              <FilterLabel>Đến ngày</FilterLabel>
+              <Input
+                type="date"
+                value={urlState.to}
+                onChange={(e) =>
+                  void setUrlState({ to: e.target.value, page: 1 })
+                }
+                className="mt-1 h-9 w-[150px]"
+              />
+            </div>
+            {hasFilter ? (
+              <Button variant="ghost" size="sm" onClick={handleReset}>
+                <X className="h-3.5 w-3.5" aria-hidden="true" />
+                Xoá lọc
+              </Button>
+            ) : null}
           </div>
-        ) : (
-          <div className="flex-1 overflow-auto">
-            {rows.map((row) => (
-              <AuditRow key={row.id} row={row} gridCols={GRID_COLS} />
-            ))}
-          </div>
-        )}
-      </div>
 
-      {/* Pagination */}
-      <footer className="flex shrink-0 items-center justify-between text-xs">
-        <span className="text-zinc-600">
-          Hiển thị{" "}
-          <span className="tabular-nums text-zinc-900">
-            {rows.length === 0 ? 0 : (urlState.page - 1) * urlState.pageSize + 1}
-            –{(urlState.page - 1) * urlState.pageSize + rows.length}
-          </span>{" "}
-          /{" "}
-          <span className="tabular-nums text-zinc-900">
-            {total.toLocaleString("vi-VN")}
-          </span>
-        </span>
-        <div className="flex items-center gap-1">
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={urlState.page <= 1}
-            onClick={() =>
-              void setUrlState({ page: Math.max(1, urlState.page - 1) })
-            }
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            <FilterLabel className="mr-1">Entity</FilterLabel>
+            {ENTITY_OPTIONS.map((o) => {
+              const active = urlState.entity.includes(o.code);
+              return (
+                <button
+                  key={o.code}
+                  type="button"
+                  onClick={() => toggleEntity(o.code)}
+                  className={cn(
+                    "inline-flex h-7 items-center rounded-full border px-2.5 text-[11px] font-medium tracking-normal transition-colors",
+                    active
+                      ? "border-indigo-200 bg-indigo-50 text-indigo-700"
+                      : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50",
+                  )}
+                >
+                  {o.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <FilterLabel className="mr-1">Action</FilterLabel>
+            {ACTION_OPTIONS.map((o) => {
+              const active = urlState.action.includes(o.code);
+              return (
+                <button
+                  key={o.code}
+                  type="button"
+                  onClick={() => toggleAction(o.code)}
+                  className={cn(
+                    "inline-flex h-7 items-center rounded-full border px-2.5 font-mono text-[10px] font-semibold uppercase ring-1 ring-inset transition-colors",
+                    active
+                      ? cn(ACTION_PILL[o.code] ?? "", "border-transparent")
+                      : "border-zinc-200 bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50",
+                  )}
+                >
+                  {o.code}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Table */}
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+          <div
+            className={cn(
+              "sticky top-0 z-sticky grid h-9 items-center border-b border-zinc-200 bg-zinc-50/70 px-4 text-[11px] font-semibold uppercase tracking-normal text-zinc-500",
+              GRID_COLS,
+            )}
           >
-            ‹
-          </Button>
-          <span className="px-2 text-zinc-600 tabular-nums">
-            {urlState.page} / {pageCount}
-          </span>
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={urlState.page >= pageCount}
-            onClick={() =>
-              void setUrlState({
-                page: Math.min(pageCount, urlState.page + 1),
-              })
-            }
-          >
-            ›
-          </Button>
+            <span>Thời điểm</span>
+            <span>User</span>
+            <span>Action</span>
+            <span>Entity</span>
+            <span className="hidden md:block">Entity ID</span>
+            <span className="hidden md:block">Thay đổi</span>
+          </div>
+
+          {query.isLoading ? (
+            <div className="flex-1 p-8 text-center text-sm text-zinc-500">
+              Đang tải…
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="flex-1 p-6">
+              <EmptyState
+                preset={hasFilter ? "no-filter-match" : "no-data"}
+                title={
+                  hasFilter
+                    ? "Không có bản ghi khớp bộ lọc"
+                    : "Chưa có hoạt động nào"
+                }
+                description={
+                  hasFilter
+                    ? "Thử mở rộng khoảng thời gian hoặc xoá bộ lọc."
+                    : "Nhật ký sẽ hiển thị khi user thực hiện các thao tác."
+                }
+                actions={
+                  hasFilter ? (
+                    <Button variant="ghost" size="sm" onClick={handleReset}>
+                      Xoá bộ lọc
+                    </Button>
+                  ) : null
+                }
+              />
+            </div>
+          ) : virtualize ? (
+            <div ref={parentRef} className="max-h-[60vh] flex-1 overflow-auto">
+              <div
+                style={{
+                  height: `${virt.getTotalSize()}px`,
+                  position: "relative",
+                  width: "100%",
+                }}
+              >
+                {virt.getVirtualItems().map((vr) => {
+                  const row = rows[vr.index];
+                  if (!row) return null;
+                  return (
+                    <div
+                      key={row.id}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        transform: `translateY(${vr.start}px)`,
+                      }}
+                    >
+                      <AuditRow row={row} gridCols={GRID_COLS} />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="max-h-[60vh] flex-1 overflow-auto">
+              {rows.map((row) => (
+                <AuditRow key={row.id} row={row} gridCols={GRID_COLS} />
+              ))}
+            </div>
+          )}
         </div>
-      </footer>
-    </div>
+
+        {/* Pagination */}
+        <footer className="flex shrink-0 items-center justify-between text-xs">
+          <span className="text-zinc-600">
+            Hiển thị{" "}
+            <span className="tabular-nums text-zinc-900">
+              {rows.length === 0
+                ? 0
+                : (urlState.page - 1) * urlState.pageSize + 1}
+              –{(urlState.page - 1) * urlState.pageSize + rows.length}
+            </span>{" "}
+            /{" "}
+            <span className="tabular-nums text-zinc-900">
+              {total.toLocaleString("vi-VN")}
+            </span>
+          </span>
+          <div className="flex items-center gap-1">
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={urlState.page <= 1}
+              onClick={() =>
+                void setUrlState({ page: Math.max(1, urlState.page - 1) })
+              }
+            >
+              ‹
+            </Button>
+            <span className="px-2 text-zinc-600 tabular-nums">
+              {urlState.page} / {pageCount}
+            </span>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={urlState.page >= pageCount}
+              onClick={() =>
+                void setUrlState({
+                  page: Math.min(pageCount, urlState.page + 1),
+                })
+              }
+            >
+              ›
+            </Button>
+          </div>
+        </footer>
+      </div>
+    </AdminPageShell>
+  );
+}
+
+function FilterLabel({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "text-[11px] font-semibold uppercase tracking-normal text-zinc-500",
+        className,
+      )}
+    >
+      {children}
+    </span>
   );
 }

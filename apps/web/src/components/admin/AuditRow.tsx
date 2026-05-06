@@ -25,15 +25,14 @@ const RollbackPreviewDialog = dynamic(
   { ssr: false },
 );
 
-const ACTION_COLORS: Record<string, string> = {
-  CREATE: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  UPDATE: "bg-blue-50 text-blue-700 border-blue-200",
-  DELETE: "bg-red-50 text-red-700 border-red-200",
-  LOGIN: "bg-zinc-100 text-zinc-600 border-zinc-200",
-  LOGOUT: "bg-zinc-100 text-zinc-600 border-zinc-200",
+const ACTION_PILL: Record<string, string> = {
+  CREATE: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  UPDATE: "bg-sky-50 text-sky-700 ring-sky-200",
+  DELETE: "bg-rose-50 text-rose-700 ring-rose-200",
+  LOGIN: "bg-indigo-50 text-indigo-700 ring-indigo-200",
+  LOGOUT: "bg-zinc-100 text-zinc-600 ring-zinc-200",
 };
 
-// Actions có thể sinh rollback SQL preview
 const ROLLBACKABLE = new Set(["CREATE", "UPDATE", "DELETE"]);
 
 function fmtTime(iso: string): string {
@@ -77,14 +76,15 @@ export function AuditRow({ row, style, gridCols }: AuditRowProps) {
   const [rollbackOpen, setRollbackOpen] = React.useState(false);
 
   const diff = diffSummary(row.beforeJson, row.afterJson);
-  const hasDiff = diff.count > 0 || row.beforeJson !== null || row.afterJson !== null;
+  const hasDiff =
+    diff.count > 0 || row.beforeJson !== null || row.afterJson !== null;
   const canRollback = ROLLBACKABLE.has(row.action) && row.objectId !== null;
 
   return (
     <div style={style} role="row" className="border-t border-zinc-100">
       <div
         className={cn(
-          "grid min-h-[36px] items-center gap-3 px-4 py-1.5 text-xs transition-colors hover:bg-zinc-50",
+          "grid min-h-[36px] items-center gap-3 px-4 py-1.5 text-xs transition-colors hover:bg-indigo-50/30",
           gridCols,
         )}
       >
@@ -98,8 +98,8 @@ export function AuditRow({ row, style, gridCols }: AuditRowProps) {
         </span>
         <span
           className={cn(
-            "inline-flex h-5 w-fit items-center justify-center rounded-sm border px-1.5 font-mono text-[10px] font-semibold uppercase",
-            ACTION_COLORS[row.action] ?? ACTION_COLORS.UPDATE,
+            "inline-flex h-5 w-fit items-center justify-center rounded-full px-1.5 font-mono text-[10px] font-semibold uppercase ring-1 ring-inset",
+            ACTION_PILL[row.action] ?? ACTION_PILL.UPDATE,
           )}
         >
           {row.action}
@@ -113,7 +113,7 @@ export function AuditRow({ row, style, gridCols }: AuditRowProps) {
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
-              className="inline-flex items-center gap-1 rounded-sm border border-zinc-200 bg-white px-1.5 py-0.5 text-[10px] text-zinc-700 hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+              className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-medium text-zinc-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50/50 hover:text-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
               aria-expanded={expanded}
               aria-label={expanded ? "Thu gọn diff" : "Mở rộng diff"}
             >

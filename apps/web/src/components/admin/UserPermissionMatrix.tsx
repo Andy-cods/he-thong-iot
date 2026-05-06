@@ -20,14 +20,8 @@ import { cn } from "@/lib/utils";
 /**
  * V1.9 P10 — UI ma trận quyền 14 entity × 6 action cho user detail.
  *
- * Mỗi cell có 3-state: role-default → grant → deny → role-default (vòng lặp).
- * Render màu:
- *  - background  : emerald nhạt nếu role allow, zinc nếu role deny.
- *  - dot indigo  : có override GRANT (escalate).
- *  - dot rose    : có override DENY (revoke).
- *  - icon "✓"/"✕": effective allowed/denied.
- *
- * Dirty buffer: thay đổi local → chỉ gửi POST bulk khi nhấn "Lưu thay đổi".
+ * Phase 2 redesign: rounded-xl card, sticky header, indigo/emerald palette,
+ * tooltip-friendly cells, compact spacing.
  */
 
 const ENTITY_LABELS: Record<RbacEntityKey, string> = {
@@ -72,25 +66,24 @@ interface CellState {
   source: EffectiveSource;
 }
 
-type StateMap = Record<string, CellState>; // key = `${entity}::${action}`
+type StateMap = Record<string, CellState>;
 
 function keyOf(entity: RbacEntityKey, action: RbacActionKey): string {
   return `${entity}::${action}`;
 }
 
-/** Tính effective + source dựa trên roleAllowed + override hiện tại. */
 function deriveEffective(
   roleAllowed: boolean,
   override: OverrideKind,
 ): { effectiveAllowed: boolean; source: EffectiveSource } {
-  if (override === "DENY") return { effectiveAllowed: false, source: "override-deny" };
+  if (override === "DENY")
+    return { effectiveAllowed: false, source: "override-deny" };
   if (roleAllowed) return { effectiveAllowed: true, source: "role" };
   if (override === "GRANT")
     return { effectiveAllowed: true, source: "override-grant" };
   return { effectiveAllowed: false, source: "role" };
 }
 
-/** Vòng tròn 3-state: null → GRANT → DENY → null. */
 function nextOverride(current: OverrideKind): OverrideKind {
   if (current === null) return "GRANT";
   if (current === "GRANT") return "DENY";
@@ -99,20 +92,17 @@ function nextOverride(current: OverrideKind): OverrideKind {
 
 interface Props {
   userId: string;
-  /** Có phải đang xem chính mình? Để chặn self-deny. */
   isSelf?: boolean;
   currentUserRoles?: Role[];
 }
 
-export function UserPermissionMatrix({
-  userId,
-  isSelf = false,
-}: Props) {
+export function UserPermissionMatrix({ userId, isSelf = false }: Props) {
   const query = useUserPermissions(userId);
   const bulkMutation = useBulkUpdateUserPermissions(userId);
 
-  // Local override buffer: chỉ pending changes (key → desired override).
-  const [pending, setPending] = React.useState<Record<string, OverrideKind>>({});
+  const [pending, setPending] = React.useState<Record<string, OverrideKind>>(
+    {},
+  );
 
   const initialState = React.useMemo<StateMap>(() => {
     if (!query.data?.data) return {};
@@ -159,7 +149,6 @@ export function UserPermissionMatrix({
     const cell = getCell(entity, action);
     const next = nextOverride(cell.override);
 
-    // Self-deny lockout protection
     if (
       isSelf &&
       next === "DENY" &&
@@ -191,7 +180,10 @@ export function UserPermissionMatrix({
   const save = async () => {
     const patches: UpdatePermissionInput[] = Object.entries(pending).map(
       ([k, override]) => {
-        const [entity, action] = k.split("::") as [RbacEntityKey, RbacActionKey];
+        const [entity, action] = k.split("::") as [
+          RbacEntityKey,
+          RbacActionKey,
+        ];
         return {
           entity,
           action,
@@ -219,7 +211,7 @@ export function UserPermissionMatrix({
 
   if (query.isLoading) {
     return (
-      <div className="flex items-center justify-center gap-2 p-12 text-sm text-zinc-500">
+      <div className="flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white p-12 text-sm text-zinc-500 shadow-sm">
         <Loader2 className="h-4 w-4 animate-spin" />
         Đang tải ma trận quyền…
       </div>
@@ -228,7 +220,7 @@ export function UserPermissionMatrix({
 
   if (query.isError || !query.data) {
     return (
-      <div className="p-6 text-center text-sm text-red-600">
+      <div className="rounded-xl border border-rose-200 bg-rose-50 p-6 text-center text-sm text-rose-700 shadow-sm">
         Không tải được ma trận quyền.
       </div>
     );
@@ -237,7 +229,6 @@ export function UserPermissionMatrix({
   const data = query.data.data;
   const entities = data.matrix.map((r) => r.entity as RbacEntityKey);
 
-  // Tổng hợp counters cho footer
   let totalGrants = 0;
   let totalDenies = 0;
   for (const row of data.matrix) {
@@ -251,39 +242,50 @@ export function UserPermissionMatrix({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 text-xs text-zinc-700">
-        <p className="font-medium text-zinc-900">Hướng dẫn</p>
-        <ul className="mt-1 list-disc space-y-0.5 pl-5">
-          <li>
-            Click vào ô để xoay vòng:{" "}
-            <span className="font-mono">role-default → cấp thêm → thu hồi → role-default</span>
+      <div className="rounded-xl border border-zinc-200 bg-white p-4 text-xs text-zinc-700 shadow-sm">
+        <p className="font-semibold tracking-tight text-zinc-900">
+          Hướng dẫn sử dụng
+        </p>
+        <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
+          <li className="flex items-start gap-2">
+            <span
+              className="mt-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500"
+              aria-hidden="true"
+            />
+            <span>Nền xanh = role mặc định cho phép.</span>
           </li>
-          <li>
-            <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500 align-middle" />{" "}
-            nền xanh = role mặc định cho phép.
+          <li className="flex items-start gap-2">
+            <span
+              className="mt-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-indigo-500"
+              aria-hidden="true"
+            />
+            <span>Chấm chàm = override CẤP THÊM (escalate).</span>
           </li>
-          <li>
-            <span className="inline-block h-2.5 w-2.5 rounded-full bg-indigo-500 align-middle" />{" "}
-            chấm chàm = override CẤP THÊM (escalate).
+          <li className="flex items-start gap-2">
+            <span
+              className="mt-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-rose-500"
+              aria-hidden="true"
+            />
+            <span>Chấm hồng = override THU HỒI (deny wins).</span>
           </li>
-          <li>
-            <span className="inline-block h-2.5 w-2.5 rounded-full bg-rose-500 align-middle" />{" "}
-            chấm hồng = override THU HỒI (deny wins).
+          <li className="text-zinc-500">
+            Click ô để xoay vòng:{" "}
+            <span className="font-mono">role → cấp → thu hồi → role</span>.
           </li>
         </ul>
       </div>
 
-      <div className="overflow-x-auto rounded-md border border-zinc-200 bg-white">
+      <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-sm">
         <table className="min-w-full text-xs">
-          <thead className="border-b border-zinc-200 bg-zinc-50">
+          <thead className="border-b border-zinc-200 bg-zinc-50/70">
             <tr>
-              <th className="sticky left-0 z-10 bg-zinc-50 px-3 py-2 text-left font-semibold text-zinc-700">
+              <th className="sticky left-0 z-10 bg-zinc-50/70 px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-normal text-zinc-500">
                 Đối tượng
               </th>
               {ACTIONS.map((a) => (
                 <th
                   key={a}
-                  className="px-2 py-2 text-center font-semibold text-zinc-700"
+                  className="px-2 py-2.5 text-center text-[11px] font-semibold uppercase tracking-normal text-zinc-500"
                 >
                   {ACTION_LABELS[a]}
                 </th>
@@ -294,13 +296,15 @@ export function UserPermissionMatrix({
             {entities.map((entity) => (
               <tr
                 key={entity}
-                className="border-t border-zinc-100 hover:bg-zinc-50/50"
+                className="border-t border-zinc-100 transition-colors hover:bg-indigo-50/30"
               >
-                <td className="sticky left-0 z-10 bg-white px-3 py-1.5 font-medium text-zinc-800">
-                  {ENTITY_LABELS[entity]}
-                  <code className="ml-2 font-mono text-[10px] text-zinc-400">
-                    {entity}
-                  </code>
+                <td className="sticky left-0 z-10 bg-white px-3 py-2 font-medium tracking-tight text-zinc-800">
+                  <div className="flex flex-col">
+                    <span>{ENTITY_LABELS[entity]}</span>
+                    <code className="font-mono text-[10px] text-zinc-400">
+                      {entity}
+                    </code>
+                  </div>
                 </td>
                 {ACTIONS.map((action) => {
                   const cell = getCell(entity, action);
@@ -319,7 +323,7 @@ export function UserPermissionMatrix({
                           `Hiệu lực: ${cell.effectiveAllowed ? "ALLOW" : "DENY"} (${cell.source})`
                         }
                         className={cn(
-                          "relative inline-flex h-9 w-full min-w-[56px] items-center justify-center rounded-sm border text-[11px] font-semibold transition",
+                          "relative inline-flex h-9 w-full min-w-[56px] items-center justify-center rounded-md border text-[11px] font-semibold transition",
                           cell.roleAllowed
                             ? "border-emerald-200 bg-emerald-50 text-emerald-800"
                             : "border-zinc-200 bg-zinc-50 text-zinc-400",
@@ -335,10 +339,16 @@ export function UserPermissionMatrix({
                       >
                         {cell.effectiveAllowed ? "✓" : "✕"}
                         {cell.override === "GRANT" ? (
-                          <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-indigo-500" />
+                          <span
+                            className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-indigo-500"
+                            aria-hidden="true"
+                          />
                         ) : null}
                         {cell.override === "DENY" ? (
-                          <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-rose-500" />
+                          <span
+                            className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-rose-500"
+                            aria-hidden="true"
+                          />
                         ) : null}
                       </button>
                     </td>
@@ -350,8 +360,8 @@ export function UserPermissionMatrix({
         </table>
       </div>
 
-      <footer className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-zinc-200 bg-white px-4 py-3 text-xs">
-        <div className="flex items-center gap-4 text-zinc-600">
+      <footer className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-xs shadow-sm">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-zinc-600">
           <span>
             Tổng <span className="font-semibold text-indigo-700">CẤP THÊM</span>:{" "}
             <span className="font-mono font-semibold tabular-nums">
@@ -365,7 +375,7 @@ export function UserPermissionMatrix({
             </span>
           </span>
           {dirtyCount > 0 ? (
-            <span className="text-amber-700">
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-amber-700 ring-1 ring-inset ring-amber-200">
               {dirtyCount} thay đổi chưa lưu
             </span>
           ) : null}
