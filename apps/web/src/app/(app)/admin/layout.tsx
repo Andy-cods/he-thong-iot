@@ -34,5 +34,9 @@ export default async function AdminLayout({
   const isAdmin = roles.some((r) => r.code === "admin");
   if (!isAdmin) redirect("/");
 
-  return <div className="mx-auto w-full max-w-6xl">{children}</div>;
+  // Layout chỉ làm role-guard. Mỗi page tự quyết định:
+  //   - Page mới (V1.9+): dùng <AdminPageShell /> full-bleed (handle gradient + nav).
+  //   - Page legacy (Phase 2 sẽ migrate): dùng container max-w-6xl riêng.
+  // Để hỗ trợ cả hai, layout dùng full-width và để page tự bọc.
+  return <div className="w-full">{children}</div>;
 }
