@@ -377,14 +377,17 @@ export async function getEmployeeProductivity(
 }
 
 function formatPeriodLabel(from: Date, to: Date): string {
-  const fromStr = from.toISOString().slice(0, 10);
-  const toStr = new Date(to.getTime() - 1000).toISOString().slice(0, 10);
-  // Nếu trùng month → "Tháng X/YYYY"
-  if (fromStr.slice(0, 7) === toStr.slice(0, 7)) {
-    const [y, m] = fromStr.split("-");
+  // Convert sang VN time để label hiển thị đúng tháng nghiệp vụ.
+  const VN_OFFSET_MS = 7 * 3600_000;
+  const fromVn = new Date(from.getTime() + VN_OFFSET_MS);
+  const toVnInclusive = new Date(to.getTime() + VN_OFFSET_MS - 1000);
+  const fromYm = fromVn.toISOString().slice(0, 7);
+  const toYm = toVnInclusive.toISOString().slice(0, 7);
+  if (fromYm === toYm) {
+    const [y, m] = fromYm.split("-");
     return `Tháng ${parseInt(m!, 10)}/${y}`;
   }
-  return `${fromStr} → ${toStr}`;
+  return `${fromVn.toISOString().slice(0, 10)} → ${toVnInclusive.toISOString().slice(0, 10)}`;
 }
 
 /**
