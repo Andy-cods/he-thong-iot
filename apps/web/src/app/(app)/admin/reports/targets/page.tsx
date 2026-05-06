@@ -6,8 +6,7 @@ import { toast } from "sonner";
 import { Loader2, Plus, Target, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { AdminPageShell } from "@/components/admin/AdminPageShell";
 import {
   useCreateReportTarget,
   useDeleteReportTarget,
@@ -33,7 +32,6 @@ const ROLE_OPTIONS = [
   { value: "admin", label: "Quản trị" },
 ];
 
-// Metric IDs khớp với repo employeeProductivity.ts
 const METRIC_OPTIONS: Record<string, Array<{ id: string; label: string }>> = {
   operator: [
     { id: "wo_created", label: "Lệnh SX tạo" },
@@ -70,91 +68,121 @@ export default function ReportTargetsPage() {
   const [filterRole, setFilterRole] = React.useState<string>("operator");
   const [showCreate, setShowCreate] = React.useState(false);
 
-  const targetsQuery = useReportTargets({ roleCode: filterRole, isActive: true });
+  const targetsQuery = useReportTargets({
+    roleCode: filterRole,
+    isActive: true,
+  });
   const targets = targetsQuery.data?.data ?? [];
 
   return (
-    <div className="flex h-full flex-col overflow-auto bg-zinc-50">
-      <header className="border-b border-zinc-200 bg-white px-6 py-4">
-        <nav aria-label="Breadcrumb" className="text-xs text-zinc-500">
-          <Link href="/" className="hover:text-zinc-900 hover:underline">
-            Tổng quan
-          </Link>
-          <span className="mx-1.5 text-zinc-300">›</span>
-          <Link href="/admin" className="hover:text-zinc-900 hover:underline">
-            Quản trị
-          </Link>
-          <span className="mx-1.5 text-zinc-300">›</span>
-          <span className="font-medium text-zinc-900">KPI Targets</span>
-        </nav>
-        <div className="mt-1.5 flex items-center justify-between">
-          <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight text-zinc-900">
-            <Target className="h-5 w-5 text-indigo-600" />
-            KPI Baselines / Mục tiêu năng suất
-          </h1>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/admin/reports/employee-productivity"
-              className="inline-flex h-8 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50"
-            >
-              ← Báo cáo nhân viên
-            </Link>
-            <Button size="sm" onClick={() => setShowCreate(!showCreate)}>
-              <Plus className="h-3.5 w-3.5" />
-              {showCreate ? "Đóng form" : "Thêm target"}
-            </Button>
-          </div>
-        </div>
-        <p className="mt-0.5 text-xs text-zinc-500">
+    <AdminPageShell
+      breadcrumb={[
+        { label: "Trang chủ", href: "/" },
+        { label: "Quản trị", href: "/admin" },
+        { label: "Báo cáo", href: "/admin/reports/employee-productivity" },
+        { label: "KPI Targets" },
+      ]}
+      title="KPI Baselines / Mục tiêu năng suất"
+      description={
+        <span className="flex items-center gap-2">
+          <Target className="h-3.5 w-3.5 text-indigo-600" aria-hidden="true" />
           Set baseline cho mỗi (bộ phận × metric × period). Khi báo cáo có
-          target → hiển thị "đạt / chưa đạt" trên KPI card.
-        </p>
-      </header>
-
-      {showCreate ? (
-        <CreateForm
-          defaultRole={filterRole}
-          onClose={() => setShowCreate(false)}
-        />
-      ) : null}
-
-      {/* Filter */}
-      <div className="flex items-end gap-3 border-b border-zinc-200 bg-white px-6 py-3">
-        <div className="space-y-1">
-          <Label className="text-[10px] uppercase">Bộ phận</Label>
-          <select
-            value={filterRole}
-            onChange={(e) => setFilterRole(e.target.value)}
-            className="h-9 min-w-[200px] rounded-md border border-zinc-200 bg-white px-3 text-[13px]"
+          target → hiển thị &quot;đạt / chưa đạt&quot; trên KPI card.
+        </span>
+      }
+      actions={
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/reports/employee-productivity"
+            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:border-indigo-300 hover:text-indigo-700"
           >
-            {ROLE_OPTIONS.map((r) => (
-              <option key={r.value} value={r.value}>
-                {r.label}
-              </option>
-            ))}
-          </select>
+            ← Báo cáo nhân viên
+          </Link>
+          <Button size="sm" onClick={() => setShowCreate(!showCreate)}>
+            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+            {showCreate ? "Đóng form" : "Thêm target"}
+          </Button>
+        </div>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        {showCreate ? (
+          <CreateForm
+            defaultRole={filterRole}
+            onClose={() => setShowCreate(false)}
+          />
+        ) : null}
+
+        {/* Filter */}
+        <section className="flex items-end gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <Field label="Bộ phận">
+            <Select
+              value={filterRole}
+              onChange={(e) => setFilterRole(e.target.value)}
+              className="min-w-[200px]"
+            >
+              {ROLE_OPTIONS.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </section>
+
+        {/* List */}
+        <div className="flex flex-col gap-2">
+          {targetsQuery.isLoading ? (
+            <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white p-8 text-zinc-500 shadow-sm">
+              <Loader2 className="h-4 w-4 animate-spin" /> Đang tải…
+            </div>
+          ) : targets.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-zinc-200 bg-white px-6 py-12 text-center text-sm text-zinc-500 shadow-sm">
+              Bộ phận này chưa có KPI target nào — nhấn &quot;Thêm
+              target&quot; để tạo.
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {targets.map((t) => (
+                <TargetRow key={t.id} target={t} />
+              ))}
+            </ul>
+          )}
         </div>
       </div>
+    </AdminPageShell>
+  );
+}
 
-      {/* List */}
-      <div className="mx-auto w-full max-w-[1100px] p-6">
-        {targetsQuery.isLoading ? (
-          <div className="flex items-center gap-2 py-8 text-zinc-500">
-            <Loader2 className="h-4 w-4 animate-spin" /> Đang tải…
-          </div>
-        ) : targets.length === 0 ? (
-          <div className="rounded-md border border-dashed border-zinc-200 bg-white px-6 py-12 text-center text-sm text-zinc-500">
-            Bộ phận này chưa có KPI target nào — nhấn "Thêm target" để tạo.
-          </div>
-        ) : (
-          <ul className="space-y-2">
-            {targets.map((t) => (
-              <TargetRow key={t.id} target={t} />
-            ))}
-          </ul>
-        )}
-      </div>
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1">
+      <label className="block text-[11px] font-semibold uppercase tracking-normal text-zinc-500">
+        {label}
+      </label>
+      {children}
     </div>
+  );
+}
+
+function Select({
+  className,
+  ...rest
+}: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      {...rest}
+      className={cn(
+        "h-9 rounded-md border border-zinc-200 bg-white px-3 text-sm tracking-normal text-zinc-900 outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100",
+        className,
+      )}
+    />
   );
 }
 
@@ -170,7 +198,9 @@ function CreateForm({
   const [metricId, setMetricId] = React.useState(
     METRIC_OPTIONS[defaultRole]?.[0]?.id ?? "",
   );
-  const [periodType, setPeriodType] = React.useState<"monthly" | "quarterly" | "yearly">("monthly");
+  const [periodType, setPeriodType] = React.useState<
+    "monthly" | "quarterly" | "yearly"
+  >("monthly");
   const [targetValue, setTargetValue] = React.useState("");
   const [comparison, setComparison] = React.useState<"gte" | "lte">("gte");
   const [notes, setNotes] = React.useState("");
@@ -212,53 +242,59 @@ function CreateForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="border-b border-zinc-200 bg-indigo-50/30 px-6 py-4"
+      className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-4 shadow-sm"
     >
+      <header className="mb-3">
+        <h3 className="text-sm font-semibold tracking-tight text-zinc-900">
+          Thêm KPI target
+        </h3>
+        <p className="mt-0.5 text-xs text-zinc-500">
+          Đặt mục tiêu cho 1 metric trong 1 chu kỳ.
+        </p>
+      </header>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-6">
-        <div className="space-y-1">
-          <Label className="text-[10px] uppercase">Bộ phận</Label>
-          <select
+        <Field label="Bộ phận">
+          <Select
             value={roleCode}
             onChange={(e) => setRoleCode(e.target.value)}
-            className="h-9 w-full rounded-md border border-zinc-200 bg-white px-3 text-[13px]"
+            className="w-full"
           >
             {ROLE_OPTIONS.map((r) => (
               <option key={r.value} value={r.value}>
                 {r.label}
               </option>
             ))}
-          </select>
-        </div>
-        <div className="space-y-1">
-          <Label className="text-[10px] uppercase">Metric</Label>
-          <select
+          </Select>
+        </Field>
+        <Field label="Metric">
+          <Select
             value={metricId}
             onChange={(e) => setMetricId(e.target.value)}
-            className="h-9 w-full rounded-md border border-zinc-200 bg-white px-3 text-[13px]"
+            className="w-full"
           >
             {metricOptions.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.label}
               </option>
             ))}
-          </select>
-        </div>
-        <div className="space-y-1">
-          <Label className="text-[10px] uppercase">Period</Label>
-          <select
+          </Select>
+        </Field>
+        <Field label="Chu kỳ">
+          <Select
             value={periodType}
             onChange={(e) =>
-              setPeriodType(e.target.value as "monthly" | "quarterly" | "yearly")
+              setPeriodType(
+                e.target.value as "monthly" | "quarterly" | "yearly",
+              )
             }
-            className="h-9 w-full rounded-md border border-zinc-200 bg-white px-3 text-[13px]"
+            className="w-full"
           >
             <option value="monthly">Tháng</option>
             <option value="quarterly">Quý</option>
             <option value="yearly">Năm</option>
-          </select>
-        </div>
-        <div className="space-y-1">
-          <Label className="text-[10px] uppercase">Target value</Label>
+          </Select>
+        </Field>
+        <Field label="Target value">
           <Input
             type="number"
             step="0.01"
@@ -267,30 +303,32 @@ function CreateForm({
             onChange={(e) => setTargetValue(e.target.value)}
             placeholder="VD: 5"
             required
+            className="h-9"
           />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-[10px] uppercase">Comparison</Label>
-          <select
+        </Field>
+        <Field label="So sánh">
+          <Select
             value={comparison}
-            onChange={(e) => setComparison(e.target.value as "gte" | "lte")}
-            className="h-9 w-full rounded-md border border-zinc-200 bg-white px-3 text-[13px]"
+            onChange={(e) =>
+              setComparison(e.target.value as "gte" | "lte")
+            }
+            className="w-full"
           >
             <option value="gte">≥ (càng cao càng tốt)</option>
             <option value="lte">≤ (càng thấp càng tốt)</option>
-          </select>
-        </div>
-        <div className="space-y-1 md:col-span-2 lg:col-span-1">
-          <Label className="text-[10px] uppercase">Notes</Label>
+          </Select>
+        </Field>
+        <Field label="Ghi chú">
           <Input
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Tùy chọn"
+            placeholder="Tuỳ chọn"
             maxLength={500}
+            className="h-9"
           />
-        </div>
+        </Field>
       </div>
-      <div className="mt-3 flex items-center gap-2">
+      <div className="mt-4 flex items-center gap-2">
         <Button type="submit" size="sm" disabled={create.isPending}>
           {create.isPending ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -341,17 +379,17 @@ function TargetRow({ target }: { target: ReportTargetRow }) {
   };
 
   return (
-    <li className="rounded-md border border-zinc-200 bg-white p-3 shadow-sm">
+    <li className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md">
       <div className="flex items-center gap-3">
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <span className="font-mono text-[10px] uppercase text-zinc-500">
+            <span className="font-mono text-[10px] font-semibold uppercase tracking-normal text-zinc-500">
               {target.roleCode ?? "ALL"}
             </span>
-            <span className="text-sm font-semibold text-zinc-900">
+            <span className="text-sm font-semibold tracking-tight text-zinc-900">
               {metricLabel}
             </span>
-            <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-600">
+            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-600 ring-1 ring-inset ring-zinc-200">
               {target.periodType === "monthly"
                 ? "Tháng"
                 : target.periodType === "quarterly"
@@ -382,10 +420,18 @@ function TargetRow({ target }: { target: ReportTargetRow }) {
               className="w-48"
               maxLength={500}
             />
-            <Button size="sm" onClick={() => void handleSave()} disabled={update.isPending}>
+            <Button
+              size="sm"
+              onClick={() => void handleSave()}
+              disabled={update.isPending}
+            >
               Lưu
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setEditing(false)}
+            >
               ✕
             </Button>
           </>
@@ -393,11 +439,13 @@ function TargetRow({ target }: { target: ReportTargetRow }) {
           <>
             <div
               className={cn(
-                "rounded px-2.5 py-1 text-right",
-                target.comparison === "gte" ? "bg-emerald-50" : "bg-amber-50",
+                "rounded-lg px-3 py-1.5 text-right ring-1 ring-inset",
+                target.comparison === "gte"
+                  ? "bg-emerald-50 ring-emerald-200"
+                  : "bg-amber-50 ring-amber-200",
               )}
             >
-              <div className="text-[9px] uppercase text-zinc-500">
+              <div className="text-[10px] font-semibold uppercase tracking-normal text-zinc-500">
                 Target {target.comparison === "gte" ? "≥" : "≤"}
               </div>
               <div className="font-mono text-sm font-semibold tabular-nums text-zinc-900">
@@ -423,7 +471,7 @@ function TargetRow({ target }: { target: ReportTargetRow }) {
               className="text-rose-600 hover:bg-rose-50"
               aria-label="Xoá"
             >
-              <Trash2 className="h-3.5 w-3.5" />
+              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
             </Button>
           </>
         )}

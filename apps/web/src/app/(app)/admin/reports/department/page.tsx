@@ -1,11 +1,11 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { ChevronRight, Loader2, Users } from "lucide-react";
-import { Label } from "@/components/ui/label";
 import { useDepartmentReport } from "@/hooks/useReports";
+import { AdminPageShell } from "@/components/admin/AdminPageShell";
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/format";
 
@@ -18,7 +18,10 @@ const ROLE_OPTIONS = [
   { value: "planner", label: "Bộ phận Thiết kế" },
 ] as const;
 
-const SORT_OPTIONS_BY_ROLE: Record<string, Array<{ value: string; label: string }>> = {
+const SORT_OPTIONS_BY_ROLE: Record<
+  string,
+  Array<{ value: string; label: string }>
+> = {
   operator: [
     { value: "production_qty_good", label: "Sản lượng đạt" },
     { value: "wo_completed", label: "WO hoàn thành" },
@@ -59,9 +62,11 @@ export default function DepartmentReportPage() {
 
   const sortOptions = SORT_OPTIONS_BY_ROLE[role] ?? [];
 
-  // Reset sortBy khi đổi role
   React.useEffect(() => {
-    if (sortOptions.length > 0 && !sortOptions.find((o) => o.value === sortBy)) {
+    if (
+      sortOptions.length > 0 &&
+      !sortOptions.find((o) => o.value === sortBy)
+    ) {
       setSortBy(sortOptions[0]!.value);
     }
   }, [role, sortOptions, sortBy]);
@@ -70,106 +75,133 @@ export default function DepartmentReportPage() {
   const data = q.data?.data;
 
   return (
-    <div className="flex h-full flex-col overflow-auto bg-zinc-50">
-      <header className="border-b border-zinc-200 bg-white px-6 py-4">
-        <nav aria-label="Breadcrumb" className="text-xs text-zinc-500">
-          <Link href="/" className="hover:text-zinc-900 hover:underline">
-            Tổng quan
-          </Link>
-          <span className="mx-1.5 text-zinc-300">›</span>
-          <Link href="/admin" className="hover:text-zinc-900 hover:underline">
-            Quản trị
-          </Link>
-          <span className="mx-1.5 text-zinc-300">›</span>
-          <span className="font-medium text-zinc-900">Báo cáo bộ phận</span>
-        </nav>
-        <div className="mt-1.5 flex items-center justify-between">
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
-            Báo cáo bộ phận · Leaderboard
-          </h1>
-          <Link
-            href="/admin/reports/employee-productivity"
-            className="inline-flex h-8 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50"
-          >
-            <Users className="h-3.5 w-3.5" />
-            Xem theo nhân viên
-          </Link>
-        </div>
-      </header>
+    <AdminPageShell
+      breadcrumb={[
+        { label: "Trang chủ", href: "/" },
+        { label: "Quản trị", href: "/admin" },
+        { label: "Báo cáo", href: "/admin/reports/employee-productivity" },
+        { label: "Bộ phận" },
+      ]}
+      title="Báo cáo bộ phận · Leaderboard"
+      description="So sánh năng suất giữa các thành viên trong cùng một bộ phận."
+      actions={
+        <Link
+          href="/admin/reports/employee-productivity"
+          className="inline-flex h-9 items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:border-indigo-300 hover:text-indigo-700"
+        >
+          <Users className="h-3.5 w-3.5" aria-hidden="true" />
+          Xem theo nhân viên
+        </Link>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        {/* Filter card */}
+        <section className="flex flex-wrap items-end gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <Field label="Bộ phận">
+            <Select
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              className="min-w-[200px]"
+            >
+              {ROLE_OPTIONS.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Tháng">
+            <Select
+              value={month}
+              onChange={(e) => setMonth(Number(e.target.value))}
+              className="w-28"
+            >
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                <option key={m} value={m}>
+                  Tháng {m}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Năm">
+            <Select
+              value={year}
+              onChange={(e) => setYear(Number(e.target.value))}
+              className="w-24"
+            >
+              {[initial.year, initial.year - 1, initial.year - 2].map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Sắp xếp theo">
+            <Select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="min-w-[180px]"
+            >
+              {sortOptions.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </section>
 
-      <div className="flex flex-wrap items-end gap-3 border-b border-zinc-200 bg-white px-6 py-3">
-        <div className="space-y-1">
-          <Label className="text-[10px] uppercase">Bộ phận</Label>
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            className="h-9 min-w-[200px] rounded-md border border-zinc-200 bg-white px-3 text-[13px]"
-          >
-            {ROLE_OPTIONS.map((r) => (
-              <option key={r.value} value={r.value}>
-                {r.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="space-y-1">
-          <Label className="text-[10px] uppercase">Tháng</Label>
-          <select
-            value={month}
-            onChange={(e) => setMonth(Number(e.target.value))}
-            className="h-9 w-24 rounded-md border border-zinc-200 bg-white px-3 text-[13px]"
-          >
-            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-              <option key={m} value={m}>
-                Tháng {m}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="space-y-1">
-          <Label className="text-[10px] uppercase">Năm</Label>
-          <select
-            value={year}
-            onChange={(e) => setYear(Number(e.target.value))}
-            className="h-9 w-24 rounded-md border border-zinc-200 bg-white px-3 text-[13px]"
-          >
-            {[initial.year, initial.year - 1, initial.year - 2].map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="space-y-1">
-          <Label className="text-[10px] uppercase">Sort by</Label>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="h-9 min-w-[160px] rounded-md border border-zinc-200 bg-white px-3 text-[13px]"
-          >
-            {sortOptions.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="mx-auto w-full max-w-[1100px] p-6">
         {q.isLoading ? (
-          <div className="flex items-center gap-2 py-12 text-zinc-500">
+          <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white p-12 text-zinc-500 shadow-sm">
             <Loader2 className="h-4 w-4 animate-spin" /> Đang tải leaderboard…
           </div>
         ) : q.isError ? (
-          <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-6 text-center text-sm text-rose-700">
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-6 text-center text-sm text-rose-700 shadow-sm">
             Lỗi: {(q.error as Error)?.message ?? "Không tải được"}
           </div>
         ) : data ? (
-          <Leaderboard data={data} sortBy={sortBy} onClickUser={(id) => router.push(`/admin/reports/employee-productivity?user=${id}`)} />
+          <Leaderboard
+            data={data}
+            sortBy={sortBy}
+            onClickUser={(id) =>
+              router.push(`/admin/reports/employee-productivity?user=${id}`)
+            }
+          />
         ) : null}
       </div>
+    </AdminPageShell>
+  );
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1">
+      <label className="block text-[11px] font-semibold uppercase tracking-normal text-zinc-500">
+        {label}
+      </label>
+      {children}
     </div>
+  );
+}
+
+function Select({
+  className,
+  ...rest
+}: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      {...rest}
+      className={cn(
+        "h-9 rounded-md border border-zinc-200 bg-white px-3 text-sm tracking-normal text-zinc-900 outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100",
+        className,
+      )}
+    />
   );
 }
 
@@ -178,34 +210,40 @@ function Leaderboard({
   sortBy,
   onClickUser,
 }: {
-  data: NonNullable<ReturnType<typeof useDepartmentReport>["data"]>["data"];
+  data: NonNullable<
+    ReturnType<typeof useDepartmentReport>["data"]
+  >["data"];
   sortBy: string;
   onClickUser: (id: string) => void;
 }) {
   if (data.leaderboard.length === 0) {
     return (
-      <div className="rounded-md border border-dashed border-zinc-200 bg-white px-6 py-12 text-center text-sm text-zinc-500">
+      <div className="rounded-xl border border-dashed border-zinc-200 bg-white px-6 py-12 text-center text-sm text-zinc-500 shadow-sm">
         Bộ phận này chưa có nhân viên active.
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-base font-bold text-zinc-900">{data.department.label}</h2>
+            <h2 className="text-base font-semibold tracking-tight text-zinc-900">
+              {data.department.label}
+            </h2>
             <p className="text-xs text-zinc-500">
               {data.department.memberCount} nhân viên · {data.period.label}
             </p>
           </div>
           <div className="text-right">
-            <div className="text-[10px] uppercase tracking-wide text-zinc-500">
-              Sort theo
+            <div className="text-[11px] font-semibold uppercase tracking-normal text-zinc-500">
+              Sắp xếp theo
             </div>
             <div className="text-sm font-medium text-indigo-700">
-              {SORT_OPTIONS_BY_ROLE[data.department.role]?.find((o) => o.value === sortBy)?.label ?? sortBy}
+              {SORT_OPTIONS_BY_ROLE[data.department.role]?.find(
+                (o) => o.value === sortBy,
+              )?.label ?? sortBy}
             </div>
           </div>
         </div>
@@ -216,34 +254,40 @@ function Leaderboard({
           <li
             key={row.user.id}
             onClick={() => onClickUser(row.user.id)}
-            className="group cursor-pointer rounded-md border border-zinc-200 bg-white p-3 shadow-sm transition-all hover:border-indigo-300 hover:shadow-md"
+            className="group cursor-pointer rounded-xl border border-zinc-200 bg-white p-3 shadow-sm transition-all hover:border-indigo-300 hover:shadow-md"
           >
             <div className="flex items-center gap-3">
               <RankBadge rank={row.rank} />
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold text-zinc-900">
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold tracking-tight text-zinc-900">
                   {row.user.fullName}
                 </div>
-                <div className="text-[11px] text-zinc-500">{row.user.username}</div>
+                <div className="text-[11px] text-zinc-500">
+                  {row.user.username}
+                </div>
               </div>
               <div className="hidden flex-wrap items-center justify-end gap-3 md:flex">
-                {Object.entries(row.keyMetrics).slice(0, 4).map(([k, v]) => (
-                  <div key={k} className="text-right">
-                    <div className="text-[9px] uppercase text-zinc-500">
-                      {SORT_OPTIONS_BY_ROLE[data.department.role]?.find((o) => o.value === k)?.label ?? k}
+                {Object.entries(row.keyMetrics)
+                  .slice(0, 4)
+                  .map(([k, v]) => (
+                    <div key={k} className="text-right">
+                      <div className="text-[10px] font-semibold uppercase tracking-normal text-zinc-500">
+                        {SORT_OPTIONS_BY_ROLE[data.department.role]?.find(
+                          (o) => o.value === k,
+                        )?.label ?? k}
+                      </div>
+                      <div
+                        className={cn(
+                          "text-sm font-semibold tabular-nums",
+                          k === sortBy ? "text-indigo-700" : "text-zinc-700",
+                        )}
+                      >
+                        {formatNumber(v)}
+                      </div>
                     </div>
-                    <div
-                      className={cn(
-                        "text-sm font-semibold tabular-nums",
-                        k === sortBy ? "text-indigo-700" : "text-zinc-700",
-                      )}
-                    >
-                      {formatNumber(v)}
-                    </div>
-                  </div>
-                ))}
+                  ))}
               </div>
-              <ChevronRight className="h-4 w-4 text-zinc-300 group-hover:text-indigo-500" />
+              <ChevronRight className="h-4 w-4 text-zinc-300 transition-colors group-hover:text-indigo-500" />
             </div>
           </li>
         ))}
@@ -261,7 +305,8 @@ function RankBadge({ rank }: { rank: number }) {
         : rank === 3
           ? "bg-orange-100 text-orange-800 ring-2 ring-orange-300"
           : "bg-zinc-50 text-zinc-500";
-  const emoji = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : "#";
+  const emoji =
+    rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : "#";
   return (
     <div
       className={cn(

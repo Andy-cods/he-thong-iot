@@ -3,9 +3,16 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight } from "lucide-react";
+import {
+  ArrowUpRight,
+  Info,
+  KeyRound,
+  Laptop,
+  ShieldCheck,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChangePasswordForm } from "@/components/admin/ChangePasswordForm";
+import { AdminPageShell } from "@/components/admin/AdminPageShell";
 
 export default function AdminSettingsPage() {
   const router = useRouter();
@@ -15,7 +22,6 @@ export default function AdminSettingsPage() {
   const version = process.env.NEXT_PUBLIC_BUILD_VERSION || "v1.1.0-alpha";
 
   const handlePasswordChanged = async () => {
-    // Force re-login sau khi đổi pass
     setTimeout(() => {
       void fetch("/api/auth/logout", { method: "POST" })
         .catch(() => {})
@@ -26,97 +32,215 @@ export default function AdminSettingsPage() {
   };
 
   return (
-    <div className="flex flex-col gap-5">
-      <nav
-        aria-label="Breadcrumb"
-        className="flex items-center gap-1 text-xs text-zinc-500"
-      >
-        <Link href="/" className="hover:text-zinc-900">
-          Tổng quan
-        </Link>
-        <ChevronRight className="h-3 w-3" aria-hidden="true" />
-        <Link href="/admin" className="hover:text-zinc-900">
-          Quản trị
-        </Link>
-        <ChevronRight className="h-3 w-3" aria-hidden="true" />
-        <span className="text-zinc-900">Cài đặt cá nhân</span>
-      </nav>
-
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
-          Cài đặt cá nhân
-        </h1>
-        <p className="mt-0.5 text-xs text-zinc-500">
-          Quản lý mật khẩu, thông tin phiên đăng nhập.
-        </p>
-      </header>
-
-      <div className="grid max-w-3xl gap-5">
-        {/* Change password */}
-        <section className="rounded-md border border-zinc-200 bg-white p-6">
-          <header className="mb-4">
-            <h2 className="text-sm font-semibold text-zinc-900">
-              Đổi mật khẩu
-            </h2>
-            <p className="text-xs text-zinc-500">
-              Sau khi đổi thành công, bạn sẽ được đăng xuất và yêu cầu đăng nhập
-              lại với mật khẩu mới.
-            </p>
-          </header>
+    <AdminPageShell
+      breadcrumb={[
+        { label: "Trang chủ", href: "/" },
+        { label: "Quản trị", href: "/admin" },
+        { label: "Cài đặt" },
+      ]}
+      title="Cài đặt cá nhân"
+      description="Quản lý mật khẩu, theo dõi phiên đăng nhập và thông tin build hệ thống."
+      meta={
+        <span>
+          {version} <span className="text-zinc-300">·</span> {sha}
+          {date && date !== "unknown" ? (
+            <>
+              {" "}
+              <span className="text-zinc-300">·</span> {date}
+            </>
+          ) : null}
+        </span>
+      }
+    >
+      <div className="grid max-w-4xl gap-4 lg:grid-cols-3">
+        {/* Change password — 2 cols */}
+        <SectionCard
+          icon={<KeyRound className="h-4 w-4" aria-hidden="true" />}
+          accent="indigo"
+          title="Đổi mật khẩu"
+          description="Sau khi đổi thành công, bạn sẽ được đăng xuất và yêu cầu đăng nhập lại."
+          className="lg:col-span-2"
+        >
           <ChangePasswordForm onSuccess={handlePasswordChanged} />
-        </section>
+        </SectionCard>
 
-        {/* Build info */}
-        <section className="rounded-md border border-zinc-200 bg-white p-6">
-          <header className="mb-4">
-            <h2 className="text-sm font-semibold text-zinc-900">
-              Thông tin build
-            </h2>
-            <p className="text-xs text-zinc-500">
-              Chi tiết phiên bản hệ thống đang chạy.
-            </p>
-          </header>
-          <dl className="grid grid-cols-[120px,1fr] gap-y-2 text-xs">
-            <dt className="uppercase tracking-wider text-zinc-500">Version</dt>
-            <dd className="font-mono font-semibold text-zinc-900">{version}</dd>
-            <dt className="uppercase tracking-wider text-zinc-500">Commit</dt>
-            <dd className="font-mono text-zinc-900">{sha}</dd>
-            <dt className="uppercase tracking-wider text-zinc-500">
-              Build date
-            </dt>
-            <dd className="font-mono text-zinc-900">{date}</dd>
-          </dl>
-        </section>
-
-        {/* Session info V1.2 stub */}
-        <section className="rounded-md border border-zinc-200 bg-white p-6">
-          <header className="mb-4">
-            <h2 className="text-sm font-semibold text-zinc-900">
-              Phiên đăng nhập
-            </h2>
-            <p className="text-xs text-zinc-500">
-              Xem các thiết bị đang đăng nhập, thu hồi phiên khi cần.
-            </p>
-          </header>
-          <div className="space-y-3">
-            <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs">
-              <p className="font-medium text-zinc-700">Phiên hiện tại</p>
-              <p className="mt-0.5 font-mono text-[11px] text-zinc-500">
-                JWT HttpOnly cookie ·{" "}
-                {typeof navigator !== "undefined"
-                  ? navigator.userAgent.slice(0, 60)
-                  : "—"}
-                …
-              </p>
-            </div>
+        {/* Sessions */}
+        <SectionCard
+          icon={<Laptop className="h-4 w-4" aria-hidden="true" />}
+          accent="emerald"
+          title="Phiên đăng nhập"
+          description="Theo dõi các thiết bị đang đăng nhập và thu hồi phiên khi cần."
+          action={
             <Button asChild variant="outline" size="sm">
               <Link href="/admin/settings/sessions">
-                Quản lý phiên đăng nhập
+                Quản lý phiên
+                <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
               </Link>
             </Button>
+          }
+        >
+          <div className="rounded-lg border border-zinc-200 bg-zinc-50/60 p-3 text-xs">
+            <p className="font-medium tracking-tight text-zinc-700">
+              Phiên hiện tại
+            </p>
+            <p className="mt-1 break-all font-mono text-[11px] tracking-normal text-zinc-500">
+              JWT HttpOnly cookie ·{" "}
+              {typeof navigator !== "undefined"
+                ? navigator.userAgent.slice(0, 80)
+                : "—"}
+              …
+            </p>
           </div>
-        </section>
+        </SectionCard>
+
+        {/* Security tips */}
+        <SectionCard
+          icon={<ShieldCheck className="h-4 w-4" aria-hidden="true" />}
+          accent="amber"
+          title="Bảo mật"
+          description="Khuyến nghị duy trì hệ thống an toàn."
+          className="lg:col-span-2"
+        >
+          <ul className="space-y-2 text-xs text-zinc-600">
+            <Tip>Đổi mật khẩu định kỳ 90 ngày, không tái sử dụng password cũ.</Tip>
+            <Tip>
+              Đăng xuất các thiết bị lạ trong mục &quot;Phiên đăng nhập&quot;.
+            </Tip>
+            <Tip>
+              Báo admin ngay nếu phát hiện hoạt động bất thường trong{" "}
+              <Link
+                href="/admin/audit"
+                className="font-medium text-indigo-600 hover:text-indigo-700 hover:underline"
+              >
+                Audit log
+              </Link>
+              .
+            </Tip>
+          </ul>
+        </SectionCard>
+
+        {/* Build info */}
+        <SectionCard
+          icon={<Info className="h-4 w-4" aria-hidden="true" />}
+          accent="zinc"
+          title="Thông tin build"
+          description="Phiên bản đang chạy."
+        >
+          <dl className="space-y-2 text-xs">
+            <Row label="Phiên bản" value={version} mono />
+            <Row label="Commit" value={sha} mono />
+            <Row label="Build date" value={date} mono />
+          </dl>
+        </SectionCard>
       </div>
+    </AdminPageShell>
+  );
+}
+
+/* ----------------------------- Subcomponents ---------------------------- */
+
+const ACCENT: Record<
+  "indigo" | "emerald" | "amber" | "zinc",
+  { iconBg: string; iconText: string; ring: string }
+> = {
+  indigo: {
+    iconBg: "bg-indigo-50",
+    iconText: "text-indigo-600",
+    ring: "ring-indigo-100",
+  },
+  emerald: {
+    iconBg: "bg-emerald-50",
+    iconText: "text-emerald-600",
+    ring: "ring-emerald-100",
+  },
+  amber: {
+    iconBg: "bg-amber-50",
+    iconText: "text-amber-600",
+    ring: "ring-amber-100",
+  },
+  zinc: {
+    iconBg: "bg-zinc-100",
+    iconText: "text-zinc-600",
+    ring: "ring-zinc-200",
+  },
+};
+
+function SectionCard({
+  icon,
+  accent,
+  title,
+  description,
+  action,
+  className,
+  children,
+}: {
+  icon: React.ReactNode;
+  accent: keyof typeof ACCENT;
+  title: string;
+  description?: string;
+  action?: React.ReactNode;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const cls = ACCENT[accent];
+  return (
+    <section
+      className={`overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm transition-shadow hover:shadow-md ${className ?? ""}`}
+    >
+      <header className="flex items-start justify-between gap-3 border-b border-zinc-100 px-5 py-4">
+        <div className="flex min-w-0 items-start gap-3">
+          <span
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ${cls.iconBg} ${cls.iconText} ${cls.ring}`}
+          >
+            {icon}
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold tracking-tight text-zinc-900">
+              {title}
+            </h2>
+            {description ? (
+              <p className="mt-0.5 text-xs text-zinc-500">{description}</p>
+            ) : null}
+          </div>
+        </div>
+        {action ? <div className="shrink-0">{action}</div> : null}
+      </header>
+      <div className="p-5">{children}</div>
+    </section>
+  );
+}
+
+function Row({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <dt className="text-[11px] font-medium uppercase tracking-normal text-zinc-500">
+        {label}
+      </dt>
+      <dd
+        className={`truncate font-semibold text-zinc-900 ${mono ? "font-mono text-[11px]" : ""}`}
+      >
+        {value}
+      </dd>
     </div>
+  );
+}
+
+function Tip({ children }: { children: React.ReactNode }) {
+  return (
+    <li className="flex items-start gap-2">
+      <span
+        className="mt-1.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500"
+        aria-hidden="true"
+      />
+      <span>{children}</span>
+    </li>
   );
 }

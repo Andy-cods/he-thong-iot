@@ -1,14 +1,7 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
-import {
-  ChevronRight,
-  Laptop,
-  LogOut,
-  RefreshCw,
-  Smartphone,
-} from "lucide-react";
+import { Laptop, LogOut, RefreshCw, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -20,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { AdminPageShell } from "@/components/admin/AdminPageShell";
 import {
   useMySessions,
   useRevokeAllOtherSessions,
@@ -86,38 +80,17 @@ export default function SessionsPage() {
   };
 
   return (
-    <div className="flex flex-col gap-5">
-      <nav
-        aria-label="Breadcrumb"
-        className="flex items-center gap-1 text-xs text-zinc-500"
-      >
-        <Link href="/" className="hover:text-zinc-900">
-          Tổng quan
-        </Link>
-        <ChevronRight className="h-3 w-3" aria-hidden="true" />
-        <Link href="/admin" className="hover:text-zinc-900">
-          Quản trị
-        </Link>
-        <ChevronRight className="h-3 w-3" aria-hidden="true" />
-        <Link href="/admin/settings" className="hover:text-zinc-900">
-          Cài đặt cá nhân
-        </Link>
-        <ChevronRight className="h-3 w-3" aria-hidden="true" />
-        <span className="text-zinc-900">Phiên đăng nhập</span>
-      </nav>
-
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
-            Phiên đăng nhập
-          </h1>
-          <p className="mt-0.5 max-w-2xl text-xs text-zinc-500">
-            Danh sách thiết bị đang đăng nhập với tài khoản của bạn. Thu hồi sẽ
-            chặn refresh token; access token hiện tại có thể còn hiệu lực tối
-            đa 15 phút.
-          </p>
-        </div>
-        <div className="flex gap-2">
+    <AdminPageShell
+      breadcrumb={[
+        { label: "Trang chủ", href: "/" },
+        { label: "Quản trị", href: "/admin" },
+        { label: "Cài đặt", href: "/admin/settings" },
+        { label: "Phiên đăng nhập" },
+      ]}
+      title="Phiên đăng nhập"
+      description="Danh sách thiết bị đang đăng nhập với tài khoản của bạn. Thu hồi sẽ chặn refresh token; access token hiện tại có thể còn hiệu lực tối đa 15 phút."
+      actions={
+        <div className="flex items-center gap-2">
           <Button
             variant="ghost"
             size="sm"
@@ -125,7 +98,10 @@ export default function SessionsPage() {
             disabled={query.isFetching}
           >
             <RefreshCw
-              className={cn("h-3.5 w-3.5", query.isFetching && "animate-spin")}
+              className={cn(
+                "h-3.5 w-3.5",
+                query.isFetching && "animate-spin",
+              )}
               aria-hidden="true"
             />
             Làm mới
@@ -137,22 +113,22 @@ export default function SessionsPage() {
             disabled={otherCount === 0}
           >
             <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
-            Đăng xuất thiết bị khác ({otherCount})
+            Đăng xuất {otherCount} thiết bị khác
           </Button>
         </div>
-      </header>
-
-      <div className="rounded-md border border-zinc-200 bg-white">
+      }
+    >
+      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
         {query.isLoading ? (
-          <div className="p-6 text-center text-sm text-zinc-500">
+          <div className="p-8 text-center text-sm text-zinc-500">
             Đang tải…
           </div>
         ) : sessions.length === 0 ? (
-          <div className="p-4">
+          <div className="p-6">
             <EmptyState
               preset="no-data"
               title="Không có phiên nào đang hoạt động"
-              description="Khi bạn đăng nhập ở thiết bị khác, phiên sẽ hiện tại đây."
+              description="Khi bạn đăng nhập ở thiết bị khác, phiên sẽ hiển thị tại đây."
             />
           </div>
         ) : (
@@ -163,24 +139,39 @@ export default function SessionsPage() {
               return (
                 <li
                   key={s.id}
-                  className="flex items-center gap-4 px-4 py-3 hover:bg-zinc-50"
+                  className={cn(
+                    "flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-zinc-50/70",
+                    s.isCurrent &&
+                      "border-l-4 border-indigo-500 bg-indigo-50/30 hover:bg-indigo-50/60",
+                  )}
                 >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-zinc-50 text-zinc-600">
+                  <div
+                    className={cn(
+                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset",
+                      s.isCurrent
+                        ? "bg-indigo-50 text-indigo-600 ring-indigo-200"
+                        : "bg-zinc-50 text-zinc-600 ring-zinc-200",
+                    )}
+                  >
                     <Icon className="h-4 w-4" aria-hidden="true" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-medium text-zinc-900">
+                      <span className="text-sm font-medium tracking-tight text-zinc-900">
                         {ua.summary}
                       </span>
                       {s.isCurrent ? (
-                        <span className="inline-flex h-5 items-center rounded-sm border border-emerald-200 bg-emerald-50 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                        <span className="inline-flex h-5 items-center gap-1 rounded-full bg-emerald-50 px-1.5 text-[10px] font-semibold uppercase tracking-normal text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                          <span
+                            className="h-1.5 w-1.5 rounded-full bg-emerald-500"
+                            aria-hidden="true"
+                          />
                           Phiên hiện tại
                         </span>
                       ) : null}
                     </div>
                     <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-zinc-500">
-                      <span className="font-mono">
+                      <span className="font-mono tracking-normal">
                         IP: {s.ipAddress ?? "—"}
                       </span>
                       <span>Đăng nhập: {fmtAbs(s.issuedAt)}</span>
@@ -200,7 +191,7 @@ export default function SessionsPage() {
                         size="sm"
                         onClick={() => void handleRevoke(s.id)}
                         disabled={revokeOne.isPending}
-                        className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                        className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
                       >
                         Thu hồi
                       </Button>
@@ -213,7 +204,6 @@ export default function SessionsPage() {
         )}
       </div>
 
-      {/* Confirm dialog cho revoke-all-others */}
       <Dialog
         open={confirmRevokeAllOpen}
         onOpenChange={setConfirmRevokeAllOpen}
@@ -242,6 +232,6 @@ export default function SessionsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </AdminPageShell>
   );
 }

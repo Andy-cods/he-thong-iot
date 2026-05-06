@@ -10,8 +10,12 @@ import {
   Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { useEmployeeReport, type EmployeeReport, type ProductivityMetric } from "@/hooks/useReports";
+import { AdminPageShell } from "@/components/admin/AdminPageShell";
+import {
+  useEmployeeReport,
+  type EmployeeReport,
+  type ProductivityMetric,
+} from "@/hooks/useReports";
 import { useUsersList } from "@/hooks/useAdmin";
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/format";
@@ -68,124 +72,146 @@ export default function EmployeeProductivityPage() {
   };
 
   return (
-    <div className="flex h-full flex-col overflow-auto bg-zinc-50">
-      <header className="border-b border-zinc-200 bg-white px-6 py-4">
-        <nav aria-label="Breadcrumb" className="text-xs text-zinc-500">
-          <Link href="/" className="hover:text-zinc-900 hover:underline">
-            Tổng quan
+    <AdminPageShell
+      breadcrumb={[
+        { label: "Trang chủ", href: "/" },
+        { label: "Quản trị", href: "/admin" },
+        { label: "Báo cáo năng suất" },
+      ]}
+      title="Báo cáo năng suất nhân viên"
+      description="Theo dõi hoạt động, sản lượng và mức độ đạt KPI của từng nhân viên theo tháng."
+      actions={
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleExport}
+            disabled={!selectedUserId}
+          >
+            <Download className="h-3.5 w-3.5" aria-hidden="true" />
+            Export Excel
+          </Button>
+          <Link
+            href="/admin/reports/department"
+            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:border-indigo-300 hover:text-indigo-700"
+          >
+            <Users className="h-3.5 w-3.5" aria-hidden="true" />
+            Xem theo bộ phận
           </Link>
-          <span className="mx-1.5 text-zinc-300">›</span>
-          <Link href="/admin" className="hover:text-zinc-900 hover:underline">
-            Quản trị
-          </Link>
-          <span className="mx-1.5 text-zinc-300">›</span>
-          <span className="font-medium text-zinc-900">Báo cáo năng suất</span>
-        </nav>
-        <div className="mt-1.5 flex items-center justify-between">
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
-            Báo cáo năng suất nhân viên
-          </h1>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleExport}
-              disabled={!selectedUserId}
+        </div>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        {/* Filter bar */}
+        <section className="flex flex-wrap items-end gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <FilterField label="Nhân viên">
+            <FilterSelect
+              value={selectedUserId ?? ""}
+              onChange={(e) => setSelectedUserId(e.target.value || null)}
+              className="min-w-[280px]"
             >
-              <Download className="h-3.5 w-3.5" />
-              Export Excel
-            </Button>
-            <Link
-              href="/admin/reports/department"
-              className="inline-flex h-8 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2.5 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50"
+              <option value="">— Chọn nhân viên —</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.fullName} · {u.username}
+                </option>
+              ))}
+            </FilterSelect>
+          </FilterField>
+          <FilterField label="Tháng">
+            <FilterSelect
+              value={month}
+              onChange={(e) => setMonth(Number(e.target.value))}
+              className="w-28"
             >
-              <Users className="h-3.5 w-3.5" />
-              Xem theo bộ phận
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      {/* Filter bar */}
-      <div className="flex flex-wrap items-end gap-3 border-b border-zinc-200 bg-white px-6 py-3">
-        <div className="space-y-1">
-          <Label className="text-[10px] uppercase">Nhân viên</Label>
-          <select
-            value={selectedUserId ?? ""}
-            onChange={(e) => setSelectedUserId(e.target.value || null)}
-            className="h-9 min-w-[280px] rounded-md border border-zinc-200 bg-white px-3 text-[13px]"
-          >
-            <option value="">— Chọn nhân viên —</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.fullName} · {u.username}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="space-y-1">
-          <Label className="text-[10px] uppercase">Tháng</Label>
-          <select
-            value={month}
-            onChange={(e) => setMonth(Number(e.target.value))}
-            className="h-9 w-24 rounded-md border border-zinc-200 bg-white px-3 text-[13px]"
-          >
-            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-              <option key={m} value={m}>
-                Tháng {m}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="space-y-1">
-          <Label className="text-[10px] uppercase">Năm</Label>
-          <select
-            value={year}
-            onChange={(e) => setYear(Number(e.target.value))}
-            className="h-9 w-24 rounded-md border border-zinc-200 bg-white px-3 text-[13px]"
-          >
-            {[initial.year, initial.year - 1, initial.year - 2].map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex-1" />
-        <CompareToggle
-          users={users}
-          selectedUserId={selectedUserId}
-          compareIds={compareIds}
-          setCompareIds={setCompareIds}
-        />
-      </div>
-
-      <div className="mx-auto w-full max-w-[1200px] p-6">
-        {!selectedUserId ? (
-          <EmptyMessage text="Vui lòng chọn 1 nhân viên để xem báo cáo." />
-        ) : reportQuery.isLoading ? (
-          <div className="flex items-center gap-2 py-12 text-zinc-500">
-            <Loader2 className="h-4 w-4 animate-spin" /> Đang tải báo cáo…
-          </div>
-        ) : reportQuery.isError ? (
-          <EmptyMessage
-            text={`Lỗi: ${(reportQuery.error as Error)?.message ?? "Không tải được"}`}
-            isError
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                <option key={m} value={m}>
+                  Tháng {m}
+                </option>
+              ))}
+            </FilterSelect>
+          </FilterField>
+          <FilterField label="Năm">
+            <FilterSelect
+              value={year}
+              onChange={(e) => setYear(Number(e.target.value))}
+              className="w-24"
+            >
+              {[initial.year, initial.year - 1, initial.year - 2].map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </FilterSelect>
+          </FilterField>
+          <div className="flex-1" />
+          <CompareToggle
+            users={users}
+            selectedUserId={selectedUserId}
+            compareIds={compareIds}
+            setCompareIds={setCompareIds}
           />
-        ) : data ? (
-          <ReportView data={data} />
-        ) : null}
+        </section>
 
-        {compareIds.length > 0 ? (
-          <CompareSection
-            userIds={compareIds.filter((id) => id !== selectedUserId)}
-            year={year}
-            month={month}
-            primaryReport={data}
-          />
-        ) : null}
+        <div>
+          {!selectedUserId ? (
+            <EmptyMessage text="Vui lòng chọn 1 nhân viên để xem báo cáo." />
+          ) : reportQuery.isLoading ? (
+            <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white p-12 text-zinc-500 shadow-sm">
+              <Loader2 className="h-4 w-4 animate-spin" /> Đang tải báo cáo…
+            </div>
+          ) : reportQuery.isError ? (
+            <EmptyMessage
+              text={`Lỗi: ${(reportQuery.error as Error)?.message ?? "Không tải được"}`}
+              isError
+            />
+          ) : data ? (
+            <ReportView data={data} />
+          ) : null}
+
+          {compareIds.length > 0 ? (
+            <CompareSection
+              userIds={compareIds.filter((id) => id !== selectedUserId)}
+              year={year}
+              month={month}
+              primaryReport={data}
+            />
+          ) : null}
+        </div>
       </div>
+    </AdminPageShell>
+  );
+}
+
+function FilterField({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1">
+      <label className="block text-[11px] font-semibold uppercase tracking-normal text-zinc-500">
+        {label}
+      </label>
+      {children}
     </div>
+  );
+}
+
+function FilterSelect({
+  className,
+  ...rest
+}: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      {...rest}
+      className={cn(
+        "h-9 rounded-md border border-zinc-200 bg-white px-3 text-sm tracking-normal text-zinc-900 outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100",
+        className,
+      )}
+    />
   );
 }
 
@@ -465,7 +491,9 @@ function CompareToggle({
   const [open, setOpen] = React.useState(false);
   return (
     <div className="space-y-1">
-      <Label className="text-[10px] uppercase">So sánh thêm (max 2)</Label>
+      <label className="block text-[11px] font-semibold uppercase tracking-normal text-zinc-500">
+        So sánh thêm (max 2)
+      </label>
       <div className="relative">
         <button
           type="button"
