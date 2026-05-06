@@ -364,6 +364,7 @@ function buildComProgressMap(
           };
           totalRequired?: string;
           totalPurchased?: string;
+          totalAvailable?: string;
         }>;
       }
     | undefined,
@@ -402,11 +403,15 @@ function buildComProgressMap(
   > = {};
   for (const c of summary.componentStatuses) {
     if (c.milestones === undefined) continue;
+    // V3.7.60 — sub-label dùng max(purchased, available) để tính đúng cả khi
+    // Kho adjust trực tiếp (không qua PO) — purchased=0 nhưng available>0.
+    const purchased = Number(c.totalPurchased ?? 0);
+    const available = Number(c.totalAvailable ?? 0);
     map[c.componentItemId] = {
       pct: c.pct ?? 0,
       milestones: c.milestones,
       requiredQty: Number(c.totalRequired ?? 0),
-      purchasedQty: Number(c.totalPurchased ?? 0),
+      purchasedQty: Math.max(purchased, available),
     };
   }
   return map;

@@ -226,15 +226,16 @@ export async function computeTemplateDerivedStatus(
 
     let pct = 0;
     if (required > 0) {
-      if (milestones.issued) pct = 100;
-      else if (milestones.available) {
-        const issuedRatio = Math.min(1, issued / required);
-        pct = 80 + issuedRatio * 20;
+      // V3.7.60 — Đủ hàng (AVAILABLE) hoặc Đã xuất (ISSUED) đều = 100%.
+      // ISSUED hiển thị label/màu khác để phân biệt, không cần gradient pct.
+      if (milestones.issued || milestones.available) {
+        pct = 100;
       } else if (milestones.purchased) {
+        // 60-100: đã nhận đủ, đang chờ chuyển sang available
         const availRatio = Math.min(1, availableMerged / required);
-        pct = 60 + availRatio * 20;
+        pct = 60 + availRatio * 40;
       } else if (received > 0 || stockNet > 0) {
-        // Mở rộng: stockNet đóng góp vào "received-like" (đã có hàng nhưng chưa đủ).
+        // 30-60: stockNet/received chưa đủ
         const recvRatio = Math.min(1, (received + stockNet) / required);
         pct = 30 + recvRatio * 30;
       } else if (milestones.purchasing) {
