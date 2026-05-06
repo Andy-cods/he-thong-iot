@@ -1,9 +1,22 @@
 # Employee Productivity Tracking — Spec
 
-**Version**: V1 draft · 2026-05-06
-**Status**: 🟡 Pending review
+**Version**: V2 (user-approved) · 2026-05-06
+**Status**: ✅ Approved — implementing Phase 1
 **Author**: Engineering team
-**Targets release**: V3.8.x (sau khi user approve spec)
+**Targets release**: V3.8.x
+
+## ✅ User decisions (2026-05-06)
+
+| # | Câu hỏi | Quyết định |
+|---|---|---|
+| 1 | Quyền xem report | **Chỉ admin** (V1) — không cấp manager/trưởng bộ phận |
+| 2 | Operator metrics | **Cả 2** — `production_qty_good` (sản lượng) + `wo_completed` (số lệnh) |
+| 3 | Compare 2-3 user | **Phase 1** (làm cùng Phase 1) |
+| 4 | KPI/Target | **Bổ sung sau** — admin có thể chỉnh sửa được (cần bảng `report_target` Phase 2/3) |
+| 5 | Self-view `/me/productivity` | **V2** (không làm V1) |
+| 6 | Export | **Excel only** (không làm PDF V1) |
+
+→ V1 simplified: chỉ admin, không self-view, không KPI baseline. Compare mode + Excel export trong Phase 1.
 
 ---
 

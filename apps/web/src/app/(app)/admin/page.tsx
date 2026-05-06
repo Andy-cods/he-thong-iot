@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   Activity,
   AlertTriangle,
+  BarChart3,
   ChevronRight,
   Database,
   FileText,
@@ -240,16 +241,16 @@ export default function AdminIndexPage() {
           description="Tạo / sửa / khóa tài khoản"
         />
         <QuickLink
+          href="/admin/reports/employee-productivity"
+          icon={<BarChart3 className="h-4 w-4" aria-hidden="true" />}
+          title="Báo cáo năng suất"
+          description="Theo dõi nhân viên · bộ phận"
+        />
+        <QuickLink
           href="/admin/audit"
           icon={<FileText className="h-4 w-4" aria-hidden="true" />}
           title="Audit log"
           description="Nhật ký thao tác hệ thống"
-        />
-        <QuickLink
-          href="/admin/settings/sessions"
-          icon={<Monitor className="h-4 w-4" aria-hidden="true" />}
-          title="Phiên làm việc"
-          description="Phiên hoạt động của bạn"
         />
         <QuickLink
           href="/admin/settings"

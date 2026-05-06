@@ -34,7 +34,8 @@ export type RbacEntity =
   | "audit"
   | "user"
   | "session"
-  | "inventory";
+  | "inventory"
+  | "report";
 
 /** Partial vì không phải role nào cũng có action trên mọi entity. */
 type Matrix = Record<Role, Partial<Record<RbacEntity, RbacAction[]>>>;
@@ -66,6 +67,8 @@ export const RBAC_MATRIX: Matrix = {
     user: ["create", "read", "update", "delete"],
     session: ["read", "delete"],
     inventory: ["create", "read", "update", "delete"],
+    // V3.7.61 — báo cáo năng suất nhân viên: chỉ admin xem được V1.
+    report: ["read"],
   },
   planner: {
     item: ["create", "read", "update"],
@@ -157,6 +160,7 @@ export const RBAC_ENTITIES: RbacEntity[] = [
   "user",
   "session",
   "inventory",
+  "report",
 ];
 
 export const RBAC_ACTIONS: RbacAction[] = [
