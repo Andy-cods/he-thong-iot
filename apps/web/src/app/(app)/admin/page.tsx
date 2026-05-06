@@ -247,6 +247,12 @@ export default function AdminIndexPage() {
           description="Theo dõi nhân viên · bộ phận"
         />
         <QuickLink
+          href="/admin/reports/targets"
+          icon={<BarChart3 className="h-4 w-4" aria-hidden="true" />}
+          title="KPI Targets"
+          description="Set mục tiêu năng suất"
+        />
+        <QuickLink
           href="/admin/audit"
           icon={<FileText className="h-4 w-4" aria-hidden="true" />}
           title="Audit log"

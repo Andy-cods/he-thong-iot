@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
+  BarChart3,
   ChevronDown,
   LogOut,
   Settings as SettingsIcon,
@@ -105,6 +107,12 @@ export function UserMenu({
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/me/productivity">
+            <BarChart3 className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden="true" />
+            <span>Năng suất của tôi</span>
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuItem disabled>
           <User className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden="true" />
           <span>Hồ sơ</span>

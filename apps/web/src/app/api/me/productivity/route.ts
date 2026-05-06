@@ -3,24 +3,19 @@ import { z } from "zod";
 import { logger } from "@/lib/logger";
 import { getEmployeeProductivity } from "@/server/repos/employeeProductivity";
 import { jsonError, parseSearchParams } from "@/server/http";
-import { requireCan } from "@/server/session";
+import { requireSession } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * V3.7.61 — GET /api/reports/employee/[userId]
+ * V3.7.62 — GET /api/me/productivity
  *
- * Báo cáo năng suất 1 user trong khoảng thời gian (mặc định = tháng hiện tại VN).
+ * Self-view báo cáo năng suất của user hiện tại. Mọi role đã login đều xem
+ * được report của chính họ (không cần RBAC report.read — chỉ cần session).
  *
- * Spec: docs/employee-productivity-spec.md
- * RBAC: report.read (chỉ admin V1).
- *
- * Query:
- *   from?: ISO date string  (default: đầu tháng hiện tại)
- *   to?:   ISO date string  (default: đầu tháng kế tiếp = exclusive bound)
- *   year?: number (alt: chọn năm)
- *   month?: number 1-12 (kết hợp year)
+ * Spec section 8.6: "Privacy & access control" — log mỗi self-view nếu cần
+ * compliance (V2 add audit_event action=READ_OWN_REPORT).
  */
 
 const querySchema = z.object({
@@ -31,23 +26,15 @@ const querySchema = z.object({
   quarter: z.coerce.number().int().min(1).max(4).optional(),
 });
 
-/**
- * Tính range mặc định = tháng hiện tại theo Asia/Ho_Chi_Minh.
- */
-function defaultMonthRange(): { from: Date; to: Date } {
-  const nowUtc = new Date();
-  const vnNow = new Date(nowUtc.getTime() + 7 * 3600_000);
-  const year = vnNow.getUTCFullYear();
-  const month = vnNow.getUTCMonth();
-  const fromVnEpoch = Date.UTC(year, month, 1, 0, 0, 0) - 7 * 3600_000;
-  const toVnEpoch = Date.UTC(year, month + 1, 1, 0, 0, 0) - 7 * 3600_000;
-  return { from: new Date(fromVnEpoch), to: new Date(toVnEpoch) };
-}
-
-function explicitMonthRange(year: number, month: number) {
-  const fromVnEpoch = Date.UTC(year, month - 1, 1, 0, 0, 0) - 7 * 3600_000;
-  const toVnEpoch = Date.UTC(year, month, 1, 0, 0, 0) - 7 * 3600_000;
-  return { from: new Date(fromVnEpoch), to: new Date(toVnEpoch) };
+function defaultMonthRange() {
+  const now = new Date();
+  const vn = new Date(now.getTime() + 7 * 3600_000);
+  const y = vn.getUTCFullYear();
+  const m = vn.getUTCMonth();
+  return {
+    from: new Date(Date.UTC(y, m, 1) - 7 * 3600_000),
+    to: new Date(Date.UTC(y, m + 1, 1) - 7 * 3600_000),
+  };
 }
 
 function quarterRange(year: number, q: number) {
@@ -65,16 +52,16 @@ function yearRange(year: number) {
   };
 }
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { userId: string } },
-) {
-  const guard = await requireCan(req, "read", "report");
-  if ("response" in guard) return guard.response;
+function explicitMonthRange(year: number, month: number) {
+  return {
+    from: new Date(Date.UTC(year, month - 1, 1) - 7 * 3600_000),
+    to: new Date(Date.UTC(year, month, 1) - 7 * 3600_000),
+  };
+}
 
-  if (!/^[0-9a-f-]{36}$/i.test(params.userId)) {
-    return jsonError("BAD_REQUEST", "userId không hợp lệ.", 400);
-  }
+export async function GET(req: NextRequest) {
+  const guard = await requireSession(req);
+  if ("response" in guard) return guard.response;
 
   const q = parseSearchParams(req, querySchema);
   if ("response" in q) return q.response;
@@ -103,28 +90,25 @@ export async function GET(
   }
 
   if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
-    return jsonError("BAD_REQUEST", "from/to không hợp lệ.", 400);
+    return jsonError("BAD_REQUEST", "Khoảng thời gian không hợp lệ.", 400);
   }
   if (to.getTime() <= from.getTime()) {
     return jsonError("BAD_REQUEST", "to phải > from.", 400);
   }
-  // Cap range tối đa 1 năm
-  if (to.getTime() - from.getTime() > 366 * 24 * 3600 * 1000) {
-    return jsonError("BAD_REQUEST", "Khoảng thời gian tối đa 1 năm.", 400);
-  }
 
   try {
     const report = await getEmployeeProductivity({
-      userId: params.userId,
+      userId: guard.session.userId,
       from,
       to,
     });
-    if (!report) {
-      return jsonError("NOT_FOUND", "Không tìm thấy nhân viên.", 404);
-    }
+    if (!report) return jsonError("NOT_FOUND", "Không tìm thấy nhân viên.", 404);
     return NextResponse.json({ data: report });
   } catch (err) {
-    logger.error({ err, userId: params.userId }, "employee productivity report failed");
+    logger.error(
+      { err, userId: guard.session.userId },
+      "self productivity report failed",
+    );
     return jsonError("INTERNAL", "Không tạo được báo cáo.", 500);
   }
 }

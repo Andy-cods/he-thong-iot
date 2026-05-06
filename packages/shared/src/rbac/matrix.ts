@@ -67,8 +67,9 @@ export const RBAC_MATRIX: Matrix = {
     user: ["create", "read", "update", "delete"],
     session: ["read", "delete"],
     inventory: ["create", "read", "update", "delete"],
-    // V3.7.61 — báo cáo năng suất nhân viên: chỉ admin xem được V1.
-    report: ["read"],
+    // V3.7.61 admin có quyền xem report của bất kỳ user nào ("read").
+    // V3.7.62 thêm action `update` cho admin để CRUD KPI targets.
+    report: ["create", "read", "update", "delete"],
   },
   planner: {
     item: ["create", "read", "update"],

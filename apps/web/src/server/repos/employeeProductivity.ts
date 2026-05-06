@@ -1,4 +1,5 @@
-import { sql } from "drizzle-orm";
+import { sql, and, eq, inArray, or, isNull } from "drizzle-orm";
+import { reportTarget } from "@iot/db/schema";
 import { db } from "@/lib/db";
 
 /**
@@ -26,6 +27,14 @@ export interface ProductivityMetric {
   count: number;
   value: number | null;
   unit: string | null;
+  /** V3.7.62 — KPI target (admin set) cho metric này nếu có. */
+  target?: {
+    value: number;
+    comparison: "gte" | "lte";
+    achieved: boolean;
+    /** Tỉ lệ đạt được (% so với target). 100 = đạt, > 100 = vượt. */
+    achievementPct: number;
+  } | null;
 }
 
 export interface ProductivityReport {
@@ -51,6 +60,8 @@ export interface ProductivityReport {
   };
   metrics: ProductivityMetric[];
   chartDaily: Array<{ date: string; actions: number }>;
+  /** V3.7.62 — Trend 6 tháng gần nhất (cùng anchor `to`). */
+  trend6m: Array<{ month: string; label: string; actions: number }>;
   recentActions: Array<{
     timestamp: string;
     action: string;
@@ -242,7 +253,33 @@ export async function getEmployeeProductivity(
     ORDER BY days.d
   `)) as unknown as Array<{ d: string; n: number }>;
 
-  // 4. Recent 10 audit actions
+  // 4a. Trend 6 tháng gần nhất (anchor at `to` — kết thúc range hiện tại).
+  // Đếm audit_event count by month VN tz, lùi 6 tháng từ ngày kết thúc.
+  const trendRows = (await db.execute(sql`
+    WITH params AS (
+      SELECT ${userId}::uuid AS uid, ${to.toISOString()}::timestamptz AS p_to
+    ),
+    months AS (
+      SELECT generate_series(
+        date_trunc('month', ((SELECT p_to FROM params) AT TIME ZONE 'Asia/Ho_Chi_Minh')::date - interval '6 months'),
+        date_trunc('month', ((SELECT p_to FROM params) AT TIME ZONE 'Asia/Ho_Chi_Minh')::date - interval '1 month'),
+        interval '1 month'
+      )::date AS m
+    ),
+    by_month AS (
+      SELECT
+        date_trunc('month', occurred_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date AS m,
+        COUNT(*)::int AS n
+      FROM app.audit_event, params
+      WHERE actor_user_id = uid
+      GROUP BY 1
+    )
+    SELECT to_char(months.m, 'YYYY-MM') AS month, COALESCE(by_month.n, 0) AS actions
+    FROM months LEFT JOIN by_month USING (m)
+    ORDER BY months.m
+  `)) as unknown as Array<{ month: string; actions: number }>;
+
+  // 4b. Recent 10 audit actions
   const recentRows = (await db.execute(sql`
     SELECT
       to_char(occurred_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD HH24:MI') AS ts,
@@ -342,6 +379,58 @@ export async function getEmployeeProductivity(
     { id: "audit_total", label: "Tổng action audit", count: num("audit_total"), value: null, unit: null },
   );
 
+  // V3.7.62 — Attach KPI targets cho metrics matched (role + period_type).
+  // Period type guess theo độ dài range: monthly (< 35d) / quarterly (< 100d) / yearly.
+  const rangeDays = (to.getTime() - from.getTime()) / 86400_000;
+  const periodType = rangeDays < 35 ? "monthly" : rangeDays < 100 ? "quarterly" : "yearly";
+
+  const targets = await db
+    .select()
+    .from(reportTarget)
+    .where(
+      and(
+        eq(reportTarget.isActive, true),
+        eq(reportTarget.periodType, periodType),
+        or(
+          isNull(reportTarget.roleCode),
+          inArray(reportTarget.roleCode, roles.length > 0 ? roles : ["__none__"]),
+        ),
+      ),
+    );
+
+  const targetMap = new Map<string, typeof targets[0]>();
+  for (const t of targets) {
+    // Prefer specific role over null (mọi role)
+    const existing = targetMap.get(t.metricId);
+    if (!existing || (existing.roleCode === null && t.roleCode !== null)) {
+      targetMap.set(t.metricId, t);
+    }
+  }
+
+  for (const m of metrics) {
+    const t = targetMap.get(m.id);
+    if (!t) {
+      m.target = null;
+      continue;
+    }
+    const targetVal = Number(t.targetValue) || 0;
+    const actual = m.value ?? m.count;
+    const achieved =
+      t.comparison === "gte" ? actual >= targetVal : actual <= targetVal;
+    const achievementPct =
+      targetVal > 0
+        ? Math.round((actual / targetVal) * 100)
+        : actual === 0
+          ? 100
+          : 0;
+    m.target = {
+      value: targetVal,
+      comparison: t.comparison as "gte" | "lte",
+      achieved,
+      achievementPct,
+    };
+  }
+
   return {
     user: {
       id: user.id,
@@ -365,6 +454,14 @@ export async function getEmployeeProductivity(
     },
     metrics,
     chartDaily: dailyRows.map((r) => ({ date: r.d, actions: Number(r.n) || 0 })),
+    trend6m: trendRows.map((r) => {
+      const [y, m] = r.month.split("-");
+      return {
+        month: r.month,
+        label: `T${parseInt(m!, 10)}/${y}`,
+        actions: Number(r.actions) || 0,
+      };
+    }),
     recentActions: recentRows.map((r) => ({
       timestamp: r.ts,
       action: r.action,

@@ -288,10 +288,35 @@ function HeroCard({ data }: { data: EmployeeReport }) {
 
 function MetricCard({ metric }: { metric: ProductivityMetric }) {
   const showValue = metric.value != null && metric.value > 0;
+  const t = metric.target;
   return (
-    <div className="rounded-md border border-zinc-200 bg-white px-3 py-3 shadow-sm">
-      <div className="text-[10px] uppercase tracking-wide text-zinc-500">
-        {metric.label}
+    <div
+      className={cn(
+        "rounded-md border bg-white px-3 py-3 shadow-sm transition-colors",
+        t?.achieved
+          ? "border-emerald-300 ring-1 ring-emerald-100"
+          : t && !t.achieved
+            ? "border-rose-200"
+            : "border-zinc-200",
+      )}
+    >
+      <div className="flex items-start justify-between gap-1">
+        <div className="text-[10px] uppercase tracking-wide text-zinc-500">
+          {metric.label}
+        </div>
+        {t ? (
+          <span
+            className={cn(
+              "rounded px-1 py-0.5 text-[9px] font-bold uppercase tracking-wide",
+              t.achieved
+                ? "bg-emerald-100 text-emerald-700"
+                : "bg-rose-100 text-rose-700",
+            )}
+            title={`Target ${t.comparison === "gte" ? "≥" : "≤"} ${t.value}`}
+          >
+            {t.achieved ? "✓ đạt" : "✗ chưa"}
+          </span>
+        ) : null}
       </div>
       <div className="mt-1 flex items-baseline gap-1.5">
         <span className="text-2xl font-bold text-zinc-900 tabular-nums">
@@ -304,6 +329,21 @@ function MetricCard({ metric }: { metric: ProductivityMetric }) {
       {showValue && metric.count > 0 ? (
         <div className="mt-0.5 text-[11px] text-zinc-500">
           {metric.count} {metric.count === 1 ? "lần" : "lượt"}
+        </div>
+      ) : null}
+      {t ? (
+        <div className="mt-1 text-[10px] text-zinc-500">
+          Target {t.comparison === "gte" ? "≥" : "≤"}{" "}
+          <strong className="text-zinc-700">{formatNumber(t.value)}</strong>
+          {" · "}
+          <span
+            className={cn(
+              "font-semibold",
+              t.achieved ? "text-emerald-700" : "text-rose-700",
+            )}
+          >
+            {t.achievementPct}%
+          </span>
         </div>
       ) : null}
     </div>
