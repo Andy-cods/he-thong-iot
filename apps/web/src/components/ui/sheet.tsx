@@ -101,7 +101,7 @@ export const SheetContent = React.forwardRef<
       <DialogPrimitive.Content
         ref={ref}
         className={cn(
-          "fixed z-dialog flex flex-col bg-white border-zinc-200 shadow-lg duration-200 ease-[cubic-bezier(0.25,1,0.5,1)]",
+          "fixed z-dialog flex flex-col bg-white border-zinc-200 shadow-lg duration-200 ease-[cubic-bezier(0.25,1,0.5,1)] dark:bg-zinc-900 dark:border-zinc-800",
           "data-[state=open]:animate-in data-[state=closed]:animate-out",
           sideClasses[side],
           sizeClasses[side][size],
@@ -113,7 +113,7 @@ export const SheetContent = React.forwardRef<
         {hideCloseButton ? null : (
           <DialogPrimitive.Close
             className={cn(
-              "absolute right-3 top-3 inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition-colors duration-100 hover:bg-zinc-100 hover:text-zinc-900",
+              "absolute right-3 top-3 inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition-colors duration-100 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50",
               "focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
             )}
           >
@@ -133,7 +133,7 @@ export const SheetHeader = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex h-12 shrink-0 items-center justify-between border-b border-zinc-100 px-5",
+      "flex h-12 shrink-0 items-center justify-between border-b border-zinc-100 px-5 dark:border-zinc-800",
       className,
     )}
     {...props}
@@ -155,7 +155,7 @@ export const SheetFooter = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex h-14 shrink-0 items-center justify-end gap-2 border-t border-zinc-100 px-5",
+      "flex h-14 shrink-0 items-center justify-end gap-2 border-t border-zinc-100 px-5 dark:border-zinc-800",
       className,
     )}
     {...props}
@@ -169,7 +169,7 @@ export const SheetTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
-    className={cn("text-lg font-semibold text-zinc-900", className)}
+    className={cn("text-lg font-semibold text-zinc-900 dark:text-zinc-50", className)}
     {...props}
   />
 ));
@@ -181,7 +181,7 @@ export const SheetDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
-    className={cn("text-base text-zinc-500", className)}
+    className={cn("text-base text-zinc-500 dark:text-zinc-400", className)}
     {...props}
   />
 ));

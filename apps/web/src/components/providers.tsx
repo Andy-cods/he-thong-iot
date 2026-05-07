@@ -4,6 +4,7 @@ import * as React from "react";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { QueryProvider } from "./providers/QueryProvider";
 import { SonnerProvider } from "./providers/SonnerProvider";
+import { ThemeProvider } from "./providers/ThemeProvider";
 
 /**
  * Direction B — root provider tree.
@@ -15,11 +16,13 @@ import { SonnerProvider } from "./providers/SonnerProvider";
  */
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <NuqsAdapter>
-      <QueryProvider>
-        {children}
-        <SonnerProvider />
-      </QueryProvider>
-    </NuqsAdapter>
+    <ThemeProvider>
+      <NuqsAdapter>
+        <QueryProvider>
+          {children}
+          <SonnerProvider />
+        </QueryProvider>
+      </NuqsAdapter>
+    </ThemeProvider>
   );
 }

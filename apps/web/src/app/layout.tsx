@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
+import { THEME_INIT_SCRIPT } from "@/components/providers/ThemeProvider";
 import "./globals.css";
 
 // V2 — chỉ Inter + JetBrains Mono (bỏ Be Vietnam Pro).
@@ -80,7 +81,11 @@ export default function RootLayout({
     <html
       lang="vi"
       className={`${inter.variable} ${jetbrainsMono.variable}`}
+      suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body>
         <a href="#main" className="skip-link">
           Bỏ qua, đến nội dung chính

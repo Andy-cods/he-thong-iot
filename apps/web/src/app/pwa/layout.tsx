@@ -28,7 +28,7 @@ export default async function PwaLayout({
   const username = payload.usr ?? payload.sub ?? "User";
 
   return (
-    <div className="min-h-screen bg-zinc-50">
+    <div data-route="pwa" className="min-h-screen bg-zinc-50 text-zinc-900">
       <header className="sticky top-0 z-topbar flex h-12 items-center gap-3 border-b border-zinc-200 bg-white px-4">
         <div className="flex items-center gap-1.5">
           <Factory

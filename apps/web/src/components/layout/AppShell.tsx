@@ -71,7 +71,7 @@ export function AppShell({ user, navItems = NAV_ITEMS, children }: AppShellProps
   }, [router]);
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-zinc-50">
+    <div className="flex min-h-screen w-full flex-col bg-zinc-50 dark:bg-zinc-950">
 
       {/* ══ TOP BAR với horizontal nav ══ */}
       <TopBar
@@ -98,21 +98,21 @@ export function AppShell({ user, navItems = NAV_ITEMS, children }: AppShellProps
                 return (
                   <li key={item.href}>
                     {item.disabled ? (
-                      <span className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-zinc-400 cursor-not-allowed">
+                      <span className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-zinc-400 cursor-not-allowed dark:text-zinc-600">
                         <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
                         <span className="flex-1">{item.label}</span>
-                        {item.badge && <span className="text-[10px] bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded">{item.badge}</span>}
+                        {item.badge && <span className="text-[10px] bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded dark:bg-zinc-800 dark:text-zinc-400">{item.badge}</span>}
                       </span>
                     ) : (
                       <Link href={item.href}
                         className={cn(
                           "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                           isActive
-                            ? "bg-indigo-50 text-indigo-700"
-                            : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900",
+                            ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300"
+                            : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50",
                         )}
                       >
-                        <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-indigo-600" : "text-zinc-500")} strokeWidth={1.75} />
+                        <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-indigo-600 dark:text-indigo-400" : "text-zinc-500 dark:text-zinc-500")} strokeWidth={1.75} />
                         <span className="flex-1">{item.label}</span>
                       </Link>
                     )}

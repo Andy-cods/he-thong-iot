@@ -66,13 +66,14 @@ export function UserMenu({
           "inline-flex h-8 items-center gap-1.5 rounded-md px-1.5 text-base text-zinc-700 transition-colors duration-100",
           "hover:bg-zinc-100",
           "focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
+          "dark:text-zinc-300 dark:hover:bg-zinc-800",
           className,
         )}
         aria-label="Tài khoản người dùng"
       >
         <span
           aria-hidden="true"
-          className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-200 text-[10px] font-semibold text-zinc-700"
+          className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-200 text-[10px] font-semibold text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200"
         >
           {user.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -89,44 +90,44 @@ export function UserMenu({
           {user.fullName || user.username}
         </span>
         <ChevronDown
-          className="h-3.5 w-3.5 text-zinc-400"
+          className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500"
           aria-hidden="true"
         />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-[220px]">
         <DropdownMenuLabel className="normal-case tracking-normal">
           <div className="space-y-0.5">
-            <div className="text-base font-semibold text-zinc-900">
+            <div className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
               {user.fullName || user.username}
             </div>
-            <div className="text-sm text-zinc-500">@{user.username}</div>
-            <div className="text-sm text-zinc-500">
+            <div className="text-sm text-zinc-500 dark:text-zinc-400">@{user.username}</div>
+            <div className="text-sm text-zinc-500 dark:text-zinc-400">
               Vai trò:{" "}
-              <span className="font-medium text-zinc-700">{roleLabel}</span>
+              <span className="font-medium text-zinc-700 dark:text-zinc-200">{roleLabel}</span>
             </div>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link href="/me/productivity">
-            <BarChart3 className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden="true" />
+            <BarChart3 className="h-3.5 w-3.5 shrink-0 text-zinc-500 dark:text-zinc-400" aria-hidden="true" />
             <span>Năng suất của tôi</span>
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link href="/me/profile">
-            <User className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden="true" />
+            <User className="h-3.5 w-3.5 shrink-0 text-zinc-500 dark:text-zinc-400" aria-hidden="true" />
             <span>Hồ sơ</span>
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link href="/me/settings">
-            <SettingsIcon className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden="true" />
+            <SettingsIcon className="h-3.5 w-3.5 shrink-0 text-zinc-500 dark:text-zinc-400" aria-hidden="true" />
             <span>Cài đặt</span>
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuLabel className="normal-case tracking-normal text-zinc-400">
+        <DropdownMenuLabel className="normal-case tracking-normal text-zinc-400 dark:text-zinc-500">
           Phiên bản {version}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />

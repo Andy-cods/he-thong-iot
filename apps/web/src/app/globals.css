@@ -9,6 +9,8 @@
  * ============================================================ */
 @layer base {
   :root {
+    color-scheme: light;
+
     /* Background layers */
     --bg-page: #fafafa;
     --bg-card: #ffffff;
@@ -92,20 +94,89 @@
     --bg-page: #f7f7f8;
   }
 
-  /* Dark mode reserve — NOT ACTIVATED V2.0 */
+  /* ============================================================
+   * Dark mode — V3.7.67 activated.
+   * Tone: zinc-950 page · zinc-900 card · indigo-400 accent.
+   * PWA route bị lock light qua [data-route="pwa"] override (cuối block).
+   * ============================================================ */
   [data-theme="dark"] {
-    --bg-page: #09090b;
-    --bg-card: #18181b;
-    --bg-muted: #27272a;
-    --border-subtle: #27272a;
-    --border-strong: #3f3f46;
-    --text-primary: #fafafa;
-    --text-secondary: #d4d4d8;
-    --text-muted: #a1a1aa;
+    color-scheme: dark;
+
+    /* Background layers */
+    --bg-page: #09090b;       /* zinc-950 */
+    --bg-card: #18181b;       /* zinc-900 */
+    --bg-muted: #27272a;      /* zinc-800 */
+    --bg-hover: #27272a;
+    --bg-elevated: #1f1f22;   /* between 900 và 800 */
+
+    /* Borders */
+    --border-subtle: #27272a; /* zinc-800 */
+    --border-strong: #3f3f46; /* zinc-700 */
+    --border-focus: #818cf8;  /* indigo-400 */
+
+    /* Text */
+    --text-primary: #fafafa;     /* zinc-50 */
+    --text-secondary: #d4d4d8;   /* zinc-300 */
+    --text-muted: #a1a1aa;       /* zinc-400 */
+    --text-placeholder: #71717a; /* zinc-500 */
+    --text-inverse: #18181b;     /* zinc-900 */
+    --text-link: #93c5fd;        /* blue-300 */
+
+    /* Accent — sáng hơn light mode để đủ contrast trên nền tối */
     --accent: #818cf8;        /* indigo-400 */
     --accent-hover: #a5b4fc;  /* indigo-300 */
     --accent-press: #6366f1;  /* indigo-500 */
     --accent-soft: #1e1b4b;   /* indigo-950 */
+    --accent-ring: rgba(129, 140, 248, 0.45);
+
+    /* Semantic — strong giữ saturated, soft tối lại để hài hoà */
+    --success: #34d399;          /* emerald-400 */
+    --success-strong: #10b981;
+    --success-soft: #064e3b;     /* emerald-900 */
+    --warning: #fbbf24;          /* amber-400 */
+    --warning-strong: #f59e0b;
+    --warning-soft: #451a03;     /* amber-950 */
+    --danger: #f87171;           /* red-400 */
+    --danger-strong: #ef4444;
+    --danger-soft: #450a0a;      /* red-950 */
+    --info: #38bdf8;             /* sky-400 */
+    --info-strong: #0ea5e9;
+    --info-soft: #082f49;        /* sky-950 */
+    --shortage: #fb923c;         /* orange-400 */
+    --shortage-strong: #f97316;
+    --shortage-soft: #431407;    /* orange-950 */
+
+    /* Focus ring — dùng indigo-400 cho contrast trên nền tối */
+    --focus-ring: 2px solid #818cf8;
+    --focus-ring-pwa: 3px solid #a5b4fc;
+
+    /* Back-compat aliases */
+    --color-bg-base: #09090b;
+    --color-bg-card: #18181b;
+    --color-bg-zebra: #27272a;
+    --color-text-primary: #fafafa;
+    --color-text-muted: #a1a1aa;
+    --color-brand-ink: #fafafa;
+    --color-brand-steel: #d4d4d8;
+    --color-brand-mist: #3f3f46;
+    --color-cta: #818cf8;
+    --color-cta-hover: #a5b4fc;
+    --color-cta-press: #6366f1;
+    --color-success: #34d399;
+    --color-warning: #fbbf24;
+    --color-danger: #f87171;
+    --color-info: #38bdf8;
+    --ring-focus: 0 0 0 2px rgba(129, 140, 248, 0.55);
+
+    /* Shadow — đậm hơn (bóng đen vẫn nhìn được trên nền tối) */
+    --shadow-card: 0 1px 2px rgba(0,0,0,0.4), 0 1px 4px rgba(0,0,0,0.3);
+    --shadow-card-hover: 0 4px 12px rgba(0,0,0,0.5);
+  }
+
+  /* PWA luôn light — outdoor visibility + scan flash xanh/đỏ */
+  [data-route="pwa"],
+  [data-theme="dark"] [data-route="pwa"] {
+    color-scheme: light;
   }
 
   html {
@@ -120,7 +191,7 @@
   }
 
   body {
-    @apply min-h-screen bg-zinc-50 text-zinc-900 text-base leading-[1.4];
+    @apply min-h-screen bg-zinc-50 text-zinc-900 text-base leading-[1.4] dark:bg-zinc-950 dark:text-zinc-50;
   }
 
   h1,
@@ -130,7 +201,7 @@
   h5,
   h6 {
     font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
-    @apply text-zinc-900 tracking-tight;
+    @apply text-zinc-900 tracking-tight dark:text-zinc-50;
   }
 
   h1 {
@@ -371,7 +442,7 @@
 
   /* Skeleton shimmer */
   .skeleton {
-    @apply relative overflow-hidden rounded-md bg-zinc-100;
+    @apply relative overflow-hidden rounded-md bg-zinc-100 dark:bg-zinc-800;
     background-image: linear-gradient(
       90deg,
       transparent 0%,
@@ -380,6 +451,14 @@
     );
     background-size: 200% 100%;
     animation: shimmer-sm 1200ms linear infinite;
+  }
+  [data-theme="dark"] .skeleton {
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.06) 50%,
+      transparent 100%
+    );
   }
 
   /* Tabular numbers (Inter cv11 + ss01 + tnum) */
@@ -416,10 +495,10 @@
 
   /* Card interactive hover */
   .card-interactive {
-    @apply border border-zinc-200 bg-white transition-all duration-150 ease-[cubic-bezier(0.25,1,0.5,1)];
+    @apply border border-zinc-200 bg-white transition-all duration-150 ease-[cubic-bezier(0.25,1,0.5,1)] dark:border-zinc-800 dark:bg-zinc-900;
   }
   .card-interactive:hover {
-    @apply border-zinc-300 shadow-xs;
+    @apply border-zinc-300 shadow-xs dark:border-zinc-700;
     transform: translateY(-1px);
   }
 
@@ -428,10 +507,10 @@
     @apply transition-colors duration-100 ease-out;
   }
   .row-hover:hover {
-    @apply bg-zinc-50;
+    @apply bg-zinc-50 dark:bg-zinc-800/60;
   }
   .row-selected {
-    @apply bg-indigo-50 border-l-2 border-indigo-500;
+    @apply bg-indigo-50 border-l-2 border-indigo-500 dark:bg-indigo-950/40 dark:border-indigo-400;
   }
 
   /* ============================================================
