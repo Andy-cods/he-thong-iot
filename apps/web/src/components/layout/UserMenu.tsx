@@ -113,15 +113,17 @@ export function UserMenu({
             <span>Năng suất của tôi</span>
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem disabled>
-          <User className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden="true" />
-          <span>Hồ sơ</span>
-          <span className="ml-auto text-xs text-zinc-400">V1.1</span>
+        <DropdownMenuItem asChild>
+          <Link href="/me/profile">
+            <User className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden="true" />
+            <span>Hồ sơ</span>
+          </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem disabled>
-          <SettingsIcon className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden="true" />
-          <span>Cài đặt</span>
-          <span className="ml-auto text-xs text-zinc-400">V1.1</span>
+        <DropdownMenuItem asChild>
+          <Link href="/me/settings">
+            <SettingsIcon className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden="true" />
+            <span>Cài đặt</span>
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="normal-case tracking-normal text-zinc-400">
