@@ -119,12 +119,12 @@ export function BomFilterBarPlus({
     SORT_OPTIONS.find((o) => o.v === sort)?.label ?? "Mới nhất";
 
   return (
-    <div className="border-b border-zinc-200 bg-white px-4 py-2.5">
+    <div className="border-b border-zinc-200 bg-white px-4 py-2.5 dark:border-zinc-800 dark:bg-zinc-900">
       <div className="flex flex-wrap items-center gap-2">
         {/* Search */}
         <div className="relative">
           <Search
-            className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400"
+            className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400 dark:text-zinc-500"
             aria-hidden="true"
           />
           <Input
@@ -151,8 +151,8 @@ export function BomFilterBarPlus({
             className={cn(
               "inline-flex h-8 items-center rounded-full border px-3 text-sm font-medium transition-colors",
               state.statuses.length === 0
-                ? "border-zinc-900 bg-zinc-900 text-white"
-                : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50",
+                ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
+                : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800",
             )}
           >
             Tất cả
@@ -168,15 +168,15 @@ export function BomFilterBarPlus({
                 className={cn(
                   "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors",
                   active
-                    ? "border-zinc-900 bg-zinc-900 text-white"
-                    : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50",
+                    ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
+                    : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800",
                 )}
               >
                 <span
                   aria-hidden="true"
                   className={cn(
                     "h-1.5 w-1.5 rounded-full",
-                    active ? "bg-white/90" : opt.dot,
+                    active ? "bg-white/90 dark:bg-zinc-900/90" : opt.dot,
                   )}
                 />
                 {opt.label}
@@ -193,14 +193,14 @@ export function BomFilterBarPlus({
               size="sm"
               className={cn(
                 "h-8 gap-1.5",
-                advancedCount > 0 && "border-indigo-300 bg-indigo-50 text-indigo-700",
+                advancedCount > 0 && "border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300",
               )}
               aria-label="Bộ lọc nâng cao"
             >
               <Filter className="h-3.5 w-3.5" aria-hidden="true" />
               Bộ lọc
               {advancedCount > 0 && (
-                <span className="ml-0.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-indigo-600 px-1 text-[10px] font-semibold tabular-nums text-white">
+                <span className="ml-0.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-indigo-600 px-1 text-[10px] font-semibold tabular-nums text-white dark:bg-indigo-500">
                   {advancedCount}
                 </span>
               )}
@@ -211,13 +211,13 @@ export function BomFilterBarPlus({
             className="w-[320px] space-y-4"
           >
             <div>
-              <div className="mb-2 flex items-center gap-2 text-sm font-medium text-zinc-900">
-                <CalendarRange className="h-3.5 w-3.5 text-zinc-500" aria-hidden="true" />
+              <div className="mb-2 flex items-center gap-2 text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                <CalendarRange className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" aria-hidden="true" />
                 Ngày tạo
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <label className="block">
-                  <span className="text-xs text-zinc-500">Từ</span>
+                  <span className="text-xs text-zinc-500 dark:text-zinc-400">Từ</span>
                   <Input
                     type="date"
                     size="sm"
@@ -227,7 +227,7 @@ export function BomFilterBarPlus({
                   />
                 </label>
                 <label className="block">
-                  <span className="text-xs text-zinc-500">Đến</span>
+                  <span className="text-xs text-zinc-500 dark:text-zinc-400">Đến</span>
                   <Input
                     type="date"
                     size="sm"
@@ -240,10 +240,10 @@ export function BomFilterBarPlus({
             </div>
 
             <div>
-              <div className="mb-2 flex items-center gap-2 text-sm font-medium text-zinc-900">
-                <Sliders className="h-3.5 w-3.5 text-zinc-500" aria-hidden="true" />
+              <div className="mb-2 flex items-center gap-2 text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                <Sliders className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" aria-hidden="true" />
                 Số linh kiện ≥{" "}
-                <span className="font-mono text-indigo-600 tabular-nums">
+                <span className="font-mono text-indigo-600 tabular-nums dark:text-indigo-400">
                   {state.minComponents}
                 </span>
               </div>
@@ -259,7 +259,7 @@ export function BomFilterBarPlus({
                 className="w-full accent-indigo-600"
                 aria-label="Số linh kiện tối thiểu"
               />
-              <div className="mt-1 flex justify-between text-[10px] text-zinc-400 tabular-nums">
+              <div className="mt-1 flex justify-between text-[10px] text-zinc-400 tabular-nums dark:text-zinc-500">
                 <span>0</span>
                 <span>50</span>
                 <span>100</span>
@@ -273,18 +273,18 @@ export function BomFilterBarPlus({
                   type="checkbox"
                   checked={state.hasSheet}
                   onChange={(e) => onChange({ hasSheet: e.target.checked })}
-                  className="mt-0.5 h-3.5 w-3.5 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                  className="mt-0.5 h-3.5 w-3.5 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 dark:border-zinc-600 dark:bg-zinc-800"
                 />
                 <span>
-                  <span className="font-medium text-zinc-900">Chỉ BOM có sheet</span>
-                  <span className="block text-xs text-zinc-500">
+                  <span className="font-medium text-zinc-900 dark:text-zinc-50">Chỉ BOM có sheet</span>
+                  <span className="block text-xs text-zinc-500 dark:text-zinc-400">
                     Ẩn BOM rỗng (chưa có linh kiện nào).
                   </span>
                 </span>
               </label>
             </div>
 
-            <div className="flex items-center justify-between border-t border-zinc-100 pt-3">
+            <div className="flex items-center justify-between border-t border-zinc-100 pt-3 dark:border-zinc-800">
               <button
                 type="button"
                 onClick={() =>
@@ -295,11 +295,11 @@ export function BomFilterBarPlus({
                     hasSheet: false,
                   })
                 }
-                className="text-xs font-medium text-zinc-500 hover:text-zinc-900"
+                className="text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
               >
                 Đặt lại nâng cao
               </button>
-              <span className="text-xs text-zinc-400 tabular-nums">
+              <span className="text-xs text-zinc-400 tabular-nums dark:text-zinc-500">
                 {advancedCount} bộ lọc
               </span>
             </div>
@@ -312,7 +312,7 @@ export function BomFilterBarPlus({
           <select
             value={sort}
             onChange={(e) => onSortChange(e.target.value as BomSortKey)}
-            className="h-8 rounded-md border border-zinc-200 bg-white pl-7 pr-8 text-sm text-zinc-700 transition-colors hover:border-zinc-300 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            className="h-8 rounded-md border border-zinc-200 bg-white pl-7 pr-8 text-sm text-zinc-700 transition-colors hover:border-zinc-300 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:border-zinc-600"
           >
             {SORT_OPTIONS.map((opt) => (
               <option key={opt.v} value={opt.v}>
@@ -321,7 +321,7 @@ export function BomFilterBarPlus({
             ))}
           </select>
           <span
-            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400"
+            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500"
             aria-hidden="true"
           >
             <SortIcon />
@@ -331,8 +331,8 @@ export function BomFilterBarPlus({
 
         <div className="ml-auto flex items-center gap-3">
           {totalCount !== undefined && (
-            <span className="text-sm text-zinc-500 tabular-nums">
-              <span className="font-medium text-zinc-900">
+            <span className="text-sm text-zinc-500 tabular-nums dark:text-zinc-400">
+              <span className="font-medium text-zinc-900 dark:text-zinc-50">
                 {totalCount.toLocaleString("vi-VN")}
               </span>{" "}
               BOM
@@ -342,7 +342,7 @@ export function BomFilterBarPlus({
             <button
               type="button"
               onClick={onReset}
-              className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-sm font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
+              className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-sm font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
             >
               <X className="h-3.5 w-3.5" aria-hidden="true" />
               Xoá bộ lọc
@@ -353,7 +353,7 @@ export function BomFilterBarPlus({
           <div
             role="radiogroup"
             aria-label="Chế độ hiển thị"
-            className="inline-flex h-8 items-center rounded-md border border-zinc-200 bg-white p-0.5"
+            className="inline-flex h-8 items-center rounded-md border border-zinc-200 bg-white p-0.5 dark:border-zinc-700 dark:bg-zinc-900"
           >
             <button
               type="button"
@@ -364,8 +364,8 @@ export function BomFilterBarPlus({
               className={cn(
                 "inline-flex h-7 w-8 items-center justify-center rounded-sm transition-colors",
                 view === "table"
-                  ? "bg-zinc-900 text-white"
-                  : "text-zinc-500 hover:text-zinc-900",
+                  ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                  : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50",
               )}
             >
               <List className="h-3.5 w-3.5" aria-hidden="true" />
@@ -379,8 +379,8 @@ export function BomFilterBarPlus({
               className={cn(
                 "inline-flex h-7 w-8 items-center justify-center rounded-sm transition-colors",
                 view === "card"
-                  ? "bg-zinc-900 text-white"
-                  : "text-zinc-500 hover:text-zinc-900",
+                  ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                  : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50",
               )}
             >
               <LayoutGrid className="h-3.5 w-3.5" aria-hidden="true" />

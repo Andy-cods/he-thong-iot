@@ -47,7 +47,7 @@ export function WarehouseTabsNav({
   return (
     <nav
       aria-label="Warehouse sections"
-      className="border-b border-zinc-200 bg-white"
+      className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
     >
       <ul className="flex items-center gap-1 px-4">
         {WAREHOUSE_TABS.map((t) => {
@@ -61,15 +61,15 @@ export function WarehouseTabsNav({
                 className={cn(
                   "relative flex h-10 items-center gap-1.5 px-3 text-sm font-medium transition-colors",
                   isActive
-                    ? "text-indigo-700"
-                    : "text-zinc-600 hover:text-zinc-900",
+                    ? "text-indigo-700 dark:text-indigo-300"
+                    : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50",
                 )}
               >
                 <Icon className="h-4 w-4" aria-hidden="true" />
                 {t.label}
                 {isActive ? (
                   <span
-                    className="absolute inset-x-2 bottom-0 h-0.5 rounded-t bg-indigo-600"
+                    className="absolute inset-x-2 bottom-0 h-0.5 rounded-t bg-indigo-600 dark:bg-indigo-400"
                     aria-hidden="true"
                   />
                 ) : null}

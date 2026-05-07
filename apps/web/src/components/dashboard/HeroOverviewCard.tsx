@@ -85,6 +85,7 @@ export function HeroOverviewCard({
         "bg-gradient-to-br from-white via-white/95 to-indigo-50/80",
         "shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_32px_rgba(79,70,229,0.07)]",
         "backdrop-blur-sm",
+        "dark:border-zinc-800 dark:from-zinc-900 dark:via-zinc-900/95 dark:to-indigo-950/40 dark:shadow-[0_1px_2px_rgba(0,0,0,0.4),0_8px_32px_rgba(79,70,229,0.15)]",
         className,
       )}
       style={{ ["--stagger-delay" as never]: "0ms" }}
@@ -98,13 +99,13 @@ export function HeroOverviewCard({
         aria-hidden="true"
         className="pointer-events-none absolute -bottom-32 -left-16 h-72 w-72 rounded-full bg-gradient-to-tr from-emerald-200/35 via-sky-100/25 to-transparent blur-3xl"
       />
-      {/* Subtle grid pattern */}
+      {/* Subtle grid pattern — light=zinc-900, dark=zinc-50 (mượn currentColor) */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 opacity-[0.04]"
+        className="pointer-events-none absolute inset-0 opacity-[0.04] text-zinc-900 dark:text-zinc-50 dark:opacity-[0.06]"
         style={{
           backgroundImage:
-            "linear-gradient(to right, #18181B 1px, transparent 1px), linear-gradient(to bottom, #18181B 1px, transparent 1px)",
+            "linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)",
           backgroundSize: "32px 32px",
         }}
       />
@@ -119,16 +120,16 @@ export function HeroOverviewCard({
             >
               <Activity className="h-5 w-5" strokeWidth={2.25} />
             </span>
-            <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-indigo-700/80">
+            <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-indigo-700/80 dark:text-indigo-300">
               Trung tâm gia công
             </span>
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <h1 className="text-balance text-3xl font-bold leading-tight tracking-tight text-zinc-900 sm:text-4xl">
+            <h1 className="text-balance text-3xl font-bold leading-tight tracking-tight text-zinc-900 sm:text-4xl dark:text-zinc-50">
               Tổng quan gia công
             </h1>
-            <p className="max-w-xl text-[13.5px] leading-relaxed text-zinc-600 sm:text-sm">
+            <p className="max-w-xl text-[13.5px] leading-relaxed text-zinc-600 sm:text-sm dark:text-zinc-400">
               Theo dõi tiến độ tổng hợp các bộ phận theo thời gian thực — BOM,
               kho, lắp ráp, sản xuất, mua hàng. Tự động làm mới mỗi 60 giây.
             </p>
@@ -136,7 +137,7 @@ export function HeroOverviewCard({
 
           <div className="mt-1 flex flex-wrap items-center gap-2.5">
             <span
-              className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1 text-[12.5px] font-medium text-zinc-700 ring-1 ring-zinc-200/80 backdrop-blur-sm"
+              className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1 text-[12.5px] font-medium text-zinc-700 ring-1 ring-zinc-200/80 backdrop-blur-sm dark:bg-zinc-800/80 dark:text-zinc-200 dark:ring-zinc-700"
               aria-live="polite"
             >
               <span className="relative inline-flex h-2 w-2">
@@ -170,8 +171,8 @@ export function HeroOverviewCard({
                 onClick={onRefresh}
                 disabled={refreshing}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1 text-[12.5px] font-medium text-zinc-700 ring-1 ring-zinc-200/80 backdrop-blur-sm transition-all",
-                  "hover:bg-white hover:text-indigo-700 hover:ring-indigo-300 hover:shadow-sm",
+                  "inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1 text-[12.5px] font-medium text-zinc-700 ring-1 ring-zinc-200/80 backdrop-blur-sm transition-all dark:bg-zinc-800/80 dark:text-zinc-200 dark:ring-zinc-700",
+                  "hover:bg-white hover:text-indigo-700 hover:ring-indigo-300 hover:shadow-sm dark:hover:bg-zinc-800 dark:hover:text-indigo-300 dark:hover:ring-indigo-700",
                   "focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1",
                   "disabled:cursor-not-allowed disabled:opacity-60",
                 )}
@@ -233,7 +234,7 @@ function HeroStat({ icon: Icon, value, label, tone, loading }: HeroStatProps) {
         : "from-amber-500 to-orange-500 ring-amber-200/70";
 
   return (
-    <div className="flex flex-col gap-1.5 rounded-2xl border border-white/70 bg-white/70 p-3 shadow-sm ring-1 ring-zinc-100/60 backdrop-blur-sm sm:p-3.5">
+    <div className="flex flex-col gap-1.5 rounded-2xl border border-white/70 bg-white/70 p-3 shadow-sm ring-1 ring-zinc-100/60 backdrop-blur-sm sm:p-3.5 dark:border-zinc-800 dark:bg-zinc-800/60 dark:ring-zinc-700">
       <span
         aria-hidden="true"
         className={cn(
@@ -246,13 +247,13 @@ function HeroStat({ icon: Icon, value, label, tone, loading }: HeroStatProps) {
       <div className="flex flex-col">
         <span
           className={cn(
-            "text-2xl font-bold leading-none tabular-nums tracking-tight text-zinc-900 sm:text-3xl",
+            "text-2xl font-bold leading-none tabular-nums tracking-tight text-zinc-900 sm:text-3xl dark:text-zinc-50",
             loading && "opacity-40",
           )}
         >
           {loading ? "—" : formatNum(value)}
         </span>
-        <span className="mt-1 text-[10.5px] font-medium uppercase tracking-wide text-zinc-500">
+        <span className="mt-1 text-[10.5px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
           {label}
         </span>
       </div>

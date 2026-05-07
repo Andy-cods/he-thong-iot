@@ -27,8 +27,8 @@ export const Label = React.forwardRef<
     ref={ref}
     className={cn(
       uppercase
-        ? "text-xs font-medium uppercase tracking-wider text-zinc-500"
-        : "text-base font-medium leading-none text-zinc-900",
+        ? "text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400"
+        : "text-base font-medium leading-none text-zinc-900 dark:text-zinc-100",
       "peer-disabled:cursor-not-allowed peer-disabled:opacity-60",
       className,
     )}
@@ -36,7 +36,7 @@ export const Label = React.forwardRef<
   >
     {children}
     {required ? (
-      <span aria-hidden="true" className="ml-0.5 text-red-500">
+      <span aria-hidden="true" className="ml-0.5 text-red-500 dark:text-red-400">
         *
       </span>
     ) : null}

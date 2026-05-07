@@ -350,13 +350,13 @@ export function BomTab() {
   );
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-zinc-50/40">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-white px-6 py-4">
+    <div className="flex h-full flex-col overflow-hidden bg-zinc-50/40 dark:bg-zinc-950">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             BOM List
           </h1>
-          <p className="mt-0.5 text-xs text-zinc-500">
+          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
             Danh sách BOM ·{" "}
             <span className="tabular-nums">
               {totalRaw.toLocaleString("vi-VN")}
@@ -415,7 +415,7 @@ export function BomTab() {
             <EmptyState
               icon={
                 <Layers
-                  className="text-indigo-300"
+                  className="text-indigo-300 dark:text-indigo-700"
                   size={56}
                   strokeWidth={1.5}
                   aria-hidden="true"
@@ -485,15 +485,15 @@ export function BomTab() {
         )}
       </div>
 
-      <footer className="flex h-9 items-center justify-between border-t border-zinc-200 bg-white px-4 text-base">
-        <div className="text-zinc-600">
+      <footer className="flex h-9 items-center justify-between border-t border-zinc-200 bg-white px-4 text-base dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="text-zinc-600 dark:text-zinc-400">
           Hiển thị{" "}
-          <span className="tabular-nums text-zinc-900">
+          <span className="tabular-nums text-zinc-900 dark:text-zinc-50">
             {rows.length === 0 ? 0 : (urlState.page - 1) * urlState.pageSize + 1}
             –{(urlState.page - 1) * urlState.pageSize + rows.length}
           </span>{" "}
           /{" "}
-          <span className="tabular-nums text-zinc-900">
+          <span className="tabular-nums text-zinc-900 dark:text-zinc-50">
             {totalRaw.toLocaleString("vi-VN")}
           </span>
         </div>
@@ -518,7 +518,7 @@ export function BomTab() {
           >
             ‹
           </Button>
-          <span className="px-2 text-zinc-600 tabular-nums">
+          <span className="px-2 text-zinc-600 tabular-nums dark:text-zinc-400">
             {urlState.page} / {pageCount}
           </span>
           <Button

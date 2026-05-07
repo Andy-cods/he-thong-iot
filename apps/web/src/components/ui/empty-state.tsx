@@ -70,14 +70,14 @@ const presetIcon: Record<EmptyStatePreset, LucideIcon> = {
 };
 
 const presetColor: Record<EmptyStatePreset, string> = {
-  "no-data": "text-zinc-400",
-  "no-filter-match": "text-zinc-400",
-  "no-bom": "text-zinc-400",
-  error: "text-red-500",
-  "empty-success": "text-emerald-500",
-  "no-alerts": "text-zinc-400",
-  offline: "text-amber-500",
-  "scan-ready": "text-blue-500",
+  "no-data": "text-zinc-400 dark:text-zinc-500",
+  "no-filter-match": "text-zinc-400 dark:text-zinc-500",
+  "no-bom": "text-zinc-400 dark:text-zinc-500",
+  error: "text-red-500 dark:text-red-400",
+  "empty-success": "text-emerald-500 dark:text-emerald-400",
+  "no-alerts": "text-zinc-400 dark:text-zinc-500",
+  offline: "text-amber-500 dark:text-amber-400",
+  "scan-ready": "text-blue-500 dark:text-blue-400",
 };
 
 /** Fallback neutral icon khi không có preset và không truyền icon. */
@@ -100,7 +100,7 @@ export function EmptyState({
       <PresetIcon preset={preset} size={iconSize} />
     ) : (
       <DEFAULT_ICON
-        className="text-zinc-400"
+        className="text-zinc-400 dark:text-zinc-500"
         size={iconSize}
         strokeWidth={1.5}
         aria-hidden="true"
@@ -119,9 +119,9 @@ export function EmptyState({
       <div aria-hidden="true" className="mb-3">
         {iconNode}
       </div>
-      <h3 className="text-md font-medium text-zinc-900">{title}</h3>
+      <h3 className="text-md font-medium text-zinc-900 dark:text-zinc-50">{title}</h3>
       {description ? (
-        <p className="mt-1 text-sm text-zinc-500 leading-normal">
+        <p className="mt-1 text-sm text-zinc-500 leading-normal dark:text-zinc-400">
           {description}
         </p>
       ) : null}

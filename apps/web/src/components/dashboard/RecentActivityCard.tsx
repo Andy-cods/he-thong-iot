@@ -108,23 +108,23 @@ const ACTION_META: Record<string, ActionMeta> = {
 };
 
 const TONE_DOT: Record<string, string> = {
-  emerald: "bg-emerald-500 ring-emerald-100",
-  blue: "bg-blue-500 ring-blue-100",
-  rose: "bg-rose-500 ring-rose-100",
-  amber: "bg-amber-500 ring-amber-100",
-  indigo: "bg-indigo-500 ring-indigo-100",
-  violet: "bg-violet-500 ring-violet-100",
-  zinc: "bg-zinc-400 ring-zinc-100",
+  emerald: "bg-emerald-500 ring-emerald-100 dark:ring-emerald-950",
+  blue: "bg-blue-500 ring-blue-100 dark:ring-blue-950",
+  rose: "bg-rose-500 ring-rose-100 dark:ring-rose-950",
+  amber: "bg-amber-500 ring-amber-100 dark:ring-amber-950",
+  indigo: "bg-indigo-500 ring-indigo-100 dark:ring-indigo-950",
+  violet: "bg-violet-500 ring-violet-100 dark:ring-violet-950",
+  zinc: "bg-zinc-400 ring-zinc-100 dark:ring-zinc-800",
 };
 
 const TONE_ICON_BG: Record<string, string> = {
-  emerald: "bg-emerald-50 text-emerald-700 ring-emerald-200/60",
-  blue: "bg-blue-50 text-blue-700 ring-blue-200/60",
-  rose: "bg-rose-50 text-rose-700 ring-rose-200/60",
-  amber: "bg-amber-50 text-amber-700 ring-amber-200/60",
-  indigo: "bg-indigo-50 text-indigo-700 ring-indigo-200/60",
-  violet: "bg-violet-50 text-violet-700 ring-violet-200/60",
-  zinc: "bg-zinc-100 text-zinc-600 ring-zinc-200/60",
+  emerald: "bg-emerald-50 text-emerald-700 ring-emerald-200/60 dark:bg-emerald-950/50 dark:text-emerald-300 dark:ring-emerald-800/60",
+  blue: "bg-blue-50 text-blue-700 ring-blue-200/60 dark:bg-blue-950/50 dark:text-blue-300 dark:ring-blue-800/60",
+  rose: "bg-rose-50 text-rose-700 ring-rose-200/60 dark:bg-rose-950/50 dark:text-rose-300 dark:ring-rose-800/60",
+  amber: "bg-amber-50 text-amber-700 ring-amber-200/60 dark:bg-amber-950/50 dark:text-amber-300 dark:ring-amber-800/60",
+  indigo: "bg-indigo-50 text-indigo-700 ring-indigo-200/60 dark:bg-indigo-950/50 dark:text-indigo-300 dark:ring-indigo-800/60",
+  violet: "bg-violet-50 text-violet-700 ring-violet-200/60 dark:bg-violet-950/50 dark:text-violet-300 dark:ring-violet-800/60",
+  zinc: "bg-zinc-100 text-zinc-600 ring-zinc-200/60 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700",
 };
 
 const ENTITY_LABEL: Record<string, string> = {
@@ -197,7 +197,7 @@ export function RecentActivityCard({ className }: RecentActivityCardProps) {
   return (
     <section
       className={cn(
-        "dashboard-stagger-fade relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-white/60 bg-white/70 p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.04)] backdrop-blur-sm",
+        "dashboard-stagger-fade relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-white/60 bg-white/70 p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.04)] backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/70 dark:shadow-[0_1px_2px_rgba(0,0,0,0.4),0_4px_16px_rgba(0,0,0,0.3)]",
         className,
       )}
     >
@@ -205,21 +205,21 @@ export function RecentActivityCard({ className }: RecentActivityCardProps) {
         <div className="flex items-center gap-2">
           <span
             aria-hidden="true"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100/80 text-indigo-700 ring-1 ring-indigo-200/60"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100/80 text-indigo-700 ring-1 ring-indigo-200/60 dark:bg-indigo-950/60 dark:text-indigo-300 dark:ring-indigo-800/60"
           >
             <Activity className="h-4 w-4" strokeWidth={2} />
           </span>
-          <h2 className="text-[14px] font-semibold tracking-tight text-zinc-900">
+          <h2 className="text-[14px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             Hoạt động gần đây
           </h2>
         </div>
-        <span className="text-[10.5px] font-medium uppercase tracking-wide text-zinc-500">
+        <span className="text-[10.5px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
           {data?.items?.length ? `${data.items.length} sự kiện` : null}
         </span>
       </header>
 
       {error ? (
-        <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+        <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
           {error}
         </div>
       ) : null}
@@ -241,7 +241,7 @@ export function RecentActivityCard({ className }: RecentActivityCardProps) {
           {/* Vertical spine */}
           <div
             aria-hidden="true"
-            className="absolute left-[15px] top-2 bottom-2 w-px bg-gradient-to-b from-zinc-200 via-zinc-200/70 to-transparent"
+            className="absolute left-[15px] top-2 bottom-2 w-px bg-gradient-to-b from-zinc-200 via-zinc-200/70 to-transparent dark:from-zinc-700 dark:via-zinc-700/70"
           />
           {data.items.map((it) => {
             const meta =
@@ -266,16 +266,16 @@ export function RecentActivityCard({ className }: RecentActivityCardProps) {
                   <Icon className="h-4 w-4" strokeWidth={2} />
                 </span>
                 <div className="min-w-0 flex-1 pt-0.5">
-                  <p className="truncate text-[13px] leading-snug text-zinc-700">
-                    <span className="font-semibold text-zinc-900">
+                  <p className="truncate text-[13px] leading-snug text-zinc-700 dark:text-zinc-300">
+                    <span className="font-semibold text-zinc-900 dark:text-zinc-50">
                       {it.actorDisplay ?? it.actor ?? "Hệ thống"}
                     </span>{" "}
                     {meta.label}{" "}
-                    <span className="text-zinc-600">
+                    <span className="text-zinc-600 dark:text-zinc-400">
                       {entityLabel(it.objectType)}
                     </span>
                   </p>
-                  <p className="mt-0.5 flex items-center gap-1.5 text-[11.5px] text-zinc-500">
+                  <p className="mt-0.5 flex items-center gap-1.5 text-[11.5px] text-zinc-500 dark:text-zinc-400">
                     <span
                       aria-hidden="true"
                       className={cn(
@@ -286,7 +286,7 @@ export function RecentActivityCard({ className }: RecentActivityCardProps) {
                     {formatRelative(it.occurredAt)}
                     {it.notes ? (
                       <>
-                        <span className="text-zinc-300">•</span>
+                        <span className="text-zinc-300 dark:text-zinc-600">•</span>
                         <span className="truncate">{it.notes}</span>
                       </>
                     ) : null}
@@ -297,11 +297,11 @@ export function RecentActivityCard({ className }: RecentActivityCardProps) {
           })}
         </ol>
       ) : (
-        <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-200 bg-zinc-50/50 py-10">
-          <div className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white ring-1 ring-zinc-200">
-            <Activity className="h-4 w-4 text-zinc-400" strokeWidth={2} />
+        <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-200 bg-zinc-50/50 py-10 dark:border-zinc-700 dark:bg-zinc-800/40">
+          <div className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-700">
+            <Activity className="h-4 w-4 text-zinc-400 dark:text-zinc-500" strokeWidth={2} />
           </div>
-          <p className="text-sm text-zinc-500">Chưa có hoạt động</p>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">Chưa có hoạt động</p>
         </div>
       )}
     </section>

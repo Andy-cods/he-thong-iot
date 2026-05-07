@@ -15,21 +15,21 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-indigo-600 text-white hover:bg-indigo-700 active:bg-indigo-800 disabled:bg-indigo-300",
+          "bg-indigo-600 text-white hover:bg-indigo-700 active:bg-indigo-800 disabled:bg-indigo-300 dark:bg-indigo-500 dark:hover:bg-indigo-400 dark:active:bg-indigo-600 dark:disabled:bg-indigo-900",
         primary:
-          "bg-indigo-600 text-white hover:bg-indigo-700 active:bg-indigo-800 disabled:bg-indigo-300",
+          "bg-indigo-600 text-white hover:bg-indigo-700 active:bg-indigo-800 disabled:bg-indigo-300 dark:bg-indigo-500 dark:hover:bg-indigo-400 dark:active:bg-indigo-600 dark:disabled:bg-indigo-900",
         secondary:
-          "bg-zinc-100 text-zinc-900 border border-zinc-200 hover:bg-zinc-200 active:bg-zinc-300",
+          "bg-zinc-100 text-zinc-900 border border-zinc-200 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-700 dark:active:bg-zinc-600",
         outline:
-          "border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50 hover:border-zinc-400 active:bg-zinc-100",
+          "border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50 hover:border-zinc-400 active:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800 dark:hover:border-zinc-600 dark:active:bg-zinc-700",
         ghost:
-          "bg-transparent text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200",
+          "bg-transparent text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50 dark:active:bg-zinc-700",
         danger:
-          "bg-red-500 text-white hover:bg-red-600 active:bg-red-700 disabled:bg-red-300",
+          "bg-red-500 text-white hover:bg-red-600 active:bg-red-700 disabled:bg-red-300 dark:bg-red-600 dark:hover:bg-red-500 dark:active:bg-red-700 dark:disabled:bg-red-900",
         destructive:
-          "bg-red-500 text-white hover:bg-red-600 active:bg-red-700 disabled:bg-red-300",
+          "bg-red-500 text-white hover:bg-red-600 active:bg-red-700 disabled:bg-red-300 dark:bg-red-600 dark:hover:bg-red-500 dark:active:bg-red-700 dark:disabled:bg-red-900",
         link:
-          "bg-transparent text-blue-600 underline-offset-2 hover:text-blue-700 hover:underline active:text-blue-800",
+          "bg-transparent text-blue-600 underline-offset-2 hover:text-blue-700 hover:underline active:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 dark:active:text-blue-200",
       },
       size: {
         xs: "h-6 px-2 text-xs", // 24px

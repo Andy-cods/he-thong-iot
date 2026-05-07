@@ -80,23 +80,23 @@ const STATUS_DOT: Record<BomStatus, StatusDotMeta> = {
   DRAFT: {
     label: "Nháp",
     dot: "bg-amber-500",
-    bg: "bg-amber-50",
-    text: "text-amber-700",
-    border: "border-amber-200",
+    bg: "bg-amber-50 dark:bg-amber-950/40",
+    text: "text-amber-700 dark:text-amber-300",
+    border: "border-amber-200 dark:border-amber-800/60",
   },
   ACTIVE: {
     label: "Hoạt động",
     dot: "bg-emerald-500",
-    bg: "bg-emerald-50",
-    text: "text-emerald-700",
-    border: "border-emerald-200",
+    bg: "bg-emerald-50 dark:bg-emerald-950/40",
+    text: "text-emerald-700 dark:text-emerald-300",
+    border: "border-emerald-200 dark:border-emerald-800/60",
   },
   OBSOLETE: {
     label: "Ngừng",
     dot: "bg-zinc-400",
-    bg: "bg-zinc-50",
-    text: "text-zinc-600",
-    border: "border-zinc-200",
+    bg: "bg-zinc-50 dark:bg-zinc-800",
+    text: "text-zinc-600 dark:text-zinc-400",
+    border: "border-zinc-200 dark:border-zinc-700",
   },
 };
 
@@ -153,8 +153,8 @@ function SortHeader({
       type="button"
       onClick={() => onSortChange(field)}
       className={cn(
-        "inline-flex items-center gap-1 transition-colors hover:text-zinc-900",
-        active && "text-zinc-900",
+        "inline-flex items-center gap-1 transition-colors hover:text-zinc-900 dark:hover:text-zinc-50",
+        active && "text-zinc-900 dark:text-zinc-50",
         align === "right" && "ml-auto",
       )}
       aria-sort={active ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
@@ -217,7 +217,7 @@ function InlineRenameCell({
           }
         }}
         onBlur={() => void save()}
-        className="w-full rounded border border-indigo-400 bg-white px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        className="w-full rounded border border-indigo-400 bg-white px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-indigo-500 dark:bg-zinc-900 dark:text-zinc-50"
         disabled={saving}
       />
     );
@@ -233,7 +233,7 @@ function InlineRenameCell({
             e.stopPropagation();
             setEditing(true);
           }}
-          className="invisible shrink-0 rounded p-0.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 group-hover/name:visible"
+          className="invisible shrink-0 rounded p-0.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 group-hover/name:visible dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
           title="Đổi tên BOM"
         >
           <Pencil className="h-3 w-3" aria-hidden />
@@ -301,14 +301,14 @@ export function BomListTable({
   return (
     <div
       ref={parentRef}
-      className="relative h-full w-full overflow-auto rounded-md border border-zinc-200 bg-white"
+      className="relative h-full w-full overflow-auto rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
       role="region"
       aria-label="Danh sách BOM"
     >
       {/* Header */}
       <div
         className={cn(
-          "sticky top-0 z-sticky grid h-8 items-center border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wide text-zinc-500",
+          "sticky top-0 z-sticky grid h-8 items-center border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-400",
           gridCols,
         )}
         role="row"
@@ -379,7 +379,7 @@ export function BomListTable({
             <div
               key={i}
               className={cn(
-                "grid items-center border-b border-zinc-100 px-3",
+                "grid items-center border-b border-zinc-100 px-3 dark:border-zinc-800",
                 gridCols,
               )}
               style={{ height: rowHeight }}
@@ -424,12 +424,12 @@ export function BomListTable({
                 height: `${v.size}px`,
               }}
               className={cn(
-                "absolute left-0 top-0 grid w-full items-center border-b border-zinc-100 px-3 text-base text-zinc-900 transition-colors duration-100",
-                "hover:bg-zinc-50",
+                "absolute left-0 top-0 grid w-full items-center border-b border-zinc-100 px-3 text-base text-zinc-900 transition-colors duration-100 dark:border-zinc-800 dark:text-zinc-100",
+                "hover:bg-zinc-50 dark:hover:bg-zinc-800/60",
                 "focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 focus-visible:-outline-offset-2",
-                checked && "bg-indigo-50",
+                checked && "bg-indigo-50 dark:bg-indigo-950/40",
                 isFocused &&
-                  "bg-zinc-50 outline outline-2 -outline-offset-2 outline-indigo-500",
+                  "bg-zinc-50 outline outline-2 -outline-offset-2 outline-indigo-500 dark:bg-zinc-800/60",
                 gridCols,
               )}
               tabIndex={-1}
@@ -445,9 +445,9 @@ export function BomListTable({
               <Link
                 href={`/bom/${row.id}`}
                 className={cn(
-                  "sticky left-0 truncate border-r border-zinc-100 bg-white pr-2 font-mono text-sm text-zinc-700 hover:text-indigo-600",
-                  checked && "bg-indigo-50",
-                  isFocused && !checked && "bg-zinc-50",
+                  "sticky left-0 truncate border-r border-zinc-100 bg-white pr-2 font-mono text-sm text-zinc-700 hover:text-indigo-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:text-indigo-300",
+                  checked && "bg-indigo-50 dark:bg-indigo-950/40",
+                  isFocused && !checked && "bg-zinc-50 dark:bg-zinc-800/60",
                 )}
                 title={row.code}
               >
@@ -460,7 +460,7 @@ export function BomListTable({
                 ) : (
                   <Link
                     href={`/bom/${row.id}`}
-                    className="truncate text-zinc-900 hover:text-indigo-600 focus-visible:outline-none focus-visible:text-indigo-600"
+                    className="truncate text-zinc-900 hover:text-indigo-600 focus-visible:outline-none focus-visible:text-indigo-600 dark:text-zinc-100 dark:hover:text-indigo-300 dark:focus-visible:text-indigo-300"
                     title={row.name}
                   >
                     {row.name}
@@ -469,7 +469,7 @@ export function BomListTable({
               </div>
 
               <div
-                className="hidden truncate font-mono text-sm text-zinc-600 md:block"
+                className="hidden truncate font-mono text-sm text-zinc-600 md:block dark:text-zinc-400"
                 title={
                   row.parentItemSku
                     ? `${row.parentItemSku} — ${row.parentItemName ?? ""}`
@@ -479,11 +479,11 @@ export function BomListTable({
                 {row.parentItemSku ?? "—"}
               </div>
 
-              <div className="hidden text-right tabular-nums text-zinc-700 md:block">
+              <div className="hidden text-right tabular-nums text-zinc-700 md:block dark:text-zinc-300">
                 {formatNumber(row.componentCount)}
               </div>
 
-              <div className="hidden text-right tabular-nums text-zinc-700 md:block">
+              <div className="hidden text-right tabular-nums text-zinc-700 md:block dark:text-zinc-300">
                 {formatNumber(Number(row.targetQty))}
               </div>
 
@@ -491,7 +491,7 @@ export function BomListTable({
                 <StatusDotPill status={row.status} />
               </div>
 
-              <div className="hidden truncate text-xs text-zinc-500 md:block">
+              <div className="hidden truncate text-xs text-zinc-500 md:block dark:text-zinc-400">
                 {formatDate(row.updatedAt, "dd/MM/yyyy HH:mm")}
               </div>
 
@@ -500,7 +500,7 @@ export function BomListTable({
                   <button
                     type="button"
                     onClick={() => onPreview(row)}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
                     aria-label={`Xem ${row.code}`}
                   >
                     <Eye className="h-3.5 w-3.5" aria-hidden="true" />
@@ -508,7 +508,7 @@ export function BomListTable({
                 )}
                 <Link
                   href={`/bom/${row.id}/grid`}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-emerald-600 transition-colors hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-500"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-emerald-600 transition-colors hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-500 dark:text-emerald-400 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300"
                   aria-label={`Grid Editor ${row.code}`}
                   title="Mở Grid Editor"
                 >
@@ -517,7 +517,7 @@ export function BomListTable({
                 <button
                   type="button"
                   onClick={() => onEdit(row)}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
                   aria-label={`Sửa ${row.code}`}
                 >
                   <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
@@ -525,7 +525,7 @@ export function BomListTable({
                 <button
                   type="button"
                   onClick={() => copyCode(row.code)}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
                   aria-label={`Copy mã ${row.code}`}
                 >
                   <Copy className="h-3.5 w-3.5" aria-hidden="true" />
@@ -534,7 +534,7 @@ export function BomListTable({
                   <button
                     type="button"
                     onClick={() => onClone(row)}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
                     aria-label={`Clone ${row.code}`}
                   >
                     <GitBranch className="h-3.5 w-3.5" aria-hidden="true" />
@@ -544,7 +544,7 @@ export function BomListTable({
                   <button
                     type="button"
                     onClick={() => onDelete(row)}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-red-500 transition-colors hover:bg-red-50 hover:text-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500"
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-red-500 transition-colors hover:bg-red-50 hover:text-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500 dark:text-red-400 dark:hover:bg-red-950/40 dark:hover:text-red-300"
                     aria-label={`Xoá ${row.code}`}
                   >
                     <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -557,57 +557,57 @@ export function BomListTable({
                 side="right"
                 align="start"
                 sideOffset={12}
-                className="max-w-[320px] bg-white p-3 text-zinc-900 ring-1 ring-zinc-200 shadow-md"
+                className="max-w-[320px] bg-white p-3 text-zinc-900 ring-1 ring-zinc-200 shadow-md dark:bg-zinc-900 dark:text-zinc-50 dark:ring-zinc-700"
               >
                 <div className="space-y-2">
                   <div>
-                    <div className="font-mono text-xs font-semibold text-zinc-900">
+                    <div className="font-mono text-xs font-semibold text-zinc-900 dark:text-zinc-50">
                       {row.code}
                     </div>
-                    <div className="mt-0.5 line-clamp-2 text-sm text-zinc-700">
+                    <div className="mt-0.5 line-clamp-2 text-sm text-zinc-700 dark:text-zinc-300">
                       {row.name}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 border-t border-zinc-100 pt-2 text-xs">
+                  <div className="grid grid-cols-2 gap-2 border-t border-zinc-100 pt-2 text-xs dark:border-zinc-800">
                     <div>
-                      <div className="text-[10px] uppercase tracking-wide text-zinc-400">
+                      <div className="text-[10px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
                         Parent SKU
                       </div>
-                      <div className="font-mono text-zinc-700">
+                      <div className="font-mono text-zinc-700 dark:text-zinc-300">
                         {row.parentItemSku ?? "—"}
                       </div>
                     </div>
                     <div>
-                      <div className="text-[10px] uppercase tracking-wide text-zinc-400">
+                      <div className="text-[10px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
                         Sheet
                       </div>
-                      <div className="tabular-nums text-zinc-700">
+                      <div className="tabular-nums text-zinc-700 dark:text-zinc-300">
                         {formatNumber(sheetCount)}
                       </div>
                     </div>
                     <div>
-                      <div className="text-[10px] uppercase tracking-wide text-zinc-400">
+                      <div className="text-[10px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
                         Linh kiện
                       </div>
-                      <div className="tabular-nums text-zinc-700">
+                      <div className="tabular-nums text-zinc-700 dark:text-zinc-300">
                         {formatNumber(row.componentCount)}
                       </div>
                     </div>
                     <div>
-                      <div className="text-[10px] uppercase tracking-wide text-zinc-400">
+                      <div className="text-[10px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
                         Cập nhật
                       </div>
-                      <div className="tabular-nums text-zinc-700">
+                      <div className="tabular-nums text-zinc-700 dark:text-zinc-300">
                         {formatDate(row.updatedAt, "dd/MM/yyyy HH:mm")}
                       </div>
                     </div>
                   </div>
                   {row.description && (
-                    <div className="border-t border-zinc-100 pt-2">
-                      <div className="text-[10px] uppercase tracking-wide text-zinc-400">
+                    <div className="border-t border-zinc-100 pt-2 dark:border-zinc-800">
+                      <div className="text-[10px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
                         Mô tả
                       </div>
-                      <div className="line-clamp-3 text-xs text-zinc-600">
+                      <div className="line-clamp-3 text-xs text-zinc-600 dark:text-zinc-400">
                         {row.description}
                       </div>
                     </div>

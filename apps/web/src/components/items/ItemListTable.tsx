@@ -122,7 +122,7 @@ export function ItemListTable({
   return (
     <div
       ref={parentRef}
-      className="relative h-full w-full overflow-auto rounded-md border border-zinc-200 bg-white"
+      className="relative h-full w-full overflow-auto rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
       role="region"
       aria-label="Danh mục vật tư"
     >
@@ -133,7 +133,7 @@ export function ItemListTable({
       {/* Header row — h-8 bg-zinc-50 11px uppercase */}
       <div
         className={cn(
-          "sticky top-0 z-sticky grid h-8 items-center border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wide text-zinc-500",
+          "sticky top-0 z-sticky grid h-8 items-center border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-400",
           gridCols,
         )}
         role="row"
@@ -178,7 +178,7 @@ export function ItemListTable({
             <div
               key={i}
               className={cn(
-                "grid items-center border-b border-zinc-100 px-3",
+                "grid items-center border-b border-zinc-100 px-3 dark:border-zinc-800",
                 gridCols,
               )}
               style={{ height: rowHeight }}
@@ -220,11 +220,11 @@ export function ItemListTable({
                 height: `${v.size}px`,
               }}
               className={cn(
-                "absolute left-0 top-0 grid w-full items-center border-b border-zinc-100 px-3 text-base text-zinc-900 transition-colors duration-100",
-                "hover:bg-zinc-50",
+                "absolute left-0 top-0 grid w-full items-center border-b border-zinc-100 px-3 text-base text-zinc-900 transition-colors duration-100 dark:border-zinc-800 dark:text-zinc-100",
+                "hover:bg-zinc-50 dark:hover:bg-zinc-800/60",
                 "focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:-outline-offset-2",
                 checked && "bg-blue-50",
-                isFocused && "bg-zinc-50 outline outline-2 -outline-offset-2 outline-blue-500",
+                isFocused && "bg-zinc-50 outline outline-2 -outline-offset-2 outline-blue-500 dark:bg-zinc-800/60",
                 gridCols,
               )}
               tabIndex={-1}
@@ -242,10 +242,10 @@ export function ItemListTable({
               <Link
                 href={`/items/${row.id}`}
                 className={cn(
-                  "sticky left-0 truncate border-r border-zinc-100 bg-white pr-2 font-mono text-sm text-zinc-700 hover:text-blue-600",
+                  "sticky left-0 truncate border-r border-zinc-100 bg-white pr-2 font-mono text-sm text-zinc-700 hover:text-blue-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:text-blue-300",
                   "focus-visible:outline-none focus-visible:text-blue-600",
                   checked && "bg-blue-50",
-                  isFocused && !checked && "bg-zinc-50",
+                  isFocused && !checked && "bg-zinc-50 dark:bg-zinc-800/60",
                 )}
                 title={row.sku}
               >
@@ -255,7 +255,7 @@ export function ItemListTable({
               {/* Name — flex-1 truncate */}
               <Link
                 href={`/items/${row.id}`}
-                className="truncate pr-2 text-zinc-900 hover:text-blue-600 focus-visible:outline-none focus-visible:text-blue-600"
+                className="truncate pr-2 text-zinc-900 hover:text-blue-600 focus-visible:outline-none focus-visible:text-blue-600 dark:text-zinc-100 dark:hover:text-blue-300 dark:focus-visible:text-blue-300"
                 title={row.name}
               >
                 {row.name}
@@ -297,7 +297,7 @@ export function ItemListTable({
               {/* Tồn kho — V1.9 P6 + TASK-20260427-017:
                     - Available cell color đỏ nếu ≤ 0, amber nếu < minStock.
                     - Tooltip hiển thị on-hand / reserved chi tiết. */}
-              <div className="hidden flex-col items-end justify-center whitespace-nowrap pr-2 tabular-nums text-zinc-700 md:flex">
+              <div className="hidden flex-col items-end justify-center whitespace-nowrap pr-2 tabular-nums text-zinc-700 md:flex dark:text-zinc-300">
                 {row.inventorySummary ? (
                   (() => {
                     const sum = row.inventorySummary;
@@ -307,7 +307,7 @@ export function ItemListTable({
                         ? "text-rose-700"
                         : minStock > 0 && sum.availableQty < minStock
                           ? "text-amber-700"
-                          : "text-zinc-900";
+                          : "text-zinc-900 dark:text-zinc-100";
                     return (
                       <span
                         title={`On-hand: ${formatNumber(sum.totalQty)} ${row.uom}\nReserved: ${formatNumber(sum.reservedQty)} ${row.uom}\nAvailable: ${formatNumber(sum.availableQty)} ${row.uom}${minStock > 0 ? `\nMin stock: ${formatNumber(minStock)}` : ""}`}
@@ -323,7 +323,7 @@ export function ItemListTable({
                         </span>
                         <span className="text-[10px] leading-tight text-zinc-500">
                           Tổng:{" "}
-                          <span className="tabular-nums text-zinc-700">
+                          <span className="tabular-nums text-zinc-700 dark:text-zinc-300">
                             {formatNumber(sum.totalQty)}
                           </span>
                           {sum.reservedQty > 0 && (
@@ -360,7 +360,7 @@ export function ItemListTable({
                   <button
                     type="button"
                     onClick={() => onPreview(row)}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-0"
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-0 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
                     aria-label={`Xem nhanh ${row.sku}`}
                   >
                     <Eye className="h-3.5 w-3.5" aria-hidden="true" />
@@ -369,7 +369,7 @@ export function ItemListTable({
                 <button
                   type="button"
                   onClick={() => onEdit(row)}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-0"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-0 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
                   aria-label={`Sửa ${row.sku}`}
                 >
                   <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
@@ -377,7 +377,7 @@ export function ItemListTable({
                 <button
                   type="button"
                   onClick={() => copySku(row.sku)}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-0"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-0 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
                   aria-label={`Copy SKU ${row.sku}`}
                 >
                   <Copy className="h-3.5 w-3.5" aria-hidden="true" />

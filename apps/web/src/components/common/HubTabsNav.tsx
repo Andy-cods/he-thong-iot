@@ -29,7 +29,7 @@ export function HubTabsNav<K extends string>({
   ariaLabel: string;
 }) {
   return (
-    <nav aria-label={ariaLabel} className="border-b border-zinc-200 bg-white">
+    <nav aria-label={ariaLabel} className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
       <ul className="flex items-center gap-1 px-4">
         {tabs.map((t) => {
           const Icon = t.icon;
@@ -43,11 +43,11 @@ export function HubTabsNav<K extends string>({
                   "relative flex h-12 items-center gap-2 rounded-t-md px-4 text-sm font-semibold transition-colors",
                   "after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-t-full after:transition-all",
                   isActive
-                    ? "text-indigo-700 after:bg-indigo-600"
-                    : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900 after:bg-transparent",
+                    ? "text-indigo-700 after:bg-indigo-600 dark:text-indigo-300 dark:after:bg-indigo-400"
+                    : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900 after:bg-transparent dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50",
                 )}
               >
-                <Icon className={cn("h-4 w-4", isActive ? "text-indigo-600" : "text-zinc-400")} aria-hidden="true" />
+                <Icon className={cn("h-4 w-4", isActive ? "text-indigo-600 dark:text-indigo-400" : "text-zinc-400 dark:text-zinc-500")} aria-hidden="true" />
                 {t.label}
               </Link>
             </li>

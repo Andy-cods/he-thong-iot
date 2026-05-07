@@ -97,7 +97,7 @@ export function LowStockCard({ className }: LowStockCardProps) {
   return (
     <section
       className={cn(
-        "dashboard-stagger-fade relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-white/60 bg-white/70 p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.04)] backdrop-blur-sm",
+        "dashboard-stagger-fade relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-white/60 bg-white/70 p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.04)] backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/70 dark:shadow-[0_1px_2px_rgba(0,0,0,0.4),0_4px_16px_rgba(0,0,0,0.3)]",
         className,
       )}
     >
@@ -105,17 +105,17 @@ export function LowStockCard({ className }: LowStockCardProps) {
         <div className="flex items-center gap-2">
           <span
             aria-hidden="true"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-rose-100/80 text-rose-700 ring-1 ring-rose-200/60"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-rose-100/80 text-rose-700 ring-1 ring-rose-200/60 dark:bg-rose-950/60 dark:text-rose-300 dark:ring-rose-800/60"
           >
             <TrendingDown className="h-4 w-4" strokeWidth={2} />
           </span>
-          <h2 className="text-[14px] font-semibold tracking-tight text-zinc-900">
+          <h2 className="text-[14px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             Top SKU thiếu hàng
           </h2>
         </div>
         <Link
           href="/items?lowStock=true"
-          className="inline-flex items-center gap-1 text-[11.5px] font-medium text-indigo-700 transition-colors hover:text-indigo-900"
+          className="inline-flex items-center gap-1 text-[11.5px] font-medium text-indigo-700 transition-colors hover:text-indigo-900 dark:text-indigo-300 dark:hover:text-indigo-200"
         >
           Xem tất cả
           <ArrowUpRight className="h-3 w-3" />
@@ -123,7 +123,7 @@ export function LowStockCard({ className }: LowStockCardProps) {
       </header>
 
       {error ? (
-        <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+        <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
           {error}
         </div>
       ) : null}
@@ -135,31 +135,31 @@ export function LowStockCard({ className }: LowStockCardProps) {
           ))}
         </div>
       ) : rows && rows.length > 0 ? (
-        <div className="overflow-hidden rounded-xl border border-zinc-200/70 bg-white/60">
+        <div className="overflow-hidden rounded-xl border border-zinc-200/70 bg-white/60 dark:border-zinc-800/70 dark:bg-zinc-900/60">
           <table className="w-full text-[12.5px]">
             <thead>
-              <tr className="border-b border-zinc-200/70 bg-zinc-50/60">
+              <tr className="border-b border-zinc-200/70 bg-zinc-50/60 dark:border-zinc-800/70 dark:bg-zinc-800/40">
                 <th
                   scope="col"
-                  className="px-3 py-2 text-left text-[10.5px] font-semibold uppercase tracking-wide text-zinc-500"
+                  className="px-3 py-2 text-left text-[10.5px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400"
                 >
                   SKU
                 </th>
                 <th
                   scope="col"
-                  className="px-3 py-2 text-right text-[10.5px] font-semibold uppercase tracking-wide text-zinc-500"
+                  className="px-3 py-2 text-right text-[10.5px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400"
                 >
                   Còn lại
                 </th>
                 <th
                   scope="col"
-                  className="px-3 py-2 text-right text-[10.5px] font-semibold uppercase tracking-wide text-zinc-500"
+                  className="px-3 py-2 text-right text-[10.5px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400"
                 >
                   Tồn min
                 </th>
                 <th
                   scope="col"
-                  className="px-3 py-2 text-right text-[10.5px] font-semibold uppercase tracking-wide text-zinc-500"
+                  className="px-3 py-2 text-right text-[10.5px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400"
                 >
                   Trạng thái
                 </th>
@@ -174,17 +174,17 @@ export function LowStockCard({ className }: LowStockCardProps) {
                 return (
                   <tr
                     key={r.itemId}
-                    className="border-b border-zinc-100/70 last:border-0 transition-colors hover:bg-zinc-50/60"
+                    className="border-b border-zinc-100/70 last:border-0 transition-colors hover:bg-zinc-50/60 dark:border-zinc-800/70 dark:hover:bg-zinc-800/40"
                   >
                     <td className="px-3 py-2">
                       <Link
                         href={`/items/${r.itemId}`}
                         className="block min-w-0 group"
                       >
-                        <p className="truncate font-mono text-[12px] font-semibold text-zinc-900 group-hover:text-indigo-700">
+                        <p className="truncate font-mono text-[12px] font-semibold text-zinc-900 group-hover:text-indigo-700 dark:text-zinc-50 dark:group-hover:text-indigo-300">
                           {r.sku}
                         </p>
-                        <p className="mt-0.5 truncate text-[11px] text-zinc-500">
+                        <p className="mt-0.5 truncate text-[11px] text-zinc-500 dark:text-zinc-400">
                           {r.name}
                         </p>
                       </Link>
@@ -193,16 +193,16 @@ export function LowStockCard({ className }: LowStockCardProps) {
                       <span
                         className={cn(
                           "font-semibold",
-                          critical ? "text-rose-700" : "text-amber-700",
+                          critical ? "text-rose-700 dark:text-rose-300" : "text-amber-700 dark:text-amber-300",
                         )}
                       >
                         {formatNum(r.available)}
                       </span>
-                      <span className="ml-1 text-[10.5px] text-zinc-500">
+                      <span className="ml-1 text-[10.5px] text-zinc-500 dark:text-zinc-400">
                         {r.uom}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-zinc-600">
+                    <td className="px-3 py-2 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
                       {formatNum(r.minStockQty)}
                     </td>
                     <td className="px-3 py-2 text-right">
@@ -210,8 +210,8 @@ export function LowStockCard({ className }: LowStockCardProps) {
                         className={cn(
                           "inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide",
                           critical
-                            ? "bg-rose-100 text-rose-800 ring-1 ring-rose-200/60"
-                            : "bg-amber-100 text-amber-800 ring-1 ring-amber-200/60",
+                            ? "bg-rose-100 text-rose-800 ring-1 ring-rose-200/60 dark:bg-rose-950/60 dark:text-rose-300 dark:ring-rose-800/60"
+                            : "bg-amber-100 text-amber-800 ring-1 ring-amber-200/60 dark:bg-amber-950/60 dark:text-amber-300 dark:ring-amber-800/60",
                         )}
                       >
                         {critical ? "Thiếu gấp" : "Sắp hết"}
@@ -224,14 +224,14 @@ export function LowStockCard({ className }: LowStockCardProps) {
           </table>
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-emerald-200 bg-emerald-50/40 py-10">
-          <div className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white ring-1 ring-emerald-200/60">
-            <PackageOpen className="h-5 w-5 text-emerald-600" strokeWidth={2} />
+        <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-emerald-200 bg-emerald-50/40 py-10 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+          <div className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white ring-1 ring-emerald-200/60 dark:bg-zinc-900 dark:ring-emerald-800/60">
+            <PackageOpen className="h-5 w-5 text-emerald-600 dark:text-emerald-400" strokeWidth={2} />
           </div>
-          <p className="text-sm font-medium text-emerald-800">
+          <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
             Tồn kho đầy đủ
           </p>
-          <p className="text-[12px] text-zinc-500">
+          <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
             Không có SKU nào dưới ngưỡng tối thiểu.
           </p>
         </div>

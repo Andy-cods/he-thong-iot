@@ -229,12 +229,12 @@ export function ItemsTab() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-4">
+      <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
         <div>
-          <h2 className="text-base font-semibold tracking-tight text-zinc-900">
+          <h2 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             Danh mục vật tư
           </h2>
-          <p className="mt-0.5 text-xs text-zinc-500">
+          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
             {total.toLocaleString("vi-VN")} vật tư · cập nhật realtime
           </p>
         </div>
@@ -314,17 +314,17 @@ export function ItemsTab() {
         )}
       </div>
 
-      <footer className="flex h-9 items-center justify-between border-t border-zinc-200 bg-white px-4 text-base">
-        <div className="text-zinc-600">
+      <footer className="flex h-9 items-center justify-between border-t border-zinc-200 bg-white px-4 text-base dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="text-zinc-600 dark:text-zinc-400">
           Hiển thị{" "}
-          <span className="tabular-nums text-zinc-900">
+          <span className="tabular-nums text-zinc-900 dark:text-zinc-50">
             {rows.length === 0
               ? 0
               : (urlState.page - 1) * urlState.pageSize + 1}
             –{(urlState.page - 1) * urlState.pageSize + rows.length}
           </span>{" "}
           /{" "}
-          <span className="tabular-nums text-zinc-900">
+          <span className="tabular-nums text-zinc-900 dark:text-zinc-50">
             {total.toLocaleString("vi-VN")}
           </span>
         </div>
@@ -349,7 +349,7 @@ export function ItemsTab() {
           >
             ‹
           </Button>
-          <span className="px-2 text-zinc-600 tabular-nums">
+          <span className="px-2 text-zinc-600 tabular-nums dark:text-zinc-400">
             {urlState.page} / {pageCount}
           </span>
           <Button

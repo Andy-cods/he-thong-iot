@@ -35,13 +35,13 @@ const ICON_MAP: Record<string, LucideIcon> = {
 };
 
 const COLOR_PILL: Record<string, { bg: string; iconBg: string; iconText: string; valueText: string }> = {
-  indigo:  { bg: "hover:bg-indigo-50/60",  iconBg: "bg-indigo-100",  iconText: "text-indigo-700",  valueText: "text-indigo-700"  },
-  blue:    { bg: "hover:bg-blue-50/60",    iconBg: "bg-blue-100",    iconText: "text-blue-700",    valueText: "text-blue-700"    },
-  violet:  { bg: "hover:bg-violet-50/60",  iconBg: "bg-violet-100",  iconText: "text-violet-700",  valueText: "text-violet-700"  },
-  amber:   { bg: "hover:bg-amber-50/60",   iconBg: "bg-amber-100",   iconText: "text-amber-700",   valueText: "text-amber-700"   },
-  rose:    { bg: "hover:bg-rose-50/60",    iconBg: "bg-rose-100",    iconText: "text-rose-700",    valueText: "text-rose-700"    },
-  emerald: { bg: "hover:bg-emerald-50/60", iconBg: "bg-emerald-100", iconText: "text-emerald-700", valueText: "text-emerald-700" },
-  cyan:    { bg: "hover:bg-cyan-50/60",    iconBg: "bg-cyan-100",    iconText: "text-cyan-700",    valueText: "text-cyan-700"    },
+  indigo:  { bg: "hover:bg-indigo-50/60 dark:hover:bg-indigo-950/30",   iconBg: "bg-indigo-100 dark:bg-indigo-950/60",   iconText: "text-indigo-700 dark:text-indigo-300",   valueText: "text-indigo-700 dark:text-indigo-300"   },
+  blue:    { bg: "hover:bg-blue-50/60 dark:hover:bg-blue-950/30",       iconBg: "bg-blue-100 dark:bg-blue-950/60",       iconText: "text-blue-700 dark:text-blue-300",       valueText: "text-blue-700 dark:text-blue-300"       },
+  violet:  { bg: "hover:bg-violet-50/60 dark:hover:bg-violet-950/30",   iconBg: "bg-violet-100 dark:bg-violet-950/60",   iconText: "text-violet-700 dark:text-violet-300",   valueText: "text-violet-700 dark:text-violet-300"   },
+  amber:   { bg: "hover:bg-amber-50/60 dark:hover:bg-amber-950/30",     iconBg: "bg-amber-100 dark:bg-amber-950/60",     iconText: "text-amber-700 dark:text-amber-300",     valueText: "text-amber-700 dark:text-amber-300"     },
+  rose:    { bg: "hover:bg-rose-50/60 dark:hover:bg-rose-950/30",       iconBg: "bg-rose-100 dark:bg-rose-950/60",       iconText: "text-rose-700 dark:text-rose-300",       valueText: "text-rose-700 dark:text-rose-300"       },
+  emerald: { bg: "hover:bg-emerald-50/60 dark:hover:bg-emerald-950/30", iconBg: "bg-emerald-100 dark:bg-emerald-950/60", iconText: "text-emerald-700 dark:text-emerald-300", valueText: "text-emerald-700 dark:text-emerald-300" },
+  cyan:    { bg: "hover:bg-cyan-50/60 dark:hover:bg-cyan-950/30",       iconBg: "bg-cyan-100 dark:bg-cyan-950/60",       iconText: "text-cyan-700 dark:text-cyan-300",       valueText: "text-cyan-700 dark:text-cyan-300"       },
 };
 
 export interface EntityCountChartProps {
@@ -56,15 +56,15 @@ export function EntityCountChart({ data, loading, className }: EntityCountChartP
   return (
     <section
       className={cn(
-        "rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm",
+        "rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900",
         className,
       )}
     >
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
           Số lượng dữ liệu hệ thống
         </p>
-        <p className="text-[10px] text-zinc-400">cập nhật mỗi 30s</p>
+        <p className="text-[10px] text-zinc-400 dark:text-zinc-500">cập nhật mỗi 30s</p>
       </div>
 
       {loading ? (
@@ -74,7 +74,7 @@ export function EntityCountChart({ data, loading, className }: EntityCountChartP
           ))}
         </div>
       ) : items.length === 0 ? (
-        <p className="py-6 text-center text-sm text-zinc-500">Chưa có dữ liệu</p>
+        <p className="py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">Chưa có dữ liệu</p>
       ) : (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
           {items.map((it) => {
@@ -85,7 +85,7 @@ export function EntityCountChart({ data, loading, className }: EntityCountChartP
                 key={it.key}
                 href={it.href}
                 className={cn(
-                  "group flex items-center gap-2.5 rounded-xl border border-zinc-100 bg-white px-3 py-2.5 transition-all hover:border-zinc-200 hover:shadow-sm",
+                  "group flex items-center gap-2.5 rounded-xl border border-zinc-100 bg-white px-3 py-2.5 transition-all hover:border-zinc-200 hover:shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700",
                   cls.bg,
                 )}
               >
@@ -93,7 +93,7 @@ export function EntityCountChart({ data, loading, className }: EntityCountChartP
                   <Icon className={cn("h-4 w-4", cls.iconText)} strokeWidth={2.25} />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                     {it.label}
                   </p>
                   <div className="flex items-baseline gap-1">
@@ -101,7 +101,7 @@ export function EntityCountChart({ data, loading, className }: EntityCountChartP
                       {it.total.toLocaleString("vi-VN")}
                     </span>
                     {it.active !== it.total && it.total > 0 && (
-                      <span className="text-[10px] tabular-nums text-zinc-400">
+                      <span className="text-[10px] tabular-nums text-zinc-400 dark:text-zinc-500">
                         / {it.active}
                       </span>
                     )}

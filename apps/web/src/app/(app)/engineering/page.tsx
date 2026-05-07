@@ -89,20 +89,20 @@ export default function EngineeringPage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="border-b border-zinc-200 bg-white px-6 pb-3 pt-4">
-        <nav aria-label="Breadcrumb" className="text-xs text-zinc-500">
-          <Link href="/" className="hover:text-zinc-900 hover:underline">
+      <div className="border-b border-zinc-200 bg-white px-6 pb-3 pt-4 dark:border-zinc-800 dark:bg-zinc-900">
+        <nav aria-label="Breadcrumb" className="text-xs text-zinc-500 dark:text-zinc-400">
+          <Link href="/" className="hover:text-zinc-900 hover:underline dark:hover:text-zinc-50">
             Tổng quan
           </Link>
-          <span className="mx-1.5 text-zinc-300">›</span>
-          <span className="text-zinc-500">{breadcrumbDept}</span>
-          <span className="mx-1.5 text-zinc-300">›</span>
-          <span className="font-medium text-zinc-900">{tabLabel}</span>
+          <span className="mx-1.5 text-zinc-300 dark:text-zinc-600">›</span>
+          <span className="text-zinc-500 dark:text-zinc-400">{breadcrumbDept}</span>
+          <span className="mx-1.5 text-zinc-300 dark:text-zinc-600">›</span>
+          <span className="font-medium text-zinc-900 dark:text-zinc-50">{tabLabel}</span>
         </nav>
-        <h1 className="mt-1.5 text-xl font-semibold tracking-tight text-zinc-900">
+        <h1 className="mt-1.5 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
           {pageTitle}
         </h1>
-        <p className="mt-0.5 text-xs text-zinc-500">{pageSubtitle}</p>
+        <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{pageSubtitle}</p>
       </div>
 
       {tabs.length > 1 ? (

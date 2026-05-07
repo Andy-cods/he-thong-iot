@@ -35,7 +35,7 @@ export function Breadcrumb({
       className={cn("text-base", className)}
       {...props}
     >
-      <ol className="flex flex-wrap items-center gap-1 text-zinc-500">
+      <ol className="flex flex-wrap items-center gap-1 text-zinc-500 dark:text-zinc-400">
         {display.map((item, idx) => {
           const isLast = idx === display.length - 1;
           if (item === "…") {
@@ -45,7 +45,7 @@ export function Breadcrumb({
                 className="flex items-center gap-1"
               >
                 <MoreHorizontal
-                  className="h-3.5 w-3.5 text-zinc-400"
+                  className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500"
                   aria-hidden="true"
                 />
                 <Separator />
@@ -59,7 +59,7 @@ export function Breadcrumb({
             >
               {isLast ? (
                 <span
-                  className="font-medium text-zinc-900"
+                  className="font-medium text-zinc-900 dark:text-zinc-50"
                   aria-current="page"
                 >
                   {item.label}
@@ -67,7 +67,7 @@ export function Breadcrumb({
               ) : item.href ? (
                 <Link
                   href={item.href}
-                  className="text-blue-600 transition-colors duration-100 hover:text-blue-700 hover:underline underline-offset-2"
+                  className="text-blue-600 transition-colors duration-100 hover:text-blue-700 hover:underline underline-offset-2 dark:text-blue-400 dark:hover:text-blue-300"
                 >
                   {item.label}
                 </Link>
@@ -87,7 +87,7 @@ function Separator() {
   return (
     <span
       aria-hidden="true"
-      className="select-none px-1 text-zinc-400"
+      className="select-none px-1 text-zinc-400 dark:text-zinc-600"
     >
       /
     </span>

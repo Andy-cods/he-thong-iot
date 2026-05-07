@@ -30,10 +30,10 @@ export const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      "flex w-full items-center justify-between rounded-md border border-zinc-200 bg-white text-base text-zinc-900 transition-colors duration-150 ease-out",
-      "focus:border-indigo-500 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 focus-visible:outline-offset-0",
-      "data-[placeholder]:text-zinc-400",
-      "disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:opacity-60",
+      "flex w-full items-center justify-between rounded-md border border-zinc-200 bg-white text-base text-zinc-900 transition-colors duration-150 ease-out dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50",
+      "focus:border-indigo-500 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 focus-visible:outline-offset-0 dark:focus:border-indigo-400 dark:focus-visible:outline-indigo-400",
+      "data-[placeholder]:text-zinc-400 dark:data-[placeholder]:text-zinc-500",
+      "disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:opacity-60 dark:disabled:bg-zinc-800",
       "[&>span]:line-clamp-1",
       size === "sm" ? "h-8 px-2.5 py-1" : "h-9 px-3 py-1",
       className,
@@ -42,7 +42,7 @@ export const SelectTrigger = React.forwardRef<
   >
     {children}
     <SelectPrimitive.Icon asChild>
-      <ChevronDown className="h-3.5 w-3.5 text-zinc-500 opacity-80" />
+      <ChevronDown className="h-3.5 w-3.5 text-zinc-500 opacity-80 dark:text-zinc-400" />
     </SelectPrimitive.Icon>
   </SelectPrimitive.Trigger>
 ));
@@ -57,7 +57,7 @@ export const SelectContent = React.forwardRef<
       ref={ref}
       position={position}
       className={cn(
-        "relative z-dropdown max-h-80 min-w-[8rem] overflow-hidden rounded-md border border-zinc-200 bg-white text-zinc-900 shadow-sm",
+        "relative z-dropdown max-h-80 min-w-[8rem] overflow-hidden rounded-md border border-zinc-200 bg-white text-zinc-900 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50",
         "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0",
         position === "popper" &&
           "data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1",
@@ -80,9 +80,9 @@ export const SelectItem = React.forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex h-8 w-full cursor-default select-none items-center rounded-sm py-1 pl-2 pr-7 text-base text-zinc-700 outline-none transition-colors duration-100 ease-out",
-      "focus:bg-zinc-100 focus:text-zinc-900",
-      "data-[state=checked]:bg-blue-50 data-[state=checked]:text-blue-700 data-[state=checked]:font-medium",
+      "relative flex h-8 w-full cursor-default select-none items-center rounded-sm py-1 pl-2 pr-7 text-base text-zinc-700 outline-none transition-colors duration-100 ease-out dark:text-zinc-300",
+      "focus:bg-zinc-100 focus:text-zinc-900 dark:focus:bg-zinc-800 dark:focus:text-zinc-50",
+      "data-[state=checked]:bg-blue-50 data-[state=checked]:text-blue-700 data-[state=checked]:font-medium dark:data-[state=checked]:bg-blue-950/50 dark:data-[state=checked]:text-blue-300",
       "data-[disabled]:pointer-events-none data-[disabled]:opacity-60",
       className,
     )}
@@ -91,7 +91,7 @@ export const SelectItem = React.forwardRef<
     <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
     <span className="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
       <SelectPrimitive.ItemIndicator>
-        <Check className="h-3.5 w-3.5 text-blue-600" strokeWidth={2.5} />
+        <Check className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" strokeWidth={2.5} />
       </SelectPrimitive.ItemIndicator>
     </span>
   </SelectPrimitive.Item>

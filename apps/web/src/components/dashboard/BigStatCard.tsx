@@ -32,76 +32,76 @@ interface ToneConfig {
 
 const TONE: Record<BigStatTone, ToneConfig> = {
   emerald: {
-    cardBg: "bg-gradient-to-br from-emerald-50/80 via-white to-emerald-50/40",
-    cardBorder: "border-emerald-100",
-    iconBg: "bg-emerald-100",
-    iconText: "text-emerald-700",
-    valueColor: "text-emerald-700",
-    barTrack: "bg-emerald-100/70",
-    barFill: "bg-gradient-to-r from-emerald-400 to-emerald-600",
-    subText: "text-emerald-700/80",
-    hoverBorder: "hover:border-emerald-300",
-    glow: "bg-emerald-200/30",
+    cardBg: "bg-gradient-to-br from-emerald-50/80 via-white to-emerald-50/40 dark:from-emerald-950/40 dark:via-zinc-900 dark:to-emerald-950/30",
+    cardBorder: "border-emerald-100 dark:border-emerald-900/60",
+    iconBg: "bg-emerald-100 dark:bg-emerald-950/60",
+    iconText: "text-emerald-700 dark:text-emerald-300",
+    valueColor: "text-emerald-700 dark:text-emerald-300",
+    barTrack: "bg-emerald-100/70 dark:bg-emerald-950/60",
+    barFill: "bg-gradient-to-r from-emerald-400 to-emerald-600 dark:from-emerald-400 dark:to-emerald-500",
+    subText: "text-emerald-700/80 dark:text-emerald-300/80",
+    hoverBorder: "hover:border-emerald-300 dark:hover:border-emerald-700",
+    glow: "bg-emerald-200/30 dark:bg-emerald-700/20",
   },
   blue: {
-    cardBg: "bg-gradient-to-br from-blue-50/80 via-white to-blue-50/40",
-    cardBorder: "border-blue-100",
-    iconBg: "bg-blue-100",
-    iconText: "text-blue-700",
-    valueColor: "text-blue-700",
-    barTrack: "bg-blue-100/70",
-    barFill: "bg-gradient-to-r from-blue-400 to-blue-600",
-    subText: "text-blue-700/80",
-    hoverBorder: "hover:border-blue-300",
-    glow: "bg-blue-200/30",
+    cardBg: "bg-gradient-to-br from-blue-50/80 via-white to-blue-50/40 dark:from-blue-950/40 dark:via-zinc-900 dark:to-blue-950/30",
+    cardBorder: "border-blue-100 dark:border-blue-900/60",
+    iconBg: "bg-blue-100 dark:bg-blue-950/60",
+    iconText: "text-blue-700 dark:text-blue-300",
+    valueColor: "text-blue-700 dark:text-blue-300",
+    barTrack: "bg-blue-100/70 dark:bg-blue-950/60",
+    barFill: "bg-gradient-to-r from-blue-400 to-blue-600 dark:from-blue-400 dark:to-blue-500",
+    subText: "text-blue-700/80 dark:text-blue-300/80",
+    hoverBorder: "hover:border-blue-300 dark:hover:border-blue-700",
+    glow: "bg-blue-200/30 dark:bg-blue-700/20",
   },
   amber: {
-    cardBg: "bg-gradient-to-br from-amber-50/80 via-white to-amber-50/40",
-    cardBorder: "border-amber-100",
-    iconBg: "bg-amber-100",
-    iconText: "text-amber-700",
-    valueColor: "text-amber-700",
-    barTrack: "bg-amber-100/70",
-    barFill: "bg-gradient-to-r from-amber-400 to-orange-500",
-    subText: "text-amber-700/80",
-    hoverBorder: "hover:border-amber-300",
-    glow: "bg-amber-200/30",
+    cardBg: "bg-gradient-to-br from-amber-50/80 via-white to-amber-50/40 dark:from-amber-950/40 dark:via-zinc-900 dark:to-amber-950/30",
+    cardBorder: "border-amber-100 dark:border-amber-900/60",
+    iconBg: "bg-amber-100 dark:bg-amber-950/60",
+    iconText: "text-amber-700 dark:text-amber-300",
+    valueColor: "text-amber-700 dark:text-amber-300",
+    barTrack: "bg-amber-100/70 dark:bg-amber-950/60",
+    barFill: "bg-gradient-to-r from-amber-400 to-orange-500 dark:from-amber-400 dark:to-orange-400",
+    subText: "text-amber-700/80 dark:text-amber-300/80",
+    hoverBorder: "hover:border-amber-300 dark:hover:border-amber-700",
+    glow: "bg-amber-200/30 dark:bg-amber-700/20",
   },
   indigo: {
-    cardBg: "bg-gradient-to-br from-indigo-50/80 via-white to-indigo-50/40",
-    cardBorder: "border-indigo-100",
-    iconBg: "bg-indigo-100",
-    iconText: "text-indigo-700",
-    valueColor: "text-indigo-700",
-    barTrack: "bg-indigo-100/70",
-    barFill: "bg-gradient-to-r from-indigo-400 to-indigo-600",
-    subText: "text-indigo-700/80",
-    hoverBorder: "hover:border-indigo-300",
-    glow: "bg-indigo-200/30",
+    cardBg: "bg-gradient-to-br from-indigo-50/80 via-white to-indigo-50/40 dark:from-indigo-950/40 dark:via-zinc-900 dark:to-indigo-950/30",
+    cardBorder: "border-indigo-100 dark:border-indigo-900/60",
+    iconBg: "bg-indigo-100 dark:bg-indigo-950/60",
+    iconText: "text-indigo-700 dark:text-indigo-300",
+    valueColor: "text-indigo-700 dark:text-indigo-300",
+    barTrack: "bg-indigo-100/70 dark:bg-indigo-950/60",
+    barFill: "bg-gradient-to-r from-indigo-400 to-indigo-600 dark:from-indigo-400 dark:to-indigo-500",
+    subText: "text-indigo-700/80 dark:text-indigo-300/80",
+    hoverBorder: "hover:border-indigo-300 dark:hover:border-indigo-700",
+    glow: "bg-indigo-200/30 dark:bg-indigo-700/20",
   },
   rose: {
-    cardBg: "bg-gradient-to-br from-rose-50/80 via-white to-rose-50/40",
-    cardBorder: "border-rose-100",
-    iconBg: "bg-rose-100",
-    iconText: "text-rose-700",
-    valueColor: "text-rose-700",
-    barTrack: "bg-rose-100/70",
-    barFill: "bg-gradient-to-r from-rose-400 to-rose-600",
-    subText: "text-rose-700/80",
-    hoverBorder: "hover:border-rose-300",
-    glow: "bg-rose-200/30",
+    cardBg: "bg-gradient-to-br from-rose-50/80 via-white to-rose-50/40 dark:from-rose-950/40 dark:via-zinc-900 dark:to-rose-950/30",
+    cardBorder: "border-rose-100 dark:border-rose-900/60",
+    iconBg: "bg-rose-100 dark:bg-rose-950/60",
+    iconText: "text-rose-700 dark:text-rose-300",
+    valueColor: "text-rose-700 dark:text-rose-300",
+    barTrack: "bg-rose-100/70 dark:bg-rose-950/60",
+    barFill: "bg-gradient-to-r from-rose-400 to-rose-600 dark:from-rose-400 dark:to-rose-500",
+    subText: "text-rose-700/80 dark:text-rose-300/80",
+    hoverBorder: "hover:border-rose-300 dark:hover:border-rose-700",
+    glow: "bg-rose-200/30 dark:bg-rose-700/20",
   },
   violet: {
-    cardBg: "bg-gradient-to-br from-violet-50/80 via-white to-violet-50/40",
-    cardBorder: "border-violet-100",
-    iconBg: "bg-violet-100",
-    iconText: "text-violet-700",
-    valueColor: "text-violet-700",
-    barTrack: "bg-violet-100/70",
-    barFill: "bg-gradient-to-r from-violet-400 to-violet-600",
-    subText: "text-violet-700/80",
-    hoverBorder: "hover:border-violet-300",
-    glow: "bg-violet-200/30",
+    cardBg: "bg-gradient-to-br from-violet-50/80 via-white to-violet-50/40 dark:from-violet-950/40 dark:via-zinc-900 dark:to-violet-950/30",
+    cardBorder: "border-violet-100 dark:border-violet-900/60",
+    iconBg: "bg-violet-100 dark:bg-violet-950/60",
+    iconText: "text-violet-700 dark:text-violet-300",
+    valueColor: "text-violet-700 dark:text-violet-300",
+    barTrack: "bg-violet-100/70 dark:bg-violet-950/60",
+    barFill: "bg-gradient-to-r from-violet-400 to-violet-600 dark:from-violet-400 dark:to-violet-500",
+    subText: "text-violet-700/80 dark:text-violet-300/80",
+    hoverBorder: "hover:border-violet-300 dark:hover:border-violet-700",
+    glow: "bg-violet-200/30 dark:bg-violet-700/20",
   },
 };
 
@@ -159,7 +159,7 @@ export function BigStatCard({
 }: BigStatCardProps) {
   if (loading) {
     return (
-      <div className={cn("flex h-[200px] flex-col gap-4 rounded-3xl border border-zinc-200 bg-white p-6", className)}>
+      <div className={cn("flex h-[200px] flex-col gap-4 rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900", className)}>
         <Skeleton className="h-5 w-32" />
         <Skeleton className="h-12 w-24" />
         <Skeleton className="h-2 w-full" />
@@ -181,19 +181,19 @@ export function BigStatCard({
       <Link
         href={href}
         className={cn(
-          "group relative flex h-[200px] flex-col justify-between rounded-3xl border-2 border-dashed border-zinc-200 bg-white p-6 transition-all hover:border-zinc-300 hover:bg-zinc-50/40 hover:shadow-sm",
+          "group relative flex h-[200px] flex-col justify-between rounded-3xl border-2 border-dashed border-zinc-200 bg-white p-6 transition-all hover:border-zinc-300 hover:bg-zinc-50/40 hover:shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-600 dark:hover:bg-zinc-800/40",
           className,
         )}
       >
         <div className="flex items-center gap-2.5">
-          <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100">
-            <Icon className="h-5 w-5 text-zinc-400" strokeWidth={2} />
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800">
+            <Icon className="h-5 w-5 text-zinc-400 dark:text-zinc-500" strokeWidth={2} />
           </span>
-          <p className="text-sm font-bold uppercase tracking-wider text-zinc-500">{label}</p>
+          <p className="text-sm font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</p>
         </div>
 
         <div>
-          <p className="text-base font-medium text-zinc-400">Chưa có dữ liệu</p>
+          <p className="text-base font-medium text-zinc-400 dark:text-zinc-500">Chưa có dữ liệu</p>
           <p className={cn("mt-2 inline-flex items-center gap-1 text-sm font-semibold", styles.valueColor)}>
             Vào {moduleLabel}
             <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
@@ -229,9 +229,9 @@ export function BigStatCard({
           <span className={cn("inline-flex h-10 w-10 items-center justify-center rounded-xl shadow-sm", styles.iconBg)}>
             <Icon className={cn("h-5 w-5", styles.iconText)} strokeWidth={2.25} />
           </span>
-          <p className="text-sm font-bold uppercase tracking-wider text-zinc-700">{label}</p>
+          <p className="text-sm font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-200">{label}</p>
         </div>
-        <ArrowUpRight className="h-4 w-4 text-zinc-300 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-zinc-700" />
+        <ArrowUpRight className="h-4 w-4 text-zinc-300 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-zinc-700 dark:text-zinc-600 dark:group-hover:text-zinc-200" />
       </div>
 
       <div className="relative flex flex-col gap-3">

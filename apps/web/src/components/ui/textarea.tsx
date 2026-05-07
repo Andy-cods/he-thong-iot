@@ -18,11 +18,11 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       ref={ref}
       aria-invalid={error || props["aria-invalid"]}
       className={cn(
-        "flex min-h-[72px] w-full rounded-md border bg-white px-3 py-2 text-base text-zinc-900 leading-[1.4] placeholder:text-zinc-400 transition-colors duration-150 ease-out resize-y",
-        "focus:outline-none disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-400",
+        "flex min-h-[72px] w-full rounded-md border bg-white px-3 py-2 text-base text-zinc-900 leading-[1.4] placeholder:text-zinc-400 transition-colors duration-150 ease-out resize-y dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500",
+        "focus:outline-none disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-400 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-600",
         error
-          ? "border-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500 focus-visible:outline-offset-0"
-          : "border-zinc-200 focus:border-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 focus-visible:outline-offset-0",
+          ? "border-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500 focus-visible:outline-offset-0 dark:border-red-500 dark:focus-visible:outline-red-400"
+          : "border-zinc-200 focus:border-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 focus-visible:outline-offset-0 dark:border-zinc-700 dark:focus:border-indigo-400 dark:focus-visible:outline-indigo-400",
         "aria-[invalid=true]:border-red-500",
         className,
       )}
