@@ -2,34 +2,22 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
   AlertCircle,
   ArrowLeft,
   ArrowRight,
-  Building2,
-  Calendar,
-  Check,
   CheckCircle2,
-  ChevronRight,
-  Clock,
-  Edit3,
+  Circle,
+  Download,
+  FileSpreadsheet,
   FileText,
-  History,
   Loader2,
-  Package,
-  Plus,
-  Save,
-  Search,
-  ShoppingCart,
-  Trash2,
-  User,
+  Printer,
   X,
-  XCircle,
 } from "lucide-react";
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { PR_STATUS_LABELS, type PRStatus } from "@iot/shared";
+import type { PRStatus } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -43,179 +31,137 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useSession } from "@/hooks/useSession";
 import {
-  useApprovePurchaseRequest,
+  useDeptApprovePR,
+  useDirectorApprovePR,
   usePurchaseRequestDetail,
   useRejectPurchaseRequest,
-  useUpdatePurchaseRequest,
 } from "@/hooks/usePurchaseRequests";
 import { useConvertPRToPOs } from "@/hooks/usePurchaseOrders";
-import { formatDate, formatNumber } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ConvertPRToPODialog } from "@/components/procurement/ConvertPRToPODialog";
 
 /**
- * V3.4 — Purchase Request detail page redesign hoàn toàn.
+ * V3.7.69 — Detail page YCVT (Yêu cầu Vật tư).
  *
- * Layout:
- *   - Header sticky: avatar + status pill + actions (Submit/Approve/Reject/Convert)
- *   - Info section: 2 cột grid với icon labels
- *   - Lines table: inline edit qty + add/remove dòng (DRAFT/SUBMITTED only)
- *   - Audit drawer: ghi log thay đổi (skeleton — endpoint chưa có)
+ * Layout khớp 100% với Excel "Phiếu MRF" mẫu. Read-only render kèm 3-step
+ * approval workflow (Người đề xuất → Trưởng bộ phận → Giám đốc/Mua hàng).
+ *
+ * Sections:
+ *   Header: XƯỞNG SXKD + Tên công ty + Số phiếu thực + Ngày lập
+ *   I.   Thông tin chung (Kính gửi, Bộ phận đề xuất, Người đề xuất, Lý do)
+ *   II.  Danh mục vật tư (15 cột, Tồn kho từ snapshot, Duyệt từ approvedQty)
+ *   III. Phê duyệt — 3 chữ ký với state realtime
+ *   IV.  Theo dõi — 5 timeline rows
+ *   V.   Quy tắc quản lý (5 bullets)
+ *
+ * Toolbar (no-print):
+ *   - Back to list, status pill
+ *   - Duyệt step current (Trưởng bộ phận hoặc Giám đốc) — chỉ hiện cho role tương ứng
+ *   - Từ chối — chỉ khi đang trong flow approval
+ *   - In phiếu (window.print)
+ *   - Xuất Excel / Xuất PDF
+ *   - Tạo PO (nếu status APPROVED)
  */
 
-type Tab = "info" | "lines" | "audit";
+type ApprovalStep =
+  | "DRAFT"
+  | "SUBMITTED"
+  | "DEPT_APPROVED"
+  | "DIRECTOR_APPROVED"
+  | "CONVERTED"
+  | "DONE"
+  | "REJECTED";
 
-const STATUS_PILL: Record<PRStatus, { cls: string; dot: string; icon: React.ElementType }> = {
-  DRAFT:     { cls: "bg-zinc-100 text-zinc-700 ring-zinc-200",    dot: "bg-zinc-400",       icon: Edit3        },
-  SUBMITTED: { cls: "bg-amber-50 text-amber-700 ring-amber-200",  dot: "bg-amber-500 animate-pulse", icon: Clock },
-  APPROVED:  { cls: "bg-emerald-50 text-emerald-700 ring-emerald-200", dot: "bg-emerald-500", icon: CheckCircle2 },
-  REJECTED:  { cls: "bg-red-50 text-red-700 ring-red-200",        dot: "bg-red-500",        icon: XCircle      },
-  CONVERTED: { cls: "bg-indigo-50 text-indigo-700 ring-indigo-200", dot: "bg-indigo-500",   icon: ArrowRight   },
+const STEP_LABEL: Record<ApprovalStep, string> = {
+  DRAFT: "Nháp",
+  SUBMITTED: "Chờ Trưởng bộ phận",
+  DEPT_APPROVED: "Chờ Giám đốc",
+  DIRECTOR_APPROVED: "Đã duyệt",
+  CONVERTED: "Đã tạo PO",
+  DONE: "Hoàn tất",
+  REJECTED: "Từ chối",
 };
 
-interface ItemSearch {
-  id: string;
-  sku: string;
-  name: string;
-  uom?: string;
-}
+const STEP_PILL: Record<ApprovalStep, string> = {
+  DRAFT: "bg-zinc-100 text-zinc-700 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700",
+  SUBMITTED:
+    "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-800",
+  DEPT_APPROVED:
+    "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:ring-sky-800",
+  DIRECTOR_APPROVED:
+    "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-800",
+  CONVERTED:
+    "bg-indigo-50 text-indigo-700 ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:ring-indigo-800",
+  DONE: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-800",
+  REJECTED:
+    "bg-red-50 text-red-700 ring-red-200 dark:bg-red-950/40 dark:text-red-300 dark:ring-red-800",
+};
 
-interface EditableLine {
-  id?: string;
-  itemId: string;
-  sku: string;
-  itemName: string;
-  uom?: string;
-  qty: string;
-  notes: string;
+const PRIORITY_LABELS: Record<string, string> = {
+  URGENT: "Khẩn",
+  NORMAL: "Bình thường",
+  RESERVE: "Dự phòng",
+};
+const CATEGORY_LABELS: Record<string, string> = {
+  TOOL: "CCDC",
+  CONSUMABLE: "Tiêu hao",
+  MATERIAL: "Vật tư",
+  OTHER: "Khác",
+};
+
+function fmtDateVN(d: string | Date | null | undefined): string {
+  if (!d) return "—";
+  return formatDate(d, "dd/MM/yyyy");
+}
+function fmtDateTimeVN(d: string | Date | null | undefined): string {
+  if (!d) return "—";
+  return formatDate(d, "dd/MM/yyyy HH:mm");
+}
+function fmtNum(n: number | string | null | undefined): string {
+  if (n === null || n === undefined || n === "") return "—";
+  const num = typeof n === "string" ? Number(n) : n;
+  if (!Number.isFinite(num)) return "—";
+  return num.toLocaleString("vi-VN");
 }
 
 export default function PurchaseRequestDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
-  const router = useRouter();
   const session = useSession();
   const roles = session.data?.roles ?? [];
-  const canManage = roles.includes("admin") || roles.includes("planner");
-  const canPurchase = roles.includes("admin") || roles.includes("purchaser");
+  const isAdmin = roles.includes("admin");
+  const isPlanner = roles.includes("planner");
+  const isPurchaser = roles.includes("purchaser");
 
   const detail = usePurchaseRequestDetail(id);
-  const update = useUpdatePurchaseRequest(id);
-  const approve = useApprovePurchaseRequest(id);
+  const deptApprove = useDeptApprovePR(id);
+  const directorApprove = useDirectorApprovePR(id);
   const reject = useRejectPurchaseRequest(id);
   const convert = useConvertPRToPOs();
 
-  const [tab, setTab] = React.useState<Tab>("info");
-  const [editing, setEditing] = React.useState(false);
-  const [editTitle, setEditTitle] = React.useState("");
-  const [editNotes, setEditNotes] = React.useState("");
-  const [editLines, setEditLines] = React.useState<EditableLine[]>([]);
-  const [searchOpen, setSearchOpen] = React.useState(false);
-  const [search, setSearch] = React.useState("");
-  const [debouncedQ, setDebouncedQ] = React.useState("");
   const [rejectOpen, setRejectOpen] = React.useState(false);
   const [rejectReason, setRejectReason] = React.useState("");
+  const [approveOpen, setApproveOpen] = React.useState<null | "dept" | "director">(null);
+  const [approveNote, setApproveNote] = React.useState("");
   const [convertOpen, setConvertOpen] = React.useState(false);
-
-  React.useEffect(() => {
-    const t = setTimeout(() => setDebouncedQ(search), 300);
-    return () => clearTimeout(t);
-  }, [search]);
-
-  const itemsQuery = useQuery({
-    queryKey: ["items-search", debouncedQ],
-    queryFn: async () => {
-      const res = await fetch(`/api/items?q=${encodeURIComponent(debouncedQ)}&pageSize=15`, { credentials: "include" });
-      if (!res.ok) throw new Error();
-      return res.json() as Promise<{ data: ItemSearch[] }>;
-    },
-    enabled: searchOpen && debouncedQ.length >= 1,
-    staleTime: 30_000,
-  });
-
-  const pr = detail.data?.data;
-
-  // Init edit state khi vào edit mode
-  const startEdit = () => {
-    if (!pr) return;
-    setEditTitle(pr.title ?? "");
-    setEditNotes(pr.notes ?? "");
-    setEditLines(
-      pr.lines.map((l) => ({
-        id: l.id,
-        itemId: l.itemId,
-        sku: l.sku ?? "",
-        itemName: l.name ?? "",
-        uom: undefined,
-        qty: String(l.qty),
-        notes: l.notes ?? "",
-      })),
-    );
-    setEditing(true);
-  };
-
-  const cancelEdit = () => {
-    setEditing(false);
-    setSearchOpen(false);
-    setSearch("");
-  };
-
-  const addItemToLines = (it: ItemSearch) => {
-    if (editLines.find((l) => l.itemId === it.id)) {
-      toast.info("Linh kiện này đã có trong danh sách");
-      return;
-    }
-    setEditLines((prev) => [
-      ...prev,
-      { itemId: it.id, sku: it.sku, itemName: it.name, uom: it.uom, qty: "1", notes: "" },
-    ]);
-    setSearch("");
-    setSearchOpen(false);
-  };
-
-  const removeLine = (idx: number) => setEditLines((prev) => prev.filter((_, i) => i !== idx));
-  const updateLine = (idx: number, patch: Partial<EditableLine>) =>
-    setEditLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
-
-  const handleSaveEdit = async () => {
-    if (editLines.length === 0) {
-      toast.error("PR cần ít nhất 1 dòng linh kiện");
-      return;
-    }
-    if (editLines.some((l) => Number(l.qty) <= 0)) {
-      toast.error("Số lượng phải lớn hơn 0");
-      return;
-    }
-    try {
-      await update.mutateAsync({
-        title: editTitle.trim() || null,
-        notes: editNotes.trim() || null,
-        lines: editLines.map((l) => ({
-          itemId: l.itemId,
-          qty: Number(l.qty),
-          notes: l.notes.trim() || null,
-        })),
-      });
-      toast.success("Đã cập nhật PR");
-      setEditing(false);
-    } catch (err) {
-      toast.error(`Cập nhật thất bại: ${(err as Error).message}`);
-    }
-  };
 
   if (detail.isLoading) {
     return (
-      <div className="flex h-full items-center justify-center gap-2 text-sm text-zinc-500">
+      <div className="flex h-full items-center justify-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
         <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-        Đang tải PR…
+        Đang tải phiếu…
       </div>
     );
   }
+  const pr = detail.data?.data;
   if (!pr) {
     return (
-      <div className="m-6 rounded-xl border border-red-200 bg-red-50 p-6 text-center">
-        <AlertCircle className="mx-auto h-8 w-8 text-red-400" aria-hidden />
-        <p className="mt-2 text-sm font-semibold text-red-700">Không tìm thấy PR</p>
+      <div className="m-6 rounded-xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-800 dark:bg-red-950/40">
+        <AlertCircle className="mx-auto h-8 w-8 text-red-400 dark:text-red-500" aria-hidden />
+        <p className="mt-2 text-sm font-semibold text-red-700 dark:text-red-300">
+          Không tìm thấy phiếu YCVT
+        </p>
         <Button asChild variant="outline" size="sm" className="mt-3">
           <Link href="/procurement/purchase-requests">Về danh sách</Link>
         </Button>
@@ -223,18 +169,31 @@ export default function PurchaseRequestDetailPage() {
     );
   }
 
-  const cfg = STATUS_PILL[pr.status as PRStatus];
-  const StatusIcon = cfg.icon;
-  const isEditable = canManage && (pr.status === "DRAFT" || pr.status === "SUBMITTED");
-  const canApprove = canPurchase && (pr.status === "DRAFT" || pr.status === "SUBMITTED");
-  const canReject = canPurchase && (pr.status === "DRAFT" || pr.status === "SUBMITTED" || pr.status === "APPROVED");
-  const canConvert = canPurchase && pr.status === "APPROVED";
-  const totalQty = pr.lines.reduce((s, l) => s + Number(l.qty), 0);
+  const step = (pr.approvalStep ?? "DRAFT") as ApprovalStep;
+  const status = pr.status as PRStatus;
 
-  const handleApprove = async () => {
+  const canDeptApprove = (isAdmin || isPlanner) && step === "SUBMITTED";
+  const canDirectorApprove =
+    (isAdmin || isPurchaser) && step === "DEPT_APPROVED";
+  const canReject =
+    (isAdmin || isPlanner || isPurchaser) &&
+    (step === "SUBMITTED" || step === "DEPT_APPROVED");
+  const canConvert = (isAdmin || isPurchaser) && status === "APPROVED";
+
+  const paperFormNo = pr.paperFormNo ?? "—";
+  const todayStr = fmtDateVN(pr.createdAt);
+
+  const handleApproveSubmit = async () => {
     try {
-      await approve.mutateAsync({ notes: null });
-      toast.success("Đã duyệt PR");
+      if (approveOpen === "dept") {
+        await deptApprove.mutateAsync({ note: approveNote.trim() || null });
+        toast.success("Đã duyệt bước Trưởng bộ phận");
+      } else if (approveOpen === "director") {
+        await directorApprove.mutateAsync({ note: approveNote.trim() || null });
+        toast.success("Đã duyệt cuối — phiếu hoàn tất phê duyệt");
+      }
+      setApproveOpen(null);
+      setApproveNote("");
     } catch (err) {
       toast.error(`Duyệt thất bại: ${(err as Error).message}`);
     }
@@ -242,12 +201,12 @@ export default function PurchaseRequestDetailPage() {
 
   const handleReject = async () => {
     if (rejectReason.trim().length < 3) {
-      toast.error("Lý do tối thiểu 3 ký tự");
+      toast.error("Lý do từ chối tối thiểu 3 ký tự");
       return;
     }
     try {
       await reject.mutateAsync({ reason: rejectReason.trim() });
-      toast.success("Đã từ chối PR");
+      toast.success("Đã từ chối phiếu YCVT");
       setRejectOpen(false);
       setRejectReason("");
     } catch (err) {
@@ -255,438 +214,802 @@ export default function PurchaseRequestDetailPage() {
     }
   };
 
-  const handleConvert = () => {
-    // V3.4 — luôn mở dialog để user chọn/xác nhận supplier per line
-    setConvertOpen(true);
+  const handlePrint = () => window.print();
+  const handleExportExcel = () => {
+    window.open(`/api/purchase-requests/${id}/export-excel`, "_blank");
+  };
+  const handleExportPdf = () => {
+    window.open(`/api/purchase-requests/${id}/export-pdf`, "_blank");
   };
 
   return (
-    <div className="flex h-full flex-col bg-zinc-50/30">
-
-      {/* ── Header ────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white px-6 py-4">
+    <div className="flex h-full flex-col overflow-auto bg-zinc-100 dark:bg-zinc-950 print:bg-white">
+      {/* ===== Toolbar (no print) ===== */}
+      <header className="border-b border-zinc-200 bg-white px-6 py-3 print:hidden dark:border-zinc-800 dark:bg-zinc-900">
         <Link
           href="/procurement/purchase-requests"
-          className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-indigo-600 transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-300"
         >
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
           Yêu cầu mua hàng
         </Link>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-500 shadow-md shadow-indigo-500/30">
-              <ShoppingCart className="h-6 w-6 text-white" aria-hidden />
-            </div>
-            <div className="min-w-0">
+            <div>
               <div className="flex items-center gap-2">
-                <span className="font-mono text-xs font-medium text-zinc-500">{pr.code}</span>
-                <span className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset",
-                  cfg.cls,
-                )}>
-                  <span className={cn("h-1.5 w-1.5 rounded-full", cfg.dot)} aria-hidden />
-                  {PR_STATUS_LABELS[pr.status as PRStatus]}
+                <span className="font-mono text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                  {pr.code}
+                </span>
+                {paperFormNo !== "—" ? (
+                  <span className="rounded bg-[#005D9F] px-2 py-0.5 font-mono text-[11px] text-white">
+                    {paperFormNo}
+                  </span>
+                ) : null}
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset",
+                    STEP_PILL[step],
+                  )}
+                >
+                  <Circle className="h-1.5 w-1.5 fill-current" aria-hidden />
+                  {STEP_LABEL[step]}
                 </span>
               </div>
-              <h1 className="mt-1 truncate text-2xl font-bold tracking-tight text-zinc-900">
-                {pr.title || "Không có tiêu đề"}
+              <h1 className="mt-1 truncate text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+                {pr.title || "Phiếu YCVT"}
               </h1>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {!editing && isEditable && (
-              <Button variant="outline" size="sm" onClick={startEdit}>
-                <Edit3 className="h-3.5 w-3.5" aria-hidden />
-                Chỉnh sửa
+            <Button variant="ghost" size="sm" onClick={handlePrint}>
+              <Printer className="h-3.5 w-3.5" aria-hidden />
+              In
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleExportExcel}>
+              <FileSpreadsheet className="h-3.5 w-3.5" aria-hidden />
+              Excel
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleExportPdf}>
+              <Download className="h-3.5 w-3.5" aria-hidden />
+              PDF
+            </Button>
+
+            {canReject && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setRejectOpen(true)}
+                className="border-red-200 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/40"
+              >
+                <X className="h-3.5 w-3.5" />
+                Từ chối
               </Button>
             )}
-            {editing && (
-              <>
-                <Button variant="ghost" size="sm" onClick={cancelEdit} disabled={update.isPending}>
-                  <X className="h-3.5 w-3.5" aria-hidden /> Huỷ
-                </Button>
-                <Button size="sm" onClick={() => void handleSaveEdit()} disabled={update.isPending}>
-                  {update.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                  Lưu thay đổi
-                </Button>
-              </>
+            {canDeptApprove && (
+              <Button
+                size="sm"
+                onClick={() => {
+                  setApproveOpen("dept");
+                  setApproveNote("");
+                }}
+                disabled={deptApprove.isPending}
+                className="bg-sky-600 hover:bg-sky-700 dark:bg-sky-500 dark:hover:bg-sky-400"
+              >
+                {deptApprove.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                )}
+                Duyệt (Trưởng bộ phận)
+              </Button>
             )}
-            {!editing && (
-              <>
-                {canApprove && (
-                  <Button
-                    size="sm"
-                    onClick={() => void handleApprove()}
-                    disabled={approve.isPending}
-                    className="bg-emerald-600 hover:bg-emerald-700"
-                  >
-                    {approve.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                    Duyệt
-                  </Button>
+            {canDirectorApprove && (
+              <Button
+                size="sm"
+                onClick={() => {
+                  setApproveOpen("director");
+                  setApproveNote("");
+                }}
+                disabled={directorApprove.isPending}
+                className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+              >
+                {directorApprove.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-3.5 w-3.5" />
                 )}
-                {canReject && (
-                  <Button variant="outline" size="sm" onClick={() => setRejectOpen(true)}
-                    className="border-red-200 text-red-700 hover:bg-red-50">
-                    <X className="h-3.5 w-3.5" /> Từ chối
-                  </Button>
+                Duyệt (Giám đốc/Mua hàng)
+              </Button>
+            )}
+            {canConvert && (
+              <Button
+                size="sm"
+                onClick={() => setConvertOpen(true)}
+                disabled={convert.isPending}
+              >
+                {convert.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <ArrowRight className="h-3.5 w-3.5" />
                 )}
-                {canConvert && (
-                  <Button size="sm" onClick={handleConvert} disabled={convert.isPending}>
-                    {convert.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
-                    Tạo PO
-                  </Button>
-                )}
-              </>
+                Tạo PO
+              </Button>
             )}
           </div>
         </div>
       </header>
 
-      {/* ── KPI strip ─────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3 border-b border-zinc-200 bg-white px-6 py-3 lg:grid-cols-4">
-        <KpiInline icon={Package} label="Số dòng" value={String(pr.lines.length)} />
-        <KpiInline icon={FileText} label="Tổng SL" value={formatNumber(totalQty)} />
-        <KpiInline icon={Calendar} label="Tạo lúc" value={formatDate(pr.createdAt, "dd/MM/yyyy")} />
-        <KpiInline icon={StatusIcon} label="Trạng thái" value={PR_STATUS_LABELS[pr.status as PRStatus]} />
-      </div>
-
-      {/* ── Tabs ──────────────────────────────────────────────── */}
-      <div className="flex items-center gap-1 border-b border-zinc-200 bg-white px-6">
-        {([
-          { v: "info" as const, label: "Thông tin", icon: FileText },
-          { v: "lines" as const, label: `Dòng hàng (${pr.lines.length})`, icon: Package },
-          { v: "audit" as const, label: "Lịch sử", icon: History },
-        ]).map((t) => {
-          const Icon = t.icon;
-          return (
-            <button
-              key={t.v}
-              type="button"
-              onClick={() => setTab(t.v)}
-              className={cn(
-                "relative flex items-center gap-2 px-4 py-3 text-sm font-semibold transition-colors",
-                "after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:rounded-t-full after:transition-all",
-                tab === t.v
-                  ? "text-indigo-700 after:bg-indigo-600"
-                  : "text-zinc-500 hover:text-zinc-800 after:bg-transparent",
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {t.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ── Content ───────────────────────────────────────────── */}
-      <div className="flex-1 overflow-auto p-6">
-        {tab === "info" && (
-          <div className="mx-auto max-w-4xl space-y-5">
-            <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <h2 className="mb-5 flex items-center gap-2 text-sm font-semibold text-zinc-900">
-                <FileText className="h-4 w-4 text-zinc-400" /> Thông tin yêu cầu
-              </h2>
-              <div className="grid gap-5 md:grid-cols-2">
-                <InfoRow icon={FileText} label="Mã PR" value={<span className="font-mono font-semibold text-indigo-600">{pr.code}</span>} />
-                <InfoRow icon={Building2} label="Nguồn" value={pr.source} />
-                <InfoRow icon={Calendar} label="Tạo lúc" value={formatDate(pr.createdAt, "dd/MM/yyyy HH:mm")} />
-                <InfoRow icon={Clock} label="Duyệt lúc" value={pr.approvedAt ? formatDate(pr.approvedAt, "dd/MM/yyyy HH:mm") : "—"} />
-                <InfoRow icon={User} label="Người yêu cầu" value={pr.requestedBy ? `${pr.requestedBy.slice(0, 8)}…` : "—"} />
-                <InfoRow icon={CheckCircle2} label="Người duyệt" value={pr.approvedBy ? `${pr.approvedBy.slice(0, 8)}…` : "—"} />
+      {/* ===== Phiếu YCVT body — A4 landscape ===== */}
+      <div className="mx-auto w-full max-w-[1240px] p-6 print:p-0 print:max-w-none">
+        <article className="border-2 border-zinc-900 bg-white text-zinc-900 shadow-md print:border print:border-zinc-900 print:shadow-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 print:dark:border-zinc-900 print:dark:bg-white print:dark:text-zinc-900">
+          {/* Header */}
+          <div className="grid grid-cols-[1fr_2fr_1fr] items-center gap-2 border-b-2 border-zinc-900 px-4 py-3 text-[12px] print:dark:border-zinc-900">
+            <div className="font-bold tracking-wide">XƯỞNG SXKD</div>
+            <div className="text-center text-[14px] font-bold">
+              CÔNG TY CỔ PHẦN SẢN XUẤT TỰ ĐỘNG HÓA
+              <br />
+              CÔNG NGHỆ TOÀN CẦU
+            </div>
+            <div className="space-y-1 text-right text-[12px]">
+              <div>
+                <span className="font-bold">Số phiếu: </span>
+                <span className="rounded bg-[#005D9F] px-2 py-0.5 font-mono text-[12px] text-white">
+                  {paperFormNo}
+                </span>
               </div>
-
-              <div className="mt-5 border-t border-zinc-100 pt-5">
-                <Label htmlFor="title" className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                  Tiêu đề
-                </Label>
-                {editing ? (
-                  <input
-                    id="title"
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    className="mt-1.5 h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    placeholder="Tiêu đề ngắn cho PR..."
-                  />
-                ) : (
-                  <p className="mt-1.5 text-sm text-zinc-800">{pr.title || <span className="italic text-zinc-400">Chưa có tiêu đề</span>}</p>
-                )}
+              <div>
+                <span className="font-bold">Ngày lập: </span>
+                <span className="font-mono">{todayStr}</span>
               </div>
-
-              <div className="mt-4">
-                <Label htmlFor="notes" className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                  Ghi chú
-                </Label>
-                {editing ? (
-                  <Textarea
-                    id="notes"
-                    value={editNotes}
-                    onChange={(e) => setEditNotes(e.target.value)}
-                    rows={4}
-                    className="mt-1.5"
-                    placeholder="Ghi chú thêm về yêu cầu..."
-                  />
-                ) : (
-                  <p className="mt-1.5 whitespace-pre-line text-sm text-zinc-700">
-                    {pr.notes || <span className="italic text-zinc-400">Không có ghi chú</span>}
-                  </p>
-                )}
-              </div>
-            </section>
+            </div>
           </div>
-        )}
 
-        {tab === "lines" && (
-          <div className="mx-auto max-w-5xl space-y-4">
-            {editing && (
-              <section className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-indigo-900">Đang chỉnh sửa</p>
-                    <p className="text-xs text-indigo-700">Thêm linh kiện mới hoặc sửa qty/ghi chú từng dòng</p>
-                  </div>
-                  <Button size="sm" variant="outline" onClick={() => setSearchOpen(true)}>
-                    <Plus className="h-3.5 w-3.5" /> Thêm dòng
-                  </Button>
-                </div>
+          {/* Title */}
+          <div className="border-b-2 border-zinc-900 bg-[#F5F5F5] px-4 py-2 text-center print:dark:border-zinc-900 print:dark:bg-zinc-100 dark:bg-zinc-800">
+            <h2 className="text-[20px] font-bold tracking-wide text-zinc-900 dark:text-zinc-50 print:dark:text-zinc-900">
+              PHIẾU ĐỀ XUẤT VẬT TƯ — NPL
+            </h2>
+          </div>
 
-                {searchOpen && (
-                  <div className="mt-3 rounded-xl border border-indigo-200 bg-white p-3">
-                    <div className="relative">
-                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                      <input
-                        type="text"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Tìm SKU hoặc tên linh kiện..."
-                        autoFocus
-                        className="h-10 w-full rounded-lg border border-zinc-200 bg-white pl-9 pr-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                      />
-                    </div>
-                    {debouncedQ && (
-                      <div className="mt-2 max-h-60 overflow-y-auto rounded-lg border border-zinc-100 bg-zinc-50/40">
-                        {itemsQuery.isLoading ? (
-                          <p className="px-4 py-4 text-center text-xs text-zinc-500">Đang tìm…</p>
-                        ) : (itemsQuery.data?.data ?? []).length === 0 ? (
-                          <p className="px-4 py-4 text-center text-xs text-zinc-500">Không tìm thấy</p>
-                        ) : (
-                          <ul className="divide-y divide-zinc-100">
-                            {(itemsQuery.data?.data ?? []).map((it) => (
-                              <li key={it.id}>
-                                <button
-                                  type="button"
-                                  onClick={() => addItemToLines(it)}
-                                  className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-white"
-                                >
-                                  <span className="font-mono text-xs font-semibold text-indigo-600">{it.sku}</span>
-                                  <span className="flex-1 truncate text-sm text-zinc-700">{it.name}</span>
-                                  <Plus className="h-3.5 w-3.5 text-zinc-400" />
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </section>
-            )}
+          {/* I. Thông tin chung */}
+          <section className="border-b border-zinc-300 print:dark:border-zinc-300">
+            <SectionTitle>I. Thông tin chung</SectionTitle>
+            <div className="grid grid-cols-1 md:grid-cols-2">
+              <FieldRow label="Kính gửi:">
+                <span>{pr.targetDepartment ?? "—"}</span>
+              </FieldRow>
+              <FieldRow label="Bộ phận đề xuất:">
+                <span>{pr.proposingDepartment ?? "—"}</span>
+              </FieldRow>
+              <FieldRow label="Người đề xuất:">
+                <span className="font-medium">
+                  {(pr as { requestedByName?: string }).requestedByName ??
+                    pr.requestedBy?.slice(0, 8) ??
+                    "—"}
+                </span>
+              </FieldRow>
+              <FieldRow label="Tiêu đề:">
+                <span>{pr.title ?? "—"}</span>
+              </FieldRow>
+              <FieldRow label="Lý do đề xuất:" wide>
+                <span className="whitespace-pre-line">
+                  {pr.requestReason ?? "—"}
+                </span>
+              </FieldRow>
+            </div>
+          </section>
 
-            <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-              <table className="w-full border-collapse">
+          {/* II. Danh mục vật tư */}
+          <section className="border-b border-zinc-300 print:dark:border-zinc-300">
+            <SectionTitle>II. Danh mục vật tư</SectionTitle>
+            <div className="overflow-x-auto print:overflow-visible">
+              <table className="w-full border-collapse text-[11px]">
                 <thead>
-                  <tr className="border-b border-zinc-100 bg-zinc-50/60">
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 w-12">#</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400">SKU</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400">Tên linh kiện</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400">Số lượng</th>
-                    {!editing && <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400">Còn thiếu</th>}
-                    {!editing && <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400">NCC</th>}
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400">{editing ? "Ghi chú" : "Cần"}</th>
-                    {editing && <th className="w-12" />}
+                  <tr className="bg-[#F5F5F5] text-[10px] font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
+                    <Th w="w-8">STT</Th>
+                    <Th w="min-w-[140px]">Tên vật tư</Th>
+                    <Th w="w-24">Mã VT</Th>
+                    <Th w="min-w-[110px]">Quy cách</Th>
+                    <Th w="w-14">ĐVT</Th>
+                    <Th w="w-14" align="right">SL</Th>
+                    <Th w="w-16" align="right">Tồn kho</Th>
+                    <Th w="w-14" align="right">Duyệt</Th>
+                    <Th w="w-24">Ngày cần</Th>
+                    <Th w="w-22">Ưu tiên</Th>
+                    <Th w="w-22">Phân loại</Th>
+                    <Th w="w-24" align="right">Đơn giá DK</Th>
+                    <Th w="w-24" align="right">Tổng tiền</Th>
+                    <Th w="w-20">Mã ref</Th>
+                    <Th w="min-w-[110px]">Ghi chú</Th>
                   </tr>
                 </thead>
                 <tbody>
-                  {editing
-                    ? editLines.map((l, i) => (
-                        <tr key={l.itemId} className="border-b border-zinc-50">
-                          <td className="px-4 py-3 text-sm text-zinc-500">{i + 1}</td>
-                          <td className="px-4 py-3 font-mono text-sm font-semibold text-indigo-600">{l.sku}</td>
-                          <td className="px-4 py-3 text-sm text-zinc-700">{l.itemName}</td>
-                          <td className="px-4 py-3 text-right">
-                            <input
-                              type="number"
-                              min="0.01"
-                              step="any"
-                              value={l.qty}
-                              onChange={(e) => updateLine(i, { qty: e.target.value })}
-                              className="h-9 w-24 rounded-md border border-zinc-200 bg-white px-2.5 text-right font-mono text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            <input
-                              type="text"
-                              value={l.notes}
-                              onChange={(e) => updateLine(i, { notes: e.target.value })}
-                              className="h-9 w-full rounded-md border border-zinc-200 bg-white px-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                              placeholder="Tuỳ chọn..."
-                            />
-                          </td>
-                          <td className="px-2 py-3">
-                            <button
-                              type="button"
-                              onClick={() => removeLine(i)}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                  {pr.lines.map((l, idx) => {
+                    const qty = Number(l.qty) || 0;
+                    const onHand =
+                      l.onHandSnapshot != null
+                        ? Number(l.onHandSnapshot)
+                        : null;
+                    const approvedQty =
+                      l.approvedQty != null ? Number(l.approvedQty) : null;
+                    const lowStock =
+                      onHand != null && qty > 0 ? onHand < qty : false;
+                    const lineTotal =
+                      l.lineTotal != null
+                        ? Number(l.lineTotal)
+                        : qty * (Number(l.estimatedUnitPrice) || 0);
+                    return (
+                      <tr
+                        key={l.id}
+                        className={cn(
+                          "border-b border-zinc-200 align-top dark:border-zinc-700 print:dark:border-zinc-300",
+                          idx % 2 === 1
+                            ? "bg-zinc-50/40 dark:bg-zinc-800/30 print:dark:bg-zinc-50/40"
+                            : "",
+                        )}
+                      >
+                        <Td>
+                          <span className="font-mono text-[11px] text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
+                            {idx + 1}
+                          </span>
+                        </Td>
+                        <Td>
+                          <span className="block truncate font-medium">
+                            {l.name ?? "—"}
+                          </span>
+                        </Td>
+                        <Td>
+                          <span className="block truncate font-mono text-[10.5px] text-zinc-600 dark:text-zinc-400 print:dark:text-zinc-600">
+                            {l.sku ?? "—"}
+                          </span>
+                        </Td>
+                        <Td>{l.specification ?? "—"}</Td>
+                        <Td align="center">{l.uom ?? l.itemUom ?? "—"}</Td>
+                        <Td align="right">
+                          <span className="font-mono">{fmtNum(qty)}</span>
+                        </Td>
+                        <Td align="right">
+                          {onHand != null ? (
+                            <span
+                              className={cn(
+                                "font-mono",
+                                lowStock
+                                  ? "font-semibold text-rose-600 dark:text-rose-400 print:dark:text-rose-600"
+                                  : "text-emerald-700 dark:text-emerald-400 print:dark:text-emerald-700",
+                              )}
                             >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    : pr.lines.map((l) => (
-                        <tr key={l.id} className="border-b border-zinc-50 hover:bg-zinc-50/50 transition-colors">
-                          <td className="px-4 py-3.5 text-sm text-zinc-500">{l.lineNo}</td>
-                          <td className="px-4 py-3.5 font-mono text-sm font-semibold text-indigo-600">{l.sku ?? "—"}</td>
-                          <td className="px-4 py-3.5 text-sm text-zinc-700">{l.name ?? "—"}</td>
-                          <td className="px-4 py-3.5 text-right font-mono text-sm font-semibold text-zinc-800">
-                            {formatNumber(Number(l.qty))}
-                          </td>
-                          <td className="px-4 py-3.5 text-right font-mono text-sm text-amber-700">
-                            {l.remainingShortQty ? formatNumber(Number(l.remainingShortQty)) : "—"}
-                          </td>
-                          <td className="px-4 py-3.5">
-                            {l.preferredSupplierId ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
-                                <Check className="h-3 w-3" /> Đã có NCC
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200">
-                                <AlertCircle className="h-3 w-3" /> Chưa có NCC
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3.5 text-sm text-zinc-600">
-                            {l.neededBy ? formatDate(l.neededBy, "dd/MM/yyyy") : "—"}
-                          </td>
-                        </tr>
-                      ))}
+                              {fmtNum(onHand)}
+                            </span>
+                          ) : (
+                            <span className="text-zinc-400">—</span>
+                          )}
+                        </Td>
+                        <Td align="right">
+                          {approvedQty != null ? (
+                            <span className="font-mono font-semibold text-emerald-700 dark:text-emerald-400 print:dark:text-emerald-700">
+                              {fmtNum(approvedQty)}
+                            </span>
+                          ) : (
+                            <span className="text-zinc-400">—</span>
+                          )}
+                        </Td>
+                        <Td>{fmtDateVN(l.neededBy)}</Td>
+                        <Td>{PRIORITY_LABELS[l.priority ?? "NORMAL"] ?? "—"}</Td>
+                        <Td>{CATEGORY_LABELS[l.category ?? "OTHER"] ?? "—"}</Td>
+                        <Td align="right">
+                          <span className="font-mono">
+                            {fmtNum(l.estimatedUnitPrice)}
+                          </span>
+                        </Td>
+                        <Td align="right">
+                          <span className="font-mono font-semibold">
+                            {lineTotal > 0 ? fmtNum(lineTotal) : "—"}
+                          </span>
+                        </Td>
+                        <Td>{l.referenceCode ?? "—"}</Td>
+                        <Td>{l.notes ?? "—"}</Td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-zinc-700 bg-[#F5F5F5] font-semibold dark:bg-zinc-800 print:dark:bg-zinc-100">
+                    <td colSpan={12} className="px-2 py-2 text-right text-[11px]">
+                      Tổng tiền dự kiến (VNĐ):
+                    </td>
+                    <td className="px-2 py-2 text-right font-mono text-[12px] text-[#005D9F] tabular-nums">
+                      {fmtNum(pr.totalEstimatedAmount)}
+                    </td>
+                    <td colSpan={2} />
+                  </tr>
+                </tfoot>
               </table>
-            </section>
-          </div>
-        )}
+            </div>
+          </section>
 
-        {tab === "audit" && (
-          <div className="mx-auto max-w-3xl">
-            <section className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
-              <div className="text-center">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-100">
-                  <History className="h-6 w-6 text-zinc-400" aria-hidden />
-                </div>
-                <h3 className="mt-3 text-base font-semibold text-zinc-900">Lịch sử thay đổi</h3>
-                <p className="mt-1 text-sm text-zinc-500">
-                  Xem audit log đầy đủ tại trang quản trị
-                </p>
-                <Button asChild variant="outline" size="sm" className="mt-4">
-                  <Link href={`/admin/audit?objectType=purchase_request&objectId=${pr.id}`}>
-                    Mở trang audit
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </Link>
-                </Button>
-              </div>
-            </section>
-          </div>
-        )}
+          {/* III. Phê duyệt */}
+          <section className="border-b border-zinc-300 print:dark:border-zinc-300">
+            <SectionTitle>III. Kiểm tra &amp; Phê duyệt</SectionTitle>
+            <table className="w-full border-collapse text-[11px]">
+              <thead>
+                <tr className="bg-[#F5F5F5] text-[10px] font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
+                  <Th w="w-44">Vai trò</Th>
+                  <Th w="w-48">Họ tên</Th>
+                  <Th w="w-40">Ký tên / Ngày</Th>
+                  <Th>Ghi chú</Th>
+                </tr>
+              </thead>
+              <tbody>
+                <ApprovalRow
+                  role="Người đề xuất"
+                  name={
+                    (pr as { requestedByName?: string }).requestedByName ??
+                    pr.requestedBy?.slice(0, 8) ??
+                    "—"
+                  }
+                  date={fmtDateTimeVN(pr.createdAt)}
+                  signed
+                  note="Đã ký khi gửi phiếu"
+                />
+                <ApprovalRow
+                  role="Trưởng bộ phận"
+                  name={
+                    (pr as { deptApprovedByName?: string }).deptApprovedByName ??
+                    pr.deptApprovedBy?.slice(0, 8) ??
+                    null
+                  }
+                  date={fmtDateTimeVN(pr.deptApprovedAt)}
+                  signed={!!pr.deptApprovedAt}
+                  note={
+                    pr.deptApprovalNote ??
+                    (step === "SUBMITTED"
+                      ? "Đang chờ duyệt"
+                      : pr.deptApprovedAt
+                        ? "Đã duyệt"
+                        : "—")
+                  }
+                />
+                <ApprovalRow
+                  role="Giám đốc / Mua hàng"
+                  name={
+                    (pr as { directorApprovedByName?: string })
+                      .directorApprovedByName ??
+                    pr.directorApprovedBy?.slice(0, 8) ??
+                    null
+                  }
+                  date={fmtDateTimeVN(pr.directorApprovedAt)}
+                  signed={!!pr.directorApprovedAt}
+                  note={
+                    pr.directorApprovalNote ??
+                    (step === "DEPT_APPROVED"
+                      ? "Đang chờ duyệt cuối"
+                      : pr.directorApprovedAt
+                        ? "Đã duyệt cuối"
+                        : "—")
+                  }
+                />
+                {step === "REJECTED" && pr.rejectionReason ? (
+                  <tr className="border-b border-red-200 bg-red-50/40 dark:border-red-800 dark:bg-red-950/30">
+                    <Td>
+                      <span className="font-bold text-red-700 dark:text-red-300">
+                        Từ chối
+                      </span>
+                    </Td>
+                    <Td>
+                      {pr.rejectedBy?.slice(0, 8) ?? "—"}
+                    </Td>
+                    <Td>{fmtDateTimeVN(pr.rejectedAt)}</Td>
+                    <Td>
+                      <span className="text-red-700 dark:text-red-300">
+                        {pr.rejectionReason}
+                      </span>
+                    </Td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </section>
+
+          {/* IV. Theo dõi */}
+          <section className="border-b border-zinc-300 print:dark:border-zinc-300">
+            <SectionTitle>IV. Theo dõi</SectionTitle>
+            <table className="w-full border-collapse text-[11px]">
+              <thead>
+                <tr className="bg-[#F5F5F5] text-[10px] font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
+                  <Th w="w-52">Trạng thái</Th>
+                  <Th w="w-44">Người phụ trách</Th>
+                  <Th w="w-40">Ngày thực hiện</Th>
+                  <Th>Ghi chú</Th>
+                </tr>
+              </thead>
+              <tbody>
+                <TrackingRow
+                  label="Đã duyệt đề xuất"
+                  date={pr.directorApprovedAt ?? null}
+                  who={pr.directorApprovedBy?.slice(0, 8) ?? null}
+                  note={pr.directorApprovedAt ? "Director approved" : "Chưa duyệt cuối"}
+                />
+                <TrackingRow
+                  label="Đã tạo đơn mua (PR/PO)"
+                  date={pr.poCreatedAt ?? null}
+                  who={null}
+                  note={
+                    pr.poCreatedAt
+                      ? "Đã tạo PO từ phiếu này"
+                      : status === "APPROVED"
+                        ? "Sẵn sàng tạo PO"
+                        : "—"
+                  }
+                />
+                <TrackingRow
+                  label="Đã nhận hàng"
+                  date={pr.goodsReceivedAt ?? null}
+                  who={null}
+                  note={pr.goodsReceivedAt ? "Hàng về kho" : "—"}
+                />
+                <TrackingRow
+                  label="Đã xuất kho"
+                  date={pr.goodsIssuedAt ?? null}
+                  who={null}
+                  note={pr.goodsIssuedAt ? "Đã xuất cho bộ phận yêu cầu" : "—"}
+                />
+                <TrackingRow
+                  label="Hoàn tất"
+                  date={pr.completedAt ?? null}
+                  who={null}
+                  note={pr.completedAt ? "Phiếu hoàn tất" : "—"}
+                />
+              </tbody>
+            </table>
+          </section>
+
+          {/* V. Quy tắc quản lý */}
+          <section>
+            <div className="bg-[#005D9F] px-4 py-2 text-[12px] font-bold uppercase tracking-wide text-white">
+              V. Quy tắc quản lý
+            </div>
+            <ul className="space-y-1 bg-[#F5F5F5] px-6 py-3 text-[11px] text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
+              <li>• Vật tư ESD / Non-ESD phải phân loại riêng</li>
+              <li>• Vật tư lỗi ghi rõ nguyên nhân</li>
+              <li>• Mua dự phòng cần có giải trình</li>
+              <li>• Mỗi phiếu chỉ cho 1 dự án / WO</li>
+              <li>• Khi hàng về kho, cập nhật trạng thái "Đã nhận hàng"</li>
+            </ul>
+          </section>
+        </article>
       </div>
 
-      {/* ── Reject dialog ─────────────────────────────────────── */}
+      {/* Reject dialog */}
       <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <X className="h-5 w-5 text-red-600" /> Từ chối PR
-            </DialogTitle>
+            <DialogTitle>Từ chối phiếu YCVT</DialogTitle>
             <DialogDescription>
-              Lý do sẽ được ghi vào audit log. Thao tác không thể hoàn tác.
+              Phiếu sẽ chuyển sang trạng thái REJECTED. Người đề xuất sẽ nhận
+              thông báo và có thể tạo phiếu mới.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label htmlFor="reject-reason" required>Lý do (3–500 ký tự)</Label>
+            <Label htmlFor="reject-reason" required>
+              Lý do từ chối
+            </Label>
             <Textarea
               id="reject-reason"
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
               rows={3}
-              maxLength={500}
-              placeholder="VD: Linh kiện không cần thiết cho dự án này…"
+              placeholder="VD: Đã có đủ tồn kho, đơn giá quá cao, thiếu spec..."
             />
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setRejectOpen(false)}>Huỷ</Button>
+            <Button variant="ghost" onClick={() => setRejectOpen(false)}>
+              Huỷ
+            </Button>
             <Button
               variant="destructive"
               onClick={() => void handleReject()}
-              disabled={reject.isPending || rejectReason.trim().length < 3}
+              disabled={reject.isPending}
             >
-              {reject.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-              Từ chối PR
+              {reject.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : null}
+              Từ chối phiếu
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* V3.4 — Convert PR → PO dialog với supplier picker */}
+      {/* Approve dialog (dept + director chung) */}
+      <Dialog
+        open={!!approveOpen}
+        onOpenChange={(o) => {
+          if (!o) setApproveOpen(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {approveOpen === "dept"
+                ? "Duyệt — Trưởng bộ phận"
+                : "Duyệt cuối — Giám đốc / Mua hàng"}
+            </DialogTitle>
+            <DialogDescription>
+              {approveOpen === "dept"
+                ? "Sau khi duyệt, phiếu sẽ chuyển sang chờ Giám đốc/Mua hàng duyệt cuối."
+                : "Sau khi duyệt cuối, phiếu sẵn sàng để tạo PO. Bộ phận Mua hàng sẽ nhận thông báo."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="approve-note">Ghi chú (tùy chọn)</Label>
+            <Textarea
+              id="approve-note"
+              value={approveNote}
+              onChange={(e) => setApproveNote(e.target.value)}
+              rows={2}
+              placeholder="VD: Đồng ý theo đề xuất, đẩy nhanh giúp lệnh sản xuất WO-..."
+              maxLength={2000}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setApproveOpen(null)}>
+              Huỷ
+            </Button>
+            <Button
+              onClick={() => void handleApproveSubmit()}
+              disabled={deptApprove.isPending || directorApprove.isPending}
+              className={
+                approveOpen === "dept"
+                  ? "bg-sky-600 hover:bg-sky-700 dark:bg-sky-500"
+                  : "bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500"
+              }
+            >
+              {(deptApprove.isPending || directorApprove.isPending) ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-3.5 w-3.5" />
+              )}
+              Xác nhận duyệt
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Convert dialog (existing) */}
       <ConvertPRToPODialog
         open={convertOpen}
         onOpenChange={setConvertOpen}
-        prId={pr.id}
+        prId={id}
         prCode={pr.code}
         lines={pr.lines.map((l) => ({
           id: l.id,
           lineNo: l.lineNo,
-          sku: l.sku ?? null,
-          name: l.name ?? null,
-          qty: String(l.qty),
+          itemId: l.itemId,
+          sku: l.sku ?? "",
+          name: l.name ?? "",
+          qty: l.qty,
           preferredSupplierId: l.preferredSupplierId ?? null,
         }))}
       />
+
+      {/* Print A4 landscape */}
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: A4 landscape;
+            margin: 8mm;
+          }
+          html,
+          body {
+            background: white !important;
+            color: #18181b !important;
+          }
+          .print\\:hidden {
+            display: none !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
 
-/* ── Helpers ─────────────────────────────────────────────────── */
+/* ---------- helpers ---------- */
 
-function InfoRow({ icon: Icon, label, value }: {
-  icon: React.ElementType;
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center bg-[#005D9F] px-4 py-1.5 text-[12px] font-bold uppercase tracking-wide text-white print:py-1">
+      {children}
+    </div>
+  );
+}
+
+function FieldRow({
+  label,
+  wide,
+  children,
+}: {
   label: string;
-  value: React.ReactNode;
+  wide?: boolean;
+  children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start gap-2.5">
-      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" aria-hidden />
-      <div className="min-w-0 flex-1">
-        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{label}</p>
-        <p className="mt-0.5 text-sm text-zinc-800">{value}</p>
+    <div
+      className={cn(
+        "grid grid-cols-[140px_1fr] border-b border-zinc-200 dark:border-zinc-700 print:dark:border-zinc-300",
+        wide ? "md:col-span-2" : "",
+      )}
+    >
+      <div className="border-r border-zinc-200 bg-[#F5F5F5] px-3 py-2 text-[12px] font-bold text-zinc-800 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:border-zinc-300 print:dark:bg-zinc-100 print:dark:text-zinc-800">
+        {label}
+      </div>
+      <div className="flex min-h-[28px] items-center px-3 py-1 text-[12px]">
+        {children}
       </div>
     </div>
   );
 }
 
-function KpiInline({ icon: Icon, label, value }: {
-  icon: React.ElementType;
-  label: string;
-  value: string;
+function Th({
+  children,
+  w,
+  align = "left",
+}: {
+  children: React.ReactNode;
+  w?: string;
+  align?: "left" | "right" | "center";
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-zinc-100 bg-white px-4 py-3">
-      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-        <Icon className="h-4 w-4" aria-hidden />
-      </div>
-      <div className="min-w-0">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{label}</p>
-        <p className="text-sm font-bold text-zinc-900 truncate">{value}</p>
-      </div>
-    </div>
+    <th
+      className={cn(
+        "border-b border-r border-zinc-300 px-2 py-1.5 dark:border-zinc-700 print:dark:border-zinc-300",
+        w,
+        align === "right"
+          ? "text-right"
+          : align === "center"
+            ? "text-center"
+            : "text-left",
+      )}
+    >
+      {children}
+    </th>
+  );
+}
+
+function Td({
+  children,
+  align = "left",
+  colSpan,
+}: {
+  children: React.ReactNode;
+  align?: "left" | "right" | "center";
+  colSpan?: number;
+}) {
+  return (
+    <td
+      colSpan={colSpan}
+      className={cn(
+        "border-r border-zinc-200 px-2 py-1 dark:border-zinc-700 print:dark:border-zinc-300",
+        align === "right"
+          ? "text-right"
+          : align === "center"
+            ? "text-center"
+            : "text-left",
+      )}
+    >
+      {children}
+    </td>
+  );
+}
+
+function ApprovalRow({
+  role,
+  name,
+  date,
+  signed,
+  note,
+}: {
+  role: string;
+  name: string | null;
+  date: string;
+  signed?: boolean;
+  note: string;
+}) {
+  return (
+    <tr
+      className={cn(
+        "border-b border-zinc-200 dark:border-zinc-700 print:dark:border-zinc-300",
+        signed
+          ? "bg-emerald-50/40 dark:bg-emerald-950/20 print:dark:bg-emerald-50/40"
+          : "",
+      )}
+    >
+      <Td>
+        <span className="font-bold">{role}</span>
+      </Td>
+      <Td>
+        {name ? (
+          <span className="font-medium">{name}</span>
+        ) : (
+          <span className="italic text-zinc-400">Chờ duyệt</span>
+        )}
+      </Td>
+      <Td>
+        {signed ? (
+          <span className="inline-flex items-center gap-1 font-mono text-[10.5px]">
+            <CheckCircle2
+              className="h-3 w-3 text-emerald-600 dark:text-emerald-400"
+              aria-hidden
+            />
+            {date}
+          </span>
+        ) : (
+          <span className="text-zinc-400">—</span>
+        )}
+      </Td>
+      <Td>
+        <span className="text-[10.5px] text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
+          {note}
+        </span>
+      </Td>
+    </tr>
+  );
+}
+
+function TrackingRow({
+  label,
+  date,
+  who,
+  note,
+}: {
+  label: string;
+  date: string | Date | null;
+  who: string | null;
+  note: string;
+}) {
+  const done = !!date;
+  return (
+    <tr
+      className={cn(
+        "border-b border-zinc-200 dark:border-zinc-700 print:dark:border-zinc-300",
+        done
+          ? "bg-emerald-50/40 dark:bg-emerald-950/20 print:dark:bg-emerald-50/40"
+          : "",
+      )}
+    >
+      <Td>
+        <span
+          className={cn(
+            "inline-flex items-center gap-1.5 font-medium",
+            done
+              ? "text-emerald-700 dark:text-emerald-300 print:dark:text-emerald-700"
+              : "text-zinc-700 dark:text-zinc-300 print:dark:text-zinc-700",
+          )}
+        >
+          {done ? (
+            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+          ) : (
+            <Circle className="h-3.5 w-3.5" aria-hidden />
+          )}
+          {label}
+        </span>
+      </Td>
+      <Td>
+        {who ? (
+          <span className="font-mono text-[10.5px]">{who}</span>
+        ) : (
+          <span className="text-zinc-400">—</span>
+        )}
+      </Td>
+      <Td>
+        <span className="font-mono text-[10.5px]">
+          {done ? fmtDateTimeVN(date) : "—"}
+        </span>
+      </Td>
+      <Td>
+        <span className="text-[10.5px] text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
+          {note}
+        </span>
+      </Td>
+    </tr>
   );
 }

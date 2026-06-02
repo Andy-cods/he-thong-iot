@@ -4,6 +4,7 @@ import { logger } from "@/lib/logger";
 import { deptApprovePR, getPR } from "@/server/repos/purchaseRequests";
 import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
+import { notifyPRDeptApproved } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -57,6 +58,16 @@ export async function POST(
       after: { approvalStep: row.approvalStep, deptApprovedBy: row.deptApprovedBy },
       notes: body.data.note ?? "Trưởng bộ phận duyệt",
       ...meta,
+    });
+
+    // V3.7.69 YCVT — bắn notification cho purchaser (chờ duyệt cuối) + creator (báo tiến độ)
+    void notifyPRDeptApproved({
+      prId: params.id,
+      prNo: before.paperFormNo ?? before.code,
+      title: before.title ?? null,
+      actorUserId: guard.session.userId,
+      actorUsername: guard.session.username,
+      creatorUserId: before.requestedBy,
     });
 
     return NextResponse.json({ data: row });

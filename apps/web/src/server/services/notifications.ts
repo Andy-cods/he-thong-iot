@@ -16,7 +16,8 @@ export type NotificationSeverity = "info" | "success" | "warning" | "error";
 export type NotificationEventType =
   // Purchase Request flow
   | "PR_SUBMITTED"
-  | "PR_APPROVED"
+  | "PR_DEPT_APPROVED" // V3.7.69 YCVT step 2/3 — Trưởng bộ phận duyệt
+  | "PR_APPROVED"      // = step 3/3 (Giám đốc) hoặc legacy 1-step
   | "PR_REJECTED"
   // Purchase Order flow
   | "PO_SENT"
@@ -118,6 +119,44 @@ export interface PRNotifyContext {
   actorUserId: string;
   actorUsername: string;
   creatorUserId?: string | null;
+}
+
+/**
+ * V3.7.69 YCVT step 2 — Trưởng bộ phận duyệt → notify purchaser role
+ * (để Giám đốc/Mua hàng biết phiếu chờ duyệt cuối).
+ */
+export async function notifyPRDeptApproved(ctx: PRNotifyContext) {
+  await emitNotification({
+    recipientRole: "purchaser",
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "PR_DEPT_APPROVED",
+    entityType: "purchase_request",
+    entityId: ctx.prId,
+    entityCode: ctx.prNo,
+    title: `${ctx.prNo} đã qua Trưởng bộ phận`,
+    message: ctx.title
+      ? `"${ctx.title}" — chờ Giám đốc/Mua hàng duyệt cuối`
+      : "Chờ Giám đốc/Mua hàng duyệt cuối",
+    link: `/procurement/purchase-requests/${ctx.prId}`,
+    severity: "info",
+  });
+  // Đồng thời báo cho creator biết tiến độ
+  if (ctx.creatorUserId) {
+    await emitNotification({
+      recipientUser: ctx.creatorUserId,
+      actorUserId: ctx.actorUserId,
+      actorUsername: ctx.actorUsername,
+      eventType: "PR_DEPT_APPROVED",
+      entityType: "purchase_request",
+      entityId: ctx.prId,
+      entityCode: ctx.prNo,
+      title: `${ctx.prNo} đã qua bước 2/3`,
+      message: "Trưởng bộ phận đã duyệt — đang chờ Giám đốc duyệt cuối.",
+      link: `/procurement/purchase-requests/${ctx.prId}`,
+      severity: "success",
+    });
+  }
 }
 
 /** Engineer submit PR → notify purchaser role */
