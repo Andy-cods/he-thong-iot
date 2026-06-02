@@ -29,6 +29,7 @@ import path from "node:path";
 import {
   Document,
   Font,
+  Image,
   Page,
   StyleSheet,
   Text,
@@ -44,6 +45,23 @@ const FONT_CANDIDATES = [
   path.join(process.cwd(), "public/fonts"),
   path.join(process.cwd(), "apps/web/public/fonts"),
 ];
+
+// V3.7.69 — Logo GTAM path resolution.
+const LOGO_CANDIDATES = [
+  path.join(process.cwd(), "public", "img", "logo-gtam.png"),
+  path.join(process.cwd(), "apps", "web", "public", "img", "logo-gtam.png"),
+];
+
+function resolveLogoPath(): string | null {
+  for (const p of LOGO_CANDIDATES) {
+    try {
+      if (fs.existsSync(p)) return p;
+    } catch {
+      /* try next */
+    }
+  }
+  return null;
+}
 let fontsRegistered = false;
 function ensureFontsRegistered() {
   if (fontsRegistered) return;
@@ -144,7 +162,8 @@ const styles = StyleSheet.create({
     color: "#111",
   },
   // Title row
-  titleRow: { flexDirection: "row", marginBottom: 10 },
+  titleRow: { flexDirection: "row", marginBottom: 10, alignItems: "center" },
+  titleLogo: { width: 50, height: 52 },
   title: {
     flex: 1,
     fontSize: 18,
@@ -270,6 +289,7 @@ const fmtDate = (d: Date) => {
 // PDF Document
 // =====================================================================
 export function PurchaseOrderPdfDoc(input: POPdfInput) {
+  const logoPath = resolveLogoPath();
   return (
     <Document
       title={`PO ${input.poCode}`}
@@ -279,6 +299,7 @@ export function PurchaseOrderPdfDoc(input: POPdfInput) {
       <Page size="A4" style={styles.page}>
         {/* Title row */}
         <View style={styles.titleRow}>
+          {logoPath ? <Image src={logoPath} style={styles.titleLogo} /> : null}
           <Text style={styles.title}>ĐƠN ĐẶT HÀNG</Text>
           <View style={styles.metaCol}>
             <View style={styles.metaRow}>

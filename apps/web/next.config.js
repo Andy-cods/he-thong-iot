@@ -80,15 +80,18 @@ const nextConfig = {
   outputFileTracingIncludes: {
     "/api/purchase-requests/[id]/export-excel/**": [
       "./src/server/templates/ycvt-mrf-template.xlsx",
+      "./public/img/logo-gtam.png",
     ],
     "/api/purchase-requests/[id]/export-pdf/**": [
       "./public/fonts/Roboto-Regular.ttf",
       "./public/fonts/Roboto-Bold.ttf",
+      "./public/img/logo-gtam.png",
     ],
     // Hook chung cho mọi pdf route hiện có (poPdf) — defensive
     "/api/purchase-orders/[id]/pdf/**": [
       "./public/fonts/Roboto-Regular.ttf",
       "./public/fonts/Roboto-Bold.ttf",
+      "./public/img/logo-gtam.png",
     ],
   },
   experimental: {

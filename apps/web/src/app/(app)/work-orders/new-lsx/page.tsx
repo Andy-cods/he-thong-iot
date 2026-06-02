@@ -300,14 +300,28 @@ export default function NewLsxPage() {
       <div className="mx-auto w-full max-w-[1200px] p-6 print:p-4">
         <article className="rounded-md border border-zinc-300 bg-white shadow-sm print:border-zinc-900 print:shadow-none">
           {/* Title bar */}
-          <div className="border-b-2 border-zinc-900 px-6 py-4 text-center print:py-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-700">
-              CÔNG TY CỔ PHẦN SẢN XUẤT TỰ ĐỘNG HÓA CÔNG NGHỆ TOÀN CẦU (GTAM)
-            </p>
-            <h2 className="mt-1 text-xl font-bold tracking-wide text-zinc-900">LỆNH SẢN XUẤT</h2>
-            <p className="mt-0.5 text-[10px] text-zinc-500">
-              Mẫu No: GTAM/PRD-LSX · Phiên bản 1.0
-            </p>
+          <div className="flex items-center gap-4 border-b-2 border-zinc-900 px-6 py-4 print:py-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/img/logo-gtam.png"
+              alt="GTAM"
+              width={64}
+              height={70}
+              className="h-16 w-auto shrink-0 object-contain"
+            />
+            <div className="flex-1 text-center">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-700">
+                CÔNG TY CỔ PHẦN SẢN XUẤT TỰ ĐỘNG HÓA CÔNG NGHỆ TOÀN CẦU (GTAM)
+              </p>
+              <h2 className="mt-1 text-xl font-bold tracking-wide text-zinc-900">
+                LỆNH SẢN XUẤT
+              </h2>
+              <p className="mt-0.5 text-[10px] text-zinc-500">
+                Mẫu No: GTAM/PRD-LSX · Phiên bản 1.0
+              </p>
+            </div>
+            {/* Spacer to balance flex layout */}
+            <div className="w-16 shrink-0" aria-hidden />
           </div>
 
           {/* Header info */}

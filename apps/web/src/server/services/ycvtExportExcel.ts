@@ -111,13 +111,33 @@ const TEMPLATE_PATH = path.join(
   "ycvt-mrf-template.xlsx",
 );
 
+// V3.7.69 — Logo GTAM. Path resolution multi-mode (dev + Docker standalone).
+const LOGO_CANDIDATES = [
+  path.join(process.cwd(), "public", "img", "logo-gtam.png"),
+  path.join(process.cwd(), "apps", "web", "public", "img", "logo-gtam.png"),
+];
+
 let cachedTemplateBuffer: Buffer | null = null;
+let cachedLogoBuffer: Buffer | null = null;
 
 async function loadTemplateBuffer(): Promise<Buffer> {
   if (!cachedTemplateBuffer) {
     cachedTemplateBuffer = await fs.promises.readFile(TEMPLATE_PATH);
   }
   return cachedTemplateBuffer;
+}
+
+async function loadLogoBuffer(): Promise<Buffer | null> {
+  if (cachedLogoBuffer) return cachedLogoBuffer;
+  for (const p of LOGO_CANDIDATES) {
+    try {
+      cachedLogoBuffer = await fs.promises.readFile(p);
+      return cachedLogoBuffer;
+    } catch {
+      /* try next */
+    }
+  }
+  return null;
 }
 
 function fmtDateVN(d: Date | string | null | undefined): string {
@@ -156,6 +176,24 @@ export async function buildYcvtExcel(data: YcvtExportData): Promise<Uint8Array> 
 
   const ws = wb.getWorksheet("Phiếu MRF");
   if (!ws) throw new Error("YCVT_TEMPLATE_INVALID: missing 'Phiếu MRF' sheet");
+
+  // V3.7.69 — Embed logo GTAM ở góc trái header (anchor B1:B4 — match
+  // original template drawing1 anchor: col=1, row=0..3).
+  const logoBuf = await loadLogoBuffer();
+  if (logoBuf) {
+    const imageId = wb.addImage({
+      buffer: logoBuf as unknown as ExcelJS.Buffer,
+      extension: "png",
+    });
+    // Anchor logo vào vùng B1:B4 (col index 1..2 = column B, rows 0..3.6).
+    // ExcelJS type Anchor đầy đủ nhưng signature thực tế chấp nhận shorthand
+    // { col, row } — dùng cast để bypass TS strict.
+    ws.addImage(imageId, {
+      tl: { col: 1.05, row: 0.15 },
+      br: { col: 2, row: 3.6 },
+      editAs: "oneCell",
+    } as unknown as Parameters<typeof ws.addImage>[1]);
+  }
 
   // Header
   ws.getCell("O2").value = data.paperFormNo;

@@ -20,6 +20,7 @@ import path from "node:path";
 import {
   Document,
   Font,
+  Image,
   Page,
   StyleSheet,
   Text,
@@ -32,6 +33,23 @@ const FONT_CANDIDATES = [
   path.join(process.cwd(), "public/fonts"),
   path.join(process.cwd(), "apps/web/public/fonts"),
 ];
+
+// V3.7.69 — Logo GTAM path resolution.
+const LOGO_CANDIDATES = [
+  path.join(process.cwd(), "public", "img", "logo-gtam.png"),
+  path.join(process.cwd(), "apps", "web", "public", "img", "logo-gtam.png"),
+];
+
+function resolveLogoPath(): string | null {
+  for (const p of LOGO_CANDIDATES) {
+    try {
+      if (fs.existsSync(p)) return p;
+    } catch {
+      /* try next */
+    }
+  }
+  return null;
+}
 let fontsRegistered = false;
 function ensureFontsRegistered() {
   if (fontsRegistered) return;
@@ -175,6 +193,15 @@ const styles = StyleSheet.create({
   headerLeft: {
     width: 140,
     padding: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  headerLogo: {
+    width: 38,
+    height: 40,
+  },
+  headerLeftText: {
     fontWeight: 700,
     fontSize: 10,
   },
@@ -354,6 +381,7 @@ const styles = StyleSheet.create({
 function YcvtPdfDoc(input: YcvtPdfInput) {
   const lines = input.lines;
   const totalAmount = input.totalEstimatedAmount ?? 0;
+  const logoPath = resolveLogoPath();
 
   return (
     <Document
@@ -365,7 +393,10 @@ function YcvtPdfDoc(input: YcvtPdfInput) {
         <View style={styles.doc}>
           {/* Header */}
           <View style={styles.headerRow}>
-            <Text style={styles.headerLeft}>XƯỞNG SXKD</Text>
+            <View style={styles.headerLeft}>
+              {logoPath ? <Image src={logoPath} style={styles.headerLogo} /> : null}
+              <Text style={styles.headerLeftText}>XƯỞNG SXKD</Text>
+            </View>
             <Text style={styles.headerCenter}>
               CÔNG TY CỔ PHẦN SẢN XUẤT TỰ ĐỘNG HÓA{"\n"}CÔNG NGHỆ TOÀN CẦU
             </Text>

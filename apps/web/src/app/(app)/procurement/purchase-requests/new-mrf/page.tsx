@@ -290,7 +290,17 @@ export default function NewMRFPage() {
         <article className="border-2 border-zinc-900 bg-white text-zinc-900 shadow-md print:border print:border-zinc-900 print:shadow-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 print:dark:border-zinc-900 print:dark:bg-white print:dark:text-zinc-900">
           {/* ===== HEADER ===== */}
           <div className="grid grid-cols-[1fr_2fr_1fr] items-center gap-2 border-b-2 border-zinc-900 px-4 py-3 text-[12px] print:dark:border-zinc-900">
-            <div className="font-bold tracking-wide">XƯỞNG SXKD</div>
+            <div className="flex items-center gap-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/img/logo-gtam.png"
+                alt="GTAM"
+                width={56}
+                height={60}
+                className="h-14 w-auto shrink-0 object-contain"
+              />
+              <div className="font-bold tracking-wide">XƯỞNG SXKD</div>
+            </div>
             <div className="text-center text-[14px] font-bold">
               CÔNG TY CỔ PHẦN SẢN XUẤT TỰ ĐỘNG HÓA
               <br />
