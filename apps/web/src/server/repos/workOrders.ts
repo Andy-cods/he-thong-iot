@@ -215,16 +215,19 @@ export async function createFromSnapshot(
       throw new Error("SOME_SNAPSHOT_LINES_NOT_FOUND");
     }
 
-    // 3) Gen WO no — WO-YYMM-#### (sequence đơn giản: count theo tháng + 1)
-    const cntRows = (await tx.execute(sql`
-      SELECT COUNT(*)::int AS cnt FROM app.work_order
-      WHERE to_char(created_at, 'YYMM') = to_char(now(), 'YYMM')
-    `)) as unknown as Array<{ cnt: number }>;
-    const monthCnt = cntRows[0]?.cnt ?? 0;
-    const woNo = `WO-${new Date()
-      .toISOString()
-      .slice(2, 7)
-      .replace("-", "")}-${String(monthCnt + 1).padStart(4, "0")}`;
+    // 3) Gen WO no — WO-YYMM-####
+    // V3.7.73 — MAX(seq) + 1 thay COUNT(*) + 1 để tránh collision khi có gap.
+    const yymm = new Date().toISOString().slice(2, 7).replace("-", "");
+    const maxRows = (await tx.execute(sql`
+      SELECT COALESCE(MAX(
+        CAST(SPLIT_PART(wo_no, '-', 3) AS INTEGER)
+      ), 0) AS max_seq
+      FROM app.work_order
+      WHERE wo_no LIKE ${"WO-" + yymm + "-%"}
+        AND wo_no ~ ${"^WO-" + yymm + "-[0-9]+$"}
+    `)) as unknown as Array<{ max_seq: number }>;
+    const nextSeq = (maxRows[0]?.max_seq ?? 0) + 1;
+    const woNo = `WO-${yymm}-${String(nextSeq).padStart(4, "0")}`;
 
     // 4) Insert WO header
     const plannedQty = input.snapshotLineIds.length > 0 ? orderRow.orderQty : "1";
@@ -319,15 +322,20 @@ export async function createLsxWorkOrder(
 
   return db.transaction(async (tx) => {
     // Generate WO no — WO-YYMM-####
-    const cntRows = (await tx.execute(sql`
-      SELECT COUNT(*)::int AS cnt FROM app.work_order
-      WHERE to_char(created_at, 'YYMM') = to_char(now(), 'YYMM')
-    `)) as unknown as Array<{ cnt: number }>;
-    const monthCnt = cntRows[0]?.cnt ?? 0;
-    const woNo = `WO-${new Date()
-      .toISOString()
-      .slice(2, 7)
-      .replace("-", "")}-${String(monthCnt + 1).padStart(4, "0")}`;
+    // V3.7.73 — Đổi từ COUNT(*) + 1 sang MAX(seq) + 1 vì COUNT có thể sinh
+    // collision khi đã có WO bị xóa trong tháng (gap trong sequence).
+    // Pattern này khớp với gen_pr_paper_form_no() đã verified production.
+    const yymm = new Date().toISOString().slice(2, 7).replace("-", "");
+    const maxRows = (await tx.execute(sql`
+      SELECT COALESCE(MAX(
+        CAST(SPLIT_PART(wo_no, '-', 3) AS INTEGER)
+      ), 0) AS max_seq
+      FROM app.work_order
+      WHERE wo_no LIKE ${"WO-" + yymm + "-%"}
+        AND wo_no ~ ${"^WO-" + yymm + "-[0-9]+$"}
+    `)) as unknown as Array<{ max_seq: number }>;
+    const nextSeq = (maxRows[0]?.max_seq ?? 0) + 1;
+    const woNo = `WO-${yymm}-${String(nextSeq).padStart(4, "0")}`;
 
     const [newWo] = await tx
       .insert(workOrder)

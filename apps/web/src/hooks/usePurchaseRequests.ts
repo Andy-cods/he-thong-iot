@@ -63,6 +63,11 @@ export interface PRRow {
   rejectedAt?: string | null;
   rejectionReason?: string | null;
   totalEstimatedAmount?: string | null;
+  // V3.7.73 — Resolved user fullName để hiển thị mục III/IV
+  requestedByName?: string | null;
+  deptApprovedByName?: string | null;
+  directorApprovedByName?: string | null;
+  rejectedByName?: string | null;
 }
 
 export interface PRLineEnriched {

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prUpdateSchema } from "@iot/shared";
 import { and, eq, inArray } from "drizzle-orm";
-import { purchaseRequest } from "@iot/db/schema";
+import { purchaseRequest, userAccount } from "@iot/db/schema";
 import { logger } from "@/lib/logger";
 import {
   deletePR,
@@ -37,7 +37,43 @@ export async function GET(
   if (!row) return jsonError("NOT_FOUND", "Không tìm thấy PR.", 404);
 
   const lines = await getPRLinesEnriched(params.id);
-  return NextResponse.json({ data: { ...row, lines } });
+
+  // V3.7.73 — Resolve full names cho mục III/IV (Người đề xuất / Trưởng BP / Giám đốc / Rejected by)
+  const ids = Array.from(
+    new Set(
+      [row.requestedBy, row.deptApprovedBy, row.directorApprovedBy, row.rejectedBy]
+        .filter((x): x is string => !!x),
+    ),
+  );
+  const nameMap = new Map<string, string>();
+  if (ids.length > 0) {
+    const users = await db
+      .select({
+        id: userAccount.id,
+        fullName: userAccount.fullName,
+        username: userAccount.username,
+      })
+      .from(userAccount)
+      .where(inArray(userAccount.id, ids));
+    for (const u of users) {
+      nameMap.set(u.id, u.fullName ?? u.username);
+    }
+  }
+
+  return NextResponse.json({
+    data: {
+      ...row,
+      lines,
+      requestedByName: row.requestedBy ? nameMap.get(row.requestedBy) ?? null : null,
+      deptApprovedByName: row.deptApprovedBy
+        ? nameMap.get(row.deptApprovedBy) ?? null
+        : null,
+      directorApprovedByName: row.directorApprovedBy
+        ? nameMap.get(row.directorApprovedBy) ?? null
+        : null,
+      rejectedByName: row.rejectedBy ? nameMap.get(row.rejectedBy) ?? null : null,
+    },
+  });
 }
 
 const EDITABLE_STATUSES = ["DRAFT", "SUBMITTED"] as const;

@@ -479,11 +479,7 @@ export default function PurchaseRequestDetailPage() {
                 <span>{pr.proposingDepartment ?? "—"}</span>
               </FieldRow>
               <FieldRow label="Người đề xuất:">
-                <span className="font-medium">
-                  {(pr as { requestedByName?: string }).requestedByName ??
-                    pr.requestedBy?.slice(0, 8) ??
-                    "—"}
-                </span>
+                <span className="font-medium">{pr.requestedByName ?? "—"}</span>
               </FieldRow>
               <FieldRow label="Tiêu đề:">
                 <span>{pr.title ?? "—"}</span>
@@ -639,22 +635,14 @@ export default function PurchaseRequestDetailPage() {
               <tbody>
                 <ApprovalRow
                   role="Người đề xuất"
-                  name={
-                    (pr as { requestedByName?: string }).requestedByName ??
-                    pr.requestedBy?.slice(0, 8) ??
-                    "—"
-                  }
+                  name={pr.requestedByName ?? "—"}
                   date={fmtDateTimeVN(pr.createdAt)}
                   signed
                   note="Đã ký khi gửi phiếu"
                 />
                 <ApprovalRow
                   role="Trưởng bộ phận"
-                  name={
-                    (pr as { deptApprovedByName?: string }).deptApprovedByName ??
-                    pr.deptApprovedBy?.slice(0, 8) ??
-                    null
-                  }
+                  name={pr.deptApprovedByName ?? null}
                   date={fmtDateTimeVN(pr.deptApprovedAt)}
                   signed={!!pr.deptApprovedAt}
                   note={
@@ -668,12 +656,7 @@ export default function PurchaseRequestDetailPage() {
                 />
                 <ApprovalRow
                   role="Giám đốc / Mua hàng"
-                  name={
-                    (pr as { directorApprovedByName?: string })
-                      .directorApprovedByName ??
-                    pr.directorApprovedBy?.slice(0, 8) ??
-                    null
-                  }
+                  name={pr.directorApprovedByName ?? null}
                   date={fmtDateTimeVN(pr.directorApprovedAt)}
                   signed={!!pr.directorApprovedAt}
                   note={
@@ -692,9 +675,7 @@ export default function PurchaseRequestDetailPage() {
                         Từ chối
                       </span>
                     </Td>
-                    <Td>
-                      {pr.rejectedBy?.slice(0, 8) ?? "—"}
-                    </Td>
+                    <Td>{pr.rejectedByName ?? "—"}</Td>
                     <Td>{fmtDateTimeVN(pr.rejectedAt)}</Td>
                     <Td>
                       <span className="text-red-700 dark:text-red-300">
@@ -723,8 +704,8 @@ export default function PurchaseRequestDetailPage() {
                 <TrackingRow
                   label="Đã duyệt đề xuất"
                   date={pr.directorApprovedAt ?? null}
-                  who={pr.directorApprovedBy?.slice(0, 8) ?? null}
-                  note={pr.directorApprovedAt ? "Director approved" : "Chưa duyệt cuối"}
+                  who={pr.directorApprovedByName ?? null}
+                  note={pr.directorApprovedAt ? "Giám đốc đã duyệt" : "Chưa duyệt cuối"}
                 />
                 <TrackingRow
                   label="Đã tạo đơn mua (PR/PO)"

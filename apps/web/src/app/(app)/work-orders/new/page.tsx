@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 
 /**
- * V3.7.12 — Wizard cũ (snapshot-based) bị xoá theo feedback user.
- * Redirect sang /work-orders/quick-new (form đơn giản đa-SKU + auto issue request).
+ * V3.7.73 — Cả wizard cũ + quick-new đều đã bỏ. Mọi đường vào "Tạo LSX
+ * mới" giờ về form Phiếu LSX GTAM (5 section, đầy đủ Routing/NVL/Dao cụ).
  */
 export default function WorkOrdersNewRedirect() {
-  redirect("/work-orders/quick-new");
+  redirect("/work-orders/new-lsx");
 }

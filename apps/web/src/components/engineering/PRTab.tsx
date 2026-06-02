@@ -52,15 +52,16 @@ export function PRTab() {
   const hasFilter = urlState.status !== "all" || urlState.q !== "";
 
   // V3.7.55 — phân quyền nút tạo PR theo role:
-  //   - admin: cả 2 nút (MRF + PR nhanh)
-  //   - planner: PR nhanh (wizard) — không tạo MRF GTAM
-  //   - operator (Gia công) + warehouse (Kho): chỉ MRF GTAM
-  //   - purchaser: không tạo, chỉ duyệt
+  // V3.7.73 — Đã bỏ "Tạo PR nhanh" (form demo wizard). Mọi role tạo PR
+  // đều dùng Phiếu MRF GTAM chính thức (form đầy đủ 5 section).
   const session = useSession();
   const roles = session.data?.roles ?? [];
   const isAdmin = roles.includes("admin");
-  const canCreateMRF = isAdmin || roles.includes("operator") || roles.includes("warehouse");
-  const canCreateQuickPR = isAdmin || roles.includes("planner");
+  const canCreateMRF =
+    isAdmin ||
+    roles.includes("operator") ||
+    roles.includes("warehouse") ||
+    roles.includes("planner");
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -82,18 +83,10 @@ export function PRTab() {
         </div>
         <div className="flex items-center gap-2">
           {canCreateMRF && (
-            <Button asChild size="sm" variant={canCreateQuickPR ? "secondary" : "default"} title="Phiếu Đề xuất mua vật tư GTAM — gửi Bộ phận Thu mua duyệt">
+            <Button asChild size="sm" title="Phiếu Đề xuất mua vật tư GTAM — gửi Bộ phận Thu mua duyệt">
               <Link href="/procurement/purchase-requests/new-mrf">
                 <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                 Phiếu MRF GTAM
-              </Link>
-            </Button>
-          )}
-          {canCreateQuickPR && (
-            <Button asChild size="sm">
-              <Link href="/procurement/purchase-requests/new">
-                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                Tạo PR nhanh
               </Link>
             </Button>
           )}
