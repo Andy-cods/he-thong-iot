@@ -88,11 +88,14 @@ export async function POST(req: NextRequest) {
     // V3.7.17 — Auto-submit PR ngay sau create (fix bottleneck E2E):
     // PR DRAFT không bắn notification → Thu mua không biết. Tự động submit
     // để notifyPRSubmitted bắn tới purchaser.
-    let finalStatus = row.status;
-    if (finalStatus === "DRAFT") {
+    // V3.7.69 — submitPR() đồng thời sinh paper_form_no — phải merge lại
+    // vào response (paperFormNo + approvalStep + status).
+    let finalRow = row;
+    if (row.status === "DRAFT") {
       const submitted = await submitPR(row.id);
-      if (submitted) finalStatus = submitted.status;
+      if (submitted) finalRow = submitted;
     }
+    const finalStatus = finalRow.status;
 
     const meta = extractRequestMeta(req);
     await writeAudit({
@@ -112,15 +115,15 @@ export async function POST(req: NextRequest) {
     // V3.3 — Notify purchaser role (fire-and-forget) khi PR tạo + submit ngay
     if (finalStatus === "SUBMITTED") {
       void notifyPRSubmitted({
-        prId: row.id,
-        prNo: row.code,
+        prId: finalRow.id,
+        prNo: finalRow.paperFormNo ?? finalRow.code,
         title: body.data.title ?? null,
         actorUserId: guard.session.userId,
         actorUsername: guard.session.username,
       });
     }
 
-    return NextResponse.json({ data: { ...row, status: finalStatus } }, { status: 201 });
+    return NextResponse.json({ data: finalRow }, { status: 201 });
   } catch (err) {
     logger.error({ err }, "create PR failed");
     const msg = (err as Error).message ?? "";

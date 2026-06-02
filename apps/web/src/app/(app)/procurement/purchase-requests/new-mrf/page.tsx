@@ -223,14 +223,8 @@ export default function NewMRFPage() {
 
     try {
       const res = await createPR.mutateAsync(payload);
-      toast.success(`Đã tạo phiếu YCVT ${res.data.code}`);
-      // Auto-submit để sinh paper_form_no
-      await fetch(`/api/purchase-requests/${res.data.id}/submit`, {
-        method: "POST",
-        credentials: "include",
-      }).catch(() => {
-        /* nếu submit endpoint fail, vẫn redirect — admin có thể submit lại sau */
-      });
+      const formNo = res.data.paperFormNo ?? res.data.code;
+      toast.success(`Đã gửi phiếu YCVT ${formNo}`);
       router.push(`/procurement/purchase-requests/${res.data.id}`);
     } catch (err) {
       toast.error((err as Error).message ?? "Không tạo được phiếu YCVT");
