@@ -114,6 +114,10 @@ export interface WorkOrderRow {
   createdAt: string;
   createdBy: string | null;
   orderNo: string | null;
+  // V3.7.74 — Enriched product master (LEFT JOIN item).
+  productItemSku?: string | null;
+  productItemName?: string | null;
+  productItemUom?: string | null;
 }
 
 export type WoProgressStepType =

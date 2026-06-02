@@ -1,248 +1,112 @@
 "use client";
 
 import * as React from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
-  ChevronLeft,
-  ChevronRight,
-  Factory,
+  ArrowLeft,
   CalendarClock,
-  Workflow,
-  History,
-  FileImage,
-  Ruler,
-  Clock,
-  LayoutDashboard,
-  Package,
-  TrendingUp,
-  ShieldCheck,
-  AlertCircle,
   CheckCircle2,
-  ExternalLink,
+  Circle,
+  ClipboardList,
+  Factory,
+  History as HistoryIcon,
+  Loader2,
+  Printer,
+  Wrench,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProgressReportForm } from "@/components/work-orders/ProgressReportForm";
 import { ProgressTimeline } from "@/components/work-orders/ProgressTimeline";
-import { RoutingPlanEditor } from "@/components/work-orders/RoutingPlanEditor";
-import { MaterialRequirementsTable } from "@/components/work-orders/MaterialRequirementsTable";
-import { QcChecklistEnriched } from "@/components/work-orders/QcChecklistEnriched";
 import { WorkOrderActions } from "@/components/work-orders/WorkOrderActions";
 import { useSession } from "@/hooks/useSession";
+import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
-  useWoProgressLog,
   useWorkOrderDetail,
   type WorkOrderStatus,
 } from "@/hooks/useWorkOrders";
 
-// ─── Status display ───────────────────────────────────────────────────────────
+/**
+ * V3.7.74 — Work Order detail page rewrite hoàn toàn:
+ * - Section "Phiếu" (default): mirror form `/work-orders/new-lsx` read-only,
+ *   render đúng 6 phần (Header info / I. Sản phẩm / II. Vật liệu / III. Routing /
+ *   V. Tài liệu / VI. Dao cụ / VII. Phê duyệt) — A4 landscape printable.
+ * - Section "Tiến độ": ProgressReportForm + Lines table + ProgressTimeline.
+ * - Section "Lịch sử": audit log merged.
+ *
+ * Bỏ stepper 6-tab Tổng quan/Vật liệu/Quy trình/Tiến độ/Kiểm tra/Lịch sử cũ
+ * (theo yêu cầu user — không match form Excel LSX GTAM).
+ */
 
 const STATUS_LABEL: Record<WorkOrderStatus, string> = {
-  DRAFT: "Nháp",
+  DRAFT: "Chờ Gia công duyệt",
   QUEUED: "Hàng đợi",
   RELEASED: "Đã phát hành",
-  IN_PROGRESS: "Đang chạy",
+  IN_PROGRESS: "Đang sản xuất",
   PAUSED: "Tạm dừng",
   COMPLETED: "Hoàn thành",
   CANCELLED: "Đã hủy",
 };
 
-const STATUS_CHIP: Record<WorkOrderStatus, string> = {
-  DRAFT: "bg-zinc-100 text-zinc-600 border border-zinc-200",
-  QUEUED: "bg-zinc-100 text-zinc-600 border border-zinc-200",
-  RELEASED: "bg-blue-50 text-blue-700 border border-blue-200",
-  IN_PROGRESS: "bg-indigo-50 text-indigo-700 border border-indigo-200",
-  PAUSED: "bg-amber-50 text-amber-700 border border-amber-200",
-  COMPLETED: "bg-emerald-50 text-emerald-700 border border-emerald-200",
-  CANCELLED: "bg-red-50 text-red-600 border border-red-200",
+const STATUS_PILL: Record<WorkOrderStatus, string> = {
+  DRAFT: "bg-zinc-100 text-zinc-700 ring-zinc-200",
+  QUEUED: "bg-amber-50 text-amber-700 ring-amber-200",
+  RELEASED: "bg-sky-50 text-sky-700 ring-sky-200",
+  IN_PROGRESS: "bg-orange-50 text-orange-700 ring-orange-200",
+  PAUSED: "bg-amber-50 text-amber-700 ring-amber-200",
+  COMPLETED: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  CANCELLED: "bg-red-50 text-red-700 ring-red-200",
 };
 
-// ─── Sections ─────────────────────────────────────────────────────────────────
+const ORDER_TYPE_LABEL: Record<string, string> = {
+  NEW: "Sản xuất mới",
+  REPAIR: "Sửa chữa",
+  TRIAL: "Sản xuất thử",
+};
 
-type SectionKey = "overview" | "materials" | "routing" | "progress" | "qc" | "history";
+const PRIORITY_LABEL: Record<string, string> = {
+  LOW: "Thấp",
+  NORMAL: "Bình thường",
+  HIGH: "Cao",
+  URGENT: "Khẩn",
+};
 
-const SECTIONS: Array<{
-  key: SectionKey;
-  label: string;
-  icon: React.ElementType;
-  step: string;
-}> = [
-  { key: "overview",   label: "Tổng quan",  icon: LayoutDashboard, step: "01" },
-  { key: "materials",  label: "Vật liệu",   icon: Package,          step: "02" },
-  { key: "routing",    label: "Quy trình",  icon: Workflow,         step: "03" },
-  { key: "progress",   label: "Tiến độ",    icon: TrendingUp,       step: "04" },
-  { key: "qc",         label: "Kiểm tra",   icon: ShieldCheck,      step: "05" },
-  { key: "history",    label: "Lịch sử",    icon: History,          step: "06" },
+const TOOL_STATUS_LABEL: Record<string, string> = {
+  OK: "OK",
+  WORN: "Mòn",
+  DAMAGED: "Hỏng",
+  MISSING: "Thiếu",
+};
+
+type TabKey = "ticket" | "progress" | "history";
+const TABS: Array<{ key: TabKey; label: string; icon: React.ElementType }> = [
+  { key: "ticket", label: "Phiếu LSX", icon: ClipboardList },
+  { key: "progress", label: "Tiến độ", icon: Factory },
+  { key: "history", label: "Lịch sử", icon: HistoryIcon },
 ];
 
-// ─── Progress Ring SVG (gradient, light bg) ───────────────────────────────────
-
-function ProgressRing({ pct, size = 100, stroke = 7 }: { pct: number; size?: number; stroke?: number }) {
-  const r = (size - stroke) / 2;
-  const C = 2 * Math.PI * r;
-  const offset = C - (pct / 100) * C;
-  const uid = React.useId();
-  return (
-    <div className="relative shrink-0" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90" aria-hidden>
-        <defs>
-          <linearGradient id={`${uid}-g`} x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#6366f1" />
-            <stop offset="50%" stopColor="#8b5cf6" />
-            <stop offset="100%" stopColor="#10b981" />
-          </linearGradient>
-        </defs>
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#f4f4f5" strokeWidth={stroke} />
-        <circle
-          cx={size/2} cy={size/2} r={r} fill="none"
-          stroke={pct > 0 ? `url(#${uid}-g)` : "#e4e4e7"}
-          strokeWidth={stroke} strokeLinecap="round"
-          strokeDasharray={C} strokeDashoffset={offset}
-          style={{ transition: "stroke-dashoffset 0.7s ease" }}
-        />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-xl font-bold tabular-nums text-zinc-900">{pct}%</span>
-        <span className="text-[9px] uppercase tracking-wider text-zinc-400">done</span>
-      </div>
-    </div>
-  );
+interface AuditRow {
+  id: string;
+  action: string;
+  actor: string | null;
+  actorDisplay: string | null;
+  occurredAt: string;
+  notes: string | null;
 }
 
-// ─── Horizontal Stepper ───────────────────────────────────────────────────────
-
-function HorizontalStepper({
-  active,
-  onChange,
-  activeIdx,
-}: {
-  active: SectionKey;
-  onChange: (k: SectionKey) => void;
-  activeIdx: number;
-}) {
-  return (
-    <div className="flex items-start gap-0 w-full">
-      {SECTIONS.map((s, idx) => {
-        const isPast   = idx < activeIdx;
-        const isActive = s.key === active;
-        const isPending = !isPast && !isActive;
-        return (
-          <React.Fragment key={s.key}>
-            <button
-              type="button"
-              onClick={() => onChange(s.key)}
-              className="flex flex-col items-center gap-1.5 group min-w-0"
-            >
-              <div
-                className={cn(
-                  "flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full transition-all duration-200 shrink-0",
-                  isPast    ? "bg-emerald-500 text-white shadow-sm"
-                  : isActive ? "bg-indigo-600 text-white ring-4 ring-indigo-100 scale-110 shadow-md"
-                            : "bg-white border-2 border-zinc-300 text-zinc-400 group-hover:border-zinc-400",
-                )}
-              >
-                {isPast ? (
-                  <CheckCircle2 className="h-4 w-4" />
-                ) : (
-                  <s.icon className="h-4 w-4" />
-                )}
-              </div>
-              <span
-                className={cn(
-                  "hidden sm:block text-[11px] font-medium whitespace-nowrap leading-none transition-colors",
-                  isPast    ? "text-emerald-600"
-                  : isActive ? "text-indigo-600 font-semibold"
-                            : "text-zinc-400 group-hover:text-zinc-600",
-                )}
-              >
-                {s.label}
-              </span>
-            </button>
-
-            {idx < SECTIONS.length - 1 && (
-              <div className={cn("mt-4 sm:mt-5 flex-1 h-px transition-colors", isPast ? "bg-emerald-300" : "bg-zinc-200")} />
-            )}
-          </React.Fragment>
-        );
-      })}
-    </div>
-  );
+function fmtDate(d: string | Date | null | undefined): string {
+  if (!d) return "—";
+  return formatDate(d, "dd/MM/yyyy");
 }
-
-// ─── Section heading ─────────────────────────────────────────────────────────
-
-function SectionHeading({ icon: Icon, title, subtitle, badge }: {
-  icon: React.ElementType; title: string; subtitle?: string; badge?: string;
-}) {
-  return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-indigo-100 bg-indigo-50">
-          <Icon className="h-5 w-5 text-indigo-600" />
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold text-zinc-900">{title}</h2>
-          {subtitle && <p className="text-xs text-zinc-500">{subtitle}</p>}
-        </div>
-      </div>
-      {badge && (
-        <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600">{badge}</span>
-      )}
-    </div>
-  );
+function fmtNum(n: number | string | null | undefined): string {
+  if (n === null || n === undefined || n === "") return "—";
+  const num = typeof n === "string" ? Number(n) : n;
+  if (!Number.isFinite(num)) return "—";
+  return num.toLocaleString("vi-VN");
 }
-
-// ─── KPI card (light) ─────────────────────────────────────────────────────────
-
-function KpiCard({ label, value, sub, accent = "zinc" }: {
-  label: string; value: string; sub?: string;
-  accent?: "zinc" | "emerald" | "red" | "indigo" | "amber";
-}) {
-  const styles: Record<string, string> = {
-    zinc:    "border-zinc-200 bg-white",
-    emerald: "border-emerald-200 bg-emerald-50/60",
-    red:     "border-red-200 bg-red-50/60",
-    indigo:  "border-indigo-200 bg-indigo-50/60",
-    amber:   "border-amber-200 bg-amber-50/60",
-  };
-  const val: Record<string, string> = {
-    zinc:    "text-zinc-900",
-    emerald: "text-emerald-700",
-    red:     "text-red-600",
-    indigo:  "text-indigo-700",
-    amber:   "text-amber-700",
-  };
-  return (
-    <div className={cn("rounded-xl border p-4", styles[accent])}>
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">{label}</p>
-      <p className={cn("mt-1.5 font-mono text-2xl font-bold tabular-nums", val[accent])}>{value}</p>
-      {sub && <p className="mt-0.5 text-[10px] text-zinc-400">{sub}</p>}
-    </div>
-  );
-}
-
-// ─── Info card ────────────────────────────────────────────────────────────────
-
-function InfoCard({ icon: Icon, title, children }: {
-  icon: React.ElementType; title: string; children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-      <div className="mb-3 flex items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50">
-          <Icon className="h-4 w-4 text-indigo-600" />
-        </div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">{title}</p>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-// ─── Main page ───────────────────────────────────────────────────────────────
 
 export default function WorkOrderDetailPage() {
   const params = useParams<{ id: string }>();
@@ -251,18 +115,13 @@ export default function WorkOrderDetailPage() {
   const session = useSession();
   const id = params.id;
 
-  const rawSection = searchParams.get("section") as SectionKey | null;
-  const section: SectionKey = SECTIONS.some((s) => s.key === rawSection) ? rawSection! : "overview";
-  const activeIdx = SECTIONS.findIndex((s) => s.key === section);
-  const nextSection = activeIdx < SECTIONS.length - 1 ? SECTIONS[activeIdx + 1] : null;
-  const prevSection = activeIdx > 0 ? SECTIONS[activeIdx - 1] : null;
-
-  const setSection = React.useCallback(
-    (key: SectionKey) => {
+  const rawTab = searchParams.get("tab") as TabKey | null;
+  const tab: TabKey = TABS.some((t) => t.key === rawTab) ? rawTab! : "ticket";
+  const setTab = React.useCallback(
+    (k: TabKey) => {
       const sp = new URLSearchParams(searchParams.toString());
-      sp.set("section", key);
+      sp.set("tab", k);
       router.replace(`?${sp.toString()}`, { scroll: false });
-      window.scrollTo({ top: 0, behavior: "smooth" });
     },
     [router, searchParams],
   );
@@ -270,645 +129,784 @@ export default function WorkOrderDetailPage() {
   const query = useWorkOrderDetail(id);
   const wo = query.data?.data;
 
-  const sourceBomQuery = useQuery<{ data: { lineId: string; templateId: string; templateCode: string; templateName: string; componentSku: string | null; componentName: string | null; metadata: Record<string, unknown>; } | null }>({
-    queryKey: ["work-orders", "source-bom", id],
-    queryFn: async () => {
-      const res = await fetch(`/api/work-orders/${id}/source-bom`, { credentials: "include" });
-      if (!res.ok) throw new Error("Không tải được nguồn BOM");
-      return res.json();
-    },
-    enabled: !!id, staleTime: 60_000,
-  });
-
-  const auditQuery = useQuery<{ data: AuditRow[]; meta: { total: number } }>({
+  const auditQuery = useQuery<{ data: AuditRow[] }>({
     queryKey: ["work-orders", "audit", id],
     queryFn: async () => {
-      const p = new URLSearchParams({ entity: "work_order", objectId: id, pageSize: "50" });
-      const res = await fetch(`/api/admin/audit?${p.toString()}`, { credentials: "include" });
-      if (!res.ok) throw new Error("Không tải được audit log");
+      const p = new URLSearchParams({
+        entity: "work_order",
+        objectId: id,
+        pageSize: "50",
+      });
+      const res = await fetch(`/api/admin/audit?${p.toString()}`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error();
       return res.json();
     },
-    enabled: !!id, staleTime: 30_000,
+    enabled: !!id && tab === "history",
+    staleTime: 30_000,
   });
 
-  const progressLogQuery = useWoProgressLog(id);
-
   const roles = session.data?.roles ?? [];
-  const isAdmin      = roles.includes("admin");
-  // V3.7.46 — Chỉ operator/admin được approve/reject YCSX (planner là creator).
-  const canApprove   = isAdmin || roles.includes("operator");
-  const isPlannerPlus = roles.includes("admin") || roles.includes("planner");
-  const canOperate   = roles.includes("admin") || roles.includes("planner") || roles.includes("operator");
-  const canComplete  = roles.includes("admin") || roles.includes("planner");
+  const isAdmin = roles.includes("admin");
+  const canApprove = isAdmin || roles.includes("operator");
+  const canOperate = isAdmin || roles.includes("planner") || roles.includes("operator");
+  const canComplete = isAdmin || roles.includes("planner");
 
-  const [defaultLineForReport, setDefaultLineForReport] = React.useState<string | null>(null);
-
-  // ── Loading ──
   if (query.isLoading) {
     return (
-      <div className="min-h-screen bg-zinc-50 p-6 space-y-3">
+      <div className="min-h-screen bg-zinc-50 p-6 dark:bg-zinc-950">
         <Skeleton className="h-16 w-full rounded-2xl" />
-        <Skeleton className="h-40 w-full rounded-2xl" />
-        <Skeleton className="h-60 w-full rounded-2xl" />
+        <Skeleton className="mt-4 h-80 w-full rounded-2xl" />
       </div>
     );
   }
-
   if (!wo) {
     return (
-      <div className="min-h-screen bg-zinc-50 p-6">
-        <p className="text-sm text-red-600">Không tìm thấy Work Order.</p>
-        <Button className="mt-2" variant="ghost" size="sm" onClick={() => router.push("/work-orders")}>
-          <ChevronLeft className="h-3.5 w-3.5" /> Quay lại
+      <div className="m-6 rounded-xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-800 dark:bg-red-950/40">
+        <p className="text-sm font-semibold text-red-700 dark:text-red-300">
+          Không tìm thấy lệnh sản xuất
+        </p>
+        <Button asChild variant="outline" size="sm" className="mt-3">
+          <Link href="/work-orders">Về danh sách</Link>
         </Button>
       </div>
     );
   }
 
-  // ── Derived stats ──
-  const totalRequired  = wo.lines.reduce((a, l) => a + Number(l.requiredQty), 0);
-  const totalCompleted = wo.lines.reduce((a, l) => a + Number(l.completedQty), 0);
-  const progress       = totalRequired > 0 ? Math.round((totalCompleted / totalRequired) * 100) : 0;
-  const estimated      = wo.estimatedHours ? Number(wo.estimatedHours) : null;
-  const actual         = wo.actualHours    ? Number(wo.actualHours)    : null;
-  const tolerance      = (wo.toleranceSpecs ?? null) as Record<string, unknown> | null;
-  const srcBom         = sourceBomQuery.data?.data ?? null;
+  const status = wo.status as WorkOrderStatus;
+  const orderTypeLabel = ORDER_TYPE_LABEL[wo.orderType ?? "NEW"] ?? "—";
+  const priorityLabel = PRIORITY_LABEL[wo.priority] ?? wo.priority;
+  const productSpec = wo.productSpecification ?? {};
+  const routing = wo.routingPlan ?? [];
+  const materials = wo.materialRequirements ?? [];
+  const tools = wo.toolsRequired ?? [];
+  const totalRoutingMin = routing.reduce(
+    (s, r) => s + Number(r.duration_min ?? r.cycle_min ?? 0),
+    0,
+  );
+  const todayStr = fmtDate(wo.createdAt);
+  const createdByName =
+    (wo.createdBy === session.data?.id ? session.data?.fullName : null) ??
+    session.data?.fullName ??
+    "—"; // V3.8 — sẽ enrich từ user_account khi backend trả thêm field
+
+  const handlePrint = () => window.print();
 
   return (
-    <div className="min-h-screen bg-zinc-50">
-
-      {/* ══ STICKY TOP BAR ══ */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-zinc-200 shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6">
-
-          {/* Row 1 — WO identity + actions */}
-          <div className="flex items-center gap-3 py-3">
-            <button
-              type="button"
-              onClick={() => router.push("/work-orders")}
-              className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 transition-colors text-sm"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">Quay lại</span>
-            </button>
-            <div className="h-4 w-px bg-zinc-300 shrink-0" />
-            <Factory className="h-4 w-4 shrink-0 text-zinc-400" />
-            <span className="font-mono text-base font-bold tracking-tight text-zinc-900 truncate">{wo.woNo}</span>
-            <span className={cn("rounded-full px-2.5 py-0.5 text-[11px] font-semibold shrink-0", STATUS_CHIP[wo.status])}>
-              {STATUS_LABEL[wo.status]}
+    <div className="flex h-full flex-col overflow-auto bg-zinc-100 dark:bg-zinc-950 print:bg-white">
+      {/* ===== Toolbar (no print) ===== */}
+      <header className="border-b border-zinc-200 bg-white px-6 py-3 print:hidden dark:border-zinc-800 dark:bg-zinc-900">
+        <Link
+          href="/work-orders"
+          className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-300"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+          Lệnh sản xuất
+        </Link>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-mono text-base font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+              {wo.woNo}
             </span>
-            <span className="hidden sm:inline text-xs text-zinc-400">· {wo.orderNo ?? "—"} · P{wo.priority}</span>
-            <div className="ml-auto shrink-0">
-              <WorkOrderActions
-                woId={wo.id}
-                woNo={wo.woNo}
-                status={wo.status}
-                versionLock={wo.versionLock}
-                canOperate={canOperate}
-                canComplete={canComplete}
-                canCancel={isAdmin}
-                canApprove={canApprove}
-                canDelete={isAdmin}
-              />
-            </div>
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset",
+                STATUS_PILL[status],
+              )}
+            >
+              <Circle className="h-1.5 w-1.5 fill-current" aria-hidden />
+              {STATUS_LABEL[status]}
+            </span>
+            <span className="hidden text-xs text-zinc-400 sm:inline dark:text-zinc-500">
+              · {orderTypeLabel} · {priorityLabel}
+            </span>
           </div>
-
-          {/* Row 2 — Horizontal stepper */}
-          <div className="pb-4 pt-1">
-            <HorizontalStepper active={section} onChange={setSection} activeIdx={activeIdx} />
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={handlePrint}>
+              <Printer className="h-3.5 w-3.5" />
+              In phiếu
+            </Button>
+            <WorkOrderActions
+              woId={wo.id}
+              woNo={wo.woNo}
+              status={status}
+              versionLock={wo.versionLock}
+              canOperate={canOperate}
+              canComplete={canComplete}
+              canCancel={isAdmin}
+              canApprove={canApprove}
+              canDelete={isAdmin}
+              size="sm"
+            />
           </div>
         </div>
+
+        {/* Tab nav */}
+        <nav
+          aria-label="Section"
+          className="mt-3 flex items-center gap-1 border-b border-zinc-200 -mb-3 dark:border-zinc-800"
+        >
+          {TABS.map((t) => {
+            const Icon = t.icon;
+            const active = tab === t.key;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setTab(t.key)}
+                className={cn(
+                  "relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors",
+                  "after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:rounded-t-full after:transition-all",
+                  active
+                    ? "text-indigo-700 after:bg-indigo-600 dark:text-indigo-300 dark:after:bg-indigo-400"
+                    : "text-zinc-500 hover:text-zinc-900 after:bg-transparent dark:text-zinc-400 dark:hover:text-zinc-100",
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" aria-hidden />
+                {t.label}
+              </button>
+            );
+          })}
+        </nav>
       </header>
 
-      {/* ══ MAIN CONTENT ══ */}
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-
-        {/* ═══════════════ OVERVIEW ═══════════════ */}
-        {section === "overview" && (
-          <>
-            <SectionHeading icon={LayoutDashboard} title="Tổng quan" subtitle="Thông tin chung và hành trình Work Order" />
-
-            {/* Hero card */}
-            <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <div className="flex items-start gap-6">
-                <ProgressRing pct={progress} size={100} stroke={7} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-2xl font-bold tracking-tight text-zinc-900">{wo.woNo}</span>
-                    <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-semibold", STATUS_CHIP[wo.status])}>
-                      {STATUS_LABEL[wo.status]}
-                    </span>
-                    <span className="rounded-full border border-zinc-200 px-2 py-0.5 text-[11px] font-mono text-zinc-500">P{wo.priority}</span>
-                  </div>
-                  {/* KPI inline */}
-                  <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2">
-                    {[
-                      { label: "Kế hoạch", value: Number(wo.plannedQty).toLocaleString("vi-VN") },
-                      { label: "Đạt",      value: Number(wo.goodQty).toLocaleString("vi-VN"), color: "text-emerald-700" },
-                      { label: "Phế",      value: Number(wo.scrapQty).toLocaleString("vi-VN"), color: "text-red-600" },
-                      { label: "Giờ công", value: actual !== null ? `${actual.toFixed(1)}h` : estimated !== null ? `${estimated}h (KH)` : "—" },
-                    ].map((stat, i, arr) => (
-                      <React.Fragment key={stat.label}>
-                        <div>
-                          <p className="text-xs text-zinc-500">{stat.label}</p>
-                          <p className={cn("font-mono text-xl font-bold tabular-nums", stat.color ?? "text-zinc-900")}>{stat.value}</p>
-                        </div>
-                        {i < arr.length - 1 && <div className="h-8 w-px bg-zinc-200" />}
-                      </React.Fragment>
-                    ))}
-                  </div>
-                  {/* Gradient progress bar */}
-                  <div className="mt-4">
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-100">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-500 transition-all duration-700"
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                    <div className="mt-1 flex justify-between text-[10px] text-zinc-400">
-                      <span>{totalCompleted.toLocaleString("vi-VN")} done</span>
-                      <span>{totalRequired.toLocaleString("vi-VN")} total</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 3 info cards */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              {/* Source BOM */}
-              <InfoCard icon={Workflow} title="Nguồn BOM">
-                {srcBom ? (
-                  <>
-                    <Link href={`/bom/${srcBom.templateId}/grid`} className="flex items-center gap-1 font-mono text-sm font-bold text-indigo-600 hover:underline">
-                      {srcBom.templateCode} <ExternalLink className="h-3 w-3 shrink-0" />
-                    </Link>
-                    <p className="mt-0.5 text-xs text-zinc-500">{srcBom.templateName}</p>
-                    {srcBom.componentSku && <p className="mt-1 font-mono text-xs text-emerald-700">{srcBom.componentSku}</p>}
-                  </>
-                ) : (
-                  <p className="text-xs text-zinc-400">{sourceBomQuery.isLoading ? "Đang tải…" : "Chưa liên kết BOM."}</p>
-                )}
-              </InfoCard>
-
-              {/* Đơn hàng */}
-              <InfoCard icon={Factory} title="Đơn hàng">
-                <p className="font-mono text-sm font-bold text-zinc-900">{wo.orderNo ?? "—"}</p>
-              </InfoCard>
-
-              {/* Giờ công */}
-              <InfoCard icon={Clock} title="Giờ công">
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-zinc-500">Ước tính</span>
-                    <span className="font-mono font-semibold text-zinc-800">{estimated !== null ? `${estimated}h` : "—"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-zinc-500">Thực tế</span>
-                    <span className={cn("font-mono font-semibold", actual !== null && estimated !== null && actual > estimated ? "text-red-600" : "text-zinc-800")}>
-                      {actual !== null ? `${actual.toFixed(1)}h` : "—"}
-                    </span>
-                  </div>
-                  {estimated !== null && actual !== null && (
-                    <div className={cn("rounded-lg px-2 py-1 text-center text-[10px] font-semibold", actual > estimated ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-700")}>
-                      {actual > estimated ? `Vượt ${(actual - estimated).toFixed(1)}h` : `Còn ${(estimated - actual).toFixed(1)}h`}
-                    </div>
-                  )}
-                </div>
-              </InfoCard>
-            </div>
-
-            {/* Milestone timeline horizontal */}
-            <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-              <p className="mb-5 flex items-center gap-2 text-sm font-semibold text-zinc-700">
-                <CalendarClock className="h-4 w-4 text-zinc-400" /> Hành trình Work Order
-              </p>
-              <div className="flex items-start overflow-x-auto pb-2">
-                {[
-                  { label: "Tạo WO",     time: wo.createdAt,   always: true },
-                  { label: "Phát hành",  time: wo.releasedAt },
-                  { label: "Bắt đầu SX", time: wo.startedAt },
-                  { label: "Tạm dừng",   time: wo.pausedAt,    warn: true, note: wo.pausedReason ?? undefined },
-                  { label: "Hoàn thành", time: wo.completedAt },
-                ].filter((m) => m.always || m.time).map((m, i, arr) => (
-                  <React.Fragment key={m.label}>
-                    <div className="flex min-w-[110px] flex-col items-center gap-1 text-center">
-                      <div className={cn(
-                        "flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold",
-                        m.warn ? "bg-amber-100 text-amber-700" : m.time ? "bg-emerald-100 text-emerald-700" : "bg-zinc-100 text-zinc-400",
-                      )}>
-                        {m.warn ? "!" : m.time ? "✓" : i + 1}
-                      </div>
-                      <p className={cn("text-[11px] font-semibold", m.warn ? "text-amber-600" : m.time ? "text-emerald-700" : "text-zinc-400")}>{m.label}</p>
-                      <p className="font-mono text-[10px] text-zinc-400">{m.time ? new Date(m.time).toLocaleDateString("vi-VN") : "—"}</p>
-                      {m.note && <p className="text-[10px] text-amber-600">· {m.note}</p>}
-                    </div>
-                    {i < arr.length - 1 && <div className="mt-3.5 flex-1 h-px bg-zinc-200 min-w-4" />}
-                  </React.Fragment>
-                ))}
-              </div>
-            </div>
-
-            {/* Technical specs */}
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-                <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-700">
-                  <FileImage className="h-4 w-4 text-zinc-400" /> Bản vẽ kỹ thuật
+      {/* ===== TAB 1: Phiếu LSX (form layout read-only) ===== */}
+      {tab === "ticket" && (
+        <div className="mx-auto w-full max-w-[1200px] p-6 print:p-0 print:max-w-none">
+          <article className="border border-zinc-300 bg-white shadow-sm print:border print:border-zinc-900 print:shadow-none dark:border-zinc-700 dark:bg-zinc-900 print:dark:border-zinc-900 print:dark:bg-white print:dark:text-zinc-900">
+            {/* Title bar */}
+            <div className="flex items-center gap-4 border-b-2 border-zinc-900 px-6 py-4 print:py-2 print:dark:border-zinc-900">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/img/logo-gtam.png"
+                alt="GTAM"
+                width={64}
+                height={70}
+                className="h-16 w-auto shrink-0 object-contain"
+              />
+              <div className="flex-1 text-center">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-700 dark:text-zinc-200 print:dark:text-zinc-700">
+                  CÔNG TY CỔ PHẦN SẢN XUẤT TỰ ĐỘNG HÓA CÔNG NGHỆ TOÀN CẦU (GTAM)
                 </p>
-                {wo.technicalDrawingUrl ? (
-                  <a href={wo.technicalDrawingUrl} target="_blank" rel="noreferrer"
-                    className="inline-flex max-w-full items-center gap-1.5 truncate rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-indigo-600 hover:border-indigo-300 hover:text-indigo-700 transition-colors">
-                    <ExternalLink className="h-3 w-3 shrink-0" />
-                    <span className="truncate">{wo.technicalDrawingUrl}</span>
-                  </a>
-                ) : (
-                  <p className="text-xs text-zinc-400">Chưa có bản vẽ.</p>
-                )}
-              </div>
-              <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-                <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-700">
-                  <Ruler className="h-4 w-4 text-zinc-400" /> Dung sai / Spec
+                <h2 className="mt-1 text-xl font-bold tracking-wide text-zinc-900 dark:text-zinc-50 print:dark:text-zinc-900">
+                  LỆNH SẢN XUẤT
+                </h2>
+                <p className="mt-0.5 text-[10px] text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
+                  Mẫu No: GTAM/PRD-LSX · Phiên bản 1.0 ·{" "}
+                  <span className="font-mono text-zinc-700 dark:text-zinc-300 print:dark:text-zinc-700">
+                    {wo.woNo}
+                  </span>
                 </p>
-                {tolerance && Object.keys(tolerance).length > 0 ? (
-                  <dl className="grid grid-cols-2 gap-1.5 text-xs">
-                    {Object.entries(tolerance).map(([k, v]) => (
-                      <div key={k} className="rounded-lg bg-zinc-50 px-2.5 py-2">
-                        <dt className="text-zinc-500">{k}</dt>
-                        <dd className="font-mono font-semibold text-zinc-800">{typeof v === "string" ? v : JSON.stringify(v)}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                ) : <p className="text-xs text-zinc-400">Chưa khai báo dung sai.</p>}
               </div>
+              <div className="w-16 shrink-0" aria-hidden />
             </div>
 
-            {wo.notes && (
-              <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-zinc-400">Ghi chú</p>
-                <p className="whitespace-pre-wrap text-sm text-zinc-700">{wo.notes}</p>
-              </div>
-            )}
-          </>
-        )}
+            {/* Header info — 6 fields read-only, 3 cols */}
+            <section className="grid grid-cols-1 gap-3 border-b border-zinc-200 px-6 py-4 md:grid-cols-3 print:dark:border-zinc-300">
+              <ROField label="Loại lệnh" value={orderTypeLabel} />
+              <ROField label="Bộ phận lập" value={wo.creatorDepartment ?? "—"} />
+              <ROField label="Ưu tiên" value={priorityLabel} />
+              <ROField label="Người lập" value={createdByName} />
+              <ROField label="Ngày bắt đầu" value={fmtDate(wo.plannedStart)} />
+              <ROField label="Ngày kết thúc" value={fmtDate(wo.plannedEnd)} />
+            </section>
 
-        {/* ═══════════════ MATERIALS ═══════════════ */}
-        {section === "materials" && (
-          <>
-            <SectionHeading icon={Package} title="Vật liệu & BOM" subtitle={`${wo.lines.length} lines sản xuất`} badge={`${wo.lines.length} items`} />
-
-            <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-              <div className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50 px-5 py-3">
-                <p className="text-sm font-semibold text-zinc-800">Lines sản xuất</p>
-                <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">{wo.lines.length} items</span>
+            {/* I. Thông tin sản phẩm */}
+            <section className="border-b border-zinc-200 px-6 py-4 print:dark:border-zinc-300">
+              <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-zinc-800 dark:text-zinc-100 print:dark:text-zinc-800">
+                I. Thông tin sản phẩm
+              </h3>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <ROField
+                  label="Sản phẩm cần sản xuất"
+                  wide
+                  value={
+                    <span className="flex items-baseline gap-2">
+                      {wo.productItemSku ? (
+                        <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
+                          {wo.productItemSku}
+                        </span>
+                      ) : null}
+                      <span className="font-medium">
+                        {wo.productItemName ?? "—"}
+                      </span>
+                    </span>
+                  }
+                />
+                <ROField
+                  label="Số lượng (SL)"
+                  value={
+                    <span>
+                      <span className="font-mono font-semibold">
+                        {fmtNum(wo.plannedQty)}
+                      </span>
+                      <span className="ml-1 text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
+                        {wo.productItemUom ?? ""}
+                      </span>
+                    </span>
+                  }
+                />
+                <ROField
+                  label="Kích thước"
+                  value={productSpec.dimensions ?? "—"}
+                />
+                <ROField
+                  label="Yêu cầu kỹ thuật"
+                  wide
+                  value={
+                    <span className="whitespace-pre-line">
+                      {productSpec.technicalRequirements ?? "—"}
+                    </span>
+                  }
+                />
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="border-b border-zinc-100 bg-zinc-50/60 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-                    <tr>
-                      <th className="px-5 py-3 text-left">#</th>
-                      <th className="px-5 py-3 text-left">SKU</th>
-                      <th className="px-5 py-3 text-left">Tên linh kiện</th>
-                      <th className="px-5 py-3 text-right">Yêu cầu</th>
-                      <th className="px-5 py-3 text-right">Hoàn thành</th>
-                      <th className="px-5 py-3 text-left min-w-[140px]">Tiến độ</th>
-                      <th className="px-5 py-3 text-center">Trạng thái</th>
-                      {canOperate && <th className="px-5 py-3 text-right" />}
+            </section>
+
+            {/* II. Nguyên vật liệu */}
+            <section className="border-b border-zinc-200 px-6 py-4 print:dark:border-zinc-300">
+              <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-zinc-800 dark:text-zinc-100 print:dark:text-zinc-800">
+                II. Nguyên vật liệu (BOM)
+              </h3>
+              <div className="overflow-x-auto rounded-md border border-zinc-200 print:overflow-visible dark:border-zinc-700">
+                <table className="w-full text-[11px]">
+                  <thead className="bg-zinc-100 dark:bg-zinc-800 print:dark:bg-zinc-100">
+                    <tr className="text-[10px] font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300 print:dark:text-zinc-600">
+                      <th className="border-r border-zinc-200 px-2 py-1.5 w-8 dark:border-zinc-700">#</th>
+                      <th className="border-r border-zinc-200 px-2 py-1.5 text-left min-w-[200px] dark:border-zinc-700">Mã VT · Tên</th>
+                      <th className="border-r border-zinc-200 px-2 py-1.5 text-right w-24 dark:border-zinc-700">Định mức</th>
+                      <th className="border-r border-zinc-200 px-2 py-1.5 text-left w-16 dark:border-zinc-700">ĐVT</th>
+                      <th className="border-r border-zinc-200 px-2 py-1.5 text-right w-24 dark:border-zinc-700">SL cấp</th>
+                      <th className="px-2 py-1.5 text-left w-28">Kho cấp</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-100">
-                    {wo.lines.map((l) => {
-                      const req = Number(l.requiredQty), done = Number(l.completedQty);
-                      const pct = req > 0 ? Math.round((done / req) * 100) : 0;
-                      const isDone = pct >= 100, isRun = pct > 0 && pct < 100;
-                      return (
-                        <tr key={l.id} className="hover:bg-zinc-50/60 transition-colors">
-                          <td className="px-5 py-3.5 text-zinc-400">{l.position}</td>
-                          <td className="px-5 py-3.5"><span className="font-mono text-xs text-zinc-500">{l.componentSku}</span></td>
-                          <td className="px-5 py-3.5 font-medium text-zinc-800">{l.componentName}</td>
-                          <td className="px-5 py-3.5 text-right tabular-nums text-zinc-600">{req.toLocaleString("vi-VN")}</td>
-                          <td className="px-5 py-3.5 text-right tabular-nums font-semibold text-zinc-900">{done.toLocaleString("vi-VN")}</td>
-                          <td className="px-5 py-3.5">
-                            <div className="flex items-center gap-2">
-                              <div className="h-1.5 w-28 overflow-hidden rounded-full bg-zinc-100">
-                                <div className={cn("h-full transition-all", isDone ? "bg-emerald-500" : isRun ? "bg-gradient-to-r from-indigo-500 to-violet-500" : "bg-zinc-300")} style={{ width: `${pct}%` }} />
-                              </div>
-                              <span className="text-xs tabular-nums text-zinc-500">{pct}%</span>
-                            </div>
-                          </td>
-                          <td className="px-5 py-3.5 text-center">
-                            {isDone ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700"><CheckCircle2 className="h-3 w-3" />DONE</span>
-                            ) : isRun ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700"><TrendingUp className="h-3 w-3" />RUNNING</span>
+                  <tbody>
+                    {materials.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-2 py-3 text-center italic text-zinc-400 dark:text-zinc-500">
+                          Không có vật liệu
+                        </td>
+                      </tr>
+                    ) : (
+                      materials.map((m, i) => (
+                        <tr key={i} className="border-t border-zinc-100 align-top dark:border-zinc-800 print:dark:border-zinc-200">
+                          <Td>
+                            <span className="block text-center font-mono text-[10px] text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
+                              {i + 1}
+                            </span>
+                          </Td>
+                          <Td>
+                            {m.sku ? (
+                              <span className="block font-mono text-[10px] text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
+                                {m.sku}
+                              </span>
+                            ) : null}
+                            <span className="block break-words">{m.name}</span>
+                          </Td>
+                          <Td align="right">
+                            <span className="font-mono">{fmtNum(m.qty)}</span>
+                          </Td>
+                          <Td>{m.uom ?? "—"}</Td>
+                          <Td align="right">
+                            <span className="font-mono text-emerald-700 dark:text-emerald-400 print:dark:text-emerald-700">
+                              {fmtNum(m.allocated_qty)}
+                            </span>
+                          </Td>
+                          <Td>
+                            <span className="font-mono text-[10px]">
+                              {m.warehouse_code ?? "—"}
+                            </span>
+                          </Td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            {/* III. Routing */}
+            <section className="border-b border-zinc-200 px-6 py-4 print:dark:border-zinc-300">
+              <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-zinc-800 dark:text-zinc-100 print:dark:text-zinc-800">
+                III. Công đoạn sản xuất (Routing)
+              </h3>
+              <div className="overflow-x-auto rounded-md border border-zinc-200 print:overflow-visible dark:border-zinc-700">
+                <table className="w-full text-[11px]">
+                  <thead className="bg-zinc-100 dark:bg-zinc-800 print:dark:bg-zinc-100">
+                    <tr className="text-[10px] font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300 print:dark:text-zinc-600">
+                      <th className="border-r border-zinc-200 px-2 py-1.5 w-8 dark:border-zinc-700">#</th>
+                      <th className="border-r border-zinc-200 px-2 py-1.5 text-left min-w-[140px] dark:border-zinc-700">Tên công đoạn</th>
+                      <th className="border-r border-zinc-200 px-2 py-1.5 text-left min-w-[140px] dark:border-zinc-700">Thiết bị</th>
+                      <th className="border-r border-zinc-200 px-2 py-1.5 text-left min-w-[120px] dark:border-zinc-700">Người phụ trách</th>
+                      <th className="border-r border-zinc-200 px-2 py-1.5 text-right w-20 dark:border-zinc-700">Phút</th>
+                      <th className="border-r border-zinc-200 px-2 py-1.5 text-center w-14 dark:border-zinc-700">QC</th>
+                      <th className="px-2 py-1.5 text-left min-w-[120px]">Ghi chú</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {routing.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-2 py-3 text-center italic text-zinc-400 dark:text-zinc-500">
+                          Không có công đoạn
+                        </td>
+                      </tr>
+                    ) : (
+                      routing.map((r, i) => (
+                        <tr key={i} className="border-t border-zinc-100 align-top dark:border-zinc-800 print:dark:border-zinc-200">
+                          <Td>
+                            <span className="block text-center font-mono text-[10px] text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
+                              {r.step_no}
+                            </span>
+                          </Td>
+                          <Td>
+                            <span className="block break-words font-medium">{r.name}</span>
+                          </Td>
+                          <Td>{r.equipment ?? r.machine ?? "—"}</Td>
+                          <Td>{r.assigned_operator ?? "—"}</Td>
+                          <Td align="right">
+                            <span className="font-mono">
+                              {fmtNum(r.duration_min ?? r.cycle_min ?? null)}
+                            </span>
+                          </Td>
+                          <Td align="center">
+                            {r.qc_required ? (
+                              <CheckCircle2
+                                className="mx-auto h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400"
+                                aria-hidden
+                              />
                             ) : (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-500"><AlertCircle className="h-3 w-3" />PENDING</span>
+                              <span className="text-zinc-300 dark:text-zinc-600">—</span>
                             )}
-                          </td>
-                          {canOperate && (
-                            <td className="px-5 py-3.5 text-right">
-                              <button type="button" onClick={() => { setDefaultLineForReport(l.id); setSection("progress"); }}
-                                className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition-colors">
-                                + Báo cáo
-                              </button>
-                            </td>
-                          )}
+                          </Td>
+                          <Td>{r.notes ?? "—"}</Td>
                         </tr>
-                      );
-                    })}
+                      ))
+                    )}
                   </tbody>
+                  {routing.length > 0 && (
+                    <tfoot className="bg-zinc-50 dark:bg-zinc-800 print:dark:bg-zinc-100">
+                      <tr className="border-t-2 border-zinc-300 font-semibold dark:border-zinc-700 print:dark:border-zinc-300">
+                        <td colSpan={4} className="px-2 py-2 text-right text-[11px]">
+                          Tổng thời gian:
+                        </td>
+                        <td className="px-2 py-2 text-right font-mono text-[12px] text-emerald-700 tabular-nums dark:text-emerald-400 print:dark:text-emerald-700">
+                          {totalRoutingMin.toLocaleString("vi-VN")} phút
+                        </td>
+                        <td colSpan={2} />
+                      </tr>
+                    </tfoot>
+                  )}
                 </table>
               </div>
-              <div className="flex items-center justify-between border-t border-zinc-100 bg-zinc-50 px-5 py-3">
-                <span className="text-xs text-zinc-500">
-                  Tổng: <span className="font-semibold text-zinc-800">{totalCompleted.toLocaleString("vi-VN")} / {totalRequired.toLocaleString("vi-VN")}</span> units
-                </span>
-                <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-32 overflow-hidden rounded-full bg-zinc-200">
-                    <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-500 transition-all" style={{ width: `${progress}%` }} />
-                  </div>
-                  <span className="font-mono text-xs font-semibold text-zinc-700">{progress}%</span>
-                </div>
-              </div>
-            </div>
+            </section>
 
-            <MaterialRequirementsTable woId={wo.id} woNo={wo.woNo} requirements={wo.materialRequirements} versionLock={wo.versionLock} canEdit={isPlannerPlus} canRequestPR={canOperate} />
-          </>
-        )}
-
-        {/* ═══════════════ ROUTING ═══════════════ */}
-        {section === "routing" && (
-          <>
-            <SectionHeading icon={Workflow} title="Quy trình Sản xuất" subtitle="Routing plan và các bước gia công" />
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-                <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-700"><FileImage className="h-4 w-4 text-zinc-400" />Bản vẽ kỹ thuật</p>
+            {/* V. Tài liệu */}
+            <section className="border-b border-zinc-200 px-6 py-4 print:dark:border-zinc-300">
+              <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-zinc-800 dark:text-zinc-100 print:dark:text-zinc-800">
+                V. Tài liệu đính kèm
+              </h3>
+              <div className="text-[11px]">
+                <span className="text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">URL bản vẽ kỹ thuật: </span>
                 {wo.technicalDrawingUrl ? (
-                  <a href={wo.technicalDrawingUrl} target="_blank" rel="noreferrer"
-                    className="inline-flex max-w-full items-center gap-1.5 truncate rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-indigo-600 hover:underline">
-                    <ExternalLink className="h-3 w-3 shrink-0" /><span className="truncate">{wo.technicalDrawingUrl}</span>
+                  <a
+                    href={wo.technicalDrawingUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-mono text-blue-600 underline-offset-2 hover:underline dark:text-blue-300 print:dark:text-blue-600"
+                  >
+                    {wo.technicalDrawingUrl}
                   </a>
-                ) : <p className="text-xs text-zinc-400">Chưa có bản vẽ.</p>}
+                ) : (
+                  <span className="italic text-zinc-400 dark:text-zinc-500">— (chưa có)</span>
+                )}
               </div>
-              <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-                <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-700"><Ruler className="h-4 w-4 text-zinc-400" />Dung sai / Spec</p>
-                {tolerance && Object.keys(tolerance).length > 0 ? (
-                  <dl className="grid grid-cols-2 gap-1.5 text-xs">
-                    {Object.entries(tolerance).map(([k, v]) => (
-                      <div key={k} className="rounded-lg bg-zinc-50 px-2.5 py-2">
-                        <dt className="text-zinc-500">{k}</dt>
-                        <dd className="font-mono font-semibold text-zinc-800">{typeof v === "string" ? v : JSON.stringify(v)}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                ) : <p className="text-xs text-zinc-400">Chưa khai báo dung sai.</p>}
-              </div>
-            </div>
-            <RoutingPlanEditor woId={wo.id} routingPlan={wo.routingPlan} versionLock={wo.versionLock} canEdit={isPlannerPlus} />
-          </>
-        )}
+            </section>
 
-        {/* ═══════════════ PROGRESS ═══════════════ */}
-        {section === "progress" && (
-          <>
-            <SectionHeading icon={TrendingUp} title="Tiến độ & Báo cáo" subtitle="Theo dõi và ghi nhận kết quả sản xuất" />
-
-            {/* 4 KPI */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <KpiCard label="Kế hoạch"   value={Number(wo.plannedQty).toLocaleString("vi-VN")} sub="units" accent="zinc" />
-              <KpiCard label="Đạt được"   value={Number(wo.goodQty).toLocaleString("vi-VN")}   sub="units" accent="emerald" />
-              <KpiCard label="Phế phẩm"   value={Number(wo.scrapQty).toLocaleString("vi-VN")}  sub="units" accent="red" />
-              <KpiCard label="Hoàn thành" value={`${progress}%`} sub={`${totalCompleted}/${totalRequired}`} accent="indigo" />
-            </div>
-
-            {/* Master progress bar */}
-            <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-sm font-semibold text-zinc-700">Tiến độ tổng thể</p>
-                <p className="font-mono text-sm font-bold text-indigo-600">{progress}%</p>
-              </div>
-              <div className="h-3 w-full overflow-hidden rounded-full bg-zinc-100">
-                <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-500 transition-all duration-700" style={{ width: `${progress}%` }} />
-              </div>
-              <div className="mt-2 flex justify-between text-[10px] text-zinc-400">
-                <span>0%</span>
-                <span className="font-semibold text-zinc-600">{totalCompleted.toLocaleString("vi-VN")} / {totalRequired.toLocaleString("vi-VN")} units</span>
-                <span>100%</span>
-              </div>
-            </div>
-
-            {/* Quick actions */}
-            {wo.status !== "COMPLETED" && wo.status !== "CANCELLED" && (
-              <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-400">Thao tác</p>
-                <WorkOrderActions woId={wo.id} woNo={wo.woNo} status={wo.status} versionLock={wo.versionLock} canOperate={canOperate} canComplete={canComplete} canCancel={isAdmin} canApprove={canApprove} canDelete={isAdmin} size="sm" />
-              </div>
-            )}
-
-            {/* Report form — redesigned */}
-            {canOperate && (wo.status === "IN_PROGRESS" || wo.status === "PAUSED") && (
-              <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-                {/* Form header — gradient */}
-                <div className="bg-gradient-to-r from-indigo-600 to-indigo-500 px-6 py-4">
-                  <p className="text-base font-semibold text-white">Báo cáo tiến độ</p>
-                  <p className="mt-0.5 text-xs text-indigo-200">Ghi nhận kết quả sản xuất cho Work Order này</p>
-                </div>
-                <div className="p-6">
-                  <ProgressReportForm
-                    woId={wo.id}
-                    lines={wo.lines}
-                    defaultLineId={defaultLineForReport}
-                    onSubmitted={() => setDefaultLineForReport(null)}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Lines compact table */}
-            <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
-              <div className="border-b border-zinc-100 bg-zinc-50 px-5 py-3">
-                <p className="text-sm font-semibold text-zinc-800">Chi tiết lines ({wo.lines.length})</p>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="border-b border-zinc-100 bg-zinc-50/60 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-                    <tr>
-                      <th className="px-5 py-2.5 text-left">#</th>
-                      <th className="px-5 py-2.5 text-left">SKU</th>
-                      <th className="px-5 py-2.5 text-left">Tên</th>
-                      <th className="px-5 py-2.5 text-right">Required</th>
-                      <th className="px-5 py-2.5 text-right">Done</th>
-                      <th className="px-5 py-2.5 text-left">Progress</th>
-                      {canOperate && <th className="px-5 py-2.5" />}
+            {/* VI. Tools */}
+            <section className="border-b border-zinc-200 px-6 py-4 print:dark:border-zinc-300">
+              <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-zinc-800 dark:text-zinc-100 print:dark:text-zinc-800">
+                VI. Công cụ dụng cụ / Dao cụ
+              </h3>
+              <div className="overflow-x-auto rounded-md border border-zinc-200 print:overflow-visible dark:border-zinc-700">
+                <table className="w-full text-[11px]">
+                  <thead className="bg-zinc-100 dark:bg-zinc-800 print:dark:bg-zinc-100">
+                    <tr className="text-[10px] font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300 print:dark:text-zinc-600">
+                      <th className="border-r border-zinc-200 px-2 py-1.5 w-8 dark:border-zinc-700">#</th>
+                      <th className="border-r border-zinc-200 px-2 py-1.5 text-left min-w-[140px] dark:border-zinc-700">Tên dao/CCDC</th>
+                      <th className="border-r border-zinc-200 px-2 py-1.5 text-left min-w-[120px] dark:border-zinc-700">Mã hiệu</th>
+                      <th className="border-r border-zinc-200 px-2 py-1.5 text-left min-w-[140px] dark:border-zinc-700">Máy sử dụng</th>
+                      <th className="border-r border-zinc-200 px-2 py-1.5 text-right w-16 dark:border-zinc-700">SL</th>
+                      <th className="border-r border-zinc-200 px-2 py-1.5 text-left w-14 dark:border-zinc-700">ĐVT</th>
+                      <th className="border-r border-zinc-200 px-2 py-1.5 text-left w-28 dark:border-zinc-700">Tình trạng</th>
+                      <th className="px-2 py-1.5 text-left min-w-[120px]">Ghi chú</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-100">
-                    {wo.lines.map((l) => {
-                      const req = Number(l.requiredQty), done = Number(l.completedQty);
-                      const pct = req > 0 ? Math.round((done / req) * 100) : 0;
-                      return (
-                        <tr key={l.id} className="hover:bg-zinc-50/60 transition-colors">
-                          <td className="px-5 py-3 text-zinc-400">{l.position}</td>
-                          <td className="px-5 py-3 font-mono text-xs text-zinc-500">{l.componentSku}</td>
-                          <td className="px-5 py-3 text-zinc-800">{l.componentName}</td>
-                          <td className="px-5 py-3 text-right tabular-nums text-zinc-600">{req.toLocaleString("vi-VN")}</td>
-                          <td className="px-5 py-3 text-right tabular-nums font-semibold text-zinc-900">{done.toLocaleString("vi-VN")}</td>
-                          <td className="px-5 py-3">
-                            <div className="flex items-center gap-2">
-                              <div className="h-1.5 w-24 overflow-hidden rounded-full bg-zinc-100">
-                                <div className={cn("h-full", pct >= 100 ? "bg-emerald-500" : "bg-gradient-to-r from-indigo-500 to-violet-500")} style={{ width: `${pct}%` }} />
-                              </div>
-                              <span className="text-xs tabular-nums text-zinc-500">{pct}%</span>
-                            </div>
-                          </td>
-                          {canOperate && (
-                            <td className="px-5 py-3 text-right">
-                              <button type="button"
-                                onClick={() => { setDefaultLineForReport(l.id); document.getElementById("report-anchor")?.scrollIntoView({ behavior: "smooth" }); }}
-                                className="rounded-lg border border-zinc-200 px-2.5 py-1 text-[11px] font-medium text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition-colors">
-                                + Báo cáo
-                              </button>
-                            </td>
-                          )}
+                  <tbody>
+                    {tools.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="px-2 py-3 text-center italic text-zinc-400 dark:text-zinc-500">
+                          Không có dao cụ
+                        </td>
+                      </tr>
+                    ) : (
+                      tools.map((t, i) => (
+                        <tr key={i} className="border-t border-zinc-100 align-top dark:border-zinc-800 print:dark:border-zinc-200">
+                          <Td>
+                            <span className="block text-center font-mono text-[10px] text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
+                              {i + 1}
+                            </span>
+                          </Td>
+                          <Td>
+                            <span className="block break-words font-medium">{t.name}</span>
+                          </Td>
+                          <Td>
+                            <span className="font-mono text-[10px]">{t.code ?? "—"}</span>
+                          </Td>
+                          <Td>{t.machine ?? "—"}</Td>
+                          <Td align="right">
+                            <span className="font-mono">{fmtNum(t.qty)}</span>
+                          </Td>
+                          <Td>{t.uom ?? "—"}</Td>
+                          <Td>
+                            <span
+                              className={cn(
+                                "rounded px-1.5 py-0.5 text-[10px] font-semibold",
+                                t.status === "OK"
+                                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+                                  : t.status === "WORN"
+                                    ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                                    : t.status === "DAMAGED" || t.status === "MISSING"
+                                      ? "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300"
+                                      : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+                              )}
+                            >
+                              {TOOL_STATUS_LABEL[t.status ?? "OK"] ?? t.status ?? "—"}
+                            </span>
+                          </Td>
+                          <Td>{t.notes ?? "—"}</Td>
                         </tr>
-                      );
-                    })}
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
-            </div>
-            <div id="report-anchor" />
-            <ProgressTimeline woId={wo.id} />
-          </>
-        )}
+            </section>
 
-        {/* ═══════════════ QC ═══════════════ */}
-        {section === "qc" && (
-          <>
-            <SectionHeading icon={ShieldCheck} title="QC & Kiểm tra" subtitle="Checklist kiểm tra chất lượng sản phẩm" />
-            <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <QcChecklistEnriched woId={wo.id} woStatus={wo.status} canEdit={canOperate || roles.includes("warehouse")} isAdmin={isAdmin} />
-            </div>
-          </>
-        )}
+            {/* Notes */}
+            {wo.notes ? (
+              <section className="border-b border-zinc-200 px-6 py-4 print:dark:border-zinc-300">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
+                  Ghi chú chung
+                </p>
+                <p className="mt-1 whitespace-pre-line text-[12px] text-zinc-700 dark:text-zinc-200 print:dark:text-zinc-700">
+                  {wo.notes}
+                </p>
+              </section>
+            ) : null}
 
-        {/* ═══════════════ HISTORY ═══════════════ */}
-        {section === "history" && (
-          <>
-            <SectionHeading icon={History} title="Lịch sử" subtitle="Audit log và lịch sử tiến độ gộp" />
-            <AuditMergedTimeline
-              woId={wo.id}
-              auditRows={auditQuery.data?.data ?? []}
-              progressRows={progressLogQuery.data?.data ?? []}
-              isLoading={auditQuery.isLoading || progressLogQuery.isLoading}
-              totalAudit={auditQuery.data?.meta.total ?? 0}
-            />
-          </>
-        )}
-
-        {/* ══ Bottom prev/next ══ */}
-        <div className="mt-10 flex items-center justify-between border-t border-zinc-200 pt-6">
-          <button type="button" onClick={() => prevSection && setSection(prevSection.key)} disabled={!prevSection}
-            className="flex items-center gap-2 rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 hover:border-zinc-400 hover:text-zinc-900 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm">
-            <ChevronLeft className="h-4 w-4" />
-            {prevSection ? prevSection.label : "Quay lại"}
-          </button>
-          <span className="text-xs text-zinc-400 font-mono">{SECTIONS[activeIdx]?.step ?? "—"} / 06</span>
-          <button type="button" onClick={() => nextSection && setSection(nextSection.key)} disabled={!nextSection}
-            className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm">
-            {nextSection ? nextSection.label : "Kết thúc"}
-            <ChevronRight className="h-4 w-4" />
-          </button>
+            {/* VII. Phê duyệt — 4 ô chữ ký */}
+            <section className="px-6 py-4 print:py-3">
+              <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-zinc-800 dark:text-zinc-100 print:dark:text-zinc-800">
+                VII. Phê duyệt
+              </h3>
+              <table className="w-full text-[11px]">
+                <thead className="bg-zinc-50 dark:bg-zinc-800 print:dark:bg-zinc-50">
+                  <tr className="text-[10px] uppercase text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
+                    <th className="border border-zinc-200 px-2 py-1 text-left dark:border-zinc-700 print:dark:border-zinc-200">
+                      Người lập
+                    </th>
+                    <th className="border border-zinc-200 px-2 py-1 text-left dark:border-zinc-700 print:dark:border-zinc-200">
+                      Kế toán
+                    </th>
+                    <th className="border border-zinc-200 px-2 py-1 text-left dark:border-zinc-700 print:dark:border-zinc-200">
+                      Quản lý sản xuất
+                    </th>
+                    <th className="border border-zinc-200 px-2 py-1 text-left dark:border-zinc-700 print:dark:border-zinc-200">
+                      Giám đốc
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="border border-zinc-200 px-2 py-6 align-top dark:border-zinc-700 print:dark:border-zinc-200">
+                      <span className="block text-[10px] font-semibold text-zinc-700 dark:text-zinc-200 print:dark:text-zinc-700">
+                        {createdByName}
+                      </span>
+                      <span className="block text-[9px] text-zinc-400 dark:text-zinc-500 print:dark:text-zinc-400">
+                        {todayStr}
+                      </span>
+                    </td>
+                    {[2, 3, 4].map((i) => (
+                      <td
+                        key={i}
+                        className="border border-zinc-200 px-2 py-6 align-bottom dark:border-zinc-700 print:dark:border-zinc-200"
+                      >
+                        &nbsp;
+                      </td>
+                    ))}
+                  </tr>
+                </tbody>
+              </table>
+              <p className="mt-2 text-[10px] italic text-zinc-500 print:hidden dark:text-zinc-400">
+                Workflow phê duyệt 4 chữ ký + xác nhận liên bộ phận sẽ làm ở phase
+                sau. Hiện tại {STATUS_LABEL[status]} —{" "}
+                {status === "DRAFT" ? "chờ Gia công duyệt YCSX." : ""}
+              </p>
+            </section>
+          </article>
         </div>
-      </main>
+      )}
+
+      {/* ===== TAB 2: Tiến độ ===== */}
+      {tab === "progress" && (
+        <div className="mx-auto w-full max-w-[1200px] space-y-4 p-6">
+          {/* KPI strip */}
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <KpiCard label="Kế hoạch" value={fmtNum(wo.plannedQty)} icon={ClipboardList} />
+            <KpiCard
+              label="Đạt"
+              value={fmtNum(wo.goodQty)}
+              icon={CheckCircle2}
+              tone="emerald"
+            />
+            <KpiCard label="Phế" value={fmtNum(wo.scrapQty)} icon={Wrench} tone="rose" />
+            <KpiCard
+              label="Routing tổng"
+              value={`${totalRoutingMin} phút`}
+              icon={CalendarClock}
+              tone="indigo"
+            />
+          </div>
+
+          {/* ProgressReportForm */}
+          {canOperate && (status === "IN_PROGRESS" || status === "PAUSED") && (
+            <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="border-b border-zinc-100 bg-gradient-to-r from-indigo-600 to-indigo-500 px-6 py-4 dark:border-zinc-800">
+                <p className="text-base font-semibold text-white">
+                  Báo cáo tiến độ
+                </p>
+                <p className="mt-0.5 text-xs text-indigo-100">
+                  Ghi nhận sản lượng đạt / phế cho Work Order
+                </p>
+              </div>
+              <div className="p-6">
+                <ProgressReportForm
+                  woId={wo.id}
+                  lines={wo.lines}
+                  defaultLineId={null}
+                  onSubmitted={() => undefined}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Lines table */}
+          {wo.lines.length > 0 && (
+            <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="border-b border-zinc-100 bg-zinc-50 px-5 py-3 dark:border-zinc-800 dark:bg-zinc-800/40">
+                <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+                  Chi tiết lines ({wo.lines.length})
+                </p>
+              </div>
+              <table className="w-full text-[12px]">
+                <thead className="bg-zinc-50 dark:bg-zinc-800/40">
+                  <tr className="text-[10px] uppercase text-zinc-500 dark:text-zinc-400">
+                    <th className="px-4 py-2 text-left">SKU</th>
+                    <th className="px-4 py-2 text-left">Tên</th>
+                    <th className="px-4 py-2 text-right">Cần</th>
+                    <th className="px-4 py-2 text-right">Đã làm</th>
+                    <th className="px-4 py-2 text-right">% hoàn</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {wo.lines.map((l) => {
+                    const req = Number(l.requiredQty) || 0;
+                    const done = Number(l.completedQty) || 0;
+                    const pct = req > 0 ? Math.round((done / req) * 100) : 0;
+                    return (
+                      <tr
+                        key={l.id}
+                        className="border-t border-zinc-100 dark:border-zinc-800"
+                      >
+                        <td className="px-4 py-2 font-mono text-[11px] text-zinc-700 dark:text-zinc-300">
+                          {l.componentSku}
+                        </td>
+                        <td className="px-4 py-2">{l.componentName}</td>
+                        <td className="px-4 py-2 text-right font-mono">{fmtNum(req)}</td>
+                        <td className="px-4 py-2 text-right font-mono text-emerald-700 dark:text-emerald-400">
+                          {fmtNum(done)}
+                        </td>
+                        <td className="px-4 py-2 text-right font-mono font-semibold">
+                          {pct}%
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Progress timeline */}
+          <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="border-b border-zinc-100 bg-zinc-50 px-5 py-3 dark:border-zinc-800 dark:bg-zinc-800/40">
+              <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+                Lịch sử báo cáo tiến độ
+              </p>
+            </div>
+            <ProgressTimeline woId={wo.id} />
+          </div>
+        </div>
+      )}
+
+      {/* ===== TAB 3: Lịch sử ===== */}
+      {tab === "history" && (
+        <div className="mx-auto w-full max-w-[1000px] p-6">
+          <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="border-b border-zinc-100 bg-zinc-50 px-5 py-3 dark:border-zinc-800 dark:bg-zinc-800/40">
+              <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+                Audit log work order
+              </p>
+            </div>
+            {auditQuery.isLoading ? (
+              <div className="flex items-center justify-center gap-2 p-6 text-sm text-zinc-500 dark:text-zinc-400">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Đang tải…
+              </div>
+            ) : !auditQuery.data?.data?.length ? (
+              <p className="p-6 text-center text-sm italic text-zinc-400 dark:text-zinc-500">
+                Chưa có lịch sử
+              </p>
+            ) : (
+              <ol className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                {auditQuery.data.data.map((a) => (
+                  <li key={a.id} className="flex items-start gap-3 px-5 py-3 text-[12px]">
+                    <span className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500 whitespace-nowrap">
+                      {formatDate(a.occurredAt, "dd/MM/yyyy HH:mm")}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <span className="font-semibold">
+                        {a.actorDisplay ?? a.actor ?? "Hệ thống"}
+                      </span>
+                      <span className="ml-1 text-zinc-500 dark:text-zinc-400">
+                        — {a.action}
+                      </span>
+                      {a.notes ? (
+                        <p className="mt-0.5 text-[11px] text-zinc-600 dark:text-zinc-400">
+                          {a.notes}
+                        </p>
+                      ) : null}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Print A4 landscape */}
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: A4 landscape;
+            margin: 8mm;
+          }
+          html,
+          body {
+            background: white !important;
+            color: #18181b !important;
+          }
+          .print\\:hidden {
+            display: none !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
 
-// ─── Audit merged timeline ────────────────────────────────────────────────────
+/* ─── helpers ─── */
 
-type AuditRow = { id: string; action: string; actorUsername: string | null; actorDisplayName: string | null; objectType: string; notes: string | null; occurredAt: string; afterJson: unknown; };
-type ProgressRow = { id: string; stepType: string; qtyCompleted: string; qtyScrap: string; notes: string | null; station: string | null; operatorUsername: string | null; operatorDisplayName: string | null; createdAt: string; };
-
-function AuditMergedTimeline({ woId, auditRows, progressRows, isLoading, totalAudit }: {
-  woId: string; auditRows: AuditRow[]; progressRows: ProgressRow[]; isLoading: boolean; totalAudit: number;
+function ROField({
+  label,
+  value,
+  wide,
+}: {
+  label: string;
+  value: React.ReactNode;
+  wide?: boolean;
 }) {
-  const [filter, setFilter] = React.useState<"all" | "audit" | "progress">("all");
-  type Merged = { kind: "audit"; row: AuditRow; at: number } | { kind: "progress"; row: ProgressRow; at: number };
-  const merged: Merged[] = React.useMemo(() => {
-    const out: Merged[] = [];
-    if (filter !== "progress") auditRows.forEach(r => out.push({ kind: "audit", row: r, at: new Date(r.occurredAt).getTime() }));
-    if (filter !== "audit")    progressRows.forEach(r => out.push({ kind: "progress", row: r, at: new Date(r.createdAt).getTime() }));
-    return out.sort((a, b) => b.at - a.at).slice(0, 80);
-  }, [auditRows, progressRows, filter]);
-
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-zinc-800">Lịch sử thao tác</h3>
-          <span className="rounded-md bg-zinc-100 px-2 py-0.5 font-mono text-[10px] text-zinc-500">{totalAudit} audit · {progressRows.length} progress</span>
-        </div>
-        <Button asChild size="sm" variant="ghost">
-          <Link href={`/admin/audit?entity=work_order&objectId=${woId}`} className="text-xs">Xem đầy đủ</Link>
-        </Button>
+    <div className={cn("space-y-1", wide ? "md:col-span-2" : "")}>
+      <span className="block text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
+        {label}
+      </span>
+      <div className="min-h-[28px] rounded-md border border-zinc-200 bg-zinc-50/60 px-3 py-1.5 text-[12px] text-zinc-800 dark:border-zinc-700 dark:bg-zinc-800/40 dark:text-zinc-100 print:dark:border-zinc-300 print:dark:bg-zinc-50/60 print:dark:text-zinc-800">
+        {value}
       </div>
-      {/* Filter chips */}
-      <div className="flex gap-1.5">
-        {(["all", "audit", "progress"] as const).map(f => (
-          <button key={f} type="button" onClick={() => setFilter(f)}
-            className={cn("rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-              filter === f ? "bg-indigo-600 text-white" : "bg-white border border-zinc-300 text-zinc-600 hover:border-zinc-400")}>
-            {f === "all" ? "Tất cả" : f === "audit" ? "Audit" : "Tiến độ"}
-          </button>
-        ))}
-      </div>
-      {isLoading ? (
-        <div className="space-y-2">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-14 w-full rounded-xl" />)}</div>
-      ) : merged.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-zinc-200 p-10 text-center text-xs text-zinc-400">Chưa có sự kiện nào.</div>
-      ) : (
-        <ol className="relative space-y-3 before:absolute before:left-[18px] before:top-0 before:bottom-0 before:w-px before:bg-zinc-200">
-          {merged.map(m => {
-            const isAudit = m.kind === "audit";
-            const actor   = isAudit ? (m.row.actorDisplayName ?? m.row.actorUsername ?? "Hệ thống") : (m.row.operatorDisplayName ?? m.row.operatorUsername ?? "—");
-            const initials = actor.slice(0, 2).toUpperCase();
-            return (
-              <li key={`${m.kind}-${m.row.id}`} className="flex gap-4">
-                {/* Avatar */}
-                <div className={cn(
-                  "relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ring-2 ring-white",
-                  isAudit ? "bg-violet-100 text-violet-700" : "bg-indigo-100 text-indigo-700",
-                )}>
-                  {initials}
-                </div>
-                {/* Content card */}
-                <div className="flex-1 rounded-xl border border-zinc-200 bg-white p-3.5 shadow-sm">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-sm font-semibold text-zinc-900">{actor}</span>
-                      {isAudit ? (
-                        <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">{m.row.action}</span>
-                      ) : (
-                        <>
-                          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">{m.row.stepType}</span>
-                          {m.row.station && <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-600">{m.row.station}</span>}
-                          {Number(m.row.qtyCompleted) > 0 && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">+{Number(m.row.qtyCompleted).toLocaleString("vi-VN")} đạt</span>}
-                          {Number(m.row.qtyScrap) > 0 && <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-600">{Number(m.row.qtyScrap).toLocaleString("vi-VN")} phế</span>}
-                        </>
-                      )}
-                    </div>
-                    <p className="text-[10px] text-zinc-400 font-mono whitespace-nowrap">
-                      {new Date(isAudit ? m.row.occurredAt : m.row.createdAt).toLocaleString("vi-VN")}
-                    </p>
-                  </div>
-                  {isAudit && m.row.notes && <p className="mt-1 text-xs text-zinc-500">· {m.row.notes}</p>}
-                  {!isAudit && m.row.notes && <p className="mt-1 text-xs italic text-zinc-500">· {m.row.notes}</p>}
-                </div>
-              </li>
-            );
-          })}
-        </ol>
+    </div>
+  );
+}
+
+function Td({
+  children,
+  align = "left",
+}: {
+  children: React.ReactNode;
+  align?: "left" | "right" | "center";
+}) {
+  return (
+    <td
+      className={cn(
+        "border-r border-zinc-100 px-2 py-1 align-top whitespace-normal break-words dark:border-zinc-800 print:dark:border-zinc-200",
+        align === "right"
+          ? "text-right"
+          : align === "center"
+            ? "text-center"
+            : "text-left",
       )}
+    >
+      {children}
+    </td>
+  );
+}
+
+function KpiCard({
+  label,
+  value,
+  icon: Icon,
+  tone = "zinc",
+}: {
+  label: string;
+  value: string;
+  icon: React.ElementType;
+  tone?: "zinc" | "emerald" | "rose" | "indigo";
+}) {
+  const toneCls = {
+    zinc: "bg-zinc-50 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200",
+    emerald: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
+    rose: "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300",
+    indigo: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300",
+  }[tone];
+  return (
+    <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex items-center gap-2">
+        <span
+          className={cn(
+            "inline-flex h-7 w-7 items-center justify-center rounded-md",
+            toneCls,
+          )}
+        >
+          <Icon className="h-3.5 w-3.5" aria-hidden />
+        </span>
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+          {label}
+        </span>
+      </div>
+      <p className="mt-2 text-xl font-bold tabular-nums text-zinc-900 dark:text-zinc-50">
+        {value}
+      </p>
     </div>
   );
 }

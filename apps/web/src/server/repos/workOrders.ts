@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import {
   bomSnapshotLine,
+  item,
   salesOrder,
   workOrder,
   workOrderLine,
@@ -124,6 +125,9 @@ export async function getWorkOrder(id: string): Promise<
         snapshotState: string;
       })[];
       orderNo: string | null;
+      productItemSku: string | null;
+      productItemName: string | null;
+      productItemUom: string | null;
     })
   | null
 > {
@@ -131,9 +135,14 @@ export async function getWorkOrder(id: string): Promise<
     .select({
       wo: workOrder,
       orderNo: salesOrder.orderNo,
+      // V3.7.74 — Enrich product master để detail page render Section I.
+      productItemSku: item.sku,
+      productItemName: item.name,
+      productItemUom: item.uom,
     })
     .from(workOrder)
     .leftJoin(salesOrder, eq(salesOrder.id, workOrder.linkedOrderId))
+    .leftJoin(item, eq(item.id, workOrder.productItemId))
     .where(eq(workOrder.id, id))
     .limit(1);
   if (!wo) return null;
@@ -156,6 +165,9 @@ export async function getWorkOrder(id: string): Promise<
   return {
     ...wo.wo,
     orderNo: wo.orderNo ?? null,
+    productItemSku: wo.productItemSku ?? null,
+    productItemName: wo.productItemName ?? null,
+    productItemUom: wo.productItemUom ?? null,
     lines: lines.map((l) => ({
       ...l.line,
       componentSku: l.componentSku,
