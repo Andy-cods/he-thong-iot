@@ -82,6 +82,8 @@ export async function POST(req: NextRequest) {
         category: l.category ?? null,
         estimatedUnitPrice: l.estimatedUnitPrice ?? null,
         referenceCode: l.referenceCode ?? null,
+        // V3.7.69 YCVT — onHandSnapshot (auto-fill từ client lookup)
+        onHandSnapshot: l.onHandSnapshot ?? null,
       })),
     });
 

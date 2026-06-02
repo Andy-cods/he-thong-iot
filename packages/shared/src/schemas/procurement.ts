@@ -137,6 +137,8 @@ export const prUpdateSchema = z.object({
         estimatedUnitPrice: z.coerce.number().nonnegative().optional().nullable(),
         referenceCode: z.string().trim().max(128).optional().nullable(),
         approvedQty: z.coerce.number().nonnegative().optional().nullable(),
+        // V3.7.69 YCVT — Tồn kho snapshot (auto-fill từ client lookup).
+        onHandSnapshot: z.coerce.number().nonnegative().optional().nullable(),
       }),
     )
     .min(1, "PR cần ít nhất 1 dòng")

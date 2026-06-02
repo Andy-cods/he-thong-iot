@@ -112,6 +112,8 @@ export async function PATCH(
           category: l.category ?? null,
           estimatedUnitPrice: l.estimatedUnitPrice ?? null,
           referenceCode: l.referenceCode ?? null,
+          // V3.7.69 YCVT
+          onHandSnapshot: l.onHandSnapshot ?? null,
         })),
       );
     }
