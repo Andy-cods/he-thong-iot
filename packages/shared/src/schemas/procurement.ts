@@ -84,6 +84,8 @@ export const prLineInputSchema = z.object({
   category: z.enum(PR_CATEGORIES).optional().nullable(),
   estimatedUnitPrice: z.coerce.number().nonnegative().optional().nullable(),
   referenceCode: z.string().trim().max(128).optional().nullable(),
+  // V3.7.69 YCVT — Tồn kho snapshot (auto-fill từ client lookup).
+  onHandSnapshot: z.coerce.number().nonnegative().optional().nullable(),
 });
 
 export const prCreateSchema = z.object({

@@ -111,6 +111,8 @@ export interface CreatePRLineInput {
   category?: "TOOL" | "CONSUMABLE" | "MATERIAL" | "OTHER" | null;
   estimatedUnitPrice?: number | null;
   referenceCode?: string | null;
+  // V3.7.69 YCVT — Tồn kho lúc tạo (auto-fill từ inventory_balance).
+  onHandSnapshot?: number | null;
 }
 
 export interface CreatePRInput {
@@ -131,6 +133,26 @@ async function genPRCode(): Promise<string> {
   const row = (rows as unknown as Array<{ code: string }>)[0];
   if (!row) throw new Error("PR_CODE_GEN_FAILED");
   return row.code;
+}
+
+/**
+ * V3.7.69 YCVT — sinh số phiếu giấy `{seq}/PRD-MRF/{MMYY}`.
+ * Gọi khi user bấm "Gửi phiếu" (transition DRAFT → SUBMITTED).
+ */
+async function genPaperFormNo(): Promise<string> {
+  const rows = await db.execute(sql`SELECT app.gen_pr_paper_form_no() AS no`);
+  const row = (rows as unknown as Array<{ no: string }>)[0];
+  if (!row) throw new Error("PR_PAPER_NO_GEN_FAILED");
+  return row.no;
+}
+
+/**
+ * V3.7.69 YCVT — preview số phiếu kế tiếp KHÔNG consume sequence.
+ * Dùng để hiện trên UI lúc user đang nhập form (read-only preview).
+ */
+export async function previewNextPaperFormNo(): Promise<string> {
+  // Lưu ý: gọi gen function thật sẽ không tăng counter vì counter là MAX(...)+1.
+  return genPaperFormNo();
 }
 
 /**
@@ -177,6 +199,9 @@ export async function createPR(input: CreatePRInput): Promise<PurchaseRequest> {
         estimatedUnitPrice:
           l.estimatedUnitPrice != null ? String(l.estimatedUnitPrice) : null,
         referenceCode: l.referenceCode ?? null,
+        // V3.7.69 YCVT
+        onHandSnapshot:
+          l.onHandSnapshot != null ? String(l.onHandSnapshot) : null,
       })),
     );
 
@@ -251,6 +276,8 @@ export interface ReplacePRLineInput {
   category?: "TOOL" | "CONSUMABLE" | "MATERIAL" | "OTHER" | null;
   estimatedUnitPrice?: number | null;
   referenceCode?: string | null;
+  // V3.7.69 YCVT
+  onHandSnapshot?: number | null;
 }
 
 export async function replacePRLines(
@@ -280,6 +307,9 @@ export async function replacePRLines(
         estimatedUnitPrice:
           l.estimatedUnitPrice != null ? String(l.estimatedUnitPrice) : null,
         referenceCode: l.referenceCode ?? null,
+        // V3.7.69 YCVT
+        onHandSnapshot:
+          l.onHandSnapshot != null ? String(l.onHandSnapshot) : null,
       })),
     );
   });
@@ -287,12 +317,94 @@ export async function replacePRLines(
 
 /**
  * Submit PR DRAFT → SUBMITTED.
+ * V3.7.69 YCVT — đồng thời sinh paper_form_no nếu chưa có + set approval_step.
  */
 export async function submitPR(id: string): Promise<PurchaseRequest | null> {
+  return db.transaction(async (tx) => {
+    // Check current state
+    const [current] = await tx
+      .select({
+        id: purchaseRequest.id,
+        status: purchaseRequest.status,
+        paperFormNo: purchaseRequest.paperFormNo,
+      })
+      .from(purchaseRequest)
+      .where(eq(purchaseRequest.id, id))
+      .limit(1);
+    if (!current || current.status !== "DRAFT") return null;
+
+    const paperFormNo = current.paperFormNo ?? (await genPaperFormNo());
+
+    const [row] = await tx
+      .update(purchaseRequest)
+      .set({
+        status: "SUBMITTED",
+        approvalStep: "SUBMITTED",
+        paperFormNo,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(purchaseRequest.id, id), eq(purchaseRequest.status, "DRAFT")))
+      .returning();
+    return row ?? null;
+  });
+}
+
+/**
+ * V3.7.69 YCVT — Step 2: Trưởng bộ phận duyệt.
+ * SUBMITTED → DEPT_APPROVED.
+ */
+export async function deptApprovePR(
+  id: string,
+  approverId: string,
+  note?: string | null,
+): Promise<PurchaseRequest | null> {
   const [row] = await db
     .update(purchaseRequest)
-    .set({ status: "SUBMITTED", updatedAt: new Date() })
-    .where(and(eq(purchaseRequest.id, id), eq(purchaseRequest.status, "DRAFT")))
+    .set({
+      approvalStep: "DEPT_APPROVED",
+      deptApprovedBy: approverId,
+      deptApprovedAt: new Date(),
+      deptApprovalNote: note ?? null,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(purchaseRequest.id, id),
+        eq(purchaseRequest.approvalStep, "SUBMITTED"),
+      ),
+    )
+    .returning();
+  return row ?? null;
+}
+
+/**
+ * V3.7.69 YCVT — Step 3: Giám đốc/Mua hàng duyệt.
+ * DEPT_APPROVED → DIRECTOR_APPROVED. Đồng thời set status = APPROVED để chuyển
+ * sang flow tạo PO existing (giữ backwards-compat với module purchase-orders).
+ */
+export async function directorApprovePR(
+  id: string,
+  approverId: string,
+  note?: string | null,
+): Promise<PurchaseRequest | null> {
+  const [row] = await db
+    .update(purchaseRequest)
+    .set({
+      status: "APPROVED",
+      approvalStep: "DIRECTOR_APPROVED",
+      directorApprovedBy: approverId,
+      directorApprovedAt: new Date(),
+      directorApprovalNote: note ?? null,
+      approvedBy: approverId, // back-compat (= director step)
+      approvedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(purchaseRequest.id, id),
+        eq(purchaseRequest.approvalStep, "DEPT_APPROVED"),
+      ),
+    )
     .returning();
   return row ?? null;
 }
@@ -322,7 +434,7 @@ export async function approvePR(
   return row ?? null;
 }
 
-/** Reject PR (DRAFT/SUBMITTED/APPROVED → REJECTED) */
+/** Reject PR (DRAFT/SUBMITTED/APPROVED → REJECTED). V3.7.69 set approval_step REJECTED + lưu rejection_reason. */
 export async function rejectPR(
   id: string,
   userId: string | null,
@@ -332,8 +444,12 @@ export async function rejectPR(
     .update(purchaseRequest)
     .set({
       status: "REJECTED",
+      approvalStep: "REJECTED",
       approvedBy: userId,
       approvedAt: new Date(),
+      rejectedBy: userId,
+      rejectedAt: new Date(),
+      rejectionReason: reason ?? null,
       notes: sql`COALESCE(${purchaseRequest.notes}, '') || ${
         reason ? `\n[REJECTED: ${reason}]` : "\n[REJECTED]"
       }`,
@@ -373,6 +489,9 @@ export async function getPRLinesEnriched(prId: string) {
       estimatedUnitPrice: purchaseRequestLine.estimatedUnitPrice,
       referenceCode: purchaseRequestLine.referenceCode,
       approvedQty: purchaseRequestLine.approvedQty,
+      // V3.7.69 YCVT
+      onHandSnapshot: purchaseRequestLine.onHandSnapshot,
+      lineTotal: purchaseRequestLine.lineTotal,
       itemUom: item.uom,
     })
     .from(purchaseRequestLine)

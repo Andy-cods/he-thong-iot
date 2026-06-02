@@ -22,6 +22,18 @@ export const dynamic = "force-dynamic";
 
 const querySchema = z.object({
   itemId: z.string().uuid().optional(),
+  /** V3.7.69 YCVT — bulk lookup nhiều item cùng lúc (CSV uuid). */
+  itemIds: z
+    .string()
+    .optional()
+    .transform((v) =>
+      v
+        ? v
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : undefined,
+    ),
   /** Mặc định false → trả full danh mục (kể cả SKU chưa có lot, hữu ích cho UI tổng quan). */
   hasLotOnly: z
     .union([z.literal("true"), z.literal("false")])
@@ -38,14 +50,24 @@ export async function GET(req: NextRequest) {
   const parsed = parseSearchParams(req, querySchema);
   if ("response" in parsed) return parsed.response;
 
-  const { itemId, hasLotOnly, page, pageSize } = parsed.data;
+  const { itemId, itemIds, hasLotOnly, page, pageSize } = parsed.data;
+
+  const resolvedIds = itemIds && itemIds.length > 0
+    ? itemIds
+    : itemId
+      ? [itemId]
+      : undefined;
 
   try {
     const { rows, total } = await getInventoryBalance({
-      itemIds: itemId ? [itemId] : undefined,
+      itemIds: resolvedIds,
       hasLotOnly,
       page,
-      pageSize,
+      // V3.7.69 — khi caller cung cấp itemIds explicit thì auto-tăng pageSize
+      // để trả đủ cho tất cả items (cap 500).
+      pageSize: resolvedIds && resolvedIds.length > pageSize
+        ? Math.min(500, resolvedIds.length)
+        : pageSize,
     });
 
     return NextResponse.json({

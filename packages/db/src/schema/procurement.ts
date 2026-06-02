@@ -51,7 +51,7 @@ export const purchaseRequestStatusEnum = pgEnum("purchase_request_status", [
   "REJECTED",
 ]);
 
-/** V1.2 — Purchase Request (header). V3.7.55 thêm fields theo form MRF GTAM. */
+/** V1.2 — Purchase Request (header). V3.7.55 thêm fields theo form MRF GTAM. V3.7.69 thêm workflow 3 bước YCVT. */
 export const purchaseRequest = appSchema.table(
   "purchase_request",
   {
@@ -71,6 +71,41 @@ export const purchaseRequest = appSchema.table(
     proposingDepartment: varchar("proposing_department", { length: 64 }),
     /** V3.7.55 MRF — Lý do đề xuất. */
     requestReason: text("request_reason"),
+
+    /** V3.7.69 YCVT — Số phiếu giấy format `{seq}/PRD-MRF/{MMYY}`. Auto-gen khi submit. */
+    paperFormNo: varchar("paper_form_no", { length: 32 }),
+    /** V3.7.69 YCVT — workflow 3-step: DRAFT/SUBMITTED/DEPT_APPROVED/DIRECTOR_APPROVED/CONVERTED/DONE/REJECTED. */
+    approvalStep: varchar("approval_step", { length: 24 }).notNull().default("DRAFT"),
+
+    /** V3.7.69 YCVT step 2: Trưởng bộ phận. */
+    deptApprovedBy: uuid("dept_approved_by").references(() => userAccount.id),
+    deptApprovedAt: timestamp("dept_approved_at", { withTimezone: true }),
+    deptApprovalNote: text("dept_approval_note"),
+
+    /** V3.7.69 YCVT step 3: Giám đốc / Mua hàng. */
+    directorApprovedBy: uuid("director_approved_by").references(() => userAccount.id),
+    directorApprovedAt: timestamp("director_approved_at", { withTimezone: true }),
+    directorApprovalNote: text("director_approval_note"),
+
+    /** V3.7.69 YCVT timeline IV. Theo dõi. */
+    poCreatedAt: timestamp("po_created_at", { withTimezone: true }),
+    goodsReceivedAt: timestamp("goods_received_at", { withTimezone: true }),
+    goodsIssuedAt: timestamp("goods_issued_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+
+    /** V3.7.69 YCVT — Reject path. */
+    rejectedBy: uuid("rejected_by").references(() => userAccount.id),
+    rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+    rejectionReason: text("rejection_reason"),
+
+    /** V3.7.69 YCVT — Tổng tiền dự kiến cache (sum line.line_total). Auto-calc bằng trigger. */
+    totalEstimatedAmount: numeric("total_estimated_amount", {
+      precision: 18,
+      scale: 2,
+    })
+      .notNull()
+      .default("0"),
+
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -83,6 +118,8 @@ export const purchaseRequest = appSchema.table(
     statusIdx: index("pr_status_idx").on(t.status),
     orderIdx: index("pr_linked_order_idx").on(t.linkedOrderId),
     requestedIdx: index("pr_requested_by_idx").on(t.requestedBy),
+    paperFormNoUk: uniqueIndex("pr_paper_form_no_uk").on(t.paperFormNo),
+    approvalStepIdx: index("pr_approval_step_idx").on(t.approvalStep, t.createdAt),
   }),
 );
 
@@ -222,6 +259,12 @@ export const purchaseRequestLine = appSchema.table(
     referenceCode: varchar("reference_code", { length: 128 }),
     /** V3.7.55 MRF — SL được duyệt sau review (≤ qty). NULL = chưa duyệt. */
     approvedQty: numeric("approved_qty", { precision: 18, scale: 6 }),
+    /** V3.7.69 YCVT — Tồn kho snapshot lúc tạo phiếu (auto-fill từ inventory_balance). */
+    onHandSnapshot: numeric("on_hand_snapshot", { precision: 18, scale: 4 }),
+    /** V3.7.69 YCVT — Tổng tiền dòng = qty × estimated_unit_price (trigger auto-calc). */
+    lineTotal: numeric("line_total", { precision: 18, scale: 2 })
+      .notNull()
+      .default("0"),
   },
   (t) => ({
     prIdx: index("pr_line_pr_idx").on(t.prId),
