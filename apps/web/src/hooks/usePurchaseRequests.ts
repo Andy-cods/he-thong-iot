@@ -319,3 +319,34 @@ export function useDirectorApprovePR(id: string) {
     },
   });
 }
+
+/** V3.7.70 YCVT — Timeline IV.4: Đánh dấu "Đã xuất kho". */
+export function useMarkPRIssued(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      request<{ data: PRRow }>(
+        `/api/purchase-requests/${id}/mark-issued`,
+        { method: "POST", body: "{}" },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.procurement.requests.detail(id) });
+    },
+  });
+}
+
+/** V3.7.70 YCVT — Timeline IV.5: Đánh dấu "Hoàn tất". */
+export function useMarkPRCompleted(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      request<{ data: PRRow }>(
+        `/api/purchase-requests/${id}/mark-completed`,
+        { method: "POST", body: "{}" },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.procurement.requests.all });
+      qc.invalidateQueries({ queryKey: qk.procurement.requests.detail(id) });
+    },
+  });
+}

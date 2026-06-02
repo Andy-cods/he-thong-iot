@@ -434,6 +434,70 @@ export async function approvePR(
   return row ?? null;
 }
 
+/**
+ * V3.7.70 YCVT — Timeline IV.1: Auto-hook khi PO link với PR được duyệt
+ * RECEIVED. Idempotent: chỉ set goods_received_at lần đầu.
+ */
+export async function markPRGoodsReceived(
+  id: string,
+): Promise<PurchaseRequest | null> {
+  const [row] = await db
+    .update(purchaseRequest)
+    .set({ goodsReceivedAt: new Date(), updatedAt: new Date() })
+    .where(
+      and(
+        eq(purchaseRequest.id, id),
+        sql`${purchaseRequest.goodsReceivedAt} IS NULL`,
+      ),
+    )
+    .returning();
+  return row ?? null;
+}
+
+/**
+ * V3.7.70 YCVT — Timeline IV.2: Manual mark "Đã xuất kho" bởi admin/warehouse.
+ * Idempotent qua WHERE goodsIssuedAt IS NULL.
+ */
+export async function markPRGoodsIssued(
+  id: string,
+): Promise<PurchaseRequest | null> {
+  const [row] = await db
+    .update(purchaseRequest)
+    .set({ goodsIssuedAt: new Date(), updatedAt: new Date() })
+    .where(
+      and(
+        eq(purchaseRequest.id, id),
+        sql`${purchaseRequest.goodsIssuedAt} IS NULL`,
+      ),
+    )
+    .returning();
+  return row ?? null;
+}
+
+/**
+ * V3.7.70 YCVT — Timeline IV.3: Manual mark "Hoàn tất" bởi admin.
+ * Idempotent qua WHERE completedAt IS NULL. Đồng thời set approval_step = DONE.
+ */
+export async function markPRCompleted(
+  id: string,
+): Promise<PurchaseRequest | null> {
+  const [row] = await db
+    .update(purchaseRequest)
+    .set({
+      completedAt: new Date(),
+      approvalStep: "DONE",
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(purchaseRequest.id, id),
+        sql`${purchaseRequest.completedAt} IS NULL`,
+      ),
+    )
+    .returning();
+  return row ?? null;
+}
+
 /** Reject PR (DRAFT/SUBMITTED/APPROVED → REJECTED). V3.7.69 set approval_step REJECTED + lưu rejection_reason. */
 export async function rejectPR(
   id: string,

@@ -12,8 +12,11 @@ import {
   Download,
   FileSpreadsheet,
   FileText,
+  Flag,
   Loader2,
+  PackageCheck,
   Printer,
+  Truck,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -33,6 +36,8 @@ import { useSession } from "@/hooks/useSession";
 import {
   useDeptApprovePR,
   useDirectorApprovePR,
+  useMarkPRCompleted,
+  useMarkPRIssued,
   usePurchaseRequestDetail,
   useRejectPurchaseRequest,
 } from "@/hooks/usePurchaseRequests";
@@ -139,6 +144,8 @@ export default function PurchaseRequestDetailPage() {
   const directorApprove = useDirectorApprovePR(id);
   const reject = useRejectPurchaseRequest(id);
   const convert = useConvertPRToPOs();
+  const markIssued = useMarkPRIssued(id);
+  const markCompleted = useMarkPRCompleted(id);
 
   const [rejectOpen, setRejectOpen] = React.useState(false);
   const [rejectReason, setRejectReason] = React.useState("");
@@ -179,6 +186,13 @@ export default function PurchaseRequestDetailPage() {
     (isAdmin || isPlanner || isPurchaser) &&
     (step === "SUBMITTED" || step === "DEPT_APPROVED");
   const canConvert = (isAdmin || isPurchaser) && status === "APPROVED";
+  // V3.7.70 — Manual timeline events
+  const canMarkIssued =
+    (isAdmin || roles.includes("warehouse")) &&
+    !!pr.goodsReceivedAt &&
+    !pr.goodsIssuedAt;
+  const canMarkCompleted =
+    isAdmin && !!pr.goodsIssuedAt && !pr.completedAt;
 
   const paperFormNo = pr.paperFormNo ?? "—";
   const todayStr = fmtDateVN(pr.createdAt);
@@ -334,6 +348,53 @@ export default function PurchaseRequestDetailPage() {
                   <ArrowRight className="h-3.5 w-3.5" />
                 )}
                 Tạo PO
+              </Button>
+            )}
+            {canMarkIssued && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  if (window.confirm("Xác nhận vật tư đã xuất kho cho bộ phận yêu cầu?")) {
+                    markIssued.mutate(undefined, {
+                      onSuccess: () => toast.success("Đã ghi nhận xuất kho"),
+                      onError: (e) =>
+                        toast.error(`Lỗi: ${(e as Error).message}`),
+                    });
+                  }
+                }}
+                disabled={markIssued.isPending}
+                className="border-violet-300 text-violet-700 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-300 dark:hover:bg-violet-950/40"
+              >
+                {markIssued.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Truck className="h-3.5 w-3.5" />
+                )}
+                Đã xuất kho
+              </Button>
+            )}
+            {canMarkCompleted && (
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (window.confirm("Đóng phiếu YCVT này? Sau khi đóng không sửa được.")) {
+                    markCompleted.mutate(undefined, {
+                      onSuccess: () => toast.success("Phiếu đã hoàn tất"),
+                      onError: (e) =>
+                        toast.error(`Lỗi: ${(e as Error).message}`),
+                    });
+                  }
+                }}
+                disabled={markCompleted.isPending}
+                className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+              >
+                {markCompleted.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Flag className="h-3.5 w-3.5" />
+                )}
+                Hoàn tất
               </Button>
             )}
           </div>

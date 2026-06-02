@@ -426,10 +426,16 @@ export async function createPOFromPR(
       linesBySupplier[supplierId] = supplierLines.length;
     }
 
-    // Update PR → CONVERTED
+    // Update PR → CONVERTED. V3.7.70 — đồng thời set approval_step + po_created_at
+    // để hiển thị timeline "IV. Theo dõi → Đã tạo đơn mua (PR/PO)".
     await tx
       .update(purchaseRequest)
-      .set({ status: "CONVERTED", updatedAt: new Date() })
+      .set({
+        status: "CONVERTED",
+        approvalStep: "CONVERTED",
+        poCreatedAt: new Date(),
+        updatedAt: new Date(),
+      })
       .where(eq(purchaseRequest.id, prId));
 
     return { createdPOs, linesBySupplier };

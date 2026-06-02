@@ -14,7 +14,10 @@ import {
 import { writeAudit } from "@/server/services/audit";
 import { notifyPOReceivedFull } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
-import { getPR } from "@/server/repos/purchaseRequests";
+import {
+  getPR,
+  markPRGoodsReceived,
+} from "@/server/repos/purchaseRequests";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -111,10 +114,13 @@ export async function POST(
     });
 
     // V3.3 — Notify purchaser + engineer creator + warehouse
+    // V3.7.70 — Đồng thời update PR timeline "IV. Theo dõi → Đã nhận hàng"
     let prCreatorUserId: string | null = null;
     if (before.prId) {
       const pr = await getPR(before.prId).catch(() => null);
       prCreatorUserId = pr?.requestedBy ?? null;
+      // Auto-hook: PR.goodsReceivedAt = now (idempotent — chỉ set lần đầu)
+      void markPRGoodsReceived(before.prId).catch(() => {});
     }
     void notifyPOReceivedFull({
       poId: params.poId,
