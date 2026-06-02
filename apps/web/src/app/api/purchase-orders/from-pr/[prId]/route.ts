@@ -94,6 +94,14 @@ export async function POST(
         "Có dòng PR chưa gán nhà cung cấp ưu tiên. Vui lòng chọn NCC cho từng dòng để tiếp tục.",
         422,
       );
+    if (msg.includes("PR_HAS_FREETEXT_LINES")) {
+      const detail = msg.replace("PR_HAS_FREETEXT_LINES: ", "");
+      return jsonError(
+        "PR_HAS_FREETEXT_LINES",
+        `Phiếu có dòng vật tư nhập tay chưa link với danh mục: ${detail}. Hãy chuẩn hóa vật tư trong danh mục Item trước khi tạo PO.`,
+        422,
+      );
+    }
     if (msg.includes("PR_EMPTY"))
       return jsonError("VALIDATION", "PR không có dòng nào.", 422);
 

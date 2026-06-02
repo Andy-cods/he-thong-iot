@@ -11,11 +11,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  useBulkInventoryBalance,
   useCreatePurchaseRequest,
   usePreviewPaperFormNo,
 } from "@/hooks/usePurchaseRequests";
-import { ItemPicker, type ItemPickerValue } from "@/components/bom/ItemPicker";
 import { useSession } from "@/hooks/useSession";
 import { cn } from "@/lib/utils";
 
@@ -39,9 +37,15 @@ import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * V3.7.72 — Free-text item name + SKU. itemId nullable.
+ * Nếu user gõ Mã VT trùng với item trong master → backend resolve.
+ * Còn lại lưu name + sku free-text.
+ */
 interface MRFLineDraft {
   localId: string;
-  item: ItemPickerValue | null;
+  itemName: string;
+  itemSku: string;
   specification: string;
   uom: string;
   qty: string;
@@ -78,7 +82,8 @@ const DEPT_OPTIONS = [
 function blankLine(): MRFLineDraft {
   return {
     localId: crypto.randomUUID(),
-    item: null,
+    itemName: "",
+    itemSku: "",
     specification: "",
     uom: "",
     qty: "1",
@@ -126,28 +131,14 @@ export default function NewMRFPage() {
       setProposingDepartment("Bộ phận Thu mua");
   }, [session.data?.roles]);
 
-  // Lines (II. Danh mục vật tư)
+  // Lines (II. Danh mục vật tư) — V3.7.72 free-text name+sku
   const [lines, setLines] = React.useState<MRFLineDraft[]>(() => [blankLine()]);
 
-  // Bulk lookup tồn kho cho các item đã chọn
-  const pickedItemIds = React.useMemo(
-    () =>
-      Array.from(
-        new Set(lines.map((l) => l.item?.id).filter((x): x is string => !!x)),
-      ),
-    [lines],
-  );
-  const stockQuery = useBulkInventoryBalance(pickedItemIds);
-  const stockByItemId = React.useMemo(() => {
-    const map = new Map<string, { available: number; uom: string }>();
-    for (const r of stockQuery.data?.data ?? []) {
-      map.set(r.itemId, { available: r.available ?? 0, uom: r.uom ?? "" });
-    }
-    return map;
-  }, [stockQuery.data]);
-
   const validLines = React.useMemo(
-    () => lines.filter((l) => l.item && Number(l.qty) > 0),
+    () =>
+      lines.filter(
+        (l) => l.itemName.trim().length > 0 && Number(l.qty) > 0,
+      ),
     [lines],
   );
 
@@ -184,7 +175,7 @@ export default function NewMRFPage() {
 
   const handleSubmit = async () => {
     if (validLines.length === 0) {
-      toast.error("Cần ít nhất 1 dòng có vật tư + số lượng > 0.");
+      toast.error("Cần ít nhất 1 dòng có Tên vật tư + số lượng > 0.");
       return;
     }
     if (!requestReason.trim()) {
@@ -203,21 +194,24 @@ export default function NewMRFPage() {
       proposingDepartment: proposingDepartment.trim() || null,
       requestReason: requestReason.trim() || null,
       lines: validLines.map((l) => ({
-        itemId: l.item!.id,
+        // V3.7.72 — free-text item name + sku (itemId không cần)
+        itemId: null,
+        itemName: l.itemName.trim() || null,
+        itemSku: l.itemSku.trim() || null,
         qty: Number(l.qty),
         preferredSupplierId: null,
         snapshotLineId: null,
         neededBy: l.neededBy ? new Date(l.neededBy) : null,
         notes: l.notes.trim() || null,
         specification: l.specification.trim() || null,
-        uom: l.uom.trim() || l.item!.uom || null,
+        uom: l.uom.trim() || null,
         priority: l.priority,
         category: l.category,
         estimatedUnitPrice: l.estimatedUnitPrice
           ? Number(l.estimatedUnitPrice)
           : null,
         referenceCode: l.referenceCode.trim() || null,
-        onHandSnapshot: stockByItemId.get(l.item!.id)?.available ?? null,
+        onHandSnapshot: null,
       })),
     };
 
@@ -286,7 +280,7 @@ export default function NewMRFPage() {
       </header>
 
       {/* Form sheet — print-friendly A4 landscape */}
-      <div className="mx-auto w-full max-w-[1240px] p-6 print:p-0 print:max-w-none">
+      <div className="mx-auto w-full max-w-[1440px] p-6 print:p-0 print:max-w-none">
         <article className="border-2 border-zinc-900 bg-white text-zinc-900 shadow-md print:border print:border-zinc-900 print:shadow-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 print:dark:border-zinc-900 print:dark:bg-white print:dark:text-zinc-900">
           {/* ===== HEADER ===== */}
           <div className="grid grid-cols-[1fr_2fr_1fr] items-center gap-2 border-b-2 border-zinc-900 px-4 py-3 text-[12px] print:dark:border-zinc-900">
@@ -405,9 +399,9 @@ export default function NewMRFPage() {
                 <thead>
                   <tr className="bg-[#F5F5F5] text-[10px] font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
                     <Th w="w-8">STT</Th>
-                    <Th w="min-w-[140px]">Tên vật tư</Th>
-                    <Th w="w-24">Mã VT</Th>
-                    <Th w="min-w-[110px]">Quy cách</Th>
+                    <Th w="min-w-[160px]">Tên vật tư</Th>
+                    <Th w="w-28">Mã VT</Th>
+                    <Th w="min-w-[120px]">Quy cách</Th>
                     <Th w="w-14">ĐVT</Th>
                     <Th w="w-14" align="right">
                       SL
@@ -418,17 +412,17 @@ export default function NewMRFPage() {
                     <Th w="w-14" align="right">
                       Duyệt
                     </Th>
-                    <Th w="w-24">Ngày cần</Th>
-                    <Th w="w-22">Ưu tiên</Th>
-                    <Th w="w-22">Phân loại</Th>
-                    <Th w="w-24" align="right">
+                    <Th w="w-28">Ngày cần</Th>
+                    <Th w="w-28">Ưu tiên</Th>
+                    <Th w="w-28">Phân loại</Th>
+                    <Th w="w-28" align="right">
                       Đơn giá DK
                     </Th>
-                    <Th w="w-24" align="right">
+                    <Th w="w-32" align="right">
                       Tổng tiền
                     </Th>
-                    <Th w="w-20">Mã ref</Th>
-                    <Th w="min-w-[110px]">Ghi chú</Th>
+                    <Th w="w-24">Mã ref</Th>
+                    <Th w="min-w-[120px]">Ghi chú</Th>
                     <Th w="w-8" hideOnPrint>
                       &nbsp;
                     </Th>
@@ -436,14 +430,9 @@ export default function NewMRFPage() {
                 </thead>
                 <tbody>
                   {lines.map((l, idx) => {
-                    const stock = l.item ? stockByItemId.get(l.item.id) : null;
                     const lineTotal =
                       (Number(l.qty) || 0) *
                       (Number(l.estimatedUnitPrice) || 0);
-                    const lowStock =
-                      stock != null && Number(l.qty) > 0
-                        ? stock.available < Number(l.qty)
-                        : false;
                     return (
                       <tr
                         key={l.localId}
@@ -459,28 +448,34 @@ export default function NewMRFPage() {
                             {idx + 1}
                           </span>
                         </Td>
-                        <Td colSpan={1} noPad>
-                          <div className="px-1 py-1">
-                            <ItemPicker
-                              value={l.item}
-                              onChange={(it) =>
-                                updateLine(l.localId, {
-                                  item: it,
-                                  uom: l.uom || it?.uom || "",
-                                })
-                              }
-                              disabled={pending}
-                            />
-                          </div>
-                        </Td>
                         <Td>
-                          <span className="block truncate font-mono text-[10.5px] text-zinc-600 dark:text-zinc-400 print:dark:text-zinc-600">
-                            {l.item?.sku ?? "—"}
-                          </span>
+                          {/* V3.7.72 — Free-text Tên vật tư (textarea wrap) */}
+                          <textarea
+                            value={l.itemName}
+                            onChange={(e) =>
+                              updateLine(l.localId, {
+                                itemName: e.target.value,
+                              })
+                            }
+                            placeholder="VD: Ốc M3 đầu nấm"
+                            rows={1}
+                            className="w-full resize-none bg-transparent text-[11px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
+                            style={{ minHeight: 18 }}
+                          />
                         </Td>
                         <Td>
                           <input
                             type="text"
+                            value={l.itemSku}
+                            onChange={(e) =>
+                              updateLine(l.localId, { itemSku: e.target.value })
+                            }
+                            placeholder="VD: VT-0001"
+                            className="w-full bg-transparent font-mono text-[10.5px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
+                          />
+                        </Td>
+                        <Td>
+                          <textarea
                             value={l.specification}
                             onChange={(e) =>
                               updateLine(l.localId, {
@@ -488,7 +483,9 @@ export default function NewMRFPage() {
                               })
                             }
                             placeholder="VD: D6x50xL100"
-                            className="w-full bg-transparent text-[11px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
+                            rows={1}
+                            className="w-full resize-none bg-transparent text-[11px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
+                            style={{ minHeight: 18 }}
                           />
                         </Td>
                         <Td>
@@ -498,7 +495,7 @@ export default function NewMRFPage() {
                             onChange={(e) =>
                               updateLine(l.localId, { uom: e.target.value })
                             }
-                            placeholder={l.item?.uom ?? "—"}
+                            placeholder="Cái"
                             className="w-full bg-transparent text-center text-[11px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
                           />
                         </Td>
@@ -515,28 +512,17 @@ export default function NewMRFPage() {
                           />
                         </Td>
                         <Td align="right">
-                          {stock ? (
-                            <span
-                              className={cn(
-                                "font-mono text-[11px]",
-                                lowStock
-                                  ? "font-semibold text-rose-600 dark:text-rose-400 print:dark:text-rose-600"
-                                  : "text-emerald-700 dark:text-emerald-400 print:dark:text-emerald-700",
-                              )}
-                              title={lowStock ? "Tồn kho thấp hơn SL yêu cầu" : ""}
-                            >
-                              {stock.available.toLocaleString("vi-VN")}
-                            </span>
-                          ) : (
-                            <span className="text-zinc-300 dark:text-zinc-600 print:dark:text-zinc-300">
-                              —
-                            </span>
-                          )}
+                          <span
+                            className="block text-center font-mono text-[10.5px] text-zinc-300 dark:text-zinc-600 print:dark:text-zinc-300"
+                            title="Kho điền khi duyệt"
+                          >
+                            —
+                          </span>
                         </Td>
                         <Td align="right">
                           <span
-                            className="block text-center font-mono text-[10.5px] text-zinc-400 dark:text-zinc-500 print:dark:text-zinc-400"
-                            title="Bộ phận Kho điền khi duyệt"
+                            className="block text-center font-mono text-[10.5px] text-zinc-300 dark:text-zinc-600 print:dark:text-zinc-300"
+                            title="Kho điền khi duyệt"
                           >
                             —
                           </span>
@@ -562,7 +548,7 @@ export default function NewMRFPage() {
                                   .value as MRFLineDraft["priority"],
                               })
                             }
-                            className="w-full bg-transparent text-[11px] outline-none"
+                            className="w-full min-w-0 bg-transparent pr-1 text-[11px] outline-none"
                           >
                             {Object.entries(PRIORITY_LABELS).map(([k, v]) => (
                               <option key={k} value={k}>
@@ -580,7 +566,7 @@ export default function NewMRFPage() {
                                   .value as MRFLineDraft["category"],
                               })
                             }
-                            className="w-full bg-transparent text-[11px] outline-none"
+                            className="w-full min-w-0 bg-transparent pr-1 text-[11px] outline-none"
                           >
                             {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
                               <option key={k} value={k}>
@@ -600,11 +586,12 @@ export default function NewMRFPage() {
                                 estimatedUnitPrice: e.target.value,
                               })
                             }
-                            className="w-full bg-transparent text-right font-mono text-[11px] outline-none"
+                            placeholder="0"
+                            className="w-full bg-transparent text-right font-mono text-[11px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
                           />
                         </Td>
                         <Td align="right">
-                          <span className="font-mono text-[11px] text-zinc-700 tabular-nums dark:text-zinc-300 print:dark:text-zinc-700">
+                          <span className="block break-words font-mono text-[11px] text-zinc-700 tabular-nums dark:text-zinc-300 print:dark:text-zinc-700">
                             {lineTotal > 0
                               ? lineTotal.toLocaleString("vi-VN")
                               : "—"}
@@ -624,13 +611,14 @@ export default function NewMRFPage() {
                           />
                         </Td>
                         <Td>
-                          <input
-                            type="text"
+                          <textarea
                             value={l.notes}
                             onChange={(e) =>
                               updateLine(l.localId, { notes: e.target.value })
                             }
-                            className="w-full bg-transparent text-[11px] outline-none"
+                            rows={1}
+                            className="w-full resize-none bg-transparent text-[11px] outline-none"
+                            style={{ minHeight: 18 }}
                           />
                         </Td>
                         <Td hideOnPrint>
@@ -875,7 +863,7 @@ function Td({
     <td
       colSpan={colSpan}
       className={cn(
-        "border-r border-zinc-200 dark:border-zinc-700 print:dark:border-zinc-300",
+        "border-r border-zinc-200 align-top whitespace-normal break-words dark:border-zinc-700 print:dark:border-zinc-300",
         noPad ? "" : "px-2 py-1",
         align === "right"
           ? "text-right"

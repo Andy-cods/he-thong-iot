@@ -98,7 +98,10 @@ export async function getPRLines(prId: string): Promise<PurchaseRequestLine[]> {
 }
 
 export interface CreatePRLineInput {
-  itemId: string;
+  /** V3.7.72 — Nullable: cho phép free-text item chưa có trong master. */
+  itemId?: string | null;
+  itemName?: string | null;
+  itemSku?: string | null;
   qty: number;
   preferredSupplierId?: string | null;
   snapshotLineId?: string | null;
@@ -185,7 +188,10 @@ export async function createPR(input: CreatePRInput): Promise<PurchaseRequest> {
       input.lines.map((l, idx) => ({
         prId: header.id,
         lineNo: idx + 1,
-        itemId: l.itemId,
+        itemId: l.itemId ?? null,
+        // V3.7.72 — Free-text name/sku khi itemId null
+        itemName: l.itemName ?? null,
+        itemSku: l.itemSku ?? null,
         qty: String(l.qty),
         preferredSupplierId: l.preferredSupplierId ?? null,
         snapshotLineId: l.snapshotLineId ?? null,
@@ -263,7 +269,10 @@ export async function createPRFromShortage(
  * từng line, dù cost cao hơn 1 chút (PR thường < 50 lines).
  */
 export interface ReplacePRLineInput {
-  itemId: string;
+  /** V3.7.72 — Nullable. */
+  itemId?: string | null;
+  itemName?: string | null;
+  itemSku?: string | null;
   qty: number;
   preferredSupplierId?: string | null;
   snapshotLineId?: string | null;
@@ -293,7 +302,9 @@ export async function replacePRLines(
       lines.map((l, idx) => ({
         prId,
         lineNo: idx + 1,
-        itemId: l.itemId,
+        itemId: l.itemId ?? null,
+        itemName: l.itemName ?? null,
+        itemSku: l.itemSku ?? null,
         qty: String(l.qty),
         preferredSupplierId: l.preferredSupplierId ?? null,
         snapshotLineId: l.snapshotLineId ?? null,
@@ -575,15 +586,24 @@ export async function rejectPR(
   return row ?? null;
 }
 
-/** Enrichment helper: join PR line với item master. */
+/**
+ * Enrichment helper: join PR line với item master.
+ * V3.7.72 — LEFT JOIN item (vì itemId nullable). Fallback hiển thị name/sku
+ * lấy từ item master nếu có itemId, else dùng itemName/itemSku free-text.
+ */
 export async function getPRLinesEnriched(prId: string) {
-  return db
+  const rows = await db
     .select({
       id: purchaseRequestLine.id,
       lineNo: purchaseRequestLine.lineNo,
       itemId: purchaseRequestLine.itemId,
-      sku: item.sku,
-      name: item.name,
+      // V3.7.72 — sku/name từ master (nullable khi itemId NULL)
+      masterSku: item.sku,
+      masterName: item.name,
+      masterUom: item.uom,
+      // V3.7.72 — free-text fallback
+      itemSku: purchaseRequestLine.itemSku,
+      itemName: purchaseRequestLine.itemName,
       qty: purchaseRequestLine.qty,
       preferredSupplierId: purchaseRequestLine.preferredSupplierId,
       snapshotLineId: purchaseRequestLine.snapshotLineId,
@@ -602,14 +622,21 @@ export async function getPRLinesEnriched(prId: string) {
       // V3.7.69 YCVT
       onHandSnapshot: purchaseRequestLine.onHandSnapshot,
       lineTotal: purchaseRequestLine.lineTotal,
-      itemUom: item.uom,
     })
     .from(purchaseRequestLine)
-    .innerJoin(item, eq(item.id, purchaseRequestLine.itemId))
+    .leftJoin(item, eq(item.id, purchaseRequestLine.itemId))
     .leftJoin(
       bomSnapshotLine,
       eq(bomSnapshotLine.id, purchaseRequestLine.snapshotLineId),
     )
     .where(eq(purchaseRequestLine.prId, prId))
     .orderBy(purchaseRequestLine.lineNo);
+
+  // Resolve display fields với fallback: master → free-text
+  return rows.map((r) => ({
+    ...r,
+    sku: r.masterSku ?? r.itemSku ?? null,
+    name: r.masterName ?? r.itemName ?? null,
+    itemUom: r.masterUom ?? null,
+  }));
 }

@@ -68,9 +68,10 @@ export interface PRRow {
 export interface PRLineEnriched {
   id: string;
   lineNo: number;
-  itemId: string;
-  sku: string;
-  name: string;
+  /** V3.7.72 — Nullable: dòng nhập tay không có itemId. */
+  itemId: string | null;
+  sku: string | null;
+  name: string | null;
   qty: string;
   preferredSupplierId: string | null;
   snapshotLineId: string | null;

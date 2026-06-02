@@ -222,7 +222,7 @@ export const purchaseOrderLine = appSchema.table(
   }),
 );
 
-/** V1.2 — Purchase Request Line. V3.7.55 thêm fields theo form MRF GTAM. */
+/** V1.2 — Purchase Request Line. V3.7.55 thêm fields theo form MRF GTAM. V3.7.72 cho phép itemId nullable + free-text. */
 export const purchaseRequestLine = appSchema.table(
   "purchase_request_line",
   {
@@ -231,9 +231,12 @@ export const purchaseRequestLine = appSchema.table(
       .notNull()
       .references(() => purchaseRequest.id, { onDelete: "cascade" }),
     lineNo: integer("line_no").notNull(),
-    itemId: uuid("item_id")
-      .notNull()
-      .references(() => item.id),
+    /** V3.7.72 — Nullable: NULL khi user nhập tay vật tư chưa có trong master. */
+    itemId: uuid("item_id").references(() => item.id),
+    /** V3.7.72 YCVT — Tên VT nhập tay (fallback khi itemId NULL). */
+    itemName: varchar("item_name", { length: 255 }),
+    /** V3.7.72 YCVT — Mã VT nhập tay (fallback khi itemId NULL). */
+    itemSku: varchar("item_sku", { length: 64 }),
     qty: numeric("qty", { precision: 18, scale: 6 }).notNull(),
     preferredSupplierId: uuid("preferred_supplier_id").references(
       () => supplier.id,

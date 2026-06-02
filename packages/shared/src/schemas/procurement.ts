@@ -70,23 +70,33 @@ export type PrPriority = (typeof PR_PRIORITIES)[number];
 export const PR_CATEGORIES = ["TOOL", "CONSUMABLE", "MATERIAL", "OTHER"] as const;
 export type PrCategory = (typeof PR_CATEGORIES)[number];
 
-export const prLineInputSchema = z.object({
-  itemId: uuid,
-  qty: positiveQty,
-  preferredSupplierId: uuid.optional().nullable(),
-  snapshotLineId: uuid.optional().nullable(),
-  neededBy: dateStringOrDate.optional().nullable(),
-  notes: z.string().trim().max(500).optional().nullable(),
-  // V3.7.55 — MRF GTAM fields
-  specification: z.string().trim().max(512).optional().nullable(),
-  uom: z.string().trim().max(16).optional().nullable(),
-  priority: z.enum(PR_PRIORITIES).optional().nullable(),
-  category: z.enum(PR_CATEGORIES).optional().nullable(),
-  estimatedUnitPrice: z.coerce.number().nonnegative().optional().nullable(),
-  referenceCode: z.string().trim().max(128).optional().nullable(),
-  // V3.7.69 YCVT — Tồn kho snapshot (auto-fill từ client lookup).
-  onHandSnapshot: z.coerce.number().nonnegative().optional().nullable(),
-});
+export const prLineInputSchema = z
+  .object({
+    /** V3.7.72 — Nullable: cho phép nhập tay vật tư chưa có trong master. */
+    itemId: uuid.optional().nullable(),
+    /** V3.7.72 YCVT — Tên VT nhập tay khi itemId null. */
+    itemName: z.string().trim().max(255).optional().nullable(),
+    /** V3.7.72 YCVT — Mã VT nhập tay khi itemId null. */
+    itemSku: z.string().trim().max(64).optional().nullable(),
+    qty: positiveQty,
+    preferredSupplierId: uuid.optional().nullable(),
+    snapshotLineId: uuid.optional().nullable(),
+    neededBy: dateStringOrDate.optional().nullable(),
+    notes: z.string().trim().max(500).optional().nullable(),
+    // V3.7.55 — MRF GTAM fields
+    specification: z.string().trim().max(512).optional().nullable(),
+    uom: z.string().trim().max(16).optional().nullable(),
+    priority: z.enum(PR_PRIORITIES).optional().nullable(),
+    category: z.enum(PR_CATEGORIES).optional().nullable(),
+    estimatedUnitPrice: z.coerce.number().nonnegative().optional().nullable(),
+    referenceCode: z.string().trim().max(128).optional().nullable(),
+    // V3.7.69 YCVT — Tồn kho snapshot (auto-fill từ client lookup).
+    onHandSnapshot: z.coerce.number().nonnegative().optional().nullable(),
+  })
+  .refine(
+    (l) => !!l.itemId || (l.itemName != null && l.itemName.trim().length > 0),
+    { message: "Mỗi dòng phải có itemId hoặc tên VT (itemName).", path: ["itemName"] },
+  );
 
 export const prCreateSchema = z.object({
   title: z.string().trim().max(255).optional().nullable(),
@@ -120,26 +130,34 @@ export const prUpdateSchema = z.object({
    */
   lines: z
     .array(
-      z.object({
-        /** Existing line id để update (omit → insert mới). */
-        id: uuid.optional(),
-        itemId: uuid,
-        qty: positiveQty,
-        preferredSupplierId: uuid.optional().nullable(),
-        snapshotLineId: uuid.optional().nullable(),
-        neededBy: dateStringOrDate.optional().nullable(),
-        notes: z.string().trim().max(500).optional().nullable(),
-        // V3.7.55 — MRF GTAM line fields
-        specification: z.string().trim().max(512).optional().nullable(),
-        uom: z.string().trim().max(16).optional().nullable(),
-        priority: z.enum(PR_PRIORITIES).optional().nullable(),
-        category: z.enum(PR_CATEGORIES).optional().nullable(),
-        estimatedUnitPrice: z.coerce.number().nonnegative().optional().nullable(),
-        referenceCode: z.string().trim().max(128).optional().nullable(),
-        approvedQty: z.coerce.number().nonnegative().optional().nullable(),
-        // V3.7.69 YCVT — Tồn kho snapshot (auto-fill từ client lookup).
-        onHandSnapshot: z.coerce.number().nonnegative().optional().nullable(),
-      }),
+      z
+        .object({
+          /** Existing line id để update (omit → insert mới). */
+          id: uuid.optional(),
+          /** V3.7.72 — Nullable: free-text item. */
+          itemId: uuid.optional().nullable(),
+          itemName: z.string().trim().max(255).optional().nullable(),
+          itemSku: z.string().trim().max(64).optional().nullable(),
+          qty: positiveQty,
+          preferredSupplierId: uuid.optional().nullable(),
+          snapshotLineId: uuid.optional().nullable(),
+          neededBy: dateStringOrDate.optional().nullable(),
+          notes: z.string().trim().max(500).optional().nullable(),
+          // V3.7.55 — MRF GTAM line fields
+          specification: z.string().trim().max(512).optional().nullable(),
+          uom: z.string().trim().max(16).optional().nullable(),
+          priority: z.enum(PR_PRIORITIES).optional().nullable(),
+          category: z.enum(PR_CATEGORIES).optional().nullable(),
+          estimatedUnitPrice: z.coerce.number().nonnegative().optional().nullable(),
+          referenceCode: z.string().trim().max(128).optional().nullable(),
+          approvedQty: z.coerce.number().nonnegative().optional().nullable(),
+          // V3.7.69 YCVT — Tồn kho snapshot.
+          onHandSnapshot: z.coerce.number().nonnegative().optional().nullable(),
+        })
+        .refine(
+          (l) => !!l.itemId || (l.itemName != null && l.itemName.trim().length > 0),
+          { message: "Mỗi dòng phải có itemId hoặc itemName.", path: ["itemName"] },
+        ),
     )
     .min(1, "PR cần ít nhất 1 dòng")
     .optional(),

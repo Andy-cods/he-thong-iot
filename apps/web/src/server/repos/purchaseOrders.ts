@@ -329,6 +329,16 @@ export async function createPOFromPR(
       .where(eq(purchaseRequestLine.prId, prId));
     if (lines.length === 0) throw new Error("PR_EMPTY");
 
+    // V3.7.72 — Guard: free-text lines (itemId NULL) không convert được.
+    // Admin phải gán item master cho từng dòng TRƯỚC khi convert.
+    const freetext = lines.filter((l) => !l.itemId);
+    if (freetext.length > 0) {
+      const names = freetext.map((l) => l.itemName ?? "?").slice(0, 3).join(", ");
+      throw new Error(
+        `PR_HAS_FREETEXT_LINES: ${freetext.length} dòng chưa gán item master (${names}${freetext.length > 3 ? "..." : ""})`,
+      );
+    }
+
     // V3.4 — Apply overrides nếu có
     if (supplierOverrides && Object.keys(supplierOverrides).length > 0) {
       for (const [lineId, supplierId] of Object.entries(supplierOverrides)) {
@@ -347,13 +357,16 @@ export async function createPOFromPR(
 
     // V3.7.17 — Fallback: nếu line vẫn chưa có supplier, auto-pick từ
     // item_supplier (preferred=true ưu tiên, nếu không có thì pick bất kỳ).
-    const stillMissing = lines.filter((l) => !l.preferredSupplierId);
+    // V3.7.72 — bỏ qua line không có itemId (đã bị guard ở trên)
+    const stillMissing = lines.filter(
+      (l) => !l.preferredSupplierId && !!l.itemId,
+    );
     if (stillMissing.length > 0) {
       for (const line of stillMissing) {
         const [pref] = await tx
           .select({ supplierId: itemSupplier.supplierId })
           .from(itemSupplier)
-          .where(eq(itemSupplier.itemId, line.itemId))
+          .where(eq(itemSupplier.itemId, line.itemId as string))
           .orderBy(desc(itemSupplier.isPreferred))
           .limit(1);
         if (pref?.supplierId) {
@@ -414,7 +427,8 @@ export async function createPOFromPR(
         supplierLines.map((l, idx) => ({
           poId: poHeader.id,
           lineNo: idx + 1,
-          itemId: l.itemId,
+          // Non-null vì đã guard freetext lines trước đó (V3.7.72)
+          itemId: l.itemId as string,
           orderedQty: l.qty,
           snapshotLineId: l.snapshotLineId ?? null,
           expectedEta: l.neededBy,

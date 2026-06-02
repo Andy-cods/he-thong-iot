@@ -110,12 +110,15 @@ export function PoCreateWizard() {
   React.useEffect(() => {
     if (state.source === "FROM_PR" && prDetail.data?.data.lines) {
       const prLines = prDetail.data.data.lines;
-      const next: PoLineDraft[] = prLines.map((l) => ({
+      // V3.7.72 — filter lines có itemId (bỏ free-text lines chưa link master)
+      const next: PoLineDraft[] = prLines
+        .filter((l): l is typeof l & { itemId: string } => !!l.itemId)
+        .map((l) => ({
         localId: crypto.randomUUID(),
         item: {
           id: l.itemId,
-          sku: l.sku,
-          name: l.name,
+          sku: l.sku ?? "",
+          name: l.name ?? "",
           uom: undefined,
         },
         qty: String(l.qty),

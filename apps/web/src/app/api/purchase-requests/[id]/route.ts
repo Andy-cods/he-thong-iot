@@ -100,7 +100,10 @@ export async function PATCH(
       await replacePRLines(
         params.id,
         body.data.lines.map((l) => ({
-          itemId: l.itemId,
+          itemId: l.itemId ?? null,
+          // V3.7.72 — free-text fallback
+          itemName: l.itemName ?? null,
+          itemSku: l.itemSku ?? null,
           qty: l.qty,
           preferredSupplierId: l.preferredSupplierId ?? null,
           snapshotLineId: l.snapshotLineId ?? null,

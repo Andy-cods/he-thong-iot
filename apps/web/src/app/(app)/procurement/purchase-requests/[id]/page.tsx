@@ -427,7 +427,7 @@ export default function PurchaseRequestDetailPage() {
       </header>
 
       {/* ===== Phiếu YCVT body — A4 landscape ===== */}
-      <div className="mx-auto w-full max-w-[1240px] p-6 print:p-0 print:max-w-none">
+      <div className="mx-auto w-full max-w-[1440px] p-6 print:p-0 print:max-w-none">
         <article className="border-2 border-zinc-900 bg-white text-zinc-900 shadow-md print:border print:border-zinc-900 print:shadow-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 print:dark:border-zinc-900 print:dark:bg-white print:dark:text-zinc-900">
           {/* Header */}
           <div className="grid grid-cols-[1fr_2fr_1fr] items-center gap-2 border-b-2 border-zinc-900 px-4 py-3 text-[12px] print:dark:border-zinc-900">
@@ -504,20 +504,20 @@ export default function PurchaseRequestDetailPage() {
                 <thead>
                   <tr className="bg-[#F5F5F5] text-[10px] font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
                     <Th w="w-8">STT</Th>
-                    <Th w="min-w-[140px]">Tên vật tư</Th>
-                    <Th w="w-24">Mã VT</Th>
-                    <Th w="min-w-[110px]">Quy cách</Th>
+                    <Th w="min-w-[160px]">Tên vật tư</Th>
+                    <Th w="w-28">Mã VT</Th>
+                    <Th w="min-w-[120px]">Quy cách</Th>
                     <Th w="w-14">ĐVT</Th>
                     <Th w="w-14" align="right">SL</Th>
                     <Th w="w-16" align="right">Tồn kho</Th>
                     <Th w="w-14" align="right">Duyệt</Th>
-                    <Th w="w-24">Ngày cần</Th>
-                    <Th w="w-22">Ưu tiên</Th>
-                    <Th w="w-22">Phân loại</Th>
-                    <Th w="w-24" align="right">Đơn giá DK</Th>
-                    <Th w="w-24" align="right">Tổng tiền</Th>
-                    <Th w="w-20">Mã ref</Th>
-                    <Th w="min-w-[110px]">Ghi chú</Th>
+                    <Th w="w-28">Ngày cần</Th>
+                    <Th w="w-28">Ưu tiên</Th>
+                    <Th w="w-28">Phân loại</Th>
+                    <Th w="w-28" align="right">Đơn giá DK</Th>
+                    <Th w="w-32" align="right">Tổng tiền</Th>
+                    <Th w="w-24">Mã ref</Th>
+                    <Th w="min-w-[120px]">Ghi chú</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -551,12 +551,12 @@ export default function PurchaseRequestDetailPage() {
                           </span>
                         </Td>
                         <Td>
-                          <span className="block truncate font-medium">
+                          <span className="block break-words font-medium">
                             {l.name ?? "—"}
                           </span>
                         </Td>
                         <Td>
-                          <span className="block truncate font-mono text-[10.5px] text-zinc-600 dark:text-zinc-400 print:dark:text-zinc-600">
+                          <span className="block break-words font-mono text-[10.5px] text-zinc-600 dark:text-zinc-400 print:dark:text-zinc-600">
                             {l.sku ?? "—"}
                           </span>
                         </Td>
@@ -1053,7 +1053,7 @@ function Td({
     <td
       colSpan={colSpan}
       className={cn(
-        "border-r border-zinc-200 px-2 py-1 dark:border-zinc-700 print:dark:border-zinc-300",
+        "border-r border-zinc-200 px-2 py-1 align-top whitespace-normal break-words dark:border-zinc-700 print:dark:border-zinc-300",
         align === "right"
           ? "text-right"
           : align === "center"
