@@ -35,6 +35,34 @@ export interface PRRow {
   notes: string | null;
   createdAt: string;
   updatedAt: string;
+  // V3.7.55 MRF
+  targetDepartment?: string | null;
+  proposingDepartment?: string | null;
+  requestReason?: string | null;
+  // V3.7.69 YCVT
+  paperFormNo?: string | null;
+  approvalStep?:
+    | "DRAFT"
+    | "SUBMITTED"
+    | "DEPT_APPROVED"
+    | "DIRECTOR_APPROVED"
+    | "CONVERTED"
+    | "DONE"
+    | "REJECTED";
+  deptApprovedBy?: string | null;
+  deptApprovedAt?: string | null;
+  deptApprovalNote?: string | null;
+  directorApprovedBy?: string | null;
+  directorApprovedAt?: string | null;
+  directorApprovalNote?: string | null;
+  poCreatedAt?: string | null;
+  goodsReceivedAt?: string | null;
+  goodsIssuedAt?: string | null;
+  completedAt?: string | null;
+  rejectedBy?: string | null;
+  rejectedAt?: string | null;
+  rejectionReason?: string | null;
+  totalEstimatedAmount?: string | null;
 }
 
 export interface PRLineEnriched {
@@ -50,6 +78,18 @@ export interface PRLineEnriched {
   notes: string | null;
   grossRequiredQty: string | null;
   remainingShortQty: string | null;
+  // V3.7.55 MRF
+  specification?: string | null;
+  uom?: string | null;
+  priority?: "URGENT" | "NORMAL" | "RESERVE" | null;
+  category?: "TOOL" | "CONSUMABLE" | "MATERIAL" | "OTHER" | null;
+  estimatedUnitPrice?: string | null;
+  referenceCode?: string | null;
+  approvedQty?: string | null;
+  itemUom?: string | null;
+  // V3.7.69 YCVT
+  onHandSnapshot?: string | null;
+  lineTotal?: string | null;
 }
 
 export interface PRListResponse {
@@ -196,6 +236,86 @@ export function useRejectPurchaseRequest(id: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.procurement.requests.all });
       qc.invalidateQueries({ queryKey: qk.procurement.requests.detail(id) });
+    },
+  });
+}
+
+/**
+ * V3.7.69 YCVT — preview số phiếu kế tiếp (`{seq}/PRD-MRF/{MMYY}`).
+ * Re-fetch mỗi phút để khi qua tháng tự update MMYY.
+ */
+export function usePreviewPaperFormNo() {
+  return useQuery({
+    queryKey: ["procurement", "requests", "paper-form-no-preview"],
+    queryFn: () =>
+      request<{ data: { paperFormNo: string } }>(
+        "/api/purchase-requests/preview-form-no",
+      ),
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+  });
+}
+
+/**
+ * V3.7.69 YCVT — bulk inventory balance lookup theo nhiều itemIds.
+ * Dùng cho form MRF: auto-fill cột "Tồn kho" khi user pick item.
+ */
+export interface InventoryBalanceRow {
+  itemId: string;
+  sku: string;
+  name: string;
+  uom: string;
+  onHand: number;
+  reserved: number;
+  available: number;
+  holdQty: number;
+  minStockQty: number;
+}
+
+export function useBulkInventoryBalance(itemIds: string[]) {
+  const key = itemIds.length > 0 ? itemIds.slice().sort().join(",") : "";
+  return useQuery({
+    queryKey: ["inventory", "balance-bulk", key],
+    queryFn: async () => {
+      if (itemIds.length === 0) return { data: [] };
+      const url = `/api/inventory/balance?itemIds=${encodeURIComponent(key)}&hasLotOnly=false&pageSize=500`;
+      return request<{ data: InventoryBalanceRow[] }>(url);
+    },
+    enabled: itemIds.length > 0,
+    staleTime: 30_000,
+  });
+}
+
+/** V3.7.69 YCVT — Step 2: Trưởng bộ phận duyệt. */
+export function useDeptApprovePR(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { note?: string | null }) =>
+      request<{ data: PRRow }>(
+        `/api/purchase-requests/${id}/dept-approve`,
+        { method: "POST", body: JSON.stringify(data) },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.procurement.requests.all });
+      qc.invalidateQueries({ queryKey: qk.procurement.requests.detail(id) });
+      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
+    },
+  });
+}
+
+/** V3.7.69 YCVT — Step 3: Giám đốc / Mua hàng duyệt. */
+export function useDirectorApprovePR(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { note?: string | null }) =>
+      request<{ data: PRRow }>(
+        `/api/purchase-requests/${id}/director-approve`,
+        { method: "POST", body: JSON.stringify(data) },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.procurement.requests.all });
+      qc.invalidateQueries({ queryKey: qk.procurement.requests.detail(id) });
+      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
   });
 }
