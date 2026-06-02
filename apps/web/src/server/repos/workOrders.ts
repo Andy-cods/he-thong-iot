@@ -585,9 +585,9 @@ export async function deleteWO(
       `);
     }
 
-    // Check assembly_work_order link (no cascade)
+    // Check assembly_order link (no cascade FK)
     const assembly = await tx.execute(sql`
-      SELECT id FROM app.assembly_work_order WHERE wo_id = ${id}
+      SELECT id FROM app.assembly_order WHERE wo_id = ${id}
     `);
     const assemblyRows = assembly as unknown as Array<{ id: string }>;
     if (assemblyRows.length > 0 && !options.force) {
@@ -595,7 +595,20 @@ export async function deleteWO(
     }
     if (options.force && assemblyRows.length > 0) {
       await tx.execute(sql`
-        UPDATE app.assembly_work_order SET wo_id = NULL WHERE wo_id = ${id}
+        UPDATE app.assembly_order SET wo_id = NULL WHERE wo_id = ${id}
+      `);
+    }
+    // Check assembly_scan link cũng có wo_id (no cascade) — null-out luôn nếu force
+    const scans = await tx.execute(sql`
+      SELECT id FROM app.assembly_scan WHERE wo_id = ${id}
+    `);
+    const scanRows = scans as unknown as Array<{ id: string }>;
+    if (scanRows.length > 0 && !options.force) {
+      throw new Error(`WO_HAS_ASSEMBLY: ${scanRows.length} scan rows`);
+    }
+    if (options.force && scanRows.length > 0) {
+      await tx.execute(sql`
+        UPDATE app.assembly_scan SET wo_id = NULL WHERE wo_id = ${id}
       `);
     }
 
