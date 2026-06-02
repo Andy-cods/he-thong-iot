@@ -361,12 +361,14 @@ export default function WorkOrderDetailPage() {
             <div className="ml-auto shrink-0">
               <WorkOrderActions
                 woId={wo.id}
+                woNo={wo.woNo}
                 status={wo.status}
                 versionLock={wo.versionLock}
                 canOperate={canOperate}
                 canComplete={canComplete}
                 canCancel={isAdmin}
                 canApprove={canApprove}
+                canDelete={isAdmin}
               />
             </div>
           </div>
@@ -698,7 +700,7 @@ export default function WorkOrderDetailPage() {
             {wo.status !== "COMPLETED" && wo.status !== "CANCELLED" && (
               <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
                 <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-400">Thao tác</p>
-                <WorkOrderActions woId={wo.id} status={wo.status} versionLock={wo.versionLock} canOperate={canOperate} canComplete={canComplete} canCancel={isAdmin} canApprove={canApprove} size="sm" />
+                <WorkOrderActions woId={wo.id} woNo={wo.woNo} status={wo.status} versionLock={wo.versionLock} canOperate={canOperate} canComplete={canComplete} canCancel={isAdmin} canApprove={canApprove} canDelete={isAdmin} size="sm" />
               </div>
             )}
 

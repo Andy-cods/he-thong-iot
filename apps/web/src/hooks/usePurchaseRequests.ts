@@ -350,3 +350,24 @@ export function useMarkPRCompleted(id: string) {
     },
   });
 }
+
+/**
+ * V3.7.71 YCVT — Hard-delete phiếu YCVT. Admin only.
+ * Option `force=true` để override khi có PO link.
+ */
+export function useDeletePR(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (opts: { force?: boolean } = {}) => {
+      const qs = opts.force ? "?force=1" : "";
+      return request<{ ok: true }>(`/api/purchase-requests/${id}${qs}`, {
+        method: "DELETE",
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.procurement.requests.all });
+      qc.invalidateQueries({ queryKey: qk.procurement.requests.detail(id) });
+      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
+    },
+  });
+}

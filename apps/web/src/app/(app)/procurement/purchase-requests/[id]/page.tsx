@@ -16,9 +16,11 @@ import {
   Loader2,
   PackageCheck,
   Printer,
+  Trash2,
   Truck,
   X,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { PRStatus } from "@iot/shared";
 import { Button } from "@/components/ui/button";
@@ -34,6 +36,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useSession } from "@/hooks/useSession";
 import {
+  useDeletePR,
   useDeptApprovePR,
   useDirectorApprovePR,
   useMarkPRCompleted,
@@ -139,6 +142,7 @@ export default function PurchaseRequestDetailPage() {
   const isPlanner = roles.includes("planner");
   const isPurchaser = roles.includes("purchaser");
 
+  const router = useRouter();
   const detail = usePurchaseRequestDetail(id);
   const deptApprove = useDeptApprovePR(id);
   const directorApprove = useDirectorApprovePR(id);
@@ -146,6 +150,9 @@ export default function PurchaseRequestDetailPage() {
   const convert = useConvertPRToPOs();
   const markIssued = useMarkPRIssued(id);
   const markCompleted = useMarkPRCompleted(id);
+  const deletePR = useDeletePR(id);
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = React.useState("");
 
   const [rejectOpen, setRejectOpen] = React.useState(false);
   const [rejectReason, setRejectReason] = React.useState("");
@@ -193,6 +200,8 @@ export default function PurchaseRequestDetailPage() {
     !pr.goodsIssuedAt;
   const canMarkCompleted =
     isAdmin && !!pr.goodsIssuedAt && !pr.completedAt;
+  // V3.7.71 — Hard-delete YCVT, admin only
+  const canDelete = isAdmin;
 
   const paperFormNo = pr.paperFormNo ?? "—";
   const todayStr = fmtDateVN(pr.createdAt);
@@ -395,6 +404,22 @@ export default function PurchaseRequestDetailPage() {
                   <Flag className="h-3.5 w-3.5" />
                 )}
                 Hoàn tất
+              </Button>
+            )}
+
+            {canDelete && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setDeleteConfirmText("");
+                  setDeleteOpen(true);
+                }}
+                disabled={deletePR.isPending}
+                className="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950/40"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Xoá phiếu
               </Button>
             )}
           </div>
@@ -841,6 +866,75 @@ export default function PurchaseRequestDetailPage() {
                 <CheckCircle2 className="h-3.5 w-3.5" />
               )}
               Xác nhận duyệt
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* V3.7.71 — Delete confirmation dialog */}
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Xoá phiếu YCVT — không thể hoàn tác</DialogTitle>
+            <DialogDescription>
+              Hành động này sẽ xoá vĩnh viễn phiếu{" "}
+              <strong className="font-mono">
+                {pr.paperFormNo ?? pr.code}
+              </strong>{" "}
+              + toàn bộ dòng vật tư + lịch sử audit. Nếu đã có PO link, hệ
+              thống sẽ bỏ link (set NULL) trước khi xoá.
+              <br />
+              <span className="mt-2 block text-red-700 dark:text-red-400">
+                Chỉ dùng khi cần loại bỏ phiếu sai/test. Cân nhắc dùng "Từ chối"
+                nếu muốn giữ vết audit.
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="del-confirm" required>
+              Nhập "XOA" để xác nhận
+            </Label>
+            <input
+              id="del-confirm"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              autoComplete="off"
+              autoFocus
+              className="h-9 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm font-mono uppercase outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteOpen(false)}>
+              Huỷ
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={
+                deleteConfirmText.trim() !== "XOA" || deletePR.isPending
+              }
+              onClick={() => {
+                deletePR.mutate(
+                  { force: true },
+                  {
+                    onSuccess: () => {
+                      toast.success(
+                        `Đã xoá phiếu ${pr.paperFormNo ?? pr.code}`,
+                      );
+                      setDeleteOpen(false);
+                      router.push("/procurement/purchase-requests");
+                    },
+                    onError: (e) =>
+                      toast.error(`Lỗi: ${(e as Error).message}`),
+                  },
+                );
+              }}
+            >
+              {deletePR.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )}
+              Xoá vĩnh viễn
             </Button>
           </DialogFooter>
         </DialogContent>

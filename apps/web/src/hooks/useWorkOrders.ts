@@ -337,6 +337,27 @@ export function useCancelWorkOrder(id: string) {
   });
 }
 
+/**
+ * V3.7.71 — Hard-delete Lệnh Sản Xuất. Admin only.
+ * Server cho phép xoá khi WO status = DRAFT/CANCELLED, hoặc force=true.
+ */
+export function useDeleteWorkOrder(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (opts: { force?: boolean } = {}) => {
+      const qs = opts.force ? "?force=1" : "";
+      return request<{ ok: true }>(`/api/work-orders/${id}${qs}`, {
+        method: "DELETE",
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.workOrders.all });
+      qc.invalidateQueries({ queryKey: qk.workOrders.detail(id) });
+      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
+    },
+  });
+}
+
 // ============================================================================
 // V1.9 Phase 4 — progress log hooks
 // ============================================================================

@@ -4,6 +4,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { purchaseRequest } from "@iot/db/schema";
 import { logger } from "@/lib/logger";
 import {
+  deletePR,
   getPR,
   getPRLinesEnriched,
   replacePRLines,
@@ -140,5 +141,67 @@ export async function PATCH(
   } catch (err) {
     logger.error({ err }, "update PR failed");
     return jsonError("INTERNAL", "Không cập nhật được PR.", 500);
+  }
+}
+
+/**
+ * V3.7.71 — DELETE /api/purchase-requests/[id] — admin only.
+ *
+ * Hard-delete PR + lines cascade. Block nếu PR đã được convert sang PO trừ
+ * khi gọi với `?force=1` (admin chấp nhận null-out po.pr_id).
+ *
+ * RBAC: action "delete" entity "pr" — chỉ admin trong RBAC matrix.
+ */
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  const guard = await requireCan(req, "delete", "pr");
+  if ("response" in guard) return guard.response;
+
+  const before = await getPR(params.id);
+  if (!before) return jsonError("NOT_FOUND", "Không tìm thấy phiếu.", 404);
+
+  const url = new URL(req.url);
+  const force = url.searchParams.get("force") === "1";
+
+  try {
+    await deletePR(params.id, { force });
+
+    const meta = extractRequestMeta(req);
+    await writeAudit({
+      actor: guard.session,
+      action: "DELETE",
+      objectType: "purchase_request",
+      objectId: params.id,
+      before: {
+        code: before.code,
+        paperFormNo: before.paperFormNo,
+        status: before.status,
+        approvalStep: before.approvalStep,
+        title: before.title,
+      },
+      notes: force
+        ? `Force-delete YCVT ${before.paperFormNo ?? before.code} (cascaded PO refs)`
+        : `Delete YCVT ${before.paperFormNo ?? before.code}`,
+      ...meta,
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    const msg = (err as Error).message ?? "";
+    if (msg.startsWith("PR_HAS_POS")) {
+      const detail = msg.replace("PR_HAS_POS: ", "");
+      return jsonError(
+        "PR_HAS_POS",
+        `Phiếu đã có PO link (${detail}). Dùng ?force=1 nếu muốn xoá kèm bỏ link PO.`,
+        409,
+      );
+    }
+    if (msg === "PR_NOT_FOUND") {
+      return jsonError("NOT_FOUND", "Không tìm thấy phiếu.", 404);
+    }
+    logger.error({ err }, "delete PR failed");
+    return jsonError("INTERNAL", "Không xoá được phiếu.", 500);
   }
 }

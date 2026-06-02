@@ -3,6 +3,7 @@ import { z } from "zod";
 import { logger } from "@/lib/logger";
 import {
   WoConflictError,
+  deleteWO,
   getWorkOrder,
   updateWorkOrder,
 } from "@/server/repos/workOrders";
@@ -126,5 +127,80 @@ export async function PATCH(
     }
     logger.error({ err, id: params.id }, "update WO failed");
     return jsonError("INTERNAL", "Không cập nhật được WO.", 500);
+  }
+}
+
+/**
+ * V3.7.71 — DELETE /api/work-orders/[id] — admin only.
+ *
+ * Hard-delete WO + cascade (routing/material/tool/qc lines). Block nếu:
+ *   - WO status != DRAFT/CANCELLED → "WO_INVALID_STATE"
+ *   - Có reservation/assembly link → trừ khi `?force=1`
+ *
+ * RBAC: action "delete" entity "wo" — chỉ admin trong RBAC matrix.
+ */
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  const guard = await requireCan(req, "delete", "wo");
+  if ("response" in guard) return guard.response;
+
+  const before = await getWorkOrder(params.id);
+  if (!before) return jsonError("NOT_FOUND", "Không tìm thấy lệnh.", 404);
+
+  const url = new URL(req.url);
+  const force = url.searchParams.get("force") === "1";
+
+  try {
+    await deleteWO(params.id, { force });
+
+    const meta = extractRequestMeta(req);
+    await writeAudit({
+      actor: guard.session,
+      action: "DELETE",
+      objectType: "work_order",
+      objectId: params.id,
+      before: {
+        woNo: before.woNo,
+        status: before.status,
+        plannedQty: before.plannedQty,
+      },
+      notes: force
+        ? `Force-delete LSX ${before.woNo} (nulled reservation/assembly refs)`
+        : `Delete LSX ${before.woNo}`,
+      ...meta,
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    const msg = (err as Error).message ?? "";
+    if (msg.startsWith("WO_INVALID_STATE")) {
+      const state = msg.replace("WO_INVALID_STATE: ", "");
+      return jsonError(
+        "INVALID_STATE",
+        `Lệnh đang ${state} — chỉ xoá được lệnh ở trạng thái DRAFT hoặc CANCELLED. Dùng ?force=1 nếu cần xoá cưỡng bức.`,
+        409,
+      );
+    }
+    if (msg.startsWith("WO_HAS_RESERVATIONS")) {
+      return jsonError(
+        "WO_HAS_RESERVATIONS",
+        "Lệnh đã có reservation gắn — dùng ?force=1 để bỏ link và xoá.",
+        409,
+      );
+    }
+    if (msg.startsWith("WO_HAS_ASSEMBLY")) {
+      return jsonError(
+        "WO_HAS_ASSEMBLY",
+        "Lệnh đã có assembly work-order gắn — dùng ?force=1 để bỏ link và xoá.",
+        409,
+      );
+    }
+    if (msg === "WO_NOT_FOUND") {
+      return jsonError("NOT_FOUND", "Không tìm thấy lệnh.", 404);
+    }
+    logger.error({ err, id: params.id }, "delete WO failed");
+    return jsonError("INTERNAL", "Không xoá được lệnh.", 500);
   }
 }

@@ -537,3 +537,74 @@ export async function completeWO(id: string, versionLock?: number): Promise<Work
 export async function cancelWO(id: string, versionLock?: number): Promise<WorkOrder> {
   return transitionStatus(id, "CANCELLED", {}, versionLock);
 }
+
+/**
+ * V3.7.71 — Hard-delete WO (admin only).
+ *
+ * Guards:
+ *   - WO chỉ xoá được khi DRAFT/CANCELLED (chưa release vào production).
+ *   - Cascade tự động qua FK onDelete: cascade cho work_order_line, routing,
+ *     material, tool, qc.
+ *   - reservation/assembly link KHÔNG cascade — phải check thủ công.
+ *
+ * Throws "WO_INVALID_STATE", "WO_HAS_RESERVATIONS", "WO_HAS_ASSEMBLY", "WO_NOT_FOUND".
+ */
+export async function deleteWO(
+  id: string,
+  options: { force?: boolean } = {},
+): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    const [wo] = await tx
+      .select({ id: workOrder.id, status: workOrder.status })
+      .from(workOrder)
+      .where(eq(workOrder.id, id))
+      .limit(1);
+    if (!wo) throw new Error("WO_NOT_FOUND");
+
+    // Chỉ cho phép xoá DRAFT/CANCELLED — đã release thì block
+    const DELETABLE_STATES: WorkOrderStatus[] = ["DRAFT", "CANCELLED"];
+    if (
+      !DELETABLE_STATES.includes(wo.status as WorkOrderStatus) &&
+      !options.force
+    ) {
+      throw new Error(`WO_INVALID_STATE: ${wo.status}`);
+    }
+
+    // Check reservation link (no cascade)
+    const reservations = await tx.execute(sql`
+      SELECT id FROM app.reservation WHERE wo_id = ${id}
+    `);
+    const reservationRows = reservations as unknown as Array<{ id: string }>;
+    if (reservationRows.length > 0 && !options.force) {
+      throw new Error(`WO_HAS_RESERVATIONS: ${reservationRows.length}`);
+    }
+    if (options.force && reservationRows.length > 0) {
+      // Null-out reservation.wo_id
+      await tx.execute(sql`
+        UPDATE app.reservation SET wo_id = NULL WHERE wo_id = ${id}
+      `);
+    }
+
+    // Check assembly_work_order link (no cascade)
+    const assembly = await tx.execute(sql`
+      SELECT id FROM app.assembly_work_order WHERE wo_id = ${id}
+    `);
+    const assemblyRows = assembly as unknown as Array<{ id: string }>;
+    if (assemblyRows.length > 0 && !options.force) {
+      throw new Error(`WO_HAS_ASSEMBLY: ${assemblyRows.length}`);
+    }
+    if (options.force && assemblyRows.length > 0) {
+      await tx.execute(sql`
+        UPDATE app.assembly_work_order SET wo_id = NULL WHERE wo_id = ${id}
+      `);
+    }
+
+    // Null-out material_request.wo_id đã set null cascade auto via schema FK.
+
+    // DELETE WO — work_order_line, routing, material, tool, qc cascade auto
+    const result = await tx.delete(workOrder).where(eq(workOrder.id, id));
+    const count = (result as unknown as { count?: number }).count ?? 0;
+    if (count === 0) throw new Error("WO_NOT_FOUND");
+    return true;
+  });
+}

@@ -498,6 +498,52 @@ export async function markPRCompleted(
   return row ?? null;
 }
 
+/**
+ * V3.7.71 YCVT — Hard-delete PR (admin only).
+ *
+ * Guard:
+ *   - Nếu có PO link → throw "PR_HAS_POS" (admin phải gọi với force=true để
+ *     null-out po.pr_id trước).
+ *   - Lines tự cascade qua FK onDelete: cascade.
+ *
+ * Trả về true nếu xoá thành công, throw nếu fail.
+ */
+export async function deletePR(
+  id: string,
+  options: { force?: boolean } = {},
+): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    // Check PO link
+    const linkedPOs = await tx.execute(sql`
+      SELECT id, po_no FROM app.purchase_order WHERE pr_id = ${id}
+    `);
+    const linkedRows = linkedPOs as unknown as Array<{
+      id: string;
+      po_no: string;
+    }>;
+
+    if (linkedRows.length > 0) {
+      if (!options.force) {
+        const list = linkedRows.map((r) => r.po_no).join(", ");
+        throw new Error(`PR_HAS_POS: ${linkedRows.length} PO (${list})`);
+      }
+      // Force: null-out po.pr_id để không vi phạm FK
+      await tx.execute(sql`
+        UPDATE app.purchase_order SET pr_id = NULL WHERE pr_id = ${id}
+      `);
+    }
+
+    // Lines cascade automatically via onDelete CASCADE
+    const result = await tx
+      .delete(purchaseRequest)
+      .where(eq(purchaseRequest.id, id));
+    // postgres-js trả rowCount qua result.count
+    const count = (result as unknown as { count?: number }).count ?? 0;
+    if (count === 0) throw new Error("PR_NOT_FOUND");
+    return true;
+  });
+}
+
 /** Reject PR (DRAFT/SUBMITTED/APPROVED → REJECTED). V3.7.69 set approval_step REJECTED + lưu rejection_reason. */
 export async function rejectPR(
   id: string,
