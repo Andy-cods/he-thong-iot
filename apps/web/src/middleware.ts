@@ -39,6 +39,9 @@ const PROTECTED_PREFIXES = [
   "/material-requests",
   "/assembly",
   "/procurement",
+  // V3.8 — Bảng sản xuất: TV /board (ngoài (app)) + trang QC /production-board
+  "/board",
+  "/production-board",
 ];
 
 function isProtected(pathname: string): boolean {

@@ -35,6 +35,7 @@ const ROLE_BADGE: Record<Role, string> = {
   purchaser: "bg-rose-50 text-rose-700 ring-rose-200",
   warehouse: "bg-amber-50 text-amber-700 ring-amber-200",
   operator: "bg-zinc-100 text-zinc-700 ring-zinc-200",
+  qc: "bg-teal-50 text-teal-700 ring-teal-200",
 };
 
 const ACTION_COLORS: Record<string, string> = {

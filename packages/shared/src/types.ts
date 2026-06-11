@@ -1,14 +1,16 @@
 /**
  * Role cứng — khớp Drizzle enum trong packages/db.
  * V3.3: thêm "purchaser" (Bộ phận Thu mua) để tách quyền duyệt PR/PO khỏi planner.
+ * V3.8: thêm "qc" (Tổ KCS/QC) — quản lý Bảng điều hành sản xuất (production board).
  * Mapping bộ phận:
  *   - planner    → engineer (Bộ phận Thiết kế)
  *   - purchaser  → Bộ phận Thu mua
  *   - warehouse  → Bộ phận Kho
  *   - operator   → Bộ phận Vận hành
+ *   - qc         → Tổ QC/KCS (kiểm tra chất lượng + bảng sản xuất)
  *   - admin      → toàn quyền
  */
-export const ROLES = ["admin", "planner", "warehouse", "operator", "purchaser"] as const;
+export const ROLES = ["admin", "planner", "warehouse", "operator", "purchaser", "qc"] as const;
 export type Role = (typeof ROLES)[number];
 
 /** JWT access token payload (tối thiểu). */

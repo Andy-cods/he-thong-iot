@@ -39,6 +39,8 @@ const ROUTE_ROLE_GUARD: Array<{ prefix: string; roles: Role[] }> = [
   { prefix: "/assembly",     roles: ["admin", "operator"] },
   // Material requests: planner tạo + warehouse fulfil
   { prefix: "/material-requests", roles: ["admin", "planner", "warehouse"] },
+  // V3.8 — Trang quản lý Bảng sản xuất: chỉ admin + qc nhập liệu.
+  { prefix: "/production-board", roles: ["admin", "qc"] },
   // Notifications + items + orders: ai cũng xem được (read-only ở các path)
   // /notifications, /items, /orders, /, /pwa → không guard
 ];

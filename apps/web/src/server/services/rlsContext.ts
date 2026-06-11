@@ -27,6 +27,8 @@ const ROLE_PRIORITY: Record<Role, number> = {
   purchaser: 3,
   warehouse: 2,
   operator: 1,
+  // V3.8 — qc read-mostly; ưu tiên thấp như operator.
+  qc: 1,
 };
 
 const ROLE_TO_PG: Record<Role, string> = {
@@ -35,6 +37,9 @@ const ROLE_TO_PG: Record<Role, string> = {
   purchaser: "iot_purchaser",
   operator: "iot_operator",
   warehouse: "iot_warehouse",
+  // V3.8 — qc chưa có PG role riêng; map sang iot_operator (read) cho RLS.
+  // Bảng production_board không gắn RLS policy nên app-level RBAC là chính.
+  qc: "iot_operator",
 };
 
 function pickHighestRole(roles: Role[] | null | undefined): Role | null {

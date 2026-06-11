@@ -5,6 +5,7 @@
  * Prefix invalidate: `queryClient.invalidateQueries({ queryKey: qk.items.all })`
  * sẽ match cả list + detail + sku-check vì đều chia sẻ prefix `["items"]`.
  */
+import type { Role } from "@iot/shared";
 
 export interface ItemFilter {
   q?: string;
@@ -214,7 +215,7 @@ export interface OrderFilter {
 
 export interface UserFilter {
   q?: string;
-  role?: "admin" | "planner" | "warehouse" | "operator" | "purchaser";
+  role?: Role;
   isActive?: boolean;
   page?: number;
   pageSize?: number;

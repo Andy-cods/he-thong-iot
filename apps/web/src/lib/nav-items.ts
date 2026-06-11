@@ -2,6 +2,7 @@ import {
   Factory,
   LayoutDashboard,
   Layers,
+  MonitorPlay,
   Shield,
   ShoppingBag,
   Warehouse,
@@ -119,6 +120,14 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Bộ phận Gia công",
     icon: Factory,
     roles: ["admin", "operator"],
+    section: "operations",
+  },
+  // V3.8 — Bảng điều hành sản xuất (Tổ QC nhập liệu, chiếu TV) — chỉ qc + admin.
+  {
+    href: "/production-board",
+    label: "Bảng sản xuất (QC)",
+    icon: MonitorPlay,
+    roles: ["admin", "qc"],
     section: "operations",
   },
   // --- Bộ phận Thu mua — chỉ purchaser + admin ---

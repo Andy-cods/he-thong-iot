@@ -30,6 +30,13 @@ export const ALL_ROLES: { code: Role; label: string; desc: string }[] = [
     desc: "Kho — nhận hàng, tồn kho",
   },
   { code: "operator", label: "Operator", desc: "Gia công xưởng" },
+  {
+    code: "purchaser",
+    label: "Purchaser",
+    desc: "Thu mua — duyệt PR, tạo PO",
+  },
+  // V3.8 — Tổ QC/KCS: quản lý Bảng điều hành sản xuất (production board).
+  { code: "qc", label: "QC / KCS", desc: "Kiểm tra chất lượng — Bảng sản xuất" },
 ];
 
 export interface UserFormProps {

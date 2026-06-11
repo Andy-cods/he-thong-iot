@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { cacheGetJson, cacheSetJson } from "@/server/services/redis";
 import { DashboardClient } from "@/components/dashboard/DashboardClient";
+import { ProductionBoardWidget } from "@/components/production-board/ProductionBoardWidget";
 import type { DashboardOverviewV2Payload } from "@/app/api/dashboard/overview-v2/route";
 
 export const dynamic = "force-dynamic";
@@ -119,6 +120,7 @@ export default async function DashboardLandingPage() {
   return (
     <div className="relative mx-auto flex w-full max-w-[1440px] flex-col gap-6 px-4 py-6 lg:px-6">
       <DashboardClient initialData={data} initialError={error} />
+      <ProductionBoardWidget />
     </div>
   );
 }

@@ -35,7 +35,9 @@ export type RbacEntity =
   | "user"
   | "session"
   | "inventory"
-  | "report";
+  | "report"
+  // V3.8 — Bảng điều hành sản xuất (production board) cho Tổ QC.
+  | "productionBoard";
 
 /** Partial vì không phải role nào cũng có action trên mọi entity. */
 type Matrix = Record<Role, Partial<Record<RbacEntity, RbacAction[]>>>;
@@ -70,6 +72,8 @@ export const RBAC_MATRIX: Matrix = {
     // V3.7.61 admin có quyền xem report của bất kỳ user nào ("read").
     // V3.7.62 thêm action `update` cho admin để CRUD KPI targets.
     report: ["create", "read", "update", "delete"],
+    // V3.8 — Bảng điều hành sản xuất.
+    productionBoard: ["create", "read", "update", "delete"],
   },
   planner: {
     item: ["create", "read", "update"],
@@ -86,6 +90,8 @@ export const RBAC_MATRIX: Matrix = {
     audit: ["read"],
     user: ["read"],
     session: ["read"],
+    // V3.8 — planner xem bảng sản xuất (read-only).
+    productionBoard: ["read"],
   },
   operator: {
     item: ["read"],
@@ -104,6 +110,8 @@ export const RBAC_MATRIX: Matrix = {
     audit: ["read"],
     user: ["read"],
     session: ["read"],
+    // V3.8 — operator xem bảng sản xuất (read-only).
+    productionBoard: ["read"],
   },
   warehouse: {
     item: ["read"],
@@ -124,6 +132,8 @@ export const RBAC_MATRIX: Matrix = {
     // V3.7.53 — warehouse có quyền điều chỉnh tồn kho thủ công (manual adjust)
     // qua BOM list popover + receiving + transfer + putaway.
     inventory: ["create", "read", "update"],
+    // V3.8 — warehouse xem bảng sản xuất (read-only).
+    productionBoard: ["read"],
   },
   // V3.3 — Purchaser (Bộ phận Thu mua): full PR/PO + read supplier/item/BOM
   purchaser: {
@@ -141,6 +151,21 @@ export const RBAC_MATRIX: Matrix = {
     audit: ["read"],
     user: ["read"],
     session: ["read"],
+    // V3.8 — purchaser xem bảng sản xuất (read-only).
+    productionBoard: ["read"],
+  },
+  // V3.8 — QC/KCS (Tổ kiểm tra chất lượng): toàn quyền Bảng điều hành sản xuất
+  // (production board) + read các entity sản xuất để đối chiếu. KHÔNG đụng
+  // PR/PO/BOM. Đây là role duy nhất ngoài admin được CRUD bảng sản xuất.
+  qc: {
+    item: ["read"],
+    salesOrder: ["read"],
+    bomSnapshot: ["read"],
+    wo: ["read"],
+    audit: ["read"],
+    user: ["read"],
+    session: ["read"],
+    productionBoard: ["create", "read", "update", "delete"],
   },
 };
 
@@ -162,6 +187,7 @@ export const RBAC_ENTITIES: RbacEntity[] = [
   "session",
   "inventory",
   "report",
+  "productionBoard",
 ];
 
 export const RBAC_ACTIONS: RbacAction[] = [
