@@ -10,7 +10,7 @@ import {
 } from "./matrix";
 
 describe("RBAC matrix — shape + consistency", () => {
-  it("có đủ 6 role × 17 entity × 6 action (V3.8 thêm qc + productionBoard)", () => {
+  it("có đủ 7 role × 17 entity × 6 action (V3.8.2 thêm display)", () => {
     expect(Object.keys(RBAC_MATRIX)).toEqual([
       "admin",
       "planner",
@@ -18,6 +18,7 @@ describe("RBAC matrix — shape + consistency", () => {
       "warehouse",
       "purchaser",
       "qc",
+      "display",
     ]);
     expect(RBAC_ENTITIES).toHaveLength(17);
     expect(RBAC_ACTIONS).toHaveLength(6);
@@ -129,6 +130,12 @@ describe("can() — assert 48+ cell từ matrix (§4 brainstorm)", () => {
     ["planner", "create", "productionBoard", false],
     ["qc", "approve", "pr", false],
     ["qc", "read", "wo", true],
+    // V3.8.2 — Display kiosk: chỉ đọc bảng, không gì khác.
+    ["display", "read", "productionBoard", true],
+    ["display", "create", "productionBoard", false],
+    ["display", "update", "productionBoard", false],
+    ["display", "read", "wo", false],
+    ["display", "read", "item", false],
   ];
 
   it.each(cases)(

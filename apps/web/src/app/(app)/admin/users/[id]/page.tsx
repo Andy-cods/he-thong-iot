@@ -36,6 +36,7 @@ const ROLE_BADGE: Record<Role, string> = {
   warehouse: "bg-amber-50 text-amber-700 ring-amber-200",
   operator: "bg-zinc-100 text-zinc-700 ring-zinc-200",
   qc: "bg-teal-50 text-teal-700 ring-teal-200",
+  display: "bg-sky-50 text-sky-700 ring-sky-200",
 };
 
 const ACTION_COLORS: Record<string, string> = {

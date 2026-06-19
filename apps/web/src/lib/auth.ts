@@ -37,6 +37,8 @@ export interface SignAccessTokenInput {
   roles: Role[];
   /** V1.4: session row id để revoke / list active sessions. */
   sid?: string;
+  /** V3.8.2: override TTL (giây). Mặc định env.JWT_ACCESS_TTL. Kiosk TV = 24h. */
+  ttlSeconds?: number;
 }
 
 export async function signAccessToken(
@@ -50,7 +52,7 @@ export async function signAccessToken(
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setSubject(input.sub)
     .setIssuedAt()
-    .setExpirationTime(`${env.JWT_ACCESS_TTL}s`)
+    .setExpirationTime(`${input.ttlSeconds ?? env.JWT_ACCESS_TTL}s`)
     .setIssuer("he-thong-iot")
     .setAudience("iot-web")
     .sign(jwtKey());

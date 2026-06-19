@@ -48,6 +48,8 @@ export const env = {
   SESSION_SECRET: readSecret("SESSION_SECRET", false) ?? "",
   JWT_ACCESS_TTL: Number(process.env.JWT_ACCESS_TTL ?? 900),
   JWT_REFRESH_TTL: Number(process.env.JWT_REFRESH_TTL ?? 604800),
+  // V3.8.2 — TTL phiên cho tài khoản kiosk TV (role "display"). Mặc định 24h.
+  JWT_KIOSK_TTL: Number(process.env.JWT_KIOSK_TTL ?? 86400),
   LOG_LEVEL: process.env.LOG_LEVEL ?? "info",
   R2: {
     accountId: process.env.R2_ACCOUNT_ID ?? "",

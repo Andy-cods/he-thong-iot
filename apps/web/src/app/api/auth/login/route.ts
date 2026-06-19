@@ -140,10 +140,15 @@ export async function POST(req: NextRequest) {
   // refresh_token_hash tạm dùng random 32 bytes (chưa phát refresh token
   // thật — V1.4 giữ JWT-only, chỉ cần unique value để NOT NULL). V1.5+
   // sẽ chuyển sang refresh token thật.
+  // V3.8.2 — Tài khoản kiosk TV (role "display") được phiên 24h để TV không
+  // bị đăng xuất; tài khoản thường giữ TTL ngắn mặc định cho an toàn.
+  const isKiosk = roleCodes.includes("display");
+  const sessionTtl = isKiosk ? env.JWT_KIOSK_TTL : env.JWT_ACCESS_TTL;
+
   const meta = extractRequestMeta(req);
   const refreshTokenHash = crypto.randomBytes(32).toString("hex");
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + env.JWT_ACCESS_TTL * 1000);
+  const expiresAt = new Date(now.getTime() + sessionTtl * 1000);
   const [sessionRow] = await db
     .insert(session)
     .values({
@@ -162,6 +167,7 @@ export async function POST(req: NextRequest) {
     username: user.username,
     roles: roleCodes,
     sid: sessionRow?.id,
+    ttlSeconds: sessionTtl,
   });
 
   await db
@@ -187,7 +193,7 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  res.cookies.set(AUTH_COOKIE_NAME, token, cookieOptions(env.JWT_ACCESS_TTL));
+  res.cookies.set(AUTH_COOKIE_NAME, token, cookieOptions(sessionTtl));
 
   return res;
 }

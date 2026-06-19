@@ -37,6 +37,12 @@ export const ALL_ROLES: { code: Role; label: string; desc: string }[] = [
   },
   // V3.8 — Tổ QC/KCS: quản lý Bảng điều hành sản xuất (production board).
   { code: "qc", label: "QC / KCS", desc: "Kiểm tra chất lượng — Bảng sản xuất" },
+  // V3.8.2 — Màn hình TV (kiosk): CHỈ xem bảng sản xuất, phiên 24h.
+  {
+    code: "display",
+    label: "Màn hình TV",
+    desc: "Chỉ xem Bảng sản xuất (kiosk) — phiên 24h",
+  },
 ];
 
 export interface UserFormProps {

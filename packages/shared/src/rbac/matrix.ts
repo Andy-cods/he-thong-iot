@@ -167,6 +167,11 @@ export const RBAC_MATRIX: Matrix = {
     session: ["read"],
     productionBoard: ["create", "read", "update", "delete"],
   },
+  // V3.8.2 — Display (kiosk TV): CHỈ đọc bảng sản xuất để chiếu màn hình.
+  // Không sửa, không thấy gì khác. Phiên đăng nhập 24h (xem login route).
+  display: {
+    productionBoard: ["read"],
+  },
 };
 
 /** Danh sách entity/action để iterate khi build test hoặc UI. */

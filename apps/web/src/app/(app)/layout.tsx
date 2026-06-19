@@ -97,6 +97,12 @@ export default async function AppLayout({
 
   const roleCodes = roles.map((r) => r.code) as Role[];
 
+  // V3.8.2 — Tài khoản kiosk TV (role "display", không phải admin) CHỈ được
+  // xem /board (ngoài (app) group). Mọi truy cập vào (app)/* → đẩy ra /board.
+  if (roleCodes.includes("display") && !roleCodes.includes("admin")) {
+    redirect("/board");
+  }
+
   // V3.3 — Route guard: chặn user truy cập trang ngoài bộ phận.
   // Admin bypass mọi guard.
   if (!roleCodes.includes("admin")) {
