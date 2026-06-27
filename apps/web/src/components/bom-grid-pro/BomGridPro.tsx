@@ -358,7 +358,6 @@ export function BomGridPro({
       notes: false,
       scrap: false,
       progress: false, // Tiến độ
-      eta: false, // V3.8.3 — Dự kiến nhận hàng
     };
     for (const r of visibleRows) {
       if (r.isGroup) continue;
@@ -374,7 +373,6 @@ export function BomGridPro({
       if (r.node.receivedQty || r.node.expectedEta || r.node.statusNote) {
         has.progress = true;
       }
-      if (r.node.expectedEta) has.eta = true;
     }
     return has;
   }, [visibleRows]);
@@ -382,6 +380,11 @@ export function BomGridPro({
   // Helper: cột có hiển thị không (showAll override hoặc có data)
   const showCol = (key: keyof typeof colHasData) =>
     showAllColumns || colHasData[key];
+
+  // V3.8.3 — Cột "Dự kiến nhận" LUÔN hiện (không auto-hide như cột data khác):
+  // đây là cột nhập-liệu chủ động cho Thu mua — phải thấy mới bấm vào nhập ngày
+  // được. Nếu auto-hide khi rỗng → vô hình → không ai bắt đầu nhập được.
+  const showEtaCol = true;
 
   // V3.8.3 — Đếm dòng quá hạn / sắp tới hạn cho badge cảnh báo Thu mua.
   const etaSummary = React.useMemo(() => {
@@ -783,8 +786,9 @@ export function BomGridPro({
         </td>
         )}
         {/* Dự kiến nhận — V3.8.3: ETA + màu khẩn cấp (3 kênh: màu/icon/chữ).
-            Bấm để sửa ngày (admin / Thu mua / PIC dòng) qua PicEditDialog. */}
-        {showCol("eta") && (() => {
+            Bấm để sửa ngày (admin / Thu mua / PIC dòng) qua PicEditDialog.
+            LUÔN hiện (không auto-hide) để Thu mua chủ động nhập ngày. */}
+        {showEtaCol && (() => {
           const b = getEtaBucket(
             row.node.expectedEta,
             Number(row.node.receivedQty ?? 0),
@@ -982,7 +986,7 @@ export function BomGridPro({
             {showCol("notes") && <col style={{ width: "120px" }} />}{/* Ghi chú phụ */}
             {showCol("scrap") && <col style={{ width: "60px" }} />}{/* Hao hụt */}
             {showCol("progress") && <col style={{ width: "150px" }} />}{/* Tiến độ */}
-            {showCol("eta") && <col style={{ width: "118px" }} />}{/* V3.8.3 Dự kiến nhận */}
+            {showEtaCol && <col style={{ width: "118px" }} />}{/* V3.8.3 Dự kiến nhận (luôn hiện) */}
             <col style={{ width: "100px" }} />  {/* Thao tác */}
           </colgroup>
           <thead>
@@ -1166,8 +1170,8 @@ export function BomGridPro({
                   Tiến độ
                 </th>
               )}
-              {/* V3.8.3 — Dự kiến nhận hàng (tô đỏ dần theo độ khẩn) */}
-              {showCol("eta") && (
+              {/* V3.8.3 — Dự kiến nhận hàng (tô đỏ dần theo độ khẩn) — luôn hiện */}
+              {showEtaCol && (
                 <th
                   className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left"
                   title="Ngày dự kiến nhận hàng từ NCC — tô đỏ dần khi gần/quá hạn để chủ động giục."
