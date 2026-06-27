@@ -17,6 +17,7 @@ import { useSession } from "@/hooks/useSession";
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/format";
 import { PicEditDialog } from "./PicEditDialog";
+import { getEtaBucket } from "./etaBucket";
 import {
   flattenBomTree,
   type BomFlatRow,
@@ -114,6 +115,17 @@ export interface BomGridProProps {
 
 const DEFAULT_STATUS: MaterialStatus = "PLANNED";
 
+/**
+ * V3.8.3 — Tổng SL cần của 1 dòng: ưu tiên metadata.totalQty (raw Excel),
+ * fallback qtyPerParent × parentQty. Khớp logic cell "SL" (đã có).
+ */
+function lineTotalQty(node: BomTreeNodeRaw, parentQty: number): number {
+  const meta = node.metadata as { totalQty?: string | number } | null;
+  const fromExcel = meta?.totalQty != null ? Number(meta.totalQty) : NaN;
+  if (Number.isFinite(fromExcel) && fromExcel > 0) return fromExcel;
+  return (Number(node.qtyPerParent) || 0) * parentQty;
+}
+
 export function BomGridPro({
   templateId,
   templateName,
@@ -149,6 +161,8 @@ export function BomGridPro({
   const session = useSession();
   const currentUserId = session.data?.id ?? null;
   const isAdmin = (session.data?.roles ?? []).includes("admin");
+  // V3.8.3 — Thu mua được sửa ETA nhận hàng (để chủ động theo dõi + giục NCC).
+  const isPurchaser = (session.data?.roles ?? []).includes("purchaser");
 
   const deleteLine = useDeleteBomLine(templateId);
   const addLine = useAddBomLine(templateId);
@@ -250,6 +264,8 @@ export function BomGridPro({
   // V3.7.37 — Filter PIC tương tự NCC.
   const [picFilter, setPicFilter] = React.useState("");
   const [picFilterOpen, setPicFilterOpen] = React.useState(false);
+  // V3.8.3 — Filter ETA: chỉ hiện dòng quá hạn / sắp tới hạn (≤7 ngày).
+  const [etaUrgentOnly, setEtaUrgentOnly] = React.useState(false);
 
   // Tập hợp danh sách NCC unique để gợi ý
   const supplierOptions = React.useMemo(() => {
@@ -279,7 +295,7 @@ export function BomGridPro({
     const picNeedle = picFilter.trim().toLowerCase();
 
     let allowed: Set<string> | null = null;
-    if (supNeedle || picNeedle) {
+    if (supNeedle || picNeedle || etaUrgentOnly) {
       const matchIds = new Set<string>();
       for (const r of flat) {
         const s = (r.node.supplierItemCode ?? "").toLowerCase();
@@ -290,7 +306,17 @@ export function BomGridPro({
         ).toLowerCase();
         const supOk = !supNeedle || s.includes(supNeedle);
         const picOk = !picNeedle || p.includes(picNeedle);
-        if (supOk && picOk) matchIds.add(r.id);
+        // V3.8.3 — ETA urgent filter: chỉ dòng quá hạn / sắp tới hạn (≤7 ngày).
+        // Group row không có ETA → không match trực tiếp, được giữ qua ancestor.
+        const etaOk =
+          !etaUrgentOnly ||
+          (!r.isGroup &&
+            getEtaBucket(
+              r.node.expectedEta,
+              Number(r.node.receivedQty ?? 0),
+              lineTotalQty(r.node, parentQty),
+            ).needsAttention);
+        if (supOk && picOk && etaOk) matchIds.add(r.id);
       }
       // Add ancestors giữ tree path
       const idToRow = new Map(flat.map((r) => [r.id, r]));
@@ -317,7 +343,7 @@ export function BomGridPro({
       }
     }
     return result;
-  }, [flat, expanded, supplierFilter, picFilter]);
+  }, [flat, expanded, supplierFilter, picFilter, etaUrgentOnly, parentQty]);
 
   // V3.7.21 — Auto-hide empty columns: cột nào không có data thì ẩn,
   // user có thể toggle để hiện lại tất cả.
@@ -332,6 +358,7 @@ export function BomGridPro({
       notes: false,
       scrap: false,
       progress: false, // Tiến độ
+      eta: false, // V3.8.3 — Dự kiến nhận hàng
     };
     for (const r of visibleRows) {
       if (r.isGroup) continue;
@@ -347,6 +374,7 @@ export function BomGridPro({
       if (r.node.receivedQty || r.node.expectedEta || r.node.statusNote) {
         has.progress = true;
       }
+      if (r.node.expectedEta) has.eta = true;
     }
     return has;
   }, [visibleRows]);
@@ -354,6 +382,23 @@ export function BomGridPro({
   // Helper: cột có hiển thị không (showAll override hoặc có data)
   const showCol = (key: keyof typeof colHasData) =>
     showAllColumns || colHasData[key];
+
+  // V3.8.3 — Đếm dòng quá hạn / sắp tới hạn cho badge cảnh báo Thu mua.
+  const etaSummary = React.useMemo(() => {
+    let overdue = 0;
+    let dueSoon = 0; // 0..7 ngày (chưa quá hạn nhưng cần chú ý)
+    for (const r of visibleRows) {
+      if (r.isGroup || !r.node.expectedEta) continue;
+      const b = getEtaBucket(
+        r.node.expectedEta,
+        Number(r.node.receivedQty ?? 0),
+        lineTotalQty(r.node, parentQty),
+      );
+      if (b.tone === "overdue") overdue++;
+      else if (b.tone === "urgent" || b.tone === "near") dueSoon++;
+    }
+    return { overdue, dueSoon };
+  }, [visibleRows, parentQty]);
 
   // Virtualizer setup
   const parentRef = React.useRef<HTMLDivElement>(null);
@@ -463,7 +508,7 @@ export function BomGridPro({
           <td className="w-10 px-2 text-[11px] font-mono text-indigo-400 tabular-nums">
             {idx + 1}
           </td>
-          <td colSpan={13} className="px-2 py-1.5">
+          <td colSpan={14} className="px-2 py-1.5">{/* V3.8.3 +1: cột Dự kiến nhận */}
             <button
               type="button"
               onClick={() => toggleExpand(row.id)}
@@ -626,6 +671,7 @@ export function BomGridPro({
           {(() => {
             const canEdit =
               isAdmin ||
+              isPurchaser || // V3.8.3 — Thu mua sửa được ETA nhận hàng
               (!!currentUserId &&
                 row.node.assignedToUserId === currentUserId);
             if (row.node.assignedToFullName) {
@@ -736,6 +782,54 @@ export function BomGridPro({
           )}
         </td>
         )}
+        {/* Dự kiến nhận — V3.8.3: ETA + màu khẩn cấp (3 kênh: màu/icon/chữ).
+            Bấm để sửa ngày (admin / Thu mua / PIC dòng) qua PicEditDialog. */}
+        {showCol("eta") && (() => {
+          const b = getEtaBucket(
+            row.node.expectedEta,
+            Number(row.node.receivedQty ?? 0),
+            lineTotalQty(row.node, parentQty),
+          );
+          const canEditEta =
+            !readOnly &&
+            (isAdmin ||
+              isPurchaser ||
+              (!!currentUserId &&
+                row.node.assignedToUserId === currentUserId));
+          const inner = (
+            <>
+              {b.Icon && <b.Icon className="h-3 w-3 shrink-0" aria-hidden />}
+              {b.dateLabel && <span className="font-mono font-medium">{b.dateLabel}</span>}
+              {b.dateLabel && <span className="opacity-50">·</span>}
+              <span className={cn(b.tone === "overdue" && "font-semibold")}>
+                {b.dayLabel}
+              </span>
+              {canEditEta && <span className="ml-0.5 text-[9px] opacity-60">✎</span>}
+            </>
+          );
+          const cls = cn(
+            "inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] tabular-nums",
+            b.cellClass,
+          );
+          return (
+            <td className="px-2">
+              {canEditEta ? (
+                <button
+                  type="button"
+                  onClick={() => setPicEditTarget(row)}
+                  className={cn(cls, "cursor-pointer hover:ring-2 hover:ring-indigo-300")}
+                  title={`${b.title} · bấm để sửa ngày dự kiến nhận`}
+                >
+                  {inner}
+                </button>
+              ) : (
+                <span className={cls} title={b.title}>
+                  {inner}
+                </span>
+              )}
+            </td>
+          );
+        })()}
         {/* Actions — sticky right. V1.7-beta.2.2: phân nhánh com/fab. */}
         <td className="sticky right-0 z-10 border-l border-zinc-100 bg-white px-1 group-hover:bg-zinc-50">
           <ActionsCell
@@ -813,6 +907,57 @@ export function BomGridPro({
           </svg>
           {showAllColumns ? "Tất cả cột" : "Tự ẩn cột rỗng"}
         </button>
+
+        {/* V3.8.3 — Badge cảnh báo nhận hàng + filter nhanh cho Thu mua. */}
+        {(etaSummary.overdue > 0 || etaSummary.dueSoon > 0) && (
+          <button
+            type="button"
+            onClick={() => setEtaUrgentOnly((v) => !v)}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-medium transition-colors",
+              etaUrgentOnly
+                ? "border-rose-400 bg-rose-100 text-rose-800 hover:bg-rose-200"
+                : "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100",
+            )}
+            title={
+              etaUrgentOnly
+                ? "Đang lọc dòng quá/sắp hạn — bấm để bỏ lọc"
+                : "Bấm để chỉ hiện dòng quá hạn / sắp tới hạn (≤7 ngày)"
+            }
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              className="h-3 w-3"
+            >
+              <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            {etaSummary.overdue > 0 && (
+              <span className="font-semibold">{etaSummary.overdue} quá hạn</span>
+            )}
+            {etaSummary.overdue > 0 && etaSummary.dueSoon > 0 && (
+              <span className="text-rose-300">·</span>
+            )}
+            {etaSummary.dueSoon > 0 && (
+              <span>{etaSummary.dueSoon} sắp tới</span>
+            )}
+          </button>
+        )}
+        {/* Khi đang lọc nhưng không còn dòng nào quá/sắp hạn → vẫn cho bỏ lọc */}
+        {etaUrgentOnly && etaSummary.overdue === 0 && etaSummary.dueSoon === 0 && (
+          <button
+            type="button"
+            onClick={() => setEtaUrgentOnly(false)}
+            className="inline-flex items-center gap-1 rounded-md border border-zinc-300 bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600 hover:bg-zinc-200"
+          >
+            ✕ Bỏ lọc nhận hàng
+          </button>
+        )}
       </div>
 
       {/* Table — V3.7.33: Column order match Excel "Bản chính thức" CHÍNH XÁC.
@@ -837,6 +982,7 @@ export function BomGridPro({
             {showCol("notes") && <col style={{ width: "120px" }} />}{/* Ghi chú phụ */}
             {showCol("scrap") && <col style={{ width: "60px" }} />}{/* Hao hụt */}
             {showCol("progress") && <col style={{ width: "150px" }} />}{/* Tiến độ */}
+            {showCol("eta") && <col style={{ width: "118px" }} />}{/* V3.8.3 Dự kiến nhận */}
             <col style={{ width: "100px" }} />  {/* Thao tác */}
           </colgroup>
           <thead>
@@ -1020,6 +1166,15 @@ export function BomGridPro({
                   Tiến độ
                 </th>
               )}
+              {/* V3.8.3 — Dự kiến nhận hàng (tô đỏ dần theo độ khẩn) */}
+              {showCol("eta") && (
+                <th
+                  className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left"
+                  title="Ngày dự kiến nhận hàng từ NCC — tô đỏ dần khi gần/quá hạn để chủ động giục."
+                >
+                  Dự kiến nhận
+                </th>
+              )}
               <th className="sticky right-0 top-0 z-30 border-b-2 border-l border-zinc-900 bg-zinc-50 px-2 text-center">
                 Thao tác
               </th>
@@ -1046,7 +1201,7 @@ export function BomGridPro({
             )}
             {visibleRows.length === 0 && (
               <tr>
-                <td colSpan={15} className="py-8 text-center text-xs text-zinc-400">
+                <td colSpan={16} className="py-8 text-center text-xs text-zinc-400">{/* V3.8.3 +1 */}
                   BOM chưa có linh kiện nào.
                 </td>
               </tr>

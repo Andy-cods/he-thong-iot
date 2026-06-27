@@ -58,13 +58,15 @@ export async function POST(
 
   if (!line) return jsonError("NOT_FOUND", "Không tìm thấy dòng BOM", 404);
 
-  // RBAC: admin OR assigned PIC
+  // RBAC: admin OR assigned PIC OR purchaser (Thu mua).
+  // V3.8.3 — Thu mua được cập nhật ETA/tiến độ nhận hàng để chủ động giục NCC.
   const isAdmin = guard.session.roles.includes("admin");
+  const isPurchaser = guard.session.roles.includes("purchaser");
   const isPic = line.assignedToUserId === guard.session.userId;
-  if (!isAdmin && !isPic) {
+  if (!isAdmin && !isPurchaser && !isPic) {
     return jsonError(
       "FORBIDDEN",
-      `Chỉ PIC (${line.assignedToName ?? "?"}) hoặc admin được update dòng này.`,
+      `Chỉ PIC (${line.assignedToName ?? "?"}), Thu mua hoặc admin được update dòng này.`,
       403,
     );
   }
