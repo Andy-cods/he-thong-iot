@@ -986,7 +986,7 @@ export function BomGridPro({
             {showCol("notes") && <col style={{ width: "120px" }} />}{/* Ghi chú phụ */}
             {showCol("scrap") && <col style={{ width: "60px" }} />}{/* Hao hụt */}
             {showCol("progress") && <col style={{ width: "150px" }} />}{/* Tiến độ */}
-            {showEtaCol && <col style={{ width: "118px" }} />}{/* V3.8.3 Dự kiến nhận (luôn hiện) */}
+            {showEtaCol && <col style={{ width: "172px" }} />}{/* V3.8.3 Dự kiến nhận (luôn hiện, đủ rộng cho "dd/MM · quá NN ngày") */}
             <col style={{ width: "100px" }} />  {/* Thao tác */}
           </colgroup>
           <thead>
