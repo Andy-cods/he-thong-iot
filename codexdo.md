@@ -124,11 +124,11 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
 ### TASK-20260712-001 — Đề xuất mua vật tư cho mọi acc + duyệt nhanh admin + kế toán nhận PDF/Excel (V3.9)
-- **Trạng thái:** IN_PROGRESS
+- **Trạng thái:** DONE
 - **Tạo:** 2026-07-12 23:01 (+07) bởi Claude (planner)
 - **Phụ trách:** Claude
 - **Bắt đầu:** 2026-07-12 23:05 (+07) bởi Claude (executor)
-- **Hoàn thành:** ___
+- **Hoàn thành:** 2026-07-12 23:54 (+07)
 - **Ưu tiên:** P1
 - **Phụ thuộc:** —
 
@@ -152,7 +152,13 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 - `apps/web/src/app/api/purchase-requests/[id]/quick-approve/route.ts` (mới), `[id]/approve/route.ts` (410)
 - `apps/web/src/lib/nav-items.ts`, `apps/web/src/app/(app)/layout.tsx`, `apps/web/src/app/(app)/procurement/purchase-requests/[id]/page.tsx`
 
-**Output / log:** ___
+**Output / log:**
+- Commit `fd3f361` (main) — 30 files (26 sửa + 4 tạo mới: quick-approve/route.ts, prAccess.ts, 0050_accountant_role.sql, seed-ketoan-user.sql).
+- Verify local: `pnpm @iot/shared test` 260 pass (fix 2 test stale: operator create pr, planner canAny inventory/report) + web typecheck + full build PASS.
+- Code review (agent code-reviewer, sonnet): 0 blocker; 1 HIGH `submit/route.ts` thiếu ownership guard → ĐÃ VÁ (thêm canViewAllPRs check trước khi submit).
+- Deploy: migration 0050 apply VPS trước (enum `accountant` + role row verified) → push main → CI build + deploy (iot_app StartedAt 2026-07-12T16:49:50Z, ~175s) → seed acc `ketoan` (accountant, must_change_password).
+- **Smoke E2E production 15/15 PASS** (dùng acc tạm smoke-op, đã xoá sau): operator tạo PR (SUBMITTED + paperFormNo 3/PRD-MRF/0726) → admin nhận badge fan-out → quick-approve (APPROVED + DIRECTOR_APPROVED, 2 ô ký cùng admin) → legacy /approve 410 → ketoan nhận notification + tải PDF (72KB) + Excel (56KB) → ownership: operator KHÔNG xem được phiếu admin (404 + không có trong list) → ketoan view-all xem được.
+- Acc kế toán: `ketoan` / `Test@1234` (bắt đổi mật khẩu lần đầu).
 
 ---
 
