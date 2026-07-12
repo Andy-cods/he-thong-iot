@@ -10,6 +10,7 @@ import {
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { notifyPRSubmitted } from "@/server/services/notifications";
+import { canViewAllPRs } from "@/server/services/prAccess";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -28,11 +29,15 @@ export async function GET(req: NextRequest) {
   if ("response" in q) return q.response;
 
   try {
+    // V3.9 — Ownership: operator/qc chỉ thấy phiếu MÌNH tạo. Override query param
+    // để không cho tự đọc phiếu người khác qua ?requestedBy=. admin/planner/
+    // purchaser/warehouse/accountant (canViewAllPRs) xem tất cả.
+    const viewAll = canViewAllPRs(guard.session.roles);
     const result = await listPRs({
       status: q.data.status,
       linkedOrderId: q.data.linkedOrderId,
       bomTemplateId: q.data.bomTemplateId,
-      requestedBy: q.data.requestedBy,
+      requestedBy: viewAll ? q.data.requestedBy : guard.session.userId,
       page: q.data.page,
       pageSize: q.data.pageSize,
     });

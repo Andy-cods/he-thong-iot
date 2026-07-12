@@ -10,7 +10,7 @@ import {
 } from "./matrix";
 
 describe("RBAC matrix — shape + consistency", () => {
-  it("có đủ 7 role × 17 entity × 6 action (V3.8.2 thêm display)", () => {
+  it("có đủ 8 role × 17 entity × 6 action (V3.9 thêm accountant)", () => {
     expect(Object.keys(RBAC_MATRIX)).toEqual([
       "admin",
       "planner",
@@ -19,6 +19,7 @@ describe("RBAC matrix — shape + consistency", () => {
       "purchaser",
       "qc",
       "display",
+      "accountant",
     ]);
     expect(RBAC_ENTITIES).toHaveLength(17);
     expect(RBAC_ACTIONS).toHaveLength(6);
@@ -88,7 +89,15 @@ describe("can() — assert 48+ cell từ matrix (§4 brainstorm)", () => {
     // PR
     ["planner", "approve", "pr", true],
     ["operator", "read", "pr", true],
-    ["operator", "create", "pr", false],
+    // V3.9 — operator/warehouse CÓ create pr (MRF GTAM) từ V3.7.55.
+    ["operator", "create", "pr", true],
+    ["warehouse", "create", "pr", true],
+    // V3.9 — purchaser/qc/accountant cũng tự đề xuất mua vật tư.
+    ["purchaser", "create", "pr", true],
+    ["qc", "create", "pr", true],
+    ["qc", "read", "pr", true],
+    ["accountant", "create", "pr", true],
+    ["accountant", "read", "pr", true],
     // PO
     ["planner", "approve", "po", true],
     ["warehouse", "transition", "po", true],
@@ -136,6 +145,11 @@ describe("can() — assert 48+ cell từ matrix (§4 brainstorm)", () => {
     ["display", "update", "productionBoard", false],
     ["display", "read", "wo", false],
     ["display", "read", "item", false],
+    // V3.9 — Accountant: tạo + xem PR để tải PDF/Excel; KHÔNG duyệt/PO/board.
+    ["accountant", "approve", "pr", false],
+    ["accountant", "read", "po", false],
+    ["accountant", "read", "productionBoard", false],
+    ["accountant", "read", "user", true],
   ];
 
   it.each(cases)(
@@ -161,9 +175,15 @@ describe("canAny() — nav filter shortcut", () => {
     expect(canAny(["operator"], "supplier")).toBe(false);
   });
 
-  it("planner true trên mọi entity nghiệp vụ", () => {
+  it("planner true trên mọi entity nghiệp vụ (trừ inventory + report)", () => {
+    // planner KHÔNG có inventory (thuộc warehouse) và report (KPI admin-only).
+    const plannerExcluded: RbacEntity[] = ["inventory", "report"];
     for (const e of RBAC_ENTITIES) {
-      expect(canAny(["planner"], e)).toBe(true);
+      if (plannerExcluded.includes(e)) {
+        expect(canAny(["planner"], e)).toBe(false);
+      } else {
+        expect(canAny(["planner"], e)).toBe(true);
+      }
     }
   });
 

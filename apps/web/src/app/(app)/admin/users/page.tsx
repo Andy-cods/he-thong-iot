@@ -30,6 +30,7 @@ const ROLE_OPTIONS: { code: Role | "all"; label: string }[] = [
   { code: "operator", label: "Bộ phận Gia công" },
   { code: "qc", label: "Tổ QC / KCS" },
   { code: "display", label: "Màn hình TV" },
+  { code: "accountant", label: "Bộ phận Kế toán" },
 ];
 
 const ROLE_BADGE: Record<Role, string> = {
@@ -40,6 +41,7 @@ const ROLE_BADGE: Record<Role, string> = {
   operator: "bg-zinc-100 text-zinc-700 ring-zinc-200",
   qc: "bg-teal-50 text-teal-700 ring-teal-200",
   display: "bg-sky-50 text-sky-700 ring-sky-200",
+  accountant: "bg-lime-50 text-lime-700 ring-lime-200",
 };
 
 function formatDate(iso: string | null): string {

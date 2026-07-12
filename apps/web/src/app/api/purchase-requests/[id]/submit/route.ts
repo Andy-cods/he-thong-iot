@@ -3,6 +3,7 @@ import { logger } from "@/lib/logger";
 import { getPR, submitPR } from "@/server/repos/purchaseRequests";
 import { extractRequestMeta, jsonError } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
+import { canViewAllPRs } from "@/server/services/prAccess";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -22,6 +23,15 @@ export async function POST(
 
   const before = await getPR(params.id);
   if (!before) return jsonError("NOT_FOUND", "Không tìm thấy phiếu.", 404);
+  // V3.9 — ownership: chỉ chủ phiếu (hoặc role xem-tất-cả) mới submit được.
+  // Route dùng permission "create" nên operator/qc/warehouse đều qua requireCan;
+  // chặn để không submit + đọc phiếu DRAFT của người khác (404, không lộ tồn tại).
+  if (
+    !canViewAllPRs(guard.session.roles) &&
+    before.requestedBy !== guard.session.userId
+  ) {
+    return jsonError("NOT_FOUND", "Không tìm thấy phiếu.", 404);
+  }
   if (before.status !== "DRAFT") {
     return jsonError(
       "INVALID_STATE",

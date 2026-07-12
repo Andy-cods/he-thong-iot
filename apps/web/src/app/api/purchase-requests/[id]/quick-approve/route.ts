@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
-import { directorApprovePR, getPR } from "@/server/repos/purchaseRequests";
+import { getPR, quickApprovePR } from "@/server/repos/purchaseRequests";
 import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import {
@@ -18,11 +18,11 @@ const inputSchema = z.object({
 });
 
 /**
- * V3.7.69 YCVT — POST /api/purchase-requests/[id]/director-approve
- * Step 3/3: Giám đốc / Mua hàng duyệt. DEPT_APPROVED → DIRECTOR_APPROVED.
- * Đồng thời set status = APPROVED để chuyển sang flow tạo PO existing.
+ * V3.9 — POST /api/purchase-requests/[id]/quick-approve
+ * Admin duyệt nhanh: gộp 2 cấp (Trưởng bộ phận + Giám đốc) trong 1 request.
+ * SUBMITTED → DIRECTOR_APPROVED + status APPROVED. Tên admin hiện ở CẢ 2 ô ký.
  *
- * Authorization: admin OR purchaser ("giám đốc"/"trưởng mua hàng").
+ * Chỉ admin — planner/purchaser vẫn duyệt từng cấp (dept → director).
  */
 export async function POST(
   req: NextRequest,
@@ -31,12 +31,17 @@ export async function POST(
   const guard = await requireCan(req, "approve", "pr");
   if ("response" in guard) return guard.response;
 
+  // V3.9 — quick-approve CHỈ admin.
+  if (!guard.session.roles.includes("admin")) {
+    return jsonError("FORBIDDEN", "Chỉ Admin được duyệt nhanh 2 cấp.", 403);
+  }
+
   const before = await getPR(params.id);
   if (!before) return jsonError("NOT_FOUND", "Không tìm thấy phiếu.", 404);
-  if (before.approvalStep !== "DEPT_APPROVED") {
+  if (before.approvalStep !== "SUBMITTED") {
     return jsonError(
       "INVALID_STATE",
-      `Phiếu đang ở bước ${before.approvalStep} — chỉ Giám đốc duyệt được khi đã qua Trưởng bộ phận.`,
+      `Phiếu đang ở bước ${before.approvalStep} — duyệt nhanh chỉ áp dụng khi SUBMITTED.`,
       409,
     );
   }
@@ -45,7 +50,7 @@ export async function POST(
   if ("response" in body) return body.response;
 
   try {
-    const row = await directorApprovePR(
+    const row = await quickApprovePR(
       params.id,
       guard.session.userId,
       body.data.note ?? null,
@@ -64,11 +69,11 @@ export async function POST(
         status: row.status,
         directorApprovedBy: row.directorApprovedBy,
       },
-      notes: body.data.note ?? "Giám đốc duyệt cuối",
+      notes: "Duyệt nhanh 2 cấp (admin)",
       ...meta,
     });
 
-    // Notify creator + Bộ phận Mua hàng
+    // Notify creator + Bộ phận Kế toán (kèm link tải PDF/Excel).
     void notifyPRApproved({
       prId: params.id,
       prNo: before.paperFormNo ?? before.code,
@@ -77,7 +82,6 @@ export async function POST(
       actorUsername: guard.session.username,
       creatorUserId: before.requestedBy,
     });
-    // V3.9 — báo Bộ phận Kế toán (kèm link tải PDF/Excel).
     void notifyPRApprovedToAccounting({
       prId: params.id,
       prNo: before.paperFormNo ?? before.code,
@@ -88,7 +92,7 @@ export async function POST(
 
     return NextResponse.json({ data: row });
   } catch (err) {
-    logger.error({ err }, "director-approve PR failed");
-    return jsonError("INTERNAL", "Không duyệt được phiếu.", 500);
+    logger.error({ err }, "quick-approve PR failed");
+    return jsonError("INTERNAL", "Không duyệt nhanh được phiếu.", 500);
   }
 }

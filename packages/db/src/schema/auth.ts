@@ -16,6 +16,7 @@ import { appSchema } from "./_schema";
  * Role cứng — V3.3 thêm "purchaser" (Bộ phận Thu mua).
  * V3.8 thêm "qc" (Tổ KCS/QC) cho Bảng điều hành sản xuất.
  * V3.8.2 thêm "display" (kiosk TV — chỉ xem bảng).
+ * V3.9 thêm "accountant" (Bộ phận Kế toán — nhận YCVT đã duyệt, tải PDF/Excel).
  * Khớp với ROLES trong @iot/shared.
  */
 export const roleCodeEnum = pgEnum("role_code", [
@@ -26,6 +27,7 @@ export const roleCodeEnum = pgEnum("role_code", [
   "purchaser",
   "qc",
   "display",
+  "accountant",
 ]);
 
 /** Bảng 1: user_account */

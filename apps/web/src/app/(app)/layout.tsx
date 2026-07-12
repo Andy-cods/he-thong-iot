@@ -28,12 +28,14 @@ const ROUTE_ROLE_GUARD: Array<{ prefix: string; roles: Role[] }> = [
   { prefix: "/sales",        roles: ["admin", "purchaser"] },
   // V3.7.57 — BOM list mở cho TẤT CẢ bộ phận xem (read-only cho non-planner).
   // Edit BOM vẫn chỉ planner + admin (RBAC matrix).
-  { prefix: "/engineering",  roles: ["admin", "planner", "warehouse", "operator", "purchaser"] },
+  // V3.9 — qc + accountant vào /engineering để dùng tab "Đề xuất vật tư" (PR).
+  { prefix: "/engineering",  roles: ["admin", "planner", "warehouse", "operator", "purchaser", "qc", "accountant"] },
   { prefix: "/operations",   roles: ["admin", "operator"] },
   { prefix: "/bom",          roles: ["admin", "planner", "warehouse", "operator", "purchaser"] },
   { prefix: "/work-orders",  roles: ["admin", "planner", "operator"] },
   // V3.7.55 — operator + warehouse access /procurement để tạo MRF GTAM (PR submit gửi Thu mua duyệt).
-  { prefix: "/procurement",  roles: ["admin", "planner", "purchaser", "operator", "warehouse"] },
+  // V3.9 — qc + accountant cũng vào /procurement (form new-mrf + list + detail PR).
+  { prefix: "/procurement",  roles: ["admin", "planner", "purchaser", "operator", "warehouse", "qc", "accountant"] },
   // Receiving + assembly: chỉ kho/vận hành/admin
   { prefix: "/receiving",    roles: ["admin", "warehouse"] },
   { prefix: "/assembly",     roles: ["admin", "operator"] },

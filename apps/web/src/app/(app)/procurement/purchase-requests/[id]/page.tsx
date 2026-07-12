@@ -42,6 +42,7 @@ import {
   useMarkPRCompleted,
   useMarkPRIssued,
   usePurchaseRequestDetail,
+  useQuickApprovePR,
   useRejectPurchaseRequest,
 } from "@/hooks/usePurchaseRequests";
 import { useConvertPRToPOs } from "@/hooks/usePurchaseOrders";
@@ -146,6 +147,7 @@ export default function PurchaseRequestDetailPage() {
   const detail = usePurchaseRequestDetail(id);
   const deptApprove = useDeptApprovePR(id);
   const directorApprove = useDirectorApprovePR(id);
+  const quickApprove = useQuickApprovePR(id);
   const reject = useRejectPurchaseRequest(id);
   const convert = useConvertPRToPOs();
   const markIssued = useMarkPRIssued(id);
@@ -156,7 +158,9 @@ export default function PurchaseRequestDetailPage() {
 
   const [rejectOpen, setRejectOpen] = React.useState(false);
   const [rejectReason, setRejectReason] = React.useState("");
-  const [approveOpen, setApproveOpen] = React.useState<null | "dept" | "director">(null);
+  const [approveOpen, setApproveOpen] = React.useState<
+    null | "dept" | "director" | "quick"
+  >(null);
   const [approveNote, setApproveNote] = React.useState("");
   const [convertOpen, setConvertOpen] = React.useState(false);
 
@@ -189,6 +193,8 @@ export default function PurchaseRequestDetailPage() {
   const canDeptApprove = (isAdmin || isPlanner) && step === "SUBMITTED";
   const canDirectorApprove =
     (isAdmin || isPurchaser) && step === "DEPT_APPROVED";
+  // V3.9 — Admin duyệt nhanh gộp 2 cấp khi phiếu vừa SUBMITTED.
+  const canQuickApprove = isAdmin && step === "SUBMITTED";
   const canReject =
     (isAdmin || isPlanner || isPurchaser) &&
     (step === "SUBMITTED" || step === "DEPT_APPROVED");
@@ -214,6 +220,9 @@ export default function PurchaseRequestDetailPage() {
       } else if (approveOpen === "director") {
         await directorApprove.mutateAsync({ note: approveNote.trim() || null });
         toast.success("Đã duyệt cuối — phiếu hoàn tất phê duyệt");
+      } else if (approveOpen === "quick") {
+        await quickApprove.mutateAsync({ note: approveNote.trim() || null });
+        toast.success("Đã duyệt nhanh 2 cấp — phiếu sẵn sàng tạo PO");
       }
       setApproveOpen(null);
       setApproveNote("");
@@ -309,15 +318,38 @@ export default function PurchaseRequestDetailPage() {
                 Từ chối
               </Button>
             )}
+            {canQuickApprove && (
+              <Button
+                size="sm"
+                onClick={() => {
+                  setApproveOpen("quick");
+                  setApproveNote("");
+                }}
+                disabled={quickApprove.isPending}
+                className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+              >
+                {quickApprove.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                )}
+                Duyệt nhanh (Admin)
+              </Button>
+            )}
             {canDeptApprove && (
               <Button
                 size="sm"
+                variant={canQuickApprove ? "outline" : "default"}
                 onClick={() => {
                   setApproveOpen("dept");
                   setApproveNote("");
                 }}
                 disabled={deptApprove.isPending}
-                className="bg-sky-600 hover:bg-sky-700 dark:bg-sky-500 dark:hover:bg-sky-400"
+                className={
+                  canQuickApprove
+                    ? undefined
+                    : "bg-sky-600 hover:bg-sky-700 dark:bg-sky-500 dark:hover:bg-sky-400"
+                }
               >
                 {deptApprove.isPending ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -809,12 +841,16 @@ export default function PurchaseRequestDetailPage() {
             <DialogTitle>
               {approveOpen === "dept"
                 ? "Duyệt — Trưởng bộ phận"
-                : "Duyệt cuối — Giám đốc / Mua hàng"}
+                : approveOpen === "quick"
+                  ? "Duyệt nhanh — gộp 2 cấp"
+                  : "Duyệt cuối — Giám đốc / Mua hàng"}
             </DialogTitle>
             <DialogDescription>
               {approveOpen === "dept"
                 ? "Sau khi duyệt, phiếu sẽ chuyển sang chờ Giám đốc/Mua hàng duyệt cuối."
-                : "Sau khi duyệt cuối, phiếu sẵn sàng để tạo PO. Bộ phận Mua hàng sẽ nhận thông báo."}
+                : approveOpen === "quick"
+                  ? "Tên bạn sẽ hiện ở CẢ 2 ô ký (Trưởng bộ phận + Giám đốc). Phiếu chuyển thẳng sang Đã duyệt, sẵn sàng tạo PO. Kế toán sẽ nhận thông báo tải PDF/Excel."
+                  : "Sau khi duyệt cuối, phiếu sẵn sàng để tạo PO. Bộ phận Mua hàng sẽ nhận thông báo."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
@@ -834,19 +870,25 @@ export default function PurchaseRequestDetailPage() {
             </Button>
             <Button
               onClick={() => void handleApproveSubmit()}
-              disabled={deptApprove.isPending || directorApprove.isPending}
+              disabled={
+                deptApprove.isPending ||
+                directorApprove.isPending ||
+                quickApprove.isPending
+              }
               className={
                 approveOpen === "dept"
                   ? "bg-sky-600 hover:bg-sky-700 dark:bg-sky-500"
                   : "bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500"
               }
             >
-              {(deptApprove.isPending || directorApprove.isPending) ? (
+              {(deptApprove.isPending ||
+                directorApprove.isPending ||
+                quickApprove.isPending) ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
                 <CheckCircle2 className="h-3.5 w-3.5" />
               )}
-              Xác nhận duyệt
+              {approveOpen === "quick" ? "Xác nhận duyệt nhanh" : "Xác nhận duyệt"}
             </Button>
           </DialogFooter>
         </DialogContent>

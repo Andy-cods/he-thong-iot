@@ -15,6 +15,7 @@ import {
   parseJson,
 } from "@/server/http";
 import { writeAudit, diffObjects } from "@/server/services/audit";
+import { canViewAllPRs } from "@/server/services/prAccess";
 import { requireCan } from "@/server/session";
 import { db } from "@/lib/db";
 
@@ -35,6 +36,15 @@ export async function GET(
 
   const row = await getPR(params.id);
   if (!row) return jsonError("NOT_FOUND", "Không tìm thấy PR.", 404);
+
+  // V3.9 — ownership: operator/qc chỉ xem phiếu mình tạo. Trả 404 (không 403)
+  // để không lộ sự tồn tại của phiếu người khác.
+  if (
+    !canViewAllPRs(guard.session.roles) &&
+    row.requestedBy !== guard.session.userId
+  ) {
+    return jsonError("NOT_FOUND", "Không tìm thấy PR.", 404);
+  }
 
   const lines = await getPRLinesEnriched(params.id);
 

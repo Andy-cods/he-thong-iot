@@ -43,6 +43,9 @@ export default function EngineeringPage() {
   const isWarehouse = roles.includes("warehouse");
   const isOperator = roles.includes("operator");
   const isPurchaser = roles.includes("purchaser");
+  // V3.9 — qc + accountant CHỈ thấy tab PR (không có bomTemplate:read).
+  const isQc = roles.includes("qc");
+  const isAccountant = roles.includes("accountant");
 
   const tabs = React.useMemo(() => {
     if (isAdminOrPlanner) return ALL_TABS;
@@ -54,8 +57,12 @@ export default function EngineeringPage() {
     if (isWarehouse || isOperator) {
       allowedKeys.add("pr"); // tạo MRF GTAM
     }
+    // V3.9 — qc/accountant chỉ đề xuất mua vật tư (không đụng BOM).
+    if (isQc || isAccountant) {
+      allowedKeys.add("pr");
+    }
     return ALL_TABS.filter((t) => allowedKeys.has(t.key));
-  }, [isAdminOrPlanner, isWarehouse, isOperator, isPurchaser]);
+  }, [isAdminOrPlanner, isWarehouse, isOperator, isPurchaser, isQc, isAccountant]);
 
   const rawTab = searchParams?.get("tab") ?? undefined;
   const found = tabs.find((t) => t.key === rawTab);
@@ -71,21 +78,29 @@ export default function EngineeringPage() {
         ? "Bộ phận Gia công"
         : isPurchaser
           ? "Bộ phận Thu mua"
-          : "Bộ phận";
+          : isQc
+            ? "Tổ QC/KCS"
+            : isAccountant
+              ? "Bộ phận Kế toán"
+              : "Bộ phận";
   const pageTitle = isAdminOrPlanner
     ? "Thiết kế & Sản xuất"
     : isWarehouse
       ? "Tồn kho & Đề xuất mua"
       : isOperator
         ? "Sản xuất & Đề xuất mua phôi"
-        : "BOM List · Yêu cầu mua";
+        : isQc || isAccountant
+          ? "Đề xuất mua vật tư"
+          : "BOM List · Yêu cầu mua";
   const pageSubtitle = isAdminOrPlanner
     ? "BOM List · Yêu cầu sản xuất (gửi Gia công duyệt) · Yêu cầu mua."
     : isWarehouse
       ? "Xem BOM List · điều chỉnh tồn kho · gửi Phiếu MRF GTAM đến Thu mua."
       : isOperator
         ? "Xem BOM List · tạo Phiếu MRF GTAM mua phôi gửi Bộ phận Thu mua."
-        : "Xem BOM List để đối chiếu vật tư · duyệt yêu cầu mua hàng tại /sales.";
+        : isQc || isAccountant
+          ? "Tạo & theo dõi Phiếu đề xuất vật tư (YCVT/MRF) gửi Thu mua duyệt."
+          : "Xem BOM List để đối chiếu vật tư · duyệt yêu cầu mua hàng tại /sales.";
 
   return (
     <div className="flex h-full flex-col overflow-hidden">

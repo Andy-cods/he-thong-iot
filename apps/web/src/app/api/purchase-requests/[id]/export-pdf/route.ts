@@ -5,6 +5,7 @@ import { logger } from "@/lib/logger";
 import { db } from "@/lib/db";
 import { getPR, getPRLinesEnriched } from "@/server/repos/purchaseRequests";
 import { jsonError } from "@/server/http";
+import { canViewAllPRs } from "@/server/services/prAccess";
 import { requireCan } from "@/server/session";
 import {
   renderYcvtPdfBuffer,
@@ -28,6 +29,14 @@ export async function GET(
   try {
     const pr = await getPR(params.id);
     if (!pr) return jsonError("NOT_FOUND", "Không tìm thấy phiếu.", 404);
+
+    // V3.9 — ownership: operator/qc chỉ tải phiếu mình tạo (404 nếu của người khác).
+    if (
+      !canViewAllPRs(guard.session.roles) &&
+      pr.requestedBy !== guard.session.userId
+    ) {
+      return jsonError("NOT_FOUND", "Không tìm thấy phiếu.", 404);
+    }
 
     const linesRaw = await getPRLinesEnriched(params.id);
 

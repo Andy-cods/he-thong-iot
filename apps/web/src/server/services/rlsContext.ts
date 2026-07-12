@@ -31,6 +31,8 @@ const ROLE_PRIORITY: Record<Role, number> = {
   qc: 1,
   // V3.8.2 — display kiosk: chỉ đọc, ưu tiên thấp nhất.
   display: 0,
+  // V3.9 — accountant read-mostly (tải PDF/Excel PR đã duyệt).
+  accountant: 1,
 };
 
 const ROLE_TO_PG: Record<Role, string> = {
@@ -44,6 +46,9 @@ const ROLE_TO_PG: Record<Role, string> = {
   qc: "iot_operator",
   // V3.8.2 — display kiosk: map iot_operator (read-only path /board).
   display: "iot_operator",
+  // V3.9 — accountant chưa có PG role riêng; map iot_purchaser (đọc PR). RLS
+  // đang off, app-level RBAC là chính.
+  accountant: "iot_purchaser",
 };
 
 function pickHighestRole(roles: Role[] | null | undefined): Role | null {

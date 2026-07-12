@@ -123,6 +123,39 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
+### TASK-20260712-001 — Đề xuất mua vật tư cho mọi acc + duyệt nhanh admin + kế toán nhận PDF/Excel (V3.9)
+- **Trạng thái:** IN_PROGRESS
+- **Tạo:** 2026-07-12 23:01 (+07) bởi Claude (planner)
+- **Phụ trách:** Claude
+- **Bắt đầu:** 2026-07-12 23:05 (+07) bởi Claude (executor)
+- **Hoàn thành:** ___
+- **Ưu tiên:** P1
+- **Phụ thuộc:** —
+
+**Mô tả:** Mở rộng module Purchase Requests (YCVT/MRF — mẫu GTAM/PRD-MRF-02, khớp form giấy "DNVT 567 09072026.xlsx") để: (1) mọi role trừ display tạo được phiếu đề xuất, operator/qc chỉ xem phiếu mình tạo; (2) admin nhận notification badge khi có phiếu submit; (3) nút "Duyệt nhanh" admin gộp 2 cấp duyệt; (4) role `accountant` mới + acc `ketoan` — sau duyệt nhận notification deep-link trang chi tiết để tải PDF + Excel. Module đã có sẵn ~80% (form new-mrf, flow 2 cấp, export, số phiếu tự động) — đây là bản vá, KHÔNG viết lại.
+
+**Plan chi tiết:** [`plans/260712-material-purchase-request-notify-plan.md`](plans/260712-material-purchase-request-notify-plan.md) (đã được user duyệt 3 quyết định blocker: acc ketoan tạm / duyệt nhanh OK 2 ô ký cùng tên / ownership chỉ-phiếu-mình cho operator+qc).
+
+**Acceptance criteria (DoD):**
+- [ ] Migration `0050_accountant_role.sql` apply VPS TRƯỚC deploy code (ALTER TYPE role_code ADD VALUE 'accountant' + seed role)
+- [ ] purchaser + qc tạo được phiếu; nav "Đề xuất vật tư" hiện cho mọi role trừ display; ROUTE_ROLE_GUARD cập nhật
+- [ ] Operator/qc GET list chỉ thấy phiếu mình tạo; detail/export phiếu người khác trả 404
+- [ ] Admin nhận notification direct (badge chuông sáng) khi phiếu submit
+- [ ] Endpoint `[id]/quick-approve` admin-only: SUBMITTED → DIRECTOR_APPROVED atomic; route legacy `[id]/approve` trả 410
+- [ ] Acc `ketoan` (role accountant) nhận notification sau duyệt, mở link tải được cả PDF lẫn Excel
+- [ ] Smoke E2E VPS 8 bước trong plan pass; typecheck + build local pass
+
+**File path liên quan:**
+- `packages/shared/src/rbac/matrix.ts`, `packages/shared/src/types.ts`, `packages/db/src/schema/auth.ts`
+- `packages/db/migrations/0050_accountant_role.sql` (mới)
+- `apps/web/src/server/services/notifications.ts`, `apps/web/src/server/repos/purchaseRequests.ts`
+- `apps/web/src/app/api/purchase-requests/[id]/quick-approve/route.ts` (mới), `[id]/approve/route.ts` (410)
+- `apps/web/src/lib/nav-items.ts`, `apps/web/src/app/(app)/layout.tsx`, `apps/web/src/app/(app)/procurement/purchase-requests/[id]/page.tsx`
+
+**Output / log:** ___
+
+---
+
 ### TASK-20260427-027 — Redesign Dashboard "Tổng quan" v2 (hiện đại + bento + activity)
 - **Trạng thái:** DONE
 - **Tạo:** 2026-04-27 19:45 (+07)

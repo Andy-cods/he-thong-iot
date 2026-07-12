@@ -1,5 +1,5 @@
-import { eq, sql } from "drizzle-orm";
-import { notification, userAccount } from "@iot/db/schema";
+import { and, eq, sql } from "drizzle-orm";
+import { notification, role, userAccount, userRole } from "@iot/db/schema";
 import type { Role } from "@iot/shared";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
@@ -110,6 +110,33 @@ export async function emitNotifications(
   await Promise.allSettled(inputs.map((i) => emitNotification(i)));
 }
 
+/**
+ * V3.9 — Fan-out notification DIRECT tới từng user active có role chỉ định.
+ * Khác `recipientRole` broadcast: mỗi user 1 row riêng → ĐẾM vào badge chuông
+ * (getUnreadCount chỉ đếm recipientUser) + read-state độc lập từng người.
+ * Loại actor khỏi danh sách (không tự notify chính mình). Không throw.
+ */
+export async function emitToUsersWithRole(
+  roleCode: Role,
+  input: Omit<EmitNotificationInput, "recipientUser" | "recipientRole">,
+): Promise<void> {
+  try {
+    const rows = await db
+      .select({ id: userRole.userId })
+      .from(userRole)
+      .innerJoin(role, eq(role.id, userRole.roleId))
+      .innerJoin(userAccount, eq(userAccount.id, userRole.userId))
+      .where(and(eq(role.code, roleCode), eq(userAccount.isActive, true)));
+    const actorId = input.actorUserId ?? null;
+    const ids = rows.map((r) => r.id).filter((id) => id !== actorId);
+    await emitNotifications(
+      ids.map((id) => ({ ...input, recipientUser: id })),
+    );
+  } catch (err) {
+    logger.warn({ err, roleCode }, "emitToUsersWithRole failed");
+  }
+}
+
 /* ── Convenience builders cho từng event type ────────────────────────────── */
 
 export interface PRNotifyContext {
@@ -159,8 +186,9 @@ export async function notifyPRDeptApproved(ctx: PRNotifyContext) {
   }
 }
 
-/** Engineer submit PR → notify purchaser role */
+/** Engineer submit PR → notify purchaser role + fan-out direct tới admin */
 export async function notifyPRSubmitted(ctx: PRNotifyContext) {
+  // Broadcast cho Thu mua (backward-compat — purchaser thấy trong list).
   await emitNotification({
     recipientRole: "purchaser",
     actorUserId: ctx.actorUserId,
@@ -171,6 +199,21 @@ export async function notifyPRSubmitted(ctx: PRNotifyContext) {
     entityCode: ctx.prNo,
     title: `Yêu cầu mua mới: ${ctx.prNo}`,
     message: ctx.title ? `"${ctx.title}" — chờ duyệt` : "Chờ Bộ phận Thu mua duyệt",
+    link: `/procurement/purchase-requests/${ctx.prId}`,
+    severity: "info",
+  });
+  // V3.9 — fan-out DIRECT tới mọi admin (đếm badge) để duyệt nhanh.
+  await emitToUsersWithRole("admin", {
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "PR_SUBMITTED",
+    entityType: "purchase_request",
+    entityId: ctx.prId,
+    entityCode: ctx.prNo,
+    title: `Phiếu YCVT mới chờ duyệt: ${ctx.prNo}`,
+    message: ctx.title
+      ? `"${ctx.title}" — bấm để duyệt nhanh`
+      : "Bấm để xem và duyệt nhanh",
     link: `/procurement/purchase-requests/${ctx.prId}`,
     severity: "info",
   });
@@ -189,6 +232,28 @@ export async function notifyPRApproved(ctx: PRNotifyContext) {
     entityCode: ctx.prNo,
     title: `${ctx.prNo} đã được duyệt`,
     message: "Bộ phận Thu mua đang tiến hành tạo PO.",
+    link: `/procurement/purchase-requests/${ctx.prId}`,
+    severity: "success",
+  });
+}
+
+/**
+ * V3.9 — Sau duyệt cuối (director-approve HOẶC quick-approve): fan-out direct
+ * tới mọi user accountant. Link = trang chi tiết PR (đã có sẵn 2 nút tải
+ * PDF/Excel) — không đính kèm file, không cần SMTP. Tái dùng event PR_APPROVED.
+ */
+export async function notifyPRApprovedToAccounting(ctx: PRNotifyContext) {
+  await emitToUsersWithRole("accountant", {
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "PR_APPROVED",
+    entityType: "purchase_request",
+    entityId: ctx.prId,
+    entityCode: ctx.prNo,
+    title: `Phiếu ${ctx.prNo} đã duyệt — tải PDF/Excel`,
+    message: ctx.title
+      ? `"${ctx.title}" — mở phiếu để tải bản PDF/Excel gửi thanh toán.`
+      : "Mở phiếu để tải bản PDF/Excel.",
     link: `/procurement/purchase-requests/${ctx.prId}`,
     severity: "success",
   });

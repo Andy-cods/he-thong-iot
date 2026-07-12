@@ -9,7 +9,7 @@ import {
   parseAsStringEnum,
   useQueryStates,
 } from "nuqs";
-import { PR_STATUSES } from "@iot/shared";
+import { PR_STATUSES, can } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PRListTable } from "@/components/procurement/PRListTable";
@@ -56,12 +56,9 @@ export function PRTab() {
   // đều dùng Phiếu MRF GTAM chính thức (form đầy đủ 5 section).
   const session = useSession();
   const roles = session.data?.roles ?? [];
-  const isAdmin = roles.includes("admin");
-  const canCreateMRF =
-    isAdmin ||
-    roles.includes("operator") ||
-    roles.includes("warehouse") ||
-    roles.includes("planner");
+  // V3.9 — dùng thẳng RBAC matrix thay vì hardcode list role → tự đúng cho
+  // purchaser/qc/accountant (create pr) mà không lệch với matrix.
+  const canCreateMRF = can(roles, "create", "pr");
 
   return (
     <div className="flex h-full flex-col overflow-hidden">

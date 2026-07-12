@@ -5,6 +5,7 @@ import {
   MonitorPlay,
   Shield,
   ShoppingBag,
+  ShoppingCart,
   Warehouse,
   type LucideIcon,
 } from "lucide-react";
@@ -112,6 +113,24 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Bộ phận Thiết kế",
     icon: Layers,
     roles: ["admin", "planner", "warehouse", "operator", "purchaser"],
+    section: "engineering",
+  },
+  // V3.9 — Đề xuất mua vật tư (Phiếu YCVT/MRF): MỌI tài khoản (trừ display kiosk)
+  // đều tạo/theo dõi được. Shortcut thẳng vào tab PR của hub Thiết kế; qc +
+  // accountant chỉ vào được tab này (engineering/page.tsx lọc tab theo role).
+  {
+    href: "/engineering?tab=pr",
+    label: "Đề xuất vật tư",
+    icon: ShoppingCart,
+    roles: [
+      "admin",
+      "planner",
+      "warehouse",
+      "operator",
+      "purchaser",
+      "qc",
+      "accountant",
+    ],
     section: "engineering",
   },
   // --- Bộ phận Gia công — chỉ operator + admin ---

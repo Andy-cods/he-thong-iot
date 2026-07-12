@@ -129,6 +129,10 @@ export default function NewMRFPage() {
     else if (roles.includes("warehouse")) setProposingDepartment("Bộ phận Kho");
     else if (roles.includes("purchaser"))
       setProposingDepartment("Bộ phận Thu mua");
+    // V3.9 — qc + accountant tự đề xuất mua vật tư.
+    else if (roles.includes("qc")) setProposingDepartment("Tổ QC/KCS");
+    else if (roles.includes("accountant"))
+      setProposingDepartment("Bộ phận Kế toán");
   }, [session.data?.roles]);
 
   // Lines (II. Danh mục vật tư) — V3.7.72 free-text name+sku

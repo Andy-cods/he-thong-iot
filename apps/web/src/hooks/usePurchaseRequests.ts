@@ -9,7 +9,6 @@ import type {
   PRCreateInput,
   PRCreateFromShortageInput,
   PRUpdateInput,
-  PRApproveInput,
   PRRejectInput,
   PRStatus,
 } from "@iot/shared";
@@ -215,11 +214,15 @@ export function useUpdatePurchaseRequest(id: string) {
   });
 }
 
-export function useApprovePurchaseRequest(id: string) {
+/**
+ * V3.9 — Admin duyệt nhanh 2 cấp trong 1 request (SUBMITTED → APPROVED).
+ * Thay cho hook approve legacy (route /approve nay trả 410).
+ */
+export function useQuickApprovePR(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: PRApproveInput) =>
-      request<{ data: PRRow }>(`/api/purchase-requests/${id}/approve`, {
+    mutationFn: (data: { note?: string | null }) =>
+      request<{ data: PRRow }>(`/api/purchase-requests/${id}/quick-approve`, {
         method: "POST",
         body: JSON.stringify(data),
       }),

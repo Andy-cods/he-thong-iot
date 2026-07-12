@@ -43,6 +43,12 @@ export const ALL_ROLES: { code: Role; label: string; desc: string }[] = [
     label: "Màn hình TV",
     desc: "Chỉ xem Bảng sản xuất (kiosk) — phiên 24h",
   },
+  // V3.9 — Bộ phận Kế toán: nhận YCVT đã duyệt, tải PDF/Excel.
+  {
+    code: "accountant",
+    label: "Kế toán",
+    desc: "Nhận phiếu YCVT đã duyệt — tải PDF/Excel",
+  },
 ];
 
 export interface UserFormProps {

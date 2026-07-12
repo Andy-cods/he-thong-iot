@@ -143,7 +143,8 @@ export const RBAC_MATRIX: Matrix = {
     bomRevision: ["read"],
     salesOrder: ["read"],
     bomSnapshot: ["read"],
-    pr: ["read", "update", "approve"],
+    // V3.9 — Thu mua cũng tự đề xuất mua vật tư (create) ngoài duyệt PR.
+    pr: ["create", "read", "update", "approve"],
     po: ["create", "read", "update", "approve", "transition"],
     wo: ["read"],
     reservation: ["read"],
@@ -162,6 +163,8 @@ export const RBAC_MATRIX: Matrix = {
     salesOrder: ["read"],
     bomSnapshot: ["read"],
     wo: ["read"],
+    // V3.9 — QC tự đề xuất mua vật tư (dụng cụ đo, tiêu hao QC).
+    pr: ["create", "read"],
     audit: ["read"],
     user: ["read"],
     session: ["read"],
@@ -171,6 +174,13 @@ export const RBAC_MATRIX: Matrix = {
   // Không sửa, không thấy gì khác. Phiên đăng nhập 24h (xem login route).
   display: {
     productionBoard: ["read"],
+  },
+  // V3.9 — Accountant (Bộ phận Kế toán): tạo + xem YCVT để tải PDF/Excel.
+  // KHÔNG duyệt, KHÔNG PO. user/session read để dùng profile + admin hiển thị.
+  accountant: {
+    pr: ["create", "read"],
+    user: ["read"],
+    session: ["read"],
   },
 };
 

@@ -421,24 +421,36 @@ export async function directorApprovePR(
 }
 
 /**
- * Approve PR: SUBMITTED → APPROVED (guard: userId phải có role approver).
+ * V3.9 — Admin duyệt nhanh: gộp 2 cấp trong 1 UPDATE atomic.
+ * SUBMITTED → DIRECTOR_APPROVED + status APPROVED. Cả 2 ô ký = admin (QĐ-2).
+ * `WHERE approvalStep='SUBMITTED'` → race với dept-approve trả null → caller 409.
  */
-export async function approvePR(
+export async function quickApprovePR(
   id: string,
-  approverId: string | null,
+  approverId: string,
+  note?: string | null,
 ): Promise<PurchaseRequest | null> {
+  const now = new Date();
+  const quickNote = note ?? "Duyệt nhanh (Admin)";
   const [row] = await db
     .update(purchaseRequest)
     .set({
       status: "APPROVED",
-      approvedBy: approverId,
-      approvedAt: new Date(),
-      updatedAt: new Date(),
+      approvalStep: "DIRECTOR_APPROVED",
+      deptApprovedBy: approverId,
+      deptApprovedAt: now,
+      deptApprovalNote: quickNote,
+      directorApprovedBy: approverId,
+      directorApprovedAt: now,
+      directorApprovalNote: quickNote,
+      approvedBy: approverId, // back-compat
+      approvedAt: now,
+      updatedAt: now,
     })
     .where(
       and(
         eq(purchaseRequest.id, id),
-        inArray(purchaseRequest.status, ["DRAFT", "SUBMITTED"]),
+        eq(purchaseRequest.approvalStep, "SUBMITTED"),
       ),
     )
     .returning();
