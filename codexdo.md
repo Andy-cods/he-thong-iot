@@ -159,6 +159,8 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 - Deploy: migration 0050 apply VPS trước (enum `accountant` + role row verified) → push main → CI build + deploy (iot_app StartedAt 2026-07-12T16:49:50Z, ~175s) → seed acc `ketoan` (accountant, must_change_password).
 - **Smoke E2E production 15/15 PASS** (dùng acc tạm smoke-op, đã xoá sau): operator tạo PR (SUBMITTED + paperFormNo 3/PRD-MRF/0726) → admin nhận badge fan-out → quick-approve (APPROVED + DIRECTOR_APPROVED, 2 ô ký cùng admin) → legacy /approve 410 → ketoan nhận notification + tải PDF (72KB) + Excel (56KB) → ownership: operator KHÔNG xem được phiếu admin (404 + không có trong list) → ketoan view-all xem được.
 - Acc kế toán: `ketoan` / `Test@1234` (bắt đổi mật khẩu lần đầu).
+- **V3.9.1 (commit `9bcc320`)** — fix user báo không thấy nút tạo phiếu: menu "Đề xuất vật tư" trỏ trang list độc lập `/procurement/purchase-requests` (render PRTab thẳng thay redirect → qc/accountant vào được + pathname sạch highlight đúng); nút "Phiếu MRF GTAM" → "Tạo đề xuất vật tư" nổi bật; empty-state link `.../new` → `.../new-mrf`. Deploy verified route trả 200 (không redirect).
+- **Số phiếu (giải thích user)**: `gen_pr_paper_form_no()` = MAX(seq)+1 trong tháng + unique index `pr_paper_form_no_uk` → KHÔNG BAO GIỜ 2 phiếu trùng số/ghi đè. Phiếu thật `1/PRD-MRF/0726` (băng tải 738, APPROVED) còn nguyên. Số 2/3/4 user thấy nhảy là do smoke-test đã xoá. Reuse số CHỈ khi hard-delete phiếu số cao nhất (admin-only, hiếm). Nếu cần "không tái dùng" chuẩn chứng từ → tương lai chuyển soft-delete (giữ số, đánh dấu huỷ) — chưa làm (YAGNI).
 
 ---
 
