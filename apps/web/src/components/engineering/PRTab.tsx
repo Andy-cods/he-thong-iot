@@ -69,21 +69,21 @@ export function PRTab() {
               Tổng quan
             </Link>
             {" / "}
-            <span className="text-zinc-900">Yêu cầu mua hàng</span>
+            <span className="text-zinc-900">Đề xuất vật tư</span>
           </nav>
           <h1 className="mt-1 text-xl font-semibold tracking-tight text-zinc-900">
-            Yêu cầu mua hàng (PR)
+            Đề xuất mua vật tư (YCVT/MRF)
           </h1>
           <p className="mt-0.5 text-xs text-zinc-500">
-            {total.toLocaleString("vi-VN")} PR
+            {total.toLocaleString("vi-VN")} phiếu
           </p>
         </div>
         <div className="flex items-center gap-2">
           {canCreateMRF && (
-            <Button asChild size="sm" title="Phiếu Đề xuất mua vật tư GTAM — gửi Bộ phận Thu mua duyệt">
+            <Button asChild title="Tạo Phiếu đề xuất mua vật tư (YCVT/MRF) — gửi Bộ phận Thu mua duyệt">
               <Link href="/procurement/purchase-requests/new-mrf">
-                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                Phiếu MRF GTAM
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Tạo đề xuất vật tư
               </Link>
             </Button>
           )}
@@ -131,15 +131,17 @@ export function PRTab() {
           ) : (
             <EmptyState
               preset="no-bom"
-              title="Chưa có PR nào"
-              description="Tạo PR thủ công hoặc dùng Shortage Board."
+              title="Chưa có phiếu đề xuất nào"
+              description="Bấm nút bên dưới để tạo Phiếu đề xuất mua vật tư (YCVT/MRF) gửi Bộ phận Thu mua duyệt."
               actions={
-                <Button asChild size="sm">
-                  <Link href="/procurement/purchase-requests/new">
-                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                    Tạo PR
-                  </Link>
-                </Button>
+                canCreateMRF ? (
+                  <Button asChild size="sm">
+                    <Link href="/procurement/purchase-requests/new-mrf">
+                      <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                      Tạo đề xuất vật tư
+                    </Link>
+                  </Button>
+                ) : undefined
               }
             />
           )

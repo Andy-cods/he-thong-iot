@@ -116,10 +116,11 @@ export const NAV_ITEMS: NavItem[] = [
     section: "engineering",
   },
   // V3.9 — Đề xuất mua vật tư (Phiếu YCVT/MRF): MỌI tài khoản (trừ display kiosk)
-  // đều tạo/theo dõi được. Shortcut thẳng vào tab PR của hub Thiết kế; qc +
-  // accountant chỉ vào được tab này (engineering/page.tsx lọc tab theo role).
+  // đều tạo/theo dõi được. Trỏ trang danh sách độc lập (pathname sạch → sidebar
+  // highlight active đúng; qc/accountant không cần hub Thiết kế). Trang list có
+  // nút "Tạo đề xuất vật tư" nổi bật.
   {
-    href: "/engineering?tab=pr",
+    href: "/procurement/purchase-requests",
     label: "Đề xuất vật tư",
     icon: ShoppingCart,
     roles: [
