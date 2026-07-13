@@ -294,7 +294,6 @@ const styles = StyleSheet.create({
     padding: 4,
     textAlign: "right",
     fontSize: 8,
-    fontStyle: "italic",
     color: "#52525B",
   },
 });
