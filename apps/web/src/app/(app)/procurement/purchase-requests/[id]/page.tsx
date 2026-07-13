@@ -49,6 +49,10 @@ import { useConvertPRToPOs } from "@/hooks/usePurchaseOrders";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ConvertPRToPODialog } from "@/components/procurement/ConvertPRToPODialog";
+import {
+  DnvtDetailBody,
+  type DnvtDetailPr,
+} from "@/components/procurement/DnvtDetailBody";
 
 /**
  * V3.7.69 — Detail page YCVT (Yêu cầu Vật tư).
@@ -458,8 +462,13 @@ export default function PurchaseRequestDetailPage() {
         </div>
       </header>
 
-      {/* ===== Phiếu YCVT body — A4 landscape ===== */}
+      {/* ===== Phiếu body — A4 landscape ===== */}
       <div className="mx-auto w-full max-w-[1440px] p-6 print:p-0 print:max-w-none">
+        {/* V3.10 — branch layout theo loại phiếu. DNVT khớp form giấy (14 cột,
+            không giá/IV/V); MRF giữ nguyên layout cũ. Toolbar + dialog chung. */}
+        {pr.formType === "DNVT" ? (
+          <DnvtDetailBody pr={pr as unknown as DnvtDetailPr} />
+        ) : (
         <article className="border-2 border-zinc-900 bg-white text-zinc-900 shadow-md print:border print:border-zinc-900 print:shadow-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 print:dark:border-zinc-900 print:dark:bg-white print:dark:text-zinc-900">
           {/* Header */}
           <div className="grid grid-cols-[1fr_2fr_1fr] items-center gap-2 border-b-2 border-zinc-900 px-4 py-3 text-[12px] print:dark:border-zinc-900">
@@ -787,6 +796,7 @@ export default function PurchaseRequestDetailPage() {
             </ul>
           </section>
         </article>
+        )}
       </div>
 
       {/* Reject dialog */}

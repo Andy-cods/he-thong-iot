@@ -11,6 +11,10 @@ import {
   buildYcvtExcel,
   type YcvtExportLine,
 } from "@/server/services/ycvtExportExcel";
+import {
+  buildDnvtExcel,
+  type DnvtExportLine,
+} from "@/server/services/dnvtExportExcel";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -63,55 +67,98 @@ export async function GET(
       }
     }
 
-    const lines: YcvtExportLine[] = linesRaw.map((l) => ({
-      lineNo: l.lineNo,
-      sku: l.sku,
-      name: l.name,
-      specification: l.specification ?? null,
-      uom: l.uom ?? l.itemUom ?? null,
-      qty: Number(l.qty) || 0,
-      onHandSnapshot:
-        l.onHandSnapshot != null ? Number(l.onHandSnapshot) : null,
-      approvedQty: l.approvedQty != null ? Number(l.approvedQty) : null,
-      neededBy: l.neededBy ?? null,
-      priority: l.priority ?? null,
-      category: l.category ?? null,
-      estimatedUnitPrice:
-        l.estimatedUnitPrice != null ? Number(l.estimatedUnitPrice) : null,
-      referenceCode: l.referenceCode ?? null,
-      notes: l.notes ?? null,
-    }));
+    // V3.10 — branch theo loại phiếu (R1: DNVT ra template riêng, không lộ cột giá).
+    const isDnvt = pr.formType === "DNVT";
+    const requestedByName = pr.requestedBy
+      ? userMap.get(pr.requestedBy) ?? null
+      : null;
+    const deptApprovedByName = pr.deptApprovedBy
+      ? userMap.get(pr.deptApprovedBy) ?? null
+      : null;
+    const directorApprovedByName = pr.directorApprovedBy
+      ? userMap.get(pr.directorApprovedBy) ?? null
+      : null;
 
-    const buf = await buildYcvtExcel({
-      paperFormNo: pr.paperFormNo ?? pr.code,
-      createdAt: new Date(pr.createdAt),
-      targetDepartment: pr.targetDepartment ?? null,
-      proposingDepartment: pr.proposingDepartment ?? null,
-      requestedByName: pr.requestedBy ? userMap.get(pr.requestedBy) ?? null : null,
-      requestReason: pr.requestReason ?? null,
-      lines,
-      deptApprovedByName: pr.deptApprovedBy
-        ? userMap.get(pr.deptApprovedBy) ?? null
-        : null,
-      deptApprovedAt: pr.deptApprovedAt ? new Date(pr.deptApprovedAt) : null,
-      deptApprovalNote: pr.deptApprovalNote ?? null,
-      directorApprovedByName: pr.directorApprovedBy
-        ? userMap.get(pr.directorApprovedBy) ?? null
-        : null,
-      directorApprovedAt: pr.directorApprovedAt
-        ? new Date(pr.directorApprovedAt)
-        : null,
-      directorApprovalNote: pr.directorApprovalNote ?? null,
-      poCreatedAt: pr.poCreatedAt ? new Date(pr.poCreatedAt) : null,
-      goodsReceivedAt: pr.goodsReceivedAt
-        ? new Date(pr.goodsReceivedAt)
-        : null,
-      goodsIssuedAt: pr.goodsIssuedAt ? new Date(pr.goodsIssuedAt) : null,
-      completedAt: pr.completedAt ? new Date(pr.completedAt) : null,
-    });
+    let buf: Uint8Array;
+    if (isDnvt) {
+      const lines: DnvtExportLine[] = linesRaw.map((l) => ({
+        lineNo: l.lineNo,
+        name: l.name,
+        specification: l.specification ?? null,
+        uom: l.uom ?? l.itemUom ?? null,
+        qty: Number(l.qty) || 0,
+        onHandSnapshot:
+          l.onHandSnapshot != null ? Number(l.onHandSnapshot) : null,
+        approvedQty: l.approvedQty != null ? Number(l.approvedQty) : null,
+        neededBy: l.neededBy ?? null,
+        priority: l.priority ?? null,
+        category: l.category ?? null,
+        referenceCode: l.referenceCode ?? null,
+        referenceNote: l.referenceNote ?? null,
+        notes: l.notes ?? null,
+        deliveryDate: l.deliveryDate ?? null,
+      }));
+      buf = await buildDnvtExcel({
+        paperFormNo: pr.paperFormNo ?? pr.code,
+        createdAt: new Date(pr.createdAt),
+        targetDepartment: pr.targetDepartment ?? null,
+        proposingDepartment: pr.proposingDepartment ?? null,
+        requestedByName,
+        requestReason: pr.requestReason ?? null,
+        lines,
+        deptApprovedByName,
+        deptApprovedAt: pr.deptApprovedAt ? new Date(pr.deptApprovedAt) : null,
+        directorApprovedByName,
+        directorApprovedAt: pr.directorApprovedAt
+          ? new Date(pr.directorApprovedAt)
+          : null,
+      });
+    } else {
+      const lines: YcvtExportLine[] = linesRaw.map((l) => ({
+        lineNo: l.lineNo,
+        sku: l.sku,
+        name: l.name,
+        specification: l.specification ?? null,
+        uom: l.uom ?? l.itemUom ?? null,
+        qty: Number(l.qty) || 0,
+        onHandSnapshot:
+          l.onHandSnapshot != null ? Number(l.onHandSnapshot) : null,
+        approvedQty: l.approvedQty != null ? Number(l.approvedQty) : null,
+        neededBy: l.neededBy ?? null,
+        priority: l.priority ?? null,
+        category: l.category ?? null,
+        estimatedUnitPrice:
+          l.estimatedUnitPrice != null ? Number(l.estimatedUnitPrice) : null,
+        referenceCode: l.referenceCode ?? null,
+        notes: l.notes ?? null,
+      }));
+      buf = await buildYcvtExcel({
+        paperFormNo: pr.paperFormNo ?? pr.code,
+        createdAt: new Date(pr.createdAt),
+        targetDepartment: pr.targetDepartment ?? null,
+        proposingDepartment: pr.proposingDepartment ?? null,
+        requestedByName,
+        requestReason: pr.requestReason ?? null,
+        lines,
+        deptApprovedByName,
+        deptApprovedAt: pr.deptApprovedAt ? new Date(pr.deptApprovedAt) : null,
+        deptApprovalNote: pr.deptApprovalNote ?? null,
+        directorApprovedByName,
+        directorApprovedAt: pr.directorApprovedAt
+          ? new Date(pr.directorApprovedAt)
+          : null,
+        directorApprovalNote: pr.directorApprovalNote ?? null,
+        poCreatedAt: pr.poCreatedAt ? new Date(pr.poCreatedAt) : null,
+        goodsReceivedAt: pr.goodsReceivedAt
+          ? new Date(pr.goodsReceivedAt)
+          : null,
+        goodsIssuedAt: pr.goodsIssuedAt ? new Date(pr.goodsIssuedAt) : null,
+        completedAt: pr.completedAt ? new Date(pr.completedAt) : null,
+      });
+    }
 
     const safeFormNo = (pr.paperFormNo ?? pr.code).replace(/[\/\\]/g, "-");
-    const filename = `YCVT-${safeFormNo}.xlsx`;
+    const filename = `${isDnvt ? "DNVT" : "YCVT"}-${safeFormNo}.xlsx`;
 
     // Copy vào ArrayBuffer thuần để satisfy Node 20+ Response/Blob typings.
     const ab = new ArrayBuffer(buf.byteLength);

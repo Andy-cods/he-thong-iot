@@ -80,12 +80,25 @@ export function PRTab() {
         </div>
         <div className="flex items-center gap-2">
           {canCreateMRF && (
-            <Button asChild title="Tạo Phiếu đề xuất mua vật tư (YCVT/MRF) — gửi Bộ phận Thu mua duyệt">
-              <Link href="/procurement/purchase-requests/new-mrf">
-                <Plus className="h-4 w-4" aria-hidden="true" />
-                Tạo đề xuất vật tư
-              </Link>
-            </Button>
+            <>
+              {/* V3.10 — 2 form để chọn: DNVT (mẫu giấy GTAM) + MRF (có cột giá). */}
+              <Button asChild title="Phiếu đề xuất vật tư mẫu GTAM/PRD-MRF-02 (khớp form giấy xưởng)">
+                <Link href="/procurement/purchase-requests/new-dnvt">
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  Phiếu đề xuất vật tư (DNVT)
+                </Link>
+              </Button>
+              <Button
+                asChild
+                variant="outline"
+                title="Phiếu MRF có cột Đơn giá / Tổng tiền (dùng khi cần ước tính chi phí)"
+              >
+                <Link href="/procurement/purchase-requests/new-mrf">
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  Phiếu MRF (có giá)
+                </Link>
+              </Button>
+            </>
           )}
         </div>
       </header>
@@ -132,15 +145,23 @@ export function PRTab() {
             <EmptyState
               preset="no-bom"
               title="Chưa có phiếu đề xuất nào"
-              description="Bấm nút bên dưới để tạo Phiếu đề xuất mua vật tư (YCVT/MRF) gửi Bộ phận Thu mua duyệt."
+              description="Chọn mẫu phiếu bên dưới để tạo đề xuất mua vật tư gửi Bộ phận Thu mua duyệt."
               actions={
                 canCreateMRF ? (
-                  <Button asChild size="sm">
-                    <Link href="/procurement/purchase-requests/new-mrf">
-                      <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                      Tạo đề xuất vật tư
-                    </Link>
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button asChild size="sm">
+                      <Link href="/procurement/purchase-requests/new-dnvt">
+                        <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                        Phiếu đề xuất vật tư (DNVT)
+                      </Link>
+                    </Button>
+                    <Button asChild size="sm" variant="outline">
+                      <Link href="/procurement/purchase-requests/new-mrf">
+                        <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                        Phiếu MRF (có giá)
+                      </Link>
+                    </Button>
+                  </div>
                 ) : undefined
               }
             />

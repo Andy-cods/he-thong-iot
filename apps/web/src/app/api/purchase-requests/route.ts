@@ -73,6 +73,8 @@ export async function POST(req: NextRequest) {
       targetDepartment: body.data.targetDepartment ?? null,
       proposingDepartment: body.data.proposingDepartment ?? null,
       requestReason: body.data.requestReason ?? null,
+      // V3.10 — loại phiếu trình bày (MRF | DNVT).
+      formType: body.data.formType ?? "MRF",
       lines: body.data.lines.map((l) => ({
         itemId: l.itemId ?? null,
         // V3.7.72 — free-text fallback
@@ -92,6 +94,9 @@ export async function POST(req: NextRequest) {
         referenceCode: l.referenceCode ?? null,
         // V3.7.69 YCVT — onHandSnapshot (auto-fill từ client lookup)
         onHandSnapshot: l.onHandSnapshot ?? null,
+        // V3.10 DNVT — Tham khảo + Ngày giao hàng
+        referenceNote: l.referenceNote ?? null,
+        deliveryDate: l.deliveryDate ?? null,
       })),
     });
 

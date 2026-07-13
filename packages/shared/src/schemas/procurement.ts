@@ -70,6 +70,10 @@ export type PrPriority = (typeof PR_PRIORITIES)[number];
 export const PR_CATEGORIES = ["TOOL", "CONSUMABLE", "MATERIAL", "OTHER"] as const;
 export type PrCategory = (typeof PR_CATEGORIES)[number];
 
+/** V3.10 — Loại phiếu trình bày: MRF (YCVT 5-section) | DNVT (GTAM/PRD-MRF-02). */
+export const PR_FORM_TYPES = ["MRF", "DNVT"] as const;
+export type PrFormType = (typeof PR_FORM_TYPES)[number];
+
 export const prLineInputSchema = z
   .object({
     /** V3.7.72 — Nullable: cho phép nhập tay vật tư chưa có trong master. */
@@ -92,6 +96,9 @@ export const prLineInputSchema = z
     referenceCode: z.string().trim().max(128).optional().nullable(),
     // V3.7.69 YCVT — Tồn kho snapshot (auto-fill từ client lookup).
     onHandSnapshot: z.coerce.number().nonnegative().optional().nullable(),
+    // V3.10 DNVT — Cột "Tham khảo" (free-text) + "Ngày giao hàng".
+    referenceNote: z.string().trim().max(64).optional().nullable(),
+    deliveryDate: dateStringOrDate.optional().nullable(),
   })
   .refine(
     (l) => !!l.itemId || (l.itemName != null && l.itemName.trim().length > 0),
@@ -108,6 +115,8 @@ export const prCreateSchema = z.object({
   targetDepartment: z.string().trim().max(64).optional().nullable(),
   proposingDepartment: z.string().trim().max(64).optional().nullable(),
   requestReason: z.string().trim().max(2000).optional().nullable(),
+  // V3.10 — Loại phiếu trình bày (optional; server default 'MRF' cho backward-compat).
+  formType: z.enum(PR_FORM_TYPES).optional(),
 });
 
 export const prCreateFromShortageSchema = z.object({
@@ -153,6 +162,9 @@ export const prUpdateSchema = z.object({
           approvedQty: z.coerce.number().nonnegative().optional().nullable(),
           // V3.7.69 YCVT — Tồn kho snapshot.
           onHandSnapshot: z.coerce.number().nonnegative().optional().nullable(),
+          // V3.10 DNVT — Tham khảo + Ngày giao hàng.
+          referenceNote: z.string().trim().max(64).optional().nullable(),
+          deliveryDate: dateStringOrDate.optional().nullable(),
         })
         .refine(
           (l) => !!l.itemId || (l.itemName != null && l.itemName.trim().length > 0),

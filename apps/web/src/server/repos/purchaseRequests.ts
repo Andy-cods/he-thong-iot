@@ -116,6 +116,9 @@ export interface CreatePRLineInput {
   referenceCode?: string | null;
   // V3.7.69 YCVT — Tồn kho lúc tạo (auto-fill từ inventory_balance).
   onHandSnapshot?: number | null;
+  // V3.10 DNVT — Tham khảo + Ngày giao hàng.
+  referenceNote?: string | null;
+  deliveryDate?: Date | null;
 }
 
 export interface CreatePRInput {
@@ -129,6 +132,8 @@ export interface CreatePRInput {
   targetDepartment?: string | null;
   proposingDepartment?: string | null;
   requestReason?: string | null;
+  // V3.10 — Loại phiếu trình bày ('MRF' | 'DNVT').
+  formType?: "MRF" | "DNVT" | null;
 }
 
 async function genPRCode(): Promise<string> {
@@ -180,6 +185,8 @@ export async function createPR(input: CreatePRInput): Promise<PurchaseRequest> {
         targetDepartment: input.targetDepartment ?? null,
         proposingDepartment: input.proposingDepartment ?? null,
         requestReason: input.requestReason ?? null,
+        // V3.10 — discriminator loại phiếu.
+        formType: input.formType ?? "MRF",
       })
       .returning();
     if (!header) throw new Error("PR_INSERT_FAILED");
@@ -208,6 +215,11 @@ export async function createPR(input: CreatePRInput): Promise<PurchaseRequest> {
         // V3.7.69 YCVT
         onHandSnapshot:
           l.onHandSnapshot != null ? String(l.onHandSnapshot) : null,
+        // V3.10 DNVT
+        referenceNote: l.referenceNote ?? null,
+        deliveryDate: l.deliveryDate
+          ? l.deliveryDate.toISOString().slice(0, 10)
+          : null,
       })),
     );
 
@@ -287,6 +299,9 @@ export interface ReplacePRLineInput {
   referenceCode?: string | null;
   // V3.7.69 YCVT
   onHandSnapshot?: number | null;
+  // V3.10 DNVT
+  referenceNote?: string | null;
+  deliveryDate?: Date | null;
 }
 
 export async function replacePRLines(
@@ -321,6 +336,11 @@ export async function replacePRLines(
         // V3.7.69 YCVT
         onHandSnapshot:
           l.onHandSnapshot != null ? String(l.onHandSnapshot) : null,
+        // V3.10 DNVT
+        referenceNote: l.referenceNote ?? null,
+        deliveryDate: l.deliveryDate
+          ? l.deliveryDate.toISOString().slice(0, 10)
+          : null,
       })),
     );
   });
@@ -634,6 +654,9 @@ export async function getPRLinesEnriched(prId: string) {
       // V3.7.69 YCVT
       onHandSnapshot: purchaseRequestLine.onHandSnapshot,
       lineTotal: purchaseRequestLine.lineTotal,
+      // V3.10 DNVT — Tham khảo + Ngày giao hàng.
+      referenceNote: purchaseRequestLine.referenceNote,
+      deliveryDate: purchaseRequestLine.deliveryDate,
     })
     .from(purchaseRequestLine)
     .leftJoin(item, eq(item.id, purchaseRequestLine.itemId))

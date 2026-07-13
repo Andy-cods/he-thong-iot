@@ -72,6 +72,9 @@ export const purchaseRequest = appSchema.table(
     /** V3.7.55 MRF — Lý do đề xuất. */
     requestReason: text("request_reason"),
 
+    /** V3.10 — Loại phiếu trình bày: 'MRF' (YCVT 5-section) | 'DNVT' (GTAM/PRD-MRF-02). Backend chung. */
+    formType: varchar("form_type", { length: 16 }).notNull().default("MRF"),
+
     /** V3.7.69 YCVT — Số phiếu giấy format `{seq}/PRD-MRF/{MMYY}`. Auto-gen khi submit. */
     paperFormNo: varchar("paper_form_no", { length: 32 }),
     /** V3.7.69 YCVT — workflow 3-step: DRAFT/SUBMITTED/DEPT_APPROVED/DIRECTOR_APPROVED/CONVERTED/DONE/REJECTED. */
@@ -264,6 +267,10 @@ export const purchaseRequestLine = appSchema.table(
     approvedQty: numeric("approved_qty", { precision: 18, scale: 6 }),
     /** V3.7.69 YCVT — Tồn kho snapshot lúc tạo phiếu (auto-fill từ inventory_balance). */
     onHandSnapshot: numeric("on_hand_snapshot", { precision: 18, scale: 4 }),
+    /** V3.10 DNVT — Cột "Tham khảo" (free-text ngắn, VD EC/VH). */
+    referenceNote: varchar("reference_note", { length: 64 }),
+    /** V3.10 DNVT — Cột "Ngày giao hàng" (khác needed_by = Ngày cần). */
+    deliveryDate: date("delivery_date"),
     /** V3.7.69 YCVT — Tổng tiền dòng = qty × estimated_unit_price (trigger auto-calc). */
     lineTotal: numeric("line_total", { precision: 18, scale: 2 })
       .notNull()

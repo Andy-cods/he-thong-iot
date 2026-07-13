@@ -38,6 +38,8 @@ export interface PRRow {
   targetDepartment?: string | null;
   proposingDepartment?: string | null;
   requestReason?: string | null;
+  // V3.10 — loại phiếu trình bày (MRF | DNVT).
+  formType?: "MRF" | "DNVT";
   // V3.7.69 YCVT
   paperFormNo?: string | null;
   approvalStep?:

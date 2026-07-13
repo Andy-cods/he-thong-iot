@@ -123,6 +123,43 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
+### TASK-20260713-001 — Form "Phiếu đề xuất vật tư DNVT" khớp 100% DNVT 567 (V3.10)
+- **Trạng thái:** TODO
+- **Tạo:** 2026-07-13 (+07) bởi Claude (planner)
+- **Phụ trách:** Codex hoặc Claude (executor)
+- **Bắt đầu:** ___
+- **Hoàn thành:** ___
+- **Ưu tiên:** P1
+- **Phụ thuộc:** TASK-20260712-001 (V3.9 — DONE)
+
+**Mô tả:** Tạo FORM CHỨC NĂNG MỚI "Phiếu đề xuất vật tư DNVT" trình bày khớp 100% form giấy thật
+(mẫu `GTAM/PRD-MRF-02`, file `DNVT 567 09072026.xlsx`), **tái dùng toàn bộ backend + luồng
+duyệt/kế toán V3.9**, phân biệt bằng discriminator cột `form_type`. GIỮ NGUYÊN form MRF cũ
+(`new-mrf`) — chỉ gỡ khỏi CTA. 3 surface DNVT (form nhập / detail on-screen / file PDF+Excel):
+ẩn Mã VT + Đơn giá + Tổng tiền + mục IV + mục V; thêm 2 cột Tham khảo + Ngày giao hàng; mục III 5 dòng.
+
+**Plan chi tiết:** [`plans/260713-form-dnvt-567-plan.md`](plans/260713-form-dnvt-567-plan.md)
+(đã verify line-level: DNVT structure qua openpyxl, số phiếu dùng chung `gen_pr_paper_form_no()`
+không filter form_type, `getPR` select() lấy hết cột → formType tự lan tỏa, middleware chặn prefix
+`/procurement` nên new-dnvt không cần đăng ký).
+
+**Acceptance criteria (DoD):** xem §13 plan. Tóm tắt:
+- [ ] Migration `0051_dnvt_form_type_fields.sql` apply VPS TRƯỚC deploy (form_type + reference_note + delivery_date).
+- [ ] Form `new-dnvt` tạo phiếu `formType='DNVT'` → 201 + số phiếu nối dãy chung với MRF.
+- [ ] Detail `[id]` branch render DNVT (14 cột, +Tham khảo/+Ngày giao hàng, −Mã VT/giá/tổng/IV/V, III 5 dòng).
+- [ ] **R1:** CẢ export-pdf LẪN export-excel branch theo form_type → file DNVT đúng mẫu, KHÔNG lộ cột giá.
+- [ ] Regression: phiếu MRF cũ vẫn ra template MRF (có giá + IV + V).
+- [ ] Kế toán nhận notify + tải PDF+Excel DNVT; ownership operator 404 phiếu người khác.
+- [ ] new-mrf KHÔNG bị sửa; typecheck + build local PASS.
+
+**File path liên quan (5 tạo + 8 sửa):**
+- Tạo: `packages/db/migrations/0051_dnvt_form_type_fields.sql`, `apps/web/src/app/(app)/procurement/purchase-requests/new-dnvt/page.tsx`, `apps/web/src/server/services/dnvtExportExcel.ts`, `apps/web/src/server/services/dnvtPdf.tsx`, `apps/web/src/server/templates/dnvt-mrf-template.xlsx`
+- Sửa: `packages/db/src/schema/procurement.ts`, `packages/shared/src/schemas/procurement.ts`, `apps/web/src/server/repos/purchaseRequests.ts`, `apps/web/src/app/api/purchase-requests/route.ts`, `apps/web/src/app/api/purchase-requests/[id]/export-{pdf,excel}/route.ts`, `apps/web/src/app/(app)/procurement/purchase-requests/[id]/page.tsx`, `apps/web/src/components/engineering/PRTab.tsx`
+
+**Output / log:** (executor điền — commit hash, migration apply, E2E result)
+
+---
+
 ### TASK-20260712-001 — Đề xuất mua vật tư cho mọi acc + duyệt nhanh admin + kế toán nhận PDF/Excel (V3.9)
 - **Trạng thái:** DONE
 - **Tạo:** 2026-07-12 23:01 (+07) bởi Claude (planner)
