@@ -124,13 +124,14 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
 ### TASK-20260713-001 — Form "Phiếu đề xuất vật tư DNVT" khớp 100% DNVT 567 (V3.10)
-- **Trạng thái:** TODO
+- **Trạng thái:** DONE
 - **Tạo:** 2026-07-13 (+07) bởi Claude (planner)
-- **Phụ trách:** Codex hoặc Claude (executor)
-- **Bắt đầu:** ___
-- **Hoàn thành:** ___
+- **Phụ trách:** Claude (executor)
+- **Bắt đầu:** 2026-07-13 11:30 (+07)
+- **Hoàn thành:** 2026-07-13 12:05 (+07)
 - **Ưu tiên:** P1
 - **Phụ thuộc:** TASK-20260712-001 (V3.9 — DONE)
+- **Điều chỉnh (user 2026-07-13):** 2 FORM để chọn (DNVT + MRF), KHÔNG ẩn MRF. PRTab 2 nút.
 
 **Mô tả:** Tạo FORM CHỨC NĂNG MỚI "Phiếu đề xuất vật tư DNVT" trình bày khớp 100% form giấy thật
 (mẫu `GTAM/PRD-MRF-02`, file `DNVT 567 09072026.xlsx`), **tái dùng toàn bộ backend + luồng
@@ -156,7 +157,13 @@ không filter form_type, `getPR` select() lấy hết cột → formType tự la
 - Tạo: `packages/db/migrations/0051_dnvt_form_type_fields.sql`, `apps/web/src/app/(app)/procurement/purchase-requests/new-dnvt/page.tsx`, `apps/web/src/server/services/dnvtExportExcel.ts`, `apps/web/src/server/services/dnvtPdf.tsx`, `apps/web/src/server/templates/dnvt-mrf-template.xlsx`
 - Sửa: `packages/db/src/schema/procurement.ts`, `packages/shared/src/schemas/procurement.ts`, `apps/web/src/server/repos/purchaseRequests.ts`, `apps/web/src/app/api/purchase-requests/route.ts`, `apps/web/src/app/api/purchase-requests/[id]/export-{pdf,excel}/route.ts`, `apps/web/src/app/(app)/procurement/purchase-requests/[id]/page.tsx`, `apps/web/src/components/engineering/PRTab.tsx`
 
-**Output / log:** (executor điền — commit hash, migration apply, E2E result)
+**Output / log:**
+- Commit `abf63e4` (V3.10, 17 file) + `46fe595` (V3.10.1 fix PDF italic). Migration `0051` applied VPS (form_type + reference_note + delivery_date verified).
+- Verify local: typecheck + full build PASS (2 lỗi đã fix: formType `.optional()` để không vỡ 4 caller cũ; PRRow +formType).
+- **Smoke E2E production PASS:** tạo phiếu DNVT → formType=DNVT + referenceNote=EC + deliveryDate lưu đúng → quick-approve APPROVED → tải Excel (54KB, `DNVT-*.xlsx`, coords L2/B14/L14/N14/C37/C41 đúng) + PDF (68KB, `DNVT-*.pdf`). Regression MRF: phiếu không formType → formType=MRF, PDF vẫn ra `YCVT-*` (template cũ, R1 OK). PDF render tiếng Việt UTF-8 đúng 100% (test payload chuẩn: Nhôm AL6061 / PB108 ĐEN / Phòng Gia Công / TẤM — khớp form giấy DNVT 567).
+- 2 form trong PRTab: "Phiếu đề xuất vật tư (DNVT)" + "Phiếu MRF (có giá)". new-mrf giữ nguyên.
+- Dữ liệu test đã dọn sạch (phiếu + line + notif + audit); phiếu thật `1/PRD-MRF/0726` còn nguyên.
+- **BUG CÓ SẴN phát hiện (ngoài scope):** enum DB `audit_action` trên VPS THIẾU value `APPROVE` (+ có thể CONVERT/các value V1.2/V1.3) — migration `0005a/0006a ALTER TYPE ADD VALUE` chưa apply đủ. Hệ quả: quick-approve/director-approve ghi audit thất bại (nuốt lỗi warn, KHÔNG chặn duyệt). Cần migration bù riêng — báo user.
 
 ---
 
