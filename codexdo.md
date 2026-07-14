@@ -123,6 +123,16 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
+### TASK-20260715-001 — Nút "Xuất PDF" cho mọi PO ở màn chi tiết (V3.11)
+- **Trạng thái:** DONE
+- **Tạo/Hoàn thành:** 2026-07-15 (+07) bởi Claude
+- **Ưu tiên:** P1 · **Phụ thuộc:** TASK-20260714-001 (DONE)
+- **Yêu cầu user:** nút Tải file/Xuất PDF ở chi tiết PO; xuất được kể cả khi NCC chưa đủ trong hệ thống; file đủ thông tin PO + hàng hóa + giá trị + **khu vực ký các bộ phận** (kế toán lưu hồ sơ); độc lập với "Gửi NCC".
+- **Brainstorm (solution-brainstormer):** feature đã build sẵn ~85% (`poPdf.tsx` + route `/pdf` + nút FE) nhưng KHÓA cứng `poType=SUBCONTRACT`. Scope thật = gỡ khóa + bổ sung field + fix VAT.
+- **Chốt user:** ô ký = 3 (Người lập / Phụ trách Thu mua / Giám đốc, bỏ NCC). KHÔNG mở quyền `po` cho accountant (nhận bản in từ Thu mua).
+- **Sửa 4 file:** `pdf/route.ts` (gỡ guard SUBCONTRACT, VAT theo dòng, truyền spec/ETA/TT/giao/poType) · `poPdf.tsx` (ETA meta + điều khoản bind field + 3 ô ký + wrap={false}) · `page.tsx` (nút "Xuất PDF" mọi PO) · `[id]/route.ts` (join supplier → hết NCC "—").
+- **Log:** commit `fc57665`. Build+tsc EXIT=0. E2E prod ALL PASS (PO Thương mại giá 0 + NCC tối giản → PDF 200/70KB/attachment, status DRAFT không đổi, supplierName="AMA"). Dọn sạch data test.
+
 ### TASK-20260714-001 — Fix góp ý DNVT + tạo PO từ dòng nhập tay (V3.10.2)
 - **Trạng thái:** DONE
 - **Tạo:** 2026-07-14 (+07) bởi Claude
