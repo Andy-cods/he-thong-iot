@@ -28,16 +28,8 @@ export async function GET(
   const po = await getPO(params.id);
   if (!po) return jsonError("NOT_FOUND", "Không tìm thấy PO.", 404);
 
-  // V3.7.43 — Guard: DDH-Mau template chỉ dùng cho PO gia công ngoài.
-  // PO commercial sẽ có template riêng V3.8+.
-  if (po.poType !== "SUBCONTRACT") {
-    return jsonError(
-      "INVALID_PO_TYPE",
-      "DDH PDF chỉ dùng cho PO Đặt gia công ngoài. PO Thương mại sẽ có mẫu riêng.",
-      400,
-    );
-  }
-
+  // V3.11 — DDH PDF dùng cho MỌI loại PO (Thương mại + Gia công ngoài).
+  // Tải file độc lập với "Gửi NCC", KHÔNG đổi trạng thái PO.
   const lines = await getPOLines(params.id);
 
   // Lookup supplier info
@@ -63,22 +55,33 @@ export async function GET(
     preparedBy = u?.fullName ?? u?.username ?? null;
   }
 
-  // Compute subtotal + tax. Schema: totalAmount = SUM(qty × price × (1+tax)).
+  // V3.11 — Tính tiền theo TỪNG DÒNG (chuẩn khi thuế suất hỗn hợp), khớp màn
+  // hình + khớp totalAmount DB (= Σ qty × price × (1+tax)).
   const subtotal = lines.reduce(
     (acc, l) => acc + Number(l.orderedQty) * Number(l.unitPrice),
     0,
   );
-  // Tax rate avg trên các line (giả định cùng rate). Default 10%.
-  const firstTax = lines[0]?.taxRate;
-  const taxRate = firstTax != null ? Number(firstTax) / 100 : 0.1;
-  const total = subtotal * (1 + taxRate);
+  const totalTax = lines.reduce(
+    (acc, l) =>
+      acc +
+      (Number(l.orderedQty) * Number(l.unitPrice) * Number(l.taxRate ?? 0)) /
+        100,
+    0,
+  );
+  const total = subtotal + totalTax;
+  // Nhãn thuế: "8%" nếu mọi dòng cùng suất, "hỗn hợp" nếu khác nhau.
+  const distinctRates = Array.from(
+    new Set(lines.map((l) => Number(l.taxRate ?? 0))),
+  );
+  const taxRateLabel =
+    distinctRates.length <= 1 ? `${distinctRates[0] ?? 0}%` : "hỗn hợp";
 
   const pdfLines: POPdfLine[] = lines.map((l) => ({
     lineNo: l.lineNo,
     itemSku: l.itemSku,
     itemName: l.itemName,
     itemUom: l.itemUom,
-    spec: null, // TODO: pull từ BOM line snapshotLineId nếu có
+    spec: l.spec ?? null,
     orderedQty: l.orderedQty,
     unitPrice: l.unitPrice,
     taxRate: l.taxRate,
@@ -106,10 +109,15 @@ export async function GET(
       },
       lines: pdfLines,
       subtotal,
-      taxRate,
+      totalTax,
+      taxRateLabel,
       total,
       notes: po.notes ?? null,
       preparedBy,
+      eta: po.expectedEta ? new Date(po.expectedEta) : null,
+      paymentTerms: po.paymentTerms ?? null,
+      deliveryAddress: po.deliveryAddress ?? null,
+      poType: po.poType ?? null,
     });
 
     const filename = `${po.poNo.replace(/[^\w\-]+/g, "_")}.pdf`;

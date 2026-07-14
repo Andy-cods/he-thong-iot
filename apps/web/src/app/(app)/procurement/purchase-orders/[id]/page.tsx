@@ -359,22 +359,20 @@ export default function PurchaseOrderDetailPage() {
                 Gửi NCC
               </Button>
             )}
-            {/* V3.7.38 → V3.7.43 — Tải DDH PDF chỉ hiện cho PO Subcontract.
-                Commercial PO sẽ có template riêng V3.8+. */}
-            {!editing && po.poType === "SUBCONTRACT" && (
+            {/* V3.11 — Xuất PDF cho MỌI PO (độc lập gửi NCC, không đổi trạng thái). */}
+            {!editing && (
               <Button
                 variant="outline"
                 size="sm"
                 asChild
-                title="Tải Đơn đặt hàng PDF (theo mẫu DDH)"
-                className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                title="Xuất Đơn đặt hàng ra PDF để in / lưu hồ sơ"
               >
                 <a
                   href={`/api/purchase-orders/${po.id}/pdf`}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <Download className="h-3.5 w-3.5" /> Tải DDH PDF
+                  <Download className="h-3.5 w-3.5" /> Xuất PDF
                 </a>
               </Button>
             )}

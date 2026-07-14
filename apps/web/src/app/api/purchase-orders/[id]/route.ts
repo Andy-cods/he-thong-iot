@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { poUpdateSchema } from "@iot/shared";
 import { eq } from "drizzle-orm";
-import { purchaseOrder } from "@iot/db/schema";
+import { purchaseOrder, supplier } from "@iot/db/schema";
 import { logger } from "@/lib/logger";
 import {
   getPO,
@@ -38,7 +38,23 @@ export async function GET(
   if (!row) return jsonError("NOT_FOUND", "Không tìm thấy PO.", 404);
 
   const lines = await getPOLines(params.id);
-  return NextResponse.json({ data: { ...row, lines } });
+
+  // V3.11 — join tên/mã NCC (getPO không join supplier) để màn hình chi tiết
+  // hết hiện "—" ở ô Nhà cung cấp.
+  let supplierName: string | null = null;
+  let supplierCode: string | null = null;
+  if (row.supplierId) {
+    const [sup] = await db
+      .select({ name: supplier.name, code: supplier.code })
+      .from(supplier)
+      .where(eq(supplier.id, row.supplierId))
+      .limit(1);
+    supplierName = sup?.name ?? null;
+    supplierCode = sup?.code ?? null;
+  }
+  return NextResponse.json({
+    data: { ...row, supplierName, supplierCode, lines },
+  });
 }
 
 const HEADER_ONLY_FIELDS = new Set([

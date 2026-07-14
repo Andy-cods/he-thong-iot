@@ -140,13 +140,23 @@ export interface POPdfInput {
   lines: POPdfLine[];
   /** Sum trước thuế. */
   subtotal: number;
-  /** Phần trăm thuế VAT (VD 0.1 = 10%). */
-  taxRate: number;
-  /** Tổng cuối (subtotal + tax). */
+  /** Tổng tiền thuế VAT (tính theo từng dòng — chuẩn khi thuế suất hỗn hợp). */
+  totalTax: number;
+  /** Nhãn thuế suất hiển thị: "8%" nếu đồng nhất, "hỗn hợp" nếu khác nhau. */
+  taxRateLabel?: string;
+  /** Tổng cuối (subtotal + totalTax). */
   total: number;
   notes?: string | null;
   /** Người lập đơn (thường là TM-A). */
   preparedBy?: string | null;
+  /** V3.11 — ngày nhận dự kiến (ETA). */
+  eta?: Date | null;
+  /** V3.11 — điều khoản thanh toán (từ PO, fallback text mặc định). */
+  paymentTerms?: string | null;
+  /** V3.11 — địa chỉ giao hàng (từ PO). */
+  deliveryAddress?: string | null;
+  /** V3.11 — loại PO: COMMERCIAL | SUBCONTRACT (nhánh câu điều khoản chất lượng). */
+  poType?: string | null;
 }
 
 // =====================================================================
@@ -264,13 +274,17 @@ const styles = StyleSheet.create({
   },
   termTitle: { fontWeight: 700, fontSize: 8.5, marginBottom: 2 },
   // Signatures
-  signRow: { flexDirection: "row", marginTop: 14 },
+  signRow: { flexDirection: "row", marginTop: 16 },
   signBox: {
     flex: 1,
     textAlign: "center",
     fontSize: 9,
+    paddingHorizontal: 4,
   },
-  signTitle: { fontWeight: 700, marginBottom: 28 },
+  signTitle: { fontWeight: 700, marginBottom: 2 },
+  signHint: { fontSize: 8, color: "#555" },
+  signSpace: { height: 34 },
+  signName: { fontWeight: 700 },
 });
 
 // =====================================================================
@@ -314,6 +328,12 @@ export function PurchaseOrderPdfDoc(input: POPdfInput) {
               <Text style={styles.metaLabel}>Mã NCC</Text>
               <Text style={styles.metaValue}>{input.supplier.code ?? "—"}</Text>
             </View>
+            {input.eta && (
+              <View style={styles.metaRow}>
+                <Text style={styles.metaLabel}>Ngày nhận (ETA)</Text>
+                <Text style={styles.metaValue}>{fmtDate(input.eta)}</Text>
+              </View>
+            )}
             {input.reference && (
               <View style={styles.metaRow}>
                 <Text style={styles.metaLabel}>Tham chiếu</Text>
@@ -452,10 +472,10 @@ export function PurchaseOrderPdfDoc(input: POPdfInput) {
             </View>
             <View style={styles.totalsRow}>
               <Text style={styles.totalsLabel}>
-                Thuế GTGT ({(input.taxRate * 100).toFixed(0)}%)
+                Thuế GTGT{input.taxRateLabel ? ` (${input.taxRateLabel})` : ""}
               </Text>
               <Text style={styles.totalsValue}>
-                {fmtVnd(input.subtotal * input.taxRate)}
+                {fmtVnd(input.totalTax)}
               </Text>
             </View>
             <View style={[styles.totalsRow, { borderBottom: "none" }]}>
@@ -467,40 +487,57 @@ export function PurchaseOrderPdfDoc(input: POPdfInput) {
           </View>
         </View>
 
-        {/* Terms */}
-        <View style={styles.termsBox}>
-          <View style={styles.termCol}>
-            <Text style={styles.termTitle}>Chất lượng sản phẩm</Text>
-            <Text>
-              Bên cung cấp đảm bảo chất lượng, gia công đúng theo bản vẽ yêu cầu.
-            </Text>
+        {/* Terms + Signatures — giữ nguyên khối, không cắt ngang trang */}
+        <View wrap={false}>
+          <View style={styles.termsBox}>
+            <View style={styles.termCol}>
+              <Text style={styles.termTitle}>Chất lượng sản phẩm</Text>
+              <Text>
+                {input.poType === "SUBCONTRACT"
+                  ? "Bên cung cấp đảm bảo chất lượng, gia công đúng theo bản vẽ yêu cầu."
+                  : "Bên cung cấp đảm bảo hàng hóa đúng quy cách, chất lượng và số lượng yêu cầu."}
+              </Text>
+            </View>
+            <View style={styles.termCol}>
+              <Text style={styles.termTitle}>Điều khoản giao hàng</Text>
+              <Text>Theo thỏa thuận hoặc theo hợp đồng nguyên tắc đã ký.</Text>
+            </View>
+            <View style={styles.termCol}>
+              <Text style={styles.termTitle}>Địa điểm giao hàng</Text>
+              <Text>
+                {input.deliveryAddress ??
+                  "Theo thỏa thuận hoặc theo hợp đồng nguyên tắc đã ký."}
+              </Text>
+            </View>
+            <View style={styles.termCol}>
+              <Text style={styles.termTitle}>Điều khoản thanh toán</Text>
+              <Text>
+                {input.paymentTerms ??
+                  "Bên mua thanh toán sau 60 ngày kể từ ngày nhận đủ chứng từ."}
+              </Text>
+            </View>
           </View>
-          <View style={styles.termCol}>
-            <Text style={styles.termTitle}>Điều khoản giao hàng</Text>
-            <Text>Theo thỏa thuận hoặc theo hợp đồng nguyên tắc đã ký.</Text>
-          </View>
-          <View style={styles.termCol}>
-            <Text style={styles.termTitle}>Địa điểm giao hàng</Text>
-            <Text>Theo thỏa thuận hoặc theo hợp đồng nguyên tắc đã ký.</Text>
-          </View>
-          <View style={styles.termCol}>
-            <Text style={styles.termTitle}>Điều khoản thanh toán</Text>
-            <Text>
-              Bên mua thanh toán số tiền hàng sau 60 ngày kể từ ngày nhận đủ
-              chứng từ.
-            </Text>
-          </View>
-        </View>
 
-        {/* Signatures */}
-        <View style={styles.signRow}>
-          <View style={styles.signBox}>
-            <Text style={styles.signTitle}>Xác nhận của bên cung cấp</Text>
-            <Text>(Ký, ghi rõ họ tên)</Text>
-          </View>
-          <View style={styles.signBox}>
-            <Text style={styles.signTitle}>Xác nhận của bên mua</Text>
-            <Text>(Ký, ghi rõ họ tên)</Text>
+          {/* Ký xác nhận các bộ phận (để kế toán lưu hồ sơ) */}
+          <View style={styles.signRow}>
+            <View style={styles.signBox}>
+              <Text style={styles.signTitle}>Người lập đơn</Text>
+              <Text style={styles.signHint}>(Ký, ghi rõ họ tên)</Text>
+              <View style={styles.signSpace} />
+              <Text style={styles.signName}>{input.preparedBy ?? ""}</Text>
+            </View>
+            <View style={styles.signBox}>
+              <Text style={styles.signTitle}>Phụ trách Thu mua</Text>
+              <Text style={styles.signHint}>(Ký, ghi rõ họ tên)</Text>
+              <View style={styles.signSpace} />
+              <Text style={styles.signName}> </Text>
+            </View>
+            <View style={styles.signBox}>
+              <Text style={styles.signTitle}>Giám đốc</Text>
+              <Text style={styles.signHint}>(Ký, ghi rõ họ tên)</Text>
+              <View style={styles.signSpace} />
+              <Text style={styles.signName}> </Text>
+            </View>
           </View>
         </View>
       </Page>
