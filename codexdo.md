@@ -138,7 +138,7 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
   - ConvertPRToPODialog: SupplierPicker chọn NCC có sẵn HOẶC gõ tên NCC mới → `newSupplierNames`; backend find-or-create supplier. DONE
   - createPOFromPR: bỏ chặn free-text; auto find-or-create item master (theo tên/SKU, map category→item_type, ĐVT text→uom enum) + giữ `spec` sang PO line. DONE
 - **Log:** commit `94576e8`. Build EXIT=0, tsc EXIT=0. E2E production ALL PASS (tạo DNVT 2 dòng nhập tay → duyệt → 2 PO [NCC có sẵn AMA + NCC gõ tay auto-tạo] → item auto-tạo `VT-2607-*` type=RAW uom=SHEET, spec giữ nguyên). Dọn sạch data test.
-- **Còn nợ (ngoài scope):** enum `audit_action` trên VPS thiếu 'APPROVE'/'CONVERT' → audit duyệt/convert ghi hụt (không chặn nghiệp vụ). Cần migration catch-up.
+- **Audit enum (user duyệt fix 2026-07-14):** DONE — migration `0052_audit_action_catchup.sql` thêm 15 giá trị enum `audit_action` thiếu trên VPS (0005a/0006a chưa apply). Đã apply prod (enum đủ 26/26), E2E xác nhận audit APPROVE ghi được. Commit `4051ea9`.
 
 ### TASK-20260713-001 — Form "Phiếu đề xuất vật tư DNVT" khớp 100% DNVT 567 (V3.10)
 - **Trạng thái:** DONE
