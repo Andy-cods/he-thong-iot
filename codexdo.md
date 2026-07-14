@@ -123,6 +123,19 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
+### TASK-20260715-002 — Fix tải PDF/Excel không ổn định (V3.11.1)
+- **Trạng thái:** DONE · **Tạo/Hoàn thành:** 2026-07-15 (+07) · **Ưu tiên:** P1
+- **Triệu chứng user:** "in pdf hay excel đều không hoạt động / không xuất file ổn định".
+- **Chẩn đoán:** backend export trả 200 + file hợp lệ (repro 4 phiếu OK). Lỗi ở FE dùng
+  `window.open(url,"_blank")` → popup-blocker chặn / mở tab trắng rồi tải hụt.
+- **Sửa:** thêm helper `apps/web/src/lib/download.ts` (fetch→blob→`<a download>`, đọc tên
+  file từ Content-Disposition, báo lỗi 4xx/5xx qua toast). Áp cho: PR detail (Excel+PDF),
+  PO detail (Xuất PDF, trước là `<a target=_blank>`), Báo cáo năng suất NV. Audit đã robust.
+- **Log:** commit `8bf404c`. Build+tsc EXIT=0, deploy OK, exports vẫn 200 sau deploy.
+- **Còn treo (chờ user):** (1) lỗi chính tả — đã soát DNVT+MRF không thấy, cần user chỉ chỗ;
+  (2) tên công ty lệch giữa form DNVT/MRF ("…CÔNG NGHỆ TOÀN CẦU") vs poPdf ("CP…CÔNG NGHỆ").
+- **Kèm:** đã gửi user prompt lên plan rà soát toàn hệ thống (7 trục, light/dark, dọn dead code).
+
 ### TASK-20260715-001 — Nút "Xuất PDF" cho mọi PO ở màn chi tiết (V3.11)
 - **Trạng thái:** DONE
 - **Tạo/Hoàn thành:** 2026-07-15 (+07) bởi Claude
