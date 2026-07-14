@@ -301,6 +301,211 @@ export interface ConvertPRResult {
   linesBySupplier: Record<string, number>;
 }
 
+/** V3.10.2 — transaction handle type (helper find-or-create dùng chung tx). */
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/** Bỏ dấu tiếng Việt để match ĐVT/tên không phân biệt dấu. */
+function stripVnAccents(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D");
+}
+
+/** Map phân loại DNVT (TOOL/CONSUMABLE/MATERIAL/OTHER) → item_type enum. */
+function mapPrCategoryToItemType(
+  category: string | null,
+): "RAW" | "PURCHASED" | "CONSUMABLE" | "TOOL" {
+  switch ((category ?? "").toUpperCase()) {
+    case "MATERIAL":
+      return "RAW";
+    case "CONSUMABLE":
+      return "CONSUMABLE";
+    case "TOOL":
+      return "TOOL";
+    default:
+      return "PURCHASED";
+  }
+}
+
+type UomEnum =
+  | "PCS"
+  | "SET"
+  | "KG"
+  | "G"
+  | "M"
+  | "MM"
+  | "CM"
+  | "L"
+  | "ML"
+  | "PAIR"
+  | "BOX"
+  | "ROLL"
+  | "SHEET";
+
+/** Map ĐVT free-text (VD "TẤM", "Cái", "Bộ") → uom enum. Fallback PCS. */
+function mapUomTextToEnum(uom: string | null): UomEnum {
+  const u = stripVnAccents((uom ?? "").trim())
+    .toUpperCase()
+    .replace(/\s+/g, "");
+  const map: Record<string, UomEnum> = {
+    TAM: "SHEET",
+    SHEET: "SHEET",
+    CAI: "PCS",
+    CHIEC: "PCS",
+    CON: "PCS",
+    PCS: "PCS",
+    PC: "PCS",
+    BO: "SET",
+    SET: "SET",
+    KG: "KG",
+    KILOGAM: "KG",
+    G: "G",
+    GRAM: "G",
+    GAM: "G",
+    M: "M",
+    MET: "M",
+    METER: "M",
+    MM: "MM",
+    CM: "CM",
+    L: "L",
+    LIT: "L",
+    LITER: "L",
+    ML: "ML",
+    DOI: "PAIR",
+    CAP: "PAIR",
+    PAIR: "PAIR",
+    HOP: "BOX",
+    BOX: "BOX",
+    THUNG: "BOX",
+    CUON: "ROLL",
+    ROLL: "ROLL",
+  };
+  return map[u] ?? "PCS";
+}
+
+/** Sinh SKU tạm cho vật tư nhập tay: VT-<yymm>-<rand>. */
+function genAutoItemSku(): string {
+  const yymm = new Date().toISOString().slice(2, 7).replace("-", "");
+  const rand = Math.random().toString(36).slice(2, 7).toUpperCase();
+  return `VT-${yymm}-${rand}`;
+}
+
+/** Sinh code NCC từ tên (bỏ dấu, giữ alnum, ≤12 ký tự). Fallback "NCC". */
+function genSupplierCodeFromName(name: string): string {
+  const base = stripVnAccents(name)
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 12);
+  return base.length > 0 ? base : "NCC";
+}
+
+/**
+ * V3.10.2 — find-or-create item master cho 1 dòng PR nhập tay.
+ * Ưu tiên: itemId sẵn → itemSku khớp → tên trùng (không phân biệt hoa/thường)
+ * → tạo mới với SKU tự sinh. itemType/uom map từ category/uom của dòng.
+ */
+async function findOrCreateItemForLine(
+  tx: Tx,
+  line: {
+    itemId: string | null;
+    itemName: string | null;
+    itemSku: string | null;
+    uom: string | null;
+    category: string | null;
+  },
+  userId: string | null,
+): Promise<string> {
+  if (line.itemId) return line.itemId;
+
+  if (line.itemSku && line.itemSku.trim()) {
+    const sku = line.itemSku.trim().toUpperCase();
+    const [bySku] = await tx
+      .select({ id: item.id })
+      .from(item)
+      .where(eq(item.sku, sku))
+      .limit(1);
+    if (bySku) return bySku.id;
+  }
+
+  const name = (line.itemName ?? "").trim() || "Vật tư chưa đặt tên";
+  const [byName] = await tx
+    .select({ id: item.id })
+    .from(item)
+    .where(sql`lower(${item.name}) = lower(${name})`)
+    .limit(1);
+  if (byName) return byName.id;
+
+  let sku =
+    line.itemSku && line.itemSku.trim()
+      ? line.itemSku.trim().toUpperCase()
+      : genAutoItemSku();
+  for (let i = 0; i < 6; i += 1) {
+    const [dup] = await tx
+      .select({ id: item.id })
+      .from(item)
+      .where(eq(item.sku, sku))
+      .limit(1);
+    if (!dup) break;
+    sku = genAutoItemSku();
+  }
+
+  const [created] = await tx
+    .insert(item)
+    .values({
+      sku,
+      name,
+      itemType: mapPrCategoryToItemType(line.category),
+      uom: mapUomTextToEnum(line.uom),
+      status: "ACTIVE",
+      category: null,
+      createdBy: userId,
+      updatedBy: userId,
+    })
+    .returning({ id: item.id });
+  if (!created) throw new Error("ITEM_AUTO_CREATE_FAILED");
+  return created.id;
+}
+
+/**
+ * V3.10.2 — find-or-create supplier theo tên (NCC nhập tay). Trùng tên
+ * (không phân biệt hoa/thường) → dùng lại; nếu không → tạo mới, code tự sinh.
+ */
+async function findOrCreateSupplierByName(
+  tx: Tx,
+  rawName: string,
+): Promise<string> {
+  const name = rawName.trim();
+  if (!name) throw new Error("SUPPLIER_NAME_EMPTY");
+
+  const [byName] = await tx
+    .select({ id: supplier.id })
+    .from(supplier)
+    .where(sql`lower(${supplier.name}) = lower(${name})`)
+    .limit(1);
+  if (byName) return byName.id;
+
+  const codeBase = genSupplierCodeFromName(name);
+  let candidate = codeBase;
+  for (let i = 2; i < 60; i += 1) {
+    const [dup] = await tx
+      .select({ id: supplier.id })
+      .from(supplier)
+      .where(eq(supplier.code, candidate))
+      .limit(1);
+    if (!dup) break;
+    candidate = `${codeBase}-${i}`.slice(0, 64);
+  }
+
+  const [created] = await tx
+    .insert(supplier)
+    .values({ code: candidate, name })
+    .returning({ id: supplier.id });
+  if (!created) throw new Error("SUPPLIER_AUTO_CREATE_FAILED");
+  return created.id;
+}
+
 /**
  * V3.4 — Tạo PO từ PR. Nếu line thiếu preferred_supplier, caller có thể truyền
  * `supplierOverrides: Record<lineId, supplierId>` để gán nhanh khi convert.
@@ -311,6 +516,7 @@ export async function createPOFromPR(
   prId: string,
   userId: string | null,
   supplierOverrides?: Record<string, string>,
+  newSupplierNames?: Record<string, string>,
 ): Promise<ConvertPRResult> {
   return db.transaction(async (tx) => {
     const [pr] = await tx
@@ -329,19 +535,39 @@ export async function createPOFromPR(
       .where(eq(purchaseRequestLine.prId, prId));
     if (lines.length === 0) throw new Error("PR_EMPTY");
 
-    // V3.7.72 — Guard: free-text lines (itemId NULL) không convert được.
-    // Admin phải gán item master cho từng dòng TRƯỚC khi convert.
+    // V3.10.2 — Dòng vật tư nhập tay (itemId NULL) → tự động tạo/tìm item master
+    // rồi gán vào line (thay vì reject). Cho phép tạo PO trực tiếp từ phiếu DNVT.
     const freetext = lines.filter((l) => !l.itemId);
     if (freetext.length > 0) {
-      const names = freetext.map((l) => l.itemName ?? "?").slice(0, 3).join(", ");
-      throw new Error(
-        `PR_HAS_FREETEXT_LINES: ${freetext.length} dòng chưa gán item master (${names}${freetext.length > 3 ? "..." : ""})`,
-      );
+      for (const line of freetext) {
+        const resolvedItemId = await findOrCreateItemForLine(tx, line, userId);
+        await tx
+          .update(purchaseRequestLine)
+          .set({ itemId: resolvedItemId })
+          .where(eq(purchaseRequestLine.id, line.id));
+      }
+      lines = await tx
+        .select()
+        .from(purchaseRequestLine)
+        .where(eq(purchaseRequestLine.prId, prId));
+    }
+
+    // V3.10.2 — NCC nhập tay: find-or-create supplier theo tên rồi gộp vào
+    // overrides (dùng chung đường xử lý với supplier chọn từ dropdown).
+    const effectiveOverrides: Record<string, string> = {
+      ...(supplierOverrides ?? {}),
+    };
+    if (newSupplierNames && Object.keys(newSupplierNames).length > 0) {
+      for (const [lineId, rawName] of Object.entries(newSupplierNames)) {
+        if (!rawName || !rawName.trim()) continue;
+        const sid = await findOrCreateSupplierByName(tx, rawName);
+        effectiveOverrides[lineId] = sid;
+      }
     }
 
     // V3.4 — Apply overrides nếu có
-    if (supplierOverrides && Object.keys(supplierOverrides).length > 0) {
-      for (const [lineId, supplierId] of Object.entries(supplierOverrides)) {
+    if (Object.keys(effectiveOverrides).length > 0) {
+      for (const [lineId, supplierId] of Object.entries(effectiveOverrides)) {
         if (!supplierId) continue;
         await tx
           .update(purchaseRequestLine)
@@ -427,9 +653,11 @@ export async function createPOFromPR(
         supplierLines.map((l, idx) => ({
           poId: poHeader.id,
           lineNo: idx + 1,
-          // Non-null vì đã guard freetext lines trước đó (V3.7.72)
+          // Non-null: freetext lines đã được normalize sang item master (V3.10.2)
           itemId: l.itemId as string,
           orderedQty: l.qty,
+          // V3.10.2 — giữ quy cách chi tiết từ dòng PR (DNVT) sang PO line.
+          spec: l.specification ?? null,
           snapshotLineId: l.snapshotLineId ?? null,
           expectedEta: l.neededBy,
           notes: l.notes,

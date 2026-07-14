@@ -9,6 +9,7 @@ import {
   Check,
   ChevronsUpDown,
   Loader2,
+  Plus,
   Search,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -38,17 +39,26 @@ import { cn } from "@/lib/utils";
  *   - Lines đã có supplier hiện disabled (giữ nguyên)
  *   - Submit gọi POST /from-pr/[id] với supplierOverrides map
  *
- * Nếu tất cả lines đều có supplier → có thể skip dialog gọi convert luôn.
+ * V3.10.2 — NCC ngoài chọn từ dropdown còn có thể GÕ TAY tên NCC mới. Tên mới
+ * gửi qua `newSupplierNames`; backend find-or-create supplier rồi tạo PO.
+ * Dòng vật tư nhập tay (không có item master) nay cũng convert được — backend
+ * tự chuẩn hoá sang danh mục Item.
  */
 
 export interface ConvertPRLine {
   id: string;
   lineNo: number;
+  itemId?: string | null;
   sku: string | null;
   name: string | null;
   qty: string;
   preferredSupplierId: string | null;
 }
+
+/** Lựa chọn NCC cho 1 dòng: chọn NCC có sẵn hoặc gõ tên NCC mới. */
+type SupplierSelection =
+  | { kind: "existing"; id: string; label: string }
+  | { kind: "new"; name: string };
 
 export interface ConvertPRToPODialogProps {
   open: boolean;
@@ -69,32 +79,43 @@ export function ConvertPRToPODialog({
 }: ConvertPRToPODialogProps) {
   const router = useRouter();
   const convert = useConvertPRToPOs();
-  const [overrides, setOverrides] = React.useState<Record<string, string>>({});
+  const [sel, setSel] = React.useState<Record<string, SupplierSelection>>({});
 
   // Reset khi open
   React.useEffect(() => {
-    if (open) setOverrides({});
+    if (open) setSel({});
   }, [open]);
 
   const linesWithoutSupplier = lines.filter((l) => !l.preferredSupplierId);
-  const allHaveSupplier = linesWithoutSupplier.every(
-    (l) => overrides[l.id],
-  );
+  const allResolved = linesWithoutSupplier.every((l) => sel[l.id]);
 
   const handleSubmit = async () => {
-    if (linesWithoutSupplier.length > 0 && !allHaveSupplier) {
+    if (linesWithoutSupplier.length > 0 && !allResolved) {
       toast.error(
         `Còn ${
-          linesWithoutSupplier.filter((l) => !overrides[l.id]).length
+          linesWithoutSupplier.filter((l) => !sel[l.id]).length
         } dòng chưa chọn NCC`,
       );
       return;
+    }
+    // Tách lựa chọn thành 2 map: NCC có sẵn (id) và NCC nhập tay (tên).
+    const supplierOverrides: Record<string, string> = {};
+    const newSupplierNames: Record<string, string> = {};
+    for (const [lineId, s] of Object.entries(sel)) {
+      if (s.kind === "existing") supplierOverrides[lineId] = s.id;
+      else if (s.name.trim()) newSupplierNames[lineId] = s.name.trim();
     }
     try {
       const res = await convert.mutateAsync({
         prId,
         supplierOverrides:
-          Object.keys(overrides).length > 0 ? overrides : undefined,
+          Object.keys(supplierOverrides).length > 0
+            ? supplierOverrides
+            : undefined,
+        newSupplierNames:
+          Object.keys(newSupplierNames).length > 0
+            ? newSupplierNames
+            : undefined,
       });
       const ids = res.data.createdPOs.map((p) => p.id);
       const count = ids.length;
@@ -117,14 +138,23 @@ export function ConvertPRToPODialog({
   };
 
   const supplierGrouping = React.useMemo(() => {
-    // Tính số PO sẽ được tạo: group by effective supplier (existing + override)
-    const supplierIds = new Set<string>();
+    // Số PO sẽ tạo = số NCC hiệu lực khác nhau (có sẵn theo id, nhập tay theo tên).
+    const keys = new Set<string>();
     for (const l of lines) {
-      const sid = l.preferredSupplierId || overrides[l.id];
-      if (sid) supplierIds.add(sid);
+      if (l.preferredSupplierId) {
+        keys.add(`id:${l.preferredSupplierId}`);
+        continue;
+      }
+      const s = sel[l.id];
+      if (!s) continue;
+      keys.add(
+        s.kind === "existing"
+          ? `id:${s.id}`
+          : `new:${s.name.trim().toLowerCase()}`,
+      );
     }
-    return supplierIds.size;
-  }, [lines, overrides]);
+    return keys.size;
+  }, [lines, sel]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -135,8 +165,8 @@ export function ConvertPRToPODialog({
             Tạo PO từ {prCode}
           </DialogTitle>
           <DialogDescription>
-            Chọn nhà cung cấp cho từng dòng. Hệ thống sẽ tự động group các dòng
-            cùng NCC vào 1 PO.
+            Chọn nhà cung cấp cho từng dòng (có thể gõ tên NCC mới). Hệ thống tự
+            động group các dòng cùng NCC vào 1 PO.
           </DialogDescription>
         </DialogHeader>
 
@@ -147,8 +177,8 @@ export function ConvertPRToPODialog({
               {linesWithoutSupplier.length} dòng chưa có NCC ưu tiên
             </p>
             <p className="mt-1 text-xs">
-              Vui lòng chọn NCC cho từng dòng bên dưới. Lựa chọn sẽ được lưu vào
-              PR + dùng để tạo PO.
+              Chọn NCC có sẵn hoặc gõ tên NCC mới cho từng dòng. Lựa chọn được
+              lưu vào PR + dùng để tạo PO.
             </p>
           </div>
         )}
@@ -174,7 +204,6 @@ export function ConvertPRToPODialog({
             <tbody>
               {lines.map((l) => {
                 const hasSupplier = !!l.preferredSupplierId;
-                const overrideId = overrides[l.id];
                 return (
                   <tr key={l.id} className="border-b border-zinc-50">
                     <td className="px-3 py-3 text-sm text-zinc-500">
@@ -183,7 +212,7 @@ export function ConvertPRToPODialog({
                     <td className="px-3 py-3">
                       <div className="flex flex-col">
                         <span className="font-mono text-sm font-semibold text-indigo-600">
-                          {l.sku ?? "—"}
+                          {l.sku || "—"}
                         </span>
                         <span className="text-xs text-zinc-500 truncate max-w-xs">
                           {l.name ?? "—"}
@@ -201,12 +230,9 @@ export function ConvertPRToPODialog({
                         </span>
                       ) : (
                         <SupplierPicker
-                          value={overrideId}
-                          onChange={(sid) =>
-                            setOverrides((prev) => ({
-                              ...prev,
-                              [l.id]: sid,
-                            }))
+                          selection={sel[l.id]}
+                          onSelect={(s) =>
+                            setSel((prev) => ({ ...prev, [l.id]: s }))
                           }
                         />
                       )}
@@ -233,7 +259,7 @@ export function ConvertPRToPODialog({
             onClick={() => void handleSubmit()}
             disabled={
               convert.isPending ||
-              (linesWithoutSupplier.length > 0 && !allHaveSupplier)
+              (linesWithoutSupplier.length > 0 && !allResolved)
             }
           >
             {convert.isPending ? (
@@ -249,14 +275,14 @@ export function ConvertPRToPODialog({
   );
 }
 
-/* ── Supplier picker (compact) ──────────────────────────────────────────── */
+/* ── Supplier picker (compact) — chọn NCC có sẵn hoặc gõ tên NCC mới ──────── */
 
 function SupplierPicker({
-  value,
-  onChange,
+  selection,
+  onSelect,
 }: {
-  value: string | undefined;
-  onChange: (id: string) => void;
+  selection: SupplierSelection | undefined;
+  onSelect: (s: SupplierSelection) => void;
 }) {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
@@ -266,7 +292,21 @@ function SupplierPicker({
     isActive: true,
   });
   const suppliers = (suppliersQuery.data?.data ?? []) as SupplierRow[];
-  const selected = suppliers.find((s) => s.id === value);
+
+  const q = query.trim();
+  const hasExact = suppliers.some(
+    (s) =>
+      s.name.toLowerCase() === q.toLowerCase() ||
+      s.code.toLowerCase() === q.toLowerCase(),
+  );
+  const showCreate = q.length > 0 && !hasExact;
+
+  const triggerLabel = selection
+    ? selection.kind === "existing"
+      ? selection.label
+      : selection.name
+    : "⚠ Chọn NCC…";
+  const isNew = selection?.kind === "new";
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -275,13 +315,18 @@ function SupplierPicker({
           type="button"
           className={cn(
             "flex h-8 w-full items-center justify-between gap-2 rounded-md border bg-white px-2.5 text-left text-sm transition-colors",
-            value
+            selection
               ? "border-indigo-200 bg-indigo-50/40 text-indigo-700"
               : "border-amber-200 bg-amber-50/40 text-amber-700 hover:border-amber-300",
           )}
         >
-          <span className="truncate">
-            {selected ? `${selected.code} — ${selected.name}` : "⚠ Chọn NCC…"}
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate">{triggerLabel}</span>
+            {isNew ? (
+              <span className="shrink-0 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+                mới
+              </span>
+            ) : null}
           </span>
           <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-60" />
         </button>
@@ -294,7 +339,7 @@ function SupplierPicker({
               autoFocus
               value={query}
               onValueChange={setQuery}
-              placeholder="Tìm NCC..."
+              placeholder="Tìm hoặc gõ tên NCC mới…"
               className="flex-1 bg-transparent px-2 text-sm outline-none placeholder:text-zinc-400"
             />
           </div>
@@ -303,36 +348,64 @@ function SupplierPicker({
               <div className="px-3 py-4 text-center text-xs text-zinc-500">
                 Đang tải…
               </div>
-            ) : suppliers.length === 0 ? (
-              <CommandPrimitive.Empty className="px-3 py-4 text-center text-xs text-zinc-500">
-                Không tìm thấy
-              </CommandPrimitive.Empty>
             ) : (
-              <CommandPrimitive.Group>
-                {suppliers.map((s) => (
+              <>
+                {suppliers.length === 0 && !showCreate ? (
+                  <CommandPrimitive.Empty className="px-3 py-4 text-center text-xs text-zinc-500">
+                    Nhập tên để tạo NCC mới…
+                  </CommandPrimitive.Empty>
+                ) : null}
+                {showCreate ? (
                   <CommandPrimitive.Item
-                    key={s.id}
-                    value={`${s.code} ${s.name}`}
+                    key="__create_new__"
+                    value={`__create__${q}`}
                     onSelect={() => {
-                      onChange(s.id);
+                      onSelect({ kind: "new", name: q });
                       setOpen(false);
                       setQuery("");
                     }}
-                    className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm aria-selected:bg-indigo-50"
+                    className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-emerald-700 aria-selected:bg-emerald-50"
                   >
-                    <Check
-                      className={cn(
-                        "h-3.5 w-3.5 shrink-0",
-                        s.id === value ? "text-indigo-600" : "text-transparent",
-                      )}
-                    />
-                    <span className="font-mono text-xs font-semibold text-zinc-800">
-                      {s.code}
+                    <Plus className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">
+                      Dùng NCC mới: <span className="font-semibold">“{q}”</span>
                     </span>
-                    <span className="truncate text-zinc-700">{s.name}</span>
                   </CommandPrimitive.Item>
-                ))}
-              </CommandPrimitive.Group>
+                ) : null}
+                {suppliers.map((s) => {
+                  const selectedExisting =
+                    selection?.kind === "existing" && selection.id === s.id;
+                  return (
+                    <CommandPrimitive.Item
+                      key={s.id}
+                      value={`${s.code} ${s.name}`}
+                      onSelect={() => {
+                        onSelect({
+                          kind: "existing",
+                          id: s.id,
+                          label: `${s.code} — ${s.name}`,
+                        });
+                        setOpen(false);
+                        setQuery("");
+                      }}
+                      className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm aria-selected:bg-indigo-50"
+                    >
+                      <Check
+                        className={cn(
+                          "h-3.5 w-3.5 shrink-0",
+                          selectedExisting
+                            ? "text-indigo-600"
+                            : "text-transparent",
+                        )}
+                      />
+                      <span className="font-mono text-xs font-semibold text-zinc-800">
+                        {s.code}
+                      </span>
+                      <span className="truncate text-zinc-700">{s.name}</span>
+                    </CommandPrimitive.Item>
+                  );
+                })}
+              </>
             )}
           </CommandPrimitive.List>
         </CommandPrimitive>

@@ -52,7 +52,7 @@ const PRIORITY_LABELS: Record<DnvtLineDraft["priority"], string> = {
 const CATEGORY_LABELS: Record<DnvtLineDraft["category"], string> = {
   TOOL: "CCDC",
   CONSUMABLE: "Tiêu hao",
-  MATERIAL: "Vật tư",
+  MATERIAL: "Vật tư phục vụ SX",
   OTHER: "Khác",
 };
 
@@ -361,7 +361,7 @@ export default function NewDnvtPage() {
                     <Th w="min-w-[150px]">Tên vật tư</Th>
                     <Th w="min-w-[120px]">Quy cách chi tiết</Th>
                     <Th w="w-14">ĐVT</Th>
-                    <Th w="w-14" align="right">
+                    <Th w="w-16" align="center">
                       SL YC
                     </Th>
                     <Th w="w-16" align="right">
@@ -435,7 +435,7 @@ export default function NewDnvtPage() {
                           className="w-full bg-transparent text-center text-[11px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
                         />
                       </Td>
-                      <Td>
+                      <Td align="center">
                         <input
                           type="number"
                           step="0.001"
@@ -444,7 +444,7 @@ export default function NewDnvtPage() {
                           onChange={(e) =>
                             updateLine(l.localId, { qty: e.target.value })
                           }
-                          className="w-full bg-transparent text-right font-mono text-[11px] outline-none"
+                          className="w-full bg-transparent text-center font-mono text-[11px] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                         />
                       </Td>
                       <Td align="right">

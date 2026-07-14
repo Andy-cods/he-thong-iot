@@ -58,7 +58,7 @@ const PRIORITY_LABEL: Record<string, string> = {
 const CATEGORY_LABEL: Record<string, string> = {
   TOOL: "CCDC",
   CONSUMABLE: "Tiêu hao",
-  MATERIAL: "Vật tư",
+  MATERIAL: "Vật tư phục vụ SX",
   OTHER: "Khác",
 };
 

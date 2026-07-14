@@ -66,7 +66,7 @@ const PRIORITY_LABELS: Record<MRFLineDraft["priority"], string> = {
 const CATEGORY_LABELS: Record<MRFLineDraft["category"], string> = {
   TOOL: "CCDC",
   CONSUMABLE: "Tiêu hao",
-  MATERIAL: "Vật tư",
+  MATERIAL: "Vật tư phục vụ SX",
   OTHER: "Khác",
 };
 

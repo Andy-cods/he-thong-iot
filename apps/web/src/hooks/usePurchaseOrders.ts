@@ -201,6 +201,8 @@ export interface ConvertPRResult {
 export interface ConvertPRInput {
   prId: string;
   supplierOverrides?: Record<string, string>;
+  /** V3.10.2 — NCC nhập tay: { prLineId → tên NCC }. Backend find-or-create. */
+  newSupplierNames?: Record<string, string>;
 }
 
 export function useConvertPRToPOs() {
@@ -210,12 +212,21 @@ export function useConvertPRToPOs() {
       const prId = typeof input === "string" ? input : input.prId;
       const overrides =
         typeof input === "string" ? undefined : input.supplierOverrides;
+      const newSupplierNames =
+        typeof input === "string" ? undefined : input.newSupplierNames;
+      const hasOverrides = overrides && Object.keys(overrides).length > 0;
+      const hasNewNames =
+        newSupplierNames && Object.keys(newSupplierNames).length > 0;
+      const body =
+        hasOverrides || hasNewNames
+          ? JSON.stringify({
+              ...(hasOverrides ? { supplierOverrides: overrides } : {}),
+              ...(hasNewNames ? { newSupplierNames } : {}),
+            })
+          : undefined;
       return request<{ data: ConvertPRResult }>(
         `/api/purchase-orders/from-pr/${prId}`,
-        {
-          method: "POST",
-          body: overrides ? JSON.stringify({ supplierOverrides: overrides }) : undefined,
-        },
+        { method: "POST", body },
       );
     },
     onSuccess: (_data, input) => {

@@ -25,6 +25,10 @@ export const dynamic = "force-dynamic";
 const bodySchema = z
   .object({
     supplierOverrides: z.record(z.string().uuid(), z.string().uuid()).optional(),
+    // V3.10.2 — NCC nhập tay: map { prLineId → tên NCC }. Backend find-or-create.
+    newSupplierNames: z
+      .record(z.string().uuid(), z.string().trim().min(1).max(255))
+      .optional(),
   })
   .optional();
 
@@ -37,11 +41,13 @@ export async function POST(
 
   // Body optional — POST không body cũng OK (legacy)
   let supplierOverrides: Record<string, string> | undefined;
+  let newSupplierNames: Record<string, string> | undefined;
   try {
     const text = await req.text();
     if (text && text.trim().length > 0) {
       const parsed = bodySchema.parse(JSON.parse(text));
       supplierOverrides = parsed?.supplierOverrides;
+      newSupplierNames = parsed?.newSupplierNames;
     }
   } catch {
     // Ignore body parse errors — convert without overrides
@@ -52,6 +58,7 @@ export async function POST(
       params.prId,
       guard.session.userId,
       supplierOverrides,
+      newSupplierNames,
     );
 
     const meta = extractRequestMeta(req);
