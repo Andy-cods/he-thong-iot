@@ -123,6 +123,23 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
+### TASK-20260714-001 — Fix góp ý DNVT + tạo PO từ dòng nhập tay (V3.10.2)
+- **Trạng thái:** DONE
+- **Tạo:** 2026-07-14 (+07) bởi Claude
+- **Phụ trách:** Claude (executor)
+- **Bắt đầu:** 2026-07-14 16:00 (+07)
+- **Hoàn thành:** 2026-07-14 16:20 (+07)
+- **Ưu tiên:** P1
+- **Phụ thuộc:** TASK-20260713-001 (V3.10 — DONE)
+- **Góp ý user (4):** (1) SL YC nhập không hiện số; (2) đổi nhãn "Vật tư"→"Vật tư phục vụ SX"; (3) NCC cho phép gõ tay ngoài dropdown; (4) Tạo PO báo lỗi PR_HAS_FREETEXT_LINES.
+- **DoD:**
+  - SL YC: cột `w-14→w-16`, canh giữa, ẩn spinner webkit (số bị nút tăng/giảm che). DONE
+  - Nhãn Phân loại: `MATERIAL: "Vật tư phục vụ SX"` đồng bộ 8 surface (DNVT+MRF/YCVT: form/detail/PDF/Excel). DONE
+  - ConvertPRToPODialog: SupplierPicker chọn NCC có sẵn HOẶC gõ tên NCC mới → `newSupplierNames`; backend find-or-create supplier. DONE
+  - createPOFromPR: bỏ chặn free-text; auto find-or-create item master (theo tên/SKU, map category→item_type, ĐVT text→uom enum) + giữ `spec` sang PO line. DONE
+- **Log:** commit `94576e8`. Build EXIT=0, tsc EXIT=0. E2E production ALL PASS (tạo DNVT 2 dòng nhập tay → duyệt → 2 PO [NCC có sẵn AMA + NCC gõ tay auto-tạo] → item auto-tạo `VT-2607-*` type=RAW uom=SHEET, spec giữ nguyên). Dọn sạch data test.
+- **Còn nợ (ngoài scope):** enum `audit_action` trên VPS thiếu 'APPROVE'/'CONVERT' → audit duyệt/convert ghi hụt (không chặn nghiệp vụ). Cần migration catch-up.
+
 ### TASK-20260713-001 — Form "Phiếu đề xuất vật tư DNVT" khớp 100% DNVT 567 (V3.10)
 - **Trạng thái:** DONE
 - **Tạo:** 2026-07-13 (+07) bởi Claude (planner)
