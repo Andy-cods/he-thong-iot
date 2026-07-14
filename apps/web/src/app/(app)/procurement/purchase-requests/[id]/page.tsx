@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { downloadFromUrl } from "@/lib/download";
 import type { PRStatus } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import {
@@ -251,11 +252,35 @@ export default function PurchaseRequestDetailPage() {
   };
 
   const handlePrint = () => window.print();
-  const handleExportExcel = () => {
-    window.open(`/api/purchase-requests/${id}/export-excel`, "_blank");
+  // V3.11.1 — fetch→blob→download (ổn định, đọc được lỗi) thay window.open.
+  const [exporting, setExporting] = React.useState<null | "excel" | "pdf">(
+    null,
+  );
+  const handleExportExcel = async () => {
+    setExporting("excel");
+    try {
+      await downloadFromUrl(
+        `/api/purchase-requests/${id}/export-excel`,
+        "phieu.xlsx",
+      );
+    } catch (e) {
+      toast.error(`Không xuất được Excel: ${(e as Error).message}`);
+    } finally {
+      setExporting(null);
+    }
   };
-  const handleExportPdf = () => {
-    window.open(`/api/purchase-requests/${id}/export-pdf`, "_blank");
+  const handleExportPdf = async () => {
+    setExporting("pdf");
+    try {
+      await downloadFromUrl(
+        `/api/purchase-requests/${id}/export-pdf`,
+        "phieu.pdf",
+      );
+    } catch (e) {
+      toast.error(`Không xuất được PDF: ${(e as Error).message}`);
+    } finally {
+      setExporting(null);
+    }
   };
 
   return (
@@ -302,12 +327,30 @@ export default function PurchaseRequestDetailPage() {
               <Printer className="h-3.5 w-3.5" aria-hidden />
               In
             </Button>
-            <Button variant="ghost" size="sm" onClick={handleExportExcel}>
-              <FileSpreadsheet className="h-3.5 w-3.5" aria-hidden />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => void handleExportExcel()}
+              disabled={exporting !== null}
+            >
+              {exporting === "excel" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              ) : (
+                <FileSpreadsheet className="h-3.5 w-3.5" aria-hidden />
+              )}
               Excel
             </Button>
-            <Button variant="ghost" size="sm" onClick={handleExportPdf}>
-              <Download className="h-3.5 w-3.5" aria-hidden />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => void handleExportPdf()}
+              disabled={exporting !== null}
+            >
+              {exporting === "pdf" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              ) : (
+                <Download className="h-3.5 w-3.5" aria-hidden />
+              )}
               PDF
             </Button>
 

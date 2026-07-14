@@ -17,8 +17,10 @@ import {
   type ProductivityMetric,
 } from "@/hooks/useReports";
 import { useUsersList } from "@/hooks/useAdmin";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/format";
+import { downloadFromUrl } from "@/lib/download";
 
 /**
  * V3.7.61 — Page báo cáo năng suất nhân viên cho admin.
@@ -63,12 +65,19 @@ export default function EmployeeProductivityPage() {
   const reportQuery = useEmployeeReport(selectedUserId, { year, month });
   const data = reportQuery.data?.data;
 
+  // V3.11.1 — fetch→blob→download (ổn định, đọc được lỗi) thay window.open.
   const handleExport = () => {
     if (!selectedUserId) return;
-    window.open(
-      `/api/reports/employee/${selectedUserId}/export?year=${year}&month=${month}`,
-      "_blank",
-    );
+    void (async () => {
+      try {
+        await downloadFromUrl(
+          `/api/reports/employee/${selectedUserId}/export?year=${year}&month=${month}`,
+          `bao-cao-nang-suat-${year}-${String(month).padStart(2, "0")}.xlsx`,
+        );
+      } catch (e) {
+        toast.error(`Không xuất được báo cáo: ${(e as Error).message}`);
+      }
+    })();
   };
 
   return (

@@ -54,6 +54,7 @@ import {
 import { useReceivingAudit } from "@/hooks/useReceivingEvents";
 import { formatDate, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { downloadFromUrl } from "@/lib/download";
 import { PoQuickReceiveTable } from "@/components/procurement/PoQuickReceiveTable";
 
 /**
@@ -244,6 +245,23 @@ export default function PurchaseOrderDetailPage() {
     }
   };
 
+  // V3.11.1 — Xuất PDF: fetch→blob→download (ổn định, đọc được lỗi 4xx/5xx).
+  const [exportingPdf, setExportingPdf] = React.useState(false);
+  const handleExportPdf = async () => {
+    if (!po) return;
+    setExportingPdf(true);
+    try {
+      await downloadFromUrl(
+        `/api/purchase-orders/${po.id}/pdf`,
+        `${po.poNo}.pdf`,
+      );
+    } catch (e) {
+      toast.error(`Không xuất được PDF: ${(e as Error).message}`);
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
   if (detail.isLoading) {
     return (
       <div className="flex h-full items-center justify-center gap-2 text-sm text-zinc-500">
@@ -364,16 +382,16 @@ export default function PurchaseOrderDetailPage() {
               <Button
                 variant="outline"
                 size="sm"
-                asChild
+                onClick={() => void handleExportPdf()}
+                disabled={exportingPdf}
                 title="Xuất Đơn đặt hàng ra PDF để in / lưu hồ sơ"
               >
-                <a
-                  href={`/api/purchase-orders/${po.id}/pdf`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Download className="h-3.5 w-3.5" /> Xuất PDF
-                </a>
+                {exportingPdf ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Download className="h-3.5 w-3.5" />
+                )}
+                Xuất PDF
               </Button>
             )}
           </div>
