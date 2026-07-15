@@ -123,6 +123,22 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
+### TASK-20260715-003 — Sự cố Đức không upload được BOM (V3.11.2)
+- **Trạng thái:** DONE · **Tạo/Hoàn thành:** 2026-07-15 (+07) · **Ưu tiên:** P0 (prod incident)
+- **Triệu chứng:** "acc Đức lỗi không upload được BOM".
+- **Chẩn đoán (KHÔNG phải phân quyền):** Đức = `planner`, đủ quyền `create bomTemplate`, đã
+  import thành công 03/07. Batch mới nhất (file Z0000002-565566, 10:23 15/07) kẹt `committing`.
+  Log worker: `PostgresError 22001 value too long for varchar(64)` ×3. Cột "BOM gốc" auto-map
+  = componentSku; **dòng 31** có giá trị **90 ký tự** (mã lỗi mã hoá) → insert item.sku(64) →
+  abort transaction → job fail → BOM không tạo. Bug phụ: failed handler chỉ log, không set
+  batch=failed → kẹt "committing".
+- **Sửa (commit `f388fa6`):** (1) bomImport.ts guard `skuNorm.length>64` trước khi chạm DB →
+  per-row skip + lỗi rõ theo dòng (tx không bị poison, dòng khác vẫn import). (2) index.ts
+  failed handler set import_batch=`failed`+errorMessage. Worker typecheck EXIT=0, deploy OK
+  (restarts=0, 4 queue ready).
+- **Prod ops:** reset batch kẹt `687072d0` → `failed` + lý do (user duyệt qua AskUserQuestion).
+- **Đức cần làm:** sửa ô "BOM gốc" dòng 31 thành mã ≤64 ký tự rồi upload lại.
+
 ### TASK-20260715-002 — Fix tải PDF/Excel không ổn định (V3.11.1)
 - **Trạng thái:** DONE · **Tạo/Hoàn thành:** 2026-07-15 (+07) · **Ưu tiên:** P1
 - **Triệu chứng user:** "in pdf hay excel đều không hoạt động / không xuất file ổn định".
