@@ -404,6 +404,14 @@ async function processChunk(
 
         // Lookup item theo SKU (normalize UPPER)
         const skuNorm = skuRaw.toUpperCase();
+        // V3.11.2 — Guard: item.sku là varchar(64). SKU dài hơn → báo lỗi rõ
+        // theo dòng (per-row skip) thay vì để Postgres abort cả transaction
+        // (bug: 1 ô dài làm crash + kẹt batch ở "committing").
+        if (skuNorm.length > 64) {
+          throw new Error(
+            `mã linh kiện (SKU) dài ${skuNorm.length} ký tự, vượt giới hạn 64 — kiểm tra cột SKU / ô dữ liệu: "${skuNorm.slice(0, 40)}…"`,
+          );
+        }
         const [existingItem] = await tx
           .select({ id: item.id })
           .from(item)

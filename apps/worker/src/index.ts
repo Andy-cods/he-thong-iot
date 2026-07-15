@@ -22,6 +22,9 @@ import {
   processEcoApplyBatch,
   type EcoApplyBatchJob,
 } from "./jobs/ecoApply.js";
+import { eq } from "drizzle-orm";
+import { importBatch } from "@iot/db/schema";
+import { db } from "./db.js";
 
 const logger = pino({
   level: process.env.LOG_LEVEL ?? "info",
@@ -136,9 +139,26 @@ for (const w of [
   ecoApplyBatchWorker,
 ]) {
   w.on("ready", () => logger.info({ queue: w.name }, "worker ready"));
-  w.on("failed", (job, err) =>
-    logger.error({ queue: w.name, jobId: job?.id, err }, "job failed"),
-  );
+  w.on("failed", (job, err) => {
+    logger.error({ queue: w.name, jobId: job?.id, err }, "job failed");
+    // V3.11.2 — commit job fail → set import_batch="failed" để UI không kẹt
+    // mãi ở "committing" (trước đây failed handler chỉ log, không cập nhật batch).
+    const batchId = (job?.data as { batchId?: string } | undefined)?.batchId;
+    const isCommit =
+      w.name === QUEUE_NAMES.BOM_IMPORT_COMMIT ||
+      w.name === QUEUE_NAMES.ITEM_IMPORT_COMMIT;
+    if (batchId && isCommit) {
+      void db
+        .update(importBatch)
+        .set({
+          status: "failed",
+          errorMessage: String(err?.message ?? err).slice(0, 2000),
+          finishedAt: new Date(),
+        })
+        .where(eq(importBatch.id, batchId))
+        .catch((e) => logger.error({ e, batchId }, "mark batch failed error"));
+    }
+  });
   w.on("completed", (job) =>
     logger.info({ queue: w.name, jobId: job.id }, "job completed"),
   );
