@@ -38,6 +38,7 @@ export interface SalesOrderRow {
   bomTemplateId: string | null;
   orderQty: string;
   dueDate: string | null;
+  priority: "LOW" | "NORMAL" | "HIGH" | "URGENT";
   notes: string | null;
   /** V1.9 Phase 3: ghi chú sản xuất riêng (tự do, không versionLock). */
   productionNotes: string | null;
@@ -154,6 +155,8 @@ export function useUpdateOrder(code: string) {
           nextData.customerRef = patch.customerRef ?? null;
         if (patch.orderQty !== undefined)
           nextData.orderQty = String(patch.orderQty);
+        if (patch.priority !== undefined)
+          nextData.priority = patch.priority;
         if (patch.notes !== undefined) nextData.notes = patch.notes ?? null;
         qc.setQueryData<OrderDetailResponse>(qk.orders.detail(code), {
           data: nextData,

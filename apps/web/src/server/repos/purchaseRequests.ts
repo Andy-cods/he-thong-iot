@@ -587,7 +587,7 @@ export async function deletePR(
   });
 }
 
-/** Reject PR (DRAFT/SUBMITTED/APPROVED → REJECTED). V3.7.69 set approval_step REJECTED + lưu rejection_reason. */
+/** Reject PR đang chờ duyệt → REJECTED. Guard approval_step ngay trong UPDATE để tránh race với thao tác duyệt. */
 export async function rejectPR(
   id: string,
   userId: string | null,
@@ -598,8 +598,6 @@ export async function rejectPR(
     .set({
       status: "REJECTED",
       approvalStep: "REJECTED",
-      approvedBy: userId,
-      approvedAt: new Date(),
       rejectedBy: userId,
       rejectedAt: new Date(),
       rejectionReason: reason ?? null,
@@ -611,7 +609,10 @@ export async function rejectPR(
     .where(
       and(
         eq(purchaseRequest.id, id),
-        inArray(purchaseRequest.status, ["DRAFT", "SUBMITTED", "APPROVED"]),
+        inArray(purchaseRequest.approvalStep, [
+          "SUBMITTED",
+          "DEPT_APPROVED",
+        ]),
       ),
     )
     .returning();

@@ -206,8 +206,7 @@ export default function OrderDetailPage({
   const order = query.data.data;
   const badge = statusToBadge(order.status);
   const canEdit = order.status === "DRAFT";
-  const canClose =
-    order.status !== "CLOSED" && order.status !== "CANCELLED";
+  const canClose = order.status === "FULFILLED";
   const canReopen = order.status === "CLOSED";
 
   const handleSubmit = async (data: OrderCreate) => {
@@ -359,7 +358,7 @@ export default function OrderDetailPage({
                   bomTemplateId: order.bomTemplateId,
                   orderQty: Number(order.orderQty),
                   dueDate: order.dueDate ?? null,
-                  priority: "NORMAL",
+                  priority: order.priority,
                   notes: order.notes ?? "",
                   productItem: {
                     id: order.productItemId,
@@ -382,7 +381,7 @@ export default function OrderDetailPage({
                   bomTemplateId: order.bomTemplateId,
                   orderQty: Number(order.orderQty),
                   dueDate: order.dueDate ?? null,
-                  priority: "NORMAL",
+                  priority: order.priority,
                   notes: order.notes ?? "",
                   productItem: {
                     id: order.productItemId,

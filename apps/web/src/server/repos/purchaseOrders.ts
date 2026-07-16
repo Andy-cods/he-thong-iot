@@ -260,7 +260,7 @@ export async function replacePOLines(
       const qty = Number(l.orderedQty);
       const price = Number(l.unitPrice ?? 0);
       const taxPct = Number(l.taxRate ?? 8);
-      const lineTotal = qty * price * (1 + taxPct / 100);
+      const lineTotal = computeLineTotal(qty, price, taxPct);
       runningTotal += lineTotal;
       return {
         poId,
@@ -696,6 +696,7 @@ export interface CreatePOManualInput {
   deliveryAddress?: string | null;
   notes?: string | null;
   autoApprove?: boolean;
+  submitForApproval?: boolean;
   createdBy: string | null;
   lines: Array<{
     itemId: string;
@@ -723,7 +724,10 @@ export async function createPO(
 
   return db.transaction(async (tx) => {
     const yymm = new Date().toISOString().slice(2, 7).replace("-", "");
-    // Simple seq: count existing PO this month + 1
+    // Serialize number generation per month to avoid COUNT+1 duplicates.
+    await tx.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtext(${`purchase_order:${yymm}`}))`,
+    );
     const cntRows = await tx.execute(sql`
       SELECT COUNT(*)::int AS c FROM app.purchase_order
       WHERE po_no LIKE ${`PO-${yymm}-%`}
@@ -757,14 +761,22 @@ export async function createPO(
     });
 
     const approve = input.autoApprove === true;
+    const submit = input.submitForApproval === true && !approve;
     const now = new Date();
     const metadata: Record<string, unknown> = approve
       ? {
           approvalStatus: "approved",
           approvedBy: input.createdBy ?? undefined,
           approvedAt: now.toISOString(),
+          autoApproved: true,
         }
-      : {};
+      : submit
+        ? {
+            approvalStatus: "pending",
+            submittedBy: input.createdBy ?? undefined,
+            submittedAt: now.toISOString(),
+          }
+        : {};
 
     const [header] = await tx
       .insert(purchaseOrder)
@@ -802,7 +814,13 @@ export async function sendPO(id: string): Promise<PurchaseOrder | null> {
   const [row] = await db
     .update(purchaseOrder)
     .set({ status: "SENT", sentAt: new Date() })
-    .where(and(eq(purchaseOrder.id, id), eq(purchaseOrder.status, "DRAFT")))
+    .where(
+      and(
+        eq(purchaseOrder.id, id),
+        eq(purchaseOrder.status, "DRAFT"),
+        sql`${purchaseOrder.metadata} ->> 'approvalStatus' = 'approved'`,
+      ),
+    )
     .returning();
   return row ?? null;
 }
@@ -814,27 +832,120 @@ export async function submitPOForApproval(
   id: string,
   userId: string | null,
 ): Promise<PurchaseOrder | null> {
-  const [before] = await db
-    .select()
-    .from(purchaseOrder)
-    .where(eq(purchaseOrder.id, id))
-    .limit(1);
-  if (!before) return null;
-  if (before.status !== "DRAFT") throw new Error("NOT_DRAFT");
-
-  const metadata = {
-    ...((before.metadata as Record<string, unknown>) ?? {}),
-    approvalStatus: "pending",
-    submittedBy: userId ?? undefined,
-    submittedAt: new Date().toISOString(),
-  };
-
   const [row] = await db
     .update(purchaseOrder)
-    .set({ metadata })
-    .where(eq(purchaseOrder.id, id))
+    .set({
+      metadata: sql`
+        (${purchaseOrder.metadata}
+          - 'rejectedBy'
+          - 'rejectedAt'
+          - 'rejectedReason'
+          - 'approvedBy'
+          - 'approvedAt'
+          - 'approvalNotes')
+        || jsonb_strip_nulls(jsonb_build_object(
+          'approvalStatus', 'pending',
+          'submittedBy', ${userId}::text,
+          'submittedAt', ${new Date().toISOString()}::text
+        ))
+      `,
+    })
+    .where(
+      and(
+        eq(purchaseOrder.id, id),
+        eq(purchaseOrder.status, "DRAFT"),
+        sql`coalesce(${purchaseOrder.metadata} ->> 'approvalStatus', '') in ('', 'rejected')`,
+      ),
+    )
     .returning();
-  return row ?? null;
+  if (row) return row;
+  return transitionMiss(id, "NOT_SUBMITTABLE");
+}
+
+export interface UpdatePOHeaderPatch {
+  expectedEta?: string | null;
+  actualDeliveryDate?: string | null;
+  notes?: string | null;
+  paymentTerms?: string | null;
+  deliveryAddress?: string | null;
+  supplierId?: string;
+}
+
+/**
+ * Cập nhật header + thay toàn bộ lines trong một transaction.
+ * DRAFT chỉ sửa được khi chưa gửi duyệt hoặc đã bị từ chối.
+ */
+export async function updatePOWithLines(
+  poId: string,
+  expectedStatus: "DRAFT" | "SENT",
+  patch: UpdatePOHeaderPatch,
+  lines?: ReplacePOLineInput[],
+): Promise<{ row: PurchaseOrder; totalAmount: string | null } | null> {
+  return db.transaction(async (tx) => {
+    const approvalGuard =
+      expectedStatus === "DRAFT"
+        ? sql`coalesce(${purchaseOrder.metadata} ->> 'approvalStatus', '') in ('', 'rejected')`
+        : sql`true`;
+
+    // metadata = metadata is an intentional no-op used to make the state
+    // check and row lock atomic even when the request only replaces lines.
+    const [updated] = await tx
+      .update(purchaseOrder)
+      .set({
+        metadata: sql`${purchaseOrder.metadata}`,
+        ...patch,
+      })
+      .where(
+        and(
+          eq(purchaseOrder.id, poId),
+          eq(purchaseOrder.status, expectedStatus),
+          approvalGuard,
+        ),
+      )
+      .returning();
+    if (!updated) return null;
+
+    if (!lines) return { row: updated, totalAmount: null };
+    if (lines.length === 0) throw new Error("PO_MUST_HAVE_LINES");
+
+    await tx
+      .delete(purchaseOrderLine)
+      .where(eq(purchaseOrderLine.poId, poId));
+
+    let runningTotal = 0;
+    const values = lines.map((line, index) => {
+      const qty = Number(line.orderedQty);
+      const price = Number(line.unitPrice ?? 0);
+      const taxRate = Number(line.taxRate ?? 8);
+      const lineTotal = computeLineTotal(qty, price, taxRate);
+      runningTotal += lineTotal;
+      return {
+        poId,
+        lineNo: index + 1,
+        itemId: line.itemId,
+        orderedQty: String(qty),
+        receivedQty: "0",
+        unitPrice: String(price),
+        taxRate: String(taxRate),
+        lineTotal: String(lineTotal),
+        expectedEta: line.expectedEta
+          ? line.expectedEta.toISOString().slice(0, 10)
+          : null,
+        snapshotLineId: line.snapshotLineId ?? null,
+        notes: line.notes ?? null,
+      };
+    });
+
+    await tx.insert(purchaseOrderLine).values(values);
+    const totalAmount = runningTotal.toFixed(2);
+    const [withTotal] = await tx
+      .update(purchaseOrder)
+      .set({ totalAmount })
+      .where(eq(purchaseOrder.id, poId))
+      .returning();
+    if (!withTotal) throw new Error("PO_UPDATE_FAILED");
+    return { row: withTotal, totalAmount };
+  });
 }
 
 export async function approvePO(
@@ -842,28 +953,29 @@ export async function approvePO(
   userId: string | null,
   notes?: string | null,
 ): Promise<PurchaseOrder | null> {
-  const [before] = await db
-    .select()
-    .from(purchaseOrder)
-    .where(eq(purchaseOrder.id, id))
-    .limit(1);
-  if (!before) return null;
-  if (before.status !== "DRAFT") throw new Error("NOT_DRAFT");
-
-  const metadata = {
-    ...((before.metadata as Record<string, unknown>) ?? {}),
-    approvalStatus: "approved",
-    approvedBy: userId ?? undefined,
-    approvedAt: new Date().toISOString(),
-    approvalNotes: notes ?? null,
-  };
-
   const [row] = await db
     .update(purchaseOrder)
-    .set({ metadata })
-    .where(eq(purchaseOrder.id, id))
+    .set({
+      metadata: sql`
+        ${purchaseOrder.metadata}
+        || jsonb_strip_nulls(jsonb_build_object(
+          'approvalStatus', 'approved',
+          'approvedBy', ${userId}::text,
+          'approvedAt', ${new Date().toISOString()}::text,
+          'approvalNotes', ${notes ?? null}::text
+        ))
+      `,
+    })
+    .where(
+      and(
+        eq(purchaseOrder.id, id),
+        eq(purchaseOrder.status, "DRAFT"),
+        sql`${purchaseOrder.metadata} ->> 'approvalStatus' = 'pending'`,
+      ),
+    )
     .returning();
-  return row ?? null;
+  if (row) return row;
+  return transitionMiss(id, "NOT_PENDING");
 }
 
 export async function rejectPO(
@@ -871,28 +983,38 @@ export async function rejectPO(
   userId: string | null,
   reason: string,
 ): Promise<PurchaseOrder | null> {
-  const [before] = await db
-    .select()
-    .from(purchaseOrder)
-    .where(eq(purchaseOrder.id, id))
-    .limit(1);
-  if (!before) return null;
-  if (before.status !== "DRAFT") throw new Error("NOT_DRAFT");
-
-  const metadata = {
-    ...((before.metadata as Record<string, unknown>) ?? {}),
-    approvalStatus: "rejected",
-    rejectedBy: userId ?? undefined,
-    rejectedAt: new Date().toISOString(),
-    rejectedReason: reason,
-  };
-
   const [row] = await db
     .update(purchaseOrder)
-    .set({ metadata })
-    .where(eq(purchaseOrder.id, id))
+    .set({
+      metadata: sql`
+        ${purchaseOrder.metadata}
+        || jsonb_strip_nulls(jsonb_build_object(
+          'approvalStatus', 'rejected',
+          'rejectedBy', ${userId}::text,
+          'rejectedAt', ${new Date().toISOString()}::text,
+          'rejectedReason', ${reason}::text
+        ))
+      `,
+    })
+    .where(
+      and(
+        eq(purchaseOrder.id, id),
+        eq(purchaseOrder.status, "DRAFT"),
+        sql`${purchaseOrder.metadata} ->> 'approvalStatus' = 'pending'`,
+      ),
+    )
     .returning();
-  return row ?? null;
+  if (row) return row;
+  return transitionMiss(id, "NOT_PENDING");
+}
+
+async function transitionMiss(
+  id: string,
+  stateError: string,
+): Promise<null> {
+  const existing = await getPO(id);
+  if (!existing) return null;
+  throw new Error(stateError);
 }
 
 /**

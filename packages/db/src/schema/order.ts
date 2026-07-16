@@ -42,6 +42,7 @@ export const salesOrder = appSchema.table(
     bomTemplateId: uuid("bom_template_id").references(() => bomTemplate.id),
     orderQty: numeric("order_qty", { precision: 18, scale: 4 }).notNull(),
     dueDate: date("due_date"),
+    priority: varchar("priority", { length: 16 }).notNull().default("NORMAL"),
     notes: text("notes"),
     snapshotAt: timestamp("snapshot_at", { withTimezone: true }),
     snapshotBy: uuid("snapshot_by").references(() => userAccount.id),

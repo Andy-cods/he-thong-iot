@@ -48,6 +48,7 @@ export function POForm({ onSubmit, loading }: POFormProps) {
         expectedEta: expectedEta ? new Date(expectedEta) : null,
         currency: "VND",
         autoApprove: false,
+        submitForApproval: false,
         notes: notes.trim() || null,
         lines: valid.map((l) => ({
           itemId: l.item!.id,

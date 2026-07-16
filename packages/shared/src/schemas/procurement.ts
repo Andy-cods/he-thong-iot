@@ -222,8 +222,10 @@ export const poCreateSchema = z.object({
   paymentTerms: z.string().trim().max(100).optional().nullable(),
   deliveryAddress: z.string().trim().max(2000).optional().nullable(),
   notes: z.string().trim().max(2000).optional().nullable(),
-  /** Nếu true + role có "approve" quyền → tạo + duyệt luôn (SENT). */
+  /** Nếu true + role có quyền approve → tạo PO ở DRAFT và duyệt luôn. */
   autoApprove: z.boolean().optional().default(false),
+  /** Tạo PO và đưa vào hàng chờ duyệt trong cùng transaction. */
+  submitForApproval: z.boolean().optional().default(false),
   lines: z.array(poLineInputSchema).min(1, "PO cần ít nhất 1 dòng"),
 });
 
@@ -257,7 +259,6 @@ export const poUpdateSchema = z.object({
   expectedEta: dateStringOrDate.optional().nullable(),
   actualDeliveryDate: dateStringOrDate.optional().nullable(),
   notes: z.string().trim().max(2000).optional().nullable(),
-  status: z.enum(PO_STATUSES).optional(),
   // V3.4 — header full edit (chỉ allowed khi DRAFT)
   paymentTerms: z.string().trim().max(100).optional().nullable(),
   deliveryAddress: z.string().trim().max(2000).optional().nullable(),
@@ -281,7 +282,7 @@ export const poUpdateSchema = z.object({
     )
     .min(1, "PO cần ít nhất 1 dòng")
     .optional(),
-});
+}).strict();
 
 export const poListQuerySchema = z.object({
   status: z

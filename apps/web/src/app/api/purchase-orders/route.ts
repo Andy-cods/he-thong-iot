@@ -78,6 +78,7 @@ export async function POST(req: NextRequest) {
       deliveryAddress: body.data.deliveryAddress ?? null,
       notes: body.data.notes ?? null,
       autoApprove: canApprove,
+      submitForApproval: body.data.submitForApproval,
       createdBy: guard.session.userId,
       lines: body.data.lines.map((l) => ({
         itemId: l.itemId,
@@ -100,6 +101,11 @@ export async function POST(req: NextRequest) {
         poNo: row.poNo,
         supplierId: body.data.supplierId,
         lineCount: body.data.lines.length,
+        approvalStatus: row.metadata &&
+          typeof row.metadata === "object" &&
+          "approvalStatus" in row.metadata
+            ? row.metadata.approvalStatus
+            : undefined,
       },
       ...meta,
     });

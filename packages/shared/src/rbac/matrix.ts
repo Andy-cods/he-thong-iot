@@ -83,7 +83,7 @@ export const RBAC_MATRIX: Matrix = {
     salesOrder: ["create", "read", "update", "transition"],
     bomSnapshot: ["create", "read", "transition"],
     pr: ["create", "read", "update", "approve"],
-    po: ["create", "read", "update", "approve"],
+    po: ["create", "read", "update"],
     wo: ["create", "read", "update", "transition"],
     reservation: ["create", "read", "update", "transition"],
     eco: ["create", "read", "update", "approve"],
@@ -145,7 +145,7 @@ export const RBAC_MATRIX: Matrix = {
     bomSnapshot: ["read"],
     // V3.9 — Thu mua cũng tự đề xuất mua vật tư (create) ngoài duyệt PR.
     pr: ["create", "read", "update", "approve"],
-    po: ["create", "read", "update", "approve", "transition"],
+    po: ["create", "read", "update", "transition"],
     wo: ["read"],
     reservation: ["read"],
     eco: ["read"],

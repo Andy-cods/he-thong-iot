@@ -106,6 +106,7 @@ export interface CreateOrderInput {
   bomTemplateId?: string | null;
   orderQty: number;
   dueDate?: Date | null;
+  priority?: "LOW" | "NORMAL" | "HIGH" | "URGENT";
   notes?: string | null;
   createdBy: string | null;
 }
@@ -130,6 +131,7 @@ export async function createOrder(input: CreateOrderInput): Promise<SalesOrder> 
       bomTemplateId: input.bomTemplateId ?? null,
       orderQty: String(input.orderQty),
       dueDate: input.dueDate ? input.dueDate.toISOString().slice(0, 10) : null,
+      priority: input.priority ?? "NORMAL",
       notes: input.notes ?? null,
       status: "DRAFT",
       createdBy: input.createdBy,
@@ -146,6 +148,7 @@ export interface UpdateOrderInput {
   bomTemplateId?: string | null;
   orderQty?: number;
   dueDate?: Date | null;
+  priority?: "LOW" | "NORMAL" | "HIGH" | "URGENT";
   notes?: string | null;
   expectedVersionLock: number;
 }
@@ -178,6 +181,7 @@ export async function updateOrder(
   if (patch.orderQty !== undefined) values.orderQty = String(patch.orderQty);
   if (patch.dueDate !== undefined)
     values.dueDate = patch.dueDate ? patch.dueDate.toISOString().slice(0, 10) : null;
+  if (patch.priority !== undefined) values.priority = patch.priority;
   if (patch.notes !== undefined) values.notes = patch.notes;
 
   const rows = await db
@@ -235,7 +239,7 @@ export async function closeOrder(id: string): Promise<SalesOrder | null> {
       updatedAt: new Date(),
       versionLock: sql`${salesOrder.versionLock} + 1`,
     })
-    .where(eq(salesOrder.id, id))
+    .where(and(eq(salesOrder.id, id), eq(salesOrder.status, "FULFILLED")))
     .returning();
   return row ?? null;
 }

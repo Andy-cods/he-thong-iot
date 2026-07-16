@@ -163,6 +163,7 @@ export function PoCreateWizard() {
       deliveryAddress: state.deliveryAddress.trim() || null,
       notes: state.notes.trim() || null,
       autoApprove: mode === "approve" && isAdmin,
+      submitForApproval: mode === "submit",
       lines: valid.map((l) => ({
         itemId: l.item!.id,
         orderedQty: Number(l.qty) || 0,
@@ -181,13 +182,6 @@ export function PoCreateWizard() {
         submit: `Đã gửi duyệt PO ${res.data.poNo}.`,
         approve: `Đã tạo + duyệt PO ${res.data.poNo}.`,
       };
-      // Sau khi tạo, nếu submit-approval thì gọi thêm API.
-      if (mode === "submit") {
-        await fetch(
-          `/api/purchase-orders/${res.data.id}/submit-approval`,
-          { method: "POST", credentials: "include" },
-        );
-      }
       toast.success(msgMap[mode]);
       router.push(`/procurement/purchase-orders/${res.data.id}`);
     } catch (err) {

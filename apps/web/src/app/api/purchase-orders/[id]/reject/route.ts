@@ -48,10 +48,10 @@ export async function POST(
   } catch (err) {
     logger.error({ err, id: params.id }, "reject PO failed");
     const msg = (err as Error).message ?? "";
-    if (msg.includes("NOT_DRAFT")) {
+    if (msg.includes("NOT_PENDING")) {
       return jsonError(
         "INVALID_STATE",
-        "Chỉ PO đang DRAFT mới từ chối duyệt được.",
+        "Chỉ PO đang chờ duyệt mới được từ chối.",
         409,
       );
     }

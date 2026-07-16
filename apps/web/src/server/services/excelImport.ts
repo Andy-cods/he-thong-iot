@@ -1,5 +1,4 @@
 import crypto from "node:crypto";
-import { Readable } from "node:stream";
 import ExcelJS from "exceljs";
 import { itemImportRowSchema, type ItemImportRow } from "@iot/shared";
 
@@ -52,7 +51,7 @@ function normHeader(s: string): string {
   return s.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
-/** Parse xlsx từ Buffer bằng streaming để tránh OOM. */
+/** Parse xlsx từ Buffer. API upload giới hạn file ở 20MB trước khi gọi hàm này. */
 export async function parseItemImport(
   buffer: Buffer,
 ): Promise<ParseResult> {
@@ -62,33 +61,36 @@ export async function parseItemImport(
   const seenSku = new Set<string>();
   const headerMismatch: string[] = [];
 
-  const stream = Readable.from(buffer);
-  const workbook = new ExcelJS.stream.xlsx.WorkbookReader(stream, {
-    entries: "emit",
-    sharedStrings: "cache",
-    styles: "cache",
-    worksheets: "emit",
-  });
+  // ExcelJS 4.4's streaming WorkbookReader is order-sensitive: valid XLSX files
+  // can crash when a worksheet ZIP entry appears before workbook.xml. The upload
+  // endpoint already enforces a 20MB cap, so the document reader is deterministic
+  // here and avoids rejecting valid supplier/item workbooks.
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(Uint8Array.from(buffer).buffer);
 
   let headerMap: Record<string, number> | null = null;
   let rowTotal = 0;
 
-  for await (const worksheet of workbook) {
-    for await (const row of worksheet) {
+  for (const worksheet of workbook.worksheets) {
+    worksheet.eachRow({ includeEmpty: false }, (row) => {
       if (row.number === 1) {
         const headers: Record<string, number> = {};
         row.eachCell((cell, colIdx) => {
-          const v = typeof cell.value === "string" ? cell.value : String(cell.value ?? "");
+          const rawValue = cell.value;
+          const v =
+            typeof rawValue === "string"
+              ? rawValue
+              : String(rawValue ?? "");
           headers[normHeader(v)] = colIdx;
         });
         for (const h of ITEM_IMPORT_HEADER) {
           if (!(normHeader(h) in headers)) headerMismatch.push(h);
         }
         headerMap = headers;
-        continue;
+        return;
       }
 
-      if (!headerMap) continue;
+      if (!headerMap) return;
       rowTotal++;
 
       const getCell = (field: string): unknown => {
@@ -121,7 +123,7 @@ export async function parseItemImport(
             rawValue: raw[issue.path[0] as string],
           });
         }
-        continue;
+        return;
       }
 
       if (seenSku.has(parsed.data.sku)) {
@@ -131,12 +133,12 @@ export async function parseItemImport(
           reason: `SKU "${parsed.data.sku}" trùng trong file`,
           rawValue: parsed.data.sku,
         });
-        continue;
+        return;
       }
       seenSku.add(parsed.data.sku);
 
       validRows.push({ rowNumber: row.number, data: parsed.data });
-    }
+    });
   }
 
   return { fileHash, rowTotal, validRows, errors, headerMismatch };

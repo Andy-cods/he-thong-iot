@@ -102,7 +102,9 @@ export function SubcontractPOQuickDialog({
   const suppliersQuery = useQuery({
     queryKey: ["suppliers", "for-subcontract"],
     queryFn: () =>
-      apiRequest<{ data: SupplierOption[] }>("/api/suppliers?pageSize=100"),
+      apiRequest<{ data: SupplierOption[] }>(
+        "/api/suppliers?pageSize=100&isActive=true",
+      ),
     enabled: open,
     staleTime: 60_000,
   });

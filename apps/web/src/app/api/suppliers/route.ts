@@ -64,6 +64,16 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({ data: row }, { status: 201 });
   } catch (err) {
+    const pgCode =
+      (err as { code?: string; cause?: { code?: string } }).code ??
+      (err as { cause?: { code?: string } }).cause?.code;
+    if (pgCode === "23505") {
+      return jsonError(
+        "SUPPLIER_CODE_DUPLICATE",
+        `Mã NCC "${body.data.code}" đã tồn tại.`,
+        409,
+      );
+    }
     logger.error({ err }, "create supplier failed");
     return jsonError("INTERNAL", "Không tạo được NCC.", 500);
   }

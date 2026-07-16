@@ -60,6 +60,11 @@ export const metadata: Metadata = {
     title: "IoT Xưởng",
     statusBarStyle: "default",
   },
+  // Chromium đã deprecate meta Apple-only và yêu cầu meta chuẩn này đi kèm.
+  // Giữ appleWebApp cho iOS, bổ sung mobile-web-app-capable cho PWA chung.
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
   formatDetection: {
     telephone: false,
   },

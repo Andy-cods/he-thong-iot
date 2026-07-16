@@ -30,6 +30,18 @@ export async function POST(
 ) {
   const guard = await requireCan(req, "approve", "pr");
   if ("response" in guard) return guard.response;
+  // Tách quyền cấp duyệt cuối khỏi quyền duyệt cấp Trưởng bộ phận. Matrix
+  // chung không biểu diễn được hai stage khác nhau của cùng entity PR.
+  if (
+    !guard.session.roles.includes("admin") &&
+    !guard.session.roles.includes("purchaser")
+  ) {
+    return jsonError(
+      "FORBIDDEN",
+      "Chỉ Admin hoặc Bộ phận Mua hàng được duyệt cuối.",
+      403,
+    );
+  }
 
   const before = await getPR(params.id);
   if (!before) return jsonError("NOT_FOUND", "Không tìm thấy phiếu.", 404);

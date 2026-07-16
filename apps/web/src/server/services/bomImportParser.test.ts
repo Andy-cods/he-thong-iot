@@ -48,12 +48,12 @@ describe("autoMapHeaders", () => {
   });
 
   it("notes là multi-value target — không claim", () => {
-    const headers = ["Note 1", "Note 2", "Note 3", "Ghi chú"];
+    const headers = ["Note 1", "Note 2", "Note 3", "Ghi chú khác"];
     const m = autoMapHeaders(headers);
     expect(m["Note 1"]).toBe("notes");
     expect(m["Note 2"]).toBe("notes");
     expect(m["Note 3"]).toBe("notes");
-    expect(m["Ghi chú"]).toBe("notes");
+    expect(m["Ghi chú khác"]).toBe("notes");
   });
 
   it("header rỗng/null → null", () => {
@@ -72,8 +72,10 @@ describe("autoMapHeaders", () => {
     expect(m["Quantty"]).toBe("qtyPerParent");
   });
 
-  it("synonym dict có đủ 7 target", () => {
+  it("synonym dict có đủ 10 target", () => {
     expect(Object.keys(BOM_SYNONYM_DICT).sort()).toEqual([
+      "assignedToName",
+      "category",
       "componentSeq",
       "componentSku",
       "description",
@@ -81,6 +83,7 @@ describe("autoMapHeaders", () => {
       "qtyPerParent",
       "size",
       "supplierItemCode",
+      "totalQty",
     ]);
   });
 });

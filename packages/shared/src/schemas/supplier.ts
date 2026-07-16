@@ -118,7 +118,9 @@ export const supplierListQuerySchema = z.object({
     .union([z.enum(["true", "false"]), z.boolean()])
     .optional()
     .transform((v) => {
-      if (v === undefined) return true;
+      // Không truyền filter nghĩa là "Tất cả". Các picker chỉ lấy NCC đang
+      // hoạt động phải gửi isActive=true tường minh.
+      if (v === undefined) return undefined;
       if (typeof v === "boolean") return v;
       return v === "true";
     }),

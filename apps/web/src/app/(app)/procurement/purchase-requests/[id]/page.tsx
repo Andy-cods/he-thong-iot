@@ -168,6 +168,12 @@ export default function PurchaseRequestDetailPage() {
   >(null);
   const [approveNote, setApproveNote] = React.useState("");
   const [convertOpen, setConvertOpen] = React.useState(false);
+  // Hooks phải luôn chạy trước mọi nhánh return. Nếu state này nằm sau
+  // loading/not-found return, render có dữ liệu sẽ gọi thêm một Hook và React
+  // ném lỗi #310 (Rendered more hooks than during the previous render).
+  const [exporting, setExporting] = React.useState<null | "excel" | "pdf">(
+    null,
+  );
 
   if (detail.isLoading) {
     return (
@@ -253,9 +259,6 @@ export default function PurchaseRequestDetailPage() {
 
   const handlePrint = () => window.print();
   // V3.11.1 — fetch→blob→download (ổn định, đọc được lỗi) thay window.open.
-  const [exporting, setExporting] = React.useState<null | "excel" | "pdf">(
-    null,
-  );
   const handleExportExcel = async () => {
     setExporting("excel");
     try {

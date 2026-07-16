@@ -16,7 +16,6 @@ import { useSession } from "@/hooks/useSession";
 import {
   useApprovePO,
   useRejectPO,
-  useSendPurchaseOrder,
   useSubmitPOApproval,
 } from "@/hooks/usePurchaseOrders";
 import { formatDate } from "@/lib/format";
@@ -50,11 +49,12 @@ export function PoApprovalWorkflow({
   const session = useSession();
   const roles = session.data?.roles ?? [];
   const isAdmin = roles.includes("admin");
+  const canPrepare =
+    isAdmin || roles.includes("planner") || roles.includes("purchaser");
 
   const submit = useSubmitPOApproval(poId);
   const approve = useApprovePO(poId);
   const reject = useRejectPO(poId);
-  const send = useSendPurchaseOrder(poId);
 
   const [rejectReason, setRejectReason] = React.useState("");
   const [rejectOpen, setRejectOpen] = React.useState(false);
@@ -91,15 +91,6 @@ export function PoApprovalWorkflow({
       setRejectReason("");
     } catch (err) {
       toast.error(`Từ chối thất bại: ${(err as Error).message}`);
-    }
-  };
-
-  const handleSend = async () => {
-    try {
-      await send.mutateAsync();
-      toast.success("Đã gửi PO tới NCC (stub).");
-    } catch (err) {
-      toast.error(`Gửi NCC thất bại: ${(err as Error).message}`);
     }
   };
 
@@ -172,13 +163,11 @@ export function PoApprovalWorkflow({
 
   // Available actions
   const canSubmit =
-    status === "DRAFT" && !approvalStatus && !isAdmin; // planner submit
-  const canSelfApproveAsAdmin =
-    status === "DRAFT" && approvalStatus !== "approved" && isAdmin;
+    status === "DRAFT" &&
+    canPrepare &&
+    (!approvalStatus || approvalStatus === "rejected");
   const canApprovePending =
     status === "DRAFT" && approvalStatus === "pending" && isAdmin;
-  const canSend =
-    status === "DRAFT" && approvalStatus === "approved" && isAdmin;
 
   return (
     <div className="space-y-4">
@@ -216,7 +205,7 @@ export function PoApprovalWorkflow({
             Gửi duyệt
           </Button>
         )}
-        {(canApprovePending || canSelfApproveAsAdmin) && (
+        {canApprovePending && (
           <Button
             size="sm"
             onClick={() => void handleApprove()}
@@ -226,7 +215,7 @@ export function PoApprovalWorkflow({
             Duyệt PO
           </Button>
         )}
-        {(canApprovePending || canSelfApproveAsAdmin) && (
+        {canApprovePending && (
           <Button
             size="sm"
             variant="ghost"
@@ -236,18 +225,12 @@ export function PoApprovalWorkflow({
             Từ chối
           </Button>
         )}
-        {canSend && (
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => void handleSend()}
-            disabled={send.isPending}
-          >
-            <Send className="h-3.5 w-3.5" aria-hidden="true" />
-            Gửi NCC
-          </Button>
+        {approvalStatus === "approved" && status === "DRAFT" && (
+          <span className="text-xs text-emerald-700">
+            PO đã duyệt — có thể đánh dấu đã gửi ở đầu trang.
+          </span>
         )}
-        {status !== "DRAFT" && !canSend && (
+        {status !== "DRAFT" && (
           <span className="text-xs text-zinc-500">
             PO đã {status} — không còn action approval.
           </span>

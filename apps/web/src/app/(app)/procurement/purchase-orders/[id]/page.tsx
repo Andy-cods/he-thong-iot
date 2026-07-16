@@ -56,6 +56,7 @@ import { formatDate, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { downloadFromUrl } from "@/lib/download";
 import { PoQuickReceiveTable } from "@/components/procurement/PoQuickReceiveTable";
+import { PoApprovalWorkflow } from "@/components/procurement/PoApprovalWorkflow";
 
 /**
  * V3.4 — Purchase Order detail redesign hoàn toàn.
@@ -109,7 +110,11 @@ export default function PurchaseOrderDetailPage() {
   const id = params.id;
   const session = useSession();
   const roles = session.data?.roles ?? [];
-  const canManage = roles.includes("admin") || roles.includes("purchaser");
+  const canManage =
+    roles.includes("admin") ||
+    roles.includes("planner") ||
+    roles.includes("purchaser");
+  const canMarkSent = roles.includes("admin") || roles.includes("purchaser");
   const qc = useQueryClient();
 
   const detail = usePurchaseOrderDetail(id);
@@ -238,7 +243,7 @@ export default function PurchaseOrderDetailPage() {
   const handleSend = async () => {
     try {
       await send.mutateAsync();
-      toast.success("Đã gửi PO sang NCC");
+      toast.success("Đã đánh dấu PO là đã gửi");
       setSendConfirmOpen(false);
     } catch (err) {
       toast.error(`Gửi PO thất bại: ${(err as Error).message}`);
@@ -285,8 +290,13 @@ export default function PurchaseOrderDetailPage() {
   const StatusIcon = cfg.icon;
   const isDraft = po.status === "DRAFT";
   const isSent = po.status === "SENT";
-  const isEditable = canManage && (isDraft || isSent);
-  const canSend = canManage && isDraft;
+  const approvalStatus = po.metadata?.approvalStatus;
+  const draftIsEditable =
+    !approvalStatus || approvalStatus === "rejected";
+  const isEditable =
+    canManage && ((isDraft && draftIsEditable) || isSent);
+  const canSend =
+    canMarkSent && isDraft && approvalStatus === "approved";
 
   // Compute totals from lines (current data)
   let subtotal = 0;
@@ -374,7 +384,7 @@ export default function PurchaseOrderDetailPage() {
                 className="bg-blue-600 hover:bg-blue-700"
               >
                 {send.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                Gửi NCC
+                Đánh dấu đã gửi
               </Button>
             )}
             {/* V3.11 — Xuất PDF cho MỌI PO (độc lập gửi NCC, không đổi trạng thái). */}
@@ -445,6 +455,20 @@ export default function PurchaseOrderDetailPage() {
       <div className="flex-1 overflow-auto p-6">
         {tab === "info" && (
           <div className="mx-auto max-w-5xl space-y-5">
+            <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+              <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-zinc-900">
+                <CheckCircle2 className="h-4 w-4 text-zinc-400" />
+                Phê duyệt PO
+              </h2>
+              <PoApprovalWorkflow
+                poId={po.id}
+                status={po.status}
+                metadata={po.metadata}
+                createdAt={po.createdAt}
+                sentAt={po.sentAt}
+                cancelledAt={po.cancelledAt}
+              />
+            </section>
             {/* Info card */}
             <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
               <h2 className="mb-5 flex items-center gap-2 text-sm font-semibold text-zinc-900">
@@ -769,10 +793,10 @@ export default function PurchaseOrderDetailPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Send className="h-5 w-5 text-blue-600" /> Gửi PO sang Nhà cung cấp
+              <Send className="h-5 w-5 text-blue-600" /> Xác nhận đã gửi PO
             </DialogTitle>
             <DialogDescription>
-              PO sẽ chuyển sang trạng thái <strong>SENT</strong>. Sau khi gửi chỉ có thể sửa ETA và Ghi chú.
+              Thao tác này chỉ đánh dấu PO đã gửi và chuyển sang <strong>SENT</strong>; hệ thống chưa tự động gửi email. Sau đó chỉ có thể sửa ETA và Ghi chú.
               Bộ phận Kho sẽ nhận thông báo để chuẩn bị nhận hàng.
             </DialogDescription>
           </DialogHeader>
@@ -780,7 +804,7 @@ export default function PurchaseOrderDetailPage() {
             <Button variant="ghost" onClick={() => setSendConfirmOpen(false)}>Huỷ</Button>
             <Button onClick={() => void handleSend()} disabled={send.isPending} className="bg-blue-600 hover:bg-blue-700">
               {send.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-              Xác nhận gửi
+              Đánh dấu đã gửi
             </Button>
           </DialogFooter>
         </DialogContent>

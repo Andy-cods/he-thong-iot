@@ -36,13 +36,25 @@ export async function POST(
       409,
     );
   }
+  if (before.status !== "FULFILLED") {
+    return jsonError(
+      "INVALID_STATUS_TRANSITION",
+      `Đơn hàng đang ${before.status} — chỉ đơn đã hoàn thành mới được đóng.`,
+      409,
+    );
+  }
 
   const body = await parseJson(req, orderCloseSchema);
   if ("response" in body) return body.response;
 
   try {
     const after = await closeOrder(before.id);
-    if (!after) return jsonError("NOT_FOUND", "Không tìm thấy đơn hàng.", 404);
+    if (!after)
+      return jsonError(
+        "CONFLICT",
+        "Trạng thái đơn hàng vừa thay đổi. Vui lòng tải lại.",
+        409,
+      );
 
     const meta = extractRequestMeta(req);
     await writeAudit({

@@ -1,12 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { poUpdateSchema } from "@iot/shared";
 import { eq } from "drizzle-orm";
-import { purchaseOrder, supplier } from "@iot/db/schema";
+import { supplier } from "@iot/db/schema";
 import { logger } from "@/lib/logger";
 import {
   getPO,
   getPOLines,
-  replacePOLines,
+  updatePOWithLines,
 } from "@/server/repos/purchaseOrders";
 import {
   extractRequestMeta,
@@ -85,6 +85,22 @@ export async function PATCH(
     );
   }
 
+  const approvalStatus = (
+    before.metadata as { approvalStatus?: string } | null
+  )?.approvalStatus;
+  if (
+    isDraft &&
+    (approvalStatus === "pending" || approvalStatus === "approved")
+  ) {
+    return jsonError(
+      "NOT_EDITABLE",
+      approvalStatus === "pending"
+        ? "PO đang chờ duyệt — hãy từ chối trước khi chỉnh sửa."
+        : "PO đã duyệt — không thể chỉnh sửa trước khi gửi NCC.",
+      409,
+    );
+  }
+
   const body = await parseJson(req, poUpdateSchema);
   if ("response" in body) return body.response;
 
@@ -113,7 +129,6 @@ export async function PATCH(
       ? body.data.actualDeliveryDate.toISOString().slice(0, 10)
       : null;
   if (body.data.notes !== undefined) patch.notes = body.data.notes;
-  if (body.data.status !== undefined) patch.status = body.data.status;
   // V3.4 — DRAFT only fields
   if (isDraft) {
     if (body.data.paymentTerms !== undefined)
@@ -125,23 +140,12 @@ export async function PATCH(
   }
 
   try {
-    let after = before;
-    if (Object.keys(patch).length > 0) {
-      const [updated] = await db
-        .update(purchaseOrder)
-        .set(patch)
-        .where(eq(purchaseOrder.id, params.id))
-        .returning();
-      if (!updated) return jsonError("CONFLICT", "PO đã thay đổi.", 409);
-      after = updated;
-    }
-
-    // V3.4 — replace lines (DRAFT only)
-    let newTotalAmount: string | null = null;
-    if (isDraft && body.data.lines && body.data.lines.length > 0) {
-      const result = await replacePOLines(
-        params.id,
-        body.data.lines.map((l) => ({
+    const result = await updatePOWithLines(
+      params.id,
+      isDraft ? "DRAFT" : "SENT",
+      patch,
+      isDraft && body.data.lines
+        ? body.data.lines.map((l) => ({
           itemId: l.itemId,
           orderedQty: l.orderedQty,
           unitPrice: l.unitPrice ?? 0,
@@ -149,10 +153,17 @@ export async function PATCH(
           snapshotLineId: l.snapshotLineId ?? null,
           expectedEta: l.expectedEta ? new Date(l.expectedEta) : null,
           notes: l.notes ?? null,
-        })),
+        }))
+        : undefined,
+    );
+    if (!result)
+      return jsonError(
+        "CONFLICT",
+        "PO đã thay đổi trạng thái hoặc trạng thái duyệt.",
+        409,
       );
-      newTotalAmount = result.totalAmount;
-    }
+    const after = result.row;
+    const newTotalAmount = result.totalAmount;
 
     const meta = extractRequestMeta(req);
     const diff = diffObjects(

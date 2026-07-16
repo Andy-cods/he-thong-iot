@@ -18,7 +18,7 @@ export default function NewPurchaseOrderPage() {
           </Link>
           <span className="mx-1.5 text-zinc-300">›</span>
           <Link
-            href="/procurement"
+            href="/sales"
             className="hover:text-zinc-900 hover:underline"
           >
             Thu mua

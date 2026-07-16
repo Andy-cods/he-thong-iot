@@ -38,13 +38,13 @@ describe("NAV_ITEMS V3.1 cấu trúc 6 section", () => {
     });
   });
 
-  it("section order: dashboard → warehouse → finance → engineering → operations → other", () => {
+  it("section order follows the business workflow", () => {
     expect(NAV_SECTION_ORDER).toEqual([
       "dashboard",
-      "warehouse",
-      "finance",
       "engineering",
       "operations",
+      "finance",
+      "warehouse",
       "other",
     ]);
   });
@@ -59,14 +59,14 @@ describe("NAV_ITEMS V3.1 cấu trúc 6 section", () => {
     expect(finHrefs).toEqual(["/sales"]);
   });
 
-  it("Bộ phận Thiết kế có 1 hub /engineering", () => {
+  it("Bộ phận Thiết kế có hub và lối tắt đề xuất vật tư", () => {
     const engHrefs = NAV_ITEMS.filter((i) => i.section === "engineering").map((i) => i.href);
-    expect(engHrefs).toEqual(["/engineering"]);
+    expect(engHrefs).toEqual(["/engineering", "/procurement/purchase-requests"]);
   });
 
-  it("Bộ phận Gia công có 1 hub /operations", () => {
+  it("Bộ phận Gia công có hub và bảng sản xuất QC", () => {
     const opsHrefs = NAV_ITEMS.filter((i) => i.section === "operations").map((i) => i.href);
-    expect(opsHrefs).toEqual(["/operations"]);
+    expect(opsHrefs).toEqual(["/operations", "/production-board"]);
   });
 });
 
@@ -75,9 +75,9 @@ describe("groupNavBySection", () => {
     const groups = groupNavBySection(NAV_ITEMS);
     const sections = groups.map((g) => g.section);
     expect(sections[0]).toBe("dashboard");
-    expect(sections.indexOf("warehouse")).toBeLessThan(sections.indexOf("finance"));
-    expect(sections.indexOf("finance")).toBeLessThan(sections.indexOf("engineering"));
     expect(sections.indexOf("engineering")).toBeLessThan(sections.indexOf("operations"));
+    expect(sections.indexOf("operations")).toBeLessThan(sections.indexOf("finance"));
+    expect(sections.indexOf("finance")).toBeLessThan(sections.indexOf("warehouse"));
   });
 
   it("section rỗng (sau filter) sẽ KHÔNG xuất hiện trong groups", () => {
@@ -104,33 +104,46 @@ describe("filterNavByRoles", () => {
     expect(filtered.length).toBe(NAV_ITEMS.length);
   });
 
-  it("V3.3 — role warehouse CHỈ thấy Tổng quan + /warehouse (strict)", () => {
+  it("warehouse thấy BOM/đề xuất vật tư và hub kho", () => {
     const filtered = filterNavByRoles(NAV_ITEMS, ["warehouse"]);
     const hrefs = filtered.map((i) => i.href);
-    expect(hrefs).toContain("/");
-    expect(hrefs).toContain("/warehouse");
+    expect(hrefs).toEqual([
+      "/",
+      "/engineering",
+      "/procurement/purchase-requests",
+      "/warehouse",
+    ]);
     expect(hrefs).not.toContain("/admin");
     expect(hrefs).not.toContain("/sales");
-    expect(hrefs).not.toContain("/engineering");
     expect(hrefs).not.toContain("/operations");
   });
 
-  it("V3.3 — role planner CHỈ thấy Tổng quan + /engineering", () => {
+  it("planner thấy thiết kế và đề xuất vật tư", () => {
     const filtered = filterNavByRoles(NAV_ITEMS, ["planner"]);
     const hrefs = filtered.map((i) => i.href);
-    expect(hrefs).toEqual(["/", "/engineering"]);
+    expect(hrefs).toEqual(["/", "/engineering", "/procurement/purchase-requests"]);
   });
 
-  it("V3.3 — role purchaser CHỈ thấy Tổng quan + /sales", () => {
+  it("purchaser thấy BOM, đề xuất vật tư và hub thu mua", () => {
     const filtered = filterNavByRoles(NAV_ITEMS, ["purchaser"]);
     const hrefs = filtered.map((i) => i.href);
-    expect(hrefs).toEqual(["/", "/sales"]);
+    expect(hrefs).toEqual([
+      "/",
+      "/engineering",
+      "/procurement/purchase-requests",
+      "/sales",
+    ]);
   });
 
-  it("V3.3 — role operator CHỈ thấy Tổng quan + /operations", () => {
+  it("operator thấy BOM, đề xuất vật tư và hub gia công", () => {
     const filtered = filterNavByRoles(NAV_ITEMS, ["operator"]);
     const hrefs = filtered.map((i) => i.href);
-    expect(hrefs).toEqual(["/", "/operations"]);
+    expect(hrefs).toEqual([
+      "/",
+      "/engineering",
+      "/procurement/purchase-requests",
+      "/operations",
+    ]);
   });
 
   it("V3.3 — admin thấy toàn bộ", () => {

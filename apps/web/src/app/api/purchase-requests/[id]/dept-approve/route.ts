@@ -26,6 +26,18 @@ export async function POST(
 ) {
   const guard = await requireCan(req, "approve", "pr");
   if ("response" in guard) return guard.response;
+  // RBAC action `approve:pr` được dùng cho cả hai cấp, nên route phải khóa
+  // thêm đúng vai trò của cấp Trưởng bộ phận.
+  if (
+    !guard.session.roles.includes("admin") &&
+    !guard.session.roles.includes("planner")
+  ) {
+    return jsonError(
+      "FORBIDDEN",
+      "Chỉ Admin hoặc Trưởng bộ phận được duyệt bước này.",
+      403,
+    );
+  }
 
   const before = await getPR(params.id);
   if (!before) return jsonError("NOT_FOUND", "Không tìm thấy phiếu.", 404);

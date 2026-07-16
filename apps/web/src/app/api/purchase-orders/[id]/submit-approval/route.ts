@@ -3,7 +3,7 @@ import { logger } from "@/lib/logger";
 import { submitPOForApproval } from "@/server/repos/purchaseOrders";
 import { extractRequestMeta, jsonError } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
-import { requireCan } from "@/server/session";
+import { forbidden, hasRole, requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +21,7 @@ export async function POST(
 ) {
   const guard = await requireCan(req, "update", "po");
   if ("response" in guard) return guard.response;
+  if (!hasRole(guard.session, "planner", "purchaser")) return forbidden();
 
   try {
     const row = await submitPOForApproval(params.id, guard.session.userId);
@@ -41,10 +42,10 @@ export async function POST(
   } catch (err) {
     logger.error({ err, id: params.id }, "submit PO approval failed");
     const msg = (err as Error).message ?? "";
-    if (msg.includes("NOT_DRAFT")) {
+    if (msg.includes("NOT_SUBMITTABLE")) {
       return jsonError(
         "INVALID_STATE",
-        "Chỉ PO đang DRAFT mới gửi duyệt được.",
+        "PO phải ở trạng thái Nháp và chưa chờ duyệt/đã bị từ chối.",
         409,
       );
     }

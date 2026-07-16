@@ -99,7 +99,9 @@ describe("can() — assert 48+ cell từ matrix (§4 brainstorm)", () => {
     ["accountant", "create", "pr", true],
     ["accountant", "read", "pr", true],
     // PO
-    ["planner", "approve", "po", true],
+    ["admin", "approve", "po", true],
+    ["planner", "approve", "po", false],
+    ["purchaser", "approve", "po", false],
     ["warehouse", "transition", "po", true],
     ["warehouse", "update", "po", true],
     ["operator", "update", "po", false],

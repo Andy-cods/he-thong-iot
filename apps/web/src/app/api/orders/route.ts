@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
       bomTemplateId: body.data.bomTemplateId ?? null,
       orderQty: body.data.orderQty,
       dueDate: body.data.dueDate ?? null,
+      priority: body.data.priority,
       notes: body.data.notes ?? null,
       createdBy: guard.session.userId,
     });

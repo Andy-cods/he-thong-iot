@@ -53,6 +53,7 @@ export async function PATCH(
       bomTemplateId: body.data.bomTemplateId ?? undefined,
       orderQty: body.data.orderQty,
       dueDate: body.data.dueDate ?? undefined,
+      priority: body.data.priority,
       notes: body.data.notes ?? undefined,
       expectedVersionLock: body.data.expectedVersionLock,
     });

@@ -57,7 +57,7 @@ describe("parseItemImport", () => {
     const res = await parseItemImport(buf);
     expect(res.headerMismatch).toEqual([]);
     expect(res.rowTotal).toBe(1);
-    expect(res.validRows).toHaveLength(1);
+    expect(res.validRows, JSON.stringify(res.errors)).toHaveLength(1);
     expect(res.errors).toEqual([]);
     expect(res.fileHash).toMatch(/^[0-9a-f]{64}$/);
     expect(res.validRows[0]?.data.sku).toBe("RM-0001");
@@ -69,7 +69,7 @@ describe("parseItemImport", () => {
       { sku: "ab-01", name: "y", itemType: "RAW", uom: "KG" },
     ]);
     const res = await parseItemImport(buf);
-    expect(res.validRows).toHaveLength(1);
+    expect(res.validRows, JSON.stringify(res.errors)).toHaveLength(1);
     expect(res.errors.some((e) => e.reason.includes("trùng"))).toBe(true);
   });
 

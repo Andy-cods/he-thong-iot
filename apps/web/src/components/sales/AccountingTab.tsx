@@ -671,11 +671,6 @@ function PaymentTab({ receivedPOs, isLoading }: { receivedPOs: POForAccounting[]
 // ─── Reports Tab ──────────────────────────────────────────────────────────────
 
 function ReportsTab({ allPOs, isLoading }: { allPOs: POForAccounting[]; isLoading: boolean }) {
-  if (isLoading) return <LoadingSkeleton />;
-
-  const totalAmt   = allPOs.reduce((s, p) => s + Number(p.totalAmount), 0);
-  const byStatus   = ["DRAFT","SENT","PARTIAL","RECEIVED","CANCELLED","CLOSED"] as POStatus[];
-
   // By supplier summary
   const supplierSummary = React.useMemo(() => {
     const m: Record<string, { name: string; count: number; totalAmt: number; receivedAmt: number }> = {};
@@ -687,6 +682,11 @@ function ReportsTab({ allPOs, isLoading }: { allPOs: POForAccounting[]; isLoadin
     }
     return Object.values(m).sort((a, b) => b.totalAmt - a.totalAmt);
   }, [allPOs]);
+
+  if (isLoading) return <LoadingSkeleton />;
+
+  const totalAmt   = allPOs.reduce((s, p) => s + Number(p.totalAmount), 0);
+  const byStatus   = ["DRAFT","SENT","PARTIAL","RECEIVED","CANCELLED","CLOSED"] as POStatus[];
 
   return (
     <div className="space-y-6 max-w-5xl">

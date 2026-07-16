@@ -39,7 +39,10 @@ interface ItemSupplierRow {
 
 export function SupplierList({ itemId }: { itemId: string }) {
   const { data, isLoading } = useItemSuppliers(itemId);
-  const { data: suppliersData } = useSuppliersList({ pageSize: 100 });
+  const { data: suppliersData } = useSuppliersList({
+    pageSize: 100,
+    isActive: true,
+  });
   const add = useAddItemSupplier(itemId);
   const remove = useRemoveItemSupplier(itemId);
   const setPreferred = useSetPreferredItemSupplier(itemId);

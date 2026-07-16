@@ -74,28 +74,28 @@ const nextConfig = {
   // Dockerfile set BUILD_STANDALONE=1 để bật cho production image.
   ...(process.env.BUILD_STANDALONE === "1" ? { output: "standalone" } : {}),
   transpilePackages: ["@iot/db", "@iot/shared"],
-  // V3.7.69 YCVT — include template Excel + Roboto fonts vào standalone bundle.
-  // Next.js standalone chỉ trace files được `import`/`require`; binary assets
-  // load runtime qua fs.readFile cần khai báo manual ở đây.
-  outputFileTracingIncludes: {
-    "/api/purchase-requests/[id]/export-excel/**": [
-      "./src/server/templates/ycvt-mrf-template.xlsx",
-      "./public/img/logo-gtam.png",
-    ],
-    "/api/purchase-requests/[id]/export-pdf/**": [
-      "./public/fonts/Roboto-Regular.ttf",
-      "./public/fonts/Roboto-Bold.ttf",
-      "./public/img/logo-gtam.png",
-    ],
-    // Hook chung cho mọi pdf route hiện có (poPdf) — defensive
-    "/api/purchase-orders/[id]/pdf/**": [
-      "./public/fonts/Roboto-Regular.ttf",
-      "./public/fonts/Roboto-Bold.ttf",
-      "./public/img/logo-gtam.png",
-    ],
-  },
   experimental: {
     serverComponentsExternalPackages: ["postgres", "argon2"],
+    // V3.7.69 YCVT — include template Excel + Roboto fonts vào standalone bundle.
+    // Next.js standalone chỉ trace files được `import`/`require`; binary assets
+    // load runtime qua fs.readFile cần khai báo manual ở đây.
+    outputFileTracingIncludes: {
+      "/api/purchase-requests/[id]/export-excel/**": [
+        "./src/server/templates/ycvt-mrf-template.xlsx",
+        "./public/img/logo-gtam.png",
+      ],
+      "/api/purchase-requests/[id]/export-pdf/**": [
+        "./public/fonts/Roboto-Regular.ttf",
+        "./public/fonts/Roboto-Bold.ttf",
+        "./public/img/logo-gtam.png",
+      ],
+      // Hook chung cho mọi pdf route hiện có (poPdf) — defensive
+      "/api/purchase-orders/[id]/pdf/**": [
+        "./public/fonts/Roboto-Regular.ttf",
+        "./public/fonts/Roboto-Bold.ttf",
+        "./public/img/logo-gtam.png",
+      ],
+    },
   },
   typescript: { ignoreBuildErrors: true },
   eslint: { ignoreDuringBuilds: true },

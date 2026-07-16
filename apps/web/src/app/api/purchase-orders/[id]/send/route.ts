@@ -4,7 +4,7 @@ import { getPO, sendPO } from "@/server/repos/purchaseOrders";
 import { extractRequestMeta, jsonError } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { notifyPOSent } from "@/server/services/notifications";
-import { requireCan } from "@/server/session";
+import { forbidden, hasRole, requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,15 +12,16 @@ export const dynamic = "force-dynamic";
 /**
  * POST /api/purchase-orders/[id]/send
  *
- * V1.2 stub: chỉ đánh dấu DRAFT → SENT + timestamp. V1.3 sẽ gửi email qua
- * SMTP service + template PDF. Role: admin only.
+ * Đánh dấu PO đã duyệt là SENT. Không gửi email tự động.
+ * Role: admin hoặc purchaser.
  */
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireCan(req, "approve", "po");
+  const guard = await requireCan(req, "transition", "po");
   if ("response" in guard) return guard.response;
+  if (!hasRole(guard.session, "purchaser")) return forbidden();
 
   const before = await getPO(params.id);
   if (!before) return jsonError("NOT_FOUND", "Không tìm thấy PO.", 404);
@@ -28,6 +29,16 @@ export async function POST(
     return jsonError(
       "INVALID_STATE",
       `PO đang ${before.status} — chỉ DRAFT mới gửi được.`,
+      409,
+    );
+  }
+  const approvalStatus = (
+    before.metadata as { approvalStatus?: string } | null
+  )?.approvalStatus;
+  if (approvalStatus !== "approved") {
+    return jsonError(
+      "INVALID_APPROVAL_STATE",
+      "PO phải được phê duyệt trước khi đánh dấu đã gửi.",
       409,
     );
   }
@@ -44,7 +55,7 @@ export async function POST(
       objectId: params.id,
       before: { status: "DRAFT" },
       after: { status: "SENT", sentAt: row.sentAt },
-      notes: "V1.2 stub: không gửi email, chỉ mark status",
+      notes: "Đánh dấu PO đã gửi; không gửi email tự động",
       ...meta,
     });
 
@@ -59,6 +70,6 @@ export async function POST(
     return NextResponse.json({ data: row });
   } catch (err) {
     logger.error({ err, id: params.id }, "send PO failed");
-    return jsonError("INTERNAL", "Không gửi được PO.", 500);
+    return jsonError("INTERNAL", "Không đánh dấu gửi được PO.", 500);
   }
 }

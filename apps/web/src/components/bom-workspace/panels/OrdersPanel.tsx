@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowUpRight, Plus } from "lucide-react";
 import {
   SALES_ORDER_STATUS_LABELS,
+  can,
   type SalesOrderStatus,
 } from "@iot/shared";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import { useOrdersList } from "@/hooks/useOrders";
 import { formatDate, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { CreateOrderDialog } from "../CreateOrderDialog";
+import { useSession } from "@/hooks/useSession";
 
 /* ── Status badge ─────────────────────────────────────────────────────────── */
 const ORDER_STATUS_STYLE: Record<SalesOrderStatus, { label: string; cls: string }> = {
@@ -42,9 +44,15 @@ export interface OrdersPanelProps {
 }
 
 export function OrdersPanel({ bomId, bomCode }: OrdersPanelProps) {
+  const session = useSession();
   const query = useOrdersList({ bomTemplateId: bomId, page: 1, pageSize: 50 });
   const rows = query.data?.data ?? [];
   const [createOpen, setCreateOpen] = React.useState(false);
+  const canCreateOrder = can(
+    session.data?.roles ?? [],
+    "create",
+    "salesOrder",
+  );
 
   return (
     <div className="flex h-full flex-col">
@@ -55,10 +63,12 @@ export function OrdersPanel({ bomId, bomCode }: OrdersPanelProps) {
             <><span className="tabular-nums font-semibold text-zinc-900">{rows.length}</span> đơn hàng dùng BOM này</>
           )}
         </p>
-        <Button size="sm" onClick={() => setCreateOpen(true)}>
-          <Plus className="h-3.5 w-3.5" aria-hidden />
-          Tạo đơn từ BOM này
-        </Button>
+        {canCreateOrder && (
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-3.5 w-3.5" aria-hidden />
+            Tạo đơn từ BOM này
+          </Button>
+        )}
       </div>
 
       {/* Content */}
@@ -76,7 +86,9 @@ export function OrdersPanel({ bomId, bomCode }: OrdersPanelProps) {
             </div>
             <p className="text-sm font-medium text-zinc-700">Chưa có đơn hàng nào</p>
             <p className="max-w-xs text-xs text-zinc-500">
-              Bấm <span className="font-medium text-zinc-700">"Tạo đơn từ BOM này"</span> để tạo đơn hàng liên kết với BOM.
+              {canCreateOrder
+                ? "Dùng nút “Tạo đơn từ BOM này” để tạo đơn hàng liên kết với BOM."
+                : "Bạn có quyền xem nhưng không có quyền tạo đơn hàng."}
             </p>
           </div>
         ) : (
@@ -129,12 +141,14 @@ export function OrdersPanel({ bomId, bomCode }: OrdersPanelProps) {
         )}
       </div>
 
-      <CreateOrderDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        bomTemplateId={bomId}
-        bomTemplateCode={bomCode ?? ""}
-      />
+      {canCreateOrder && (
+        <CreateOrderDialog
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          bomTemplateId={bomId}
+          bomTemplateCode={bomCode ?? ""}
+        />
+      )}
     </div>
   );
 }

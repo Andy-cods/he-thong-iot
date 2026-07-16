@@ -15,8 +15,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * POST /api/purchase-requests/[id]/reject — admin+planner.
- * DRAFT/SUBMITTED/APPROVED → REJECTED. Audit CANCEL.
+ * POST /api/purchase-requests/[id]/reject — admin/planner/purchaser có quyền
+ * approve PR; chỉ áp dụng khi phiếu đang chờ một trong hai cấp duyệt.
  */
 export async function POST(
   req: NextRequest,
@@ -27,13 +27,13 @@ export async function POST(
 
   const before = await getPR(params.id);
   if (!before) return jsonError("NOT_FOUND", "Không tìm thấy PR.", 404);
-  if (before.status === "REJECTED") {
-    return jsonError("ALREADY_REJECTED", "PR đã bị từ chối.", 409);
-  }
-  if (before.status === "CONVERTED") {
+  if (
+    before.approvalStep !== "SUBMITTED" &&
+    before.approvalStep !== "DEPT_APPROVED"
+  ) {
     return jsonError(
       "INVALID_STATE",
-      "PR đã CONVERTED — không thể từ chối.",
+      "Chỉ phiếu đang chờ phê duyệt mới có thể bị từ chối.",
       409,
     );
   }
