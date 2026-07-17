@@ -63,10 +63,10 @@ const EVENT_ICON: Record<string, React.ElementType> = {
 };
 
 const SEVERITY_CLS: Record<string, string> = {
-  info:    "bg-blue-50 text-blue-600",
-  success: "bg-emerald-50 text-emerald-600",
-  warning: "bg-amber-50 text-amber-600",
-  error:   "bg-red-50 text-red-600",
+  info:    "bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400",
+  success: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400",
+  warning: "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400",
+  error:   "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400",
 };
 
 export function NotificationBell() {
@@ -135,11 +135,11 @@ export function NotificationBell() {
         onClick={() => setOpen((v) => !v)}
         aria-label={`Thông báo (${unreadCount} chưa đọc)`}
         aria-expanded={open}
-        className="relative inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
+        className="relative inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
       >
         <Bell className="h-4 w-4" aria-hidden />
         {unreadCount > 0 && (
-          <span className="absolute right-0.5 top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white">
+          <span className="absolute right-0.5 top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white dark:ring-zinc-900">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
@@ -148,15 +148,15 @@ export function NotificationBell() {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-10 z-dropdown w-[400px] origin-top-right overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl shadow-zinc-900/10 ring-1 ring-zinc-900/5"
+          className="absolute right-0 top-10 z-dropdown w-[400px] origin-top-right overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl shadow-zinc-900/10 ring-1 ring-zinc-900/5 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/40 dark:ring-white/5"
         >
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50/60 px-4 py-3">
+          <div className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50/60 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800/40">
             <div>
-              <p className="text-sm font-semibold text-zinc-900">Thông báo</p>
+              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Thông báo</p>
               {unreadCount > 0 && (
-                <p className="text-xs text-zinc-500">
-                  <span className="font-semibold text-indigo-600">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  <span className="font-semibold text-indigo-600 dark:text-indigo-400">
                     {unreadCount}
                   </span>{" "}
                   chưa đọc
@@ -168,7 +168,7 @@ export function NotificationBell() {
                 type="button"
                 onClick={() => markAllRead.mutate()}
                 disabled={markAllRead.isPending}
-                className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 disabled:opacity-50"
+                className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 disabled:opacity-50 dark:text-indigo-400 dark:hover:text-indigo-300"
               >
                 <CheckCheck className="h-3 w-3" aria-hidden />
                 Đánh dấu tất cả đã đọc
@@ -179,21 +179,21 @@ export function NotificationBell() {
           {/* List */}
           <div className="max-h-[480px] overflow-y-auto">
             {query.isLoading ? (
-              <div className="flex items-center justify-center py-10 text-sm text-zinc-500">
+              <div className="flex items-center justify-center py-10 text-sm text-zinc-500 dark:text-zinc-400">
                 Đang tải…
               </div>
             ) : items.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-12 text-center">
-                <Bell className="h-8 w-8 text-zinc-300" aria-hidden />
-                <p className="text-sm font-medium text-zinc-700">
+                <Bell className="h-8 w-8 text-zinc-300 dark:text-zinc-600" aria-hidden />
+                <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
                   Không có thông báo nào
                 </p>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
                   Bạn sẽ nhận thông báo khi có hoạt động mới.
                 </p>
               </div>
             ) : (
-              <ul className="divide-y divide-zinc-50">
+              <ul className="divide-y divide-zinc-50 dark:divide-zinc-800">
                 {items.map((n) => (
                   <NotificationItemRow
                     key={n.id}
@@ -207,11 +207,11 @@ export function NotificationBell() {
           </div>
 
           {/* Footer */}
-          <div className="border-t border-zinc-100 bg-zinc-50/60 px-4 py-2.5 text-center">
+          <div className="border-t border-zinc-100 bg-zinc-50/60 px-4 py-2.5 text-center dark:border-zinc-800 dark:bg-zinc-800/40">
             <Link
               href="/notifications"
               onClick={() => setOpen(false)}
-              className="text-xs font-medium text-indigo-600 hover:text-indigo-800"
+              className="text-xs font-medium text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
             >
               Xem tất cả thông báo →
             </Link>
@@ -238,8 +238,8 @@ function NotificationItemRow({
   const content = (
     <div
       className={cn(
-        "flex gap-3 px-4 py-3 transition-colors hover:bg-zinc-50",
-        isUnread && "bg-indigo-50/40",
+        "flex gap-3 px-4 py-3 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/60",
+        isUnread && "bg-indigo-50/40 dark:bg-indigo-500/10",
       )}
     >
       <div
@@ -254,17 +254,19 @@ function NotificationItemRow({
         <p
           className={cn(
             "text-sm leading-snug",
-            isUnread ? "font-semibold text-zinc-900" : "font-medium text-zinc-800",
+            isUnread
+              ? "font-semibold text-zinc-900 dark:text-zinc-50"
+              : "font-medium text-zinc-800 dark:text-zinc-200",
           )}
         >
           {item.title}
         </p>
         {item.message && (
-          <p className="mt-0.5 line-clamp-2 text-xs text-zinc-500">
+          <p className="mt-0.5 line-clamp-2 text-xs text-zinc-500 dark:text-zinc-400">
             {item.message}
           </p>
         )}
-        <div className="mt-1 flex items-center gap-2 text-[11px] text-zinc-400">
+        <div className="mt-1 flex items-center gap-2 text-[11px] text-zinc-400 dark:text-zinc-500">
           <span>{relativeTime(item.createdAt)}</span>
           {item.actorUsername && (
             <>
@@ -275,7 +277,7 @@ function NotificationItemRow({
           {!item.isDirect && (
             <>
               <span>·</span>
-              <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">
+              <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
                 Bộ phận
               </span>
             </>

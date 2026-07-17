@@ -52,6 +52,22 @@ interface RowError {
   rawValue?: unknown;
 }
 
+/**
+ * V3.11.3 (audit W.1) — lỗi "bỏ qua dòng có kiểm soát" (không phải lỗi hệ thống):
+ * dùng để rollback savepoint per-row sạch mà vẫn ghi được field/rawValue gốc
+ * vào errors. Ví dụ: SKU chưa có master + không bật auto-create.
+ */
+class RowSkip extends Error {
+  constructor(
+    message: string,
+    readonly field: string,
+    readonly rawValue?: unknown,
+  ) {
+    super(message);
+    this.name = "RowSkip";
+  }
+}
+
 const CHUNK_SIZE = 100;
 
 export async function processBomImportCommit(
@@ -79,6 +95,23 @@ export async function processBomImportCommit(
       startedAt: batch.startedAt ?? new Date(),
     })
     .where(eq(importBatch.id, batchId));
+
+  // V3.11.3 (audit W.3) — Idempotent retry: xoá sạch bom_line đã import bởi
+  // CHÍNH batch này ở lần chạy trước (nếu có). BullMQ có attempts=3; sau
+  // crash/stall attempt 2/3 chạy lại toàn bộ → nếu không xoá sẽ NHÂN ĐÔI BOM.
+  // Chỉ xoá line gắn metadata.importedFromBatch = batchId (không đụng line khác
+  // của template đã tồn tại từ trước).
+  const del = await db.execute(sql`
+    DELETE FROM app.bom_line
+    WHERE metadata ->> 'importedFromBatch' = ${batchId}
+  `);
+  const delCount = (del as unknown as { count?: number })?.count ?? 0;
+  if (delCount > 0) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[bomImport] retry batch ${batchId}: đã xoá ${delCount} bom_line cũ để tránh nhân đôi`,
+    );
+  }
 
   let totalSuccess = 0;
   let totalFail = 0;
@@ -182,8 +215,8 @@ export async function processBomImportCommit(
         mapping: sheetMapping,
         autoCreateMissingItems,
         actorId,
-        startPosition:
-          (await nextRootPosition(templateId)) + (i === 0 ? 0 : 0),
+        startPosition: await nextRootPosition(templateId),
+        batchId,
       });
       totalSuccess += result.success;
       totalFail += result.fail;
@@ -365,6 +398,7 @@ interface ProcessChunkInput {
   autoCreateMissingItems: boolean;
   actorId: string;
   startPosition: number;
+  batchId: string;
 }
 
 async function processChunk(
@@ -384,191 +418,213 @@ async function processChunk(
     let position = input.startPosition;
     for (const row of input.chunk) {
       try {
-        const skuHeader = invMapping.componentSku;
-        const qtyHeader = invMapping.qtyPerParent;
+        // V3.11.3 (audit W.1) — SAVEPOINT per-row: bọc mỗi dòng trong 1
+        // transaction lồng (Drizzle/postgres.js → SAVEPOINT). Khi 1 dòng lỗi
+        // DB-level (FK, enum thiếu, numeric overflow, unique...), CHỈ savepoint
+        // đó rollback; transaction cha vẫn khỏe nên các dòng sau tiếp tục import.
+        // Trước đây lỗi DB abort cả chunk → các dòng success trước bị rollback
+        // âm thầm nhưng batch vẫn "done" với rowSuccess>0 (dữ liệu ma).
+        await tx.transaction(async (sp) => {
+          const skuHeader = invMapping.componentSku;
+          const qtyHeader = invMapping.qtyPerParent;
 
-        if (!skuHeader || !qtyHeader) {
-          throw new Error(
-            "Thiếu mapping cột bắt buộc: componentSku hoặc qtyPerParent",
-          );
-        }
+          if (!skuHeader || !qtyHeader) {
+            throw new Error(
+              "Thiếu mapping cột bắt buộc: componentSku hoặc qtyPerParent",
+            );
+          }
 
-        const skuRaw = String(row.data[skuHeader] ?? "").trim();
-        const qtyRaw = String(row.data[qtyHeader] ?? "").trim();
+          const skuRaw = String(row.data[skuHeader] ?? "").trim();
+          const qtyRaw = String(row.data[qtyHeader] ?? "").trim();
 
-        if (!skuRaw) throw new Error("SKU trống");
-        const qty = Number(qtyRaw);
-        if (!Number.isFinite(qty) || qty <= 0) {
-          throw new Error(`Số lượng không hợp lệ: "${qtyRaw}"`);
-        }
+          if (!skuRaw) throw new Error("SKU trống");
+          const qty = Number(qtyRaw);
+          if (!Number.isFinite(qty) || qty <= 0) {
+            throw new Error(`Số lượng không hợp lệ: "${qtyRaw}"`);
+          }
 
-        // Lookup item theo SKU (normalize UPPER)
-        const skuNorm = skuRaw.toUpperCase();
-        // V3.11.2 — Guard: item.sku là varchar(64). SKU dài hơn → báo lỗi rõ
-        // theo dòng (per-row skip) thay vì để Postgres abort cả transaction
-        // (bug: 1 ô dài làm crash + kẹt batch ở "committing").
-        if (skuNorm.length > 64) {
-          throw new Error(
-            `mã linh kiện (SKU) dài ${skuNorm.length} ký tự, vượt giới hạn 64 — kiểm tra cột SKU / ô dữ liệu: "${skuNorm.slice(0, 40)}…"`,
-          );
-        }
-        const [existingItem] = await tx
-          .select({ id: item.id })
-          .from(item)
-          .where(eq(item.sku, skuNorm))
-          .limit(1);
+          // Lookup item theo SKU (normalize UPPER)
+          const skuNorm = skuRaw.toUpperCase();
+          // V3.11.2 — Guard: item.sku là varchar(64). SKU dài hơn → báo lỗi rõ
+          // theo dòng (per-row skip) thay vì để Postgres abort cả transaction
+          // (bug: 1 ô dài làm crash + kẹt batch ở "committing").
+          if (skuNorm.length > 64) {
+            throw new Error(
+              `mã linh kiện (SKU) dài ${skuNorm.length} ký tự, vượt giới hạn 64 — kiểm tra cột SKU / ô dữ liệu: "${skuNorm.slice(0, 40)}…"`,
+            );
+          }
+          const [existingItem] = await sp
+            .select({ id: item.id })
+            .from(item)
+            .where(eq(item.sku, skuNorm))
+            .limit(1);
 
-        let componentItemId: string;
-        if (existingItem) {
-          componentItemId = existingItem.id;
-        } else if (input.autoCreateMissingItems) {
-          // Auto-create item (race-safe): ON CONFLICT (sku) DO UPDATE RETURNING id.
-          // 2 sheet cùng SKU mới chạy song song (hoặc 2 chunk) → sheet đầu INSERT,
-          // sheet sau UPDATE updated_by/updated_at và vẫn trả id. Không unique_violation.
-          const nameFromDesc =
-            String(row.data[invMapping.description ?? ""] ?? "").trim() ||
-            skuNorm;
-          const [upserted] = await tx
-            .insert(item)
-            .values({
-              sku: skuNorm,
-              name: nameFromDesc.slice(0, 250),
-              itemType: "PURCHASED",
-              uom: "PCS",
-              status: "ACTIVE",
-              isActive: true,
-              createdBy: input.actorId,
-              updatedBy: input.actorId,
-            })
-            .onConflictDoUpdate({
-              target: item.sku,
-              set: {
+          let componentItemId: string;
+          if (existingItem) {
+            componentItemId = existingItem.id;
+          } else if (input.autoCreateMissingItems) {
+            // Auto-create item (race-safe): ON CONFLICT (sku) DO UPDATE RETURNING id.
+            // 2 sheet cùng SKU mới chạy song song (hoặc 2 chunk) → sheet đầu INSERT,
+            // sheet sau UPDATE updated_by/updated_at và vẫn trả id. Không unique_violation.
+            const nameFromDesc =
+              String(row.data[invMapping.description ?? ""] ?? "").trim() ||
+              skuNorm;
+            const [upserted] = await sp
+              .insert(item)
+              .values({
+                sku: skuNorm,
+                name: nameFromDesc.slice(0, 250),
+                itemType: "PURCHASED",
+                uom: "PCS",
+                status: "ACTIVE",
+                isActive: true,
+                createdBy: input.actorId,
                 updatedBy: input.actorId,
-                updatedAt: new Date(),
-              },
-            })
-            .returning({ id: item.id });
-          if (!upserted)
-            throw new Error(`Không upsert được item SKU ${skuNorm}`);
-          componentItemId = upserted.id;
+              })
+              .onConflictDoUpdate({
+                target: item.sku,
+                set: {
+                  updatedBy: input.actorId,
+                  updatedAt: new Date(),
+                },
+              })
+              .returning({ id: item.id });
+            if (!upserted)
+              throw new Error(`Không upsert được item SKU ${skuNorm}`);
+            componentItemId = upserted.id;
+          } else {
+            // SKU chưa có master + không auto-create → skip có kiểm soát.
+            // Ném RowSkip (không phải lỗi hệ thống) để savepoint rollback sạch
+            // và đếm fail + push error ở nhánh catch bên ngoài.
+            throw new RowSkip(
+              `SKU "${skuNorm}" chưa có trong master. Bật "Tự tạo item thiếu" để auto-tạo.`,
+              "componentSku",
+              skuNorm,
+            );
+          }
+
+          // Optional fields
+          const description =
+            invMapping.description && row.data[invMapping.description]
+              ? String(row.data[invMapping.description]).slice(0, 2000)
+              : null;
+          const supplierItemCode =
+            invMapping.supplierItemCode && row.data[invMapping.supplierItemCode]
+              ? String(row.data[invMapping.supplierItemCode]).slice(0, 128)
+              : null;
+          const sizeMeta =
+            invMapping.size && row.data[invMapping.size]
+              ? String(row.data[invMapping.size])
+              : null;
+          const seqMeta =
+            invMapping.componentSeq && row.data[invMapping.componentSeq]
+              ? String(row.data[invMapping.componentSeq])
+              : null;
+          const notesMeta =
+            invMapping.notes && row.data[invMapping.notes]
+              ? String(row.data[invMapping.notes])
+              : null;
+          // V3.7.18 — Extended fields: PIC, category, totalQty
+          const categoryMeta =
+            invMapping.category && row.data[invMapping.category]
+              ? String(row.data[invMapping.category]).slice(0, 64)
+              : null;
+          const totalQtyMeta =
+            invMapping.totalQty && row.data[invMapping.totalQty]
+              ? String(row.data[invMapping.totalQty])
+              : null;
+          const picRaw =
+            invMapping.assignedToName && row.data[invMapping.assignedToName]
+              ? String(row.data[invMapping.assignedToName]).trim().slice(0, 255)
+              : null;
+
+          // V3.7.18 — Lookup PIC user theo full_name (ILIKE substring match).
+          // Nếu không match → giữ raw text trong assigned_to_name để resolve sau.
+          let assignedToUserId: string | null = null;
+          if (picRaw) {
+            const [user] = await sp
+              .select({ id: userAccount.id })
+              .from(userAccount)
+              .where(sql`${userAccount.fullName} ILIKE ${"%" + picRaw + "%"}`)
+              .limit(1);
+            if (user) assignedToUserId = user.id;
+          }
+
+          // V3.7.27 — NCC text → lookup/create supplier + link item_supplier.
+          // Giữ supplierItemCode (snapshot text cho UI filter NCC) + thêm
+          // supplier_id vào metadata cho procurement module sau dùng.
+          let supplierIdResolved: string | null = null;
+          if (supplierItemCode) {
+            supplierIdResolved = await lookupOrCreateSupplier(
+              sp as typeof db,
+              supplierItemCode,
+            );
+            if (supplierIdResolved) {
+              // Link item ↔ supplier (idempotent — uniqueIndex(item_id, supplier_id))
+              await sp
+                .insert(itemSupplier)
+                .values({
+                  itemId: componentItemId,
+                  supplierId: supplierIdResolved,
+                })
+                .onConflictDoNothing({
+                  target: [itemSupplier.itemId, itemSupplier.supplierId],
+                });
+            }
+          }
+
+          const metadata: Record<string, unknown> = {};
+          if (sizeMeta) metadata.size = sizeMeta;
+          if (seqMeta) metadata.seq = seqMeta;
+          if (notesMeta) metadata.note = notesMeta;
+          if (categoryMeta) metadata.category = categoryMeta;
+          if (totalQtyMeta) metadata.totalQty = totalQtyMeta;
+          if (picRaw) metadata.picRaw = picRaw;
+          if (supplierIdResolved) metadata.supplierId = supplierIdResolved;
+          metadata.importedFromSheet = input.sheetName;
+          metadata.importedRow = row.rowNumber;
+          // V3.11.3 (audit W.3) — gắn batchId để retry idempotent: đầu job xoá
+          // sạch line của batch này trước khi insert lại (tránh nhân đôi BOM khi
+          // BullMQ retry attempt 2/3 sau crash/stall).
+          metadata.importedFromBatch = input.batchId;
+
+          await sp.insert(bomLine).values({
+            templateId: input.templateId,
+            sheetId: input.sheetId,
+            parentLineId: null, // V1.1-alpha: import flat level 1
+            componentItemId,
+            level: 1,
+            position: position++,
+            qtyPerParent: String(qty),
+            scrapPercent: "0",
+            description,
+            supplierItemCode,
+            assignedToUserId,
+            assignedToName: picRaw,
+            metadata,
+          });
+        });
+
+        // Savepoint commit OK → dòng này import thành công.
+        success++;
+      } catch (err) {
+        fail++;
+        if (err instanceof RowSkip) {
+          errors.push({
+            rowNumber: row.rowNumber,
+            sheet: input.sheetName,
+            field: err.field,
+            reason: err.message,
+            rawValue: err.rawValue,
+          });
         } else {
           errors.push({
             rowNumber: row.rowNumber,
             sheet: input.sheetName,
-            field: "componentSku",
-            reason: `SKU "${skuNorm}" chưa có trong master. Bật "Tự tạo item thiếu" để auto-tạo.`,
-            rawValue: skuNorm,
+            field: "_commit",
+            reason: err instanceof Error ? err.message : "Lỗi không xác định",
           });
-          fail++;
-          continue;
         }
-
-        // Optional fields
-        const description =
-          invMapping.description && row.data[invMapping.description]
-            ? String(row.data[invMapping.description]).slice(0, 2000)
-            : null;
-        const supplierItemCode =
-          invMapping.supplierItemCode && row.data[invMapping.supplierItemCode]
-            ? String(row.data[invMapping.supplierItemCode]).slice(0, 128)
-            : null;
-        const sizeMeta =
-          invMapping.size && row.data[invMapping.size]
-            ? String(row.data[invMapping.size])
-            : null;
-        const seqMeta =
-          invMapping.componentSeq && row.data[invMapping.componentSeq]
-            ? String(row.data[invMapping.componentSeq])
-            : null;
-        const notesMeta =
-          invMapping.notes && row.data[invMapping.notes]
-            ? String(row.data[invMapping.notes])
-            : null;
-        // V3.7.18 — Extended fields: PIC, category, totalQty
-        const categoryMeta =
-          invMapping.category && row.data[invMapping.category]
-            ? String(row.data[invMapping.category]).slice(0, 64)
-            : null;
-        const totalQtyMeta =
-          invMapping.totalQty && row.data[invMapping.totalQty]
-            ? String(row.data[invMapping.totalQty])
-            : null;
-        const picRaw =
-          invMapping.assignedToName && row.data[invMapping.assignedToName]
-            ? String(row.data[invMapping.assignedToName]).trim().slice(0, 255)
-            : null;
-
-        // V3.7.18 — Lookup PIC user theo full_name (ILIKE substring match).
-        // Nếu không match → giữ raw text trong assigned_to_name để resolve sau.
-        let assignedToUserId: string | null = null;
-        if (picRaw) {
-          const [user] = await tx
-            .select({ id: userAccount.id })
-            .from(userAccount)
-            .where(sql`${userAccount.fullName} ILIKE ${"%" + picRaw + "%"}`)
-            .limit(1);
-          if (user) assignedToUserId = user.id;
-        }
-
-        // V3.7.27 — NCC text → lookup/create supplier + link item_supplier.
-        // Giữ supplierItemCode (snapshot text cho UI filter NCC) + thêm
-        // supplier_id vào metadata cho procurement module sau dùng.
-        let supplierIdResolved: string | null = null;
-        if (supplierItemCode) {
-          supplierIdResolved = await lookupOrCreateSupplier(
-            tx as typeof db,
-            supplierItemCode,
-          );
-          if (supplierIdResolved) {
-            // Link item ↔ supplier (idempotent — uniqueIndex(item_id, supplier_id))
-            await tx
-              .insert(itemSupplier)
-              .values({
-                itemId: componentItemId,
-                supplierId: supplierIdResolved,
-              })
-              .onConflictDoNothing({
-                target: [itemSupplier.itemId, itemSupplier.supplierId],
-              });
-          }
-        }
-
-        const metadata: Record<string, unknown> = {};
-        if (sizeMeta) metadata.size = sizeMeta;
-        if (seqMeta) metadata.seq = seqMeta;
-        if (notesMeta) metadata.note = notesMeta;
-        if (categoryMeta) metadata.category = categoryMeta;
-        if (totalQtyMeta) metadata.totalQty = totalQtyMeta;
-        if (picRaw) metadata.picRaw = picRaw;
-        if (supplierIdResolved) metadata.supplierId = supplierIdResolved;
-        metadata.importedFromSheet = input.sheetName;
-        metadata.importedRow = row.rowNumber;
-
-        await tx.insert(bomLine).values({
-          templateId: input.templateId,
-          sheetId: input.sheetId,
-          parentLineId: null, // V1.1-alpha: import flat level 1
-          componentItemId,
-          level: 1,
-          position: position++,
-          qtyPerParent: String(qty),
-          scrapPercent: "0",
-          description,
-          supplierItemCode,
-          assignedToUserId,
-          assignedToName: picRaw,
-          metadata,
-        });
-
-        success++;
-      } catch (err) {
-        fail++;
-        errors.push({
-          rowNumber: row.rowNumber,
-          sheet: input.sheetName,
-          field: "_commit",
-          reason: err instanceof Error ? err.message : "Lỗi không xác định",
-        });
       }
     }
   });

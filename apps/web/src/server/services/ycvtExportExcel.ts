@@ -254,7 +254,7 @@ export async function buildYcvtExcel(data: YcvtExportData): Promise<Uint8Array> 
   // Row 44 = Đã duyệt đề xuất
   if (data.directorApprovedAt) {
     ws.getCell("J44").value = fmtDateTimeVN(data.directorApprovedAt);
-    ws.getCell("M44").value = "Director approved";
+    ws.getCell("M44").value = "Giám đốc đã duyệt";
   }
   // Row 45 = Đã tạo đơn mua
   if (data.poCreatedAt) {

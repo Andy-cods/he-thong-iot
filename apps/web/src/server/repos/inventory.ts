@@ -64,9 +64,14 @@ export async function getInventoryBalance(
   const offset = (page - 1) * pageSize;
 
   // Filter clauses
+  // V3.11.3 (audit 1.1) — bind từng UUID làm parameter thay vì nội suy raw vào
+  // SQL (tránh SQL injection). sql.join sinh danh sách `$1::uuid, $2::uuid, ...`.
   const itemIdFilter =
     itemIds && itemIds.length > 0
-      ? sql`AND i.id = ANY(${sql.raw(`ARRAY[${itemIds.map((x) => `'${x}'::uuid`).join(",")}]`)})`
+      ? sql`AND i.id = ANY(ARRAY[${sql.join(
+          itemIds.map((x) => sql`${x}::uuid`),
+          sql`, `,
+        )}])`
       : sql``;
 
   // hasLotOnly: chỉ trả item nào có ít nhất 1 lot.

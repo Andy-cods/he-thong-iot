@@ -123,6 +123,32 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
+### TASK-20260716-001 — System polish audit Sprint 1 (P0 code-only) (V3.11.3)
+- **Trạng thái:** IN_PROGRESS · **Bắt đầu:** 2026-07-16 (+07) · **Ưu tiên:** P0
+- **Nguồn:** plan `plans/20260716-system-polish-audit.md` (6 agent rà soát 7 trục, ~110 phát hiện).
+  User chốt: chỉ làm Sprint 1 phần CODE THUẦN đợt này; **BỎ QUA** mật khẩu prod hardcode (S.1/S.2)
+  + mọi thao tác ghi prod DB (verify/migration item_type, reset password) — "giữ lại, để sau".
+- **Đã sửa (code-only, không chạm git history / prod DB):**
+  - **1.1** SQL injection `/api/inventory/balance`: route validate UUID từng phần tử (`inventory/balance/route.ts`)
+    + repo bind param thay `sql.raw(ARRAY[...])` (`repos/inventory.ts`).
+  - **1.2** Receiving mất scan (`api/receiving/events/route.ts` + `repos/receivingEvents.ts`):
+    bỏ ack sớm, chỉ ack SAU khi `postReceivingAtomic` OK; duplicate → check `metadata.inventoryTxnId`:
+    đã post → ack idempotent, mồ côi (insert cũ chưa post) → re-post. Thêm helper `getEventPostState`.
+  - **W.1+W.2** Worker savepoint per-row (`bomImport.ts` + `itemImport.ts`): bọc mỗi dòng bằng
+    `tx.transaction` (SAVEPOINT) → lỗi DB 1 dòng chỉ rollback dòng đó, không poison cả chunk +
+    đếm success ma. Thêm class `RowSkip` cho skip có kiểm soát.
+  - **W.3** Idempotent retry BOM (`bomImport.ts`): gắn `metadata.importedFromBatch=batchId` +
+    đầu job `DELETE bom_line WHERE metadata->>'importedFromBatch'=batchId` → retry attempt 2/3
+    không nhân đôi BOM.
+  - **W.4** Migration `0053_item_type_catchup.sql` — CHỈ TẠO FILE, **chưa apply** (chờ user verify
+    + chạy prod). Bù `public.item_type` TOOL/PACKAGING (nghi thiếu, cùng pattern 0052).
+  - **U.1-U.4** Lỗi chính tả PDF/form: tên công ty poPdf → "CÔNG TY CỔ PHẦN … TOÀN CẦU"; "Director
+    approved" → "Giám đốc đã duyệt" (ycvtPdf + ycvtExportExcel); "Bộ Phận Mua Hàng" → "Bộ phận Mua
+    hàng" (new-dnvt); phiếu LSX đánh lại số mục liền mạch I→VI (bỏ nhảy IV).
+  - **T.1+T.2** Dark mode 2 component global: `NotificationBell.tsx` + `CommandPalette.tsx`.
+- **Verify:** worker typecheck EXIT=0, web typecheck EXIT=0. Build + commit + deploy + E2E: đang chạy.
+- **Còn lại (Sprint 2/3):** xem plan — race condition, RBAC, dark mode ~70% trang, dead code.
+
 ### TASK-20260715-003 — Sự cố Đức không upload được BOM (V3.11.2)
 - **Trạng thái:** DONE · **Tạo/Hoàn thành:** 2026-07-15 (+07) · **Ưu tiên:** P0 (prod incident)
 - **Triệu chứng:** "acc Đức lỗi không upload được BOM".

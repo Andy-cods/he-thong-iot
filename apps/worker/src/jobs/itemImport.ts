@@ -143,7 +143,13 @@ async function processChunk(
   await db.transaction(async (tx) => {
     for (const row of chunk) {
       try {
-        await upsertOneItem(tx, row, duplicateMode, actorId);
+        // V3.11.3 (audit W.2) — SAVEPOINT per-row: lỗi DB-level 1 dòng (enum
+        // thiếu, numeric overflow, unique...) chỉ rollback savepoint đó, không
+        // abort cả chunk 500 dòng rồi vẫn đếm success (dữ liệu ma). upsertOneItem
+        // vốn idempotent (SKU unique) nên retry attempt 2/3 không nhân đôi item.
+        await tx.transaction(async (sp) => {
+          await upsertOneItem(sp, row, duplicateMode, actorId);
+        });
         success++;
       } catch (err) {
         fail++;

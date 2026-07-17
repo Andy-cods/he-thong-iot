@@ -98,7 +98,7 @@ function ensureFontsRegistered() {
 // TODO: Make configurable via /api/admin/settings (V3.8+).
 // =====================================================================
 const BUYER = {
-  name: "CÔNG TY CP SẢN XUẤT TỰ ĐỘNG HÓA CÔNG NGHỆ",
+  name: "CÔNG TY CỔ PHẦN SẢN XUẤT TỰ ĐỘNG HÓA CÔNG NGHỆ TOÀN CẦU",
   shortName: "GTAM",
   address:
     "Xóm Trại, Thôn Đông, Xã Kim Nỗ, Huyện Đông Anh, Thành phố Hà Nội",

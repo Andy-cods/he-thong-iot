@@ -98,7 +98,7 @@ export default function NewDnvtPage() {
 
   // Header (I. Thông tin chung)
   const [targetDepartment, setTargetDepartment] = React.useState(
-    "Bộ Phận Mua Hàng",
+    "Bộ phận Mua hàng",
   );
   const [proposingDepartment, setProposingDepartment] = React.useState(
     "Bộ phận Gia công",

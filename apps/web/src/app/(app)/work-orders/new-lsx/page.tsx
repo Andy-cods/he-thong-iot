@@ -28,9 +28,9 @@ import { cn } from "@/lib/utils";
  *   I. Sản phẩm: Mã SP + Tên + SL + ĐVT + Kích thước + YC kỹ thuật
  *   II. Nguyên vật liệu: STT + Mã VT + Tên + ĐVT + Định mức + SL cấp + Kho cấp
  *   III. Routing: Tên CĐ + Thiết bị + Người phụ trách + Thời gian + QC yêu cầu
- *   V. Tài liệu đính kèm: URL bản vẽ kỹ thuật
- *   VI. Dao cụ/CCDC: Tên + Mã hiệu + Máy SD + SL + Tình trạng
- *   VII. Xác nhận liên bộ phận + VIII. Phê duyệt 4 chữ ký — placeholder phase 3.
+ *   IV. Tài liệu đính kèm: URL bản vẽ kỹ thuật
+ *   V. Dao cụ/CCDC: Tên + Mã hiệu + Máy SD + SL + Tình trạng
+ *   VI. Phê duyệt 4 chữ ký — placeholder phase 3.
  */
 
 export const dynamic = "force-dynamic";
@@ -540,10 +540,10 @@ export default function NewLsxPage() {
             </div>
           </section>
 
-          {/* V. Documents */}
+          {/* IV. Documents */}
           <section className="border-b border-zinc-200 px-6 py-4">
             <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-zinc-800">
-              V. Tài liệu đính kèm
+              IV. Tài liệu đính kèm
             </h3>
             <div className="space-y-1">
               <Label>URL bản vẽ kỹ thuật</Label>
@@ -557,11 +557,11 @@ export default function NewLsxPage() {
             </div>
           </section>
 
-          {/* VI. Tools */}
+          {/* V. Tools */}
           <section className="border-b border-zinc-200 px-6 py-4">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-sm font-bold uppercase tracking-wide text-zinc-800">
-                VI. Công cụ dụng cụ / Dao cụ
+                V. Công cụ dụng cụ / Dao cụ
               </h3>
               <Button size="sm" variant="secondary" onClick={() => setTools([...tools, blankTool()])} disabled={pending} className="print:hidden">
                 <Plus className="h-3 w-3" /> Thêm dao cụ
@@ -629,10 +629,10 @@ export default function NewLsxPage() {
             <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="VD: Nhựa thiếu 7 tấm — chờ NCC ngày 06/05" />
           </section>
 
-          {/* VIII. Phê duyệt — placeholder phase 3 */}
+          {/* VI. Phê duyệt — placeholder phase 3 */}
           <section className="px-6 py-4 print:py-3">
             <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-zinc-800">
-              VII. Phê duyệt
+              VI. Phê duyệt
             </h3>
             <table className="w-full text-[11px]">
               <thead className="bg-zinc-50">

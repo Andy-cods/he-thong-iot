@@ -614,7 +614,7 @@ function YcvtPdfDoc(input: YcvtPdfInput) {
               {
                 label: "Đã duyệt đề xuất",
                 date: input.directorApprovedAt,
-                note: input.directorApprovedAt ? "Director approved" : "Chưa duyệt cuối",
+                note: input.directorApprovedAt ? "Giám đốc đã duyệt" : "Chưa duyệt cuối",
               },
               {
                 label: "Đã tạo đơn mua (PR/PO)",

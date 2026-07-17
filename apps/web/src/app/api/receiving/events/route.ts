@@ -4,6 +4,7 @@ import { item, purchaseOrder, purchaseOrderLine } from "@iot/db/schema";
 import { receivingEventsBatchSchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import {
+  getEventPostState,
   insertEvent,
   postReceivingAtomic,
 } from "@/server/repos/receivingEvents";
@@ -68,11 +69,25 @@ export async function POST(req: NextRequest) {
         rawCode: e.rawCode ?? null,
         metadata: e.metadata ?? {},
       });
-      acked.push(e.id);
 
+      // V3.11.3 (audit 1.2) — KHÔNG ack sớm ở đây. Trước đây `acked.push` chạy
+      // ngay sau insertEvent (trước khi post tồn kho); nếu post fail thì event
+      // vẫn tồn tại (scan_id đã tiêu) → replay lần sau `!inserted` → skip mãi
+      // mãi → MẤT dữ liệu nhận hàng. Nay chỉ ack sau khi post thành công.
       if (!result.inserted) {
-        // duplicate scan — skip atomic post, idempotent
-        continue;
+        // scan_id đã có sẵn — phân biệt duplicate thật vs event mồ côi.
+        const state = await getEventPostState(e.scanId);
+        if (state.posted) {
+          // Đã post tồn kho ở lần trước → ack idempotent, không post lại.
+          acked.push(e.id);
+          continue;
+        }
+        // Event MỒ CÔI (lần trước insert xong nhưng post fail) → re-post bên dưới
+        // để không mất dữ liệu. Rơi xuống nhánh lookup + postReceivingAtomic.
+        logger.warn(
+          { eventId: e.id, scanId: e.scanId },
+          "receiving event mồ côi (insert cũ chưa post) — re-post",
+        );
       }
 
       // Lookup PO + item + line
@@ -128,6 +143,9 @@ export async function POST(req: NextRequest) {
         userId: guard.session.userId,
         qcStatus: e.qcStatus ?? "PENDING",
       });
+
+      // V3.11.3 (audit 1.2) — chỉ ack SAU khi post tồn kho thành công.
+      acked.push(e.id);
 
       details.push({
         id: e.id,

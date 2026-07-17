@@ -56,6 +56,30 @@ export async function insertEvent(
   };
 }
 
+/**
+ * V3.11.3 (audit 1.2) — kiểm tra 1 receiving_event đã thực sự post tồn kho
+ * chưa, dựa vào cột mốc `metadata.inventoryTxnId` (chỉ được ghi ở bước 9 của
+ * postReceivingAtomic, trong cùng transaction với inventory_txn).
+ *
+ * Dùng để phân biệt:
+ *  - Duplicate THẬT (đã post rồi) → ack idempotent, KHÔNG post lại.
+ *  - Event MỒ CÔI (insertEvent commit ở lần trước nhưng post fail giữa chừng)
+ *    → cần re-post, nếu không dữ liệu nhận hàng mất vĩnh viễn.
+ */
+export async function getEventPostState(
+  scanId: string,
+): Promise<{ exists: boolean; posted: boolean }> {
+  const [row] = await db
+    .select({
+      txnId: sql<string | null>`${receivingEvent.metadata} ->> 'inventoryTxnId'`,
+    })
+    .from(receivingEvent)
+    .where(eq(receivingEvent.scanId, scanId))
+    .limit(1);
+  if (!row) return { exists: false, posted: false };
+  return { exists: true, posted: Boolean(row.txnId) };
+}
+
 export async function listEventsByPo(poCode: string, limit = 100) {
   return db
     .select()

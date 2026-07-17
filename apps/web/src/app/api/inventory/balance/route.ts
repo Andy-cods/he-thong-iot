@@ -23,6 +23,8 @@ export const dynamic = "force-dynamic";
 const querySchema = z.object({
   itemId: z.string().uuid().optional(),
   /** V3.7.69 YCVT — bulk lookup nhiều item cùng lúc (CSV uuid). */
+  // V3.11.3 (audit 1.1) — validate từng phần tử là UUID hợp lệ (bỏ phần tử sai)
+  // để không bao giờ đẩy chuỗi tùy ý xuống SQL layer.
   itemIds: z
     .string()
     .optional()
@@ -31,9 +33,10 @@ const querySchema = z.object({
         ? v
             .split(",")
             .map((s) => s.trim())
-            .filter(Boolean)
+            .filter((s) => z.string().uuid().safeParse(s).success)
         : undefined,
-    ),
+    )
+    .transform((arr) => (arr && arr.length > 0 ? arr : undefined)),
   /** Mặc định false → trả full danh mục (kể cả SKU chưa có lot, hữu ích cho UI tổng quan). */
   hasLotOnly: z
     .union([z.literal("true"), z.literal("false")])
