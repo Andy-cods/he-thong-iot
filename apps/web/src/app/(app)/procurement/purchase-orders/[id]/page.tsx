@@ -71,12 +71,12 @@ import { PoApprovalWorkflow } from "@/components/procurement/PoApprovalWorkflow"
 type Tab = "info" | "lines" | "receive" | "history" | "audit";
 
 const STATUS_PILL: Record<POStatus, { cls: string; dot: string; icon: React.ElementType }> = {
-  DRAFT:     { cls: "bg-zinc-100 text-zinc-700 ring-zinc-200",          dot: "bg-zinc-400",                  icon: Edit3        },
-  SENT:      { cls: "bg-blue-50 text-blue-700 ring-blue-200",           dot: "bg-blue-500 animate-pulse",    icon: Send         },
-  PARTIAL:   { cls: "bg-amber-50 text-amber-700 ring-amber-200",        dot: "bg-amber-500 animate-pulse",   icon: Package      },
-  RECEIVED:  { cls: "bg-emerald-50 text-emerald-700 ring-emerald-200",  dot: "bg-emerald-500",               icon: CheckCircle2 },
-  CANCELLED: { cls: "bg-red-50 text-red-700 ring-red-200",              dot: "bg-red-500",                   icon: XCircle      },
-  CLOSED:    { cls: "bg-zinc-100 text-zinc-500 ring-zinc-200",          dot: "bg-zinc-400",                  icon: CheckCircle2 },
+  DRAFT:     { cls: "bg-zinc-100 text-zinc-700 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700",          dot: "bg-zinc-400",                  icon: Edit3        },
+  SENT:      { cls: "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:ring-blue-800",           dot: "bg-blue-500 animate-pulse",    icon: Send         },
+  PARTIAL:   { cls: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800",        dot: "bg-amber-500 animate-pulse",   icon: Package      },
+  RECEIVED:  { cls: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800",  dot: "bg-emerald-500",               icon: CheckCircle2 },
+  CANCELLED: { cls: "bg-red-50 text-red-700 ring-red-200 dark:bg-red-950/40 dark:text-red-400 dark:ring-red-800",              dot: "bg-red-500",                   icon: XCircle      },
+  CLOSED:    { cls: "bg-zinc-100 text-zinc-500 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",          dot: "bg-zinc-400",                  icon: CheckCircle2 },
 };
 
 interface ItemSearch {
@@ -269,16 +269,16 @@ export default function PurchaseOrderDetailPage() {
 
   if (detail.isLoading) {
     return (
-      <div className="flex h-full items-center justify-center gap-2 text-sm text-zinc-500">
+      <div className="flex h-full items-center justify-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
         <Loader2 className="h-4 w-4 animate-spin" /> Đang tải PO…
       </div>
     );
   }
   if (!po) {
     return (
-      <div className="m-6 rounded-xl border border-red-200 bg-red-50 p-6 text-center">
-        <AlertCircle className="mx-auto h-8 w-8 text-red-400" />
-        <p className="mt-2 text-sm font-semibold text-red-700">Không tìm thấy PO</p>
+      <div className="m-6 rounded-xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-800 dark:bg-red-950/40">
+        <AlertCircle className="mx-auto h-8 w-8 text-red-400 dark:text-red-500" />
+        <p className="mt-2 text-sm font-semibold text-red-700 dark:text-red-400">Không tìm thấy PO</p>
         <Button asChild variant="outline" size="sm" className="mt-3">
           <Link href="/sales?tab=po">Về danh sách</Link>
         </Button>
@@ -318,13 +318,13 @@ export default function PurchaseOrderDetailPage() {
   const receivedPct = totalOrdered > 0 ? Math.round((totalReceived / totalOrdered) * 100) : 0;
 
   return (
-    <div className="flex h-full flex-col bg-zinc-50/30">
+    <div className="flex h-full flex-col bg-zinc-50/30 dark:bg-zinc-950">
 
       {/* ── Header ────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white px-6 py-4">
+      <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
         <Link
           href="/sales?tab=po"
-          className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-indigo-600 transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-indigo-600 transition-colors dark:text-zinc-400 dark:hover:text-indigo-400"
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Đơn đặt hàng
         </Link>
@@ -344,17 +344,17 @@ export default function PurchaseOrderDetailPage() {
                 </span>
                 {/* V3.7.43 — Badge phân loại PO type */}
                 {po.poType === "SUBCONTRACT" && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold text-orange-700 ring-1 ring-inset ring-orange-200">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold text-orange-700 ring-1 ring-inset ring-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:ring-orange-800">
                     Gia công ngoài
                   </span>
                 )}
                 {(!po.poType || po.poType === "COMMERCIAL") && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-200">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:ring-blue-800">
                     Thương mại
                   </span>
                 )}
               </div>
-              <h1 className="mt-1 truncate text-2xl font-bold tracking-tight text-zinc-900">
+              <h1 className="mt-1 truncate text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
                 {po.poNo}
               </h1>
             </div>
@@ -381,7 +381,7 @@ export default function PurchaseOrderDetailPage() {
                 size="sm"
                 onClick={() => setSendConfirmOpen(true)}
                 disabled={send.isPending}
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
               >
                 {send.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                 Đánh dấu đã gửi
@@ -409,7 +409,7 @@ export default function PurchaseOrderDetailPage() {
       </header>
 
       {/* ── KPI strip ─────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3 border-b border-zinc-200 bg-white px-6 py-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 border-b border-zinc-200 bg-white px-6 py-3 lg:grid-cols-4 dark:border-zinc-800 dark:bg-zinc-900">
         <KpiInline icon={CreditCard} label="Tổng giá trị" value={`${fmtVND(displayTotal)} đ`} accent="indigo" />
         <KpiInline icon={Package} label="Số dòng" value={String(po.lines.length)} accent="zinc" />
         <KpiInline
@@ -422,7 +422,7 @@ export default function PurchaseOrderDetailPage() {
       </div>
 
       {/* ── Tabs ──────────────────────────────────────────────── */}
-      <div className="flex items-center gap-1 overflow-x-auto border-b border-zinc-200 bg-white px-6">
+      <div className="flex items-center gap-1 overflow-x-auto border-b border-zinc-200 bg-white px-6 dark:border-zinc-800 dark:bg-zinc-900">
         {([
           { v: "info" as const, label: "Thông tin", icon: FileText },
           { v: "lines" as const, label: `Dòng hàng (${po.lines.length})`, icon: Package },
@@ -440,8 +440,8 @@ export default function PurchaseOrderDetailPage() {
                 "relative flex items-center gap-2 px-4 py-3 text-sm font-semibold transition-colors whitespace-nowrap",
                 "after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:rounded-t-full after:transition-all",
                 tab === t.v
-                  ? "text-indigo-700 after:bg-indigo-600"
-                  : "text-zinc-500 hover:text-zinc-800 after:bg-transparent",
+                  ? "text-indigo-700 after:bg-indigo-600 dark:text-indigo-400 dark:after:bg-indigo-500"
+                  : "text-zinc-500 hover:text-zinc-800 after:bg-transparent dark:text-zinc-400 dark:hover:text-zinc-200",
               )}
             >
               <Icon className="h-4 w-4" />
@@ -455,9 +455,9 @@ export default function PurchaseOrderDetailPage() {
       <div className="flex-1 overflow-auto p-6">
         {tab === "info" && (
           <div className="mx-auto max-w-5xl space-y-5">
-            <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-zinc-900">
-                <CheckCircle2 className="h-4 w-4 text-zinc-400" />
+            <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+              <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                <CheckCircle2 className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
                 Phê duyệt PO
               </h2>
               <PoApprovalWorkflow
@@ -470,12 +470,12 @@ export default function PurchaseOrderDetailPage() {
               />
             </section>
             {/* Info card */}
-            <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <h2 className="mb-5 flex items-center gap-2 text-sm font-semibold text-zinc-900">
-                <FileText className="h-4 w-4 text-zinc-400" /> Thông tin đơn hàng
+            <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+              <h2 className="mb-5 flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                <FileText className="h-4 w-4 text-zinc-400 dark:text-zinc-500" /> Thông tin đơn hàng
               </h2>
               <div className="grid gap-5 md:grid-cols-2">
-                <InfoRow icon={Receipt} label="Số PO" value={<span className="font-mono font-semibold text-indigo-600">{po.poNo}</span>} />
+                <InfoRow icon={Receipt} label="Số PO" value={<span className="font-mono font-semibold text-indigo-600 dark:text-indigo-400">{po.poNo}</span>} />
                 <InfoRow icon={Building2} label="Nhà cung cấp" value={po.supplierName ?? po.supplierCode ?? "—"} />
                 <InfoRow icon={Calendar} label="Ngày đặt" value={formatDate(po.orderDate, "dd/MM/yyyy")} />
                 <InfoRow
@@ -486,7 +486,7 @@ export default function PurchaseOrderDetailPage() {
                       type="date"
                       value={editEta}
                       onChange={(e) => setEditEta(e.target.value)}
-                      className="h-9 w-44 rounded-md border border-zinc-200 bg-white px-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="h-9 w-44 rounded-md border border-zinc-200 bg-white px-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
                     />
                   ) : (po.expectedEta ? formatDate(po.expectedEta, "dd/MM/yyyy") : "—")}
                 />
@@ -499,7 +499,7 @@ export default function PurchaseOrderDetailPage() {
                       value={editPaymentTerms}
                       onChange={(e) => setEditPaymentTerms(e.target.value)}
                       placeholder="Net 30"
-                      className="h-9 w-44 rounded-md border border-zinc-200 bg-white px-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="h-9 w-44 rounded-md border border-zinc-200 bg-white px-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
                     />
                   ) : (po.paymentTerms ?? "—")}
                 />
@@ -512,33 +512,33 @@ export default function PurchaseOrderDetailPage() {
                       value={editAddress}
                       onChange={(e) => setEditAddress(e.target.value)}
                       placeholder="Địa chỉ giao hàng"
-                      className="h-9 w-full max-w-md rounded-md border border-zinc-200 bg-white px-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="h-9 w-full max-w-md rounded-md border border-zinc-200 bg-white px-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
                     />
                   ) : (po.deliveryAddress ?? "—")}
                 />
               </div>
 
               {/* Total breakdown */}
-              <div className="mt-6 rounded-xl bg-gradient-to-br from-indigo-50 to-blue-50 p-5 ring-1 ring-indigo-100">
-                <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600">Tổng giá trị</p>
+              <div className="mt-6 rounded-xl bg-gradient-to-br from-indigo-50 to-blue-50 p-5 ring-1 ring-indigo-100 dark:from-indigo-950/40 dark:to-blue-950/40 dark:ring-indigo-900">
+                <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Tổng giá trị</p>
                 <div className="mt-3 space-y-1.5">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-zinc-600">Tạm tính (chưa VAT)</span>
-                    <span className="font-mono font-semibold tabular-nums text-zinc-800">{fmtVND(subtotal)} đ</span>
+                    <span className="text-zinc-600 dark:text-zinc-400">Tạm tính (chưa VAT)</span>
+                    <span className="font-mono font-semibold tabular-nums text-zinc-800 dark:text-zinc-200">{fmtVND(subtotal)} đ</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-zinc-600">Tổng VAT</span>
-                    <span className="font-mono font-semibold tabular-nums text-zinc-800">{fmtVND(totalTax)} đ</span>
+                    <span className="text-zinc-600 dark:text-zinc-400">Tổng VAT</span>
+                    <span className="font-mono font-semibold tabular-nums text-zinc-800 dark:text-zinc-200">{fmtVND(totalTax)} đ</span>
                   </div>
-                  <div className="mt-2 border-t border-indigo-200 pt-2 flex items-center justify-between">
-                    <span className="text-sm font-semibold text-zinc-900">Tổng cộng</span>
-                    <span className="font-mono text-xl font-bold tabular-nums text-indigo-700">{fmtVND(displayTotal)} đ</span>
+                  <div className="mt-2 border-t border-indigo-200 pt-2 flex items-center justify-between dark:border-indigo-800">
+                    <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Tổng cộng</span>
+                    <span className="font-mono text-xl font-bold tabular-nums text-indigo-700 dark:text-indigo-400">{fmtVND(displayTotal)} đ</span>
                   </div>
                 </div>
               </div>
 
               <div className="mt-5">
-                <Label htmlFor="po-notes" className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                <Label htmlFor="po-notes" className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                   Ghi chú
                 </Label>
                 {editing ? (
@@ -551,15 +551,15 @@ export default function PurchaseOrderDetailPage() {
                     placeholder="Ghi chú cho NCC..."
                   />
                 ) : (
-                  <p className="mt-1.5 whitespace-pre-line text-sm text-zinc-700">
-                    {po.notes || <span className="italic text-zinc-400">Không có ghi chú</span>}
+                  <p className="mt-1.5 whitespace-pre-line text-sm text-zinc-700 dark:text-zinc-300">
+                    {po.notes || <span className="italic text-zinc-400 dark:text-zinc-500">Không có ghi chú</span>}
                   </p>
                 )}
               </div>
             </section>
 
             {isSent && editing && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400">
                 <p className="flex items-center gap-2 font-semibold">
                   <AlertCircle className="h-4 w-4" /> Đã gửi NCC
                 </p>
@@ -572,47 +572,47 @@ export default function PurchaseOrderDetailPage() {
         {tab === "lines" && (
           <div className="mx-auto max-w-6xl space-y-4">
             {editing && isDraft && (
-              <section className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-4">
+              <section className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-4 dark:border-indigo-800 dark:bg-indigo-950/30">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-indigo-900">Đang chỉnh sửa lines</p>
-                    <p className="text-xs text-indigo-700">Tổng giá trị tự động tính lại khi lưu</p>
+                    <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-300">Đang chỉnh sửa lines</p>
+                    <p className="text-xs text-indigo-700 dark:text-indigo-400">Tổng giá trị tự động tính lại khi lưu</p>
                   </div>
                   <Button size="sm" variant="outline" onClick={() => setSearchOpen(true)}>
                     <Plus className="h-3.5 w-3.5" /> Thêm dòng
                   </Button>
                 </div>
                 {searchOpen && (
-                  <div className="mt-3 rounded-xl border border-indigo-200 bg-white p-3">
+                  <div className="mt-3 rounded-xl border border-indigo-200 bg-white p-3 dark:border-indigo-800 dark:bg-zinc-900">
                     <div className="relative">
-                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" />
                       <input
                         type="text"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="Tìm SKU hoặc tên..."
                         autoFocus
-                        className="h-10 w-full rounded-lg border border-zinc-200 bg-white pl-9 pr-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        className="h-10 w-full rounded-lg border border-zinc-200 bg-white pl-9 pr-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
                       />
                     </div>
                     {debouncedQ && (
-                      <div className="mt-2 max-h-60 overflow-y-auto rounded-lg border border-zinc-100 bg-zinc-50/40">
+                      <div className="mt-2 max-h-60 overflow-y-auto rounded-lg border border-zinc-100 bg-zinc-50/40 dark:border-zinc-800 dark:bg-zinc-800/60">
                         {itemsQuery.isLoading ? (
-                          <p className="px-4 py-4 text-center text-xs text-zinc-500">Đang tìm…</p>
+                          <p className="px-4 py-4 text-center text-xs text-zinc-500 dark:text-zinc-400">Đang tìm…</p>
                         ) : (itemsQuery.data?.data ?? []).length === 0 ? (
-                          <p className="px-4 py-4 text-center text-xs text-zinc-500">Không tìm thấy</p>
+                          <p className="px-4 py-4 text-center text-xs text-zinc-500 dark:text-zinc-400">Không tìm thấy</p>
                         ) : (
-                          <ul className="divide-y divide-zinc-100">
+                          <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
                             {(itemsQuery.data?.data ?? []).map((it) => (
                               <li key={it.id}>
                                 <button
                                   type="button"
                                   onClick={() => addItem(it)}
-                                  className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-white"
+                                  className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-white dark:hover:bg-zinc-800/60"
                                 >
-                                  <span className="font-mono text-xs font-semibold text-indigo-600">{it.sku}</span>
-                                  <span className="flex-1 truncate text-sm text-zinc-700">{it.name}</span>
-                                  <Plus className="h-3.5 w-3.5 text-zinc-400" />
+                                  <span className="font-mono text-xs font-semibold text-indigo-600 dark:text-indigo-400">{it.sku}</span>
+                                  <span className="flex-1 truncate text-sm text-zinc-700 dark:text-zinc-300">{it.name}</span>
+                                  <Plus className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />
                                 </button>
                               </li>
                             ))}
@@ -625,19 +625,19 @@ export default function PurchaseOrderDetailPage() {
               </section>
             )}
 
-            <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+            <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
               <table className="w-full border-collapse text-sm">
                 <thead>
-                  <tr className="border-b border-zinc-100 bg-zinc-50/60">
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 w-12">#</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400">Vật tư</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400">SL đặt</th>
-                    {!editing && <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400">Đã nhận</th>}
-                    {!editing && <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400">Còn lại</th>}
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400">Đơn giá</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400">VAT%</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400">Thành tiền</th>
-                    {!editing && <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400">ETA</th>}
+                  <tr className="border-b border-zinc-100 bg-zinc-50/60 dark:border-zinc-800 dark:bg-zinc-800/60">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 w-12 dark:text-zinc-500">#</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Vật tư</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">SL đặt</th>
+                    {!editing && <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Đã nhận</th>}
+                    {!editing && <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Còn lại</th>}
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Đơn giá</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">VAT%</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Thành tiền</th>
+                    {!editing && <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">ETA</th>}
                     {editing && isDraft && <th className="w-12" />}
                   </tr>
                 </thead>
@@ -649,12 +649,12 @@ export default function PurchaseOrderDetailPage() {
                         const tax = Number(l.taxRate) || 0;
                         const lineTotal = qty * price * (1 + tax / 100);
                         return (
-                          <tr key={l.itemId} className="border-b border-zinc-50">
-                            <td className="px-4 py-3 text-zinc-500">{i + 1}</td>
+                          <tr key={l.itemId} className="border-b border-zinc-50 dark:border-zinc-800">
+                            <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">{i + 1}</td>
                             <td className="px-4 py-3">
                               <div className="flex flex-col">
-                                <span className="font-mono text-sm font-semibold text-indigo-600">{l.sku}</span>
-                                <span className="text-xs text-zinc-500 truncate max-w-xs">{l.itemName}</span>
+                                <span className="font-mono text-sm font-semibold text-indigo-600 dark:text-indigo-400">{l.sku}</span>
+                                <span className="text-xs text-zinc-500 truncate max-w-xs dark:text-zinc-400">{l.itemName}</span>
                               </div>
                             </td>
                             <td className="px-4 py-3">
@@ -664,7 +664,7 @@ export default function PurchaseOrderDetailPage() {
                                 step="any"
                                 value={l.orderedQty}
                                 onChange={(e) => updateLine(i, { orderedQty: e.target.value })}
-                                className="ml-auto block h-9 w-24 rounded-md border border-zinc-200 bg-white px-2 text-right font-mono text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                className="ml-auto block h-9 w-24 rounded-md border border-zinc-200 bg-white px-2 text-right font-mono text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
                               />
                             </td>
                             <td className="px-4 py-3">
@@ -674,7 +674,7 @@ export default function PurchaseOrderDetailPage() {
                                 step="any"
                                 value={l.unitPrice}
                                 onChange={(e) => updateLine(i, { unitPrice: e.target.value })}
-                                className="ml-auto block h-9 w-32 rounded-md border border-zinc-200 bg-white px-2 text-right font-mono text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                className="ml-auto block h-9 w-32 rounded-md border border-zinc-200 bg-white px-2 text-right font-mono text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
                               />
                             </td>
                             <td className="px-4 py-3">
@@ -685,17 +685,17 @@ export default function PurchaseOrderDetailPage() {
                                 step="0.5"
                                 value={l.taxRate}
                                 onChange={(e) => updateLine(i, { taxRate: e.target.value })}
-                                className="ml-auto block h-9 w-16 rounded-md border border-zinc-200 bg-white px-2 text-right font-mono text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                className="ml-auto block h-9 w-16 rounded-md border border-zinc-200 bg-white px-2 text-right font-mono text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
                               />
                             </td>
-                            <td className="px-4 py-3 text-right font-mono text-sm font-semibold text-zinc-800">
+                            <td className="px-4 py-3 text-right font-mono text-sm font-semibold text-zinc-800 dark:text-zinc-200">
                               {fmtVND(lineTotal)}
                             </td>
                             <td className="px-2 py-3">
                               <button
                                 type="button"
                                 onClick={() => removeLine(i)}
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-400 hover:bg-red-50 hover:text-red-600 transition-colors dark:text-zinc-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
@@ -709,39 +709,39 @@ export default function PurchaseOrderDetailPage() {
                         const rem = Math.max(0, qty - recv);
                         const lineTotal = qty * Number(l.unitPrice) * (1 + Number(l.taxRate ?? 0) / 100);
                         return (
-                          <tr key={l.id} className="border-b border-zinc-50 hover:bg-zinc-50/50 transition-colors">
-                            <td className="px-4 py-3.5 text-sm text-zinc-500">{l.lineNo}</td>
+                          <tr key={l.id} className="border-b border-zinc-50 hover:bg-zinc-50/50 transition-colors dark:border-zinc-800 dark:hover:bg-zinc-800/60">
+                            <td className="px-4 py-3.5 text-sm text-zinc-500 dark:text-zinc-400">{l.lineNo}</td>
                             <td className="px-4 py-3.5">
                               <div className="flex flex-col">
-                                <span className="font-mono text-sm font-semibold text-indigo-600">{l.itemSku ?? "—"}</span>
-                                <span className="text-xs text-zinc-500 truncate max-w-xs">{l.itemName ?? "—"}{l.itemUom && ` (${l.itemUom})`}</span>
+                                <span className="font-mono text-sm font-semibold text-indigo-600 dark:text-indigo-400">{l.itemSku ?? "—"}</span>
+                                <span className="text-xs text-zinc-500 truncate max-w-xs dark:text-zinc-400">{l.itemName ?? "—"}{l.itemUom && ` (${l.itemUom})`}</span>
                               </div>
                             </td>
-                            <td className="px-4 py-3.5 text-right font-mono text-sm font-semibold text-zinc-800">
+                            <td className="px-4 py-3.5 text-right font-mono text-sm font-semibold text-zinc-800 dark:text-zinc-200">
                               {formatNumber(qty)}
                             </td>
                             <td className={cn(
                               "px-4 py-3.5 text-right font-mono text-sm font-semibold",
-                              recv >= qty ? "text-emerald-700" : recv > 0 ? "text-amber-700" : "text-zinc-400",
+                              recv >= qty ? "text-emerald-700 dark:text-emerald-400" : recv > 0 ? "text-amber-700 dark:text-amber-400" : "text-zinc-400 dark:text-zinc-500",
                             )}>
                               {formatNumber(recv)}
                             </td>
                             <td className={cn(
                               "px-4 py-3.5 text-right font-mono text-sm",
-                              rem > 0 ? "text-orange-700 font-semibold" : "text-zinc-400",
+                              rem > 0 ? "text-orange-700 font-semibold dark:text-orange-400" : "text-zinc-400 dark:text-zinc-500",
                             )}>
                               {formatNumber(rem)}
                             </td>
-                            <td className="px-4 py-3.5 text-right font-mono text-sm text-zinc-700">
+                            <td className="px-4 py-3.5 text-right font-mono text-sm text-zinc-700 dark:text-zinc-300">
                               {fmtVND(l.unitPrice)}
                             </td>
-                            <td className="px-4 py-3.5 text-right font-mono text-sm text-zinc-700">
+                            <td className="px-4 py-3.5 text-right font-mono text-sm text-zinc-700 dark:text-zinc-300">
                               {l.taxRate ?? 0}%
                             </td>
-                            <td className="px-4 py-3.5 text-right font-mono text-sm font-semibold text-zinc-800">
+                            <td className="px-4 py-3.5 text-right font-mono text-sm font-semibold text-zinc-800 dark:text-zinc-200">
                               {fmtVND(lineTotal)}
                             </td>
-                            <td className="px-4 py-3.5 text-sm text-zinc-600">
+                            <td className="px-4 py-3.5 text-sm text-zinc-600 dark:text-zinc-400">
                               {l.expectedEta ? formatDate(l.expectedEta, "dd/MM/yyyy") : "—"}
                             </td>
                           </tr>
@@ -767,13 +767,13 @@ export default function PurchaseOrderDetailPage() {
 
         {tab === "audit" && (
           <div className="mx-auto max-w-3xl">
-            <section className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
+            <section className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
               <div className="text-center">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-100">
-                  <History className="h-6 w-6 text-zinc-400" />
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800">
+                  <History className="h-6 w-6 text-zinc-400 dark:text-zinc-500" />
                 </div>
-                <h3 className="mt-3 text-base font-semibold text-zinc-900">Audit log</h3>
-                <p className="mt-1 text-sm text-zinc-500">
+                <h3 className="mt-3 text-base font-semibold text-zinc-900 dark:text-zinc-50">Audit log</h3>
+                <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
                   Xem chi tiết tất cả thay đổi tại trang quản trị
                 </p>
                 <Button asChild variant="outline" size="sm" className="mt-4">
@@ -793,7 +793,7 @@ export default function PurchaseOrderDetailPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Send className="h-5 w-5 text-blue-600" /> Xác nhận đã gửi PO
+              <Send className="h-5 w-5 text-blue-600 dark:text-blue-400" /> Xác nhận đã gửi PO
             </DialogTitle>
             <DialogDescription>
               Thao tác này chỉ đánh dấu PO đã gửi và chuyển sang <strong>SENT</strong>; hệ thống chưa tự động gửi email. Sau đó chỉ có thể sửa ETA và Ghi chú.
@@ -802,7 +802,7 @@ export default function PurchaseOrderDetailPage() {
           </DialogHeader>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setSendConfirmOpen(false)}>Huỷ</Button>
-            <Button onClick={() => void handleSend()} disabled={send.isPending} className="bg-blue-600 hover:bg-blue-700">
+            <Button onClick={() => void handleSend()} disabled={send.isPending} className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600">
               {send.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
               Đánh dấu đã gửi
             </Button>
@@ -822,10 +822,10 @@ function InfoRow({ icon: Icon, label, value }: {
 }) {
   return (
     <div className="flex items-start gap-2.5">
-      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{label}</p>
-        <div className="mt-0.5 text-sm text-zinc-800">{value}</div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</p>
+        <div className="mt-0.5 text-sm text-zinc-800 dark:text-zinc-200">{value}</div>
       </div>
     </div>
   );
@@ -838,20 +838,20 @@ function KpiInline({ icon: Icon, label, value, accent }: {
   accent: "indigo" | "zinc" | "emerald" | "amber" | "blue";
 }) {
   const map = {
-    indigo:  "bg-indigo-50 text-indigo-600",
-    zinc:    "bg-zinc-100 text-zinc-600",
-    emerald: "bg-emerald-50 text-emerald-600",
-    amber:   "bg-amber-50 text-amber-600",
-    blue:    "bg-blue-50 text-blue-600",
+    indigo:  "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400",
+    zinc:    "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
+    emerald: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400",
+    amber:   "bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400",
+    blue:    "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400",
   };
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-zinc-100 bg-white px-4 py-3">
+    <div className="flex items-center gap-3 rounded-xl border border-zinc-100 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
       <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg", map[accent])}>
         <Icon className="h-4 w-4" />
       </div>
       <div className="min-w-0">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{label}</p>
-        <p className="text-sm font-bold text-zinc-900 truncate">{value}</p>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</p>
+        <p className="text-sm font-bold text-zinc-900 truncate dark:text-zinc-50">{value}</p>
       </div>
     </div>
   );
@@ -861,14 +861,14 @@ function ReceivingHistorySection({ poId }: { poId: string }) {
   const audit = useReceivingAudit(poId);
   if (audit.isLoading) {
     return (
-      <div className="flex items-center justify-center gap-2 py-12 text-sm text-zinc-500">
+      <div className="flex items-center justify-center gap-2 py-12 text-sm text-zinc-500 dark:text-zinc-400">
         <Loader2 className="h-4 w-4 animate-spin" /> Đang tải lịch sử nhận hàng…
       </div>
     );
   }
   if (audit.isError || !audit.data?.data) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+      <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400">
         {(audit.error as Error)?.message ?? "Không tải được lịch sử"}
       </div>
     );
@@ -877,32 +877,32 @@ function ReceivingHistorySection({ poId }: { poId: string }) {
   return (
     <div className="space-y-5">
       {/* Receipts */}
-      <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-        <div className="border-b border-zinc-100 bg-zinc-50/60 px-5 py-3 flex items-center gap-2">
-          <Receipt className="h-4 w-4 text-zinc-500" />
-          <h3 className="text-sm font-semibold text-zinc-900">Phiếu nhập kho</h3>
-          <span className="ml-2 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
+      <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="border-b border-zinc-100 bg-zinc-50/60 px-5 py-3 flex items-center gap-2 dark:border-zinc-800 dark:bg-zinc-800/60">
+          <Receipt className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Phiếu nhập kho</h3>
+          <span className="ml-2 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
             {data.receipts.length}
           </span>
         </div>
         {data.receipts.length === 0 ? (
-          <p className="px-5 py-12 text-center text-sm text-zinc-500">Chưa có phiếu nhập nào.</p>
+          <p className="px-5 py-12 text-center text-sm text-zinc-500 dark:text-zinc-400">Chưa có phiếu nhập nào.</p>
         ) : (
-          <ul className="divide-y divide-zinc-100">
+          <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
             {data.receipts.map((r) => (
               <li key={r.id} className="flex items-center justify-between px-5 py-3">
                 <div>
-                  <p className="font-mono text-sm font-bold text-indigo-600">{r.receiptNo}</p>
-                  <p className="mt-0.5 text-xs text-zinc-500">
+                  <p className="font-mono text-sm font-bold text-indigo-600 dark:text-indigo-400">{r.receiptNo}</p>
+                  <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
                     {new Date(r.receivedAt).toLocaleString("vi-VN")}
                     {r.qcNotes && ` · ${r.qcNotes}`}
                   </p>
                 </div>
                 <span className={cn(
                   "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset",
-                  r.qcFlag === "OK" ? "bg-emerald-50 text-emerald-700 ring-emerald-200" :
-                  r.qcFlag === "NG" ? "bg-red-50 text-red-700 ring-red-200" :
-                  "bg-amber-50 text-amber-700 ring-amber-200",
+                  r.qcFlag === "OK" ? "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800" :
+                  r.qcFlag === "NG" ? "bg-red-50 text-red-700 ring-red-200 dark:bg-red-950/40 dark:text-red-400 dark:ring-red-800" :
+                  "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800",
                 )}>
                   {r.qcFlag}
                 </span>
@@ -913,36 +913,36 @@ function ReceivingHistorySection({ poId }: { poId: string }) {
       </section>
 
       {/* Lines */}
-      <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-        <div className="border-b border-zinc-100 bg-zinc-50/60 px-5 py-3 flex items-center gap-2">
-          <Package className="h-4 w-4 text-zinc-500" />
-          <h3 className="text-sm font-semibold text-zinc-900">Chi tiết vật tư đã nhận</h3>
-          <span className="ml-2 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
+      <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="border-b border-zinc-100 bg-zinc-50/60 px-5 py-3 flex items-center gap-2 dark:border-zinc-800 dark:bg-zinc-800/60">
+          <Package className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Chi tiết vật tư đã nhận</h3>
+          <span className="ml-2 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
             {data.receiptLines.length}
           </span>
         </div>
         {data.receiptLines.length === 0 ? (
-          <p className="px-5 py-12 text-center text-sm text-zinc-500">Chưa có dòng nhận nào.</p>
+          <p className="px-5 py-12 text-center text-sm text-zinc-500 dark:text-zinc-400">Chưa có dòng nhận nào.</p>
         ) : (
           <table className="w-full">
             <thead>
-              <tr className="border-b border-zinc-100">
-                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400">SKU</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400">Tên</th>
-                <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400">SL nhận</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400">Lot</th>
+              <tr className="border-b border-zinc-100 dark:border-zinc-800">
+                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">SKU</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Tên</th>
+                <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">SL nhận</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Lot</th>
               </tr>
             </thead>
             <tbody>
               {data.receiptLines.map((l) => (
-                <tr key={l.id} className="border-b border-zinc-50">
-                  <td className="px-4 py-3 font-mono text-sm font-semibold text-zinc-800">{l.itemSku ?? "—"}</td>
-                  <td className="px-4 py-3 text-sm text-zinc-700">{l.itemName ?? "—"}</td>
-                  <td className="px-4 py-3 text-right font-mono text-sm font-semibold text-emerald-700">
+                <tr key={l.id} className="border-b border-zinc-50 dark:border-zinc-800">
+                  <td className="px-4 py-3 font-mono text-sm font-semibold text-zinc-800 dark:text-zinc-200">{l.itemSku ?? "—"}</td>
+                  <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300">{l.itemName ?? "—"}</td>
+                  <td className="px-4 py-3 text-right font-mono text-sm font-semibold text-emerald-700 dark:text-emerald-400">
                     {formatNumber(Number(l.receivedQty))}
-                    {l.itemUom && <span className="ml-1 text-xs font-normal text-zinc-500">{l.itemUom}</span>}
+                    {l.itemUom && <span className="ml-1 text-xs font-normal text-zinc-500 dark:text-zinc-400">{l.itemUom}</span>}
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs text-zinc-600">
+                  <td className="px-4 py-3 font-mono text-xs text-zinc-600 dark:text-zinc-400">
                     {l.lotCode ?? l.serialCode ?? "—"}
                   </td>
                 </tr>

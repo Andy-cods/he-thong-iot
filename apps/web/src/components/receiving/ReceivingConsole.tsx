@@ -349,7 +349,7 @@ export function ReceivingConsole({
       {!online ? (
         <div
           role="status"
-          className="sticky top-0 z-sticky flex items-center justify-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800"
+          className="sticky top-0 z-sticky flex items-center justify-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400"
         >
           <WifiOff className="h-4 w-4" aria-hidden="true" />
           Đang mất kết nối. Sự kiện quét được lưu hàng đợi — tự đồng bộ khi có mạng.
@@ -360,7 +360,7 @@ export function ReceivingConsole({
       {syncProgress ? (
         <div
           role="status"
-          className="sticky top-0 z-sticky flex items-center justify-center gap-2 border-b border-blue-200 bg-blue-50 px-4 py-2 text-xs font-medium text-blue-800"
+          className="sticky top-0 z-sticky flex items-center justify-center gap-2 border-b border-blue-200 bg-blue-50 px-4 py-2 text-xs font-medium text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-400"
         >
           <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
           Đang đồng bộ {syncProgress.current}/{syncProgress.total} scan…
@@ -368,18 +368,18 @@ export function ReceivingConsole({
       ) : null}
 
       {/* Header compact tablet */}
-      <header className="flex items-center justify-between gap-4 border-b border-zinc-200 bg-white px-4 py-2 min-h-[3.5rem]">
+      <header className="flex items-center justify-between gap-4 border-b border-zinc-200 bg-white px-4 py-2 min-h-[3.5rem] dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex items-center gap-3 min-w-0">
           <Package
-            className="h-4 w-4 shrink-0 text-zinc-500"
+            className="h-4 w-4 shrink-0 text-zinc-500 dark:text-zinc-400"
             aria-hidden="true"
           />
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <code className="font-mono text-[13px] font-semibold text-zinc-900">
+              <code className="font-mono text-[13px] font-semibold text-zinc-900 dark:text-zinc-50">
                 PO {poCode}
               </code>
-              <span className="truncate text-xs text-zinc-500">
+              <span className="truncate text-xs text-zinc-500 dark:text-zinc-400">
                 {supplierName}
               </span>
             </div>
@@ -391,7 +391,7 @@ export function ReceivingConsole({
             />
           </div>
         </div>
-        <div className="shrink-0 text-xs font-medium text-zinc-600 tabular-nums">
+        <div className="shrink-0 text-xs font-medium text-zinc-600 tabular-nums dark:text-zinc-400">
           {doneLines}/{totalLines} dòng
         </div>
       </header>
@@ -405,9 +405,9 @@ export function ReceivingConsole({
             {/* PO lines table V2 row 36px */}
             <section
               aria-label="Danh sách dòng PO"
-              className="overflow-hidden rounded-md border border-zinc-200 bg-white"
+              className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
             >
-              <div className="flex h-8 items-center border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
+              <div className="flex h-8 items-center border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
                 Dòng PO ({totalLines})
               </div>
               <div>
@@ -419,21 +419,21 @@ export function ReceivingConsole({
                     <div
                       key={l.id}
                       className={cn(
-                        "grid grid-cols-[auto,1fr,auto] items-center gap-3 border-t border-zinc-100 px-4 py-2 transition-colors hover:bg-zinc-50",
-                        isActive && "bg-blue-50",
-                        isDone && "bg-emerald-50/40",
+                        "grid grid-cols-[auto,1fr,auto] items-center gap-3 border-t border-zinc-100 px-4 py-2 transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/60",
+                        isActive && "bg-blue-50 dark:bg-blue-950/40",
+                        isDone && "bg-emerald-50/40 dark:bg-emerald-950/40",
                       )}
                     >
                       <Package
                         className={cn(
                           "h-4 w-4 shrink-0",
-                          isDone ? "text-emerald-500" : "text-zinc-400",
+                          isDone ? "text-emerald-500" : "text-zinc-400 dark:text-zinc-500",
                         )}
                         aria-hidden="true"
                       />
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <code className="font-mono text-xs font-semibold text-zinc-900">
+                          <code className="font-mono text-xs font-semibold text-zinc-900 dark:text-zinc-50">
                             {l.sku}
                           </code>
                           {isDone ? (
@@ -444,25 +444,25 @@ export function ReceivingConsole({
                             <StatusBadge status="pending" size="sm" />
                           )}
                           {l.trackingMode === "lot" ? (
-                            <span className="inline-flex items-center rounded-sm bg-blue-50 px-1.5 py-0.5 text-xs font-medium text-blue-700">
+                            <span className="inline-flex items-center rounded-sm bg-blue-50 px-1.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-400">
                               Lô
                             </span>
                           ) : null}
                         </div>
-                        <p className="mt-0.5 truncate text-xs text-zinc-600">
+                        <p className="mt-0.5 truncate text-xs text-zinc-600 dark:text-zinc-400">
                           {l.name}
                         </p>
                       </div>
                       <div className="text-right text-xs tabular-nums">
-                        <div className="font-semibold text-zinc-900">
+                        <div className="font-semibold text-zinc-900 dark:text-zinc-50">
                           {fmtQty(l.receivedQty)} / {fmtQty(l.orderedQty)}{" "}
                           {l.uom}
                         </div>
                         <div
                           className={cn(
                             remaining === 0
-                              ? "text-emerald-700"
-                              : "text-zinc-500",
+                              ? "text-emerald-700 dark:text-emerald-400"
+                              : "text-zinc-500 dark:text-zinc-400",
                           )}
                         >
                           {remaining === 0
@@ -478,11 +478,11 @@ export function ReceivingConsole({
           </div>
 
           <aside className="hidden lg:block">
-            <div className="sticky top-16 rounded-md border border-zinc-200 bg-white p-4">
-              <h2 className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+            <div className="sticky top-16 rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+              <h2 className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                 Hướng dẫn nhanh
               </h2>
-              <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-zinc-600">
+              <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-zinc-600 dark:text-zinc-400">
                 <li>
                   Bấm <strong>Bật camera</strong> hoặc dùng máy quét USB.
                 </li>
@@ -631,9 +631,9 @@ function ConfirmDialog({
                     "inline-flex h-11 items-center justify-center gap-1.5 rounded-md border text-base font-medium transition-colors",
                     qc === v
                       ? v === "pass"
-                        ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                        : "border-red-500 bg-red-50 text-red-700"
-                      : "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50",
+                        ? "border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+                        : "border-red-500 bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400"
+                      : "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/60",
                   )}
                   aria-pressed={qc === v}
                 >

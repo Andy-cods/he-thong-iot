@@ -121,7 +121,7 @@ export default function AdminUsersNewPage() {
             done={step > 1}
             onClick={() => setStep(1)}
           />
-          <span className="h-px flex-1 bg-zinc-200" aria-hidden="true" />
+          <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" aria-hidden="true" />
           <StepDot
             n={2}
             label="Vai trò &amp; Mật khẩu"
@@ -133,15 +133,15 @@ export default function AdminUsersNewPage() {
 
         <form
           onSubmit={(e) => void handleSubmit(e)}
-          className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm"
+          className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
         >
           {step === 1 ? (
             <>
               <header className="mb-5">
-                <h2 className="text-sm font-semibold tracking-tight text-zinc-900">
+                <h2 className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
                   Bước 1 — Thông tin tài khoản
                 </h2>
-                <p className="mt-1 text-xs text-zinc-500">
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                   Username là duy nhất, không thể đổi sau khi tạo.
                 </p>
               </header>
@@ -155,10 +155,10 @@ export default function AdminUsersNewPage() {
           ) : (
             <>
               <header className="mb-5">
-                <h2 className="text-sm font-semibold tracking-tight text-zinc-900">
+                <h2 className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
                   Bước 2 — Vai trò &amp; Mật khẩu tạm
                 </h2>
-                <p className="mt-1 text-xs text-zinc-500">
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                   Chọn ít nhất 1 vai trò. Mật khẩu tạm 12 ký tự sẽ được yêu cầu
                   đổi sau lần đăng nhập đầu tiên.
                 </p>
@@ -175,12 +175,12 @@ export default function AdminUsersNewPage() {
                 disabled={createUser.isPending}
               />
 
-              <section className="mt-6 border-t border-zinc-200 pt-5">
+              <section className="mt-6 border-t border-zinc-200 pt-5 dark:border-zinc-800">
                 <header className="mb-3">
-                  <h3 className="text-sm font-semibold tracking-tight text-zinc-900">
+                  <h3 className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
                     Mật khẩu tạm
                   </h3>
-                  <p className="mt-0.5 text-[11px] text-zinc-500">
+                  <p className="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
                     12 ký tự random — copy gửi cho user, hệ thống sẽ ép đổi lần
                     đầu.
                   </p>
@@ -207,7 +207,7 @@ export default function AdminUsersNewPage() {
             </>
           )}
 
-          <div className="mt-6 flex items-center justify-between gap-2 border-t border-zinc-200 pt-4">
+          <div className="mt-6 flex items-center justify-between gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
             {step === 1 ? (
               <Button asChild variant="ghost" size="sm" type="button">
                 <Link href="/admin/users">← Quay lại danh sách</Link>
@@ -277,10 +277,10 @@ function StepDot({
         className={cn(
           "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ring-2",
           active
-            ? "bg-indigo-600 text-white ring-indigo-200"
+            ? "bg-indigo-600 text-white ring-indigo-200 dark:ring-indigo-800"
             : done
-              ? "bg-emerald-500 text-white ring-emerald-200"
-              : "bg-zinc-100 text-zinc-500 ring-zinc-200",
+              ? "bg-emerald-500 text-white ring-emerald-200 dark:ring-emerald-800"
+              : "bg-zinc-100 text-zinc-500 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",
         )}
       >
         {done ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : n}
@@ -289,10 +289,10 @@ function StepDot({
         className={cn(
           "flex items-center gap-1 text-xs font-medium tracking-tight",
           active
-            ? "text-zinc-900"
+            ? "text-zinc-900 dark:text-zinc-50"
             : done
-              ? "text-emerald-700"
-              : "text-zinc-500",
+              ? "text-emerald-700 dark:text-emerald-400"
+              : "text-zinc-500 dark:text-zinc-400",
         )}
       >
         {icon}
@@ -332,10 +332,10 @@ function UserFormStep1({
           disabled={disabled}
           aria-invalid={errors.username ? true : undefined}
           className={cn(
-            "h-9 w-full rounded-md border bg-white px-3 font-mono text-sm tracking-normal text-zinc-900 outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100",
+            "h-9 w-full rounded-md border bg-white px-3 font-mono text-sm tracking-normal text-zinc-900 outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500",
             errors.username
               ? "border-rose-400 ring-2 ring-rose-100"
-              : "border-zinc-200",
+              : "border-zinc-200 dark:border-zinc-700",
             disabled && "cursor-not-allowed opacity-60",
           )}
         />
@@ -353,10 +353,10 @@ function UserFormStep1({
           disabled={disabled}
           aria-invalid={errors.fullName ? true : undefined}
           className={cn(
-            "h-9 w-full rounded-md border bg-white px-3 text-sm tracking-normal text-zinc-900 outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100",
+            "h-9 w-full rounded-md border bg-white px-3 text-sm tracking-normal text-zinc-900 outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500",
             errors.fullName
               ? "border-rose-400 ring-2 ring-rose-100"
-              : "border-zinc-200",
+              : "border-zinc-200 dark:border-zinc-700",
             disabled && "cursor-not-allowed opacity-60",
           )}
         />
@@ -372,10 +372,10 @@ function UserFormStep1({
             disabled={disabled}
             aria-invalid={errors.email ? true : undefined}
             className={cn(
-              "h-9 w-full rounded-md border bg-white px-3 text-sm tracking-normal text-zinc-900 outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100",
+              "h-9 w-full rounded-md border bg-white px-3 text-sm tracking-normal text-zinc-900 outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500",
               errors.email
                 ? "border-rose-400 ring-2 ring-rose-100"
-                : "border-zinc-200",
+                : "border-zinc-200 dark:border-zinc-700",
               disabled && "cursor-not-allowed opacity-60",
             )}
           />
@@ -400,7 +400,7 @@ function Field({
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-normal text-zinc-500">
+      <label className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-normal text-zinc-500 dark:text-zinc-400">
         {label}
         {required ? (
           <span aria-hidden="true" className="text-rose-500">
@@ -410,9 +410,9 @@ function Field({
       </label>
       {children}
       {error ? (
-        <p className="text-[11px] text-rose-600">{error}</p>
+        <p className="text-[11px] text-rose-600 dark:text-rose-400">{error}</p>
       ) : helper ? (
-        <p className="text-[11px] text-zinc-500">{helper}</p>
+        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{helper}</p>
       ) : null}
     </div>
   );

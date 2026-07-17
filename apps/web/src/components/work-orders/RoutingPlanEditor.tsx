@@ -56,12 +56,12 @@ export function RoutingPlanEditor({
 
   return (
     <>
-      <div className="rounded-md border border-zinc-200 bg-white">
-        <div className="flex items-center justify-between border-b border-zinc-200 bg-zinc-50 px-3 py-2">
-          <div className="flex items-center gap-2 text-sm font-semibold text-zinc-800">
-            <ListOrdered className="h-4 w-4 text-zinc-500" />
+      <div className="rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="flex items-center justify-between border-b border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-800/60">
+          <div className="flex items-center gap-2 text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+            <ListOrdered className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
             Quy trình sản xuất (Routing)
-            <span className="text-xs font-normal text-zinc-500">
+            <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
               · {steps.length} bước
             </span>
           </div>
@@ -76,13 +76,13 @@ export function RoutingPlanEditor({
           )}
         </div>
         {steps.length === 0 ? (
-          <div className="px-3 py-4 text-xs text-zinc-500">
+          <div className="px-3 py-4 text-xs text-zinc-500 dark:text-zinc-400">
             Chưa có bước nào. Planner có thể tạo routing từ đây hoặc tự động từ
             BOM nguồn.
           </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-zinc-50 text-xs uppercase text-zinc-500">
+            <thead className="bg-zinc-50 text-xs uppercase text-zinc-500 dark:bg-zinc-800/60 dark:text-zinc-400">
               <tr>
                 <th className="px-3 py-2 text-left">#</th>
                 <th className="px-3 py-2 text-left">Bước</th>
@@ -92,14 +92,14 @@ export function RoutingPlanEditor({
                 <th className="px-3 py-2 text-left">Trạng thái</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100">
+            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {steps.map((s) => (
                 <tr key={s.step_no}>
                   <td className="px-3 py-2 font-mono text-xs">
                     {s.step_no}
                   </td>
                   <td className="px-3 py-2">{s.name}</td>
-                  <td className="px-3 py-2 font-mono text-xs text-zinc-600">
+                  <td className="px-3 py-2 font-mono text-xs text-zinc-600 dark:text-zinc-400">
                     {s.machine ?? "—"}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums text-xs">
@@ -216,10 +216,10 @@ function RoutingEditSheet({
           {rows.map((r, i) => (
             <div
               key={i}
-              className="rounded-md border border-zinc-200 bg-zinc-50/50 p-3"
+              className="rounded-md border border-zinc-200 bg-zinc-50/50 p-3 dark:border-zinc-700 dark:bg-zinc-800/60"
             >
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs font-semibold text-zinc-600">
+                <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">
                   Bước #{i + 1}
                 </span>
                 <Button
@@ -227,7 +227,7 @@ function RoutingEditSheet({
                   variant="ghost"
                   onClick={() => removeRow(i)}
                 >
-                  <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                  <Trash2 className="h-3.5 w-3.5 text-red-500 dark:text-red-400" />
                 </Button>
               </div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -301,7 +301,7 @@ function RoutingEditSheet({
                         status: e.target.value as RoutingStep["status"],
                       })
                     }
-                    className="mt-1 h-8 w-full rounded-md border border-zinc-300 bg-white px-2 text-xs"
+                    className="mt-1 h-8 w-full rounded-md border border-zinc-300 bg-white px-2 text-xs dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
                   >
                     {Object.entries(STATUS_LABEL).map(([k, v]) => (
                       <option key={k} value={k}>
@@ -325,7 +325,7 @@ function RoutingEditSheet({
           </Button>
         </div>
 
-        <div className="mt-6 flex items-center justify-end gap-2 border-t border-zinc-200 pt-4">
+        <div className="mt-6 flex items-center justify-end gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-700">
           <Button
             size="sm"
             variant="ghost"

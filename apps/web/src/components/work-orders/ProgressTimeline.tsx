@@ -32,42 +32,42 @@ const STEP_META: Record<
   PROGRESS_REPORT: {
     label: "Tiến độ",
     icon: CheckCircle2,
-    tone: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    tone: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:border-indigo-800",
   },
   PAUSE: {
     label: "Tạm dừng",
     icon: Pause,
-    tone: "bg-amber-50 text-amber-700 border-amber-200",
+    tone: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800",
   },
   RESUME: {
     label: "Tiếp tục",
     icon: Play,
-    tone: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    tone: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800",
   },
   QC_PASS: {
     label: "QC đạt",
     icon: ShieldCheck,
-    tone: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    tone: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800",
   },
   QC_FAIL: {
     label: "QC lỗi",
     icon: ShieldAlert,
-    tone: "bg-red-50 text-red-700 border-red-200",
+    tone: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800",
   },
   ISSUE: {
     label: "Sự cố",
     icon: AlertCircle,
-    tone: "bg-red-50 text-red-700 border-red-200",
+    tone: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800",
   },
   NOTE: {
     label: "Ghi chú",
     icon: FileText,
-    tone: "bg-zinc-50 text-zinc-700 border-zinc-200",
+    tone: "bg-zinc-50 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700",
   },
   PHOTO: {
     label: "Ảnh",
     icon: Camera,
-    tone: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    tone: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:border-indigo-800",
   },
 };
 
@@ -103,11 +103,11 @@ export function ProgressTimeline({ woId }: { woId: string }) {
   );
 
   return (
-    <div className="rounded-md border border-zinc-200 bg-white p-4">
+    <div className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-zinc-800">
+        <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
           Nhật ký tiến độ
-          <span className="ml-2 rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] font-mono text-zinc-600">
+          <span className="ml-2 rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] font-mono text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
             {query.data?.meta.total ?? 0}
           </span>
         </h3>
@@ -125,7 +125,7 @@ export function ProgressTimeline({ woId }: { woId: string }) {
               className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors ${
                 active
                   ? meta.tone
-                  : "border-zinc-200 bg-white text-zinc-400 hover:bg-zinc-50"
+                  : "border-zinc-200 bg-white text-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-500 dark:hover:bg-zinc-800/60"
               }`}
             >
               <meta.icon className="h-3 w-3" />
@@ -136,9 +136,9 @@ export function ProgressTimeline({ woId }: { woId: string }) {
       </div>
 
       {query.isLoading ? (
-        <div className="py-6 text-center text-xs text-zinc-500">Đang tải...</div>
+        <div className="py-6 text-center text-xs text-zinc-500 dark:text-zinc-400">Đang tải...</div>
       ) : rows.length === 0 ? (
-        <div className="rounded-md border border-dashed border-zinc-200 py-6 text-center text-xs text-zinc-500">
+        <div className="rounded-md border border-dashed border-zinc-200 py-6 text-center text-xs text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
           Chưa có entry nào khớp bộ lọc.
         </div>
       ) : (
@@ -184,25 +184,25 @@ function TimelineEntry({
         >
           <Icon className="h-3.5 w-3.5" />
         </div>
-        {!last && <div className="mt-1 h-full w-px flex-1 bg-zinc-200" />}
+        {!last && <div className="mt-1 h-full w-px flex-1 bg-zinc-200 dark:bg-zinc-700" />}
       </div>
       <div className="min-w-0 flex-1 pb-3">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" className={`${meta.tone} text-[10px]`}>
             {meta.label}
           </Badge>
-          <span className="flex items-center gap-1 text-xs font-medium text-zinc-800">
-            <User className="h-3 w-3 text-zinc-400" />
+          <span className="flex items-center gap-1 text-xs font-medium text-zinc-800 dark:text-zinc-100">
+            <User className="h-3 w-3 text-zinc-400 dark:text-zinc-500" />
             {row.operatorDisplayName ??
               row.operatorUsername ??
               "Hệ thống"}
           </span>
           {row.station && (
-            <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-600">
+            <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
               {row.station}
             </span>
           )}
-          <span className="font-mono text-[10px] text-zinc-400">
+          <span className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500">
             {new Date(row.createdAt).toLocaleString("vi-VN")}
           </span>
         </div>
@@ -210,17 +210,17 @@ function TimelineEntry({
         {(qtyCompleted > 0 || qtyScrap > 0) && (
           <div className="mt-1 flex flex-wrap gap-2 text-xs">
             {qtyCompleted > 0 && (
-              <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-emerald-700">
+              <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
                 +{qtyCompleted.toLocaleString("vi-VN")} đạt
               </span>
             )}
             {qtyScrap > 0 && (
-              <span className="rounded bg-red-50 px-1.5 py-0.5 text-red-700">
+              <span className="rounded bg-red-50 px-1.5 py-0.5 text-red-700 dark:bg-red-950/40 dark:text-red-400">
                 {qtyScrap.toLocaleString("vi-VN")} phế
               </span>
             )}
             {row.durationMinutes && row.durationMinutes > 0 && (
-              <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-zinc-600">
+              <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                 {row.durationMinutes} phút
               </span>
             )}
@@ -229,7 +229,7 @@ function TimelineEntry({
 
         {row.notes && (
           <div
-            className={`mt-1.5 text-xs text-zinc-700 ${expanded ? "" : "line-clamp-2"}`}
+            className={`mt-1.5 text-xs text-zinc-700 dark:text-zinc-300 ${expanded ? "" : "line-clamp-2"}`}
           >
             {row.notes}
           </div>
@@ -240,7 +240,7 @@ function TimelineEntry({
             variant="ghost"
             size="sm"
             onClick={onToggle}
-            className="mt-1 h-6 px-2 text-[11px] text-zinc-500 hover:text-zinc-700"
+            className="mt-1 h-6 px-2 text-[11px] text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
           >
             {expanded ? "Thu gọn" : "Xem thêm"}
           </Button>
@@ -250,7 +250,7 @@ function TimelineEntry({
             href={row.photoUrl}
             target="_blank"
             rel="noreferrer"
-            className="mt-2 block max-w-[300px] break-all rounded border border-zinc-200 bg-zinc-50 p-2 text-[11px] text-indigo-700 underline"
+            className="mt-2 block max-w-[300px] break-all rounded border border-zinc-200 bg-zinc-50 p-2 text-[11px] text-indigo-700 underline dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-indigo-400"
           >
             {row.photoUrl}
           </a>

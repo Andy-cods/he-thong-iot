@@ -41,11 +41,11 @@ export function AuditDiffViewer({
   // CREATE: only after
   if (!beforeJson && afterJson) {
     return (
-      <div className="overflow-hidden rounded-md border border-emerald-200 bg-emerald-50">
-        <div className="border-b border-emerald-200 bg-emerald-100 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-normal text-emerald-700">
+      <div className="overflow-hidden rounded-md border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40">
+        <div className="border-b border-emerald-200 bg-emerald-100 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-normal text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400">
           Bản ghi mới (CREATE)
         </div>
-        <pre className="overflow-x-auto p-3 font-mono text-[11px] leading-relaxed text-emerald-900">
+        <pre className="overflow-x-auto p-3 font-mono text-[11px] leading-relaxed text-emerald-900 dark:text-emerald-300">
           {after}
         </pre>
       </div>
@@ -55,11 +55,11 @@ export function AuditDiffViewer({
   // DELETE: only before
   if (beforeJson && !afterJson) {
     return (
-      <div className="overflow-hidden rounded-md border border-rose-200 bg-rose-50">
-        <div className="border-b border-rose-200 bg-rose-100 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-normal text-rose-700">
+      <div className="overflow-hidden rounded-md border border-rose-200 bg-rose-50 dark:border-rose-800 dark:bg-rose-950/40">
+        <div className="border-b border-rose-200 bg-rose-100 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-normal text-rose-700 dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-400">
           Bản ghi bị xoá (DELETE)
         </div>
-        <pre className="overflow-x-auto p-3 font-mono text-[11px] leading-relaxed text-rose-900">
+        <pre className="overflow-x-auto p-3 font-mono text-[11px] leading-relaxed text-rose-900 dark:text-rose-300">
           {before}
         </pre>
       </div>
@@ -69,14 +69,14 @@ export function AuditDiffViewer({
   // UPDATE: full diff
   if (!beforeJson && !afterJson) {
     return (
-      <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-500">
+      <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
         Không có dữ liệu diff.
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-md border border-zinc-200 bg-white text-[11px]">
+    <div className="overflow-hidden rounded-md border border-zinc-200 bg-white text-[11px] dark:border-zinc-800 dark:bg-zinc-900">
       <ReactDiffViewer
         oldValue={before}
         newValue={after}

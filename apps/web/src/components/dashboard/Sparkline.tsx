@@ -65,7 +65,7 @@ export function Sparkline({
     return (
       <div
         className={cn(
-          "flex h-14 items-center justify-center rounded-md bg-zinc-50 text-xs text-zinc-400",
+          "flex h-14 items-center justify-center rounded-md bg-zinc-50 text-xs text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500",
           className,
         )}
       >

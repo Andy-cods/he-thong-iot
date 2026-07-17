@@ -226,11 +226,11 @@ export function WarehouseLayoutTab() {
   const occupiedPct = currentRack ? Math.round((rackStats.occupied / currentRack.total) * 100) : 0;
 
   return (
-    <div className="flex h-full flex-col gap-4 bg-slate-50/40 p-4">
+    <div className="flex h-full flex-col gap-4 bg-slate-50/40 p-4 dark:bg-zinc-950">
       {/* ── TOP: Rack tabs + Legend ── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="ml-1 mr-2 text-xs font-bold uppercase tracking-wider text-zinc-500">
+          <span className="ml-1 mr-2 text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
             Chọn kệ:
           </span>
           {racksList.map((r) => {
@@ -244,24 +244,24 @@ export function WarehouseLayoutTab() {
                   "inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-semibold transition-all",
                   isActive
                     ? "bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/40"
-                    : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200",
+                    : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700",
                 )}
               >
                 <span className={cn("flex h-5 w-5 items-center justify-center rounded-md text-[10px] font-bold",
-                  isActive ? "bg-white/20 text-white" : "bg-white text-zinc-600",
+                  isActive ? "bg-white/20 text-white" : "bg-white text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400",
                 )}>
                   <Boxes className="h-3 w-3" />
                 </span>
                 <span className="font-mono">Kệ {r.rack}</span>
                 <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] tabular-nums font-bold",
-                  isActive ? "bg-white/25 text-white" : "bg-white text-zinc-500",
+                  isActive ? "bg-white/25 text-white" : "bg-white text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400",
                 )}>{r.occupied}/{r.total}</span>
               </button>
             );
           })}
           <button
             type="button"
-            className="inline-flex items-center gap-1.5 rounded-xl border-2 border-dashed border-zinc-300 px-3.5 py-1.5 text-sm font-semibold text-zinc-500 hover:border-indigo-400 hover:bg-indigo-50/40 hover:text-indigo-600 transition-all"
+            className="inline-flex items-center gap-1.5 rounded-xl border-2 border-dashed border-zinc-300 px-3.5 py-1.5 text-sm font-semibold text-zinc-500 hover:border-indigo-400 hover:bg-indigo-50/40 hover:text-indigo-600 transition-all dark:border-zinc-700 dark:text-zinc-500 dark:hover:border-indigo-500 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-400"
             disabled
             title="Chưa hỗ trợ thêm kệ"
           >
@@ -270,7 +270,7 @@ export function WarehouseLayoutTab() {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-3 rounded-xl bg-zinc-50 px-3 py-2">
+          <div className="flex items-center gap-3 rounded-xl bg-zinc-50 px-3 py-2 dark:bg-zinc-800">
             <LegendDot color="#6366f1" label="Có hàng" />
             <LegendDot color="#f59e0b" label="Sắp hết" pulse />
             <LegendDot color="#e2e8f0" label="Trống" stroke="#cbd5e1" />
@@ -283,15 +283,15 @@ export function WarehouseLayoutTab() {
         {/* SIDEBAR */}
         <div className="flex flex-col gap-4 overflow-y-auto">
           {/* Card: Thông tin kệ */}
-          <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-            <h3 className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-3">
+          <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+            <h3 className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-3 dark:text-zinc-400">
               Thông tin kệ
             </h3>
             <div className="flex items-center justify-between mb-3">
-              <span className="text-2xl font-bold text-zinc-900">
+              <span className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
                 Kệ {currentRack?.rack ?? "—"}
               </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 Hoạt động
               </span>
@@ -306,12 +306,12 @@ export function WarehouseLayoutTab() {
               <Row label="Tổng ô" value={String(currentRack?.total ?? 0)} bold />
               <div className="pt-2">
                 <div className="flex items-center justify-between text-sm mb-1">
-                  <span className="text-zinc-500">Đã sử dụng</span>
-                  <span className="font-bold text-zinc-900">
+                  <span className="text-zinc-500 dark:text-zinc-400">Đã sử dụng</span>
+                  <span className="font-bold text-zinc-900 dark:text-zinc-50">
                     {rackStats.occupied} ({occupiedPct}%)
                   </span>
                 </div>
-                <div className="h-2 w-full rounded-full bg-zinc-100 overflow-hidden">
+                <div className="h-2 w-full rounded-full bg-zinc-100 overflow-hidden dark:bg-zinc-800">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all"
                     style={{ width: `${occupiedPct}%` }}
@@ -322,8 +322,8 @@ export function WarehouseLayoutTab() {
           </section>
 
           {/* Card: Thống kê kệ */}
-          <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-            <h3 className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-3">
+          <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+            <h3 className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-3 dark:text-zinc-400">
               Thống kê kệ
             </h3>
             <div className="space-y-2.5">
@@ -345,9 +345,9 @@ export function WarehouseLayoutTab() {
                 count={rackStats.empty}
                 total={currentRack?.total ?? 0}
               />
-              <div className="pt-2 mt-2 border-t border-zinc-100 flex items-center justify-between">
-                <span className="text-sm text-zinc-600">Tổng SKU</span>
-                <span className="font-bold text-zinc-900 text-base">{rackStats.totalSKU}</span>
+              <div className="pt-2 mt-2 border-t border-zinc-100 flex items-center justify-between dark:border-zinc-800">
+                <span className="text-sm text-zinc-600 dark:text-zinc-400">Tổng SKU</span>
+                <span className="font-bold text-zinc-900 text-base dark:text-zinc-50">{rackStats.totalSKU}</span>
               </div>
             </div>
           </section>
@@ -356,7 +356,7 @@ export function WarehouseLayoutTab() {
         {/* MAIN CONTENT */}
         <div className="flex min-w-0 flex-col gap-4">
           {/* Sub-tabs + search + toggle */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-2 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-2 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
             <div className="flex items-center gap-1">
               <button
                 type="button"
@@ -365,8 +365,8 @@ export function WarehouseLayoutTab() {
                   "relative px-3 py-2.5 text-sm font-bold transition-colors",
                   "after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:rounded-t-full after:transition-all",
                   subTab === "layout"
-                    ? "text-indigo-700 after:bg-indigo-600"
-                    : "text-zinc-500 hover:text-zinc-800 after:bg-transparent",
+                    ? "text-indigo-700 after:bg-indigo-600 dark:text-indigo-400"
+                    : "text-zinc-500 hover:text-zinc-800 after:bg-transparent dark:text-zinc-400 dark:hover:text-zinc-200",
                 )}
               >
                 SƠ ĐỒ KỆ
@@ -378,8 +378,8 @@ export function WarehouseLayoutTab() {
                   "relative px-3 py-2.5 text-sm font-bold transition-colors",
                   "after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:rounded-t-full after:transition-all",
                   subTab === "list"
-                    ? "text-indigo-700 after:bg-indigo-600"
-                    : "text-zinc-500 hover:text-zinc-800 after:bg-transparent",
+                    ? "text-indigo-700 after:bg-indigo-600 dark:text-indigo-400"
+                    : "text-zinc-500 hover:text-zinc-800 after:bg-transparent dark:text-zinc-400 dark:hover:text-zinc-200",
                 )}
               >
                 DANH SÁCH HÀNG
@@ -388,17 +388,17 @@ export function WarehouseLayoutTab() {
 
             <div className="flex items-center gap-2">
               <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" />
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Tìm ô, mã hàng, tên hàng..."
-                  className="h-9 w-72 rounded-lg border border-zinc-200 bg-zinc-50/50 pl-9 pr-9 text-sm placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="h-9 w-72 rounded-lg border border-zinc-200 bg-zinc-50/50 pl-9 pr-9 text-sm placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-50 dark:placeholder:text-zinc-500"
                 />
                 {search && (
                   <button onClick={() => setSearch("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600">
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300">
                     <X className="h-3.5 w-3.5" />
                   </button>
                 )}
@@ -408,9 +408,9 @@ export function WarehouseLayoutTab() {
                   type="button"
                   onClick={() => setFilterOpen((o) => !o)}
                   className={cn(
-                    "inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-200 px-2.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-50",
+                    "inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-200 px-2.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800/60",
                     statusFilter !== "all" &&
-                      "border-indigo-500 bg-indigo-50 text-indigo-700",
+                      "border-indigo-500 bg-indigo-50 text-indigo-700 dark:border-indigo-500 dark:bg-indigo-950/40 dark:text-indigo-400",
                   )}
                 >
                   <Filter className="h-4 w-4" />
@@ -423,7 +423,7 @@ export function WarehouseLayoutTab() {
                         : "Sắp hết"}
                 </button>
                 {filterOpen && (
-                  <div className="absolute right-0 top-full mt-1 w-44 rounded-lg border border-zinc-200 bg-white py-1 shadow-lg z-20">
+                  <div className="absolute right-0 top-full mt-1 w-44 rounded-lg border border-zinc-200 bg-white py-1 shadow-lg z-20 dark:border-zinc-700 dark:bg-zinc-900">
                     {(
                       [
                         { value: "all", label: "Tất cả" },
@@ -442,8 +442,8 @@ export function WarehouseLayoutTab() {
                         className={cn(
                           "block w-full px-3 py-1.5 text-left text-xs",
                           statusFilter === opt.value
-                            ? "bg-indigo-50 font-semibold text-indigo-700"
-                            : "text-zinc-600 hover:bg-zinc-50",
+                            ? "bg-indigo-50 font-semibold text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400"
+                            : "text-zinc-600 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:bg-zinc-800/60",
                         )}
                       >
                         {opt.label}
@@ -452,13 +452,13 @@ export function WarehouseLayoutTab() {
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-zinc-100 p-0.5">
+              <div className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-zinc-100 p-0.5 dark:border-zinc-700 dark:bg-zinc-800">
                 <button
                   type="button"
                   onClick={() => setViewMode("2d")}
                   className={cn(
                     "inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-bold transition-all",
-                    viewMode === "2d" ? "bg-white text-indigo-700 shadow-sm" : "text-zinc-600",
+                    viewMode === "2d" ? "bg-white text-indigo-700 shadow-sm dark:bg-zinc-900 dark:text-indigo-400" : "text-zinc-600 dark:text-zinc-400",
                   )}
                 >
                   <Layers className="h-3 w-3" /> 2D
@@ -468,7 +468,7 @@ export function WarehouseLayoutTab() {
                   onClick={() => setViewMode("3d")}
                   className={cn(
                     "inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-bold transition-all",
-                    viewMode === "3d" ? "bg-white text-indigo-700 shadow-sm" : "text-zinc-600",
+                    viewMode === "3d" ? "bg-white text-indigo-700 shadow-sm dark:bg-zinc-900 dark:text-indigo-400" : "text-zinc-600 dark:text-zinc-400",
                   )}
                 >
                   <BoxIcon className="h-3 w-3" /> 3D
@@ -479,24 +479,24 @@ export function WarehouseLayoutTab() {
 
           {/* Lookup result strip */}
           {debouncedSearch && lookupQuery.data && (
-            <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 px-4 py-2.5">
+            <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 px-4 py-2.5 dark:border-indigo-800 dark:bg-indigo-950/40">
               {lookupQuery.data.data.matchedItems.length === 0 ? (
-                <p className="text-sm text-zinc-600">Không tìm thấy "{debouncedSearch}"</p>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">Không tìm thấy "{debouncedSearch}"</p>
               ) : (
                 <div className="flex items-start gap-3">
-                  <Search className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                  <Search className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-zinc-900">
+                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
                       Tìm thấy{" "}
-                      <span className="text-indigo-700">{lookupQuery.data.data.matchedItems.length}</span> SKU ·{" "}
-                      <span className="text-indigo-700">{lookupQuery.data.data.locations.length}</span> vị trí
+                      <span className="text-indigo-700 dark:text-indigo-400">{lookupQuery.data.data.matchedItems.length}</span> SKU ·{" "}
+                      <span className="text-indigo-700 dark:text-indigo-400">{lookupQuery.data.data.locations.length}</span> vị trí
                     </p>
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                       {lookupQuery.data.data.locations.slice(0, 12).map((loc) => (
                         <button
                           key={`${loc.binId}-${loc.lotSerialId}`}
                           onClick={() => setSelectedBinId(loc.binId)}
-                          className="inline-flex items-center gap-1.5 rounded-full bg-white border border-indigo-200 px-2.5 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+                          className="inline-flex items-center gap-1.5 rounded-full bg-white border border-indigo-200 px-2.5 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100 dark:bg-zinc-900 dark:border-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-950/60"
                         >
                           <span className="font-mono">{loc.binFullCode}</span>
                           <span className="text-indigo-400">·</span>
@@ -511,17 +511,17 @@ export function WarehouseLayoutTab() {
           )}
 
           {/* Main view (3D rack or list) */}
-          <div className="relative flex-1 min-h-0 rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
+          <div className="relative flex-1 min-h-0 rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden dark:border-zinc-700 dark:bg-zinc-900">
             {layoutQuery.isLoading ? (
-              <div className="flex h-full items-center justify-center gap-2 text-sm text-zinc-500">
+              <div className="flex h-full items-center justify-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Đang tải sơ đồ kho...
               </div>
             ) : binsWithSku.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
-                <Warehouse className="h-12 w-12 text-zinc-300" />
-                <p className="text-base font-semibold text-zinc-700">Chưa có bins nào</p>
-                <p className="text-sm text-zinc-500">Migration 0034 cần được apply.</p>
+                <Warehouse className="h-12 w-12 text-zinc-300 dark:text-zinc-700" />
+                <p className="text-base font-semibold text-zinc-700 dark:text-zinc-300">Chưa có bins nào</p>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">Migration 0034 cần được apply.</p>
               </div>
             ) : subTab === "layout" ? (
               <WarehouseLayout3D
@@ -541,7 +541,7 @@ export function WarehouseLayoutTab() {
           </div>
 
           {/* Footer stats card */}
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
             <div className="flex flex-wrap items-center gap-4">
               <FooterStat label="Tổng ô" value={String(currentRack?.total ?? 0)} icon={BoxIcon} />
               <Divider />
@@ -591,15 +591,15 @@ export function WarehouseLayoutTab() {
 
       {/* Bin detail drawer */}
       {selectedBin && (
-        <div className="fixed inset-y-0 right-0 z-30 w-[400px] shadow-2xl ring-1 ring-zinc-200 bg-white overflow-y-auto">
-          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-200 bg-white px-5 py-3.5">
+        <div className="fixed inset-y-0 right-0 z-30 w-[400px] shadow-2xl ring-1 ring-zinc-200 bg-white overflow-y-auto dark:ring-zinc-700 dark:bg-zinc-900">
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-200 bg-white px-5 py-3.5 dark:border-zinc-700 dark:bg-zinc-900">
             <div>
-              <p className="text-xs uppercase tracking-wider text-zinc-500">Vị trí</p>
-              <p className="font-mono text-lg font-bold text-zinc-900">{selectedBin.fullCode}</p>
+              <p className="text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Vị trí</p>
+              <p className="font-mono text-lg font-bold text-zinc-900 dark:text-zinc-50">{selectedBin.fullCode}</p>
             </div>
             <button
               onClick={() => setSelectedBinId(null)}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 dark:text-zinc-500 dark:hover:bg-zinc-800"
             >
               <X className="h-4 w-4" />
             </button>
@@ -615,7 +615,7 @@ export function WarehouseLayoutTab() {
               />
             </div>
             {selectedBin.isLow && selectedBin.totalQty > 0 && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400">
                 <p className="flex items-center gap-2 font-semibold">
                   <AlertTriangle className="h-4 w-4" /> Cảnh báo sắp hết
                 </p>
@@ -652,41 +652,41 @@ export function WarehouseLayoutTab() {
             />
 
             <div>
-              <h3 className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+              <h3 className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                 Nội dung
               </h3>
               {binDetailQuery.isLoading ? (
-                <p className="text-sm text-zinc-500">Đang tải...</p>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">Đang tải...</p>
               ) : !binDetailQuery.data?.data.content.length ? (
-                <p className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 p-4 text-center text-sm text-zinc-500">
+                <p className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 p-4 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
                   Vị trí trống
                 </p>
               ) : (
                 <ul className="space-y-2">
                   {binDetailQuery.data.data.content.map((c) => (
-                    <li key={c.lotSerialId} className="rounded-xl border border-zinc-200 bg-white p-3">
+                    <li key={c.lotSerialId} className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
-                          <p className="font-mono text-sm font-semibold text-indigo-600">{c.itemSku ?? "—"}</p>
-                          <p className="mt-0.5 text-xs text-zinc-700 truncate">{c.itemName ?? "—"}</p>
+                          <p className="font-mono text-sm font-semibold text-indigo-600 dark:text-indigo-400">{c.itemSku ?? "—"}</p>
+                          <p className="mt-0.5 text-xs text-zinc-700 truncate dark:text-zinc-300">{c.itemName ?? "—"}</p>
                         </div>
-                        <span className="font-mono text-base font-bold tabular-nums text-emerald-700">
+                        <span className="font-mono text-base font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
                           {c.qty.toLocaleString("vi-VN")}
-                          {c.itemUom && <span className="ml-1 text-xs font-normal text-zinc-500">{c.itemUom}</span>}
+                          {c.itemUom && <span className="ml-1 text-xs font-normal text-zinc-500 dark:text-zinc-400">{c.itemUom}</span>}
                         </span>
                       </div>
-                      <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-zinc-500">
+                      <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
                         {c.lotCode && (
-                          <span className="rounded bg-indigo-50 px-1.5 py-0.5 font-mono text-indigo-700">
+                          <span className="rounded bg-indigo-50 px-1.5 py-0.5 font-mono text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400">
                             Lot: {c.lotCode}
                           </span>
                         )}
                         {c.expDate && <span>HSD: {c.expDate}</span>}
                         <span className={cn(
                           "rounded px-1.5 py-0.5 font-medium",
-                          c.status === "AVAILABLE" ? "bg-emerald-50 text-emerald-700" :
-                          c.status === "HOLD" ? "bg-red-50 text-red-700" :
-                          "bg-zinc-100 text-zinc-600",
+                          c.status === "AVAILABLE" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400" :
+                          c.status === "HOLD" ? "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400" :
+                          "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
                         )}>
                           {c.status}
                         </span>
@@ -708,11 +708,11 @@ export function WarehouseLayoutTab() {
 function Row({ label, value, mono, bold }: { label: string; value: string; mono?: boolean; bold?: boolean }) {
   return (
     <div className="flex items-center justify-between">
-      <dt className="text-xs uppercase tracking-wider text-zinc-500">{label}</dt>
+      <dt className="text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</dt>
       <dd className={cn(
         "text-sm",
         mono && "font-mono",
-        bold ? "font-bold text-zinc-900" : "text-zinc-700",
+        bold ? "font-bold text-zinc-900 dark:text-zinc-50" : "text-zinc-700 dark:text-zinc-300",
       )}>
         {value}
       </dd>
@@ -726,11 +726,11 @@ function StatRow({ color, label, count, total }: { color: string; label: string;
     <div className="flex items-center justify-between gap-3">
       <div className="flex items-center gap-2 min-w-0">
         <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
-        <span className="text-sm text-zinc-700 truncate">{label}</span>
+        <span className="text-sm text-zinc-700 truncate dark:text-zinc-300">{label}</span>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <span className="text-base font-bold tabular-nums text-zinc-900">{count}</span>
-        <span className="text-xs text-zinc-400 tabular-nums w-10 text-right">{pct}%</span>
+        <span className="text-base font-bold tabular-nums text-zinc-900 dark:text-zinc-50">{count}</span>
+        <span className="text-xs text-zinc-400 tabular-nums w-10 text-right dark:text-zinc-500">{pct}%</span>
       </div>
     </div>
   );
@@ -747,9 +747,9 @@ function FooterStat({
   badgeTone?: "emerald" | "amber";
 }) {
   const map = {
-    indigo: { bg: "bg-indigo-50", iconColor: "text-indigo-600", valueColor: "text-zinc-900" },
-    amber:  { bg: "bg-amber-50",  iconColor: "text-amber-600",  valueColor: "text-amber-700" },
-    zinc:   { bg: "bg-zinc-100",  iconColor: "text-zinc-500",   valueColor: "text-zinc-700" },
+    indigo: { bg: "bg-indigo-50 dark:bg-indigo-950/40", iconColor: "text-indigo-600 dark:text-indigo-400", valueColor: "text-zinc-900 dark:text-zinc-50" },
+    amber:  { bg: "bg-amber-50 dark:bg-amber-950/40",  iconColor: "text-amber-600 dark:text-amber-400",  valueColor: "text-amber-700 dark:text-amber-400" },
+    zinc:   { bg: "bg-zinc-100 dark:bg-zinc-800",  iconColor: "text-zinc-500 dark:text-zinc-400",   valueColor: "text-zinc-700 dark:text-zinc-300" },
   };
   const cls = map[tone];
   return (
@@ -758,13 +758,13 @@ function FooterStat({
         <Icon className={cn("h-4 w-4", cls.iconColor)} />
       </div>
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{label}</p>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</p>
         <div className="flex items-center gap-1.5">
           <span className={cn("text-lg font-bold tabular-nums leading-none", cls.valueColor)}>{value}</span>
           {badge && (
             <span className={cn(
               "rounded-full px-1.5 py-0.5 text-[10px] font-bold",
-              badgeTone === "emerald" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700",
+              badgeTone === "emerald" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400" : "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
             )}>
               {badge}
             </span>
@@ -776,7 +776,7 @@ function FooterStat({
 }
 
 function Divider() {
-  return <div className="h-10 w-px bg-zinc-200" />;
+  return <div className="h-10 w-px bg-zinc-200 dark:bg-zinc-700" />;
 }
 
 function LegendDot({ color, label, pulse, stroke }: {
@@ -788,16 +788,16 @@ function LegendDot({ color, label, pulse, stroke }: {
         className={cn("inline-block h-2.5 w-2.5 rounded-full", pulse && "animate-pulse")}
         style={{ backgroundColor: color, border: stroke ? `1px solid ${stroke}` : undefined }}
       />
-      <span className="text-xs font-semibold text-zinc-700">{label}</span>
+      <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{label}</span>
     </div>
   );
 }
 
 function DetailStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg bg-zinc-50 px-3 py-2">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{label}</p>
-      <p className="mt-1 font-mono text-base font-bold text-zinc-900">{value}</p>
+    <div className="rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-800">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</p>
+      <p className="mt-1 font-mono text-base font-bold text-zinc-900 dark:text-zinc-50">{value}</p>
     </div>
   );
 }
@@ -808,8 +808,8 @@ function BinListView({ bins, onSelect }: { bins: BinNode[]; onSelect: (id: strin
   return (
     <div className="h-full overflow-auto p-4">
       <table className="w-full">
-        <thead className="sticky top-0 bg-white z-10">
-          <tr className="border-b-2 border-zinc-100 text-xs font-bold uppercase tracking-wider text-zinc-500">
+        <thead className="sticky top-0 bg-white z-10 dark:bg-zinc-900">
+          <tr className="border-b-2 border-zinc-100 text-xs font-bold uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
             <th className="px-3 py-2.5 text-left">Mã ô</th>
             <th className="px-3 py-2.5 text-left">Tầng</th>
             <th className="px-3 py-2.5 text-right">Tồn</th>
@@ -826,32 +826,32 @@ function BinListView({ bins, onSelect }: { bins: BinNode[]; onSelect: (id: strin
             const cap = Number(b.capacity ?? "0");
             const pct = cap > 0 ? Math.round((b.totalQty / cap) * 100) : 0;
             return (
-              <tr key={b.id} className="border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer" onClick={() => onSelect(b.id)}>
-                <td className="px-3 py-2.5 font-mono text-sm font-bold text-indigo-600">{b.fullCode}</td>
-                <td className="px-3 py-2.5 text-sm text-zinc-700">Tầng {b.levelNo}</td>
-                <td className="px-3 py-2.5 text-right font-mono text-sm font-bold">{b.totalQty.toLocaleString("vi-VN")}</td>
-                <td className="px-3 py-2.5 text-right font-mono text-sm text-zinc-600">{cap > 0 ? cap.toLocaleString("vi-VN") : "—"}</td>
+              <tr key={b.id} className="border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer dark:border-zinc-800 dark:hover:bg-zinc-800/60" onClick={() => onSelect(b.id)}>
+                <td className="px-3 py-2.5 font-mono text-sm font-bold text-indigo-600 dark:text-indigo-400">{b.fullCode}</td>
+                <td className="px-3 py-2.5 text-sm text-zinc-700 dark:text-zinc-300">Tầng {b.levelNo}</td>
+                <td className="px-3 py-2.5 text-right font-mono text-sm font-bold dark:text-zinc-50">{b.totalQty.toLocaleString("vi-VN")}</td>
+                <td className="px-3 py-2.5 text-right font-mono text-sm text-zinc-600 dark:text-zinc-400">{cap > 0 ? cap.toLocaleString("vi-VN") : "—"}</td>
                 <td className="px-3 py-2.5 text-right">
                   <div className="flex items-center justify-end gap-2">
-                    <div className="h-1.5 w-16 rounded-full bg-zinc-100 overflow-hidden">
+                    <div className="h-1.5 w-16 rounded-full bg-zinc-100 overflow-hidden dark:bg-zinc-800">
                       <div className="h-full rounded-full bg-indigo-500" style={{ width: `${pct}%` }} />
                     </div>
-                    <span className="text-xs tabular-nums text-zinc-600 w-9 text-right">{pct}%</span>
+                    <span className="text-xs tabular-nums text-zinc-600 w-9 text-right dark:text-zinc-400">{pct}%</span>
                   </div>
                 </td>
-                <td className="px-3 py-2.5 text-sm text-zinc-700">{b.skuCount}</td>
-                <td className="px-3 py-2.5 text-sm text-zinc-700">{b.lotCount}</td>
+                <td className="px-3 py-2.5 text-sm text-zinc-700 dark:text-zinc-300">{b.skuCount}</td>
+                <td className="px-3 py-2.5 text-sm text-zinc-700 dark:text-zinc-300">{b.lotCount}</td>
                 <td className="px-3 py-2.5">
                   {b.totalQty === 0 ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">Trống</span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">Trống</span>
                   ) : b.isLow ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-200">Sắp hết</span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800">Sắp hết</span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200">Có hàng</span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800">Có hàng</span>
                   )}
                 </td>
                 <td className="px-3 py-2.5">
-                  <ChevronRight className="h-4 w-4 text-zinc-400" />
+                  <ChevronRight className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
                 </td>
               </tr>
             );

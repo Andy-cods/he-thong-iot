@@ -30,21 +30,21 @@ export default function ForceChangePasswordPage() {
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-5 py-6">
       <header>
-        <h1 className="text-2xl font-semibold leading-tight tracking-tight text-zinc-900">
+        <h1 className="text-2xl font-semibold leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">
           Bắt buộc đổi mật khẩu
         </h1>
-        <p className="mt-1 text-sm leading-relaxed text-zinc-600">
+        <p className="mt-1 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
           Quản trị viên vừa reset mật khẩu tài khoản của bạn. Vui lòng đổi sang
           mật khẩu mới trước khi tiếp tục sử dụng hệ thống.
         </p>
       </header>
 
-      <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+      <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm dark:border-amber-800 dark:bg-amber-950/40">
         <AlertTriangle
-          className="mt-0.5 h-4 w-4 shrink-0 text-amber-600"
+          className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400"
           aria-hidden="true"
         />
-        <div className="text-xs text-amber-900">
+        <div className="text-xs text-amber-900 dark:text-amber-300">
           <p className="font-semibold tracking-tight">Lưu ý bảo mật</p>
           <p className="mt-1 leading-relaxed">
             Nhập mật khẩu tạm thời (do quản trị viên cung cấp) vào ô &quot;Mật
@@ -54,7 +54,7 @@ export default function ForceChangePasswordPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+      <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
         <ChangePasswordForm onSuccess={handleSuccess} />
       </div>
     </div>

@@ -108,12 +108,12 @@ export function MaterialRequirementsTable({
 
   return (
     <>
-      <div className="rounded-md border border-zinc-200 bg-white">
-        <div className="flex items-center justify-between border-b border-zinc-200 bg-zinc-50 px-3 py-2">
-          <div className="flex items-center gap-2 text-sm font-semibold text-zinc-800">
-            <Package className="h-4 w-4 text-zinc-500" />
+      <div className="rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="flex items-center justify-between border-b border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-800/60">
+          <div className="flex items-center gap-2 text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+            <Package className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
             Vật liệu phôi (Materials)
-            <span className="text-xs font-normal text-zinc-500">
+            <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
               · {rows.length} loại
             </span>
           </div>
@@ -128,12 +128,12 @@ export function MaterialRequirementsTable({
           )}
         </div>
         {rows.length === 0 ? (
-          <div className="px-3 py-4 text-xs text-zinc-500">
+          <div className="px-3 py-4 text-xs text-zinc-500 dark:text-zinc-400">
             Chưa khai báo vật liệu. Planner có thể thêm từ đây.
           </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-zinc-50 text-xs uppercase text-zinc-500">
+            <thead className="bg-zinc-50 text-xs uppercase text-zinc-500 dark:bg-zinc-800/60 dark:text-zinc-400">
               <tr>
                 <th className="px-3 py-2 text-left">SKU</th>
                 <th className="px-3 py-2 text-left">Tên</th>
@@ -147,7 +147,7 @@ export function MaterialRequirementsTable({
                 )}
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100">
+            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {rows.map((r, i) => {
                 const qty = Number(r.qty);
                 const allocated = Number(r.allocated_qty ?? 0);
@@ -165,23 +165,23 @@ export function MaterialRequirementsTable({
                     <td
                       className={`px-3 py-2 text-right tabular-nums ${
                         shortage > 0
-                          ? "text-amber-700"
-                          : "text-emerald-700"
+                          ? "text-amber-700 dark:text-amber-400"
+                          : "text-emerald-700 dark:text-emerald-400"
                       }`}
                     >
                       {allocated.toLocaleString("vi-VN")}
                     </td>
                     <td
                       className={`px-3 py-2 text-right tabular-nums text-xs ${
-                        shortage > 0 ? "font-semibold text-amber-700" : "text-zinc-400"
+                        shortage > 0 ? "font-semibold text-amber-700 dark:text-amber-400" : "text-zinc-400 dark:text-zinc-500"
                       }`}
                     >
                       {shortage > 0 ? shortage.toLocaleString("vi-VN") : "—"}
                     </td>
-                    <td className="px-3 py-2 text-xs text-zinc-600">
+                    <td className="px-3 py-2 text-xs text-zinc-600 dark:text-zinc-400">
                       {r.uom ?? "—"}
                     </td>
-                    <td className="px-3 py-2 font-mono text-[11px] text-zinc-500">
+                    <td className="px-3 py-2 font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
                       {(r.lot_codes ?? []).join(", ") || "—"}
                     </td>
                     {canRequestPR && (
@@ -216,11 +216,11 @@ export function MaterialRequirementsTable({
           </table>
         )}
         {canRequestPR && rows.length > 0 && (
-          <div className="border-t border-zinc-100 bg-zinc-50/50 px-3 py-2 text-[11px] text-zinc-500">
+          <div className="border-t border-zinc-100 bg-zinc-50/50 px-3 py-2 text-[11px] text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800/40 dark:text-zinc-400">
             Yêu cầu mua phôi sẽ tạo Purchase Request gửi đến{" "}
             <Link
               href="/procurement/purchase-requests"
-              className="font-medium text-indigo-600 hover:underline"
+              className="font-medium text-indigo-600 hover:underline dark:text-indigo-400"
             >
               bộ phận Thu mua
             </Link>{" "}
@@ -315,10 +315,10 @@ function MaterialEditSheet({
           {rows.map((r, i) => (
             <div
               key={i}
-              className="rounded-md border border-zinc-200 bg-zinc-50/50 p-3"
+              className="rounded-md border border-zinc-200 bg-zinc-50/50 p-3 dark:border-zinc-700 dark:bg-zinc-800/60"
             >
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs font-semibold text-zinc-600">
+                <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">
                   Vật liệu #{i + 1}
                 </span>
                 <Button
@@ -326,7 +326,7 @@ function MaterialEditSheet({
                   variant="ghost"
                   onClick={() => removeRow(i)}
                 >
-                  <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                  <Trash2 className="h-3.5 w-3.5 text-red-500 dark:text-red-400" />
                 </Button>
               </div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -414,7 +414,7 @@ function MaterialEditSheet({
           </Button>
         </div>
 
-        <div className="mt-6 flex items-center justify-end gap-2 border-t border-zinc-200 pt-4">
+        <div className="mt-6 flex items-center justify-end gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-700">
           <Button size="sm" variant="ghost" onClick={onClose}>
             <X className="h-3.5 w-3.5" />
             Hủy

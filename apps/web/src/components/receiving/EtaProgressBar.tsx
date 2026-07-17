@@ -67,11 +67,11 @@ export function EtaProgressBar({
   };
 
   const textColor: Record<EtaStatus, string> = {
-    ok:       "text-emerald-700",
-    warning:  "text-amber-700",
-    critical: "text-orange-700",
-    overdue:  "text-red-700",
-    "no-eta": "text-zinc-500",
+    ok:       "text-emerald-700 dark:text-emerald-400",
+    warning:  "text-amber-700 dark:text-amber-400",
+    critical: "text-orange-700 dark:text-orange-400",
+    overdue:  "text-red-700 dark:text-red-400",
+    "no-eta": "text-zinc-500 dark:text-zinc-400",
   };
 
   const Icon =
@@ -85,7 +85,7 @@ export function EtaProgressBar({
     <div className={cn("flex flex-col gap-1", className)}>
       {/* Progress bar nhận hàng */}
       <div className="flex items-center gap-2">
-        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-100">
+        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
           <div
             className={cn(
               "h-full rounded-full transition-all duration-300",
@@ -99,7 +99,7 @@ export function EtaProgressBar({
             aria-label={`Đã nhận ${receivePercent}%`}
           />
         </div>
-        <span className="w-10 shrink-0 text-right font-mono text-xs tabular-nums text-zinc-600">
+        <span className="w-10 shrink-0 text-right font-mono text-xs tabular-nums text-zinc-600 dark:text-zinc-400">
           {receivePercent}%
         </span>
       </div>
@@ -114,7 +114,7 @@ export function EtaProgressBar({
         <Icon className="h-3 w-3 shrink-0" aria-hidden="true" />
         <span>{etaLabel}</span>
         {etaDate && !isComplete && daysLeft !== null && (
-          <span className="text-zinc-400">· ETA {etaDate}</span>
+          <span className="text-zinc-400 dark:text-zinc-500">· ETA {etaDate}</span>
         )}
       </div>
     </div>

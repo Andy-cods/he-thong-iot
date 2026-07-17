@@ -52,11 +52,11 @@ export default function AdminIndexPage() {
       description="Theo dõi hoạt động, phiên đăng nhập, audit log và sức khỏe hệ thống."
       meta={
         <span>
-          {version} <span className="text-zinc-300">·</span> {sha}
+          {version} <span className="text-zinc-300 dark:text-zinc-600">·</span> {sha}
           {date ? (
             <>
               {" "}
-              <span className="text-zinc-300">·</span> {date}
+              <span className="text-zinc-300 dark:text-zinc-600">·</span> {date}
             </>
           ) : null}
         </span>
@@ -164,9 +164,9 @@ export default function AdminIndexPage() {
             }
           >
             {statsQuery.isLoading ? (
-              <div className="grid grid-cols-1 gap-px bg-zinc-100 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-px bg-zinc-100 dark:bg-zinc-800 sm:grid-cols-2">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="bg-white p-4">
+                  <div key={i} className="bg-white p-4 dark:bg-zinc-900">
                     <Skeleton className="h-5 w-32" />
                     <Skeleton className="mt-2 h-3 w-44" />
                   </div>
@@ -175,7 +175,7 @@ export default function AdminIndexPage() {
             ) : !stats ? (
               <EmptyRow text="Không tải được trạng thái." />
             ) : (
-              <div className="grid grid-cols-1 gap-px bg-zinc-100 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-px bg-zinc-100 dark:bg-zinc-800 sm:grid-cols-2">
                 <HealthCard
                   icon={<Database className="h-4 w-4" aria-hidden="true" />}
                   label="Cơ sở dữ liệu"
@@ -231,7 +231,7 @@ export default function AdminIndexPage() {
               />
             }
           >
-            <ul className="divide-y divide-zinc-100">
+            <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
               <QuickLink
                 href="/admin/users"
                 icon={<Users className="h-4 w-4" aria-hidden="true" />}
@@ -283,7 +283,7 @@ export default function AdminIndexPage() {
             subtitle="10 audit event mới nhất"
             icon={
               <FileText
-                className="h-4 w-4 text-zinc-500"
+                className="h-4 w-4 text-zinc-500 dark:text-zinc-400"
                 aria-hidden="true"
               />
             }
@@ -298,35 +298,35 @@ export default function AdminIndexPage() {
                 {stats.recentAuditEvents.map((ev, idx) => (
                   <li
                     key={ev.id}
-                    className="group relative grid grid-cols-[auto,1fr,auto] items-start gap-3 px-4 py-2.5 transition-colors hover:bg-zinc-50/70"
+                    className="group relative grid grid-cols-[auto,1fr,auto] items-start gap-3 px-4 py-2.5 transition-colors hover:bg-zinc-50/70 dark:hover:bg-zinc-800/60"
                   >
                     {/* timeline dot + connector */}
                     <div className="relative flex w-5 justify-center pt-1.5">
                       {idx < stats.recentAuditEvents.length - 1 ? (
                         <span
                           aria-hidden="true"
-                          className="absolute left-1/2 top-3 -translate-x-1/2 h-full w-px bg-zinc-200"
+                          className="absolute left-1/2 top-3 -translate-x-1/2 h-full w-px bg-zinc-200 dark:bg-zinc-700"
                         />
                       ) : null}
                       <span
                         aria-hidden="true"
                         className={cn(
-                          "relative h-2 w-2 rounded-full ring-2 ring-white",
+                          "relative h-2 w-2 rounded-full ring-2 ring-white dark:ring-zinc-900",
                           dotColorForAction(ev.action),
                         )}
                       />
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate text-sm leading-snug text-zinc-900">
+                      <p className="truncate text-sm leading-snug text-zinc-900 dark:text-zinc-50">
                         <span className="font-medium">
                           {ev.actorUsername ?? "system"}
                         </span>{" "}
-                        <span className="text-zinc-500">trên</span>{" "}
-                        <span className="font-mono text-xs text-zinc-700">
+                        <span className="text-zinc-500 dark:text-zinc-400">trên</span>{" "}
+                        <span className="font-mono text-xs text-zinc-700 dark:text-zinc-300">
                           {ev.entity}
                         </span>
                       </p>
-                      <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-zinc-500">
+                      <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
                         <ActionBadge action={ev.action} />
                         <span aria-hidden="true">·</span>
                         <span className="font-mono tabular-nums">
@@ -359,32 +359,32 @@ export default function AdminIndexPage() {
             ) : !stats || stats.recentActiveSessions.length === 0 ? (
               <EmptyRow text="Không có phiên nào đang hoạt động." />
             ) : (
-              <ul className="divide-y divide-zinc-100">
+              <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
                 {stats.recentActiveSessions.map((s) => (
                   <li
                     key={s.id}
-                    className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-zinc-50/70"
+                    className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-zinc-50/70 dark:hover:bg-zinc-800/60"
                   >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-50 to-emerald-50 text-zinc-600 ring-1 ring-zinc-200">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-50 to-emerald-50 text-zinc-600 ring-1 ring-zinc-200 dark:from-indigo-950/40 dark:to-emerald-950/40 dark:text-zinc-400 dark:ring-zinc-700">
                       <DeviceIcon userAgent={s.userAgent} />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm leading-snug text-zinc-900">
+                      <p className="truncate text-sm leading-snug text-zinc-900 dark:text-zinc-50">
                         <span className="font-medium">
                           {s.username ?? "—"}
                         </span>
                         {s.fullName ? (
-                          <span className="text-zinc-500">
+                          <span className="text-zinc-500 dark:text-zinc-400">
                             {" "}
                             · {s.fullName}
                           </span>
                         ) : null}
                       </p>
-                      <p className="truncate font-mono text-[11px] text-zinc-500">
+                      <p className="truncate font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
                         {s.ip ?? "—"}
                       </p>
                     </div>
-                    <span className="shrink-0 font-mono text-[11px] tabular-nums text-zinc-500">
+                    <span className="shrink-0 font-mono text-[11px] tabular-nums text-zinc-500 dark:text-zinc-400">
                       {formatShortTime(s.lastSeenAt ?? s.issuedAt)}
                     </span>
                   </li>
@@ -405,34 +405,34 @@ const ACCENT_CLASSES: Record<
   { iconBg: string; iconText: string; ring: string; trend: string }
 > = {
   indigo: {
-    iconBg: "bg-indigo-50",
-    iconText: "text-indigo-600",
-    ring: "ring-indigo-100",
-    trend: "text-indigo-600",
+    iconBg: "bg-indigo-50 dark:bg-indigo-950/40",
+    iconText: "text-indigo-600 dark:text-indigo-400",
+    ring: "ring-indigo-100 dark:ring-indigo-800",
+    trend: "text-indigo-600 dark:text-indigo-400",
   },
   emerald: {
-    iconBg: "bg-emerald-50",
-    iconText: "text-emerald-600",
-    ring: "ring-emerald-100",
-    trend: "text-emerald-600",
+    iconBg: "bg-emerald-50 dark:bg-emerald-950/40",
+    iconText: "text-emerald-600 dark:text-emerald-400",
+    ring: "ring-emerald-100 dark:ring-emerald-800",
+    trend: "text-emerald-600 dark:text-emerald-400",
   },
   sky: {
-    iconBg: "bg-sky-50",
-    iconText: "text-sky-600",
-    ring: "ring-sky-100",
-    trend: "text-sky-600",
+    iconBg: "bg-sky-50 dark:bg-sky-950/40",
+    iconText: "text-sky-600 dark:text-sky-400",
+    ring: "ring-sky-100 dark:ring-sky-800",
+    trend: "text-sky-600 dark:text-sky-400",
   },
   amber: {
-    iconBg: "bg-amber-50",
-    iconText: "text-amber-600",
-    ring: "ring-amber-100",
-    trend: "text-amber-600",
+    iconBg: "bg-amber-50 dark:bg-amber-950/40",
+    iconText: "text-amber-600 dark:text-amber-400",
+    ring: "ring-amber-100 dark:ring-amber-800",
+    trend: "text-amber-600 dark:text-amber-400",
   },
   zinc: {
-    iconBg: "bg-zinc-100",
-    iconText: "text-zinc-600",
-    ring: "ring-zinc-200",
-    trend: "text-zinc-500",
+    iconBg: "bg-zinc-100 dark:bg-zinc-800",
+    iconText: "text-zinc-600 dark:text-zinc-400",
+    ring: "ring-zinc-200 dark:ring-zinc-700",
+    trend: "text-zinc-500 dark:text-zinc-400",
   },
 };
 
@@ -457,10 +457,10 @@ function KpiCard({
 }) {
   const cls = ACCENT_CLASSES[accent];
   return (
-    <div className="group relative overflow-hidden rounded-xl border border-zinc-200 bg-white p-5 shadow-sm transition-all duration-200 hover:border-zinc-300 hover:shadow-md">
+    <div className="group relative overflow-hidden rounded-xl border border-zinc-200 bg-white p-5 shadow-sm transition-all duration-200 hover:border-zinc-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700">
       {/* Top: label + icon */}
       <div className="flex items-center justify-between">
-        <p className="text-xs font-medium uppercase tracking-normal text-zinc-500">
+        <p className="text-xs font-medium uppercase tracking-normal text-zinc-500 dark:text-zinc-400">
           {label}
         </p>
         <span
@@ -480,7 +480,7 @@ function KpiCard({
         {loading ? (
           <Skeleton className="h-9 w-24" />
         ) : (
-          <p className="text-3xl font-semibold leading-none tracking-tight tabular-nums text-zinc-900">
+          <p className="text-3xl font-semibold leading-none tracking-tight tabular-nums text-zinc-900 dark:text-zinc-50">
             {value ?? "—"}
           </p>
         )}
@@ -494,8 +494,8 @@ function KpiCard({
           </span>
         ) : null}
         {sub ? (
-          <p className="truncate text-[11px] text-zinc-500">
-            {trendLabel ? <span className="text-zinc-300">·</span> : null}{" "}
+          <p className="truncate text-[11px] text-zinc-500 dark:text-zinc-400">
+            {trendLabel ? <span className="text-zinc-300 dark:text-zinc-600">·</span> : null}{" "}
             {sub}
           </p>
         ) : null}
@@ -515,20 +515,20 @@ function ActionBar({
   const total = rows.reduce((s, r) => s + r.count, 0);
   if (total === 0) return null;
   return (
-    <div className="mt-4 flex flex-col gap-1.5 border-t border-zinc-100 pt-3">
+    <div className="mt-4 flex flex-col gap-1.5 border-t border-zinc-100 pt-3 dark:border-zinc-800">
       {rows.map((r) => {
         const pct = Math.max(2, Math.round((r.count / total) * 100));
         return (
           <div
             key={r.action}
-            className="flex items-center gap-2 text-[11px] text-zinc-600"
+            className="flex items-center gap-2 text-[11px] text-zinc-600 dark:text-zinc-400"
           >
             <span className="w-16 shrink-0 truncate font-mono uppercase tracking-normal">
               {r.action}
             </span>
-            <div className="relative h-1 flex-1 overflow-hidden rounded-full bg-zinc-100">
+            <div className="relative h-1 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
               <div
-                className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-indigo-400 to-indigo-600"
+                className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-indigo-400 to-indigo-600 dark:from-indigo-400 dark:to-indigo-500"
                 style={{ width: `${pct}%` }}
               />
             </div>
@@ -560,23 +560,23 @@ function Card({
   return (
     <section
       className={cn(
-        "overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm",
+        "overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900",
         className,
       )}
     >
-      <header className="flex items-center justify-between gap-3 border-b border-zinc-100 px-4 py-3">
+      <header className="flex items-center justify-between gap-3 border-b border-zinc-100 px-4 py-3 dark:border-zinc-800">
         <div className="flex min-w-0 items-center gap-2">
           {icon ? (
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-zinc-50 ring-1 ring-inset ring-zinc-200">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-zinc-50 ring-1 ring-inset ring-zinc-200 dark:bg-zinc-800 dark:ring-zinc-700">
               {icon}
             </span>
           ) : null}
           <div className="min-w-0">
-            <h2 className="truncate text-sm font-semibold tracking-tight text-zinc-900">
+            <h2 className="truncate text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
               {title}
             </h2>
             {subtitle ? (
-              <p className="mt-0.5 truncate text-[11px] text-zinc-500">
+              <p className="mt-0.5 truncate text-[11px] text-zinc-500 dark:text-zinc-400">
                 {subtitle}
               </p>
             ) : null}
@@ -585,7 +585,7 @@ function Card({
         {headerLink ? (
           <Link
             href={headerLink.href}
-            className="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-indigo-600 transition-colors hover:text-indigo-700"
+            className="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-indigo-600 transition-colors hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
           >
             {headerLink.label}
             <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
@@ -599,7 +599,7 @@ function Card({
 
 function SkeletonList({ rows }: { rows: number }) {
   return (
-    <ul className="divide-y divide-zinc-100">
+    <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
       {Array.from({ length: rows }).map((_, i) => (
         <li key={i} className="px-4 py-2.5">
           <Skeleton className="h-4 w-full" />
@@ -611,21 +611,21 @@ function SkeletonList({ rows }: { rows: number }) {
 
 function EmptyRow({ text }: { text: string }) {
   return (
-    <p className="px-4 py-8 text-center text-xs text-zinc-500">{text}</p>
+    <p className="px-4 py-8 text-center text-xs text-zinc-500 dark:text-zinc-400">{text}</p>
   );
 }
 
 const ACTION_COLORS: Record<string, string> = {
-  CREATE: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  UPDATE: "border-sky-200 bg-sky-50 text-sky-700",
-  DELETE: "border-rose-200 bg-rose-50 text-rose-700",
-  LOGIN: "border-indigo-200 bg-indigo-50 text-indigo-700",
-  LOGOUT: "border-zinc-200 bg-zinc-100 text-zinc-600",
+  CREATE: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400",
+  UPDATE: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-400",
+  DELETE: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-400",
+  LOGIN: "border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-400",
+  LOGOUT: "border-zinc-200 bg-zinc-100 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400",
 };
 
 function ActionBadge({ action }: { action: string }) {
   const cls =
-    ACTION_COLORS[action] ?? "border-zinc-200 bg-zinc-50 text-zinc-600";
+    ACTION_COLORS[action] ?? "border-zinc-200 bg-zinc-50 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-400";
   return (
     <span
       className={cn(
@@ -678,28 +678,28 @@ function HealthCard({
     status === "ok"
       ? {
           dot: "bg-emerald-500",
-          ring: "ring-emerald-200",
-          chip: "bg-emerald-50 text-emerald-700",
+          ring: "ring-emerald-200 dark:ring-emerald-800",
+          chip: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
           label: "Hoạt động",
         }
       : status === "slow"
         ? {
             dot: "bg-amber-500",
-            ring: "ring-amber-200",
-            chip: "bg-amber-50 text-amber-700",
+            ring: "ring-amber-200 dark:ring-amber-800",
+            chip: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
             label: "Chậm",
           }
         : {
             dot: "bg-rose-500",
-            ring: "ring-rose-200",
-            chip: "bg-rose-50 text-rose-700",
+            ring: "ring-rose-200 dark:ring-rose-800",
+            chip: "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400",
             label: "Gián đoạn",
           };
   return (
-    <div className="flex items-center gap-3 bg-white p-4">
+    <div className="flex items-center gap-3 bg-white p-4 dark:bg-zinc-900">
       <span
         className={cn(
-          "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-50 text-zinc-600 ring-1 ring-inset",
+          "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-50 text-zinc-600 ring-1 ring-inset dark:bg-zinc-800 dark:text-zinc-400",
           config.ring,
         )}
       >
@@ -707,7 +707,7 @@ function HealthCard({
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <p className="truncate text-sm font-medium tracking-tight text-zinc-900">
+          <p className="truncate text-sm font-medium tracking-tight text-zinc-900 dark:text-zinc-50">
             {label}
           </p>
           <span
@@ -724,7 +724,7 @@ function HealthCard({
             {config.label}
           </span>
         </div>
-        <p className="mt-0.5 truncate text-[11px] text-zinc-500">{detail}</p>
+        <p className="mt-0.5 truncate text-[11px] text-zinc-500 dark:text-zinc-400">{detail}</p>
       </div>
     </div>
   );
@@ -748,7 +748,7 @@ function QuickLink({
     <li>
       <Link
         href={href}
-        className="group flex items-center gap-3 px-4 py-3 transition-colors duration-150 hover:bg-zinc-50/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
+        className="group flex items-center gap-3 px-4 py-3 transition-colors duration-150 hover:bg-zinc-50/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500 dark:hover:bg-zinc-800/60"
       >
         <span
           className={cn(
@@ -761,13 +761,13 @@ function QuickLink({
           {icon}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium tracking-tight text-zinc-900">
+          <p className="truncate text-sm font-medium tracking-tight text-zinc-900 dark:text-zinc-50">
             {title}
           </p>
-          <p className="truncate text-[11px] text-zinc-500">{description}</p>
+          <p className="truncate text-[11px] text-zinc-500 dark:text-zinc-400">{description}</p>
         </div>
         <ArrowUpRight
-          className="h-3.5 w-3.5 shrink-0 text-zinc-300 transition-colors group-hover:text-zinc-500"
+          className="h-3.5 w-3.5 shrink-0 text-zinc-300 transition-colors group-hover:text-zinc-500 dark:text-zinc-600 dark:group-hover:text-zinc-400"
           aria-hidden="true"
         />
       </Link>

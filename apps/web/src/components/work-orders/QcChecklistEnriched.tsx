@@ -48,10 +48,10 @@ const CHECKPOINT_ORDER: QcCheckpoint[] = [
 ];
 
 const RESULT_TONE: Record<QcCheckItemResult, string> = {
-  PENDING: "bg-amber-50 text-amber-700 border-amber-200",
-  PASS: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  FAIL: "bg-red-50 text-red-700 border-red-200",
-  NA: "bg-zinc-50 text-zinc-600 border-zinc-200",
+  PENDING: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800",
+  PASS: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800",
+  FAIL: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800",
+  NA: "bg-zinc-50 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700",
 };
 
 const RESULT_LABEL: Record<QcCheckItemResult, string> = {
@@ -112,7 +112,7 @@ export function QcChecklistEnriched({
   return (
     <div className="space-y-4">
       {/* Stage tabs */}
-      <div className="flex gap-1 rounded-md border border-zinc-200 bg-zinc-50 p-1">
+      <div className="flex gap-1 rounded-md border border-zinc-200 bg-zinc-50 p-1 dark:border-zinc-700 dark:bg-zinc-800/60">
         {CHECKPOINT_ORDER.map((cp) => {
           const existingCheck = checks.find((c) => c.checkpoint === cp);
           const active = cp === activeStage;
@@ -124,8 +124,8 @@ export function QcChecklistEnriched({
               className={cn(
                 "flex-1 rounded px-3 py-2 text-sm font-medium transition-colors",
                 active
-                  ? "bg-white text-zinc-900 shadow-sm"
-                  : "text-zinc-600 hover:text-zinc-900",
+                  ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-50"
+                  : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100",
               )}
             >
               <div className="flex items-center justify-center gap-2">
@@ -280,12 +280,12 @@ function QcStagePanel({
 
       {/* Defect summary */}
       {defectItems.length > 0 && (
-        <div className="rounded-md border border-red-200 bg-red-50/50 p-3">
-          <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-red-800">
+        <div className="rounded-md border border-red-200 bg-red-50/50 p-3 dark:border-red-800 dark:bg-red-950/30">
+          <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-red-800 dark:text-red-300">
             <AlertTriangle className="h-3.5 w-3.5" />
             {defectItems.length} lỗi phát hiện — cần xử lý
           </div>
-          <ul className="space-y-1 text-xs text-red-900">
+          <ul className="space-y-1 text-xs text-red-900 dark:text-red-200">
             {defectItems.slice(0, 5).map((d) => (
               <li key={d.id}>
                 · {d.description}
@@ -296,7 +296,7 @@ function QcStagePanel({
           <div className="mt-2">
             <a
               href="/eco"
-              className="text-xs font-semibold text-indigo-700 underline"
+              className="text-xs font-semibold text-indigo-700 underline dark:text-indigo-400"
             >
               Tạo ECO / Rework request
             </a>
@@ -306,8 +306,8 @@ function QcStagePanel({
 
       {/* Add item form */}
       {canEdit && (
-        <div className="rounded-md border border-indigo-200 bg-indigo-50/30 p-3">
-          <div className="mb-2 text-xs font-semibold text-indigo-800">
+        <div className="rounded-md border border-indigo-200 bg-indigo-50/30 p-3 dark:border-indigo-800 dark:bg-indigo-950/30">
+          <div className="mb-2 text-xs font-semibold text-indigo-800 dark:text-indigo-300">
             Thêm checklist item
           </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-6">
@@ -325,7 +325,7 @@ function QcStagePanel({
                 onChange={(e) =>
                   setNewItemType(e.target.value as QcCheckItemType)
                 }
-                className="h-8 w-full rounded-md border border-zinc-300 bg-white px-2 text-xs"
+                className="h-8 w-full rounded-md border border-zinc-300 bg-white px-2 text-xs dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
               >
                 <option value="BOOLEAN">Boolean</option>
                 <option value="MEASUREMENT">Đo đạc</option>
@@ -374,19 +374,19 @@ function QcStagePanel({
       )}
 
       {/* Items table */}
-      <div className="overflow-hidden rounded-md border border-zinc-200 bg-white">
+      <div className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         {itemsQuery.isLoading ? (
-          <div className="p-6 text-center text-xs text-zinc-500">
+          <div className="p-6 text-center text-xs text-zinc-500 dark:text-zinc-400">
             Đang tải...
           </div>
         ) : items.length === 0 ? (
-          <div className="p-6 text-center text-xs text-zinc-500">
+          <div className="p-6 text-center text-xs text-zinc-500 dark:text-zinc-400">
             Chưa có checklist item cho stage này.
             {canEdit && " Thêm mới bên trên."}
           </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-zinc-50 text-xs uppercase text-zinc-500">
+            <thead className="bg-zinc-50 text-xs uppercase text-zinc-500 dark:bg-zinc-800/60 dark:text-zinc-400">
               <tr>
                 <th className="px-2 py-2 text-left w-10">#</th>
                 <th className="px-2 py-2 text-left">Check</th>
@@ -397,7 +397,7 @@ function QcStagePanel({
                 {canEdit && <th className="px-2 py-2 w-10" />}
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100">
+            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {items.map((it, idx) => (
                 <ItemRow
                   key={it.id}
@@ -421,12 +421,12 @@ function QcStagePanel({
 
       {/* Stage footer actions */}
       {parentCheck && isAdmin && (
-        <div className="flex items-center justify-end gap-2 border-t border-zinc-200 pt-3">
+        <div className="flex items-center justify-end gap-2 border-t border-zinc-200 pt-3 dark:border-zinc-700">
           <Button
             size="sm"
             variant="ghost"
             onClick={onDeleteStage}
-            className="text-red-600 hover:text-red-700"
+            className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
           >
             <Trash2 className="h-3.5 w-3.5" />
             Xóa stage
@@ -447,11 +447,11 @@ function KpiBox({
   tone: "zinc" | "emerald" | "red" | "amber" | "indigo";
 }) {
   const toneClass: Record<string, string> = {
-    zinc: "border-zinc-200 bg-white text-zinc-900",
-    emerald: "border-emerald-200 bg-emerald-50/60 text-emerald-900",
-    red: "border-red-200 bg-red-50/60 text-red-900",
-    amber: "border-amber-200 bg-amber-50/60 text-amber-900",
-    indigo: "border-indigo-200 bg-indigo-50/60 text-indigo-900",
+    zinc: "border-zinc-200 bg-white text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50",
+    emerald: "border-emerald-200 bg-emerald-50/60 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300",
+    red: "border-red-200 bg-red-50/60 text-red-900 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300",
+    amber: "border-amber-200 bg-amber-50/60 text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
+    indigo: "border-indigo-200 bg-indigo-50/60 text-indigo-900 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300",
   };
   return (
     <div className={`rounded-md border p-2 ${toneClass[tone]}`}>
@@ -511,10 +511,10 @@ function ItemRow({
 
   return (
     <tr>
-      <td className="px-2 py-2 text-xs font-mono text-zinc-500">{idx}</td>
+      <td className="px-2 py-2 text-xs font-mono text-zinc-500 dark:text-zinc-400">{idx}</td>
       <td className="px-2 py-2">
-        <div className="font-medium text-zinc-900">{item.description}</div>
-        <div className="mt-0.5 flex items-center gap-2 text-[10px] text-zinc-500">
+        <div className="font-medium text-zinc-900 dark:text-zinc-50">{item.description}</div>
+        <div className="mt-0.5 flex items-center gap-2 text-[10px] text-zinc-500 dark:text-zinc-400">
           <Badge variant="outline" className="text-[9px]">
             {item.checkType}
           </Badge>
@@ -523,7 +523,7 @@ function ItemRow({
           )}
         </div>
       </td>
-      <td className="px-2 py-2 font-mono text-xs text-zinc-600">
+      <td className="px-2 py-2 font-mono text-xs text-zinc-600 dark:text-zinc-400">
         {item.expectedValue ?? "—"}
       </td>
       <td className="px-2 py-2">
@@ -536,7 +536,7 @@ function ItemRow({
             placeholder="—"
           />
         ) : (
-          <span className="font-mono text-xs text-zinc-700">
+          <span className="font-mono text-xs text-zinc-700 dark:text-zinc-300">
             {item.actualValue ?? "—"}
           </span>
         )}
@@ -554,7 +554,7 @@ function ItemRow({
                     "h-7 rounded-md border px-2 text-[11px] font-semibold transition-colors",
                     result === r
                       ? RESULT_TONE[r]
-                      : "border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-50",
+                      : "border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60",
                   )}
                 >
                   {RESULT_LABEL[r]}
@@ -578,12 +578,12 @@ function ItemRow({
               maxLength={1000}
             />
           ) : (
-            <span className="text-xs text-red-700">
+            <span className="text-xs text-red-700 dark:text-red-400">
               {item.defectReason ?? "—"}
             </span>
           )
         ) : (
-          <span className="text-xs text-zinc-400">—</span>
+          <span className="text-xs text-zinc-400 dark:text-zinc-500">—</span>
         )}
       </td>
       {canEdit && (
@@ -596,7 +596,7 @@ function ItemRow({
               className="h-7 px-2"
             >
               <CheckCircle2 className="sr-only h-3 w-3" />
-              <Trash2 className="h-3.5 w-3.5 text-red-500" />
+              <Trash2 className="h-3.5 w-3.5 text-red-500 dark:text-red-400" />
             </Button>
           )}
         </td>

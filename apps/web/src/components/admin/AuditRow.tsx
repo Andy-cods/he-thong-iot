@@ -13,7 +13,7 @@ const AuditDiffViewer = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-500">
+      <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
         Đang tải diff viewer…
       </div>
     ),
@@ -26,11 +26,11 @@ const RollbackPreviewDialog = dynamic(
 );
 
 const ACTION_PILL: Record<string, string> = {
-  CREATE: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  UPDATE: "bg-sky-50 text-sky-700 ring-sky-200",
-  DELETE: "bg-rose-50 text-rose-700 ring-rose-200",
-  LOGIN: "bg-indigo-50 text-indigo-700 ring-indigo-200",
-  LOGOUT: "bg-zinc-100 text-zinc-600 ring-zinc-200",
+  CREATE: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800",
+  UPDATE: "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:ring-sky-800",
+  DELETE: "bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:ring-rose-800",
+  LOGIN: "bg-indigo-50 text-indigo-700 ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-800",
+  LOGOUT: "bg-zinc-100 text-zinc-600 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",
 };
 
 const ROLLBACKABLE = new Set(["CREATE", "UPDATE", "DELETE"]);
@@ -81,19 +81,19 @@ export function AuditRow({ row, style, gridCols }: AuditRowProps) {
   const canRollback = ROLLBACKABLE.has(row.action) && row.objectId !== null;
 
   return (
-    <div style={style} role="row" className="border-t border-zinc-100">
+    <div style={style} role="row" className="border-t border-zinc-100 dark:border-zinc-800">
       <div
         className={cn(
-          "grid min-h-[36px] items-center gap-3 px-4 py-1.5 text-xs transition-colors hover:bg-indigo-50/30",
+          "grid min-h-[36px] items-center gap-3 px-4 py-1.5 text-xs transition-colors hover:bg-indigo-50/30 dark:hover:bg-indigo-950/30",
           gridCols,
         )}
       >
-        <span className="truncate font-mono text-[11px] text-zinc-500 tabular-nums">
+        <span className="truncate font-mono text-[11px] text-zinc-500 tabular-nums dark:text-zinc-400">
           {fmtTime(row.occurredAt)}
         </span>
-        <span className="truncate text-zinc-700">
+        <span className="truncate text-zinc-700 dark:text-zinc-300">
           {row.actorUsername ?? (
-            <span className="italic text-zinc-400">system</span>
+            <span className="italic text-zinc-400 dark:text-zinc-500">system</span>
           )}
         </span>
         <span
@@ -104,8 +104,8 @@ export function AuditRow({ row, style, gridCols }: AuditRowProps) {
         >
           {row.action}
         </span>
-        <span className="truncate text-zinc-700">{row.objectType}</span>
-        <code className="hidden truncate font-mono text-[10px] text-zinc-500 md:block">
+        <span className="truncate text-zinc-700 dark:text-zinc-300">{row.objectType}</span>
+        <code className="hidden truncate font-mono text-[10px] text-zinc-500 md:block dark:text-zinc-400">
           {row.objectId ? row.objectId.slice(0, 8) : "—"}
         </code>
         <div className="hidden items-center gap-1.5 md:flex">
@@ -113,7 +113,7 @@ export function AuditRow({ row, style, gridCols }: AuditRowProps) {
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
-              className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-medium text-zinc-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50/50 hover:text-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
+              className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-medium text-zinc-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50/50 hover:text-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-400"
               aria-expanded={expanded}
               aria-label={expanded ? "Thu gọn diff" : "Mở rộng diff"}
             >
@@ -125,18 +125,18 @@ export function AuditRow({ row, style, gridCols }: AuditRowProps) {
               {diff.count > 0 ? `${diff.count} thay đổi` : "Xem diff"}
             </button>
           ) : row.notes ? (
-            <span className="truncate text-zinc-500">{row.notes}</span>
+            <span className="truncate text-zinc-500 dark:text-zinc-400">{row.notes}</span>
           ) : (
-            <span className="text-zinc-400">—</span>
+            <span className="text-zinc-400 dark:text-zinc-500">—</span>
           )}
         </div>
       </div>
 
       {expanded && hasDiff ? (
-        <div className="space-y-2 border-t border-zinc-100 bg-zinc-50/50 px-4 py-3">
+        <div className="space-y-2 border-t border-zinc-100 bg-zinc-50/50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800/40">
           {row.notes ? (
-            <p className="text-[11px] text-zinc-600">
-              <span className="font-semibold text-zinc-700">Ghi chú:</span>{" "}
+            <p className="text-[11px] text-zinc-600 dark:text-zinc-400">
+              <span className="font-semibold text-zinc-700 dark:text-zinc-300">Ghi chú:</span>{" "}
               {row.notes}
             </p>
           ) : null}

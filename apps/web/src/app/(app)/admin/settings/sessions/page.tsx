@@ -118,9 +118,9 @@ export default function SessionsPage() {
         </div>
       }
     >
-      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
         {query.isLoading ? (
-          <div className="p-8 text-center text-sm text-zinc-500">
+          <div className="p-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
             Đang tải…
           </div>
         ) : sessions.length === 0 ? (
@@ -132,7 +132,7 @@ export default function SessionsPage() {
             />
           </div>
         ) : (
-          <ul className="divide-y divide-zinc-100">
+          <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
             {sessions.map((s) => {
               const ua = parseUserAgent(s.userAgent);
               const Icon = ua.isMobile ? Smartphone : Laptop;
@@ -140,28 +140,28 @@ export default function SessionsPage() {
                 <li
                   key={s.id}
                   className={cn(
-                    "flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-zinc-50/70",
+                    "flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-zinc-50/70 dark:hover:bg-zinc-800/60",
                     s.isCurrent &&
-                      "border-l-4 border-indigo-500 bg-indigo-50/30 hover:bg-indigo-50/60",
+                      "border-l-4 border-indigo-500 bg-indigo-50/30 hover:bg-indigo-50/60 dark:bg-indigo-950/30 dark:hover:bg-indigo-950/50",
                   )}
                 >
                   <div
                     className={cn(
                       "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset",
                       s.isCurrent
-                        ? "bg-indigo-50 text-indigo-600 ring-indigo-200"
-                        : "bg-zinc-50 text-zinc-600 ring-zinc-200",
+                        ? "bg-indigo-50 text-indigo-600 ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-800"
+                        : "bg-zinc-50 text-zinc-600 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",
                     )}
                   >
                     <Icon className="h-4 w-4" aria-hidden="true" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-medium tracking-tight text-zinc-900">
+                      <span className="text-sm font-medium tracking-tight text-zinc-900 dark:text-zinc-50">
                         {ua.summary}
                       </span>
                       {s.isCurrent ? (
-                        <span className="inline-flex h-5 items-center gap-1 rounded-full bg-emerald-50 px-1.5 text-[10px] font-semibold uppercase tracking-normal text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                        <span className="inline-flex h-5 items-center gap-1 rounded-full bg-emerald-50 px-1.5 text-[10px] font-semibold uppercase tracking-normal text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800">
                           <span
                             className="h-1.5 w-1.5 rounded-full bg-emerald-500"
                             aria-hidden="true"
@@ -170,7 +170,7 @@ export default function SessionsPage() {
                         </span>
                       ) : null}
                     </div>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-zinc-500">
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
                       <span className="font-mono tracking-normal">
                         IP: {s.ipAddress ?? "—"}
                       </span>
@@ -182,7 +182,7 @@ export default function SessionsPage() {
                   </div>
                   <div className="shrink-0">
                     {s.isCurrent ? (
-                      <span className="text-[11px] text-zinc-400">
+                      <span className="text-[11px] text-zinc-400 dark:text-zinc-500">
                         (đang sử dụng)
                       </span>
                     ) : (
@@ -191,7 +191,7 @@ export default function SessionsPage() {
                         size="sm"
                         onClick={() => void handleRevoke(s.id)}
                         disabled={revokeOne.isPending}
-                        className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                        className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
                       >
                         Thu hồi
                       </Button>

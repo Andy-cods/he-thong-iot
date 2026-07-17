@@ -87,7 +87,7 @@ export default function DepartmentReportPage() {
       actions={
         <Link
           href="/admin/reports/employee-productivity"
-          className="inline-flex h-9 items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:border-indigo-300 hover:text-indigo-700"
+          className="inline-flex h-9 items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:border-indigo-300 hover:text-indigo-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-indigo-700 dark:hover:text-indigo-400"
         >
           <Users className="h-3.5 w-3.5" aria-hidden="true" />
           Xem theo nhân viên
@@ -96,7 +96,7 @@ export default function DepartmentReportPage() {
     >
       <div className="flex flex-col gap-4">
         {/* Filter card */}
-        <section className="flex flex-wrap items-end gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+        <section className="flex flex-wrap items-end gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <Field label="Bộ phận">
             <Select
               value={role}
@@ -152,11 +152,11 @@ export default function DepartmentReportPage() {
         </section>
 
         {q.isLoading ? (
-          <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white p-12 text-zinc-500 shadow-sm">
+          <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white p-12 text-zinc-500 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
             <Loader2 className="h-4 w-4 animate-spin" /> Đang tải leaderboard…
           </div>
         ) : q.isError ? (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-6 text-center text-sm text-rose-700 shadow-sm">
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-6 text-center text-sm text-rose-700 shadow-sm dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-400">
             Lỗi: {(q.error as Error)?.message ?? "Không tải được"}
           </div>
         ) : data ? (
@@ -182,7 +182,7 @@ function Field({
 }) {
   return (
     <div className="space-y-1">
-      <label className="block text-[11px] font-semibold uppercase tracking-normal text-zinc-500">
+      <label className="block text-[11px] font-semibold uppercase tracking-normal text-zinc-500 dark:text-zinc-400">
         {label}
       </label>
       {children}
@@ -198,7 +198,7 @@ function Select({
     <select
       {...rest}
       className={cn(
-        "h-9 rounded-md border border-zinc-200 bg-white px-3 text-sm tracking-normal text-zinc-900 outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100",
+        "h-9 rounded-md border border-zinc-200 bg-white px-3 text-sm tracking-normal text-zinc-900 outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40",
         className,
       )}
     />
@@ -218,7 +218,7 @@ function Leaderboard({
 }) {
   if (data.leaderboard.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-zinc-200 bg-white px-6 py-12 text-center text-sm text-zinc-500 shadow-sm">
+      <div className="rounded-xl border border-dashed border-zinc-200 bg-white px-6 py-12 text-center text-sm text-zinc-500 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
         Bộ phận này chưa có nhân viên active.
       </div>
     );
@@ -226,21 +226,21 @@ function Leaderboard({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+      <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-base font-semibold tracking-tight text-zinc-900">
+            <h2 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
               {data.department.label}
             </h2>
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
               {data.department.memberCount} nhân viên · {data.period.label}
             </p>
           </div>
           <div className="text-right">
-            <div className="text-[11px] font-semibold uppercase tracking-normal text-zinc-500">
+            <div className="text-[11px] font-semibold uppercase tracking-normal text-zinc-500 dark:text-zinc-400">
               Sắp xếp theo
             </div>
-            <div className="text-sm font-medium text-indigo-700">
+            <div className="text-sm font-medium text-indigo-700 dark:text-indigo-400">
               {SORT_OPTIONS_BY_ROLE[data.department.role]?.find(
                 (o) => o.value === sortBy,
               )?.label ?? sortBy}
@@ -254,15 +254,15 @@ function Leaderboard({
           <li
             key={row.user.id}
             onClick={() => onClickUser(row.user.id)}
-            className="group cursor-pointer rounded-xl border border-zinc-200 bg-white p-3 shadow-sm transition-all hover:border-indigo-300 hover:shadow-md"
+            className="group cursor-pointer rounded-xl border border-zinc-200 bg-white p-3 shadow-sm transition-all hover:border-indigo-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-indigo-700"
           >
             <div className="flex items-center gap-3">
               <RankBadge rank={row.rank} />
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold tracking-tight text-zinc-900">
+                <div className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
                   {row.user.fullName}
                 </div>
-                <div className="text-[11px] text-zinc-500">
+                <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
                   {row.user.username}
                 </div>
               </div>
@@ -271,7 +271,7 @@ function Leaderboard({
                   .slice(0, 4)
                   .map(([k, v]) => (
                     <div key={k} className="text-right">
-                      <div className="text-[10px] font-semibold uppercase tracking-normal text-zinc-500">
+                      <div className="text-[10px] font-semibold uppercase tracking-normal text-zinc-500 dark:text-zinc-400">
                         {SORT_OPTIONS_BY_ROLE[data.department.role]?.find(
                           (o) => o.value === k,
                         )?.label ?? k}
@@ -279,7 +279,7 @@ function Leaderboard({
                       <div
                         className={cn(
                           "text-sm font-semibold tabular-nums",
-                          k === sortBy ? "text-indigo-700" : "text-zinc-700",
+                          k === sortBy ? "text-indigo-700 dark:text-indigo-400" : "text-zinc-700 dark:text-zinc-300",
                         )}
                       >
                         {formatNumber(v)}
@@ -287,7 +287,7 @@ function Leaderboard({
                     </div>
                   ))}
               </div>
-              <ChevronRight className="h-4 w-4 text-zinc-300 transition-colors group-hover:text-indigo-500" />
+              <ChevronRight className="h-4 w-4 text-zinc-300 transition-colors group-hover:text-indigo-500 dark:text-zinc-600" />
             </div>
           </li>
         ))}
@@ -299,12 +299,12 @@ function Leaderboard({
 function RankBadge({ rank }: { rank: number }) {
   const styles =
     rank === 1
-      ? "bg-yellow-100 text-yellow-800 ring-2 ring-yellow-400"
+      ? "bg-yellow-100 text-yellow-800 ring-2 ring-yellow-400 dark:bg-yellow-950/40 dark:text-yellow-400 dark:ring-yellow-700"
       : rank === 2
-        ? "bg-zinc-100 text-zinc-700 ring-2 ring-zinc-300"
+        ? "bg-zinc-100 text-zinc-700 ring-2 ring-zinc-300 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-600"
         : rank === 3
-          ? "bg-orange-100 text-orange-800 ring-2 ring-orange-300"
-          : "bg-zinc-50 text-zinc-500";
+          ? "bg-orange-100 text-orange-800 ring-2 ring-orange-300 dark:bg-orange-950/40 dark:text-orange-400 dark:ring-orange-700"
+          : "bg-zinc-50 text-zinc-500 dark:bg-zinc-800/60 dark:text-zinc-400";
   const emoji =
     rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : "#";
   return (

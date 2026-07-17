@@ -94,7 +94,7 @@ export function ChangePasswordForm({ onSuccess }: ChangePasswordFormProps) {
           <button
             type="button"
             onClick={() => setShowCurrent((v) => !v)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
             aria-label={showCurrent ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
           >
             {showCurrent ? (
@@ -123,7 +123,7 @@ export function ChangePasswordForm({ onSuccess }: ChangePasswordFormProps) {
           <button
             type="button"
             onClick={() => setShowNew((v) => !v)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
             aria-label={showNew ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
           >
             {showNew ? (
@@ -140,7 +140,9 @@ export function ChangePasswordForm({ onSuccess }: ChangePasswordFormProps) {
                 key={r.label}
                 className={cn(
                   "flex items-center gap-1.5 text-xs",
-                  r.passed ? "text-emerald-700" : "text-zinc-500",
+                  r.passed
+                    ? "text-emerald-700 dark:text-emerald-400"
+                    : "text-zinc-500 dark:text-zinc-400",
                 )}
               >
                 {r.passed ? (
@@ -152,7 +154,7 @@ export function ChangePasswordForm({ onSuccess }: ChangePasswordFormProps) {
               </li>
             ))}
             {currentPassword.length > 0 && !notSame ? (
-              <li className="flex items-center gap-1.5 text-xs text-red-600">
+              <li className="flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400">
                 <X className="h-3 w-3" aria-hidden="true" />
                 Mật khẩu mới phải khác mật khẩu hiện tại
               </li>
@@ -177,19 +179,19 @@ export function ChangePasswordForm({ onSuccess }: ChangePasswordFormProps) {
           }
         />
         {confirmPassword.length > 0 && !confirmMatch ? (
-          <p className="text-xs text-red-600">
+          <p className="text-xs text-red-600 dark:text-red-400">
             Mật khẩu xác nhận không khớp.
           </p>
         ) : null}
       </div>
 
       {error ? (
-        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400">
           {error}
         </div>
       ) : null}
 
-      <div className="flex justify-end border-t border-zinc-200 pt-4">
+      <div className="flex justify-end border-t border-zinc-200 pt-4 dark:border-zinc-800">
         <Button type="submit" size="sm" disabled={!canSubmit}>
           {mutation.isPending ? "Đang đổi…" : "Đổi mật khẩu"}
         </Button>

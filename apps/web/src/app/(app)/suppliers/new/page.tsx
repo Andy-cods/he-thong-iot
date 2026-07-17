@@ -25,10 +25,10 @@ export default function NewSupplierPage() {
         className="mb-2"
       />
       <header className="mb-6">
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
+        <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
           Thêm nhà cung cấp
         </h1>
-        <p className="mt-1 text-xs text-zinc-500">
+        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
           Nhập thông tin cơ bản. Danh sách vật tư cung cấp gắn sau trong trang
           chi tiết.
         </p>

@@ -199,8 +199,8 @@ export function UserForm({
                 className={cn(
                   "flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors",
                   checked
-                    ? "border-indigo-300 bg-indigo-50/60 ring-1 ring-indigo-100"
-                    : "border-zinc-200 bg-white hover:bg-zinc-50",
+                    ? "border-indigo-300 bg-indigo-50/60 ring-1 ring-indigo-100 dark:border-indigo-700 dark:bg-indigo-950/40 dark:ring-indigo-800"
+                    : "border-zinc-200 bg-white hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800/60",
                   disabled && "cursor-not-allowed opacity-60",
                 )}
               >
@@ -212,21 +212,21 @@ export function UserForm({
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-semibold uppercase tracking-normal text-zinc-900">
+                    <span className="font-mono text-xs font-semibold uppercase tracking-normal text-zinc-900 dark:text-zinc-50">
                       {r.code}
                     </span>
-                    <span className="text-sm font-medium tracking-tight text-zinc-700">
+                    <span className="text-sm font-medium tracking-tight text-zinc-700 dark:text-zinc-300">
                       {r.label}
                     </span>
                   </div>
-                  <p className="mt-0.5 text-xs text-zinc-500">{r.desc}</p>
+                  <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{r.desc}</p>
                 </div>
               </label>
             );
           })}
         </div>
         {errors.roles ? (
-          <p className="mt-2 flex items-center gap-1 text-[11px] text-rose-600">
+          <p className="mt-2 flex items-center gap-1 text-[11px] text-rose-600 dark:text-rose-400">
             <AlertCircle className="h-3 w-3" aria-hidden="true" />
             {errors.roles}
           </p>
@@ -250,10 +250,10 @@ function Section({
   return (
     <section>
       <header className="mb-3">
-        <h3 className="text-sm font-semibold tracking-tight text-zinc-900">
+        <h3 className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
           {title}
         </h3>
-        {desc ? <p className="mt-0.5 text-xs text-zinc-500">{desc}</p> : null}
+        {desc ? <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{desc}</p> : null}
       </header>
       {children}
     </section>
@@ -279,7 +279,7 @@ function FieldShell({
     <div className="space-y-1.5">
       <label
         htmlFor={htmlFor}
-        className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-normal text-zinc-500"
+        className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-normal text-zinc-500 dark:text-zinc-400"
       >
         {label}
         {required ? (
@@ -290,12 +290,12 @@ function FieldShell({
       </label>
       {children}
       {error ? (
-        <p className="flex items-center gap-1 text-[11px] text-rose-600">
+        <p className="flex items-center gap-1 text-[11px] text-rose-600 dark:text-rose-400">
           <AlertCircle className="h-3 w-3" aria-hidden="true" />
           {error}
         </p>
       ) : helper ? (
-        <p className="text-[11px] text-zinc-500">{helper}</p>
+        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{helper}</p>
       ) : null}
     </div>
   );
@@ -314,14 +314,14 @@ function TextInput({
     <input
       {...rest}
       className={cn(
-        "h-9 w-full rounded-md border bg-white px-3 text-sm tracking-normal text-zinc-900 outline-none transition-colors",
-        "placeholder:text-zinc-400",
+        "h-9 w-full rounded-md border bg-white px-3 text-sm tracking-normal text-zinc-900 outline-none transition-colors dark:bg-zinc-900 dark:text-zinc-50",
+        "placeholder:text-zinc-400 dark:placeholder:text-zinc-500",
         "focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100",
-        "disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-500",
+        "disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-500 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-400",
         mono && "font-mono",
         invalid
           ? "border-rose-400 ring-2 ring-rose-100"
-          : "border-zinc-200",
+          : "border-zinc-200 dark:border-zinc-700",
         className,
       )}
     />

@@ -317,9 +317,9 @@ export function WarehouseLayout3D({
   return (
     <div className={cn("flex h-full w-full flex-col gap-3", className)}>
       {!extSelectedRack && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-white p-2.5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-white p-2.5 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="ml-2 mr-1 text-xs font-bold uppercase tracking-wider text-zinc-500">Chọn kệ</span>
+            <span className="ml-2 mr-1 text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Chọn kệ</span>
             {racks.map((r) => {
               const isActive = r.key === selectedRack;
               const occupied = r.items.filter((b) => b.totalQty > 0).length;
@@ -332,30 +332,30 @@ export function WarehouseLayout3D({
                     "group inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-semibold transition-all",
                     isActive
                       ? "bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/40 scale-[1.02]"
-                      : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200",
+                      : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700",
                   )}
                 >
                   <span className={cn("flex h-5 w-5 items-center justify-center rounded-md text-[10px] font-bold",
-                    isActive ? "bg-white/20 text-white" : "bg-white text-zinc-600",
+                    isActive ? "bg-white/20 text-white" : "bg-white text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400",
                   )}>{r.area}</span>
                   <span className="font-mono">Kệ {r.rack}</span>
                   <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] tabular-nums",
-                    isActive ? "bg-white/25 text-white" : "bg-white text-zinc-500",
+                    isActive ? "bg-white/25 text-white" : "bg-white text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400",
                   )}>{occupied}/{r.items.length}</span>
                 </button>
               );
             })}
           </div>
-          <div className="flex items-center gap-1 rounded-xl border border-zinc-200 bg-zinc-100 p-0.5">
+          <div className="flex items-center gap-1 rounded-xl border border-zinc-200 bg-zinc-100 p-0.5 dark:border-zinc-700 dark:bg-zinc-800">
             <button type="button" onClick={() => setViewMode("3d")}
               className={cn("inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-all",
-                viewMode === "3d" ? "bg-white text-indigo-700 shadow-sm" : "text-zinc-600",
+                viewMode === "3d" ? "bg-white text-indigo-700 shadow-sm dark:bg-zinc-900 dark:text-indigo-400" : "text-zinc-600 dark:text-zinc-400",
               )}>
               <Box className="h-3.5 w-3.5" /> 3D
             </button>
             <button type="button" onClick={() => setViewMode("2d")}
               className={cn("inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-all",
-                viewMode === "2d" ? "bg-white text-indigo-700 shadow-sm" : "text-zinc-600",
+                viewMode === "2d" ? "bg-white text-indigo-700 shadow-sm dark:bg-zinc-900 dark:text-indigo-400" : "text-zinc-600 dark:text-zinc-400",
               )}>
               <Layers className="h-3.5 w-3.5" /> 2D
             </button>
@@ -363,9 +363,9 @@ export function WarehouseLayout3D({
         </div>
       )}
 
-      <div className="relative flex-1 overflow-auto rounded-2xl bg-gradient-to-br from-slate-50 via-white to-slate-100 shadow-inner ring-1 ring-zinc-200/60">
+      <div className="relative flex-1 overflow-auto rounded-2xl bg-gradient-to-br from-slate-50 via-white to-slate-100 shadow-inner ring-1 ring-zinc-200/60 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-900 dark:ring-zinc-700/60">
         {!currentRack ? (
-          <div className="flex h-full items-center justify-center text-sm text-zinc-500">
+          <div className="flex h-full items-center justify-center text-sm text-zinc-500 dark:text-zinc-400">
             Chọn 1 kệ để xem chi tiết
           </div>
         ) : viewMode === "3d" ? (
@@ -1256,9 +1256,9 @@ function Rack2DView({
 
           return (
             <div key={lvl} className="flex items-stretch gap-3">
-              <div className="flex w-[80px] shrink-0 flex-col items-center justify-center rounded-xl border border-zinc-200 bg-white px-2 shadow-sm">
-                <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">{tier}</span>
-                <span className="mt-0.5 text-[10px] text-zinc-400">Cao 2.0m</span>
+              <div className="flex w-[80px] shrink-0 flex-col items-center justify-center rounded-xl border border-zinc-200 bg-white px-2 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+                <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{tier}</span>
+                <span className="mt-0.5 text-[10px] text-zinc-400 dark:text-zinc-500">Cao 2.0m</span>
               </div>
               <div className="flex gap-3">
                 {items.map((bin) => (

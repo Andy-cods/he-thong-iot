@@ -421,7 +421,7 @@ export default function AssemblyWorkspacePage() {
   // ----- Render -----
   if (woQuery.isLoading || progressQuery.isLoading) {
     return (
-      <div className="flex items-center justify-center gap-2 py-16 text-sm text-zinc-500">
+      <div className="flex items-center justify-center gap-2 py-16 text-sm text-zinc-500 dark:text-zinc-400">
         <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
         Đang tải workspace lắp ráp…
       </div>
@@ -433,12 +433,12 @@ export default function AssemblyWorkspacePage() {
       <div className="flex flex-col gap-3">
         <Link
           href="/assembly"
-          className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline"
+          className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline dark:text-indigo-400"
         >
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
           Quay lại danh sách lắp ráp
         </Link>
-        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400">
           Không tìm thấy WO này hoặc bạn không có quyền truy cập.
         </div>
       </div>
@@ -459,12 +459,12 @@ export default function AssemblyWorkspacePage() {
   return (
     <div className="flex flex-col gap-4">
       {/* Sticky header */}
-      <header className="sticky top-0 z-20 -mx-4 border-b border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-white/85 lg:-mx-6 lg:px-6">
+      <header className="sticky top-0 z-20 -mx-4 border-b border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-white/85 lg:-mx-6 lg:px-6 dark:border-zinc-800 dark:bg-zinc-900/95 dark:supports-[backdrop-filter]:bg-zinc-900/85">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <Link
               href="/assembly"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
               aria-label="Quay lại danh sách"
             >
               <ArrowLeft className="h-4 w-4" aria-hidden />
@@ -505,7 +505,7 @@ export default function AssemblyWorkspacePage() {
                       style={{ transition: "stroke-dashoffset 0.5s ease" }}
                     />
                   </svg>
-                  <span className="absolute text-[10px] font-bold tabular-nums text-zinc-700">
+                  <span className="absolute text-[10px] font-bold tabular-nums text-zinc-700 dark:text-zinc-300">
                     {progressPct}%
                   </span>
                 </div>
@@ -514,15 +514,15 @@ export default function AssemblyWorkspacePage() {
 
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <Wrench className="h-4 w-4 text-zinc-500" aria-hidden />
-                <h1 className="font-mono text-sm font-semibold text-zinc-900">
+                <Wrench className="h-4 w-4 text-zinc-500 dark:text-zinc-400" aria-hidden />
+                <h1 className="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-50">
                   {wo.woNo}
                 </h1>
                 <Badge variant="info" className="text-[10px]">
                   {wo.status}
                 </Badge>
               </div>
-              <p className="mt-0.5 truncate text-[11px] text-zinc-500">
+              <p className="mt-0.5 truncate text-[11px] text-zinc-500 dark:text-zinc-400">
                 Plan: {num(wo.plannedQty)} · Good: {num(wo.goodQty)} ·{" "}
                 {wo.orderNo ? `Đơn ${wo.orderNo}` : "Không liên kết đơn"}
               </p>
@@ -532,7 +532,7 @@ export default function AssemblyWorkspacePage() {
           <div className="flex items-center gap-3">
             {progress ? (
               <div className="hidden items-center gap-2 sm:flex">
-                <div className="relative h-1.5 w-32 overflow-hidden rounded-full bg-zinc-100">
+                <div className="relative h-1.5 w-32 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
                   <div
                     className={cn(
                       "absolute inset-y-0 left-0 rounded-full transition-all",
@@ -543,7 +543,7 @@ export default function AssemblyWorkspacePage() {
                     style={{ width: `${Math.min(100, progressPct)}%` }}
                   />
                 </div>
-                <span className="text-xs tabular-nums text-zinc-600">
+                <span className="text-xs tabular-nums text-zinc-600 dark:text-zinc-400">
                   {totalCompleted}/{totalRequired} ({progressPct}%)
                 </span>
               </div>
@@ -552,7 +552,7 @@ export default function AssemblyWorkspacePage() {
             <div className="flex items-center gap-1">
               <Link
                 href={`/work-orders/${wo.id}`}
-                className="inline-flex items-center gap-1 rounded-md border border-zinc-200 px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-50"
+                className="inline-flex items-center gap-1 rounded-md border border-zinc-200 px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800/60"
                 title="Chi tiết WO"
               >
                 <ExternalLink className="h-3 w-3" aria-hidden />
@@ -560,7 +560,7 @@ export default function AssemblyWorkspacePage() {
               </Link>
               <Link
                 href={`/pwa/assembly/${wo.id}`}
-                className="inline-flex items-center gap-1 rounded-md border border-zinc-200 px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-50"
+                className="inline-flex items-center gap-1 rounded-md border border-zinc-200 px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800/60"
                 title="Mở PWA"
               >
                 <Smartphone className="h-3 w-3" aria-hidden />
@@ -588,7 +588,7 @@ export default function AssemblyWorkspacePage() {
         </div>
 
         {/* Tab nav 3 mode */}
-        <nav className="mt-3 flex items-center gap-1 border-b border-zinc-200 -mb-3">
+        <nav className="mt-3 flex items-center gap-1 border-b border-zinc-200 -mb-3 dark:border-zinc-800">
           <TabButton
             active={tabMode === "manual"}
             onClick={() => setTab("manual")}
@@ -708,7 +708,7 @@ export default function AssemblyWorkspacePage() {
             <div>
               <label
                 htmlFor="fg-qty"
-                className="mb-1 block text-xs font-medium text-zinc-700"
+                className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300"
               >
                 Số lượng FG (thành phẩm)
               </label>
@@ -719,14 +719,14 @@ export default function AssemblyWorkspacePage() {
                 value={fgQty}
                 onChange={(e) => setFgQty(e.target.value)}
               />
-              <p className="mt-1 text-[11px] text-zinc-500">
+              <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
                 Theo plan: {num(wo.plannedQty)} cái.
               </p>
             </div>
             <div>
               <label
                 htmlFor="fg-lot"
-                className="mb-1 block text-xs font-medium text-zinc-700"
+                className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300"
               >
                 Lot code FG (gợi ý)
               </label>
@@ -736,7 +736,7 @@ export default function AssemblyWorkspacePage() {
                 onChange={(e) => setFgLot(e.target.value)}
                 placeholder="FG-WO123-001"
               />
-              <p className="mt-1 text-[11px] text-zinc-500">
+              <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
                 Lưu ý: backend hiện chỉ chuyển status WO. FG serial sinh tự
                 động ở giai đoạn sau.
               </p>
@@ -744,7 +744,7 @@ export default function AssemblyWorkspacePage() {
             <div>
               <label
                 htmlFor="fg-note"
-                className="mb-1 block text-xs font-medium text-zinc-700"
+                className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300"
               >
                 Ghi chú
               </label>
@@ -811,15 +811,15 @@ function TabButton({
       className={cn(
         "inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition-colors",
         active
-          ? "border-indigo-500 text-indigo-700"
-          : "border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700",
+          ? "border-indigo-500 text-indigo-700 dark:border-indigo-400 dark:text-indigo-300"
+          : "border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700 dark:text-zinc-400 dark:hover:border-zinc-600 dark:hover:text-zinc-300",
       )}
       aria-current={active ? "page" : undefined}
     >
       {icon}
       <span>{label}</span>
       {sub ? (
-        <span className="ml-1 text-[10px] text-zinc-400">{sub}</span>
+        <span className="ml-1 text-[10px] text-zinc-400 dark:text-zinc-500">{sub}</span>
       ) : null}
     </button>
   );
@@ -835,17 +835,17 @@ function EmptyBomLineState({
   plannedQty: number;
 }) {
   return (
-    <section className="rounded-md border border-amber-200 bg-amber-50 p-5">
+    <section className="rounded-md border border-amber-200 bg-amber-50 p-5 dark:border-amber-800 dark:bg-amber-950/40">
       <div className="flex items-start gap-3">
         <AlertTriangle
-          className="h-5 w-5 shrink-0 text-amber-500"
+          className="h-5 w-5 shrink-0 text-amber-500 dark:text-amber-400"
           aria-hidden
         />
         <div className="flex-1">
-          <h3 className="text-sm font-semibold text-amber-900">
+          <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-200">
             WO này chưa có BOM line — cần explode snapshot order
           </h3>
-          <p className="mt-1 text-xs text-amber-800">
+          <p className="mt-1 text-xs text-amber-800 dark:text-amber-300">
             Đơn hàng{" "}
             <code className="font-mono">{orderNo ?? "(không liên kết)"}</code>{" "}
             chưa có snapshot BOM. Bạn cần vào trang đơn hàng → tab{" "}
@@ -865,13 +865,13 @@ function EmptyBomLineState({
             ) : null}
             <Link
               href="/orders"
-              className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100"
+              className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:bg-zinc-900 dark:text-amber-300 dark:hover:bg-amber-950/40"
             >
               Danh sách đơn hàng
             </Link>
             <Link
               href="/assembly"
-              className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100"
+              className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:bg-zinc-900 dark:text-amber-300 dark:hover:bg-amber-950/40"
             >
               <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
               Quay lại danh sách lắp ráp
@@ -964,9 +964,9 @@ function ManualPickPanel({
   };
 
   return (
-    <section className="overflow-hidden rounded-md border border-zinc-200 bg-white">
-      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 bg-zinc-50 px-3 py-2">
-        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-zinc-500">
+    <section className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-800">
+        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
           <ClipboardList className="h-3.5 w-3.5" aria-hidden />
           Bảng nhập thủ công ({progress.lines.length} dòng BOM)
         </div>
@@ -985,34 +985,34 @@ function ManualPickPanel({
       </header>
 
       {/* KPI strip */}
-      <div className="grid grid-cols-4 divide-x divide-zinc-200 border-b border-zinc-200 bg-white">
+      <div className="grid grid-cols-4 divide-x divide-zinc-200 border-b border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-900">
         {[
           {
             label: "Tổng cần",
             value: progress.totalRequired,
-            color: "text-zinc-800",
+            color: "text-zinc-800 dark:text-zinc-200",
           },
           {
             label: "Đã pick",
             value: progress.totalCompleted,
-            color: "text-indigo-700",
+            color: "text-indigo-700 dark:text-indigo-300",
           },
           {
             label: "Còn lại",
             value: Math.max(0, progress.totalRequired - progress.totalCompleted),
-            color: "text-amber-700",
+            color: "text-amber-700 dark:text-amber-400",
           },
           {
             label: "Hoàn thành",
             value: `${progress.progressPercent}%`,
             color:
               progress.progressPercent >= 100
-                ? "text-emerald-700"
-                : "text-zinc-600",
+                ? "text-emerald-700 dark:text-emerald-400"
+                : "text-zinc-600 dark:text-zinc-400",
           },
         ].map((k) => (
           <div key={k.label} className="px-4 py-2.5 text-center">
-            <p className="text-[10px] uppercase tracking-wide text-zinc-500">
+            <p className="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
               {k.label}
             </p>
             <p
@@ -1029,7 +1029,7 @@ function ManualPickPanel({
 
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
-          <thead className="border-b border-zinc-200 bg-zinc-50 text-[10px] uppercase tracking-wider text-zinc-500">
+          <thead className="border-b border-zinc-200 bg-zinc-50 text-[10px] uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
             <tr>
               <th className="w-10 px-2 py-2 text-left font-medium">#</th>
               <th className="px-3 py-2 text-left font-medium">SKU</th>
@@ -1065,13 +1065,13 @@ function ManualPickPanel({
                 <tr
                   key={l.snapshotLineId}
                   className={cn(
-                    "border-t border-zinc-100 align-top transition-colors",
+                    "border-t border-zinc-100 align-top transition-colors dark:border-zinc-800",
                     done
-                      ? "bg-emerald-50/60"
-                      : "bg-white hover:bg-indigo-50/30",
+                      ? "bg-emerald-50/60 dark:bg-emerald-950/30"
+                      : "bg-white hover:bg-indigo-50/30 dark:bg-zinc-900 dark:hover:bg-indigo-950/30",
                   )}
                 >
-                  <td className="px-2 py-2 text-zinc-400 tabular-nums">
+                  <td className="px-2 py-2 text-zinc-400 tabular-nums dark:text-zinc-500">
                     {idx + 1}
                   </td>
                   <td className="px-3 py-2">
@@ -1079,7 +1079,7 @@ function ManualPickPanel({
                       <Package
                         className={cn(
                           "h-3.5 w-3.5",
-                          done ? "text-emerald-500" : "text-zinc-400",
+                          done ? "text-emerald-500 dark:text-emerald-400" : "text-zinc-400 dark:text-zinc-500",
                         )}
                         aria-hidden
                       />
@@ -1088,7 +1088,7 @@ function ManualPickPanel({
                       </code>
                     </div>
                   </td>
-                  <td className="px-3 py-2 text-zinc-700">
+                  <td className="px-3 py-2 text-zinc-700 dark:text-zinc-300">
                     {l.componentName}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">
@@ -1100,7 +1100,7 @@ function ManualPickPanel({
                   <td
                     className={cn(
                       "px-3 py-2 text-right tabular-nums",
-                      done ? "text-emerald-700" : "text-zinc-600",
+                      done ? "text-emerald-700 dark:text-emerald-400" : "text-zinc-600 dark:text-zinc-400",
                     )}
                   >
                     {remaining}
@@ -1114,7 +1114,7 @@ function ManualPickPanel({
                       <div className="flex items-center justify-center gap-1">
                         <button
                           type="button"
-                          className="inline-flex h-6 w-6 items-center justify-center rounded border border-zinc-200 text-zinc-600 hover:bg-zinc-100 disabled:opacity-50"
+                          className="inline-flex h-6 w-6 items-center justify-center rounded border border-zinc-200 text-zinc-600 hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
                           onClick={() =>
                             updateRow(l.snapshotLineId, {
                               qty: String(Math.max(0, num(r.qty) - 1)),
@@ -1142,7 +1142,7 @@ function ManualPickPanel({
                         />
                         <button
                           type="button"
-                          className="inline-flex h-6 w-6 items-center justify-center rounded border border-zinc-200 text-zinc-600 hover:bg-zinc-100 disabled:opacity-50"
+                          className="inline-flex h-6 w-6 items-center justify-center rounded border border-zinc-200 text-zinc-600 hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
                           onClick={() =>
                             updateRow(l.snapshotLineId, {
                               qty: String(
@@ -1186,7 +1186,7 @@ function ManualPickPanel({
                   </td>
                   <td className="px-3 py-2 text-center">
                     {done ? (
-                      <span className="text-[11px] text-emerald-700">—</span>
+                      <span className="text-[11px] text-emerald-700 dark:text-emerald-400">—</span>
                     ) : (
                       <Button
                         size="sm"
@@ -1205,7 +1205,7 @@ function ManualPickPanel({
         </table>
       </div>
 
-      <footer className="border-t border-zinc-200 bg-zinc-50 px-3 py-2 text-[11px] text-zinc-500">
+      <footer className="border-t border-zinc-200 bg-zinc-50 px-3 py-2 text-[11px] text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-400">
         Tip: nhập tay khi linh kiện không có barcode. Lot/Serial tuỳ chọn —
         nếu để trống sẽ dùng lot reservation mặc định.
       </footer>
@@ -1229,13 +1229,13 @@ function BarcodeModePanel({
   return (
     <section className="grid gap-4 lg:grid-cols-[3fr,2fr]">
       {/* BOM lines table */}
-      <div className="overflow-hidden rounded-md border border-zinc-200 bg-white">
-        <header className="flex h-9 items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
+      <div className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+        <header className="flex h-9 items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
           <ClipboardList className="h-3.5 w-3.5" aria-hidden />
           BOM lines cần lắp ({progress.lines.length})
         </header>
         <table className="w-full text-xs">
-          <thead className="border-b border-zinc-200 bg-zinc-50 text-[10px] uppercase tracking-wider text-zinc-500">
+          <thead className="border-b border-zinc-200 bg-zinc-50 text-[10px] uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
             <tr>
               <th className="px-3 py-2 text-left font-medium">SKU</th>
               <th className="px-3 py-2 text-left font-medium">Tên</th>
@@ -1253,8 +1253,8 @@ function BarcodeModePanel({
                 <tr
                   key={l.snapshotLineId}
                   className={cn(
-                    "border-t border-zinc-100 transition-colors",
-                    done && "bg-emerald-50/40",
+                    "border-t border-zinc-100 transition-colors dark:border-zinc-800",
+                    done && "bg-emerald-50/40 dark:bg-emerald-950/30",
                   )}
                 >
                   <td className="px-3 py-2">
@@ -1262,7 +1262,7 @@ function BarcodeModePanel({
                       <Package
                         className={cn(
                           "h-3.5 w-3.5",
-                          done ? "text-emerald-500" : "text-zinc-400",
+                          done ? "text-emerald-500 dark:text-emerald-400" : "text-zinc-400 dark:text-zinc-500",
                         )}
                         aria-hidden
                       />
@@ -1271,7 +1271,7 @@ function BarcodeModePanel({
                       </code>
                     </div>
                   </td>
-                  <td className="px-3 py-2 text-zinc-700">
+                  <td className="px-3 py-2 text-zinc-700 dark:text-zinc-300">
                     {l.componentName}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">
@@ -1283,7 +1283,7 @@ function BarcodeModePanel({
                   <td
                     className={cn(
                       "px-3 py-2 text-right tabular-nums",
-                      done ? "text-emerald-700" : "text-zinc-600",
+                      done ? "text-emerald-700 dark:text-emerald-400" : "text-zinc-600 dark:text-zinc-400",
                     )}
                   >
                     {remaining}
@@ -1304,7 +1304,7 @@ function BarcodeModePanel({
       </div>
 
       <div className="flex flex-col gap-3">
-        <div className="rounded-md border border-zinc-200 bg-white p-3">
+        <div className="rounded-md border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
           <BarcodeScanInput
             onScan={onScan}
             placeholder="Quét barcode component (USB/BT + Enter)"
@@ -1313,29 +1313,29 @@ function BarcodeModePanel({
             label="Quét / Nhập mã barcode"
           />
           {isPending ? (
-            <p className="mt-2 inline-flex items-center gap-1 text-[11px] text-zinc-500">
+            <p className="mt-2 inline-flex items-center gap-1 text-[11px] text-zinc-500 dark:text-zinc-400">
               <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
               Đang ghi nhận scan…
             </p>
           ) : (
-            <p className="mt-2 text-[11px] text-zinc-400">
+            <p className="mt-2 text-[11px] text-zinc-400 dark:text-zinc-500">
               Tip: ô luôn auto-focus. Nếu mất focus, click vào ô. Phím tắt: gõ
               tay rồi Enter.
             </p>
           )}
         </div>
 
-        <div className="overflow-hidden rounded-md border border-zinc-200 bg-white">
-          <header className="flex h-9 items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
+        <div className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+          <header className="flex h-9 items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
             <History className="h-3.5 w-3.5" aria-hidden />
             10 scan gần nhất ({log.length})
           </header>
           {log.length === 0 ? (
-            <div className="px-4 py-8 text-center text-xs text-zinc-500">
+            <div className="px-4 py-8 text-center text-xs text-zinc-500 dark:text-zinc-400">
               Chưa có scan nào. Quét barcode để bắt đầu.
             </div>
           ) : (
-            <ul className="max-h-[420px] divide-y divide-zinc-100 overflow-y-auto">
+            <ul className="max-h-[420px] divide-y divide-zinc-100 overflow-y-auto dark:divide-zinc-800">
               {log.map((e) => (
                 <li key={e.id} className="px-3 py-2 text-xs">
                   <div className="flex items-center gap-2">
@@ -1352,13 +1352,13 @@ function BarcodeModePanel({
                       )}
                       aria-hidden
                     />
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
                       {e.kind}
                     </span>
-                    <code className="flex-1 truncate font-mono text-[11px] text-zinc-900">
+                    <code className="flex-1 truncate font-mono text-[11px] text-zinc-900 dark:text-zinc-50">
                       {e.code}
                     </code>
-                    <span className="shrink-0 text-[10px] tabular-nums text-zinc-400">
+                    <span className="shrink-0 text-[10px] tabular-nums text-zinc-400 dark:text-zinc-500">
                       {formatTime(e.at)}
                     </span>
                   </div>
@@ -1366,10 +1366,10 @@ function BarcodeModePanel({
                     className={cn(
                       "mt-0.5 truncate pl-3.5 text-[11px]",
                       e.status === "ok"
-                        ? "text-emerald-700"
+                        ? "text-emerald-700 dark:text-emerald-400"
                         : e.status === "warn" || e.status === "no-match"
-                          ? "text-amber-700"
-                          : "text-red-700",
+                          ? "text-amber-700 dark:text-amber-400"
+                          : "text-red-700 dark:text-red-400",
                     )}
                   >
                     {e.message}
@@ -1397,7 +1397,7 @@ function SessionsPanel({
 }) {
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center gap-2 py-12 text-sm text-zinc-500">
+      <div className="flex items-center justify-center gap-2 py-12 text-sm text-zinc-500 dark:text-zinc-400">
         <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
         Đang tải sổ ghi chép đợt lắp ráp…
       </div>
@@ -1406,15 +1406,15 @@ function SessionsPanel({
 
   if (sessions.length === 0) {
     return (
-      <div className="rounded-md border border-dashed border-zinc-200 bg-zinc-50/50 p-6 text-center">
+      <div className="rounded-md border border-dashed border-zinc-200 bg-zinc-50/50 p-6 text-center dark:border-zinc-800 dark:bg-zinc-800/40">
         <NotebookPen
-          className="mx-auto h-8 w-8 text-zinc-300"
+          className="mx-auto h-8 w-8 text-zinc-300 dark:text-zinc-700"
           aria-hidden
         />
-        <p className="mt-2 text-sm font-medium text-zinc-700">
+        <p className="mt-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
           Chưa có đợt lắp ráp nào
         </p>
-        <p className="mt-1 text-xs text-zinc-500">
+        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
           Pick linh kiện ở tab Nhập thủ công hoặc Quét barcode để bắt đầu đợt
           đầu tiên. Sổ ghi chép sẽ tự nhóm theo cửa sổ {gapMinutes} phút.
         </p>
@@ -1424,7 +1424,7 @@ function SessionsPanel({
 
   return (
     <section className="flex flex-col gap-3">
-      <div className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-[11px] text-zinc-500">
+      <div className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-[11px] text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
         Hệ thống tự nhóm các lần pick thành <strong>đợt</strong> nếu khoảng
         cách giữa 2 lần &lt; {gapMinutes} phút và cùng người lắp. Mỗi đợt là
         một bản ghi đóng — bạn không cần thao tác bắt đầu/đóng đợt thủ công.
@@ -1446,13 +1446,13 @@ function SessionCard({ session }: { session: AssemblySession }) {
   return (
     <article
       className={cn(
-        "overflow-hidden rounded-md border bg-white transition-colors",
+        "overflow-hidden rounded-md border bg-white transition-colors dark:bg-zinc-900",
         session.isLive
-          ? "border-indigo-300 ring-1 ring-indigo-100"
-          : "border-zinc-200",
+          ? "border-indigo-300 ring-1 ring-indigo-100 dark:border-indigo-700 dark:ring-indigo-950/40"
+          : "border-zinc-200 dark:border-zinc-800",
       )}
     >
-      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 px-3 py-2">
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 px-3 py-2 dark:border-zinc-800">
         <div className="flex items-center gap-2 min-w-0">
           <Badge
             variant={session.isLive ? "info" : "outline"}
@@ -1461,47 +1461,47 @@ function SessionCard({ session }: { session: AssemblySession }) {
             Đợt #{session.sessionNo}
           </Badge>
           {session.isLive ? (
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-700">
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-700 dark:text-indigo-300">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-indigo-500" />
               Đang chạy
             </span>
           ) : (
-            <span className="text-[11px] text-zinc-500">Đã đóng</span>
+            <span className="text-[11px] text-zinc-500 dark:text-zinc-400">Đã đóng</span>
           )}
-          <span className="truncate text-[11px] text-zinc-500">
+          <span className="truncate text-[11px] text-zinc-500 dark:text-zinc-400">
             {formatDateTime(session.startedAt)} →{" "}
             {formatDateTime(session.endedAt)} ·{" "}
             {formatDurationMs(session.durationMs)}
           </span>
         </div>
-        <div className="flex items-center gap-3 text-[11px] text-zinc-600">
+        <div className="flex items-center gap-3 text-[11px] text-zinc-600 dark:text-zinc-400">
           <span>
             Người lắp:{" "}
-            <strong className="text-zinc-900">
+            <strong className="text-zinc-900 dark:text-zinc-50">
               {session.userName ?? "Không rõ"}
             </strong>
           </span>
           <span>
-            <strong className="tabular-nums text-zinc-900">
+            <strong className="tabular-nums text-zinc-900 dark:text-zinc-50">
               {session.totalLines}
             </strong>{" "}
             dòng
           </span>
           <span>
-            <strong className="tabular-nums text-zinc-900">
+            <strong className="tabular-nums text-zinc-900 dark:text-zinc-50">
               {session.totalQty}
             </strong>{" "}
             qty
           </span>
           <span>
-            <strong className="tabular-nums text-zinc-900">
+            <strong className="tabular-nums text-zinc-900 dark:text-zinc-50">
               {session.totalScans}
             </strong>{" "}
             lần pick
           </span>
           <button
             type="button"
-            className="rounded border border-zinc-200 px-2 py-0.5 text-[11px] text-indigo-600 hover:bg-zinc-50"
+            className="rounded border border-zinc-200 px-2 py-0.5 text-[11px] text-indigo-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-indigo-400 dark:hover:bg-zinc-800"
             onClick={() => setExpanded((v) => !v)}
           >
             {expanded ? "Ẩn chi tiết" : "Xem chi tiết"}
@@ -1512,7 +1512,7 @@ function SessionCard({ session }: { session: AssemblySession }) {
       {expanded ? (
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
-            <thead className="bg-zinc-50 text-[10px] uppercase tracking-wider text-zinc-500">
+            <thead className="bg-zinc-50 text-[10px] uppercase tracking-wider text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
               <tr>
                 <th className="px-3 py-1.5 text-left font-medium">Thời gian</th>
                 <th className="px-3 py-1.5 text-left font-medium">SKU</th>
@@ -1526,9 +1526,9 @@ function SessionCard({ session }: { session: AssemblySession }) {
               {session.lines.map((l) => (
                 <tr
                   key={l.scanId}
-                  className="border-t border-zinc-100 hover:bg-zinc-50/40"
+                  className="border-t border-zinc-100 hover:bg-zinc-50/40 dark:border-zinc-800 dark:hover:bg-zinc-800/60"
                 >
-                  <td className="px-3 py-1.5 text-zinc-500 tabular-nums">
+                  <td className="px-3 py-1.5 text-zinc-500 tabular-nums dark:text-zinc-400">
                     {formatTime(new Date(l.scannedAt).getTime())}
                   </td>
                   <td className="px-3 py-1.5">
@@ -1536,14 +1536,14 @@ function SessionCard({ session }: { session: AssemblySession }) {
                       {l.componentSku ?? "—"}
                     </code>
                   </td>
-                  <td className="px-3 py-1.5 text-zinc-700">
+                  <td className="px-3 py-1.5 text-zinc-700 dark:text-zinc-300">
                     {l.componentName ?? "—"}
                   </td>
                   <td className="px-3 py-1.5 text-right tabular-nums font-semibold">
                     {l.qty}
                   </td>
                   <td className="px-3 py-1.5">
-                    <code className="font-mono text-[11px] text-zinc-600">
+                    <code className="font-mono text-[11px] text-zinc-600 dark:text-zinc-400">
                       {l.barcode || "—"}
                     </code>
                   </td>

@@ -122,7 +122,7 @@ export default function SupplierDetailPage() {
       <header className="mb-4 flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
+            <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
               {supplier.name}
             </h1>
             <StatusBadge
@@ -130,13 +130,13 @@ export default function SupplierDetailPage() {
               size="sm"
             />
             {supplier.region ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
+              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400">
                 <MapPin className="h-3 w-3" aria-hidden="true" />
                 {supplier.region}
               </span>
             ) : null}
           </div>
-          <p className="mt-0.5 font-mono text-xs text-zinc-500">
+          <p className="mt-0.5 font-mono text-xs text-zinc-500 dark:text-zinc-400">
             {supplier.code}
           </p>
         </div>
@@ -175,11 +175,11 @@ export default function SupplierDetailPage() {
         {/* TAB 1 — Thông tin */}
         <TabsContent value="info">
           {editing ? (
-            <div className="rounded-2xl border border-indigo-200 bg-indigo-50/30 p-5 shadow-sm">
+            <div className="rounded-2xl border border-indigo-200 bg-indigo-50/30 p-5 shadow-sm dark:border-indigo-800 dark:bg-indigo-950/30">
               <div className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Edit3 className="h-4 w-4 text-indigo-600" aria-hidden />
-                  <h3 className="text-sm font-semibold text-zinc-900">
+                  <Edit3 className="h-4 w-4 text-indigo-600 dark:text-indigo-400" aria-hidden />
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
                     Chỉnh sửa thông tin nhà cung cấp
                   </h3>
                 </div>
@@ -346,7 +346,7 @@ function InfoTab({
                 href={supplier.website}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-700"
+                className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
               >
                 {supplier.website}
                 <ExternalLink className="h-3 w-3" aria-hidden="true" />
@@ -368,7 +368,7 @@ function InfoTab({
             {supplier.phone ? (
               <a
                 href={`tel:${supplier.phone}`}
-                className="tabular-nums text-indigo-600 hover:text-indigo-700"
+                className="tabular-nums text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
               >
                 {supplier.phone}
               </a>
@@ -381,7 +381,7 @@ function InfoTab({
             {supplier.email ? (
               <a
                 href={`mailto:${supplier.email}`}
-                className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-700"
+                className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
               >
                 <Mail className="h-3 w-3" aria-hidden="true" />
                 {supplier.email}
@@ -392,18 +392,18 @@ function InfoTab({
           </DD>
         </DL>
         {contacts.length > 0 ? (
-          <div className="mt-3 space-y-2 border-t border-zinc-100 pt-3">
-            <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+          <div className="mt-3 space-y-2 border-t border-zinc-100 pt-3 dark:border-zinc-800">
+            <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
               Liên hệ bổ sung ({contacts.length})
             </p>
             <ul className="space-y-2">
               {contacts.map((c, idx) => (
-                <li key={idx} className="rounded border border-zinc-200 p-2 text-xs">
-                  <div className="font-medium text-zinc-900">{c.name}</div>
+                <li key={idx} className="rounded border border-zinc-200 p-2 text-xs dark:border-zinc-800">
+                  <div className="font-medium text-zinc-900 dark:text-zinc-50">{c.name}</div>
                   {c.role ? (
-                    <div className="text-zinc-600">{c.role}</div>
+                    <div className="text-zinc-600 dark:text-zinc-400">{c.role}</div>
                   ) : null}
-                  <div className="mt-1 flex flex-wrap gap-3 text-zinc-600">
+                  <div className="mt-1 flex flex-wrap gap-3 text-zinc-600 dark:text-zinc-400">
                     {c.phone ? (
                       <span className="tabular-nums">{c.phone}</span>
                     ) : null}
@@ -567,7 +567,7 @@ function ItemsTab({
         <select
           value={category}
           onChange={(e) => onCategory(e.target.value)}
-          className="h-8 rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-900"
+          className="h-8 rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
           aria-label="Lọc nhóm"
         >
           <option value="">Tất cả nhóm</option>
@@ -589,10 +589,10 @@ function ItemsTab({
           description='Gắn vật tư từ trang chi tiết vật tư → tab "Nhà cung cấp".'
         />
       ) : (
-        <div className="overflow-hidden rounded-md border border-zinc-200 bg-white">
+        <div className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
           <table className="min-w-full border-collapse text-base">
-            <thead className="bg-zinc-50">
-              <tr className="text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+            <thead className="bg-zinc-50 dark:bg-zinc-800/60">
+              <tr className="text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                 <th className="h-8 px-3 w-[140px]">SKU</th>
                 <th className="h-8 px-3">Tên</th>
                 <th className="h-8 px-3 w-[120px]">Nhóm</th>
@@ -605,7 +605,7 @@ function ItemsTab({
               {rows.map((r) => (
                 <tr
                   key={r.id}
-                  className="h-9 cursor-pointer border-t border-zinc-100 hover:bg-zinc-50"
+                  className="h-9 cursor-pointer border-t border-zinc-100 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/60"
                   onClick={() => router.push(`/items/${r.itemId}`)}
                   role="link"
                   tabIndex={0}
@@ -616,20 +616,20 @@ function ItemsTab({
                     }
                   }}
                 >
-                  <td className="px-3 font-mono text-sm text-zinc-900">
+                  <td className="px-3 font-mono text-sm text-zinc-900 dark:text-zinc-50">
                     {r.sku}
                     {r.isPreferred ? (
-                      <span className="ml-1 inline-flex items-center rounded bg-indigo-50 px-1 py-0.5 text-[10px] font-medium text-indigo-700">
+                      <span className="ml-1 inline-flex items-center rounded bg-indigo-50 px-1 py-0.5 text-[10px] font-medium text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400">
                         ưu tiên
                       </span>
                     ) : null}
                   </td>
-                  <td className="px-3 text-zinc-900">{r.name}</td>
-                  <td className="px-3 text-zinc-600">{r.category ?? "—"}</td>
-                  <td className="px-3 tabular-nums text-zinc-600">
+                  <td className="px-3 text-zinc-900 dark:text-zinc-50">{r.name}</td>
+                  <td className="px-3 text-zinc-600 dark:text-zinc-400">{r.category ?? "—"}</td>
+                  <td className="px-3 tabular-nums text-zinc-600 dark:text-zinc-400">
                     {r.leadTimeDays} ngày
                   </td>
-                  <td className="px-3 text-right tabular-nums text-zinc-900">
+                  <td className="px-3 text-right tabular-nums text-zinc-900 dark:text-zinc-50">
                     {r.priceRef
                       ? `${Number(r.priceRef).toLocaleString("vi-VN")} ${r.currency}`
                       : "—"}
@@ -637,7 +637,7 @@ function ItemsTab({
                   <td className="px-3 text-right">
                     <Link
                       href={`/items/${r.itemId}`}
-                      className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                      className="text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
                       onClick={(e) => e.stopPropagation()}
                     >
                       Xem
@@ -700,7 +700,7 @@ function StatsTab({ supplierId }: { supplierId: string }) {
       {/* Top items bought */}
       <div>
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+          <h3 className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
             Top vật tư đã mua
           </h3>
         </div>
@@ -709,10 +709,10 @@ function StatsTab({ supplierId }: { supplierId: string }) {
         ) : (top.data?.data ?? []).length === 0 ? (
           <EmptyState preset="no-data" title="Chưa có PO nào với NCC này" />
         ) : (
-          <div className="overflow-hidden rounded-md border border-zinc-200 bg-white">
+          <div className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
             <table className="min-w-full border-collapse text-base">
-              <thead className="bg-zinc-50">
-                <tr className="text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+              <thead className="bg-zinc-50 dark:bg-zinc-800/60">
+                <tr className="text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                   <th className="h-8 px-3 w-[140px]">SKU</th>
                   <th className="h-8 px-3">Tên</th>
                   <th className="h-8 px-3 w-[80px] text-right">PO</th>
@@ -725,22 +725,22 @@ function StatsTab({ supplierId }: { supplierId: string }) {
                 {(top.data?.data ?? []).map((r: SupplierTopItemRow) => (
                   <tr
                     key={r.itemId}
-                    className="h-9 border-t border-zinc-100 hover:bg-zinc-50"
+                    className="h-9 border-t border-zinc-100 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/60"
                   >
-                    <td className="px-3 font-mono text-sm text-zinc-900">
+                    <td className="px-3 font-mono text-sm text-zinc-900 dark:text-zinc-50">
                       {r.sku}
                     </td>
-                    <td className="px-3 text-zinc-900">{r.name}</td>
-                    <td className="px-3 text-right tabular-nums text-zinc-600">
+                    <td className="px-3 text-zinc-900 dark:text-zinc-50">{r.name}</td>
+                    <td className="px-3 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
                       {r.poCount}
                     </td>
-                    <td className="px-3 text-right tabular-nums text-zinc-600">
+                    <td className="px-3 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
                       {Number(r.totalQty).toLocaleString("vi-VN")} {r.uom}
                     </td>
-                    <td className="px-3 text-right tabular-nums text-zinc-900">
+                    <td className="px-3 text-right tabular-nums text-zinc-900 dark:text-zinc-50">
                       {formatVnd(r.totalSpend)}
                     </td>
-                    <td className="px-3 text-zinc-600">
+                    <td className="px-3 text-zinc-600 dark:text-zinc-400">
                       {formatDate(r.lastOrderDate)}
                     </td>
                   </tr>
@@ -754,12 +754,12 @@ function StatsTab({ supplierId }: { supplierId: string }) {
       {/* Recent PO */}
       <div>
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+          <h3 className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
             PO gần đây
           </h3>
           <Link
             href={`/procurement/purchase-orders?supplierId=${supplierId}`}
-            className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+            className="text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
           >
             Xem tất cả →
           </Link>
@@ -767,10 +767,10 @@ function StatsTab({ supplierId }: { supplierId: string }) {
         {d.recentPurchaseOrders.length === 0 ? (
           <EmptyState preset="no-data" title="Chưa có PO nào" />
         ) : (
-          <div className="overflow-hidden rounded-md border border-zinc-200 bg-white">
+          <div className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
             <table className="min-w-full border-collapse text-base">
-              <thead className="bg-zinc-50">
-                <tr className="text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+              <thead className="bg-zinc-50 dark:bg-zinc-800/60">
+                <tr className="text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                   <th className="h-8 px-3 w-[160px]">PO No</th>
                   <th className="h-8 px-3 w-[120px]">Trạng thái</th>
                   <th className="h-8 px-3 w-[120px]">Ngày đặt</th>
@@ -782,26 +782,26 @@ function StatsTab({ supplierId }: { supplierId: string }) {
                 {d.recentPurchaseOrders.map((po) => (
                   <tr
                     key={po.id}
-                    className="h-9 cursor-pointer border-t border-zinc-100 hover:bg-zinc-50"
+                    className="h-9 cursor-pointer border-t border-zinc-100 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/60"
                     onClick={() =>
                       (window.location.href = `/procurement/purchase-orders/${po.id}`)
                     }
                   >
-                    <td className="px-3 font-mono text-sm text-zinc-900">
+                    <td className="px-3 font-mono text-sm text-zinc-900 dark:text-zinc-50">
                       {po.poNo}
                     </td>
                     <td className="px-3">
-                      <span className="inline-flex items-center rounded bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700">
+                      <span className="inline-flex items-center rounded bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                         {po.status}
                       </span>
                     </td>
-                    <td className="px-3 text-zinc-600">
+                    <td className="px-3 text-zinc-600 dark:text-zinc-400">
                       {formatDate(po.orderDate)}
                     </td>
-                    <td className="px-3 text-zinc-600">
+                    <td className="px-3 text-zinc-600 dark:text-zinc-400">
                       {formatDate(po.expectedEta)}
                     </td>
-                    <td className="px-3 text-right tabular-nums text-zinc-900">
+                    <td className="px-3 text-right tabular-nums text-zinc-900 dark:text-zinc-50">
                       {formatVnd(po.totalAmount)}
                     </td>
                   </tr>
@@ -829,10 +829,10 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-md border border-zinc-200 bg-white p-4">
-      <div className="mb-3 flex items-center gap-2 text-zinc-700">
+    <div className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="mb-3 flex items-center gap-2 text-zinc-700 dark:text-zinc-300">
         {icon}
-        <h3 className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+        <h3 className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
           {title}
         </h3>
       </div>
@@ -849,7 +849,7 @@ function DL({ children }: { children: React.ReactNode }) {
   );
 }
 function DT({ children }: { children: React.ReactNode }) {
-  return <dt className="text-xs uppercase tracking-wider text-zinc-500">{children}</dt>;
+  return <dt className="text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{children}</dt>;
 }
 function DD({
   children,
@@ -859,7 +859,7 @@ function DD({
   mono?: boolean;
 }) {
   return (
-    <dd className={mono ? "font-mono text-sm text-zinc-900" : "text-zinc-900"}>
+    <dd className={mono ? "font-mono text-sm text-zinc-900 dark:text-zinc-50" : "text-zinc-900 dark:text-zinc-50"}>
       {children}
     </dd>
   );
@@ -877,16 +877,16 @@ function MiniKpi({
   icon?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-md border border-zinc-200 bg-white p-3">
-      <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-zinc-500">
+    <div className="rounded-md border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
         {icon}
         {label}
       </div>
-      <div className="mt-1 text-lg font-semibold tabular-nums text-zinc-900">
+      <div className="mt-1 text-lg font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
         {value}
       </div>
       {sublabel ? (
-        <div className="mt-0.5 text-xs text-zinc-500">{sublabel}</div>
+        <div className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{sublabel}</div>
       ) : null}
     </div>
   );

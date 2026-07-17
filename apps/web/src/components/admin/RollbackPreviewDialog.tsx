@@ -154,9 +154,9 @@ export function RollbackPreviewDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
-          <div className="text-xs text-amber-900">
+        <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/40">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+          <div className="text-xs text-amber-900 dark:text-amber-300">
             <p className="font-semibold">Cảnh báo V1.4</p>
             <p className="mt-1">
               V1.4 chỉ preview SQL, KHÔNG tự động thực thi. V2 sẽ hỗ trợ rollback thật.
@@ -166,7 +166,7 @@ export function RollbackPreviewDialog({
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-md border border-zinc-200 bg-zinc-950">
+        <div className="overflow-hidden rounded-md border border-zinc-200 bg-zinc-950 dark:border-zinc-800">
           <pre className="max-h-[320px] overflow-auto p-3 font-mono text-[11px] leading-relaxed text-zinc-100">
             {sql}
           </pre>

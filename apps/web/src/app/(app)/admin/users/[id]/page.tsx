@@ -30,22 +30,22 @@ import { useSession } from "@/hooks/useSession";
 import { cn } from "@/lib/utils";
 
 const ROLE_BADGE: Record<Role, string> = {
-  admin: "bg-violet-50 text-violet-700 ring-violet-200",
-  planner: "bg-indigo-50 text-indigo-700 ring-indigo-200",
-  purchaser: "bg-rose-50 text-rose-700 ring-rose-200",
-  warehouse: "bg-amber-50 text-amber-700 ring-amber-200",
-  operator: "bg-zinc-100 text-zinc-700 ring-zinc-200",
-  qc: "bg-teal-50 text-teal-700 ring-teal-200",
-  display: "bg-sky-50 text-sky-700 ring-sky-200",
-  accountant: "bg-lime-50 text-lime-700 ring-lime-200",
+  admin: "bg-violet-50 text-violet-700 ring-violet-200 dark:bg-violet-950/40 dark:text-violet-400 dark:ring-violet-800",
+  planner: "bg-indigo-50 text-indigo-700 ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-800",
+  purchaser: "bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:ring-rose-800",
+  warehouse: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800",
+  operator: "bg-zinc-100 text-zinc-700 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700",
+  qc: "bg-teal-50 text-teal-700 ring-teal-200 dark:bg-teal-950/40 dark:text-teal-400 dark:ring-teal-800",
+  display: "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:ring-sky-800",
+  accountant: "bg-lime-50 text-lime-700 ring-lime-200 dark:bg-lime-950/40 dark:text-lime-400 dark:ring-lime-800",
 };
 
 const ACTION_COLORS: Record<string, string> = {
-  CREATE: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  UPDATE: "bg-sky-50 text-sky-700 ring-sky-200",
-  DELETE: "bg-rose-50 text-rose-700 ring-rose-200",
-  LOGIN: "bg-indigo-50 text-indigo-700 ring-indigo-200",
-  LOGOUT: "bg-zinc-100 text-zinc-600 ring-zinc-200",
+  CREATE: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800",
+  UPDATE: "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:ring-sky-800",
+  DELETE: "bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:ring-rose-800",
+  LOGIN: "bg-indigo-50 text-indigo-700 ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-800",
+  LOGOUT: "bg-zinc-100 text-zinc-600 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",
 };
 
 function fmtTime(iso: string): string {
@@ -105,7 +105,7 @@ export default function AdminUserDetailPage({
         ]}
         title="Đang tải…"
       >
-        <div className="rounded-xl border border-zinc-200 bg-white p-12 text-center text-sm text-zinc-500 shadow-sm">
+        <div className="rounded-xl border border-zinc-200 bg-white p-12 text-center text-sm text-zinc-500 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
           Đang tải thông tin user…
         </div>
       </AdminPageShell>
@@ -123,8 +123,8 @@ export default function AdminUserDetailPage({
         ]}
         title="Không tải được"
       >
-        <div className="rounded-xl border border-rose-200 bg-rose-50 p-6 text-center">
-          <p className="text-sm text-rose-700">Không tải được thông tin user.</p>
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-6 text-center dark:border-rose-800 dark:bg-rose-950/40">
+          <p className="text-sm text-rose-700 dark:text-rose-400">Không tải được thông tin user.</p>
           <Button
             variant="ghost"
             size="sm"
@@ -192,15 +192,15 @@ export default function AdminUserDetailPage({
       title={user.fullName}
       description={
         <span className="flex flex-wrap items-center gap-2">
-          <code className="font-mono text-xs text-zinc-700">
+          <code className="font-mono text-xs text-zinc-700 dark:text-zinc-300">
             {user.username}
           </code>
           <span
             className={cn(
               "inline-flex h-5 items-center gap-1 rounded-full px-1.5 text-[10px] font-semibold uppercase ring-1 ring-inset",
               user.isActive
-                ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-                : "bg-zinc-100 text-zinc-500 ring-zinc-200",
+                ? "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800"
+                : "bg-zinc-100 text-zinc-500 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",
             )}
           >
             <span
@@ -266,37 +266,37 @@ export default function AdminUserDetailPage({
         <TabsContent value="info">
           <div className="grid gap-4 lg:grid-cols-[280px,1fr]">
             {/* Left: avatar card */}
-            <aside className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
+            <aside className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
               <div className="flex flex-col items-center text-center">
                 <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 text-2xl font-semibold tracking-tight text-white shadow-sm">
                   {initials || user.username.slice(0, 2).toUpperCase()}
                 </div>
-                <p className="mt-3 text-sm font-semibold tracking-tight text-zinc-900">
+                <p className="mt-3 text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
                   {user.fullName}
                 </p>
-                <code className="mt-0.5 font-mono text-xs text-zinc-500">
+                <code className="mt-0.5 font-mono text-xs text-zinc-500 dark:text-zinc-400">
                   {user.username}
                 </code>
               </div>
-              <dl className="mt-5 space-y-2 border-t border-zinc-100 pt-4 text-xs">
+              <dl className="mt-5 space-y-2 border-t border-zinc-100 pt-4 text-xs dark:border-zinc-800">
                 <div className="flex items-center justify-between">
-                  <dt className="text-zinc-500">Email</dt>
-                  <dd className="truncate font-medium text-zinc-700">
+                  <dt className="text-zinc-500 dark:text-zinc-400">Email</dt>
+                  <dd className="truncate font-medium text-zinc-700 dark:text-zinc-300">
                     {user.email ?? "—"}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between">
-                  <dt className="text-zinc-500">Vai trò</dt>
-                  <dd className="font-medium text-zinc-700">
+                  <dt className="text-zinc-500 dark:text-zinc-400">Vai trò</dt>
+                  <dd className="font-medium text-zinc-700 dark:text-zinc-300">
                     {user.roles.length} role
                   </dd>
                 </div>
                 <div className="flex items-center justify-between">
-                  <dt className="text-zinc-500">Trạng thái</dt>
+                  <dt className="text-zinc-500 dark:text-zinc-400">Trạng thái</dt>
                   <dd
                     className={cn(
                       "font-semibold",
-                      user.isActive ? "text-emerald-700" : "text-zinc-500",
+                      user.isActive ? "text-emerald-700 dark:text-emerald-400" : "text-zinc-500 dark:text-zinc-400",
                     )}
                   >
                     {user.isActive ? "Đang hoạt động" : "Vô hiệu hoá"}
@@ -306,7 +306,7 @@ export default function AdminUserDetailPage({
             </aside>
 
             {/* Right: form */}
-            <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+            <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
               <UserForm
                 mode="edit"
                 value={form}
@@ -316,7 +316,7 @@ export default function AdminUserDetailPage({
                 disabled={update.isPending}
               />
 
-              <section className="mt-6 border-t border-zinc-200 pt-4">
+              <section className="mt-6 border-t border-zinc-200 pt-4 dark:border-zinc-800">
                 <label className="flex cursor-pointer items-start gap-3">
                   <input
                     type="checkbox"
@@ -327,13 +327,13 @@ export default function AdminUserDetailPage({
                       )
                     }
                     disabled={update.isPending}
-                    className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                    className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 dark:border-zinc-700"
                   />
                   <div>
-                    <span className="text-sm font-medium tracking-tight text-zinc-900">
+                    <span className="text-sm font-medium tracking-tight text-zinc-900 dark:text-zinc-50">
                       Tài khoản đang hoạt động
                     </span>
-                    <p className="text-xs text-zinc-500">
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
                       Bỏ tick sẽ chặn user đăng nhập — tương đương &quot;Vô hiệu
                       hoá&quot;.
                     </p>
@@ -341,7 +341,7 @@ export default function AdminUserDetailPage({
                 </label>
               </section>
 
-              <div className="mt-5 flex items-center justify-end gap-2 border-t border-zinc-200 pt-4">
+              <div className="mt-5 flex items-center justify-end gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -371,23 +371,23 @@ export default function AdminUserDetailPage({
         </TabsContent>
 
         <TabsContent value="audit">
-          <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+          <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
             {auditQuery.isLoading ? (
-              <div className="p-8 text-center text-sm text-zinc-500">
+              <div className="p-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
                 Đang tải…
               </div>
             ) : (auditQuery.data?.data ?? []).length === 0 ? (
-              <div className="p-8 text-center text-sm text-zinc-500">
+              <div className="p-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
                 Chưa có hoạt động nào được ghi lại.
               </div>
             ) : (
-              <ul className="divide-y divide-zinc-100">
+              <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
                 {auditQuery.data!.data.map((ev) => (
                   <li
                     key={ev.id}
-                    className="grid min-h-[40px] grid-cols-[170px,90px,1fr,1fr] items-center gap-3 px-4 py-2 text-xs transition-colors hover:bg-zinc-50/70"
+                    className="grid min-h-[40px] grid-cols-[170px,90px,1fr,1fr] items-center gap-3 px-4 py-2 text-xs transition-colors hover:bg-zinc-50/70 dark:hover:bg-zinc-800/60"
                   >
-                    <span className="font-mono text-[11px] text-zinc-500 tabular-nums">
+                    <span className="font-mono text-[11px] text-zinc-500 tabular-nums dark:text-zinc-400">
                       {fmtTime(ev.occurredAt)}
                     </span>
                     <span
@@ -398,15 +398,15 @@ export default function AdminUserDetailPage({
                     >
                       {ev.action}
                     </span>
-                    <span className="truncate text-zinc-700">
+                    <span className="truncate text-zinc-700 dark:text-zinc-300">
                       {ev.objectType}
                       {ev.objectId ? (
-                        <code className="ml-1 font-mono text-[10px] text-zinc-400">
+                        <code className="ml-1 font-mono text-[10px] text-zinc-400 dark:text-zinc-500">
                           #{ev.objectId.slice(0, 8)}
                         </code>
                       ) : null}
                     </span>
-                    <span className="truncate text-zinc-500">
+                    <span className="truncate text-zinc-500 dark:text-zinc-400">
                       {ev.notes ?? "—"}
                     </span>
                   </li>

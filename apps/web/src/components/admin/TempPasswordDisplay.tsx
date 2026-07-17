@@ -43,15 +43,15 @@ export function TempPasswordDisplay({
   return (
     <div
       className={cn(
-        "flex items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2",
+        "flex items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-800",
         className,
       )}
     >
       <div className="flex min-w-0 flex-1 flex-col">
-        <span className="text-[10px] font-semibold uppercase tracking-normal text-zinc-500">
+        <span className="text-[10px] font-semibold uppercase tracking-normal text-zinc-500 dark:text-zinc-400">
           {label}
         </span>
-        <code className="truncate font-mono text-sm font-semibold text-zinc-900">
+        <code className="truncate font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-50">
           {value}
         </code>
       </div>
@@ -66,7 +66,7 @@ export function TempPasswordDisplay({
               aria-label="Copy mật khẩu"
             >
               {copied ? (
-                <Check className="h-3.5 w-3.5 text-emerald-600" aria-hidden="true" />
+                <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
               ) : (
                 <Copy className="h-3.5 w-3.5" aria-hidden="true" />
               )}

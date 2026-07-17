@@ -198,7 +198,7 @@ export default function ReceivingDetailPage({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center gap-2 py-12 text-sm text-zinc-500">
+      <div className="flex items-center justify-center gap-2 py-12 text-sm text-zinc-500 dark:text-zinc-400">
         <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
         Đang tải PO…
       </div>
@@ -207,20 +207,20 @@ export default function ReceivingDetailPage({
 
   if (isError || !po) {
     return (
-      <div className="mx-auto max-w-md rounded-md border border-amber-200 bg-amber-50 p-6 text-center">
+      <div className="mx-auto max-w-md rounded-md border border-amber-200 bg-amber-50 p-6 text-center dark:border-amber-800 dark:bg-amber-950/40">
         <AlertTriangle
           className="mx-auto h-8 w-8 text-amber-500"
           aria-hidden="true"
         />
-        <h1 className="mt-3 text-sm font-semibold text-zinc-900">
+        <h1 className="mt-3 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
           PO không khả dụng
         </h1>
-        <p className="mt-1 text-xs text-zinc-600">
+        <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
           {(error as Error | undefined)?.message ?? "Không tìm thấy PO."}
         </p>
         <Link
           href="/receiving"
-          className="mt-4 inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+          className="mt-4 inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
         >
           <ArrowLeft className="h-3 w-3" aria-hidden="true" />
           Về danh sách
@@ -238,21 +238,21 @@ export default function ReceivingDetailPage({
         <div className="min-w-0">
           <Link
             href="/warehouse?tab=receiving"
-            className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-indigo-600"
+            className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400"
           >
             <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
             Về danh sách PO chờ nhận
           </Link>
           <div className="mt-2 flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-100">
-              <Truck className="h-6 w-6 text-indigo-700" aria-hidden />
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-900/50">
+              <Truck className="h-6 w-6 text-indigo-700 dark:text-indigo-400" aria-hidden />
             </div>
             <div className="min-w-0">
-              <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
+              <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
                 Nhận hàng (form đơn giản)
               </h1>
-              <p className="mt-0.5 text-sm text-zinc-500">
-                <span className="font-mono font-semibold text-zinc-700">{po.poCode}</span>
+              <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+                <span className="font-mono font-semibold text-zinc-700 dark:text-zinc-300">{po.poCode}</span>
                 {po.supplierName && <> · {po.supplierName}</>}
                 {po.expectedDate && <> · ETA {po.expectedDate}</>}
                 {" · "}{totals?.linesTotal ?? po.lines.length} dòng
@@ -264,10 +264,10 @@ export default function ReceivingDetailPage({
           {po.status && (
             <span className={cn(
               "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset",
-              po.status === "PARTIAL" ? "bg-amber-50 text-amber-700 ring-amber-200" :
-              po.status === "RECEIVED" || po.status === "CLOSED" ? "bg-emerald-50 text-emerald-700 ring-emerald-200" :
-              po.status === "CANCELLED" ? "bg-red-50 text-red-700 ring-red-200" :
-              "bg-blue-50 text-blue-700 ring-blue-200",
+              po.status === "PARTIAL" ? "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800" :
+              po.status === "RECEIVED" || po.status === "CLOSED" ? "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800" :
+              po.status === "CANCELLED" ? "bg-red-50 text-red-700 ring-red-200 dark:bg-red-950/40 dark:text-red-400 dark:ring-red-800" :
+              "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:ring-blue-800",
             )}>
               <span className={cn(
                 "h-2 w-2 rounded-full",
@@ -283,7 +283,7 @@ export default function ReceivingDetailPage({
             href={`/pwa/receive/${po.poId}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition-colors dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
           >
             <Smartphone className="h-3.5 w-3.5" aria-hidden />
             Mở PWA tablet
@@ -292,14 +292,14 @@ export default function ReceivingDetailPage({
       </div>
 
       {totals ? (
-        <section className="rounded-md border border-zinc-200 bg-white p-4">
-          <div className="flex items-center justify-between text-xs text-zinc-600">
+        <section className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="flex items-center justify-between text-xs text-zinc-600 dark:text-zinc-400">
             <span>
               Tiến độ nhận: <strong>{totals.receivedPct}%</strong> (
               {totals.receivedTotal}/{totals.orderedTotal})
             </span>
           </div>
-          <div className="mt-2 h-2 overflow-hidden rounded-full bg-zinc-100">
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
             <div
               className="h-full bg-indigo-500 transition-all"
               style={{ width: `${Math.min(100, totals.receivedPct)}%` }}
@@ -309,7 +309,7 @@ export default function ReceivingDetailPage({
       ) : null}
 
       {isComplete ? (
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400">
           <CheckCircle2 className="mr-1 inline h-4 w-4" aria-hidden="true" />
           PO đã {po.status}. Không thể ghi thêm lô hàng.
         </div>
@@ -327,9 +327,9 @@ export default function ReceivingDetailPage({
       {/* Bảng lines + input */}
       <section
         aria-label="Danh sách dòng PO"
-        className="overflow-hidden rounded-md border border-zinc-200 bg-white"
+        className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
       >
-        <div className="grid grid-cols-[auto,1fr,auto,auto,auto,auto] gap-3 border-b border-zinc-200 bg-zinc-50 px-4 py-2 text-xs font-medium uppercase tracking-wider text-zinc-500">
+        <div className="grid grid-cols-[auto,1fr,auto,auto,auto,auto] gap-3 border-b border-zinc-200 bg-zinc-50 px-4 py-2 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
           <div>#</div>
           <div>Mặt hàng</div>
           <div className="text-right">Đã nhận / Đặt</div>
@@ -338,7 +338,7 @@ export default function ReceivingDetailPage({
           <div>Lô / QC</div>
         </div>
         {po.lines.length === 0 ? (
-          <p className="px-4 py-6 text-center text-sm text-zinc-500">
+          <p className="px-4 py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
             PO không có dòng nào.
           </p>
         ) : (
@@ -355,7 +355,7 @@ export default function ReceivingDetailPage({
       </section>
 
       {/* Notes + submit */}
-      <section className="flex flex-col gap-3 rounded-md border border-zinc-200 bg-white p-4">
+      <section className="flex flex-col gap-3 rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="space-y-1.5">
           <Label htmlFor="receiving-notes" uppercase>
             Ghi chú (tuỳ chọn)
@@ -369,7 +369,7 @@ export default function ReceivingDetailPage({
           />
         </div>
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
             {activeLines.length} dòng sẽ được ghi nhận.
           </p>
           <Button
@@ -413,37 +413,37 @@ function LineRow({
   return (
     <div
       className={cn(
-        "grid grid-cols-[auto,1fr,auto,auto,auto,auto] items-center gap-3 border-t border-zinc-100 px-4 py-3",
-        isDone && "bg-emerald-50/40",
+        "grid grid-cols-[auto,1fr,auto,auto,auto,auto] items-center gap-3 border-t border-zinc-100 px-4 py-3 dark:border-zinc-800",
+        isDone && "bg-emerald-50/40 dark:bg-emerald-950/40",
       )}
     >
-      <div className="font-mono text-xs text-zinc-500">{ln.lineNo}</div>
+      <div className="font-mono text-xs text-zinc-500 dark:text-zinc-400">{ln.lineNo}</div>
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <code className="font-mono text-xs font-semibold text-zinc-900">
+          <code className="font-mono text-xs font-semibold text-zinc-900 dark:text-zinc-50">
             {ln.sku}
           </code>
           {ln.expectedLotSerial === "LOT" ? (
-            <span className="inline-flex items-center rounded-sm bg-blue-50 px-1.5 py-0.5 text-xs font-medium text-blue-700">
+            <span className="inline-flex items-center rounded-sm bg-blue-50 px-1.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-400">
               Lô
             </span>
           ) : null}
           {ln.expectedLotSerial === "SERIAL" ? (
-            <span className="inline-flex items-center rounded-sm bg-purple-50 px-1.5 py-0.5 text-xs font-medium text-purple-700">
+            <span className="inline-flex items-center rounded-sm bg-purple-50 px-1.5 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-950/40 dark:text-purple-400">
               Serial
             </span>
           ) : null}
           {isDone ? <StatusBadge status="ready" size="sm" /> : null}
         </div>
-        <p className="mt-0.5 truncate text-xs text-zinc-600">{ln.itemName}</p>
+        <p className="mt-0.5 truncate text-xs text-zinc-600 dark:text-zinc-400">{ln.itemName}</p>
       </div>
-      <div className="text-right text-xs tabular-nums text-zinc-700">
+      <div className="text-right text-xs tabular-nums text-zinc-700 dark:text-zinc-300">
         {ln.receivedQty} / {ln.orderedQty} {ln.uom}
       </div>
       <div
         className={cn(
           "text-right text-xs tabular-nums",
-          isDone ? "text-emerald-700" : "text-zinc-900",
+          isDone ? "text-emerald-700 dark:text-emerald-400" : "text-zinc-900 dark:text-zinc-50",
         )}
       >
         {ln.remainingQty} {ln.uom}
@@ -488,11 +488,11 @@ function LineRow({
                 "inline-flex h-7 items-center justify-center rounded-md border px-2 text-xs font-medium transition-colors",
                 input.qcStatus === qc
                   ? qc === "OK"
-                    ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                    ? "border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
                     : qc === "NG"
-                      ? "border-red-500 bg-red-50 text-red-700"
-                      : "border-zinc-400 bg-zinc-100 text-zinc-800"
-                  : "border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-50",
+                      ? "border-red-500 bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400"
+                      : "border-zinc-400 bg-zinc-100 text-zinc-800 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200"
+                  : "border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60",
                 (disabled || isDone) && "opacity-50",
               )}
               aria-pressed={input.qcStatus === qc}

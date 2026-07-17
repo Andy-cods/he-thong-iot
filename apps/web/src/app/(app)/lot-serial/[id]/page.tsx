@@ -104,7 +104,7 @@ export default async function LotSerialDetailPage({
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-4">
+      <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex items-center gap-3">
           <Button asChild variant="ghost" size="sm">
             <Link href="/items">
@@ -113,11 +113,11 @@ export default async function LotSerialDetailPage({
             </Link>
           </Button>
           <div>
-            <h1 className="font-mono text-lg font-semibold tracking-tight text-zinc-900">
-              <Package className="mr-1 inline-block h-5 w-5 text-zinc-500" />
+            <h1 className="font-mono text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+              <Package className="mr-1 inline-block h-5 w-5 text-zinc-500 dark:text-zinc-400" />
               {lot.lotCode ?? lot.serialCode ?? lot.id.slice(0, 8)}
             </h1>
-            <div className="mt-0.5 flex items-center gap-2 text-xs text-zinc-500">
+            <div className="mt-0.5 flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
               <Badge variant={statusVariant(lot.status)}>{lot.status}</Badge>
               <span>·</span>
               <span>SKU: {lot.itemSku ?? "—"}</span>
@@ -155,7 +155,7 @@ export default async function LotSerialDetailPage({
               value={`${lot.mfgDate ?? "—"} / ${lot.expDate ?? "—"}`}
             />
             {lot.holdReason ? (
-              <div className="md:col-span-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+              <div className="md:col-span-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400">
                 <strong>HOLD reason: </strong>
                 {lot.holdReason}
               </div>
@@ -163,16 +163,16 @@ export default async function LotSerialDetailPage({
           </section>
 
           <section className="space-y-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
               Lifecycle timeline ({timeline.length} event)
             </h2>
             {timeline.length === 0 ? (
-              <p className="rounded-md border border-dashed border-zinc-300 bg-zinc-50 px-3 py-8 text-center text-sm text-zinc-500">
+              <p className="rounded-md border border-dashed border-zinc-300 bg-zinc-50 px-3 py-8 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
                 Chưa có event nào cho lot này.
               </p>
             ) : (
-              <div className="overflow-hidden rounded-md border border-zinc-200 bg-white">
-                <ul className="divide-y divide-zinc-100">
+              <div className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+                <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
                   {timeline.map((ev, i) => {
                     const Icon = eventIcon(ev.kind, ev.txType ?? null);
                     const sign =
@@ -190,14 +190,14 @@ export default async function LotSerialDetailPage({
                           : "";
                     const toneClass =
                       sign === "+"
-                        ? "text-emerald-700"
+                        ? "text-emerald-700 dark:text-emerald-400"
                         : sign === "−"
-                          ? "text-red-700"
+                          ? "text-red-700 dark:text-red-400"
                           : ev.kind === "RESERVE"
-                            ? "text-indigo-700"
+                            ? "text-indigo-700 dark:text-indigo-400"
                             : ev.kind === "RELEASE"
-                              ? "text-amber-700"
-                              : "text-zinc-700";
+                              ? "text-amber-700 dark:text-amber-400"
+                              : "text-zinc-700 dark:text-zinc-300";
                     return (
                       <li
                         key={`${ev.eventAt}-${i}`}
@@ -208,16 +208,16 @@ export default async function LotSerialDetailPage({
                           aria-hidden="true"
                         />
                         <div className="min-w-0">
-                          <div className="text-sm font-medium text-zinc-900">
+                          <div className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
                             {eventLabel(ev.kind, ev.txType ?? null)}
                           </div>
-                          <div className="mt-0.5 text-xs text-zinc-500">
+                          <div className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
                             {new Date(ev.eventAt).toLocaleString("vi-VN")}
                             {ev.actorUsername ? ` · ${ev.actorUsername}` : ""}
                             {ev.refTable ? ` · ${ev.refTable}` : ""}
                           </div>
                           {ev.note ? (
-                            <div className="mt-1 text-xs text-zinc-600">
+                            <div className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
                               {ev.note}
                             </div>
                           ) : null}
@@ -252,15 +252,15 @@ function KpiCard({
 }) {
   const toneClass =
     tone === "primary"
-      ? "text-indigo-700"
+      ? "text-indigo-700 dark:text-indigo-400"
       : tone === "info"
-        ? "text-blue-700"
+        ? "text-blue-700 dark:text-blue-400"
         : tone === "success"
-          ? "text-emerald-700"
-          : "text-zinc-800";
+          ? "text-emerald-700 dark:text-emerald-400"
+          : "text-zinc-800 dark:text-zinc-200";
   return (
-    <div className="rounded-md border border-zinc-200 bg-white p-3">
-      <div className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+    <div className="rounded-md border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
         {label}
       </div>
       <div className={`mt-1 text-xl font-semibold tabular-nums ${toneClass}`}>
@@ -272,9 +272,9 @@ function KpiCard({
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-zinc-200 bg-white p-3">
-      <div className="text-xs font-semibold text-zinc-500">{label}</div>
-      <div className="mt-1 text-sm text-zinc-900">{value}</div>
+    <div className="rounded-md border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">{label}</div>
+      <div className="mt-1 text-sm text-zinc-900 dark:text-zinc-50">{value}</div>
     </div>
   );
 }

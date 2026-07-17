@@ -109,9 +109,9 @@ export function ResetPasswordDialog({
                 của user sẽ bị thu hồi.
               </DialogDescription>
             </DialogHeader>
-            <div className="flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+            <div className="flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
               <AlertTriangle
-                className="mt-0.5 h-4 w-4 shrink-0 text-amber-600"
+                className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400"
                 aria-hidden="true"
               />
               <div>
@@ -146,20 +146,20 @@ export function ResetPasswordDialog({
                 đổi sang mật khẩu riêng sau khi đăng nhập lần đầu.
               </DialogDescription>
             </DialogHeader>
-            <div className="rounded-md border border-zinc-200 bg-zinc-950 p-4 text-center">
+            <div className="rounded-md border border-zinc-200 bg-zinc-950 p-4 text-center dark:border-zinc-800">
               <code className="select-all font-mono text-base font-semibold tracking-wider text-emerald-300">
                 {result.tempPassword}
               </code>
             </div>
-            <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-600">
+            <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-400">
               <p>
                 Đã thu hồi <strong>{result.revokedSessions}</strong> phiên
                 đăng nhập của user này.
               </p>
             </div>
-            <div className="flex items-start gap-3 rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-900">
+            <div className="flex items-start gap-3 rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-900 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
               <AlertTriangle
-                className="mt-0.5 h-4 w-4 shrink-0 text-red-600"
+                className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400"
                 aria-hidden="true"
               />
               <p>

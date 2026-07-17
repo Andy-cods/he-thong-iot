@@ -102,13 +102,13 @@ export function ProgressReportForm({
   return (
     <form
       onSubmit={onSubmit}
-      className="rounded-md border border-zinc-200 bg-white p-4"
+      className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
     >
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-zinc-800">
+        <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
           Báo cáo tiến độ / sự cố
         </h3>
-        <span className="text-[11px] text-zinc-500">
+        <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
           Dành cho operator / kỹ thuật trạm máy
         </span>
       </div>
@@ -119,7 +119,7 @@ export function ProgressReportForm({
           <select
             value={stepType}
             onChange={(e) => setStepType(e.target.value as WoProgressStepType)}
-            className="mt-1 h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="mt-1 h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
           >
             {STEP_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
@@ -135,7 +135,7 @@ export function ProgressReportForm({
             <select
               value={lineId}
               onChange={(e) => setLineId(e.target.value)}
-              className="mt-1 h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="mt-1 h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
             >
               <option value="">— không chọn —</option>
               {lines.map((l) => (

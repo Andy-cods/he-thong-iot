@@ -395,7 +395,7 @@ export function AssemblyConsole({
       {!online ? (
         <div
           role="status"
-          className="sticky top-0 z-sticky flex items-center justify-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800"
+          className="sticky top-0 z-sticky flex items-center justify-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
         >
           <WifiOff className="h-4 w-4" aria-hidden="true" />
           Đang mất kết nối — scan được lưu hàng đợi, tự đồng bộ khi có mạng.
@@ -405,7 +405,7 @@ export function AssemblyConsole({
       {syncProgress ? (
         <div
           role="status"
-          className="sticky top-0 z-sticky flex items-center justify-center gap-2 border-b border-blue-200 bg-blue-50 px-4 py-2 text-xs font-medium text-blue-800"
+          className="sticky top-0 z-sticky flex items-center justify-center gap-2 border-b border-blue-200 bg-blue-50 px-4 py-2 text-xs font-medium text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300"
         >
           <RefreshCw
             className="h-3.5 w-3.5 animate-spin"
@@ -415,13 +415,13 @@ export function AssemblyConsole({
         </div>
       ) : null}
 
-      <header className="flex h-12 items-center justify-between gap-4 border-b border-zinc-200 bg-white px-4">
+      <header className="flex h-12 items-center justify-between gap-4 border-b border-zinc-200 bg-white px-4 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex min-w-0 items-center gap-3">
           <Factory
-            className="h-4 w-4 shrink-0 text-zinc-500"
+            className="h-4 w-4 shrink-0 text-zinc-500 dark:text-zinc-400"
             aria-hidden="true"
           />
-          <code className="font-mono text-[13px] font-semibold text-zinc-900">
+          <code className="font-mono text-[13px] font-semibold text-zinc-900 dark:text-zinc-50">
             {woNo}
           </code>
           <Badge
@@ -438,17 +438,17 @@ export function AssemblyConsole({
           >
             {woStatus}
           </Badge>
-          <span className="truncate text-xs text-zinc-500">
+          <span className="truncate text-xs text-zinc-500 dark:text-zinc-400">
             {orderNo ? `Đơn ${orderNo}` : "—"}
             {customerName ? ` · ${customerName}` : ""}
           </span>
         </div>
-        <div className="flex shrink-0 items-center gap-2 text-xs font-medium text-zinc-600 tabular-nums">
+        <div className="flex shrink-0 items-center gap-2 text-xs font-medium text-zinc-600 tabular-nums dark:text-zinc-400">
           <span>
             {doneLines}/{lines.length} dòng
           </span>
-          <span className="text-zinc-300">·</span>
-          <span className="text-indigo-700">{progress}%</span>
+          <span className="text-zinc-300 dark:text-zinc-600">·</span>
+          <span className="text-indigo-700 dark:text-indigo-300">{progress}%</span>
           {canComplete ? (
             <Button size="sm" onClick={() => void handleCompleteWO()}>
               <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -465,9 +465,9 @@ export function AssemblyConsole({
 
             <section
               aria-label="Danh sách component"
-              className="overflow-hidden rounded-md border border-zinc-200 bg-white"
+              className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
             >
-              <div className="flex h-8 items-center border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
+              <div className="flex h-8 items-center border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
                 Component ({lines.length})
               </div>
               <div>
@@ -480,21 +480,21 @@ export function AssemblyConsole({
                     <div
                       key={l.snapshotLineId}
                       className={cn(
-                        "grid grid-cols-[auto,1fr,auto] items-center gap-3 border-t border-zinc-100 px-4 py-2 transition-colors hover:bg-zinc-50",
-                        isActive && "bg-blue-50",
-                        isDone && "bg-emerald-50/40",
+                        "grid grid-cols-[auto,1fr,auto] items-center gap-3 border-t border-zinc-100 px-4 py-2 transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/60",
+                        isActive && "bg-blue-50 dark:bg-blue-950/40",
+                        isDone && "bg-emerald-50/40 dark:bg-emerald-950/30",
                       )}
                     >
                       <Package
                         className={cn(
                           "h-4 w-4 shrink-0",
-                          isDone ? "text-emerald-500" : "text-zinc-400",
+                          isDone ? "text-emerald-500 dark:text-emerald-400" : "text-zinc-400 dark:text-zinc-500",
                         )}
                         aria-hidden="true"
                       />
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <code className="font-mono text-xs font-semibold text-zinc-900">
+                          <code className="font-mono text-xs font-semibold text-zinc-900 dark:text-zinc-50">
                             {l.componentSku}
                           </code>
                           <Badge
@@ -505,7 +505,7 @@ export function AssemblyConsole({
                           </Badge>
                           {l.reservations.filter((r) => r.status === "ACTIVE")
                             .length > 0 ? (
-                            <span className="inline-flex items-center rounded-sm bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
+                            <span className="inline-flex items-center rounded-sm bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-400">
                               {
                                 l.reservations.filter(
                                   (r) => r.status === "ACTIVE",
@@ -515,19 +515,19 @@ export function AssemblyConsole({
                             </span>
                           ) : null}
                         </div>
-                        <p className="mt-0.5 truncate text-xs text-zinc-600">
+                        <p className="mt-0.5 truncate text-xs text-zinc-600 dark:text-zinc-400">
                           {l.componentName}
                         </p>
                       </div>
                       <div className="text-right text-xs tabular-nums">
-                        <div className="font-semibold text-zinc-900">
+                        <div className="font-semibold text-zinc-900 dark:text-zinc-50">
                           {fmtQty(issuedDisplay)} / {fmtQty(l.requiredQty)}
                         </div>
                         <div
                           className={cn(
                             remaining === 0
-                              ? "text-emerald-700"
-                              : "text-zinc-500",
+                              ? "text-emerald-700 dark:text-emerald-400"
+                              : "text-zinc-500 dark:text-zinc-400",
                           )}
                         >
                           {remaining === 0
@@ -544,11 +544,11 @@ export function AssemblyConsole({
 
           <aside className="hidden lg:block">
             <div className="sticky top-16 space-y-3">
-              <div className="rounded-md border border-zinc-200 bg-white p-4">
-                <h2 className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+              <div className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+                <h2 className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                   Hướng dẫn nhanh
                 </h2>
-                <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-zinc-600">
+                <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-zinc-600 dark:text-zinc-400">
                   <li>Quét mã lot (từ reservation) trên kệ.</li>
                   <li>
                     Hệ thống tự match lot → line → suggest qty còn thiếu.
@@ -560,7 +560,7 @@ export function AssemblyConsole({
                 </ol>
               </div>
               {woStatus !== "IN_PROGRESS" ? (
-                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
                   WO đang ở state <code>{woStatus}</code>. Scan chỉ thực thi khi
                   WO đã Start.
                 </div>

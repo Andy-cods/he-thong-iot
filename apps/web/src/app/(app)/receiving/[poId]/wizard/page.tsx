@@ -75,7 +75,7 @@ export default function ReceivingWizardPage({
   return (
     <React.Suspense
       fallback={
-        <div className="p-6 text-sm text-zinc-500">Đang tải PO…</div>
+        <div className="p-6 text-sm text-zinc-500 dark:text-zinc-400">Đang tải PO…</div>
       }
     >
       <ReceivingWizardInner poId={params.poId} />
@@ -211,7 +211,7 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
 
   if (isLoading) {
     return (
-      <div className="flex h-full items-center justify-center gap-2 text-sm text-zinc-500">
+      <div className="flex h-full items-center justify-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
         <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
         Đang tải PO…
       </div>
@@ -220,20 +220,20 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
 
   if (isError || !po) {
     return (
-      <div className="mx-auto mt-12 max-w-md rounded-md border border-amber-200 bg-amber-50 p-6 text-center">
+      <div className="mx-auto mt-12 max-w-md rounded-md border border-amber-200 bg-amber-50 p-6 text-center dark:border-amber-800 dark:bg-amber-950/40">
         <AlertTriangle
           className="mx-auto h-8 w-8 text-amber-500"
           aria-hidden="true"
         />
-        <h1 className="mt-3 text-sm font-semibold text-zinc-900">
+        <h1 className="mt-3 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
           PO không khả dụng
         </h1>
-        <p className="mt-1 text-xs text-zinc-600">
+        <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
           {(error as Error | undefined)?.message ?? "Không tìm thấy PO."}
         </p>
         <Link
           href="/warehouse?tab=receiving"
-          className="mt-4 inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+          className="mt-4 inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
         >
           <ArrowLeft className="h-3 w-3" aria-hidden="true" />
           Về danh sách
@@ -348,30 +348,30 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
   };
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-zinc-50/30">
-      <header className="border-b border-zinc-200 bg-white px-6 py-5">
-        <nav aria-label="Breadcrumb" className="text-xs text-zinc-500">
-          <Link href="/" className="hover:text-zinc-900 hover:underline">Tổng quan</Link>
-          <span className="mx-1.5 text-zinc-300">›</span>
-          <Link href="/warehouse?tab=receiving" className="hover:text-zinc-900 hover:underline">
+    <div className="flex h-full flex-col overflow-hidden bg-zinc-50/30 dark:bg-zinc-950">
+      <header className="border-b border-zinc-200 bg-white px-6 py-5 dark:border-zinc-800 dark:bg-zinc-900">
+        <nav aria-label="Breadcrumb" className="text-xs text-zinc-500 dark:text-zinc-400">
+          <Link href="/" className="hover:text-zinc-900 hover:underline dark:hover:text-zinc-50">Tổng quan</Link>
+          <span className="mx-1.5 text-zinc-300 dark:text-zinc-600">›</span>
+          <Link href="/warehouse?tab=receiving" className="hover:text-zinc-900 hover:underline dark:hover:text-zinc-50">
             Quản lý kho
           </Link>
-          <span className="mx-1.5 text-zinc-300">›</span>
-          <span className="text-zinc-700">Nhận hàng</span>
-          <span className="mx-1.5 text-zinc-300">›</span>
-          <span className="font-medium text-zinc-900">Wizard {po.poCode}</span>
+          <span className="mx-1.5 text-zinc-300 dark:text-zinc-600">›</span>
+          <span className="text-zinc-700 dark:text-zinc-300">Nhận hàng</span>
+          <span className="mx-1.5 text-zinc-300 dark:text-zinc-600">›</span>
+          <span className="font-medium text-zinc-900 dark:text-zinc-50">Wizard {po.poCode}</span>
         </nav>
         <div className="mt-2 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100">
-              <Truck className="h-6 w-6 text-indigo-700" aria-hidden />
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-900/50">
+              <Truck className="h-6 w-6 text-indigo-700 dark:text-indigo-400" aria-hidden />
             </div>
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
+              <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
                 Wizard nhận hàng
               </h1>
-              <p className="mt-0.5 text-sm text-zinc-500">
-                <span className="font-mono font-semibold text-zinc-700">{po.poCode}</span>
+              <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+                <span className="font-mono font-semibold text-zinc-700 dark:text-zinc-300">{po.poCode}</span>
                 {po.supplierName && <> · {po.supplierName}</>}
               </p>
             </div>
@@ -379,10 +379,10 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
           {po.status && (
             <span className={cn(
               "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset",
-              po.status === "PARTIAL" ? "bg-amber-50 text-amber-700 ring-amber-200" :
-              po.status === "RECEIVED" || po.status === "CLOSED" ? "bg-emerald-50 text-emerald-700 ring-emerald-200" :
-              po.status === "CANCELLED" ? "bg-red-50 text-red-700 ring-red-200" :
-              "bg-blue-50 text-blue-700 ring-blue-200",
+              po.status === "PARTIAL" ? "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800" :
+              po.status === "RECEIVED" || po.status === "CLOSED" ? "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800" :
+              po.status === "CANCELLED" ? "bg-red-50 text-red-700 ring-red-200 dark:bg-red-950/40 dark:text-red-400 dark:ring-red-800" :
+              "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:ring-blue-800",
             )}>
               <span className={cn(
                 "h-2 w-2 rounded-full",
@@ -483,14 +483,14 @@ function StepCheck({
       />
 
       {totals ? (
-        <section className="rounded-md border border-zinc-200 bg-white p-4">
-          <div className="flex items-center justify-between text-xs text-zinc-600">
+        <section className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="flex items-center justify-between text-xs text-zinc-600 dark:text-zinc-400">
             <span>Tiến độ tổng PO</span>
-            <strong className="tabular-nums text-zinc-900">
+            <strong className="tabular-nums text-zinc-900 dark:text-zinc-50">
               {totals.receivedPct}%
             </strong>
           </div>
-          <div className="mt-2 h-2 overflow-hidden rounded-full bg-zinc-100">
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
             <div
               className="h-full bg-indigo-500 transition-all"
               style={{ width: `${Math.min(100, totals.receivedPct)}%` }}
@@ -500,25 +500,25 @@ function StepCheck({
       ) : null}
 
       {isComplete ? (
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400">
           <CheckCircle2 className="mr-1 inline h-4 w-4" aria-hidden="true" />
           PO đã {po.status}. Không thể nhận thêm.
         </div>
       ) : null}
 
-      <section className="overflow-hidden rounded-md border border-zinc-200 bg-white">
-        <header className="border-b border-zinc-200 bg-zinc-50 px-4 py-2">
-          <h3 className="text-sm font-semibold text-zinc-900">
+      <section className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+        <header className="border-b border-zinc-200 bg-zinc-50 px-4 py-2 dark:border-zinc-800 dark:bg-zinc-800">
+          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
             Dòng cần nhận ({po.lines.length})
           </h3>
         </header>
         {po.lines.length === 0 ? (
-          <p className="px-4 py-6 text-center text-sm text-zinc-500">
+          <p className="px-4 py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
             PO không có dòng nào.
           </p>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
+            <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
               <tr>
                 <th className="px-3 py-2 text-left">#</th>
                 <th className="px-3 py-2 text-left">SKU</th>
@@ -534,34 +534,34 @@ function StepCheck({
                 <tr
                   key={ln.id}
                   className={cn(
-                    "border-t border-zinc-100",
-                    ln.remainingQty <= 0 && "bg-emerald-50/40",
+                    "border-t border-zinc-100 dark:border-zinc-800",
+                    ln.remainingQty <= 0 && "bg-emerald-50/40 dark:bg-emerald-950/40",
                   )}
                 >
-                  <td className="px-3 py-2 font-mono text-xs text-zinc-500">
+                  <td className="px-3 py-2 font-mono text-xs text-zinc-500 dark:text-zinc-400">
                     {ln.lineNo}
                   </td>
-                  <td className="px-3 py-2 font-mono text-xs font-semibold">
+                  <td className="px-3 py-2 font-mono text-xs font-semibold dark:text-zinc-50">
                     {ln.sku}
                   </td>
-                  <td className="px-3 py-2 text-zinc-700">{ln.itemName}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">
+                  <td className="px-3 py-2 text-zinc-700 dark:text-zinc-300">{ln.itemName}</td>
+                  <td className="px-3 py-2 text-right tabular-nums dark:text-zinc-300">
                     {ln.orderedQty} {ln.uom}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-zinc-600">
+                  <td className="px-3 py-2 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
                     {ln.receivedQty}
                   </td>
                   <td
                     className={cn(
                       "px-3 py-2 text-right tabular-nums",
                       ln.remainingQty <= 0
-                        ? "text-emerald-700"
-                        : "text-zinc-900",
+                        ? "text-emerald-700 dark:text-emerald-400"
+                        : "text-zinc-900 dark:text-zinc-50",
                     )}
                   >
                     {ln.remainingQty}
                   </td>
-                  <td className="px-3 py-2 text-xs text-zinc-600">
+                  <td className="px-3 py-2 text-xs text-zinc-600 dark:text-zinc-400">
                     {ln.expectedLotSerial}
                   </td>
                 </tr>
@@ -571,7 +571,7 @@ function StepCheck({
         )}
       </section>
 
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">
         Bấm <strong>Tiếp</strong> để bắt đầu nhập lô/serial cho từng dòng.
       </p>
     </div>
@@ -605,9 +605,9 @@ function StepCapture({
 
   return (
     <div className="space-y-4">
-      <section className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-zinc-200 bg-white px-4 py-3">
-        <div className="text-xs text-zinc-600">
-          <p className="font-medium text-zinc-900">
+      <section className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="text-xs text-zinc-600 dark:text-zinc-400">
+          <p className="font-medium text-zinc-900 dark:text-zinc-50">
             Nhập số lượng nhận thực tế cho từng dòng PO.
           </p>
           <p className="mt-0.5">
@@ -643,15 +643,15 @@ function StepCapture({
 
       <section
         aria-label="Bảng nhập số lượng nhận"
-        className="overflow-x-auto rounded-md border border-zinc-200 bg-white"
+        className="overflow-x-auto rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
       >
         {po.lines.length === 0 ? (
-          <p className="px-4 py-6 text-center text-sm text-zinc-500">
+          <p className="px-4 py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
             PO không có dòng nào.
           </p>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-zinc-50 text-xs uppercase tracking-wider text-zinc-500">
+            <thead className="bg-zinc-50 text-xs uppercase tracking-wider text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
               <tr>
                 <th scope="col" className="w-10 px-3 py-2 text-left">
                   #
@@ -709,7 +709,7 @@ function StepCapture({
         )}
       </section>
 
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">
         Mẹo: Có thể bỏ qua dòng không nhận trong lô này (qty = 0). Khi sẵn
         sàng, bấm <strong>Tiếp</strong> để xem tổng kết.
       </p>
@@ -742,44 +742,44 @@ function LineRow({
   return (
     <tr
       className={cn(
-        "border-t border-zinc-100 align-middle",
-        isDone && "bg-emerald-50/40",
+        "border-t border-zinc-100 align-middle dark:border-zinc-800",
+        isDone && "bg-emerald-50/40 dark:bg-emerald-950/40",
       )}
     >
-      <td className="px-3 py-2 font-mono text-xs text-zinc-500">{ln.lineNo}</td>
+      <td className="px-3 py-2 font-mono text-xs text-zinc-500 dark:text-zinc-400">{ln.lineNo}</td>
       <td className="px-3 py-2">
         <div className="flex items-center gap-1.5">
-          <code className="font-mono text-xs font-semibold text-zinc-900">
+          <code className="font-mono text-xs font-semibold text-zinc-900 dark:text-zinc-50">
             {ln.sku}
           </code>
           {ln.expectedLotSerial === "LOT" ? (
-            <span className="inline-flex items-center rounded-sm bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
+            <span className="inline-flex items-center rounded-sm bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-400">
               Lô
             </span>
           ) : null}
           {ln.expectedLotSerial === "SERIAL" ? (
-            <span className="inline-flex items-center rounded-sm bg-purple-50 px-1.5 py-0.5 text-[10px] font-medium text-purple-700">
+            <span className="inline-flex items-center rounded-sm bg-purple-50 px-1.5 py-0.5 text-[10px] font-medium text-purple-700 dark:bg-purple-950/40 dark:text-purple-400">
               Serial
             </span>
           ) : null}
           {isDone ? <StatusBadge status="ready" size="sm" /> : null}
         </div>
       </td>
-      <td className="max-w-[16rem] px-3 py-2 text-xs text-zinc-700">
+      <td className="max-w-[16rem] px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300">
         <span className="block truncate" title={ln.itemName}>
           {ln.itemName}
         </span>
       </td>
-      <td className="px-3 py-2 text-right text-xs tabular-nums text-zinc-700">
+      <td className="px-3 py-2 text-right text-xs tabular-nums text-zinc-700 dark:text-zinc-300">
         {ln.orderedQty}
       </td>
-      <td className="px-3 py-2 text-right text-xs tabular-nums text-zinc-500">
+      <td className="px-3 py-2 text-right text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
         {ln.receivedQty}
       </td>
       <td
         className={cn(
           "px-3 py-2 text-right text-xs tabular-nums",
-          isDone ? "text-emerald-700" : "font-medium text-zinc-900",
+          isDone ? "text-emerald-700 dark:text-emerald-400" : "font-medium text-zinc-900 dark:text-zinc-50",
         )}
       >
         {ln.remainingQty} {ln.uom}
@@ -797,7 +797,7 @@ function LineRow({
           disabled={disabled || isDone}
           className={cn(
             "h-9 w-24 text-right tabular-nums",
-            overRemaining && "border-amber-400 focus-visible:ring-amber-400",
+            overRemaining && "border-amber-400 focus-visible:ring-amber-400 dark:border-amber-600",
           )}
           aria-invalid={overRemaining || undefined}
           aria-label={`Số lượng nhận ${ln.sku}`}
@@ -820,7 +820,7 @@ function LineRow({
             value={input.binId || ln.defaultBinId || ""}
             onChange={(e) => onChange({ binId: e.target.value })}
             disabled={disabled || isDone}
-            className="h-9 w-32 rounded-md border border-zinc-300 bg-white px-2 font-mono text-xs text-zinc-700 disabled:bg-zinc-100"
+            className="h-9 w-32 rounded-md border border-zinc-300 bg-white px-2 font-mono text-xs text-zinc-700 disabled:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:disabled:bg-zinc-800"
             aria-label={`Vị trí lưu ${ln.sku}`}
           >
             <option value="">— Chưa gán —</option>
@@ -831,12 +831,12 @@ function LineRow({
             ))}
           </select>
           {ln.defaultBinCode && !input.binId && (
-            <span className="text-[10px] text-emerald-600">
+            <span className="text-[10px] text-emerald-600 dark:text-emerald-400">
               ✓ Mặc định {ln.defaultBinCode}
             </span>
           )}
           {input.binId && input.binId !== ln.defaultBinId && (
-            <span className="text-[10px] text-amber-600">
+            <span className="text-[10px] text-amber-600 dark:text-amber-400">
               Đã đổi vị trí
             </span>
           )}
@@ -858,11 +858,11 @@ function LineRow({
                 "inline-flex h-7 min-w-[2.5rem] items-center justify-center rounded-md border px-2 text-xs font-medium transition-colors",
                 input.qcStatus === qc
                   ? qc === "OK"
-                    ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                    ? "border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
                     : qc === "NG"
-                      ? "border-red-500 bg-red-50 text-red-700"
-                      : "border-zinc-400 bg-zinc-100 text-zinc-800"
-                  : "border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-50",
+                      ? "border-red-500 bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400"
+                      : "border-zinc-400 bg-zinc-100 text-zinc-800 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200"
+                  : "border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60",
                 (disabled || isDone) && "opacity-50",
               )}
               role="radio"
@@ -879,9 +879,9 @@ function LineRow({
           onClick={onReset}
           disabled={disabled || isDone || !hasInput}
           className={cn(
-            "inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-900",
+            "inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-50",
             (disabled || isDone || !hasInput) &&
-              "cursor-not-allowed opacity-40 hover:bg-white hover:text-zinc-500",
+              "cursor-not-allowed opacity-40 hover:bg-white hover:text-zinc-500 dark:hover:bg-zinc-900 dark:hover:text-zinc-400",
           )}
           aria-label={`Reset dòng ${ln.sku}`}
           title="Reset dòng này"
@@ -935,21 +935,21 @@ function StepQc({
 
       <section
         aria-label="Phân loại QC"
-        className="rounded-md border border-zinc-200 bg-white p-4"
+        className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
       >
-        <h3 className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+        <h3 className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
           Phân loại QC
         </h3>
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
             OK: <strong className="tabular-nums">{stats.ok}</strong> dòng
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-medium text-red-700">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400">
             <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
             NG: <strong className="tabular-nums">{stats.ng}</strong> dòng
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400">
             <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
             Chờ: <strong className="tabular-nums">{stats.pending}</strong> dòng
           </span>
@@ -957,7 +957,7 @@ function StepQc({
       </section>
 
       {stats.ng > 0 ? (
-        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400">
           <AlertTriangle className="mr-1 inline h-4 w-4" aria-hidden="true" />
           Có <strong>{stats.ng}</strong> dòng QC NG. Bạn có thể vẫn ghi nhận để
           theo dõi NG, hoặc quay lại bước trước để chỉnh.
@@ -979,7 +979,7 @@ function StepQc({
         </div>
       ) : null}
 
-      <section className="space-y-2 rounded-md border border-zinc-200 bg-white p-4">
+      <section className="space-y-2 rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
         <Label htmlFor="receiving-wizard-notes" uppercase>
           Ghi chú lô nhận (tuỳ chọn)
         </Label>
@@ -994,8 +994,8 @@ function StepQc({
       </section>
 
       {submitted ? (
-        <section className="space-y-3 rounded-md border border-emerald-200 bg-emerald-50 p-4">
-          <div className="flex items-start gap-2 text-emerald-800">
+        <section className="space-y-3 rounded-md border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-950/40">
+          <div className="flex items-start gap-2 text-emerald-800 dark:text-emerald-400">
             <CheckCircle2 className="mt-0.5 h-5 w-5" aria-hidden="true" />
             <div>
               <h3 className="text-sm font-semibold">
@@ -1009,12 +1009,12 @@ function StepQc({
           </div>
 
           {canApprove ? (
-            <div className="flex flex-col gap-2 rounded-md border border-emerald-300 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 rounded-md border border-emerald-300 bg-white p-3 sm:flex-row sm:items-center sm:justify-between dark:border-emerald-700 dark:bg-zinc-900">
               <div>
-                <p className="text-sm font-medium text-zinc-900">
+                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
                   Duyệt PO ngay?
                 </p>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
                   Nhận đủ ≥ 95% — có thể chuyển PO sang trạng thái RECEIVED
                   luôn.
                 </p>
@@ -1034,14 +1034,14 @@ function StepQc({
               </Button>
             </div>
           ) : (
-            <p className="text-xs text-emerald-800">
+            <p className="text-xs text-emerald-800 dark:text-emerald-400">
               Chưa đủ 95% — PO ở trạng thái PARTIAL. Bấm <strong>Hoàn tất</strong>
               {" "}để về danh sách hoặc nhận tiếp lô sau.
             </p>
           )}
         </section>
       ) : (
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
           Bấm <strong>Gửi nhận hàng</strong> để ghi nhận lô vào hệ thống.
         </p>
       )}

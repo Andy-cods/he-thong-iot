@@ -80,16 +80,16 @@ export function SupplierForm({
   return (
     <form
       onSubmit={(e) => void handleSubmit(onSubmit)(e)}
-      className="mx-auto w-full max-w-[860px] space-y-6 rounded-lg border border-zinc-200 bg-white p-6"
+      className="mx-auto w-full max-w-[860px] space-y-6 rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900"
       noValidate
     >
       {/* Section 1 — Thông tin chung */}
       <section className="space-y-4">
         <div className="flex items-center gap-2">
-          <h2 className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+          <h2 className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
             Thông tin chung
           </h2>
-          <div className="h-px flex-1 bg-zinc-200" aria-hidden="true" />
+          <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" aria-hidden="true" />
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -141,10 +141,10 @@ export function SupplierForm({
       {/* Section 2 — Địa chỉ */}
       <section className="space-y-4">
         <div className="flex items-center gap-2">
-          <h2 className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+          <h2 className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
             Địa chỉ
           </h2>
-          <div className="h-px flex-1 bg-zinc-200" aria-hidden="true" />
+          <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" aria-hidden="true" />
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -152,7 +152,7 @@ export function SupplierForm({
             <select
               id="region"
               {...register("region")}
-              className="h-9 w-full rounded-md border border-zinc-300 bg-white px-2 text-base text-zinc-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="h-9 w-full rounded-md border border-zinc-300 bg-white px-2 text-base text-zinc-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
             >
               <option value="">— Chưa chọn —</option>
               {REGION_OPTIONS.map((r) => (
@@ -227,10 +227,10 @@ export function SupplierForm({
       {/* Section 3 — Liên hệ chính */}
       <section className="space-y-4">
         <div className="flex items-center gap-2">
-          <h2 className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+          <h2 className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
             Liên hệ
           </h2>
-          <div className="h-px flex-1 bg-zinc-200" aria-hidden="true" />
+          <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" aria-hidden="true" />
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -262,9 +262,9 @@ export function SupplierForm({
         </div>
 
         {/* Người liên hệ bổ sung */}
-        <div className="rounded-md border border-zinc-200 bg-zinc-50/50 p-3">
+        <div className="rounded-md border border-zinc-200 bg-zinc-50/50 p-3 dark:border-zinc-800 dark:bg-zinc-800/60">
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-xs font-medium uppercase tracking-wider text-zinc-600">
+            <span className="text-xs font-medium uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
               Người liên hệ bổ sung ({fields.length})
             </span>
             <Button
@@ -281,13 +281,13 @@ export function SupplierForm({
           </div>
 
           {fields.length === 0 ? (
-            <p className="text-xs text-zinc-500">Chưa có. Bấm "Thêm" để bổ sung.</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">Chưa có. Bấm "Thêm" để bổ sung.</p>
           ) : (
             <div className="space-y-3">
               {fields.map((f, idx) => (
                 <div
                   key={f.id}
-                  className="grid grid-cols-1 gap-2 rounded border border-zinc-200 bg-white p-3 md:grid-cols-[1fr_1fr_140px_1fr_auto]"
+                  className="grid grid-cols-1 gap-2 rounded border border-zinc-200 bg-white p-3 md:grid-cols-[1fr_1fr_140px_1fr_auto] dark:border-zinc-800 dark:bg-zinc-900"
                 >
                   <Input
                     {...register(`contactPersons.${idx}.name` as const)}
@@ -330,10 +330,10 @@ export function SupplierForm({
       {/* Section 4 — Ngân hàng & Điều khoản */}
       <section className="space-y-4">
         <div className="flex items-center gap-2">
-          <h2 className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+          <h2 className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
             Ngân hàng & Điều khoản
           </h2>
-          <div className="h-px flex-1 bg-zinc-200" aria-hidden="true" />
+          <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" aria-hidden="true" />
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -375,7 +375,7 @@ export function SupplierForm({
         </div>
       </section>
 
-      <div className="flex justify-end gap-2 border-t border-zinc-200 pt-4">
+      <div className="flex justify-end gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
         {onCancel ? (
           <Button type="button" variant="ghost" onClick={onCancel}>
             Huỷ
@@ -412,8 +412,8 @@ function FormField({
         id={error ? `${htmlFor}-err` : undefined}
         className={
           error
-            ? "mt-1 min-h-4 text-xs text-red-700"
-            : "mt-1 min-h-4 text-xs text-zinc-500"
+            ? "mt-1 min-h-4 text-xs text-red-700 dark:text-red-400"
+            : "mt-1 min-h-4 text-xs text-zinc-500 dark:text-zinc-400"
         }
       >
         {error ?? ""}

@@ -211,7 +211,7 @@ export function UserPermissionMatrix({ userId, isSelf = false }: Props) {
 
   if (query.isLoading) {
     return (
-      <div className="flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white p-12 text-sm text-zinc-500 shadow-sm">
+      <div className="flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white p-12 text-sm text-zinc-500 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
         <Loader2 className="h-4 w-4 animate-spin" />
         Đang tải ma trận quyền…
       </div>
@@ -220,7 +220,7 @@ export function UserPermissionMatrix({ userId, isSelf = false }: Props) {
 
   if (query.isError || !query.data) {
     return (
-      <div className="rounded-xl border border-rose-200 bg-rose-50 p-6 text-center text-sm text-rose-700 shadow-sm">
+      <div className="rounded-xl border border-rose-200 bg-rose-50 p-6 text-center text-sm text-rose-700 shadow-sm dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-400">
         Không tải được ma trận quyền.
       </div>
     );
@@ -242,8 +242,8 @@ export function UserPermissionMatrix({ userId, isSelf = false }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-xl border border-zinc-200 bg-white p-4 text-xs text-zinc-700 shadow-sm">
-        <p className="font-semibold tracking-tight text-zinc-900">
+      <div className="rounded-xl border border-zinc-200 bg-white p-4 text-xs text-zinc-700 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
+        <p className="font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
           Hướng dẫn sử dụng
         </p>
         <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
@@ -268,24 +268,24 @@ export function UserPermissionMatrix({ userId, isSelf = false }: Props) {
             />
             <span>Chấm hồng = override THU HỒI (deny wins).</span>
           </li>
-          <li className="text-zinc-500">
+          <li className="text-zinc-500 dark:text-zinc-400">
             Click ô để xoay vòng:{" "}
             <span className="font-mono">role → cấp → thu hồi → role</span>.
           </li>
         </ul>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
         <table className="min-w-full text-xs">
-          <thead className="border-b border-zinc-200 bg-zinc-50/70">
+          <thead className="border-b border-zinc-200 bg-zinc-50/70 dark:border-zinc-800 dark:bg-zinc-800/60">
             <tr>
-              <th className="sticky left-0 z-10 bg-zinc-50/70 px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-normal text-zinc-500">
+              <th className="sticky left-0 z-10 bg-zinc-50/70 px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-normal text-zinc-500 dark:bg-zinc-800/60 dark:text-zinc-400">
                 Đối tượng
               </th>
               {ACTIONS.map((a) => (
                 <th
                   key={a}
-                  className="px-2 py-2.5 text-center text-[11px] font-semibold uppercase tracking-normal text-zinc-500"
+                  className="px-2 py-2.5 text-center text-[11px] font-semibold uppercase tracking-normal text-zinc-500 dark:text-zinc-400"
                 >
                   {ACTION_LABELS[a]}
                 </th>
@@ -296,12 +296,12 @@ export function UserPermissionMatrix({ userId, isSelf = false }: Props) {
             {entities.map((entity) => (
               <tr
                 key={entity}
-                className="border-t border-zinc-100 transition-colors hover:bg-indigo-50/30"
+                className="border-t border-zinc-100 transition-colors hover:bg-indigo-50/30 dark:border-zinc-800 dark:hover:bg-indigo-950/30"
               >
-                <td className="sticky left-0 z-10 bg-white px-3 py-2 font-medium tracking-tight text-zinc-800">
+                <td className="sticky left-0 z-10 bg-white px-3 py-2 font-medium tracking-tight text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200">
                   <div className="flex flex-col">
                     <span>{ENTITY_LABELS[entity]}</span>
-                    <code className="font-mono text-[10px] text-zinc-400">
+                    <code className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500">
                       {entity}
                     </code>
                   </div>
@@ -325,14 +325,14 @@ export function UserPermissionMatrix({ userId, isSelf = false }: Props) {
                         className={cn(
                           "relative inline-flex h-9 w-full min-w-[56px] items-center justify-center rounded-md border text-[11px] font-semibold transition",
                           cell.roleAllowed
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                            : "border-zinc-200 bg-zinc-50 text-zinc-400",
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400"
+                            : "border-zinc-200 bg-zinc-50 text-zinc-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-500",
                           cell.override === "GRANT" &&
-                            "border-indigo-300 bg-indigo-50 text-indigo-800",
+                            "border-indigo-300 bg-indigo-50 text-indigo-800 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-400",
                           cell.override === "DENY" &&
-                            "border-rose-300 bg-rose-50 text-rose-800",
+                            "border-rose-300 bg-rose-50 text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-400",
                           !cell.effectiveAllowed && "line-through",
-                          isDirty && "ring-2 ring-amber-300 ring-offset-1",
+                          isDirty && "ring-2 ring-amber-300 ring-offset-1 dark:ring-amber-700",
                           "hover:opacity-80",
                           "disabled:cursor-not-allowed disabled:opacity-50",
                         )}
@@ -360,22 +360,22 @@ export function UserPermissionMatrix({ userId, isSelf = false }: Props) {
         </table>
       </div>
 
-      <footer className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-xs shadow-sm">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-zinc-600">
+      <footer className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-xs shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-zinc-600 dark:text-zinc-400">
           <span>
-            Tổng <span className="font-semibold text-indigo-700">CẤP THÊM</span>:{" "}
+            Tổng <span className="font-semibold text-indigo-700 dark:text-indigo-400">CẤP THÊM</span>:{" "}
             <span className="font-mono font-semibold tabular-nums">
               {totalGrants}
             </span>
           </span>
           <span>
-            Tổng <span className="font-semibold text-rose-700">THU HỒI</span>:{" "}
+            Tổng <span className="font-semibold text-rose-700 dark:text-rose-400">THU HỒI</span>:{" "}
             <span className="font-mono font-semibold tabular-nums">
               {totalDenies}
             </span>
           </span>
           {dirtyCount > 0 ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-amber-700 ring-1 ring-inset ring-amber-200">
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-amber-700 ring-1 ring-inset ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800">
               {dirtyCount} thay đổi chưa lưu
             </span>
           ) : null}

@@ -94,7 +94,7 @@ export default function ReportTargetsPage() {
         <div className="flex items-center gap-2">
           <Link
             href="/admin/reports/employee-productivity"
-            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:border-indigo-300 hover:text-indigo-700"
+            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:border-indigo-300 hover:text-indigo-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-indigo-700 dark:hover:text-indigo-400"
           >
             ← Báo cáo nhân viên
           </Link>
@@ -114,7 +114,7 @@ export default function ReportTargetsPage() {
         ) : null}
 
         {/* Filter */}
-        <section className="flex items-end gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+        <section className="flex items-end gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <Field label="Bộ phận">
             <Select
               value={filterRole}
@@ -133,11 +133,11 @@ export default function ReportTargetsPage() {
         {/* List */}
         <div className="flex flex-col gap-2">
           {targetsQuery.isLoading ? (
-            <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white p-8 text-zinc-500 shadow-sm">
+            <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white p-8 text-zinc-500 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
               <Loader2 className="h-4 w-4 animate-spin" /> Đang tải…
             </div>
           ) : targets.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-zinc-200 bg-white px-6 py-12 text-center text-sm text-zinc-500 shadow-sm">
+            <div className="rounded-xl border border-dashed border-zinc-200 bg-white px-6 py-12 text-center text-sm text-zinc-500 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
               Bộ phận này chưa có KPI target nào — nhấn &quot;Thêm
               target&quot; để tạo.
             </div>
@@ -163,7 +163,7 @@ function Field({
 }) {
   return (
     <div className="space-y-1">
-      <label className="block text-[11px] font-semibold uppercase tracking-normal text-zinc-500">
+      <label className="block text-[11px] font-semibold uppercase tracking-normal text-zinc-500 dark:text-zinc-400">
         {label}
       </label>
       {children}
@@ -179,7 +179,7 @@ function Select({
     <select
       {...rest}
       className={cn(
-        "h-9 rounded-md border border-zinc-200 bg-white px-3 text-sm tracking-normal text-zinc-900 outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100",
+        "h-9 rounded-md border border-zinc-200 bg-white px-3 text-sm tracking-normal text-zinc-900 outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40",
         className,
       )}
     />
@@ -242,13 +242,13 @@ function CreateForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-4 shadow-sm"
+      className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-4 shadow-sm dark:border-indigo-800 dark:bg-indigo-950/20"
     >
       <header className="mb-3">
-        <h3 className="text-sm font-semibold tracking-tight text-zinc-900">
+        <h3 className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
           Thêm KPI target
         </h3>
-        <p className="mt-0.5 text-xs text-zinc-500">
+        <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
           Đặt mục tiêu cho 1 metric trong 1 chu kỳ.
         </p>
       </header>
@@ -379,17 +379,17 @@ function TargetRow({ target }: { target: ReportTargetRow }) {
   };
 
   return (
-    <li className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md">
+    <li className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900">
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <span className="font-mono text-[10px] font-semibold uppercase tracking-normal text-zinc-500">
+            <span className="font-mono text-[10px] font-semibold uppercase tracking-normal text-zinc-500 dark:text-zinc-400">
               {target.roleCode ?? "ALL"}
             </span>
-            <span className="text-sm font-semibold tracking-tight text-zinc-900">
+            <span className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
               {metricLabel}
             </span>
-            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-600 ring-1 ring-inset ring-zinc-200">
+            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-600 ring-1 ring-inset ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700">
               {target.periodType === "monthly"
                 ? "Tháng"
                 : target.periodType === "quarterly"
@@ -398,7 +398,7 @@ function TargetRow({ target }: { target: ReportTargetRow }) {
             </span>
           </div>
           {target.notes ? (
-            <p className="mt-0.5 text-[11px] italic text-zinc-500">
+            <p className="mt-0.5 text-[11px] italic text-zinc-500 dark:text-zinc-400">
               {target.notes}
             </p>
           ) : null}
@@ -441,14 +441,14 @@ function TargetRow({ target }: { target: ReportTargetRow }) {
               className={cn(
                 "rounded-lg px-3 py-1.5 text-right ring-1 ring-inset",
                 target.comparison === "gte"
-                  ? "bg-emerald-50 ring-emerald-200"
-                  : "bg-amber-50 ring-amber-200",
+                  ? "bg-emerald-50 ring-emerald-200 dark:bg-emerald-950/40 dark:ring-emerald-800"
+                  : "bg-amber-50 ring-amber-200 dark:bg-amber-950/40 dark:ring-amber-800",
               )}
             >
-              <div className="text-[10px] font-semibold uppercase tracking-normal text-zinc-500">
+              <div className="text-[10px] font-semibold uppercase tracking-normal text-zinc-500 dark:text-zinc-400">
                 Target {target.comparison === "gte" ? "≥" : "≤"}
               </div>
-              <div className="font-mono text-sm font-semibold tabular-nums text-zinc-900">
+              <div className="font-mono text-sm font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
                 {Number(target.targetValue).toLocaleString("vi-VN")}
               </div>
             </div>
@@ -468,7 +468,7 @@ function TargetRow({ target }: { target: ReportTargetRow }) {
               variant="ghost"
               onClick={() => void handleDelete()}
               disabled={del.isPending}
-              className="text-rose-600 hover:bg-rose-50"
+              className="text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"
               aria-label="Xoá"
             >
               <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />

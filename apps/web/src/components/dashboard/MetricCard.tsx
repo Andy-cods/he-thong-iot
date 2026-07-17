@@ -70,87 +70,87 @@ interface ToneStyles {
 
 const TONE: Record<MetricTone, ToneStyles> = {
   emerald: {
-    glow: "from-emerald-200/60 via-emerald-100/30 to-transparent",
-    borderRest: "border-emerald-100/60",
-    borderHover: "hover:border-emerald-300/80",
-    iconBg: "bg-emerald-100/80 ring-1 ring-emerald-200/70",
-    iconText: "text-emerald-700",
-    value: "text-emerald-900",
+    glow: "from-emerald-200/60 via-emerald-100/30 to-transparent dark:from-emerald-800/30 dark:via-emerald-900/20",
+    borderRest: "border-emerald-100/60 dark:border-emerald-900/60",
+    borderHover: "hover:border-emerald-300/80 dark:hover:border-emerald-700/80",
+    iconBg: "bg-emerald-100/80 ring-1 ring-emerald-200/70 dark:bg-emerald-950/60 dark:ring-emerald-800/70",
+    iconText: "text-emerald-700 dark:text-emerald-300",
+    value: "text-emerald-900 dark:text-emerald-200",
     barFrom: "from-emerald-400",
     barTo: "to-emerald-600",
-    barTrack: "bg-emerald-100/70",
-    cta: "text-emerald-700 hover:text-emerald-800",
-    ringHover: "hover:ring-1 hover:ring-emerald-200/80",
+    barTrack: "bg-emerald-100/70 dark:bg-emerald-950/60",
+    cta: "text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300",
+    ringHover: "hover:ring-1 hover:ring-emerald-200/80 dark:hover:ring-emerald-800/80",
     sparkTone: "emerald",
   },
   blue: {
-    glow: "from-blue-200/60 via-blue-100/30 to-transparent",
-    borderRest: "border-blue-100/60",
-    borderHover: "hover:border-blue-300/80",
-    iconBg: "bg-blue-100/80 ring-1 ring-blue-200/70",
-    iconText: "text-blue-700",
-    value: "text-blue-900",
+    glow: "from-blue-200/60 via-blue-100/30 to-transparent dark:from-blue-800/30 dark:via-blue-900/20",
+    borderRest: "border-blue-100/60 dark:border-blue-900/60",
+    borderHover: "hover:border-blue-300/80 dark:hover:border-blue-700/80",
+    iconBg: "bg-blue-100/80 ring-1 ring-blue-200/70 dark:bg-blue-950/60 dark:ring-blue-800/70",
+    iconText: "text-blue-700 dark:text-blue-300",
+    value: "text-blue-900 dark:text-blue-200",
     barFrom: "from-blue-400",
     barTo: "to-blue-600",
-    barTrack: "bg-blue-100/70",
-    cta: "text-blue-700 hover:text-blue-800",
-    ringHover: "hover:ring-1 hover:ring-blue-200/80",
+    barTrack: "bg-blue-100/70 dark:bg-blue-950/60",
+    cta: "text-blue-700 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300",
+    ringHover: "hover:ring-1 hover:ring-blue-200/80 dark:hover:ring-blue-800/80",
     sparkTone: "indigo",
   },
   amber: {
-    glow: "from-amber-200/70 via-amber-100/40 to-transparent",
-    borderRest: "border-amber-100/60",
-    borderHover: "hover:border-amber-300/80",
-    iconBg: "bg-amber-100/80 ring-1 ring-amber-200/70",
-    iconText: "text-amber-700",
-    value: "text-amber-900",
+    glow: "from-amber-200/70 via-amber-100/40 to-transparent dark:from-amber-800/30 dark:via-amber-900/20",
+    borderRest: "border-amber-100/60 dark:border-amber-900/60",
+    borderHover: "hover:border-amber-300/80 dark:hover:border-amber-700/80",
+    iconBg: "bg-amber-100/80 ring-1 ring-amber-200/70 dark:bg-amber-950/60 dark:ring-amber-800/70",
+    iconText: "text-amber-700 dark:text-amber-300",
+    value: "text-amber-900 dark:text-amber-200",
     barFrom: "from-amber-400",
     barTo: "to-amber-600",
-    barTrack: "bg-amber-100/70",
-    cta: "text-amber-700 hover:text-amber-800",
-    ringHover: "hover:ring-1 hover:ring-amber-200/80",
+    barTrack: "bg-amber-100/70 dark:bg-amber-950/60",
+    cta: "text-amber-700 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300",
+    ringHover: "hover:ring-1 hover:ring-amber-200/80 dark:hover:ring-amber-800/80",
     sparkTone: "rose",
   },
   indigo: {
-    glow: "from-indigo-200/60 via-indigo-100/30 to-transparent",
-    borderRest: "border-indigo-100/60",
-    borderHover: "hover:border-indigo-300/80",
-    iconBg: "bg-indigo-100/80 ring-1 ring-indigo-200/70",
-    iconText: "text-indigo-700",
-    value: "text-indigo-900",
+    glow: "from-indigo-200/60 via-indigo-100/30 to-transparent dark:from-indigo-800/30 dark:via-indigo-900/20",
+    borderRest: "border-indigo-100/60 dark:border-indigo-900/60",
+    borderHover: "hover:border-indigo-300/80 dark:hover:border-indigo-700/80",
+    iconBg: "bg-indigo-100/80 ring-1 ring-indigo-200/70 dark:bg-indigo-950/60 dark:ring-indigo-800/70",
+    iconText: "text-indigo-700 dark:text-indigo-300",
+    value: "text-indigo-900 dark:text-indigo-200",
     barFrom: "from-indigo-400",
     barTo: "to-indigo-600",
-    barTrack: "bg-indigo-100/70",
-    cta: "text-indigo-700 hover:text-indigo-800",
-    ringHover: "hover:ring-1 hover:ring-indigo-200/80",
+    barTrack: "bg-indigo-100/70 dark:bg-indigo-950/60",
+    cta: "text-indigo-700 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300",
+    ringHover: "hover:ring-1 hover:ring-indigo-200/80 dark:hover:ring-indigo-800/80",
     sparkTone: "indigo",
   },
   rose: {
-    glow: "from-rose-200/70 via-rose-100/30 to-transparent",
-    borderRest: "border-rose-100/60",
-    borderHover: "hover:border-rose-300/80",
-    iconBg: "bg-rose-100/80 ring-1 ring-rose-200/70",
-    iconText: "text-rose-700",
-    value: "text-rose-900",
+    glow: "from-rose-200/70 via-rose-100/30 to-transparent dark:from-rose-800/30 dark:via-rose-900/20",
+    borderRest: "border-rose-100/60 dark:border-rose-900/60",
+    borderHover: "hover:border-rose-300/80 dark:hover:border-rose-700/80",
+    iconBg: "bg-rose-100/80 ring-1 ring-rose-200/70 dark:bg-rose-950/60 dark:ring-rose-800/70",
+    iconText: "text-rose-700 dark:text-rose-300",
+    value: "text-rose-900 dark:text-rose-200",
     barFrom: "from-rose-400",
     barTo: "to-rose-600",
-    barTrack: "bg-rose-100/70",
-    cta: "text-rose-700 hover:text-rose-800",
-    ringHover: "hover:ring-1 hover:ring-rose-200/80",
+    barTrack: "bg-rose-100/70 dark:bg-rose-950/60",
+    cta: "text-rose-700 hover:text-rose-800 dark:text-rose-400 dark:hover:text-rose-300",
+    ringHover: "hover:ring-1 hover:ring-rose-200/80 dark:hover:ring-rose-800/80",
     sparkTone: "rose",
   },
   violet: {
-    glow: "from-violet-200/60 via-violet-100/30 to-transparent",
-    borderRest: "border-violet-100/60",
-    borderHover: "hover:border-violet-300/80",
-    iconBg: "bg-violet-100/80 ring-1 ring-violet-200/70",
-    iconText: "text-violet-700",
-    value: "text-violet-900",
+    glow: "from-violet-200/60 via-violet-100/30 to-transparent dark:from-violet-800/30 dark:via-violet-900/20",
+    borderRest: "border-violet-100/60 dark:border-violet-900/60",
+    borderHover: "hover:border-violet-300/80 dark:hover:border-violet-700/80",
+    iconBg: "bg-violet-100/80 ring-1 ring-violet-200/70 dark:bg-violet-950/60 dark:ring-violet-800/70",
+    iconText: "text-violet-700 dark:text-violet-300",
+    value: "text-violet-900 dark:text-violet-200",
     barFrom: "from-violet-400",
     barTo: "to-violet-600",
-    barTrack: "bg-violet-100/70",
-    cta: "text-violet-700 hover:text-violet-800",
-    ringHover: "hover:ring-1 hover:ring-violet-200/80",
+    barTrack: "bg-violet-100/70 dark:bg-violet-950/60",
+    cta: "text-violet-700 hover:text-violet-800 dark:text-violet-400 dark:hover:text-violet-300",
+    ringHover: "hover:ring-1 hover:ring-violet-200/80 dark:hover:ring-violet-800/80",
     sparkTone: "indigo",
   },
 };
@@ -224,7 +224,7 @@ function MetricCardImpl({
       <div
         aria-busy="true"
         className={cn(
-          "flex flex-col gap-3 rounded-2xl border border-zinc-200/70 bg-white/60 p-5 backdrop-blur-sm",
+          "flex flex-col gap-3 rounded-2xl border border-zinc-200/70 bg-white/60 p-5 backdrop-blur-sm dark:border-zinc-800/70 dark:bg-zinc-900/60",
           isLarge ? "min-h-[280px]" : "min-h-[160px]",
           className,
         )}
@@ -269,13 +269,13 @@ function MetricCardImpl({
               />
             </span>
           ) : null}
-          <p className="truncate text-[10.5px] font-bold uppercase tracking-[0.12em] text-zinc-600">
+          <p className="truncate text-[10.5px] font-bold uppercase tracking-[0.12em] text-zinc-600 dark:text-zinc-400">
             {label}
           </p>
         </div>
         {interactive ? (
           <ArrowUpRight
-            className="h-4 w-4 shrink-0 text-zinc-400 transition-transform duration-200 ease-out group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-zinc-700"
+            className="h-4 w-4 shrink-0 text-zinc-400 transition-transform duration-200 ease-out group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-zinc-700 dark:text-zinc-500 dark:group-hover:text-zinc-200"
             aria-hidden="true"
           />
         ) : null}
@@ -297,7 +297,7 @@ function MetricCardImpl({
         </p>
         <span
           className={cn(
-            "font-semibold text-zinc-500",
+            "font-semibold text-zinc-500 dark:text-zinc-400",
             isLarge ? "text-2xl" : "text-xl",
           )}
         >
@@ -331,33 +331,33 @@ function MetricCardImpl({
 
       <p
         className={cn(
-          "tabular-nums text-zinc-600",
+          "tabular-nums text-zinc-600 dark:text-zinc-400",
           isLarge ? "text-sm" : "text-[12.5px]",
         )}
       >
-        <span className="font-semibold text-zinc-800">
+        <span className="font-semibold text-zinc-800 dark:text-zinc-200">
           {formatNum(numerator)}
         </span>
-        <span className="mx-1 text-zinc-400">/</span>
+        <span className="mx-1 text-zinc-400 dark:text-zinc-500">/</span>
         <span>{formatNum(denominator)}</span>
-        <span className="ml-1 text-zinc-500">{unitLabel}</span>
+        <span className="ml-1 text-zinc-500 dark:text-zinc-400">{unitLabel}</span>
       </p>
 
       {isLarge ? (
         <div className="mt-auto flex flex-col gap-2 pt-2">
           {subStat ? (
-            <div className="flex items-baseline justify-between gap-2 rounded-lg bg-white/60 px-3 py-1.5 ring-1 ring-inset ring-zinc-200/60">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+            <div className="flex items-baseline justify-between gap-2 rounded-lg bg-white/60 px-3 py-1.5 ring-1 ring-inset ring-zinc-200/60 dark:bg-zinc-800/60 dark:ring-zinc-700/60">
+              <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                 {subStat.label}
               </span>
-              <span className="text-sm font-semibold tabular-nums text-zinc-800">
+              <span className="text-sm font-semibold tabular-nums text-zinc-800 dark:text-zinc-200">
                 {subStat.value}
               </span>
             </div>
           ) : null}
           {sparkline && sparkline.length > 0 ? (
             <div>
-              <p className="mb-1 text-[10.5px] font-semibold uppercase tracking-wide text-zinc-500">
+              <p className="mb-1 text-[10.5px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                 7 ngày qua
               </p>
               <Sparkline data={sparkline} tone={styles.sparkTone} />
@@ -376,21 +376,21 @@ function MetricCardImpl({
           {Icon ? (
             <span
               className={cn(
-                "inline-flex shrink-0 items-center justify-center rounded-lg bg-zinc-100/80 ring-1 ring-zinc-200/60",
+                "inline-flex shrink-0 items-center justify-center rounded-lg bg-zinc-100/80 ring-1 ring-zinc-200/60 dark:bg-zinc-800/80 dark:ring-zinc-700/60",
                 isLarge ? "h-9 w-9" : "h-8 w-8",
               )}
             >
               <Icon
                 className={cn(
                   isLarge ? "h-5 w-5" : "h-4 w-4",
-                  "text-zinc-400",
+                  "text-zinc-400 dark:text-zinc-500",
                 )}
                 aria-hidden="true"
                 strokeWidth={2}
               />
             </span>
           ) : null}
-          <p className="truncate text-[10.5px] font-bold uppercase tracking-[0.12em] text-zinc-500">
+          <p className="truncate text-[10.5px] font-bold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
             {label}
           </p>
         </div>
@@ -399,13 +399,13 @@ function MetricCardImpl({
       <div className="flex flex-col gap-1">
         <p
           className={cn(
-            "font-semibold leading-none tabular-nums text-zinc-300",
+            "font-semibold leading-none tabular-nums text-zinc-300 dark:text-zinc-600",
             isLarge ? "text-4xl" : "text-3xl",
           )}
         >
           —
         </p>
-        <p className="text-sm text-zinc-500">Chưa có dữ liệu</p>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">Chưa có dữ liệu</p>
       </div>
 
       {interactive ? (
@@ -427,16 +427,16 @@ function MetricCardImpl({
 
   // ---- Container styles (glass card) ----
   const baseClass = cn(
-    "group relative flex flex-col gap-3 overflow-hidden rounded-2xl border bg-white/70 p-5 backdrop-blur-sm",
+    "group relative flex flex-col gap-3 overflow-hidden rounded-2xl border bg-white/70 p-5 backdrop-blur-sm dark:bg-zinc-900/60",
     "shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.04)]",
     "transition-all duration-300 ease-out",
     "dashboard-stagger-fade",
     isLarge ? "min-h-[280px]" : "min-h-[160px]",
     isEmpty
       ? cn(
-          "border-dashed border-zinc-200 bg-white/60",
+          "border-dashed border-zinc-200 bg-white/60 dark:border-zinc-700 dark:bg-zinc-900/60",
           interactive &&
-            "cursor-pointer hover:border-zinc-300 hover:bg-zinc-50/70 hover:shadow-md",
+            "cursor-pointer hover:border-zinc-300 hover:bg-zinc-50/70 hover:shadow-md dark:hover:border-zinc-600 dark:hover:bg-zinc-800/60",
         )
       : cn(
           styles.borderRest,

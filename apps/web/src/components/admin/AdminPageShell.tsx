@@ -107,7 +107,7 @@ export function AdminPageShell({
     <div className="relative -mx-4 -my-4 md:-mx-6 md:-my-5">
       {/* Background gradient + subtle blob — full-bleed (đè lên padding của
           AppShell qua negative margin ở trên). */}
-      <div className="relative bg-gradient-to-b from-zinc-50/60 via-white to-white">
+      <div className="relative bg-gradient-to-b from-zinc-50/60 via-white to-white dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-900">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-0 top-0 h-64 overflow-hidden"
@@ -120,7 +120,7 @@ export function AdminPageShell({
         <div className="flex items-center justify-between gap-3">
           <Breadcrumb items={breadcrumb} />
           {meta ? (
-            <div className="hidden font-mono text-[11px] tracking-normal text-zinc-500 sm:block">
+            <div className="hidden font-mono text-[11px] tracking-normal text-zinc-500 dark:text-zinc-400 sm:block">
               {meta}
             </div>
           ) : null}
@@ -129,11 +129,11 @@ export function AdminPageShell({
         {/* Page header */}
         <header className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
-            <h1 className="truncate text-2xl font-semibold leading-tight tracking-tight text-zinc-900">
+            <h1 className="truncate text-2xl font-semibold leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">
               {title}
             </h1>
             {description ? (
-              <p className="mt-1 max-w-2xl text-sm leading-relaxed text-zinc-600">
+              <p className="mt-1 max-w-2xl text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
                 {description}
               </p>
             ) : null}
@@ -147,7 +147,7 @@ export function AdminPageShell({
         {showNav ? (
           <nav
             aria-label="Admin sections"
-            className="mt-5 flex gap-1 overflow-x-auto border-b border-zinc-200 pb-px"
+            className="mt-5 flex gap-1 overflow-x-auto border-b border-zinc-200 pb-px dark:border-zinc-700"
           >
             {NAV_ITEMS.map((item) => {
               const active = item.exact
@@ -162,8 +162,8 @@ export function AdminPageShell({
                   className={cn(
                     "group relative inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-sm font-medium transition-colors",
                     active
-                      ? "text-indigo-700"
-                      : "text-zinc-600 hover:text-zinc-900",
+                      ? "text-indigo-700 dark:text-indigo-400"
+                      : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50",
                   )}
                   aria-current={active ? "page" : undefined}
                 >
@@ -171,8 +171,8 @@ export function AdminPageShell({
                     className={cn(
                       "h-4 w-4",
                       active
-                        ? "text-indigo-600"
-                        : "text-zinc-400 group-hover:text-zinc-500",
+                        ? "text-indigo-600 dark:text-indigo-400"
+                        : "text-zinc-400 group-hover:text-zinc-500 dark:text-zinc-500 dark:group-hover:text-zinc-400",
                     )}
                     aria-hidden="true"
                   />
@@ -180,7 +180,7 @@ export function AdminPageShell({
                   {active ? (
                     <span
                       aria-hidden="true"
-                      className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-indigo-600"
+                      className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-indigo-600 dark:bg-indigo-400"
                     />
                   ) : null}
                 </Link>
@@ -203,7 +203,7 @@ function Breadcrumb({ items }: { items: AdminBreadcrumbItem[] }) {
   return (
     <nav
       aria-label="Breadcrumb"
-      className="flex min-w-0 items-center gap-1 text-xs tracking-normal text-zinc-500"
+      className="flex min-w-0 items-center gap-1 text-xs tracking-normal text-zinc-500 dark:text-zinc-400"
     >
       <ol className="flex flex-wrap items-center gap-1">
         {items.map((item, idx) => {
@@ -213,7 +213,7 @@ function Breadcrumb({ items }: { items: AdminBreadcrumbItem[] }) {
               {isLast || !item.href ? (
                 <span
                   className={cn(
-                    isLast ? "font-medium text-zinc-900" : "text-zinc-500",
+                    isLast ? "font-medium text-zinc-900 dark:text-zinc-50" : "text-zinc-500 dark:text-zinc-400",
                   )}
                   aria-current={isLast ? "page" : undefined}
                 >
@@ -222,14 +222,14 @@ function Breadcrumb({ items }: { items: AdminBreadcrumbItem[] }) {
               ) : (
                 <Link
                   href={item.href}
-                  className="text-zinc-500 transition-colors hover:text-zinc-900"
+                  className="text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
                 >
                   {item.label}
                 </Link>
               )}
               {!isLast ? (
                 <ChevronRight
-                  className="h-3 w-3 text-zinc-300"
+                  className="h-3 w-3 text-zinc-300 dark:text-zinc-600"
                   aria-hidden="true"
                 />
               ) : null}

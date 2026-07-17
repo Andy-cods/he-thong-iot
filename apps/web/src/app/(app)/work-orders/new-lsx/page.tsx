@@ -271,18 +271,18 @@ export default function NewLsxPage() {
   const pending = createLsx.isPending;
 
   return (
-    <div className="flex h-full flex-col overflow-auto bg-zinc-50">
+    <div className="flex h-full flex-col overflow-auto bg-zinc-50 dark:bg-zinc-950">
       {/* Header (no print) */}
-      <header className="border-b border-zinc-200 bg-white px-6 py-4 print:hidden">
-        <nav aria-label="Breadcrumb" className="text-xs text-zinc-500">
-          <Link href="/" className="hover:text-zinc-900 hover:underline">Tổng quan</Link>
-          <span className="mx-1.5 text-zinc-300">›</span>
-          <Link href="/operations" className="hover:text-zinc-900 hover:underline">Gia công</Link>
-          <span className="mx-1.5 text-zinc-300">›</span>
-          <span className="font-medium text-zinc-900">Phiếu LSX GTAM</span>
+      <header className="border-b border-zinc-200 bg-white px-6 py-4 print:hidden dark:border-zinc-800 dark:bg-zinc-900">
+        <nav aria-label="Breadcrumb" className="text-xs text-zinc-500 dark:text-zinc-400">
+          <Link href="/" className="hover:text-zinc-900 hover:underline dark:hover:text-zinc-100">Tổng quan</Link>
+          <span className="mx-1.5 text-zinc-300 dark:text-zinc-600">›</span>
+          <Link href="/operations" className="hover:text-zinc-900 hover:underline dark:hover:text-zinc-100">Gia công</Link>
+          <span className="mx-1.5 text-zinc-300 dark:text-zinc-600">›</span>
+          <span className="font-medium text-zinc-900 dark:text-zinc-50">Phiếu LSX GTAM</span>
         </nav>
         <div className="mt-1.5 flex items-center justify-between">
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             Phiếu Lệnh Sản Xuất (LSX GTAM)
           </h1>
           <div className="flex items-center gap-2">
@@ -298,7 +298,7 @@ export default function NewLsxPage() {
       </header>
 
       <div className="mx-auto w-full max-w-[1200px] p-6 print:p-4">
-        <article className="rounded-md border border-zinc-300 bg-white shadow-sm print:border-zinc-900 print:shadow-none">
+        <article className="rounded-md border border-zinc-300 bg-white shadow-sm print:border-zinc-900 print:shadow-none dark:border-zinc-700 dark:bg-zinc-900">
           {/* Title bar */}
           <div className="flex items-center gap-4 border-b-2 border-zinc-900 px-6 py-4 print:py-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -310,13 +310,13 @@ export default function NewLsxPage() {
               className="h-16 w-auto shrink-0 object-contain"
             />
             <div className="flex-1 text-center">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-700">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-700 dark:text-zinc-200">
                 CÔNG TY CỔ PHẦN SẢN XUẤT TỰ ĐỘNG HÓA CÔNG NGHỆ TOÀN CẦU (GTAM)
               </p>
-              <h2 className="mt-1 text-xl font-bold tracking-wide text-zinc-900">
+              <h2 className="mt-1 text-xl font-bold tracking-wide text-zinc-900 dark:text-zinc-50">
                 LỆNH SẢN XUẤT
               </h2>
-              <p className="mt-0.5 text-[10px] text-zinc-500">
+              <p className="mt-0.5 text-[10px] text-zinc-500 dark:text-zinc-400">
                 Mẫu No: GTAM/PRD-LSX · Phiên bản 1.0
               </p>
             </div>
@@ -325,13 +325,13 @@ export default function NewLsxPage() {
           </div>
 
           {/* Header info */}
-          <section className="grid grid-cols-1 gap-3 border-b border-zinc-200 px-6 py-4 md:grid-cols-3">
+          <section className="grid grid-cols-1 gap-3 border-b border-zinc-200 px-6 py-4 md:grid-cols-3 dark:border-zinc-700">
             <div className="space-y-1">
               <Label>Loại lệnh</Label>
               <select
                 value={orderType}
                 onChange={(e) => setOrderType(e.target.value as OrderType)}
-                className="flex h-9 w-full items-center rounded-md border border-zinc-200 bg-white px-3 text-[13px] focus:border-indigo-500 focus:outline-none"
+                className="flex h-9 w-full items-center rounded-md border border-zinc-200 bg-white px-3 text-[13px] focus:border-indigo-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
               >
                 {Object.entries(ORDER_TYPE_LABELS).map(([k, v]) => (
                   <option key={k} value={k}>{v}</option>
@@ -347,7 +347,7 @@ export default function NewLsxPage() {
               <select
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as Priority)}
-                className="flex h-9 w-full items-center rounded-md border border-zinc-200 bg-white px-3 text-[13px] focus:border-indigo-500 focus:outline-none"
+                className="flex h-9 w-full items-center rounded-md border border-zinc-200 bg-white px-3 text-[13px] focus:border-indigo-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
               >
                 {Object.entries(PRIORITY_LABELS).map(([k, v]) => (
                   <option key={k} value={k}>{v}</option>
@@ -356,7 +356,7 @@ export default function NewLsxPage() {
             </div>
             <div className="space-y-1">
               <Label>Người lập</Label>
-              <Input value={session.data?.fullName ?? ""} disabled className="bg-zinc-50" />
+              <Input value={session.data?.fullName ?? ""} disabled className="bg-zinc-50 dark:bg-zinc-800" />
             </div>
             <div className="space-y-1">
               <Label>Ngày bắt đầu</Label>
@@ -369,8 +369,8 @@ export default function NewLsxPage() {
           </section>
 
           {/* I. Sản phẩm */}
-          <section className="border-b border-zinc-200 px-6 py-4">
-            <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-zinc-800">
+          <section className="border-b border-zinc-200 px-6 py-4 dark:border-zinc-700">
+            <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-zinc-800 dark:text-zinc-100">
               I. Thông tin sản phẩm
             </h3>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -416,53 +416,53 @@ export default function NewLsxPage() {
           </section>
 
           {/* II. Materials */}
-          <section className="border-b border-zinc-200 px-6 py-4">
+          <section className="border-b border-zinc-200 px-6 py-4 dark:border-zinc-700">
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-bold uppercase tracking-wide text-zinc-800">
+              <h3 className="text-sm font-bold uppercase tracking-wide text-zinc-800 dark:text-zinc-100">
                 II. Nguyên vật liệu (BOM)
               </h3>
               <Button size="sm" variant="secondary" onClick={() => setMaterials([...materials, blankMaterial()])} disabled={pending} className="print:hidden">
                 <Plus className="h-3 w-3" /> Thêm vật liệu
               </Button>
             </div>
-            <div className="overflow-x-auto rounded-md border border-zinc-200 print:overflow-visible">
+            <div className="overflow-x-auto rounded-md border border-zinc-200 print:overflow-visible dark:border-zinc-700">
               <table className="w-full text-[11px]">
-                <thead className="bg-zinc-100">
-                  <tr className="text-[10px] font-semibold uppercase tracking-wide text-zinc-600">
-                    <th className="border-r border-zinc-200 px-1 py-1.5 w-8">#</th>
-                    <th className="border-r border-zinc-200 px-1 py-1.5 text-left min-w-[200px]">Mã VT · Tên</th>
-                    <th className="border-r border-zinc-200 px-1 py-1.5 text-right w-20">Định mức</th>
-                    <th className="border-r border-zinc-200 px-1 py-1.5 text-left w-14">ĐVT</th>
-                    <th className="border-r border-zinc-200 px-1 py-1.5 text-right w-20">SL cấp</th>
-                    <th className="border-r border-zinc-200 px-1 py-1.5 text-left w-24">Kho cấp</th>
-                    <th className="border-r border-zinc-200 px-1 py-1.5 text-left min-w-[100px]">Ghi chú</th>
+                <thead className="bg-zinc-100 dark:bg-zinc-800">
+                  <tr className="text-[10px] font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
+                    <th className="border-r border-zinc-200 px-1 py-1.5 w-8 dark:border-zinc-700">#</th>
+                    <th className="border-r border-zinc-200 px-1 py-1.5 text-left min-w-[200px] dark:border-zinc-700">Mã VT · Tên</th>
+                    <th className="border-r border-zinc-200 px-1 py-1.5 text-right w-20 dark:border-zinc-700">Định mức</th>
+                    <th className="border-r border-zinc-200 px-1 py-1.5 text-left w-14 dark:border-zinc-700">ĐVT</th>
+                    <th className="border-r border-zinc-200 px-1 py-1.5 text-right w-20 dark:border-zinc-700">SL cấp</th>
+                    <th className="border-r border-zinc-200 px-1 py-1.5 text-left w-24 dark:border-zinc-700">Kho cấp</th>
+                    <th className="border-r border-zinc-200 px-1 py-1.5 text-left min-w-[100px] dark:border-zinc-700">Ghi chú</th>
                     <th className="px-1 py-1.5 w-8 print:hidden" />
                   </tr>
                 </thead>
                 <tbody>
                   {materials.map((m, idx) => (
-                    <tr key={m.localId} className="border-t border-zinc-100 align-top">
-                      <td className="border-r border-zinc-100 px-1 py-1 text-center font-mono text-[10px] text-zinc-500">{idx + 1}</td>
-                      <td className="border-r border-zinc-100 px-1 py-1">
+                    <tr key={m.localId} className="border-t border-zinc-100 align-top dark:border-zinc-800">
+                      <td className="border-r border-zinc-100 px-1 py-1 text-center font-mono text-[10px] text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">{idx + 1}</td>
+                      <td className="border-r border-zinc-100 px-1 py-1 dark:border-zinc-800">
                         <ItemPicker value={m.item} onChange={(it) => updateMaterial(m.localId, { item: it, uom: m.uom || it?.uom || "" })} disabled={pending} />
                       </td>
-                      <td className="border-r border-zinc-100 px-1 py-1">
+                      <td className="border-r border-zinc-100 px-1 py-1 dark:border-zinc-800">
                         <input type="number" step="0.001" min="0" value={m.qty} onChange={(e) => updateMaterial(m.localId, { qty: e.target.value })} className="w-full bg-transparent px-1 text-right font-mono text-[11px] outline-none" />
                       </td>
-                      <td className="border-r border-zinc-100 px-1 py-1">
-                        <input value={m.uom} onChange={(e) => updateMaterial(m.localId, { uom: e.target.value })} placeholder={m.item?.uom ?? "—"} className="w-full bg-transparent px-1 text-[11px] outline-none placeholder:text-zinc-300" />
+                      <td className="border-r border-zinc-100 px-1 py-1 dark:border-zinc-800">
+                        <input value={m.uom} onChange={(e) => updateMaterial(m.localId, { uom: e.target.value })} placeholder={m.item?.uom ?? "—"} className="w-full bg-transparent px-1 text-[11px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600" />
                       </td>
-                      <td className="border-r border-zinc-100 px-1 py-1">
+                      <td className="border-r border-zinc-100 px-1 py-1 dark:border-zinc-800">
                         <input type="number" step="0.001" min="0" value={m.allocatedQty} onChange={(e) => updateMaterial(m.localId, { allocatedQty: e.target.value })} className="w-full bg-transparent px-1 text-right font-mono text-[11px] outline-none" />
                       </td>
-                      <td className="border-r border-zinc-100 px-1 py-1">
-                        <input value={m.warehouseCode} onChange={(e) => updateMaterial(m.localId, { warehouseCode: e.target.value })} placeholder="WH-01" className="w-full bg-transparent px-1 font-mono text-[11px] outline-none placeholder:text-zinc-300" />
+                      <td className="border-r border-zinc-100 px-1 py-1 dark:border-zinc-800">
+                        <input value={m.warehouseCode} onChange={(e) => updateMaterial(m.localId, { warehouseCode: e.target.value })} placeholder="WH-01" className="w-full bg-transparent px-1 font-mono text-[11px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600" />
                       </td>
-                      <td className="border-r border-zinc-100 px-1 py-1">
+                      <td className="border-r border-zinc-100 px-1 py-1 dark:border-zinc-800">
                         <input value={m.notes} onChange={(e) => updateMaterial(m.localId, { notes: e.target.value })} className="w-full bg-transparent px-1 text-[11px] outline-none" />
                       </td>
                       <td className="px-1 py-1 text-center print:hidden">
-                        <button type="button" onClick={() => removeAt(materials, setMaterials, blankMaterial)(m.localId)} disabled={pending || materials.length === 1} className="text-zinc-400 hover:text-red-600 disabled:opacity-30">
+                        <button type="button" onClick={() => removeAt(materials, setMaterials, blankMaterial)(m.localId)} disabled={pending || materials.length === 1} className="text-zinc-400 hover:text-red-600 disabled:opacity-30 dark:text-zinc-500 dark:hover:text-red-400">
                           <Trash2 className="h-3 w-3" />
                         </button>
                       </td>
@@ -474,63 +474,63 @@ export default function NewLsxPage() {
           </section>
 
           {/* III. Routing */}
-          <section className="border-b border-zinc-200 px-6 py-4">
+          <section className="border-b border-zinc-200 px-6 py-4 dark:border-zinc-700">
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-bold uppercase tracking-wide text-zinc-800">
+              <h3 className="text-sm font-bold uppercase tracking-wide text-zinc-800 dark:text-zinc-100">
                 III. Công đoạn sản xuất (Routing)
               </h3>
               <Button size="sm" variant="secondary" onClick={() => setRoutings([...routings, blankRouting()])} disabled={pending} className="print:hidden">
                 <Plus className="h-3 w-3" /> Thêm công đoạn
               </Button>
             </div>
-            <div className="overflow-x-auto rounded-md border border-zinc-200 print:overflow-visible">
+            <div className="overflow-x-auto rounded-md border border-zinc-200 print:overflow-visible dark:border-zinc-700">
               <table className="w-full text-[11px]">
-                <thead className="bg-zinc-100">
-                  <tr className="text-[10px] font-semibold uppercase tracking-wide text-zinc-600">
-                    <th className="border-r border-zinc-200 px-1 py-1.5 w-8">#</th>
-                    <th className="border-r border-zinc-200 px-1 py-1.5 text-left min-w-[140px]">Tên công đoạn</th>
-                    <th className="border-r border-zinc-200 px-1 py-1.5 text-left min-w-[140px]">Thiết bị</th>
-                    <th className="border-r border-zinc-200 px-1 py-1.5 text-left min-w-[120px]">Người phụ trách</th>
-                    <th className="border-r border-zinc-200 px-1 py-1.5 text-right w-20">Phút</th>
-                    <th className="border-r border-zinc-200 px-1 py-1.5 text-center w-12">QC</th>
-                    <th className="border-r border-zinc-200 px-1 py-1.5 text-left min-w-[100px]">Ghi chú</th>
+                <thead className="bg-zinc-100 dark:bg-zinc-800">
+                  <tr className="text-[10px] font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
+                    <th className="border-r border-zinc-200 px-1 py-1.5 w-8 dark:border-zinc-700">#</th>
+                    <th className="border-r border-zinc-200 px-1 py-1.5 text-left min-w-[140px] dark:border-zinc-700">Tên công đoạn</th>
+                    <th className="border-r border-zinc-200 px-1 py-1.5 text-left min-w-[140px] dark:border-zinc-700">Thiết bị</th>
+                    <th className="border-r border-zinc-200 px-1 py-1.5 text-left min-w-[120px] dark:border-zinc-700">Người phụ trách</th>
+                    <th className="border-r border-zinc-200 px-1 py-1.5 text-right w-20 dark:border-zinc-700">Phút</th>
+                    <th className="border-r border-zinc-200 px-1 py-1.5 text-center w-12 dark:border-zinc-700">QC</th>
+                    <th className="border-r border-zinc-200 px-1 py-1.5 text-left min-w-[100px] dark:border-zinc-700">Ghi chú</th>
                     <th className="px-1 py-1.5 w-8 print:hidden" />
                   </tr>
                 </thead>
                 <tbody>
                   {routings.map((r, idx) => (
-                    <tr key={r.localId} className="border-t border-zinc-100 align-top">
-                      <td className="border-r border-zinc-100 px-1 py-1 text-center font-mono text-[10px] text-zinc-500">{idx + 1}</td>
-                      <td className="border-r border-zinc-100 px-1 py-1">
-                        <input value={r.name} onChange={(e) => updateRouting(r.localId, { name: e.target.value })} placeholder="VD: CNC, Lắp ráp" className="w-full bg-transparent px-1 text-[11px] outline-none placeholder:text-zinc-300" />
+                    <tr key={r.localId} className="border-t border-zinc-100 align-top dark:border-zinc-800">
+                      <td className="border-r border-zinc-100 px-1 py-1 text-center font-mono text-[10px] text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">{idx + 1}</td>
+                      <td className="border-r border-zinc-100 px-1 py-1 dark:border-zinc-800">
+                        <input value={r.name} onChange={(e) => updateRouting(r.localId, { name: e.target.value })} placeholder="VD: CNC, Lắp ráp" className="w-full bg-transparent px-1 text-[11px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600" />
                       </td>
-                      <td className="border-r border-zinc-100 px-1 py-1">
-                        <input value={r.equipment} onChange={(e) => updateRouting(r.localId, { equipment: e.target.value })} placeholder="máy 01+02+05" className="w-full bg-transparent px-1 text-[11px] outline-none placeholder:text-zinc-300" />
+                      <td className="border-r border-zinc-100 px-1 py-1 dark:border-zinc-800">
+                        <input value={r.equipment} onChange={(e) => updateRouting(r.localId, { equipment: e.target.value })} placeholder="máy 01+02+05" className="w-full bg-transparent px-1 text-[11px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600" />
                       </td>
-                      <td className="border-r border-zinc-100 px-1 py-1">
-                        <input value={r.assignedOperator} onChange={(e) => updateRouting(r.localId, { assignedOperator: e.target.value })} placeholder="Cường, Long..." className="w-full bg-transparent px-1 text-[11px] outline-none placeholder:text-zinc-300" />
+                      <td className="border-r border-zinc-100 px-1 py-1 dark:border-zinc-800">
+                        <input value={r.assignedOperator} onChange={(e) => updateRouting(r.localId, { assignedOperator: e.target.value })} placeholder="Cường, Long..." className="w-full bg-transparent px-1 text-[11px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600" />
                       </td>
-                      <td className="border-r border-zinc-100 px-1 py-1">
+                      <td className="border-r border-zinc-100 px-1 py-1 dark:border-zinc-800">
                         <input type="number" step="0.1" min="0" value={r.durationMin} onChange={(e) => updateRouting(r.localId, { durationMin: e.target.value })} className="w-full bg-transparent px-1 text-right font-mono text-[11px] outline-none" />
                       </td>
-                      <td className="border-r border-zinc-100 px-1 py-1 text-center">
+                      <td className="border-r border-zinc-100 px-1 py-1 text-center dark:border-zinc-800">
                         <input type="checkbox" checked={r.qcRequired} onChange={(e) => updateRouting(r.localId, { qcRequired: e.target.checked })} className="h-3.5 w-3.5" />
                       </td>
-                      <td className="border-r border-zinc-100 px-1 py-1">
+                      <td className="border-r border-zinc-100 px-1 py-1 dark:border-zinc-800">
                         <input value={r.notes} onChange={(e) => updateRouting(r.localId, { notes: e.target.value })} className="w-full bg-transparent px-1 text-[11px] outline-none" />
                       </td>
                       <td className="px-1 py-1 text-center print:hidden">
-                        <button type="button" onClick={() => removeAt(routings, setRoutings, blankRouting)(r.localId)} disabled={pending || routings.length === 1} className="text-zinc-400 hover:text-red-600 disabled:opacity-30">
+                        <button type="button" onClick={() => removeAt(routings, setRoutings, blankRouting)(r.localId)} disabled={pending || routings.length === 1} className="text-zinc-400 hover:text-red-600 disabled:opacity-30 dark:text-zinc-500 dark:hover:text-red-400">
                           <Trash2 className="h-3 w-3" />
                         </button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
-                <tfoot className="bg-zinc-50">
-                  <tr className="border-t-2 border-zinc-300 font-semibold">
+                <tfoot className="bg-zinc-50 dark:bg-zinc-800/60">
+                  <tr className="border-t-2 border-zinc-300 font-semibold dark:border-zinc-700">
                     <td colSpan={4} className="px-2 py-1.5 text-right text-[11px]">Tổng thời gian:</td>
-                    <td className="px-1 py-1.5 text-right font-mono text-[12px] text-emerald-700 tabular-nums">
+                    <td className="px-1 py-1.5 text-right font-mono text-[12px] text-emerald-700 tabular-nums dark:text-emerald-400">
                       {totalRoutingMin.toLocaleString("vi-VN")} phút
                     </td>
                     <td colSpan={3} />
@@ -541,8 +541,8 @@ export default function NewLsxPage() {
           </section>
 
           {/* IV. Documents */}
-          <section className="border-b border-zinc-200 px-6 py-4">
-            <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-zinc-800">
+          <section className="border-b border-zinc-200 px-6 py-4 dark:border-zinc-700">
+            <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-zinc-800 dark:text-zinc-100">
               IV. Tài liệu đính kèm
             </h3>
             <div className="space-y-1">
@@ -558,61 +558,61 @@ export default function NewLsxPage() {
           </section>
 
           {/* V. Tools */}
-          <section className="border-b border-zinc-200 px-6 py-4">
+          <section className="border-b border-zinc-200 px-6 py-4 dark:border-zinc-700">
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-bold uppercase tracking-wide text-zinc-800">
+              <h3 className="text-sm font-bold uppercase tracking-wide text-zinc-800 dark:text-zinc-100">
                 V. Công cụ dụng cụ / Dao cụ
               </h3>
               <Button size="sm" variant="secondary" onClick={() => setTools([...tools, blankTool()])} disabled={pending} className="print:hidden">
                 <Plus className="h-3 w-3" /> Thêm dao cụ
               </Button>
             </div>
-            <div className="overflow-x-auto rounded-md border border-zinc-200 print:overflow-visible">
+            <div className="overflow-x-auto rounded-md border border-zinc-200 print:overflow-visible dark:border-zinc-700">
               <table className="w-full text-[11px]">
-                <thead className="bg-zinc-100">
-                  <tr className="text-[10px] font-semibold uppercase tracking-wide text-zinc-600">
-                    <th className="border-r border-zinc-200 px-1 py-1.5 w-8">#</th>
-                    <th className="border-r border-zinc-200 px-1 py-1.5 text-left min-w-[140px]">Tên dao/CCDC</th>
-                    <th className="border-r border-zinc-200 px-1 py-1.5 text-left min-w-[120px]">Mã hiệu</th>
-                    <th className="border-r border-zinc-200 px-1 py-1.5 text-left min-w-[140px]">Máy sử dụng</th>
-                    <th className="border-r border-zinc-200 px-1 py-1.5 text-right w-14">SL</th>
-                    <th className="border-r border-zinc-200 px-1 py-1.5 text-left w-14">ĐVT</th>
-                    <th className="border-r border-zinc-200 px-1 py-1.5 text-left w-32">Tình trạng</th>
-                    <th className="border-r border-zinc-200 px-1 py-1.5 text-left min-w-[100px]">Ghi chú</th>
+                <thead className="bg-zinc-100 dark:bg-zinc-800">
+                  <tr className="text-[10px] font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
+                    <th className="border-r border-zinc-200 px-1 py-1.5 w-8 dark:border-zinc-700">#</th>
+                    <th className="border-r border-zinc-200 px-1 py-1.5 text-left min-w-[140px] dark:border-zinc-700">Tên dao/CCDC</th>
+                    <th className="border-r border-zinc-200 px-1 py-1.5 text-left min-w-[120px] dark:border-zinc-700">Mã hiệu</th>
+                    <th className="border-r border-zinc-200 px-1 py-1.5 text-left min-w-[140px] dark:border-zinc-700">Máy sử dụng</th>
+                    <th className="border-r border-zinc-200 px-1 py-1.5 text-right w-14 dark:border-zinc-700">SL</th>
+                    <th className="border-r border-zinc-200 px-1 py-1.5 text-left w-14 dark:border-zinc-700">ĐVT</th>
+                    <th className="border-r border-zinc-200 px-1 py-1.5 text-left w-32 dark:border-zinc-700">Tình trạng</th>
+                    <th className="border-r border-zinc-200 px-1 py-1.5 text-left min-w-[100px] dark:border-zinc-700">Ghi chú</th>
                     <th className="px-1 py-1.5 w-8 print:hidden" />
                   </tr>
                 </thead>
                 <tbody>
                   {tools.map((t, idx) => (
-                    <tr key={t.localId} className="border-t border-zinc-100 align-top">
-                      <td className="border-r border-zinc-100 px-1 py-1 text-center font-mono text-[10px] text-zinc-500">{idx + 1}</td>
-                      <td className="border-r border-zinc-100 px-1 py-1">
-                        <input value={t.name} onChange={(e) => updateTool(t.localId, { name: e.target.value })} placeholder="VD: Mũi phay R3" className="w-full bg-transparent px-1 text-[11px] outline-none placeholder:text-zinc-300" />
+                    <tr key={t.localId} className="border-t border-zinc-100 align-top dark:border-zinc-800">
+                      <td className="border-r border-zinc-100 px-1 py-1 text-center font-mono text-[10px] text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">{idx + 1}</td>
+                      <td className="border-r border-zinc-100 px-1 py-1 dark:border-zinc-800">
+                        <input value={t.name} onChange={(e) => updateTool(t.localId, { name: e.target.value })} placeholder="VD: Mũi phay R3" className="w-full bg-transparent px-1 text-[11px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600" />
                       </td>
-                      <td className="border-r border-zinc-100 px-1 py-1">
-                        <input value={t.code} onChange={(e) => updateTool(t.localId, { code: e.target.value })} placeholder="R3-D8-60-4F" className="w-full bg-transparent px-1 font-mono text-[11px] outline-none placeholder:text-zinc-300" />
+                      <td className="border-r border-zinc-100 px-1 py-1 dark:border-zinc-800">
+                        <input value={t.code} onChange={(e) => updateTool(t.localId, { code: e.target.value })} placeholder="R3-D8-60-4F" className="w-full bg-transparent px-1 font-mono text-[11px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600" />
                       </td>
-                      <td className="border-r border-zinc-100 px-1 py-1">
-                        <input value={t.machine} onChange={(e) => updateTool(t.localId, { machine: e.target.value })} placeholder="CNC 01+02" className="w-full bg-transparent px-1 text-[11px] outline-none placeholder:text-zinc-300" />
+                      <td className="border-r border-zinc-100 px-1 py-1 dark:border-zinc-800">
+                        <input value={t.machine} onChange={(e) => updateTool(t.localId, { machine: e.target.value })} placeholder="CNC 01+02" className="w-full bg-transparent px-1 text-[11px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600" />
                       </td>
-                      <td className="border-r border-zinc-100 px-1 py-1">
+                      <td className="border-r border-zinc-100 px-1 py-1 dark:border-zinc-800">
                         <input type="number" step="1" min="0" value={t.qty} onChange={(e) => updateTool(t.localId, { qty: e.target.value })} className="w-full bg-transparent px-1 text-right font-mono text-[11px] outline-none" />
                       </td>
-                      <td className="border-r border-zinc-100 px-1 py-1">
+                      <td className="border-r border-zinc-100 px-1 py-1 dark:border-zinc-800">
                         <input value={t.uom} onChange={(e) => updateTool(t.localId, { uom: e.target.value })} className="w-full bg-transparent px-1 text-[11px] outline-none" />
                       </td>
-                      <td className="border-r border-zinc-100 px-1 py-1">
+                      <td className="border-r border-zinc-100 px-1 py-1 dark:border-zinc-800">
                         <select value={t.status} onChange={(e) => updateTool(t.localId, { status: e.target.value })} className="w-full bg-transparent px-1 text-[11px] outline-none">
                           {Object.entries(TOOL_STATUS_LABELS).map(([k, v]) => (
                             <option key={k} value={k}>{v}</option>
                           ))}
                         </select>
                       </td>
-                      <td className="border-r border-zinc-100 px-1 py-1">
+                      <td className="border-r border-zinc-100 px-1 py-1 dark:border-zinc-800">
                         <input value={t.notes} onChange={(e) => updateTool(t.localId, { notes: e.target.value })} className="w-full bg-transparent px-1 text-[11px] outline-none" />
                       </td>
                       <td className="px-1 py-1 text-center print:hidden">
-                        <button type="button" onClick={() => removeAt(tools, setTools, blankTool)(t.localId)} disabled={pending || tools.length === 1} className="text-zinc-400 hover:text-red-600 disabled:opacity-30">
+                        <button type="button" onClick={() => removeAt(tools, setTools, blankTool)(t.localId)} disabled={pending || tools.length === 1} className="text-zinc-400 hover:text-red-600 disabled:opacity-30 dark:text-zinc-500 dark:hover:text-red-400">
                           <Trash2 className="h-3 w-3" />
                         </button>
                       </td>
@@ -624,34 +624,34 @@ export default function NewLsxPage() {
           </section>
 
           {/* Notes */}
-          <section className="border-b border-zinc-200 px-6 py-4">
+          <section className="border-b border-zinc-200 px-6 py-4 dark:border-zinc-700">
             <Label>Ghi chú chung</Label>
             <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="VD: Nhựa thiếu 7 tấm — chờ NCC ngày 06/05" />
           </section>
 
           {/* VI. Phê duyệt — placeholder phase 3 */}
           <section className="px-6 py-4 print:py-3">
-            <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-zinc-800">
+            <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-zinc-800 dark:text-zinc-100">
               VI. Phê duyệt
             </h3>
             <table className="w-full text-[11px]">
-              <thead className="bg-zinc-50">
-                <tr className="text-[10px] uppercase text-zinc-500">
-                  <th className="border border-zinc-200 px-2 py-1 text-left">Người lập</th>
-                  <th className="border border-zinc-200 px-2 py-1 text-left">Kế toán</th>
-                  <th className="border border-zinc-200 px-2 py-1 text-left">QLSX</th>
-                  <th className="border border-zinc-200 px-2 py-1 text-left">Giám đốc</th>
+              <thead className="bg-zinc-50 dark:bg-zinc-800">
+                <tr className="text-[10px] uppercase text-zinc-500 dark:text-zinc-400">
+                  <th className="border border-zinc-200 px-2 py-1 text-left dark:border-zinc-700">Người lập</th>
+                  <th className="border border-zinc-200 px-2 py-1 text-left dark:border-zinc-700">Kế toán</th>
+                  <th className="border border-zinc-200 px-2 py-1 text-left dark:border-zinc-700">QLSX</th>
+                  <th className="border border-zinc-200 px-2 py-1 text-left dark:border-zinc-700">Giám đốc</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
                   {[1, 2, 3, 4].map((i) => (
-                    <td key={i} className="border border-zinc-200 px-2 py-6 align-bottom">&nbsp;</td>
+                    <td key={i} className="border border-zinc-200 px-2 py-6 align-bottom dark:border-zinc-700">&nbsp;</td>
                   ))}
                 </tr>
               </tbody>
             </table>
-            <p className="mt-2 text-[10px] italic text-zinc-500 print:hidden">
+            <p className="mt-2 text-[10px] italic text-zinc-500 print:hidden dark:text-zinc-400">
               Workflow phê duyệt 4 chữ ký + xác nhận liên bộ phận (Kho/Máy/Nhân sự/QLSX/QC) sẽ làm phase 3.
             </p>
           </section>

@@ -36,11 +36,11 @@ const ACTION_OPTIONS = [
 ];
 
 const ACTION_PILL: Record<string, string> = {
-  CREATE: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  UPDATE: "bg-sky-50 text-sky-700 ring-sky-200",
-  DELETE: "bg-rose-50 text-rose-700 ring-rose-200",
-  LOGIN: "bg-indigo-50 text-indigo-700 ring-indigo-200",
-  LOGOUT: "bg-zinc-100 text-zinc-600 ring-zinc-200",
+  CREATE: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800",
+  UPDATE: "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:ring-sky-800",
+  DELETE: "bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:ring-rose-800",
+  LOGIN: "bg-indigo-50 text-indigo-700 ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-800",
+  LOGOUT: "bg-zinc-100 text-zinc-600 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",
 };
 
 const GRID_COLS =
@@ -185,7 +185,7 @@ export default function AdminAuditPage() {
         <>
           Theo dõi toàn bộ thao tác ghi (CREATE / UPDATE / DELETE) và sự kiện
           phiên đăng nhập.{" "}
-          <span className="font-medium text-zinc-700">
+          <span className="font-medium text-zinc-700 dark:text-zinc-300">
             {total.toLocaleString("vi-VN")} bản ghi
           </span>
           .
@@ -205,13 +205,13 @@ export default function AdminAuditPage() {
     >
       <div className="flex flex-col gap-4">
         {/* Filter bar */}
-        <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+        <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div className="flex flex-wrap items-end gap-3">
             <div className="min-w-[220px] flex-1">
               <FilterLabel>Tìm kiếm</FilterLabel>
               <div className="relative mt-1">
                 <Search
-                  className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400"
+                  className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400 dark:text-zinc-500"
                   aria-hidden="true"
                 />
                 <Input
@@ -277,8 +277,8 @@ export default function AdminAuditPage() {
                   className={cn(
                     "inline-flex h-7 items-center rounded-full border px-2.5 text-[11px] font-medium tracking-normal transition-colors",
                     active
-                      ? "border-indigo-200 bg-indigo-50 text-indigo-700"
-                      : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50",
+                      ? "border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-400"
+                      : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60",
                   )}
                 >
                   {o.label}
@@ -300,7 +300,7 @@ export default function AdminAuditPage() {
                     "inline-flex h-7 items-center rounded-full border px-2.5 font-mono text-[10px] font-semibold uppercase ring-1 ring-inset transition-colors",
                     active
                       ? cn(ACTION_PILL[o.code] ?? "", "border-transparent")
-                      : "border-zinc-200 bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50",
+                      : "border-zinc-200 bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:ring-zinc-700 dark:hover:bg-zinc-800/60",
                   )}
                 >
                   {o.code}
@@ -311,10 +311,10 @@ export default function AdminAuditPage() {
         </section>
 
         {/* Table */}
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div
             className={cn(
-              "sticky top-0 z-sticky grid h-9 items-center border-b border-zinc-200 bg-zinc-50/70 px-4 text-[11px] font-semibold uppercase tracking-normal text-zinc-500",
+              "sticky top-0 z-sticky grid h-9 items-center border-b border-zinc-200 bg-zinc-50/70 px-4 text-[11px] font-semibold uppercase tracking-normal text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-400",
               GRID_COLS,
             )}
           >
@@ -327,7 +327,7 @@ export default function AdminAuditPage() {
           </div>
 
           {query.isLoading ? (
-            <div className="flex-1 p-8 text-center text-sm text-zinc-500">
+            <div className="flex-1 p-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
               Đang tải…
             </div>
           ) : rows.length === 0 ? (
@@ -393,16 +393,16 @@ export default function AdminAuditPage() {
 
         {/* Pagination */}
         <footer className="flex shrink-0 items-center justify-between text-xs">
-          <span className="text-zinc-600">
+          <span className="text-zinc-600 dark:text-zinc-400">
             Hiển thị{" "}
-            <span className="tabular-nums text-zinc-900">
+            <span className="tabular-nums text-zinc-900 dark:text-zinc-50">
               {rows.length === 0
                 ? 0
                 : (urlState.page - 1) * urlState.pageSize + 1}
               –{(urlState.page - 1) * urlState.pageSize + rows.length}
             </span>{" "}
             /{" "}
-            <span className="tabular-nums text-zinc-900">
+            <span className="tabular-nums text-zinc-900 dark:text-zinc-50">
               {total.toLocaleString("vi-VN")}
             </span>
           </span>
@@ -417,7 +417,7 @@ export default function AdminAuditPage() {
             >
               ‹
             </Button>
-            <span className="px-2 text-zinc-600 tabular-nums">
+            <span className="px-2 text-zinc-600 tabular-nums dark:text-zinc-400">
               {urlState.page} / {pageCount}
             </span>
             <Button
@@ -449,7 +449,7 @@ function FilterLabel({
   return (
     <span
       className={cn(
-        "text-[11px] font-semibold uppercase tracking-normal text-zinc-500",
+        "text-[11px] font-semibold uppercase tracking-normal text-zinc-500 dark:text-zinc-400",
         className,
       )}
     >
