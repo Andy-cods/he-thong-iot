@@ -4,11 +4,16 @@
 > Yêu cầu user: "tôi muốn phát triển để truy cập hệ thống ở mobile cũng được, nếu có thông báo cần duyệt thì gửi thông báo vào mail cho tôi"
 
 ## ✅ Quyết định user đã chốt (2026-07-17)
-1. **Sender:** `info@gtam.vn` — domain chạy **Microsoft 365** (MX `gtam-vn.mail.protection.outlook.com`, SPF outlook). SMTP `smtp.office365.com:587` STARTTLS. VPS đã verify outbound 587 OK.
-   - ⚠️ M365 basic-auth SMTP: theo [timeline Microsoft cập nhật 27/01/2026](https://techcommunity.microsoft.com/blog/exchange/updated-exchange-online-smtp-auth-basic-authentication-deprecation-timeline/4489835) — hoạt động bình thường tới hết 12/2026, sau đó tắt mặc định (admin bật lại được), khoá hẳn ~2027 → V1 dùng password, kế hoạch chuyển OAuth2/Graph trong 2027.
-   - Cần: mật khẩu `info@gtam.vn` (hoặc app password nếu tenant bật MFA) + mailbox bật "Authenticated SMTP" trong M365 admin center nếu đang tắt.
-2. **Người nhận:** mọi user có quyền duyệt ĐÃ điền email trong trang Quản trị (admin kiểm soát bằng cách điền/xoá email).
-3. **Scope:** Sprint E + M1 cùng đợt.
+1. **Cách gửi (CẬP NHẬT):** user KHÔNG muốn đưa mật khẩu mailbox `info@gtam.vn` (chỉ muốn NHẬN thông báo, không muốn hệ thống đăng nhập hộp thư). → Chuyển sang **dịch vụ gửi email chuyên dụng Resend** (HTTP API, chỉ cần 1 API key, tách hoàn toàn khỏi mailbox). Worker chọn transport theo thứ tự **Resend → SMTP relay → skip**, nên vẫn giữ được đường SMTP (M365/Brevo/SendGrid) làm dự phòng.
+   - Resend free 3000 mail/tháng, 100/ngày. Chưa verify domain → sender `onboarding@resend.dev`, **chỉ gửi được tới email đã đăng ký tài khoản Resend** (đủ để nhận thông báo cá nhân). Verify `songchau.vn` (thêm DNS record — user kiểm soát domain này vì `mes.songchau.vn` đã trỏ VPS) → gửi tới mọi địa chỉ + sender chuyên nghiệp `mes@songchau.vn`.
+   - Ghi chú M365 (nếu sau này chọn SMTP relay qua chính gtam.vn): basic-auth SMTP hoạt động tới hết 12/2026, [timeline Microsoft 27/01/2026](https://techcommunity.microsoft.com/blog/exchange/updated-exchange-online-smtp-auth-basic-authentication-deprecation-timeline/4489835), sau chuyển OAuth2/Graph.
+2. **Người nhận:** mọi user có quyền duyệt ĐÃ điền email thật trong trang Quản trị (admin kiểm soát bằng cách điền/xoá email). Email seed hiện là `@songchau.local` giả → cần điền lại email thật.
+3. **Scope:** Sprint E + M1 (+ M2 form A4) cùng đợt.
+
+## 🔑 Việc còn lại cần user (để email gửi thật)
+1. Đăng ký tài khoản **Resend** (free, https://resend.com) **bằng chính email muốn nhận thông báo** (VD `info@gtam.vn` hoặc Gmail) → vào **API Keys** → tạo key → gửi tôi. Tôi ghi vào `/opt/hethong-iot/secrets/resend_api_key.txt` + restart worker (~2 phút).
+2. (Tùy chọn, để gửi tới NHIỀU địa chỉ) verify domain `songchau.vn` trên Resend: thêm 3 DNS record Resend cung cấp vào DNS songchau.vn → set `MAIL_FROM=mes@songchau.vn`.
+3. Điền email thật cho các account cần nhận trong **Quản trị → Người dùng** (tối thiểu account `admin`).
 
 ---
 

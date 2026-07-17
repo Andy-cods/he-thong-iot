@@ -143,11 +143,16 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 - **Phát hiện:** email các account seed đều là placeholder `.local` (fake, sẽ bounce khi bật gửi
   thật) — cần user điền email thật qua trang Quản trị trước khi kích hoạt (classifier chặn Claude
   tự sửa email user trong DB prod — đúng, đây là quyết định của user).
-- **CHỜ USER (để DONE):** (1) mật khẩu/app-password `info@gtam.vn` → ghi
-  `/opt/hethong-iot/secrets/smtp_password.txt` + restart worker; nếu tenant M365 tắt
-  "Authenticated SMTP" cho mailbox thì bật trong admin center; (2) điền email thật cho các account
-  cần nhận (tối thiểu admin) qua trang Quản trị → Users; (3) test gửi thật → nhận email trên
-  điện thoại → bấm link → duyệt.
+- **ĐỔI HƯỚNG (user feedback):** user KHÔNG muốn đưa mật khẩu mailbox (chỉ muốn NHẬN, không muốn
+  hệ thống đăng nhập hộp thư gtam.vn). → Thêm **Resend HTTP API** (commit `a596f38`) làm transport
+  chính: worker chọn Resend (RESEND_API_KEY) → SMTP relay → skip. Resend chỉ cần 1 API key, tách
+  khỏi mailbox. VPS outbound api.resend.com:443 OK; override + secret resend_api_key placeholder đã set.
+- **Mobile M2 (commit tiếp):** form A4 new-dnvt/new-mrf cuộn ngang như tài liệu trên mobile
+  (min-w-[760px] + overflow-x-auto, print giữ nguyên). admin/users đã responsive sẵn.
+- **CHỜ USER (để DONE):** (1) đăng ký Resend free bằng chính email muốn nhận → API key → ghi
+  `/opt/hethong-iot/secrets/resend_api_key.txt` + restart worker; (2) điền email thật cho account
+  cần nhận (tối thiểu admin) qua Quản trị → Users; (3) test gửi thật → nhận trên điện thoại → bấm
+  link → duyệt. Tùy chọn: verify songchau.vn trên Resend để gửi tới nhiều địa chỉ + sender mes@songchau.vn.
 - **Plan chi tiết:** [`plans/20260717-mobile-email-notifications.md`](plans/20260717-mobile-email-notifications.md)
 - **Tóm tắt:** Sprint E (~1 ngày) — queue `EMAIL_SEND` BullMQ + nodemailer (worker) + hook vào
   `notifications.ts` với whitelist 5 event cần duyệt (PR_SUBMITTED, PR_DEPT_APPROVED,

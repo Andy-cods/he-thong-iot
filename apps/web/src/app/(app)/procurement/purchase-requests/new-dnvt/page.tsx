@@ -246,9 +246,10 @@ export default function NewDnvtPage() {
         </div>
       </header>
 
-      {/* Form sheet — print-friendly A4 landscape */}
-      <div className="mx-auto w-full max-w-[1440px] p-6 print:p-0 print:max-w-none">
-        <article className="border-2 border-zinc-900 bg-white text-zinc-900 shadow-md print:border print:border-zinc-900 print:shadow-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 print:dark:border-zinc-900 print:dark:bg-white print:dark:text-zinc-900">
+      {/* Form sheet — print-friendly A4 landscape.
+          Mobile: cuộn ngang như tài liệu (min-w giữ tỉ lệ A4, không vỡ layout). */}
+      <div className="mx-auto w-full max-w-[1440px] overflow-x-auto p-2 sm:p-6 print:overflow-visible print:p-0 print:max-w-none">
+        <article className="min-w-[760px] border-2 border-zinc-900 bg-white text-zinc-900 shadow-md print:min-w-0 print:border print:border-zinc-900 print:shadow-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 print:dark:border-zinc-900 print:dark:bg-white print:dark:text-zinc-900">
           {/* ===== HEADER ===== */}
           <div className="grid grid-cols-[1fr_2fr_1fr] items-center gap-2 border-b-2 border-zinc-900 px-4 py-3 text-[12px] print:dark:border-zinc-900">
             <div className="flex items-center gap-2">
