@@ -342,7 +342,7 @@ export function ItemForm({
 
       <Section title="Tracking">
         <div className="space-y-3">
-          <label className="flex cursor-pointer items-start gap-2.5 rounded-sm p-2 hover:bg-zinc-50">
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-sm p-2 hover:bg-zinc-50 dark:hover:bg-zinc-800/60">
             <Checkbox
               checked={isLotTracked}
               onCheckedChange={(v) =>
@@ -354,15 +354,15 @@ export function ItemForm({
               className="mt-0.5"
             />
             <span>
-              <span className="block text-base font-medium text-zinc-900">
+              <span className="block text-base font-medium text-zinc-900 dark:text-zinc-50">
                 Quản lý theo lô
               </span>
-              <span className="mt-0.5 block text-sm text-zinc-500">
+              <span className="mt-0.5 block text-sm text-zinc-500 dark:text-zinc-400">
                 Ghi nhận lot_no khi nhập/xuất kho
               </span>
             </span>
           </label>
-          <label className="flex cursor-pointer items-start gap-2.5 rounded-sm p-2 hover:bg-zinc-50">
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-sm p-2 hover:bg-zinc-50 dark:hover:bg-zinc-800/60">
             <Checkbox
               checked={isSerialTracked}
               onCheckedChange={(v) =>
@@ -374,10 +374,10 @@ export function ItemForm({
               className="mt-0.5"
             />
             <span>
-              <span className="block text-base font-medium text-zinc-900">
+              <span className="block text-base font-medium text-zinc-900 dark:text-zinc-50">
                 Quản lý theo serial
               </span>
-              <span className="mt-0.5 block text-sm text-zinc-500">
+              <span className="mt-0.5 block text-sm text-zinc-500 dark:text-zinc-400">
                 Ghi nhận serial từng pcs (FG / jig chuyên dụng)
               </span>
             </span>
@@ -401,7 +401,7 @@ export function ItemForm({
       </Section>
 
       {!hideFormActions && (
-        <div className="flex items-center justify-end gap-2 border-t border-zinc-200 pt-4">
+        <div className="flex items-center justify-end gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
           {onCancel && (
             <Button
               type="button"
@@ -448,10 +448,10 @@ function HelperText({
 }) {
   const color =
     tone === "error"
-      ? "text-red-700"
+      ? "text-red-700 dark:text-red-400"
       : tone === "success"
-        ? "text-emerald-700"
-        : "text-zinc-500";
+        ? "text-emerald-700 dark:text-emerald-400"
+        : "text-zinc-500 dark:text-zinc-400";
   return (
     <p id={id} className={cn("min-h-4 text-sm", color)}>
       {children}
@@ -473,23 +473,23 @@ function SkuIndicator({
       {loading ? (
         <>
           <Loader2
-            className="h-3.5 w-3.5 animate-spin text-zinc-400"
+            className="h-3.5 w-3.5 animate-spin text-zinc-400 dark:text-zinc-500"
             aria-hidden="true"
           />
-          <span className="text-zinc-400">Đang kiểm tra</span>
+          <span className="text-zinc-400 dark:text-zinc-500">Đang kiểm tra</span>
         </>
       ) : taken ? (
         <>
-          <XCircle className="h-3.5 w-3.5 text-red-600" aria-hidden="true" />
-          <span className="text-red-700">Đã tồn tại</span>
+          <XCircle className="h-3.5 w-3.5 text-red-600 dark:text-red-500" aria-hidden="true" />
+          <span className="text-red-700 dark:text-red-400">Đã tồn tại</span>
         </>
       ) : ok ? (
         <>
           <CheckCircle2
-            className="h-3.5 w-3.5 text-emerald-600"
+            className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-500"
             aria-hidden="true"
           />
-          <span className="text-emerald-700">Khả dụng</span>
+          <span className="text-emerald-700 dark:text-emerald-400">Khả dụng</span>
         </>
       ) : null}
     </div>
@@ -514,16 +514,16 @@ function Section({
   return (
     <details
       open={defaultOpen}
-      className="group rounded-md border border-zinc-200 bg-white"
+      className="group rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
     >
-      <summary className="flex h-10 cursor-pointer list-none items-center justify-between px-4 text-base font-medium text-zinc-900 [&::-webkit-details-marker]:hidden">
+      <summary className="flex h-10 cursor-pointer list-none items-center justify-between px-4 text-base font-medium text-zinc-900 [&::-webkit-details-marker]:hidden dark:text-zinc-50">
         <span>{title}</span>
         <ChevronDown
-          className="h-4 w-4 text-zinc-500 transition-transform group-open:rotate-180"
+          className="h-4 w-4 text-zinc-500 transition-transform group-open:rotate-180 dark:text-zinc-400"
           aria-hidden="true"
         />
       </summary>
-      <div className="space-y-4 border-t border-zinc-100 p-4">{children}</div>
+      <div className="space-y-4 border-t border-zinc-100 p-4 dark:border-zinc-800">{children}</div>
     </details>
   );
 }

@@ -29,7 +29,7 @@ export default function OrderNewPage() {
 
   return (
     <div className="flex h-full flex-col overflow-auto">
-      <header className="border-b border-zinc-200 bg-white px-6 py-4">
+      <header className="border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
         <Breadcrumb
           items={[
             { label: "Tổng quan", href: "/" },
@@ -37,10 +37,10 @@ export default function OrderNewPage() {
             { label: "Tạo mới" },
           ]}
         />
-        <h1 className="mt-2 text-xl font-semibold tracking-tight text-zinc-900">
+        <h1 className="mt-2 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
           Tạo đơn hàng mới
         </h1>
-        <p className="mt-0.5 text-xs text-zinc-500">
+        <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
           Đơn hàng sẽ ở trạng thái <span className="font-medium">Nháp</span> —
           bạn có thể chỉnh sửa trước khi xác nhận.
         </p>

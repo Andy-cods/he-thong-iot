@@ -42,37 +42,37 @@ const STATUS_THEME: Record<
   { bg: string; text: string; ring: string; icon: React.ReactNode; label: string }
 > = {
   RELEASED: {
-    bg: "bg-blue-50",
-    text: "text-blue-700",
-    ring: "ring-blue-200",
+    bg: "bg-blue-50 dark:bg-blue-950/40",
+    text: "text-blue-700 dark:text-blue-400",
+    ring: "ring-blue-200 dark:ring-blue-800",
     icon: <PlayCircle className="h-3.5 w-3.5" aria-hidden />,
     label: "Sẵn sàng",
   },
   IN_PROGRESS: {
-    bg: "bg-emerald-50",
-    text: "text-emerald-700",
-    ring: "ring-emerald-200",
+    bg: "bg-emerald-50 dark:bg-emerald-950/40",
+    text: "text-emerald-700 dark:text-emerald-400",
+    ring: "ring-emerald-200 dark:ring-emerald-800",
     icon: <Activity className="h-3.5 w-3.5" aria-hidden />,
     label: "Đang sản xuất",
   },
   PAUSED: {
-    bg: "bg-amber-50",
-    text: "text-amber-700",
-    ring: "ring-amber-200",
+    bg: "bg-amber-50 dark:bg-amber-950/40",
+    text: "text-amber-700 dark:text-amber-400",
+    ring: "ring-amber-200 dark:ring-amber-800",
     icon: <PauseCircle className="h-3.5 w-3.5" aria-hidden />,
     label: "Tạm dừng",
   },
   QUEUED: {
-    bg: "bg-zinc-50",
-    text: "text-zinc-700",
-    ring: "ring-zinc-200",
+    bg: "bg-zinc-50 dark:bg-zinc-800",
+    text: "text-zinc-700 dark:text-zinc-300",
+    ring: "ring-zinc-200 dark:ring-zinc-700",
     icon: <Clock className="h-3.5 w-3.5" aria-hidden />,
     label: "Hàng đợi",
   },
   COMPLETED: {
-    bg: "bg-emerald-100",
-    text: "text-emerald-800",
-    ring: "ring-emerald-300",
+    bg: "bg-emerald-100 dark:bg-emerald-950/40",
+    text: "text-emerald-800 dark:text-emerald-400",
+    ring: "ring-emerald-300 dark:ring-emerald-800",
     icon: <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />,
     label: "Hoàn thành",
   },
@@ -143,16 +143,16 @@ export function AssemblyOverviewTab() {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Hero with scan */}
-      <header className="border-b border-zinc-200 bg-gradient-to-br from-orange-50 via-white to-amber-50 px-6 py-5">
+      <header className="border-b border-zinc-200 bg-gradient-to-br from-orange-50 via-white to-amber-50 px-6 py-5 dark:border-zinc-800 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-900">
         <div className="flex items-start gap-4">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 shadow-md shadow-orange-200">
             <Wrench className="h-5 w-5 text-white" aria-hidden />
           </div>
           <div className="min-w-0 flex-1">
-            <h1 className="text-lg font-semibold text-zinc-900">
+            <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
               Quy trình lắp ráp
             </h1>
-            <p className="mt-0.5 text-xs text-zinc-600">
+            <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">
               Xưởng lắp ráp · Quét barcode WO để vào nhanh · Báo cáo tiến độ ·
               Hoàn thành lệnh
             </p>
@@ -218,10 +218,10 @@ export function AssemblyOverviewTab() {
       </header>
 
       {/* Search + WO list */}
-      <div className="border-b border-zinc-100 bg-white px-6 py-3">
+      <div className="border-b border-zinc-100 bg-white px-6 py-3 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="relative">
           <Search
-            className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400"
+            className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400 dark:text-zinc-500"
             aria-hidden
           />
           <Input
@@ -236,10 +236,10 @@ export function AssemblyOverviewTab() {
       <div className="flex-1 overflow-auto px-6 py-4">
         {/* Active WOs section */}
         <section className="mb-6">
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-900">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
             <Factory className="h-4 w-4 text-orange-600" aria-hidden />
             Lệnh đang hoạt động
-            <span className="ml-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-mono text-zinc-600">
+            <span className="ml-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-mono text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
               {filteredActive.length}
             </span>
           </h2>
@@ -249,13 +249,13 @@ export function AssemblyOverviewTab() {
               {[1, 2, 3].map((i) => (
                 <div
                   key={i}
-                  className="h-32 animate-pulse rounded-xl bg-zinc-100"
+                  className="h-32 animate-pulse rounded-xl bg-zinc-100 dark:bg-zinc-800"
                 />
               ))}
             </div>
           ) : filteredActive.length === 0 ? (
             <EmptyState
-              icon={<Factory className="h-8 w-8 text-zinc-300" />}
+              icon={<Factory className="h-8 w-8 text-zinc-300 dark:text-zinc-600" />}
               title={
                 searchQ
                   ? `Không tìm thấy WO khớp "${searchQ}"`
@@ -279,10 +279,10 @@ export function AssemblyOverviewTab() {
         {/* Completed today */}
         {completedToday.length > 0 && (
           <section>
-            <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-900">
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
               <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-hidden />
               Hoàn thành hôm nay
-              <span className="ml-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-mono text-emerald-700">
+              <span className="ml-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-mono text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
                 {completedToday.length}
               </span>
             </h2>
@@ -308,16 +308,16 @@ function WoCard({ wo, compact }: { wo: WorkOrderRow; compact?: boolean }) {
     <Link
       href={`/assembly/${wo.id}`}
       className={cn(
-        "group block overflow-hidden rounded-xl border bg-white shadow-sm transition-all hover:border-orange-300 hover:shadow-md",
-        compact ? "border-emerald-100" : "border-zinc-200",
+        "group block overflow-hidden rounded-xl border bg-white shadow-sm transition-all hover:border-orange-300 hover:shadow-md dark:bg-zinc-900",
+        compact ? "border-emerald-100 dark:border-emerald-800" : "border-zinc-200 dark:border-zinc-700",
       )}
     >
-      <div className="flex items-start justify-between gap-2 border-b border-zinc-100 bg-gradient-to-br from-zinc-50 to-white px-4 py-2.5">
+      <div className="flex items-start justify-between gap-2 border-b border-zinc-100 bg-gradient-to-br from-zinc-50 to-white px-4 py-2.5 dark:border-zinc-800 dark:from-zinc-800 dark:to-zinc-900">
         <div className="min-w-0">
-          <div className="font-mono text-sm font-semibold text-zinc-900">
+          <div className="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-50">
             {wo.woNo}
           </div>
-          <div className="mt-0.5 line-clamp-2 text-[11px] text-zinc-500">
+          <div className="mt-0.5 line-clamp-2 text-[11px] text-zinc-500 dark:text-zinc-400">
             {wo.notes?.split("\n")[0]?.slice(0, 80) ?? "Lệnh sản xuất"}
           </div>
         </div>
@@ -334,14 +334,14 @@ function WoCard({ wo, compact }: { wo: WorkOrderRow; compact?: boolean }) {
         </span>
       </div>
       <div className="px-4 py-3">
-        <div className="flex items-center justify-between gap-2 text-xs text-zinc-600">
+        <div className="flex items-center justify-between gap-2 text-xs text-zinc-600 dark:text-zinc-400">
           <span>Tiến độ</span>
-          <span className="font-mono font-semibold tabular-nums text-zinc-900">
+          <span className="font-mono font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
             {goodQty.toLocaleString("vi-VN")} / {plannedQty.toLocaleString("vi-VN")}
             {pct > 0 ? ` · ${pct}%` : ""}
           </span>
         </div>
-        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-zinc-200">
+        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
           <div
             className={cn(
               "h-full transition-all duration-500",
@@ -355,12 +355,12 @@ function WoCard({ wo, compact }: { wo: WorkOrderRow; compact?: boolean }) {
           />
         </div>
         {!compact && (
-          <div className="mt-2.5 flex items-center justify-between text-[11px] text-zinc-500">
+          <div className="mt-2.5 flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400">
             <span>
               ⌚ {wo.plannedStart ? wo.plannedStart : "—"}
               {wo.plannedEnd ? ` → ${wo.plannedEnd}` : ""}
             </span>
-            <span className="inline-flex items-center gap-0.5 font-medium text-orange-600 group-hover:underline">
+            <span className="inline-flex items-center gap-0.5 font-medium text-orange-600 group-hover:underline dark:text-orange-400">
               Vào xưởng <ArrowRight className="h-3 w-3" aria-hidden />
             </span>
           </div>
@@ -382,22 +382,22 @@ function StatCard({
   accent: "blue" | "emerald" | "amber";
 }) {
   const ringClass = {
-    blue: "ring-blue-200 bg-blue-50/50",
-    emerald: "ring-emerald-200 bg-emerald-50/50",
-    amber: "ring-amber-200 bg-amber-50/50",
+    blue: "ring-blue-200 bg-blue-50/50 dark:ring-blue-800 dark:bg-blue-950/40",
+    emerald: "ring-emerald-200 bg-emerald-50/50 dark:ring-emerald-800 dark:bg-emerald-950/40",
+    amber: "ring-amber-200 bg-amber-50/50 dark:ring-amber-800 dark:bg-amber-950/40",
   }[accent];
   return (
     <div
       className={cn(
-        "rounded-xl border border-white/60 px-4 py-3 ring-1 ring-inset shadow-sm",
+        "rounded-xl border border-white/60 px-4 py-3 ring-1 ring-inset shadow-sm dark:border-zinc-700/60",
         ringClass,
       )}
     >
-      <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-wide text-zinc-600">
+      <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
         {icon}
         {label}
       </div>
-      <div className="mt-1 text-2xl font-bold tabular-nums text-zinc-900">
+      <div className="mt-1 text-2xl font-bold tabular-nums text-zinc-900 dark:text-zinc-50">
         {value}
       </div>
     </div>
@@ -414,13 +414,13 @@ function EmptyState({
   description?: string;
 }) {
   return (
-    <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50/50 px-6 py-10 text-center">
-      <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-sm">
+    <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50/50 px-6 py-10 text-center dark:border-zinc-700 dark:bg-zinc-800/60">
+      <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-sm dark:bg-zinc-900">
         {icon}
       </div>
-      <p className="text-sm font-medium text-zinc-700">{title}</p>
+      <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{title}</p>
       {description && (
-        <p className="mx-auto mt-1 max-w-sm text-xs text-zinc-500">
+        <p className="mx-auto mt-1 max-w-sm text-xs text-zinc-500 dark:text-zinc-400">
           {description}
         </p>
       )}

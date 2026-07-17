@@ -51,9 +51,9 @@ const statusDot: Record<KpiStatus, string> = {
 };
 
 const deltaColor: Record<KpiDelta["direction"], string> = {
-  up: "text-emerald-600",
-  down: "text-red-600",
-  flat: "text-zinc-500",
+  up: "text-emerald-600 dark:text-emerald-400",
+  down: "text-red-600 dark:text-red-400",
+  flat: "text-zinc-500 dark:text-zinc-400",
 };
 
 const deltaIcon: Record<KpiDelta["direction"], React.ElementType> = {
@@ -78,7 +78,7 @@ export function KpiCard({
       <div
         aria-busy="true"
         className={cn(
-          "flex h-20 flex-col justify-between rounded-md border border-zinc-200 bg-white p-4",
+          "flex h-20 flex-col justify-between rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900",
           className,
         )}
       >
@@ -107,17 +107,17 @@ export function KpiCard({
               )}
             />
           ) : null}
-          <p className="truncate text-sm font-medium uppercase tracking-wide text-zinc-500">
+          <p className="truncate text-sm font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
             {label}
           </p>
         </div>
         {icon ? (
-          <span className="shrink-0 text-zinc-400" aria-hidden="true">
+          <span className="shrink-0 text-zinc-400 dark:text-zinc-500" aria-hidden="true">
             {icon}
           </span>
         ) : null}
       </div>
-      <p className="text-[1.375rem] font-medium leading-none tabular-nums text-zinc-900">
+      <p className="text-[1.375rem] font-medium leading-none tabular-nums text-zinc-900 dark:text-zinc-50">
         {value}
       </p>
       {delta ? (
@@ -134,7 +134,7 @@ export function KpiCard({
             {delta.direction === "flat" ? "±0" : formatDelta(delta.value)}
           </span>
           {delta.label ? (
-            <span className="truncate text-zinc-500">{delta.label}</span>
+            <span className="truncate text-zinc-500 dark:text-zinc-400">{delta.label}</span>
           ) : null}
         </p>
       ) : null}
@@ -142,9 +142,9 @@ export function KpiCard({
   );
 
   const baseClass = cn(
-    "flex h-20 flex-col justify-between rounded-md border border-zinc-200 bg-white p-4",
+    "flex h-20 flex-col justify-between rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900",
     isInteractive &&
-      "transition-colors duration-150 ease-out hover:border-zinc-300 hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1",
+      "transition-colors duration-150 ease-out hover:border-zinc-300 hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 dark:hover:border-zinc-600 dark:hover:bg-zinc-800/60",
     className,
   );
 

@@ -47,43 +47,53 @@ interface StateMeta {
 const STATE_META: Record<BomSnapshotState, StateMeta> = {
   PLANNED: {
     icon: Circle,
-    color: "bg-zinc-100 text-zinc-700 border-zinc-200",
+    color:
+      "bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-950/40 dark:text-zinc-400 dark:border-zinc-800",
   },
   PURCHASING: {
     icon: ShoppingCart,
-    color: "bg-blue-50 text-blue-700 border-blue-200",
+    color:
+      "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800",
   },
   IN_PRODUCTION: {
     icon: Hammer,
-    color: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    color:
+      "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:border-indigo-800",
   },
   INBOUND_QC: {
     icon: ClipboardCheck,
-    color: "bg-amber-50 text-amber-700 border-amber-200",
+    color:
+      "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800",
   },
   PROD_QC: {
     icon: ShieldCheck,
-    color: "bg-amber-50 text-amber-700 border-amber-200",
+    color:
+      "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800",
   },
   AVAILABLE: {
     icon: Warehouse,
-    color: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    color:
+      "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800",
   },
   RESERVED: {
     icon: PackageCheck,
-    color: "bg-sky-50 text-sky-700 border-sky-200",
+    color:
+      "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-800",
   },
   ISSUED: {
     icon: Truck,
-    color: "bg-cyan-50 text-cyan-700 border-cyan-200",
+    color:
+      "bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/40 dark:text-cyan-400 dark:border-cyan-800",
   },
   ASSEMBLED: {
     icon: CheckCircle2,
-    color: "bg-emerald-100 text-emerald-800 border-emerald-300",
+    color:
+      "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-700",
   },
   CLOSED: {
     icon: Archive,
-    color: "bg-zinc-100 text-zinc-600 border-zinc-200",
+    color:
+      "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-950/40 dark:text-zinc-400 dark:border-zinc-800",
   },
 };
 
@@ -102,7 +112,8 @@ export function StateMachineBadge({
 }: StateMachineBadgeProps) {
   const meta = STATE_META[state] ?? {
     icon: CircleDot,
-    color: "bg-zinc-100 text-zinc-600 border-zinc-200",
+    color:
+      "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-950/40 dark:text-zinc-400 dark:border-zinc-800",
   };
   const Icon = meta.icon;
   const label = BOM_SNAPSHOT_STATE_LABELS[state] ?? state;

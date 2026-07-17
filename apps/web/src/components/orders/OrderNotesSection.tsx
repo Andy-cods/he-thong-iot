@@ -87,17 +87,17 @@ export function OrderNotesSection({
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
       {/* Notes editor */}
-      <section className="rounded-md border border-zinc-200 bg-white lg:col-span-3">
-        <div className="flex items-center gap-2 border-b border-zinc-100 px-4 py-2.5">
+      <section className="rounded-md border border-zinc-200 bg-white lg:col-span-3 dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="flex items-center gap-2 border-b border-zinc-100 px-4 py-2.5 dark:border-zinc-800">
           <MessageSquarePlus
-            className="h-4 w-4 text-zinc-500"
+            className="h-4 w-4 text-zinc-500 dark:text-zinc-400"
             aria-hidden="true"
           />
-          <h3 className="text-sm font-medium text-zinc-900">
+          <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
             Ghi chú sản xuất
           </h3>
           {order.productionNotesUpdatedAt && (
-            <span className="ml-auto text-[11px] text-zinc-500">
+            <span className="ml-auto text-[11px] text-zinc-500 dark:text-zinc-400">
               Cập nhật{" "}
               {formatDate(order.productionNotesUpdatedAt, "dd/MM HH:mm")}
             </span>
@@ -120,7 +120,7 @@ export function OrderNotesSection({
                 setDirty(true);
               }}
             />
-            <p className="text-[11px] text-zinc-500">
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
               Ghi chú ngắn cho toàn đơn hàng. Lịch sử chi tiết xem ở cột bên
               phải.
             </p>
@@ -157,14 +157,14 @@ export function OrderNotesSection({
       </section>
 
       {/* Activity timeline */}
-      <section className="rounded-md border border-zinc-200 bg-white lg:col-span-2">
-        <div className="flex items-center gap-2 border-b border-zinc-100 px-4 py-2.5">
-          <History className="h-4 w-4 text-zinc-500" aria-hidden="true" />
-          <h3 className="text-sm font-medium text-zinc-900">
+      <section className="rounded-md border border-zinc-200 bg-white lg:col-span-2 dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="flex items-center gap-2 border-b border-zinc-100 px-4 py-2.5 dark:border-zinc-800">
+          <History className="h-4 w-4 text-zinc-500 dark:text-zinc-400" aria-hidden="true" />
+          <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
             Lịch sử thao tác
           </h3>
           {activity.data?.data && (
-            <span className="ml-auto text-[11px] text-zinc-500">
+            <span className="ml-auto text-[11px] text-zinc-500 dark:text-zinc-400">
               {activity.data.data.length} sự kiện
             </span>
           )}
@@ -173,20 +173,20 @@ export function OrderNotesSection({
           {activity.isLoading ? (
             <div className="flex h-24 items-center justify-center">
               <Loader2
-                className="h-4 w-4 animate-spin text-zinc-400"
+                className="h-4 w-4 animate-spin text-zinc-400 dark:text-zinc-500"
                 aria-hidden="true"
               />
             </div>
           ) : activity.isError ? (
-            <div className="px-4 py-4 text-xs text-red-600">
+            <div className="px-4 py-4 text-xs text-red-600 dark:text-red-400">
               Không tải được lịch sử.
             </div>
           ) : !activity.data?.data || activity.data.data.length === 0 ? (
-            <div className="px-4 py-6 text-center text-xs text-zinc-500">
+            <div className="px-4 py-6 text-center text-xs text-zinc-500 dark:text-zinc-400">
               Chưa có thao tác nào được ghi nhận.
             </div>
           ) : (
-            <ul className="divide-y divide-zinc-100">
+            <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {activity.data.data.map((ev) => {
                 const actionLabel = ACTION_LABELS[ev.action] ?? ev.action;
                 const typeLabel =
@@ -209,26 +209,26 @@ export function OrderNotesSection({
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-1.5 text-[12px]">
-                          <span className="font-medium text-zinc-900">
+                          <span className="font-medium text-zinc-900 dark:text-zinc-50">
                             {actionLabel}
                           </span>
-                          <span className="text-zinc-400">·</span>
-                          <span className="text-zinc-600">{typeLabel}</span>
+                          <span className="text-zinc-400 dark:text-zinc-500">·</span>
+                          <span className="text-zinc-600 dark:text-zinc-400">{typeLabel}</span>
                           {ev.actorUsername && (
                             <>
-                              <span className="text-zinc-400">·</span>
-                              <span className="font-mono text-indigo-600">
+                              <span className="text-zinc-400 dark:text-zinc-500">·</span>
+                              <span className="font-mono text-indigo-600 dark:text-indigo-400">
                                 {ev.actorUsername}
                               </span>
                             </>
                           )}
                         </div>
                         {ev.notes && (
-                          <p className="mt-0.5 truncate text-[11px] text-zinc-600">
+                          <p className="mt-0.5 truncate text-[11px] text-zinc-600 dark:text-zinc-400">
                             {ev.notes}
                           </p>
                         )}
-                        <p className="mt-0.5 font-mono text-[10px] text-zinc-500">
+                        <p className="mt-0.5 font-mono text-[10px] text-zinc-500 dark:text-zinc-400">
                           {formatDate(ev.occurredAt, "dd/MM/yyyy HH:mm")}
                         </p>
                       </div>

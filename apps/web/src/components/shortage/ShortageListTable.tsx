@@ -56,13 +56,13 @@ export function ShortageListTable({
   return (
     <div
       ref={parentRef}
-      className="relative h-full w-full overflow-auto rounded-md border border-zinc-200 bg-white"
+      className="relative h-full w-full overflow-auto rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
       role="region"
       aria-label="Shortage board"
     >
       <div
         className={cn(
-          "sticky top-0 z-sticky grid h-8 items-center border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wide text-zinc-500",
+          "sticky top-0 z-sticky grid h-8 items-center border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400",
           gridCols,
         )}
       >
@@ -92,7 +92,7 @@ export function ShortageListTable({
             <div
               key={i}
               className={cn(
-                "grid h-9 items-center border-b border-zinc-100 px-3",
+                "grid h-9 items-center border-b border-zinc-100 px-3 dark:border-zinc-800",
                 gridCols,
               )}
             >
@@ -125,8 +125,8 @@ export function ShortageListTable({
                 height: `${v.size}px`,
               }}
               className={cn(
-                "absolute left-0 top-0 grid w-full items-center border-b border-zinc-100 px-3 text-base text-zinc-900 transition-colors hover:bg-zinc-50",
-                checked && "bg-blue-50",
+                "absolute left-0 top-0 grid w-full items-center border-b border-zinc-100 px-3 text-base text-zinc-900 transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-800/60",
+                checked && "bg-blue-50 dark:bg-blue-950/40",
                 gridCols,
               )}
             >
@@ -137,22 +137,22 @@ export function ShortageListTable({
                   aria-label={`Chọn ${row.componentSku}`}
                 />
               </div>
-              <div className="truncate font-mono text-sm text-zinc-700" title={row.componentSku}>
+              <div className="truncate font-mono text-sm text-zinc-700 dark:text-zinc-300" title={row.componentSku}>
                 {row.componentSku}
               </div>
               <div className="truncate text-sm" title={row.componentName}>
                 {row.componentName}
               </div>
-              <div className="text-right tabular-nums text-zinc-700">
+              <div className="text-right tabular-nums text-zinc-700 dark:text-zinc-300">
                 {formatNumber(row.totalRequired)}
               </div>
-              <div className="text-right tabular-nums text-zinc-700">
+              <div className="text-right tabular-nums text-zinc-700 dark:text-zinc-300">
                 {formatNumber(row.totalOnOrder)}
               </div>
-              <div className="text-right font-semibold tabular-nums text-orange-700">
+              <div className="text-right font-semibold tabular-nums text-orange-700 dark:text-orange-400">
                 {formatNumber(row.totalShort)}
               </div>
-              <div className="text-center text-sm text-zinc-600 tabular-nums">
+              <div className="text-center text-sm text-zinc-600 tabular-nums dark:text-zinc-400">
                 {row.orderCount}
               </div>
               <div className="flex items-center justify-center">

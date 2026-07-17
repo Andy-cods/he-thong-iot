@@ -72,14 +72,14 @@ export function SnapshotBoardTable({
   return (
     <div
       ref={parentRef}
-      className="relative h-full w-full overflow-auto rounded-md border border-zinc-200 bg-white"
+      className="relative h-full w-full overflow-auto rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
       role="region"
       aria-label="Snapshot Board"
     >
       {/* Header */}
       <div
         className={cn(
-          "sticky top-0 z-sticky grid h-8 items-center border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wide text-zinc-500",
+          "sticky top-0 z-sticky grid h-8 items-center border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400",
           gridCols,
         )}
         role="row"
@@ -125,7 +125,7 @@ export function SnapshotBoardTable({
             <div
               key={i}
               className={cn(
-                "grid items-center border-b border-zinc-100 px-3",
+                "grid items-center border-b border-zinc-100 px-3 dark:border-zinc-800",
                 gridCols,
               )}
               style={{ height: rowHeight }}
@@ -214,47 +214,47 @@ function SnapshotBoardRow({
       role="row"
       onClick={() => onRowClick?.(row)}
       className={cn(
-        "grid h-9 w-full cursor-pointer items-center border-b border-zinc-100 px-3 text-base text-zinc-900 transition-colors duration-100",
-        "hover:bg-zinc-50",
-        isShort && "bg-orange-50/40",
+        "grid h-9 w-full cursor-pointer items-center border-b border-zinc-100 px-3 text-base text-zinc-900 transition-colors duration-100 dark:border-zinc-800 dark:text-zinc-50",
+        "hover:bg-zinc-50 dark:hover:bg-zinc-800/60",
+        isShort && "bg-orange-50/40 dark:bg-orange-950/20",
         gridCols,
       )}
       tabIndex={-1}
     >
-      <div className="text-center font-mono text-xs text-zinc-500">
+      <div className="text-center font-mono text-xs text-zinc-500 dark:text-zinc-400">
         {row.level}
       </div>
-      <div className="truncate font-mono text-sm text-zinc-700" title={row.path}>
+      <div className="truncate font-mono text-sm text-zinc-700 dark:text-zinc-300" title={row.path}>
         {row.componentSku}
       </div>
-      <div className="truncate pr-2 text-zinc-900" title={row.componentName}>
+      <div className="truncate pr-2 text-zinc-900 dark:text-zinc-50" title={row.componentName}>
         {row.componentName}
       </div>
-      <div className="hidden text-right tabular-nums text-zinc-700 md:block">
+      <div className="hidden text-right tabular-nums text-zinc-700 dark:text-zinc-300 md:block">
         {formatNumber(Number(row.grossRequiredQty))}
       </div>
-      <div className="hidden text-right tabular-nums text-zinc-700 md:block">
+      <div className="hidden text-right tabular-nums text-zinc-700 dark:text-zinc-300 md:block">
         {formatNumber(Number(row.openPurchaseQty))}
       </div>
-      <div className="hidden text-right tabular-nums text-zinc-700 md:block">
+      <div className="hidden text-right tabular-nums text-zinc-700 dark:text-zinc-300 md:block">
         {formatNumber(Number(row.receivedQty))}
       </div>
-      <div className="hidden text-right tabular-nums text-zinc-700 md:block">
+      <div className="hidden text-right tabular-nums text-zinc-700 dark:text-zinc-300 md:block">
         {formatNumber(Number(row.qcPassQty))}
       </div>
-      <div className="hidden text-right tabular-nums text-zinc-700 md:block">
+      <div className="hidden text-right tabular-nums text-zinc-700 dark:text-zinc-300 md:block">
         {formatNumber(Number(row.reservedQty))}
       </div>
-      <div className="hidden text-right tabular-nums text-zinc-700 md:block">
+      <div className="hidden text-right tabular-nums text-zinc-700 dark:text-zinc-300 md:block">
         {formatNumber(Number(row.issuedQty))}
       </div>
-      <div className="hidden text-right tabular-nums text-zinc-700 md:block">
+      <div className="hidden text-right tabular-nums text-zinc-700 dark:text-zinc-300 md:block">
         {formatNumber(Number(row.assembledQty))}
       </div>
       <div
         className={cn(
           "text-right tabular-nums",
-          isShort ? "font-semibold text-orange-700" : "text-zinc-400",
+          isShort ? "font-semibold text-orange-700 dark:text-orange-400" : "text-zinc-400 dark:text-zinc-500",
         )}
       >
         {short > 0 ? formatNumber(short) : "—"}
@@ -272,7 +272,7 @@ function SnapshotBoardRow({
             <button
               type="button"
               onClick={() => onReserve(row)}
-              className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-indigo-600 transition-colors hover:bg-indigo-50 hover:text-indigo-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-indigo-600 transition-colors hover:bg-indigo-50 hover:text-indigo-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:text-indigo-400 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-300"
               aria-label={`Reserve ${row.componentSku}`}
               title="Reserve (FIFO/FEFO)"
             >
@@ -282,7 +282,7 @@ function SnapshotBoardRow({
         <button
           type="button"
           onClick={() => onTransition(row)}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
           aria-label={`Chuyển trạng thái ${row.componentSku}`}
           title="Chuyển trạng thái"
         >
@@ -322,10 +322,10 @@ export function SnapshotBoardFilterBar({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-2 border-b border-zinc-100 bg-white px-4 py-2">
+    <div className="flex flex-wrap items-center gap-2 border-b border-zinc-100 bg-white px-4 py-2 dark:border-zinc-800 dark:bg-zinc-900">
       <div className="relative min-w-[200px] flex-1 md:max-w-xs">
         <Search
-          className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400"
+          className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400 dark:text-zinc-500"
           aria-hidden="true"
         />
         <Input
@@ -343,7 +343,7 @@ export function SnapshotBoardFilterBar({
           <Button variant="ghost" size="sm">
             Trạng thái
             {selectedStates.length > 0 && (
-              <span className="ml-1 rounded-sm bg-blue-100 px-1 text-xs text-blue-700">
+              <span className="ml-1 rounded-sm bg-blue-100 px-1 text-xs text-blue-700 dark:bg-blue-950/40 dark:text-blue-400">
                 {selectedStates.length}
               </span>
             )}
@@ -367,12 +367,12 @@ export function SnapshotBoardFilterBar({
           variant="ghost"
           size="sm"
           onClick={() => onStatesChange([])}
-          className="text-xs text-zinc-500"
+          className="text-xs text-zinc-500 dark:text-zinc-400"
         >
           Xoá filter
         </Button>
       )}
-      <span className="ml-auto text-xs text-zinc-500">
+      <span className="ml-auto text-xs text-zinc-500 dark:text-zinc-400">
         Hiển thị {showing} / {total} linh kiện
       </span>
     </div>

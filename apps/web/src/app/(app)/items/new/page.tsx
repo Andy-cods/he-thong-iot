@@ -29,15 +29,15 @@ export default function NewItemPage() {
     <div className="mx-auto w-full max-w-4xl p-6">
       <Breadcrumb items={breadcrumbItems} className="mb-3" />
       <header className="mb-4">
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
+        <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
           Tạo vật tư mới
         </h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
           Nhập thông tin cơ bản. Barcode và NCC có thể thêm sau khi tạo.
         </p>
       </header>
 
-      <div className="rounded-md border border-zinc-200 bg-white">
+      <div className="rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <ItemForm
           mode="create"
           submitting={create.isPending}

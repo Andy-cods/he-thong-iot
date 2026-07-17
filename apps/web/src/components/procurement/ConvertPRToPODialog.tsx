@@ -171,7 +171,7 @@ export function ConvertPRToPODialog({
         </DialogHeader>
 
         {linesWithoutSupplier.length > 0 && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3 text-sm text-amber-800">
+          <div className="rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400">
             <p className="flex items-center gap-2 font-semibold">
               <AlertCircle className="h-4 w-4" />
               {linesWithoutSupplier.length} dòng chưa có NCC ưu tiên
@@ -183,20 +183,20 @@ export function ConvertPRToPODialog({
           </div>
         )}
 
-        <div className="max-h-[400px] overflow-y-auto rounded-xl border border-zinc-200">
+        <div className="max-h-[400px] overflow-y-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
           <table className="w-full">
-            <thead className="sticky top-0 bg-zinc-50/95 backdrop-blur">
-              <tr className="border-b border-zinc-100">
-                <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 w-10">
+            <thead className="sticky top-0 bg-zinc-50/95 backdrop-blur dark:bg-zinc-800/95">
+              <tr className="border-b border-zinc-100 dark:border-zinc-800">
+                <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 w-10 dark:text-zinc-500">
                   #
                 </th>
-                <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
                   Linh kiện
                 </th>
-                <th className="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                <th className="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
                   SL
                 </th>
-                <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
                   Nhà cung cấp
                 </th>
               </tr>
@@ -205,26 +205,26 @@ export function ConvertPRToPODialog({
               {lines.map((l) => {
                 const hasSupplier = !!l.preferredSupplierId;
                 return (
-                  <tr key={l.id} className="border-b border-zinc-50">
-                    <td className="px-3 py-3 text-sm text-zinc-500">
+                  <tr key={l.id} className="border-b border-zinc-50 dark:border-zinc-800/50">
+                    <td className="px-3 py-3 text-sm text-zinc-500 dark:text-zinc-400">
                       {l.lineNo}
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex flex-col">
-                        <span className="font-mono text-sm font-semibold text-indigo-600">
+                        <span className="font-mono text-sm font-semibold text-indigo-600 dark:text-indigo-400">
                           {l.sku || "—"}
                         </span>
-                        <span className="text-xs text-zinc-500 truncate max-w-xs">
+                        <span className="text-xs text-zinc-500 truncate max-w-xs dark:text-zinc-400">
                           {l.name ?? "—"}
                         </span>
                       </div>
                     </td>
-                    <td className="px-3 py-3 text-right font-mono text-sm font-semibold text-zinc-800">
+                    <td className="px-3 py-3 text-right font-mono text-sm font-semibold text-zinc-800 dark:text-zinc-200">
                       {Number(l.qty).toLocaleString("vi-VN")}
                     </td>
                     <td className="px-3 py-3">
                       {hasSupplier ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800">
                           <Check className="h-3 w-3" />
                           Đã có NCC
                         </span>
@@ -244,9 +244,9 @@ export function ConvertPRToPODialog({
           </table>
         </div>
 
-        <div className="flex items-center justify-between rounded-xl bg-indigo-50/60 px-4 py-3 text-sm">
-          <span className="text-zinc-600">Sẽ tạo:</span>
-          <span className="font-semibold text-indigo-700">
+        <div className="flex items-center justify-between rounded-xl bg-indigo-50/60 px-4 py-3 text-sm dark:bg-indigo-950/40">
+          <span className="text-zinc-600 dark:text-zinc-400">Sẽ tạo:</span>
+          <span className="font-semibold text-indigo-700 dark:text-indigo-400">
             {supplierGrouping} PO ({lines.length} dòng tổng)
           </span>
         </div>
@@ -314,16 +314,16 @@ function SupplierPicker({
         <button
           type="button"
           className={cn(
-            "flex h-8 w-full items-center justify-between gap-2 rounded-md border bg-white px-2.5 text-left text-sm transition-colors",
+            "flex h-8 w-full items-center justify-between gap-2 rounded-md border bg-white px-2.5 text-left text-sm transition-colors dark:bg-zinc-900",
             selection
-              ? "border-indigo-200 bg-indigo-50/40 text-indigo-700"
-              : "border-amber-200 bg-amber-50/40 text-amber-700 hover:border-amber-300",
+              ? "border-indigo-200 bg-indigo-50/40 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-400"
+              : "border-amber-200 bg-amber-50/40 text-amber-700 hover:border-amber-300 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400",
           )}
         >
           <span className="flex min-w-0 items-center gap-1.5">
             <span className="truncate">{triggerLabel}</span>
             {isNew ? (
-              <span className="shrink-0 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+              <span className="shrink-0 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
                 mới
               </span>
             ) : null}
@@ -333,25 +333,25 @@ function SupplierPicker({
       </PopoverTrigger>
       <PopoverContent align="start" className="w-[320px] p-0" sideOffset={4}>
         <CommandPrimitive shouldFilter={false} className="flex flex-col" loop>
-          <div className="flex items-center border-b border-zinc-200 px-3 py-2">
-            <Search className="h-3.5 w-3.5 text-zinc-400" />
+          <div className="flex items-center border-b border-zinc-200 px-3 py-2 dark:border-zinc-700">
+            <Search className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />
             <CommandPrimitive.Input
               autoFocus
               value={query}
               onValueChange={setQuery}
               placeholder="Tìm hoặc gõ tên NCC mới…"
-              className="flex-1 bg-transparent px-2 text-sm outline-none placeholder:text-zinc-400"
+              className="flex-1 bg-transparent px-2 text-sm outline-none placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
             />
           </div>
           <CommandPrimitive.List className="max-h-[240px] overflow-y-auto p-1">
             {suppliersQuery.isLoading ? (
-              <div className="px-3 py-4 text-center text-xs text-zinc-500">
+              <div className="px-3 py-4 text-center text-xs text-zinc-500 dark:text-zinc-400">
                 Đang tải…
               </div>
             ) : (
               <>
                 {suppliers.length === 0 && !showCreate ? (
-                  <CommandPrimitive.Empty className="px-3 py-4 text-center text-xs text-zinc-500">
+                  <CommandPrimitive.Empty className="px-3 py-4 text-center text-xs text-zinc-500 dark:text-zinc-400">
                     Nhập tên để tạo NCC mới…
                   </CommandPrimitive.Empty>
                 ) : null}
@@ -364,7 +364,7 @@ function SupplierPicker({
                       setOpen(false);
                       setQuery("");
                     }}
-                    className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-emerald-700 aria-selected:bg-emerald-50"
+                    className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-emerald-700 aria-selected:bg-emerald-50 dark:text-emerald-400 dark:aria-selected:bg-emerald-950/40"
                   >
                     <Plus className="h-3.5 w-3.5 shrink-0" />
                     <span className="truncate">
@@ -388,20 +388,20 @@ function SupplierPicker({
                         setOpen(false);
                         setQuery("");
                       }}
-                      className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm aria-selected:bg-indigo-50"
+                      className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm aria-selected:bg-indigo-50 dark:aria-selected:bg-indigo-950/40"
                     >
                       <Check
                         className={cn(
                           "h-3.5 w-3.5 shrink-0",
                           selectedExisting
-                            ? "text-indigo-600"
+                            ? "text-indigo-600 dark:text-indigo-400"
                             : "text-transparent",
                         )}
                       />
-                      <span className="font-mono text-xs font-semibold text-zinc-800">
+                      <span className="font-mono text-xs font-semibold text-zinc-800 dark:text-zinc-200">
                         {s.code}
                       </span>
-                      <span className="truncate text-zinc-700">{s.name}</span>
+                      <span className="truncate text-zinc-700 dark:text-zinc-300">{s.name}</span>
                     </CommandPrimitive.Item>
                   );
                 })}

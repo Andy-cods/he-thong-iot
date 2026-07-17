@@ -61,7 +61,7 @@ export function ConvertPRDialog({
             sẽ rollback. PR sẽ chuyển trạng thái CONVERTED.
           </DialogDescription>
         </DialogHeader>
-        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400">
           Thao tác không thể undo. Snapshot line liên kết sẽ tự chuyển
           PLANNED → PURCHASING.
         </div>

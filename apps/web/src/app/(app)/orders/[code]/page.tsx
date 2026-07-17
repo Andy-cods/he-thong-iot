@@ -193,7 +193,7 @@ export default function OrderDetailPage({
   if (query.isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-5 w-5 animate-spin text-zinc-400" />
+        <Loader2 className="h-5 w-5 animate-spin text-zinc-400 dark:text-zinc-500" />
       </div>
     );
   }
@@ -254,7 +254,7 @@ export default function OrderDetailPage({
 
   return (
     <div className="flex h-full flex-col overflow-auto">
-      <header className="border-b border-zinc-200 bg-white px-6 py-4">
+      <header className="border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
         <Breadcrumb
           items={[
             { label: "Tổng quan", href: "/" },
@@ -264,9 +264,9 @@ export default function OrderDetailPage({
         />
         <div className="mt-2 flex items-start justify-between gap-4">
           <div>
-            <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight text-zinc-900">
+            <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
               <ClipboardList
-                className="h-5 w-5 text-zinc-500"
+                className="h-5 w-5 text-zinc-500 dark:text-zinc-400"
                 aria-hidden="true"
               />
               <span className="font-mono">{order.orderNo}</span>
@@ -276,18 +276,18 @@ export default function OrderDetailPage({
                 label={badge.label}
               />
             </h1>
-            <p className="mt-0.5 text-xs text-zinc-500">
-              Khách: <span className="text-zinc-900">{order.customerName}</span>
+            <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+              Khách: <span className="text-zinc-900 dark:text-zinc-50">{order.customerName}</span>
               {" · "}
               SL:{" "}
-              <span className="tabular-nums text-zinc-900">
+              <span className="tabular-nums text-zinc-900 dark:text-zinc-50">
                 {Number(order.orderQty).toLocaleString("vi-VN")}
               </span>
               {order.dueDate && (
                 <>
                   {" · "}
                   Deadline:{" "}
-                  <span className="tabular-nums text-zinc-900">
+                  <span className="tabular-nums text-zinc-900 dark:text-zinc-50">
                     {formatDate(order.dueDate, "dd/MM/yyyy")}
                   </span>
                 </>
@@ -466,22 +466,22 @@ export default function OrderDetailPage({
           </TabsContent>
 
           <TabsContent value="shortage">
-            <div className="rounded-md border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center">
-              <h3 className="text-base font-medium text-zinc-900">
+            <div className="rounded-md border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center dark:border-zinc-700 dark:bg-zinc-800">
+              <h3 className="text-base font-medium text-zinc-900 dark:text-zinc-50">
                 Danh sách thiếu vật tư
               </h3>
-              <p className="mt-1 text-sm text-zinc-500">
+              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
                 Chưa có snapshot — tính toán thiếu vật tư sẽ có ở Phase B3.
               </p>
             </div>
           </TabsContent>
 
           <TabsContent value="audit">
-            <div className="rounded-md border border-zinc-200 bg-white p-4">
-              <h3 className="text-base font-medium text-zinc-900">
+            <div className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+              <h3 className="text-base font-medium text-zinc-900 dark:text-zinc-50">
                 Lịch sử thao tác
               </h3>
-              <p className="mt-1 text-xs text-zinc-500">
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                 Tạo lúc: {formatDate(order.createdAt, "dd/MM/yyyy HH:mm")}
                 {" · "}
                 Cập nhật: {formatDate(order.updatedAt, "dd/MM/yyyy HH:mm")}
@@ -493,7 +493,7 @@ export default function OrderDetailPage({
                   </>
                 )}
               </p>
-              <p className="mt-3 text-xs text-zinc-400">
+              <p className="mt-3 text-xs text-zinc-400 dark:text-zinc-500">
                 Audit timeline đầy đủ (CREATE / UPDATE / TRANSITION) sẽ reuse
                 component `AuditTimeline` ở Phase B4.
               </p>
@@ -589,9 +589,9 @@ function SnapshotSummaryHeader({
 }) {
   const map = new Map(summary.map((s) => [s.state, s.count]));
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-md border border-zinc-200 bg-white px-4 py-2.5">
-      <span className="text-xs uppercase tracking-wider text-zinc-500">
-        Tổng: <span className="text-zinc-900">{total}</span>
+    <div className="flex flex-wrap items-center gap-2 rounded-md border border-zinc-200 bg-white px-4 py-2.5 dark:border-zinc-800 dark:bg-zinc-900">
+      <span className="text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+        Tổng: <span className="text-zinc-900 dark:text-zinc-50">{total}</span>
       </span>
       <div className="flex flex-wrap gap-1.5">
         {BOM_SNAPSHOT_STATES.map((s) => {
@@ -601,16 +601,16 @@ function SnapshotSummaryHeader({
           const tone = BOM_SNAPSHOT_STATE_TONES[s];
           const toneClass =
             tone === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400"
               : tone === "warning"
-                ? "border-amber-200 bg-amber-50 text-amber-700"
+                ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400"
                 : tone === "danger"
-                  ? "border-red-200 bg-red-50 text-red-700"
+                  ? "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400"
                   : tone === "info"
-                    ? "border-blue-200 bg-blue-50 text-blue-700"
+                    ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-400"
                     : tone === "shortage"
-                      ? "border-orange-200 bg-orange-50 text-orange-700"
-                      : "border-zinc-200 bg-zinc-100 text-zinc-700";
+                      ? "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-400"
+                      : "border-zinc-200 bg-zinc-100 text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300";
           return (
             <button
               type="button"

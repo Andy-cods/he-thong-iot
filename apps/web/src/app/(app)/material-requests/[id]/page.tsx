@@ -51,11 +51,11 @@ interface DetailResp {
 }
 
 const STATUS_PILL: Record<Status, { label: string; cls: string; dot: string; icon: React.ElementType }> = {
-  PENDING:   { label: "Chờ chuẩn bị",   cls: "bg-amber-50 text-amber-700 ring-amber-200",    dot: "bg-amber-500 animate-pulse",  icon: Clock        },
-  PICKING:   { label: "Đang chuẩn bị",  cls: "bg-blue-50 text-blue-700 ring-blue-200",        dot: "bg-blue-500 animate-pulse",   icon: Package      },
-  READY:     { label: "Đã sẵn sàng",    cls: "bg-violet-50 text-violet-700 ring-violet-200",  dot: "bg-violet-500",               icon: CheckCircle2 },
-  DELIVERED: { label: "Đã giao",        cls: "bg-emerald-50 text-emerald-700 ring-emerald-200", dot: "bg-emerald-500",            icon: Truck        },
-  CANCELLED: { label: "Đã huỷ",         cls: "bg-zinc-100 text-zinc-500 ring-zinc-200",       dot: "bg-zinc-400",                 icon: XCircle      },
+  PENDING:   { label: "Chờ chuẩn bị",   cls: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800",    dot: "bg-amber-500 animate-pulse",  icon: Clock        },
+  PICKING:   { label: "Đang chuẩn bị",  cls: "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:ring-blue-800",        dot: "bg-blue-500 animate-pulse",   icon: Package      },
+  READY:     { label: "Đã sẵn sàng",    cls: "bg-violet-50 text-violet-700 ring-violet-200 dark:bg-violet-950/40 dark:text-violet-400 dark:ring-violet-800",  dot: "bg-violet-500",               icon: CheckCircle2 },
+  DELIVERED: { label: "Đã giao",        cls: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800", dot: "bg-emerald-500",            icon: Truck        },
+  CANCELLED: { label: "Đã huỷ",         cls: "bg-zinc-100 text-zinc-500 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",       dot: "bg-zinc-400",                 icon: XCircle      },
 };
 
 export default function MaterialRequestDetailPage() {
@@ -98,7 +98,7 @@ export default function MaterialRequestDetailPage() {
 
   if (query.isLoading) {
     return (
-      <div className="flex h-full items-center justify-center gap-2 text-sm text-zinc-500">
+      <div className="flex h-full items-center justify-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
         <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
         Đang tải…
       </div>
@@ -106,9 +106,9 @@ export default function MaterialRequestDetailPage() {
   }
   if (query.isError || !query.data?.data) {
     return (
-      <div className="m-6 rounded-xl border border-red-200 bg-red-50 p-6 text-center">
-        <p className="text-sm font-semibold text-red-700">Không tìm thấy yêu cầu</p>
-        <p className="mt-1 text-xs text-red-600">
+      <div className="m-6 rounded-xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-800 dark:bg-red-950/40">
+        <p className="text-sm font-semibold text-red-700 dark:text-red-400">Không tìm thấy yêu cầu</p>
+        <p className="mt-1 text-xs text-red-600 dark:text-red-400">
           {(query.error as Error)?.message ?? "Hoặc bạn không có quyền xem."}
         </p>
         <Button asChild variant="outline" size="sm" className="mt-4">
@@ -122,25 +122,25 @@ export default function MaterialRequestDetailPage() {
   const cfg = STATUS_PILL[r.status];
 
   return (
-    <div className="flex h-full flex-col bg-zinc-50/30">
-      <header className="border-b border-zinc-200 bg-white px-6 py-5">
+    <div className="flex h-full flex-col bg-zinc-50/30 dark:bg-zinc-950">
+      <header className="border-b border-zinc-200 bg-white px-6 py-5 dark:border-zinc-800 dark:bg-zinc-900">
         <Link
           href="/material-requests"
-          className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-indigo-600"
+          className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400"
         >
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
           Về danh sách yêu cầu
         </Link>
         <div className="mt-2 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100">
-              <FileText className="h-6 w-6 text-indigo-700" aria-hidden />
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-950/50">
+              <FileText className="h-6 w-6 text-indigo-700 dark:text-indigo-400" aria-hidden />
             </div>
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
+              <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
                 {r.requestNo}
               </h1>
-              <p className="mt-0.5 text-sm text-zinc-500">
+              <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
                 Yêu cầu vật tư từ kho · {r.requestedByName || r.requestedByUsername || "—"}
               </p>
             </div>
@@ -158,8 +158,8 @@ export default function MaterialRequestDetailPage() {
       <div className="flex-1 overflow-auto p-6">
         <div className="mx-auto max-w-4xl space-y-5">
           {/* Timeline */}
-          <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-            <h2 className="text-sm font-semibold text-zinc-900 mb-4">Hành trình</h2>
+          <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <h2 className="text-sm font-semibold text-zinc-900 mb-4 dark:text-zinc-50">Hành trình</h2>
             <div className="space-y-3">
               <TimelineRow icon={FileText} label="Tạo yêu cầu" at={r.createdAt} done />
               <TimelineRow icon={Package} label="Bắt đầu chuẩn bị" at={r.pickedAt} done={!!r.pickedAt} />
@@ -169,37 +169,37 @@ export default function MaterialRequestDetailPage() {
           </section>
 
           {/* Lines table */}
-          <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-            <div className="border-b border-zinc-100 bg-zinc-50/60 px-5 py-3">
-              <h2 className="text-sm font-semibold text-zinc-900">Linh kiện ({r.lines.length} dòng)</h2>
+          <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="border-b border-zinc-100 bg-zinc-50/60 px-5 py-3 dark:border-zinc-800 dark:bg-zinc-800/60">
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Linh kiện ({r.lines.length} dòng)</h2>
             </div>
             <table className="w-full">
               <thead>
-                <tr className="border-b border-zinc-100">
-                  <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 w-12">#</th>
-                  <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400">SKU</th>
-                  <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400">Tên</th>
-                  <th className="px-5 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400">Yêu cầu</th>
-                  <th className="px-5 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400">Đã chuẩn bị</th>
-                  <th className="px-5 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400">Đã giao</th>
+                <tr className="border-b border-zinc-100 dark:border-zinc-800">
+                  <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 w-12 dark:text-zinc-500">#</th>
+                  <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">SKU</th>
+                  <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Tên</th>
+                  <th className="px-5 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Yêu cầu</th>
+                  <th className="px-5 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Đã chuẩn bị</th>
+                  <th className="px-5 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Đã giao</th>
                 </tr>
               </thead>
               <tbody>
                 {r.lines.map((l) => (
-                  <tr key={l.id} className="border-b border-zinc-50">
-                    <td className="px-5 py-3 text-sm text-zinc-500">{l.lineNo}</td>
-                    <td className="px-5 py-3 font-mono text-sm font-semibold text-indigo-600">
+                  <tr key={l.id} className="border-b border-zinc-50 dark:border-zinc-800/60">
+                    <td className="px-5 py-3 text-sm text-zinc-500 dark:text-zinc-400">{l.lineNo}</td>
+                    <td className="px-5 py-3 font-mono text-sm font-semibold text-indigo-600 dark:text-indigo-400">
                       {l.itemSku ?? "—"}
                     </td>
-                    <td className="px-5 py-3 text-sm text-zinc-700">{l.itemName ?? "—"}</td>
-                    <td className="px-5 py-3 text-right font-mono text-sm font-semibold text-zinc-800">
+                    <td className="px-5 py-3 text-sm text-zinc-700 dark:text-zinc-300">{l.itemName ?? "—"}</td>
+                    <td className="px-5 py-3 text-right font-mono text-sm font-semibold text-zinc-800 dark:text-zinc-200">
                       {Number(l.requestedQty).toLocaleString("vi-VN")}
-                      {l.itemUom && <span className="ml-1 text-xs font-normal text-zinc-500">{l.itemUom}</span>}
+                      {l.itemUom && <span className="ml-1 text-xs font-normal text-zinc-500 dark:text-zinc-400">{l.itemUom}</span>}
                     </td>
-                    <td className="px-5 py-3 text-right font-mono text-sm text-blue-700">
+                    <td className="px-5 py-3 text-right font-mono text-sm text-blue-700 dark:text-blue-400">
                       {Number(l.pickedQty).toLocaleString("vi-VN")}
                     </td>
-                    <td className="px-5 py-3 text-right font-mono text-sm text-emerald-700">
+                    <td className="px-5 py-3 text-right font-mono text-sm text-emerald-700 dark:text-emerald-400">
                       {Number(l.deliveredQty).toLocaleString("vi-VN")}
                     </td>
                   </tr>
@@ -212,15 +212,15 @@ export default function MaterialRequestDetailPage() {
           {(r.notes || r.warehouseNotes) && (
             <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {r.notes && (
-                <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Ghi chú từ engineer</p>
-                  <p className="mt-2 text-sm text-zinc-700 whitespace-pre-wrap">{r.notes}</p>
+                <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Ghi chú từ engineer</p>
+                  <p className="mt-2 text-sm text-zinc-700 whitespace-pre-wrap dark:text-zinc-300">{r.notes}</p>
                 </div>
               )}
               {r.warehouseNotes && (
-                <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Ghi chú từ kho</p>
-                  <p className="mt-2 text-sm text-zinc-700 whitespace-pre-wrap">{r.warehouseNotes}</p>
+                <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Ghi chú từ kho</p>
+                  <p className="mt-2 text-sm text-zinc-700 whitespace-pre-wrap dark:text-zinc-300">{r.warehouseNotes}</p>
                 </div>
               )}
             </section>
@@ -232,7 +232,7 @@ export default function MaterialRequestDetailPage() {
               <>
                 <Button
                   variant="outline"
-                  className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                  className="border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-950/40"
                   onClick={() => transition.mutate("PICKING")}
                   disabled={transition.isPending}
                 >
@@ -240,7 +240,7 @@ export default function MaterialRequestDetailPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  className="border-violet-200 text-violet-700 hover:bg-violet-50"
+                  className="border-violet-200 text-violet-700 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-400 dark:hover:bg-violet-950/40"
                   onClick={() => transition.mutate("READY")}
                   disabled={transition.isPending}
                 >
@@ -251,7 +251,7 @@ export default function MaterialRequestDetailPage() {
             {r.status === "PICKING" && (
               <Button
                 variant="outline"
-                className="border-violet-200 text-violet-700 hover:bg-violet-50"
+                className="border-violet-200 text-violet-700 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-400 dark:hover:bg-violet-950/40"
                 onClick={() => transition.mutate("READY")}
                 disabled={transition.isPending}
               >
@@ -260,7 +260,7 @@ export default function MaterialRequestDetailPage() {
             )}
             {r.status === "READY" && (
               <Button
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-500 dark:hover:bg-emerald-400"
                 onClick={() => transition.mutate("DELIVERED")}
                 disabled={transition.isPending}
               >
@@ -270,7 +270,7 @@ export default function MaterialRequestDetailPage() {
             {(r.status === "PENDING" || r.status === "PICKING") && (
               <Button
                 variant="outline"
-                className="border-red-200 text-red-700 hover:bg-red-50"
+                className="border-red-200 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/40"
                 onClick={() => transition.mutate("CANCELLED")}
                 disabled={transition.isPending}
               >
@@ -299,23 +299,23 @@ function TimelineRow({
     <div className="flex items-center gap-3">
       <div className={cn(
         "flex h-9 w-9 items-center justify-center rounded-lg",
-        done ? "bg-emerald-100 text-emerald-700" : "bg-zinc-100 text-zinc-400",
+        done ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400" : "bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500",
       )}>
         <Icon className="h-4 w-4" aria-hidden />
       </div>
       <div className="flex-1">
-        <p className={cn("text-sm font-medium", done ? "text-zinc-900" : "text-zinc-500")}>
+        <p className={cn("text-sm font-medium", done ? "text-zinc-900 dark:text-zinc-50" : "text-zinc-500 dark:text-zinc-400")}>
           {label}
         </p>
         {at ? (
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
             {new Date(at).toLocaleString("vi-VN", {
               day: "2-digit", month: "2-digit", year: "numeric",
               hour: "2-digit", minute: "2-digit",
             })}
           </p>
         ) : (
-          <p className="text-xs text-zinc-400">Chưa thực hiện</p>
+          <p className="text-xs text-zinc-400 dark:text-zinc-500">Chưa thực hiện</p>
         )}
       </div>
     </div>

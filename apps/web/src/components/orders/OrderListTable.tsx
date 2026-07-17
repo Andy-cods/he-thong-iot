@@ -140,14 +140,14 @@ export function OrderListTable({
   return (
     <div
       ref={parentRef}
-      className="relative h-full w-full overflow-auto rounded-md border border-zinc-200 bg-white"
+      className="relative h-full w-full overflow-auto rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
       role="region"
       aria-label="Danh sách đơn hàng"
     >
       {/* Header */}
       <div
         className={cn(
-          "sticky top-0 z-sticky grid h-8 items-center border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wide text-zinc-500",
+          "sticky top-0 z-sticky grid h-8 items-center border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-400",
           gridCols,
         )}
         role="row"
@@ -189,7 +189,7 @@ export function OrderListTable({
             <div
               key={i}
               className={cn(
-                "grid items-center border-b border-zinc-100 px-3",
+                "grid items-center border-b border-zinc-100 px-3 dark:border-zinc-800",
                 gridCols,
               )}
               style={{ height: rowHeight }}
@@ -233,12 +233,12 @@ export function OrderListTable({
                 height: `${v.size}px`,
               }}
               className={cn(
-                "absolute left-0 top-0 grid w-full items-center border-b border-zinc-100 px-3 text-base text-zinc-900 transition-colors duration-100",
-                "hover:bg-zinc-50",
+                "absolute left-0 top-0 grid w-full items-center border-b border-zinc-100 px-3 text-base text-zinc-900 transition-colors duration-100 dark:border-zinc-800 dark:text-zinc-100",
+                "hover:bg-zinc-50 dark:hover:bg-zinc-800/60",
                 "focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:-outline-offset-2",
                 checked && "bg-blue-50",
                 isFocused &&
-                  "bg-zinc-50 outline outline-2 -outline-offset-2 outline-blue-500",
+                  "bg-zinc-50 outline outline-2 -outline-offset-2 outline-blue-500 dark:bg-zinc-800/60",
                 gridCols,
               )}
               tabIndex={-1}
@@ -254,9 +254,9 @@ export function OrderListTable({
               <Link
                 href={`/orders/${row.orderNo}`}
                 className={cn(
-                  "sticky left-0 truncate border-r border-zinc-100 bg-white pr-2 font-mono text-sm text-zinc-700 hover:text-blue-600",
+                  "sticky left-0 truncate border-r border-zinc-100 bg-white pr-2 font-mono text-sm text-zinc-700 hover:text-blue-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:text-blue-300",
                   checked && "bg-blue-50",
-                  isFocused && !checked && "bg-zinc-50",
+                  isFocused && !checked && "bg-zinc-50 dark:bg-zinc-800/60",
                 )}
                 title={row.orderNo}
               >
@@ -265,20 +265,20 @@ export function OrderListTable({
 
               <Link
                 href={`/orders/${row.orderNo}`}
-                className="truncate pr-2 text-zinc-900 hover:text-blue-600 focus-visible:outline-none focus-visible:text-blue-600"
+                className="truncate pr-2 text-zinc-900 hover:text-blue-600 focus-visible:outline-none focus-visible:text-blue-600 dark:text-zinc-100 dark:hover:text-blue-300 dark:focus-visible:text-blue-300"
                 title={row.customerName}
               >
                 {row.customerName}
               </Link>
 
               <div
-                className="hidden truncate text-zinc-700 md:block"
+                className="hidden truncate text-zinc-700 md:block dark:text-zinc-300"
                 title={row.productName ?? ""}
               >
                 {row.productName ?? "—"}
               </div>
 
-              <div className="hidden truncate text-sm text-zinc-600 tabular-nums md:block">
+              <div className="hidden truncate text-sm text-zinc-600 tabular-nums md:block dark:text-zinc-400">
                 {row.dueDate ? formatDate(row.dueDate, "dd/MM/yyyy") : "—"}
               </div>
 
@@ -290,7 +290,7 @@ export function OrderListTable({
                     label={prio.label}
                   />
                 ) : (
-                  <span className="text-xs text-zinc-400">—</span>
+                  <span className="text-xs text-zinc-400 dark:text-zinc-500">—</span>
                 )}
               </div>
 
@@ -302,7 +302,7 @@ export function OrderListTable({
                 />
               </div>
 
-              <div className="hidden text-right tabular-nums text-zinc-700 md:block">
+              <div className="hidden text-right tabular-nums text-zinc-700 md:block dark:text-zinc-300">
                 {row.readinessPercent === undefined
                   ? "—"
                   : `${formatNumber(row.readinessPercent)}%`}
@@ -313,7 +313,7 @@ export function OrderListTable({
                   <button
                     type="button"
                     onClick={() => onPreview(row)}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
                     aria-label={`Xem ${row.orderNo}`}
                   >
                     <Eye className="h-3.5 w-3.5" aria-hidden="true" />
@@ -323,7 +323,7 @@ export function OrderListTable({
                   <button
                     type="button"
                     onClick={() => onEdit(row)}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
                     aria-label={`Sửa ${row.orderNo}`}
                   >
                     <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
@@ -332,7 +332,7 @@ export function OrderListTable({
                 <button
                   type="button"
                   onClick={() => copyCode(row.orderNo)}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
                   aria-label={`Copy mã ${row.orderNo}`}
                 >
                   <Copy className="h-3.5 w-3.5" aria-hidden="true" />

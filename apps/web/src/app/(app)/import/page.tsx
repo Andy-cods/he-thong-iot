@@ -19,10 +19,10 @@ export default function ImportSelectorPage() {
         className="mb-2"
       />
       <header className="mb-8">
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
+        <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
           Nhập dữ liệu từ Excel
         </h1>
-        <p className="mt-0.5 text-xs text-zinc-500">
+        <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
           Chọn loại dữ liệu cần nhập vào hệ thống.
         </p>
       </header>
@@ -30,16 +30,16 @@ export default function ImportSelectorPage() {
       <div className="grid gap-4 sm:grid-cols-2">
         <Link
           href="/items/import"
-          className="group flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm transition-all hover:border-blue-300 hover:shadow-md"
+          className="group flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm transition-all hover:border-blue-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900"
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-blue-50 text-blue-600 group-hover:bg-blue-100">
+          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-blue-50 text-blue-600 group-hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-400">
             <Package className="h-5 w-5" aria-hidden="true" />
           </div>
           <div>
-            <h2 className="font-semibold text-zinc-900 group-hover:text-blue-700">
+            <h2 className="font-semibold text-zinc-900 group-hover:text-blue-700 dark:text-zinc-50">
               Nhập vật tư
             </h2>
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
               Upload danh sách SKU, tên, đơn vị, giá từ file .xlsx.
             </p>
           </div>
@@ -50,16 +50,16 @@ export default function ImportSelectorPage() {
 
         <Link
           href="/bom/import"
-          className="group flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm transition-all hover:border-purple-300 hover:shadow-md"
+          className="group flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm transition-all hover:border-purple-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900"
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-purple-50 text-purple-600 group-hover:bg-purple-100">
+          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-purple-50 text-purple-600 group-hover:bg-purple-100 dark:bg-purple-950/40 dark:text-purple-400">
             <Network className="h-5 w-5" aria-hidden="true" />
           </div>
           <div>
-            <h2 className="font-semibold text-zinc-900 group-hover:text-purple-700">
+            <h2 className="font-semibold text-zinc-900 group-hover:text-purple-700 dark:text-zinc-50">
               Nhập BOM
             </h2>
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
               Upload cấu trúc Bill of Materials từ file .xlsx nhiều sheet.
             </p>
           </div>
@@ -69,7 +69,7 @@ export default function ImportSelectorPage() {
         </Link>
       </div>
 
-      <div className="mt-6 flex items-start gap-2 rounded-md border border-zinc-100 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">
+      <div className="mt-6 flex items-start gap-2 rounded-md border border-zinc-100 bg-zinc-50 px-4 py-3 text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
         <FileSpreadsheet className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
         <span>
           Hỗ trợ định dạng <strong>.xlsx</strong>. Tải template mẫu tại trang nhập tương ứng.

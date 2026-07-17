@@ -116,7 +116,7 @@ function ProgressRing({
       <span
         className={cn(
           "absolute inset-0 flex items-center justify-center font-mono text-[11px] font-bold tabular-nums",
-          done ? "text-emerald-700" : "text-zinc-700",
+          done ? "text-emerald-700 dark:text-emerald-400" : "text-zinc-700 dark:text-zinc-300",
         )}
       >
         {pct}%
@@ -138,12 +138,12 @@ function WoCard({ wo }: { wo: WorkOrderRow }) {
     <Link
       href={`/assembly/${wo.id}`}
       className={cn(
-        "group flex flex-col gap-3 rounded-lg border bg-white p-4 transition-all hover:shadow-md",
+        "group flex flex-col gap-3 rounded-lg border bg-white p-4 transition-all hover:shadow-md dark:bg-zinc-900",
         done
-          ? "border-emerald-200 bg-emerald-50/30 hover:border-emerald-400"
+          ? "border-emerald-200 bg-emerald-50/30 hover:border-emerald-400 dark:border-emerald-800 dark:bg-emerald-950/40"
           : isPaused
-            ? "border-amber-200 hover:border-amber-400"
-            : "border-zinc-200 hover:border-indigo-400",
+            ? "border-amber-200 hover:border-amber-400 dark:border-amber-800"
+            : "border-zinc-200 hover:border-indigo-400 dark:border-zinc-700",
       )}
     >
       {/* Card header: ring + info */}
@@ -151,7 +151,7 @@ function WoCard({ wo }: { wo: WorkOrderRow }) {
         <ProgressRing pct={pct} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <code className="font-mono text-sm font-bold text-zinc-900">
+            <code className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-50">
               {wo.woNo}
             </code>
             <Badge
@@ -162,12 +162,12 @@ function WoCard({ wo }: { wo: WorkOrderRow }) {
             </Badge>
           </div>
           {wo.orderNo ? (
-            <p className="mt-0.5 truncate text-xs text-zinc-500">
+            <p className="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400">
               Đơn:{" "}
-              <span className="font-medium text-zinc-700">{wo.orderNo}</span>
+              <span className="font-medium text-zinc-700 dark:text-zinc-300">{wo.orderNo}</span>
             </p>
           ) : (
-            <p className="mt-0.5 text-xs text-zinc-400">
+            <p className="mt-0.5 text-xs text-zinc-400 dark:text-zinc-500">
               Không liên kết đơn hàng
             </p>
           )}
@@ -176,34 +176,34 @@ function WoCard({ wo }: { wo: WorkOrderRow }) {
 
       {/* Qty row */}
       <div className="flex items-baseline justify-between text-xs">
-        <span className="text-zinc-500">
-          <span className="font-semibold tabular-nums text-zinc-900">
+        <span className="text-zinc-500 dark:text-zinc-400">
+          <span className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
             {good}
           </span>
-          <span className="text-zinc-400"> / {planned} cái</span>
+          <span className="text-zinc-400 dark:text-zinc-500"> / {planned} cái</span>
         </span>
         {remaining > 0 ? (
-          <span className="text-amber-700">
+          <span className="text-amber-700 dark:text-amber-400">
             Còn{" "}
             <strong className="tabular-nums">{remaining}</strong> cái
           </span>
         ) : (
-          <span className="text-emerald-600">Đủ số lượng</span>
+          <span className="text-emerald-600 dark:text-emerald-400">Đủ số lượng</span>
         )}
       </div>
 
       {/* Footer: priority + CTA */}
-      <div className="flex items-center justify-between border-t border-zinc-100 pt-2 text-[11px]">
-        <span className="text-zinc-500">
+      <div className="flex items-center justify-between border-t border-zinc-100 pt-2 text-[11px] dark:border-zinc-800">
+        <span className="text-zinc-500 dark:text-zinc-400">
           Ưu tiên:{" "}
           <span
             className={cn(
               "font-medium",
               wo.priority === "URGENT"
-                ? "text-red-600"
+                ? "text-red-600 dark:text-red-400"
                 : wo.priority === "HIGH"
-                  ? "text-orange-600"
-                  : "text-zinc-700",
+                  ? "text-orange-600 dark:text-orange-400"
+                  : "text-zinc-700 dark:text-zinc-300",
             )}
           >
             {wo.priority}
@@ -213,8 +213,8 @@ function WoCard({ wo }: { wo: WorkOrderRow }) {
           className={cn(
             "inline-flex items-center gap-1 font-medium transition-colors",
             isPaused
-              ? "text-amber-600 group-hover:text-amber-700"
-              : "text-indigo-600 group-hover:text-indigo-700",
+              ? "text-amber-600 group-hover:text-amber-700 dark:text-amber-400 dark:group-hover:text-amber-300"
+              : "text-indigo-600 group-hover:text-indigo-700 dark:text-indigo-400 dark:group-hover:text-indigo-300",
           )}
         >
           {isPaused ? (
@@ -288,21 +288,21 @@ export function AssemblyTab() {
     <div className="flex flex-col gap-6">
       {/* Title */}
       <section>
-        <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight text-zinc-900">
-          <Wrench className="h-5 w-5 text-zinc-500" aria-hidden />
+        <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+          <Wrench className="h-5 w-5 text-zinc-500 dark:text-zinc-400" aria-hidden />
           Lắp ráp
         </h1>
-        <p className="mt-1 text-xs text-zinc-500">
+        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
           Chọn một lệnh sản xuất để vào workspace lắp ráp. Progress ring hiển
           thị tiến độ hoàn thành tính theo qty.
         </p>
       </section>
 
       {/* Filter bar */}
-      <section className="flex flex-wrap items-center gap-3 rounded-lg border border-zinc-200 bg-white p-3">
+      <section className="flex flex-wrap items-center gap-3 rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
         <div className="relative min-w-[220px] flex-1">
           <Search
-            className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400"
+            className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400 dark:text-zinc-500"
             aria-hidden
           />
           <Input
@@ -321,15 +321,15 @@ export function AssemblyTab() {
               className={cn(
                 "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
                 statusFilter === opt.value
-                  ? "border-indigo-300 bg-indigo-50 text-indigo-700"
-                  : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50",
+                  ? "border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-400"
+                  : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-zinc-600 dark:hover:bg-zinc-800/60",
               )}
             >
               {opt.label}
             </button>
           ))}
         </div>
-        <div className="ml-auto text-[11px] text-zinc-500">
+        <div className="ml-auto text-[11px] text-zinc-500 dark:text-zinc-400">
           {query.isLoading ? (
             <span className="inline-flex items-center gap-1">
               <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
@@ -346,12 +346,12 @@ export function AssemblyTab() {
       </section>
 
       {query.isError ? (
-        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400">
           Lỗi tải danh sách:{" "}
           {(query.error as Error | null)?.message ?? "Không rõ"}
         </div>
       ) : query.isLoading ? (
-        <div className="flex items-center justify-center gap-2 py-12 text-sm text-zinc-500">
+        <div className="flex items-center justify-center gap-2 py-12 text-sm text-zinc-500 dark:text-zinc-400">
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
           Đang tải danh sách WO…
         </div>
@@ -366,7 +366,7 @@ export function AssemblyTab() {
                 }
                 title="Đang sản xuất"
                 count={grouped.inProg.length}
-                color="text-orange-700"
+                color="text-orange-700 dark:text-orange-400"
               />
               {grouped.inProg.length === 0 ? (
                 <EmptySection message="Không có WO nào đang sản xuất." />
@@ -388,7 +388,7 @@ export function AssemblyTab() {
                   icon={<Pause className="h-3.5 w-3.5 text-amber-500" aria-hidden />}
                   title="Tạm dừng"
                   count={grouped.paused.length}
-                  color="text-amber-700"
+                  color="text-amber-700 dark:text-amber-400"
                 />
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {grouped.paused.map((wo) => (
@@ -410,7 +410,7 @@ export function AssemblyTab() {
                   }
                   title="Chờ / Sẵn sàng lắp"
                   count={grouped.waiting.length}
-                  color="text-indigo-700"
+                  color="text-indigo-700 dark:text-indigo-400"
                 />
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {grouped.waiting.map((wo) => (
@@ -422,16 +422,16 @@ export function AssemblyTab() {
 
           {/* Empty state khi không có gì */}
           {rows.length === 0 && (
-            <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-200 bg-zinc-50/50 py-16 text-center">
-              <Factory className="h-8 w-8 text-zinc-300" aria-hidden />
-              <p className="text-sm font-medium text-zinc-700">
+            <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-200 bg-zinc-50/50 py-16 text-center dark:border-zinc-700 dark:bg-zinc-800/60">
+              <Factory className="h-8 w-8 text-zinc-300 dark:text-zinc-600" aria-hidden />
+              <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                 Không có WO nào sẵn sàng lắp ráp
               </p>
-              <p className="max-w-md text-xs text-zinc-500">
+              <p className="max-w-md text-xs text-zinc-500 dark:text-zinc-400">
                 Tạo WO mới ở trang{" "}
                 <Link
                   href="/work-orders"
-                  className="text-indigo-600 hover:underline"
+                  className="text-indigo-600 hover:underline dark:text-indigo-400"
                 >
                   Lệnh sản xuất
                 </Link>{" "}
@@ -452,7 +452,7 @@ export function AssemblyTab() {
                 }
                 title="Hoàn thành gần đây"
                 count={completedFiltered.length}
-                color="text-emerald-700"
+                color="text-emerald-700 dark:text-emerald-400"
               />
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {completedFiltered.map((wo) => (
@@ -489,7 +489,7 @@ function SectionHeader({
       >
         {title}
       </h2>
-      <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-zinc-600">
+      <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
         {count}
       </span>
     </div>
@@ -498,7 +498,7 @@ function SectionHeader({
 
 function EmptySection({ message }: { message: string }) {
   return (
-    <p className="rounded-md border border-dashed border-zinc-200 py-6 text-center text-xs text-zinc-400">
+    <p className="rounded-md border border-dashed border-zinc-200 py-6 text-center text-xs text-zinc-400 dark:border-zinc-700 dark:text-zinc-500">
       {message}
     </p>
   );

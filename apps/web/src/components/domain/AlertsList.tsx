@@ -63,7 +63,7 @@ export function AlertsList({ alerts, loading, className }: AlertsListProps) {
       <div
         aria-busy="true"
         className={cn(
-          "rounded-md border border-zinc-200 bg-white p-4",
+          "rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900",
           className,
         )}
       >
@@ -78,23 +78,23 @@ export function AlertsList({ alerts, loading, className }: AlertsListProps) {
   return (
     <div
       className={cn(
-        "rounded-md border border-zinc-200 bg-white",
+        "rounded-md border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900",
         className,
       )}
     >
-      <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
-        <h3 className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+      <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3 dark:border-zinc-800">
+        <h3 className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
           Cảnh báo ({alerts.length})
         </h3>
       </div>
 
       {alerts.length === 0 ? (
-        <div className="flex items-center gap-2 px-4 py-4 text-sm text-zinc-500">
-          <XCircle className="h-3.5 w-3.5 text-zinc-400" aria-hidden="true" />
+        <div className="flex items-center gap-2 px-4 py-4 text-sm text-zinc-500 dark:text-zinc-400">
+          <XCircle className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" aria-hidden="true" />
           Không có cảnh báo nào.
         </div>
       ) : (
-        <ul className="divide-y divide-zinc-100">
+        <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
           {alerts.map((alert) => (
             <AlertItem key={alert.id} alert={alert} />
           ))}
@@ -116,18 +116,18 @@ function AlertItem({ alert }: { alert: DashboardAlert }) {
         aria-hidden="true"
       />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-base font-medium text-zinc-900">
+        <p className="truncate text-base font-medium text-zinc-900 dark:text-zinc-50">
           {alert.title}
         </p>
         {alert.description ? (
-          <p className="truncate text-sm text-zinc-500">
+          <p className="truncate text-sm text-zinc-500 dark:text-zinc-400">
             {alert.description}
           </p>
         ) : null}
       </div>
       {alert.href ? (
         <ChevronRight
-          className="h-3.5 w-3.5 shrink-0 text-zinc-400"
+          className="h-3.5 w-3.5 shrink-0 text-zinc-400 dark:text-zinc-500"
           aria-hidden="true"
         />
       ) : null}
@@ -139,7 +139,7 @@ function AlertItem({ alert }: { alert: DashboardAlert }) {
       <li>
         <Link
           href={alert.href}
-          className="flex items-start gap-2 px-4 py-3 transition-colors duration-100 hover:bg-zinc-50 focus:outline-none focus-visible:bg-zinc-50"
+          className="flex items-start gap-2 px-4 py-3 transition-colors duration-100 hover:bg-zinc-50 focus:outline-none focus-visible:bg-zinc-50 dark:hover:bg-zinc-800/60 dark:focus-visible:bg-zinc-800/60"
         >
           {body}
         </Link>

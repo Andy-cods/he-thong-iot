@@ -58,7 +58,7 @@ export function ProductionOverviewCards({
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
       <KpiCard
-        icon={<Boxes className="h-4 w-4 text-zinc-500" aria-hidden="true" />}
+        icon={<Boxes className="h-4 w-4 text-zinc-500 dark:text-zinc-400" aria-hidden="true" />}
         label="Tổng SL đơn"
         value={orderQty.toLocaleString("vi-VN")}
         hint={totalPlanned > 0 ? `WO plan ${totalPlanned}` : undefined}
@@ -73,7 +73,7 @@ export function ProductionOverviewCards({
         label="Đã SX (đạt)"
         value={goodQty.toLocaleString("vi-VN")}
         hint={`${producedPct}% đơn`}
-        valueClass={producedPct >= 100 ? "text-emerald-700" : undefined}
+        valueClass={producedPct >= 100 ? "text-emerald-700 dark:text-emerald-400" : undefined}
         progress={producedPct}
       />
       <KpiCard
@@ -103,10 +103,10 @@ export function ProductionOverviewCards({
         }
         valueClass={
           materialReadyPct >= 80
-            ? "text-emerald-700"
+            ? "text-emerald-700 dark:text-emerald-400"
             : materialReadyPct >= 40
-              ? "text-amber-700"
-              : "text-red-700"
+              ? "text-amber-700 dark:text-amber-400"
+              : "text-red-700 dark:text-red-400"
         }
         progress={materialReadyPct}
       />
@@ -118,13 +118,13 @@ export function ProductionOverviewCards({
               aria-hidden="true"
             />
           ) : (
-            <Timer className="h-4 w-4 text-zinc-500" aria-hidden="true" />
+            <Timer className="h-4 w-4 text-zinc-500 dark:text-zinc-400" aria-hidden="true" />
           )
         }
         label="ETA"
         value={dueLabel}
         hint={overdue ? "Trễ hạn" : undefined}
-        valueClass={overdue ? "text-red-700" : undefined}
+        valueClass={overdue ? "text-red-700 dark:text-red-400" : undefined}
       />
     </div>
   );
@@ -146,23 +146,23 @@ function KpiCard({
   valueClass?: string;
 }) {
   return (
-    <div className="rounded-md border border-zinc-200 bg-white px-3 py-2.5">
-      <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+    <div className="rounded-md border border-zinc-200 bg-white px-3 py-2.5 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
         {icon}
         <span>{label}</span>
       </div>
       <div
         className={cn(
-          "mt-1 font-mono text-lg font-semibold tabular-nums text-zinc-900",
+          "mt-1 font-mono text-lg font-semibold tabular-nums text-zinc-900 dark:text-zinc-50",
           valueClass,
         )}
       >
         {value}
       </div>
-      {hint && <div className="text-[11px] text-zinc-500">{hint}</div>}
+      {hint && <div className="text-[11px] text-zinc-500 dark:text-zinc-400">{hint}</div>}
       {progress !== undefined && (
         <div
-          className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-zinc-100"
+          className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800"
           role="progressbar"
           aria-valuenow={Math.max(0, Math.min(100, progress))}
           aria-valuemin={0}

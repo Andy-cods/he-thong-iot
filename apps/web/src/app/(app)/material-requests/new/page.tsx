@@ -115,20 +115,20 @@ export default function NewMaterialRequestPage() {
     lines.every((l) => Number(l.qty) > 0);
 
   return (
-    <div className="flex h-full flex-col bg-zinc-50/30">
-      <header className="border-b border-zinc-200 bg-white px-6 py-5">
+    <div className="flex h-full flex-col bg-zinc-50/30 dark:bg-zinc-950">
+      <header className="border-b border-zinc-200 bg-white px-6 py-5 dark:border-zinc-800 dark:bg-zinc-900">
         <Link
           href="/material-requests"
-          className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-indigo-600"
+          className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400"
         >
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
           Về danh sách yêu cầu
         </Link>
-        <h1 className="mt-2 flex items-center gap-2 text-2xl font-semibold tracking-tight text-zinc-900">
-          <FileText className="h-6 w-6 text-indigo-600" aria-hidden />
+        <h1 className="mt-2 flex items-center gap-2 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+          <FileText className="h-6 w-6 text-indigo-600 dark:text-indigo-400" aria-hidden />
           Tạo yêu cầu vật tư mới
         </h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
           Chọn linh kiện cần lấy từ kho, nhập số lượng. Thông báo sẽ tự động gửi cho Bộ phận Kho.
         </p>
       </header>
@@ -136,40 +136,40 @@ export default function NewMaterialRequestPage() {
       <div className="flex-1 overflow-auto p-6">
         <div className="mx-auto max-w-3xl space-y-5">
           {/* Search + add */}
-          <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-            <h2 className="text-sm font-semibold text-zinc-900">Thêm linh kiện</h2>
-            <p className="mt-1 text-xs text-zinc-500">
+          <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Thêm linh kiện</h2>
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
               Tìm theo mã (SKU) hoặc tên linh kiện. Bấm vào kết quả để thêm.
             </p>
             <div className="relative mt-3">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" aria-hidden />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" aria-hidden />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Tìm linh kiện..."
-                className="h-10 w-full rounded-lg border border-zinc-200 bg-white pl-9 pr-3 text-sm placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="h-10 w-full rounded-lg border border-zinc-200 bg-white pl-9 pr-3 text-sm placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500"
               />
             </div>
             {debouncedQ && (
-              <div className="mt-2 max-h-72 overflow-y-auto rounded-lg border border-zinc-100 bg-zinc-50/40">
+              <div className="mt-2 max-h-72 overflow-y-auto rounded-lg border border-zinc-100 bg-zinc-50/40 dark:border-zinc-800 dark:bg-zinc-800/40">
                 {itemsQuery.isLoading ? (
-                  <p className="px-4 py-6 text-center text-sm text-zinc-500">Đang tìm…</p>
+                  <p className="px-4 py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">Đang tìm…</p>
                 ) : items.length === 0 ? (
-                  <p className="px-4 py-6 text-center text-sm text-zinc-500">Không tìm thấy linh kiện.</p>
+                  <p className="px-4 py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">Không tìm thấy linh kiện.</p>
                 ) : (
-                  <ul className="divide-y divide-zinc-100">
+                  <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
                     {items.map((it) => (
                       <li key={it.id}>
                         <button
                           type="button"
                           onClick={() => addLine(it)}
-                          className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-white"
+                          className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-white dark:hover:bg-zinc-800/60"
                         >
-                          <span className="font-mono text-sm font-semibold text-indigo-600">{it.sku}</span>
-                          <span className="text-sm text-zinc-700 flex-1 truncate">{it.name}</span>
-                          {it.uom && <span className="text-xs text-zinc-400">{it.uom}</span>}
-                          <Plus className="h-4 w-4 text-zinc-400" aria-hidden />
+                          <span className="font-mono text-sm font-semibold text-indigo-600 dark:text-indigo-400">{it.sku}</span>
+                          <span className="text-sm text-zinc-700 flex-1 truncate dark:text-zinc-300">{it.name}</span>
+                          {it.uom && <span className="text-xs text-zinc-400 dark:text-zinc-500">{it.uom}</span>}
+                          <Plus className="h-4 w-4 text-zinc-400 dark:text-zinc-500" aria-hidden />
                         </button>
                       </li>
                     ))}
@@ -180,35 +180,35 @@ export default function NewMaterialRequestPage() {
           </section>
 
           {/* Lines */}
-          <section className="rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50/60 px-5 py-3">
-              <h2 className="text-sm font-semibold text-zinc-900">
+          <section className="rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50/60 px-5 py-3 dark:border-zinc-800 dark:bg-zinc-800/60">
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
                 Danh sách yêu cầu ({lines.length} dòng)
               </h2>
             </div>
             {lines.length === 0 ? (
-              <p className="px-5 py-12 text-center text-sm text-zinc-500">
+              <p className="px-5 py-12 text-center text-sm text-zinc-500 dark:text-zinc-400">
                 Chưa có dòng nào. Tìm và thêm linh kiện ở trên.
               </p>
             ) : (
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-zinc-100">
-                    <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 w-16">#</th>
-                    <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400">Linh kiện</th>
-                    <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 w-32">SL yêu cầu</th>
-                    <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400">Ghi chú</th>
+                  <tr className="border-b border-zinc-100 dark:border-zinc-800">
+                    <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 w-16 dark:text-zinc-500">#</th>
+                    <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Linh kiện</th>
+                    <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 w-32 dark:text-zinc-500">SL yêu cầu</th>
+                    <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Ghi chú</th>
                     <th className="w-12" />
                   </tr>
                 </thead>
                 <tbody>
                   {lines.map((l, i) => (
-                    <tr key={l.itemId} className="border-b border-zinc-50">
-                      <td className="px-5 py-3 text-sm text-zinc-500">{i + 1}</td>
+                    <tr key={l.itemId} className="border-b border-zinc-50 dark:border-zinc-800/60">
+                      <td className="px-5 py-3 text-sm text-zinc-500 dark:text-zinc-400">{i + 1}</td>
                       <td className="px-5 py-3">
                         <div className="flex flex-col">
-                          <span className="font-mono text-sm font-semibold text-indigo-600">{l.sku}</span>
-                          <span className="text-xs text-zinc-600 truncate max-w-xs">{l.itemName}</span>
+                          <span className="font-mono text-sm font-semibold text-indigo-600 dark:text-indigo-400">{l.sku}</span>
+                          <span className="text-xs text-zinc-600 truncate max-w-xs dark:text-zinc-400">{l.itemName}</span>
                         </div>
                       </td>
                       <td className="px-5 py-3">
@@ -219,9 +219,9 @@ export default function NewMaterialRequestPage() {
                             step="any"
                             value={l.qty}
                             onChange={(e) => updateLine(i, { qty: e.target.value })}
-                            className="h-9 w-24 rounded-md border border-zinc-200 bg-white px-2.5 text-right font-mono text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            className="h-9 w-24 rounded-md border border-zinc-200 bg-white px-2.5 text-right font-mono text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
                           />
-                          {l.uom && <span className="text-xs text-zinc-500">{l.uom}</span>}
+                          {l.uom && <span className="text-xs text-zinc-500 dark:text-zinc-400">{l.uom}</span>}
                         </div>
                       </td>
                       <td className="px-5 py-3">
@@ -230,14 +230,14 @@ export default function NewMaterialRequestPage() {
                           value={l.notes}
                           onChange={(e) => updateLine(i, { notes: e.target.value })}
                           placeholder="Tuỳ chọn..."
-                          className="h-9 w-full rounded-md border border-zinc-200 bg-white px-2.5 text-sm placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          className="h-9 w-full rounded-md border border-zinc-200 bg-white px-2.5 text-sm placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500"
                         />
                       </td>
                       <td className="px-3 py-3">
                         <button
                           type="button"
                           onClick={() => removeLine(i)}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-400 hover:bg-red-50 hover:text-red-600"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-400 hover:bg-red-50 hover:text-red-600 dark:text-zinc-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
                           title="Xoá dòng"
                         >
                           <Trash2 className="h-4 w-4" aria-hidden />
@@ -251,16 +251,16 @@ export default function NewMaterialRequestPage() {
           </section>
 
           {/* Notes + submit */}
-          <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
             <label className="block">
-              <span className="text-sm font-semibold text-zinc-900">Ghi chú</span>
-              <span className="ml-2 text-xs text-zinc-500">(mục đích sử dụng / vị trí cần)</span>
+              <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Ghi chú</span>
+              <span className="ml-2 text-xs text-zinc-500 dark:text-zinc-400">(mục đích sử dụng / vị trí cần)</span>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
                 placeholder="VD: Cho line lắp ráp số 2, cần gấp trước 10h..."
-                className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-y"
+                className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-y dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500"
               />
             </label>
           </section>

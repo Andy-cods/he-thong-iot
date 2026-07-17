@@ -90,7 +90,7 @@ export function FilterBar({
         {/* Search — 280px icon leading 14px */}
         <div className="relative">
           <Search
-            className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400"
+            className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400 dark:text-zinc-500"
             aria-hidden="true"
           />
           <Input
@@ -121,16 +121,16 @@ export function FilterBar({
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 gap-1.5 border border-zinc-200"
+              className="h-8 gap-1.5 border border-zinc-200 dark:border-zinc-700"
               aria-label="Lọc theo loại"
             >
               <span>Loại</span>
               {state.type.length > 0 && (
-                <span className="rounded-sm bg-blue-50 px-1 text-xs font-medium text-blue-700">
+                <span className="rounded-sm bg-blue-50 px-1 text-xs font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-400">
                   {state.type.length}
                 </span>
               )}
-              <ChevronDown className="h-3.5 w-3.5 text-zinc-500" aria-hidden="true" />
+              <ChevronDown className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" aria-hidden="true" />
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-60 p-2" align="start">
@@ -139,7 +139,7 @@ export function FilterBar({
                 const checked = state.type.includes(t);
                 return (
                   <li key={t}>
-                    <label className="flex h-8 cursor-pointer items-center gap-2 rounded-sm px-2 hover:bg-zinc-50">
+                    <label className="flex h-8 cursor-pointer items-center gap-2 rounded-sm px-2 hover:bg-zinc-50 dark:hover:bg-zinc-800/60">
                       <Checkbox
                         checked={checked}
                         onCheckedChange={(v) => {
@@ -150,7 +150,7 @@ export function FilterBar({
                         }}
                         aria-label={ITEM_TYPE_LABELS[t]}
                       />
-                      <span className="text-zinc-900">
+                      <span className="text-zinc-900 dark:text-zinc-50">
                         {ITEM_TYPE_LABELS[t]}
                       </span>
                     </label>
@@ -162,7 +162,7 @@ export function FilterBar({
               <button
                 type="button"
                 onClick={() => onChange({ type: [] })}
-                className="mt-2 w-full rounded-sm px-2 py-1 text-left text-sm text-blue-600 hover:bg-zinc-50"
+                className="mt-2 w-full rounded-sm px-2 py-1 text-left text-sm text-blue-600 hover:bg-zinc-50 dark:text-blue-400 dark:hover:bg-zinc-800/60"
               >
                 Xoá lựa chọn loại
               </button>
@@ -195,8 +195,8 @@ export function FilterBar({
                   "inline-flex h-7 items-center rounded-sm px-2.5 text-base font-medium transition-colors",
                   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-0",
                   isActive
-                    ? "bg-zinc-900 text-white"
-                    : "text-zinc-600 hover:text-zinc-900",
+                    ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                    : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100",
                 )}
               >
                 {opt.label}
@@ -211,10 +211,10 @@ export function FilterBar({
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 gap-1.5 border border-zinc-200"
+              className="h-8 gap-1.5 border border-zinc-200 dark:border-zinc-700"
               aria-label="Lọc theo danh mục"
             >
-              <Tag className="h-3.5 w-3.5 text-zinc-500" aria-hidden="true" />
+              <Tag className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" aria-hidden="true" />
               <span>
                 {state.category
                   ? state.category.length > 20
@@ -223,19 +223,19 @@ export function FilterBar({
                   : "Danh mục"}
               </span>
               {state.category && (
-                <span className="rounded-sm bg-indigo-50 px-1 text-xs font-medium text-indigo-700">
+                <span className="rounded-sm bg-indigo-50 px-1 text-xs font-medium text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400">
                   1
                 </span>
               )}
               <ChevronDown
-                className="h-3.5 w-3.5 text-zinc-500"
+                className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400"
                 aria-hidden="true"
               />
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-[280px] p-0" align="start">
-            <div className="border-b border-zinc-200 px-3 py-2">
-              <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+            <div className="border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
+              <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                 Chọn danh mục
               </p>
             </div>
@@ -245,21 +245,21 @@ export function FilterBar({
                   type="button"
                   onClick={() => onChange({ category: "" })}
                   className={cn(
-                    "flex h-8 w-full cursor-pointer items-center justify-between px-3 hover:bg-zinc-50",
+                    "flex h-8 w-full cursor-pointer items-center justify-between px-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/60",
                     state.category === "" &&
-                      "bg-indigo-50 text-indigo-700 font-medium",
+                      "bg-indigo-50 text-indigo-700 font-medium dark:bg-indigo-950/40 dark:text-indigo-400",
                   )}
                 >
                   <span>Tất cả danh mục</span>
                 </button>
               </li>
               {categoriesQ.isLoading && (
-                <li className="px-3 py-2 text-xs text-zinc-500">
+                <li className="px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">
                   Đang tải…
                 </li>
               )}
               {!categoriesQ.isLoading && categoryOptions.length === 0 && (
-                <li className="px-3 py-2 text-xs text-zinc-500">
+                <li className="px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">
                   Chưa có danh mục
                 </li>
               )}
@@ -271,14 +271,14 @@ export function FilterBar({
                       type="button"
                       onClick={() => onChange({ category: opt.category })}
                       className={cn(
-                        "flex h-8 w-full cursor-pointer items-center justify-between gap-2 px-3 hover:bg-zinc-50",
-                        selected && "bg-indigo-50 text-indigo-700 font-medium",
+                        "flex h-8 w-full cursor-pointer items-center justify-between gap-2 px-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/60",
+                        selected && "bg-indigo-50 text-indigo-700 font-medium dark:bg-indigo-950/40 dark:text-indigo-400",
                       )}
                     >
-                      <span className="truncate text-zinc-900">
+                      <span className="truncate text-zinc-900 dark:text-zinc-50">
                         {opt.category}
                       </span>
-                      <span className="shrink-0 rounded-sm bg-zinc-100 px-1.5 py-0.5 text-xs tabular-nums text-zinc-600">
+                      <span className="shrink-0 rounded-sm bg-zinc-100 px-1.5 py-0.5 text-xs tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
                         {opt.count.toLocaleString("vi-VN")}
                       </span>
                     </button>
@@ -287,11 +287,11 @@ export function FilterBar({
               })}
             </ul>
             {state.category && (
-              <div className="border-t border-zinc-200 p-2">
+              <div className="border-t border-zinc-200 p-2 dark:border-zinc-800">
                 <button
                   type="button"
                   onClick={() => onChange({ category: "" })}
-                  className="w-full rounded-sm px-2 py-1 text-left text-sm text-indigo-600 hover:bg-zinc-50"
+                  className="w-full rounded-sm px-2 py-1 text-left text-sm text-indigo-600 hover:bg-zinc-50 dark:text-indigo-400 dark:hover:bg-zinc-800/60"
                 >
                   Xoá lọc danh mục
                 </button>
@@ -306,13 +306,13 @@ export function FilterBar({
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 gap-1.5 border border-zinc-200"
+              className="h-8 gap-1.5 border border-zinc-200 dark:border-zinc-700"
               aria-label="Mở bộ lọc nâng cao"
             >
               <Filter className="h-3.5 w-3.5" aria-hidden="true" />
               <span>Nâng cao</span>
               {advCount > 0 && (
-                <span className="rounded-sm bg-blue-50 px-1 text-xs font-medium text-blue-700">
+                <span className="rounded-sm bg-blue-50 px-1 text-xs font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-400">
                   {advCount}
                 </span>
               )}
@@ -370,7 +370,7 @@ export function FilterBar({
                   aria-label="Chỉ vật tư dưới min-stock"
                   className="mt-0.5"
                 />
-                <span className="text-base text-zinc-700">
+                <span className="text-base text-zinc-700 dark:text-zinc-300">
                   Chỉ vật tư dưới min-stock
                 </span>
               </label>
@@ -379,11 +379,11 @@ export function FilterBar({
         </Popover>
 
         {/* Right-side meta */}
-        <div className="ml-auto flex items-center gap-3 text-sm text-zinc-500">
+        <div className="ml-auto flex items-center gap-3 text-sm text-zinc-500 dark:text-zinc-400">
           {totalCount !== undefined && (
             <span className="tabular-nums">
               Tổng:{" "}
-              <span className="font-medium text-zinc-900">
+              <span className="font-medium text-zinc-900 dark:text-zinc-50">
                 {totalCount.toLocaleString("vi-VN")}
               </span>
             </span>
@@ -392,7 +392,7 @@ export function FilterBar({
             <button
               type="button"
               onClick={onReset}
-              className="text-sm font-medium text-blue-600 transition-colors hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2"
+              className="text-sm font-medium text-blue-600 transition-colors hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2 dark:text-blue-400 dark:hover:text-blue-300"
               aria-label="Xoá tất cả bộ lọc"
             >
               Xoá tất cả
@@ -409,11 +409,11 @@ export function FilterBar({
               key={chip.key}
               type="button"
               onClick={() => chip.onRemove(onChange)}
-              className="inline-flex h-6 items-center gap-1 rounded-sm border border-zinc-200 bg-zinc-50 px-1.5 text-xs text-zinc-700 transition-colors hover:bg-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-0"
+              className="inline-flex h-6 items-center gap-1 rounded-sm border border-zinc-200 bg-zinc-50 px-1.5 text-xs text-zinc-700 transition-colors hover:bg-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-0 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-300 dark:hover:bg-zinc-800"
               aria-label={`Xoá bộ lọc: ${chip.label}`}
             >
               <span>{chip.label}</span>
-              <X className="h-3 w-3 text-zinc-500" aria-hidden="true" />
+              <X className="h-3 w-3 text-zinc-500 dark:text-zinc-400" aria-hidden="true" />
             </button>
           ))}
         </div>

@@ -124,7 +124,7 @@ export default function ItemDetailPage() {
           <Skeleton className="h-5 w-20 rounded-sm" />
         </div>
         <Skeleton className="mb-3 h-9 w-96" />
-        <div className="space-y-3 rounded-md border border-zinc-200 bg-white p-6">
+        <div className="space-y-3 rounded-md border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
           <Skeleton className="h-9 w-full" />
           <Skeleton className="h-9 w-full" />
           <Skeleton className="h-9 w-3/4" />
@@ -166,7 +166,7 @@ export default function ItemDetailPage() {
       <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
+            <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
               {itemData.name}
             </h1>
             <StatusBadge
@@ -175,15 +175,15 @@ export default function ItemDetailPage() {
               label={itemData.isActive ? "Đang dùng" : "Đã xoá"}
             />
           </div>
-          <div className="mt-1 flex items-center gap-1.5 text-base text-zinc-500">
-            <span className="font-mono text-base tabular-nums text-zinc-700">
+          <div className="mt-1 flex items-center gap-1.5 text-base text-zinc-500 dark:text-zinc-400">
+            <span className="font-mono text-base tabular-nums text-zinc-700 dark:text-zinc-300">
               {itemData.sku}
             </span>
             <button
               type="button"
               onClick={handleCopySku}
               aria-label="Copy SKU"
-              className="inline-flex h-5 w-5 items-center justify-center rounded-sm text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-0"
+              className="inline-flex h-5 w-5 items-center justify-center rounded-sm text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-0 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
             >
               <Copy className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
@@ -250,7 +250,7 @@ export default function ItemDetailPage() {
         </TabsList>
 
         <TabsContent value="info">
-          <div className="rounded-md border border-zinc-200 bg-white">
+          <div className="rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
             <ItemForm
               mode="edit"
               submitting={update.isPending}
@@ -292,7 +292,7 @@ export default function ItemDetailPage() {
         </TabsContent>
 
         <TabsContent value="inventory">
-          <div className="rounded-md border border-zinc-200 bg-white p-6">
+          <div className="rounded-md border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
             <ItemInventoryPanel
               itemId={id}
               minStockQty={Number(itemData.minStockQty) || 0}
@@ -305,13 +305,13 @@ export default function ItemDetailPage() {
         </TabsContent>
 
         <TabsContent value="tracking">
-          <div className="rounded-md border border-zinc-200 bg-white p-4">
+          <div className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
             <BarcodeList itemId={id} />
           </div>
         </TabsContent>
 
         <TabsContent value="media">
-          <div className="rounded-md border border-zinc-200 bg-white p-6">
+          <div className="rounded-md border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
             <EmptyState
               preset="no-data"
               title="Chưa có ảnh / tài liệu"

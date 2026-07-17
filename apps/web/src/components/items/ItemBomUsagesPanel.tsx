@@ -74,7 +74,7 @@ export function ItemBomUsagesPanel({ itemId }: ItemBomUsagesPanelProps) {
 
   if (query.isLoading) {
     return (
-      <div className="rounded-md border border-zinc-200 bg-white p-6">
+      <div className="rounded-md border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
         <Skeleton className="mb-3 h-5 w-64" />
         <div className="space-y-2">
           <Skeleton className="h-10 w-full" />
@@ -87,7 +87,7 @@ export function ItemBomUsagesPanel({ itemId }: ItemBomUsagesPanelProps) {
 
   if (query.isError) {
     return (
-      <div className="rounded-md border border-zinc-200 bg-white p-6">
+      <div className="rounded-md border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
         <EmptyState
           preset="error"
           title="Không tải được danh sách BOM"
@@ -99,7 +99,7 @@ export function ItemBomUsagesPanel({ itemId }: ItemBomUsagesPanelProps) {
 
   if (!data || data.totalUsages === 0) {
     return (
-      <div className="rounded-md border border-zinc-200 bg-white p-6">
+      <div className="rounded-md border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
         <EmptyState
           preset="no-data"
           title="Chưa được dùng trong BOM nào"
@@ -117,23 +117,23 @@ export function ItemBomUsagesPanel({ itemId }: ItemBomUsagesPanelProps) {
   return (
     <div className="space-y-3">
       {/* Summary card */}
-      <div className="flex items-center gap-3 rounded-md border border-indigo-200 bg-indigo-50/60 px-4 py-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-indigo-100 text-indigo-700">
+      <div className="flex items-center gap-3 rounded-md border border-indigo-200 bg-indigo-50/60 px-4 py-3 dark:border-indigo-800 dark:bg-indigo-950/40">
+        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-400">
           <Layers className="h-4 w-4" aria-hidden="true" />
         </div>
         <div className="flex-1">
-          <div className="text-sm font-medium text-zinc-900">
+          <div className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
             Linh kiện này được dùng trong{" "}
-            <span className="font-semibold text-indigo-700">
+            <span className="font-semibold text-indigo-700 dark:text-indigo-400">
               {data.byTemplate.length} BOM
             </span>
             ,{" "}
-            <span className="font-semibold text-indigo-700">
+            <span className="font-semibold text-indigo-700 dark:text-indigo-400">
               {data.totalUsages} lines
             </span>{" "}
             tổng.
           </div>
-          <p className="mt-0.5 text-xs text-zinc-500">
+          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
             Click vào template để xem chi tiết từng vị trí sử dụng. Nút
             &ldquo;Mở BOM&rdquo; sẽ tô sáng dòng trong lưới BOM.
           </p>
@@ -141,35 +141,35 @@ export function ItemBomUsagesPanel({ itemId }: ItemBomUsagesPanelProps) {
       </div>
 
       {/* Accordion by template */}
-      <div className="divide-y divide-zinc-200 overflow-hidden rounded-md border border-zinc-200 bg-white">
+      <div className="divide-y divide-zinc-200 overflow-hidden rounded-md border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-900">
         {data.byTemplate.map((tpl) => {
           const isOpen = expanded.has(tpl.templateId);
           return (
-            <div key={tpl.templateId} className="bg-white">
+            <div key={tpl.templateId} className="bg-white dark:bg-zinc-900">
               <button
                 type="button"
                 onClick={() => toggle(tpl.templateId)}
                 className={cn(
                   "flex w-full items-center gap-3 px-4 py-3 text-left transition-colors",
-                  "hover:bg-zinc-50",
-                  isOpen && "bg-zinc-50",
+                  "hover:bg-zinc-50 dark:hover:bg-zinc-800/60",
+                  isOpen && "bg-zinc-50 dark:bg-zinc-800/60",
                 )}
               >
                 {isOpen ? (
                   <ChevronDown
-                    className="h-4 w-4 text-zinc-400"
+                    className="h-4 w-4 text-zinc-400 dark:text-zinc-500"
                     aria-hidden="true"
                   />
                 ) : (
                   <ChevronRight
-                    className="h-4 w-4 text-zinc-400"
+                    className="h-4 w-4 text-zinc-400 dark:text-zinc-500"
                     aria-hidden="true"
                   />
                 )}
-                <span className="font-mono text-sm font-medium text-zinc-900">
+                <span className="font-mono text-sm font-medium text-zinc-900 dark:text-zinc-50">
                   {tpl.templateCode}
                 </span>
-                <span className="flex-1 truncate text-sm text-zinc-700">
+                <span className="flex-1 truncate text-sm text-zinc-700 dark:text-zinc-300">
                   {tpl.templateName}
                 </span>
                 <StatusBadge
@@ -177,7 +177,7 @@ export function ItemBomUsagesPanel({ itemId }: ItemBomUsagesPanelProps) {
                   label={statusLabel(tpl.templateStatus)}
                   size="sm"
                 />
-                <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[11px] tabular-nums text-zinc-600">
+                <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[11px] tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
                   {tpl.usages.length} line{tpl.usages.length > 1 ? "s" : ""}
                 </span>
                 <Button
@@ -197,10 +197,10 @@ export function ItemBomUsagesPanel({ itemId }: ItemBomUsagesPanelProps) {
               </button>
 
               {isOpen && (
-                <div className="border-t border-zinc-100 bg-zinc-50/40">
+                <div className="border-t border-zinc-100 bg-zinc-50/40 dark:border-zinc-800 dark:bg-zinc-800/40">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                      <tr className="text-[10px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                         <th className="px-4 py-2 text-left">Dòng</th>
                         <th className="px-2 py-2 text-right">SL/bộ</th>
                         <th className="px-2 py-2 text-right">Hao hụt</th>
@@ -212,37 +212,37 @@ export function ItemBomUsagesPanel({ itemId }: ItemBomUsagesPanelProps) {
                       {tpl.usages.map((u, idx) => (
                         <tr
                           key={u.lineId}
-                          className="border-t border-zinc-100 hover:bg-white"
+                          className="border-t border-zinc-100 hover:bg-white dark:border-zinc-800 dark:hover:bg-zinc-900"
                         >
-                          <td className="px-4 py-2 font-mono text-xs text-zinc-700">
+                          <td className="px-4 py-2 font-mono text-xs text-zinc-700 dark:text-zinc-300">
                             #{idx + 1}
-                            <span className="ml-2 text-[10px] text-zinc-400">
+                            <span className="ml-2 text-[10px] text-zinc-400 dark:text-zinc-500">
                               {u.lineId.slice(0, 8)}
                             </span>
                             {u.childCount > 0 && (
-                              <span className="ml-2 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700 ring-1 ring-inset ring-indigo-200">
+                              <span className="ml-2 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700 ring-1 ring-inset ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-800">
                                 cụm · {u.childCount} con
                               </span>
                             )}
                           </td>
-                          <td className="px-2 py-2 text-right font-mono text-xs tabular-nums text-zinc-800">
+                          <td className="px-2 py-2 text-right font-mono text-xs tabular-nums text-zinc-800 dark:text-zinc-200">
                             {formatNumber(u.quantityPer)}
                           </td>
-                          <td className="px-2 py-2 text-right font-mono text-xs tabular-nums text-orange-600">
+                          <td className="px-2 py-2 text-right font-mono text-xs tabular-nums text-orange-600 dark:text-orange-400">
                             {u.scrapPct > 0
                               ? `${u.scrapPct.toFixed(1)}%`
                               : "—"}
                           </td>
-                          <td className="px-2 py-2 text-xs text-zinc-500">
+                          <td className="px-2 py-2 text-xs text-zinc-500 dark:text-zinc-400">
                             {u.parentItemId ? (
                               <Link
                                 href={`/items/${u.parentItemId}`}
-                                className="font-mono text-indigo-700 hover:underline"
+                                className="font-mono text-indigo-700 hover:underline dark:text-indigo-400"
                               >
                                 {u.parentItemId.slice(0, 8)}…
                               </Link>
                             ) : (
-                              <span className="italic text-zinc-400">
+                              <span className="italic text-zinc-400 dark:text-zinc-500">
                                 gốc
                               </span>
                             )}

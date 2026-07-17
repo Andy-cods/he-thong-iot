@@ -259,12 +259,12 @@ export function PoQuickReceiveTable({
 
   if (isLoading) {
     return (
-      <div className="p-6 text-sm text-zinc-500">Đang tải dữ liệu PO…</div>
+      <div className="p-6 text-sm text-zinc-500 dark:text-zinc-400">Đang tải dữ liệu PO…</div>
     );
   }
   if (isError || !po) {
     return (
-      <div className="p-6 text-sm text-red-600">
+      <div className="p-6 text-sm text-red-600 dark:text-red-400">
         Không tải được dữ liệu PO.
       </div>
     );
@@ -282,9 +282,9 @@ export function PoQuickReceiveTable({
           className="w-full sm:max-w-md"
         />
         <div className="flex items-center gap-2">
-          <span className="text-sm text-zinc-500">
+          <span className="text-sm text-zinc-500 dark:text-zinc-400">
             Đã chọn:{" "}
-            <span className="font-semibold text-zinc-900">{tickedCount}</span>{" "}
+            <span className="font-semibold text-zinc-900 dark:text-zinc-50">{tickedCount}</span>{" "}
             dòng
           </span>
           <Button
@@ -310,16 +310,16 @@ export function PoQuickReceiveTable({
       {allReceived ? (
         <div
           role="status"
-          className="flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700"
+          className="flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400"
         >
           <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
           Tất cả dòng đã nhận đủ.
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-md border border-zinc-200 bg-white">
+      <div className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <table className="w-full text-sm">
-          <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
+          <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-800/60 dark:text-zinc-400">
             <tr>
               <th className="w-12 px-3 py-2 text-left">#</th>
               <th className="w-12 px-3 py-2 text-left">Tick</th>
@@ -341,12 +341,12 @@ export function PoQuickReceiveTable({
                 <tr
                   key={ln.id}
                   className={cn(
-                    "border-t border-zinc-100",
-                    s.ticked && "bg-indigo-50/40",
+                    "border-t border-zinc-100 dark:border-zinc-800",
+                    s.ticked && "bg-indigo-50/40 dark:bg-indigo-950/40",
                     isDone && "opacity-50",
                   )}
                 >
-                  <td className="px-3 py-2 text-zinc-500">{ln.lineNo}</td>
+                  <td className="px-3 py-2 text-zinc-500 dark:text-zinc-400">{ln.lineNo}</td>
                   <td className="px-3 py-2">
                     <Checkbox
                       checked={s.ticked}
@@ -366,14 +366,14 @@ export function PoQuickReceiveTable({
                     />
                   </td>
                   <td className="px-3 py-2">
-                    <span className="font-mono text-xs text-zinc-500">
+                    <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400">
                       {ln.sku}
                     </span>
                     {ln.itemName ? (
-                      <span className="ml-1 text-zinc-700">{ln.itemName}</span>
+                      <span className="ml-1 text-zinc-700 dark:text-zinc-300">{ln.itemName}</span>
                     ) : null}
                     {ln.uom ? (
-                      <span className="ml-2 text-xs text-zinc-400">
+                      <span className="ml-2 text-xs text-zinc-400 dark:text-zinc-500">
                         ({ln.uom})
                       </span>
                     ) : null}
@@ -381,15 +381,15 @@ export function PoQuickReceiveTable({
                   <td className="px-3 py-2 text-right tabular-nums">
                     {ln.orderedQty.toLocaleString("vi-VN")}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-emerald-700">
+                  <td className="px-3 py-2 text-right tabular-nums text-emerald-700 dark:text-emerald-400">
                     {ln.receivedQty.toLocaleString("vi-VN")}
                   </td>
                   <td
                     className={cn(
                       "px-3 py-2 text-right tabular-nums",
                       ln.remainingQty > 0
-                        ? "text-orange-700"
-                        : "text-zinc-400",
+                        ? "text-orange-700 dark:text-orange-400"
+                        : "text-zinc-400 dark:text-zinc-500",
                     )}
                   >
                     {ln.remainingQty.toLocaleString("vi-VN")}
@@ -420,12 +420,12 @@ export function PoQuickReceiveTable({
                       className={cn(
                         "ml-auto h-8 w-24 text-right tabular-nums",
                         overShot &&
-                          "border-red-400 ring-1 ring-red-200 focus-visible:ring-red-300",
+                          "border-red-400 ring-1 ring-red-200 focus-visible:ring-red-300 dark:border-red-500 dark:ring-red-900 dark:focus-visible:ring-red-800",
                       )}
                       aria-label={`Số lượng nhận lần này dòng ${ln.lineNo}`}
                     />
                     {overShot ? (
-                      <p className="mt-0.5 flex items-center justify-end gap-1 text-xs text-red-600">
+                      <p className="mt-0.5 flex items-center justify-end gap-1 text-xs text-red-600 dark:text-red-400">
                         <AlertTriangle className="h-3 w-3" aria-hidden="true" />
                         Vượt còn lại
                       </p>
@@ -438,12 +438,12 @@ export function PoQuickReceiveTable({
         </table>
       </div>
 
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">
         Lưu ý: chế độ nhanh sẽ ghi <span className="font-medium">qcStatus = Chờ kiểm</span>.
         Cần lot/serial chi tiết hoặc QC gắn ngay → dùng{" "}
         <a
           href={`/receiving/${poId}`}
-          className="text-indigo-600 underline hover:text-indigo-800"
+          className="text-indigo-600 underline hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
         >
           màn hình nhận hàng đầy đủ
         </a>

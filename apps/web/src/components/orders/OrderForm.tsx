@@ -204,9 +204,9 @@ export function OrderForm({
               disabled={readOnly}
               {...form.register("priority")}
               className={cn(
-                "h-9 w-full rounded-md border border-zinc-200 bg-white px-3 text-base text-zinc-900",
+                "h-9 w-full rounded-md border border-zinc-200 bg-white px-3 text-base text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50",
                 "focus:border-indigo-500 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500",
-                "disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-400",
+                "disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-400 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-500",
               )}
             >
               {ORDER_PRIORITIES.map((p) => (
@@ -235,7 +235,7 @@ export function OrderForm({
       </Section>
 
       {!readOnly && (
-        <div className="flex items-center justify-end gap-2 border-t border-zinc-200 pt-4">
+        <div className="flex items-center justify-end gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
           {onCancel && (
             <Button type="button" variant="ghost" size="md" onClick={onCancel}>
               Huỷ
@@ -271,10 +271,10 @@ function HelperText({
 }) {
   const color =
     tone === "error"
-      ? "text-red-700"
+      ? "text-red-700 dark:text-red-400"
       : tone === "success"
-        ? "text-emerald-700"
-        : "text-zinc-500";
+        ? "text-emerald-700 dark:text-emerald-400"
+        : "text-zinc-500 dark:text-zinc-400";
   return <p className={cn("min-h-4 text-sm", color)}>{children}</p>;
 }
 
@@ -290,16 +290,16 @@ function Section({
   return (
     <details
       open={defaultOpen}
-      className="group rounded-md border border-zinc-200 bg-white"
+      className="group rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
     >
-      <summary className="flex h-10 cursor-pointer list-none items-center justify-between px-4 text-base font-medium text-zinc-900 [&::-webkit-details-marker]:hidden">
+      <summary className="flex h-10 cursor-pointer list-none items-center justify-between px-4 text-base font-medium text-zinc-900 [&::-webkit-details-marker]:hidden dark:text-zinc-50">
         <span>{title}</span>
         <ChevronDown
-          className="h-4 w-4 text-zinc-500 transition-transform group-open:rotate-180"
+          className="h-4 w-4 text-zinc-500 transition-transform group-open:rotate-180 dark:text-zinc-400"
           aria-hidden="true"
         />
       </summary>
-      <div className="space-y-4 border-t border-zinc-100 p-4">{children}</div>
+      <div className="space-y-4 border-t border-zinc-100 p-4 dark:border-zinc-800">{children}</div>
     </details>
   );
 }

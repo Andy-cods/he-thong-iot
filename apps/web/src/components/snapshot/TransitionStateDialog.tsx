@@ -112,21 +112,21 @@ export function TransitionStateDialog({
         <DialogHeader>
           <DialogTitle>Chuyển trạng thái snapshot line</DialogTitle>
           <DialogDescription>
-            <span className="font-mono text-zinc-700">{componentSku}</span> —{" "}
+            <span className="font-mono text-zinc-700 dark:text-zinc-300">{componentSku}</span> —{" "}
             {componentName}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
-          <div className="flex items-center gap-2 rounded-sm border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm">
-            <span className="text-xs uppercase tracking-wider text-zinc-500">
+          <div className="flex items-center gap-2 rounded-sm border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-800 dark:bg-zinc-800">
+            <span className="text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
               Hiện tại:
             </span>
             <StateMachineBadge state={currentState} size="sm" />
             {toState && (
               <>
                 <ArrowRight
-                  className="h-3.5 w-3.5 text-zinc-400"
+                  className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500"
                   aria-hidden="true"
                 />
                 <StateMachineBadge
@@ -150,7 +150,7 @@ export function TransitionStateDialog({
               </SelectTrigger>
               <SelectContent>
                 {options.length === 0 ? (
-                  <div className="px-3 py-2 text-sm text-zinc-500">
+                  <div className="px-3 py-2 text-sm text-zinc-500 dark:text-zinc-400">
                     Không có transition hợp lệ từ{" "}
                     {BOM_SNAPSHOT_STATE_LABELS[currentState]}.
                   </div>
@@ -180,7 +180,7 @@ export function TransitionStateDialog({
           </div>
 
           {isAdmin && (
-            <label className="flex items-start gap-2 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            <label className="flex items-start gap-2 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400">
               <input
                 type="checkbox"
                 checked={override}
@@ -196,7 +196,7 @@ export function TransitionStateDialog({
                   />
                   Admin override
                 </span>
-                <span className="text-xs text-amber-700">
+                <span className="text-xs text-amber-700 dark:text-amber-400">
                   Bỏ qua state machine rule. Mọi transition ngoại trừ từ
                   CLOSED đều cho phép. Audit log sẽ đánh dấu [ADMIN OVERRIDE].
                 </span>

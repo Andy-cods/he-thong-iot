@@ -140,7 +140,7 @@ export function SnapshotLineEditDrawer({
           </div>
         </SheetHeader>
         <SheetBody className="space-y-4">
-          <div className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+          <div className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-mono tabular-nums">
               <span>Level: {row.level}</span>
               <span>Path: {row.path}</span>
@@ -268,7 +268,7 @@ function FieldGroup({
         {label}
       </Label>
       {children}
-      {hint && <p className="text-[11px] text-zinc-500">{hint}</p>}
+      {hint && <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{hint}</p>}
     </div>
   );
 }

@@ -45,21 +45,21 @@ export function SystemHealthCard({ className }: SystemHealthCardProps) {
   return (
     <div
       className={cn(
-        "rounded-md border border-zinc-200 bg-white",
+        "rounded-md border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900",
         className,
       )}
       aria-live="polite"
     >
-      <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
-        <h3 className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+      <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3 dark:border-zinc-800">
+        <h3 className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
           Hệ thống
         </h3>
-        <span className="font-mono text-xs tabular-nums text-zinc-400">
+        <span className="font-mono text-xs tabular-nums text-zinc-400 dark:text-zinc-500">
           {dataUpdatedAt ? formatTime(dataUpdatedAt) : "—"}
         </span>
       </div>
 
-      <ul className="divide-y divide-zinc-100">
+      <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
         <HealthRow
           label="API server"
           status={status}
@@ -95,8 +95,8 @@ function HealthRow({
         aria-label={dotLabel[status]}
         className={cn("h-2 w-2 shrink-0 rounded-full", dotColor[status])}
       />
-      <span className="flex-1 text-base text-zinc-900">{label}</span>
-      <span className="font-mono text-sm tabular-nums text-zinc-500">
+      <span className="flex-1 text-base text-zinc-900 dark:text-zinc-50">{label}</span>
+      <span className="font-mono text-sm tabular-nums text-zinc-500 dark:text-zinc-400">
         {value}
       </span>
     </li>

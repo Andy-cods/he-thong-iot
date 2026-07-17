@@ -154,11 +154,11 @@ export function PoApprovalWorkflow({
   }
 
   const toneCls: Record<TimelineStep["tone"], string> = {
-    default: "bg-zinc-100 text-zinc-600 ring-zinc-200",
-    success: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-    warning: "bg-amber-50 text-amber-700 ring-amber-200",
-    danger: "bg-red-50 text-red-700 ring-red-200",
-    muted: "bg-zinc-50 text-zinc-400 ring-zinc-100",
+    default: "bg-zinc-100 text-zinc-600 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",
+    success: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800",
+    warning: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800",
+    danger: "bg-red-50 text-red-700 ring-red-200 dark:bg-red-950/40 dark:text-red-400 dark:ring-red-800",
+    muted: "bg-zinc-50 text-zinc-400 ring-zinc-100 dark:bg-zinc-800/60 dark:text-zinc-500 dark:ring-zinc-800",
   };
 
   // Available actions
@@ -194,7 +194,7 @@ export function PoApprovalWorkflow({
       </ol>
 
       {/* Actions */}
-      <div className="flex flex-wrap items-center gap-2 border-t border-zinc-200 pt-3">
+      <div className="flex flex-wrap items-center gap-2 border-t border-zinc-200 pt-3 dark:border-zinc-800">
         {canSubmit && (
           <Button
             size="sm"
@@ -226,20 +226,20 @@ export function PoApprovalWorkflow({
           </Button>
         )}
         {approvalStatus === "approved" && status === "DRAFT" && (
-          <span className="text-xs text-emerald-700">
+          <span className="text-xs text-emerald-700 dark:text-emerald-400">
             PO đã duyệt — có thể đánh dấu đã gửi ở đầu trang.
           </span>
         )}
         {status !== "DRAFT" && (
-          <span className="text-xs text-zinc-500">
+          <span className="text-xs text-zinc-500 dark:text-zinc-400">
             PO đã {status} — không còn action approval.
           </span>
         )}
       </div>
 
       {rejectOpen && (
-        <div className="space-y-2 rounded-md border border-red-200 bg-red-50 p-3">
-          <label className="text-xs font-medium text-red-900">
+        <div className="space-y-2 rounded-md border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/30">
+          <label className="text-xs font-medium text-red-900 dark:text-red-300">
             Lý do từ chối
           </label>
           <Textarea

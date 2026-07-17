@@ -92,7 +92,7 @@ export function DnvtDetailBody({ pr }: { pr: DnvtDetailPr }) {
   return (
     <article className="border-2 border-zinc-900 bg-white text-zinc-900 shadow-md print:border print:border-zinc-900 print:shadow-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 print:dark:border-zinc-900 print:dark:bg-white print:dark:text-zinc-900">
       {/* Header */}
-      <div className="grid grid-cols-[1fr_2fr_1fr] items-center gap-2 border-b-2 border-zinc-900 px-4 py-3 text-[12px] print:dark:border-zinc-900">
+      <div className="grid grid-cols-[1fr_2fr_1fr] items-center gap-2 border-b-2 border-zinc-900 px-4 py-3 text-[12px] dark:border-zinc-700 print:dark:border-zinc-900">
         <div className="flex items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -124,14 +124,14 @@ export function DnvtDetailBody({ pr }: { pr: DnvtDetailPr }) {
       </div>
 
       {/* Title */}
-      <div className="border-b-2 border-zinc-900 bg-[#F5F5F5] px-4 py-2 text-center print:dark:border-zinc-900 print:dark:bg-zinc-100 dark:bg-zinc-800">
+      <div className="border-b-2 border-zinc-900 bg-[#F5F5F5] px-4 py-2 text-center dark:border-zinc-700 dark:bg-zinc-800 print:dark:border-zinc-900 print:dark:bg-zinc-100">
         <h2 className="text-[20px] font-bold tracking-wide text-zinc-900 dark:text-zinc-50 print:dark:text-zinc-900">
           PHIẾU ĐỀ XUẤT VẬT TƯ — NPL
         </h2>
       </div>
 
       {/* I. Thông tin chung */}
-      <section className="border-b border-zinc-300 print:dark:border-zinc-300">
+      <section className="border-b border-zinc-300 dark:border-zinc-700 print:dark:border-zinc-300">
         <SectionTitle>I. Thông tin chung</SectionTitle>
         <div className="grid grid-cols-1 md:grid-cols-2">
           <FieldRow label="Kính gửi:">
@@ -152,7 +152,7 @@ export function DnvtDetailBody({ pr }: { pr: DnvtDetailPr }) {
       </section>
 
       {/* II. Danh mục vật tư (14 cột) */}
-      <section className="border-b border-zinc-300 print:dark:border-zinc-300">
+      <section className="border-b border-zinc-300 dark:border-zinc-700 print:dark:border-zinc-300">
         <SectionTitle>II. Danh mục vật tư</SectionTitle>
         <div className="overflow-x-auto print:overflow-visible">
           <table className="w-full border-collapse text-[11px]">
@@ -221,7 +221,7 @@ export function DnvtDetailBody({ pr }: { pr: DnvtDetailPr }) {
                           {fmtNum(onHand)}
                         </span>
                       ) : (
-                        <span className="text-zinc-400">—</span>
+                        <span className="text-zinc-400 dark:text-zinc-500">—</span>
                       )}
                     </Td>
                     <Td align="right">
@@ -230,7 +230,7 @@ export function DnvtDetailBody({ pr }: { pr: DnvtDetailPr }) {
                           {fmtNum(approvedQty)}
                         </span>
                       ) : (
-                        <span className="text-zinc-400">—</span>
+                        <span className="text-zinc-400 dark:text-zinc-500">—</span>
                       )}
                     </Td>
                     <Td>{fmtDateVN(l.neededBy)}</Td>
@@ -249,7 +249,7 @@ export function DnvtDetailBody({ pr }: { pr: DnvtDetailPr }) {
       </section>
 
       {/* III. Kiểm tra & Phê duyệt (5 dòng) */}
-      <section className="border-b border-zinc-300 print:dark:border-zinc-300">
+      <section className="border-b border-zinc-300 dark:border-zinc-700 print:dark:border-zinc-300">
         <SectionTitle>III. Kiểm tra &amp; Phê duyệt</SectionTitle>
         <table className="w-full border-collapse text-[11px]">
           <thead>

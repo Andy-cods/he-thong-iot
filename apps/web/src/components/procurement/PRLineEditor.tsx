@@ -67,7 +67,7 @@ export function PRLineEditor({ lines, onChange, disabled }: PRLineEditorProps) {
       </div>
 
       {lines.length === 0 ? (
-        <p className="rounded-md border border-dashed border-zinc-200 bg-zinc-50 px-4 py-6 text-center text-sm text-zinc-500">
+        <p className="rounded-md border border-dashed border-zinc-200 bg-zinc-50 px-4 py-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
           Chưa có dòng nào. Bấm "Thêm dòng" để bắt đầu.
         </p>
       ) : (
@@ -75,7 +75,7 @@ export function PRLineEditor({ lines, onChange, disabled }: PRLineEditorProps) {
           {lines.map((l, idx) => (
             <div
               key={l.localId}
-              className="grid grid-cols-[1fr_120px_140px_minmax(0,1fr)_40px] items-end gap-2 rounded-md border border-zinc-200 bg-white p-3"
+              className="grid grid-cols-[1fr_120px_140px_minmax(0,1fr)_40px] items-end gap-2 rounded-md border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900"
             >
               <div className="space-y-1">
                 <Label
@@ -144,7 +144,7 @@ export function PRLineEditor({ lines, onChange, disabled }: PRLineEditorProps) {
                 onClick={() => removeLine(l.localId)}
                 aria-label="Xoá dòng"
                 disabled={disabled}
-                className="text-zinc-500 hover:text-red-600"
+                className="text-zinc-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400"
               >
                 <Trash2 className="h-4 w-4" aria-hidden="true" />
               </Button>

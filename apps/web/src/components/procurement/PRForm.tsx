@@ -100,7 +100,7 @@ export function PRForm({
 
       <PRLineEditor lines={lines} onChange={setLines} disabled={submitting} />
 
-      <div className="flex justify-end gap-2 border-t border-zinc-200 pt-4">
+      <div className="flex justify-end gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
         <Button type="submit" disabled={submitting || loading}>
           {submitting ? "Đang gửi…" : submitLabel}
         </Button>

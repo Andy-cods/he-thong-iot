@@ -62,7 +62,7 @@ function StepIndicator({
           "flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold transition-all",
           done && "bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md shadow-blue-200",
           active && "bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-300 ring-4 ring-blue-100",
-          !done && !active && "bg-white text-zinc-400 ring-2 ring-zinc-200",
+          !done && !active && "bg-white text-zinc-400 ring-2 ring-zinc-200 dark:bg-zinc-900 dark:text-zinc-500 dark:ring-zinc-700",
         )}
       >
         {done ? <Check className="h-4 w-4" aria-hidden="true" /> : step}
@@ -71,8 +71,8 @@ function StepIndicator({
         className={cn(
           "text-sm font-semibold transition-colors",
           active && "text-blue-700",
-          done && "text-zinc-900",
-          !active && !done && "text-zinc-400",
+          done && "text-zinc-900 dark:text-zinc-50",
+          !active && !done && "text-zinc-400 dark:text-zinc-500",
         )}
       >
         {label}
@@ -194,12 +194,12 @@ export function PoCreateWizard() {
       {/* V3.7.15 — Step indicator with progress lines */}
       <nav
         aria-label="Các bước"
-        className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-5 py-4 shadow-sm"
+        className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-5 py-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
       >
         <StepIndicator step={1} current={step} label="Nguồn" />
-        <div className={cn("h-0.5 flex-1 transition-colors", step >= 2 ? "bg-gradient-to-r from-blue-500 to-indigo-600" : "bg-zinc-200")} />
+        <div className={cn("h-0.5 flex-1 transition-colors", step >= 2 ? "bg-gradient-to-r from-blue-500 to-indigo-600" : "bg-zinc-200 dark:bg-zinc-700")} />
         <StepIndicator step={2} current={step} label="NCC + dòng hàng" />
-        <div className={cn("h-0.5 flex-1 transition-colors", step >= 3 ? "bg-gradient-to-r from-blue-500 to-indigo-600" : "bg-zinc-200")} />
+        <div className={cn("h-0.5 flex-1 transition-colors", step >= 3 ? "bg-gradient-to-r from-blue-500 to-indigo-600" : "bg-zinc-200 dark:bg-zinc-700")} />
         <StepIndicator step={3} current={step} label="Điều khoản & Duyệt" />
       </nav>
 
@@ -207,10 +207,10 @@ export function PoCreateWizard() {
       {step === 1 && (
         <section className="space-y-5">
           <div>
-            <h2 className="text-xl font-bold tracking-tight text-zinc-900">
+            <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
               Chọn nguồn PO
             </h2>
-            <p className="mt-0.5 text-sm text-zinc-500">
+            <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
               Bắt đầu từ đầu hoặc kế thừa dữ liệu từ Yêu cầu mua đã duyệt.
             </p>
           </div>
@@ -221,7 +221,7 @@ export function PoCreateWizard() {
                 "group relative flex cursor-pointer flex-col gap-2 rounded-2xl border-2 p-5 transition-all",
                 state.source === "MANUAL"
                   ? "border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-md ring-2 ring-blue-100"
-                  : "border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm",
+                  : "border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm dark:border-zinc-700 dark:bg-zinc-900",
               )}
             >
               <input
@@ -238,7 +238,7 @@ export function PoCreateWizard() {
                   "flex h-10 w-10 items-center justify-center rounded-xl transition-all",
                   state.source === "MANUAL"
                     ? "bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md shadow-blue-200"
-                    : "bg-zinc-100 text-zinc-600 group-hover:bg-zinc-200",
+                    : "bg-zinc-100 text-zinc-600 group-hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400",
                 )}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
@@ -247,10 +247,10 @@ export function PoCreateWizard() {
                 </svg>
               </div>
               <div>
-                <div className="text-base font-bold text-zinc-900">
+                <div className="text-base font-bold text-zinc-900 dark:text-zinc-50">
                   Tạo mới thủ công
                 </div>
-                <p className="mt-0.5 text-xs text-zinc-600">
+                <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">
                   Nhập trực tiếp dòng hàng, giá, thuế. Phù hợp khi chưa có PR.
                 </p>
               </div>
@@ -261,7 +261,7 @@ export function PoCreateWizard() {
                 "group relative flex cursor-pointer flex-col gap-2 rounded-2xl border-2 p-5 transition-all",
                 state.source === "FROM_PR"
                   ? "border-violet-500 bg-gradient-to-br from-violet-50 to-purple-50 shadow-md ring-2 ring-violet-100"
-                  : "border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm",
+                  : "border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm dark:border-zinc-700 dark:bg-zinc-900",
               )}
             >
               <input
@@ -278,7 +278,7 @@ export function PoCreateWizard() {
                   "flex h-10 w-10 items-center justify-center rounded-xl transition-all",
                   state.source === "FROM_PR"
                     ? "bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-md shadow-violet-200"
-                    : "bg-zinc-100 text-zinc-600 group-hover:bg-zinc-200",
+                    : "bg-zinc-100 text-zinc-600 group-hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400",
                 )}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
@@ -288,10 +288,10 @@ export function PoCreateWizard() {
                 </svg>
               </div>
               <div>
-                <div className="text-base font-bold text-zinc-900">
+                <div className="text-base font-bold text-zinc-900 dark:text-zinc-50">
                   Từ PR đã duyệt
                 </div>
-                <p className="mt-0.5 text-xs text-zinc-600">
+                <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">
                   Auto-fill toàn bộ dòng hàng từ Purchase Request đã được duyệt.
                 </p>
               </div>
@@ -309,7 +309,7 @@ export function PoCreateWizard() {
                 onChange={(e) =>
                   setState((s) => ({ ...s, prId: e.target.value || null }))
                 }
-                className="block h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="block h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
               >
                 <option value="">— Chọn PR đã duyệt —</option>
                 {(approvedPRs.data?.data ?? []).map((pr) => (
@@ -319,8 +319,8 @@ export function PoCreateWizard() {
                 ))}
               </select>
               {prDetail.data && (
-                <div className="mt-2 rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-600">
-                  <div className="font-medium text-zinc-700">
+                <div className="mt-2 rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
+                  <div className="font-medium text-zinc-700 dark:text-zinc-300">
                     Preview {prDetail.data.data.lines.length} dòng:
                   </div>
                   <ul className="mt-1 list-inside list-disc space-y-0.5">
@@ -331,7 +331,7 @@ export function PoCreateWizard() {
                       </li>
                     ))}
                     {prDetail.data.data.lines.length > 5 && (
-                      <li className="text-zinc-400">
+                      <li className="text-zinc-400 dark:text-zinc-500">
                         ... và {prDetail.data.data.lines.length - 5} dòng khác
                       </li>
                     )}
@@ -347,10 +347,10 @@ export function PoCreateWizard() {
       {step === 2 && (
         <section className="space-y-4">
           <div>
-            <h2 className="text-lg font-semibold text-zinc-900">
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
               Nhà cung cấp & dòng hàng
             </h2>
-            <p className="text-sm text-zinc-500">
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
               V1.2 rule: 1 PO = 1 NCC. Chọn 1 NCC áp dụng cho mọi dòng.
             </p>
           </div>
@@ -365,7 +365,7 @@ export function PoCreateWizard() {
               onChange={onSupplierChange}
             />
             {state.supplier && (
-              <div className="mt-1 flex flex-wrap gap-3 text-xs text-zinc-500">
+              <div className="mt-1 flex flex-wrap gap-3 text-xs text-zinc-500 dark:text-zinc-400">
                 {state.supplier.region && (
                   <span>Khu vực: {state.supplier.region}</span>
                 )}
@@ -392,10 +392,10 @@ export function PoCreateWizard() {
       {step === 3 && (
         <section className="space-y-4">
           <div>
-            <h2 className="text-lg font-semibold text-zinc-900">
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
               Điều khoản & Duyệt
             </h2>
-            <p className="text-sm text-zinc-500">
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
               Nhập ngày dự kiến nhận, điều khoản thanh toán, địa chỉ giao hàng
               rồi chọn hành động.
             </p>
@@ -456,9 +456,9 @@ export function PoCreateWizard() {
             </div>
           </div>
 
-          <div className="rounded-md border border-indigo-200 bg-indigo-50 p-3 text-sm">
-            <div className="font-medium text-indigo-900">Hành động</div>
-            <ul className="mt-1 space-y-1 text-xs text-indigo-800">
+          <div className="rounded-md border border-indigo-200 bg-indigo-50 p-3 text-sm dark:border-indigo-800 dark:bg-indigo-950/40">
+            <div className="font-medium text-indigo-900 dark:text-indigo-400">Hành động</div>
+            <ul className="mt-1 space-y-1 text-xs text-indigo-800 dark:text-indigo-400">
               <li>
                 <strong>Lưu nháp:</strong> tạo PO status DRAFT, chưa gửi duyệt.
               </li>
@@ -478,7 +478,7 @@ export function PoCreateWizard() {
       )}
 
       {/* Footer actions */}
-      <div className="flex items-center justify-between border-t border-zinc-200 pt-4">
+      <div className="flex items-center justify-between border-t border-zinc-200 pt-4 dark:border-zinc-800">
         <Button
           type="button"
           variant="ghost"

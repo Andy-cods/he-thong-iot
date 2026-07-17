@@ -134,7 +134,7 @@ export function ExplodeSnapshotDialog({
               Revision
             </Label>
             {revisionsQuery.isLoading ? (
-              <div className="flex items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-500">
+              <div className="flex items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
                 <Loader2
                   className="h-3.5 w-3.5 animate-spin"
                   aria-hidden="true"
@@ -142,7 +142,7 @@ export function ExplodeSnapshotDialog({
                 Đang tải revisions...
               </div>
             ) : releasedRevisions.length === 0 ? (
-              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400">
                 BOM này chưa có revision RELEASED nào. Vào trang BOM để release
                 trước khi explode snapshot.
               </div>
@@ -180,7 +180,7 @@ export function ExplodeSnapshotDialog({
               onChange={(e) => setTargetQty(e.target.value)}
               className="tabular-nums"
             />
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
               Mặc định = order_qty ({orderQty}). Thay nếu cần explode riêng
               từng partial.
             </p>

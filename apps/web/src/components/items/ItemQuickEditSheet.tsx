@@ -130,12 +130,12 @@ export function ItemQuickEditSheet({
           className={cn("flex flex-col md:!w-[400px]")}
         >
           {/* V2 header padding 16 border-b */}
-          <div className="flex h-12 shrink-0 items-center justify-between border-b border-zinc-100 px-4">
-            <h2 className="text-base font-medium text-zinc-900">
+          <div className="flex h-12 shrink-0 items-center justify-between border-b border-zinc-100 px-4 dark:border-zinc-800">
+            <h2 className="text-base font-medium text-zinc-900 dark:text-zinc-50">
               {item ? (
                 <>
                   Chỉnh sửa ·{" "}
-                  <span className="font-mono text-zinc-700">{item.sku}</span>
+                  <span className="font-mono text-zinc-700 dark:text-zinc-300">{item.sku}</span>
                 </>
               ) : (
                 "Chỉnh sửa"
@@ -145,7 +145,7 @@ export function ItemQuickEditSheet({
               type="button"
               onClick={attemptClose}
               aria-label="Đóng"
-              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-0"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-0 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
             >
               <X className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
@@ -204,7 +204,7 @@ export function ItemQuickEditSheet({
                   }}
                   formId="item-quick-edit-form"
                 />
-                <div className="mt-4 rounded-md border border-zinc-200 bg-zinc-50 p-3">
+                <div className="mt-4 rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-800">
                   <SlottingPanel
                     itemId={item.id}
                     currentBinId={item.defaultBinId ?? null}
@@ -214,7 +214,7 @@ export function ItemQuickEditSheet({
                     }}
                   />
                 </div>
-                <div className="mt-3 rounded-md border border-zinc-200 bg-white p-3">
+                <div className="mt-3 rounded-md border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
                   <LotsPanel itemId={item.id} />
                 </div>
               </>
@@ -222,7 +222,7 @@ export function ItemQuickEditSheet({
           </div>
 
           {/* V2 footer padding 16 border-t */}
-          <div className="flex h-14 shrink-0 items-center justify-end gap-2 border-t border-zinc-100 px-4">
+          <div className="flex h-14 shrink-0 items-center justify-end gap-2 border-t border-zinc-100 px-4 dark:border-zinc-800">
             <Button variant="ghost" size="md" onClick={attemptClose}>
               Huỷ
             </Button>
@@ -256,7 +256,7 @@ export function ItemQuickEditSheet({
             <DialogTitle className="text-base font-medium">
               Bỏ thay đổi chưa lưu?
             </DialogTitle>
-            <DialogDescription className="text-base text-zinc-600">
+            <DialogDescription className="text-base text-zinc-600 dark:text-zinc-400">
               Bạn có thay đổi chưa được lưu. Đóng bảng sẽ mất các thay đổi
               này.
             </DialogDescription>
@@ -290,18 +290,18 @@ export function ItemQuickEditSheet({
             <DialogTitle className="text-base font-medium">
               Dữ liệu đã bị thay đổi
             </DialogTitle>
-            <DialogDescription className="text-base text-zinc-600">
+            <DialogDescription className="text-base text-zinc-600 dark:text-zinc-400">
               Vật tư này vừa được người khác chỉnh sửa sau khi bạn mở. Bạn
               cần tải lại bản mới nhất trước khi lưu.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-1 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <div className="space-y-1 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
             <p className="font-medium">Gợi ý V1:</p>
-            <p className="text-amber-800">
+            <p className="text-amber-800 dark:text-amber-300">
               Tải lại để xem bản mới. Diff merge chi tiết sẽ có ở V1.1.
             </p>
             {conflict?.baseUpdatedAt && (
-              <p className="mt-1 font-mono text-xs text-amber-700">
+              <p className="mt-1 font-mono text-xs text-amber-700 dark:text-amber-400">
                 base updatedAt: {conflict.baseUpdatedAt}
               </p>
             )}
@@ -401,10 +401,10 @@ function SlottingPanel({
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-sm font-medium text-zinc-700">
+        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
           Vị trí kho mặc định
         </span>
-        <span className="text-xs text-zinc-500">
+        <span className="text-xs text-zinc-500 dark:text-zinc-400">
           (auto-putaway khi nhận hàng)
         </span>
       </div>
@@ -413,7 +413,7 @@ function SlottingPanel({
           value={selected}
           onChange={(e) => setSelected(e.target.value)}
           disabled={loading || saving}
-          className="flex-1 rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-sm text-zinc-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-zinc-100"
+          className="flex-1 rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-sm text-zinc-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:disabled:bg-zinc-800"
         >
           <option value="">— Không gán —</option>
           {bins.map((b) => (
@@ -431,7 +431,7 @@ function SlottingPanel({
         </Button>
       </div>
       {loading && (
-        <p className="mt-1 text-xs text-zinc-400">Đang tải danh sách bin…</p>
+        <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">Đang tải danh sách bin…</p>
       )}
     </div>
   );
@@ -483,24 +483,24 @@ function LotsPanel({ itemId }: { itemId: string }) {
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-sm font-medium text-zinc-700">
+        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
           Lô &amp; Serial ({rows.length})
         </span>
-        <span className="text-xs text-zinc-500">Hold / Release inline</span>
+        <span className="text-xs text-zinc-500 dark:text-zinc-400">Hold / Release inline</span>
       </div>
 
       {isLoading ? (
-        <p className="inline-flex items-center gap-1 text-xs text-zinc-500">
+        <p className="inline-flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400">
           <Loader2 className="h-3 w-3 animate-spin" /> Đang tải…
         </p>
       ) : rows.length === 0 ? (
-        <p className="rounded-md border border-dashed border-zinc-200 bg-zinc-50 px-3 py-3 text-center text-xs text-zinc-500">
+        <p className="rounded-md border border-dashed border-zinc-200 bg-zinc-50 px-3 py-3 text-center text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
           SKU này chưa có lot nào.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-md border border-zinc-200">
+        <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-800">
           <table className="w-full text-xs">
-            <thead className="bg-zinc-50 text-[10px] uppercase tracking-wide text-zinc-500">
+            <thead className="bg-zinc-50 text-[10px] uppercase tracking-wide text-zinc-500 dark:bg-zinc-800/60 dark:text-zinc-400">
               <tr>
                 <th className="px-2 py-1.5 text-left">Lô / Serial</th>
                 <th className="px-2 py-1.5 text-right">Tồn</th>
@@ -510,37 +510,37 @@ function LotsPanel({ itemId }: { itemId: string }) {
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.id} className="border-t border-zinc-100">
+                <tr key={r.id} className="border-t border-zinc-100 dark:border-zinc-800">
                   <td className="px-2 py-1.5">
-                    <code className="font-mono text-[11px] font-medium text-zinc-900">
+                    <code className="font-mono text-[11px] font-medium text-zinc-900 dark:text-zinc-50">
                       {r.lotCode ?? r.serialCode ?? r.id.slice(0, 8)}
                     </code>
                     {r.expDate && (
-                      <span className="ml-1 text-[10px] text-zinc-500">
+                      <span className="ml-1 text-[10px] text-zinc-500 dark:text-zinc-400">
                         HSD {new Date(r.expDate).toLocaleDateString("vi-VN")}
                       </span>
                     )}
                   </td>
-                  <td className="px-2 py-1.5 text-right tabular-nums font-semibold text-emerald-700">
+                  <td className="px-2 py-1.5 text-right tabular-nums font-semibold text-emerald-700 dark:text-emerald-400">
                     {r.onHandQty.toLocaleString("vi-VN")}
                   </td>
                   <td className="px-2 py-1.5">
                     <span
                       className={
                         r.status === "AVAILABLE"
-                          ? "rounded bg-emerald-50 px-1.5 py-0.5 text-emerald-700"
+                          ? "rounded bg-emerald-50 px-1.5 py-0.5 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
                           : r.status === "HOLD"
-                            ? "rounded bg-amber-50 px-1.5 py-0.5 text-amber-700"
+                            ? "rounded bg-amber-50 px-1.5 py-0.5 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
                             : r.status === "CONSUMED"
-                              ? "rounded bg-zinc-100 px-1.5 py-0.5 text-zinc-500"
-                              : "rounded bg-rose-50 px-1.5 py-0.5 text-rose-700"
+                              ? "rounded bg-zinc-100 px-1.5 py-0.5 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                              : "rounded bg-rose-50 px-1.5 py-0.5 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400"
                       }
                     >
                       {r.status}
                     </span>
                     {r.holdReason && (
                       <span
-                        className="ml-1 cursor-help text-[10px] text-amber-600"
+                        className="ml-1 cursor-help text-[10px] text-amber-600 dark:text-amber-400"
                         title={r.holdReason}
                       >
                         ⓘ
@@ -553,7 +553,7 @@ function LotsPanel({ itemId }: { itemId: string }) {
                         type="button"
                         onClick={() => handleHold(r.id, r.lotCode)}
                         disabled={holdMut.isPending}
-                        className="inline-flex h-6 items-center gap-0.5 rounded bg-amber-50 px-1.5 text-[10px] font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                        className="inline-flex h-6 items-center gap-0.5 rounded bg-amber-50 px-1.5 text-[10px] font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50 dark:bg-amber-950/40 dark:text-amber-400 dark:hover:bg-amber-900/40"
                         title="Hold (giữ lại — không pick)"
                       >
                         <Lock className="h-3 w-3" /> Hold
@@ -563,13 +563,13 @@ function LotsPanel({ itemId }: { itemId: string }) {
                         type="button"
                         onClick={() => handleRelease(r.id)}
                         disabled={releaseMut.isPending}
-                        className="inline-flex h-6 items-center gap-0.5 rounded bg-emerald-50 px-1.5 text-[10px] font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                        className="inline-flex h-6 items-center gap-0.5 rounded bg-emerald-50 px-1.5 text-[10px] font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-900/40"
                         title="Release → AVAILABLE"
                       >
                         <Unlock className="h-3 w-3" /> Release
                       </button>
                     ) : (
-                      <span className="text-[10px] text-zinc-400">—</span>
+                      <span className="text-[10px] text-zinc-400 dark:text-zinc-500">—</span>
                     )}
                   </td>
                 </tr>

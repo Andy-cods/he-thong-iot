@@ -84,9 +84,9 @@ export function PoLineEditor({
 
   return (
     <div className="space-y-3">
-      <div className="overflow-hidden rounded-md border border-zinc-200 bg-white">
+      <div className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <table className="w-full text-sm">
-          <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
+          <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-800/60 dark:text-zinc-400">
             <tr>
               <th className="w-8 px-2 py-2 text-left">#</th>
               <th className="px-2 py-2 text-left">Vật tư</th>
@@ -100,8 +100,8 @@ export function PoLineEditor({
           </thead>
           <tbody>
             {lines.map((l, idx) => (
-              <tr key={l.localId} className="border-t border-zinc-100">
-                <td className="px-2 py-2 text-zinc-500">{idx + 1}</td>
+              <tr key={l.localId} className="border-t border-zinc-100 dark:border-zinc-800">
+                <td className="px-2 py-2 text-zinc-500 dark:text-zinc-400">{idx + 1}</td>
                 <td className="px-2 py-2">
                   <ItemPicker
                     value={l.item}
@@ -120,7 +120,7 @@ export function PoLineEditor({
                     disabled={disabled}
                   />
                 </td>
-                <td className="px-2 py-2 text-xs text-zinc-500">
+                <td className="px-2 py-2 text-xs text-zinc-500 dark:text-zinc-400">
                   {l.item?.uom ?? "—"}
                 </td>
                 <td className="px-2 py-2">
@@ -150,7 +150,7 @@ export function PoLineEditor({
                     disabled={disabled}
                   />
                 </td>
-                <td className="px-2 py-2 text-right tabular-nums text-zinc-900">
+                <td className="px-2 py-2 text-right tabular-nums text-zinc-900 dark:text-zinc-50">
                   {fmtVND(computeLineTotal(l))}
                 </td>
                 <td className="px-2 py-2">
@@ -158,7 +158,7 @@ export function PoLineEditor({
                     type="button"
                     onClick={() => removeLine(idx)}
                     disabled={disabled || lines.length === 1}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-400 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-400 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40 dark:text-zinc-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
                     aria-label="Xoá dòng"
                   >
                     <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -167,33 +167,33 @@ export function PoLineEditor({
               </tr>
             ))}
           </tbody>
-          <tfoot className="border-t-2 border-zinc-200 bg-zinc-50 text-sm">
+          <tfoot className="border-t-2 border-zinc-200 bg-zinc-50 text-sm dark:border-zinc-700 dark:bg-zinc-800">
             <tr>
-              <td colSpan={6} className="px-3 py-2 text-right text-zinc-600">
+              <td colSpan={6} className="px-3 py-2 text-right text-zinc-600 dark:text-zinc-400">
                 Tạm tính (chưa VAT):
               </td>
-              <td className="px-2 py-2 text-right tabular-nums text-zinc-900">
+              <td className="px-2 py-2 text-right tabular-nums text-zinc-900 dark:text-zinc-50">
                 {fmtVND(subtotal)}
               </td>
               <td />
             </tr>
             <tr>
-              <td colSpan={6} className="px-3 py-2 text-right text-zinc-600">
+              <td colSpan={6} className="px-3 py-2 text-right text-zinc-600 dark:text-zinc-400">
                 Tổng VAT:
               </td>
-              <td className="px-2 py-2 text-right tabular-nums text-zinc-900">
+              <td className="px-2 py-2 text-right tabular-nums text-zinc-900 dark:text-zinc-50">
                 {fmtVND(totalTax)}
               </td>
               <td />
             </tr>
-            <tr className="border-t border-zinc-200">
+            <tr className="border-t border-zinc-200 dark:border-zinc-700">
               <td
                 colSpan={6}
-                className="px-3 py-2 text-right text-sm font-semibold text-zinc-900"
+                className="px-3 py-2 text-right text-sm font-semibold text-zinc-900 dark:text-zinc-50"
               >
                 Tổng cộng:
               </td>
-              <td className="px-2 py-2 text-right text-base font-semibold tabular-nums text-indigo-700">
+              <td className="px-2 py-2 text-right text-base font-semibold tabular-nums text-indigo-700 dark:text-indigo-400">
                 {fmtVND(grandTotal)} VND
               </td>
               <td />

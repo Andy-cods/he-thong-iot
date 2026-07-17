@@ -239,19 +239,19 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
       <StepIndicator step={step} />
 
       {step === "upload" && (
-        <section className="space-y-4 rounded-lg border border-zinc-200 bg-white p-6">
+        <section className="space-y-4 rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
           <div
             {...getRootProps()}
             className={cn(
               "flex min-h-[200px] cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed p-6 transition-colors duration-150",
               isDragActive
-                ? "border-indigo-500 bg-indigo-50/30"
-                : "border-zinc-300 bg-white hover:border-zinc-400 hover:bg-zinc-50/50",
+                ? "border-indigo-500 bg-indigo-50/30 dark:border-indigo-400 dark:bg-indigo-950/30"
+                : "border-zinc-300 bg-white hover:border-zinc-400 hover:bg-zinc-50/50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-600 dark:hover:bg-zinc-800/60",
             )}
           >
             <input {...getInputProps()} />
             <UploadCloud
-              className="mb-3 h-8 w-8 text-zinc-400"
+              className="mb-3 h-8 w-8 text-zinc-400 dark:text-zinc-500"
               aria-hidden="true"
             />
             {file ? (
@@ -260,8 +260,8 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
                   className="mx-auto mb-2 h-5 w-5 text-emerald-600"
                   aria-hidden="true"
                 />
-                <p className="text-md font-medium text-zinc-900">{file.name}</p>
-                <p className="text-xs text-zinc-500 tabular-nums">
+                <p className="text-md font-medium text-zinc-900 dark:text-zinc-50">{file.name}</p>
+                <p className="text-xs text-zinc-500 tabular-nums dark:text-zinc-400">
                   {(file.size / 1024).toLocaleString("vi-VN", {
                     maximumFractionDigits: 0,
                   })}{" "}
@@ -270,10 +270,10 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
               </div>
             ) : (
               <>
-                <p className="text-md font-medium text-zinc-900">
+                <p className="text-md font-medium text-zinc-900 dark:text-zinc-50">
                   Kéo thả file Excel vào đây
                 </p>
-                <p className="mt-1 text-xs text-zinc-500">
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                   hoặc bấm để chọn · XLSX ·{" "}
                   {LIMITS.FILE_UPLOAD_MAX_BYTES / 1024 / 1024}MB tối đa
                 </p>
@@ -305,7 +305,7 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
             <div className="flex items-end">
               <a
                 href={downloadTemplateUrl()}
-                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-base font-medium text-zinc-700 transition-colors hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
+                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-base font-medium text-zinc-700 transition-colors hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
               >
                 <Download className="h-3.5 w-3.5" aria-hidden="true" />
                 Tải template Excel
@@ -313,7 +313,7 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
             </div>
           </div>
 
-          <div className="flex justify-end border-t border-zinc-200 pt-4">
+          <div className="flex justify-end border-t border-zinc-200 pt-4 dark:border-zinc-800">
             <Button onClick={handleGoToMap} disabled={!file}>
               Tiếp theo — Khớp cột
             </Button>
@@ -322,7 +322,7 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
       )}
 
       {step === "map" && (
-        <section className="space-y-4 rounded-lg border border-zinc-200 bg-white p-6">
+        <section className="space-y-4 rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
           <ColumnMapperStep
             sourceHeaders={sourceHeaders}
             sampleRows={sampleRows}
@@ -332,7 +332,7 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
             saveAsDefault={saveAsDefault}
             onSaveAsDefaultChange={setSaveAsDefault}
           />
-          <div className="flex justify-between border-t border-zinc-200 pt-4">
+          <div className="flex justify-between border-t border-zinc-200 pt-4 dark:border-zinc-800">
             <Button variant="ghost" onClick={goBack}>
               <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
               Quay lại
@@ -345,7 +345,7 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
       )}
 
       {step === "preview" && uploadData && (
-        <section className="space-y-4 rounded-lg border border-zinc-200 bg-white p-6">
+        <section className="space-y-4 rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
           <div className="grid grid-cols-3 gap-3">
             <StatCard label="Tổng dòng" value={uploadData.rowTotal} />
             <StatCard
@@ -363,7 +363,7 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
           {uploadData.rowFail > 0 && batchId && (
             <a
               href={downloadErrorsUrl(batchId)}
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
             >
               <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
               Tải danh sách {uploadData.rowFail} dòng lỗi để sửa
@@ -371,17 +371,17 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
           )}
 
           {previewRows && previewRows.length > 0 && (
-            <div className="overflow-hidden rounded-md border border-zinc-200 bg-white">
-              <div className="flex items-center justify-between border-b border-zinc-200 bg-zinc-50 px-3 h-8 text-xs font-medium uppercase tracking-wider text-zinc-500">
+            <div className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="flex items-center justify-between border-b border-zinc-200 bg-zinc-50 px-3 h-8 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-400">
                 <span>Preview {previewRows.length} dòng đầu</span>
-                <span className="normal-case tracking-normal text-zinc-500">
+                <span className="normal-case tracking-normal text-zinc-500 dark:text-zinc-400">
                   Dòng lỗi tô nền đỏ
                 </span>
               </div>
               <div className="max-h-96 overflow-auto">
                 <table className="min-w-full text-base">
-                  <thead className="sticky top-0 z-sticky bg-zinc-50">
-                    <tr className="text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                  <thead className="sticky top-0 z-sticky bg-zinc-50 dark:bg-zinc-800/60">
+                    <tr className="text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                       <th className="h-8 w-12 px-3">#</th>
                       {["SKU", "Tên", "Loại", "UoM", "Category"].map((h) => (
                         <th key={h} className="h-8 px-3">
@@ -397,37 +397,37 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
                         <tr
                           key={i}
                           className={cn(
-                            "h-8 border-t border-zinc-100",
+                            "h-8 border-t border-zinc-100 dark:border-zinc-800",
                             invalid &&
-                              "border-l-2 border-l-red-500 bg-red-50",
+                              "border-l-2 border-l-red-500 bg-red-50 dark:bg-red-950/30",
                           )}
                         >
-                          <td className="px-3 text-xs text-zinc-500 tabular-nums">
+                          <td className="px-3 text-xs text-zinc-500 tabular-nums dark:text-zinc-400">
                             {i + 1}
                           </td>
                           <td
                             className={cn(
-                              "px-3 font-mono text-xs text-zinc-900",
-                              invalid && !r.sku && "bg-red-100",
+                              "px-3 font-mono text-xs text-zinc-900 dark:text-zinc-50",
+                              invalid && !r.sku && "bg-red-100 dark:bg-red-950/50",
                             )}
                           >
                             {r.sku ?? "—"}
                           </td>
                           <td
                             className={cn(
-                              "px-3 text-zinc-800",
-                              invalid && !r.name && "bg-red-100",
+                              "px-3 text-zinc-800 dark:text-zinc-200",
+                              invalid && !r.name && "bg-red-100 dark:bg-red-950/50",
                             )}
                           >
                             {r.name ?? "—"}
                           </td>
-                          <td className="px-3 text-zinc-600">
+                          <td className="px-3 text-zinc-600 dark:text-zinc-400">
                             {r.itemType ?? "—"}
                           </td>
-                          <td className="px-3 text-zinc-600">
+                          <td className="px-3 text-zinc-600 dark:text-zinc-400">
                             {r.uom ?? "—"}
                           </td>
-                          <td className="px-3 text-zinc-500">
+                          <td className="px-3 text-zinc-500 dark:text-zinc-400">
                             {r.category ?? "—"}
                           </td>
                         </tr>
@@ -439,7 +439,7 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
             </div>
           )}
 
-          <div className="flex justify-between border-t border-zinc-200 pt-4">
+          <div className="flex justify-between border-t border-zinc-200 pt-4 dark:border-zinc-800">
             <Button variant="ghost" onClick={() => setStep("map")}>
               <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
               Quay lại
@@ -457,7 +457,7 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
       )}
 
       {step === "result" && batchQuery.data && (
-        <section className="space-y-4 rounded-lg border border-zinc-200 bg-white p-6">
+        <section className="space-y-4 rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
           <ResultPanel
             status={batchQuery.data.status}
             progressPct={progressPct}
@@ -466,7 +466,7 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
             rowTotal={batchQuery.data.rowTotal}
             errorMessage={batchQuery.data.errorMessage}
           />
-          <div className="flex justify-between border-t border-zinc-200 pt-4">
+          <div className="flex justify-between border-t border-zinc-200 pt-4 dark:border-zinc-800">
             <Button
               variant="ghost"
               onClick={() => {
@@ -484,7 +484,7 @@ export function ImportWizard({ userId = "anon" }: ImportWizardProps = {}) {
             {batchQuery.data.rowFail > 0 && batchId && (
               <a
                 href={downloadErrorsUrl(batchId)}
-                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-base font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-base font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
               >
                 <Download className="h-3.5 w-3.5" aria-hidden="true" />
                 Tải file lỗi
@@ -501,7 +501,7 @@ function StepIndicator({ step }: { step: Step }) {
   const activeIdx = STEP_ORDER.indexOf(step);
   return (
     <ol
-      className="flex items-center gap-0 rounded-md border border-zinc-200 bg-white px-4 h-12"
+      className="flex items-center gap-0 rounded-md border border-zinc-200 bg-white px-4 h-12 dark:border-zinc-800 dark:bg-zinc-900"
       aria-label="Tiến trình import"
     >
       {STEP_ORDER.map((s, i) => {
@@ -517,7 +517,7 @@ function StepIndicator({ step }: { step: Step }) {
                 state === "current" && "bg-indigo-600 text-white",
                 state === "done" && "bg-emerald-500 text-white",
                 state === "pending" &&
-                  "border-2 border-zinc-300 bg-white text-zinc-500",
+                  "border-2 border-zinc-300 bg-white text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400",
               )}
             >
               {state === "done" ? (
@@ -529,9 +529,9 @@ function StepIndicator({ step }: { step: Step }) {
             <span
               className={cn(
                 "text-base font-medium",
-                state === "current" && "text-zinc-900",
-                state === "done" && "text-emerald-700",
-                state === "pending" && "text-zinc-500",
+                state === "current" && "text-zinc-900 dark:text-zinc-50",
+                state === "done" && "text-emerald-700 dark:text-emerald-400",
+                state === "pending" && "text-zinc-500 dark:text-zinc-400",
               )}
             >
               {STEP_LABELS[s]}
@@ -541,7 +541,7 @@ function StepIndicator({ step }: { step: Step }) {
                 aria-hidden="true"
                 className={cn(
                   "mx-2 h-0.5 flex-1",
-                  state === "done" ? "bg-emerald-500" : "bg-zinc-200",
+                  state === "done" ? "bg-emerald-500" : "bg-zinc-200 dark:bg-zinc-700",
                 )}
               />
             ) : null}
@@ -563,13 +563,13 @@ function StatCard({
 }) {
   const toneClass =
     tone === "success"
-      ? "text-emerald-700"
+      ? "text-emerald-700 dark:text-emerald-400"
       : tone === "error"
-        ? "text-red-700"
-        : "text-zinc-900";
+        ? "text-red-700 dark:text-red-400"
+        : "text-zinc-900 dark:text-zinc-50";
   return (
-    <div className="rounded-md border border-zinc-200 bg-white p-4">
-      <div className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+    <div className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
         {label}
       </div>
       <div className={cn("mt-1 text-xl font-semibold tabular-nums", toneClass)}>
@@ -597,7 +597,7 @@ function ResultPanel({
   const isDone = status === "done";
   const isFailed = status === "failed";
   return (
-    <div className="rounded-md border border-zinc-200 bg-white p-6">
+    <div className="rounded-md border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
       <div className="flex items-center gap-3">
         {isDone ? (
           <CheckCircle2
@@ -612,17 +612,17 @@ function ResultPanel({
             aria-hidden="true"
           />
         ) : (
-          <div className="h-12 w-12 animate-spin rounded-full border-2 border-zinc-200 border-t-indigo-500" />
+          <div className="h-12 w-12 animate-spin rounded-full border-2 border-zinc-200 border-t-indigo-500 dark:border-zinc-700" />
         )}
         <div>
-          <div className="text-xl font-semibold tracking-tight text-zinc-900">
+          <div className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             {isDone
               ? "Hoàn tất import"
               : isFailed
                 ? "Import thất bại"
                 : "Đang import nền…"}
           </div>
-          <div className="text-xs text-zinc-500">
+          <div className="text-xs text-zinc-500 dark:text-zinc-400">
             Trạng thái: <span className="font-mono">{status}</span>
           </div>
         </div>
@@ -630,13 +630,13 @@ function ResultPanel({
 
       {!isFailed && (
         <>
-          <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-zinc-200">
+          <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
             <div
               className="h-full bg-indigo-500 transition-all"
               style={{ width: `${progressPct}%` }}
             />
           </div>
-          <div className="mt-2 flex justify-between text-xs text-zinc-500 tabular-nums">
+          <div className="mt-2 flex justify-between text-xs text-zinc-500 tabular-nums dark:text-zinc-400">
             <span>
               {(rowSuccess + rowFail).toLocaleString("vi-VN")}/
               {rowTotal.toLocaleString("vi-VN")} dòng
@@ -647,7 +647,7 @@ function ResultPanel({
       )}
 
       {isFailed && errorMessage && (
-        <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400">
           {errorMessage}
         </div>
       )}

@@ -47,20 +47,20 @@ export function BulkActionBar({
       role="region"
       aria-label={`Đã chọn ${count} vật tư`}
       className={cn(
-        "sticky bottom-0 z-sticky flex h-12 flex-wrap items-center gap-3 border-t border-zinc-200 bg-white px-4 shadow-sm",
+        "sticky bottom-0 z-sticky flex h-12 flex-wrap items-center gap-3 border-t border-zinc-200 bg-white px-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900",
         "animate-in slide-in-from-bottom-2 duration-150 ease-out",
       )}
     >
-      <div className="text-base font-medium text-zinc-900">
+      <div className="text-base font-medium text-zinc-900 dark:text-zinc-50">
         Đã chọn{" "}
         <span className="tabular-nums">{count.toLocaleString("vi-VN")}</span>
         {totalMatching > 0 && (
-          <span className="text-zinc-500">
+          <span className="text-zinc-500 dark:text-zinc-400">
             {" "}/ {totalMatching.toLocaleString("vi-VN")}
           </span>
         )}
         {mode === "all-matching" && (
-          <span className="ml-1 text-zinc-500">(tất cả khớp filter)</span>
+          <span className="ml-1 text-zinc-500 dark:text-zinc-400">(tất cả khớp filter)</span>
         )}
       </div>
 
@@ -68,7 +68,7 @@ export function BulkActionBar({
         <button
           type="button"
           onClick={onSelectAllMatching}
-          className="text-base font-medium text-blue-600 underline-offset-2 transition-colors hover:text-blue-700 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2"
+          className="text-base font-medium text-blue-600 underline-offset-2 transition-colors hover:text-blue-700 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2 dark:text-blue-400 dark:hover:text-blue-300"
         >
           Chọn tất cả {totalMatching.toLocaleString("vi-VN")} khớp filter
         </button>

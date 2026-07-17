@@ -38,13 +38,13 @@ const WO_STATUS_BADGE: Record<
   string,
   { label: string; className: string }
 > = {
-  DRAFT: { label: "Nháp", className: "bg-zinc-100 text-zinc-600" },
-  QUEUED: { label: "Đợi", className: "bg-zinc-200 text-zinc-700" },
-  RELEASED: { label: "Phát lệnh", className: "bg-blue-50 text-blue-700" },
-  IN_PROGRESS: { label: "Đang chạy", className: "bg-indigo-100 text-indigo-800" },
-  PAUSED: { label: "Tạm dừng", className: "bg-amber-100 text-amber-800" },
-  COMPLETED: { label: "Hoàn thành", className: "bg-emerald-100 text-emerald-800" },
-  CANCELLED: { label: "Huỷ", className: "bg-red-100 text-red-700" },
+  DRAFT: { label: "Nháp", className: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400" },
+  QUEUED: { label: "Đợi", className: "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300" },
+  RELEASED: { label: "Phát lệnh", className: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400" },
+  IN_PROGRESS: { label: "Đang chạy", className: "bg-indigo-100 text-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-400" },
+  PAUSED: { label: "Tạm dừng", className: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400" },
+  COMPLETED: { label: "Hoàn thành", className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400" },
+  CANCELLED: { label: "Huỷ", className: "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400" },
 };
 
 interface ProductionProgressPanelProps {
@@ -87,7 +87,7 @@ export function ProductionProgressPanel({
     return (
       <div className="flex h-32 items-center justify-center">
         <Loader2
-          className="h-5 w-5 animate-spin text-zinc-400"
+          className="h-5 w-5 animate-spin text-zinc-400 dark:text-zinc-500"
           aria-hidden="true"
         />
       </div>
@@ -96,7 +96,7 @@ export function ProductionProgressPanel({
 
   if (error) {
     return (
-      <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+      <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400">
         {error}
       </div>
     );
@@ -108,17 +108,17 @@ export function ProductionProgressPanel({
       <ProductionOverviewCards order={order} summary={data} />
 
       {/* Section 2: Snapshot material table (editable) */}
-      <section className="rounded-md border border-zinc-200 bg-white">
-        <div className="flex items-center gap-2 border-b border-zinc-100 px-4 py-2.5">
-          <Package className="h-4 w-4 text-zinc-500" aria-hidden="true" />
-          <h3 className="text-sm font-medium text-zinc-900">
+      <section className="rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="flex items-center gap-2 border-b border-zinc-100 px-4 py-2.5 dark:border-zinc-800">
+          <Package className="h-4 w-4 text-zinc-500 dark:text-zinc-400" aria-hidden="true" />
+          <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
             Vật liệu (snapshot)
           </h3>
           {snapshotRows.length > 0 && (
-            <span className="ml-auto text-xs text-zinc-500">
+            <span className="ml-auto text-xs text-zinc-500 dark:text-zinc-400">
               {snapshotRows.length} line{" "}
               {!canEdit && (
-                <span className="text-[11px] text-amber-600">
+                <span className="text-[11px] text-amber-600 dark:text-amber-400">
                   (chỉ đọc — không có quyền sửa)
                 </span>
               )}
@@ -129,19 +129,19 @@ export function ProductionProgressPanel({
         {snapshotLinesQuery.isLoading ? (
           <div className="flex h-24 items-center justify-center">
             <Loader2
-              className="h-4 w-4 animate-spin text-zinc-400"
+              className="h-4 w-4 animate-spin text-zinc-400 dark:text-zinc-500"
               aria-hidden="true"
             />
           </div>
         ) : snapshotRows.length === 0 ? (
-          <div className="px-4 py-8 text-center text-sm text-zinc-500">
+          <div className="px-4 py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
             Chưa có snapshot lines — hãy explode BOM ở tab Snapshot Board.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-zinc-100 text-xs font-medium uppercase tracking-wide text-zinc-500">
+                <tr className="border-b border-zinc-100 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
                   <th scope="col" className="px-4 py-2 text-left">
                     SKU
                   </th>
@@ -219,40 +219,40 @@ function SnapshotRow({
   const tone = BOM_SNAPSHOT_STATE_TONES[row.state];
   const toneClass =
     tone === "success"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400"
       : tone === "warning"
-        ? "border-amber-200 bg-amber-50 text-amber-700"
+        ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400"
         : tone === "danger"
-          ? "border-red-200 bg-red-50 text-red-700"
+          ? "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400"
           : tone === "info"
-            ? "border-blue-200 bg-blue-50 text-blue-700"
+            ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-400"
             : tone === "shortage"
-              ? "border-orange-200 bg-orange-50 text-orange-700"
-              : "border-zinc-200 bg-zinc-100 text-zinc-700";
+              ? "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-400"
+              : "border-zinc-200 bg-zinc-100 text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300";
 
   const shortage = row.remainingShortQty !== null ? Number(row.remainingShortQty) : 0;
 
   return (
-    <tr className="border-b border-zinc-100 last:border-b-0 hover:bg-zinc-50">
-      <td className="px-4 py-2 font-mono text-xs text-indigo-700">
+    <tr className="border-b border-zinc-100 last:border-b-0 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/60">
+      <td className="px-4 py-2 font-mono text-xs text-indigo-700 dark:text-indigo-400">
         {row.componentSku}
       </td>
-      <td className="px-4 py-2 text-xs text-zinc-700" title={row.componentName}>
+      <td className="px-4 py-2 text-xs text-zinc-700 dark:text-zinc-300" title={row.componentName}>
         <span className="line-clamp-1 max-w-[280px]">{row.componentName}</span>
       </td>
-      <td className="px-4 py-2 text-right font-mono text-xs tabular-nums text-zinc-800">
+      <td className="px-4 py-2 text-right font-mono text-xs tabular-nums text-zinc-800 dark:text-zinc-200">
         {Number(row.requiredQty).toLocaleString("vi-VN")}
       </td>
-      <td className="px-4 py-2 text-right font-mono text-xs tabular-nums text-emerald-700">
+      <td className="px-4 py-2 text-right font-mono text-xs tabular-nums text-emerald-700 dark:text-emerald-400">
         {Number(row.qcPassQty).toLocaleString("vi-VN")}
       </td>
-      <td className="px-4 py-2 text-right font-mono text-xs tabular-nums text-zinc-600">
+      <td className="px-4 py-2 text-right font-mono text-xs tabular-nums text-zinc-600 dark:text-zinc-400">
         {Number(row.issuedQty).toLocaleString("vi-VN")}
       </td>
       <td
         className={cn(
           "px-4 py-2 text-right font-mono text-xs tabular-nums",
-          shortage > 0 ? "text-red-600 font-medium" : "text-zinc-400",
+          shortage > 0 ? "text-red-600 font-medium dark:text-red-400" : "text-zinc-400 dark:text-zinc-500",
         )}
       >
         {shortage > 0 ? shortage.toLocaleString("vi-VN") : "—"}
@@ -294,12 +294,12 @@ function WorkOrdersSection({
   const hasWOs = (summary?.workOrders?.length ?? 0) > 0;
 
   return (
-    <section className="rounded-md border border-zinc-200 bg-white">
-      <div className="flex items-center gap-2 border-b border-zinc-100 px-4 py-2.5">
-        <Factory className="h-4 w-4 text-zinc-500" aria-hidden="true" />
-        <h3 className="text-sm font-medium text-zinc-900">Work Orders</h3>
+    <section className="rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex items-center gap-2 border-b border-zinc-100 px-4 py-2.5 dark:border-zinc-800">
+        <Factory className="h-4 w-4 text-zinc-500 dark:text-zinc-400" aria-hidden="true" />
+        <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-50">Work Orders</h3>
         {hasWOs && (
-          <span className="text-xs text-zinc-400">
+          <span className="text-xs text-zinc-400 dark:text-zinc-500">
             {summary!.workOrders.length} WO
           </span>
         )}
@@ -314,14 +314,14 @@ function WorkOrdersSection({
         </Link>
       </div>
       {!hasWOs ? (
-        <div className="px-4 py-6 text-center text-sm text-zinc-500">
+        <div className="px-4 py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
           Chưa có Work Order nào cho đơn hàng này.
         </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-100 text-xs font-medium uppercase tracking-wide text-zinc-500">
+              <tr className="border-b border-zinc-100 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
                 <th scope="col" className="px-4 py-2 text-left">
                   Mã WO
                 </th>
@@ -363,12 +363,12 @@ function WorkOrdersSection({
 function WoRow({ wo }: { wo: WorkOrderSummaryItem }) {
   const badge = WO_STATUS_BADGE[wo.status] ?? {
     label: wo.status,
-    className: "bg-zinc-100 text-zinc-600",
+    className: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
   };
 
   return (
-    <tr className="border-b border-zinc-100 last:border-b-0 hover:bg-zinc-50">
-      <td className="px-4 py-2 font-mono text-xs font-medium text-indigo-700">
+    <tr className="border-b border-zinc-100 last:border-b-0 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/60">
+      <td className="px-4 py-2 font-mono text-xs font-medium text-indigo-700 dark:text-indigo-400">
         <Link
           href={`/work-orders/${wo.id}`}
           className="hover:underline"
@@ -386,13 +386,13 @@ function WoRow({ wo }: { wo: WorkOrderSummaryItem }) {
           {badge.label}
         </span>
       </td>
-      <td className="px-4 py-2 text-xs text-zinc-600">{wo.priority}</td>
-      <td className="px-4 py-2 font-mono text-xs text-zinc-600">
+      <td className="px-4 py-2 text-xs text-zinc-600 dark:text-zinc-400">{wo.priority}</td>
+      <td className="px-4 py-2 font-mono text-xs text-zinc-600 dark:text-zinc-400">
         {wo.plannedStartDate
           ? formatDate(wo.plannedStartDate, "dd/MM/yyyy")
           : "—"}
       </td>
-      <td className="px-4 py-2 font-mono text-xs text-zinc-600">
+      <td className="px-4 py-2 font-mono text-xs text-zinc-600 dark:text-zinc-400">
         {wo.plannedEndDate
           ? formatDate(wo.plannedEndDate, "dd/MM/yyyy")
           : "—"}
@@ -440,7 +440,7 @@ function WoProgressBar({
   return (
     <div className="flex items-center gap-2">
       <div
-        className="h-1.5 w-24 shrink-0 rounded-full bg-zinc-200"
+        className="h-1.5 w-24 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-800"
         role="progressbar"
         aria-valuenow={clamped}
         aria-valuemin={0}
@@ -452,7 +452,7 @@ function WoProgressBar({
           style={{ width: `${clamped}%` }}
         />
       </div>
-      <span className="font-mono text-[11px] tabular-nums text-zinc-600">
+      <span className="font-mono text-[11px] tabular-nums text-zinc-600 dark:text-zinc-400">
         {completed}/{total}
       </span>
     </div>

@@ -97,8 +97,8 @@ export function PoExportDialog({ trigger }: PoExportDialogProps) {
                     className={cn(
                       "h-7 rounded-md px-2.5 text-xs font-medium transition-colors",
                       active
-                        ? "bg-indigo-600 text-white"
-                        : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200",
+                        ? "bg-indigo-600 text-white dark:bg-indigo-500"
+                        : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700",
                     )}
                   >
                     {PO_STATUS_LABELS[s]}

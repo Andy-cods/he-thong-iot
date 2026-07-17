@@ -69,7 +69,7 @@ export function SupplierList({ itemId }: { itemId: string }) {
   return (
     <div className="space-y-3">
       <form
-        className="rounded-md border border-zinc-200 bg-zinc-50 p-3"
+        className="rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-800/60"
         onSubmit={async (e) => {
           e.preventDefault();
           if (!form.supplierId) {
@@ -174,7 +174,7 @@ export function SupplierList({ itemId }: { itemId: string }) {
             </Button>
           </div>
         </div>
-        <label className="mt-2 flex items-center gap-1.5 text-sm text-zinc-700">
+        <label className="mt-2 flex items-center gap-1.5 text-sm text-zinc-700 dark:text-zinc-300">
           <input
             type="checkbox"
             checked={form.isPreferred}
@@ -187,7 +187,7 @@ export function SupplierList({ itemId }: { itemId: string }) {
       </form>
 
       <table className="w-full text-sm">
-        <thead className="border-b border-zinc-200 text-left text-xs uppercase tracking-wider text-zinc-500">
+        <thead className="border-b border-zinc-200 text-left text-xs uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
           <tr>
             <th className="py-2 pr-2">NCC</th>
             <th className="py-2 pr-2">SKU NCC</th>
@@ -201,23 +201,23 @@ export function SupplierList({ itemId }: { itemId: string }) {
         <tbody>
           {isLoading && (
             <tr>
-              <td colSpan={7} className="py-3 text-center text-zinc-500">
+              <td colSpan={7} className="py-3 text-center text-zinc-500 dark:text-zinc-400">
                 Đang tải…
               </td>
             </tr>
           )}
           {!isLoading && rows.length === 0 && (
             <tr>
-              <td colSpan={7} className="py-3 text-center text-zinc-500">
+              <td colSpan={7} className="py-3 text-center text-zinc-500 dark:text-zinc-400">
                 Chưa có NCC nào.
               </td>
             </tr>
           )}
           {rows.map((r) => (
-            <tr key={r.id} className="border-b border-zinc-100">
-              <td className="py-2 pr-2 text-zinc-900">
+            <tr key={r.id} className="border-b border-zinc-100 dark:border-zinc-800">
+              <td className="py-2 pr-2 text-zinc-900 dark:text-zinc-50">
                 <div className="font-medium">{r.supplierCode}</div>
-                <div className="text-xs text-zinc-500">{r.supplierName}</div>
+                <div className="text-xs text-zinc-500 dark:text-zinc-400">{r.supplierName}</div>
               </td>
               <td className="py-2 pr-2">{r.supplierSku ?? "—"}</td>
               <td className="py-2 pr-2">
@@ -232,7 +232,7 @@ export function SupplierList({ itemId }: { itemId: string }) {
                   <button
                     type="button"
                     aria-label="Đặt làm NCC ưu tiên"
-                    className="text-zinc-400 hover:text-blue-600"
+                    className="text-zinc-400 hover:text-blue-600 dark:text-zinc-500 dark:hover:text-blue-400"
                     onClick={() => setPreferred.mutate(r.id)}
                   >
                     <Star className="h-4 w-4" />
@@ -243,7 +243,7 @@ export function SupplierList({ itemId }: { itemId: string }) {
                 <button
                   type="button"
                   aria-label="Xoá NCC khỏi item"
-                  className="text-zinc-400 hover:text-red-600"
+                  className="text-zinc-400 hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-400"
                   onClick={() => {
                     if (confirm(`Xoá NCC "${r.supplierCode}"?`)) {
                       remove.mutate(r.id);

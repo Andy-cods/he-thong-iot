@@ -29,10 +29,10 @@ export default async function ItemImportPage() {
         className="mb-2"
       />
       <header className="mb-6">
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
+        <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
           Nhập vật tư từ Excel
         </h1>
-        <p className="mt-0.5 text-xs text-zinc-500">
+        <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
           Upload → Khớp cột → Preview → Commit. Tuân theo template chuẩn hoặc
           ánh xạ cột tuỳ biến.
         </p>
