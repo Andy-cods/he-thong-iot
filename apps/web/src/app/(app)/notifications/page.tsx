@@ -131,9 +131,9 @@ export default function NotificationsPage() {
   const unreadCount = query.data?.meta.unreadCount ?? 0;
 
   return (
-    <div className="flex h-full flex-col bg-zinc-50/30">
+    <div className="flex flex-col bg-zinc-50/30 md:h-full">
       {/* Header */}
-      <header className="border-b border-zinc-200 bg-white px-6 py-5">
+      <header className="border-b border-zinc-200 bg-white px-4 py-4 md:px-6 md:py-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <nav aria-label="Breadcrumb" className="text-xs text-zinc-500">
@@ -141,8 +141,8 @@ export default function NotificationsPage() {
               <span className="mx-1.5 text-zinc-300">›</span>
               <span className="font-medium text-zinc-900">Thông báo</span>
             </nav>
-            <h1 className="mt-2 flex items-center gap-2 text-2xl font-semibold tracking-tight text-zinc-900">
-              <Bell className="h-6 w-6 text-indigo-600" aria-hidden />
+            <h1 className="mt-2 flex items-center gap-2 text-xl font-semibold tracking-tight text-zinc-900 md:text-2xl">
+              <Bell className="h-5 w-5 text-indigo-600 md:h-6 md:w-6" aria-hidden />
               Thông báo
             </h1>
             <p className="mt-1 text-sm text-zinc-500">
@@ -167,7 +167,7 @@ export default function NotificationsPage() {
       </header>
 
       {/* Filter pills */}
-      <div className="flex items-center gap-2 border-b border-zinc-200 bg-white px-6 py-3">
+      <div className="flex items-center gap-2 overflow-x-auto border-b border-zinc-200 bg-white px-4 py-3 md:px-6">
         {[
           { v: "all" as const, label: "Tất cả" },
           { v: "unread" as const, label: "Chưa đọc" },
@@ -179,7 +179,7 @@ export default function NotificationsPage() {
             type="button"
             onClick={() => setFilter(opt.v)}
             className={cn(
-              "inline-flex h-8 items-center rounded-full border px-3.5 text-sm font-medium transition-colors",
+              "inline-flex h-8 shrink-0 items-center rounded-full border px-3.5 text-sm font-medium transition-colors",
               filter === opt.v
                 ? "border-indigo-300 bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-200"
                 : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50",
@@ -191,7 +191,7 @@ export default function NotificationsPage() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 p-3 md:overflow-auto md:p-6">
         {query.isLoading ? (
           <div className="flex items-center justify-center gap-2 py-20 text-sm text-zinc-500">
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -218,20 +218,20 @@ export default function NotificationsPage() {
               const card = (
                 <div
                   className={cn(
-                    "flex gap-4 rounded-2xl border bg-white p-4 transition-shadow hover:shadow-md",
+                    "flex gap-3 rounded-2xl border bg-white p-3 transition-shadow hover:shadow-md md:gap-4 md:p-4",
                     isUnread ? "border-indigo-300 shadow-sm" : "border-zinc-200",
                   )}
                 >
                   <div className={cn(
-                    "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset",
+                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset md:h-11 md:w-11",
                     sevCls,
                   )}>
-                    <Icon className="h-5 w-5" aria-hidden />
+                    <Icon className="h-4 w-4 md:h-5 md:w-5" aria-hidden />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
                       <p className={cn(
-                        "text-base leading-snug",
+                        "text-sm leading-snug md:text-base",
                         isUnread ? "font-bold text-zinc-900" : "font-semibold text-zinc-800",
                       )}>
                         {n.title}

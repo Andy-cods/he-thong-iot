@@ -40,8 +40,8 @@ export default function OperationsPage({ searchParams }: OperationsPageProps) {
     OPERATIONS_TABS.find((t) => t.key === active)?.label ?? "Yêu cầu sản xuất";
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
-      <div className="border-b border-zinc-200 bg-white px-6 pb-3 pt-4">
+    <div className="flex flex-col md:h-full md:overflow-hidden">
+      <div className="border-b border-zinc-200 bg-white px-4 pb-3 pt-4 md:px-6">
         <nav aria-label="Breadcrumb" className="text-xs text-zinc-500">
           <Link href="/" className="hover:text-zinc-900 hover:underline">
             Tổng quan
@@ -66,7 +66,7 @@ export default function OperationsPage({ searchParams }: OperationsPageProps) {
         ariaLabel="Operations sections"
       />
 
-      <div className="flex-1 min-h-0 overflow-hidden">
+      <div className="flex-1 md:min-h-0 md:overflow-hidden">
         {active === "requests" ? (
           <WorkOrdersTab variant="operations-requests" />
         ) : active === "orders" ? (

@@ -123,6 +123,22 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
+### TASK-20260717-005 — Fix responsive mobile "to quá / khuất / chữ ép" (V3.12.2)
+- **Trạng thái:** IN_PROGRESS · **Bắt đầu:** 2026-07-17 (+07) · **Ưu tiên:** P1
+- **Yêu cầu user:** vào từng function/thông báo trên mobile bị "size to quá, ẩn/khuất, chữ ép tràn lan".
+  Dùng agent brainstorm tư duy giải quyết.
+- **Chẩn đoán (brainstorm agent + đối chiếu):** KHÔNG phải do bảng list (M1 đã ổn — nhắm sai chỗ ở
+  các đợt trước). Gốc rễ: (1) xung đột mô hình cuộn + double-padding (main px-4 + trang px-6, `h-full`
+  không tin cậy trên mobile → nested-scroll kẹt); (2) overlay width px cứng vượt viewport
+  (NotificationBell `w-[400px]`, Dialog `w-full` không lề); (3) typography/component khoá desktop;
+  (4) bảng detail nhiều cột + form A4 `min-w-[760px]` cuộn ngang.
+- **Đã làm P0 + phần rẻ P1 (V3.12.2):** NotificationBell + Dialog responsive; shell md-gated cho
+  notifications/engineering/warehouse/operations/sales/PR-detail (px-6→px-4 md:px-6, h-full→md:h-full);
+  notification card thu nhỏ mobile; H1/H2 responsive (globals.css). Typecheck PASS.
+- **Còn lại (đợt sau):** P1-7 card-list cho PR detail mục II (bảng 15 cột, cần giữ print:table);
+  P2 tạo `<PageShell>`/`<DataList>` + `docs/design-guidelines.md`.
+- **Plan:** [`plans/20260717-mobile-responsive-strategy.md`](plans/20260717-mobile-responsive-strategy.md)
+
 ### TASK-20260717-004 — Mobile access + Email thông báo cần duyệt (V3.12)
 - **Trạng thái:** IN_PROGRESS · **Bắt đầu:** 2026-07-17 (+07) · **Tạo:** 2026-07-17 (+07) · **Ưu tiên:** P1
 - **Yêu cầu user:** truy cập hệ thống trên mobile + khi có thông báo cần duyệt thì gửi email.

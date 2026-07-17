@@ -287,7 +287,7 @@ export default function PurchaseRequestDetailPage() {
   };
 
   return (
-    <div className="flex h-full flex-col overflow-auto bg-zinc-100 dark:bg-zinc-950 print:bg-white">
+    <div className="flex flex-col bg-zinc-100 md:h-full md:overflow-auto dark:bg-zinc-950 print:bg-white">
       {/* ===== Toolbar (no print) ===== */}
       <header className="border-b border-zinc-200 bg-white px-6 py-3 print:hidden dark:border-zinc-800 dark:bg-zinc-900">
         <Link

@@ -103,8 +103,8 @@ export default function EngineeringPage() {
           : "Xem BOM List để đối chiếu vật tư · duyệt yêu cầu mua hàng tại /sales.";
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
-      <div className="border-b border-zinc-200 bg-white px-6 pb-3 pt-4 dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="flex flex-col md:h-full md:overflow-hidden">
+      <div className="border-b border-zinc-200 bg-white px-4 pb-3 pt-4 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
         <nav aria-label="Breadcrumb" className="text-xs text-zinc-500 dark:text-zinc-400">
           <Link href="/" className="hover:text-zinc-900 hover:underline dark:hover:text-zinc-50">
             Tổng quan
@@ -129,7 +129,7 @@ export default function EngineeringPage() {
         />
       ) : null}
 
-      <div className="flex-1 min-h-0 overflow-auto">
+      <div className="flex-1 md:min-h-0 md:overflow-auto">
         {active === "bom" ? (
           <BomTab />
         ) : active === "work-orders" ? (

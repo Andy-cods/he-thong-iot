@@ -40,7 +40,7 @@ export default function SalesPage({ searchParams }: SalesPageProps) {
   const active = resolveTab(searchParams.tab);
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-zinc-50/30">
+    <div className="flex flex-col bg-zinc-50/30 md:h-full md:overflow-hidden">
       <HubTabsNav
         basePath="/sales"
         tabs={SALES_TABS}
@@ -48,7 +48,7 @@ export default function SalesPage({ searchParams }: SalesPageProps) {
         ariaLabel="Finance sections"
       />
 
-      <div className="flex-1 min-h-0 overflow-hidden">
+      <div className="flex-1 md:min-h-0 md:overflow-hidden">
         {active === "suppliers"  && <SuppliersTab />}
         {active === "po"         && <POTab />}
         {active === "accounting" && <AccountingTab />}

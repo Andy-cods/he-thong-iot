@@ -148,7 +148,7 @@ export function NotificationBell() {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-10 z-dropdown w-[400px] origin-top-right overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl shadow-zinc-900/10 ring-1 ring-zinc-900/5 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/40 dark:ring-white/5"
+          className="absolute right-0 top-10 z-dropdown w-[calc(100vw-1rem)] max-w-[400px] origin-top-right overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl shadow-zinc-900/10 ring-1 ring-zinc-900/5 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/40 dark:ring-white/5"
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50/60 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800/40">
@@ -177,7 +177,7 @@ export function NotificationBell() {
           </div>
 
           {/* List */}
-          <div className="max-h-[480px] overflow-y-auto">
+          <div className="max-h-[70vh] overflow-y-auto sm:max-h-[480px]">
             {query.isLoading ? (
               <div className="flex items-center justify-center py-10 text-sm text-zinc-500 dark:text-zinc-400">
                 Đang tải…
