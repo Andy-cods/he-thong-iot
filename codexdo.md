@@ -124,7 +124,7 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
 ### TASK-20260716-001 — System polish audit Sprint 1 (P0 code-only) (V3.11.3)
-- **Trạng thái:** IN_PROGRESS · **Bắt đầu:** 2026-07-16 (+07) · **Ưu tiên:** P0
+- **Trạng thái:** DONE · **Bắt đầu:** 2026-07-16 · **Hoàn thành:** 2026-07-17 02:16 (+07) · **Ưu tiên:** P0
 - **Nguồn:** plan `plans/20260716-system-polish-audit.md` (6 agent rà soát 7 trục, ~110 phát hiện).
   User chốt: chỉ làm Sprint 1 phần CODE THUẦN đợt này; **BỎ QUA** mật khẩu prod hardcode (S.1/S.2)
   + mọi thao tác ghi prod DB (verify/migration item_type, reset password) — "giữ lại, để sau".
@@ -146,7 +146,13 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
     approved" → "Giám đốc đã duyệt" (ycvtPdf + ycvtExportExcel); "Bộ Phận Mua Hàng" → "Bộ phận Mua
     hàng" (new-dnvt); phiếu LSX đánh lại số mục liền mạch I→VI (bỏ nhảy IV).
   - **T.1+T.2** Dark mode 2 component global: `NotificationBell.tsx` + `CommandPalette.tsx`.
-- **Verify:** worker typecheck EXIT=0, web typecheck EXIT=0. Build + commit + deploy + E2E: đang chạy.
+- **Verify:** worker+web typecheck EXIT=0, web build EXIT=0. Commit `feac171` pushed → CI build →
+  deploy VPS OK (app+worker StartedAt 2026-07-17T02:15:27Z, worker restarts=0, 4 queue ready).
+  E2E prod: health OK, login admin 200, GET /items 200, /inventory/balance 200, injection attempt
+  `itemIds=x');-- DROP` → 200 data hợp lệ KHÔNG crash/SQL error (fix 1.1 xác nhận). PO PDF: list
+  prod trống nên chưa test tải file thật — BUYER.name là hằng tĩnh, build pass đảm bảo đúng.
+- **CHƯA làm (user hoãn "để sau"):** S.1/S.2 mật khẩu prod hardcode + git history; apply migration
+  0053 + verify enum prod + reset password (mọi thao tác ghi prod DB).
 - **Còn lại (Sprint 2/3):** xem plan — race condition, RBAC, dark mode ~70% trang, dead code.
 
 ### TASK-20260715-003 — Sự cố Đức không upload được BOM (V3.11.2)
