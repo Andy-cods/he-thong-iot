@@ -46,8 +46,10 @@ export function POListTable({ rows, loading }: POListTableProps) {
     overscan: 8,
   });
 
+  // V3.12 (mobile) — <md collapse còn 3 cột [Số PO|NCC|Trạng thái];
+  // Tổng/Duyệt/Ngày giao/Ngày tạo/mũi tên `hidden md:*` (pattern ItemListTable).
   const gridCols =
-    "grid-cols-[150px_minmax(0,1fr)_140px_120px_120px_140px_120px_60px]";
+    "grid-cols-[110px_minmax(0,1fr)_112px] md:grid-cols-[150px_minmax(0,1fr)_140px_120px_120px_140px_120px_60px]";
 
   return (
     <div
@@ -65,12 +67,12 @@ export function POListTable({ rows, loading }: POListTableProps) {
       >
         <div>Số PO</div>
         <div>Nhà cung cấp</div>
-        <div className="text-right">Tổng (VND)</div>
-        <div>Duyệt</div>
-        <div>Ngày giao</div>
+        <div className="hidden text-right md:block">Tổng (VND)</div>
+        <div className="hidden md:block">Duyệt</div>
+        <div className="hidden md:block">Ngày giao</div>
         <div>Trạng thái</div>
-        <div>Ngày tạo</div>
-        <div />
+        <div className="hidden md:block">Ngày tạo</div>
+        <div className="hidden md:block" />
       </div>
 
       {/* Loading skeleton */}
@@ -86,12 +88,12 @@ export function POListTable({ rows, loading }: POListTableProps) {
             >
               <Skeleton className="h-4 w-28" />
               <Skeleton className="h-4 w-40" />
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-5 w-20 rounded-full" />
-              <Skeleton className="h-4 w-20" />
+              <Skeleton className="hidden h-4 w-24 md:block" />
+              <Skeleton className="hidden h-5 w-20 rounded-full md:block" />
+              <Skeleton className="hidden h-4 w-20 md:block" />
               <Skeleton className="h-5 w-24 rounded-full" />
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-4 w-4" />
+              <Skeleton className="hidden h-4 w-20 md:block" />
+              <Skeleton className="hidden h-4 w-4 md:block" />
             </div>
           ))}
         </div>
@@ -128,10 +130,10 @@ export function POListTable({ rows, loading }: POListTableProps) {
               <span className="truncate pr-3 text-sm text-zinc-800">
                 {row.supplierName ?? row.supplierCode ?? `${row.supplierId.slice(0, 8)}…`}
               </span>
-              <span className="text-right font-mono text-sm font-semibold tabular-nums text-zinc-900">
+              <span className="hidden text-right font-mono text-sm font-semibold tabular-nums text-zinc-900 md:block">
                 {fmtVND(row.totalAmount)}
               </span>
-              <span>
+              <span className="hidden md:block">
                 {approvalCfg ? (
                   <span className={cn(
                     "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset",
@@ -143,7 +145,7 @@ export function POListTable({ rows, loading }: POListTableProps) {
                   <span className="text-xs text-zinc-400">—</span>
                 )}
               </span>
-              <span className="text-sm text-zinc-600 tabular-nums">
+              <span className="hidden text-sm text-zinc-600 tabular-nums md:block">
                 {row.expectedEta ? formatDate(row.expectedEta, "dd/MM/yyyy") : "—"}
               </span>
               <span className={cn(
@@ -153,10 +155,10 @@ export function POListTable({ rows, loading }: POListTableProps) {
                 <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", statusCfg.dot)} aria-hidden />
                 {PO_STATUS_LABELS[row.status]}
               </span>
-              <span className="text-sm text-zinc-600 tabular-nums">
+              <span className="hidden text-sm text-zinc-600 tabular-nums md:block">
                 {formatDate(row.createdAt, "dd/MM/yyyy")}
               </span>
-              <ArrowUpRight className="h-4 w-4 text-zinc-300 opacity-0 transition-opacity group-hover:opacity-100" aria-hidden />
+              <ArrowUpRight className="hidden h-4 w-4 text-zinc-300 opacity-0 transition-opacity group-hover:opacity-100 md:block" aria-hidden />
             </Link>
           );
         })}

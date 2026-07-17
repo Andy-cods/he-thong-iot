@@ -123,6 +123,22 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
+### TASK-20260717-004 — Mobile access + Email thông báo cần duyệt
+- **Trạng thái:** TODO (plan xong, CHỜ user chốt 3 câu hỏi) · **Tạo:** 2026-07-17 (+07) · **Ưu tiên:** P1
+- **Yêu cầu user:** truy cập hệ thống trên mobile + khi có thông báo cần duyệt thì gửi email.
+- **Plan chi tiết:** [`plans/20260717-mobile-email-notifications.md`](plans/20260717-mobile-email-notifications.md)
+- **Tóm tắt:** Sprint E (~1 ngày) — queue `EMAIL_SEND` BullMQ + nodemailer (worker) + hook vào
+  `notifications.ts` với whitelist 5 event cần duyệt (PR_SUBMITTED, PR_DEPT_APPROVED,
+  WO_REQUEST_SUBMITTED, ISSUE_REQUEST_NEW, PO_SUBCONTRACT_DRAFT); jobId idempotent chống gửi trùng;
+  `user_account.email` + admin UI đã có sẵn, không cần migration. Sprint M1 (~1-2 ngày) — responsive
+  luồng duyệt (PRListTable/POListTable collapse cột theo mẫu ItemListTable, các màn approve, đổi
+  manifest start_url); PWA/drawer/viewport ĐÃ có sẵn từ trước. Sprint M2 optional (form A4, admin
+  tables); BOM workspace chấp nhận desktop-only.
+- **Phụ thuộc:** user trả lời 3 câu hỏi cuối plan (Gmail nào + App Password; ai nhận email; scope E hay E+M1).
+- **DoD:** submit PR thật trên prod → người duyệt nhận email tiếng Việt có link mở đúng phiếu trên
+  điện thoại <1 phút; SMTP chết không ảnh hưởng flow nghiệp vụ; màn duyệt PR/ISR/YCSX dùng tốt trên
+  viewport 390px không scroll ngang.
+
 ### TASK-20260717-003 — E2E verify chức năng Bộ phận Kế toán (accountant)
 - **Trạng thái:** DONE · **Hoàn thành:** 2026-07-17 (+07) · **Ưu tiên:** P2
 - **Yêu cầu user:** kiểm tra chức năng kế toán có hoạt động thật không, test E2E full flow, xoá data test.

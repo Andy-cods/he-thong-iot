@@ -89,6 +89,8 @@ services:
       R2_ENDPOINT: ${R2_ENDPOINT}
       R2_PUBLIC_URL: ${R2_PUBLIC_URL}
       LOG_LEVEL: info
+      # V3.12 — bật enqueue email "cần duyệt" (worker mới là bên gửi SMTP)
+      MAIL_ENABLED: ${MAIL_ENABLED:-false}
       DB_PASSWORD_FILE: /run/secrets/db_password
       JWT_SECRET_FILE: /run/secrets/jwt_secret
       SESSION_SECRET_FILE: /run/secrets/session_secret
@@ -144,6 +146,13 @@ services:
       R2_BUCKET: ${R2_BUCKET}
       R2_ENDPOINT: ${R2_ENDPOINT}
       LOG_LEVEL: info
+      # V3.12 — SMTP gửi email "cần duyệt" (M365: smtp.office365.com:587).
+      # Password qua docker secret (smtp_password) — không nằm trong env/git.
+      SMTP_HOST: ${SMTP_HOST:-smtp.office365.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      SMTP_PASSWORD_FILE: /run/secrets/smtp_password
       DB_PASSWORD_FILE: /run/secrets/db_password
       JWT_SECRET_FILE: /run/secrets/jwt_secret
       R2_ACCESS_KEY_FILE: /run/secrets/r2_access_key
@@ -153,6 +162,7 @@ services:
       - jwt_secret
       - r2_access_key
       - r2_secret_key
+      - smtp_password
     volumes:
       - ./logs:/app/logs
     networks: [iot_net]
@@ -207,3 +217,5 @@ secrets:
     file: ./secrets/r2_access_key.txt
   r2_secret_key:
     file: ./secrets/r2_secret_key.txt
+  smtp_password:
+    file: ./secrets/smtp_password.txt

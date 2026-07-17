@@ -1,8 +1,10 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNotNull, ne, sql } from "drizzle-orm";
 import { notification, role, userAccount, userRole } from "@iot/db/schema";
 import type { Role } from "@iot/shared";
 import { db } from "@/lib/db";
+import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { enqueueEmailSend } from "@/server/services/emailQueue";
 
 /**
  * V3.3 — Notification service.
@@ -64,6 +66,82 @@ export interface EmitNotificationInput {
 }
 
 /**
+ * V3.12 — Whitelist event GỬI EMAIL: chỉ sự kiện "cần người nhận HÀNH ĐỘNG
+ * (duyệt)". Event kết quả (APPROVED/REJECTED/DELIVERED...) chỉ in-app,
+ * không email — tránh spam hộp thư.
+ */
+const EMAIL_EVENTS: ReadonlySet<NotificationEventType> = new Set([
+  "PR_SUBMITTED", // DNVT/YCVT mới chờ duyệt → purchaser + admin
+  "PR_DEPT_APPROVED", // chờ Giám đốc duyệt bước cuối → purchaser
+  "WO_REQUEST_SUBMITTED", // YCSX chờ duyệt → operator
+  "ISSUE_REQUEST_NEW", // phiếu xuất kho chờ duyệt → warehouse
+  "PO_SUBCONTRACT_DRAFT", // PO gia công chờ chốt giá → purchaser
+] satisfies NotificationEventType[]);
+
+/**
+ * V3.12 — Gửi email cho notification vừa insert (nếu event thuộc whitelist).
+ * Fire-and-forget: caller gọi `void maybeEmail(...)` — lỗi chỉ log warn.
+ *
+ * - recipientUser → email của đúng user đó (nếu đã điền email + active).
+ * - recipientRole (broadcast) → fan-out email tới mọi user active có role,
+ *   email khác null, loại actor (không tự email chính mình).
+ *
+ * Link trong email là link TUYỆT ĐỐI (APP_URL + link) để mở từ điện thoại.
+ */
+async function maybeEmail(
+  notifId: string,
+  input: EmitNotificationInput,
+): Promise<void> {
+  if (!env.MAIL_ENABLED) return;
+  if (!EMAIL_EVENTS.has(input.eventType)) return;
+  try {
+    let recipients: Array<{ id: string; email: string }> = [];
+    if (input.recipientUser) {
+      recipients = await db
+        .select({ id: userAccount.id, email: sql<string>`${userAccount.email}` })
+        .from(userAccount)
+        .where(
+          and(
+            eq(userAccount.id, input.recipientUser),
+            eq(userAccount.isActive, true),
+            isNotNull(userAccount.email),
+          ),
+        );
+    } else if (input.recipientRole) {
+      const actorId = input.actorUserId ?? null;
+      recipients = await db
+        .select({ id: userAccount.id, email: sql<string>`${userAccount.email}` })
+        .from(userRole)
+        .innerJoin(role, eq(role.id, userRole.roleId))
+        .innerJoin(userAccount, eq(userAccount.id, userRole.userId))
+        .where(
+          and(
+            eq(role.code, input.recipientRole),
+            eq(userAccount.isActive, true),
+            isNotNull(userAccount.email),
+            ...(actorId ? [ne(userAccount.id, actorId)] : []),
+          ),
+        );
+    }
+    await Promise.allSettled(
+      recipients.map((r) =>
+        enqueueEmailSend(`${notifId}:${r.id}`, {
+          to: r.email,
+          eventType: input.eventType,
+          title: input.title,
+          message: input.message,
+          entityCode: input.entityCode,
+          actorUsername: input.actorUsername ?? undefined,
+          link: input.link ? `${env.APP_URL}${input.link}` : undefined,
+        }),
+      ),
+    );
+  } catch (err) {
+    logger.warn({ err, notifId }, "maybeEmail failed (bỏ qua)");
+  }
+}
+
+/**
  * Insert 1 row notification. Trả về id nếu thành công, null nếu fail.
  * Không throw — chỉ log warn.
  */
@@ -92,6 +170,9 @@ export async function emitNotification(
         severity: input.severity ?? "info",
       })
       .returning({ id: notification.id });
+    // V3.12 — email "cần duyệt" (whitelist EMAIL_EVENTS). Fire-and-forget:
+    // không await để không cộng latency vào request nghiệp vụ.
+    if (row?.id) void maybeEmail(row.id, input);
     return row?.id ?? null;
   } catch (err) {
     logger.warn({ err, input }, "emitNotification failed");

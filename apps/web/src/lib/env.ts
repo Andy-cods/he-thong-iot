@@ -51,6 +51,10 @@ export const env = {
   // V3.8.2 — TTL phiên cho tài khoản kiosk TV (role "display"). Mặc định 24h.
   JWT_KIOSK_TTL: Number(process.env.JWT_KIOSK_TTL ?? 86400),
   LOG_LEVEL: process.env.LOG_LEVEL ?? "info",
+  // V3.12 — Bật gửi email thông báo "cần duyệt" (enqueue EMAIL_SEND → worker).
+  // SMTP credentials chỉ worker cần (SMTP_HOST/USER/PASSWORD ở env worker);
+  // web chỉ cần cờ này để quyết định enqueue hay không. Default false.
+  MAIL_ENABLED: process.env.MAIL_ENABLED === "true",
   R2: {
     accountId: process.env.R2_ACCOUNT_ID ?? "",
     bucket: process.env.R2_BUCKET ?? "",

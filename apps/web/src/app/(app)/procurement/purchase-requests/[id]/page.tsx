@@ -509,7 +509,7 @@ export default function PurchaseRequestDetailPage() {
       </header>
 
       {/* ===== Phiếu body — A4 landscape ===== */}
-      <div className="mx-auto w-full max-w-[1440px] p-6 print:p-0 print:max-w-none">
+      <div className="mx-auto w-full max-w-[1440px] p-3 sm:p-6 print:p-0 print:max-w-none">
         {/* V3.10 — branch layout theo loại phiếu. DNVT khớp form giấy (14 cột,
             không giá/IV/V); MRF giữ nguyên layout cũ. Toolbar + dialog chung. */}
         {pr.formType === "DNVT" ? (

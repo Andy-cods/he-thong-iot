@@ -1,10 +1,10 @@
 {
-  "name": "IoT Xưởng cơ khí",
-  "short_name": "IoT Xưởng",
-  "description": "Hệ thống quản lý xưởng cơ khí BOM-centric cho nhà máy Việt Nam.",
+  "name": "MES Song Châu",
+  "short_name": "MES SC",
+  "description": "Hệ thống quản lý sản xuất BOM-centric — Song Châu.",
   "lang": "vi",
   "dir": "ltr",
-  "start_url": "/pwa",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
@@ -44,6 +44,12 @@
     }
   ],
   "shortcuts": [
+    {
+      "name": "Đề xuất vật tư",
+      "short_name": "DNVT",
+      "description": "Danh sách phiếu đề xuất vật tư",
+      "url": "/procurement/purchase-requests"
+    },
     {
       "name": "Nhận hàng",
       "short_name": "Nhận",

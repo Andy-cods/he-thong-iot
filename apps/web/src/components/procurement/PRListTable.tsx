@@ -35,6 +35,8 @@ function statusToBadge(s: PRStatus): { v: BadgeStatus; label: string } {
  * V2 PRListTable — compact row 36px, virtualize khi >50 rows.
  * Cols: [Mã 128 mono] [Tiêu đề 1fr] [Nguồn 88] [Trạng thái 112]
  *       [Ngày tạo 104]
+ * V3.12 (mobile) — <md collapse còn 3 cột [Mã|Tiêu đề|Trạng thái],
+ * Nguồn + Ngày tạo `hidden md:block` (pattern ItemListTable).
  */
 export function PRListTable({ rows, loading }: PRListTableProps) {
   const parentRef = React.useRef<HTMLDivElement>(null);
@@ -46,7 +48,7 @@ export function PRListTable({ rows, loading }: PRListTableProps) {
   });
 
   const gridCols =
-    "grid-cols-[128px_minmax(0,1fr)_88px_112px_104px]";
+    "grid-cols-[96px_minmax(0,1fr)_104px] md:grid-cols-[128px_minmax(0,1fr)_88px_112px_104px]";
 
   return (
     <div
@@ -63,9 +65,9 @@ export function PRListTable({ rows, loading }: PRListTableProps) {
       >
         <div>Mã PR</div>
         <div>Tiêu đề</div>
-        <div>Nguồn</div>
+        <div className="hidden md:block">Nguồn</div>
         <div>Trạng thái</div>
-        <div>Ngày tạo</div>
+        <div className="hidden md:block">Ngày tạo</div>
       </div>
 
       {loading && rows.length === 0 && (
@@ -80,9 +82,9 @@ export function PRListTable({ rows, loading }: PRListTableProps) {
             >
               <Skeleton className="h-3 w-24" />
               <Skeleton className="h-3 w-48" />
-              <Skeleton className="h-4 w-12 rounded-sm" />
+              <Skeleton className="hidden h-4 w-12 rounded-sm md:block" />
               <Skeleton className="h-4 w-16 rounded-sm" />
-              <Skeleton className="h-3 w-16" />
+              <Skeleton className="hidden h-3 w-16 md:block" />
             </div>
           ))}
         </div>
@@ -119,13 +121,13 @@ export function PRListTable({ rows, loading }: PRListTableProps) {
               <div className="truncate pr-2" title={row.title ?? ""}>
                 {row.title ?? <span className="text-zinc-400">—</span>}
               </div>
-              <div className="text-xs text-zinc-600">
+              <div className="hidden text-xs text-zinc-600 md:block">
                 {row.source === "SHORTAGE" ? "Shortage" : "Thủ công"}
               </div>
               <div>
                 <StatusBadge status={badge.v} size="sm" label={badge.label} />
               </div>
-              <div className="text-sm text-zinc-600 tabular-nums">
+              <div className="hidden text-sm text-zinc-600 tabular-nums md:block">
                 {formatDate(row.createdAt, "dd/MM/yyyy")}
               </div>
             </div>

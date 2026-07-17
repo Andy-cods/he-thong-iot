@@ -22,6 +22,10 @@ import {
   processEcoApplyBatch,
   type EcoApplyBatchJob,
 } from "./jobs/ecoApply.js";
+import {
+  processEmailSend,
+  type EmailSendJob,
+} from "./jobs/emailSend.js";
 import { eq } from "drizzle-orm";
 import { importBatch } from "@iot/db/schema";
 import { db, pgClient } from "./db.js";
@@ -132,11 +136,31 @@ const ecoApplyBatchWorker = new Worker<EcoApplyBatchJob>(
   },
 );
 
+// V3.12 — Gửi email thông báo "cần duyệt" (nodemailer + SMTP office365).
+// concurrency 3: SMTP send là I/O-bound, không đụng DB.
+const emailSendWorker = new Worker<EmailSendJob>(
+  QUEUE_NAMES.EMAIL_SEND,
+  async (job) => {
+    const res = await processEmailSend(job);
+    logger.info(
+      { jobId: job.id, to: job.data.to, eventType: job.data.eventType, res },
+      "email-send: done",
+    );
+    return res;
+  },
+  {
+    connection,
+    prefix,
+    concurrency: 3,
+  },
+);
+
 for (const w of [
   itemImportCommitWorker,
   bomImportCommitWorker,
   assemblyScanWorker,
   ecoApplyBatchWorker,
+  emailSendWorker,
 ]) {
   w.on("ready", () => logger.info({ queue: w.name }, "worker ready"));
   w.on("failed", (job, err) => {
@@ -195,6 +219,10 @@ const metricQueues = {
     QUEUE_NAMES.ECO_APPLY_BATCH,
     { connection, prefix },
   ),
+  [QUEUE_NAMES.EMAIL_SEND]: new Queue(QUEUE_NAMES.EMAIL_SEND, {
+    connection,
+    prefix,
+  }),
 };
 registerQueueDepthGauge(metricQueues);
 
@@ -212,6 +240,7 @@ const shutdown = async (signal: string) => {
       bomImportCommitWorker.close(),
       assemblyScanWorker.close(),
       ecoApplyBatchWorker.close(),
+      emailSendWorker.close(),
       ...Object.values(metricQueues).map((q) => q.close()),
     ]);
     await connection.quit();
@@ -234,6 +263,7 @@ logger.info(
       QUEUE_NAMES.BOM_IMPORT_COMMIT,
       QUEUE_NAMES.ASSEMBLY_SCAN_SYNC,
       QUEUE_NAMES.ECO_APPLY_BATCH,
+      QUEUE_NAMES.EMAIL_SEND,
     ],
     prefix,
   },

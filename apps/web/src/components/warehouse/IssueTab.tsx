@@ -169,7 +169,7 @@ export function IssueTab() {
   };
 
   return (
-    <div className="flex h-full flex-col gap-4 overflow-auto bg-gradient-to-br from-zinc-50 to-rose-50/30 p-6">
+    <div className="flex h-full flex-col gap-4 overflow-auto bg-gradient-to-br from-zinc-50 to-rose-50/30 p-3 sm:p-6">
       {/* HEADER */}
       <header className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
