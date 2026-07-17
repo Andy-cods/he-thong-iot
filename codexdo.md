@@ -123,6 +123,30 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
+### TASK-20260717-003 — E2E verify chức năng Bộ phận Kế toán (accountant)
+- **Trạng thái:** DONE · **Hoàn thành:** 2026-07-17 (+07) · **Ưu tiên:** P2
+- **Yêu cầu user:** kiểm tra chức năng kế toán có hoạt động thật không, test E2E full flow, xoá data test.
+- **Account dùng:** `ketoan` (seed sẵn từ V3.9, role `accountant`) — mật khẩu gốc `Test@1234` vẫn còn
+  hiệu lực (chưa từng đổi). KHÔNG có hub "/accounting" riêng — accountant dùng chung
+  Tổng quan + Đề xuất vật tư (YCVT/DNVT) theo matrix: `pr: [create, read]`, `user: [read]`, `session: [read]`.
+- **E2E test trên prod (tất cả PASS):**
+  1. Login ketoan → 200.
+  2. GET /api/purchase-requests (list, viewAll=true — accountant xem được tất cả PR để phục vụ đối soát) → 200.
+  3. POST tạo PR DNVT test → 201, tự sinh `paperFormNo` "5/PRD-MRF/0726" (xác nhận sống fix
+     genPaperFormNo/genDocNo Sprint 2A hoạt động đúng trên prod thật).
+  4. GET chi tiết PR (ownership own-record) → 200.
+  5. GET export-pdf → 200, PDF hợp lệ 68KB 1 trang.
+  6. GET export-excel → 200, XLSX hợp lệ (PK header) 54KB.
+  7. POST dept-approve (RBAC boundary, accountant KHÔNG có quyền `approve`) → **403 FORBIDDEN đúng như
+     thiết kế** — xác nhận accountant không duyệt được phiếu.
+  8. GET /api/dashboard/counts → 200 (không bị chặn nhầm bởi guard display-kiosk Sprint 2A).
+- **Dọn dữ liệu test (admin, force=1):** DELETE PR test → 200, verify GET lại → 404. DB verify: PR line
+  cascade-delete = 0 orphan; phát hiện 2 row `notification` (PR_SUBMITTED) không tự cascade theo PR bị
+  xoá → xoá thủ công, verify còn 0. Audit log (audit_event) GIỮ NGUYÊN — là nhật ký hệ thống, không phải
+  data test.
+- **Kết luận:** chức năng kế toán hoạt động đúng thật (không phải UI chết), và ranh giới RBAC (không
+  duyệt được) được thực thi chính xác.
+
 ### TASK-20260717-002 — Account Bộ phận Mua hàng + nav 3 mục (V3.11.5)
 - **Trạng thái:** DONE · **Hoàn thành:** 2026-07-17 (+07) · **Ưu tiên:** P2
 - **Yêu cầu user:** tạo 1 account cho bộ phận mua hàng, sidebar chỉ hiện 3 mục: Tổng quan,
