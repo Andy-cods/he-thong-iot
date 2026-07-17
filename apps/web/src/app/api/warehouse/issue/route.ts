@@ -67,6 +67,21 @@ export async function POST(req: NextRequest) {
       let totalQty = 0;
       let consumedLots = 0;
 
+      // V3.11.4 (audit 1.4) — advisory lock theo lot: serialize check-then-act
+      // (đọc bin_inventory → INSERT OUT_ISSUE) để 2 issue đồng thời cùng bin/lot
+      // không đều pass check → tránh tồn âm.
+      // Review 2A-fix — lock TẤT CẢ lot phân biệt theo THỨ TỰ SORT ổn định TRƯỚC
+      // vòng xử lý, thay vì lock rải rác theo thứ tự pick trong body. Nếu không,
+      // 2 request chia sẻ ≥2 lot theo thứ tự ngược nhau → deadlock (40P01) → 500.
+      const lockIds = [
+        ...new Set(lines.flatMap((l) => l.picks.map((p) => p.lotSerialId))),
+      ].sort();
+      for (const lotId of lockIds) {
+        await tx.execute(
+          sql`SELECT pg_advisory_xact_lock(hashtext('lot:' || ${lotId}))`,
+        );
+      }
+
       for (const line of lines) {
         for (const pick of line.picks) {
           // Validate qty available

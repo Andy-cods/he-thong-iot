@@ -1,6 +1,8 @@
 import { and, desc, eq, gt, isNull, ne, sql } from "drizzle-orm";
 import { session, userAccount } from "@iot/db/schema";
 import { db } from "@/lib/db";
+import { cacheDel, cacheGetJson, cacheSetJson } from "@/server/services/redis";
+import { logger } from "@/lib/logger";
 
 /**
  * Session repo V1.4 — hỗ trợ UI quản lý phiên đăng nhập.
@@ -99,7 +101,56 @@ export async function revokeSessionById(id: string) {
     .set({ revokedAt: new Date() })
     .where(and(eq(session.id, id), isNull(session.revokedAt)))
     .returning({ id: session.id, userId: session.userId });
+  if (row) await invalidateSessionValidCache(id);
   return row ?? null;
+}
+
+/* ─── V3.11.4 (audit S.3) — session-valid cache cho getSession ─────────────── */
+
+const SESSION_VALID_TTL = 30; // giây — revoke có hiệu lực trong ≤30s
+const sessionValidKey = (id: string) => `session-valid:${id}`;
+
+/**
+ * Kiểm tra 1 session (theo JWT sid) còn hợp lệ không: tồn tại + chưa revoke +
+ * chưa hết hạn. Cache Redis 30s để không query DB mỗi request. Fail-open nếu
+ * DB/Redis lỗi (trả true) — an toàn khả dụng hơn là khoá toàn hệ khi hạ tầng lỗi.
+ */
+export async function isSessionValid(sessionId: string): Promise<boolean> {
+  const key = sessionValidKey(sessionId);
+  try {
+    const cached = await cacheGetJson<{ valid: boolean }>(key);
+    if (cached) return cached.valid;
+  } catch {
+    /* cache miss/lỗi → xuống DB */
+  }
+
+  try {
+    const [row] = await db
+      .select({ revokedAt: session.revokedAt, expiresAt: session.expiresAt })
+      .from(session)
+      .where(eq(session.id, sessionId))
+      .limit(1);
+    const valid =
+      !!row && row.revokedAt === null && row.expiresAt.getTime() > Date.now();
+    try {
+      await cacheSetJson(key, { valid }, SESSION_VALID_TTL);
+    } catch {
+      /* bỏ qua lỗi cache set */
+    }
+    return valid;
+  } catch (err) {
+    // DB lỗi → fail-open (không khoá người dùng vì sự cố hạ tầng).
+    logger.warn({ err, sessionId }, "isSessionValid DB lookup failed, fail-open");
+    return true;
+  }
+}
+
+async function invalidateSessionValidCache(id: string): Promise<void> {
+  try {
+    await cacheDel(sessionValidKey(id));
+  } catch {
+    /* cache sẽ tự hết hạn sau ≤30s */
+  }
 }
 
 /**
@@ -122,6 +173,8 @@ export async function revokeAllOtherSessions(
     .set({ revokedAt: new Date() })
     .where(and(...conditions))
     .returning({ id: session.id });
+  // V3.11.4 (audit S.3) — xoá cache-valid các session vừa revoke để hiệu lực ngay.
+  await Promise.all(result.map((r) => invalidateSessionValidCache(r.id)));
   return result.length;
 }
 
@@ -134,6 +187,7 @@ export async function revokeAllUserSessions(userId: string): Promise<number> {
     .set({ revokedAt: new Date() })
     .where(and(eq(session.userId, userId), isNull(session.revokedAt)))
     .returning({ id: session.id });
+  await Promise.all(result.map((r) => invalidateSessionValidCache(r.id)));
   return result.length;
 }
 

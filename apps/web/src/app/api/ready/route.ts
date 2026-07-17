@@ -1,7 +1,7 @@
-import { sql as rawSql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 import { env } from "@/lib/env";
+import { getCacheRedis } from "@/server/services/redis";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,33 +23,25 @@ async function checkDb(): Promise<ReadyCheck> {
 }
 
 async function checkRedis(): Promise<ReadyCheck> {
-  // Redis chỉ dùng ở worker V1; web không import ioredis để giảm RAM/size.
-  // Placeholder check URL format, expand khi thật sự cần.
+  // V3.11.4 (audit S.6) — PING thật (trước đây chỉ parse URL, không phát hiện
+  // Redis chết). Web nay có dùng Redis (rate-limit + session cache) nên readiness
+  // phản ánh đúng trạng thái Redis.
   if (!env.REDIS_URL) return { ok: false, error: "REDIS_URL missing" };
+  const start = Date.now();
   try {
-    new URL(env.REDIS_URL);
-    return { ok: true };
-  } catch {
-    return { ok: false, error: "REDIS_URL invalid" };
+    const pong = await getCacheRedis().ping();
+    if (pong !== "PONG") return { ok: false, error: `unexpected: ${pong}` };
+    return { ok: true, latencyMs: Date.now() - start };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
   }
-}
-
-async function checkR2(): Promise<ReadyCheck> {
-  if (!env.R2.endpoint || !env.R2.bucket) {
-    return { ok: false, error: "R2 config missing" };
-  }
-  // TODO: HEAD bucket khi tuần 2+ có R2 client; V1 chỉ check env.
-  return { ok: true };
 }
 
 export async function GET() {
-  const [dbChk, redisChk, r2Chk] = await Promise.all([
-    checkDb(),
-    checkRedis(),
-    checkR2(),
-  ]);
+  const [dbChk, redisChk] = await Promise.all([checkDb(), checkRedis()]);
 
-  const ready = dbChk.ok && redisChk.ok && r2Chk.ok;
+  // R2 là config chưa dùng (không có S3 client) → KHÔNG tính vào readiness.
+  const ready = dbChk.ok && redisChk.ok;
 
   return NextResponse.json(
     {
@@ -58,7 +50,6 @@ export async function GET() {
       checks: {
         db: dbChk,
         redis: redisChk,
-        r2: r2Chk,
       },
     },
     { status: ready ? 200 : 503 },

@@ -11,6 +11,7 @@ import {
 } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { currentYymm, genDocNo } from "./_docNumber";
 
 /**
  * V1.3 Work Order repository.
@@ -228,18 +229,13 @@ export async function createFromSnapshot(
     }
 
     // 3) Gen WO no — WO-YYMM-####
-    // V3.7.73 — MAX(seq) + 1 thay COUNT(*) + 1 để tránh collision khi có gap.
-    const yymm = new Date().toISOString().slice(2, 7).replace("-", "");
-    const maxRows = (await tx.execute(sql`
-      SELECT COALESCE(MAX(
-        CAST(SPLIT_PART(wo_no, '-', 3) AS INTEGER)
-      ), 0) AS max_seq
-      FROM app.work_order
-      WHERE wo_no LIKE ${"WO-" + yymm + "-%"}
-        AND wo_no ~ ${"^WO-" + yymm + "-[0-9]+$"}
-    `)) as unknown as Array<{ max_seq: number }>;
-    const nextSeq = (maxRows[0]?.max_seq ?? 0) + 1;
-    const woNo = `WO-${yymm}-${String(nextSeq).padStart(4, "0")}`;
+    // V3.11.4 (audit 1.21) — advisory lock chống trùng số khi tạo đồng thời.
+    const woNo = await genDocNo(tx, {
+      table: "app.work_order",
+      column: "wo_no",
+      prefix: `WO-${currentYymm()}`,
+      seqPart: 3,
+    });
 
     // 4) Insert WO header
     const plannedQty = input.snapshotLineIds.length > 0 ? orderRow.orderQty : "1";
@@ -334,20 +330,13 @@ export async function createLsxWorkOrder(
 
   return db.transaction(async (tx) => {
     // Generate WO no — WO-YYMM-####
-    // V3.7.73 — Đổi từ COUNT(*) + 1 sang MAX(seq) + 1 vì COUNT có thể sinh
-    // collision khi đã có WO bị xóa trong tháng (gap trong sequence).
-    // Pattern này khớp với gen_pr_paper_form_no() đã verified production.
-    const yymm = new Date().toISOString().slice(2, 7).replace("-", "");
-    const maxRows = (await tx.execute(sql`
-      SELECT COALESCE(MAX(
-        CAST(SPLIT_PART(wo_no, '-', 3) AS INTEGER)
-      ), 0) AS max_seq
-      FROM app.work_order
-      WHERE wo_no LIKE ${"WO-" + yymm + "-%"}
-        AND wo_no ~ ${"^WO-" + yymm + "-[0-9]+$"}
-    `)) as unknown as Array<{ max_seq: number }>;
-    const nextSeq = (maxRows[0]?.max_seq ?? 0) + 1;
-    const woNo = `WO-${yymm}-${String(nextSeq).padStart(4, "0")}`;
+    // V3.11.4 (audit 1.21) — advisory lock chống trùng số khi tạo đồng thời.
+    const woNo = await genDocNo(tx, {
+      table: "app.work_order",
+      column: "wo_no",
+      prefix: `WO-${currentYymm()}`,
+      seqPart: 3,
+    });
 
     const [newWo] = await tx
       .insert(workOrder)

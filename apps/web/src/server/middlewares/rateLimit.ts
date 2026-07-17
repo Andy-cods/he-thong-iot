@@ -16,6 +16,7 @@
 
 import type { NextRequest } from "next/server";
 import { getCacheRedis } from "@/server/services/redis";
+import { logger } from "@/lib/logger";
 
 export interface RateLimitOptions {
   /** Bucket identifier, e.g. "login" / "api" / "change-password". */
@@ -26,6 +27,48 @@ export interface RateLimitOptions {
   limit: number;
   /** Kích thước window, đơn vị giây. */
   windowSec: number;
+  /**
+   * V3.11.4 (audit S.5) — khi Redis lỗi, thay vì fail-open hoàn toàn (mất chống
+   * brute-force) thì dùng in-memory fallback limiter cho bucket này. Bật cho
+   * login/change-password để Redis down không mở toang cửa brute-force.
+   */
+  fallbackInMemory?: boolean;
+}
+
+/* ── In-memory fallback limiter (dùng khi Redis lỗi) ───────────────────────
+ * Sliding window đơn giản trong RAM process. Chỉ là lớp phòng thủ dự phòng —
+ * không thay Redis (không chia sẻ giữa nhiều instance), nhưng chặn được kịch
+ * bản Redis chết + brute-force cùng lúc trên 1 instance. */
+const memBuckets = new Map<string, number[]>();
+
+function memRateLimit(
+  fullKey: string,
+  limit: number,
+  windowMs: number,
+): RateLimitResult {
+  const now = Date.now();
+  const cutoff = now - windowMs;
+  const arr = (memBuckets.get(fullKey) ?? []).filter((t) => t > cutoff);
+  arr.push(now);
+  memBuckets.set(fullKey, arr);
+  // Chống rò bộ nhớ: dọn map khi phình to.
+  if (memBuckets.size > 10_000) {
+    for (const [k, v] of memBuckets) {
+      if (v.every((t) => t <= cutoff)) memBuckets.delete(k);
+    }
+  }
+  const current = arr.length;
+  if (current > limit) {
+    const oldest = arr[0] ?? now;
+    const retryAfter = Math.max(1, Math.ceil((oldest + windowMs - now) / 1000));
+    return { ok: false, remaining: 0, retryAfter, current };
+  }
+  return {
+    ok: true,
+    remaining: Math.max(0, limit - current),
+    retryAfter: 0,
+    current,
+  };
 }
 
 export interface RateLimitResult {
@@ -65,13 +108,11 @@ export async function rateLimit(
     // ZCARD là kết quả thứ 3 (index 2)
     const zcardResult = results?.[2];
     if (!zcardResult || zcardResult[0]) {
-      // Redis returned error — fail-open
-      return {
-        ok: true,
-        remaining: opts.limit,
-        retryAfter: 0,
-        current: 0,
-      };
+      // Redis returned error — fallback in-memory nếu bucket yêu cầu, else fail-open.
+      if (opts.fallbackInMemory) {
+        return memRateLimit(fullKey, opts.limit, windowMs);
+      }
+      return { ok: true, remaining: opts.limit, retryAfter: 0, current: 0 };
     }
     const current = Number(zcardResult[1] ?? 0);
 
@@ -93,9 +134,11 @@ export async function rateLimit(
       current,
     };
   } catch (err) {
-    // Fail-open: Redis down không nên làm chết app
-    // eslint-disable-next-line no-console
-    console.warn("[rate-limit] redis error, pass-through:", err);
+    // Redis down: fallback in-memory (login/change-password) hoặc fail-open.
+    logger.warn({ err, bucket: opts.bucket }, "rate-limit redis error");
+    if (opts.fallbackInMemory) {
+      return memRateLimit(fullKey, opts.limit, windowMs);
+    }
     return { ok: true, remaining: opts.limit, retryAfter: 0, current: 0 };
   }
 }
@@ -153,6 +196,9 @@ export function loginRateLimitByUsername(username: string) {
     key: username.toLowerCase().trim(),
     limit: 5,
     windowSec: 60,
+    // V3.11.4 (audit S.5) — fallback in-memory: Redis down không mở toang
+    // brute-force trên 1 account.
+    fallbackInMemory: true,
   });
 }
 
@@ -163,6 +209,7 @@ export function changePasswordRateLimit(userId: string) {
     key: userId,
     limit: 3,
     windowSec: 60,
+    fallbackInMemory: true,
   });
 }
 

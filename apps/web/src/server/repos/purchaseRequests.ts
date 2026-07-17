@@ -143,12 +143,25 @@ async function genPRCode(): Promise<string> {
   return row.code;
 }
 
+/** Executor tối thiểu cho genPaperFormNo (db hoặc tx đều thoả). */
+type Executor = Pick<typeof db, "execute">;
+
 /**
  * V3.7.69 YCVT — sinh số phiếu giấy `{seq}/PRD-MRF/{MMYY}`.
  * Gọi khi user bấm "Gửi phiếu" (transition DRAFT → SUBMITTED).
+ *
+ * V3.11.4 (audit 1.29/1.21) — nhận executor (tx) để chạy TRONG transaction
+ * submitPR + advisory lock chống 2 submit đồng thời sinh trùng số phiếu giấy
+ * (gen_pr_paper_form_no dùng MAX+1 không lock). Lock scope theo tháng MMYY.
  */
-async function genPaperFormNo(): Promise<string> {
-  const rows = await db.execute(sql`SELECT app.gen_pr_paper_form_no() AS no`);
+async function genPaperFormNo(exec: Executor = db, lock = true): Promise<string> {
+  if (lock) {
+    // MMYY Asia/Ho_Chi_Minh — khớp scope reset seq của DB function.
+    await exec.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtext('pr_paper_form:' || to_char(now() AT TIME ZONE 'Asia/Ho_Chi_Minh', 'MMYY')))`,
+    );
+  }
+  const rows = await exec.execute(sql`SELECT app.gen_pr_paper_form_no() AS no`);
   const row = (rows as unknown as Array<{ no: string }>)[0];
   if (!row) throw new Error("PR_PAPER_NO_GEN_FAILED");
   return row.no;
@@ -160,7 +173,8 @@ async function genPaperFormNo(): Promise<string> {
  */
 export async function previewNextPaperFormNo(): Promise<string> {
   // Lưu ý: gọi gen function thật sẽ không tăng counter vì counter là MAX(...)+1.
-  return genPaperFormNo();
+  // Preview không cần advisory lock (read-only, không ghi).
+  return genPaperFormNo(db, false);
 }
 
 /**
@@ -364,7 +378,8 @@ export async function submitPR(id: string): Promise<PurchaseRequest | null> {
       .limit(1);
     if (!current || current.status !== "DRAFT") return null;
 
-    const paperFormNo = current.paperFormNo ?? (await genPaperFormNo());
+    // V3.11.4 — sinh số phiếu giấy TRONG transaction (tx) + advisory lock.
+    const paperFormNo = current.paperFormNo ?? (await genPaperFormNo(tx));
 
     const [row] = await tx
       .update(purchaseRequest)

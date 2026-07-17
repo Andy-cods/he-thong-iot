@@ -4,7 +4,7 @@ import { purchaseOrder, purchaseRequest, workOrder } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { jsonError } from "@/server/http";
-import { getSession, unauthorized } from "@/server/session";
+import { forbidden, getSession, isDisplayKiosk, unauthorized } from "@/server/session";
 import { cacheGetJson, cacheSetJson } from "@/server/services/redis";
 
 export const runtime = "nodejs";
@@ -93,6 +93,7 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getSession(req);
     if (!session) return unauthorized();
+    if (isDisplayKiosk(session)) return forbidden(); // V3.11.4 (audit S.8)
 
     const fresh = req.nextUrl.searchParams.get("fresh") === "1";
     if (!fresh) {

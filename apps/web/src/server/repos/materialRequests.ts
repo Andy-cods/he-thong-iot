@@ -6,6 +6,7 @@ import {
   userAccount,
 } from "@iot/db/schema";
 import { db } from "@/lib/db";
+import { currentYymm, genDocNo } from "./_docNumber";
 
 /**
  * V3.3 — Material Request repository.
@@ -163,13 +164,13 @@ export interface CreateMaterialRequestInput {
 export async function createMaterialRequest(input: CreateMaterialRequestInput) {
   return db.transaction(async (tx) => {
     // Generate request_no MR-yymm-NNNN
-    const yymm = new Date().toISOString().slice(2, 7).replace("-", "");
-    const cntRows = await tx.execute(sql`
-      SELECT COUNT(*)::int AS c FROM app.material_request
-      WHERE request_no LIKE ${`MR-${yymm}-%`}
-    `);
-    const cnt = (cntRows as unknown as Array<{ c: number }>)[0]?.c ?? 0;
-    const requestNo = `MR-${yymm}-${(cnt + 1).toString().padStart(4, "0")}`;
+    // V3.11.4 (audit 1.38/1.21) — advisory lock + MAX(seq)+1 thay COUNT(*)+1.
+    const requestNo = await genDocNo(tx, {
+      table: "app.material_request",
+      column: "request_no",
+      prefix: `MR-${currentYymm()}`,
+      seqPart: 3,
+    });
 
     const [header] = await tx
       .insert(materialRequest)

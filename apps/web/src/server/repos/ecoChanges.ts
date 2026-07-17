@@ -309,10 +309,13 @@ export async function approveECO(
 
 interface FrozenSnapshotNode {
   id?: string;
+  parentLineId?: string | null;
   componentItemId?: string;
+  level?: number;
   qtyPerParent?: number | string;
   scrapPercent?: number | string;
   position?: number;
+  /** Legacy: một số snapshot cũ có thể còn field này — không dùng ở flat format. */
   children?: FrozenSnapshotNode[];
   [key: string]: unknown;
 }
@@ -324,70 +327,86 @@ interface FrozenSnapshot {
 
 /**
  * Merge 1 eco_line change vào frozen_snapshot JSON. In-place update.
+ *
+ * V3.11.4 (audit 1.31) — frozen_snapshot là format FLAT (`lines[]` với
+ * `parentLineId` + `level`, KHÔNG có `children` lồng — xem createBomRevision +
+ * explodeSnapshot). Trước đây hàm này thao tác trên format CÂY (`n.children`)
+ * nên: (a) UPDATE/REMOVE không tìm thấy line con (flat không có children);
+ * (b) ADD_LINE tạo node thiếu `parentLineId`/`level` → explode revision sau ECO
+ * bị insert vỡ NOT NULL / tính sai cây. Nay xử lý đúng trên flat + REMOVE xoá
+ * cả subtree tránh orphan.
  */
-function applyEcoLineToSnapshot(
-  snap: FrozenSnapshot,
-  line: EcoLine,
-): void {
+function applyEcoLineToSnapshot(snap: FrozenSnapshot, line: EcoLine): void {
   if (!snap.lines) snap.lines = [];
+  const lines = snap.lines;
 
-  const visit = (
-    nodes: FrozenSnapshotNode[],
-    parent: FrozenSnapshotNode | null,
-  ): boolean => {
-    for (let i = 0; i < nodes.length; i++) {
-      const n = nodes[i]!;
-      if (line.targetLineId && n.id === line.targetLineId) {
-        if (line.action === "REMOVE_LINE") {
-          nodes.splice(i, 1);
-          return true;
-        }
-        if (line.action === "UPDATE_QTY" && line.qtyPerParent !== null) {
-          n.qtyPerParent = String(line.qtyPerParent);
-          return true;
-        }
-        if (line.action === "UPDATE_SCRAP" && line.scrapPercent !== null) {
-          n.scrapPercent = String(line.scrapPercent);
-          return true;
-        }
-        if (line.action === "REPLACE_COMPONENT" && line.componentItemId) {
-          n.componentItemId = line.componentItemId;
-          return true;
-        }
-      }
-      if (n.children && visit(n.children, n)) return true;
-    }
-    // ADD_LINE attach to root nếu không tìm thấy parent (V1.3 simplified)
-    if (line.action === "ADD_LINE" && parent === null) {
-      nodes.push({
-        id: `eco-${line.id}`,
-        componentItemId: line.componentItemId ?? undefined,
-        qtyPerParent:
-          line.qtyPerParent !== null ? String(line.qtyPerParent) : "1",
-        scrapPercent:
-          line.scrapPercent !== null ? String(line.scrapPercent) : "0",
-        position: nodes.length + 1,
-        children: [],
-      });
-      return true;
-    }
-    return false;
-  };
-
-  if (line.action === "ADD_LINE" && !line.targetLineId) {
-    snap.lines.push({
+  // ADD_LINE — thêm node flat với đủ parentLineId + level.
+  if (line.action === "ADD_LINE") {
+    // Review 2A-fix — GUARD: ADD_LINE bắt buộc phải có componentItemId. Nếu thiếu
+    // (eco_line.component_item_id nullable + zod create không refine), node sẽ có
+    // componentItemId=undefined → JSON.stringify bỏ key → frozen_snapshot "độc":
+    // explodeSnapshot map componentIds chứa undefined → ANY(()) SQL lỗi / compMap
+    // .get(undefined) throw → MỌI order explode trên revision đó vỡ. Bỏ qua node
+    // vô nghĩa này thay vì đầu độc snapshot.
+    if (!line.componentItemId) return;
+    // parent = targetLineId (thêm làm con của target) hoặc null (root).
+    const parent = line.targetLineId
+      ? lines.find((n) => n.id === line.targetLineId)
+      : undefined;
+    const parentLevel =
+      parent && typeof parent.level === "number" ? parent.level : 0;
+    lines.push({
       id: `eco-${line.id}`,
-      componentItemId: line.componentItemId ?? undefined,
+      parentLineId: line.targetLineId ?? null,
+      componentItemId: line.componentItemId,
+      level: parentLevel + 1,
       qtyPerParent:
         line.qtyPerParent !== null ? String(line.qtyPerParent) : "1",
       scrapPercent:
         line.scrapPercent !== null ? String(line.scrapPercent) : "0",
-      position: snap.lines.length + 1,
-      children: [],
+      position: lines.length + 1,
     });
     return;
   }
-  visit(snap.lines, null);
+
+  if (!line.targetLineId) return;
+
+  // REMOVE_LINE — xoá node target + toàn bộ subtree (con/cháu) theo parentLineId.
+  if (line.action === "REMOVE_LINE") {
+    const toRemove = new Set<string>([line.targetLineId]);
+    // Lan truyền: mọi node có parent nằm trong toRemove cũng bị xoá.
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const n of lines) {
+        const pid = (n.parentLineId as string | null | undefined) ?? null;
+        if (
+          typeof n.id === "string" &&
+          pid !== null &&
+          toRemove.has(pid) &&
+          !toRemove.has(n.id)
+        ) {
+          toRemove.add(n.id);
+          grew = true;
+        }
+      }
+    }
+    snap.lines = lines.filter(
+      (n) => typeof n.id !== "string" || !toRemove.has(n.id),
+    );
+    return;
+  }
+
+  // UPDATE_QTY / UPDATE_SCRAP / REPLACE_COMPONENT — sửa field trên node target.
+  const target = lines.find((n) => n.id === line.targetLineId);
+  if (!target) return;
+  if (line.action === "UPDATE_QTY" && line.qtyPerParent !== null) {
+    target.qtyPerParent = String(line.qtyPerParent);
+  } else if (line.action === "UPDATE_SCRAP" && line.scrapPercent !== null) {
+    target.scrapPercent = String(line.scrapPercent);
+  } else if (line.action === "REPLACE_COMPONENT" && line.componentItemId) {
+    target.componentItemId = line.componentItemId;
+  }
 }
 
 export async function countAffectedOrders(

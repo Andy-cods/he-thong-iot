@@ -207,7 +207,30 @@ export async function reserveSnapshotLine(
   }
 
   return db.transaction(async (tx) => {
-    // 1) Load snapshot_line
+    // 1) Load nhẹ để biết item cần lock (chỉ componentItemId).
+    const [snapItem] = await tx
+      .select({ componentItemId: bomSnapshotLine.componentItemId })
+      .from(bomSnapshotLine)
+      .where(eq(bomSnapshotLine.id, input.snapshotLineId))
+      .limit(1);
+    if (!snapItem) {
+      throw new ReservationError(
+        "Snapshot line không tồn tại.",
+        "SNAPSHOT_LINE_NOT_FOUND",
+        404,
+      );
+    }
+
+    // 2) Lock per item — serialize concurrent reserve cùng item để tránh race
+    await tx.execute(sql`SET LOCAL lock_timeout = '5s'`);
+    await tx.execute(
+      sql`SELECT app.reservation_lock(${snapItem.componentItemId}::uuid)`,
+    );
+
+    // 2b) V3.11.4 (audit 1.11) — RE-LOAD full snapshot line SAU khi có lock.
+    // Trước đây snap được đọc TRƯỚC lock → reserved_qty có thể đã cũ (reserve
+    // khác chen giữa) → tính remainingNeeded sai + ghi đè String(reserved+qty)
+    // làm mất update. Đọc lại sau lock đảm bảo số liệu mới nhất.
     const [snap] = await tx
       .select()
       .from(bomSnapshotLine)
@@ -220,12 +243,6 @@ export async function reserveSnapshotLine(
         404,
       );
     }
-
-    // 2) Lock per item — serialize concurrent reserve cùng item để tránh race
-    await tx.execute(sql`SET LOCAL lock_timeout = '5s'`);
-    await tx.execute(
-      sql`SELECT app.reservation_lock(${snap.componentItemId}::uuid)`,
-    );
 
     // 3) Guard state: chỉ reserve khi AVAILABLE (chỉ cho partial reserve nếu cần)
     if (snap.state !== "AVAILABLE" && snap.state !== "RESERVED") {

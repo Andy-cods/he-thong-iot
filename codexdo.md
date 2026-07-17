@@ -123,6 +123,42 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
+### TASK-20260717-001 — System polish audit Sprint 2A (P1 backend) (V3.11.4)
+- **Trạng thái:** IN_PROGRESS · **Bắt đầu:** 2026-07-17 (+07) · **Ưu tiên:** P1
+- **Nguồn:** plan `plans/20260716-system-polish-audit.md` Sprint 2. User chốt: chỉ **backend
+  rủi ro** (bỏ dark mode → dồn Sprint 3); **làm hết RBAC** (test kỹ trước deploy); **được sửa
+  compose + deploy lại**.
+- **Đã sửa (code):**
+  - **1.21** Helper `_docNumber.ts` (advisory lock + MAX(seq)+1) áp 5 nơi: PO (createPO +
+    createPOFromPR), inbound_receipt, work_order (×2), material_request, pr_paper_form_no
+    (genPaperFormNo nhận tx + lock).
+  - **1.3/1.4/1.5/1.11** Race tồn kho: issue-request approve CLAIM status đầu tx + advisory lock
+    lot; warehouse/issue lock lot; receivingEvents FOR UPDATE poLine; reservations re-load snap
+    SAU lock.
+  - **1.19/1.20** VERIFY — code hiện tại đã đúng (computeLineTotal round + poUpdateSchema .strict
+    không có status). Không cần sửa (audit nhìn bản cũ).
+  - **1.31** ECO frozen_snapshot: viết lại applyEcoLineToSnapshot theo format FLAT (parentLineId+
+    level) đúng explode; REMOVE_LINE xoá cả subtree; ADD_LINE set đủ parentLineId/level.
+  - **S.3** session revoke hiệu lực ≤30s (isSessionValid cache Redis + invalidate khi revoke,
+    getSession check sid). **S.4** lockout 10 lần sai → khoá 15'. **S.5** rate-limit login fallback
+    in-memory khi Redis down. **S.6** /api/ready PING Redis thật. **S.8** chặn role display khỏi
+    requireSession + 5 dashboard route (isDisplayKiosk).
+  - **W.6** failed-handler chỉ set batch=failed khi hết attempt. **W.7** stop_grace_period 120s +
+    đóng pgClient + shutdown deadline 110s. **W.8** PIC lookup exact-first, ambiguous→NULL.
+    **W.5** duplicateMode skip/error khi template đã có line batch khác.
+  - **W.9** pricing_unit TS pgEnum→varchar(32) khớp DB thực. **W.10/W.11** `DRIFT-NOTES.md`
+    (verify enum app-vs-public + bootstrap order, KHÔNG tự apply prod).
+  - **Compose:** worker healthcheck PING Redis thật + stop_grace_period 120s.
+- **Review đối kháng (workflow 4 trục × verify):** 11 phát hiện → 6 xác nhận bug thật, đã sửa hết:
+  (a) ECO ADD_LINE thiếu componentItemId → node undefined đầu độc snapshot → guard bỏ node vô nghĩa;
+  (b) login count read-modify-write (regression) → về atomic SQL increment + CASE lock (make_interval);
+  (c+d) advisory lock lot không sort ở /issue + /issue-request approve (regression) → sort+lock upfront
+  chống deadlock AB-BA; (e) currentYymm dùng UTC → +07 Asia/Ho_Chi_Minh; (f) PIC exact-match limit(1)
+  không guard trùng tên (regression) → limit(2) chỉ gán khi duy nhất 1. + dọn dead import pgEnum.
+  5 phát hiện bị loại đúng (lockout DoS = tradeoff cố ý, getSession I/O = thiết kế, ECO orphan = UI
+  chưa wire, worker shutdown = Node20 exit ngay, dead import = CI lint non-blocking).
+- **Verify:** web+worker+db+shared typecheck EXIT=0, web build EXIT=0. Deploy + E2E: đang chạy.
+
 ### TASK-20260716-001 — System polish audit Sprint 1 (P0 code-only) (V3.11.3)
 - **Trạng thái:** DONE · **Bắt đầu:** 2026-07-16 · **Hoàn thành:** 2026-07-17 02:16 (+07) · **Ưu tiên:** P0
 - **Nguồn:** plan `plans/20260716-system-polish-audit.md` (6 agent rà soát 7 trục, ~110 phát hiện).

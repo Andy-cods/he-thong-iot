@@ -12,5 +12,7 @@ const client = postgres(databaseUrl, {
   connect_timeout: 10,
 });
 
+// V3.11.4 (audit W.7) — export client để graceful shutdown đóng pool sạch.
+export const pgClient = client;
 export const db = drizzle(client, { schema });
 export type Db = typeof db;

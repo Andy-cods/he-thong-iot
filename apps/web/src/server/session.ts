@@ -10,6 +10,7 @@ import { AUTH_COOKIE_NAME, verifyAccessToken } from "@/lib/auth";
 import { apiBurstRateLimit } from "./middlewares/rateLimit";
 import { tooManyRequests } from "./http";
 import { findActiveOverride } from "./repos/userPermissionOverrides";
+import { isSessionValid } from "./repos/sessions";
 import { logger } from "@/lib/logger";
 
 export interface Session {
@@ -25,6 +26,15 @@ export async function getSession(req: NextRequest): Promise<Session | null> {
   if (!token) return null;
   const payload = (await verifyAccessToken(token)) as JwtPayload | null;
   if (!payload) return null;
+
+  // V3.11.4 (audit S.3) — đối chiếu sid với bảng session (cache 30s): nếu session
+  // đã bị revoke thì access token dừng hiệu lực NGAY (≤30s) thay vì sống tới hết
+  // TTL. JWT cũ (pre-V1.4, không có sid) bỏ qua check để không phá backward-compat.
+  if (payload.sid) {
+    const valid = await isSessionValid(payload.sid);
+    if (!valid) return null;
+  }
+
   return {
     userId: payload.sub,
     username: payload.usr,
@@ -60,6 +70,15 @@ export function hasRole(session: Session, ...anyOf: Role[]): boolean {
 }
 
 /**
+ * V3.11.4 (audit S.8) — true nếu session là kiosk `display` thuần (không kèm
+ * admin). Dùng để chặn kiosk khỏi các route đọc dữ liệu nghiệp vụ (dashboard…)
+ * vốn chỉ check getSession.
+ */
+export function isDisplayKiosk(session: Session): boolean {
+  return session.roles.includes("display") && !session.roles.includes("admin");
+}
+
+/**
  * Helper guard dùng đầu mỗi route handler.
  *
  * @deprecated V1.4 — dùng `requireCan(req, action, entity)` để match
@@ -75,6 +94,15 @@ export async function requireSession(
 
   const session = await getSession(req);
   if (!session) return { response: unauthorized() };
+
+  // V3.11.4 (audit S.8) — role `display` (kiosk TV, mật khẩu chia sẻ, phiên 24h)
+  // CHỈ được phép xem productionBoard (qua requireCan). Mọi route dùng
+  // requireSession() đều là chức năng nghiệp vụ (kho/dashboard/…) không dành cho
+  // kiosk → chặn tại đây để display không lọt qua các guard không-matrix.
+  if (session.roles.includes("display") && !session.roles.includes("admin")) {
+    return { response: forbidden() };
+  }
+
   if (roles.length > 0 && !hasRole(session, ...roles)) {
     return { response: forbidden() };
   }

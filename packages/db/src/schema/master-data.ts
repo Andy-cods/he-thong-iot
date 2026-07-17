@@ -3,7 +3,6 @@ import {
   boolean,
   index,
   numeric,
-  pgEnum,
   text,
   timestamp,
   uniqueIndex,
@@ -24,12 +23,16 @@ import { userAccount } from "./auth";
  *   - Admin UI /admin/materials + /admin/processes CRUD.
  */
 
-/** Đơn vị giá quy trình. HOUR mặc định, CM2 cho Anodizing đặc thù. */
-export const processPricingUnitEnum = pgEnum("process_pricing_unit", [
-  "HOUR",
-  "CM2",
-  "OTHER",
-]);
+/**
+ * Đơn vị giá quy trình. HOUR mặc định, CM2 cho Anodizing đặc thù.
+ *
+ * V3.11.4 (audit W.9) — CỘT LÀ varchar(32) trên DB thực (migration 0017 tạo
+ * `pricing_unit VARCHAR(32)`, KHÔNG phải enum). Trước đây TS khai pgEnum
+ * `process_pricing_unit` không tồn tại trên DB → `drizzle-kit push` tương lai
+ * sẽ sinh ALTER convert cột→enum (nguy hiểm trên prod). Giữ giá trị hợp lệ ở
+ * tầng ứng dụng bằng union literal + Zod, cột DB là varchar.
+ */
+export const PROCESS_PRICING_UNITS = ["HOUR", "CM2", "OTHER"] as const;
 
 /**
  * Bảng 23a — material_master.
@@ -85,9 +88,10 @@ export const processMaster = appSchema.table(
     nameVn: varchar("name_vn", { length: 255 }).notNull(),
     /** Giá/đơn vị — null nếu chưa xác định. */
     pricePerUnit: numeric("price_per_unit", { precision: 18, scale: 2 }),
-    pricingUnit: processPricingUnitEnum("pricing_unit")
+    pricingUnit: varchar("pricing_unit", { length: 32 })
       .notNull()
-      .default("HOUR"),
+      .default("HOUR")
+      .$type<ProcessPricingUnit>(),
     pricingNote: text("pricing_note"),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -110,5 +114,4 @@ export type MaterialMaster = typeof materialMaster.$inferSelect;
 export type NewMaterialMaster = typeof materialMaster.$inferInsert;
 export type ProcessMaster = typeof processMaster.$inferSelect;
 export type NewProcessMaster = typeof processMaster.$inferInsert;
-export type ProcessPricingUnit =
-  (typeof processPricingUnitEnum.enumValues)[number];
+export type ProcessPricingUnit = (typeof PROCESS_PRICING_UNITS)[number];

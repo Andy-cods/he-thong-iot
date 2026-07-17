@@ -11,6 +11,7 @@ import {
   receivingEvent,
 } from "@iot/db/schema";
 import { db } from "@/lib/db";
+import { currentYymm, genDocNo } from "./_docNumber";
 
 export interface ReceivingEventInsertInput {
   id: string;
@@ -142,11 +143,15 @@ export async function postReceivingAtomic(
 ): Promise<PostReceivingResult> {
   return db.transaction(async (tx) => {
     // 1) Validate PO line
+    // V3.11.4 (audit 1.5) — FOR UPDATE: khoá row PO line để nhiều scan song song
+    // cùng line tuần tự nhau; guard over-delivery 120% (bước 1b) + cộng dồn
+    // received_qty (bước 6) đọc/ghi trên số liệu nhất quán, không vượt trần.
     const [poLine] = await tx
       .select()
       .from(purchaseOrderLine)
       .where(eq(purchaseOrderLine.id, input.poLineId))
-      .limit(1);
+      .limit(1)
+      .for("update");
     if (!poLine) throw new Error("PO_LINE_NOT_FOUND");
 
     // V3.7 — Slotting: nếu caller không truyền locationBinId, fallback default_bin_id của item.
@@ -189,13 +194,14 @@ export async function postReceivingAtomic(
     if (existingHeader) {
       receiptId = existingHeader.id;
     } else {
-      const yymm = new Date().toISOString().slice(2, 7).replace("-", "");
-      const cntRows = await tx.execute(sql`
-        SELECT COUNT(*)::int AS c FROM app.inbound_receipt
-        WHERE receipt_no LIKE ${`RCV-${yymm}-%`}
-      `);
-      const cnt = (cntRows as unknown as Array<{ c: number }>)[0]?.c ?? 0;
-      const receiptNo = `RCV-${yymm}-${(cnt + 1).toString().padStart(4, "0")}`;
+      // V3.11.4 (audit 1.8/1.21) — advisory lock + MAX(seq)+1 thay COUNT(*)+1
+      // (COUNT sai khi có gap + không lock → trùng số phiếu nhập).
+      const receiptNo = await genDocNo(tx, {
+        table: "app.inbound_receipt",
+        column: "receipt_no",
+        prefix: `RCV-${currentYymm()}`,
+        seqPart: 3,
+      });
 
       const [newHeader] = await tx
         .insert(inboundReceipt)

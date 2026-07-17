@@ -73,8 +73,14 @@ const CHUNK_SIZE = 100;
 export async function processBomImportCommit(
   job: Job<BomImportCommitJob>,
 ): Promise<{ success: number; fail: number; templatesCreated: number }> {
-  const { batchId, selectedSheets, mappings, autoCreateMissingItems, actorId } =
-    job.data;
+  const {
+    batchId,
+    selectedSheets,
+    mappings,
+    autoCreateMissingItems,
+    actorId,
+    duplicateMode,
+  } = job.data;
 
   const [batch] = await db
     .select()
@@ -150,6 +156,36 @@ export async function processBomImportCommit(
     let isNewTemplate = false;
     if (existing) {
       templateId = existing.id;
+      // V3.11.4 (audit W.5) — template code đã tồn tại + đã có bom_line (import
+      // trước, KHÁC batch này). Áp duplicateMode để không âm thầm append trùng:
+      //  - error: dừng sheet này với lỗi rõ.
+      //  - skip:  bỏ qua sheet (giữ nguyên template cũ).
+      //  - upsert (default): giữ hành vi cũ = append tiếp.
+      if (duplicateMode === "error" || duplicateMode === "skip") {
+        const [existingLine] = await db
+          .select({ id: bomLine.id })
+          .from(bomLine)
+          .where(
+            sql`${bomLine.templateId} = ${templateId}
+              AND (${bomLine.metadata} ->> 'importedFromBatch') IS DISTINCT FROM ${batchId}`,
+          )
+          .limit(1);
+        if (existingLine) {
+          if (duplicateMode === "error") {
+            throw new Error(
+              `BOM "${bomCode}" đã có dữ liệu import trước đó (duplicateMode=error). Đổi tên sheet hoặc chọn chế độ khác.`,
+            );
+          }
+          // skip
+          errors.push({
+            rowNumber: 0,
+            sheet: sheetName,
+            field: "_duplicate",
+            reason: `Bỏ qua sheet "${sheetName}": BOM "${bomCode}" đã có dữ liệu (duplicateMode=skip).`,
+          });
+          continue;
+        }
+      }
     } else {
       const [created] = await db
         .insert(bomTemplate)
@@ -538,16 +574,35 @@ async function processChunk(
               ? String(row.data[invMapping.assignedToName]).trim().slice(0, 255)
               : null;
 
-          // V3.7.18 — Lookup PIC user theo full_name (ILIKE substring match).
-          // Nếu không match → giữ raw text trong assigned_to_name để resolve sau.
+          // V3.7.18 — Lookup PIC user theo full_name.
+          // V3.11.4 (audit W.8) — ưu tiên EXACT match (không dấu/khoảng trắng bỏ
+          // qua case); nếu không có exact mà substring match >1 người → để NULL
+          // (giữ raw text để resolve tay), tránh gán sai như "Anh" khớp cả
+          // "Vương Anh"/"Tuấn Anh". ORDER BY để deterministic.
           let assignedToUserId: string | null = null;
           if (picRaw) {
-            const [user] = await sp
+            // Review 2A-fix — exact match cũng phải guard ambiguity: full_name
+            // KHÔNG unique, 2 người trùng tên (rất thường với tên Việt). limit(2)
+            // + chỉ gán khi DUY NHẤT 1 → không gán bừa theo id nhỏ nhất.
+            const exactMatches = await sp
               .select({ id: userAccount.id })
               .from(userAccount)
-              .where(sql`${userAccount.fullName} ILIKE ${"%" + picRaw + "%"}`)
-              .limit(1);
-            if (user) assignedToUserId = user.id;
+              .where(sql`LOWER(TRIM(${userAccount.fullName})) = LOWER(${picRaw})`)
+              .orderBy(userAccount.id)
+              .limit(2);
+            if (exactMatches.length === 1) {
+              assignedToUserId = exactMatches[0]!.id;
+            } else if (exactMatches.length === 0) {
+              const subMatches = await sp
+                .select({ id: userAccount.id })
+                .from(userAccount)
+                .where(sql`${userAccount.fullName} ILIKE ${"%" + picRaw + "%"}`)
+                .orderBy(userAccount.id)
+                .limit(2);
+              // Chỉ gán khi DUY NHẤT 1 match (không ambiguous).
+              if (subMatches.length === 1) assignedToUserId = subMatches[0]!.id;
+            }
+            // exactMatches.length >= 2 (trùng tên) → để NULL, giữ raw text.
           }
 
           // V3.7.27 — NCC text → lookup/create supplier + link item_supplier.

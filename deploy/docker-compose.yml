@@ -117,13 +117,22 @@ services:
     # Chạy từ thư mục pnpm-deploy flatten (có node_modules phẳng, không symlink)
     working_dir: /app/apps/worker-deploy
     command: ["./node_modules/.bin/tsx", "src/index.ts"]
+    # V3.11.4 (audit W.7) — cho worker tối đa 120s để đóng job import đang chạy
+    # (>60s) trước khi Docker gửi SIGKILL. Trước đây grace mặc định 10s →
+    # SIGKILL giữa transaction → batch kẹt "committing".
+    stop_grace_period: 120s
     healthcheck:
-      # Worker healthy khi process Node còn sống + reply một signal cơ bản.
-      # Dùng `node -e "process.exit(0)"` để chứng minh runtime alive (tránh
-      # phụ thuộc các binary khác). Redis/Postgres healthcheck đã cover deps.
-      test: ["CMD", "node", "-e", "process.exit(0)"]
+      # V3.11.4 (audit S.6) — healthcheck THẬT: ping Redis (BullMQ backbone) bằng
+      # ioredis đã có trong node_modules worker. Trước đây `node -e process.exit(0)`
+      # chỉ chứng minh Node còn chạy, không phát hiện worker mất kết nối Redis
+      # (queue chết ngầm). Timeout 8s đủ cho ping + connect.
+      test:
+        - "CMD"
+        - "node"
+        - "-e"
+        - "const R=require('ioredis');const c=new R(process.env.REDIS_URL,{lazyConnect:true,maxRetriesPerRequest:1,connectTimeout:5000});c.connect().then(()=>c.ping()).then(r=>{c.disconnect();process.exit(r==='PONG'?0:1)}).catch(()=>process.exit(1))"
       interval: 30s
-      timeout: 5s
+      timeout: 8s
       retries: 3
       start_period: 20s
     environment:

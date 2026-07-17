@@ -24,7 +24,7 @@ import {
 } from "./jobs/ecoApply.js";
 import { eq } from "drizzle-orm";
 import { importBatch } from "@iot/db/schema";
-import { db } from "./db.js";
+import { db, pgClient } from "./db.js";
 
 const logger = pino({
   level: process.env.LOG_LEVEL ?? "info",
@@ -143,6 +143,18 @@ for (const w of [
     logger.error({ queue: w.name, jobId: job?.id, err }, "job failed");
     // V3.11.2 — commit job fail → set import_batch="failed" để UI không kẹt
     // mãi ở "committing" (trước đây failed handler chỉ log, không cập nhật batch).
+    // V3.11.4 (audit W.6) — CHỈ set failed khi đã hết attempt (attemptsMade >=
+    // attempts). Nếu còn retry, để nguyên "committing" — nếu không UI nhấp nháy
+    // failed↔committing và attempt cuối done có thể bị handler ghi đè "failed".
+    const attemptsMade = job?.attemptsMade ?? 0;
+    const maxAttempts = job?.opts?.attempts ?? 1;
+    if (attemptsMade < maxAttempts) {
+      logger.info(
+        { queue: w.name, jobId: job?.id, attemptsMade, maxAttempts },
+        "job failed nhưng còn retry — chưa set batch failed",
+      );
+      return;
+    }
     const batchId = (job?.data as { batchId?: string } | undefined)?.batchId;
     const isCommit =
       w.name === QUEUE_NAMES.BOM_IMPORT_COMMIT ||
@@ -186,16 +198,29 @@ const metricQueues = {
 };
 registerQueueDepthGauge(metricQueues);
 
+let shuttingDown = false;
 const shutdown = async (signal: string) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
   logger.info({ signal }, "shutting down worker");
-  await Promise.all([
-    itemImportCommitWorker.close(),
-    bomImportCommitWorker.close(),
-    assemblyScanWorker.close(),
-    ecoApplyBatchWorker.close(),
-    ...Object.values(metricQueues).map((q) => q.close()),
-  ]);
-  await connection.quit();
+  // V3.11.4 (audit W.7) — đóng workers (chờ job active xong), queue, Redis VÀ
+  // pg client. Có deadline 110s (< stop_grace_period 120s của compose) để không
+  // bị SIGKILL giữa chừng làm batch kẹt "committing".
+  const graceful = (async () => {
+    await Promise.all([
+      itemImportCommitWorker.close(),
+      bomImportCommitWorker.close(),
+      assemblyScanWorker.close(),
+      ecoApplyBatchWorker.close(),
+      ...Object.values(metricQueues).map((q) => q.close()),
+    ]);
+    await connection.quit();
+    await pgClient.end({ timeout: 5 });
+  })();
+  const deadline = new Promise<void>((resolve) =>
+    setTimeout(resolve, 110_000),
+  );
+  await Promise.race([graceful, deadline]);
   process.exit(0);
 };
 

@@ -64,9 +64,47 @@ export async function POST(
 
   try {
     const result = await db.transaction(async (tx) => {
+      // V3.11.4 (audit 1.3) — CLAIM request ngay đầu transaction: UPDATE có điều
+      // kiện `status='PENDING'` returning. 2 duyệt đồng thời: chỉ 1 giành được
+      // (1 row), cái còn lại 0 row → throw 409 (tránh xuất kho 2 lần cùng picks).
+      const now = new Date();
+      const claimed = await tx
+        .update(warehouseIssueRequest)
+        .set({
+          status: "COMPLETED",
+          approvedBy: guard.session.userId,
+          approvedAt: now,
+          completedAt: now,
+          updatedAt: now,
+        })
+        .where(
+          sql`${warehouseIssueRequest.id} = ${params.id} AND ${warehouseIssueRequest.status} = 'PENDING'`,
+        )
+        .returning({
+          id: warehouseIssueRequest.id,
+          status: warehouseIssueRequest.status,
+        });
+      if (claimed.length === 0) {
+        throw new Error("ALREADY_PROCESSED: yêu cầu đã được duyệt/xử lý");
+      }
+
       const txnIds: string[] = [];
       let totalQty = 0;
       let consumedLots = 0;
+
+      // V3.11.4 (audit 1.4) — advisory lock theo lot trước khi check-then-act để
+      // 2 issue-request khác nhau không cùng rút quá tồn 1 lot.
+      // Review 2A-fix — lock TẤT CẢ lot phân biệt theo THỨ TỰ SORT ổn định TRƯỚC
+      // vòng xử lý (cùng namespace 'lot:' với /warehouse/issue) để 2 approve —
+      // hoặc approve vs issue — chia sẻ ≥2 lot không deadlock (40P01 → 500).
+      const lockIds = [
+        ...new Set(lines.flatMap((l) => l.picks.map((p) => p.lotSerialId))),
+      ].sort();
+      for (const lotId of lockIds) {
+        await tx.execute(
+          sql`SELECT pg_advisory_xact_lock(hashtext('lot:' || ${lotId}))`,
+        );
+      }
 
       for (const line of lines) {
         for (const pick of line.picks) {
@@ -128,24 +166,8 @@ export async function POST(
         }
       }
 
-      // Update request status
-      const now = new Date();
-      const [updated] = await tx
-        .update(warehouseIssueRequest)
-        .set({
-          status: "COMPLETED",
-          approvedBy: guard.session.userId,
-          approvedAt: now,
-          completedAt: now,
-          updatedAt: now,
-        })
-        .where(eq(warehouseIssueRequest.id, params.id))
-        .returning({
-          id: warehouseIssueRequest.id,
-          status: warehouseIssueRequest.status,
-        });
-
-      return { txnIds, totalQty, consumedLots, request: updated };
+      // Status đã set COMPLETED ở bước CLAIM đầu transaction.
+      return { txnIds, totalQty, consumedLots, request: claimed[0] };
     });
 
     await writeAudit({
@@ -174,10 +196,8 @@ export async function POST(
     return NextResponse.json({ data: result });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Lỗi duyệt yêu cầu";
-    return jsonError(
-      "APPROVE_FAILED",
-      msg,
-      msg.startsWith("INSUFFICIENT") ? 409 : 500,
-    );
+    const is409 =
+      msg.startsWith("INSUFFICIENT") || msg.startsWith("ALREADY_PROCESSED");
+    return jsonError("APPROVE_FAILED", msg, is409 ? 409 : 500);
   }
 }

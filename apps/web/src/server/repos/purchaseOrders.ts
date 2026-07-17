@@ -14,6 +14,7 @@ import type {
   PurchaseOrderLine,
 } from "@iot/db/schema";
 import { db } from "@/lib/db";
+import { currentYymm, genDocNo } from "./_docNumber";
 
 /**
  * Repository purchase_order — V1.2.
@@ -627,14 +628,22 @@ export async function createPOFromPR(
 
     const createdPOs: PurchaseOrder[] = [];
     const linesBySupplier: Record<string, number> = {};
-    const yymm = new Date().toISOString().slice(2, 7).replace("-", "");
+    // V3.11.4 (audit 1.22/1.21) — discriminator từ PR code (4 ký tự cuối), sanitize
+    // chỉ giữ [A-Z0-9] để khớp regex genDocNo. poNo = PO-<yymm>-<disc>-<seq>, seq
+    // MAX+1 so với MỌI PO cùng discriminator trong DB (không chỉ trong lần convert
+    // này) + advisory lock → hết collision khi 2 PR trùng 4 ký tự cuối cùng tháng.
+    const disc =
+      pr.code.slice(-4).toUpperCase().replace(/[^A-Z0-9]/g, "") || "0000";
+    const poPrefix = `PO-${currentYymm()}-${disc}`;
 
-    let seqCounter = 1;
     for (const [supplierId, supplierLines] of bySupplier.entries()) {
-      const poNo = `PO-${yymm}-${pr.code.slice(-4)}-${seqCounter
-        .toString()
-        .padStart(2, "0")}`;
-      seqCounter += 1;
+      const poNo = await genDocNo(tx, {
+        table: "app.purchase_order",
+        column: "po_no",
+        prefix: poPrefix,
+        seqPart: 4,
+        pad: 2,
+      });
 
       const [poHeader] = await tx
         .insert(purchaseOrder)
@@ -723,17 +732,15 @@ export async function createPO(
   if (input.lines.length === 0) throw new Error("PO_MUST_HAVE_LINES");
 
   return db.transaction(async (tx) => {
-    const yymm = new Date().toISOString().slice(2, 7).replace("-", "");
-    // Serialize number generation per month to avoid COUNT+1 duplicates.
-    await tx.execute(
-      sql`SELECT pg_advisory_xact_lock(hashtext(${`purchase_order:${yymm}`}))`,
-    );
-    const cntRows = await tx.execute(sql`
-      SELECT COUNT(*)::int AS c FROM app.purchase_order
-      WHERE po_no LIKE ${`PO-${yymm}-%`}
-    `);
-    const cnt = (cntRows as unknown as Array<{ c: number }>)[0]?.c ?? 0;
-    const poNo = `PO-${yymm}-MAN-${(cnt + 1).toString().padStart(3, "0")}`;
+    // V3.11.4 (audit 1.21) — genDocNo: advisory lock + MAX(seq)+1 (thay COUNT+1
+    // vốn sai khi có gap). Seq nằm ở part 4 của 'PO-yymm-MAN-###', pad 3.
+    const poNo = await genDocNo(tx, {
+      table: "app.purchase_order",
+      column: "po_no",
+      prefix: `PO-${currentYymm()}-MAN`,
+      seqPart: 4,
+      pad: 3,
+    });
 
     // Tính totalAmount từ lines.
     let total = 0;

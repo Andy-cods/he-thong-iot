@@ -28,6 +28,10 @@ const LoginSchema = z.object({
   password: z.string().min(1).max(200),
 });
 
+// V3.11.4 (audit S.4) — khoá tài khoản sau N lần sai liên tiếp.
+const LOGIN_MAX_FAILS = 10;
+const LOGIN_LOCK_MS = 15 * 60 * 1000; // 15 phút
+
 export async function POST(req: NextRequest) {
   // V3.7.29 — Rate limit IP nới lên 60/60s (cho văn phòng NAT nhiều user
   // cùng IP). Brute-force trên 1 acc vẫn bị chặn bởi per-username limit
@@ -116,12 +120,42 @@ export async function POST(req: NextRequest) {
 
   const ok = await verifyPassword(password, user.passwordHash);
   if (!ok) {
-    await db
+    // V3.11.4 (audit S.4) — tăng failedLoginCount VÀ khoá tài khoản 15 phút khi
+    // đạt ngưỡng 10 lần sai liên tiếp (trước đây chỉ tăng count, lockedUntil
+    // không bao giờ được set → cơ chế khoá quảng cáo trong code không tồn tại).
+    //
+    // Review 2A-fix — tăng count + đặt lock ATOMIC trong 1 UPDATE (SQL expression),
+    // KHÔNG read-modify-write ở tầng app: nhiều request sai đồng thời (rate-limit
+    // cho tới 5/60s/username) đọc cùng giá trị cũ sẽ lost-update nếu tính ở JS.
+    // CAST + CASE thực thi trên row lock của chính statement → đếm chuẩn.
+    const [afterFail] = await db
       .update(userAccount)
       .set({
-        failedLoginCount: sql`(CAST(${userAccount.failedLoginCount} AS INTEGER) + 1)::text`,
+        failedLoginCount: sql`(CAST(COALESCE(${userAccount.failedLoginCount}, '0') AS INTEGER) + 1)::text`,
+        lockedUntil: sql`CASE
+          WHEN CAST(COALESCE(${userAccount.failedLoginCount}, '0') AS INTEGER) + 1 >= ${LOGIN_MAX_FAILS}
+          THEN now() + make_interval(secs => ${LOGIN_LOCK_MS / 1000})
+          ELSE ${userAccount.lockedUntil}
+        END`,
       })
-      .where(eq(userAccount.id, user.id));
+      .where(eq(userAccount.id, user.id))
+      .returning({ lockedUntil: userAccount.lockedUntil });
+    const lockedNow =
+      afterFail?.lockedUntil != null &&
+      afterFail.lockedUntil.getTime() > Date.now();
+    if (lockedNow) {
+      loginCounter.add(1, { result: "locked" });
+      return NextResponse.json(
+        {
+          error: {
+            code: "ACCOUNT_LOCKED",
+            message:
+              "Tài khoản đã bị khoá tạm thời do nhập sai quá nhiều lần. Vui lòng thử lại sau 15 phút.",
+          },
+        },
+        { status: 423 },
+      );
+    }
     loginCounter.add(1, { result: "invalid" });
     apiErrorCounter.add(1, { route: "/api/auth/login", status: "401" });
     return invalid;
@@ -175,6 +209,8 @@ export async function POST(req: NextRequest) {
     .set({
       lastLoginAt: new Date(),
       failedLoginCount: "0",
+      // V3.11.4 (audit S.4) — clear lock khi đăng nhập thành công.
+      lockedUntil: null,
     })
     .where(eq(userAccount.id, user.id));
 
