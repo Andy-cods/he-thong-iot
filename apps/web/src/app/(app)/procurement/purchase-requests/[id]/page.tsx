@@ -45,6 +45,7 @@ import {
   usePurchaseRequestDetail,
   useQuickApprovePR,
   useRejectPurchaseRequest,
+  type PRLineEnriched,
 } from "@/hooks/usePurchaseRequests";
 import { useConvertPRToPOs } from "@/hooks/usePurchaseOrders";
 import { formatDate } from "@/lib/format";
@@ -582,7 +583,10 @@ export default function PurchaseRequestDetailPage() {
           {/* II. Danh mục vật tư */}
           <section className="border-b border-zinc-300 print:dark:border-zinc-300">
             <SectionTitle>II. Danh mục vật tư</SectionTitle>
-            <div className="overflow-x-auto print:overflow-visible">
+            {/* Desktop + IN: bảng 15 cột. Mobile màn hình: ẩn (dùng card bên dưới).
+                print:block + print:overflow-visible để bản in A4 LUÔN ra bảng,
+                không phụ thuộc breakpoint md (bẫy in trang trắng). */}
+            <div className="hidden overflow-x-auto md:block print:block print:overflow-visible">
               <table className="w-full border-collapse text-[11px]">
                 <thead>
                   <tr className="bg-[#F5F5F5] text-[10px] font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
@@ -705,12 +709,29 @@ export default function PurchaseRequestDetailPage() {
                 </tfoot>
               </table>
             </div>
+
+            {/* Mobile: card-list thay bảng (ẩn khi IN — bản in dùng bảng ở trên) */}
+            <div className="space-y-2 p-2 md:hidden print:hidden">
+              {pr.lines.map((l, idx) => (
+                <LineItemCard key={l.id} line={l} idx={idx} />
+              ))}
+              {/* tfoot bị ẩn theo bảng → render lại tổng tiền cho mobile */}
+              <div className="mt-2 flex items-center justify-between rounded-lg border-2 border-zinc-700 bg-zinc-50 px-3 py-2.5 dark:border-zinc-500 dark:bg-zinc-800">
+                <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-100">
+                  Tổng tiền dự kiến
+                </span>
+                <span className="font-mono text-[15px] font-bold tabular-nums text-[#005D9F] dark:text-sky-300">
+                  {fmtNum(pr.totalEstimatedAmount)} ₫
+                </span>
+              </div>
+            </div>
           </section>
 
           {/* III. Phê duyệt */}
           <section className="border-b border-zinc-300 print:dark:border-zinc-300">
             <SectionTitle>III. Kiểm tra &amp; Phê duyệt</SectionTitle>
-            <table className="w-full border-collapse text-[11px]">
+            <div className="overflow-x-auto print:overflow-visible">
+            <table className="w-full min-w-[520px] border-collapse text-[11px] print:min-w-0">
               <thead>
                 <tr className="bg-[#F5F5F5] text-[10px] font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
                   <Th w="w-44">Vai trò</Th>
@@ -773,12 +794,14 @@ export default function PurchaseRequestDetailPage() {
                 ) : null}
               </tbody>
             </table>
+            </div>
           </section>
 
           {/* IV. Theo dõi */}
           <section className="border-b border-zinc-300 print:dark:border-zinc-300">
             <SectionTitle>IV. Theo dõi</SectionTitle>
-            <table className="w-full border-collapse text-[11px]">
+            <div className="overflow-x-auto print:overflow-visible">
+            <table className="w-full min-w-[520px] border-collapse text-[11px] print:min-w-0">
               <thead>
                 <tr className="bg-[#F5F5F5] text-[10px] font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
                   <Th w="w-52">Trạng thái</Th>
@@ -826,6 +849,7 @@ export default function PurchaseRequestDetailPage() {
                 />
               </tbody>
             </table>
+            </div>
           </section>
 
           {/* V. Quy tắc quản lý */}
@@ -1058,6 +1082,130 @@ export default function PurchaseRequestDetailPage() {
 }
 
 /* ---------- helpers ---------- */
+
+/**
+ * V3.12.3 — Card 1 dòng vật tư cho MOBILE (mục II). Bảng 15 cột giữ nguyên cho
+ * desktop + IN; card này chỉ hiện <md. Tính lại qty/onHand/approvedQty/lineTotal
+ * 1 lần (DRY với <tr> bảng). Giữ tín hiệu màu lowStock (rose) + approvedQty (emerald).
+ */
+function LineItemCard({ line: l, idx }: { line: PRLineEnriched; idx: number }) {
+  const qty = Number(l.qty) || 0;
+  const onHand = l.onHandSnapshot != null ? Number(l.onHandSnapshot) : null;
+  const approvedQty = l.approvedQty != null ? Number(l.approvedQty) : null;
+  const lowStock = onHand != null && qty > 0 ? onHand < qty : false;
+  const lineTotal =
+    l.lineTotal != null
+      ? Number(l.lineTotal)
+      : qty * (Number(l.estimatedUnitPrice) || 0);
+  return (
+    <div className="rounded-lg border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+      {/* Cấp 1 — tên + mã + STT/phân loại */}
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="break-words text-[14px] font-semibold leading-snug text-zinc-900 dark:text-zinc-50">
+            {l.name ?? "—"}
+          </div>
+          <div className="font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
+            {l.sku ?? "—"}
+          </div>
+        </div>
+        <span className="shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+          #{idx + 1} · {CATEGORY_LABELS[l.category ?? "OTHER"] ?? "—"}
+        </span>
+      </div>
+      {/* Cấp 2 — khối số quyết định */}
+      <div className="grid grid-cols-3 gap-2 rounded-md bg-zinc-50 p-2 dark:bg-zinc-800/50">
+        <Metric label="SL cần" value={fmtNum(qty)} unit={l.uom ?? l.itemUom} />
+        <Metric
+          label="Tồn kho"
+          value={onHand != null ? fmtNum(onHand) : "—"}
+          className={
+            lowStock
+              ? "font-semibold text-rose-600 dark:text-rose-400"
+              : onHand != null
+                ? "text-emerald-700 dark:text-emerald-400"
+                : "text-zinc-400"
+          }
+        />
+        <Metric
+          label="Đã duyệt"
+          value={approvedQty != null ? fmtNum(approvedQty) : "—"}
+          className={
+            approvedQty != null
+              ? "font-semibold text-emerald-700 dark:text-emerald-400"
+              : "text-zinc-400"
+          }
+        />
+      </div>
+      {/* Cấp 2b — tiền */}
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <Metric label="Đơn giá DK" value={fmtNum(l.estimatedUnitPrice)} />
+        <Metric
+          label="Tổng tiền"
+          value={lineTotal > 0 ? fmtNum(lineTotal) : "—"}
+          className="font-semibold text-[#005D9F] dark:text-sky-300"
+        />
+      </div>
+      {/* Cấp 3 — phụ (ẩn field rỗng) */}
+      <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 border-t border-zinc-100 pt-2 text-[11px] text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
+        <Meta label="Quy cách" value={l.specification} />
+        <Meta label="Ngày cần" value={fmtDateVN(l.neededBy)} />
+        <Meta label="Ưu tiên" value={PRIORITY_LABELS[l.priority ?? "NORMAL"]} />
+        <Meta label="Mã ref" value={l.referenceCode} />
+        <Meta label="Ghi chú" value={l.notes} wide />
+      </dl>
+    </div>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  unit,
+  className,
+}: {
+  label: string;
+  value: string;
+  unit?: string | null;
+  className?: string;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[10px] uppercase tracking-wide text-zinc-400">
+        {label}
+      </div>
+      <div className={cn("font-mono text-[15px] tabular-nums", className)}>
+        {value}
+        {unit ? (
+          <span className="ml-1 text-[11px] font-normal text-zinc-400">
+            {unit}
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/** Field phụ cấp 3 — ẩn hẳn nếu rỗng/"—" để card gọn. */
+function Meta({
+  label,
+  value,
+  wide,
+}: {
+  label: string;
+  value: string | null | undefined;
+  wide?: boolean;
+}) {
+  if (value == null || value === "" || value === "—") return null;
+  return (
+    <div className={cn("min-w-0", wide ? "col-span-2" : "")}>
+      <span className="text-zinc-400">{label}: </span>
+      <span className="break-words text-zinc-700 dark:text-zinc-300">
+        {value}
+      </span>
+    </div>
+  );
+}
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (

@@ -338,11 +338,70 @@ apps/web/
 
 ---
 
-## 12. Change Log
+## 12. Responsive Mobile (V3.12.2 — BẮT BUỘC cho trang/PR mới)
+
+> Bổ sung 2026-07-17 sau đợt fix mobile "to quá / khuất / chữ ép". Chi tiết chiến lược:
+> [`plans/20260717-mobile-responsive-strategy.md`](../plans/20260717-mobile-responsive-strategy.md).
+> Lưu ý: mục 1 (V1) từng ghi "không dùng dark mode" nay đã LỖI THỜI — hệ thống đã có dark mode +
+> dùng nhiều trên **điện thoại** (chủ yếu xem + **duyệt** phiếu), không chỉ tablet/TV.
+
+### 12.1. Một nguồn padding
+`<main>` (AppShell) đã đệm `px-4 py-4 md:px-6 md:py-5`. Trang **KHÔNG** thêm `px-6/p-6` lần nữa
+(double-padding ép cột nội dung). Header full-bleed dùng `px-4 md:px-6` (khớp main).
+
+### 12.2. `h-full`/`overflow-hidden` chỉ bật từ `md`
+`100vh` trên mobile không đáng tin → nested-scroll kẹt/cắt nội dung. Mobile = cuộn theo document.
+```
+❌ flex h-full flex-col overflow-hidden          + con: flex-1 min-h-0 overflow-auto
+✅ flex flex-col md:h-full md:overflow-hidden     + con: flex-1 md:min-h-0 md:overflow-auto
+```
+
+### 12.3. Overlay/portal — KHÔNG width px cứng
+```
+❌ w-[400px]
+✅ w-[calc(100vw-1rem)] max-w-[400px]        (dropdown neo mép)
+✅ w-[calc(100vw-2rem)] sm:w-full + max-w-md  (dialog có lề mobile)
+```
+Đã áp `NotificationBell`, `ui/dialog`. Còn nợ (ưu tiên thấp, trong luồng tạo desktop):
+`SupplierPicker`, `ItemPicker`, `bom-grid-pro/*`, `WarehouseLayoutTab`.
+
+### 12.4. Bảng ≥5 cột → card-list trên mobile; print-safe cho phiếu A4
+`<md` render card, `md+` render table. **Toggle ở `<div>` WRAPPER, KHÔNG trên chính `<table>`**
+(tránh bẫy `display:table` bị ép thành `block` vỡ căn cột):
+```
+<div className="hidden overflow-x-auto md:block print:block print:overflow-visible">
+  <table>...</table>          {/* table giữ display:table tự nhiên */}
+</div>
+<div className="space-y-2 md:hidden print:hidden">...card...</div>
+```
+Luôn khai báo `print:block` (bảng) + `print:hidden` (card) TƯỜNG MINH — bản in A4 landscape
+không được phụ thuộc breakpoint `md:` (in từ viewport hẹp / khổ khác sẽ ra trang trắng).
+`overflow-x-auto` chỉ cho ma trận cần cuộn thật (grid BOM) / form in A4 (mô hình "cuộn cả tài liệu").
+Đã áp: PR detail mục II (`[id]/page.tsx`). Mẫu list tốt: `ItemListTable.tsx`, `PRListTable.tsx`.
+
+### 12.5. Typography & kích thước có biến thể mobile
+Heading nền đã responsive (`globals.css`: H1 `text-xl md:text-2xl`). Component: `p-3 md:p-4`,
+`h-9 md:h-11`, `text-sm md:text-base`, `gap-3 md:gap-4`. Hàng pill/tab dễ tràn → `overflow-x-auto`
++ item `shrink-0`.
+
+### 12.6. Checklist trước khi báo "xong"
+1. DevTools **360×640**: không cuộn ngang body · không double-padding · overlay trọn viewport · chữ/nút không to ngợp.
+2. Có `@media print` → Ctrl+P kiểm bản in A4 không đổi.
+3. Dark mode đủ `dark:` (nhiều trang cũ còn thiếu, vd `notifications/page.tsx`).
+4. PWA: đóng hẳn app rồi mở lại (service worker cache bản cũ).
+
+### 12.7. Component nền
+Trang mới nên dùng `<PageShell>`/`<PageHeader>` (đóng gói cuộn md-gated + 1 nguồn padding) thay vì
+tự dựng `flex h-full ... px-6`. Chưa build `<DataList>` phức tạp cho tới khi đủ consumer (YAGNI).
+
+---
+
+## 13. Change Log
 
 | Ver | Ngày | Ghi chú |
 |---|---|---|
 | 1.0 | 2026-04-16 | Khởi tạo với V1 scope. Style: Swiss Minimalism × Data-Dense. Palette: Industrial Slate + Stock Green + Safety Orange. Typography: Be Vietnam Pro + Inter + JetBrains Mono. |
+| 1.1 | 2026-07-17 | Thêm §12 Responsive Mobile (BẮT BUỘC). Đánh dấu "không dark mode" (V1) đã lỗi thời. |
 
 ---
 

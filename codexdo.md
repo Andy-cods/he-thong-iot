@@ -132,11 +132,21 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
   không tin cậy trên mobile → nested-scroll kẹt); (2) overlay width px cứng vượt viewport
   (NotificationBell `w-[400px]`, Dialog `w-full` không lề); (3) typography/component khoá desktop;
   (4) bảng detail nhiều cột + form A4 `min-w-[760px]` cuộn ngang.
-- **Đã làm P0 + phần rẻ P1 (V3.12.2):** NotificationBell + Dialog responsive; shell md-gated cho
-  notifications/engineering/warehouse/operations/sales/PR-detail (px-6→px-4 md:px-6, h-full→md:h-full);
-  notification card thu nhỏ mobile; H1/H2 responsive (globals.css). Typecheck PASS.
-- **Còn lại (đợt sau):** P1-7 card-list cho PR detail mục II (bảng 15 cột, cần giữ print:table);
-  P2 tạo `<PageShell>`/`<DataList>` + `docs/design-guidelines.md`.
+- **Đã làm P0 + phần rẻ P1 (V3.12.2, commit `148d08a`):** NotificationBell + Dialog responsive; shell
+  md-gated cho notifications/engineering/warehouse/operations/sales/PR-detail (px-6→px-4 md:px-6,
+  h-full→md:h-full); notification card thu nhỏ mobile; H1/H2 responsive (globals.css). Đã deploy.
+- **Đã làm P1-7 + P2-12 (V3.12.3, quy trình brainstorm→implement→review):**
+  - PR detail mục II: bảng 15 cột giữ cho desktop+IN (`hidden md:block print:block`), thêm card-list
+    mobile (`md:hidden print:hidden`) qua helper local `LineItemCard`/`Metric`/`Meta` + thanh tổng
+    tiền mobile. Bảng III/IV bọc `overflow-x-auto` + `min-w-[520px] print:min-w-0`.
+  - **Kỹ thuật print-safe (brainstorm chốt):** toggle ở `<div>` wrapper KHÔNG trên `<table>` (tránh
+    vỡ display:table); `print:block`/`print:hidden` TƯỜNG MINH (không phụ thuộc md → không in trang trắng).
+  - **Code-reviewer (build thử Tailwind xác minh cascade): 7/7 PASS** — không bẫy in, JSX cân bằng,
+    logic card khớp bảng, dark mode đủ, không regression. Đã sửa guidelines §12.4 khớp code thực tế.
+  - `docs/design-guidelines.md` +§12 Responsive Mobile (BẮT BUỘC). Typecheck + build web PASS.
+- **HOÃN (rủi ro cao / YAGNI):** P2-9 `<PageShell>` (spec brainstorm không md-gated, trái §12; migrate
+  ~26 file cần QA hình ảnh — hoãn tới khi làm dần); P2-10 `<DataList>` (chưa đủ consumer). Còn nợ:
+  cap width popover trong luồng tạo (SupplierPicker/ItemPicker/bom-grid); gộp 2 `<main>` trùng.
 - **Plan:** [`plans/20260717-mobile-responsive-strategy.md`](plans/20260717-mobile-responsive-strategy.md)
 
 ### TASK-20260717-004 — Mobile access + Email thông báo cần duyệt (V3.12)
