@@ -123,6 +123,25 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
+### TASK-20260718-001 — Dark mode nhóm A + size thông báo mobile (V3.12.4)
+- **Trạng thái:** DONE · **Hoàn thành:** 2026-07-18 (+07) · **Ưu tiên:** P1
+- **Yêu cầu user:** "còn phần dark mode và phần thông báo nữa, size chưa ổn với mobile" + agents phối hợp.
+- **Thông báo mobile (audit agent tìm ra P0):** dropdown chuông neo `absolute right-0` theo NÚT (cách
+  mép phải ~76px) → panel bị cắt ~60px bên trái ở 360px. Fix: mobile `fixed left-2 right-2 top-14`,
+  desktop `sm:absolute` giữ nguyên. Thêm line-clamp title (dropdown + list), subtitle rút gọn, nút
+  "Đã đọc hết" mobile, empty p-8, toast sonner co theo viewport <400px.
+- **Dark mode nhóm A (~16 file, plan `plans/20260717-darkmode-notifications-plan.md`):** Sidebar
+  (hiện mọi trang, trước đó TRẮNG hoàn toàn ở dark) + notifications page + PRTab/PRListTable/
+  POListTable/sales hub + 6 warehouse tabs (Overview/Receiving/Issue/LotSerial/Report/HistoryDrawer)
+  + WorkOrdersTab + POTab/SuppliersTab/AccountingTab (file lớn nhất, 206 class dark). Convert bởi
+  agents Sonnet song song (đợt 1 bị đứt session limit → đợt 2 hoàn tất + Claude vá phần sót).
+  Rà quét cuối: 0 light-token thiếu dark trong 16 file.
+- **Review (Sonnet):** 4/4 PASS — diff chỉ thêm class, không đổi logic; z-index/top/click-outside
+  dropdown OK; không có dark sai nhánh ternary. Phát hiện 1 gap (card thông báo trong list) → đã vá.
+  Typecheck + build PASS.
+- **Còn lại (đợt sau, theo plan §D):** dark mode nhóm B (PO detail 103, assembly 105, receiving
+  wizard 82, new-lsx 100, suppliers 61, admin/reports) + nhóm C (BOM workspace). PWA cố ý khoá light.
+
 ### TASK-20260717-005 — Fix responsive mobile "to quá / khuất / chữ ép" (V3.12.2)
 - **Trạng thái:** IN_PROGRESS · **Bắt đầu:** 2026-07-17 (+07) · **Ưu tiên:** P1
 - **Yêu cầu user:** vào từng function/thông báo trên mobile bị "size to quá, ẩn/khuất, chữ ép tràn lan".

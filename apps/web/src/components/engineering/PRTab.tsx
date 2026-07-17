@@ -62,19 +62,19 @@ export function PRTab() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-4">
+      <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
         <div>
-          <nav aria-label="Breadcrumb" className="text-xs text-zinc-500">
-            <Link href="/" className="hover:text-zinc-900 hover:underline">
+          <nav aria-label="Breadcrumb" className="text-xs text-zinc-500 dark:text-zinc-400">
+            <Link href="/" className="hover:text-zinc-900 hover:underline dark:hover:text-zinc-50">
               Tổng quan
             </Link>
             {" / "}
-            <span className="text-zinc-900">Đề xuất vật tư</span>
+            <span className="text-zinc-900 dark:text-zinc-50">Đề xuất vật tư</span>
           </nav>
-          <h1 className="mt-1 text-xl font-semibold tracking-tight text-zinc-900">
+          <h1 className="mt-1 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             Đề xuất mua vật tư (YCVT/MRF)
           </h1>
-          <p className="mt-0.5 text-xs text-zinc-500">
+          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
             {total.toLocaleString("vi-VN")} phiếu
           </p>
         </div>
@@ -104,7 +104,7 @@ export function PRTab() {
       </header>
 
       {/* Filter bar */}
-      <div className="flex items-center gap-2 border-b border-zinc-200 bg-white px-6 py-2">
+      <div className="flex items-center gap-2 border-b border-zinc-200 bg-white px-6 py-2 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex gap-1">
           {["all", ...PR_STATUSES].map((s) => (
             <button
@@ -113,8 +113,8 @@ export function PRTab() {
               onClick={() => void setUrlState({ status: s as typeof urlState.status, page: 1 })}
               className={`h-7 rounded-md px-2.5 text-xs font-medium transition-colors ${
                 urlState.status === s
-                  ? "bg-blue-100 text-blue-700"
-                  : "text-zinc-600 hover:bg-zinc-100"
+                  ? "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400"
+                  : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
               }`}
             >
               {s === "all" ? "Tất cả" : s}
@@ -171,8 +171,8 @@ export function PRTab() {
         )}
       </div>
 
-      <footer className="flex h-9 items-center justify-between border-t border-zinc-200 bg-white px-4 text-base">
-        <div className="text-zinc-600 tabular-nums">
+      <footer className="flex h-9 items-center justify-between border-t border-zinc-200 bg-white px-4 text-base dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="text-zinc-600 tabular-nums dark:text-zinc-400">
           Trang {urlState.page} / {pageCount}
         </div>
         <div className="flex items-center gap-1">

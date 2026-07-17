@@ -131,24 +131,27 @@ export default function NotificationsPage() {
   const unreadCount = query.data?.meta.unreadCount ?? 0;
 
   return (
-    <div className="flex flex-col bg-zinc-50/30 md:h-full">
+    <div className="flex flex-col bg-zinc-50/30 md:h-full dark:bg-zinc-950">
       {/* Header */}
-      <header className="border-b border-zinc-200 bg-white px-4 py-4 md:px-6 md:py-5">
+      <header className="border-b border-zinc-200 bg-white px-4 py-4 md:px-6 md:py-5 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <nav aria-label="Breadcrumb" className="text-xs text-zinc-500">
-              <Link href="/" className="hover:text-zinc-900 hover:underline">Tổng quan</Link>
-              <span className="mx-1.5 text-zinc-300">›</span>
-              <span className="font-medium text-zinc-900">Thông báo</span>
+            <nav aria-label="Breadcrumb" className="text-xs text-zinc-500 dark:text-zinc-400">
+              <Link href="/" className="hover:text-zinc-900 hover:underline dark:hover:text-zinc-50">Tổng quan</Link>
+              <span className="mx-1.5 text-zinc-300 dark:text-zinc-600">›</span>
+              <span className="font-medium text-zinc-900 dark:text-zinc-50">Thông báo</span>
             </nav>
-            <h1 className="mt-2 flex items-center gap-2 text-xl font-semibold tracking-tight text-zinc-900 md:text-2xl">
-              <Bell className="h-5 w-5 text-indigo-600 md:h-6 md:w-6" aria-hidden />
+            <h1 className="mt-2 flex items-center gap-2 text-xl font-semibold tracking-tight text-zinc-900 md:text-2xl dark:text-zinc-50">
+              <Bell className="h-5 w-5 text-indigo-600 md:h-6 md:w-6 dark:text-indigo-400" aria-hidden />
               Thông báo
             </h1>
-            <p className="mt-1 text-sm text-zinc-500">
-              Tất cả thông báo công việc — direct (cho bạn) + broadcast theo bộ phận.
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              Thông báo công việc
+              <span className="hidden sm:inline">
+                {" "}— cho bạn + theo bộ phận
+              </span>
               {unreadCount > 0 && (
-                <> · <span className="font-semibold text-indigo-600">{unreadCount}</span> chưa đọc</>
+                <> · <span className="font-semibold text-indigo-600 dark:text-indigo-400">{unreadCount}</span> chưa đọc</>
               )}
             </p>
           </div>
@@ -158,16 +161,18 @@ export default function NotificationsPage() {
               size="sm"
               onClick={() => markAllRead.mutate()}
               disabled={markAllRead.isPending}
+              title="Đánh dấu tất cả đã đọc"
             >
               <CheckCheck className="h-3.5 w-3.5" aria-hidden />
-              Đánh dấu tất cả đã đọc
+              <span className="hidden sm:inline">Đánh dấu tất cả đã đọc</span>
+              <span className="sm:hidden">Đã đọc hết</span>
             </Button>
           )}
         </div>
       </header>
 
       {/* Filter pills */}
-      <div className="flex items-center gap-2 overflow-x-auto border-b border-zinc-200 bg-white px-4 py-3 md:px-6">
+      <div className="flex items-center gap-2 overflow-x-auto border-b border-zinc-200 bg-white px-4 py-3 md:px-6 dark:border-zinc-800 dark:bg-zinc-900">
         {[
           { v: "all" as const, label: "Tất cả" },
           { v: "unread" as const, label: "Chưa đọc" },
@@ -181,8 +186,8 @@ export default function NotificationsPage() {
             className={cn(
               "inline-flex h-8 shrink-0 items-center rounded-full border px-3.5 text-sm font-medium transition-colors",
               filter === opt.v
-                ? "border-indigo-300 bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-200"
-                : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50",
+                ? "border-indigo-300 bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-200 dark:border-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300 dark:ring-indigo-800"
+                : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-zinc-600 dark:hover:bg-zinc-800/60",
             )}
           >
             {opt.label}
@@ -193,19 +198,19 @@ export default function NotificationsPage() {
       {/* Content */}
       <div className="flex-1 p-3 md:overflow-auto md:p-6">
         {query.isLoading ? (
-          <div className="flex items-center justify-center gap-2 py-20 text-sm text-zinc-500">
+          <div className="flex items-center justify-center gap-2 py-20 text-sm text-zinc-500 dark:text-zinc-400">
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
             Đang tải…
           </div>
         ) : items.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-zinc-300 bg-white p-12 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100">
-              <Bell className="h-7 w-7 text-zinc-400" aria-hidden />
+          <div className="rounded-2xl border border-dashed border-zinc-300 bg-white p-8 text-center md:p-12 dark:border-zinc-700 dark:bg-zinc-900">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-800">
+              <Bell className="h-7 w-7 text-zinc-400 dark:text-zinc-500" aria-hidden />
             </div>
-            <h3 className="mt-4 text-base font-semibold text-zinc-900">
+            <h3 className="mt-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
               {filter === "unread" ? "Không có thông báo chưa đọc" : "Chưa có thông báo nào"}
             </h3>
-            <p className="mt-1.5 text-sm text-zinc-500">
+            <p className="mt-1.5 text-sm text-zinc-500 dark:text-zinc-400">
               Bạn sẽ nhận thông báo khi có hoạt động mới.
             </p>
           </div>
@@ -218,8 +223,10 @@ export default function NotificationsPage() {
               const card = (
                 <div
                   className={cn(
-                    "flex gap-3 rounded-2xl border bg-white p-3 transition-shadow hover:shadow-md md:gap-4 md:p-4",
-                    isUnread ? "border-indigo-300 shadow-sm" : "border-zinc-200",
+                    "flex gap-3 rounded-2xl border bg-white p-3 transition-shadow hover:shadow-md md:gap-4 md:p-4 dark:bg-zinc-900",
+                    isUnread
+                      ? "border-indigo-300 shadow-sm dark:border-indigo-700"
+                      : "border-zinc-200 dark:border-zinc-800",
                   )}
                 >
                   <div className={cn(
@@ -231,8 +238,10 @@ export default function NotificationsPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
                       <p className={cn(
-                        "text-sm leading-snug md:text-base",
-                        isUnread ? "font-bold text-zinc-900" : "font-semibold text-zinc-800",
+                        "line-clamp-2 text-sm leading-snug md:text-base",
+                        isUnread
+                          ? "font-bold text-zinc-900 dark:text-zinc-50"
+                          : "font-semibold text-zinc-800 dark:text-zinc-200",
                       )}>
                         {n.title}
                       </p>
@@ -241,16 +250,16 @@ export default function NotificationsPage() {
                       )}
                     </div>
                     {n.message && (
-                      <p className="mt-1 text-sm text-zinc-600">{n.message}</p>
+                      <p className="mt-1 line-clamp-3 text-sm text-zinc-600 dark:text-zinc-400">{n.message}</p>
                     )}
-                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                      <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 font-medium text-zinc-600">
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+                      <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                         {EVENT_LABEL[n.eventType] ?? n.eventType}
                       </span>
                       <span>{relativeTime(n.createdAt)}</span>
                       {n.actorUsername && <span>· bởi {n.actorUsername}</span>}
                       {!n.isDirect && (
-                        <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-600 ring-1 ring-inset ring-indigo-200">
+                        <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-600 ring-1 ring-inset ring-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-300 dark:ring-indigo-800">
                           Cho bộ phận
                         </span>
                       )}

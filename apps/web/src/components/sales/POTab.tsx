@@ -40,13 +40,13 @@ function fmtVND(n: number | string): string {
 /* ── Status pill config ──────────────────────────────────────────────────── */
 
 const PO_STATUS_PILL: Record<POStatus | "all", { cls: string; dot: string }> = {
-  all:       { cls: "bg-zinc-900 text-white border-zinc-900",                                            dot: "bg-white" },
-  DRAFT:     { cls: "bg-zinc-100 text-zinc-700 border-zinc-200 ring-zinc-200",                           dot: "bg-zinc-400" },
-  SENT:      { cls: "bg-blue-50 text-blue-700 border-blue-200 ring-blue-200",                            dot: "bg-blue-500" },
-  PARTIAL:   { cls: "bg-amber-50 text-amber-700 border-amber-200 ring-amber-200",                        dot: "bg-amber-500 animate-pulse" },
-  RECEIVED:  { cls: "bg-emerald-50 text-emerald-700 border-emerald-200 ring-emerald-200",                dot: "bg-emerald-500" },
-  CANCELLED: { cls: "bg-red-50 text-red-700 border-red-200 ring-red-200",                                dot: "bg-red-400" },
-  CLOSED:    { cls: "bg-zinc-100 text-zinc-500 border-zinc-200 ring-zinc-200",                           dot: "bg-zinc-400" },
+  all:       { cls: "bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 dark:border-zinc-100",                                            dot: "bg-white dark:bg-zinc-900" },
+  DRAFT:     { cls: "bg-zinc-100 text-zinc-700 border-zinc-200 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700 dark:ring-zinc-700",                           dot: "bg-zinc-400" },
+  SENT:      { cls: "bg-blue-50 text-blue-700 border-blue-200 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800 dark:ring-blue-800",                            dot: "bg-blue-500" },
+  PARTIAL:   { cls: "bg-amber-50 text-amber-700 border-amber-200 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800 dark:ring-amber-800",                        dot: "bg-amber-500 animate-pulse" },
+  RECEIVED:  { cls: "bg-emerald-50 text-emerald-700 border-emerald-200 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800 dark:ring-emerald-800",                dot: "bg-emerald-500" },
+  CANCELLED: { cls: "bg-red-50 text-red-700 border-red-200 ring-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800 dark:ring-red-800",                                dot: "bg-red-400" },
+  CLOSED:    { cls: "bg-zinc-100 text-zinc-500 border-zinc-200 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700 dark:ring-zinc-700",                           dot: "bg-zinc-400" },
 };
 
 /* ── KPI Card ────────────────────────────────────────────────────────────── */
@@ -59,11 +59,11 @@ function KpiCard({ icon: Icon, label, value, sub, accent }: {
   accent: "indigo" | "emerald" | "amber" | "red" | "zinc";
 }) {
   const map = {
-    indigo:  { card: "bg-indigo-50/60 border-indigo-200",   icon: "bg-indigo-100 text-indigo-700",   value: "text-indigo-900"  },
-    emerald: { card: "bg-emerald-50/60 border-emerald-200", icon: "bg-emerald-100 text-emerald-700", value: "text-emerald-900" },
-    amber:   { card: "bg-amber-50/60 border-amber-200",     icon: "bg-amber-100 text-amber-700",     value: "text-amber-900"   },
-    red:     { card: "bg-red-50/60 border-red-200",         icon: "bg-red-100 text-red-700",         value: "text-red-900"     },
-    zinc:    { card: "bg-white border-zinc-200",            icon: "bg-zinc-100 text-zinc-600",       value: "text-zinc-900"    },
+    indigo:  { card: "bg-indigo-50/60 border-indigo-200 dark:bg-indigo-950/40 dark:border-indigo-800",   icon: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400",   value: "text-indigo-900 dark:text-indigo-200"  },
+    emerald: { card: "bg-emerald-50/60 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800", icon: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400", value: "text-emerald-900 dark:text-emerald-200" },
+    amber:   { card: "bg-amber-50/60 border-amber-200 dark:bg-amber-950/40 dark:border-amber-800",     icon: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400",     value: "text-amber-900 dark:text-amber-200"   },
+    red:     { card: "bg-red-50/60 border-red-200 dark:bg-red-950/40 dark:border-red-800",         icon: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400",         value: "text-red-900 dark:text-red-200"     },
+    zinc:    { card: "bg-white border-zinc-200 dark:bg-zinc-900 dark:border-zinc-700",            icon: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",       value: "text-zinc-900 dark:text-zinc-50"    },
   };
   const s = map[accent];
   return (
@@ -73,9 +73,9 @@ function KpiCard({ icon: Icon, label, value, sub, accent }: {
           <Icon className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{label}</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</p>
           <p className={cn("mt-1 font-mono text-xl font-bold leading-tight tabular-nums", s.value)}>{value}</p>
-          {sub && <p className="mt-0.5 text-xs text-zinc-500">{sub}</p>}
+          {sub && <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{sub}</p>}
         </div>
       </div>
     </div>
@@ -143,24 +143,24 @@ export function POTab() {
   };
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-zinc-50/30">
+    <div className="flex h-full flex-col overflow-hidden bg-zinc-50/30 dark:bg-zinc-950/30">
 
       {/* ── Header ── */}
-      <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-5">
+      <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-5 dark:border-zinc-800 dark:bg-zinc-900">
         <div>
-          <nav aria-label="Breadcrumb" className="text-xs text-zinc-500">
-            <Link href="/" className="hover:text-zinc-900 hover:underline">Tổng quan</Link>
-            <span className="mx-1.5 text-zinc-300">›</span>
-            <span className="text-zinc-500">Tài chính &amp; Mua bán</span>
-            <span className="mx-1.5 text-zinc-300">›</span>
-            <span className="font-medium text-zinc-900">Đặt hàng (PO)</span>
+          <nav aria-label="Breadcrumb" className="text-xs text-zinc-500 dark:text-zinc-400">
+            <Link href="/" className="hover:text-zinc-900 hover:underline dark:hover:text-zinc-50">Tổng quan</Link>
+            <span className="mx-1.5 text-zinc-300 dark:text-zinc-600">›</span>
+            <span className="text-zinc-500 dark:text-zinc-400">Tài chính &amp; Mua bán</span>
+            <span className="mx-1.5 text-zinc-300 dark:text-zinc-600">›</span>
+            <span className="font-medium text-zinc-900 dark:text-zinc-50">Đặt hàng (PO)</span>
           </nav>
-          <h1 className="mt-2 flex items-center gap-2 text-2xl font-semibold tracking-tight text-zinc-900">
-            <FileText className="h-6 w-6 text-indigo-600" aria-hidden />
+          <h1 className="mt-2 flex items-center gap-2 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+            <FileText className="h-6 w-6 text-indigo-600 dark:text-indigo-400" aria-hidden />
             Đơn đặt hàng (PO)
           </h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            <span className="font-semibold tabular-nums text-zinc-900">{(stats?.total ?? total).toLocaleString("vi-VN")}</span> PO trong hệ thống
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+            <span className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">{(stats?.total ?? total).toLocaleString("vi-VN")}</span> PO trong hệ thống
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -175,7 +175,7 @@ export function POTab() {
       </header>
 
       {/* ── KPI cards ── */}
-      <div className="grid grid-cols-2 gap-3 border-b border-zinc-200 bg-white px-6 py-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900 lg:grid-cols-4">
         <KpiCard
           icon={TrendingUp}
           label="Tổng giá trị"
@@ -207,16 +207,16 @@ export function POTab() {
       </div>
 
       {/* ── Filter bar ── */}
-      <div className="flex flex-wrap items-center gap-3 border-b border-zinc-200 bg-white px-6 py-3">
+      <div className="flex flex-wrap items-center gap-3 border-b border-zinc-200 bg-white px-6 py-3 dark:border-zinc-800 dark:bg-zinc-900">
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" aria-hidden />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" aria-hidden />
           <input
             type="text"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Tìm mã PO hoặc NCC..."
-            className="h-9 w-64 rounded-lg border border-zinc-200 bg-white pl-9 pr-3 text-sm placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="h-9 w-64 rounded-lg border border-zinc-200 bg-white pl-9 pr-3 text-sm placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500"
           />
         </div>
 
@@ -242,13 +242,13 @@ export function POTab() {
                   "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors",
                   active
                     ? cn(cfg.cls, "ring-1 ring-inset shadow-sm")
-                    : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50",
+                    : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-zinc-600 dark:hover:bg-zinc-800/60",
                 )}
               >
-                <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", active ? cfg.dot : "bg-zinc-300")} aria-hidden />
+                <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", active ? cfg.dot : "bg-zinc-300 dark:bg-zinc-600")} aria-hidden />
                 {s === "all" ? "Tất cả" : PO_STATUS_LABELS[s as POStatus]}
                 {s !== "DRAFT" && (
-                  <span className={cn("font-mono text-xs tabular-nums", active ? "opacity-80" : "text-zinc-400")}>
+                  <span className={cn("font-mono text-xs tabular-nums", active ? "opacity-80" : "text-zinc-400 dark:text-zinc-500")}>
                     {count}
                   </span>
                 )}
@@ -259,22 +259,22 @@ export function POTab() {
 
         {/* Date range */}
         <div className="ml-auto flex items-center gap-2">
-          <label className="flex items-center gap-1.5 text-sm text-zinc-600">
-            <span className="text-zinc-500">Từ</span>
+          <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
+            <span className="text-zinc-500 dark:text-zinc-400">Từ</span>
             <input
               type="date"
               value={urlState.from}
               onChange={(e) => void setUrlState({ from: e.target.value, page: 1 })}
-              className="h-8 rounded-lg border border-zinc-200 bg-white px-2.5 text-sm tabular-nums focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="h-8 rounded-lg border border-zinc-200 bg-white px-2.5 text-sm tabular-nums focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
             />
           </label>
-          <label className="flex items-center gap-1.5 text-sm text-zinc-600">
-            <span className="text-zinc-500">Đến</span>
+          <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
+            <span className="text-zinc-500 dark:text-zinc-400">Đến</span>
             <input
               type="date"
               value={urlState.to}
               onChange={(e) => void setUrlState({ to: e.target.value, page: 1 })}
-              className="h-8 rounded-lg border border-zinc-200 bg-white px-2.5 text-sm tabular-nums focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="h-8 rounded-lg border border-zinc-200 bg-white px-2.5 text-sm tabular-nums focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
             />
           </label>
           {hasFilter && (
@@ -316,11 +316,11 @@ export function POTab() {
 
       {/* ── Footer pagination ── */}
       {!isEmpty && (
-        <footer className="flex h-11 items-center justify-between border-t border-zinc-200 bg-white px-6 text-sm text-zinc-600">
+        <footer className="flex h-11 items-center justify-between border-t border-zinc-200 bg-white px-6 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
           <div className="tabular-nums">
-            Trang <span className="font-semibold text-zinc-900">{urlState.page}</span> / {pageCount}
-            <span className="mx-2 text-zinc-300">·</span>
-            <span className="text-zinc-500">{total.toLocaleString("vi-VN")} PO</span>
+            Trang <span className="font-semibold text-zinc-900 dark:text-zinc-50">{urlState.page}</span> / {pageCount}
+            <span className="mx-2 text-zinc-300 dark:text-zinc-600">·</span>
+            <span className="text-zinc-500 dark:text-zinc-400">{total.toLocaleString("vi-VN")} PO</span>
           </div>
           <div className="flex items-center gap-1">
             <Button size="sm" variant="ghost" disabled={urlState.page <= 1}

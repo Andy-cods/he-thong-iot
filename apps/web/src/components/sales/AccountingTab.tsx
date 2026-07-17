@@ -68,12 +68,12 @@ const PO_STATUS_LABEL: Record<POStatus, string> = {
 };
 
 const PO_STATUS_CHIP: Record<POStatus, string> = {
-  DRAFT:     "bg-zinc-100 text-zinc-600",
-  SENT:      "bg-blue-50 text-blue-700",
-  PARTIAL:   "bg-amber-50 text-amber-700",
-  RECEIVED:  "bg-emerald-50 text-emerald-700",
-  CANCELLED: "bg-red-50 text-red-600",
-  CLOSED:    "bg-zinc-100 text-zinc-500",
+  DRAFT:     "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
+  SENT:      "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400",
+  PARTIAL:   "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
+  RECEIVED:  "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
+  CANCELLED: "bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400",
+  CLOSED:    "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500",
 };
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
@@ -90,25 +90,25 @@ function KpiCard({
 }) {
   // V3.7.16 — KPI card đơn giản hơn (theo feedback): bỏ gradient màu mè
   const cardStyle: Record<string, string> = {
-    zinc: "bg-white border-zinc-200",
-    emerald: "bg-white border-zinc-200",
-    red: "bg-white border-zinc-200",
-    indigo: "bg-white border-zinc-200",
-    amber: "bg-white border-zinc-200",
+    zinc: "bg-white border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800",
+    emerald: "bg-white border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800",
+    red: "bg-white border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800",
+    indigo: "bg-white border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800",
+    amber: "bg-white border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800",
   };
   const iconStyle: Record<string, string> = {
-    zinc: "bg-zinc-100 text-zinc-600",
-    emerald: "bg-emerald-50 text-emerald-700",
-    red: "bg-rose-50 text-rose-600",
-    indigo: "bg-indigo-50 text-indigo-700",
-    amber: "bg-amber-50 text-amber-700",
+    zinc: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
+    emerald: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
+    red: "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400",
+    indigo: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400",
+    amber: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
   };
   const valColor: Record<string, string> = {
-    zinc: "text-zinc-900",
-    emerald: "text-emerald-700",
-    red: "text-rose-600",
-    indigo: "text-indigo-700",
-    amber: "text-amber-700",
+    zinc: "text-zinc-900 dark:text-zinc-50",
+    emerald: "text-emerald-700 dark:text-emerald-400",
+    red: "text-rose-600 dark:text-rose-400",
+    indigo: "text-indigo-700 dark:text-indigo-400",
+    amber: "text-amber-700 dark:text-amber-400",
   };
   return (
     <div
@@ -131,8 +131,8 @@ function KpiCard({
             className={cn(
               "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-semibold",
               trend.dir === "up"
-                ? "bg-emerald-100 text-emerald-700"
-                : "bg-rose-100 text-rose-600",
+                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+                : "bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400",
             )}
           >
             {trend.dir === "up" ? (
@@ -144,7 +144,7 @@ function KpiCard({
           </span>
         )}
       </div>
-      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
         {label}
       </p>
       <p
@@ -156,7 +156,7 @@ function KpiCard({
         {value}
       </p>
       {sub && (
-        <p className="mt-0.5 text-[11px] font-medium text-zinc-500">{sub}</p>
+        <p className="mt-0.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">{sub}</p>
       )}
     </div>
   );
@@ -204,39 +204,39 @@ export function AccountingTab() {
   const pendingCount  = pendingPOs.length;
 
   return (
-    <div className="flex h-full flex-col bg-gradient-to-br from-zinc-50 to-emerald-50/30">
+    <div className="flex h-full flex-col bg-gradient-to-br from-zinc-50 to-emerald-50/30 dark:from-zinc-950 dark:to-zinc-900">
       {/* ── Header (V3.7.14 redesign) ── */}
-      <header className="border-b border-zinc-200 bg-white px-6 py-5">
+      <header className="border-b border-zinc-200 bg-white px-6 py-5 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
               <Banknote className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
+              <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
                 Kế toán &amp; Thanh toán
               </h1>
-              <p className="mt-0.5 text-sm text-zinc-500">
+              <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
                 Giá trị PO · công nợ phải trả · lịch sử thanh toán NCC
               </p>
             </div>
           </div>
           {!poQuery.isLoading && (
             <div className="hidden items-center gap-2 lg:flex">
-              <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2 shadow-sm">
-                <p className="text-[10px] uppercase tracking-wide text-zinc-500">
+              <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+                <p className="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                   Tổng PO
                 </p>
-                <p className="font-mono text-lg font-bold tabular-nums text-zinc-900">
+                <p className="font-mono text-lg font-bold tabular-nums text-zinc-900 dark:text-zinc-50">
                   {allPOs.length}
                 </p>
               </div>
               {overdueCount > 0 && (
-                <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 shadow-sm">
-                  <p className="text-[10px] uppercase tracking-wide text-rose-600">
+                <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 shadow-sm dark:border-rose-800 dark:bg-rose-950/40">
+                  <p className="text-[10px] uppercase tracking-wide text-rose-600 dark:text-rose-400">
                     Quá hạn
                   </p>
-                  <p className="font-mono text-lg font-bold tabular-nums text-rose-700">
+                  <p className="font-mono text-lg font-bold tabular-nums text-rose-700 dark:text-rose-400">
                     {overdueCount}
                   </p>
                 </div>
@@ -247,7 +247,7 @@ export function AccountingTab() {
       </header>
 
       {/* ── Sub-tab nav (V3.7.14 — pill-style) ── */}
-      <div className="border-b border-zinc-200 bg-white px-6">
+      <div className="border-b border-zinc-200 bg-white px-6 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex gap-0.5 overflow-x-auto">
           {ACC_TABS.map((t) => (
             <button
@@ -258,11 +258,11 @@ export function AccountingTab() {
                 "relative inline-flex items-center gap-2 whitespace-nowrap px-4 py-3 text-sm font-semibold transition-all",
                 "after:absolute after:bottom-0 after:left-2 after:right-2 after:h-1 after:rounded-t-full after:transition-all",
                 activeTab === t.key
-                  ? "text-emerald-700 after:bg-gradient-to-r after:from-emerald-500 after:to-teal-600"
-                  : "text-zinc-500 hover:text-zinc-800 after:bg-transparent",
+                  ? "text-emerald-700 dark:text-emerald-400 after:bg-gradient-to-r after:from-emerald-500 after:to-teal-600"
+                  : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 after:bg-transparent",
               )}
             >
-              <t.icon className={cn("h-4 w-4", activeTab === t.key && "text-emerald-600")} />
+              <t.icon className={cn("h-4 w-4", activeTab === t.key && "text-emerald-600 dark:text-emerald-400")} />
               {t.label}
             </button>
           ))}
@@ -333,16 +333,16 @@ function DashboardTab({ allPOs, isLoading, totalAmount, receivedAmt, pendingAmt,
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Top nhà cung cấp — V3.7.15 polish */}
-        <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
-          <header className="flex items-center gap-2 border-b border-zinc-100 bg-zinc-50/50 px-5 py-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 text-zinc-600">
+        <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <header className="flex items-center gap-2 border-b border-zinc-100 bg-zinc-50/50 px-5 py-3 dark:border-zinc-800 dark:bg-zinc-800/60">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
               <Building2 className="h-4 w-4" />
             </div>
-            <p className="text-sm font-semibold text-zinc-900">Top nhà cung cấp</p>
+            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Top nhà cung cấp</p>
           </header>
           <div className="p-5">
           {bySupplier.length === 0 ? (
-            <p className="py-6 text-center text-sm text-zinc-400">Chưa có dữ liệu.</p>
+            <p className="py-6 text-center text-sm text-zinc-400 dark:text-zinc-500">Chưa có dữ liệu.</p>
           ) : (
             <div className="space-y-3">
               {bySupplier.map((s, i) => {
@@ -351,15 +351,15 @@ function DashboardTab({ allPOs, isLoading, totalAmount, receivedAmt, pendingAmt,
                   <div key={s.name}>
                     <div className="flex items-center justify-between text-sm mb-1">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-[10px] font-bold text-indigo-700">{i + 1}</span>
-                        <span className="truncate font-medium text-zinc-800">{s.name}</span>
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-[10px] font-bold text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400">{i + 1}</span>
+                        <span className="truncate font-medium text-zinc-800 dark:text-zinc-200">{s.name}</span>
                       </div>
-                      <span className="shrink-0 font-mono text-xs font-semibold text-zinc-700">{fmtVND(s.total)}</span>
+                      <span className="shrink-0 font-mono text-xs font-semibold text-zinc-700 dark:text-zinc-300">{fmtVND(s.total)}</span>
                     </div>
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-100">
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
                       <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500" style={{ width: `${pct}%` }} />
                     </div>
-                    <p className="mt-0.5 text-[10px] text-zinc-400">{s.count} đơn · {pct}% tổng</p>
+                    <p className="mt-0.5 text-[10px] text-zinc-400 dark:text-zinc-500">{s.count} đơn · {pct}% tổng</p>
                   </div>
                 );
               })}
@@ -369,32 +369,32 @@ function DashboardTab({ allPOs, isLoading, totalAmount, receivedAmt, pendingAmt,
         </div>
 
         {/* PO gần đây — V3.7.15 polish */}
-        <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
-          <header className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50/50 px-5 py-3">
+        <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <header className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50/50 px-5 py-3 dark:border-zinc-800 dark:bg-zinc-800/60">
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 text-zinc-600">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
                 <Receipt className="h-4 w-4" />
               </div>
-              <p className="text-sm font-semibold text-zinc-900">PO gần đây</p>
+              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">PO gần đây</p>
             </div>
-            <Link href="/sales?tab=po" className="inline-flex items-center gap-0.5 text-xs font-semibold text-indigo-600 hover:underline">
+            <Link href="/sales?tab=po" className="inline-flex items-center gap-0.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
               Xem tất cả <ChevronRight className="h-3 w-3" />
             </Link>
           </header>
           <div className="p-5">
           {recentPOs.length === 0 ? (
-            <p className="py-6 text-center text-sm text-zinc-400">Chưa có PO nào.</p>
+            <p className="py-6 text-center text-sm text-zinc-400 dark:text-zinc-500">Chưa có PO nào.</p>
           ) : (
             <div className="space-y-2">
               {recentPOs.map((po) => (
                 <Link key={po.id} href={`/procurement/purchase-orders/${po.id}`}
-                  className="flex items-center justify-between rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 hover:border-zinc-200 hover:bg-white transition-colors">
+                  className="flex items-center justify-between rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 hover:border-zinc-200 hover:bg-white transition-colors dark:border-zinc-800 dark:bg-zinc-800/60 dark:hover:border-zinc-700 dark:hover:bg-zinc-800">
                   <div className="min-w-0">
-                    <p className="font-mono text-sm font-semibold text-zinc-800">{po.poNo}</p>
-                    <p className="text-xs text-zinc-500 truncate">{po.supplierName}</p>
+                    <p className="font-mono text-sm font-semibold text-zinc-800 dark:text-zinc-200">{po.poNo}</p>
+                    <p className="text-xs text-zinc-500 truncate dark:text-zinc-400">{po.supplierName}</p>
                   </div>
                   <div className="shrink-0 text-right ml-3">
-                    <p className="font-mono text-sm font-bold text-zinc-900">{fmtVND(Number(po.totalAmount))}</p>
+                    <p className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-50">{fmtVND(Number(po.totalAmount))}</p>
                     <span className={cn("inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold", PO_STATUS_CHIP[po.status as POStatus])}>
                       {PO_STATUS_LABEL[po.status as POStatus]}
                     </span>
@@ -408,12 +408,12 @@ function DashboardTab({ allPOs, isLoading, totalAmount, receivedAmt, pendingAmt,
       </div>
 
       {/* Biểu đồ phân bố trạng thái — V3.7.15 polish */}
-      <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
-        <header className="flex items-center gap-2 border-b border-zinc-100 bg-zinc-50/50 px-5 py-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 text-zinc-600">
+      <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <header className="flex items-center gap-2 border-b border-zinc-100 bg-zinc-50/50 px-5 py-3 dark:border-zinc-800 dark:bg-zinc-800/60">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
             <BarChart3 className="h-4 w-4" />
           </div>
-          <p className="text-sm font-semibold text-zinc-900">Phân bố trạng thái PO</p>
+          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Phân bố trạng thái PO</p>
         </header>
         <div className="p-5">
           <StatusDistribution allPOs={allPOs} totalAmount={totalAmount} />
@@ -431,15 +431,15 @@ function StatusDistribution({ allPOs, totalAmount }: { allPOs: POForAccounting[]
     amount: allPOs.filter(p => p.status === s).reduce((a, p) => a + Number(p.totalAmount), 0),
   })).filter(x => x.count > 0);
 
-  if (counts.length === 0) return <p className="text-center text-sm text-zinc-400 py-4">Chưa có dữ liệu.</p>;
+  if (counts.length === 0) return <p className="text-center text-sm text-zinc-400 dark:text-zinc-500 py-4">Chưa có dữ liệu.</p>;
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
       {counts.map(({ status, count, amount }) => (
-        <div key={status} className={cn("rounded-xl border p-3 text-center", PO_STATUS_CHIP[status].includes("indigo") ? "border-indigo-200 bg-indigo-50" : PO_STATUS_CHIP[status].includes("emerald") ? "border-emerald-200 bg-emerald-50" : PO_STATUS_CHIP[status].includes("amber") ? "border-amber-200 bg-amber-50" : PO_STATUS_CHIP[status].includes("red") ? "border-red-200 bg-red-50" : "border-zinc-200 bg-zinc-50")}>
-          <p className="text-lg font-bold text-zinc-900">{count}</p>
-          <p className="text-[10px] font-semibold text-zinc-500">{PO_STATUS_LABEL[status]}</p>
-          <p className="mt-0.5 font-mono text-[10px] text-zinc-400">{fmtVND(amount)}</p>
+        <div key={status} className={cn("rounded-xl border p-3 text-center", PO_STATUS_CHIP[status].includes("indigo") ? "border-indigo-200 bg-indigo-50 dark:border-indigo-800 dark:bg-indigo-950/40" : PO_STATUS_CHIP[status].includes("emerald") ? "border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40" : PO_STATUS_CHIP[status].includes("amber") ? "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40" : PO_STATUS_CHIP[status].includes("red") ? "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/40" : "border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800")}>
+          <p className="text-lg font-bold text-zinc-900 dark:text-zinc-50">{count}</p>
+          <p className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400">{PO_STATUS_LABEL[status]}</p>
+          <p className="mt-0.5 font-mono text-[10px] text-zinc-400 dark:text-zinc-500">{fmtVND(amount)}</p>
         </div>
       ))}
     </div>
@@ -490,7 +490,7 @@ function PayableTab({ allPOs, isLoading }: { allPOs: POForAccounting[]; isLoadin
               "rounded-full px-4 py-1.5 text-xs font-bold transition-all",
               filter === k
                 ? `bg-gradient-to-r ${grad} text-white shadow-md`
-                : "border border-zinc-300 bg-white text-zinc-600 hover:border-zinc-400 hover:bg-zinc-50",
+                : "border border-zinc-300 bg-white text-zinc-600 hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-zinc-600 dark:hover:bg-zinc-800/60",
             )}
           >
             {l}
@@ -499,13 +499,13 @@ function PayableTab({ allPOs, isLoading }: { allPOs: POForAccounting[]; isLoadin
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
         {filtered.length === 0 ? (
-          <div className="py-16 text-center text-sm text-zinc-400">Không có công nợ phù hợp.</div>
+          <div className="py-16 text-center text-sm text-zinc-400 dark:text-zinc-500">Không có công nợ phù hợp.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-zinc-100 bg-zinc-50 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+              <thead className="border-b border-zinc-100 bg-zinc-50 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
                 <tr>
                   <th className="px-5 py-3 text-left">Mã PO</th>
                   <th className="px-5 py-3 text-left">Nhà cung cấp</th>
@@ -517,21 +517,21 @@ function PayableTab({ allPOs, isLoading }: { allPOs: POForAccounting[]; isLoadin
                   <th className="px-5 py-3" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-100">
+              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                 {filtered.map((po) => {
                   const isOverdue = po.expectedEta && new Date(po.expectedEta) < now;
                   return (
-                    <tr key={po.id} className={cn("hover:bg-zinc-50 transition-colors", isOverdue && "bg-red-50/40")}>
-                      <td className="px-5 py-3.5"><span className="font-mono text-sm font-semibold text-zinc-900">{po.poNo}</span></td>
-                      <td className="px-5 py-3.5 text-zinc-700">{po.supplierName}</td>
-                      <td className="px-5 py-3.5 text-zinc-500">{po.paymentTerms ?? "—"}</td>
+                    <tr key={po.id} className={cn("hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition-colors", isOverdue && "bg-red-50/40 dark:bg-red-950/30")}>
+                      <td className="px-5 py-3.5"><span className="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-50">{po.poNo}</span></td>
+                      <td className="px-5 py-3.5 text-zinc-700 dark:text-zinc-300">{po.supplierName}</td>
+                      <td className="px-5 py-3.5 text-zinc-500 dark:text-zinc-400">{po.paymentTerms ?? "—"}</td>
                       <td className="px-5 py-3.5">
-                        <span className={cn("text-sm", isOverdue ? "font-semibold text-red-600" : "text-zinc-600")}>
+                        <span className={cn("text-sm", isOverdue ? "font-semibold text-red-600 dark:text-red-400" : "text-zinc-600 dark:text-zinc-400")}>
                           {fmtDate(po.expectedEta)}
                           {isOverdue && " ⚠️"}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5 text-right font-mono font-bold text-zinc-900">{fmtVND(Number(po.totalAmount))}</td>
+                      <td className="px-5 py-3.5 text-right font-mono font-bold text-zinc-900 dark:text-zinc-50">{fmtVND(Number(po.totalAmount))}</td>
                       <td className="px-5 py-3.5 text-center">
                         <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", PO_STATUS_CHIP[po.status as POStatus])}>
                           {PO_STATUS_LABEL[po.status as POStatus]}
@@ -539,14 +539,14 @@ function PayableTab({ allPOs, isLoading }: { allPOs: POForAccounting[]; isLoadin
                       </td>
                       <td className="px-5 py-3.5 text-center">
                         {isOverdue ? (
-                          <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700">Quá hạn</span>
+                          <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-400">Quá hạn</span>
                         ) : (
-                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Trong hạn</span>
+                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">Trong hạn</span>
                         )}
                       </td>
                       <td className="px-5 py-3.5 text-right">
                         <Link href={`/procurement/purchase-orders/${po.id}`}
-                          className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition-colors">
+                          className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition-colors dark:border-zinc-700 dark:text-indigo-400 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/40">
                           Chi tiết <ChevronRight className="h-3 w-3" />
                         </Link>
                       </td>
@@ -592,10 +592,10 @@ function PaymentTab({ receivedPOs, isLoading }: { receivedPOs: POForAccounting[]
 
       {/* By month chart (bar) */}
       {byMonth.length > 0 && (
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div className="mb-4 flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-zinc-400" />
-            <p className="text-sm font-semibold text-zinc-800">Thanh toán theo tháng</p>
+            <Calendar className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+            <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Thanh toán theo tháng</p>
           </div>
           <div className="space-y-3">
             {byMonth.map((m, i) => {
@@ -603,14 +603,14 @@ function PaymentTab({ receivedPOs, isLoading }: { receivedPOs: POForAccounting[]
               const pct = maxAmt > 0 ? Math.round((m.amount / maxAmt) * 100) : 0;
               return (
                 <div key={i} className="flex items-center gap-3">
-                  <p className="w-36 shrink-0 text-xs text-zinc-500 capitalize">{m.label}</p>
-                  <div className="flex-1 h-6 overflow-hidden rounded-lg bg-zinc-100">
+                  <p className="w-36 shrink-0 text-xs text-zinc-500 capitalize dark:text-zinc-400">{m.label}</p>
+                  <div className="flex-1 h-6 overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800">
                     <div className="h-full rounded-lg bg-gradient-to-r from-indigo-500 to-violet-500 flex items-center px-2 transition-all duration-500"
                       style={{ width: `${pct}%`, minWidth: pct > 0 ? "2rem" : 0 }}>
                       {pct > 20 && <span className="text-[10px] font-bold text-white">{fmtVND(m.amount)}</span>}
                     </div>
                   </div>
-                  <p className="w-28 shrink-0 text-right font-mono text-xs font-semibold text-zinc-700">{fmtVND(m.amount)}</p>
+                  <p className="w-28 shrink-0 text-right font-mono text-xs font-semibold text-zinc-700 dark:text-zinc-300">{fmtVND(m.amount)}</p>
                 </div>
               );
             })}
@@ -619,17 +619,17 @@ function PaymentTab({ receivedPOs, isLoading }: { receivedPOs: POForAccounting[]
       )}
 
       {/* Payment list */}
-      <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50 px-5 py-3">
-          <p className="text-sm font-semibold text-zinc-800">Lịch sử thanh toán</p>
-          <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">{receivedPOs.length} đơn</span>
+      <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50 px-5 py-3 dark:border-zinc-800 dark:bg-zinc-800">
+          <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Lịch sử thanh toán</p>
+          <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">{receivedPOs.length} đơn</span>
         </div>
         {receivedPOs.length === 0 ? (
-          <div className="py-16 text-center text-sm text-zinc-400">Chưa có đơn hàng nào hoàn thành.</div>
+          <div className="py-16 text-center text-sm text-zinc-400 dark:text-zinc-500">Chưa có đơn hàng nào hoàn thành.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-zinc-100 bg-zinc-50/60 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+              <thead className="border-b border-zinc-100 bg-zinc-50/60 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-400">
                 <tr>
                   <th className="px-5 py-3 text-left">Mã PO</th>
                   <th className="px-5 py-3 text-left">Nhà cung cấp</th>
@@ -639,13 +639,13 @@ function PaymentTab({ receivedPOs, isLoading }: { receivedPOs: POForAccounting[]
                   <th className="px-5 py-3" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-100">
+              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                 {receivedPOs.slice(0, 50).map((po) => (
-                  <tr key={po.id} className="hover:bg-zinc-50 transition-colors">
-                    <td className="px-5 py-3.5"><span className="font-mono text-sm font-semibold text-zinc-900">{po.poNo}</span></td>
-                    <td className="px-5 py-3.5 text-zinc-700">{po.supplierName}</td>
-                    <td className="px-5 py-3.5 text-zinc-500">{fmtDate(po.actualDeliveryDate ?? po.orderDate)}</td>
-                    <td className="px-5 py-3.5 text-right font-mono font-bold text-emerald-700">{fmtVND(Number(po.totalAmount))}</td>
+                  <tr key={po.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition-colors">
+                    <td className="px-5 py-3.5"><span className="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-50">{po.poNo}</span></td>
+                    <td className="px-5 py-3.5 text-zinc-700 dark:text-zinc-300">{po.supplierName}</td>
+                    <td className="px-5 py-3.5 text-zinc-500 dark:text-zinc-400">{fmtDate(po.actualDeliveryDate ?? po.orderDate)}</td>
+                    <td className="px-5 py-3.5 text-right font-mono font-bold text-emerald-700 dark:text-emerald-400">{fmtVND(Number(po.totalAmount))}</td>
                     <td className="px-5 py-3.5 text-center">
                       <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", PO_STATUS_CHIP[po.status as POStatus])}>
                         {PO_STATUS_LABEL[po.status as POStatus]}
@@ -653,7 +653,7 @@ function PaymentTab({ receivedPOs, isLoading }: { receivedPOs: POForAccounting[]
                     </td>
                     <td className="px-5 py-3.5 text-right">
                       <Link href={`/procurement/purchase-orders/${po.id}`}
-                        className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition-colors">
+                        className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition-colors dark:border-zinc-700 dark:text-indigo-400 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/40">
                         Chi tiết <ChevronRight className="h-3 w-3" />
                       </Link>
                     </td>
@@ -697,26 +697,26 @@ function ReportsTab({ allPOs, isLoading }: { allPOs: POForAccounting[]; isLoadin
           const amt = pos.reduce((a, p) => a + Number(p.totalAmount), 0);
           if (pos.length === 0) return null;
           return (
-            <div key={s} className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">{PO_STATUS_LABEL[s]}</p>
-              <p className="mt-1 font-mono text-xl font-bold text-zinc-900">{pos.length}</p>
-              <p className="mt-0.5 font-mono text-xs text-zinc-500">{fmtVND(amt)}</p>
+            <div key={s} className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">{PO_STATUS_LABEL[s]}</p>
+              <p className="mt-1 font-mono text-xl font-bold text-zinc-900 dark:text-zinc-50">{pos.length}</p>
+              <p className="mt-0.5 font-mono text-xs text-zinc-500 dark:text-zinc-400">{fmtVND(amt)}</p>
             </div>
           );
         })}
       </div>
 
       {/* Supplier table */}
-      <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-        <div className="border-b border-zinc-100 bg-zinc-50 px-5 py-3">
-          <p className="text-sm font-semibold text-zinc-800">Tổng hợp theo nhà cung cấp</p>
+      <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="border-b border-zinc-100 bg-zinc-50 px-5 py-3 dark:border-zinc-800 dark:bg-zinc-800">
+          <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Tổng hợp theo nhà cung cấp</p>
         </div>
         {supplierSummary.length === 0 ? (
-          <p className="py-12 text-center text-sm text-zinc-400">Chưa có dữ liệu.</p>
+          <p className="py-12 text-center text-sm text-zinc-400 dark:text-zinc-500">Chưa có dữ liệu.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-zinc-100 bg-zinc-50/60 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+              <thead className="border-b border-zinc-100 bg-zinc-50/60 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-400">
                 <tr>
                   <th className="px-5 py-3 text-left">Nhà cung cấp</th>
                   <th className="px-5 py-3 text-right">Số PO</th>
@@ -726,35 +726,35 @@ function ReportsTab({ allPOs, isLoading }: { allPOs: POForAccounting[]; isLoadin
                   <th className="px-5 py-3 text-right">% / Tổng</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-100">
+              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                 {supplierSummary.map((s) => {
                   const ratePct   = s.totalAmt > 0 ? Math.round((s.receivedAmt / s.totalAmt) * 100) : 0;
                   const sharePct  = totalAmt > 0 ? Math.round((s.totalAmt / totalAmt) * 100) : 0;
                   return (
-                    <tr key={s.name} className="hover:bg-zinc-50 transition-colors">
-                      <td className="px-5 py-3.5 font-medium text-zinc-800">{s.name}</td>
-                      <td className="px-5 py-3.5 text-right tabular-nums text-zinc-600">{s.count}</td>
-                      <td className="px-5 py-3.5 text-right font-mono font-semibold text-zinc-900">{fmtVND(s.totalAmt)}</td>
-                      <td className="px-5 py-3.5 text-right font-mono text-emerald-700">{fmtVND(s.receivedAmt)}</td>
+                    <tr key={s.name} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition-colors">
+                      <td className="px-5 py-3.5 font-medium text-zinc-800 dark:text-zinc-200">{s.name}</td>
+                      <td className="px-5 py-3.5 text-right tabular-nums text-zinc-600 dark:text-zinc-400">{s.count}</td>
+                      <td className="px-5 py-3.5 text-right font-mono font-semibold text-zinc-900 dark:text-zinc-50">{fmtVND(s.totalAmt)}</td>
+                      <td className="px-5 py-3.5 text-right font-mono text-emerald-700 dark:text-emerald-400">{fmtVND(s.receivedAmt)}</td>
                       <td className="px-5 py-3.5 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <div className="h-1.5 w-16 overflow-hidden rounded-full bg-zinc-100">
+                          <div className="h-1.5 w-16 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
                             <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-emerald-500" style={{ width: `${ratePct}%` }} />
                           </div>
-                          <span className="font-mono text-xs text-zinc-600">{ratePct}%</span>
+                          <span className="font-mono text-xs text-zinc-600 dark:text-zinc-400">{ratePct}%</span>
                         </div>
                       </td>
-                      <td className="px-5 py-3.5 text-right font-mono text-xs text-zinc-500">{sharePct}%</td>
+                      <td className="px-5 py-3.5 text-right font-mono text-xs text-zinc-500 dark:text-zinc-400">{sharePct}%</td>
                     </tr>
                   );
                 })}
               </tbody>
-              <tfoot className="border-t border-zinc-200 bg-zinc-50">
+              <tfoot className="border-t border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800">
                 <tr>
-                  <td className="px-5 py-3 text-sm font-semibold text-zinc-800">Tổng cộng</td>
-                  <td className="px-5 py-3 text-right font-mono font-semibold text-zinc-800">{allPOs.length}</td>
-                  <td className="px-5 py-3 text-right font-mono font-bold text-zinc-900">{fmtVND(totalAmt)}</td>
-                  <td className="px-5 py-3 text-right font-mono font-bold text-emerald-700">
+                  <td className="px-5 py-3 text-sm font-semibold text-zinc-800 dark:text-zinc-200">Tổng cộng</td>
+                  <td className="px-5 py-3 text-right font-mono font-semibold text-zinc-800 dark:text-zinc-200">{allPOs.length}</td>
+                  <td className="px-5 py-3 text-right font-mono font-bold text-zinc-900 dark:text-zinc-50">{fmtVND(totalAmt)}</td>
+                  <td className="px-5 py-3 text-right font-mono font-bold text-emerald-700 dark:text-emerald-400">
                     {fmtVND(allPOs.filter(p => p.status==="RECEIVED"||p.status==="CLOSED").reduce((s,p)=>s+Number(p.totalAmount),0))}
                   </td>
                   <td colSpan={2} />
@@ -766,10 +766,10 @@ function ReportsTab({ allPOs, isLoading }: { allPOs: POForAccounting[]; isLoadin
       </div>
 
       {/* Export hint */}
-      <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-5 text-center">
-        <TrendingDown className="mx-auto mb-2 h-6 w-6 text-zinc-400" />
-        <p className="text-sm font-medium text-zinc-600">Xuất báo cáo Excel</p>
-        <p className="mt-0.5 text-xs text-zinc-400">Tính năng xuất báo cáo kế toán sẽ có trong V2.1</p>
+      <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-5 text-center dark:border-zinc-700 dark:bg-zinc-800">
+        <TrendingDown className="mx-auto mb-2 h-6 w-6 text-zinc-400 dark:text-zinc-500" />
+        <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Xuất báo cáo Excel</p>
+        <p className="mt-0.5 text-xs text-zinc-400 dark:text-zinc-500">Tính năng xuất báo cáo kế toán sẽ có trong V2.1</p>
       </div>
     </div>
   );

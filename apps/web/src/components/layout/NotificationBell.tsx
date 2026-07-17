@@ -148,7 +148,10 @@ export function NotificationBell() {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-10 z-dropdown w-[calc(100vw-1rem)] max-w-[400px] origin-top-right overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl shadow-zinc-900/10 ring-1 ring-zinc-900/5 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/40 dark:ring-white/5"
+          // Mobile: fixed căng đều 2 mép viewport (neo absolute theo nút chuông sẽ
+          // đẩy panel lệch trái ra ngoài màn vì nút không nằm sát mép phải).
+          // Desktop (sm+): giữ absolute right-0 như cũ.
+          className="fixed left-2 right-2 top-14 z-dropdown w-auto origin-top-right overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl shadow-zinc-900/10 ring-1 ring-zinc-900/5 sm:absolute sm:left-auto sm:right-0 sm:top-10 sm:w-[400px] dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/40 dark:ring-white/5"
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50/60 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800/40">
@@ -253,7 +256,7 @@ function NotificationItemRow({
       <div className="min-w-0 flex-1">
         <p
           className={cn(
-            "text-sm leading-snug",
+            "line-clamp-2 text-sm leading-snug",
             isUnread
               ? "font-semibold text-zinc-900 dark:text-zinc-50"
               : "font-medium text-zinc-800 dark:text-zinc-200",

@@ -53,13 +53,13 @@ export function PRListTable({ rows, loading }: PRListTableProps) {
   return (
     <div
       ref={parentRef}
-      className="relative h-full w-full overflow-auto rounded-md border border-zinc-200 bg-white"
+      className="relative h-full w-full overflow-auto rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
       role="region"
       aria-label="Danh sách PR"
     >
       <div
         className={cn(
-          "sticky top-0 z-sticky grid h-8 items-center border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wide text-zinc-500",
+          "sticky top-0 z-sticky grid h-8 items-center border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400",
           gridCols,
         )}
       >
@@ -76,7 +76,7 @@ export function PRListTable({ rows, loading }: PRListTableProps) {
             <div
               key={i}
               className={cn(
-                "grid h-9 items-center border-b border-zinc-100 px-3",
+                "grid h-9 items-center border-b border-zinc-100 px-3 dark:border-zinc-800",
                 gridCols,
               )}
             >
@@ -107,27 +107,27 @@ export function PRListTable({ rows, loading }: PRListTableProps) {
                 height: `${v.size}px`,
               }}
               className={cn(
-                "absolute left-0 top-0 grid w-full items-center border-b border-zinc-100 px-3 text-base text-zinc-900 transition-colors hover:bg-zinc-50",
+                "absolute left-0 top-0 grid w-full items-center border-b border-zinc-100 px-3 text-base text-zinc-900 transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-800/60",
                 gridCols,
               )}
             >
               <Link
                 href={`/procurement/purchase-requests/${row.id}`}
-                className="truncate font-mono text-sm text-zinc-700 hover:text-blue-600"
+                className="truncate font-mono text-sm text-zinc-700 hover:text-blue-600 dark:text-zinc-300 dark:hover:text-blue-400"
                 title={row.code}
               >
                 {row.code}
               </Link>
               <div className="truncate pr-2" title={row.title ?? ""}>
-                {row.title ?? <span className="text-zinc-400">—</span>}
+                {row.title ?? <span className="text-zinc-400 dark:text-zinc-500">—</span>}
               </div>
-              <div className="hidden text-xs text-zinc-600 md:block">
+              <div className="hidden text-xs text-zinc-600 dark:text-zinc-400 md:block">
                 {row.source === "SHORTAGE" ? "Shortage" : "Thủ công"}
               </div>
               <div>
                 <StatusBadge status={badge.v} size="sm" label={badge.label} />
               </div>
-              <div className="hidden text-sm text-zinc-600 tabular-nums md:block">
+              <div className="hidden text-sm text-zinc-600 tabular-nums dark:text-zinc-400 md:block">
                 {formatDate(row.createdAt, "dd/MM/yyyy")}
               </div>
             </div>

@@ -40,7 +40,7 @@ export default function SalesPage({ searchParams }: SalesPageProps) {
   const active = resolveTab(searchParams.tab);
 
   return (
-    <div className="flex flex-col bg-zinc-50/30 md:h-full md:overflow-hidden">
+    <div className="flex flex-col bg-zinc-50/30 dark:bg-zinc-950/30 md:h-full md:overflow-hidden">
       <HubTabsNav
         basePath="/sales"
         tabs={SALES_TABS}

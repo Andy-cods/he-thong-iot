@@ -250,6 +250,16 @@
       scroll-behavior: auto !important;
     }
   }
+
+  /* V3.12.4 — Toast sonner mặc định width 356px, sát/tràn mép ở màn hẹp.
+     Co theo viewport khi <400px (top-center trên mobile theo SonnerProvider). */
+  @media (max-width: 400px) {
+    :where([data-sonner-toaster]) {
+      width: calc(100vw - 1rem) !important;
+      left: 0.5rem !important;
+      right: 0.5rem !important;
+    }
+  }
 }
 
 /* ============================================================

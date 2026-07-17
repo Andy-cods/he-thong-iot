@@ -76,11 +76,11 @@ function KpiCard({ icon: Icon, label, value, sub, accent }: {
   accent: "indigo" | "amber" | "red" | "emerald" | "zinc";
 }) {
   const map = {
-    indigo:  { card: "bg-indigo-50/70 border-indigo-200",   icon: "bg-indigo-100 text-indigo-700",   value: "text-indigo-900"  },
-    amber:   { card: "bg-amber-50/70 border-amber-200",     icon: "bg-amber-100 text-amber-700",     value: "text-amber-900"   },
-    red:     { card: "bg-red-50/70 border-red-200",         icon: "bg-red-100 text-red-700",         value: "text-red-900"     },
-    emerald: { card: "bg-emerald-50/70 border-emerald-200", icon: "bg-emerald-100 text-emerald-700", value: "text-emerald-900" },
-    zinc:    { card: "bg-white border-zinc-200",            icon: "bg-zinc-100 text-zinc-600",       value: "text-zinc-900"    },
+    indigo:  { card: "bg-indigo-50/70 border-indigo-200 dark:bg-indigo-950/40 dark:border-indigo-800",   icon: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400",   value: "text-indigo-900 dark:text-indigo-200"  },
+    amber:   { card: "bg-amber-50/70 border-amber-200 dark:bg-amber-950/40 dark:border-amber-800",     icon: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400",     value: "text-amber-900 dark:text-amber-200"   },
+    red:     { card: "bg-red-50/70 border-red-200 dark:bg-red-950/40 dark:border-red-800",         icon: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400",         value: "text-red-900 dark:text-red-200"     },
+    emerald: { card: "bg-emerald-50/70 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800", icon: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400", value: "text-emerald-900 dark:text-emerald-200" },
+    zinc:    { card: "bg-white border-zinc-200 dark:bg-zinc-900 dark:border-zinc-700",            icon: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",       value: "text-zinc-900 dark:text-zinc-50"    },
   };
   const s = map[accent];
   return (
@@ -90,9 +90,9 @@ function KpiCard({ icon: Icon, label, value, sub, accent }: {
           <Icon className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{label}</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</p>
           <p className={cn("mt-1 font-mono text-2xl font-bold leading-tight tabular-nums", s.value)}>{value}</p>
-          {sub && <p className="mt-0.5 text-xs text-zinc-500">{sub}</p>}
+          {sub && <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{sub}</p>}
         </div>
       </div>
     </div>
@@ -118,8 +118,8 @@ function POCard({
   return (
     <article
       className={cn(
-        "group relative flex flex-col gap-4 rounded-2xl border bg-white p-5 shadow-sm transition-all duration-150 hover:shadow-md",
-        overdue ? "border-red-200" : isPartial ? "border-amber-200" : "border-zinc-200 hover:border-indigo-300",
+        "group relative flex flex-col gap-4 rounded-2xl border bg-white p-5 shadow-sm transition-all duration-150 hover:shadow-md dark:bg-zinc-900",
+        overdue ? "border-red-200 dark:border-red-800" : isPartial ? "border-amber-200 dark:border-amber-800" : "border-zinc-200 hover:border-indigo-300 dark:border-zinc-700 dark:hover:border-indigo-700",
       )}
       data-status={po.status}
     >
@@ -127,25 +127,25 @@ function POCard({
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <Package className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden />
-            <span className="font-mono text-sm font-bold text-zinc-900">{po.poNo}</span>
+            <Package className="h-4 w-4 shrink-0 text-zinc-400 dark:text-zinc-500" aria-hidden />
+            <span className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-50">{po.poNo}</span>
             <span className={cn(
               "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
               isPartial
-                ? "bg-amber-50 text-amber-700 ring-amber-200"
-                : "bg-blue-50 text-blue-700 ring-blue-200",
+                ? "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800"
+                : "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:ring-blue-800",
             )}>
               <span className={cn("h-1.5 w-1.5 rounded-full", isPartial ? "bg-amber-500 animate-pulse" : "bg-blue-500")} />
               {isPartial ? "Đang nhận" : "Chờ xử lý"}
             </span>
           </div>
-          <p className="mt-2 truncate text-base font-semibold text-zinc-900">{supplierLabel(po)}</p>
+          <p className="mt-2 truncate text-base font-semibold text-zinc-900 dark:text-zinc-50">{supplierLabel(po)}</p>
         </div>
         <button
           type="button"
           onClick={onHistory}
           title="Lịch sử nhận hàng"
-          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-indigo-600 transition-colors"
+          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-indigo-600 transition-colors dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-indigo-400"
         >
           <History className="h-4 w-4" aria-hidden />
         </button>
@@ -155,10 +155,10 @@ function POCard({
       <div className="flex flex-col gap-2">
         <div className={cn(
           "flex items-center gap-2 rounded-lg px-3 py-2 text-sm",
-          overdue ? "bg-red-50 text-red-700" :
-          isToday ? "bg-amber-50 text-amber-700" :
-          soon ? "bg-blue-50 text-blue-700" :
-          "bg-zinc-50 text-zinc-600",
+          overdue ? "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400" :
+          isToday ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400" :
+          soon ? "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400" :
+          "bg-zinc-50 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
         )}>
           {overdue ? (
             <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
@@ -176,12 +176,12 @@ function POCard({
           </span>
         </div>
 
-        <p className="text-xs text-zinc-500">
-          Ngày đặt: <span className="font-medium text-zinc-700">{po.orderDate}</span>
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          Ngày đặt: <span className="font-medium text-zinc-700 dark:text-zinc-300">{po.orderDate}</span>
           {po.totalAmount && (
             <>
-              <span className="mx-2 text-zinc-300">·</span>
-              Giá trị: <span className="font-mono font-medium text-zinc-700 tabular-nums">
+              <span className="mx-2 text-zinc-300 dark:text-zinc-600">·</span>
+              Giá trị: <span className="font-mono font-medium text-zinc-700 dark:text-zinc-300 tabular-nums">
                 {Number(po.totalAmount).toLocaleString("vi-VN")} ₫
               </span>
             </>
@@ -190,7 +190,7 @@ function POCard({
       </div>
 
       {/* Action buttons */}
-      <div className="flex flex-col gap-2 border-t border-zinc-100 pt-3">
+      <div className="flex flex-col gap-2 border-t border-zinc-100 pt-3 dark:border-zinc-800">
         {/* Primary: wizard */}
         <Link
           href={`/receiving/${po.id}/wizard`}
@@ -205,7 +205,7 @@ function POCard({
         <div className="grid grid-cols-2 gap-2">
           <Link
             href={`/receiving/${po.id}`}
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
             title="Form nhận hàng đơn giản (single page)"
           >
             <Truck className="h-3.5 w-3.5" aria-hidden />
@@ -215,7 +215,7 @@ function POCard({
             href={`/pwa/receive/${po.id}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
             title="Mở PWA tablet (offline-capable)"
           >
             <Smartphone className="h-3.5 w-3.5" aria-hidden />
@@ -229,7 +229,7 @@ function POCard({
             variant="outline"
             size="sm"
             onClick={onApprove}
-            className="h-9 border-emerald-200 bg-emerald-50/50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300"
+            className="h-9 border-emerald-200 bg-emerald-50/50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-900/40 dark:hover:border-emerald-700"
           >
             <Check className="h-3.5 w-3.5" aria-hidden />
             Duyệt nhận đủ
@@ -238,7 +238,7 @@ function POCard({
             variant="outline"
             size="sm"
             onClick={onReject}
-            className="h-9 border-red-200 bg-red-50/50 text-red-700 hover:bg-red-100 hover:border-red-300"
+            className="h-9 border-red-200 bg-red-50/50 text-red-700 hover:bg-red-100 hover:border-red-300 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400 dark:hover:bg-red-900/40 dark:hover:border-red-700"
           >
             <X className="h-3.5 w-3.5" aria-hidden />
             Từ chối
@@ -253,24 +253,24 @@ function POCard({
 
 function EmptyReceivingState() {
   return (
-    <div className="rounded-2xl border border-dashed border-zinc-300 bg-white p-12 text-center">
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100">
-        <Truck className="h-7 w-7 text-zinc-400" aria-hidden />
+    <div className="rounded-2xl border border-dashed border-zinc-300 bg-white p-12 text-center dark:border-zinc-700 dark:bg-zinc-900">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-800">
+        <Truck className="h-7 w-7 text-zinc-400 dark:text-zinc-500" aria-hidden />
       </div>
-      <h3 className="mt-4 text-base font-semibold text-zinc-900">Không có PO đang chờ nhận</h3>
-      <p className="mt-1.5 text-sm text-zinc-500">
+      <h3 className="mt-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">Không có PO đang chờ nhận</h3>
+      <p className="mt-1.5 text-sm text-zinc-500 dark:text-zinc-400">
         Chỉ PO trạng thái <strong>SENT</strong> hoặc <strong>PARTIAL</strong> mới xuất hiện ở đây.
       </p>
       <div className="mt-5 flex items-center justify-center gap-2">
         <Link
           href="/sales?tab=po"
-          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
         >
           Quản lý PO
         </Link>
         <Link
           href="/pwa/receive/demo"
-          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
         >
           <Package className="h-3.5 w-3.5" aria-hidden />
           PWA demo
@@ -324,16 +324,16 @@ export function ReceivingTab() {
   const rejectMutation = useRejectReceiving();
 
   return (
-    <div className="flex h-full flex-col gap-5 overflow-auto bg-zinc-50/40 p-6">
+    <div className="flex h-full flex-col gap-5 overflow-auto bg-zinc-50/40 p-6 dark:bg-zinc-950">
 
       {/* Header */}
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-zinc-900">
-            <Truck className="h-6 w-6 text-indigo-600" aria-hidden />
+          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+            <Truck className="h-6 w-6 text-indigo-600 dark:text-indigo-400" aria-hidden />
             PO chờ nhận hàng
           </h1>
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
             Danh sách PO đang chờ giao. Mở wizard hoặc PWA tablet để quét nhận, hoặc duyệt nhanh từ card.
           </p>
         </div>
@@ -357,15 +357,15 @@ export function ReceivingTab() {
       </div>
 
       {/* Filter bar */}
-      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" aria-hidden />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" aria-hidden />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Tìm mã PO hoặc NCC..."
-            className="h-9 w-64 rounded-lg border border-zinc-200 bg-white pl-9 pr-3 text-sm placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="h-9 w-64 rounded-lg border border-zinc-200 bg-white pl-9 pr-3 text-sm placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500"
           />
         </div>
         <div className="flex items-center gap-1.5">
@@ -381,8 +381,8 @@ export function ReceivingTab() {
               className={cn(
                 "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors",
                 statusFilter === opt.v
-                  ? "border-indigo-300 bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-200"
-                  : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50",
+                  ? "border-indigo-300 bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-200 dark:border-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300 dark:ring-indigo-800"
+                  : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-zinc-600 dark:hover:bg-zinc-800/60",
               )}
             >
               <span className={cn("h-1.5 w-1.5 rounded-full", opt.dot)} aria-hidden />
@@ -390,19 +390,19 @@ export function ReceivingTab() {
             </button>
           ))}
         </div>
-        <p className="ml-auto text-xs text-zinc-500">
-          <span className="font-semibold tabular-nums text-zinc-900">{rows.length}</span> PO khớp bộ lọc
+        <p className="ml-auto text-xs text-zinc-500 dark:text-zinc-400">
+          <span className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">{rows.length}</span> PO khớp bộ lọc
         </p>
       </div>
 
       {/* Body */}
       {isLoading ? (
-        <div className="flex items-center justify-center gap-2 rounded-2xl border border-zinc-200 bg-white py-12 text-sm text-zinc-500">
+        <div className="flex items-center justify-center gap-2 rounded-2xl border border-zinc-200 bg-white py-12 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
           Đang tải danh sách PO…
         </div>
       ) : isError ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-800">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
           <p className="font-semibold">Không tải được PO.</p>
           <p className="mt-1 text-xs">{(error as Error)?.message}</p>
           <Button variant="outline" size="sm" onClick={() => void refetch()} className="mt-3">

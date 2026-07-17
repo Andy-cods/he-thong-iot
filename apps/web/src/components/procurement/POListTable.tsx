@@ -16,18 +16,18 @@ export interface POListTableProps {
 }
 
 const PO_STATUS_PILL: Record<POStatus, { cls: string; dot: string }> = {
-  DRAFT:     { cls: "bg-zinc-100 text-zinc-700 ring-zinc-200",      dot: "bg-zinc-400"   },
-  SENT:      { cls: "bg-blue-50 text-blue-700 ring-blue-200",       dot: "bg-blue-500"   },
-  PARTIAL:   { cls: "bg-amber-50 text-amber-700 ring-amber-200",    dot: "bg-amber-500 animate-pulse" },
-  RECEIVED:  { cls: "bg-emerald-50 text-emerald-700 ring-emerald-200", dot: "bg-emerald-500" },
-  CANCELLED: { cls: "bg-red-50 text-red-700 ring-red-200",          dot: "bg-red-400"    },
-  CLOSED:    { cls: "bg-zinc-100 text-zinc-500 ring-zinc-200",      dot: "bg-zinc-400"   },
+  DRAFT:     { cls: "bg-zinc-100 text-zinc-700 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700",      dot: "bg-zinc-400"   },
+  SENT:      { cls: "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:ring-blue-800",       dot: "bg-blue-500"   },
+  PARTIAL:   { cls: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800",    dot: "bg-amber-500 animate-pulse" },
+  RECEIVED:  { cls: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800", dot: "bg-emerald-500" },
+  CANCELLED: { cls: "bg-red-50 text-red-700 ring-red-200 dark:bg-red-950/40 dark:text-red-400 dark:ring-red-800",          dot: "bg-red-400"    },
+  CLOSED:    { cls: "bg-zinc-100 text-zinc-500 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",      dot: "bg-zinc-400"   },
 };
 
 const APPROVAL_PILL: Record<string, { label: string; cls: string }> = {
-  pending:  { label: "Chờ duyệt",   cls: "bg-amber-50 text-amber-700 ring-amber-200" },
-  approved: { label: "Đã duyệt",    cls: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
-  rejected: { label: "Từ chối",     cls: "bg-red-50 text-red-700 ring-red-200" },
+  pending:  { label: "Chờ duyệt",   cls: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800" },
+  approved: { label: "Đã duyệt",    cls: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800" },
+  rejected: { label: "Từ chối",     cls: "bg-red-50 text-red-700 ring-red-200 dark:bg-red-950/40 dark:text-red-400 dark:ring-red-800" },
 };
 
 function fmtVND(n: number | string | null | undefined): string {
@@ -54,14 +54,14 @@ export function POListTable({ rows, loading }: POListTableProps) {
   return (
     <div
       ref={parentRef}
-      className="relative h-full w-full overflow-auto rounded-2xl border border-zinc-200 bg-white shadow-sm"
+      className="relative h-full w-full overflow-auto rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
       role="region"
       aria-label="Danh sách PO"
     >
       {/* Header */}
       <div
         className={cn(
-          "sticky top-0 z-sticky grid h-12 items-center border-b border-zinc-200 bg-white px-5 text-xs font-semibold uppercase tracking-wider text-zinc-400",
+          "sticky top-0 z-sticky grid h-12 items-center border-b border-zinc-200 bg-white px-5 text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-500",
           gridCols,
         )}
       >
@@ -82,7 +82,7 @@ export function POListTable({ rows, loading }: POListTableProps) {
             <div
               key={i}
               className={cn(
-                "grid h-14 items-center border-b border-zinc-50 px-5",
+                "grid h-14 items-center border-b border-zinc-50 px-5 dark:border-zinc-800/50",
                 gridCols,
               )}
             >
@@ -120,17 +120,17 @@ export function POListTable({ rows, loading }: POListTableProps) {
                 height: `${v.size}px`,
               }}
               className={cn(
-                "group absolute left-0 top-0 grid w-full items-center border-b border-zinc-50 px-5 transition-colors hover:bg-indigo-50/30",
+                "group absolute left-0 top-0 grid w-full items-center border-b border-zinc-50 px-5 transition-colors hover:bg-indigo-50/30 dark:border-zinc-800/50 dark:hover:bg-indigo-500/10",
                 gridCols,
               )}
             >
-              <span className="font-mono text-sm font-bold text-indigo-600 group-hover:underline truncate" title={row.poNo}>
+              <span className="font-mono text-sm font-bold text-indigo-600 group-hover:underline truncate dark:text-indigo-400" title={row.poNo}>
                 {row.poNo}
               </span>
-              <span className="truncate pr-3 text-sm text-zinc-800">
+              <span className="truncate pr-3 text-sm text-zinc-800 dark:text-zinc-200">
                 {row.supplierName ?? row.supplierCode ?? `${row.supplierId.slice(0, 8)}…`}
               </span>
-              <span className="hidden text-right font-mono text-sm font-semibold tabular-nums text-zinc-900 md:block">
+              <span className="hidden text-right font-mono text-sm font-semibold tabular-nums text-zinc-900 dark:text-zinc-50 md:block">
                 {fmtVND(row.totalAmount)}
               </span>
               <span className="hidden md:block">
@@ -142,10 +142,10 @@ export function POListTable({ rows, loading }: POListTableProps) {
                     {approvalCfg.label}
                   </span>
                 ) : (
-                  <span className="text-xs text-zinc-400">—</span>
+                  <span className="text-xs text-zinc-400 dark:text-zinc-500">—</span>
                 )}
               </span>
-              <span className="hidden text-sm text-zinc-600 tabular-nums md:block">
+              <span className="hidden text-sm text-zinc-600 tabular-nums dark:text-zinc-400 md:block">
                 {row.expectedEta ? formatDate(row.expectedEta, "dd/MM/yyyy") : "—"}
               </span>
               <span className={cn(
@@ -155,10 +155,10 @@ export function POListTable({ rows, loading }: POListTableProps) {
                 <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", statusCfg.dot)} aria-hidden />
                 {PO_STATUS_LABELS[row.status]}
               </span>
-              <span className="hidden text-sm text-zinc-600 tabular-nums md:block">
+              <span className="hidden text-sm text-zinc-600 tabular-nums dark:text-zinc-400 md:block">
                 {formatDate(row.createdAt, "dd/MM/yyyy")}
               </span>
-              <ArrowUpRight className="hidden h-4 w-4 text-zinc-300 opacity-0 transition-opacity group-hover:opacity-100 md:block" aria-hidden />
+              <ArrowUpRight className="hidden h-4 w-4 text-zinc-300 opacity-0 transition-opacity group-hover:opacity-100 dark:text-zinc-600 md:block" aria-hidden />
             </Link>
           );
         })}

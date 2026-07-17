@@ -102,7 +102,7 @@ export function ReportTab() {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center gap-2 text-sm text-zinc-500">
+      <div className="flex h-full items-center justify-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
         <Loader2 className="h-4 w-4 animate-spin" />
         Đang tải báo cáo…
       </div>
@@ -111,7 +111,7 @@ export function ReportTab() {
 
   if (!data) {
     return (
-      <div className="p-6 text-sm text-rose-600">Lỗi tải dữ liệu báo cáo.</div>
+      <div className="p-6 text-sm text-rose-600 dark:text-rose-400">Lỗi tải dữ liệu báo cáo.</div>
     );
   }
 
@@ -158,10 +158,10 @@ export function ReportTab() {
     <div className="flex h-full flex-col gap-4 overflow-auto p-6">
       <header className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight text-zinc-900">
+          <h2 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             Báo cáo kho
           </h2>
-          <p className="mt-0.5 text-sm text-zinc-500">
+          <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
             Tổng quan utilization, bins thấp tồn, top SKU và SKU chưa gán vị trí.
           </p>
         </div>
@@ -169,7 +169,7 @@ export function ReportTab() {
           <button
             type="button"
             onClick={handleRefresh}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-200 px-3 text-xs font-semibold text-zinc-600 hover:bg-zinc-50"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-200 px-3 text-xs font-semibold text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800/60"
             title="Tải lại dữ liệu"
           >
             <RefreshCw className="h-3.5 w-3.5" /> Làm mới
@@ -177,7 +177,7 @@ export function ReportTab() {
           <button
             type="button"
             onClick={handlePrint}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-200 px-3 text-xs font-semibold text-zinc-600 hover:bg-zinc-50"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-200 px-3 text-xs font-semibold text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800/60"
             title="In / Xuất PDF (Ctrl+P)"
           >
             <Printer className="h-3.5 w-3.5" /> In / PDF
@@ -217,8 +217,8 @@ export function ReportTab() {
       </section>
 
       {/* Distribution by fill level */}
-      <section className="rounded-md border border-zinc-200 bg-white p-4">
-        <h3 className="mb-3 text-sm font-semibold text-zinc-900">
+      <section className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+        <h3 className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
           Phân bố theo mức tồn (fill ratio)
         </h3>
         <div className="space-y-2">
@@ -256,12 +256,12 @@ export function ReportTab() {
       </section>
 
       {/* Capacity utilization theo kệ */}
-      <section className="rounded-md border border-zinc-200 bg-white p-4">
-        <h3 className="mb-3 text-sm font-semibold text-zinc-900">
+      <section className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+        <h3 className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
           Utilization theo kệ
         </h3>
         {rackList.length === 0 ? (
-          <p className="py-4 text-center text-sm text-zinc-500">
+          <p className="py-4 text-center text-sm text-zinc-500 dark:text-zinc-400">
             Chưa có kệ nào.
           </p>
         ) : (
@@ -271,10 +271,10 @@ export function ReportTab() {
               const pct = Math.min(100, Math.round(ratio * 100));
               return (
                 <div key={r.rack} className="flex items-center gap-3">
-                  <span className="w-16 font-mono text-xs font-semibold text-zinc-700">
+                  <span className="w-16 font-mono text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                     {r.rack}
                   </span>
-                  <div className="relative flex-1 overflow-hidden rounded bg-zinc-100">
+                  <div className="relative flex-1 overflow-hidden rounded bg-zinc-100 dark:bg-zinc-800">
                     <div
                       className={cn(
                         "h-5 transition-all",
@@ -290,12 +290,12 @@ export function ReportTab() {
                       )}
                       style={{ width: `${pct}%` }}
                     />
-                    <span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-zinc-900 mix-blend-difference">
+                    <span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-zinc-900 mix-blend-difference dark:text-zinc-50">
                       {pct}% · {r.totalQty.toLocaleString("vi-VN")} /{" "}
                       {r.totalCap.toLocaleString("vi-VN")}
                     </span>
                   </div>
-                  <span className="w-20 text-right text-xs tabular-nums text-zinc-500">
+                  <span className="w-20 text-right text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
                     {r.bins.length} bins
                   </span>
                 </div>
@@ -306,20 +306,20 @@ export function ReportTab() {
       </section>
 
       {/* Top SKU by qty */}
-      <section className="rounded-md border border-zinc-200 bg-white">
-        <header className="border-b border-zinc-200 p-4">
-          <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
-            <TrendingUp className="h-4 w-4 text-indigo-600" />
+      <section className="rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+        <header className="border-b border-zinc-200 p-4 dark:border-zinc-800">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+            <TrendingUp className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
             Top SKU theo tồn kho ({topItems.length})
           </h3>
         </header>
         {topItems.length === 0 ? (
-          <p className="px-4 py-6 text-center text-sm text-zinc-500">
+          <p className="px-4 py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
             Chưa có SKU nào có tồn.
           </p>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
+            <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
               <tr>
                 <th className="w-10 px-3 py-2 text-left">#</th>
                 <th className="px-3 py-2 text-left">SKU</th>
@@ -330,28 +330,28 @@ export function ReportTab() {
             </thead>
             <tbody>
               {topItems.map((it, idx) => (
-                <tr key={it.id} className="border-t border-zinc-100">
-                  <td className="px-3 py-2 text-xs tabular-nums text-zinc-500">
+                <tr key={it.id} className="border-t border-zinc-100 dark:border-zinc-800">
+                  <td className="px-3 py-2 text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
                     {idx + 1}
                   </td>
-                  <td className="px-3 py-2 font-mono text-xs font-semibold text-zinc-900">
+                  <td className="px-3 py-2 font-mono text-xs font-semibold text-zinc-900 dark:text-zinc-50">
                     {it.sku}
                   </td>
-                  <td className="px-3 py-2 text-xs text-zinc-700">
+                  <td className="px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300">
                     <span className="block truncate" title={it.name}>
                       {it.name}
                     </span>
                   </td>
                   <td className="px-3 py-2">
                     {it.defaultBinCode ? (
-                      <span className="rounded bg-blue-50 px-1.5 py-0.5 font-mono text-xs font-medium text-blue-700">
+                      <span className="rounded bg-blue-50 px-1.5 py-0.5 font-mono text-xs font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-400">
                         {it.defaultBinCode}
                       </span>
                     ) : (
-                      <span className="text-xs text-zinc-400">—</span>
+                      <span className="text-xs text-zinc-400 dark:text-zinc-500">—</span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-right text-sm font-semibold tabular-nums text-emerald-700">
+                  <td className="px-3 py-2 text-right text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
                     {(it.inventorySummary?.totalQty ?? 0).toLocaleString(
                       "vi-VN",
                     )}
@@ -364,22 +364,22 @@ export function ReportTab() {
       </section>
 
       {/* Low stock bins */}
-      <section className="rounded-md border border-zinc-200 bg-white">
-        <header className="border-b border-zinc-200 p-4">
-          <h3 className="text-sm font-semibold text-zinc-900">
+      <section className="rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+        <header className="border-b border-zinc-200 p-4 dark:border-zinc-800">
+          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
             Bins thấp tồn ({lowBins.length})
           </h3>
-          <p className="mt-0.5 text-xs text-zinc-500">
+          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
             Các bin có số lượng dưới ngưỡng cảnh báo (low_threshold).
           </p>
         </header>
         {lowBins.length === 0 ? (
-          <p className="px-4 py-6 text-center text-sm text-zinc-500">
+          <p className="px-4 py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
             Không có bin nào dưới ngưỡng.
           </p>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
+            <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
               <tr>
                 <th className="px-3 py-2 text-left">Bin</th>
                 <th className="px-3 py-2 text-right">Tồn</th>
@@ -390,22 +390,22 @@ export function ReportTab() {
             </thead>
             <tbody>
               {lowBins.map((b) => (
-                <tr key={b.id} className="border-t border-zinc-100">
+                <tr key={b.id} className="border-t border-zinc-100 dark:border-zinc-800">
                   <td className="px-3 py-2">
-                    <span className="rounded bg-amber-50 px-1.5 py-0.5 font-mono text-xs font-medium text-amber-700">
+                    <span className="rounded bg-amber-50 px-1.5 py-0.5 font-mono text-xs font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
                       {b.fullCode}
                     </span>
                   </td>
-                  <td className="px-3 py-2 text-right text-sm tabular-nums text-zinc-900">
+                  <td className="px-3 py-2 text-right text-sm tabular-nums text-zinc-900 dark:text-zinc-50">
                     {b.totalQty.toLocaleString("vi-VN")}
                   </td>
-                  <td className="px-3 py-2 text-right text-xs tabular-nums text-zinc-500">
+                  <td className="px-3 py-2 text-right text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
                     {Number(b.lowThreshold ?? 0).toLocaleString("vi-VN")}
                   </td>
-                  <td className="px-3 py-2 text-right text-xs tabular-nums text-zinc-500">
+                  <td className="px-3 py-2 text-right text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
                     {Number(b.capacity ?? 0).toLocaleString("vi-VN")}
                   </td>
-                  <td className="px-3 py-2 text-right text-xs tabular-nums text-zinc-500">
+                  <td className="px-3 py-2 text-right text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
                     {b.skuCount}
                   </td>
                 </tr>
@@ -416,35 +416,35 @@ export function ReportTab() {
       </section>
 
       {/* Unslotted SKUs */}
-      <section className="rounded-md border border-zinc-200 bg-white">
-        <header className="border-b border-zinc-200 p-4">
-          <h3 className="text-sm font-semibold text-zinc-900">
+      <section className="rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+        <header className="border-b border-zinc-200 p-4 dark:border-zinc-800">
+          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
             SKU chưa gán vị trí kho ({unslotted.length})
           </h3>
-          <p className="mt-0.5 text-xs text-zinc-500">
+          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
             Các SKU chưa có default_bin_id — khi nhận hàng sẽ không tự putaway.
             Vào tab Vật tư → edit → gán bin.
           </p>
         </header>
         {unslotted.length === 0 ? (
-          <p className="px-4 py-6 text-center text-sm text-emerald-600">
+          <p className="px-4 py-6 text-center text-sm text-emerald-600 dark:text-emerald-400">
             ✓ Tất cả SKU đã được gán vị trí.
           </p>
         ) : (
-          <ul className="max-h-72 divide-y divide-zinc-100 overflow-auto">
+          <ul className="max-h-72 divide-y divide-zinc-100 overflow-auto dark:divide-zinc-800">
             {unslotted.map((it) => (
               <li
                 key={it.id}
                 className="flex items-center justify-between gap-3 px-4 py-2"
               >
                 <div className="min-w-0">
-                  <code className="font-mono text-xs font-semibold text-zinc-900">
+                  <code className="font-mono text-xs font-semibold text-zinc-900 dark:text-zinc-50">
                     {it.sku}
                   </code>
-                  <p className="truncate text-xs text-zinc-600">{it.name}</p>
+                  <p className="truncate text-xs text-zinc-600 dark:text-zinc-400">{it.name}</p>
                 </div>
                 {it.inventorySummary && it.inventorySummary.totalQty > 0 && (
-                  <span className="shrink-0 rounded bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                  <span className="shrink-0 rounded bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
                     Có tồn: {it.inventorySummary.totalQty}
                   </span>
                 )}
@@ -471,13 +471,13 @@ function KpiCard({
   tone: "zinc" | "indigo" | "emerald" | "amber";
 }) {
   const tones = {
-    zinc: "bg-zinc-50 text-zinc-700 ring-zinc-200",
-    indigo: "bg-indigo-50 text-indigo-700 ring-indigo-200",
-    emerald: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-    amber: "bg-amber-50 text-amber-700 ring-amber-200",
+    zinc: "bg-zinc-50 text-zinc-700 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700",
+    indigo: "bg-indigo-50 text-indigo-700 ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-800",
+    emerald: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800",
+    amber: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800",
   };
   return (
-    <div className="rounded-md border border-zinc-200 bg-white p-4">
+    <div className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
       <div className="flex items-center gap-2">
         <span
           className={cn(
@@ -487,15 +487,15 @@ function KpiCard({
         >
           {icon}
         </span>
-        <span className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+        <span className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
           {label}
         </span>
       </div>
       <div className="mt-2 flex items-end gap-2">
-        <span className="text-2xl font-semibold tabular-nums text-zinc-900">
+        <span className="text-2xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
           {value.toLocaleString("vi-VN")}
         </span>
-        {sub && <span className="text-xs text-zinc-500">{sub}</span>}
+        {sub && <span className="text-xs text-zinc-500 dark:text-zinc-400">{sub}</span>}
       </div>
     </div>
   );
@@ -515,14 +515,14 @@ function DistRow({
   const pct = total > 0 ? Math.round((count / total) * 100) : 0;
   return (
     <div className="flex items-center gap-3">
-      <span className="w-32 text-xs text-zinc-700">{label}</span>
-      <div className="relative flex-1 overflow-hidden rounded bg-zinc-100">
+      <span className="w-32 text-xs text-zinc-700 dark:text-zinc-300">{label}</span>
+      <div className="relative flex-1 overflow-hidden rounded bg-zinc-100 dark:bg-zinc-800">
         <div
           className={cn("h-4 transition-all", color)}
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="w-20 text-right text-xs tabular-nums text-zinc-600">
+      <span className="w-20 text-right text-xs tabular-nums text-zinc-600 dark:text-zinc-400">
         {count} ({pct}%)
       </span>
     </div>

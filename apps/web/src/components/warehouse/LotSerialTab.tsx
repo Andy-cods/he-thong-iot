@@ -157,21 +157,21 @@ export function LotSerialTab() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-4">
+      <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
         <div>
-          <h2 className="text-base font-semibold tracking-tight text-zinc-900">
+          <h2 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             Lô &amp; Serial
           </h2>
-          <p className="mt-0.5 text-xs text-zinc-500">
+          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
             Danh sách lot/serial trong kho · {total.toLocaleString("vi-VN")} lot
           </p>
         </div>
       </header>
 
-      <div className="flex items-center gap-2 border-b border-zinc-200 bg-white px-4 py-2">
+      <div className="flex items-center gap-2 border-b border-zinc-200 bg-white px-4 py-2 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="relative w-72">
           <Search
-            className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400"
+            className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400 dark:text-zinc-500"
             aria-hidden
           />
           <Input
@@ -182,7 +182,7 @@ export function LotSerialTab() {
           />
         </div>
 
-        <div className="flex items-center gap-1 rounded-md border border-zinc-200 bg-zinc-50 p-0.5">
+        <div className="flex items-center gap-1 rounded-md border border-zinc-200 bg-zinc-50 p-0.5 dark:border-zinc-700 dark:bg-zinc-800">
           {STATUS_MODES.map((m) => (
             <button
               key={m}
@@ -191,8 +191,8 @@ export function LotSerialTab() {
               className={cn(
                 "h-6 rounded px-2 text-[11px] font-medium transition-colors",
                 urlState.status === m
-                  ? "bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200"
-                  : "text-zinc-600 hover:text-zinc-900",
+                  ? "bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-900 dark:text-zinc-50 dark:ring-zinc-700"
+                  : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50",
               )}
             >
               {m === "all" ? "Tất cả" : (STATUS_LABEL[m as LotStatus] ?? m)}
@@ -208,14 +208,14 @@ export function LotSerialTab() {
       </div>
 
       {urlState.itemId ? (
-        <div className="flex items-center gap-2 border-b border-zinc-100 bg-indigo-50/50 px-4 py-1.5 text-xs">
-          <span className="text-zinc-500">Đang lọc theo item:</span>
-          <span className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-0.5 font-mono text-[11px] text-indigo-700 ring-1 ring-indigo-200">
+        <div className="flex items-center gap-2 border-b border-zinc-100 bg-indigo-50/50 px-4 py-1.5 text-xs dark:border-zinc-800 dark:bg-indigo-950/40">
+          <span className="text-zinc-500 dark:text-zinc-400">Đang lọc theo item:</span>
+          <span className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-0.5 font-mono text-[11px] text-indigo-700 ring-1 ring-indigo-200 dark:bg-zinc-900 dark:text-indigo-400 dark:ring-indigo-800">
             {firstItemSku ?? urlState.itemId.slice(0, 8)}
             <button
               type="button"
               onClick={handleResetItem}
-              className="ml-1 rounded p-0.5 hover:bg-indigo-100"
+              className="ml-1 rounded p-0.5 hover:bg-indigo-100 dark:hover:bg-indigo-900/40"
               aria-label="Xoá filter item"
             >
               <X className="h-3 w-3" aria-hidden />
@@ -226,7 +226,7 @@ export function LotSerialTab() {
 
       <div className="flex-1 overflow-auto p-4">
         {query.isLoading ? (
-          <div className="py-16 text-center text-sm text-zinc-500">
+          <div className="py-16 text-center text-sm text-zinc-500 dark:text-zinc-400">
             Đang tải…
           </div>
         ) : rows.length === 0 ? (
@@ -247,33 +247,33 @@ export function LotSerialTab() {
             }
           />
         ) : (
-          <div className="overflow-hidden rounded-md border border-zinc-200 bg-white">
+          <div className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
             <table className="w-full border-separate border-spacing-0 text-sm">
-              <thead className="bg-zinc-50 text-[10px] font-medium uppercase tracking-wide text-zinc-600">
+              <thead className="bg-zinc-50 text-[10px] font-medium uppercase tracking-wide text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
                 <tr className="h-8">
-                  <th className="border-b border-zinc-200 px-3 text-left">
+                  <th className="border-b border-zinc-200 px-3 text-left dark:border-zinc-700">
                     Lot / Serial
                   </th>
-                  <th className="border-b border-zinc-200 px-3 text-left">
+                  <th className="border-b border-zinc-200 px-3 text-left dark:border-zinc-700">
                     Item
                   </th>
-                  <th className="border-b border-zinc-200 px-3 text-right">
+                  <th className="border-b border-zinc-200 px-3 text-right dark:border-zinc-700">
                     On-hand
                   </th>
-                  <th className="border-b border-zinc-200 px-3 text-left">
+                  <th className="border-b border-zinc-200 px-3 text-left dark:border-zinc-700">
                     Trạng thái
                   </th>
-                  <th className="border-b border-zinc-200 px-3 text-left">
+                  <th className="border-b border-zinc-200 px-3 text-left dark:border-zinc-700">
                     Đã giữ chỗ cho
                   </th>
-                  <th className="border-b border-zinc-200 px-3 text-left">
+                  <th className="border-b border-zinc-200 px-3 text-left dark:border-zinc-700">
                     NSX / HSD
                   </th>
-                  <th className="border-b border-zinc-200 px-3 text-left">
+                  <th className="border-b border-zinc-200 px-3 text-left dark:border-zinc-700">
                     Ngày tạo
                   </th>
                   <th
-                    className="border-b border-zinc-200 px-3 text-right"
+                    className="border-b border-zinc-200 px-3 text-right dark:border-zinc-700"
                     aria-label="Hành động"
                   />
                 </tr>
@@ -282,30 +282,30 @@ export function LotSerialTab() {
                 {rows.map((r) => (
                   <tr
                     key={r.id}
-                    className="border-b border-zinc-100 transition-colors hover:bg-zinc-50"
+                    className="border-b border-zinc-100 transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/60"
                   >
                     <td
-                      className="cursor-pointer px-3 py-2 font-mono text-[12px] font-medium text-zinc-900"
+                      className="cursor-pointer px-3 py-2 font-mono text-[12px] font-medium text-zinc-900 dark:text-zinc-50"
                       onClick={() => router.push(`/lot-serial/${r.id}`)}
                     >
                       {r.lotCode ?? r.serialCode ?? (
-                        <span className="italic text-zinc-400">—</span>
+                        <span className="italic text-zinc-400 dark:text-zinc-500">—</span>
                       )}
                     </td>
                     <td
                       className="cursor-pointer px-3 py-2"
                       onClick={() => router.push(`/lot-serial/${r.id}`)}
                     >
-                      <div className="font-mono text-[11px] text-zinc-700">
+                      <div className="font-mono text-[11px] text-zinc-700 dark:text-zinc-300">
                         {r.itemSku ?? "—"}
                       </div>
-                      <div className="truncate text-[11px] text-zinc-500">
+                      <div className="truncate text-[11px] text-zinc-500 dark:text-zinc-400">
                         {r.itemName ?? ""}
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-right font-mono text-[12px] tabular-nums text-zinc-900">
+                    <td className="px-3 py-2 text-right font-mono text-[12px] tabular-nums text-zinc-900 dark:text-zinc-50">
                       {formatNumber(r.onHandQty)}{" "}
-                      <span className="text-[10px] text-zinc-400">
+                      <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
                         {r.itemUom ?? ""}
                       </span>
                     </td>
@@ -314,7 +314,7 @@ export function LotSerialTab() {
                         <StatusBadge status={r.status} />
                         {r.status === "HOLD" && r.holdReason ? (
                           <span
-                            className="text-[10px] text-amber-700"
+                            className="text-[10px] text-amber-700 dark:text-amber-400"
                             title={r.holdReason}
                           >
                             Chờ QC
@@ -322,14 +322,14 @@ export function LotSerialTab() {
                         ) : null}
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-[11px] text-zinc-700">
+                    <td className="px-3 py-2 text-[11px] text-zinc-700 dark:text-zinc-300">
                       {r.reservedQty > 0 ? (
                         <div className="flex flex-col">
-                          <span className="font-mono tabular-nums text-amber-700">
+                          <span className="font-mono tabular-nums text-amber-700 dark:text-amber-400">
                             {formatNumber(r.reservedQty)} {r.itemUom ?? ""}
                           </span>
                           <span
-                            className="truncate text-[10px] text-zinc-500"
+                            className="truncate text-[10px] text-zinc-500 dark:text-zinc-400"
                             title={
                               r.reservedForOrders ?? "Không có đơn liên kết"
                             }
@@ -338,15 +338,15 @@ export function LotSerialTab() {
                           </span>
                         </div>
                       ) : (
-                        <span className="text-zinc-300">—</span>
+                        <span className="text-zinc-300 dark:text-zinc-600">—</span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-[11px] text-zinc-600">
+                    <td className="px-3 py-2 text-[11px] text-zinc-600 dark:text-zinc-400">
                       {r.mfgDate ?? "—"}
-                      <span className="text-zinc-300"> / </span>
+                      <span className="text-zinc-300 dark:text-zinc-600"> / </span>
                       {r.expDate ?? "—"}
                     </td>
-                    <td className="px-3 py-2 text-[11px] text-zinc-500">
+                    <td className="px-3 py-2 text-[11px] text-zinc-500 dark:text-zinc-400">
                       {new Date(r.createdAt).toLocaleDateString("vi-VN")}
                     </td>
                     <td className="px-3 py-2 text-right">
@@ -412,15 +412,15 @@ export function LotSerialTab() {
         )}
       </div>
 
-      <footer className="flex h-9 items-center justify-between border-t border-zinc-200 bg-white px-4 text-sm">
-        <div className="text-zinc-600">
+      <footer className="flex h-9 items-center justify-between border-t border-zinc-200 bg-white px-4 text-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="text-zinc-600 dark:text-zinc-400">
           Hiển thị{" "}
-          <span className="tabular-nums text-zinc-900">
+          <span className="tabular-nums text-zinc-900 dark:text-zinc-50">
             {rows.length === 0 ? 0 : (urlState.page - 1) * urlState.pageSize + 1}
             –{(urlState.page - 1) * urlState.pageSize + rows.length}
           </span>{" "}
           /{" "}
-          <span className="tabular-nums text-zinc-900">
+          <span className="tabular-nums text-zinc-900 dark:text-zinc-50">
             {total.toLocaleString("vi-VN")}
           </span>
         </div>
@@ -445,7 +445,7 @@ export function LotSerialTab() {
           >
             ‹
           </Button>
-          <span className="px-2 text-zinc-600 tabular-nums">
+          <span className="px-2 text-zinc-600 tabular-nums dark:text-zinc-400">
             {urlState.page} / {pageCount}
           </span>
           <Button

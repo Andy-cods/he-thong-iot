@@ -169,7 +169,7 @@ export function IssueTab() {
   };
 
   return (
-    <div className="flex h-full flex-col gap-4 overflow-auto bg-gradient-to-br from-zinc-50 to-rose-50/30 p-3 sm:p-6">
+    <div className="flex h-full flex-col gap-4 overflow-auto bg-gradient-to-br from-zinc-50 to-rose-50/30 p-3 sm:p-6 dark:from-zinc-950 dark:to-zinc-900">
       {/* HEADER */}
       <header className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -177,10 +177,10 @@ export function IssueTab() {
             <Truck className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold tracking-tight text-zinc-900">
+            <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
               Xuất hàng
             </h2>
-            <p className="mt-0.5 text-sm text-zinc-500">
+            <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
               Kho xuất ngay (auto FIFO) · duyệt yêu cầu từ Gia công
             </p>
           </div>
@@ -208,11 +208,11 @@ export function IssueTab() {
       <PendingRequestsPanel />
 
       {/* QUICK ISSUE FORM — đơn giản */}
-      <section className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
-        <header className="flex items-center gap-2 border-b border-zinc-100 px-5 py-3">
-          <Package className="h-4 w-4 text-rose-600" />
-          <h3 className="text-sm font-bold text-zinc-900">Xuất nhanh</h3>
-          <span className="text-xs text-zinc-500">
+      <section className="rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <header className="flex items-center gap-2 border-b border-zinc-100 px-5 py-3 dark:border-zinc-800">
+          <Package className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+          <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-50">Xuất nhanh</h3>
+          <span className="text-xs text-zinc-500 dark:text-zinc-400">
             · Hệ thống tự pick FIFO (lô cũ trước)
           </span>
         </header>
@@ -237,7 +237,7 @@ export function IssueTab() {
             type="button"
             onClick={addLine}
             disabled={submitting}
-            className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-600 hover:border-rose-400 hover:bg-rose-50/50 hover:text-rose-700"
+            className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-600 hover:border-rose-400 hover:bg-rose-50/50 hover:text-rose-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-rose-500 dark:hover:bg-rose-950/30 dark:hover:text-rose-400"
           >
             <Plus className="h-3.5 w-3.5" />
             Thêm dòng
@@ -246,14 +246,14 @@ export function IssueTab() {
           {/* Meta */}
           <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
                 Lý do
               </label>
               <select
                 value={reason}
                 onChange={(e) => setReason(e.target.value as Reason)}
                 disabled={submitting}
-                className="mt-1.5 block h-10 w-full rounded-md border border-zinc-300 bg-white px-2 text-sm"
+                className="mt-1.5 block h-10 w-full rounded-md border border-zinc-300 bg-white px-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
               >
                 {REASONS.map((r) => (
                   <option key={r.value} value={r.value}>
@@ -263,7 +263,7 @@ export function IssueTab() {
               </select>
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
                 Chứng từ tham chiếu
               </label>
               <Input
@@ -275,7 +275,7 @@ export function IssueTab() {
               />
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
+              <label className="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
                 Ghi chú
               </label>
               <Input
@@ -289,16 +289,16 @@ export function IssueTab() {
           </div>
 
           {/* Submit */}
-          <div className="mt-5 flex items-center justify-between gap-3 rounded-lg bg-zinc-50 p-3">
-            <div className="text-xs text-zinc-600">
+          <div className="mt-5 flex items-center justify-between gap-3 rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800">
+            <div className="text-xs text-zinc-600 dark:text-zinc-400">
               {totalLines === 0 ? (
                 "Chưa có dòng nào để xuất."
               ) : totalShortage > 0 ? (
-                <span className="text-amber-700">
+                <span className="text-amber-700 dark:text-amber-400">
                   ⚠ Thiếu {totalShortage} đơn vị, vẫn xuất phần có sẵn.
                 </span>
               ) : (
-                <span className="text-emerald-700">
+                <span className="text-emerald-700 dark:text-emerald-400">
                   ✓ Đủ tồn cho {totalLines} SKU · tổng {totalQty.toLocaleString("vi-VN")} qty.
                 </span>
               )}
@@ -354,13 +354,13 @@ function SimpleLineRow({
   return (
     <div
       className={cn(
-        "flex items-center gap-2 rounded-xl border bg-white p-2.5 transition-all",
-        ok && "border-emerald-300 bg-emerald-50/30",
-        shortage > 0 && "border-amber-300 bg-amber-50/30",
-        !line.item && "border-zinc-200",
+        "flex items-center gap-2 rounded-xl border bg-white p-2.5 transition-all dark:bg-zinc-900",
+        ok && "border-emerald-300 bg-emerald-50/30 dark:border-emerald-800 dark:bg-emerald-950/40",
+        shortage > 0 && "border-amber-300 bg-amber-50/30 dark:border-amber-800 dark:bg-amber-950/40",
+        !line.item && "border-zinc-200 dark:border-zinc-700",
       )}
     >
-      <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-bold text-zinc-600">
+      <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-bold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
         {index + 1}
       </span>
       <div className="grid flex-1 grid-cols-1 gap-2 md:grid-cols-[1fr_140px]">
@@ -381,7 +381,7 @@ function SimpleLineRow({
             disabled={disabled || !line.item}
           />
           {line.item && (
-            <span className="text-[10px] text-zinc-500 whitespace-nowrap">
+            <span className="text-[10px] text-zinc-500 whitespace-nowrap dark:text-zinc-400">
               {line.item.uom}
             </span>
           )}
@@ -391,12 +391,12 @@ function SimpleLineRow({
         {line.item && need > 0 && (
           <>
             {ok ? (
-              <span className="inline-flex items-center gap-0.5 rounded bg-emerald-100 px-1.5 py-0.5 font-medium text-emerald-700">
+              <span className="inline-flex items-center gap-0.5 rounded bg-emerald-100 px-1.5 py-0.5 font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
                 <CheckCircle2 className="h-3 w-3" />
                 Đủ
               </span>
             ) : (
-              <span className="inline-flex items-center gap-0.5 rounded bg-amber-100 px-1.5 py-0.5 font-medium text-amber-700">
+              <span className="inline-flex items-center gap-0.5 rounded bg-amber-100 px-1.5 py-0.5 font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
                 <AlertCircle className="h-3 w-3" />
                 Thiếu {shortage}
               </span>
@@ -405,7 +405,7 @@ function SimpleLineRow({
         )}
         {line.item && (
           <span
-            className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] text-zinc-500"
+            className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] text-zinc-500 dark:text-zinc-400"
             title={`Tồn: ${have} ${line.item.uom}`}
           >
             tồn {have.toLocaleString("vi-VN")}
@@ -416,7 +416,7 @@ function SimpleLineRow({
             type="button"
             onClick={onRemove}
             disabled={disabled}
-            className="ml-1 inline-flex h-7 w-7 items-center justify-center rounded text-zinc-400 hover:bg-rose-50 hover:text-rose-600"
+            className="ml-1 inline-flex h-7 w-7 items-center justify-center rounded text-zinc-400 hover:bg-rose-50 hover:text-rose-600 dark:text-zinc-500 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
             title="Xoá dòng"
           >
             <Trash2 className="h-3.5 w-3.5" />
@@ -441,9 +441,9 @@ function Stat({
   tone?: "zinc" | "emerald" | "amber";
 }) {
   const tones = {
-    zinc: "bg-white border-zinc-200 text-zinc-700",
-    emerald: "bg-emerald-50 border-emerald-200 text-emerald-700",
-    amber: "bg-amber-50 border-amber-200 text-amber-700",
+    zinc: "bg-white border-zinc-200 text-zinc-700 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300",
+    emerald: "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400",
+    amber: "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-400",
   };
   return (
     <div
@@ -520,18 +520,18 @@ function ItemPicker({
 
   if (value) {
     return (
-      <div className="flex h-10 items-center justify-between gap-2 rounded-md border border-rose-200 bg-rose-50 px-3">
+      <div className="flex h-10 items-center justify-between gap-2 rounded-md border border-rose-200 bg-rose-50 px-3 dark:border-rose-800 dark:bg-rose-950/40">
         <div className="min-w-0">
-          <code className="font-mono text-xs font-bold text-rose-900">
+          <code className="font-mono text-xs font-bold text-rose-900 dark:text-rose-200">
             {value.sku}
           </code>
-          <p className="truncate text-[10px] text-rose-700">{value.name}</p>
+          <p className="truncate text-[10px] text-rose-700 dark:text-rose-400">{value.name}</p>
         </div>
         <button
           type="button"
           onClick={() => onChange(null)}
           disabled={disabled}
-          className="text-[10px] text-zinc-500 hover:text-zinc-900"
+          className="text-[10px] text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
         >
           Đổi
         </button>
@@ -541,7 +541,7 @@ function ItemPicker({
 
   return (
     <div className="relative">
-      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" />
       <Input
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
@@ -550,10 +550,10 @@ function ItemPicker({
         disabled={disabled}
       />
       {searching && (
-        <Loader2 className="absolute right-3 top-1/2 h-3 w-3 -translate-y-1/2 animate-spin text-zinc-400" />
+        <Loader2 className="absolute right-3 top-1/2 h-3 w-3 -translate-y-1/2 animate-spin text-zinc-400 dark:text-zinc-500" />
       )}
       {results.length > 0 && (
-        <ul className="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 divide-y divide-zinc-100 overflow-auto rounded-lg border border-zinc-200 bg-white shadow-lg">
+        <ul className="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 divide-y divide-zinc-100 overflow-auto rounded-lg border border-zinc-200 bg-white shadow-lg dark:divide-zinc-800 dark:border-zinc-700 dark:bg-zinc-900">
           {results.map((r) => (
             <li key={r.id}>
               <button
@@ -563,13 +563,13 @@ function ItemPicker({
                   setSearchTerm("");
                   setResults([]);
                 }}
-                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-rose-50"
+                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-rose-50 dark:hover:bg-rose-950/40"
               >
                 <div className="min-w-0">
-                  <code className="font-mono text-xs font-bold text-zinc-900">
+                  <code className="font-mono text-xs font-bold text-zinc-900 dark:text-zinc-50">
                     {r.sku}
                   </code>
-                  <p className="truncate text-[10px] text-zinc-600">
+                  <p className="truncate text-[10px] text-zinc-600 dark:text-zinc-400">
                     {r.name}
                   </p>
                 </div>
@@ -577,8 +577,8 @@ function ItemPicker({
                   className={cn(
                     "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold tabular-nums",
                     r.totalQty > 0
-                      ? "bg-emerald-100 text-emerald-700"
-                      : "bg-zinc-100 text-zinc-500",
+                      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+                      : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400",
                   )}
                 >
                   {r.totalQty.toLocaleString("vi-VN")} {r.uom}
@@ -692,25 +692,25 @@ function PendingRequestsPanel() {
   }
 
   return (
-    <section className="rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50/50 shadow-sm">
-      <header className="flex items-center justify-between border-b border-amber-200 px-5 py-3">
+    <section className="rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50/50 shadow-sm dark:border-amber-800 dark:from-amber-950/40 dark:to-orange-950/30">
+      <header className="flex items-center justify-between border-b border-amber-200 px-5 py-3 dark:border-amber-800">
         <button
           type="button"
           onClick={() => setCollapsed((c) => !c)}
-          className="flex items-center gap-2 text-sm font-bold text-amber-900 hover:opacity-80"
+          className="flex items-center gap-2 text-sm font-bold text-amber-900 hover:opacity-80 dark:text-amber-300"
         >
           <ClipboardList className="h-4 w-4" />
           <span>
             Yêu cầu chờ duyệt từ Gia công ({rows.length})
           </span>
-          <span className="text-xs font-normal text-amber-700">
+          <span className="text-xs font-normal text-amber-700 dark:text-amber-400">
             {collapsed ? "▶" : "▼"}
           </span>
         </button>
         <button
           type="button"
           onClick={() => refetch()}
-          className="text-xs font-medium text-amber-700 hover:underline"
+          className="text-xs font-medium text-amber-700 hover:underline dark:text-amber-400"
         >
           ↻ Làm mới
         </button>
@@ -719,7 +719,7 @@ function PendingRequestsPanel() {
       {!collapsed && (
         <div className="p-3">
           {isLoading ? (
-            <p className="inline-flex items-center gap-1 text-xs text-zinc-500">
+            <p className="inline-flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400">
               <Loader2 className="h-3 w-3 animate-spin" /> Đang tải…
             </p>
           ) : (
@@ -733,61 +733,61 @@ function PendingRequestsPanel() {
                 return (
                   <li
                     key={r.id}
-                    className="rounded-xl border border-zinc-200 bg-white p-3"
+                    className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <code className="font-mono text-sm font-bold text-indigo-900">
+                          <code className="font-mono text-sm font-bold text-indigo-900 dark:text-indigo-300">
                             {r.requestNo}
                           </code>
-                          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+                          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
                             {r.reason}
                           </span>
                           {r.reference && (
-                            <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-700">
+                            <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                               {r.reference}
                             </span>
                           )}
-                          <span className="text-[10px] text-zinc-500">
+                          <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
                             {new Date(r.createdAt).toLocaleString("vi-VN")}
                           </span>
                         </div>
-                        <p className="mt-1 text-xs text-zinc-600">
+                        <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
                           Người tạo:{" "}
-                          <span className="font-semibold text-zinc-800">
+                          <span className="font-semibold text-zinc-800 dark:text-zinc-200">
                             {r.requesterUsername ?? "?"}
                           </span>{" "}
                           ·{" "}
                           <span className="tabular-nums">
                             {totalLines} SKU / {totalPicks} pick / tổng{" "}
-                            <span className="font-semibold text-emerald-700">
+                            <span className="font-semibold text-emerald-700 dark:text-emerald-400">
                               {Number(r.totalQty).toLocaleString("vi-VN")}
                             </span>
                           </span>
                         </p>
                         {r.notes && (
-                          <p className="mt-0.5 text-xs italic text-zinc-500">
+                          <p className="mt-0.5 text-xs italic text-zinc-500 dark:text-zinc-400">
                             &quot;{r.notes}&quot;
                           </p>
                         )}
                         <details className="mt-1.5">
-                          <summary className="cursor-pointer text-[11px] font-medium text-indigo-600 hover:underline">
+                          <summary className="cursor-pointer text-[11px] font-medium text-indigo-600 hover:underline dark:text-indigo-400">
                             Chi tiết picks ({totalPicks})
                           </summary>
-                          <div className="mt-1 max-h-40 overflow-auto rounded border border-zinc-100 bg-zinc-50 p-2 text-[11px]">
+                          <div className="mt-1 max-h-40 overflow-auto rounded border border-zinc-100 bg-zinc-50 p-2 text-[11px] dark:border-zinc-800 dark:bg-zinc-800">
                             {r.picksJson.map((line, li) => (
                               <div key={li} className="mb-1.5">
-                                <code className="font-mono font-semibold text-zinc-700">
+                                <code className="font-mono font-semibold text-zinc-700 dark:text-zinc-300">
                                   {line.sku ?? line.itemId.slice(0, 8)}
                                 </code>
                                 <ul className="ml-3 mt-0.5 space-y-0.5">
                                   {line.picks.map((p, pi) => (
                                     <li
                                       key={pi}
-                                      className="flex items-center gap-2 text-zinc-600"
+                                      className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400"
                                     >
-                                      <span className="rounded bg-blue-50 px-1 font-mono text-[10px] text-blue-700">
+                                      <span className="rounded bg-blue-50 px-1 font-mono text-[10px] text-blue-700 dark:bg-blue-950/40 dark:text-blue-400">
                                         {p.binCode ?? p.binId.slice(0, 8)}
                                       </span>
                                       <span className="font-mono">
@@ -819,7 +819,7 @@ function PendingRequestsPanel() {
                           variant="outline"
                           disabled={acting === r.id}
                           onClick={() => handleReject(r.id, r.requestNo)}
-                          className="border-rose-300 text-rose-700 hover:bg-rose-50"
+                          className="border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-950/40"
                         >
                           <X className="h-3.5 w-3.5" />
                           Từ chối

@@ -78,7 +78,7 @@ export function Sidebar({
     <aside
       aria-label="Điều hướng chính"
       className={cn(
-        "relative z-sidebar flex h-full shrink-0 flex-col border-r border-zinc-200 bg-white transition-[width] duration-150 ease-out",
+        "relative z-sidebar flex h-full shrink-0 flex-col border-r border-zinc-200 bg-white transition-[width] duration-150 ease-out dark:border-zinc-800 dark:bg-zinc-900",
         isIconOnly ? "w-14" : "w-[220px]",
         className,
       )}
@@ -89,15 +89,15 @@ export function Sidebar({
       {/* Brand header 48px */}
       <div
         className={cn(
-          "flex h-12 items-center border-b border-zinc-100",
+          "flex h-12 items-center border-b border-zinc-100 dark:border-zinc-800",
           isIconOnly ? "justify-center px-0" : "px-4",
         )}
       >
-        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm bg-zinc-900 text-[10px] font-bold text-white">
+        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm bg-zinc-900 text-[10px] font-bold text-white dark:bg-zinc-100 dark:text-zinc-900">
           CN
         </div>
         {!isIconOnly && (
-          <span className="ml-2 truncate text-base font-semibold text-zinc-900">
+          <span className="ml-2 truncate text-base font-semibold text-zinc-900 dark:text-zinc-50">
             Xưởng IoT
           </span>
         )}
@@ -122,7 +122,7 @@ export function Sidebar({
             {groups?.map((group) => (
               <div key={group.section} className="flex flex-col">
                 <p
-                  className="px-4 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400"
+                  className="px-4 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500"
                   aria-hidden="true"
                 >
                   {group.label}
@@ -165,7 +165,7 @@ function SidebarItem({
     <Icon
       className={cn(
         "h-4 w-4 shrink-0 transition-colors duration-150",
-        isActive ? "text-indigo-600" : "text-zinc-500",
+        isActive ? "text-indigo-600 dark:text-indigo-400" : "text-zinc-500 dark:text-zinc-400",
       )}
       aria-hidden="true"
       strokeWidth={1.75}
@@ -176,15 +176,15 @@ function SidebarItem({
         className={cn(
           "h-4 w-4 shrink-0 transition-colors duration-150",
           isActive
-            ? "text-indigo-600"
-            : "text-zinc-500 group-hover:text-zinc-700",
+            ? "text-indigo-600 dark:text-indigo-400"
+            : "text-zinc-500 group-hover:text-zinc-700 dark:text-zinc-400 dark:group-hover:text-zinc-200",
         )}
         aria-hidden="true"
         strokeWidth={1.75}
       />
       <span className="flex-1 truncate">{item.label}</span>
       {item.badge !== undefined ? (
-        <span className="ml-auto inline-flex h-[18px] items-center rounded-sm bg-zinc-100 px-1.5 text-[10px] font-medium text-zinc-600">
+        <span className="ml-auto inline-flex h-[18px] items-center rounded-sm bg-zinc-100 px-1.5 text-[10px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
           {item.badge}
         </span>
       ) : null}
@@ -199,11 +199,11 @@ function SidebarItem({
     "transition-all duration-150 ease-out",
     "focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 focus-visible:outline-offset-[-2px]",
     isActive && !iconOnly
-      ? "bg-indigo-50/60 text-indigo-700 pl-[10px] before:absolute before:left-0 before:top-1 before:bottom-1 before:w-0.5 before:rounded-r before:bg-indigo-500"
+      ? "bg-indigo-50/60 text-indigo-700 pl-[10px] before:absolute before:left-0 before:top-1 before:bottom-1 before:w-0.5 before:rounded-r before:bg-indigo-500 dark:bg-indigo-500/15 dark:text-indigo-300"
       : isActive && iconOnly
-        ? "bg-indigo-50/60 text-indigo-700"
-        : "text-zinc-700 hover:bg-zinc-100/80 hover:text-zinc-900",
-    item.disabled && "cursor-not-allowed text-zinc-400 hover:bg-transparent",
+        ? "bg-indigo-50/60 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300"
+        : "text-zinc-700 hover:bg-zinc-100/80 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/80 dark:hover:text-zinc-50",
+    item.disabled && "cursor-not-allowed text-zinc-400 hover:bg-transparent dark:text-zinc-600",
   );
 
   return (
@@ -211,7 +211,7 @@ function SidebarItem({
       {item.divider ? (
         <div
           aria-hidden="true"
-          className={cn("my-1.5 h-px bg-zinc-100", iconOnly && "mx-2")}
+          className={cn("my-1.5 h-px bg-zinc-100 dark:bg-zinc-800", iconOnly && "mx-2")}
         />
       ) : null}
       {item.disabled ? (

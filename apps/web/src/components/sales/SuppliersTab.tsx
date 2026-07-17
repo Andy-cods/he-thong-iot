@@ -108,17 +108,17 @@ export function SuppliersTab() {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* V2 compact header: Breadcrumb + H1 xl + Tạo mới top-right */}
-      <header className="border-b border-zinc-200 bg-white px-6 py-4">
+      <header className="border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
         <Breadcrumb
           items={[{ label: "Trang chủ", href: "/" }, { label: "Nhà cung cấp" }]}
           className="mb-0.5"
         />
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
+            <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
               Nhà cung cấp
             </h1>
-            <p className="mt-0.5 text-xs text-zinc-500">
+            <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
               {total.toLocaleString("vi-VN")} NCC
             </p>
           </div>
@@ -132,10 +132,10 @@ export function SuppliersTab() {
       </header>
 
       {/* Filter bar compact h-11 */}
-      <div className="flex h-11 items-center gap-2 border-b border-zinc-200 bg-white px-4">
+      <div className="flex h-11 items-center gap-2 border-b border-zinc-200 bg-white px-4 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="relative w-[280px]">
           <Search
-            className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400"
+            className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400 dark:text-zinc-500"
             aria-hidden="true"
           />
           <Input
@@ -151,7 +151,7 @@ export function SuppliersTab() {
             <button
               type="button"
               onClick={() => setSearchInput("")}
-              className="absolute right-1.5 top-1/2 inline-flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+              className="absolute right-1.5 top-1/2 inline-flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
               aria-label="Xoá tìm kiếm"
             >
               <X className="h-3 w-3" aria-hidden="true" />
@@ -160,7 +160,7 @@ export function SuppliersTab() {
         </div>
 
         {/* Segmented 3-mode active (h-8) */}
-        <div className="inline-flex h-8 overflow-hidden rounded-md border border-zinc-200 bg-white">
+        <div className="inline-flex h-8 overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
           {ACTIVE_MODES.map((m, i) => (
             <button
               key={m.value}
@@ -174,10 +174,10 @@ export function SuppliersTab() {
               }
               className={cn(
                 "inline-flex h-full items-center px-3 text-base font-medium transition-colors",
-                i > 0 && "border-l border-zinc-200",
+                i > 0 && "border-l border-zinc-200 dark:border-zinc-700",
                 activeMode === m.value
-                  ? "bg-zinc-900 text-white"
-                  : "bg-white text-zinc-700 hover:bg-zinc-50",
+                  ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                  : "bg-white text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/60",
               )}
               aria-pressed={activeMode === m.value}
             >
@@ -190,7 +190,7 @@ export function SuppliersTab() {
           <button
             type="button"
             onClick={handleReset}
-            className="ml-auto text-xs font-medium text-blue-600 hover:text-blue-700"
+            className="ml-auto text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
           >
             Xoá bộ lọc
           </button>
@@ -232,10 +232,10 @@ export function SuppliersTab() {
             />
           )
         ) : (
-          <div className="overflow-hidden rounded-md border border-zinc-200 bg-white">
+          <div className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
             <table className="min-w-full border-collapse text-base">
-              <thead className="bg-zinc-50">
-                <tr className="text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+              <thead className="bg-zinc-50 dark:bg-zinc-800">
+                <tr className="text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                   <th className="h-8 px-3 w-[128px]">Mã</th>
                   <th className="h-8 px-3">Tên</th>
                   <th className="h-8 px-3 w-[140px]">Điện thoại</th>
@@ -259,19 +259,19 @@ export function SuppliersTab() {
                       }
                     }}
                     className={cn(
-                      "group h-9 cursor-pointer border-t border-zinc-100 transition-colors hover:bg-zinc-50 focus:outline-none",
+                      "group h-9 cursor-pointer border-t border-zinc-100 transition-colors hover:bg-zinc-50 focus:outline-none dark:border-zinc-800 dark:hover:bg-zinc-800/60",
                       focusedIndex === i &&
-                        "bg-blue-50 outline outline-2 -outline-offset-2 outline-blue-500",
+                        "bg-blue-50 outline outline-2 -outline-offset-2 outline-blue-500 dark:bg-blue-950/40",
                     )}
                   >
-                    <td className="px-3 font-mono text-sm text-zinc-900">
+                    <td className="px-3 font-mono text-sm text-zinc-900 dark:text-zinc-50">
                       {r.code}
                     </td>
-                    <td className="px-3 text-zinc-900">{r.name}</td>
-                    <td className="px-3 text-zinc-600 tabular-nums">
+                    <td className="px-3 text-zinc-900 dark:text-zinc-50">{r.name}</td>
+                    <td className="px-3 text-zinc-600 tabular-nums dark:text-zinc-400">
                       {r.phone ?? "—"}
                     </td>
-                    <td className="max-w-xs truncate px-3 text-zinc-600">
+                    <td className="max-w-xs truncate px-3 text-zinc-600 dark:text-zinc-400">
                       {r.email ?? "—"}
                     </td>
                     <td className="px-3">
@@ -315,17 +315,17 @@ export function SuppliersTab() {
       </div>
 
       {!isEmpty ? (
-        <footer className="flex h-9 items-center justify-between border-t border-zinc-200 bg-white px-4 text-base">
-          <div className="text-zinc-600">
+        <footer className="flex h-9 items-center justify-between border-t border-zinc-200 bg-white px-4 text-base dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="text-zinc-600 dark:text-zinc-400">
             Hiển thị{" "}
-            <span className="tabular-nums text-zinc-900">
+            <span className="tabular-nums text-zinc-900 dark:text-zinc-50">
               {rows.length === 0
                 ? 0
                 : (urlState.page - 1) * urlState.pageSize + 1}
               –{(urlState.page - 1) * urlState.pageSize + rows.length}
             </span>{" "}
             /{" "}
-            <span className="tabular-nums text-zinc-900">
+            <span className="tabular-nums text-zinc-900 dark:text-zinc-50">
               {total.toLocaleString("vi-VN")}
             </span>
           </div>
@@ -339,7 +339,7 @@ export function SuppliersTab() {
             >
               ‹
             </Button>
-            <span className="px-2 text-zinc-600 tabular-nums">
+            <span className="px-2 text-zinc-600 tabular-nums dark:text-zinc-400">
               {urlState.page} / {pageCount}
             </span>
             <Button
