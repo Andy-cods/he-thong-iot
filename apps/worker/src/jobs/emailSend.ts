@@ -126,33 +126,87 @@ function renderHtml(data: EmailSendJob): string {
 </body></html>`;
 }
 
-export async function processEmailSend(job: Job<EmailSendJob>) {
-  const cfg = getSmtpConfig();
-  if (!cfg) {
-    // Chưa cấu hình SMTP (dev/staging) — skip êm, KHÔNG fail để job không
-    // retry vô ích. Prod thiếu config sẽ thấy warn này trong log.
-    logger.warn(
-      { jobId: job.id, to: job.data.to },
-      "email-send: SMTP chưa cấu hình (SMTP_HOST/SMTP_USER/SMTP_PASSWORD) — skip",
-    );
-    return { status: "skipped", reason: "smtp_not_configured" };
-  }
-  const t = getTransporter(cfg);
-  const subject = job.data.entityCode
-    ? `[Cần duyệt] ${job.data.title} — ${job.data.entityCode}`
-    : `[Cần duyệt] ${job.data.title}`;
-  const info = await t.sendMail({
-    from: { name: "MES Song Châu", address: cfg.from },
-    to: job.data.to,
-    subject,
-    html: renderHtml(job.data),
-    text: [
-      job.data.title,
-      job.data.message ?? "",
-      job.data.link ?? "",
-    ]
-      .filter(Boolean)
-      .join("\n\n"),
+function buildSubject(data: EmailSendJob): string {
+  return data.entityCode
+    ? `[Cần duyệt] ${data.title} — ${data.entityCode}`
+    : `[Cần duyệt] ${data.title}`;
+}
+
+function buildText(data: EmailSendJob): string {
+  return [data.title, data.message ?? "", data.link ?? ""]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+/** Địa chỉ gửi (From). Resend cần domain đã verify; nếu chưa set → dùng
+ * sender dùng thử `onboarding@resend.dev` (chỉ gửi được tới email chủ tài khoản
+ * cho tới khi verify domain — đủ để test nhận thông báo). */
+function resolveFrom(): { name: string; address: string } {
+  return {
+    name: "MES Song Châu",
+    address: process.env.MAIL_FROM || "onboarding@resend.dev",
+  };
+}
+
+/**
+ * V3.12.1 — Gửi qua Resend HTTP API (https://resend.com). KHÔNG đăng nhập
+ * mailbox nào — chỉ 1 API key (RESEND_API_KEY, revoke được bất kỳ lúc nào).
+ * Ưu tiên transport này vì deliverability cao + tách khỏi hộp thư người dùng.
+ */
+async function sendViaResend(
+  apiKey: string,
+  data: EmailSendJob,
+): Promise<{ status: string; messageId?: string }> {
+  const from = resolveFrom();
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: `${from.name} <${from.address}>`,
+      to: [data.to],
+      subject: buildSubject(data),
+      html: renderHtml(data),
+      text: buildText(data),
+    }),
+    signal: AbortSignal.timeout(20_000),
   });
-  return { status: "sent", messageId: info.messageId };
+  if (!res.ok) {
+    // Ném lỗi → BullMQ retry (3 lần backoff). Lỗi 4xx (key sai/from chưa verify)
+    // vẫn retry nhưng sẽ hết attempt rồi vào failed — log rõ để chẩn đoán.
+    const body = await res.text().catch(() => "");
+    throw new Error(`Resend API ${res.status}: ${body.slice(0, 300)}`);
+  }
+  const json = (await res.json().catch(() => ({}))) as { id?: string };
+  return { status: "sent", messageId: json.id };
+}
+
+export async function processEmailSend(job: Job<EmailSendJob>) {
+  const resendKey = readSecret("RESEND_API_KEY");
+  // 1) Resend HTTP API (khuyến nghị — không dính mailbox nào).
+  if (resendKey) {
+    const res = await sendViaResend(resendKey, job.data);
+    return { ...res, transport: "resend" };
+  }
+  // 2) SMTP bất kỳ (M365 / Brevo / SendGrid relay...) qua nodemailer.
+  const cfg = getSmtpConfig();
+  if (cfg) {
+    const t = getTransporter(cfg);
+    const info = await t.sendMail({
+      from: { name: "MES Song Châu", address: cfg.from },
+      to: job.data.to,
+      subject: buildSubject(job.data),
+      html: renderHtml(job.data),
+      text: buildText(job.data),
+    });
+    return { status: "sent", messageId: info.messageId, transport: "smtp" };
+  }
+  // 3) Chưa cấu hình gì — skip êm (KHÔNG fail để không retry vô ích).
+  logger.warn(
+    { jobId: job.id, to: job.data.to },
+    "email-send: chưa cấu hình RESEND_API_KEY hoặc SMTP_* — skip",
+  );
+  return { status: "skipped", reason: "no_transport_configured" };
 }

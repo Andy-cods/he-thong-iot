@@ -146,12 +146,14 @@ services:
       R2_BUCKET: ${R2_BUCKET}
       R2_ENDPOINT: ${R2_ENDPOINT}
       LOG_LEVEL: info
-      # V3.12 — SMTP gửi email "cần duyệt" (M365: smtp.office365.com:587).
-      # Password qua docker secret (smtp_password) — không nằm trong env/git.
-      SMTP_HOST: ${SMTP_HOST:-smtp.office365.com}
+      # V3.12 — email "cần duyệt". Ưu tiên Resend HTTP API (RESEND_API_KEY qua
+      # docker secret), fallback SMTP relay. MAIL_FROM = địa chỉ domain đã verify
+      # (trống → onboarding@resend.dev, chỉ gửi tới email chủ Resend account).
+      MAIL_FROM: ${MAIL_FROM:-}
+      RESEND_API_KEY_FILE: /run/secrets/resend_api_key
+      SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
-      MAIL_FROM: ${MAIL_FROM:-}
       SMTP_PASSWORD_FILE: /run/secrets/smtp_password
       DB_PASSWORD_FILE: /run/secrets/db_password
       JWT_SECRET_FILE: /run/secrets/jwt_secret
@@ -163,6 +165,7 @@ services:
       - r2_access_key
       - r2_secret_key
       - smtp_password
+      - resend_api_key
     volumes:
       - ./logs:/app/logs
     networks: [iot_net]
@@ -219,3 +222,5 @@ secrets:
     file: ./secrets/r2_secret_key.txt
   smtp_password:
     file: ./secrets/smtp_password.txt
+  resend_api_key:
+    file: ./secrets/resend_api_key.txt
