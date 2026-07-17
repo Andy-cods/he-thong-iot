@@ -105,14 +105,15 @@ export const NAV_ITEMS: NavItem[] = [
     icon: LayoutDashboard,
     section: "dashboard",
   },
-  // V3.7.57 — Hub Thiết kế / BOM List cho TẤT CẢ bộ phận. Tab visibility filter
-  // theo role bên trong page (admin/planner: full; operator/warehouse: BOM + PR;
-  // purchaser: BOM read-only — duyệt PR vào /sales).
+  // V3.7.57 — Hub Thiết kế / BOM List. Tab visibility filter theo role bên trong
+  // page (admin/planner: full; operator/warehouse: BOM + PR).
+  // V3.11.5 — Bỏ purchaser: Bộ phận Mua hàng chỉ thấy Tổng quan + Đề xuất vật tư
+  // + Thu mua (theo yêu cầu user). Purchaser vẫn duyệt/xử lý mua hàng ở /sales.
   {
     href: "/engineering",
     label: "Bộ phận Thiết kế",
     icon: Layers,
-    roles: ["admin", "planner", "warehouse", "operator", "purchaser"],
+    roles: ["admin", "planner", "warehouse", "operator"],
     section: "engineering",
   },
   // V3.9 — Đề xuất mua vật tư (Phiếu YCVT/MRF): MỌI tài khoản (trừ display kiosk)

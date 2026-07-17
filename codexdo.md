@@ -123,8 +123,26 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
+### TASK-20260717-002 — Account Bộ phận Mua hàng + nav 3 mục (V3.11.5)
+- **Trạng thái:** DONE · **Hoàn thành:** 2026-07-17 (+07) · **Ưu tiên:** P2
+- **Yêu cầu user:** tạo 1 account cho bộ phận mua hàng, sidebar chỉ hiện 3 mục: Tổng quan,
+  Đề xuất vật tư, Thu mua.
+- **Nav (code):** `lib/nav-items.ts` — bỏ `purchaser` khỏi mục "/engineering" (Bộ phận Thiết kế).
+  Role purchaser giờ thấy đúng: Tổng quan (mọi role) + Đề xuất vật tư (/procurement/purchase-requests)
+  + Bộ phận Thu mua (/sales). Áp cho cả role (nhất quán), ảnh hưởng cả acc cũ THUMUA-KETOAN.
+- **Account (prod, user duyệt):** tạo qua API admin POST /api/admin/users — `muahang` /
+  `MuaHang@2026`, fullName "Bộ phận Mua hàng", role `purchaser`, id a16a728f. E2E: login 200,
+  GET /purchase-requests 200, GET /purchase-orders 200. **User cần đổi mật khẩu lần đầu.**
+
 ### TASK-20260717-001 — System polish audit Sprint 2A (P1 backend) (V3.11.4)
-- **Trạng thái:** IN_PROGRESS · **Bắt đầu:** 2026-07-17 (+07) · **Ưu tiên:** P1
+- **Trạng thái:** DONE · **Bắt đầu:** 2026-07-17 · **Hoàn thành:** 2026-07-17 03:26 (+07) · **Ưu tiên:** P1
+- **Deploy:** commit `ab99a75` → CI → VPS (app+worker StartedAt 2026-07-17T03:24:55Z, worker
+  restarts=0, **health=healthy** qua healthcheck Redis mới). Override `docker-compose.override.yml`
+  trên VPS (stop_grace_period 120s + healthcheck) — compose VPS đã diverge khỏi repo nên dùng override
+  additive thay vì overwrite.
+- **E2E prod:** health OK; login admin 200 (getSession + session-revoke check KHÔNG phá auth);
+  GET /items cookie 200; **/api/ready PING Redis thật** (db 2ms/redis 2ms); sai mật khẩu → 401 (lockout
+  path không crash). Tất cả PASS.
 - **Nguồn:** plan `plans/20260716-system-polish-audit.md` Sprint 2. User chốt: chỉ **backend
   rủi ro** (bỏ dark mode → dồn Sprint 3); **làm hết RBAC** (test kỹ trước deploy); **được sửa
   compose + deploy lại**.
