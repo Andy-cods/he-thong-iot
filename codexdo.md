@@ -123,9 +123,31 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
-### TASK-20260717-004 — Mobile access + Email thông báo cần duyệt
-- **Trạng thái:** TODO (plan xong, CHỜ user chốt 3 câu hỏi) · **Tạo:** 2026-07-17 (+07) · **Ưu tiên:** P1
+### TASK-20260717-004 — Mobile access + Email thông báo cần duyệt (V3.12)
+- **Trạng thái:** IN_PROGRESS · **Bắt đầu:** 2026-07-17 (+07) · **Tạo:** 2026-07-17 (+07) · **Ưu tiên:** P1
 - **Yêu cầu user:** truy cập hệ thống trên mobile + khi có thông báo cần duyệt thì gửi email.
+- **User đã chốt:** sender `info@gtam.vn` (M365 — MX outlook, SMTP 587 OK từ VPS); người nhận =
+  mọi user duyệt có email trong admin; scope = Sprint E + M1 cùng đợt.
+- **Đã làm (commit `c146f49`):** queue EMAIL_SEND + worker emailSend.ts (nodemailer 9, template HTML
+  tiếng Việt, skip êm khi thiếu SMTP config) + hook maybeEmail whitelist 5 event cần duyệt vào
+  emitNotification (fan-out user/role có email, loại actor, jobId idempotent) + MAIL_ENABLED/SMTP_*
+  env + compose secret smtp_password + PRListTable/POListTable collapse cột mobile + manifest
+  start_url "/" tên "MES Song Châu". Typecheck + build local PASS. VPS override đã thêm SMTP env
+  + secret placeholder rỗng (worker skip tới khi có password).
+- **Deploy + E2E (2026-07-17 ~15:20 +07):** CI success → VPS pull + up -d với override
+  (app MAIL_ENABLED=true; worker SMTP env + secret smtp_password rỗng placeholder). Worker log:
+  queue `email-send` ready. E2E prod: login ketoan 200 → tạo PR test `PR-2607-0079` 201 →
+  **2 job email tự enqueue + worker consume đúng** (to thumua.ketoan + admin; muahang không email
+  bị loại đúng) → skip `smtp_not_configured` đúng thiết kế (password chưa có). Dọn test: DELETE PR
+  force 200 → 404, xoá 2 notification test, verify 0. Manifest mới đã serve trên prod.
+- **Phát hiện:** email các account seed đều là placeholder `.local` (fake, sẽ bounce khi bật gửi
+  thật) — cần user điền email thật qua trang Quản trị trước khi kích hoạt (classifier chặn Claude
+  tự sửa email user trong DB prod — đúng, đây là quyết định của user).
+- **CHỜ USER (để DONE):** (1) mật khẩu/app-password `info@gtam.vn` → ghi
+  `/opt/hethong-iot/secrets/smtp_password.txt` + restart worker; nếu tenant M365 tắt
+  "Authenticated SMTP" cho mailbox thì bật trong admin center; (2) điền email thật cho các account
+  cần nhận (tối thiểu admin) qua trang Quản trị → Users; (3) test gửi thật → nhận email trên
+  điện thoại → bấm link → duyệt.
 - **Plan chi tiết:** [`plans/20260717-mobile-email-notifications.md`](plans/20260717-mobile-email-notifications.md)
 - **Tóm tắt:** Sprint E (~1 ngày) — queue `EMAIL_SEND` BullMQ + nodemailer (worker) + hook vào
   `notifications.ts` với whitelist 5 event cần duyệt (PR_SUBMITTED, PR_DEPT_APPROVED,
