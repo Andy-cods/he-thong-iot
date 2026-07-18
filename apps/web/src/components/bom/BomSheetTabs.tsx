@@ -81,7 +81,7 @@ const KIND_COLOR: Record<BomSheetKind, string> = {
   PROJECT: "text-indigo-600",
   MATERIAL: "text-emerald-600",
   PROCESS: "text-amber-600",
-  CUSTOM: "text-zinc-600",
+  CUSTOM: "text-zinc-600 dark:text-zinc-400",
 };
 
 export function BomSheetTabs({
@@ -107,13 +107,13 @@ export function BomSheetTabs({
     return (
       <div
         className={cn(
-          "flex items-center gap-1 border-b border-zinc-200 bg-white px-4 py-1.5",
+          "flex items-center gap-1 border-b border-zinc-200 bg-white px-4 py-1.5 dark:border-zinc-800 dark:bg-zinc-900",
           className,
         )}
         aria-busy="true"
       >
-        <div className="h-7 w-32 animate-pulse rounded-sm bg-zinc-100" />
-        <div className="h-7 w-32 animate-pulse rounded-sm bg-zinc-100" />
+        <div className="h-7 w-32 animate-pulse rounded-sm bg-zinc-100 dark:bg-zinc-800" />
+        <div className="h-7 w-32 animate-pulse rounded-sm bg-zinc-100 dark:bg-zinc-800" />
       </div>
     );
   }
@@ -122,7 +122,7 @@ export function BomSheetTabs({
     return (
       <div
         className={cn(
-          "flex items-center justify-between border-b border-zinc-200 bg-white px-4 py-1.5 text-sm text-zinc-500",
+          "flex items-center justify-between border-b border-zinc-200 bg-white px-4 py-1.5 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400",
           className,
         )}
       >
@@ -145,7 +145,7 @@ export function BomSheetTabs({
         role="tablist"
         aria-label="Sheets của BOM"
         className={cn(
-          "flex items-center gap-0.5 overflow-x-auto border-b border-zinc-200 bg-white px-2",
+          "flex items-center gap-0.5 overflow-x-auto border-b border-zinc-200 bg-white px-2 dark:border-zinc-800 dark:bg-zinc-900",
           className,
         )}
       >
@@ -169,8 +169,8 @@ export function BomSheetTabs({
                   "flex h-9 shrink-0 items-center gap-1.5 px-3 text-sm font-medium transition-colors",
                   "focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1",
                   isActive
-                    ? "text-zinc-900"
-                    : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-700",
+                    ? "text-zinc-900 dark:text-zinc-50"
+                    : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-200",
                 )}
                 title={`${sheet.name} · ${BOM_SHEET_KIND_LABELS[sheet.kind]}${
                   sheet.kind === "PROJECT" ? ` · ${sheet.lineCount} dòng` : ""
@@ -181,7 +181,7 @@ export function BomSheetTabs({
                     "h-3.5 w-3.5 shrink-0",
                     isActive
                       ? KIND_COLOR[sheet.kind]
-                      : "text-zinc-400 group-hover:text-zinc-500",
+                      : "text-zinc-400 group-hover:text-zinc-500 dark:text-zinc-500 dark:group-hover:text-zinc-400",
                   )}
                   aria-hidden="true"
                 />
@@ -191,8 +191,8 @@ export function BomSheetTabs({
                     className={cn(
                       "ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-sm px-1 text-[10px] font-medium tabular-nums",
                       isActive
-                        ? "bg-indigo-100 text-indigo-700"
-                        : "bg-zinc-100 text-zinc-600",
+                        ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300"
+                        : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
                     )}
                   >
                     {sheet.lineCount}
@@ -212,8 +212,8 @@ export function BomSheetTabs({
                     <button
                       type="button"
                       className={cn(
-                        "ml-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-sm text-zinc-400 transition-colors",
-                        "hover:bg-zinc-100 hover:text-zinc-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500",
+                        "ml-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-sm text-zinc-400 transition-colors dark:text-zinc-500",
+                        "hover:bg-zinc-100 hover:text-zinc-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200",
                         "opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100",
                         isActive && "opacity-100",
                       )}
@@ -232,8 +232,8 @@ export function BomSheetTabs({
                     <DropdownMenuItem
                       disabled={isLastSheet}
                       className={cn(
-                        "text-red-700",
-                        !isLastSheet && "focus:bg-red-50 focus:text-red-800",
+                        "text-red-700 dark:text-red-400",
+                        !isLastSheet && "focus:bg-red-50 focus:text-red-800 dark:focus:bg-red-950/40 dark:focus:text-red-300",
                       )}
                       onSelect={() => {
                         if (isLastSheet) return;
@@ -254,7 +254,7 @@ export function BomSheetTabs({
           <button
             type="button"
             onClick={onAddSheet}
-            className="ml-1 inline-flex h-7 items-center gap-1 rounded-sm border border-dashed border-zinc-300 px-2 text-xs font-medium text-zinc-500 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+            className="ml-1 inline-flex h-7 items-center gap-1 rounded-sm border border-dashed border-zinc-300 px-2 text-xs font-medium text-zinc-500 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-300"
             aria-label="Thêm sheet mới"
             title="Thêm sheet Vật liệu / Quy trình / Tuỳ chỉnh"
           >
@@ -269,7 +269,7 @@ export function BomSheetTabs({
         !sheets.some((s) => s.kind === "MATERIAL") &&
         onAddSheet &&
         canAddSheet ? (
-          <span className="ml-2 inline-flex items-center gap-1 text-xs text-amber-600">
+          <span className="ml-2 inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
             <Sparkles className="h-3 w-3" aria-hidden="true" />
             <span>Thêm sheet "Vật liệu" để theo dõi giá + phôi cho BOM này</span>
           </span>
@@ -369,7 +369,7 @@ function RenameSheetDialog({
               required
             />
             {isDup ? (
-              <p className="mt-1 text-xs text-red-600">
+              <p className="mt-1 text-xs text-red-600 dark:text-red-400">
                 Tên này đã được dùng bởi sheet khác trong BOM.
               </p>
             ) : null}
@@ -469,20 +469,20 @@ function DeleteSheetDialog({
     <Dialog open onOpenChange={(o) => (!o ? onClose() : null)}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="text-red-700">
+          <DialogTitle className="text-red-700 dark:text-red-400">
             {showForce ? "Sheet còn dữ liệu" : "Xoá sheet?"}
           </DialogTitle>
           <DialogDescription asChild>
-            <div className="space-y-2 text-sm text-zinc-600">
+            <div className="space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
               <p>
                 Bạn chắc muốn xoá sheet{" "}
-                <span className="font-semibold text-zinc-900">
+                <span className="font-semibold text-zinc-900 dark:text-zinc-50">
                   "{sheet.name}"
                 </span>{" "}
                 ({BOM_SHEET_KIND_LABELS[sheet.kind]})?
               </p>
               {showForce && rowCounts ? (
-                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-300">
                   <p className="font-semibold">
                     Sheet này còn {rowCounts.total} dòng dữ liệu sẽ mất:
                   </p>
@@ -502,7 +502,7 @@ function DeleteSheetDialog({
                   </p>
                 </div>
               ) : (
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
                   Nếu sheet còn dữ liệu, hệ thống sẽ hỏi xác nhận lần nữa.
                 </p>
               )}

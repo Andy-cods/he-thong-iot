@@ -337,11 +337,11 @@ export function BomColumnMapperStep({
     <div className="space-y-3">
       <header className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-md font-semibold text-zinc-900">
+          <h2 className="text-md font-semibold text-zinc-900 dark:text-zinc-50">
             Khớp cột sheet{" "}
-            <span className="font-mono text-zinc-700">{sheetName}</span>
+            <span className="font-mono text-zinc-700 dark:text-zinc-300">{sheetName}</span>
           </h2>
-          <p className="mt-1 text-xs text-zinc-500">
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
             Cần map tối thiểu <code className="font-mono">componentSku</code> +{" "}
             <code className="font-mono">qtyPerParent</code>.
             {headerRow ? (
@@ -352,7 +352,7 @@ export function BomColumnMapperStep({
                   <>
                     {" · "}
                     Title row 1:{" "}
-                    <span className="font-mono text-zinc-700">{topTitle}</span>
+                    <span className="font-mono text-zinc-700 dark:text-zinc-300">{topTitle}</span>
                   </>
                 ) : null}
               </>
@@ -373,7 +373,7 @@ export function BomColumnMapperStep({
       {headerWarning ? (
         <div
           role="alert"
-          className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
+          className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400"
         >
           <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
           <span>{headerWarning}</span>
@@ -383,7 +383,7 @@ export function BomColumnMapperStep({
       {missingRequired.length > 0 ? (
         <div
           role="alert"
-          className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+          className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400"
         >
           <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
           <span>
@@ -391,7 +391,7 @@ export function BomColumnMapperStep({
             map:{" "}
             {missingRequired.map((t, i) => (
               <React.Fragment key={t.key}>
-                <code className="rounded bg-white/60 px-1 font-mono text-xs">
+                <code className="rounded bg-white/60 px-1 font-mono text-xs dark:bg-zinc-950/40">
                   {t.label}
                 </code>
                 {i < missingRequired.length - 1 ? ", " : ""}
@@ -402,16 +402,16 @@ export function BomColumnMapperStep({
       ) : (
         <div
           role="status"
-          className="flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700"
+          className="flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400"
         >
           <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
           Tất cả trường bắt buộc đã được map.
         </div>
       )}
 
-      <div className="overflow-hidden rounded-md border border-zinc-200 bg-white">
+      <div className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <table className="min-w-full text-base">
-          <thead className="bg-zinc-50 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+          <thead className="bg-zinc-50 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:bg-zinc-800/60 dark:text-zinc-400">
             <tr>
               <th className="h-8 w-12 px-3">#</th>
               <th className="h-8 px-3">Cột Excel</th>
@@ -431,21 +431,21 @@ export function BomColumnMapperStep({
               return (
                 <tr
                   key={key}
-                  className="h-10 border-t border-zinc-100 align-top"
+                  className="h-10 border-t border-zinc-100 align-top dark:border-zinc-800"
                 >
-                  <td className="px-3 py-2 text-xs text-zinc-500 tabular-nums">
+                  <td className="px-3 py-2 text-xs text-zinc-500 tabular-nums dark:text-zinc-400">
                     {index + 1}
                   </td>
                   <td className="px-3 py-2">
-                    <span className="font-medium text-zinc-900">
+                    <span className="font-medium text-zinc-900 dark:text-zinc-50">
                       {header || (
-                        <span className="italic text-zinc-400">
+                        <span className="italic text-zinc-400 dark:text-zinc-500">
                           (không tên)
                         </span>
                       )}
                     </span>
                     {isDuplicate && (
-                      <span className="ml-2 inline-flex items-center rounded-sm bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700">
+                      <span className="ml-2 inline-flex items-center rounded-sm bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
                         Trùng
                       </span>
                     )}
@@ -466,7 +466,7 @@ export function BomColumnMapperStep({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="__skip__">
-                          <span className="italic text-zinc-500">— Bỏ qua —</span>
+                          <span className="italic text-zinc-500 dark:text-zinc-400">— Bỏ qua —</span>
                         </SelectItem>
                         {BOM_TARGETS.map((t) => {
                           const claimedElsewhere =
@@ -480,8 +480,8 @@ export function BomColumnMapperStep({
                               <span
                                 className={cn(
                                   t.required
-                                    ? "font-semibold text-zinc-900"
-                                    : "text-zinc-700",
+                                    ? "font-semibold text-zinc-900 dark:text-zinc-50"
+                                    : "text-zinc-700 dark:text-zinc-300",
                                 )}
                               >
                                 {t.label}
@@ -489,7 +489,7 @@ export function BomColumnMapperStep({
                                   <span className="ml-1 text-red-500">*</span>
                                 )}
                                 {claimedElsewhere && (
-                                  <span className="ml-2 text-xs text-zinc-400">
+                                  <span className="ml-2 text-xs text-zinc-400 dark:text-zinc-500">
                                     (đã dùng)
                                   </span>
                                 )}
@@ -500,7 +500,7 @@ export function BomColumnMapperStep({
                       </SelectContent>
                     </Select>
                   </td>
-                  <td className="px-3 py-2 font-mono text-xs text-zinc-500">
+                  <td className="px-3 py-2 font-mono text-xs text-zinc-500 dark:text-zinc-400">
                     <div className="max-w-xs truncate">
                       {samples.length > 0
                         ? samples.map(String).join(", ")
@@ -514,9 +514,9 @@ export function BomColumnMapperStep({
         </table>
       </div>
 
-      <div className="flex items-center gap-2 text-xs text-zinc-600">
-        <Info className="h-3.5 w-3.5 text-zinc-400" aria-hidden="true" />
-        Đã map <strong className="text-zinc-900">{totalMapped}</strong> /{" "}
+      <div className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400">
+        <Info className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" aria-hidden="true" />
+        Đã map <strong className="text-zinc-900 dark:text-zinc-50">{totalMapped}</strong> /{" "}
         {sourceHeaders.length} cột.
       </div>
     </div>

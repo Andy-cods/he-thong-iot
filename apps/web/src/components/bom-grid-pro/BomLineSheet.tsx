@@ -492,10 +492,10 @@ export function BomLineSheet({
         <SheetHeader>
           <div className="flex flex-col">
             <SheetTitle className="text-[15px]">Chỉnh sửa linh kiện</SheetTitle>
-            <div className="mt-0.5 flex items-center gap-2 font-mono text-[11px] text-zinc-500">
+            <div className="mt-0.5 flex items-center gap-2 font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
               <span>{templateCode}</span>
               <span>·</span>
-              <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-zinc-700">
+              <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                 {sku}
               </span>
             </div>
@@ -532,13 +532,13 @@ export function BomLineSheet({
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2 space-y-1">
                   <Label>SKU</Label>
-                  <div className="flex h-9 items-center rounded-md border border-zinc-100 bg-zinc-50 px-3 font-mono text-[13px] text-zinc-500">
+                  <div className="flex h-9 items-center rounded-md border border-zinc-100 bg-zinc-50 px-3 font-mono text-[13px] text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
                     {sku}
                   </div>
                 </div>
                 <div className="col-span-2 space-y-1">
                   <Label>BOM gốc — tên linh kiện</Label>
-                  <div className="flex min-h-9 items-center rounded-md border border-zinc-100 bg-zinc-50 px-3 text-[13px] text-zinc-600">
+                  <div className="flex min-h-9 items-center rounded-md border border-zinc-100 bg-zinc-50 px-3 text-[13px] text-zinc-600 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
                     {name}
                   </div>
                 </div>
@@ -555,7 +555,7 @@ export function BomLineSheet({
                     onChange={(e) =>
                       setForm((p) => ({ ...p, category: e.target.value }))
                     }
-                    className="block h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    className="block h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-indigo-400"
                   >
                     <option value="Thương mại">
                       🔵 Thương mại — Có sẵn, mua từ NCC
@@ -567,7 +567,7 @@ export function BomLineSheet({
                       🟠 Đặt gia công ngoài — Đặt NCC gia công theo bản vẽ
                     </option>
                   </select>
-                  <p className="text-[11px] text-zinc-500">
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
                     Quyết định nút action (cart/factory/send) trong cột THAO TÁC.
                   </p>
                 </div>
@@ -586,7 +586,7 @@ export function BomLineSheet({
                     error={!!errors.qtyPerParent}
                   />
                   {errors.qtyPerParent && (
-                    <p className="text-[11px] text-red-600">
+                    <p className="text-[11px] text-red-600 dark:text-red-400">
                       {errors.qtyPerParent}
                     </p>
                   )}
@@ -605,7 +605,7 @@ export function BomLineSheet({
                     error={!!errors.scrapPercent}
                   />
                   {errors.scrapPercent && (
-                    <p className="text-[11px] text-red-600">
+                    <p className="text-[11px] text-red-600 dark:text-red-400">
                       {errors.scrapPercent}
                     </p>
                   )}
@@ -622,7 +622,7 @@ export function BomLineSheet({
                     error={!!errors.uom}
                   />
                   {errors.uom && (
-                    <p className="text-[11px] text-red-600">{errors.uom}</p>
+                    <p className="text-[11px] text-red-600 dark:text-red-400">{errors.uom}</p>
                   )}
                 </div>
 
@@ -639,11 +639,11 @@ export function BomLineSheet({
                   />
                   <div className="flex items-center justify-between text-[11px]">
                     {errors.description ? (
-                      <span className="text-red-600">{errors.description}</span>
+                      <span className="text-red-600 dark:text-red-400">{errors.description}</span>
                     ) : (
-                      <span className="text-zinc-400">Tối đa 500 ký tự.</span>
+                      <span className="text-zinc-400 dark:text-zinc-500">Tối đa 500 ký tự.</span>
                     )}
-                    <span className="font-mono text-zinc-400">
+                    <span className="font-mono text-zinc-400 dark:text-zinc-500">
                       {form.description.length}/500
                     </span>
                   </div>
@@ -669,7 +669,7 @@ export function BomLineSheet({
                       }}
                       onChange={setSupplier}
                     />
-                    <p className="text-[11px] text-zinc-400">
+                    <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
                       Chọn từ danh mục NCC · hoặc để trống nếu chưa xác định.
                     </p>
                   </div>
@@ -687,7 +687,7 @@ export function BomLineSheet({
                       error={!!errors.supplierPartNumber}
                     />
                     {errors.supplierPartNumber && (
-                      <p className="text-[11px] text-red-600">
+                      <p className="text-[11px] text-red-600 dark:text-red-400">
                         {errors.supplierPartNumber}
                       </p>
                     )}
@@ -706,11 +706,11 @@ export function BomLineSheet({
                       error={!!errors.leadTimeDays}
                     />
                     {errors.leadTimeDays ? (
-                      <p className="text-[11px] text-red-600">
+                      <p className="text-[11px] text-red-600 dark:text-red-400">
                         {errors.leadTimeDays}
                       </p>
                     ) : (
-                      <p className="text-[11px] text-zinc-400">
+                      <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
                         Số ngày từ đặt đến nhận.
                       </p>
                     )}
@@ -729,9 +729,9 @@ export function BomLineSheet({
                       error={!!errors.moq}
                     />
                     {errors.moq ? (
-                      <p className="text-[11px] text-red-600">{errors.moq}</p>
+                      <p className="text-[11px] text-red-600 dark:text-red-400">{errors.moq}</p>
                     ) : (
-                      <p className="text-[11px] text-zinc-400">
+                      <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
                         Số lượng tối thiểu / đơn.
                       </p>
                     )}
@@ -751,12 +751,12 @@ export function BomLineSheet({
                         error={!!errors.estimatedPrice}
                         className="pr-16"
                       />
-                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[11px] text-zinc-400">
+                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[11px] text-zinc-400 dark:text-zinc-500">
                         ₫/đơn vị
                       </span>
                     </div>
                     {errors.estimatedPrice && (
-                      <p className="text-[11px] text-red-600">
+                      <p className="text-[11px] text-red-600 dark:text-red-400">
                         {errors.estimatedPrice}
                       </p>
                     )}
@@ -773,7 +773,7 @@ export function BomLineSheet({
                       error={!!errors.paymentTerms}
                     />
                     {errors.paymentTerms && (
-                      <p className="text-[11px] text-red-600">
+                      <p className="text-[11px] text-red-600 dark:text-red-400">
                         {errors.paymentTerms}
                       </p>
                     )}
@@ -797,7 +797,7 @@ export function BomLineSheet({
                       onChange={setMaterial}
                     />
                     {errors.materialCode && (
-                      <p className="text-[11px] text-red-600">
+                      <p className="text-[11px] text-red-600 dark:text-red-400">
                         {errors.materialCode}
                       </p>
                     )}
@@ -814,11 +814,11 @@ export function BomLineSheet({
                       error={!!errors.blankSize}
                     />
                     {errors.blankSize ? (
-                      <p className="text-[11px] text-red-600">
+                      <p className="text-[11px] text-red-600 dark:text-red-400">
                         {errors.blankSize}
                       </p>
                     ) : (
-                      <p className="text-[11px] text-zinc-400">
+                      <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
                         Định dạng DxRxS (mm). Hiển thị ở cột "Quy cách" theo Excel.
                       </p>
                     )}
@@ -849,7 +849,7 @@ export function BomLineSheet({
                       error={!!errors.estimatedHours}
                     />
                     {errors.estimatedHours && (
-                      <p className="text-[11px] text-red-600">
+                      <p className="text-[11px] text-red-600 dark:text-red-400">
                         {errors.estimatedHours}
                       </p>
                     )}
@@ -868,13 +868,13 @@ export function BomLineSheet({
                     />
                     <div className="flex items-center justify-between text-[11px]">
                       {errors.technicalNotes ? (
-                        <span className="text-red-600">
+                        <span className="text-red-600 dark:text-red-400">
                           {errors.technicalNotes}
                         </span>
                       ) : (
-                        <span className="text-zinc-400">Tối đa 500 ký tự.</span>
+                        <span className="text-zinc-400 dark:text-zinc-500">Tối đa 500 ký tự.</span>
                       )}
-                      <span className="font-mono text-zinc-400">
+                      <span className="font-mono text-zinc-400 dark:text-zinc-500">
                         {form.technicalNotes.length}/500
                       </span>
                     </div>
@@ -938,18 +938,18 @@ function Section({
 }) {
   const accentClass =
     accent === "blue"
-      ? "border-l-4 border-blue-200 pl-3"
+      ? "border-l-4 border-blue-200 pl-3 dark:border-blue-800"
       : accent === "emerald"
-        ? "border-l-4 border-emerald-200 pl-3"
+        ? "border-l-4 border-emerald-200 pl-3 dark:border-emerald-800"
         : "";
   return (
     <section className={cn("space-y-3", accentClass)}>
       <div>
-        <h3 className="text-[12px] font-semibold uppercase tracking-wide text-zinc-600">
+        <h3 className="text-[12px] font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
           {title}
         </h3>
         {hint ? (
-          <p className="mt-0.5 text-[11px] text-zinc-400">{hint}</p>
+          <p className="mt-0.5 text-[11px] text-zinc-400 dark:text-zinc-500">{hint}</p>
         ) : null}
       </div>
       {children}
@@ -972,9 +972,9 @@ function KindRadio({
 }) {
   const ringClass = checked
     ? accent === "blue"
-      ? "ring-2 ring-blue-400 bg-blue-50"
-      : "ring-2 ring-emerald-400 bg-emerald-50"
-    : "ring-1 ring-zinc-200 bg-white hover:bg-zinc-50";
+      ? "ring-2 ring-blue-400 bg-blue-50 dark:ring-blue-600 dark:bg-blue-950/40"
+      : "ring-2 ring-emerald-400 bg-emerald-50 dark:ring-emerald-600 dark:bg-emerald-950/40"
+    : "ring-1 ring-zinc-200 bg-white hover:bg-zinc-50 dark:ring-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800/60";
   return (
     <button
       type="button"
@@ -984,8 +984,8 @@ function KindRadio({
         ringClass,
       )}
     >
-      <span className="text-[13px] font-medium text-zinc-900">{label}</span>
-      <span className="text-[11px] text-zinc-500">{hint}</span>
+      <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-50">{label}</span>
+      <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{hint}</span>
     </button>
   );
 }
@@ -1018,19 +1018,19 @@ function SupplierCombobox({ value, onChange }: SupplierComboboxProps) {
           <button
             type="button"
             className={cn(
-              "flex h-9 w-full items-center justify-between gap-2 rounded-md border border-zinc-200 bg-white px-3 text-left text-[13px] transition-colors",
-              "hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400",
+              "flex h-9 w-full items-center justify-between gap-2 rounded-md border border-zinc-200 bg-white px-3 text-left text-[13px] transition-colors dark:border-zinc-700 dark:bg-zinc-900",
+              "hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 dark:hover:bg-zinc-800/60 dark:focus-visible:ring-indigo-600",
             )}
           >
             <span
               className={cn(
                 "truncate",
-                display ? "text-zinc-800" : "text-zinc-400",
+                display ? "text-zinc-800 dark:text-zinc-200" : "text-zinc-400 dark:text-zinc-500",
               )}
             >
               {display || "Chọn nhà cung cấp…"}
             </span>
-            <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+            <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-zinc-400 dark:text-zinc-500" />
           </button>
         </PopoverTrigger>
         <PopoverContent
@@ -1039,23 +1039,23 @@ function SupplierCombobox({ value, onChange }: SupplierComboboxProps) {
           sideOffset={4}
         >
           <CommandPrimitive shouldFilter={false} className="flex flex-col" loop>
-            <div className="flex items-center border-b border-zinc-200 px-3 py-2">
-              <Search className="h-3.5 w-3.5 text-zinc-400" aria-hidden />
+            <div className="flex items-center border-b border-zinc-200 px-3 py-2 dark:border-zinc-700">
+              <Search className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" aria-hidden />
               <CommandPrimitive.Input
                 autoFocus
                 value={query}
                 onValueChange={setQuery}
                 placeholder="Tìm NCC theo mã / tên…"
-                className="flex-1 bg-transparent px-2 text-[13px] outline-none placeholder:text-zinc-400"
+                className="flex-1 bg-transparent px-2 text-[13px] outline-none placeholder:text-zinc-400 dark:text-zinc-50 dark:placeholder:text-zinc-500"
               />
             </div>
             <CommandPrimitive.List className="max-h-[280px] overflow-y-auto p-1">
               {suppliersQuery.isLoading ? (
-                <div className="px-3 py-4 text-center text-xs text-zinc-500">
+                <div className="px-3 py-4 text-center text-xs text-zinc-500 dark:text-zinc-400">
                   Đang tải…
                 </div>
               ) : suppliers.length === 0 ? (
-                <CommandPrimitive.Empty className="px-3 py-4 text-center text-xs text-zinc-500">
+                <CommandPrimitive.Empty className="px-3 py-4 text-center text-xs text-zinc-500 dark:text-zinc-400">
                   {query
                     ? `Không tìm thấy "${query}".`
                     : "Chưa có NCC trong danh mục."}
@@ -1073,21 +1073,21 @@ function SupplierCombobox({ value, onChange }: SupplierComboboxProps) {
                       }}
                       className={cn(
                         "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-[13px]",
-                        "aria-selected:bg-zinc-100",
+                        "aria-selected:bg-zinc-100 dark:aria-selected:bg-zinc-800",
                       )}
                     >
                       <Check
                         className={cn(
                           "h-3.5 w-3.5 shrink-0",
                           s.id === value.id
-                            ? "text-indigo-600"
+                            ? "text-indigo-600 dark:text-indigo-400"
                             : "text-transparent",
                         )}
                       />
-                      <span className="font-mono text-xs font-medium text-zinc-800">
+                      <span className="font-mono text-xs font-medium text-zinc-800 dark:text-zinc-200">
                         {s.code}
                       </span>
-                      <span className="truncate text-zinc-700">{s.name}</span>
+                      <span className="truncate text-zinc-700 dark:text-zinc-300">{s.name}</span>
                     </CommandPrimitive.Item>
                   ))}
                 </CommandPrimitive.Group>
@@ -1100,7 +1100,7 @@ function SupplierCombobox({ value, onChange }: SupplierComboboxProps) {
         <button
           type="button"
           onClick={() => onChange(null)}
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-zinc-200 text-zinc-400 transition-colors hover:bg-zinc-50 hover:text-zinc-700"
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-zinc-200 text-zinc-400 transition-colors hover:bg-zinc-50 hover:text-zinc-700 dark:border-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-300"
           title="Bỏ chọn NCC"
           aria-label="Bỏ chọn NCC"
         >
@@ -1152,36 +1152,36 @@ function MaterialCombobox({ value, onChange }: MaterialComboboxProps) {
         <button
           type="button"
           className={cn(
-            "flex h-9 w-full items-center justify-between gap-2 rounded-md border border-zinc-200 bg-white px-3 text-left text-[13px] transition-colors",
-            "hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400",
+            "flex h-9 w-full items-center justify-between gap-2 rounded-md border border-zinc-200 bg-white px-3 text-left text-[13px] transition-colors dark:border-zinc-700 dark:bg-zinc-900",
+            "hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 dark:hover:bg-zinc-800/60 dark:focus-visible:ring-indigo-600",
           )}
         >
           <span
             className={cn(
               "truncate",
-              display ? "text-zinc-800" : "text-zinc-400",
+              display ? "text-zinc-800 dark:text-zinc-200" : "text-zinc-400 dark:text-zinc-500",
             )}
           >
             {display || "Chọn vật liệu…"}
           </span>
-          <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+          <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-zinc-400 dark:text-zinc-500" />
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-[440px] p-0" sideOffset={4}>
         <CommandPrimitive shouldFilter={false} className="flex flex-col" loop>
-          <div className="flex items-center border-b border-zinc-200 px-3 py-2">
-            <Search className="h-3.5 w-3.5 text-zinc-400" aria-hidden />
+          <div className="flex items-center border-b border-zinc-200 px-3 py-2 dark:border-zinc-700">
+            <Search className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" aria-hidden />
             <CommandPrimitive.Input
               autoFocus
               value={query}
               onValueChange={setQuery}
               placeholder="Tìm vật liệu theo mã / tên…"
-              className="flex-1 bg-transparent px-2 text-[13px] outline-none placeholder:text-zinc-400"
+              className="flex-1 bg-transparent px-2 text-[13px] outline-none placeholder:text-zinc-400 dark:text-zinc-50 dark:placeholder:text-zinc-500"
             />
           </div>
           <CommandPrimitive.List className="max-h-[320px] overflow-y-auto p-1">
             {groups.length === 0 ? (
-              <CommandPrimitive.Empty className="px-3 py-4 text-center text-xs text-zinc-500">
+              <CommandPrimitive.Empty className="px-3 py-4 text-center text-xs text-zinc-500 dark:text-zinc-400">
                 Không tìm thấy vật liệu khớp "{query}".
               </CommandPrimitive.Empty>
             ) : (
@@ -1189,7 +1189,7 @@ function MaterialCombobox({ value, onChange }: MaterialComboboxProps) {
                 <CommandPrimitive.Group
                   key={group}
                   heading={group}
-                  className="px-1 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-1.5 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-zinc-500"
+                  className="px-1 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-1.5 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-zinc-500 dark:[&_[cmdk-group-heading]]:text-zinc-400"
                 >
                   {items.map((m) => (
                     <CommandPrimitive.Item
@@ -1202,21 +1202,21 @@ function MaterialCombobox({ value, onChange }: MaterialComboboxProps) {
                       }}
                       className={cn(
                         "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-[13px]",
-                        "aria-selected:bg-zinc-100",
+                        "aria-selected:bg-zinc-100 dark:aria-selected:bg-zinc-800",
                       )}
                     >
                       <Check
                         className={cn(
                           "h-3.5 w-3.5 shrink-0",
                           m.code === value
-                            ? "text-indigo-600"
+                            ? "text-indigo-600 dark:text-indigo-400"
                             : "text-transparent",
                         )}
                       />
-                      <span className="font-mono text-xs font-medium text-zinc-800">
+                      <span className="font-mono text-xs font-medium text-zinc-800 dark:text-zinc-200">
                         {m.code}
                       </span>
-                      <span className="truncate text-zinc-700">{m.name}</span>
+                      <span className="truncate text-zinc-700 dark:text-zinc-300">{m.name}</span>
                     </CommandPrimitive.Item>
                   ))}
                 </CommandPrimitive.Group>
@@ -1268,11 +1268,11 @@ function ProcessRouteBuilder({
             return (
               <li
                 key={code}
-                className="inline-flex items-center gap-1 rounded-md bg-emerald-50 py-1 pl-1 pr-1 text-[12px] font-medium text-emerald-800 ring-1 ring-inset ring-emerald-200"
+                className="inline-flex items-center gap-1 rounded-md bg-emerald-50 py-1 pl-1 pr-1 text-[12px] font-medium text-emerald-800 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800"
               >
-                <span className="inline-flex items-center gap-0.5 text-emerald-400">
+                <span className="inline-flex items-center gap-0.5 text-emerald-400 dark:text-emerald-500">
                   <GripVertical className="h-3 w-3" aria-hidden />
-                  <span className="font-mono text-[10px] text-emerald-600">
+                  <span className="font-mono text-[10px] text-emerald-600 dark:text-emerald-400">
                     {idx + 1}
                   </span>
                 </span>
@@ -1282,7 +1282,7 @@ function ProcessRouteBuilder({
                     type="button"
                     onClick={() => onMove(code, -1)}
                     disabled={idx === 0}
-                    className="rounded px-1 text-emerald-500 hover:bg-emerald-100 hover:text-emerald-800 disabled:opacity-30 disabled:hover:bg-transparent"
+                    className="rounded px-1 text-emerald-500 hover:bg-emerald-100 hover:text-emerald-800 disabled:opacity-30 disabled:hover:bg-transparent dark:text-emerald-400 dark:hover:bg-emerald-900/40 dark:hover:text-emerald-300"
                     title="Chuyển lên trước"
                     aria-label="Chuyển lên trước"
                   >
@@ -1292,7 +1292,7 @@ function ProcessRouteBuilder({
                     type="button"
                     onClick={() => onMove(code, 1)}
                     disabled={idx === selected.length - 1}
-                    className="rounded px-1 text-emerald-500 hover:bg-emerald-100 hover:text-emerald-800 disabled:opacity-30 disabled:hover:bg-transparent"
+                    className="rounded px-1 text-emerald-500 hover:bg-emerald-100 hover:text-emerald-800 disabled:opacity-30 disabled:hover:bg-transparent dark:text-emerald-400 dark:hover:bg-emerald-900/40 dark:hover:text-emerald-300"
                     title="Chuyển xuống sau"
                     aria-label="Chuyển xuống sau"
                   >
@@ -1301,7 +1301,7 @@ function ProcessRouteBuilder({
                   <button
                     type="button"
                     onClick={() => onRemove(code)}
-                    className="ml-0.5 rounded p-0.5 text-emerald-500 hover:bg-emerald-100 hover:text-emerald-800"
+                    className="ml-0.5 rounded p-0.5 text-emerald-500 hover:bg-emerald-100 hover:text-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-900/40 dark:hover:text-emerald-300"
                     title="Xoá công đoạn"
                     aria-label="Xoá công đoạn"
                   >
@@ -1313,7 +1313,7 @@ function ProcessRouteBuilder({
           })}
         </ol>
       ) : (
-        <p className="rounded-md border border-dashed border-zinc-200 px-3 py-2 text-[11px] text-zinc-400">
+        <p className="rounded-md border border-dashed border-zinc-200 px-3 py-2 text-[11px] text-zinc-400 dark:border-zinc-700 dark:text-zinc-500">
           Chưa chọn công đoạn nào. Click "Thêm công đoạn" để bắt đầu.
         </p>
       )}
@@ -1324,7 +1324,7 @@ function ProcessRouteBuilder({
           <PopoverTrigger asChild>
             <button
               type="button"
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 text-[12px] font-medium text-zinc-700 transition-colors hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 text-[12px] font-medium text-zinc-700 transition-colors hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/60 dark:focus-visible:ring-indigo-600"
             >
               + Thêm công đoạn
             </button>
@@ -1335,19 +1335,19 @@ function ProcessRouteBuilder({
               className="flex flex-col"
               loop
             >
-              <div className="flex items-center border-b border-zinc-200 px-3 py-2">
-                <Search className="h-3.5 w-3.5 text-zinc-400" aria-hidden />
+              <div className="flex items-center border-b border-zinc-200 px-3 py-2 dark:border-zinc-700">
+                <Search className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" aria-hidden />
                 <CommandPrimitive.Input
                   autoFocus
                   value={query}
                   onValueChange={setQuery}
                   placeholder="Tìm công đoạn…"
-                  className="flex-1 bg-transparent px-2 text-[13px] outline-none placeholder:text-zinc-400"
+                  className="flex-1 bg-transparent px-2 text-[13px] outline-none placeholder:text-zinc-400 dark:text-zinc-50 dark:placeholder:text-zinc-500"
                 />
               </div>
               <CommandPrimitive.List className="max-h-[280px] overflow-y-auto p-1">
                 {available.length === 0 ? (
-                  <CommandPrimitive.Empty className="px-3 py-4 text-center text-xs text-zinc-500">
+                  <CommandPrimitive.Empty className="px-3 py-4 text-center text-xs text-zinc-500 dark:text-zinc-400">
                     {selected.length === PROCESSES.length
                       ? "Đã chọn đủ tất cả công đoạn."
                       : `Không tìm thấy "${query}".`}
@@ -1364,13 +1364,13 @@ function ProcessRouteBuilder({
                         }}
                         className={cn(
                           "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-[13px]",
-                          "aria-selected:bg-zinc-100",
+                          "aria-selected:bg-zinc-100 dark:aria-selected:bg-zinc-800",
                         )}
                       >
-                        <span className="font-mono text-xs font-medium text-zinc-500">
+                        <span className="font-mono text-xs font-medium text-zinc-500 dark:text-zinc-400">
                           {p.code}
                         </span>
-                        <span className="truncate text-zinc-700">{p.name}</span>
+                        <span className="truncate text-zinc-700 dark:text-zinc-300">{p.name}</span>
                       </CommandPrimitive.Item>
                     ))}
                   </CommandPrimitive.Group>
@@ -1379,7 +1379,7 @@ function ProcessRouteBuilder({
             </CommandPrimitive>
           </PopoverContent>
         </Popover>
-        <span className="font-mono text-[11px] text-zinc-400">
+        <span className="font-mono text-[11px] text-zinc-400 dark:text-zinc-500">
           {selected.length} công đoạn
         </span>
       </div>

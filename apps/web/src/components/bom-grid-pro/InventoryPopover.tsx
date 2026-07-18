@@ -55,10 +55,10 @@ interface InventorySummaryResponse {
 }
 
 const LOT_STATUS_CLASS: Record<string, string> = {
-  AVAILABLE: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  HOLD: "bg-amber-50 text-amber-700 ring-amber-200",
-  CONSUMED: "bg-zinc-100 text-zinc-600 ring-zinc-200",
-  EXPIRED: "bg-red-50 text-red-700 ring-red-200",
+  AVAILABLE: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800",
+  HOLD: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800",
+  CONSUMED: "bg-zinc-100 text-zinc-600 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",
+  EXPIRED: "bg-red-50 text-red-700 ring-red-200 dark:bg-red-950/40 dark:text-red-400 dark:ring-red-800",
 };
 
 const LOT_STATUS_LABEL: Record<string, string> = {
@@ -106,16 +106,16 @@ export function InventoryPopover({
       <PopoverContent
         align="end"
         sideOffset={6}
-        className="w-[360px] p-0"
+        className="w-[360px] p-0 dark:bg-zinc-900 dark:border-zinc-700"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start gap-2 border-b border-zinc-100 px-3 py-2">
-          <Warehouse className="mt-0.5 h-4 w-4 shrink-0 text-indigo-500" aria-hidden />
+        <div className="flex items-start gap-2 border-b border-zinc-100 px-3 py-2 dark:border-zinc-800">
+          <Warehouse className="mt-0.5 h-4 w-4 shrink-0 text-indigo-500 dark:text-indigo-400" aria-hidden />
           <div className="min-w-0">
-            <div className="truncate text-[13px] font-semibold text-zinc-900">
+            <div className="truncate text-[13px] font-semibold text-zinc-900 dark:text-zinc-50">
               {componentName}
             </div>
-            <div className="font-mono text-[11px] text-zinc-500">
+            <div className="font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
               {componentSku || "—"}
             </div>
           </div>
@@ -125,7 +125,7 @@ export function InventoryPopover({
           {!componentItemId ? (
             <EmptyState text="Thiếu mã item — chưa thể tra tồn." />
           ) : query.isLoading ? (
-            <div className="flex items-center gap-2 py-4 text-xs text-zinc-500">
+            <div className="flex items-center gap-2 py-4 text-xs text-zinc-500 dark:text-zinc-400">
               <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
               Đang tải tồn kho…
             </div>
@@ -146,32 +146,32 @@ export function InventoryPopover({
 
               <div className="mt-3">
                 <div className="mb-1.5 flex items-center justify-between">
-                  <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+                  <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                     Lot gần nhất
                   </span>
-                  <span className="font-mono text-[10px] text-zinc-400">
+                  <span className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500">
                     {query.data.data.lots.length} / 5
                   </span>
                 </div>
                 {query.data.data.lots.length === 0 ? (
                   <EmptyState text="Chưa có lot nào cho linh kiện này." />
                 ) : (
-                  <ul className="divide-y divide-zinc-100 rounded-md border border-zinc-100">
+                  <ul className="divide-y divide-zinc-100 rounded-md border border-zinc-100 dark:divide-zinc-800 dark:border-zinc-800">
                     {query.data.data.lots.map((lot) => (
                       <li
                         key={lot.id}
                         className="flex items-center justify-between gap-2 px-2 py-1.5 text-[12px]"
                       >
                         <div className="min-w-0 flex-1">
-                          <div className="truncate font-mono text-[11px] font-medium text-zinc-800">
+                          <div className="truncate font-mono text-[11px] font-medium text-zinc-800 dark:text-zinc-200">
                             {lot.lotCode ?? lot.serialCode ?? "—"}
                           </div>
-                          <div className="flex items-center gap-1 text-[10px] text-zinc-500">
+                          <div className="flex items-center gap-1 text-[10px] text-zinc-500 dark:text-zinc-400">
                             <span
                               className={cn(
                                 "inline-flex h-4 items-center rounded px-1.5 text-[9px] font-medium ring-1 ring-inset",
                                 LOT_STATUS_CLASS[lot.status] ??
-                                  "bg-zinc-50 text-zinc-600 ring-zinc-200",
+                                  "bg-zinc-50 text-zinc-600 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",
                               )}
                             >
                               {LOT_STATUS_LABEL[lot.status] ?? lot.status}
@@ -181,7 +181,7 @@ export function InventoryPopover({
                             ) : null}
                           </div>
                         </div>
-                        <div className="shrink-0 text-right font-mono text-[11px] tabular-nums text-zinc-800">
+                        <div className="shrink-0 text-right font-mono text-[11px] tabular-nums text-zinc-800 dark:text-zinc-200">
                           {formatNumber(lot.onHandQty)}
                         </div>
                       </li>
@@ -195,12 +195,12 @@ export function InventoryPopover({
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-2 border-t border-zinc-100 bg-zinc-50/60 px-3 py-1.5">
+        <div className="flex items-center justify-between gap-2 border-t border-zinc-100 bg-zinc-50/60 px-3 py-1.5 dark:border-zinc-800 dark:bg-zinc-800/60">
           {canAdjust && componentItemId ? (
             <button
               type="button"
               onClick={() => setAdjustOpen(true)}
-              className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-[11px] font-medium text-white transition-colors hover:bg-emerald-700"
+              className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-[11px] font-medium text-white transition-colors hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-600"
               title="Bổ sung / điều chỉnh tồn kho cho linh kiện này"
             >
               <PackagePlus className="h-3 w-3" aria-hidden />
@@ -215,7 +215,7 @@ export function InventoryPopover({
                 ? `/items/${encodeURIComponent(componentItemId)}?tab=inventory`
                 : "/items"
             }
-            className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-700"
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
             title="Mở Danh mục vật tư — tab Tồn kho"
           >
             Xem chi tiết
@@ -242,7 +242,7 @@ export function InventoryPopover({
 
 function EmptyState({ text }: { text: string }) {
   return (
-    <div className="rounded-md bg-zinc-50/50 px-3 py-4 text-center text-[11px] text-zinc-500">
+    <div className="rounded-md bg-zinc-50/50 px-3 py-4 text-center text-[11px] text-zinc-500 dark:bg-zinc-800/50 dark:text-zinc-400">
       {text}
     </div>
   );

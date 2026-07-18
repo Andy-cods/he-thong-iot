@@ -89,7 +89,7 @@ export function BomLineInspector({
             {node?.componentSku ? (
               <span className="flex items-center gap-2">
                 <span className="font-mono text-base">{node.componentSku}</span>
-                <span className="text-zinc-500">·</span>
+                <span className="text-zinc-500 dark:text-zinc-400">·</span>
                 <span className="truncate text-base">
                   {node.componentName ?? ""}
                 </span>
@@ -273,12 +273,12 @@ function ReadRow({
 }) {
   return (
     <div className="grid grid-cols-[140px_minmax(0,1fr)] items-start gap-2">
-      <dt className="text-xs uppercase tracking-wider text-zinc-500">
+      <dt className="text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
         {label}
       </dt>
       <dd
         className={cn(
-          "text-base text-zinc-900",
+          "text-base text-zinc-900 dark:text-zinc-50",
           mono && "font-mono text-sm",
           multiline && "whitespace-pre-wrap",
         )}
@@ -304,7 +304,7 @@ function HelperText({
     <p
       className={cn(
         "min-h-4 text-sm",
-        tone === "error" ? "text-red-700" : "text-zinc-500",
+        tone === "error" ? "text-red-700" : "text-zinc-500 dark:text-zinc-400",
       )}
     >
       {children}

@@ -132,16 +132,16 @@ export function PicEditDialog({ open, onClose, line }: PicEditDialogProps) {
             Cập nhật tiến độ
           </DialogTitle>
           <DialogDescription>
-            <code className="font-mono text-sm font-semibold text-zinc-900">
+            <code className="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-50">
               {line.sku ?? line.id.slice(0, 8)}
             </code>
             {line.componentName && (
-              <span className="ml-2 text-xs text-zinc-600">
+              <span className="ml-2 text-xs text-zinc-600 dark:text-zinc-400">
                 {line.componentName}
               </span>
             )}
             {line.assignedToFullName && (
-              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700">
+              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400">
                 PIC: {line.assignedToFullName}
               </span>
             )}
@@ -151,7 +151,7 @@ export function PicEditDialog({ open, onClose, line }: PicEditDialogProps) {
         <div className="space-y-4">
           {/* Received Qty */}
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
+            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
               Số lượng đã về
             </label>
             <div className="mt-1.5 flex items-center gap-2">
@@ -176,20 +176,20 @@ export function PicEditDialog({ open, onClose, line }: PicEditDialogProps) {
                 className="h-10 flex-1 text-right tabular-nums"
                 placeholder="0"
               />
-              <span className="text-sm text-zinc-500">/ {need} cần</span>
+              <span className="text-sm text-zinc-500 dark:text-zinc-400">/ {need} cần</span>
               {remaining > 0 ? (
-                <span className="rounded bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                <span className="rounded bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
                   Còn thiếu {remaining}
                 </span>
               ) : (
-                <span className="rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                <span className="rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
                   Đủ ({completePct}%)
                 </span>
               )}
             </div>
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-zinc-100">
+            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
               <div
-                className="h-full rounded-full bg-emerald-500 transition-all"
+                className="h-full rounded-full bg-emerald-500 transition-all dark:bg-emerald-600"
                 style={{ width: `${completePct}%` }}
               />
             </div>
@@ -197,11 +197,11 @@ export function PicEditDialog({ open, onClose, line }: PicEditDialogProps) {
 
           {/* Expected ETA */}
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
+            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
               Ngày NCC giao (dự kiến)
             </label>
             <div className="relative mt-1.5">
-              <Calendar className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
+              <Calendar className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" />
               <Input
                 type="date"
                 value={expectedEta}
@@ -214,7 +214,7 @@ export function PicEditDialog({ open, onClose, line }: PicEditDialogProps) {
 
           {/* Status note + quick presets */}
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
+            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
               Ghi chú tiến độ
             </label>
             <Input
@@ -232,7 +232,7 @@ export function PicEditDialog({ open, onClose, line }: PicEditDialogProps) {
                   type="button"
                   onClick={() => setStatusNote(n)}
                   disabled={submitting}
-                  className="rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-[11px] text-zinc-600 transition-colors hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700"
+                  className="rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-[11px] text-zinc-600 transition-colors hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-indigo-500 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-400"
                 >
                   {n}
                 </button>
@@ -248,7 +248,7 @@ export function PicEditDialog({ open, onClose, line }: PicEditDialogProps) {
           <Button
             onClick={handleSubmit}
             disabled={submitting}
-            className="bg-indigo-600 hover:bg-indigo-700"
+            className="bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-600"
           >
             {submitting ? (
               <>

@@ -222,7 +222,7 @@ export function AdjustInventoryDialog({
           <DialogTitle className="text-[15px]">
             Điều chỉnh tồn kho — {itemSku}
           </DialogTitle>
-          <DialogDescription className="text-xs text-zinc-500">
+          <DialogDescription className="text-xs text-zinc-500 dark:text-zinc-400">
             {itemName} · ghi nhận trực tiếp vào sổ kho (inventory_txn).
           </DialogDescription>
         </DialogHeader>
@@ -238,8 +238,8 @@ export function AdjustInventoryDialog({
                 className={cn(
                   "flex items-center justify-center gap-2 rounded-md border-2 px-3 py-2 text-sm font-medium transition-colors",
                   type === "PLUS"
-                    ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                    : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300",
+                    ? "border-emerald-500 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+                    : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-zinc-600",
                 )}
               >
                 <PackagePlus className="h-4 w-4" /> Bổ sung tồn
@@ -250,8 +250,8 @@ export function AdjustInventoryDialog({
                 className={cn(
                   "flex items-center justify-center gap-2 rounded-md border-2 px-3 py-2 text-sm font-medium transition-colors",
                   type === "MINUS"
-                    ? "border-rose-500 bg-rose-50 text-rose-700"
-                    : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300",
+                    ? "border-rose-500 bg-rose-50 text-rose-700 dark:border-rose-700 dark:bg-rose-950/40 dark:text-rose-400"
+                    : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-zinc-600",
                 )}
               >
                 <PackageMinus className="h-4 w-4" /> Giảm tồn
@@ -269,7 +269,7 @@ export function AdjustInventoryDialog({
               value={binId}
               onChange={(e) => setBinId(e.target.value)}
               disabled={binsQuery.isLoading}
-              className="flex h-9 w-full items-center rounded-md border border-zinc-200 bg-white px-3 text-[13px] focus:border-indigo-500 focus:outline-none"
+              className="flex h-9 w-full items-center rounded-md border border-zinc-200 bg-white px-3 text-[13px] focus:border-indigo-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
               required
             >
               <option value="">
@@ -324,7 +324,7 @@ export function AdjustInventoryDialog({
                 className="font-mono text-xs"
               />
               {type === "MINUS" ? (
-                <p className="text-[10px] text-zinc-400">
+                <p className="text-[10px] text-zinc-400 dark:text-zinc-500">
                   MINUS: tự pick lot trong ô có sẵn.
                 </p>
               ) : null}
@@ -346,7 +346,7 @@ export function AdjustInventoryDialog({
 
           {/* Error message */}
           {error ? (
-            <div className="rounded-md bg-rose-50 px-3 py-2 text-xs text-rose-700 ring-1 ring-rose-200">
+            <div className="rounded-md bg-rose-50 px-3 py-2 text-xs text-rose-700 ring-1 ring-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:ring-rose-800">
               {error}
             </div>
           ) : null}
@@ -365,8 +365,8 @@ export function AdjustInventoryDialog({
               disabled={pending || !binId}
               className={cn(
                 type === "PLUS"
-                  ? "bg-emerald-600 hover:bg-emerald-700"
-                  : "bg-rose-600 hover:bg-rose-700",
+                  ? "bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-600"
+                  : "bg-rose-600 hover:bg-rose-700 dark:bg-rose-700 dark:hover:bg-rose-600",
               )}
             >
               {pending ? (

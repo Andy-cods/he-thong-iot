@@ -57,7 +57,7 @@ const KIND_PRESETS: KindPreset[] = [
     description: "Danh sách linh kiện / cấu trúc sản phẩm (như Sheet 1)",
     placeholder: "Ví dụ: Sheet chính / Phụ kiện / Module B…",
     iconColor: "text-indigo-600",
-    borderActive: "border-indigo-500 bg-indigo-50",
+    borderActive: "border-indigo-500 bg-indigo-50 dark:border-indigo-500 dark:bg-indigo-950/40",
   },
   {
     kind: "MATERIAL",
@@ -67,7 +67,7 @@ const KIND_PRESETS: KindPreset[] = [
       "Bảng vật liệu + bảng quy trình gia công song song trong 1 sheet (như Excel sheet 3)",
     placeholder: "Ví dụ: Material & Process",
     iconColor: "text-emerald-600",
-    borderActive: "border-emerald-500 bg-emerald-50",
+    borderActive: "border-emerald-500 bg-emerald-50 dark:border-emerald-500 dark:bg-emerald-950/40",
   },
   {
     kind: "CUSTOM",
@@ -76,8 +76,8 @@ const KIND_PRESETS: KindPreset[] = [
     description:
       "Sheet free-form (ghi chú, hướng dẫn lắp, đặc tả khách hàng)",
     placeholder: "Ví dụ: Ghi chú khách / Hướng dẫn lắp",
-    iconColor: "text-zinc-600",
-    borderActive: "border-zinc-500 bg-zinc-50",
+    iconColor: "text-zinc-600 dark:text-zinc-400",
+    borderActive: "border-zinc-500 bg-zinc-50 dark:border-zinc-500 dark:bg-zinc-800",
   },
 ];
 
@@ -156,12 +156,12 @@ export function AddBomSheetDialog({
                       "focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500",
                       isSelected
                         ? p.borderActive
-                        : "border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50",
+                        : "border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-600 dark:hover:bg-zinc-800/60",
                     )}
                   >
                     {isSelected ? (
                       <Check
-                        className="absolute right-2 top-2 h-3.5 w-3.5 text-emerald-600"
+                        className="absolute right-2 top-2 h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400"
                         aria-hidden="true"
                       />
                     ) : null}
@@ -170,10 +170,10 @@ export function AddBomSheetDialog({
                       aria-hidden="true"
                     />
                     <div className="flex min-w-0 flex-col">
-                      <span className="text-sm font-semibold text-zinc-900">
+                      <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
                         {p.label}
                       </span>
-                      <span className="mt-0.5 text-xs text-zinc-500">
+                      <span className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
                         {p.description}
                       </span>
                     </div>

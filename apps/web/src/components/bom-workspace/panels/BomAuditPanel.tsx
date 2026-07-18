@@ -57,15 +57,15 @@ const FILTER_OBJECT_TYPES = [
 ] as const;
 
 const ACTION_TONE: Record<string, string> = {
-  CREATE: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  UPDATE: "border-blue-200 bg-blue-50 text-blue-700",
-  DELETE: "border-red-200 bg-red-50 text-red-700",
-  TRANSITION: "border-indigo-200 bg-indigo-50 text-indigo-700",
-  RESERVE: "border-amber-200 bg-amber-50 text-amber-700",
-  ISSUE: "border-orange-200 bg-orange-50 text-orange-700",
-  RECEIVE: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  APPROVE: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  CANCEL: "border-red-200 bg-red-50 text-red-700",
+  CREATE: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400",
+  UPDATE: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-400",
+  DELETE: "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400",
+  TRANSITION: "border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-400",
+  RESERVE: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400",
+  ISSUE: "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-400",
+  RECEIVE: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400",
+  APPROVE: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400",
+  CANCEL: "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400",
 };
 
 export function BomAuditPanel({ bomId }: { bomId: string }) {
@@ -112,7 +112,7 @@ export function BomAuditPanel({ bomId }: { bomId: string }) {
 
   if (allRows.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center p-6 text-xs text-zinc-500">
+      <div className="flex h-full items-center justify-center p-6 text-xs text-zinc-500 dark:text-zinc-400">
         Chưa có lịch sử thao tác.
       </div>
     );
@@ -121,24 +121,24 @@ export function BomAuditPanel({ bomId }: { bomId: string }) {
   return (
     <div className="flex h-full flex-col">
       {/* Inline toolbar — date range + entity type chips */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-zinc-200 bg-zinc-50/60 px-3 py-2">
-        <Activity className="h-3.5 w-3.5 text-zinc-500" aria-hidden />
-        <label className="flex items-center gap-1 text-[11px] text-zinc-600">
+      <div className="flex flex-wrap items-center gap-2 border-b border-zinc-200 bg-zinc-50/60 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-800/60">
+        <Activity className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" aria-hidden />
+        <label className="flex items-center gap-1 text-[11px] text-zinc-600 dark:text-zinc-400">
           Từ
           <input
             type="date"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
-            className="h-6 rounded-sm border border-zinc-200 bg-white px-1.5 text-[11px] tabular-nums focus:border-indigo-500 focus:outline-none"
+            className="h-6 rounded-sm border border-zinc-200 bg-white px-1.5 text-[11px] tabular-nums focus:border-indigo-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
           />
         </label>
-        <label className="flex items-center gap-1 text-[11px] text-zinc-600">
+        <label className="flex items-center gap-1 text-[11px] text-zinc-600 dark:text-zinc-400">
           Đến
           <input
             type="date"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
-            className="h-6 rounded-sm border border-zinc-200 bg-white px-1.5 text-[11px] tabular-nums focus:border-indigo-500 focus:outline-none"
+            className="h-6 rounded-sm border border-zinc-200 bg-white px-1.5 text-[11px] tabular-nums focus:border-indigo-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
           />
         </label>
         <div className="flex flex-wrap items-center gap-1">
@@ -152,8 +152,8 @@ export function BomAuditPanel({ bomId }: { bomId: string }) {
                 className={cn(
                   "inline-flex h-6 items-center rounded-sm border px-2 text-[11px] font-medium transition-colors",
                   active
-                    ? "border-indigo-300 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200"
-                    : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-100",
+                    ? "border-indigo-300 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-800"
+                    : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800",
                 )}
                 aria-pressed={active}
               >
@@ -169,26 +169,26 @@ export function BomAuditPanel({ bomId }: { bomId: string }) {
                 setDateTo("");
                 setEntityTypes([]);
               }}
-              className="ml-1 text-[10px] text-zinc-500 underline hover:text-zinc-700"
+              className="ml-1 text-[10px] text-zinc-500 underline hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300"
             >
               Bỏ lọc
             </button>
           )}
         </div>
-        <span className="ml-auto text-[10px] uppercase tracking-wide text-zinc-500">
+        <span className="ml-auto text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
           {filtered.length} / {allRows.length} sự kiện
         </span>
       </div>
 
       <div className="flex-1 overflow-auto">
         {filtered.length === 0 ? (
-          <div className="flex h-full items-center justify-center p-6 text-xs text-zinc-500">
+          <div className="flex h-full items-center justify-center p-6 text-xs text-zinc-500 dark:text-zinc-400">
             Không có sự kiện nào match filter hiện tại.
           </div>
         ) : (
           <table className="w-full text-xs">
-            <thead className="sticky top-0 z-10 bg-zinc-50/80 backdrop-blur-sm">
-              <tr className="border-b border-zinc-200 text-[10px] uppercase tracking-wide text-zinc-500">
+            <thead className="sticky top-0 z-10 bg-zinc-50/80 backdrop-blur-sm dark:bg-zinc-800/60">
+              <tr className="border-b border-zinc-200 text-[10px] uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
                 <th className="px-3 py-1.5 text-left font-medium">
                   Thời gian
                 </th>
@@ -202,23 +202,23 @@ export function BomAuditPanel({ bomId }: { bomId: string }) {
                 <th className="px-3 py-1.5 text-left font-medium">Ghi chú</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100">
+            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {filtered.map((r) => {
                 const actionLabel = ACTION_LABELS[r.action] ?? r.action;
                 const actionTone =
                   ACTION_TONE[r.action] ??
-                  "border-zinc-200 bg-zinc-100 text-zinc-700";
+                  "border-zinc-200 bg-zinc-100 text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300";
                 const objectLabel =
                   OBJECT_TYPE_LABELS[r.objectType] ?? r.objectType;
                 return (
-                  <tr key={r.id} className="hover:bg-zinc-50">
-                    <td className="px-3 py-1.5 align-top font-mono text-[10px] tabular-nums text-zinc-500 whitespace-nowrap">
+                  <tr key={r.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/60">
+                    <td className="px-3 py-1.5 align-top font-mono text-[10px] tabular-nums text-zinc-500 whitespace-nowrap dark:text-zinc-400">
                       <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3" aria-hidden="true" />
                         {formatDate(r.occurredAt, "dd/MM/yyyy HH:mm")}
                       </div>
                     </td>
-                    <td className="px-3 py-1.5 align-top text-[11px] text-zinc-700">
+                    <td className="px-3 py-1.5 align-top text-[11px] text-zinc-700 dark:text-zinc-300">
                       {r.actorUsername ?? "—"}
                     </td>
                     <td className="px-3 py-1.5 align-top">
@@ -231,16 +231,16 @@ export function BomAuditPanel({ bomId }: { bomId: string }) {
                         {actionLabel}
                       </span>
                     </td>
-                    <td className="px-3 py-1.5 align-top text-[11px] text-zinc-700">
+                    <td className="px-3 py-1.5 align-top text-[11px] text-zinc-700 dark:text-zinc-300">
                       <span className="font-medium">{objectLabel}</span>
                       {r.objectId && (
-                        <span className="ml-1 font-mono text-[10px] text-zinc-400">
+                        <span className="ml-1 font-mono text-[10px] text-zinc-400 dark:text-zinc-500">
                           #{r.objectId.slice(0, 8)}
                         </span>
                       )}
                     </td>
-                    <td className="px-3 py-1.5 align-top text-[11px] text-zinc-600">
-                      {r.notes ?? <span className="text-zinc-300">—</span>}
+                    <td className="px-3 py-1.5 align-top text-[11px] text-zinc-600 dark:text-zinc-400">
+                      {r.notes ?? <span className="text-zinc-300 dark:text-zinc-600">—</span>}
                     </td>
                   </tr>
                 );

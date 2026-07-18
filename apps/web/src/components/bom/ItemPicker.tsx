@@ -84,20 +84,20 @@ export function ItemPicker({
           aria-haspopup="listbox"
           aria-expanded={open}
           className={cn(
-            "inline-flex h-9 w-full items-center justify-between rounded-md border border-zinc-300 bg-white px-3 text-base text-zinc-900 transition-colors",
-            "hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-0",
+            "inline-flex h-9 w-full items-center justify-between rounded-md border border-zinc-300 bg-white px-3 text-base text-zinc-900 transition-colors dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50",
+            "hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-0 dark:hover:bg-zinc-800/60",
             disabled && "cursor-not-allowed opacity-60",
           )}
         >
           {value ? (
             <span className="flex min-w-0 items-center gap-2">
-              <span className="font-mono text-sm text-zinc-700">
+              <span className="font-mono text-sm text-zinc-700 dark:text-zinc-300">
                 {value.sku}
               </span>
-              <span className="truncate text-zinc-900">{value.name}</span>
+              <span className="truncate text-zinc-900 dark:text-zinc-50">{value.name}</span>
             </span>
           ) : (
-            <span className="text-zinc-400">{placeholder}</span>
+            <span className="text-zinc-400 dark:text-zinc-500">{placeholder}</span>
           )}
           <span className="flex items-center gap-1">
             {value && allowClear && !disabled && (
@@ -108,31 +108,31 @@ export function ItemPicker({
                   e.stopPropagation();
                   onChange(null);
                 }}
-                className="inline-flex h-5 w-5 items-center justify-center rounded-sm text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                className="inline-flex h-5 w-5 items-center justify-center rounded-sm text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
                 aria-label="Xoá lựa chọn"
               >
                 <X className="h-3 w-3" aria-hidden="true" />
               </span>
             )}
             <ChevronDown
-              className="h-3.5 w-3.5 text-zinc-500"
+              className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400"
               aria-hidden="true"
             />
           </span>
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-[360px] p-0" align="start">
-        <div className="border-b border-zinc-100 p-2">
+      <PopoverContent className="w-[360px] p-0 dark:bg-zinc-900 dark:border-zinc-700" align="start">
+        <div className="border-b border-zinc-100 p-2 dark:border-zinc-800">
           <div className="relative">
             <Search
-              className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400"
+              className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400 dark:text-zinc-500"
               aria-hidden="true"
             />
             <Input
               size="sm"
               autoFocus
               placeholder="Tìm SKU hoặc tên..."
-              className="h-8 w-full pl-7"
+              className="h-8 w-full pl-7 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-50 dark:placeholder:text-zinc-500"
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
@@ -140,12 +140,12 @@ export function ItemPicker({
         </div>
         <ul className="max-h-72 overflow-auto p-1" role="listbox">
           {query.isLoading && rows.length === 0 && (
-            <li className="px-2 py-4 text-center text-sm text-zinc-500">
+            <li className="px-2 py-4 text-center text-sm text-zinc-500 dark:text-zinc-400">
               Đang tải...
             </li>
           )}
           {!query.isLoading && rows.length === 0 && (
-            <li className="px-2 py-4 text-center text-sm text-zinc-500">
+            <li className="px-2 py-4 text-center text-sm text-zinc-500 dark:text-zinc-400">
               Không có kết quả
             </li>
           )}
@@ -168,22 +168,22 @@ export function ItemPicker({
                     setQ("");
                   }}
                   className={cn(
-                    "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-base transition-colors hover:bg-zinc-100",
-                    selected && "bg-blue-50",
+                    "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-base transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800",
+                    selected && "bg-blue-50 dark:bg-blue-950/40",
                   )}
                 >
-                  <span className="w-24 shrink-0 truncate font-mono text-sm text-zinc-700">
+                  <span className="w-24 shrink-0 truncate font-mono text-sm text-zinc-700 dark:text-zinc-300">
                     {r.sku}
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-zinc-900">
+                  <span className="min-w-0 flex-1 truncate text-zinc-900 dark:text-zinc-50">
                     {r.name}
                   </span>
                   {r.uom && (
-                    <span className="text-xs text-zinc-400">{r.uom}</span>
+                    <span className="text-xs text-zinc-400 dark:text-zinc-500">{r.uom}</span>
                   )}
                   {selected && (
                     <Check
-                      className="h-3.5 w-3.5 text-indigo-600"
+                      className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400"
                       aria-hidden="true"
                     />
                   )}

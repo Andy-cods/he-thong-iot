@@ -147,7 +147,7 @@ export function WOQuickDialog({
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Factory className="h-5 w-5 text-purple-600" aria-hidden />
+            <Factory className="h-5 w-5 text-purple-600 dark:text-purple-400" aria-hidden />
             Gửi yêu cầu sản xuất GTAM
           </DialogTitle>
           <DialogDescription>
@@ -155,7 +155,7 @@ export function WOQuickDialog({
             <span className="font-mono">{sku}</span>
             {name ? ` — ${name}` : ""}
             <br />
-            <span className="text-purple-700 font-medium text-xs">
+            <span className="text-purple-700 font-medium text-xs dark:text-purple-400">
               ℹ️ Đây là <strong>yêu cầu sản xuất</strong> — Bộ phận Gia công sẽ
               duyệt rồi mới chuyển thành lệnh sản xuất chính thức.
             </span>
@@ -164,33 +164,33 @@ export function WOQuickDialog({
 
         <div className="grid gap-3 py-2">
           {/* Info readonly */}
-          <div className="rounded-md border border-zinc-100 bg-zinc-50 p-3 text-xs space-y-1">
+          <div className="rounded-md border border-zinc-100 bg-zinc-50 p-3 text-xs space-y-1 dark:border-zinc-800 dark:bg-zinc-800">
             <div className="flex justify-between">
-              <span className="text-zinc-500">SKU sản phẩm:</span>
+              <span className="text-zinc-500 dark:text-zinc-400">SKU sản phẩm:</span>
               <span className="font-mono">{sku}</span>
             </div>
             {meta.size && (
               <div className="flex justify-between">
-                <span className="text-zinc-500">Quy cách:</span>
+                <span className="text-zinc-500 dark:text-zinc-400">Quy cách:</span>
                 <span className="font-mono">{meta.size}</span>
               </div>
             )}
             {meta.routing?.materialCode && (
               <div className="flex justify-between">
-                <span className="text-zinc-500">Vật liệu:</span>
+                <span className="text-zinc-500 dark:text-zinc-400">Vật liệu:</span>
                 <span className="font-mono">{meta.routing.materialCode}</span>
               </div>
             )}
             {meta.routing?.processRoute && meta.routing.processRoute.length > 0 && (
               <div className="flex justify-between">
-                <span className="text-zinc-500">Quy trình:</span>
+                <span className="text-zinc-500 dark:text-zinc-400">Quy trình:</span>
                 <span className="font-mono text-[11px]">
                   {meta.routing.processRoute.join(" → ")}
                 </span>
               </div>
             )}
             {!meta.routing && (
-              <p className="mt-1 text-amber-700 text-[11px]">
+              <p className="mt-1 text-amber-700 text-[11px] dark:text-amber-400">
                 ℹ️ BOM line chưa cấu hình routing/material. Yêu cầu Simple —
                 VH-A tự xử lý phôi nếu duyệt. Có thể bổ sung sau qua Edit linh kiện.
               </p>
@@ -211,7 +211,7 @@ export function WOQuickDialog({
                 value={plannedQty}
                 onChange={(e) => setPlannedQty(e.target.value)}
               />
-              <p className="text-[11px] text-zinc-500">
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
                 Default = SL Excel ({defaultQty})
               </p>
             </div>
@@ -283,7 +283,7 @@ export function WOQuickDialog({
           <Button
             onClick={() => mutation.mutate()}
             disabled={mutation.isPending}
-            className="bg-purple-600 hover:bg-purple-700"
+            className="bg-purple-600 hover:bg-purple-700 dark:bg-purple-700 dark:hover:bg-purple-600"
           >
             {mutation.isPending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />

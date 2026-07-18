@@ -45,8 +45,8 @@ export function EcoPanel({ bomId }: { bomId: string }) {
   return (
     <div className="flex h-full flex-col">
       {/* Inline toolbar */}
-      <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 bg-zinc-50/60 px-3 py-2">
-        <div className="text-[11px] uppercase tracking-wide text-zinc-500">
+      <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 bg-zinc-50/60 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-800/60">
+        <div className="text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
           {query.isLoading
             ? "Đang tải ECO…"
             : `${rows.length} ECO gắn với BOM này`}
@@ -79,13 +79,13 @@ export function EcoPanel({ bomId }: { bomId: string }) {
             ))}
           </div>
         ) : rows.length === 0 ? (
-          <div className="flex h-full items-center justify-center p-6 text-xs text-zinc-500">
+          <div className="flex h-full items-center justify-center p-6 text-xs text-zinc-500 dark:text-zinc-400">
             Chưa có ECO cho BOM này.
           </div>
         ) : (
           <table className="w-full text-xs">
-            <thead className="sticky top-0 z-10 bg-zinc-50/80 backdrop-blur-sm">
-              <tr className="border-b border-zinc-200 text-[10px] uppercase tracking-wide text-zinc-500">
+            <thead className="sticky top-0 z-10 bg-zinc-50/80 backdrop-blur-sm dark:bg-zinc-800/80">
+              <tr className="border-b border-zinc-200 text-[10px] uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
                 <th className="px-3 py-1.5 text-left font-medium">Mã</th>
                 <th className="px-3 py-1.5 text-left font-medium">Tiêu đề</th>
                 <th className="px-3 py-1.5 text-right font-medium">Orders</th>
@@ -96,14 +96,14 @@ export function EcoPanel({ bomId }: { bomId: string }) {
                 <th className="px-3 py-1.5 w-8" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100">
+            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {rows.map((row) => (
-                <tr key={row.id} className="h-8 hover:bg-zinc-50">
-                  <td className="px-3 font-mono text-[11px] font-semibold text-indigo-600">
+                <tr key={row.id} className="h-8 hover:bg-zinc-50 dark:hover:bg-zinc-800/60">
+                  <td className="px-3 font-mono text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">
                     {row.code}
                   </td>
-                  <td className="px-3 text-zinc-700">{row.title}</td>
-                  <td className="px-3 text-right font-mono tabular-nums text-zinc-700">
+                  <td className="px-3 text-zinc-700 dark:text-zinc-300">{row.title}</td>
+                  <td className="px-3 text-right font-mono tabular-nums text-zinc-700 dark:text-zinc-300">
                     {row.affectedOrdersCount}
                   </td>
                   <td className="px-3">
@@ -113,13 +113,13 @@ export function EcoPanel({ bomId }: { bomId: string }) {
                       label={ECO_STATUS_LABELS[row.status]}
                     />
                   </td>
-                  <td className="px-3 text-zinc-500">
+                  <td className="px-3 text-zinc-500 dark:text-zinc-400">
                     {formatDate(row.createdAt, "dd/MM/yyyy")}
                   </td>
                   <td className="px-1">
                     <Link
                       href={`/eco/${row.code}`}
-                      className="inline-flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-indigo-600"
+                      className="inline-flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-indigo-600 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-indigo-400"
                       title="Mở ECO"
                     >
                       <ExternalLink className="h-3 w-3" aria-hidden />

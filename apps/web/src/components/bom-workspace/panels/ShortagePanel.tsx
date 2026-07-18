@@ -79,8 +79,8 @@ export function ShortagePanel({
   return (
     <div className="flex h-full flex-col">
       {/* Inline toolbar */}
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-zinc-200 bg-zinc-50/60 px-3 py-2">
-        <label className="flex items-center gap-1.5 text-[11px] text-zinc-600">
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-zinc-200 bg-zinc-50/60 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-800/60">
+        <label className="flex items-center gap-1.5 text-[11px] text-zinc-600 dark:text-zinc-400">
           Thiếu ≥
           <input
             type="number"
@@ -88,12 +88,12 @@ export function ShortagePanel({
             step={1}
             value={minThreshold}
             onChange={(e) => setMinThreshold(e.target.value)}
-            className="h-6 w-16 rounded-sm border border-zinc-200 bg-white px-1.5 text-[11px] tabular-nums focus:border-indigo-500 focus:outline-none"
+            className="h-6 w-16 rounded-sm border border-zinc-200 bg-white px-1.5 text-[11px] tabular-nums focus:border-indigo-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
           />
         </label>
-        <span className="text-[11px] text-zinc-500">
+        <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
           {filtered.length} loại · Tổng{" "}
-          <span className="font-mono font-semibold text-zinc-700">
+          <span className="font-mono font-semibold text-zinc-700 dark:text-zinc-300">
             {formatNumber(total)}
           </span>
         </span>
@@ -124,17 +124,17 @@ export function ShortagePanel({
             ))}
           </div>
         ) : rows.length === 0 ? (
-          <div className="flex h-full items-center justify-center p-6 text-xs text-zinc-500">
+          <div className="flex h-full items-center justify-center p-6 text-xs text-zinc-500 dark:text-zinc-400">
             Không có linh kiện thiếu — đủ vật tư cho BOM này.
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex h-full items-center justify-center p-6 text-xs text-zinc-500">
+          <div className="flex h-full items-center justify-center p-6 text-xs text-zinc-500 dark:text-zinc-400">
             Không có item nào thiếu ≥ {minThreshold}.
           </div>
         ) : (
           <table className="w-full text-xs">
-            <thead className="sticky top-0 z-10 bg-zinc-50/80 backdrop-blur-sm">
-              <tr className="border-b border-zinc-200 text-[10px] uppercase tracking-wide text-zinc-500">
+            <thead className="sticky top-0 z-10 bg-zinc-50/80 backdrop-blur-sm dark:bg-zinc-800/80">
+              <tr className="border-b border-zinc-200 text-[10px] uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
                 <th className="px-3 py-1.5 text-left font-medium">SKU</th>
                 <th className="px-3 py-1.5 text-left font-medium">Tên</th>
                 <th className="px-3 py-1.5 text-right font-medium">Cần</th>
@@ -142,36 +142,36 @@ export function ShortagePanel({
                 <th className="px-3 py-1.5 text-right font-medium">
                   Đang mua
                 </th>
-                <th className="px-3 py-1.5 text-right font-medium text-red-600">
+                <th className="px-3 py-1.5 text-right font-medium text-red-600 dark:text-red-400">
                   Thiếu
                 </th>
                 <th className="px-3 py-1.5 text-right font-medium">Đơn</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100">
+            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {filtered.map((r) => (
-                <tr key={r.componentItemId} className="h-8 hover:bg-zinc-50">
-                  <td className="px-3 font-mono text-[11px] font-semibold text-zinc-700">
+                <tr key={r.componentItemId} className="h-8 hover:bg-zinc-50 dark:hover:bg-zinc-800/60">
+                  <td className="px-3 font-mono text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">
                     {r.componentSku}
                   </td>
-                  <td className="px-3 text-zinc-700">{r.componentName}</td>
-                  <td className="px-3 text-right font-mono tabular-nums">
+                  <td className="px-3 text-zinc-700 dark:text-zinc-300">{r.componentName}</td>
+                  <td className="px-3 text-right font-mono tabular-nums dark:text-zinc-300">
                     {formatNumber(r.totalRequired)}
                   </td>
-                  <td className="px-3 text-right font-mono tabular-nums text-emerald-700">
+                  <td className="px-3 text-right font-mono tabular-nums text-emerald-700 dark:text-emerald-400">
                     {formatNumber(r.totalAvailable)}
                   </td>
-                  <td className="px-3 text-right font-mono tabular-nums text-blue-700">
+                  <td className="px-3 text-right font-mono tabular-nums text-blue-700 dark:text-blue-400">
                     {formatNumber(r.totalOnOrder)}
                   </td>
                   <td
                     className={cn(
-                      "px-3 text-right font-mono font-semibold tabular-nums text-red-600",
+                      "px-3 text-right font-mono font-semibold tabular-nums text-red-600 dark:text-red-400",
                     )}
                   >
                     {formatNumber(r.totalShort)}
                   </td>
-                  <td className="px-3 text-right font-mono tabular-nums text-zinc-500">
+                  <td className="px-3 text-right font-mono tabular-nums text-zinc-500 dark:text-zinc-400">
                     {r.orderCount}
                   </td>
                 </tr>
@@ -187,15 +187,15 @@ export function ShortagePanel({
             <DialogTitle className="text-[15px]">
               Tạo PR cho {filtered.length} item thiếu?
             </DialogTitle>
-            <DialogDescription className="text-xs text-zinc-500">
+            <DialogDescription className="text-xs text-zinc-500 dark:text-zinc-400">
               Hệ thống sẽ tạo 1 PR (DRAFT) gộp tất cả {filtered.length} item
               thiếu (≥ {minThreshold}) trong filter hiện tại. Repo tự tính số
               lượng = remaining_short × 1.1 và lookup preferred supplier.
             </DialogDescription>
           </DialogHeader>
-          <div className="rounded-md border border-zinc-100 bg-zinc-50 px-3 py-2 text-[12px] text-zinc-700">
+          <div className="rounded-md border border-zinc-100 bg-zinc-50 px-3 py-2 text-[12px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-300">
             Tổng số lượng cần bù:{" "}
-            <span className="font-mono font-semibold text-zinc-900">
+            <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-50">
               {formatNumber(total)}
             </span>
           </div>

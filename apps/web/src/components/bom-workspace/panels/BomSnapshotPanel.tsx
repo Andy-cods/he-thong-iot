@@ -114,9 +114,9 @@ export function BomSnapshotPanel({ bomId }: { bomId: string }) {
 
   if (total === 0 && !query.isLoading) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-xs text-zinc-500">
+      <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-xs text-zinc-500 dark:text-zinc-400">
         Chưa có snapshot nào cho BOM này.
-        <p className="text-[11px] text-zinc-400">
+        <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
           Mỗi đơn hàng cần explode BOM để sinh snapshot lines tại tab Snapshot
           Board của đơn.
         </p>
@@ -131,10 +131,10 @@ export function BomSnapshotPanel({ bomId }: { bomId: string }) {
   return (
     <div className="flex h-full flex-col">
       {/* Filter bar */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-zinc-200 bg-zinc-50/60 px-3 py-2">
+      <div className="flex flex-wrap items-center gap-2 border-b border-zinc-200 bg-zinc-50/60 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-800/60">
         <div className="relative">
           <Search
-            className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-zinc-400"
+            className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-zinc-400 dark:text-zinc-500"
             aria-hidden="true"
           />
           <Input
@@ -146,7 +146,7 @@ export function BomSnapshotPanel({ bomId }: { bomId: string }) {
         </div>
         <div className="relative">
           <Search
-            className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-zinc-400"
+            className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-zinc-400 dark:text-zinc-500"
             aria-hidden="true"
           />
           <Input
@@ -197,7 +197,7 @@ export function BomSnapshotPanel({ bomId }: { bomId: string }) {
               Transition trạng thái ({selectedIds.size})
             </Button>
           ) : null}
-          <span className="text-[10px] uppercase tracking-wide text-zinc-500">
+          <span className="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
             {rows.length} / {total} line
           </span>
         </div>
@@ -206,12 +206,12 @@ export function BomSnapshotPanel({ bomId }: { bomId: string }) {
       {/* Table */}
       <div className="flex-1 overflow-auto">
         <table className="w-full text-xs">
-          <thead className="sticky top-0 z-10 bg-zinc-50/80 backdrop-blur-sm">
-            <tr className="border-b border-zinc-200 text-[10px] uppercase tracking-wide text-zinc-500">
+          <thead className="sticky top-0 z-10 bg-zinc-50/80 backdrop-blur-sm dark:bg-zinc-800/60">
+            <tr className="border-b border-zinc-200 text-[10px] uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
               <th className="w-8 px-2 py-1.5 text-center">
                 <input
                   type="checkbox"
-                  className="h-3.5 w-3.5 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                  className="h-3.5 w-3.5 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 dark:border-zinc-600 dark:bg-zinc-900"
                   checked={allChecked}
                   ref={(el) => {
                     if (el) el.indeterminate = someChecked;
@@ -227,14 +227,14 @@ export function BomSnapshotPanel({ bomId }: { bomId: string }) {
               <th className="px-3 py-1.5 text-right font-medium">Gross</th>
               <th className="px-3 py-1.5 text-right font-medium">QC</th>
               <th className="px-3 py-1.5 text-right font-medium">Issued</th>
-              <th className="px-3 py-1.5 text-right font-medium text-red-600">
+              <th className="px-3 py-1.5 text-right font-medium text-red-600 dark:text-red-400">
                 Thiếu
               </th>
               <th className="px-3 py-1.5 text-left font-medium">Trạng thái</th>
               <th className="px-3 py-1.5 w-8" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100">
+          <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
             {rows.map((r) => {
               const tone = BOM_SNAPSHOT_STATE_TONES[r.state];
               const toneClass = stateToneClass(tone);
@@ -248,19 +248,19 @@ export function BomSnapshotPanel({ bomId }: { bomId: string }) {
                   key={r.id}
                   className={cn(
                     "h-8",
-                    checked ? "bg-indigo-50/60" : "hover:bg-zinc-50",
+                    checked ? "bg-indigo-50/60 dark:bg-indigo-950/40" : "hover:bg-zinc-50 dark:hover:bg-zinc-800/60",
                   )}
                 >
                   <td className="px-2 text-center">
                     <input
                       type="checkbox"
-                      className="h-3.5 w-3.5 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                      className="h-3.5 w-3.5 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 dark:border-zinc-600 dark:bg-zinc-900"
                       checked={checked}
                       onChange={() => toggleRow(r.id)}
                       aria-label={`Chọn line ${r.componentSku}`}
                     />
                   </td>
-                  <td className="px-3 font-mono text-[11px] font-semibold text-indigo-600">
+                  <td className="px-3 font-mono text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">
                     <Link
                       href={`/orders/${r.orderNo}`}
                       className="hover:underline"
@@ -269,33 +269,33 @@ export function BomSnapshotPanel({ bomId }: { bomId: string }) {
                       {r.orderNo}
                     </Link>
                   </td>
-                  <td className="px-3 text-center text-[10px] text-zinc-500">
+                  <td className="px-3 text-center text-[10px] text-zinc-500 dark:text-zinc-400">
                     {r.level}
                   </td>
-                  <td className="px-3 font-mono text-[11px] font-semibold text-zinc-700">
+                  <td className="px-3 font-mono text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">
                     {r.componentSku}
                   </td>
                   <td
-                    className="max-w-[280px] truncate px-3 text-zinc-700"
+                    className="max-w-[280px] truncate px-3 text-zinc-700 dark:text-zinc-300"
                     title={r.componentName}
                   >
                     {r.componentName}
                   </td>
-                  <td className="px-3 text-right font-mono tabular-nums text-zinc-700">
+                  <td className="px-3 text-right font-mono tabular-nums text-zinc-700 dark:text-zinc-300">
                     {formatNumber(Number(r.grossRequiredQty))}
                   </td>
-                  <td className="px-3 text-right font-mono tabular-nums text-emerald-700">
+                  <td className="px-3 text-right font-mono tabular-nums text-emerald-700 dark:text-emerald-400">
                     {formatNumber(Number(r.qcPassQty))}
                   </td>
-                  <td className="px-3 text-right font-mono tabular-nums text-zinc-600">
+                  <td className="px-3 text-right font-mono tabular-nums text-zinc-600 dark:text-zinc-400">
                     {formatNumber(Number(r.issuedQty))}
                   </td>
                   <td
                     className={cn(
                       "px-3 text-right font-mono tabular-nums",
                       shortage > 0
-                        ? "font-semibold text-red-600"
-                        : "text-zinc-300",
+                        ? "font-semibold text-red-600 dark:text-red-400"
+                        : "text-zinc-300 dark:text-zinc-600",
                     )}
                   >
                     {shortage > 0 ? formatNumber(shortage) : "—"}
@@ -313,7 +313,7 @@ export function BomSnapshotPanel({ bomId }: { bomId: string }) {
                   <td className="px-1">
                     <Link
                       href={`/orders/${r.orderNo}?tab=snapshot`}
-                      className="inline-flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-indigo-600"
+                      className="inline-flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-indigo-600 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-indigo-400"
                       title="Mở snapshot ở đơn hàng"
                     >
                       <ExternalLink className="h-3 w-3" aria-hidden />
@@ -345,17 +345,17 @@ export function BomSnapshotPanel({ bomId }: { bomId: string }) {
 function stateToneClass(tone: string): string {
   switch (tone) {
     case "success":
-      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+      return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400";
     case "warning":
-      return "border-amber-200 bg-amber-50 text-amber-700";
+      return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400";
     case "danger":
-      return "border-red-200 bg-red-50 text-red-700";
+      return "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400";
     case "info":
-      return "border-blue-200 bg-blue-50 text-blue-700";
+      return "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-400";
     case "shortage":
-      return "border-orange-200 bg-orange-50 text-orange-700";
+      return "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-400";
     default:
-      return "border-zinc-200 bg-zinc-100 text-zinc-700";
+      return "border-zinc-200 bg-zinc-100 text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300";
   }
 }
 
@@ -445,7 +445,7 @@ function BulkTransitionDialog({
           <DialogTitle className="text-[15px]">
             Transition {selectedRows.length} line snapshot
           </DialogTitle>
-          <DialogDescription className="text-xs text-zinc-500">
+          <DialogDescription className="text-xs text-zinc-500 dark:text-zinc-400">
             Đổi trạng thái cho {selectedRows.length} dòng đã chọn. Lưu ý: API
             backend chỉ hỗ trợ per-line — dialog này gọi tuần tự, một số line có
             thể từ chối nếu transition không hợp lệ (vd PLANNED → ASSEMBLED).
@@ -462,7 +462,7 @@ function BulkTransitionDialog({
               onChange={(e) =>
                 setToState(e.target.value as BomSnapshotState)
               }
-              className="flex h-9 w-full items-center rounded-md border border-zinc-200 bg-white px-3 text-[13px] text-zinc-900 focus:border-indigo-500 focus:outline-none"
+              className="flex h-9 w-full items-center rounded-md border border-zinc-200 bg-white px-3 text-[13px] text-zinc-900 focus:border-indigo-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
             >
               {BOM_SNAPSHOT_STATES.map((s) => (
                 <option key={s} value={s}>

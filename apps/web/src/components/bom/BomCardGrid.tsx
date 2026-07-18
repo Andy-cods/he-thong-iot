@@ -118,9 +118,9 @@ function BomCard({
         }
       }}
       className={cn(
-        "group relative flex flex-col rounded-lg border border-zinc-200 bg-white p-4 text-left",
+        "group relative flex flex-col rounded-lg border border-zinc-200 bg-white p-4 text-left dark:border-zinc-700 dark:bg-zinc-900",
         "shadow-sm transition-all duration-150 ease-out",
-        "hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-md",
+        "hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-md dark:hover:border-zinc-600",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 focus-visible:outline-offset-2",
         "cursor-pointer",
       )}
@@ -131,7 +131,7 @@ function BomCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <span
-              className="truncate font-mono text-md font-semibold tracking-tight text-zinc-900"
+              className="truncate font-mono text-md font-semibold tracking-tight text-zinc-900 dark:text-zinc-50"
               title={row.code}
             >
               {row.code}
@@ -139,7 +139,7 @@ function BomCard({
             <button
               type="button"
               onClick={handleCopyCode}
-              className="opacity-0 transition-opacity hover:bg-zinc-100 group-hover:opacity-100 inline-flex h-5 w-5 items-center justify-center rounded text-zinc-400 hover:text-zinc-700"
+              className="opacity-0 transition-opacity hover:bg-zinc-100 group-hover:opacity-100 inline-flex h-5 w-5 items-center justify-center rounded text-zinc-400 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:text-zinc-500 dark:hover:text-zinc-200"
               aria-label={`Copy mã ${row.code}`}
               tabIndex={-1}
             >
@@ -148,7 +148,7 @@ function BomCard({
           </div>
           {row.parentItemSku && (
             <div
-              className="mt-0.5 truncate font-mono text-xs text-zinc-500"
+              className="mt-0.5 truncate font-mono text-xs text-zinc-500 dark:text-zinc-400"
               title={row.parentItemSku}
             >
               {row.parentItemSku}
@@ -161,20 +161,20 @@ function BomCard({
       {/* Middle: name + description */}
       <div className="mt-3 min-h-[44px] flex-1">
         <h3
-          className="line-clamp-2 text-base font-medium leading-snug text-zinc-900"
+          className="line-clamp-2 text-base font-medium leading-snug text-zinc-900 dark:text-zinc-50"
           title={row.name}
         >
           {row.name}
         </h3>
         {row.description && (
-          <p className="mt-1 line-clamp-1 text-xs text-zinc-500">
+          <p className="mt-1 line-clamp-1 text-xs text-zinc-500 dark:text-zinc-400">
             {row.description}
           </p>
         )}
       </div>
 
       {/* Footer: 3 mini stats */}
-      <div className="mt-4 grid grid-cols-3 gap-1 rounded-md border border-zinc-100 bg-zinc-50/60 p-2">
+      <div className="mt-4 grid grid-cols-3 gap-1 rounded-md border border-zinc-100 bg-zinc-50/60 p-2 dark:border-zinc-800 dark:bg-zinc-800/60">
         <Stat
           label="Linh kiện"
           value={formatNumber(row.componentCount)}
@@ -202,7 +202,7 @@ function BomCard({
       >
         <Link
           href={`/bom/${row.id}/grid`}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 shadow-sm transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 shadow-sm transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-emerald-800 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300"
           aria-label={`Mở Grid ${row.code}`}
           title="Mở Grid Editor"
           onClick={(e) => e.stopPropagation()}
@@ -215,7 +215,7 @@ function BomCard({
             e.stopPropagation();
             onOpen(row);
           }}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 shadow-sm transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 shadow-sm transition-colors hover:bg-zinc-50 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
           aria-label={`Xem ${row.code}`}
           title="Mở chi tiết"
         >
@@ -228,7 +228,7 @@ function BomCard({
               e.stopPropagation();
               onClone(row);
             }}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 shadow-sm transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 shadow-sm transition-colors hover:bg-zinc-50 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
             aria-label={`Sao chép ${row.code}`}
             title="Sao chép"
           >
@@ -242,7 +242,7 @@ function BomCard({
               e.stopPropagation();
               onDelete(row);
             }}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white text-red-500 shadow-sm transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white text-red-500 shadow-sm transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-red-400 dark:hover:border-red-800 dark:hover:bg-red-950/40 dark:hover:text-red-300"
             aria-label={`Xoá ${row.code}`}
             title="Xoá BOM"
           >
@@ -268,12 +268,12 @@ function Stat({
       <div
         className={cn(
           "text-sm font-semibold tabular-nums leading-tight",
-          tone === "default" ? "text-zinc-900" : "text-zinc-400",
+          tone === "default" ? "text-zinc-900 dark:text-zinc-50" : "text-zinc-400 dark:text-zinc-500",
         )}
       >
         {value}
       </div>
-      <div className="mt-0.5 truncate text-[10px] uppercase tracking-wide text-zinc-500">
+      <div className="mt-0.5 truncate text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
         {label}
       </div>
     </div>
@@ -292,23 +292,23 @@ const STATUS_DOT: Record<BomStatus, StatusDotMeta> = {
   DRAFT: {
     label: "Nháp",
     dot: "bg-amber-500",
-    bg: "bg-amber-50",
-    text: "text-amber-700",
-    border: "border-amber-200",
+    bg: "bg-amber-50 dark:bg-amber-950/40",
+    text: "text-amber-700 dark:text-amber-300",
+    border: "border-amber-200 dark:border-amber-800/60",
   },
   ACTIVE: {
     label: "Hoạt động",
     dot: "bg-emerald-500",
-    bg: "bg-emerald-50",
-    text: "text-emerald-700",
-    border: "border-emerald-200",
+    bg: "bg-emerald-50 dark:bg-emerald-950/40",
+    text: "text-emerald-700 dark:text-emerald-300",
+    border: "border-emerald-200 dark:border-emerald-800/60",
   },
   OBSOLETE: {
     label: "Ngừng",
     dot: "bg-zinc-400",
-    bg: "bg-zinc-50",
-    text: "text-zinc-600",
-    border: "border-zinc-200",
+    bg: "bg-zinc-50 dark:bg-zinc-800",
+    text: "text-zinc-600 dark:text-zinc-400",
+    border: "border-zinc-200 dark:border-zinc-700",
   },
 };
 
@@ -333,7 +333,7 @@ function StatusDotBadge({ meta }: { meta: StatusDotMeta }) {
 
 function CardSkeleton() {
   return (
-    <div className="flex flex-col rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+    <div className="flex flex-col rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 space-y-1.5">
           <Skeleton className="h-3.5 w-24" />
@@ -345,7 +345,7 @@ function CardSkeleton() {
         <Skeleton className="h-3.5 w-full" />
         <Skeleton className="h-3.5 w-4/5" />
       </div>
-      <div className="mt-4 grid grid-cols-3 gap-1 rounded-md border border-zinc-100 bg-zinc-50 p-2">
+      <div className="mt-4 grid grid-cols-3 gap-1 rounded-md border border-zinc-100 bg-zinc-50 p-2 dark:border-zinc-800 dark:bg-zinc-800">
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="space-y-1 text-center">
             <Skeleton className="mx-auto h-3 w-8" />
@@ -363,7 +363,7 @@ function CardSkeleton() {
  */
 export function BomCardEmptyHint() {
   return (
-    <div className="flex items-center justify-center gap-2 py-12 text-sm text-zinc-400">
+    <div className="flex items-center justify-center gap-2 py-12 text-sm text-zinc-400 dark:text-zinc-500">
       <Layers className="h-4 w-4" aria-hidden="true" />
       Chưa có dữ liệu
     </div>

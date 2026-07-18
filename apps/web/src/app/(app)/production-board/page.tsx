@@ -108,7 +108,7 @@ export default function ProductionBoardAdminPage() {
       {/* Header */}
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
         <div>
-          <nav aria-label="Breadcrumb" className="text-xs text-zinc-500">
+          <nav aria-label="Breadcrumb" className="text-xs text-zinc-500 dark:text-zinc-400">
             <Link href="/" className="hover:text-zinc-900 hover:underline dark:hover:text-zinc-100">
               Tổng quan
             </Link>
@@ -200,7 +200,7 @@ export default function ProductionBoardAdminPage() {
                           </span>
                         </div>
                         {it.rfqNo && (
-                          <span className="font-mono text-[10px] text-zinc-400">
+                          <span className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500">
                             {it.rfqNo}
                           </span>
                         )}
@@ -210,7 +210,7 @@ export default function ProductionBoardAdminPage() {
                           {firstLine(it.productName)}
                         </p>
                         {it.currentStage && (
-                          <span className="text-[11px] text-zinc-400">
+                          <span className="text-[11px] text-zinc-400 dark:text-zinc-500">
                             ▸ {it.currentStage}
                           </span>
                         )}
@@ -222,7 +222,7 @@ export default function ProductionBoardAdminPage() {
                         <span className="font-semibold text-emerald-600 dark:text-emerald-400">
                           {done.toLocaleString("vi-VN")}
                         </span>
-                        <span className="text-zinc-400">
+                        <span className="text-zinc-400 dark:text-zinc-500">
                           /{planned.toLocaleString("vi-VN")} {it.uom}
                         </span>
                       </td>
@@ -272,7 +272,7 @@ export default function ProductionBoardAdminPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-red-500 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/40"
+                            className="h-7 w-7 text-red-500 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/40 dark:hover:text-red-300"
                             onClick={() => setDelItem(it)}
                             title="Xóa"
                           >
@@ -348,7 +348,7 @@ function fmtDeadline(deadline: string | null): string {
   return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
 }
 function deadlineTone(deadline: string | null): string {
-  if (!deadline) return "text-zinc-400";
+  if (!deadline) return "text-zinc-400 dark:text-zinc-500";
   const days = (new Date(deadline).getTime() - Date.now()) / 86_400_000;
   if (days < 0) return "text-red-600 font-semibold dark:text-red-400";
   if (days <= 3) return "text-amber-600 font-medium dark:text-amber-400";

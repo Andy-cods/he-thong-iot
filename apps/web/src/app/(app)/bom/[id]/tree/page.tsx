@@ -231,7 +231,7 @@ export default function BomDetailPage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <header className="border-b border-zinc-200 bg-white px-6 py-3">
+      <header className="border-b border-zinc-200 bg-white px-6 py-3 dark:border-zinc-800 dark:bg-zinc-900">
         <Breadcrumb
           items={[
             { label: "Tổng quan", href: "/" },
@@ -242,10 +242,10 @@ export default function BomDetailPage() {
         <div className="mt-2 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-base font-medium text-zinc-700">
+              <span className="font-mono text-base font-medium text-zinc-700 dark:text-zinc-300">
                 {template.code}
               </span>
-              <h1 className="truncate text-xl font-semibold tracking-tight text-zinc-900">
+              <h1 className="truncate text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
                 {template.name}
               </h1>
               <StatusBadge
@@ -254,11 +254,11 @@ export default function BomDetailPage() {
                 label={badge.label}
               />
             </div>
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
               {template.parentItemSku ? (
                 <>
                   Đầu ra:{" "}
-                  <span className="font-mono text-zinc-700">
+                  <span className="font-mono text-zinc-700 dark:text-zinc-300">
                     {template.parentItemSku}
                   </span>{" "}
                   · Target {formatNumber(Number(template.targetQty))} ·
@@ -275,7 +275,7 @@ export default function BomDetailPage() {
               asChild
               size="sm"
               variant="outline"
-              className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+              className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-900/60"
             >
               <Link href={`/bom/${id}/grid`}>
                 <LayoutGrid className="h-3.5 w-3.5" aria-hidden="true" />
@@ -330,7 +330,7 @@ export default function BomDetailPage() {
 
       <div className="flex-1 overflow-hidden">
         <Tabs defaultValue="components" className="flex h-full flex-col">
-          <div className="border-b border-zinc-200 bg-white px-6">
+          <div className="border-b border-zinc-200 bg-white px-6 dark:border-zinc-800 dark:bg-zinc-900">
             <TabsList className="border-b-0">
               <TabsTrigger value="components">
                 <FolderTree className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
@@ -355,13 +355,13 @@ export default function BomDetailPage() {
             value="components"
             className={cn("m-0 flex flex-1 flex-col overflow-hidden")}
           >
-            <div className="flex items-center justify-between border-b border-zinc-100 bg-white px-6 py-2">
+            <div className="flex items-center justify-between border-b border-zinc-100 bg-white px-6 py-2 dark:border-zinc-800 dark:bg-zinc-900">
               <div className="flex items-center gap-2">
                 <Button size="sm" onClick={handleAddRoot}>
                   <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                   Thêm linh kiện
                 </Button>
-                <span className="text-xs text-zinc-500">
+                <span className="text-xs text-zinc-500 dark:text-zinc-400">
                   {formatNumber(tree.length)} linh kiện · tối đa 5 cấp
                 </span>
               </div>
@@ -510,12 +510,12 @@ function ReadRow({
 }) {
   return (
     <div className="grid grid-cols-[160px_minmax(0,1fr)] items-start gap-3">
-      <dt className="text-xs uppercase tracking-wider text-zinc-500">
+      <dt className="text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
         {label}
       </dt>
       <dd
         className={cn(
-          "text-base text-zinc-900",
+          "text-base text-zinc-900 dark:text-zinc-50",
           mono && "font-mono text-sm",
           multiline && "whitespace-pre-wrap",
         )}
@@ -531,12 +531,12 @@ function ReadRow({
 // ─────────────────────────────────────────────────────────
 
 const MATERIAL_STATUS_COLORS: Record<string, string> = {
-  NO_ORDERS: "bg-zinc-100 text-zinc-500",
-  PLANNED: "bg-yellow-100 text-yellow-700",
-  PURCHASING: "bg-blue-100 text-blue-700",
-  PARTIAL: "bg-orange-100 text-orange-700",
-  AVAILABLE: "bg-emerald-100 text-emerald-700",
-  ISSUED: "bg-violet-100 text-violet-700",
+  NO_ORDERS: "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400",
+  PLANNED: "bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-400",
+  PURCHASING: "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400",
+  PARTIAL: "bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-400",
+  AVAILABLE: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
+  ISSUED: "bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-400",
 };
 
 const MATERIAL_STATUS_LABELS: Record<string, string> = {
@@ -557,15 +557,15 @@ function MaterialStatusPanel({
   query: UseQueryResult<{ data: DerivedStatusSummary }>;
 }) {
   if (query.isLoading) {
-    return <p className="text-sm text-zinc-500">Đang tải tình trạng vật tư…</p>;
+    return <p className="text-sm text-zinc-500 dark:text-zinc-400">Đang tải tình trạng vật tư…</p>;
   }
   if (query.isError) {
-    return <p className="text-sm text-red-500">Không tải được tình trạng vật tư.</p>;
+    return <p className="text-sm text-red-500 dark:text-red-400">Không tải được tình trạng vật tư.</p>;
   }
   const status = query.data?.data;
   if (!status || status.overallStatus === "NO_ORDERS") {
     return (
-      <p className="text-sm text-zinc-500">
+      <p className="text-sm text-zinc-500 dark:text-zinc-400">
         Chưa có đơn hàng nào dùng BOM này. Tình trạng sẽ hiển thị sau khi tạo đơn.
       </p>
     );
@@ -577,13 +577,13 @@ function MaterialStatusPanel({
 
   return (
     <div className="max-w-3xl space-y-4">
-      <div className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-white p-4">
+      <div className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex-1">
-          <p className="text-xs text-zinc-500">Tổng thể</p>
-          <p className="mt-0.5 text-sm font-semibold text-zinc-900">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">Tổng thể</p>
+          <p className="mt-0.5 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
             {status.availableComponents}/{status.totalComponents} loại đủ hàng
           </p>
-          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-zinc-100">
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
             <div
               className="h-full rounded-full bg-emerald-500 transition-all"
               style={{ width: `${pct}%` }}
@@ -593,7 +593,7 @@ function MaterialStatusPanel({
         <span
           className={cn(
             "rounded-full px-3 py-1 text-xs font-semibold",
-            MATERIAL_STATUS_COLORS[status.overallStatus] ?? "bg-zinc-100 text-zinc-600",
+            MATERIAL_STATUS_COLORS[status.overallStatus] ?? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
           )}
         >
           {MATERIAL_STATUS_LABELS[status.overallStatus] ?? status.overallStatus}
@@ -602,7 +602,7 @@ function MaterialStatusPanel({
 
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-zinc-200 text-xs text-zinc-500">
+          <tr className="border-b border-zinc-200 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
             <th className="pb-2 text-left font-medium">Linh kiện</th>
             <th className="pb-2 text-right font-medium">Cần</th>
             <th className="pb-2 text-right font-medium">Đã nhận</th>
@@ -610,20 +610,20 @@ function MaterialStatusPanel({
             <th className="pb-2 text-center font-medium">Tình trạng</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-zinc-100">
+        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
           {status.componentStatuses.map((c) => (
             <tr key={c.componentItemId}>
               <td className="py-2">
-                <p className="font-mono text-xs font-semibold text-zinc-700">{c.componentSku}</p>
-                <p className="text-xs text-zinc-500">{c.componentName}</p>
+                <p className="font-mono text-xs font-semibold text-zinc-700 dark:text-zinc-300">{c.componentSku}</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">{c.componentName}</p>
               </td>
-              <td className="py-2 text-right tabular-nums text-zinc-700">
+              <td className="py-2 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
                 {parseFloat(c.totalRequired).toLocaleString("vi-VN")}
               </td>
-              <td className="py-2 text-right tabular-nums text-zinc-700">
+              <td className="py-2 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
                 {parseFloat(c.totalReceived).toLocaleString("vi-VN")}
               </td>
-              <td className="py-2 text-right tabular-nums text-red-600">
+              <td className="py-2 text-right tabular-nums text-red-600 dark:text-red-400">
                 {parseFloat(c.totalShort) > 0
                   ? parseFloat(c.totalShort).toLocaleString("vi-VN")
                   : "—"}
@@ -632,7 +632,7 @@ function MaterialStatusPanel({
                 <span
                   className={cn(
                     "rounded-full px-2 py-0.5 text-xs font-medium",
-                    MATERIAL_STATUS_COLORS[c.status] ?? "bg-zinc-100 text-zinc-600",
+                    MATERIAL_STATUS_COLORS[c.status] ?? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
                   )}
                 >
                   {MATERIAL_STATUS_LABELS[c.status] ?? c.status}
@@ -664,11 +664,11 @@ function ActivityLogPanel({
   query: UseQueryResult<{ data: ActivityLogEntry[] }>;
 }) {
   if (query.isLoading) {
-    return <p className="text-sm text-zinc-500">Đang tải lịch sử…</p>;
+    return <p className="text-sm text-zinc-500 dark:text-zinc-400">Đang tải lịch sử…</p>;
   }
   const entries = query.data?.data ?? [];
   if (entries.length === 0) {
-    return <p className="text-sm text-zinc-500">Chưa có lịch sử thay đổi.</p>;
+    return <p className="text-sm text-zinc-500 dark:text-zinc-400">Chưa có lịch sử thay đổi.</p>;
   }
   return (
     <ol className="max-w-2xl space-y-3">
@@ -676,10 +676,10 @@ function ActivityLogPanel({
         <li key={entry.id} className="flex gap-3">
           <div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-zinc-300" />
           <div>
-            <p className="text-sm font-medium text-zinc-800">
+            <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
               {ACTION_LABELS[entry.action] ?? entry.action}
             </p>
-            <p className="text-xs text-zinc-400">
+            <p className="text-xs text-zinc-400 dark:text-zinc-500">
               {new Date(entry.at).toLocaleString("vi-VN")}
             </p>
           </div>

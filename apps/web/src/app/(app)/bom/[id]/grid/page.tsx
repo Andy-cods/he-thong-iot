@@ -165,7 +165,7 @@ export default function BomGridPage() {
     if (key === "materials") {
       // Default tab — BOM grid (PROJECT sheet) hoặc Material&Process sheet.
       return (
-        <div className="flex h-full min-h-0 flex-col bg-zinc-50">
+        <div className="flex h-full min-h-0 flex-col bg-zinc-50 dark:bg-zinc-800">
           {/* Sheet tabs (PROJECT / MATERIAL / PROCESS / CUSTOM) */}
           <BomSheetTabs
             sheets={sheets}
@@ -183,7 +183,7 @@ export default function BomGridPage() {
           <div className="flex min-h-0 flex-1 overflow-hidden">
             <div className="flex-1 overflow-hidden">
               {isLoading ? (
-                <div className="flex h-full items-center justify-center bg-white text-sm text-zinc-500">
+                <div className="flex h-full items-center justify-center bg-white text-sm text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Đang tải BOM…
                 </div>
@@ -274,14 +274,14 @@ export default function BomGridPage() {
         counts={tabCounts}
       />
 
-      <div className="flex min-h-0 flex-1 overflow-hidden bg-zinc-50">
+      <div className="flex min-h-0 flex-1 overflow-hidden bg-zinc-50 dark:bg-zinc-800">
         <div
           className="flex h-full min-h-0 flex-1 flex-col overflow-hidden"
           role="tabpanel"
           aria-labelledby={`tab-${tabs.activeTab}`}
         >
           {!template ? (
-            <div className="flex h-full items-center justify-center bg-white text-sm text-zinc-500">
+            <div className="flex h-full items-center justify-center bg-white text-sm text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
               {detailQuery.isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -54,19 +54,19 @@ export function HistoryDrawer({ bomId, open, onOpenChange }: HistoryDrawerProps)
               ))}
             </>
           ) : entries.length === 0 ? (
-            <p className="py-8 text-center text-xs text-zinc-500">
+            <p className="py-8 text-center text-xs text-zinc-500 dark:text-zinc-400">
               Chưa có lịch sử thay đổi.
             </p>
           ) : (
             <ol className="space-y-2.5">
               {entries.map((entry) => (
                 <li key={entry.id} className="flex gap-3">
-                  <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-indigo-400 ring-2 ring-indigo-100" />
+                  <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-indigo-400 ring-2 ring-indigo-100 dark:ring-indigo-900/40" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-zinc-800">
+                    <p className="text-xs font-medium text-zinc-800 dark:text-zinc-200">
                       {ACTION_LABELS[entry.action] ?? entry.action}
                     </p>
-                    <p className="mt-0.5 text-[11px] text-zinc-500">
+                    <p className="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
                       {new Date(entry.at).toLocaleString("vi-VN")}
                     </p>
                   </div>

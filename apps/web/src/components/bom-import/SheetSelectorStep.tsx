@@ -38,17 +38,17 @@ export function SheetSelectorStep({
     <div className="space-y-3">
       <header className="flex items-center justify-between">
         <div>
-          <h2 className="text-md font-semibold text-zinc-900">
+          <h2 className="text-md font-semibold text-zinc-900 dark:text-zinc-50">
             Chọn sheet để import
           </h2>
-          <p className="mt-1 text-xs text-zinc-500">
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
             Mỗi sheet tương ứng 1 BOM. Chọn các sheet cần nạp.
           </p>
         </div>
         <button
           type="button"
           onClick={toggleAll}
-          className="text-sm font-medium text-blue-600 hover:underline"
+          className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
         >
           {selectedSheets.length === sheets.length
             ? "Bỏ chọn tất cả"
@@ -64,10 +64,10 @@ export function SheetSelectorStep({
             <li
               key={s.sheetName}
               className={cn(
-                "rounded-md border bg-white transition-colors",
+                "rounded-md border bg-white transition-colors dark:bg-zinc-900",
                 selected
-                  ? "border-blue-400 bg-blue-50/30"
-                  : "border-zinc-200 hover:border-zinc-300",
+                  ? "border-blue-400 bg-blue-50/30 dark:border-blue-500 dark:bg-blue-950/30"
+                  : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600",
               )}
             >
               <label className="flex cursor-pointer items-start gap-3 p-3">
@@ -83,44 +83,44 @@ export function SheetSelectorStep({
                       className="h-3.5 w-3.5 text-emerald-600"
                       aria-hidden="true"
                     />
-                    <span className="font-medium text-zinc-900">
+                    <span className="font-medium text-zinc-900 dark:text-zinc-50">
                       {s.sheetName}
                     </span>
-                    <span className="text-xs text-zinc-500 tabular-nums">
+                    <span className="text-xs text-zinc-500 tabular-nums dark:text-zinc-400">
                       {s.rowCount.toLocaleString("vi-VN")} dòng
                     </span>
                   </div>
                   {s.topTitle && (
-                    <p className="mt-0.5 text-xs italic text-zinc-500">
+                    <p className="mt-0.5 text-xs italic text-zinc-500 dark:text-zinc-400">
                       Tiêu đề dòng 1:{" "}
-                      <span className="font-medium text-zinc-700">
+                      <span className="font-medium text-zinc-700 dark:text-zinc-300">
                         {s.topTitle}
                       </span>{" "}
                       → sẽ tạo BOM mới
                     </p>
                   )}
-                  <p className="mt-0.5 text-xs text-zinc-500">
+                  <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
                     Header đọc từ <strong>row {s.headerRow}</strong> ·{" "}
                     {s.headersDetected.length} cột
                   </p>
                   {s.headerWarning && (
-                    <p className="mt-0.5 text-xs text-amber-700">
+                    <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-400">
                       ⚠ {s.headerWarning}
                     </p>
                   )}
                   {preview.length > 0 && (
-                    <div className="mt-2 overflow-hidden rounded-sm border border-zinc-200">
+                    <div className="mt-2 overflow-hidden rounded-sm border border-zinc-200 dark:border-zinc-800">
                       <table className="w-full text-xs">
                         <tbody>
                           {preview.map((row, i) => (
                             <tr
                               key={i}
-                              className="border-b border-zinc-100 last:border-0"
+                              className="border-b border-zinc-100 last:border-0 dark:border-zinc-800"
                             >
                               {(row as unknown[]).slice(0, 6).map((cell, j) => (
                                 <td
                                   key={j}
-                                  className="truncate border-r border-zinc-100 px-2 py-1 text-zinc-600 last:border-0"
+                                  className="truncate border-r border-zinc-100 px-2 py-1 text-zinc-600 last:border-0 dark:border-zinc-800 dark:text-zinc-400"
                                   style={{ maxWidth: 120 }}
                                 >
                                   {cell == null ? "" : String(cell)}

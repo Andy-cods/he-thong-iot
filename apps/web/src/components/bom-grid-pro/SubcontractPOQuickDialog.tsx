@@ -172,7 +172,7 @@ export function SubcontractPOQuickDialog({
       <DialogContent className="sm:max-w-[560px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Send className="h-5 w-5 text-orange-600" aria-hidden />
+            <Send className="h-5 w-5 text-orange-600 dark:text-orange-400" aria-hidden />
             Tạo PO Đặt gia công ngoài
           </DialogTitle>
           <DialogDescription>
@@ -180,7 +180,7 @@ export function SubcontractPOQuickDialog({
             <span className="font-mono">{sku}</span>
             {name ? ` — ${name}` : ""}
             <br />
-            <span className="text-orange-700 font-medium">
+            <span className="text-orange-700 font-medium dark:text-orange-400">
               PO này sẽ dùng template DDH-Mau khi tải PDF (sau khi TM-A duyệt).
             </span>
           </DialogDescription>
@@ -215,7 +215,7 @@ export function SubcontractPOQuickDialog({
                 )}
               </SelectContent>
             </Select>
-            <p className="text-[11px] text-zinc-500">
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
               VD: Tân Tiến (cơ khí chính xác), AMA (gia công cơ khí)
             </p>
           </div>
@@ -234,13 +234,13 @@ export function SubcontractPOQuickDialog({
                 value={orderedQty}
                 onChange={(e) => setOrderedQty(e.target.value)}
               />
-              <p className="text-[11px] text-zinc-500">
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
                 Default = SL Excel ({defaultQty})
               </p>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="sub-price">
-                Đơn giá <span className="text-zinc-400">(optional)</span>
+                Đơn giá <span className="text-zinc-400 dark:text-zinc-500">(optional)</span>
               </Label>
               <Input
                 id="sub-price"
@@ -251,7 +251,7 @@ export function SubcontractPOQuickDialog({
                 onChange={(e) => setUnitPrice(e.target.value)}
                 placeholder="VND — TM-A chốt sau"
               />
-              <p className="text-[11px] text-zinc-500">
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
                 Để trống → TM-A liên hệ NCC chốt
               </p>
             </div>
@@ -267,7 +267,7 @@ export function SubcontractPOQuickDialog({
               maxLength={255}
               placeholder="VD: SUS304 25x53x51mm"
             />
-            <p className="text-[11px] text-zinc-500">
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
               Sẽ hiển thị cột "Vật liệu/Quy cách" trên DDH PDF
             </p>
           </div>
@@ -312,7 +312,7 @@ export function SubcontractPOQuickDialog({
           <Button
             onClick={() => mutation.mutate()}
             disabled={mutation.isPending || !supplierId}
-            className="bg-orange-600 hover:bg-orange-700"
+            className="bg-orange-600 hover:bg-orange-700 dark:bg-orange-700 dark:hover:bg-orange-600"
           >
             {mutation.isPending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />

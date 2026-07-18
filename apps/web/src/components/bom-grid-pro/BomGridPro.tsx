@@ -502,20 +502,20 @@ export function BomGridPro({
           id={`bom-line-${row.id}`}
           style={style}
           className={cn(
-            "group border-b border-indigo-100 bg-indigo-50 transition-colors",
-            "hover:bg-indigo-100/70",
+            "group border-b border-indigo-100 bg-indigo-50 transition-colors dark:border-indigo-900 dark:bg-indigo-950/40",
+            "hover:bg-indigo-100/70 dark:hover:bg-indigo-900/40",
             isHighlighted &&
-              "!bg-yellow-100 ring-2 ring-inset ring-yellow-400",
+              "!bg-yellow-100 ring-2 ring-inset ring-yellow-400 dark:!bg-yellow-900/40",
           )}
         >
-          <td className="w-10 px-2 text-[11px] font-mono text-indigo-400 tabular-nums">
+          <td className="w-10 px-2 text-[11px] font-mono text-indigo-400 tabular-nums dark:text-indigo-500">
             {idx + 1}
           </td>
           <td colSpan={14} className="px-2 py-1.5">{/* V3.8.3 +1: cột Dự kiến nhận */}
             <button
               type="button"
               onClick={() => toggleExpand(row.id)}
-              className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-indigo-800 hover:text-indigo-900"
+              className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-indigo-800 hover:text-indigo-900 dark:text-indigo-300 dark:hover:text-indigo-200"
             >
               {isExpanded ? (
                 <ChevronDown className="h-3.5 w-3.5" aria-hidden />
@@ -527,12 +527,12 @@ export function BomGridPro({
                 {row.node.componentSku ?? "—"}
               </span>
               <span>{row.node.componentName ?? "(cụm lắp)"}</span>
-              <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-mono text-indigo-700">
+              <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-mono text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
                 {row.childCount} linh kiện
               </span>
             </button>
           </td>
-          <td className="sticky right-0 z-10 w-[100px] bg-indigo-50 border-l border-indigo-100 px-1">
+          <td className="sticky right-0 z-10 w-[100px] bg-indigo-50 border-l border-indigo-100 px-1 dark:bg-indigo-950/40 dark:border-indigo-900">
             <ActionsCell
               row={row}
               onEdit={readOnly ? undefined : handleEditRow}
@@ -550,41 +550,41 @@ export function BomGridPro({
         id={`bom-line-${row.id}`}
         style={style}
         className={cn(
-          "group border-b border-zinc-100 bg-white transition-colors hover:bg-zinc-50",
+          "group border-b border-zinc-100 bg-white transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800/60",
           isHighlighted &&
-            "!bg-yellow-100 ring-2 ring-inset ring-yellow-400",
+            "!bg-yellow-100 ring-2 ring-inset ring-yellow-400 dark:!bg-yellow-900/40",
         )}
       >
         {/* V3.7.33 — Excel order: # | Image | ID Number | Quantity | BOM gốc | Ghi chú | Category | ... */}
         {/* # */}
-        <td className="px-2 text-[11px] font-mono tabular-nums text-zinc-400">
+        <td className="px-2 text-[11px] font-mono tabular-nums text-zinc-400 dark:text-zinc-500">
           {idx + 1}
         </td>
         {/* Image */}
         <td className="px-1">
-          <div className="flex h-7 w-7 items-center justify-center rounded bg-zinc-50 ring-1 ring-inset ring-zinc-200">
-            <Package className="h-3.5 w-3.5 text-zinc-300" aria-hidden />
+          <div className="flex h-7 w-7 items-center justify-center rounded bg-zinc-50 ring-1 ring-inset ring-zinc-200 dark:bg-zinc-800 dark:ring-zinc-700">
+            <Package className="h-3.5 w-3.5 text-zinc-300 dark:text-zinc-600" aria-hidden />
           </div>
         </td>
         {/* ID Number — Excel "ID Number" cột AB01..AB40, fallback positionCode */}
         {showCol("positionCode") && (
-          <td className="px-2 font-mono text-xs font-medium text-indigo-700 truncate">
+          <td className="px-2 font-mono text-xs font-medium text-indigo-700 truncate dark:text-indigo-400">
             {row.node.positionCode ??
               (row.node.metadata as { seq?: string } | null)?.seq ?? (
-                <span className="text-zinc-300">—</span>
+                <span className="text-zinc-300 dark:text-zinc-600">—</span>
               )}
           </td>
         )}
         {/* Quantity (hệ số) — Excel "Quantity (hệ số)" = qtyPerParent */}
-        <td className="px-2 text-right font-mono text-xs tabular-nums text-zinc-700">
+        <td className="px-2 text-right font-mono text-xs tabular-nums text-zinc-700 dark:text-zinc-300">
           {formatNumber(qty)}
         </td>
         {/* BOM gốc — Excel "BOM gốc" = SKU/mã linh kiện */}
-        <td className="px-2 font-mono text-xs font-medium text-zinc-800 truncate">
+        <td className="px-2 font-mono text-xs font-medium text-zinc-800 truncate dark:text-zinc-200">
           {row.node.componentItemId ? (
             <Link
               href={`/items/${row.node.componentItemId}`}
-              className="tabular-nums text-zinc-800 underline-offset-2 hover:text-indigo-700 hover:underline"
+              className="tabular-nums text-zinc-800 underline-offset-2 hover:text-indigo-700 hover:underline dark:text-zinc-200 dark:hover:text-indigo-400"
               title={`Xem chi tiết vật tư ${row.node.componentSku ?? ""}`}
               onClick={(e) => e.stopPropagation()}
             >
@@ -597,9 +597,9 @@ export function BomGridPro({
           )}
         </td>
         {/* Ghi chú — Excel "Ghi chú" = description */}
-        <td className="px-2 text-sm text-zinc-700 truncate">
+        <td className="px-2 text-sm text-zinc-700 truncate dark:text-zinc-300">
           {row.node.description ?? row.node.componentName ?? (
-            <span className="italic text-zinc-400">—</span>
+            <span className="italic text-zinc-400 dark:text-zinc-500">—</span>
           )}
         </td>
         {/* Category — Excel "Category" = display badge từ metadata.category.
@@ -614,7 +614,7 @@ export function BomGridPro({
             3. item.specJson.dimensionText (chuỗi raw "601 X 21 X 20" từ import)
             4. "—" */}
         {showCol("dimensions") && (
-        <td className="px-2 font-mono text-[11px] text-zinc-600 truncate">
+        <td className="px-2 font-mono text-[11px] text-zinc-600 truncate dark:text-zinc-400">
           {(() => {
             // (1) metadata.size override
             const md = row.node.metadata as { size?: string } | null;
@@ -664,7 +664,7 @@ export function BomGridPro({
         )}
         {/* NCC / Vật tư */}
         {showCol("supplier") && (
-        <td className="px-2 font-mono text-xs text-zinc-600 truncate">
+        <td className="px-2 font-mono text-xs text-zinc-600 truncate dark:text-zinc-400">
           {row.node.supplierItemCode ?? "—"}
         </td>
         )}
@@ -684,8 +684,8 @@ export function BomGridPro({
                   onClick={canEdit ? () => setPicEditTarget(row) : undefined}
                   disabled={!canEdit}
                   className={cn(
-                    "inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700",
-                    canEdit && "cursor-pointer hover:bg-indigo-100 hover:ring-1 hover:ring-indigo-300",
+                    "inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400",
+                    canEdit && "cursor-pointer hover:bg-indigo-100 hover:ring-1 hover:ring-indigo-300 dark:hover:bg-indigo-900/40 dark:hover:ring-indigo-700",
                     !canEdit && "cursor-default",
                   )}
                   title={
@@ -707,8 +707,8 @@ export function BomGridPro({
                   onClick={isAdmin ? () => setPicEditTarget(row) : undefined}
                   disabled={!isAdmin}
                   className={cn(
-                    "inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700",
-                    isAdmin && "cursor-pointer hover:bg-amber-100",
+                    "inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
+                    isAdmin && "cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/40",
                   )}
                   title={`Chưa match user: "${row.node.assignedToName}"`}
                 >
@@ -717,7 +717,7 @@ export function BomGridPro({
                 </button>
               );
             }
-            return <span className="text-xs text-zinc-300">—</span>;
+            return <span className="text-xs text-zinc-300 dark:text-zinc-600">—</span>;
           })()}
         </td>
         )}
@@ -726,7 +726,7 @@ export function BomGridPro({
             qty × parentQty. Vì SL Excel thường = qty × số set khách đặt
             (ví dụ 14 set băng tải) — không cố định bằng parentQty hệ thống.
             Fallback qty × parentQty nếu metadata.totalQty rỗng (manual added). */}
-        <td className="px-2 text-right font-mono text-xs font-semibold tabular-nums text-zinc-900">
+        <td className="px-2 text-right font-mono text-xs font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
           {(() => {
             const meta = row.node.metadata as { totalQty?: string | number } | null;
             const fromExcel = meta?.totalQty != null ? Number(meta.totalQty) : NaN;
@@ -736,7 +736,7 @@ export function BomGridPro({
         </td>
         {/* Note phụ (metadata.notes — V3.7.33 hiếm khi có data) */}
         {showCol("notes") && (
-        <td className="px-2 text-xs italic text-zinc-500 truncate">
+        <td className="px-2 text-xs italic text-zinc-500 truncate dark:text-zinc-400">
           {row.node.metadata && (row.node.metadata as { notes?: string }).notes
             ? (row.node.metadata as { notes: string }).notes
             : ""}
@@ -744,7 +744,7 @@ export function BomGridPro({
         )}
         {/* Hao hụt */}
         {showCol("scrap") && (
-        <td className="px-2 text-right font-mono text-xs tabular-nums text-orange-600">
+        <td className="px-2 text-right font-mono text-xs tabular-nums text-orange-600 dark:text-orange-400">
           {scrap > 0 ? `${scrap.toFixed(1)}%` : "—"}
         </td>
         )}
@@ -821,7 +821,7 @@ export function BomGridPro({
                 <button
                   type="button"
                   onClick={() => setPicEditTarget(row)}
-                  className={cn(cls, "cursor-pointer hover:ring-2 hover:ring-indigo-300")}
+                  className={cn(cls, "cursor-pointer hover:ring-2 hover:ring-indigo-300 dark:hover:ring-indigo-700")}
                   title={`${b.title} · bấm để sửa ngày dự kiến nhận`}
                 >
                   {inner}
@@ -835,7 +835,7 @@ export function BomGridPro({
           );
         })()}
         {/* Actions — sticky right. V1.7-beta.2.2: phân nhánh com/fab. */}
-        <td className="sticky right-0 z-10 border-l border-zinc-100 bg-white px-1 group-hover:bg-zinc-50">
+        <td className="sticky right-0 z-10 border-l border-zinc-100 bg-white px-1 group-hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:group-hover:bg-zinc-800/60">
           <ActionsCell
             row={row}
             onEdit={readOnly ? undefined : handleEditRow}
@@ -855,22 +855,22 @@ export function BomGridPro({
   };
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-md border border-zinc-200 bg-white shadow-sm">
+    <div className="flex h-full flex-col overflow-hidden rounded-md border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
       {/* Header meta — BOM title + parent qty */}
-      <div className="flex h-10 shrink-0 items-center gap-3 border-b border-zinc-200 bg-gradient-to-r from-zinc-50 to-white px-4">
-        <span className="font-mono text-xs font-semibold text-zinc-700">
+      <div className="flex h-10 shrink-0 items-center gap-3 border-b border-zinc-200 bg-gradient-to-r from-zinc-50 to-white px-4 dark:border-zinc-800 dark:from-zinc-800/40 dark:to-zinc-900">
+        <span className="font-mono text-xs font-semibold text-zinc-700 dark:text-zinc-300">
           {templateCode}
         </span>
-        <span className="text-xs text-zinc-400">/</span>
-        <span className="text-sm font-medium text-zinc-900">{templateName}</span>
+        <span className="text-xs text-zinc-400 dark:text-zinc-500">/</span>
+        <span className="text-sm font-medium text-zinc-900 dark:text-zinc-50">{templateName}</span>
         <div className="flex-1" />
-        <span className="inline-flex items-center gap-1.5 rounded-md bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 ring-1 ring-inset ring-indigo-200">
+        <span className="inline-flex items-center gap-1.5 rounded-md bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 ring-1 ring-inset ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-800">
           Số lượng parent
           <span className="font-mono text-xs font-semibold tabular-nums">
             {formatNumber(parentQty)}
           </span>
         </span>
-        <span className="text-[10px] text-zinc-400">
+        <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
           Tổng SL = SL/bộ × parent
         </span>
         {/* V3.7.21 — Auto-hide empty columns toggle */}
@@ -880,8 +880,8 @@ export function BomGridPro({
           className={cn(
             "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium transition-colors",
             showAllColumns
-              ? "border-zinc-300 bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
-              : "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
+              ? "border-zinc-300 bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+              : "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-900/40",
           )}
           title={
             showAllColumns
@@ -920,8 +920,8 @@ export function BomGridPro({
             className={cn(
               "inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-medium transition-colors",
               etaUrgentOnly
-                ? "border-rose-400 bg-rose-100 text-rose-800 hover:bg-rose-200"
-                : "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100",
+                ? "border-rose-400 bg-rose-100 text-rose-800 hover:bg-rose-200 dark:border-rose-700 dark:bg-rose-950/60 dark:text-rose-300 dark:hover:bg-rose-900/40"
+                : "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/40",
             )}
             title={
               etaUrgentOnly
@@ -945,7 +945,7 @@ export function BomGridPro({
               <span className="font-semibold">{etaSummary.overdue} quá hạn</span>
             )}
             {etaSummary.overdue > 0 && etaSummary.dueSoon > 0 && (
-              <span className="text-rose-300">·</span>
+              <span className="text-rose-300 dark:text-rose-700">·</span>
             )}
             {etaSummary.dueSoon > 0 && (
               <span>{etaSummary.dueSoon} sắp tới</span>
@@ -957,7 +957,7 @@ export function BomGridPro({
           <button
             type="button"
             onClick={() => setEtaUrgentOnly(false)}
-            className="inline-flex items-center gap-1 rounded-md border border-zinc-300 bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600 hover:bg-zinc-200"
+            className="inline-flex items-center gap-1 rounded-md border border-zinc-300 bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600 hover:bg-zinc-200 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
           >
             ✕ Bỏ lọc nhận hàng
           </button>
@@ -990,50 +990,50 @@ export function BomGridPro({
             <col style={{ width: "100px" }} />  {/* Thao tác */}
           </colgroup>
           <thead>
-            <tr className="h-8 text-[10px] font-medium uppercase tracking-wide text-zinc-600">
+            <tr className="h-8 text-[10px] font-medium uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
               {/* # */}
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-right">#</th>
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-right">#</th>
               {/* Image */}
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-center">
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-center">
                 Image
               </th>
               {/* ID Number */}
               {showCol("positionCode") && (
-                <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
+                <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-left">
                   ID Number
                 </th>
               )}
               {/* Quantity (hệ số) */}
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-right" title="Quantity (hệ số) — số lượng linh kiện trên 1 sản phẩm">
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-right" title="Quantity (hệ số) — số lượng linh kiện trên 1 sản phẩm">
                 Quantity
               </th>
               {/* BOM gốc */}
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-left">
                 BOM gốc
               </th>
               {/* Ghi chú */}
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-left">
                 Ghi chú
               </th>
               {/* Category — was Loại */}
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-left">
                 Category
               </th>
               {/* Quy cách (tham khảo) */}
               {showCol("dimensions") && (
-                <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left" title="Quy cách (tham khảo)">
+                <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-left" title="Quy cách (tham khảo)">
                   Quy cách
                 </th>
               )}
               {showCol("supplier") && (
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-left">
                 <div className="relative inline-flex items-center gap-1">
                   <span>NCC</span>
                   <button
                     type="button"
                     onClick={() => setSupplierFilterOpen((o) => !o)}
                     className={cn(
-                      "inline-flex h-4 w-4 items-center justify-center rounded text-zinc-400 hover:text-zinc-700",
+                      "inline-flex h-4 w-4 items-center justify-center rounded text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-300",
                       supplierFilter && "bg-indigo-600 text-white hover:bg-indigo-700",
                     )}
                     title="Lọc theo NCC"
@@ -1051,7 +1051,7 @@ export function BomGridPro({
                   </button>
                   {supplierFilterOpen && (
                     <div
-                      className="absolute left-0 top-full z-30 mt-1 w-56 rounded-md border border-zinc-200 bg-white p-2 shadow-lg"
+                      className="absolute left-0 top-full z-30 mt-1 w-56 rounded-md border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
                       onMouseLeave={() => setSupplierFilterOpen(false)}
                     >
                       <input
@@ -1061,7 +1061,7 @@ export function BomGridPro({
                         placeholder="Tìm NCC…"
                         autoFocus
                         list="ncc-options"
-                        className="block w-full rounded border border-zinc-300 px-2 py-1 text-xs"
+                        className="block w-full rounded border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500"
                       />
                       <datalist id="ncc-options">
                         {supplierOptions.map((s) => (
@@ -1075,12 +1075,12 @@ export function BomGridPro({
                             setSupplierFilter("");
                             setSupplierFilterOpen(false);
                           }}
-                          className="mt-1 w-full rounded text-xs text-rose-600 hover:bg-rose-50 px-2 py-1 text-left"
+                          className="mt-1 w-full rounded text-xs text-rose-600 hover:bg-rose-50 px-2 py-1 text-left dark:text-rose-400 dark:hover:bg-rose-950/40"
                         >
                           ✕ Xoá filter
                         </button>
                       )}
-                      <p className="mt-1 text-[10px] text-zinc-500">
+                      <p className="mt-1 text-[10px] text-zinc-500 dark:text-zinc-400">
                         {supplierOptions.length} NCC có trong BOM
                       </p>
                     </div>
@@ -1089,14 +1089,14 @@ export function BomGridPro({
               </th>
               )}
               {showCol("pic") && (
-                <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
+                <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-left">
                   <div className="relative inline-flex items-center gap-1">
                     <span>PIC</span>
                     <button
                       type="button"
                       onClick={() => setPicFilterOpen((o) => !o)}
                       className={cn(
-                        "inline-flex h-4 w-4 items-center justify-center rounded text-zinc-400 hover:text-zinc-700",
+                        "inline-flex h-4 w-4 items-center justify-center rounded text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-300",
                         picFilter && "bg-indigo-600 text-white hover:bg-indigo-700",
                       )}
                       title="Lọc theo PIC"
@@ -1114,7 +1114,7 @@ export function BomGridPro({
                     </button>
                     {picFilterOpen && (
                       <div
-                        className="absolute left-0 top-full z-30 mt-1 w-56 rounded-md border border-zinc-200 bg-white p-2 shadow-lg"
+                        className="absolute left-0 top-full z-30 mt-1 w-56 rounded-md border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
                         onMouseLeave={() => setPicFilterOpen(false)}
                       >
                         <input
@@ -1124,7 +1124,7 @@ export function BomGridPro({
                           placeholder="Tìm PIC…"
                           autoFocus
                           list="pic-options"
-                          className="block w-full rounded border border-zinc-300 px-2 py-1 text-xs"
+                          className="block w-full rounded border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500"
                         />
                         <datalist id="pic-options">
                           {picOptions.map((p) => (
@@ -1138,12 +1138,12 @@ export function BomGridPro({
                               setPicFilter("");
                               setPicFilterOpen(false);
                             }}
-                            className="mt-1 w-full rounded text-xs text-rose-600 hover:bg-rose-50 px-2 py-1 text-left"
+                            className="mt-1 w-full rounded text-xs text-rose-600 hover:bg-rose-50 px-2 py-1 text-left dark:text-rose-400 dark:hover:bg-rose-950/40"
                           >
                             ✕ Xoá filter
                           </button>
                         )}
-                        <p className="mt-1 text-[10px] text-zinc-500">
+                        <p className="mt-1 text-[10px] text-zinc-500 dark:text-zinc-400">
                           {picOptions.length} PIC trong BOM
                         </p>
                       </div>
@@ -1152,34 +1152,34 @@ export function BomGridPro({
                 </th>
               )}
               {/* SL (total) — Quantity (hệ số) × parentQty. V3.7.33 column theo Excel. */}
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-right" title={`SL = Quantity × ${parentQty} (số lượng parent)`}>
+              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-right" title={`SL = Quantity × ${parentQty} (số lượng parent)`}>
                 SL
               </th>
               {showCol("notes") && (
-                <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left" title="Ghi chú phụ từ metadata.notes">
+                <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-left" title="Ghi chú phụ từ metadata.notes">
                   Note phụ
                 </th>
               )}
               {showCol("scrap") && (
-                <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-right">
+                <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-right">
                   Hao hụt
                 </th>
               )}
               {showCol("progress") && (
-                <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left">
+                <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-left">
                   Tiến độ
                 </th>
               )}
               {/* V3.8.3 — Dự kiến nhận hàng (tô đỏ dần theo độ khẩn) — luôn hiện */}
               {showEtaCol && (
                 <th
-                  className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 px-2 text-left"
+                  className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-left"
                   title="Ngày dự kiến nhận hàng từ NCC — tô đỏ dần khi gần/quá hạn để chủ động giục."
                 >
                   Dự kiến nhận
                 </th>
               )}
-              <th className="sticky right-0 top-0 z-30 border-b-2 border-l border-zinc-900 bg-zinc-50 px-2 text-center">
+              <th className="sticky right-0 top-0 z-30 border-b-2 border-l border-zinc-900 bg-zinc-50 px-2 text-center dark:border-zinc-50 dark:bg-zinc-800">
                 Thao tác
               </th>
             </tr>
@@ -1205,7 +1205,7 @@ export function BomGridPro({
             )}
             {visibleRows.length === 0 && (
               <tr>
-                <td colSpan={16} className="py-8 text-center text-xs text-zinc-400">{/* V3.8.3 +1 */}
+                <td colSpan={16} className="py-8 text-center text-xs text-zinc-400 dark:text-zinc-500">{/* V3.8.3 +1 */}
                   BOM chưa có linh kiện nào.
                 </td>
               </tr>
@@ -1216,11 +1216,11 @@ export function BomGridPro({
 
       {/* Footer — nút thêm dòng mới */}
       {!readOnly && (
-        <div className="flex shrink-0 items-center border-t border-zinc-200 bg-zinc-50 px-3 py-1.5">
+        <div className="flex shrink-0 items-center border-t border-zinc-200 bg-zinc-50 px-3 py-1.5 dark:border-zinc-800 dark:bg-zinc-800">
           <button
             type="button"
             onClick={() => setAddLineOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 transition-colors dark:text-indigo-400 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-300"
           >
             <Plus className="h-3.5 w-3.5" aria-hidden />
             Thêm dòng

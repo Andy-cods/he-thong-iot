@@ -48,10 +48,10 @@ function classifyCategory(raw: string | undefined | null): CategoryStyle {
 }
 
 const COLOR_CLASS: Record<CategoryStyle["color"], string> = {
-  blue: "bg-blue-50 text-blue-700 ring-blue-200",
-  purple: "bg-purple-50 text-purple-700 ring-purple-200",
-  orange: "bg-orange-50 text-orange-700 ring-orange-200",
-  zinc: "bg-zinc-100 text-zinc-500 ring-zinc-200",
+  blue: "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:ring-blue-800",
+  purple: "bg-purple-50 text-purple-700 ring-purple-200 dark:bg-purple-950/40 dark:text-purple-400 dark:ring-purple-800",
+  orange: "bg-orange-50 text-orange-700 ring-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:ring-orange-800",
+  zinc: "bg-zinc-100 text-zinc-500 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",
 };
 
 export function CategoryBadge({ row }: CategoryBadgeProps) {
@@ -63,7 +63,7 @@ export function CategoryBadge({ row }: CategoryBadgeProps) {
   const style = classifyCategory(raw);
 
   if (style.label === "—") {
-    return <span className="text-xs text-zinc-300">—</span>;
+    return <span className="text-xs text-zinc-300 dark:text-zinc-600">—</span>;
   }
 
   return (

@@ -29,7 +29,7 @@ export function TopTabBar({ activeTab, onSelect, counts }: TopTabBarProps) {
     <div
       role="tablist"
       aria-label="BOM workspace tabs"
-      className="sticky top-0 z-20 flex h-11 shrink-0 items-center gap-0.5 border-b border-zinc-200 bg-white px-3"
+      className="sticky top-0 z-20 flex h-11 shrink-0 items-center gap-0.5 border-b border-zinc-200 bg-white px-3 dark:border-zinc-800 dark:bg-zinc-900"
     >
       {TOP_TAB_KEYS.map((key, idx) => {
         const isActive = activeTab === key;
@@ -47,8 +47,8 @@ export function TopTabBar({ activeTab, onSelect, counts }: TopTabBarProps) {
               "relative inline-flex h-9 shrink-0 items-center gap-2 rounded-md px-3.5 text-sm font-medium transition-colors duration-100",
               "after:absolute after:bottom-[-9px] after:left-0 after:right-0 after:h-0.5 after:rounded-t-full after:transition-all",
               isActive
-                ? "bg-indigo-50 text-indigo-700 after:bg-indigo-600"
-                : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800 after:bg-transparent",
+                ? "bg-indigo-50 text-indigo-700 after:bg-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400"
+                : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800 after:bg-transparent dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-200",
             )}
           >
             <span>{TOP_TAB_LABELS[key]}</span>
@@ -59,8 +59,8 @@ export function TopTabBar({ activeTab, onSelect, counts }: TopTabBarProps) {
                   isActive
                     ? "bg-indigo-600 text-white"
                     : count > 0
-                      ? "bg-zinc-200 text-zinc-700"
-                      : "text-zinc-300",
+                      ? "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                      : "text-zinc-300 dark:text-zinc-600",
                 )}
               >
                 {count > 0 ? count : "—"}

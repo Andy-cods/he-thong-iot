@@ -256,7 +256,7 @@ export function PRQuickDialog({
           <DialogTitle className="text-[15px]">
             Đặt mua nhanh {sku ? `— ${sku}` : ""}
           </DialogTitle>
-          <DialogDescription className="text-xs text-zinc-500">
+          <DialogDescription className="text-xs text-zinc-500 dark:text-zinc-400">
             Tạo Purchase Request (DRAFT) cho linh kiện này. Admin/planner duyệt sẽ
             chuyển sang APPROVED.
           </DialogDescription>
@@ -265,11 +265,11 @@ export function PRQuickDialog({
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="space-y-1">
             <Label>Linh kiện</Label>
-            <div className="flex items-center gap-2 rounded-md border border-zinc-100 bg-zinc-50 px-3 py-2 text-[13px]">
-              <span className="font-mono text-xs font-semibold text-zinc-800">
+            <div className="flex items-center gap-2 rounded-md border border-zinc-100 bg-zinc-50 px-3 py-2 text-[13px] dark:border-zinc-800 dark:bg-zinc-800">
+              <span className="font-mono text-xs font-semibold text-zinc-800 dark:text-zinc-200">
                 {sku || "—"}
               </span>
-              <span className="truncate text-zinc-600">{name}</span>
+              <span className="truncate text-zinc-600 dark:text-zinc-400">{name}</span>
             </div>
           </div>
 
@@ -290,14 +290,14 @@ export function PRQuickDialog({
                   error={!!qtyError || belowMoq}
                 />
                 {qtyError ? (
-                  <p className="text-[11px] text-red-600">{qtyError}</p>
+                  <p className="text-[11px] text-red-600 dark:text-red-400">{qtyError}</p>
                 ) : belowMoq ? (
-                  <p className="flex items-center gap-1 text-[11px] text-amber-700">
+                  <p className="flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-400">
                     <AlertTriangle className="h-3 w-3" aria-hidden />
                     Dưới MOQ {formatNumber(moq!)} — NCC có thể từ chối.
                   </p>
                 ) : (
-                  <p className="text-[11px] text-zinc-400">
+                  <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
                     Gợi ý = SL/bộ × parent × 1.1 (dự phòng 10%).
                   </p>
                 )}
@@ -307,7 +307,7 @@ export function PRQuickDialog({
                 <Label htmlFor="pr-priority">Ưu tiên</Label>
                 <select
                   id="pr-priority"
-                  className="flex h-9 w-full items-center rounded-md border border-zinc-200 bg-white px-3 text-[13px] text-zinc-900 focus:border-indigo-500 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
+                  className="flex h-9 w-full items-center rounded-md border border-zinc-200 bg-white px-3 text-[13px] text-zinc-900 focus:border-indigo-500 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
                   value={priority}
                   onChange={(e) => setPriority(e.target.value as Priority)}
                 >
@@ -327,7 +327,7 @@ export function PRQuickDialog({
                   value={supplier}
                   onChange={setSupplier}
                 />
-                <p className="text-[11px] text-zinc-400">
+                <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
                   Bắt buộc — cần có NCC để convert PR → PO sau khi duyệt.
                 </p>
               </div>
@@ -347,10 +347,10 @@ export function PRQuickDialog({
             />
           </div>
 
-          <label className="flex cursor-pointer items-center gap-2 text-[12px] text-zinc-700">
+          <label className="flex cursor-pointer items-center gap-2 text-[12px] text-zinc-700 dark:text-zinc-300">
             <input
               type="checkbox"
-              className="h-3.5 w-3.5 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+              className="h-3.5 w-3.5 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 dark:border-zinc-600 dark:bg-zinc-900"
               checked={openAfterCreate}
               onChange={(e) => setOpenAfterCreate(e.target.checked)}
             />
@@ -391,8 +391,8 @@ function SourcingInfoBox({ sourcing }: { sourcing: SourcingMeta }) {
 
   if (!hasAny) {
     return (
-      <div className="flex items-start gap-1.5 rounded-md border border-dashed border-zinc-200 bg-zinc-50/40 px-2.5 py-2 text-[11px] text-zinc-500">
-        <Info className="mt-0.5 h-3 w-3 shrink-0 text-zinc-400" aria-hidden />
+      <div className="flex items-start gap-1.5 rounded-md border border-dashed border-zinc-200 bg-zinc-50/40 px-2.5 py-2 text-[11px] text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800/40 dark:text-zinc-400">
+        <Info className="mt-0.5 h-3 w-3 shrink-0 text-zinc-400 dark:text-zinc-500" aria-hidden />
         <span>
           Chưa có thông tin sourcing. Cập nhật tại Sửa linh kiện →{" "}
           <span className="font-medium">Thương mại</span>.
@@ -402,8 +402,8 @@ function SourcingInfoBox({ sourcing }: { sourcing: SourcingMeta }) {
   }
 
   return (
-    <div className="space-y-1 rounded-md border border-blue-100 bg-blue-50/40 px-2.5 py-2 text-[11px]">
-      <div className="mb-0.5 flex items-center gap-1 font-medium uppercase tracking-wide text-blue-700">
+    <div className="space-y-1 rounded-md border border-blue-100 bg-blue-50/40 px-2.5 py-2 text-[11px] dark:border-blue-900 dark:bg-blue-950/30">
+      <div className="mb-0.5 flex items-center gap-1 font-medium uppercase tracking-wide text-blue-700 dark:text-blue-400">
         <Info className="h-3 w-3" aria-hidden />
         Sourcing từ BOM
       </div>
@@ -443,10 +443,10 @@ function Row({
 }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <span className="text-zinc-500">{label}</span>
+      <span className="text-zinc-500 dark:text-zinc-400">{label}</span>
       <span
         className={cn(
-          "text-right text-zinc-800",
+          "text-right text-zinc-800 dark:text-zinc-200",
           mono && "font-mono text-[11px]",
         )}
       >
@@ -484,19 +484,19 @@ function SupplierCombobox({ value, onChange }: SupplierComboboxProps) {
           <button
             type="button"
             className={cn(
-              "flex h-9 w-full items-center justify-between gap-2 rounded-md border border-zinc-200 bg-white px-3 text-left text-[13px] transition-colors",
-              "hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400",
+              "flex h-9 w-full items-center justify-between gap-2 rounded-md border border-zinc-200 bg-white px-3 text-left text-[13px] transition-colors dark:border-zinc-700 dark:bg-zinc-900",
+              "hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 dark:hover:bg-zinc-800/60",
             )}
           >
             <span
               className={cn(
                 "truncate",
-                display ? "text-zinc-800" : "text-zinc-400",
+                display ? "text-zinc-800 dark:text-zinc-200" : "text-zinc-400 dark:text-zinc-500",
               )}
             >
               {display || "Chọn NCC…"}
             </span>
-            <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+            <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-zinc-400 dark:text-zinc-500" />
           </button>
         </PopoverTrigger>
         <PopoverContent
@@ -505,23 +505,23 @@ function SupplierCombobox({ value, onChange }: SupplierComboboxProps) {
           sideOffset={4}
         >
           <CommandPrimitive shouldFilter={false} className="flex flex-col" loop>
-            <div className="flex items-center border-b border-zinc-200 px-3 py-2">
-              <Search className="h-3.5 w-3.5 text-zinc-400" aria-hidden />
+            <div className="flex items-center border-b border-zinc-200 px-3 py-2 dark:border-zinc-700">
+              <Search className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" aria-hidden />
               <CommandPrimitive.Input
                 autoFocus
                 value={query}
                 onValueChange={setQuery}
                 placeholder="Tìm NCC theo mã / tên…"
-                className="flex-1 bg-transparent px-2 text-[13px] outline-none placeholder:text-zinc-400"
+                className="flex-1 bg-transparent px-2 text-[13px] outline-none placeholder:text-zinc-400 dark:text-zinc-50 dark:placeholder:text-zinc-500"
               />
             </div>
             <CommandPrimitive.List className="max-h-[240px] overflow-y-auto p-1">
               {suppliersQuery.isLoading ? (
-                <div className="px-3 py-4 text-center text-xs text-zinc-500">
+                <div className="px-3 py-4 text-center text-xs text-zinc-500 dark:text-zinc-400">
                   Đang tải…
                 </div>
               ) : suppliers.length === 0 ? (
-                <CommandPrimitive.Empty className="px-3 py-4 text-center text-xs text-zinc-500">
+                <CommandPrimitive.Empty className="px-3 py-4 text-center text-xs text-zinc-500 dark:text-zinc-400">
                   {query
                     ? `Không tìm thấy "${query}".`
                     : "Chưa có NCC trong danh mục."}
@@ -539,21 +539,21 @@ function SupplierCombobox({ value, onChange }: SupplierComboboxProps) {
                       }}
                       className={cn(
                         "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-[13px]",
-                        "aria-selected:bg-zinc-100",
+                        "aria-selected:bg-zinc-100 dark:aria-selected:bg-zinc-800",
                       )}
                     >
                       <Check
                         className={cn(
                           "h-3.5 w-3.5 shrink-0",
                           s.id === value.id
-                            ? "text-indigo-600"
+                            ? "text-indigo-600 dark:text-indigo-400"
                             : "text-transparent",
                         )}
                       />
-                      <span className="font-mono text-xs font-medium text-zinc-800">
+                      <span className="font-mono text-xs font-medium text-zinc-800 dark:text-zinc-200">
                         {s.code}
                       </span>
-                      <span className="truncate text-zinc-700">{s.name}</span>
+                      <span className="truncate text-zinc-700 dark:text-zinc-300">{s.name}</span>
                     </CommandPrimitive.Item>
                   ))}
                 </CommandPrimitive.Group>
@@ -566,7 +566,7 @@ function SupplierCombobox({ value, onChange }: SupplierComboboxProps) {
         <button
           type="button"
           onClick={() => onChange(null)}
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-zinc-200 text-zinc-400 transition-colors hover:bg-zinc-50 hover:text-zinc-700"
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-zinc-200 text-zinc-400 transition-colors hover:bg-zinc-50 hover:text-zinc-700 dark:border-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-300"
           title="Bỏ chọn NCC"
           aria-label="Bỏ chọn NCC"
         >

@@ -327,18 +327,18 @@ function UploadStep({
   onUpload,
 }: UploadStepProps) {
   return (
-    <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+    <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
       {/* Header */}
-      <div className="border-b border-zinc-100 bg-gradient-to-br from-indigo-50 via-white to-cyan-50 px-6 py-5">
+      <div className="border-b border-zinc-100 bg-gradient-to-br from-indigo-50 via-white to-cyan-50 px-6 py-5 dark:border-zinc-800 dark:from-indigo-950/30 dark:via-zinc-900 dark:to-cyan-950/30">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-600 shadow-md shadow-indigo-200">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-600 shadow-md shadow-indigo-200 dark:shadow-indigo-950">
             <UploadCloud className="h-5 w-5 text-white" aria-hidden />
           </div>
           <div>
-            <h2 className="text-base font-semibold text-zinc-900">
+            <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
               Tải file Excel BOM
             </h2>
-            <p className="mt-0.5 text-xs text-zinc-600">
+            <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">
               Định dạng .xlsx · Tối đa{" "}
               {LIMITS.FILE_UPLOAD_MAX_BYTES / 1024 / 1024}MB · Khuyến nghị template{" "}
               <strong>"Bản chính thức"</strong> (10 cột chuẩn)
@@ -354,26 +354,26 @@ function UploadStep({
           className={cn(
             "group flex min-h-[220px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 transition-all duration-200",
             isDragActive
-              ? "border-indigo-500 bg-indigo-50/50 ring-4 ring-indigo-100"
+              ? "border-indigo-500 bg-indigo-50/50 ring-4 ring-indigo-100 dark:border-indigo-400 dark:bg-indigo-950/30 dark:ring-indigo-900/40"
               : file
-                ? "border-emerald-400 bg-emerald-50/30"
-                : "border-zinc-300 bg-zinc-50/50 hover:border-indigo-400 hover:bg-indigo-50/30",
+                ? "border-emerald-400 bg-emerald-50/30 dark:border-emerald-500 dark:bg-emerald-950/30"
+                : "border-zinc-300 bg-zinc-50/50 hover:border-indigo-400 hover:bg-indigo-50/30 dark:border-zinc-700 dark:bg-zinc-800/60 dark:hover:border-indigo-400 dark:hover:bg-indigo-950/30",
           )}
         >
           <input {...getInputProps()} />
           {file ? (
             <div className="text-center">
-              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 ring-4 ring-emerald-50">
+              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 ring-4 ring-emerald-50 dark:bg-emerald-950/40 dark:ring-emerald-950/20">
                 <FileSpreadsheet className="h-7 w-7 text-emerald-600" aria-hidden />
               </div>
-              <p className="text-base font-semibold text-zinc-900">{file.name}</p>
-              <p className="mt-1 text-xs text-zinc-500 tabular-nums">
+              <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">{file.name}</p>
+              <p className="mt-1 text-xs text-zinc-500 tabular-nums dark:text-zinc-400">
                 {(file.size / 1024).toLocaleString("vi-VN", {
                   maximumFractionDigits: 0,
                 })}{" "}
                 KB · sẵn sàng tải lên
               </p>
-              <p className="mt-3 text-[11px] text-zinc-400">Click để chọn file khác</p>
+              <p className="mt-3 text-[11px] text-zinc-400 dark:text-zinc-500">Click để chọn file khác</p>
             </div>
           ) : (
             <div className="text-center">
@@ -382,14 +382,14 @@ function UploadStep({
                   "mx-auto mb-3 h-12 w-12 transition-colors",
                   isDragActive
                     ? "text-indigo-500"
-                    : "text-zinc-400 group-hover:text-indigo-500",
+                    : "text-zinc-400 group-hover:text-indigo-500 dark:text-zinc-500 dark:group-hover:text-indigo-400",
                 )}
                 aria-hidden
               />
-              <p className="text-base font-semibold text-zinc-900">
+              <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
                 {isDragActive ? "Thả file vào đây" : "Kéo thả file Excel BOM"}
               </p>
-              <p className="mt-1 text-xs text-zinc-500">
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                 hoặc click để chọn từ máy tính
               </p>
             </div>
@@ -416,14 +416,14 @@ function UploadStep({
               ))}
             </SelectContent>
           </Select>
-          <p className="text-[11px] text-zinc-500">
+          <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
             Nếu sheet có BOM code (sanitized từ tên sheet) đã tồn tại trong DB.
           </p>
         </div>
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-end gap-2 border-t border-zinc-100 bg-zinc-50 px-6 py-3.5">
+      <div className="flex items-center justify-end gap-2 border-t border-zinc-100 bg-zinc-50 px-6 py-3.5 dark:border-zinc-800 dark:bg-zinc-800/60">
         <Button onClick={onUpload} disabled={!file || loading} size="lg">
           {loading ? (
             <>
@@ -499,8 +499,8 @@ function ReviewStep({
           className={cn(
             "flex items-start gap-3 rounded-xl border px-4 py-3 shadow-sm",
             officialFormat.isOfficial
-              ? "border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50"
-              : "border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50",
+              ? "border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50 dark:border-emerald-800 dark:from-emerald-950/40 dark:to-green-950/40"
+              : "border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 dark:border-amber-800 dark:from-amber-950/40 dark:to-orange-950/40",
           )}
         >
           {officialFormat.isOfficial ? (
@@ -512,7 +512,7 @@ function ReviewStep({
             <p
               className={cn(
                 "text-sm font-semibold",
-                officialFormat.isOfficial ? "text-emerald-900" : "text-amber-900",
+                officialFormat.isOfficial ? "text-emerald-900 dark:text-emerald-400" : "text-amber-900 dark:text-amber-400",
               )}
             >
               {officialFormat.isOfficial
@@ -522,7 +522,7 @@ function ReviewStep({
             <p
               className={cn(
                 "mt-0.5 text-xs",
-                officialFormat.isOfficial ? "text-emerald-800" : "text-amber-800",
+                officialFormat.isOfficial ? "text-emerald-800 dark:text-emerald-400" : "text-amber-800 dark:text-amber-400",
               )}
             >
               {officialFormat.reason}
@@ -559,10 +559,10 @@ function ReviewStep({
 
       {/* Sheets selector — show only if >1 sheet */}
       {totalSheets > 1 && (
-        <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+        <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div className="mb-2 flex items-center gap-2">
-            <TableIcon className="h-4 w-4 text-indigo-600" aria-hidden />
-            <h3 className="text-sm font-semibold text-zinc-900">
+            <TableIcon className="h-4 w-4 text-indigo-600 dark:text-indigo-400" aria-hidden />
+            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
               Chọn sheet sẽ import ({selectedSheets.length}/{totalSheets})
             </h3>
           </div>
@@ -586,22 +586,22 @@ function ReviewStep({
                   className={cn(
                     "inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium transition-all",
                     checked
-                      ? "border-indigo-300 bg-indigo-50 text-indigo-900 shadow-sm"
-                      : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50",
+                      ? "border-indigo-300 bg-indigo-50 text-indigo-900 shadow-sm dark:border-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300"
+                      : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-zinc-600 dark:hover:bg-zinc-800/60",
                   )}
                 >
                   <Checkbox checked={checked} className="h-3.5 w-3.5" />
                   <span className="truncate">{s.sheetName}</span>
-                  <span className="rounded bg-white/70 px-1.5 py-0.5 text-[10px] tabular-nums text-zinc-600">
+                  <span className="rounded bg-white/70 px-1.5 py-0.5 text-[10px] tabular-nums text-zinc-600 dark:bg-zinc-950/40 dark:text-zinc-400">
                     {s.rowCount} dòng
                   </span>
                   {kind === "PROJECT" && (
-                    <span className="rounded bg-emerald-100 px-1 text-[10px] text-emerald-700">
+                    <span className="rounded bg-emerald-100 px-1 text-[10px] text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
                       Project
                     </span>
                   )}
                   {kind === "MASTER_MATERIAL_PROCESS" && (
-                    <span className="rounded bg-zinc-100 px-1 text-[10px] text-zinc-600">
+                    <span className="rounded bg-zinc-100 px-1 text-[10px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
                       Master
                     </span>
                   )}
@@ -614,10 +614,10 @@ function ReviewStep({
 
       {/* Active sheet mapping + preview */}
       {activeSheet && (
-        <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+        <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           {/* Sheet tabs (if multiple selected) */}
           {selectedSheets.length > 1 && (
-            <div className="flex items-center gap-1 overflow-x-auto border-b border-zinc-100 bg-zinc-50 px-3 py-1.5">
+            <div className="flex items-center gap-1 overflow-x-auto border-b border-zinc-100 bg-zinc-50 px-3 py-1.5 dark:border-zinc-800 dark:bg-zinc-800/60">
               {selectedSheets.map((s, i) => (
                 <button
                   key={s}
@@ -627,7 +627,7 @@ function ReviewStep({
                     "inline-flex h-7 shrink-0 items-center rounded px-3 text-xs font-medium transition-colors",
                     i === activeSheetIdx
                       ? "bg-indigo-600 text-white shadow-sm"
-                      : "text-zinc-600 hover:bg-zinc-100",
+                      : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800/60",
                   )}
                 >
                   {s}
@@ -637,13 +637,13 @@ function ReviewStep({
           )}
 
           {/* Mapping table */}
-          <div className="border-b border-zinc-100 p-4">
+          <div className="border-b border-zinc-100 p-4 dark:border-zinc-800">
             <div className="mb-2 flex items-center gap-2">
-              <Settings2 className="h-4 w-4 text-indigo-600" aria-hidden />
-              <h3 className="text-sm font-semibold text-zinc-900">
+              <Settings2 className="h-4 w-4 text-indigo-600 dark:text-indigo-400" aria-hidden />
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
                 Khớp cột Excel → Field hệ thống
               </h3>
-              <span className="text-xs text-zinc-500">
+              <span className="text-xs text-zinc-500 dark:text-zinc-400">
                 · Auto-mapping {mappedCount}/{activeSheet.headersDetected?.length ?? 0}
               </span>
             </div>
@@ -664,11 +664,11 @@ function ReviewStep({
           {/* Preview rows live */}
           <div className="p-4">
             <div className="mb-2 flex items-center gap-2">
-              <Eye className="h-4 w-4 text-indigo-600" aria-hidden />
-              <h3 className="text-sm font-semibold text-zinc-900">
+              <Eye className="h-4 w-4 text-indigo-600 dark:text-indigo-400" aria-hidden />
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
                 Xem trước dữ liệu sẽ import
               </h3>
-              <span className="text-xs text-zinc-500">
+              <span className="text-xs text-zinc-500 dark:text-zinc-400">
                 · 5 dòng đầu, mapped theo Excel
               </span>
             </div>
@@ -682,8 +682,8 @@ function ReviewStep({
       )}
 
       {/* Options + Action bar */}
-      <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-indigo-100 bg-indigo-50/40 p-3 hover:bg-indigo-50/70 transition-colors">
+      <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-indigo-100 bg-indigo-50/40 p-3 hover:bg-indigo-50/70 transition-colors dark:border-indigo-900 dark:bg-indigo-950/30 dark:hover:bg-indigo-950/50">
           <Checkbox
             checked={autoCreateMissingItems}
             onCheckedChange={(v) => setAutoCreateMissingItems(v === true)}
@@ -691,25 +691,25 @@ function ReviewStep({
             aria-label="Tự tạo item chưa tồn tại"
           />
           <span>
-            <span className="block text-sm font-semibold text-zinc-900">
+            <span className="block text-sm font-semibold text-zinc-900 dark:text-zinc-50">
               Tự tạo vật tư mới (khuyến nghị BẬT)
             </span>
-            <span className="mt-0.5 block text-xs text-zinc-600">
+            <span className="mt-0.5 block text-xs text-zinc-600 dark:text-zinc-400">
               SKU mới trong file sẽ tự được thêm vào danh mục vật tư (status DRAFT, UoM PCS)
               rồi link vào BOM line. Tắt nếu muốn lỗi khi thiếu master.
             </span>
           </span>
         </label>
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 pt-4">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 pt-4 dark:border-zinc-800">
           <Button variant="ghost" onClick={onBack}>
             <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
             Tải file khác
           </Button>
           <div className="flex items-center gap-3">
-            <span className="text-xs text-zinc-500">
-              Sẽ import <strong className="text-zinc-900 tabular-nums">{totalSelectedRows.toLocaleString("vi-VN")}</strong> dòng từ{" "}
-              <strong className="text-zinc-900">{selectedSheets.length}</strong> sheet · {DUP_LABEL[duplicateMode]}
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">
+              Sẽ import <strong className="text-zinc-900 tabular-nums dark:text-zinc-50">{totalSelectedRows.toLocaleString("vi-VN")}</strong> dòng từ{" "}
+              <strong className="text-zinc-900 dark:text-zinc-50">{selectedSheets.length}</strong> sheet · {DUP_LABEL[duplicateMode]}
             </span>
             <Button
               onClick={onCommit}
@@ -760,21 +760,21 @@ function PreviewTable({
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-zinc-200">
+    <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-800">
       <table className="w-full border-collapse text-xs">
-        <thead className="bg-gradient-to-br from-zinc-100 to-zinc-50">
+        <thead className="bg-gradient-to-br from-zinc-100 to-zinc-50 dark:from-zinc-800 dark:to-zinc-800/60">
           <tr>
-            <th className="border-b border-zinc-200 px-2 py-2 text-left text-[10px] font-medium uppercase text-zinc-500">
+            <th className="border-b border-zinc-200 px-2 py-2 text-left text-[10px] font-medium uppercase text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
               #
             </th>
             {mappedCols.map((c) => (
               <th
                 key={c.header}
-                className="border-b border-zinc-200 px-2 py-2 text-left text-[10px] font-medium uppercase text-indigo-700"
+                className="border-b border-zinc-200 px-2 py-2 text-left text-[10px] font-medium uppercase text-indigo-700 dark:border-zinc-700 dark:text-indigo-400"
                 title={`Excel: ${c.header} → DB: ${c.target}`}
               >
                 {TARGET_LABELS[c.target ?? ""] ?? c.target}
-                <span className="ml-1 text-[9px] text-zinc-400">({c.header})</span>
+                <span className="ml-1 text-[9px] text-zinc-400 dark:text-zinc-500">({c.header})</span>
               </th>
             ))}
           </tr>
@@ -784,21 +784,21 @@ function PreviewTable({
             <tr>
               <td
                 colSpan={mappedCols.length + 1}
-                className="px-2 py-4 text-center text-xs text-zinc-400"
+                className="px-2 py-4 text-center text-xs text-zinc-400 dark:text-zinc-500"
               >
                 Sheet trống.
               </td>
             </tr>
           ) : (
             rows.slice(0, 5).map((r, ri) => (
-              <tr key={ri} className="border-b border-zinc-100 hover:bg-zinc-50">
-                <td className="px-2 py-1.5 font-mono text-[10px] text-zinc-400">
+              <tr key={ri} className="border-b border-zinc-100 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/60">
+                <td className="px-2 py-1.5 font-mono text-[10px] text-zinc-400 dark:text-zinc-500">
                   {ri + 1}
                 </td>
                 {mappedCols.map((c) => (
                   <td
                     key={c.header}
-                    className="max-w-[160px] truncate px-2 py-1.5 text-zinc-700"
+                    className="max-w-[160px] truncate px-2 py-1.5 text-zinc-700 dark:text-zinc-300"
                     title={String(r[c.idx] ?? "")}
                   >
                     {String(r[c.idx] ?? "—")}
@@ -843,7 +843,7 @@ function ResultStep({
 
   if (isDone && rowTotal === 0) {
     return (
-      <section className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+      <section className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
         <EmptyState
           preset="no-data"
           title="Import không có dòng nào"
@@ -865,19 +865,19 @@ function ResultStep({
         className={cn(
           "overflow-hidden rounded-xl border shadow-sm",
           isDone
-            ? "border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50"
+            ? "border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50 dark:border-emerald-800 dark:from-emerald-950/40 dark:to-green-950/40"
             : isFailed
-              ? "border-red-200 bg-gradient-to-br from-red-50 to-rose-50"
-              : "border-indigo-200 bg-gradient-to-br from-indigo-50 to-cyan-50",
+              ? "border-red-200 bg-gradient-to-br from-red-50 to-rose-50 dark:border-red-800 dark:from-red-950/40 dark:to-rose-950/40"
+              : "border-indigo-200 bg-gradient-to-br from-indigo-50 to-cyan-50 dark:border-indigo-800 dark:from-indigo-950/40 dark:to-cyan-950/40",
         )}
       >
         <div className="flex items-center gap-4 p-6">
           {isDone ? (
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-emerald-100 ring-4 ring-emerald-50">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-emerald-100 ring-4 ring-emerald-50 dark:bg-emerald-950/40 dark:ring-emerald-950/20">
               <CheckCircle2 className="h-8 w-8 text-emerald-600" aria-hidden />
             </div>
           ) : isFailed ? (
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-red-100 ring-4 ring-red-50">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-red-100 ring-4 ring-red-50 dark:bg-red-950/40 dark:ring-red-950/20">
               <AlertTriangle className="h-8 w-8 text-red-600" aria-hidden />
             </div>
           ) : (
@@ -886,7 +886,7 @@ function ResultStep({
             </div>
           )}
           <div className="min-w-0">
-            <h2 className="text-xl font-bold tracking-tight text-zinc-900">
+            <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
               {isDone
                 ? rowFail > 0
                   ? `Hoàn tất với ${rowFail} dòng lỗi`
@@ -895,15 +895,15 @@ function ResultStep({
                   ? "Import thất bại"
                   : "Đang import nền…"}
             </h2>
-            <p className="mt-0.5 text-xs text-zinc-600">
+            <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">
               Trạng thái: <span className="font-mono">{status}</span> · Batch{" "}
               <span className="font-mono">{batchId.slice(0, 8)}…</span>
             </p>
           </div>
         </div>
         {!isFailed && (
-          <div className="border-t border-white/60 bg-white/40 px-6 py-3">
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-200/60">
+          <div className="border-t border-white/60 bg-white/40 px-6 py-3 dark:border-zinc-700/60 dark:bg-zinc-900/40">
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-200/60 dark:bg-zinc-700/60">
               <div
                 className={cn(
                   "h-full transition-all duration-500",
@@ -912,7 +912,7 @@ function ResultStep({
                 style={{ width: `${progressPct}%` }}
               />
             </div>
-            <div className="mt-1.5 flex justify-between text-[11px] text-zinc-700 tabular-nums">
+            <div className="mt-1.5 flex justify-between text-[11px] text-zinc-700 tabular-nums dark:text-zinc-300">
               <span>
                 {(rowSuccess + rowFail).toLocaleString("vi-VN")}/
                 {rowTotal.toLocaleString("vi-VN")} dòng
@@ -924,7 +924,7 @@ function ResultStep({
       </div>
 
       {isFailed && errorMessage && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400">
           {errorMessage}
         </div>
       )}
@@ -946,11 +946,11 @@ function ResultStep({
 
       {/* Error detail */}
       {errorPreview.length > 0 && (
-        <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50 px-4 py-2.5">
-            <h3 className="text-sm font-semibold text-zinc-900">
+        <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50 px-4 py-2.5 dark:border-zinc-800 dark:bg-zinc-800/60">
+            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
               Lỗi chi tiết
-              <span className="ml-1.5 text-xs font-normal text-zinc-500">
+              <span className="ml-1.5 text-xs font-normal text-zinc-500 dark:text-zinc-400">
                 ({errorPreview.length}
                 {rowFail > errorPreview.length
                   ? `/${rowFail.toLocaleString("vi-VN")} đầu tiên`
@@ -960,15 +960,15 @@ function ResultStep({
             </h3>
             <a
               href={downloadBomImportErrorsUrl(batchId)}
-              className="text-xs font-medium text-indigo-600 hover:text-indigo-700 hover:underline"
+              className="text-xs font-medium text-indigo-600 hover:text-indigo-700 hover:underline dark:text-indigo-400 dark:hover:text-indigo-300"
             >
               Tải full errors.xlsx ↓
             </a>
           </div>
           <div className="max-h-[320px] overflow-auto">
             <table className="w-full border-collapse text-xs">
-              <thead className="sticky top-0 bg-white">
-                <tr className="border-b border-zinc-200 text-left text-[10px] font-medium uppercase tracking-wider text-zinc-500">
+              <thead className="sticky top-0 bg-white dark:bg-zinc-900">
+                <tr className="border-b border-zinc-200 text-left text-[10px] font-medium uppercase tracking-wider text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
                   <th className="px-3 py-2">Sheet</th>
                   <th className="px-3 py-2 text-right">Dòng</th>
                   <th className="px-3 py-2">Cột</th>
@@ -979,18 +979,18 @@ function ResultStep({
                 {errorPreview.map((e, i) => (
                   <tr
                     key={`${e.sheet}-${e.rowNumber}-${i}`}
-                    className="border-b border-zinc-100 hover:bg-zinc-50 last:border-b-0"
+                    className="border-b border-zinc-100 hover:bg-zinc-50 last:border-b-0 dark:border-zinc-800 dark:hover:bg-zinc-800/60"
                   >
-                    <td className="truncate px-3 py-1.5 font-mono text-zinc-700">
+                    <td className="truncate px-3 py-1.5 font-mono text-zinc-700 dark:text-zinc-300">
                       {e.sheet}
                     </td>
-                    <td className="px-3 py-1.5 text-right tabular-nums text-zinc-600">
+                    <td className="px-3 py-1.5 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
                       {e.rowNumber}
                     </td>
-                    <td className="px-3 py-1.5 font-mono text-zinc-600">
+                    <td className="px-3 py-1.5 font-mono text-zinc-600 dark:text-zinc-400">
                       {e.field}
                     </td>
-                    <td className="px-3 py-1.5 text-zinc-700">{e.reason}</td>
+                    <td className="px-3 py-1.5 text-zinc-700 dark:text-zinc-300">{e.reason}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1000,7 +1000,7 @@ function ResultStep({
       )}
 
       {/* Actions */}
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
         <Button variant="ghost" onClick={onReset}>
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> Import file khác
         </Button>
@@ -1025,7 +1025,7 @@ function StepIndicator({ step }: { step: Step }) {
   const activeIdx = STEP_ORDER.indexOf(step);
   return (
     <ol
-      className="flex items-center gap-1 rounded-xl border border-zinc-200 bg-white px-5 py-3 shadow-sm"
+      className="flex items-center gap-1 rounded-xl border border-zinc-200 bg-white px-5 py-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
       aria-label="Tiến trình import BOM"
     >
       {STEP_ORDER.map((s, i) => {
@@ -1043,7 +1043,7 @@ function StepIndicator({ step }: { step: Step }) {
                 state === "done" &&
                   "bg-gradient-to-br from-emerald-500 to-teal-500 text-white",
                 state === "pending" &&
-                  "border-2 border-zinc-200 bg-white text-zinc-400",
+                  "border-2 border-zinc-200 bg-white text-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-500",
               )}
             >
               {state === "done" ? (
@@ -1055,9 +1055,9 @@ function StepIndicator({ step }: { step: Step }) {
             <span
               className={cn(
                 "whitespace-nowrap text-sm font-semibold",
-                state === "current" && "text-zinc-900",
-                state === "done" && "text-emerald-700",
-                state === "pending" && "text-zinc-400",
+                state === "current" && "text-zinc-900 dark:text-zinc-50",
+                state === "done" && "text-emerald-700 dark:text-emerald-400",
+                state === "pending" && "text-zinc-400 dark:text-zinc-500",
               )}
             >
               {STEP_LABELS[s]}
@@ -1069,7 +1069,7 @@ function StepIndicator({ step }: { step: Step }) {
                   "mx-2 h-1 flex-1 rounded-full transition-colors",
                   state === "done"
                     ? "bg-gradient-to-r from-emerald-500 to-teal-500"
-                    : "bg-zinc-200",
+                    : "bg-zinc-200 dark:bg-zinc-700",
                 )}
               />
             )}
@@ -1092,15 +1092,15 @@ function StatCard({
   accent?: "muted" | "emerald" | "indigo" | "amber" | "red";
 }) {
   const accentClass = {
-    muted: "border-zinc-200 bg-white text-zinc-900",
-    emerald: "border-emerald-200 bg-emerald-50 text-emerald-900",
-    indigo: "border-indigo-200 bg-indigo-50 text-indigo-900",
-    amber: "border-amber-200 bg-amber-50 text-amber-900",
-    red: "border-red-200 bg-red-50 text-red-900",
+    muted: "border-zinc-200 bg-white text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50",
+    emerald: "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400",
+    indigo: "border-indigo-200 bg-indigo-50 text-indigo-900 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-400",
+    amber: "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400",
+    red: "border-red-200 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400",
   }[accent];
   return (
     <div className={cn("rounded-xl border p-3 shadow-sm", accentClass)}>
-      <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+      <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
         {icon}
         {label}
       </div>

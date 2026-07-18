@@ -53,11 +53,11 @@ interface MaterialProcessSheetViewProps {
 }
 
 const STATUS_BADGE_CLASS: Record<MaterialRowStatus, string> = {
-  PLANNED: "bg-zinc-100 text-zinc-700",
-  ORDERED: "bg-amber-100 text-amber-800",
-  DELIVERED: "bg-blue-100 text-blue-800",
-  QC_PASS: "bg-emerald-100 text-emerald-800",
-  CANCELLED: "bg-red-100 text-red-700",
+  PLANNED: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+  ORDERED: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
+  DELIVERED: "bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300",
+  QC_PASS: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300",
+  CANCELLED: "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300",
 };
 
 const PRICING_UNIT_LABEL: Record<string, string> = {
@@ -136,12 +136,12 @@ function MaterialPanel({
   };
 
   return (
-    <div className="flex flex-col gap-2 overflow-hidden rounded-md border border-zinc-200 bg-white">
-      <header className="flex items-center justify-between border-b border-zinc-200 bg-emerald-50/40 px-3 py-2">
-        <h3 className="flex items-center gap-1.5 text-sm font-semibold text-emerald-900">
-          <Beaker className="h-4 w-4 text-emerald-600" aria-hidden />
+    <div className="flex flex-col gap-2 overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+      <header className="flex items-center justify-between border-b border-zinc-200 bg-emerald-50/40 px-3 py-2 dark:border-zinc-800 dark:bg-emerald-950/20">
+        <h3 className="flex items-center gap-1.5 text-sm font-semibold text-emerald-900 dark:text-emerald-300">
+          <Beaker className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden />
           Vật liệu
-          <span className="ml-1 inline-flex h-4 items-center rounded-sm bg-emerald-100 px-1.5 text-[10px] font-mono text-emerald-700">
+          <span className="ml-1 inline-flex h-4 items-center rounded-sm bg-emerald-100 px-1.5 text-[10px] font-mono text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
             {rows.length}
           </span>
         </h3>
@@ -151,7 +151,7 @@ function MaterialPanel({
             disabled={create.isPending}
             size="sm"
             variant="outline"
-            className="h-7 border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50"
+            className="h-7 border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:bg-zinc-900 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
           >
             {create.isPending ? (
               <Loader2 className="mr-1 h-3 w-3 animate-spin" />
@@ -171,14 +171,14 @@ function MaterialPanel({
             ))}
           </div>
         ) : rows.length === 0 ? (
-          <div className="p-4 text-center text-xs text-zinc-400">
+          <div className="p-4 text-center text-xs text-zinc-400 dark:text-zinc-500">
             {readOnly
               ? "Chưa có vật liệu"
               : 'Click "+ Thêm" để thêm vật liệu cho BOM này'}
           </div>
         ) : (
           <table className="w-full text-xs">
-            <thead className="sticky top-0 bg-zinc-50 text-[10px] uppercase tracking-wide text-zinc-500">
+            <thead className="sticky top-0 bg-zinc-50 text-[10px] uppercase tracking-wide text-zinc-500 dark:bg-zinc-800/60 dark:text-zinc-400">
               <tr>
                 <th className="px-2 py-1 text-left">Code</th>
                 <th className="px-2 py-1 text-left">Tên / Mô tả</th>
@@ -201,7 +201,7 @@ function MaterialPanel({
                 const scrapPct =
                   typeof blank.scrapPct === "number" ? blank.scrapPct : null;
                 return (
-                  <tr key={row.id} className="border-t border-zinc-100 align-top">
+                  <tr key={row.id} className="border-t border-zinc-100 align-top dark:border-zinc-800">
                     <td className="px-2 py-1">
                       <Input
                         defaultValue={row.materialCode ?? ""}
@@ -314,7 +314,7 @@ function MaterialPanel({
                         placeholder="Ghi chú"
                         disabled={readOnly}
                         rows={1}
-                        className="h-6 min-h-[24px] w-40 resize-y rounded border border-zinc-200 bg-white px-2 py-0.5 text-[11px] focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-300 disabled:cursor-not-allowed disabled:bg-zinc-50"
+                        className="h-6 min-h-[24px] w-40 resize-y rounded border border-zinc-200 bg-white px-2 py-0.5 text-[11px] text-zinc-900 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-300 disabled:cursor-not-allowed disabled:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:disabled:bg-zinc-800/60"
                       />
                     </td>
                     <td className="px-2 py-1">
@@ -351,7 +351,7 @@ function MaterialPanel({
                           onClick={() => handleDelete(row)}
                           disabled={remove.isPending}
                           aria-label="Xoá"
-                          className="rounded p-0.5 text-red-500 hover:bg-red-50"
+                          className="rounded p-0.5 text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
                         >
                           <Trash2 className="h-3 w-3" />
                         </button>
@@ -425,12 +425,12 @@ function ProcessPanel({
   };
 
   return (
-    <div className="flex flex-col gap-2 overflow-hidden rounded-md border border-zinc-200 bg-white">
-      <header className="flex items-center justify-between border-b border-zinc-200 bg-amber-50/40 px-3 py-2">
-        <h3 className="flex items-center gap-1.5 text-sm font-semibold text-amber-900">
-          <Layers className="h-4 w-4 text-amber-600" aria-hidden />
+    <div className="flex flex-col gap-2 overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+      <header className="flex items-center justify-between border-b border-zinc-200 bg-amber-50/40 px-3 py-2 dark:border-zinc-800 dark:bg-amber-950/20">
+        <h3 className="flex items-center gap-1.5 text-sm font-semibold text-amber-900 dark:text-amber-300">
+          <Layers className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
           Quy trình gia công
-          <span className="ml-1 inline-flex h-4 items-center rounded-sm bg-amber-100 px-1.5 text-[10px] font-mono text-amber-700">
+          <span className="ml-1 inline-flex h-4 items-center rounded-sm bg-amber-100 px-1.5 text-[10px] font-mono text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
             {rows.length}
           </span>
         </h3>
@@ -440,7 +440,7 @@ function ProcessPanel({
             disabled={create.isPending}
             size="sm"
             variant="outline"
-            className="h-7 border-amber-200 bg-white text-amber-700 hover:bg-amber-50"
+            className="h-7 border-amber-200 bg-white text-amber-700 hover:bg-amber-50 dark:border-amber-800 dark:bg-zinc-900 dark:text-amber-300 dark:hover:bg-amber-950/40"
           >
             {create.isPending ? (
               <Loader2 className="mr-1 h-3 w-3 animate-spin" />
@@ -460,14 +460,14 @@ function ProcessPanel({
             ))}
           </div>
         ) : rows.length === 0 ? (
-          <div className="p-4 text-center text-xs text-zinc-400">
+          <div className="p-4 text-center text-xs text-zinc-400 dark:text-zinc-500">
             {readOnly
               ? "Chưa có quy trình"
               : 'Click "+ Thêm" để thêm quy trình gia công'}
           </div>
         ) : (
           <table className="w-full text-xs">
-            <thead className="sticky top-0 bg-zinc-50 text-[10px] uppercase tracking-wide text-zinc-500">
+            <thead className="sticky top-0 bg-zinc-50 text-[10px] uppercase tracking-wide text-zinc-500 dark:bg-zinc-800/60 dark:text-zinc-400">
               <tr>
                 <th className="px-2 py-1 text-left">Code</th>
                 <th className="px-2 py-1 text-left">Tên / Công đoạn</th>
@@ -488,7 +488,7 @@ function ProcessPanel({
                     ? Math.round(Number(row.hoursEstimated) * 60 * 100) / 100
                     : null;
                 return (
-                  <tr key={row.id} className="border-t border-zinc-100 align-top">
+                  <tr key={row.id} className="border-t border-zinc-100 align-top dark:border-zinc-800">
                     <td className="px-2 py-1">
                       <Input
                         defaultValue={row.processCode ?? ""}
@@ -604,7 +604,7 @@ function ProcessPanel({
                         placeholder="Ghi chú"
                         disabled={readOnly}
                         rows={1}
-                        className="h-6 min-h-[24px] w-40 resize-y rounded border border-zinc-200 bg-white px-2 py-0.5 text-[11px] focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-300 disabled:cursor-not-allowed disabled:bg-zinc-50"
+                        className="h-6 min-h-[24px] w-40 resize-y rounded border border-zinc-200 bg-white px-2 py-0.5 text-[11px] text-zinc-900 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-300 disabled:cursor-not-allowed disabled:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:disabled:bg-zinc-800/60"
                       />
                     </td>
                     {!readOnly ? (
@@ -614,7 +614,7 @@ function ProcessPanel({
                           onClick={() => handleDelete(row)}
                           disabled={remove.isPending}
                           aria-label="Xoá"
-                          className="rounded p-0.5 text-red-500 hover:bg-red-50"
+                          className="rounded p-0.5 text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
                         >
                           <Trash2 className="h-3 w-3" />
                         </button>

@@ -53,54 +53,54 @@ const STATUS_META: Record<MaterialStatus, StatusMeta> = {
     label: "Chưa có đơn",
     icon: MinusCircle,
     bar: "bg-zinc-300",
-    barBg: "bg-zinc-100",
-    text: "text-zinc-500",
-    badgeBg: "bg-zinc-50",
+    barBg: "bg-zinc-100 dark:bg-zinc-800",
+    text: "text-zinc-500 dark:text-zinc-400",
+    badgeBg: "bg-zinc-50 dark:bg-zinc-800",
     defaultPct: 0,
   },
   PLANNED: {
     label: "Chưa mua",
     icon: Clock,
     bar: "bg-amber-400",
-    barBg: "bg-amber-100",
-    text: "text-amber-700",
-    badgeBg: "bg-amber-50",
+    barBg: "bg-amber-100 dark:bg-amber-950/40",
+    text: "text-amber-700 dark:text-amber-400",
+    badgeBg: "bg-amber-50 dark:bg-amber-950/40",
     defaultPct: 0,
   },
   PURCHASING: {
     label: "Đang mua",
     icon: ShoppingCart,
     bar: "bg-blue-500",
-    barBg: "bg-blue-100",
-    text: "text-blue-700",
-    badgeBg: "bg-blue-50",
+    barBg: "bg-blue-100 dark:bg-blue-950/40",
+    text: "text-blue-700 dark:text-blue-400",
+    badgeBg: "bg-blue-50 dark:bg-blue-950/40",
     defaultPct: 30,
   },
   PARTIAL: {
     label: "Nhận một phần",
     icon: Package,
     bar: "bg-orange-500",
-    barBg: "bg-orange-100",
-    text: "text-orange-700",
-    badgeBg: "bg-orange-50",
+    barBg: "bg-orange-100 dark:bg-orange-950/40",
+    text: "text-orange-700 dark:text-orange-400",
+    badgeBg: "bg-orange-50 dark:bg-orange-950/40",
     defaultPct: 60,
   },
   AVAILABLE: {
     label: "Đủ hàng",
     icon: CheckCircle2,
     bar: "bg-emerald-500",
-    barBg: "bg-emerald-100",
-    text: "text-emerald-700",
-    badgeBg: "bg-emerald-50",
+    barBg: "bg-emerald-100 dark:bg-emerald-950/40",
+    text: "text-emerald-700 dark:text-emerald-400",
+    badgeBg: "bg-emerald-50 dark:bg-emerald-950/40",
     defaultPct: 100,
   },
   ISSUED: {
     label: "Hoàn thiện",
     icon: Factory,
     bar: "bg-violet-500",
-    barBg: "bg-violet-100",
-    text: "text-violet-700",
-    badgeBg: "bg-violet-50",
+    barBg: "bg-violet-100 dark:bg-violet-950/40",
+    text: "text-violet-700 dark:text-violet-400",
+    badgeBg: "bg-violet-50 dark:bg-violet-950/40",
     defaultPct: 100,
   },
 };
@@ -121,45 +121,45 @@ const FAB_META: Record<FabStatus, StatusMeta> = {
     label: "Chưa sản xuất",
     icon: Clock,
     bar: "bg-zinc-300",
-    barBg: "bg-zinc-100",
-    text: "text-zinc-600",
-    badgeBg: "bg-zinc-50",
+    barBg: "bg-zinc-100 dark:bg-zinc-800",
+    text: "text-zinc-600 dark:text-zinc-400",
+    badgeBg: "bg-zinc-50 dark:bg-zinc-800",
     defaultPct: 0,
   },
   IN_PROGRESS: {
     label: "Đang SX",
     icon: Hammer,
     bar: "bg-indigo-500",
-    barBg: "bg-indigo-100",
-    text: "text-indigo-700",
-    badgeBg: "bg-indigo-50",
+    barBg: "bg-indigo-100 dark:bg-indigo-950/40",
+    text: "text-indigo-700 dark:text-indigo-400",
+    badgeBg: "bg-indigo-50 dark:bg-indigo-950/40",
     defaultPct: 30,
   },
   PAUSED: {
     label: "Tạm dừng",
     icon: PauseCircle,
     bar: "bg-amber-500",
-    barBg: "bg-amber-100",
-    text: "text-amber-700",
-    badgeBg: "bg-amber-50",
+    barBg: "bg-amber-100 dark:bg-amber-950/40",
+    text: "text-amber-700 dark:text-amber-400",
+    badgeBg: "bg-amber-50 dark:bg-amber-950/40",
     defaultPct: 20,
   },
   COMPLETED: {
     label: "Hoàn thành",
     icon: CheckCircle,
     bar: "bg-emerald-500",
-    barBg: "bg-emerald-100",
-    text: "text-emerald-700",
-    badgeBg: "bg-emerald-50",
+    barBg: "bg-emerald-100 dark:bg-emerald-950/40",
+    text: "text-emerald-700 dark:text-emerald-400",
+    badgeBg: "bg-emerald-50 dark:bg-emerald-950/40",
     defaultPct: 100,
   },
   CANCELLED: {
     label: "Đã hủy",
     icon: Ban,
     bar: "bg-zinc-400",
-    barBg: "bg-zinc-100",
-    text: "text-zinc-500",
-    badgeBg: "bg-zinc-50",
+    barBg: "bg-zinc-100 dark:bg-zinc-800",
+    text: "text-zinc-500 dark:text-zinc-400",
+    badgeBg: "bg-zinc-50 dark:bg-zinc-800",
     defaultPct: 0,
   },
 };
@@ -203,7 +203,7 @@ function MilestoneRow({ reached, label }: MilestoneRowProps) {
       {reached ? (
         <Check className="h-3 w-3 text-emerald-400" aria-hidden />
       ) : (
-        <Circle className="h-3 w-3 text-zinc-500" aria-hidden />
+        <Circle className="h-3 w-3 text-zinc-500 dark:text-zinc-400" aria-hidden />
       )}
       <span
         className={cn(
@@ -360,7 +360,7 @@ export function ProgressCell({
           {meta.label}
         </span>
         {fill > 0 && (
-          <span className="font-mono text-[10px] tabular-nums text-zinc-500">
+          <span className="font-mono text-[10px] tabular-nums text-zinc-500 dark:text-zinc-400">
             {fill}%
           </span>
         )}
@@ -379,7 +379,7 @@ export function ProgressCell({
         />
       </div>
       {computedSubLabel && (
-        <span className="font-mono text-[10px] tabular-nums text-zinc-500 truncate">
+        <span className="font-mono text-[10px] tabular-nums text-zinc-500 dark:text-zinc-400 truncate">
           {computedSubLabel}
         </span>
       )}
@@ -482,7 +482,7 @@ export function FabProgressCell({
           {meta.label}
         </span>
         {fill > 0 && (
-          <span className="font-mono text-[10px] tabular-nums text-zinc-500">
+          <span className="font-mono text-[10px] tabular-nums text-zinc-500 dark:text-zinc-400">
             {fill}%
           </span>
         )}
@@ -504,7 +504,7 @@ export function FabProgressCell({
         />
       </div>
       {subLabel && (
-        <span className="font-mono text-[10px] tabular-nums text-zinc-500 truncate">
+        <span className="font-mono text-[10px] tabular-nums text-zinc-500 dark:text-zinc-400 truncate">
           {subLabel}
         </span>
       )}

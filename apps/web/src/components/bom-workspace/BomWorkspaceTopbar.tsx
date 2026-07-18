@@ -176,26 +176,26 @@ export function BomWorkspaceTopbar({
   const isObsolete = template.status === "OBSOLETE";
 
   return (
-    <header className="flex h-12 shrink-0 items-center gap-2 border-b border-zinc-200 bg-white pl-2 pr-2">
+    <header className="flex h-12 shrink-0 items-center gap-2 border-b border-zinc-200 bg-white pl-2 pr-2 dark:border-zinc-800 dark:bg-zinc-900">
       {/* Left: back + breadcrumb + title — V1.7-beta.2.3 compact polish */}
       <Link
         href="/bom"
-        className="inline-flex h-7 items-center gap-1 rounded-md px-1.5 text-[11px] font-medium text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+        className="inline-flex h-7 items-center gap-1 rounded-md px-1.5 text-[11px] font-medium text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
         title="Thoát workspace về danh sách BOM"
       >
         <ArrowLeft className="h-3 w-3" aria-hidden />
         BOM
       </Link>
-      <span className="text-xs text-zinc-300" aria-hidden>
+      <span className="text-xs text-zinc-300 dark:text-zinc-600" aria-hidden>
         ·
       </span>
-      <span className="font-mono text-[13px] font-medium text-zinc-800">
+      <span className="font-mono text-[13px] font-medium text-zinc-800 dark:text-zinc-200">
         {template.code}
       </span>
-      <span className="text-xs text-zinc-300" aria-hidden>
+      <span className="text-xs text-zinc-300 dark:text-zinc-600" aria-hidden>
         ·
       </span>
-      <h1 className="truncate text-sm font-normal text-zinc-700">
+      <h1 className="truncate text-sm font-normal text-zinc-700 dark:text-zinc-300">
         {template.name}
       </h1>
       <StatusBadge
@@ -204,7 +204,7 @@ export function BomWorkspaceTopbar({
         label={badge.label}
       />
       {isObsolete && (
-        <span className="inline-flex items-center rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-700 ring-1 ring-red-200">
+        <span className="inline-flex items-center rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-700 ring-1 ring-red-200 dark:bg-red-950/40 dark:text-red-400 dark:ring-red-800">
           Ngừng dùng
         </span>
       )}
@@ -337,12 +337,12 @@ function KpiChip({ label, count, tone = "default", onClick }: KpiChipProps) {
       onClick={onClick}
       className={cn(
         "inline-flex h-7 items-center gap-1.5 rounded-md border px-2 font-medium transition-colors duration-100",
-        "hover:bg-zinc-50 active:bg-zinc-100",
+        "hover:bg-zinc-50 active:bg-zinc-100 dark:hover:bg-zinc-800/60 dark:active:bg-zinc-800",
         tone === "orange" && count !== undefined && count > 0
-          ? "border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100"
+          ? "border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-400 dark:hover:bg-orange-900/40"
           : isZero
-            ? "border-zinc-200 text-zinc-400 hover:text-zinc-600"
-            : "border-zinc-200 text-zinc-700",
+            ? "border-zinc-200 text-zinc-400 hover:text-zinc-600 dark:border-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-400"
+            : "border-zinc-200 text-zinc-700 dark:border-zinc-700 dark:text-zinc-300",
       )}
       title={`Xem ${label.toLowerCase()}`}
     >

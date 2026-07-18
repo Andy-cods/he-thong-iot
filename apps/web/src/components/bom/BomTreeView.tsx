@@ -125,33 +125,33 @@ const LEVEL_STYLE: Record<
   { bg: string; ring: string; text: string; guide: string }
 > = {
   1: {
-    bg: "bg-indigo-100",
-    ring: "ring-indigo-500",
-    text: "text-indigo-700",
+    bg: "bg-indigo-100 dark:bg-indigo-950/40",
+    ring: "ring-indigo-500 dark:ring-indigo-800",
+    text: "text-indigo-700 dark:text-indigo-400",
     guide: "bg-indigo-200",
   },
   2: {
-    bg: "bg-emerald-100",
-    ring: "ring-emerald-500",
-    text: "text-emerald-700",
+    bg: "bg-emerald-100 dark:bg-emerald-950/40",
+    ring: "ring-emerald-500 dark:ring-emerald-800",
+    text: "text-emerald-700 dark:text-emerald-400",
     guide: "bg-emerald-200",
   },
   3: {
-    bg: "bg-violet-100",
-    ring: "ring-violet-500",
-    text: "text-violet-700",
+    bg: "bg-violet-100 dark:bg-violet-950/40",
+    ring: "ring-violet-500 dark:ring-violet-800",
+    text: "text-violet-700 dark:text-violet-400",
     guide: "bg-violet-200",
   },
   4: {
-    bg: "bg-amber-100",
-    ring: "ring-amber-500",
-    text: "text-amber-700",
+    bg: "bg-amber-100 dark:bg-amber-950/40",
+    ring: "ring-amber-500 dark:ring-amber-800",
+    text: "text-amber-700 dark:text-amber-400",
     guide: "bg-amber-200",
   },
   5: {
-    bg: "bg-rose-100",
-    ring: "ring-rose-500",
-    text: "text-rose-700",
+    bg: "bg-rose-100 dark:bg-rose-950/40",
+    ring: "ring-rose-500 dark:ring-rose-800",
+    text: "text-rose-700 dark:text-rose-400",
     guide: "bg-rose-200",
   },
 };
@@ -163,7 +163,7 @@ function getLevelStyle(level: number) {
 function BomTreeHeader() {
   return (
     <div
-      className="sticky top-0 z-10 flex h-8 items-center gap-1 border-b border-zinc-200 bg-zinc-50 pl-1 pr-2 text-xs font-medium uppercase tracking-wide text-zinc-500 min-w-[720px]"
+      className="sticky top-0 z-10 flex h-8 items-center gap-1 border-b border-zinc-200 bg-zinc-50 pl-1 pr-2 text-xs font-medium uppercase tracking-wide text-zinc-500 min-w-[720px] dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-400"
       aria-hidden="true"
     >
       {/* grip placeholder */}
@@ -443,7 +443,7 @@ export function BomTreeView({
       ref={parentRef}
       onKeyDown={handleKey}
       tabIndex={0}
-      className="relative h-full min-h-[400px] w-full overflow-auto rounded-md border border-zinc-200 bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
+      className="relative h-full min-h-[400px] w-full overflow-auto rounded-md border border-zinc-200 bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:border-zinc-700 dark:bg-zinc-900"
       role="tree"
       aria-label="Cây linh kiện BOM"
     >
@@ -525,18 +525,18 @@ export function BomTreeView({
 
         <DragOverlay dropAnimation={null}>
           {activeNode && (
-            <div className="flex h-8 items-center gap-2 rounded-md border border-indigo-300 bg-white px-3 shadow-lg ring-1 ring-indigo-400">
+            <div className="flex h-8 items-center gap-2 rounded-md border border-indigo-300 bg-white px-3 shadow-lg ring-1 ring-indigo-400 dark:border-indigo-700 dark:bg-zinc-900">
               <GripVertical
-                className="h-3 w-3 text-zinc-400"
+                className="h-3 w-3 text-zinc-400 dark:text-zinc-500"
                 aria-hidden="true"
               />
-              <span className="font-mono text-sm text-zinc-700">
+              <span className="font-mono text-sm text-zinc-700 dark:text-zinc-300">
                 {activeNode.componentSku ?? "—"}
               </span>
-              <span className="max-w-[200px] truncate text-sm text-zinc-600">
+              <span className="max-w-[200px] truncate text-sm text-zinc-600 dark:text-zinc-400">
                 {activeNode.componentName ?? ""}
               </span>
-              <span className="ml-1 rounded-sm bg-zinc-100 px-1 text-xs text-zinc-500">
+              <span className="ml-1 rounded-sm bg-zinc-100 px-1 text-xs text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
                 L{activeNode.level}
               </span>
             </div>
@@ -545,7 +545,7 @@ export function BomTreeView({
       </DndContext>
 
       {visible.length === 0 && (
-        <div className="flex h-40 items-center justify-center text-sm text-zinc-400">
+        <div className="flex h-40 items-center justify-center text-sm text-zinc-400 dark:text-zinc-500">
           Chưa có linh kiện nào.
         </div>
       )}
@@ -598,7 +598,7 @@ function TreeRow({
   // - after: border-bottom indigo
   const zoneClass =
     isOver && dropZone === "into"
-      ? "bg-indigo-50 border-l-2 border-l-indigo-500"
+      ? "bg-indigo-50 border-l-2 border-l-indigo-500 dark:bg-indigo-950/40"
       : "";
   const beforeBar =
     isOver && dropZone === "before" ? (
@@ -625,10 +625,10 @@ function TreeRow({
       aria-expanded={canExpand ? isExpanded : undefined}
       onClick={onSelect}
       className={cn(
-        "group relative flex h-8 items-center gap-1 border-b border-zinc-100 pl-1 pr-2 text-base transition-colors duration-100 min-w-[720px]",
-        "hover:bg-zinc-50",
-        isSelected && "border-l-2 border-l-indigo-500 bg-indigo-50",
-        isDragging && "z-10 bg-white opacity-50 shadow-md",
+        "group relative flex h-8 items-center gap-1 border-b border-zinc-100 pl-1 pr-2 text-base transition-colors duration-100 min-w-[720px] dark:border-zinc-800",
+        "hover:bg-zinc-50 dark:hover:bg-zinc-800/60",
+        isSelected && "border-l-2 border-l-indigo-500 bg-indigo-50 dark:bg-indigo-950/40",
+        isDragging && "z-10 bg-white opacity-50 shadow-md dark:bg-zinc-900",
         zoneClass,
       )}
     >
@@ -643,7 +643,7 @@ function TreeRow({
             <span
               key={`guide-${i}`}
               aria-hidden="true"
-              className="pointer-events-none absolute top-0 bottom-0 w-px bg-zinc-200"
+              className="pointer-events-none absolute top-0 bottom-0 w-px bg-zinc-200 dark:bg-zinc-700"
               style={{ left: `${left}px` }}
             />
           );
@@ -654,7 +654,7 @@ function TreeRow({
         type="button"
         {...attributes}
         {...listeners}
-        className="inline-flex h-6 w-4 cursor-grab items-center justify-center text-zinc-300 hover:text-zinc-600 active:cursor-grabbing"
+        className="inline-flex h-6 w-4 cursor-grab items-center justify-center text-zinc-300 hover:text-zinc-600 active:cursor-grabbing dark:text-zinc-600 dark:hover:text-zinc-300"
         aria-label={`Kéo để sắp xếp ${node.componentSku ?? node.id}`}
         onClick={(e) => e.stopPropagation()}
       >
@@ -670,7 +670,7 @@ function TreeRow({
             e.stopPropagation();
             onToggleExpand();
           }}
-          className="inline-flex h-5 w-5 items-center justify-center rounded-sm text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+          className="inline-flex h-5 w-5 items-center justify-center rounded-sm text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
           aria-label={isExpanded ? "Thu gọn" : "Mở rộng"}
           title={isExpanded ? "Thu gọn (←)" : "Mở rộng (→)"}
         >
@@ -699,32 +699,32 @@ function TreeRow({
       </span>
 
       {/* SKU mono — w-28 */}
-      <span className="w-28 shrink-0 truncate font-mono text-sm text-zinc-700">
+      <span className="w-28 shrink-0 truncate font-mono text-sm text-zinc-700 dark:text-zinc-300">
         {node.componentSku ?? "—"}
       </span>
 
       {/* Name — flex-1 */}
-      <span className="min-w-0 flex-1 truncate text-zinc-900">
+      <span className="min-w-0 flex-1 truncate text-zinc-900 dark:text-zinc-50">
         {node.componentName ?? "Chưa có"}
       </span>
 
       {/* Danh mục — w-24 */}
-      <span className="w-24 shrink-0 truncate text-xs text-zinc-400">
+      <span className="w-24 shrink-0 truncate text-xs text-zinc-400 dark:text-zinc-500">
         {node.componentCategory ?? "—"}
       </span>
 
       {/* ĐVT — w-16 */}
-      <span className="w-16 shrink-0 text-center text-xs text-zinc-500">
+      <span className="w-16 shrink-0 text-center text-xs text-zinc-500 dark:text-zinc-400">
         {node.uom ?? node.componentUom ?? "—"}
       </span>
 
       {/* Số lượng — w-20 */}
-      <span className="w-20 shrink-0 text-right font-mono text-xs tabular-nums text-zinc-700">
+      <span className="w-20 shrink-0 text-right font-mono text-xs tabular-nums text-zinc-700 dark:text-zinc-300">
         {formatNumber(Number(node.qtyPerParent))}
       </span>
 
       {/* Hao hụt — w-16 */}
-      <span className="w-16 shrink-0 text-right text-xs text-zinc-500">
+      <span className="w-16 shrink-0 text-right text-xs text-zinc-500 dark:text-zinc-400">
         {scrap > 0 ? `${scrap.toFixed(1)}%` : "—"}
       </span>
 
@@ -743,7 +743,7 @@ function TreeRow({
             onAdd();
           }}
           disabled={node.level >= BOM_MAX_LEVEL}
-          className="inline-flex h-6 w-6 items-center justify-center rounded-sm text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 disabled:opacity-40"
+          className="inline-flex h-6 w-6 items-center justify-center rounded-sm text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 disabled:opacity-40 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
           aria-label="Thêm linh kiện con"
           title={
             node.level >= BOM_MAX_LEVEL
@@ -759,7 +759,7 @@ function TreeRow({
             e.stopPropagation();
             onEdit();
           }}
-          className="inline-flex h-6 w-6 items-center justify-center rounded-sm text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+          className="inline-flex h-6 w-6 items-center justify-center rounded-sm text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
           aria-label="Sửa"
         >
           <Pencil className="h-3 w-3" aria-hidden="true" />
@@ -770,7 +770,7 @@ function TreeRow({
             e.stopPropagation();
             onDelete();
           }}
-          className="inline-flex h-6 w-6 items-center justify-center rounded-sm text-red-500 hover:bg-red-50"
+          className="inline-flex h-6 w-6 items-center justify-center rounded-sm text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
           aria-label="Xoá"
         >
           <Trash2 className="h-3 w-3" aria-hidden="true" />
@@ -778,7 +778,7 @@ function TreeRow({
         <button
           type="button"
           onClick={(e) => e.stopPropagation()}
-          className="inline-flex h-6 w-6 items-center justify-center rounded-sm text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+          className="inline-flex h-6 w-6 items-center justify-center rounded-sm text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
           aria-label="Menu"
         >
           <MoreHorizontal className="h-3 w-3" aria-hidden="true" />

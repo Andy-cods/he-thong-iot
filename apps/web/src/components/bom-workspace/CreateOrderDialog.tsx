@@ -125,7 +125,7 @@ export function CreateOrderDialog({
           <DialogTitle className="text-[15px]">
             Tạo đơn hàng từ BOM {bomTemplateCode}
           </DialogTitle>
-          <DialogDescription className="text-xs text-zinc-500">
+          <DialogDescription className="text-xs text-zinc-500 dark:text-zinc-400">
             Đơn hàng sẽ ở trạng thái Nháp, gắn sẵn với BOM hiện tại để snapshot
             sau này.
           </DialogDescription>
@@ -146,9 +146,9 @@ export function CreateOrderDialog({
                 autoFocus
               />
               {errors.customerName ? (
-                <p className="text-[11px] text-red-600">{errors.customerName}</p>
+                <p className="text-[11px] text-red-600 dark:text-red-400">{errors.customerName}</p>
               ) : (
-                <p className="text-[11px] text-zinc-400">2-128 ký tự</p>
+                <p className="text-[11px] text-zinc-400 dark:text-zinc-500">2-128 ký tự</p>
               )}
             </div>
 
@@ -160,7 +160,7 @@ export function CreateOrderDialog({
                 onChange={(e) => setCustomerRef(e.target.value)}
                 placeholder="PO khách (tuỳ chọn)"
               />
-              <p className="text-[11px] text-zinc-400">Tối đa 128 ký tự</p>
+              <p className="text-[11px] text-zinc-400 dark:text-zinc-500">Tối đa 128 ký tự</p>
             </div>
           </div>
 
@@ -175,9 +175,9 @@ export function CreateOrderDialog({
               placeholder="Chọn SKU sản phẩm..."
             />
             {errors.productItemId ? (
-              <p className="text-[11px] text-red-600">{errors.productItemId}</p>
+              <p className="text-[11px] text-red-600 dark:text-red-400">{errors.productItemId}</p>
             ) : (
-              <p className="text-[11px] text-zinc-400">
+              <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
                 Sản phẩm đầu ra của đơn hàng (thường = item cha của BOM).
               </p>
             )}
@@ -199,7 +199,7 @@ export function CreateOrderDialog({
                 className="tabular-nums"
               />
               {errors.orderQty ? (
-                <p className="text-[11px] text-red-600">{errors.orderQty}</p>
+                <p className="text-[11px] text-red-600 dark:text-red-400">{errors.orderQty}</p>
               ) : null}
             </div>
 
@@ -224,7 +224,7 @@ export function CreateOrderDialog({
                 onChange={(e) =>
                   setPriority(e.target.value as OrderPriority)
                 }
-                className="flex h-9 w-full items-center rounded-md border border-zinc-200 bg-white px-3 text-[13px] text-zinc-900 focus:border-indigo-500 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
+                className="flex h-9 w-full items-center rounded-md border border-zinc-200 bg-white px-3 text-[13px] text-zinc-900 focus:border-indigo-500 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
               >
                 {ORDER_PRIORITIES.map((p) => (
                   <option key={p} value={p}>

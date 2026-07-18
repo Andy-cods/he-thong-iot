@@ -117,11 +117,11 @@ export function AddBomLineDialog({
         <form onSubmit={(e) => void handleSubmit(e)} className="flex flex-col gap-4">
           {/* Search item */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-zinc-700">
+            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
               Tìm linh kiện <span className="text-red-500">*</span>
             </label>
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" aria-hidden />
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" aria-hidden />
               <input
                 type="text"
                 value={q}
@@ -130,15 +130,15 @@ export function AddBomLineDialog({
                   setSelected(null);
                 }}
                 placeholder="Nhập mã hoặc tên linh kiện..."
-                className="w-full rounded-md border border-zinc-200 bg-white py-1.5 pl-8 pr-3 text-sm placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-md border border-zinc-200 bg-white py-1.5 pl-8 pr-3 text-sm placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500"
               />
             </div>
 
             {/* Results list */}
             {(items.length > 0 || itemsQuery.isLoading) && !selected && (
-              <div className="max-h-48 overflow-y-auto rounded-md border border-zinc-200 bg-white shadow-sm">
+              <div className="max-h-48 overflow-y-auto rounded-md border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
                 {itemsQuery.isLoading && (
-                  <div className="px-3 py-2 text-xs text-zinc-400">Đang tìm...</div>
+                  <div className="px-3 py-2 text-xs text-zinc-400 dark:text-zinc-500">Đang tìm...</div>
                 )}
                 {items.map((item) => (
                   <button
@@ -148,14 +148,14 @@ export function AddBomLineDialog({
                       setSelected(item);
                       setQ(item.sku);
                     }}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-indigo-50"
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
                   >
-                    <span className="font-mono text-xs font-medium text-indigo-700 shrink-0">
+                    <span className="font-mono text-xs font-medium text-indigo-700 shrink-0 dark:text-indigo-400">
                       {item.sku}
                     </span>
-                    <span className="truncate text-zinc-700">{item.name}</span>
+                    <span className="truncate text-zinc-700 dark:text-zinc-300">{item.name}</span>
                     {item.uom && (
-                      <span className="ml-auto shrink-0 text-[10px] text-zinc-400">
+                      <span className="ml-auto shrink-0 text-[10px] text-zinc-400 dark:text-zinc-500">
                         {item.uom}
                       </span>
                     )}
@@ -166,15 +166,15 @@ export function AddBomLineDialog({
 
             {/* Selected badge */}
             {selected && (
-              <div className="flex items-center gap-2 rounded-md bg-indigo-50 px-3 py-2 ring-1 ring-indigo-200">
-                <span className="font-mono text-xs font-semibold text-indigo-700">
+              <div className="flex items-center gap-2 rounded-md bg-indigo-50 px-3 py-2 ring-1 ring-indigo-200 dark:bg-indigo-950/40 dark:ring-indigo-800">
+                <span className="font-mono text-xs font-semibold text-indigo-700 dark:text-indigo-400">
                   {selected.sku}
                 </span>
-                <span className="truncate text-sm text-zinc-700">{selected.name}</span>
+                <span className="truncate text-sm text-zinc-700 dark:text-zinc-300">{selected.name}</span>
                 <button
                   type="button"
                   onClick={() => { setSelected(null); setQ(""); }}
-                  className="ml-auto text-xs text-zinc-400 hover:text-zinc-700"
+                  className="ml-auto text-xs text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-300"
                 >
                   ✕
                 </button>
@@ -185,7 +185,7 @@ export function AddBomLineDialog({
           {/* Qty + Scrap */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-zinc-700">
+              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
                 SL/bộ <span className="text-red-500">*</span>
               </label>
               <input
@@ -194,11 +194,11 @@ export function AddBomLineDialog({
                 step="any"
                 value={qty}
                 onChange={(e) => setQty(e.target.value)}
-                className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-right font-mono text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-right font-mono text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-zinc-700">
+              <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
                 Hao hụt (%)
               </label>
               <input
@@ -208,7 +208,7 @@ export function AddBomLineDialog({
                 step="0.1"
                 value={scrap}
                 onChange={(e) => setScrap(e.target.value)}
-                className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-right font-mono text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-right font-mono text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
               />
             </div>
           </div>

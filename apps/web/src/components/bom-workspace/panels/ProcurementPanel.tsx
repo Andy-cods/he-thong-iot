@@ -82,11 +82,11 @@ export function ProcurementPanel({
   return (
     <div className="flex h-full flex-col">
       {/* Inline toolbar — sub-tabs + create */}
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-zinc-200 bg-zinc-50/60 px-3 py-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-zinc-200 bg-zinc-50/60 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-800/60">
         <div
           role="tablist"
           aria-label="PR/PO sub-tabs"
-          className="inline-flex items-center rounded-md border border-zinc-200 bg-white p-0.5"
+          className="inline-flex items-center rounded-md border border-zinc-200 bg-white p-0.5 dark:border-zinc-700 dark:bg-zinc-900"
         >
           {(["pr", "po"] as const).map((k) => (
             <button
@@ -98,8 +98,8 @@ export function ProcurementPanel({
               className={cn(
                 "inline-flex h-6 items-center rounded-sm px-2.5 text-[11px] font-medium transition-colors",
                 subTab === k
-                  ? "bg-indigo-50 text-indigo-700 shadow-sm"
-                  : "text-zinc-500 hover:text-zinc-900",
+                  ? "bg-indigo-50 text-indigo-700 shadow-sm dark:bg-indigo-950/40 dark:text-indigo-400"
+                  : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50",
               )}
             >
               {k === "pr"
@@ -109,7 +109,7 @@ export function ProcurementPanel({
           ))}
         </div>
 
-        <div className="ml-auto flex items-center gap-3 text-[11px] text-zinc-500">
+        <div className="ml-auto flex items-center gap-3 text-[11px] text-zinc-500 dark:text-zinc-400">
           {subTab === "pr" ? (
             <span>
               Tạo PR mới: dùng nút <em className="font-normal">Đặt mua nhanh</em>{" "}
@@ -119,7 +119,7 @@ export function ProcurementPanel({
           ) : (
             <Link
               href={`/procurement/purchase-orders?bomTemplateId=${bomId}`}
-              className="inline-flex items-center gap-1 text-indigo-600 hover:underline"
+              className="inline-flex items-center gap-1 text-indigo-600 hover:underline dark:text-indigo-400"
             >
               Xem toàn cục <ExternalLink className="h-3 w-3" aria-hidden />
             </Link>
@@ -156,16 +156,16 @@ export function ProcurementPanel({
     }
     if (rows.length === 0) {
       return (
-        <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-xs text-zinc-500">
-          <Package className="h-5 w-5 text-zinc-300" aria-hidden />
+        <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-xs text-zinc-500 dark:text-zinc-400">
+          <Package className="h-5 w-5 text-zinc-300 dark:text-zinc-600" aria-hidden />
           <span>Chưa có Purchase Request gắn với BOM này.</span>
         </div>
       );
     }
     return (
       <table className="w-full text-xs">
-        <thead className="sticky top-0 z-10 bg-zinc-50/80 backdrop-blur-sm">
-          <tr className="border-b border-zinc-200 text-[10px] uppercase tracking-wide text-zinc-500">
+        <thead className="sticky top-0 z-10 bg-zinc-50/80 backdrop-blur-sm dark:bg-zinc-800/60">
+          <tr className="border-b border-zinc-200 text-[10px] uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
             <th className="px-3 py-1.5 text-left font-medium">Mã PR</th>
             <th className="px-3 py-1.5 text-left font-medium">Tiêu đề</th>
             <th className="px-3 py-1.5 text-left font-medium">Nguồn</th>
@@ -174,16 +174,16 @@ export function ProcurementPanel({
             <th className="px-3 py-1.5 w-8" />
           </tr>
         </thead>
-        <tbody className="divide-y divide-zinc-100">
+        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
           {rows.map((row) => (
-            <tr key={row.id} className="h-8 hover:bg-zinc-50">
-              <td className="px-3 font-mono text-[11px] font-semibold text-indigo-600">
+            <tr key={row.id} className="h-8 hover:bg-zinc-50 dark:hover:bg-zinc-800/60">
+              <td className="px-3 font-mono text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">
                 {row.code}
               </td>
-              <td className="px-3 text-zinc-700">
-                {row.title ?? <span className="text-zinc-400">—</span>}
+              <td className="px-3 text-zinc-700 dark:text-zinc-300">
+                {row.title ?? <span className="text-zinc-400 dark:text-zinc-500">—</span>}
               </td>
-              <td className="px-3 text-[10px] uppercase tracking-wide text-zinc-500">
+              <td className="px-3 text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                 {row.source}
               </td>
               <td className="px-3">
@@ -193,13 +193,13 @@ export function ProcurementPanel({
                   label={PR_STATUS_LABELS[row.status]}
                 />
               </td>
-              <td className="px-3 text-zinc-500">
+              <td className="px-3 text-zinc-500 dark:text-zinc-400">
                 {formatDate(row.createdAt, "dd/MM/yyyy")}
               </td>
               <td className="px-1">
                 <Link
                   href={`/procurement/purchase-requests/${row.id}`}
-                  className="inline-flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-indigo-600"
+                  className="inline-flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-indigo-600 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-indigo-400"
                   title="Mở chi tiết PR"
                 >
                   <ExternalLink className="h-3 w-3" aria-hidden />
@@ -230,10 +230,10 @@ export function ProcurementPanel({
     }
     if (rows.length === 0) {
       return (
-        <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-xs text-zinc-500">
-          <Package className="h-5 w-5 text-zinc-300" aria-hidden />
+        <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-xs text-zinc-500 dark:text-zinc-400">
+          <Package className="h-5 w-5 text-zinc-300 dark:text-zinc-600" aria-hidden />
           <span>Chưa có Purchase Order gắn với BOM này.</span>
-          <span className="text-[10px] text-zinc-400">
+          <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
             PO thường được sinh từ PR đã APPROVED → CONVERT.
           </span>
         </div>
@@ -241,8 +241,8 @@ export function ProcurementPanel({
     }
     return (
       <table className="w-full text-xs">
-        <thead className="sticky top-0 z-10 bg-zinc-50/80 backdrop-blur-sm">
-          <tr className="border-b border-zinc-200 text-[10px] uppercase tracking-wide text-zinc-500">
+        <thead className="sticky top-0 z-10 bg-zinc-50/80 backdrop-blur-sm dark:bg-zinc-800/60">
+          <tr className="border-b border-zinc-200 text-[10px] uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
             <th className="px-3 py-1.5 text-left font-medium">Mã PO</th>
             <th className="px-3 py-1.5 text-left font-medium">NCC</th>
             <th className="px-3 py-1.5 text-left font-medium">Trạng thái</th>
@@ -251,15 +251,15 @@ export function ProcurementPanel({
             <th className="px-3 py-1.5 w-8" />
           </tr>
         </thead>
-        <tbody className="divide-y divide-zinc-100">
+        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
           {rows.map((row) => (
-            <tr key={row.id} className="h-8 hover:bg-zinc-50">
-              <td className="px-3 font-mono text-[11px] font-semibold text-indigo-600">
+            <tr key={row.id} className="h-8 hover:bg-zinc-50 dark:hover:bg-zinc-800/60">
+              <td className="px-3 font-mono text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">
                 {row.poNo}
               </td>
-              <td className="px-3 text-zinc-700">
+              <td className="px-3 text-zinc-700 dark:text-zinc-300">
                 {row.supplierName ?? (
-                  <span className="text-zinc-400">—</span>
+                  <span className="text-zinc-400 dark:text-zinc-500">—</span>
                 )}
               </td>
               <td className="px-3">
@@ -269,21 +269,21 @@ export function ProcurementPanel({
                   label={PO_STATUS_LABELS[row.status]}
                 />
               </td>
-              <td className="px-3 text-zinc-500">
+              <td className="px-3 text-zinc-500 dark:text-zinc-400">
                 {row.expectedEta
                   ? formatDate(row.expectedEta, "dd/MM/yyyy")
                   : "—"}
               </td>
-              <td className="px-3 text-right font-mono tabular-nums text-zinc-700">
+              <td className="px-3 text-right font-mono tabular-nums text-zinc-700 dark:text-zinc-300">
                 {Number(row.totalAmount ?? 0).toLocaleString("vi-VN")}{" "}
-                <span className="text-[10px] text-zinc-400">
+                <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
                   {row.currency}
                 </span>
               </td>
               <td className="px-1">
                 <Link
                   href={`/procurement/purchase-orders/${row.id}`}
-                  className="inline-flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-indigo-600"
+                  className="inline-flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-indigo-600 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-indigo-400"
                   title="Mở chi tiết PO"
                 >
                   <ExternalLink className="h-3 w-3" aria-hidden />

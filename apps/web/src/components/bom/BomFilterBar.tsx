@@ -45,11 +45,11 @@ export function BomFilterBar({
   ];
 
   return (
-    <div className="border-b border-zinc-200 bg-white px-4 py-2">
+    <div className="border-b border-zinc-200 bg-white px-4 py-2 dark:border-zinc-800 dark:bg-zinc-900">
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative">
           <Search
-            className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400"
+            className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400 dark:text-zinc-500"
             aria-hidden="true"
           />
           <Input
@@ -71,7 +71,7 @@ export function BomFilterBar({
         <div
           role="radiogroup"
           aria-label="Lọc theo trạng thái"
-          className="inline-flex h-8 items-center rounded-md border border-zinc-200 bg-white p-0.5"
+          className="inline-flex h-8 items-center rounded-md border border-zinc-200 bg-white p-0.5 dark:border-zinc-700 dark:bg-zinc-900"
         >
           {segments.map((opt) => {
             const isActive = state.statusMode === opt.v;
@@ -86,8 +86,8 @@ export function BomFilterBar({
                   "inline-flex h-7 items-center rounded-sm px-2.5 text-base font-medium transition-colors",
                   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-0",
                   isActive
-                    ? "bg-zinc-900 text-white"
-                    : "text-zinc-600 hover:text-zinc-900",
+                    ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                    : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50",
                 )}
               >
                 {opt.label}
@@ -96,11 +96,11 @@ export function BomFilterBar({
           })}
         </div>
 
-        <div className="ml-auto flex items-center gap-3 text-sm text-zinc-500">
+        <div className="ml-auto flex items-center gap-3 text-sm text-zinc-500 dark:text-zinc-400">
           {totalCount !== undefined && (
             <span className="tabular-nums">
               Tổng:{" "}
-              <span className="font-medium text-zinc-900">
+              <span className="font-medium text-zinc-900 dark:text-zinc-50">
                 {totalCount.toLocaleString("vi-VN")}
               </span>
             </span>
@@ -109,7 +109,7 @@ export function BomFilterBar({
             <button
               type="button"
               onClick={onReset}
-              className="text-sm font-medium text-blue-600 transition-colors hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2"
+              className="text-sm font-medium text-blue-600 transition-colors hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2 dark:text-blue-400 dark:hover:text-blue-300"
             >
               Xoá bộ lọc
             </button>

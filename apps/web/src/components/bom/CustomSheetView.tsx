@@ -58,11 +58,11 @@ export function CustomSheetView({
     <div className="flex h-full flex-col gap-3 p-3">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="flex items-center gap-1.5 text-base font-semibold text-zinc-900">
-            <FileEdit className="h-4 w-4 text-zinc-600" aria-hidden="true" />
+          <h2 className="flex items-center gap-1.5 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+            <FileEdit className="h-4 w-4 text-zinc-600 dark:text-zinc-400" aria-hidden="true" />
             {sheet.name}
           </h2>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
             Sheet tuỳ chỉnh — ghi chú, hướng dẫn, đặc tả khách hàng. Hỗ trợ
             markdown cơ bản (preview render Sprint 7).
           </p>
@@ -85,7 +85,7 @@ export function CustomSheetView({
         ) : null}
       </div>
 
-      <div className="flex-1 overflow-hidden rounded-md border border-zinc-200 bg-white">
+      <div className="flex-1 overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
         <textarea
           value={content}
           onChange={(e) => {
@@ -98,12 +98,12 @@ export function CustomSheetView({
               : "Nhập nội dung sheet ở đây…\n\nVí dụ:\n## Hướng dẫn lắp\n1. Bước 1: ...\n2. Bước 2: ...\n\n## Ghi chú khách\n- Yêu cầu đặc biệt: ..."
           }
           disabled={readOnly}
-          className="h-full w-full resize-none border-0 bg-transparent p-4 font-mono text-sm leading-relaxed text-zinc-800 outline-none focus:ring-0 disabled:cursor-not-allowed disabled:bg-zinc-50"
+          className="h-full w-full resize-none border-0 bg-transparent p-4 font-mono text-sm leading-relaxed text-zinc-800 outline-none focus:ring-0 disabled:cursor-not-allowed disabled:bg-zinc-50 dark:text-zinc-200 dark:disabled:bg-zinc-800/60"
           spellCheck={false}
         />
       </div>
 
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">
         💡 Mẹo: dùng `# Tiêu đề`, `**đậm**`, `- list` để format khi Sprint 7
         bật markdown render.
       </p>
