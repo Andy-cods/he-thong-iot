@@ -25,8 +25,15 @@ export interface ListRequestsQuery {
   status?: MaterialRequestStatus[];
   requestedBy?: string;
   bomTemplateId?: string;
+  /** V3.13 — lọc phiếu theo đúng 1 ngày (`YYYY-MM-DD`, giờ Asia/Ho_Chi_Minh). */
+  date?: string;
   page: number;
   pageSize: number;
+}
+
+/** V3.13 — WHERE created_at (giờ +07) rơi vào đúng ngày `YYYY-MM-DD`. */
+function dayFilter(date: string): SQL {
+  return sql`(${materialRequest.createdAt} AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = ${date}::date`;
 }
 
 export async function listMaterialRequests(q: ListRequestsQuery) {
@@ -39,6 +46,9 @@ export async function listMaterialRequests(q: ListRequestsQuery) {
   }
   if (q.bomTemplateId) {
     where.push(eq(materialRequest.bomTemplateId, q.bomTemplateId));
+  }
+  if (q.date) {
+    where.push(dayFilter(q.date));
   }
 
   const whereExpr = where.length > 0 ? and(...where) : sql`true`;
@@ -96,6 +106,55 @@ export async function listMaterialRequests(q: ListRequestsQuery) {
     rows: rows.map((r) => ({ ...r, lineCount: lineCountsMap[r.id] ?? 0 })),
     total: totalRow[0]?.count ?? 0,
   };
+}
+
+export interface MaterialRequestDayBucket {
+  day: string;
+  count: number;
+  statuses: Record<MaterialRequestStatus, number>;
+}
+
+/**
+ * V3.13 — Gom số phiếu theo ngày (giờ +07) để dựng "thư mục ngày". Trả 1 dòng
+ * mỗi ngày kèm tách nhỏ theo trạng thái. Dữ liệu nhỏ (1 dòng/ngày) → client gom
+ * tiếp thành tháng.
+ */
+export async function listMaterialRequestDayBuckets(q: {
+  requestedBy?: string;
+}): Promise<MaterialRequestDayBucket[]> {
+  const where: SQL[] = [];
+  if (q.requestedBy) {
+    where.push(eq(materialRequest.requestedBy, q.requestedBy));
+  }
+  const whereExpr = where.length > 0 ? and(...where) : sql`true`;
+  const dayExpr = sql<string>`to_char(${materialRequest.createdAt} AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD')`;
+
+  const rows = await db
+    .select({
+      day: dayExpr,
+      count: sql<number>`count(*)::int`,
+      pending: sql<number>`count(*) filter (where ${materialRequest.status} = 'PENDING')::int`,
+      picking: sql<number>`count(*) filter (where ${materialRequest.status} = 'PICKING')::int`,
+      ready: sql<number>`count(*) filter (where ${materialRequest.status} = 'READY')::int`,
+      delivered: sql<number>`count(*) filter (where ${materialRequest.status} = 'DELIVERED')::int`,
+      cancelled: sql<number>`count(*) filter (where ${materialRequest.status} = 'CANCELLED')::int`,
+    })
+    .from(materialRequest)
+    .where(whereExpr)
+    .groupBy(dayExpr)
+    .orderBy(desc(dayExpr));
+
+  return rows.map((r) => ({
+    day: r.day,
+    count: r.count,
+    statuses: {
+      PENDING: r.pending,
+      PICKING: r.picking,
+      READY: r.ready,
+      DELIVERED: r.delivered,
+      CANCELLED: r.cancelled,
+    },
+  }));
 }
 
 export async function getMaterialRequest(id: string) {

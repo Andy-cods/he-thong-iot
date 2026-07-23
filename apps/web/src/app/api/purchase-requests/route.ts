@@ -1,7 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prCreateSchema, prListQuerySchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
-import { createPR, listPRs, submitPR } from "@/server/repos/purchaseRequests";
+import {
+  createPR,
+  listPRs,
+  listPRDayBuckets,
+  submitPR,
+} from "@/server/repos/purchaseRequests";
 import {
   extractRequestMeta,
   jsonError,
@@ -33,11 +38,20 @@ export async function GET(req: NextRequest) {
     // để không cho tự đọc phiếu người khác qua ?requestedBy=. admin/planner/
     // purchaser/warehouse/accountant (canViewAllPRs) xem tất cả.
     const viewAll = canViewAllPRs(guard.session.roles);
+    const scopedRequestedBy = viewAll ? q.data.requestedBy : guard.session.userId;
+
+    // V3.13 — nhánh "thư mục ngày": trả các bucket theo ngày (giờ +07).
+    if (new URL(req.url).searchParams.get("view") === "calendar") {
+      const days = await listPRDayBuckets({ requestedBy: scopedRequestedBy });
+      return NextResponse.json({ days });
+    }
+
     const result = await listPRs({
       status: q.data.status,
       linkedOrderId: q.data.linkedOrderId,
       bomTemplateId: q.data.bomTemplateId,
-      requestedBy: viewAll ? q.data.requestedBy : guard.session.userId,
+      requestedBy: scopedRequestedBy,
+      date: q.data.date,
       page: q.data.page,
       pageSize: q.data.pageSize,
     });

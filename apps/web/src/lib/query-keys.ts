@@ -266,6 +266,8 @@ export interface PRFilter {
   /** V1.8 — filter PR theo BOM (JOIN via sales_order.bom_template_id). */
   bomTemplateId?: string;
   requestedBy?: string;
+  /** V3.13 — lọc phiếu theo đúng 1 ngày (`YYYY-MM-DD`). */
+  date?: string;
   page?: number;
   pageSize?: number;
 }

@@ -196,6 +196,11 @@ export const prListQuerySchema = z.object({
   /** V1.8 — filter PR theo BOM (JOIN qua sales_order.bom_template_id). */
   bomTemplateId: uuid.optional(),
   requestedBy: uuid.optional(),
+  /** V3.13 — lọc phiếu theo đúng 1 ngày (`YYYY-MM-DD`, giờ Asia/Ho_Chi_Minh). */
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
   q: z.string().trim().max(120).optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(200).default(50),

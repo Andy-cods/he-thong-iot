@@ -144,6 +144,7 @@ function buildListUrl(f: PRFilter): string {
   if (f.linkedOrderId) p.set("linkedOrderId", f.linkedOrderId);
   if (f.bomTemplateId) p.set("bomTemplateId", f.bomTemplateId);
   if (f.requestedBy) p.set("requestedBy", f.requestedBy);
+  if (f.date) p.set("date", f.date);
   if (f.page) p.set("page", String(f.page));
   if (f.pageSize) p.set("pageSize", String(f.pageSize));
   for (const s of f.status ?? []) p.append("status", s);
@@ -156,6 +157,27 @@ export function usePurchaseRequestsList(filter: PRFilter) {
     queryFn: () => request<PRListResponse>(buildListUrl(filter)),
     staleTime: 30_000,
     placeholderData: (prev) => prev,
+  });
+}
+
+/**
+ * V3.13 — Các "bucket" theo ngày cho kho lưu trữ thư mục ngày.
+ * `scope`: "mine" | "all" (all = phụ thuộc RBAC canViewAllPRs ở server).
+ */
+export interface PRDayBucketResponse {
+  days: {
+    day: string;
+    count: number;
+    statuses: Record<string, number>;
+  }[];
+}
+
+export function usePurchaseRequestsCalendar() {
+  return useQuery({
+    queryKey: ["procurement", "requests", "calendar"],
+    queryFn: () =>
+      request<PRDayBucketResponse>("/api/purchase-requests?view=calendar"),
+    staleTime: 30_000,
   });
 }
 

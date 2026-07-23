@@ -26,6 +26,8 @@ export interface ListPRsQuery {
   /** V1.8 — filter PR theo BOM (JOIN qua sales_order.bom_template_id). */
   bomTemplateId?: string;
   requestedBy?: string;
+  /** V3.13 — lọc phiếu theo đúng 1 ngày (`YYYY-MM-DD`, giờ Asia/Ho_Chi_Minh). */
+  date?: string;
   page: number;
   pageSize: number;
 }
@@ -47,6 +49,11 @@ export async function listPRs(q: ListPRsQuery): Promise<ListPRsResult> {
   }
   if (q.linkedOrderId) where.push(eq(purchaseRequest.linkedOrderId, q.linkedOrderId));
   if (q.requestedBy) where.push(eq(purchaseRequest.requestedBy, q.requestedBy));
+  if (q.date) {
+    where.push(
+      sql`(${purchaseRequest.createdAt} AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = ${q.date}::date`,
+    );
+  }
   if (q.bomTemplateId) {
     // V1.8 — PR.linked_order_id → sales_order.bom_template_id. PR manual không
     // gắn linked_order_id sẽ không lọt vào workspace scope — đúng ý đồ.
@@ -78,6 +85,52 @@ export async function listPRs(q: ListPRsQuery): Promise<ListPRsResult> {
     rows: rows.map((r) => r.pr),
     total: totalResult[0]?.count ?? 0,
   };
+}
+
+export interface PRDayBucket {
+  day: string;
+  count: number;
+  statuses: Record<PurchaseRequestStatus, number>;
+}
+
+/**
+ * V3.13 — Gom số phiếu PR theo ngày (giờ +07) để dựng "thư mục ngày".
+ * requestedBy: giới hạn theo ownership (operator/qc chỉ thấy phiếu mình tạo).
+ */
+export async function listPRDayBuckets(q: {
+  requestedBy?: string;
+}): Promise<PRDayBucket[]> {
+  const where: SQL[] = [];
+  if (q.requestedBy) where.push(eq(purchaseRequest.requestedBy, q.requestedBy));
+  const whereExpr = where.length > 0 ? and(...where) : sql`true`;
+  const dayExpr = sql<string>`to_char(${purchaseRequest.createdAt} AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD')`;
+
+  const rows = await db
+    .select({
+      day: dayExpr,
+      count: sql<number>`count(*)::int`,
+      draft: sql<number>`count(*) filter (where ${purchaseRequest.status} = 'DRAFT')::int`,
+      submitted: sql<number>`count(*) filter (where ${purchaseRequest.status} = 'SUBMITTED')::int`,
+      approved: sql<number>`count(*) filter (where ${purchaseRequest.status} = 'APPROVED')::int`,
+      converted: sql<number>`count(*) filter (where ${purchaseRequest.status} = 'CONVERTED')::int`,
+      rejected: sql<number>`count(*) filter (where ${purchaseRequest.status} = 'REJECTED')::int`,
+    })
+    .from(purchaseRequest)
+    .where(whereExpr)
+    .groupBy(dayExpr)
+    .orderBy(desc(dayExpr));
+
+  return rows.map((r) => ({
+    day: r.day,
+    count: r.count,
+    statuses: {
+      DRAFT: r.draft,
+      SUBMITTED: r.submitted,
+      APPROVED: r.approved,
+      CONVERTED: r.converted,
+      REJECTED: r.rejected,
+    },
+  }));
 }
 
 export async function getPR(id: string): Promise<PurchaseRequest | null> {

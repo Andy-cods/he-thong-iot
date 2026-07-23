@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   createMaterialRequest,
   listMaterialRequests,
+  listMaterialRequestDayBuckets,
   type MaterialRequestStatus,
 } from "@/server/repos/materialRequests";
 import { jsonError, parseJson } from "@/server/http";
@@ -44,19 +45,30 @@ export async function GET(req: NextRequest) {
   const requestedBy = url.searchParams.get("requestedBy");
   const bomTemplateId = url.searchParams.get("bomTemplateId");
   const myOnly = url.searchParams.get("mine") === "1";
+  const dateParam = url.searchParams.get("date");
+  const date = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : undefined;
   const page = Math.max(1, Number(url.searchParams.get("page") ?? "1"));
   const pageSize = Math.min(
     100,
     Math.max(1, Number(url.searchParams.get("pageSize") ?? "30")),
   );
 
+  const scopedRequestedBy = myOnly ? guard.session.userId : requestedBy ?? undefined;
+
   try {
+    // V3.13 — nhánh "thư mục ngày": trả các bucket theo ngày (giờ +07).
+    if (url.searchParams.get("view") === "calendar") {
+      const days = await listMaterialRequestDayBuckets({
+        requestedBy: scopedRequestedBy,
+      });
+      return NextResponse.json({ days });
+    }
+
     const result = await listMaterialRequests({
       status: statusParams.length > 0 ? statusParams : undefined,
-      requestedBy: myOnly
-        ? guard.session.userId
-        : requestedBy ?? undefined,
+      requestedBy: scopedRequestedBy,
       bomTemplateId: bomTemplateId ?? undefined,
+      date,
       page,
       pageSize,
     });
