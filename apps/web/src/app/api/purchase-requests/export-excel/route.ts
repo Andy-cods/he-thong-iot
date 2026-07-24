@@ -1,34 +1,103 @@
 import { type NextRequest } from "next/server";
 import { PR_STATUS_LABELS, type PRStatus } from "@iot/shared";
 import { logger } from "@/lib/logger";
-import { listPRsInRange } from "@/server/repos/purchaseRequests";
+import { listPRsInRange, type PRSlip } from "@/server/repos/purchaseRequests";
 import { jsonError } from "@/server/http";
 import { canViewAllPRs } from "@/server/services/prAccess";
 import { requireCan } from "@/server/session";
+import { formatVNDateTime } from "@/server/services/batchSlipsExcel";
 import {
-  buildSlipsWorkbook,
-  formatVNDateTime,
-  type SlipSheet,
-  type SummaryTable,
-} from "@/server/services/batchSlipsExcel";
+  buildPrTemplateWorkbook,
+  type PrSheetInput,
+  type PrSummary,
+} from "@/server/services/batchPrTemplateExcel";
+import type { YcvtExportData } from "@/server/services/ycvtExportExcel";
+import type { DnvtExportData } from "@/server/services/dnvtExportExcel";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Nhãn ưu tiên dòng — trùng mapping với ycvtExportExcel.ts (không export dùng chung để tránh coupling 2 module xuất file). */
-const PRIORITY_LABEL: Record<string, string> = {
-  URGENT: "Khẩn",
-  NORMAL: "Bình thường",
-  RESERVE: "Dự phòng",
-};
+const num = (v: string | null): number | null => (v != null ? Number(v) : null);
+const dt = (v: Date | string | null | undefined): Date | null =>
+  v ? new Date(v) : null;
+
+/** V3.15 — Map 1 PR (kèm lines + tên người duyệt) → data cho template YCVT. */
+function toYcvtData(s: PRSlip): YcvtExportData {
+  return {
+    paperFormNo: s.paperFormNo ?? s.code,
+    createdAt: new Date(s.createdAt),
+    targetDepartment: s.targetDepartment ?? null,
+    proposingDepartment: s.proposingDepartment ?? null,
+    requestedByName: s.requestedByName,
+    requestReason: s.requestReason ?? null,
+    lines: s.lines.map((l) => ({
+      lineNo: l.lineNo,
+      sku: l.sku,
+      name: l.name,
+      specification: l.specification,
+      uom: l.uom,
+      qty: Number(l.qty) || 0,
+      onHandSnapshot: num(l.onHandSnapshot),
+      approvedQty: num(l.approvedQty),
+      neededBy: l.neededBy,
+      priority: l.priority,
+      category: l.category,
+      estimatedUnitPrice: num(l.estimatedUnitPrice),
+      referenceCode: l.referenceCode,
+      notes: l.notes,
+    })),
+    deptApprovedByName: s.deptApprovedByName,
+    deptApprovedAt: dt(s.deptApprovedAt),
+    deptApprovalNote: s.deptApprovalNote ?? null,
+    directorApprovedByName: s.directorApprovedByName,
+    directorApprovedAt: dt(s.directorApprovedAt),
+    directorApprovalNote: s.directorApprovalNote ?? null,
+    poCreatedAt: dt(s.poCreatedAt),
+    goodsReceivedAt: dt(s.goodsReceivedAt),
+    goodsIssuedAt: dt(s.goodsIssuedAt),
+    completedAt: dt(s.completedAt),
+  };
+}
+
+/** V3.15 — Map 1 PR → data cho template DNVT (mẫu giấy GTAM). */
+function toDnvtData(s: PRSlip): DnvtExportData {
+  return {
+    paperFormNo: s.paperFormNo ?? s.code,
+    createdAt: new Date(s.createdAt),
+    targetDepartment: s.targetDepartment ?? null,
+    proposingDepartment: s.proposingDepartment ?? null,
+    requestedByName: s.requestedByName,
+    requestReason: s.requestReason ?? null,
+    lines: s.lines.map((l) => ({
+      lineNo: l.lineNo,
+      name: l.name,
+      specification: l.specification,
+      uom: l.uom,
+      qty: Number(l.qty) || 0,
+      onHandSnapshot: num(l.onHandSnapshot),
+      approvedQty: num(l.approvedQty),
+      neededBy: l.neededBy,
+      priority: l.priority,
+      category: l.category,
+      referenceCode: l.referenceCode,
+      referenceNote: l.referenceNote,
+      notes: l.notes,
+      deliveryDate: l.deliveryDate,
+    })),
+    deptApprovedByName: s.deptApprovedByName,
+    deptApprovedAt: dt(s.deptApprovedAt),
+    directorApprovedByName: s.directorApprovedByName,
+    directorApprovedAt: dt(s.directorApprovedAt),
+  };
+}
 
 /**
- * V3.14 — GET /api/purchase-requests/export-excel?from=YYYY-MM-DD&to=YYYY-MM-DD
- * Xuất toàn bộ PR (YCVT/MRF/DNVT) tạo trong khoảng [from, to] (giờ +07):
- * 1 sheet "Tổng hợp" + mỗi phiếu 1 sheet chi tiết. Scope theo RBAC — chỉ role
- * canViewAllPRs mới thấy phiếu của người khác (giống GET /api/purchase-requests).
+ * V3.15 — GET /api/purchase-requests/export-excel?from=YYYY-MM-DD&to=YYYY-MM-DD
+ * Xuất toàn bộ PR tạo trong khoảng [from, to] (giờ +07) ra 1 file Excel: sheet
+ * "Tổng hợp" + MỖI PHIẾU 1 SHEET, mỗi sheet giữ nguyên bố cục phiếu gốc
+ * (YCVT/MRF hoặc DNVT theo formType). Scope theo RBAC canViewAllPRs.
  */
 export async function GET(req: NextRequest) {
   const guard = await requireCan(req, "read", "pr");
@@ -51,7 +120,7 @@ export async function GET(req: NextRequest) {
   try {
     const slipsData = await listPRsInRange({ from, to, requestedBy });
 
-    const summary: SummaryTable = {
+    const summary: PrSummary = {
       columns: [
         { header: "Mã phiếu", width: 20 },
         { header: "Ngày tạo", width: 18 },
@@ -63,52 +132,31 @@ export async function GET(req: NextRequest) {
       rows: slipsData.map((s) => [
         s.paperFormNo ?? s.code,
         formatVNDateTime(new Date(s.createdAt)),
-        s.formType,
+        s.formType ?? "MRF",
         PR_STATUS_LABELS[s.status as PRStatus] ?? s.status,
         s.requestedByName || "—",
         s.lines.length,
       ]),
     };
 
-    const slips: SlipSheet[] = slipsData.map((s) => ({
-      sheetName: s.paperFormNo ?? s.code,
-      title: `ĐỀ XUẤT MUA VẬT TƯ — ${s.paperFormNo ?? s.code}`,
-      info: [
-        ["Loại phiếu", s.formType],
-        ["Trạng thái", PR_STATUS_LABELS[s.status as PRStatus] ?? s.status],
-        ["Người đề xuất", s.requestedByName || "—"],
-        ["Bộ phận đề xuất", s.proposingDepartment || "—"],
-        ["Ngày tạo", formatVNDateTime(new Date(s.createdAt))],
-        ["Lý do", s.requestReason || "—"],
-      ],
-      columns: [
-        { header: "STT", width: 6 },
-        { header: "Mã VT", width: 18 },
-        { header: "Tên vật tư", width: 40 },
-        { header: "Quy cách", width: 24 },
-        { header: "ĐVT", width: 8 },
-        { header: "SL", width: 10 },
-        { header: "Ưu tiên", width: 12 },
-        { header: "Đơn giá", width: 14 },
-        { header: "Ghi chú", width: 28 },
-      ],
-      rows: s.lines.map((l) => [
-        l.lineNo,
-        l.sku ?? "—",
-        l.name ?? "—",
-        l.specification ?? "—",
-        l.uom ?? "—",
-        Number(l.qty),
-        (l.priority && PRIORITY_LABEL[l.priority]) || l.priority || "—",
-        l.estimatedUnitPrice != null ? Number(l.estimatedUnitPrice) : null,
-        l.notes ?? "",
-      ]),
-    }));
+    const sheets: PrSheetInput[] = slipsData.map((s) =>
+      s.formType === "DNVT"
+        ? {
+            kind: "dnvt",
+            sheetName: s.paperFormNo ?? s.code,
+            data: toDnvtData(s),
+          }
+        : {
+            kind: "ycvt",
+            sheetName: s.paperFormNo ?? s.code,
+            data: toYcvtData(s),
+          },
+    );
 
-    const buf = await buildSlipsWorkbook({
+    const buf = await buildPrTemplateWorkbook({
       workbookTitle: `Đề xuất mua vật tư ${from} – ${to}`,
       summary,
-      slips,
+      sheets,
     });
 
     const filename = `DeXuatVatTu_${from}_den_${to}.xlsx`;
@@ -127,7 +175,7 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (err) {
-    logger.error({ err }, "purchase-requests export-excel failed");
+    logger.error({ err }, "purchase-requests export-excel (template) failed");
     return jsonError("INTERNAL", "Không xuất được file Excel.", 500);
   }
 }

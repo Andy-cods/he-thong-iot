@@ -148,11 +148,21 @@ export interface PRSlipLine {
   category: string | null;
   estimatedUnitPrice: string | null;
   notes: string | null;
+  // V3.15 — bổ sung để render đúng template phiếu gốc (YCVT/DNVT).
+  onHandSnapshot: string | null;
+  approvedQty: string | null;
+  neededBy: string | null;
+  referenceCode: string | null;
+  referenceNote: string | null;
+  deliveryDate: string | null;
 }
 
 export interface PRSlip extends PurchaseRequest {
   lines: PRSlipLine[];
   requestedByName: string | null;
+  // V3.15 — tên người duyệt để điền mục III template phiếu gốc.
+  deptApprovedByName: string | null;
+  directorApprovedByName: string | null;
 }
 
 /**
@@ -198,6 +208,12 @@ export async function listPRsInRange(q: {
         category: purchaseRequestLine.category,
         estimatedUnitPrice: purchaseRequestLine.estimatedUnitPrice,
         notes: purchaseRequestLine.notes,
+        onHandSnapshot: purchaseRequestLine.onHandSnapshot,
+        approvedQty: purchaseRequestLine.approvedQty,
+        neededBy: purchaseRequestLine.neededBy,
+        referenceCode: purchaseRequestLine.referenceCode,
+        referenceNote: purchaseRequestLine.referenceNote,
+        deliveryDate: purchaseRequestLine.deliveryDate,
       })
       .from(purchaseRequestLine)
       .leftJoin(item, eq(item.id, purchaseRequestLine.itemId))
@@ -216,14 +232,23 @@ export async function listPRsInRange(q: {
         category: l.category,
         estimatedUnitPrice: l.estimatedUnitPrice,
         notes: l.notes,
+        onHandSnapshot: l.onHandSnapshot,
+        approvedQty: l.approvedQty,
+        neededBy: l.neededBy,
+        referenceCode: l.referenceCode,
+        referenceNote: l.referenceNote,
+        deliveryDate: l.deliveryDate,
       });
       linesByPr.set(l.prId, arr);
     }
   }
 
+  // Resolve tên cho requester + trưởng bộ phận + giám đốc (1 query bulk).
   const userIds = Array.from(
     new Set(
-      headers.map((h) => h.requestedBy).filter((id): id is string => !!id),
+      headers
+        .flatMap((h) => [h.requestedBy, h.deptApprovedBy, h.directorApprovedBy])
+        .filter((id): id is string => !!id),
     ),
   );
   const userMap = new Map<string, string>();
@@ -243,6 +268,12 @@ export async function listPRsInRange(q: {
     ...h,
     lines: linesByPr.get(h.id) ?? [],
     requestedByName: h.requestedBy ? userMap.get(h.requestedBy) ?? null : null,
+    deptApprovedByName: h.deptApprovedBy
+      ? userMap.get(h.deptApprovedBy) ?? null
+      : null,
+    directorApprovedByName: h.directorApprovedBy
+      ? userMap.get(h.directorApprovedBy) ?? null
+      : null,
   }));
 }
 

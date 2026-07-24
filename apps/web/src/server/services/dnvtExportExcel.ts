@@ -118,31 +118,38 @@ function fmtDateVN(d: Date | string | null | undefined): string {
   });
 }
 
+/** V3.15 — Template + sheet name export dùng chung cho batch (mỗi phiếu 1 sheet). */
+export const DNVT_TEMPLATE_SHEET = "Phiếu DNVT";
+export async function getDnvtTemplateBuffer(): Promise<Buffer> {
+  return loadTemplateBuffer();
+}
+
 /**
- * Build Excel buffer cho DNVT export. Clone template + fill data. Trả Uint8Array.
+ * V3.15 — Nhúng logo GTAM (box A1:B4) vào 1 worksheet. Tách riêng để batch add
+ * lại logo cho từng sheet SAU khi copy model (ảnh không đi theo model).
  */
-export async function buildDnvtExcel(data: DnvtExportData): Promise<Uint8Array> {
-  const buf = await loadTemplateBuffer();
-  const wb = new ExcelJS.Workbook();
-  await wb.xlsx.load(buf as unknown as ArrayBuffer);
-
-  const ws = wb.getWorksheet("Phiếu DNVT");
-  if (!ws) throw new Error("DNVT_TEMPLATE_INVALID: missing 'Phiếu DNVT' sheet");
-
-  // Logo GTAM góc trái header (box A1:B4).
+export async function addDnvtLogo(
+  wb: ExcelJS.Workbook,
+  ws: ExcelJS.Worksheet,
+): Promise<void> {
   const logoBuf = await loadLogoBuffer();
-  if (logoBuf) {
-    const imageId = wb.addImage({
-      buffer: logoBuf as unknown as ExcelJS.Buffer,
-      extension: "png",
-    });
-    ws.addImage(imageId, {
-      tl: { col: 0.1, row: 0.15 },
-      br: { col: 2, row: 3.6 },
-      editAs: "oneCell",
-    } as unknown as Parameters<typeof ws.addImage>[1]);
-  }
+  if (!logoBuf) return;
+  const imageId = wb.addImage({
+    buffer: logoBuf as unknown as ExcelJS.Buffer,
+    extension: "png",
+  });
+  ws.addImage(imageId, {
+    tl: { col: 0.1, row: 0.15 },
+    br: { col: 2, row: 3.6 },
+    editAs: "oneCell",
+  } as unknown as Parameters<typeof ws.addImage>[1]);
+}
 
+/**
+ * V3.15 — Fill dữ liệu DNVT vào 1 worksheet template (KHÔNG động logo). Dùng
+ * chung cho export 1 phiếu + export nhiều phiếu 1 sheet.
+ */
+export function fillDnvtCells(ws: ExcelJS.Worksheet, data: DnvtExportData): void {
   // Header
   ws.getCell("L2").value = data.paperFormNo;
   ws.getCell("L3").value = data.createdAt; // ExcelJS Date → numeric (fmt dd/mm/yyyy)
@@ -186,6 +193,22 @@ export async function buildDnvtExcel(data: DnvtExportData): Promise<Uint8Array> 
     ws.getCell("C41").value = data.directorApprovedByName;
     ws.getCell("I41").value = fmtDateVN(data.directorApprovedAt);
   }
+}
+
+/**
+ * Build Excel buffer cho DNVT export 1 phiếu. Clone template + logo + fill.
+ * Trả Uint8Array.
+ */
+export async function buildDnvtExcel(data: DnvtExportData): Promise<Uint8Array> {
+  const buf = await loadTemplateBuffer();
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(buf as unknown as ArrayBuffer);
+
+  const ws = wb.getWorksheet(DNVT_TEMPLATE_SHEET);
+  if (!ws) throw new Error("DNVT_TEMPLATE_INVALID: missing 'Phiếu DNVT' sheet");
+
+  await addDnvtLogo(wb, ws);
+  fillDnvtCells(ws, data);
 
   const arrayBuf = await wb.xlsx.writeBuffer();
   return new Uint8Array(arrayBuf);

@@ -164,37 +164,39 @@ function fmtDateTimeVN(d: Date | string | null | undefined): string {
   });
 }
 
+/** V3.15 — Template + sheet name export dùng chung cho batch (mỗi phiếu 1 sheet). */
+export const YCVT_TEMPLATE_SHEET = "Phiếu MRF";
+export async function getYcvtTemplateBuffer(): Promise<Buffer> {
+  return loadTemplateBuffer();
+}
+
 /**
- * Build Excel buffer cho YCVT export. Clone template + fill data.
- * Trả về Uint8Array (compatible với both Buffer + BodyInit cho Response).
+ * V3.15 — Nhúng logo GTAM vào 1 worksheet (anchor B1:B4 — match template
+ * drawing1). Tách riêng để batch add lại logo cho từng sheet SAU khi copy model
+ * (ảnh không đi theo `worksheet.model`).
  */
-export async function buildYcvtExcel(data: YcvtExportData): Promise<Uint8Array> {
-  const buf = await loadTemplateBuffer();
-  const wb = new ExcelJS.Workbook();
-  // ExcelJS load() accepts ArrayBuffer or Buffer
-  await wb.xlsx.load(buf as unknown as ArrayBuffer);
-
-  const ws = wb.getWorksheet("Phiếu MRF");
-  if (!ws) throw new Error("YCVT_TEMPLATE_INVALID: missing 'Phiếu MRF' sheet");
-
-  // V3.7.69 — Embed logo GTAM ở góc trái header (anchor B1:B4 — match
-  // original template drawing1 anchor: col=1, row=0..3).
+export async function addYcvtLogo(
+  wb: ExcelJS.Workbook,
+  ws: ExcelJS.Worksheet,
+): Promise<void> {
   const logoBuf = await loadLogoBuffer();
-  if (logoBuf) {
-    const imageId = wb.addImage({
-      buffer: logoBuf as unknown as ExcelJS.Buffer,
-      extension: "png",
-    });
-    // Anchor logo vào vùng B1:B4 (col index 1..2 = column B, rows 0..3.6).
-    // ExcelJS type Anchor đầy đủ nhưng signature thực tế chấp nhận shorthand
-    // { col, row } — dùng cast để bypass TS strict.
-    ws.addImage(imageId, {
-      tl: { col: 1.05, row: 0.15 },
-      br: { col: 2, row: 3.6 },
-      editAs: "oneCell",
-    } as unknown as Parameters<typeof ws.addImage>[1]);
-  }
+  if (!logoBuf) return;
+  const imageId = wb.addImage({
+    buffer: logoBuf as unknown as ExcelJS.Buffer,
+    extension: "png",
+  });
+  ws.addImage(imageId, {
+    tl: { col: 1.05, row: 0.15 },
+    br: { col: 2, row: 3.6 },
+    editAs: "oneCell",
+  } as unknown as Parameters<typeof ws.addImage>[1]);
+}
 
+/**
+ * V3.15 — Fill dữ liệu YCVT vào 1 worksheet template (KHÔNG động logo). Dùng
+ * chung cho export 1 phiếu (buildYcvtExcel) + export nhiều phiếu 1 sheet.
+ */
+export function fillYcvtCells(ws: ExcelJS.Worksheet, data: YcvtExportData): void {
   // Header
   ws.getCell("O2").value = data.paperFormNo;
   ws.getCell("O3").value = data.createdAt; // ExcelJS handles Date → numeric
@@ -276,6 +278,22 @@ export async function buildYcvtExcel(data: YcvtExportData): Promise<Uint8Array> 
     ws.getCell("J48").value = fmtDateTimeVN(data.completedAt);
     ws.getCell("M48").value = "Phiếu hoàn tất";
   }
+}
+
+/**
+ * Build Excel buffer cho YCVT export 1 phiếu. Clone template + logo + fill.
+ * Trả về Uint8Array (compatible với both Buffer + BodyInit cho Response).
+ */
+export async function buildYcvtExcel(data: YcvtExportData): Promise<Uint8Array> {
+  const buf = await loadTemplateBuffer();
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(buf as unknown as ArrayBuffer);
+
+  const ws = wb.getWorksheet(YCVT_TEMPLATE_SHEET);
+  if (!ws) throw new Error("YCVT_TEMPLATE_INVALID: missing 'Phiếu MRF' sheet");
+
+  await addYcvtLogo(wb, ws);
+  fillYcvtCells(ws, data);
 
   const arrayBuf = await wb.xlsx.writeBuffer();
   return new Uint8Array(arrayBuf);
