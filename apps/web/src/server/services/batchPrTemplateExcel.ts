@@ -105,16 +105,46 @@ function buildSummarySheet(
 
 /**
  * Copy 1 worksheet template (đã fill) sang workbook đích, giữ nguyên bố cục.
+ *
+ * KHÔNG dùng `dest.model = src.model`: cách đó giữ NGUYÊN chỉ số style/shared-
+ * string thô của workbook nguồn → sang workbook đích chúng trỏ sai bảng style,
+ * Excel báo "unreadable content" và bỏ sheet. Thay vào đó copy TỪNG Ô
+ * (value + object style — ExcelJS tự đăng ký lại style vào bảng của workbook
+ * đích) + độ rộng cột + chiều cao hàng + merges + pageSetup, giống hệt cách
+ * build*Excel dựng file 1 phiếu (vốn Excel mở tốt).
  */
 function copyFilledSheet(
   master: ExcelJS.Workbook,
   src: ExcelJS.Worksheet,
   name: string,
 ): ExcelJS.Worksheet {
-  const merges = ((src.model as { merges?: string[] }).merges ?? []).slice();
   const dest = master.addWorksheet(name);
-  dest.model = src.model;
-  dest.name = name; // model mang theo tên gốc "Phiếu MRF/DNVT" → đặt lại
+
+  // Thuộc tính sheet + thiết lập in (khổ ngang, lề, vùng in).
+  dest.properties = { ...dest.properties, ...src.properties };
+  dest.pageSetup = { ...dest.pageSetup, ...src.pageSetup };
+  if (src.views) dest.views = src.views;
+
+  // Độ rộng / ẩn cột.
+  for (let c = 1; c <= src.columnCount; c++) {
+    const col = src.getColumn(c);
+    if (col.width != null) dest.getColumn(c).width = col.width;
+    if (col.hidden) dest.getColumn(c).hidden = true;
+  }
+
+  // Copy từng ô: value (kể cả công thức) + object style.
+  src.eachRow({ includeEmpty: true }, (row, r) => {
+    const destRow = dest.getRow(r);
+    if (row.height != null) destRow.height = row.height;
+    row.eachCell({ includeEmpty: true }, (cell, c) => {
+      const dc = destRow.getCell(c);
+      dc.value = cell.value;
+      dc.style = cell.style;
+    });
+  });
+
+  // Merges (đọc từ model của nguồn — mảng range dạng "A1:B2").
+  const merges = ((src.model as { merges?: string[] }).merges ?? []).slice();
   for (const m of merges) {
     try {
       dest.mergeCells(m);
