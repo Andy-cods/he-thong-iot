@@ -5,6 +5,7 @@ import {
   purchaseRequest,
   purchaseRequestLine,
   salesOrder,
+  userAccount,
 } from "@iot/db/schema";
 import type {
   PurchaseRequest,
@@ -130,6 +131,118 @@ export async function listPRDayBuckets(q: {
       CONVERTED: r.converted,
       REJECTED: r.rejected,
     },
+  }));
+}
+
+/** V3.14 — Cap số phiếu export 1 lần (tránh workbook khổng lồ nếu range quá rộng). */
+const PR_RANGE_EXPORT_CAP = 2000;
+
+export interface PRSlipLine {
+  lineNo: number;
+  sku: string | null;
+  name: string | null;
+  specification: string | null;
+  uom: string | null;
+  qty: string;
+  priority: string | null;
+  category: string | null;
+  estimatedUnitPrice: string | null;
+  notes: string | null;
+}
+
+export interface PRSlip extends PurchaseRequest {
+  lines: PRSlipLine[];
+  requestedByName: string | null;
+}
+
+/**
+ * V3.14 — Lấy toàn bộ PR (kèm lines) tạo trong khoảng [from, to] (giờ +07) để
+ * export Excel "mỗi phiếu 1 sheet". Không phân trang — lines + tên người đề
+ * xuất lấy qua bulk query (tránh N+1); getPRLinesEnriched không tái dùng được
+ * vì nó chỉ nhận 1 prId.
+ */
+export async function listPRsInRange(q: {
+  from: string;
+  to: string;
+  requestedBy?: string;
+}): Promise<PRSlip[]> {
+  const where: SQL[] = [
+    sql`(${purchaseRequest.createdAt} AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN ${q.from}::date AND ${q.to}::date`,
+  ];
+  if (q.requestedBy) where.push(eq(purchaseRequest.requestedBy, q.requestedBy));
+  const whereExpr = and(...where);
+
+  const headers = await db
+    .select()
+    .from(purchaseRequest)
+    .where(whereExpr)
+    .orderBy(purchaseRequest.createdAt)
+    .limit(PR_RANGE_EXPORT_CAP);
+
+  const ids = headers.map((h) => h.id);
+  const linesByPr = new Map<string, PRSlipLine[]>();
+  if (ids.length > 0) {
+    const lineRows = await db
+      .select({
+        prId: purchaseRequestLine.prId,
+        lineNo: purchaseRequestLine.lineNo,
+        masterSku: item.sku,
+        masterName: item.name,
+        masterUom: item.uom,
+        itemSku: purchaseRequestLine.itemSku,
+        itemName: purchaseRequestLine.itemName,
+        specification: purchaseRequestLine.specification,
+        uom: purchaseRequestLine.uom,
+        qty: purchaseRequestLine.qty,
+        priority: purchaseRequestLine.priority,
+        category: purchaseRequestLine.category,
+        estimatedUnitPrice: purchaseRequestLine.estimatedUnitPrice,
+        notes: purchaseRequestLine.notes,
+      })
+      .from(purchaseRequestLine)
+      .leftJoin(item, eq(item.id, purchaseRequestLine.itemId))
+      .where(inArray(purchaseRequestLine.prId, ids))
+      .orderBy(purchaseRequestLine.prId, purchaseRequestLine.lineNo);
+    for (const l of lineRows) {
+      const arr = linesByPr.get(l.prId) ?? [];
+      arr.push({
+        lineNo: l.lineNo,
+        sku: l.masterSku ?? l.itemSku ?? null,
+        name: l.masterName ?? l.itemName ?? null,
+        specification: l.specification,
+        uom: l.uom ?? l.masterUom ?? null,
+        qty: l.qty,
+        priority: l.priority,
+        category: l.category,
+        estimatedUnitPrice: l.estimatedUnitPrice,
+        notes: l.notes,
+      });
+      linesByPr.set(l.prId, arr);
+    }
+  }
+
+  const userIds = Array.from(
+    new Set(
+      headers.map((h) => h.requestedBy).filter((id): id is string => !!id),
+    ),
+  );
+  const userMap = new Map<string, string>();
+  if (userIds.length > 0) {
+    const users = await db
+      .select({
+        id: userAccount.id,
+        fullName: userAccount.fullName,
+        username: userAccount.username,
+      })
+      .from(userAccount)
+      .where(inArray(userAccount.id, userIds));
+    for (const u of users) userMap.set(u.id, u.fullName ?? u.username);
+  }
+
+  return headers.map((h) => ({
+    ...h,
+    lines: linesByPr.get(h.id) ?? [],
+    requestedByName: h.requestedBy ? userMap.get(h.requestedBy) ?? null : null,
   }));
 }
 

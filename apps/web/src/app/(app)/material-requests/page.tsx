@@ -28,6 +28,7 @@ import {
   FolderGrid,
   type FolderChip,
 } from "@/components/archive/DateFolder";
+import { ExportExcelDialog } from "@/components/archive/ExportExcelDialog";
 import {
   formatDayFull,
   formatDayNum,
@@ -104,6 +105,19 @@ export default function MaterialRequestsArchivePage() {
   const qc = useQueryClient();
 
   const level: "months" | "days" | "slips" = date ? "slips" : month ? "days" : "months";
+
+  // V3.14 — Khoảng ngày mặc định cho dialog xuất Excel, theo cấp drill-down
+  // hiện tại. Không dùng new Date() vô tham số (tránh hydration mismatch) —
+  // ở cấp "months" để rỗng, dialog tự tính "hôm nay" lúc mở (client-only).
+  const exportRange = React.useMemo(() => {
+    if (date) return { from: date, to: date };
+    if (month) {
+      const [y, m] = month.split("-");
+      const lastDay = new Date(Number(y), Number(m), 0).getDate();
+      return { from: `${month}-01`, to: `${month}-${String(lastDay).padStart(2, "0")}` };
+    }
+    return { from: "", to: "" };
+  }, [date, month]);
 
   const calendar = useQuery<CalendarResponse>({
     queryKey: ["material-requests", "calendar", scope],
@@ -208,13 +222,21 @@ export default function MaterialRequestsArchivePage() {
                   : "Engineer tạo yêu cầu, kho chuẩn bị và bàn giao linh kiện."}
             </p>
           </div>
-          <Button asChild size="sm" className="shrink-0">
-            <Link href="/material-requests/new">
-              <Plus className="h-4 w-4" aria-hidden />
-              <span className="hidden sm:inline">Tạo yêu cầu mới</span>
-              <span className="sm:hidden">Tạo</span>
-            </Link>
-          </Button>
+          <div className="flex shrink-0 items-center gap-2">
+            <ExportExcelDialog
+              module="material-requests"
+              scope={scope}
+              defaultFrom={exportRange.from}
+              defaultTo={exportRange.to}
+            />
+            <Button asChild size="sm">
+              <Link href="/material-requests/new">
+                <Plus className="h-4 w-4" aria-hidden />
+                <span className="hidden sm:inline">Tạo yêu cầu mới</span>
+                <span className="sm:hidden">Tạo</span>
+              </Link>
+            </Button>
+          </div>
         </div>
       </header>
 

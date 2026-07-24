@@ -24,6 +24,7 @@ import {
   FolderGrid,
   type FolderChip,
 } from "@/components/archive/DateFolder";
+import { ExportExcelDialog } from "@/components/archive/ExportExcelDialog";
 import {
   formatDayFull,
   formatDayNum,
@@ -80,6 +81,19 @@ export function PRTab() {
   );
   const { month, date } = urlState;
   const level: "months" | "days" | "slips" = date ? "slips" : month ? "days" : "months";
+
+  // V3.14 — Khoảng ngày mặc định cho dialog xuất Excel, theo cấp drill-down
+  // hiện tại. Không dùng new Date() vô tham số (tránh hydration mismatch) —
+  // ở cấp "months" để rỗng, dialog tự tính "hôm nay" lúc mở (client-only).
+  const exportRange = React.useMemo(() => {
+    if (date) return { from: date, to: date };
+    if (month) {
+      const [y, m] = month.split("-");
+      const lastDay = new Date(Number(y), Number(m), 0).getDate();
+      return { from: `${month}-01`, to: `${month}-${String(lastDay).padStart(2, "0")}` };
+    }
+    return { from: "", to: "" };
+  }, [date, month]);
 
   // ── Cấp thư mục: calendar buckets ──
   const calendar = usePurchaseRequestsCalendar();
@@ -178,7 +192,14 @@ export function PRTab() {
                 : `${total.toLocaleString("vi-VN")} phiếu trong ngày`}
           </p>
         </div>
-        <div className="shrink-0">{createButtons}</div>
+        <div className="flex shrink-0 items-center gap-2">
+          <ExportExcelDialog
+            module="purchase-requests"
+            defaultFrom={exportRange.from}
+            defaultTo={exportRange.to}
+          />
+          {createButtons}
+        </div>
       </header>
 
       {/* Thanh điều hướng / filter */}

@@ -157,6 +157,108 @@ export async function listMaterialRequestDayBuckets(q: {
   }));
 }
 
+/** V3.14 — WHERE created_at (giờ +07) nằm trong khoảng [from, to] (cả 2 đầu, `YYYY-MM-DD`). */
+function rangeFilter(from: string, to: string): SQL {
+  return sql`(${materialRequest.createdAt} AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN ${from}::date AND ${to}::date`;
+}
+
+export interface MaterialRequestSlipLine {
+  lineNo: number;
+  itemSku: string | null;
+  itemName: string | null;
+  itemUom: string | null;
+  requestedQty: string;
+  pickedQty: string;
+  deliveredQty: string;
+  notes: string | null;
+}
+
+export interface MaterialRequestSlip {
+  id: string;
+  requestNo: string;
+  status: MaterialRequestStatus;
+  requestedByName: string | null;
+  requestedByUsername: string | null;
+  notes: string | null;
+  createdAt: Date;
+  lines: MaterialRequestSlipLine[];
+}
+
+/** V3.14 — Cap số phiếu export 1 lần (tránh workbook khổng lồ nếu range quá rộng). */
+const RANGE_EXPORT_CAP = 2000;
+
+/**
+ * V3.14 — Lấy toàn bộ phiếu (kèm lines) tạo trong khoảng [from, to] (giờ +07)
+ * để export Excel "mỗi phiếu 1 sheet". Không phân trang — lines lấy 1 query
+ * bulk (tránh N+1).
+ */
+export async function listMaterialRequestsInRange(q: {
+  from: string;
+  to: string;
+  requestedBy?: string;
+}): Promise<MaterialRequestSlip[]> {
+  const where: SQL[] = [rangeFilter(q.from, q.to)];
+  if (q.requestedBy) where.push(eq(materialRequest.requestedBy, q.requestedBy));
+  const whereExpr = and(...where);
+
+  const headers = await db
+    .select({
+      id: materialRequest.id,
+      requestNo: materialRequest.requestNo,
+      status: materialRequest.status,
+      requestedByName: userAccount.fullName,
+      requestedByUsername: userAccount.username,
+      notes: materialRequest.notes,
+      createdAt: materialRequest.createdAt,
+    })
+    .from(materialRequest)
+    .leftJoin(userAccount, eq(userAccount.id, materialRequest.requestedBy))
+    .where(whereExpr)
+    .orderBy(materialRequest.createdAt)
+    .limit(RANGE_EXPORT_CAP);
+
+  const ids = headers.map((h) => h.id);
+  const linesByRequest = new Map<string, MaterialRequestSlipLine[]>();
+  if (ids.length > 0) {
+    const lineRows = await db
+      .select({
+        requestId: materialRequestLine.requestId,
+        lineNo: materialRequestLine.lineNo,
+        itemSku: item.sku,
+        itemName: item.name,
+        itemUom: item.uom,
+        requestedQty: materialRequestLine.requestedQty,
+        pickedQty: materialRequestLine.pickedQty,
+        deliveredQty: materialRequestLine.deliveredQty,
+        notes: materialRequestLine.notes,
+      })
+      .from(materialRequestLine)
+      .leftJoin(item, eq(item.id, materialRequestLine.itemId))
+      .where(inArray(materialRequestLine.requestId, ids))
+      .orderBy(materialRequestLine.requestId, materialRequestLine.lineNo);
+    for (const l of lineRows) {
+      const arr = linesByRequest.get(l.requestId) ?? [];
+      arr.push({
+        lineNo: l.lineNo,
+        itemSku: l.itemSku,
+        itemName: l.itemName,
+        itemUom: l.itemUom,
+        requestedQty: l.requestedQty,
+        pickedQty: l.pickedQty,
+        deliveredQty: l.deliveredQty,
+        notes: l.notes,
+      });
+      linesByRequest.set(l.requestId, arr);
+    }
+  }
+
+  return headers.map((h) => ({
+    ...h,
+    status: h.status as MaterialRequestStatus,
+    lines: linesByRequest.get(h.id) ?? [],
+  }));
+}
+
 export async function getMaterialRequest(id: string) {
   const [header] = await db
     .select({
