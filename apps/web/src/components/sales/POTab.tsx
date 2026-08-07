@@ -6,7 +6,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
-  FileText,
   Plus,
   Search,
   TrendingUp,
@@ -19,6 +18,7 @@ import {
   useQueryStates,
 } from "nuqs";
 import { PO_STATUSES, PO_STATUS_LABELS, type POStatus } from "@iot/shared";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { POListTable } from "@/components/procurement/POListTable";
@@ -146,20 +146,19 @@ export function POTab() {
     <div className="flex h-full flex-col overflow-hidden bg-zinc-50/30 dark:bg-zinc-950/30">
 
       {/* ── Header ── */}
-      <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-5 dark:border-zinc-800 dark:bg-zinc-900">
+      <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
         <div>
-          <nav aria-label="Breadcrumb" className="text-xs text-zinc-500 dark:text-zinc-400">
-            <Link href="/" className="hover:text-zinc-900 hover:underline dark:hover:text-zinc-50">Tổng quan</Link>
-            <span className="mx-1.5 text-zinc-300 dark:text-zinc-600">›</span>
-            <span className="text-zinc-500 dark:text-zinc-400">Tài chính &amp; Mua bán</span>
-            <span className="mx-1.5 text-zinc-300 dark:text-zinc-600">›</span>
-            <span className="font-medium text-zinc-900 dark:text-zinc-50">Đặt hàng (PO)</span>
-          </nav>
-          <h1 className="mt-2 flex items-center gap-2 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-            <FileText className="h-6 w-6 text-indigo-600 dark:text-indigo-400" aria-hidden />
+          <Breadcrumb
+            items={[
+              { label: "Trang chủ", href: "/" },
+              { label: "Tài chính & Mua bán" },
+              { label: "Đặt hàng (PO)" },
+            ]}
+          />
+          <h1 className="mt-2 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             Đơn đặt hàng (PO)
           </h1>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
             <span className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">{(stats?.total ?? total).toLocaleString("vi-VN")}</span> PO trong hệ thống
           </p>
         </div>

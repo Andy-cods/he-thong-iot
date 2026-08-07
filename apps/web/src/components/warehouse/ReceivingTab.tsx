@@ -324,16 +324,15 @@ export function ReceivingTab() {
   const rejectMutation = useRejectReceiving();
 
   return (
-    <div className="flex h-full flex-col gap-5 overflow-auto bg-zinc-50/40 p-6 dark:bg-zinc-950">
+    <div className="flex h-full flex-col gap-5 overflow-auto bg-zinc-50/30 p-6 dark:bg-zinc-950/30">
 
       {/* Header */}
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-            <Truck className="h-6 w-6 text-indigo-600 dark:text-indigo-400" aria-hidden />
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             PO chờ nhận hàng
           </h1>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
             Danh sách PO đang chờ giao. Mở wizard hoặc PWA tablet để quét nhận, hoặc duyệt nhanh từ card.
           </p>
         </div>

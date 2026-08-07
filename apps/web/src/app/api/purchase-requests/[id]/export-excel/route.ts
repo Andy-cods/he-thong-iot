@@ -4,6 +4,7 @@ import { userAccount } from "@iot/db/schema";
 import { logger } from "@/lib/logger";
 import { db } from "@/lib/db";
 import { getPR, getPRLinesEnriched } from "@/server/repos/purchaseRequests";
+import { deriveDisplayLabel, NO_LINE_LABEL } from "@/lib/pr-display-label";
 import { jsonError } from "@/server/http";
 import { canViewAllPRs } from "@/server/services/prAccess";
 import { requireCan } from "@/server/session";
@@ -158,7 +159,21 @@ export async function GET(
     }
 
     const safeFormNo = (pr.paperFormNo ?? pr.code).replace(/[\/\\]/g, "-");
-    const filename = `${isDnvt ? "DNVT" : "YCVT"}-${safeFormNo}.xlsx`;
+    // V3.16 (mục 5) — nhãn vật tư đứng trước để dễ nhận diện/gom nhóm khi
+    // sort A-Z trong Explorer/Downloads; số hiệu chính thức giữ ở cuối để
+    // vẫn tra cứu chéo được. Sanitize riêng cho filename (khác luật 31 ký
+    // tự + ký tự cấm của tên sheet Excel).
+    const label = deriveDisplayLabel(
+      linesRaw.map((l) => ({ name: l.name, sku: l.sku })),
+      40,
+    );
+    const safeLabel =
+      label !== NO_LINE_LABEL
+        ? label.replace(/[\\/:*?"<>|]/g, "-").trim()
+        : null;
+    const filename = safeLabel
+      ? `${isDnvt ? "DNVT" : "YCVT"}-${safeLabel}-${safeFormNo}.xlsx`
+      : `${isDnvt ? "DNVT" : "YCVT"}-${safeFormNo}.xlsx`;
 
     // Copy vào ArrayBuffer thuần để satisfy Node 20+ Response/Blob typings.
     const ab = new ArrayBuffer(buf.byteLength);

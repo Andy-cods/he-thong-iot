@@ -6,6 +6,7 @@ import { jsonError } from "@/server/http";
 import { canViewAllPRs } from "@/server/services/prAccess";
 import { requireCan } from "@/server/session";
 import { formatVNDateTime } from "@/server/services/batchSlipsExcel";
+import { deriveDisplayLabel, NO_LINE_LABEL } from "@/lib/pr-display-label";
 import {
   buildPrTemplateWorkbook,
   type PrSheetInput,
@@ -139,19 +140,21 @@ export async function GET(req: NextRequest) {
       ]),
     };
 
-    const sheets: PrSheetInput[] = slipsData.map((s) =>
-      s.formType === "DNVT"
-        ? {
-            kind: "dnvt",
-            sheetName: s.paperFormNo ?? s.code,
-            data: toDnvtData(s),
-          }
-        : {
-            kind: "ycvt",
-            sheetName: s.paperFormNo ?? s.code,
-            data: toYcvtData(s),
-          },
-    );
+    // V3.16 (mục 5) — tên tab dùng nhãn vật tư ngắn gọn thay số hiệu phiếu
+    // (VD "3-PRD-MRF-0726" khó phân biệt khi có hàng chục tab cùng dạng).
+    // maxLen=24 chừa chỗ cho hậu tố "+N" + hậu tố dedupe " (2)" của
+    // sanitizeSheetName trong giới hạn cứng 31 ký tự của Excel. Số hiệu
+    // chính thức (paperFormNo) vẫn in nguyên trong nội dung sheet (ô O2/L2).
+    const sheets: PrSheetInput[] = slipsData.map((s) => {
+      const label = deriveDisplayLabel(
+        s.lines.map((l) => ({ name: l.name, sku: l.sku })),
+        24,
+      );
+      const sheetName = label !== NO_LINE_LABEL ? label : (s.paperFormNo ?? s.code);
+      return s.formType === "DNVT"
+        ? { kind: "dnvt" as const, sheetName, data: toDnvtData(s) }
+        : { kind: "ycvt" as const, sheetName, data: toYcvtData(s) };
+    });
 
     const buf = await buildPrTemplateWorkbook({
       workbookTitle: `Đề xuất mua vật tư ${from} – ${to}`,

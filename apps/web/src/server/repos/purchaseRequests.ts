@@ -13,6 +13,7 @@ import type {
   PurchaseRequestStatus,
 } from "@iot/db/schema";
 import { db } from "@/lib/db";
+import { deriveDisplayLabel } from "@/lib/pr-display-label";
 
 /**
  * Repository purchase_request — V1.2.
@@ -39,9 +40,37 @@ export interface ListPRsQuery {
 }
 
 export interface ListPRsResult {
-  rows: PurchaseRequest[];
+  rows: (PurchaseRequest & { displayLabel: string })[];
   total: number;
 }
+
+/**
+ * V3.16 (mục 1) — Lấy `name`/`sku` của DÒNG VẬT TƯ ĐẦU TIÊN (theo line_no) +
+ * tổng số dòng cho mỗi PR, qua correlated subquery trong CÙNG 1 câu SELECT
+ * (không phải N+1 round-trip — Postgres tự chạy các subquery này như index
+ * seek nhờ unique index `pr_line_uk (pr_id, line_no)`). Dùng cho `displayLabel`
+ * ở bảng danh sách — tránh phải JOIN/tải hết mọi dòng chỉ để lấy dòng đầu.
+ */
+const firstLineNameExpr = sql<string | null>`(
+  SELECT COALESCE(${item.name}, ${purchaseRequestLine.itemName})
+  FROM ${purchaseRequestLine}
+  LEFT JOIN ${item} ON ${item.id} = ${purchaseRequestLine.itemId}
+  WHERE ${purchaseRequestLine.prId} = ${purchaseRequest.id}
+  ORDER BY ${purchaseRequestLine.lineNo} ASC
+  LIMIT 1
+)`;
+const firstLineSkuExpr = sql<string | null>`(
+  SELECT COALESCE(${item.sku}, ${purchaseRequestLine.itemSku})
+  FROM ${purchaseRequestLine}
+  LEFT JOIN ${item} ON ${item.id} = ${purchaseRequestLine.itemId}
+  WHERE ${purchaseRequestLine.prId} = ${purchaseRequest.id}
+  ORDER BY ${purchaseRequestLine.lineNo} ASC
+  LIMIT 1
+)`;
+const lineCountExpr = sql<number>`(
+  SELECT count(*)::int FROM ${purchaseRequestLine}
+  WHERE ${purchaseRequestLine.prId} = ${purchaseRequest.id}
+)`;
 
 export async function listPRs(q: ListPRsQuery): Promise<ListPRsResult> {
   const where: SQL[] = [];
@@ -85,7 +114,12 @@ export async function listPRs(q: ListPRsQuery): Promise<ListPRsResult> {
   const offset = (q.page - 1) * q.pageSize;
 
   const baseQuery = db
-    .select({ pr: purchaseRequest })
+    .select({
+      pr: purchaseRequest,
+      firstLineName: firstLineNameExpr,
+      firstLineSku: firstLineSkuExpr,
+      lineCount: lineCountExpr,
+    })
     .from(purchaseRequest)
     .leftJoin(salesOrder, eq(salesOrder.id, purchaseRequest.linkedOrderId));
 
@@ -107,7 +141,14 @@ export async function listPRs(q: ListPRsQuery): Promise<ListPRsResult> {
   ]);
 
   return {
-    rows: rows.map((r) => r.pr),
+    rows: rows.map((r) => ({
+      ...r.pr,
+      displayLabel: deriveDisplayLabel(
+        [{ name: r.firstLineName, sku: r.firstLineSku }],
+        60,
+        r.lineCount,
+      ),
+    })),
     total: totalResult[0]?.count ?? 0,
   };
 }

@@ -62,4 +62,24 @@ describe("deriveDisplayLabel", () => {
     expect(deriveDisplayLabel([{ name }], 60)).toBe(name);
     expect(deriveDisplayLabel([{ name: "Ngắn" }], 60)).toBe("Ngắn");
   });
+
+  it("totalCountOverride: dùng số dòng thật thay vì lines.length khi caller chỉ có dòng đầu", () => {
+    // Caller kiểu list API — chỉ gửi 1 phần tử (dòng đầu) nhưng biết tổng
+    // số dòng thật qua subquery COUNT riêng.
+    expect(
+      deriveDisplayLabel([{ name: "Bulong M8", sku: "BL-M8" }], 60, 5),
+    ).toBe("[BL-M8] Bulong M8 +4");
+    // totalCountOverride = 1 → không có hậu tố, dù mảng truyền vào dài hơn.
+    expect(
+      deriveDisplayLabel(
+        [{ name: "Bulong M8" }, { name: "Ecu M8" }],
+        60,
+        1,
+      ),
+    ).toBe("Bulong M8");
+    // Không truyền → fallback về lines.length như hành vi cũ.
+    expect(
+      deriveDisplayLabel([{ name: "Bulong M8" }, { name: "Ecu M8" }]),
+    ).toBe("Bulong M8 +1");
+  });
 });

@@ -15,6 +15,7 @@ import {
   can,
   type PRStatus,
 } from "@iot/shared";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PRListTable } from "@/components/procurement/PRListTable";
@@ -120,14 +121,15 @@ export function PRTab() {
   );
 
   return (
-    <div className="flex flex-col md:h-full md:overflow-hidden">
+    <div className="flex flex-col bg-zinc-50/30 dark:bg-zinc-950/30 md:h-full md:overflow-hidden">
       <header className="flex items-start justify-between gap-3 border-b border-zinc-200 bg-white px-4 py-4 md:px-6 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="min-w-0">
-          <nav aria-label="Breadcrumb" className="text-xs text-zinc-500 dark:text-zinc-400">
-            <Link href="/" className="hover:text-zinc-900 hover:underline dark:hover:text-zinc-50">Tổng quan</Link>
-            {" / "}
-            <span className="text-zinc-900 dark:text-zinc-50">Đề xuất vật tư</span>
-          </nav>
+          <Breadcrumb
+            items={[
+              { label: "Trang chủ", href: "/" },
+              { label: "Đề xuất vật tư" },
+            ]}
+          />
           <h1 className="mt-1 truncate text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             Đề xuất mua vật tư (YCVT/MRF)
           </h1>

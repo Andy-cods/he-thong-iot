@@ -25,6 +25,8 @@ export interface PRRow {
   id: string;
   code: string;
   title: string | null;
+  /** V3.16 (mục 1) — nhãn tự sinh từ dòng vật tư đầu tiên, fallback khi title trống. */
+  displayLabel?: string;
   status: PRStatus;
   source: string;
   linkedOrderId: string | null;

@@ -147,11 +147,17 @@ export function PRListTable({
               >
                 {row.code}
               </Link>
-              {/* TODO(V3.16): thay row.title bằng deriveDisplayLabel(lines) khi
-                  listPRs() có join purchase_request_line — hiện list API chỉ
-                  trả header (summary list), cố enrich ở đây sẽ N+1 query. */}
-              <div className="truncate pr-2" title={row.title ?? ""}>
-                {row.title ?? <span className="text-zinc-400 dark:text-zinc-500">—</span>}
+              {/* V3.16 (mục 1) — ưu tiên tiêu đề thủ công, fallback nhãn tự
+                  sinh từ dòng vật tư đầu tiên (listPRs() trả kèm qua
+                  subquery, không N+1) để nhận diện phiếu mua gì mà không
+                  cần mở ra xem. */}
+              <div
+                className="truncate pr-2"
+                title={row.title ?? row.displayLabel ?? ""}
+              >
+                {row.title ?? row.displayLabel ?? (
+                  <span className="text-zinc-400 dark:text-zinc-500">—</span>
+                )}
               </div>
               <div className="hidden text-xs text-zinc-600 dark:text-zinc-400 md:block">
                 {row.source === "SHORTAGE" ? "Shortage" : "Thủ công"}

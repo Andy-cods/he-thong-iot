@@ -106,7 +106,7 @@ export function SuppliersTab() {
     urlState.active === null ? "all" : urlState.active ? "active" : "inactive";
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="flex h-full flex-col overflow-hidden bg-zinc-50/30 dark:bg-zinc-950/30">
       {/* V2 compact header: Breadcrumb + H1 xl + Tạo mới top-right */}
       <header className="border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
         <Breadcrumb
