@@ -26,10 +26,10 @@ describe("deriveDisplayLabel", () => {
     );
   });
 
-  it("prefix [sku] khi dòng đầu có sku không rỗng", () => {
+  it("prefix 'sku · ' khi dòng đầu có sku không rỗng (không dùng [ ] — Excel cấm trong tên sheet)", () => {
     expect(
       deriveDisplayLabel([{ name: "Bulong M8", sku: "BL-M8" }]),
-    ).toBe("[BL-M8] Bulong M8");
+    ).toBe("BL-M8 · Bulong M8");
   });
 
   it("thêm hậu tố +N khi nhiều hơn 1 dòng, chỉ lấy dòng đầu làm gốc", () => {
@@ -39,7 +39,7 @@ describe("deriveDisplayLabel", () => {
         { name: "Ecu M8" },
         { name: "Vong dem" },
       ]),
-    ).toBe("[BL-M8] Bulong M8 +2");
+    ).toBe("BL-M8 · Bulong M8 +2");
   });
 
   it("không sort lại — luôn ưu tiên đúng dòng đầu tiên đã truyền vào", () => {
@@ -68,7 +68,7 @@ describe("deriveDisplayLabel", () => {
     // số dòng thật qua subquery COUNT riêng.
     expect(
       deriveDisplayLabel([{ name: "Bulong M8", sku: "BL-M8" }], 60, 5),
-    ).toBe("[BL-M8] Bulong M8 +4");
+    ).toBe("BL-M8 · Bulong M8 +4");
     // totalCountOverride = 1 → không có hậu tố, dù mảng truyền vào dài hơn.
     expect(
       deriveDisplayLabel(
@@ -81,5 +81,15 @@ describe("deriveDisplayLabel", () => {
     expect(
       deriveDisplayLabel([{ name: "Bulong M8" }, { name: "Ecu M8" }]),
     ).toBe("Bulong M8 +1");
+  });
+
+  it("không bao giờ chứa ký tự Excel cấm trong tên sheet (\\ / ? * [ ] :)", () => {
+    // Regression: định dạng cũ "[sku] name" bị sanitizeSheetName() (Excel
+    // cấm [ ]) biến thành "-sku- name" xấu — phát hiện khi test thật trên
+    // production (V3.16 wave 2). sku thường có sẵn dấu "/" (VD mã theo mẫu
+    // cũ) — đảm bảo hàm không tự thêm ký tự cấm nào NGOÀI những gì đã có sẵn
+    // trong input (sanitize input là việc của caller/sanitizeSheetName).
+    const label = deriveDisplayLabel([{ name: "Bulong M8", sku: "BL-M8" }]);
+    expect(label).not.toMatch(/[[\]]/);
   });
 });

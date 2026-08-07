@@ -16,10 +16,17 @@ export const NO_LINE_LABEL = "Chưa có vật tư";
 
 /**
  * Lấy `name` của dòng ĐẦU TIÊN trong `lines` (đúng thứ tự truyền vào, không
- * tự sort lại) làm gốc, prefix `[sku]` nếu dòng có sku không rỗng, thêm hậu
+ * tự sort lại) làm gốc, prefix `sku · ` nếu dòng có sku không rỗng, thêm hậu
  * tố ` +N` khi có nhiều hơn 1 dòng (N = số dòng còn lại). Phần tên (kèm
  * prefix sku nếu có) bị cắt theo `maxLen` ký tự kèm "…" nếu quá dài; hậu tố
  * "+N" luôn được giữ nguyên vẹn — cắt phần tên trước, ghép hậu tố sau.
+ *
+ * Dấu ngăn cách sku/tên dùng `·` (middle dot) chứ KHÔNG dùng `[ ]`: nhãn này
+ * còn được dùng làm TÊN SHEET EXCEL, mà Excel cấm `\ / ? * [ ] :` trong tên
+ * sheet — `sanitizeSheetName()` (batchPrTemplateExcel.ts) sẽ thay `[`/`]`
+ * bằng `-` tạo ra chuỗi xấu kiểu "-VT-001- Tên" (đã phát hiện khi test thật
+ * trên production). `·` không nằm trong danh sách cấm của cả Excel lẫn tên
+ * file → an toàn ở mọi nơi nhãn này được dùng.
  *
  * `totalCountOverride` — dùng khi caller CHỈ có dòng đầu tiên (vd list API
  * không muốn JOIN hết mọi dòng để tránh tải nặng) nhưng vẫn biết tổng số
@@ -38,7 +45,7 @@ export function deriveDisplayLabel(
   if (!name) return NO_LINE_LABEL;
 
   const sku = first.sku?.trim();
-  const base = sku ? `[${sku}] ${name}` : name;
+  const base = sku ? `${sku} · ${name}` : name;
   const count = totalCountOverride ?? lines.length;
   const suffix = count > 1 ? ` +${count - 1}` : "";
   const truncatedBase =
