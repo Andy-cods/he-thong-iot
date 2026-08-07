@@ -9,6 +9,7 @@ import { StatusBadge, type BadgeStatus } from "@/components/domain/StatusBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { NO_LINE_LABEL } from "@/lib/pr-display-label";
 import type { PRRow } from "@/hooks/usePurchaseRequests";
 
 export interface PRListTableProps {
@@ -147,18 +148,25 @@ export function PRListTable({
               >
                 {row.code}
               </Link>
-              {/* V3.16 (mục 1) — ưu tiên tiêu đề thủ công, fallback nhãn tự
-                  sinh từ dòng vật tư đầu tiên (listPRs() trả kèm qua
-                  subquery, không N+1) để nhận diện phiếu mua gì mà không
-                  cần mở ra xem. */}
-              <div
-                className="truncate pr-2"
-                title={row.title ?? row.displayLabel ?? ""}
-              >
-                {row.title ?? row.displayLabel ?? (
-                  <span className="text-zinc-400 dark:text-zinc-500">—</span>
-                )}
-              </div>
+              {/* V3.16 (mục 1) — ưu tiên nhãn vật tư tự sinh (mua CÁI GÌ):
+                  form DNVT không cho nhập tiêu đề (luôn auto "DNVT {bộ phận}
+                  {ngày}"), form MRF để trống cũng auto tương tự — title hầu
+                  như LUÔN có giá trị nhưng là chuỗi chung chung không nói mua
+                  gì, nên ưu tiên displayLabel trước; chỉ fallback về title
+                  khi displayLabel rỗng thật (phiếu chưa có dòng vật tư nào). */}
+              {(() => {
+                const label =
+                  row.displayLabel && row.displayLabel !== NO_LINE_LABEL
+                    ? row.displayLabel
+                    : (row.title ?? null);
+                return (
+                  <div className="truncate pr-2" title={label ?? ""}>
+                    {label ?? (
+                      <span className="text-zinc-400 dark:text-zinc-500">—</span>
+                    )}
+                  </div>
+                );
+              })()}
               <div className="hidden text-xs text-zinc-600 dark:text-zinc-400 md:block">
                 {row.source === "SHORTAGE" ? "Shortage" : "Thủ công"}
               </div>
