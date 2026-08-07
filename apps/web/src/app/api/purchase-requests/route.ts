@@ -52,6 +52,9 @@ export async function GET(req: NextRequest) {
       bomTemplateId: q.data.bomTemplateId,
       requestedBy: scopedRequestedBy,
       date: q.data.date,
+      from: q.data.from,
+      to: q.data.to,
+      sortDir: q.data.sortDir,
       page: q.data.page,
       pageSize: q.data.pageSize,
     });

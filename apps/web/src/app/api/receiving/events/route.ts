@@ -15,6 +15,11 @@ import {
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { insertActivityLog } from "@/server/repos/activityLogs";
+import { getPR } from "@/server/repos/purchaseRequests";
+import {
+  notifyPOReceivedFull,
+  notifyPOReceivedPartial,
+} from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 import { db } from "@/lib/db";
 import { receivingScanCounter } from "@/lib/metrics";
@@ -44,6 +49,12 @@ export async function POST(req: NextRequest) {
 
   const acked: string[] = [];
   const rejected: Array<{ id: string; reason: string }> = [];
+  // V3.16 (vấn đề 3) — dedupe trong phạm vi 1 batch request: nhiều event cùng
+  // PO trong 1 lần post (vd over-delivery sau khi đã RECEIVED) không được bắn
+  // lại notify nhiều lần. postReceivingAtomic tự trả poStatus mỗi lần gọi,
+  // không tự nhớ đã notify chưa — route phải tự canh.
+  const notifiedFullPoIds = new Set<string>();
+  const notifiedPartialPoIds = new Set<string>();
   const details: Array<{
     id: string;
     poStatus?: string | null;
@@ -160,6 +171,40 @@ export async function POST(req: NextRequest) {
         qc_status: e.qcStatus ?? "PENDING",
         over_delivery: posted.overDelivery ? "true" : "false",
       });
+
+      // V3.16 (vấn đề 3) — postReceivingAtomic có thể tự chuyển PO sang
+      // RECEIVED (đủ hàng) hoặc PARTIAL (nhận 1 phần) nhưng trước đây route
+      // này KHÔNG notify ai (khác route /receiving/[poId]/approve — flow
+      // "duyệt thủ công" riêng, đã notifyPOReceivedFull sẵn — không trùng vì
+      // route đó chặn khi PO đã RECEIVED).
+      if (posted.poStatus === "RECEIVED" && !notifiedFullPoIds.has(po.id)) {
+        notifiedFullPoIds.add(po.id);
+        let prCreatorUserId: string | null = null;
+        if (po.prId) {
+          const pr = await getPR(po.prId).catch(() => null);
+          prCreatorUserId = pr?.requestedBy ?? null;
+        }
+        void notifyPOReceivedFull({
+          poId: po.id,
+          poNo: po.poNo,
+          supplierName: null,
+          actorUserId: guard.session.userId,
+          actorUsername: guard.session.username,
+          prCreatorUserId,
+        });
+      } else if (
+        posted.poStatus === "PARTIAL" &&
+        !notifiedPartialPoIds.has(po.id)
+      ) {
+        notifiedPartialPoIds.add(po.id);
+        void notifyPOReceivedPartial({
+          poId: po.id,
+          poNo: po.poNo,
+          supplierName: null,
+          actorUserId: guard.session.userId,
+          actorUsername: guard.session.username,
+        });
+      }
 
       // Activity log cho PO (fire-and-forget)
       if (po) {

@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import {
   bomSnapshotLine,
   item,
@@ -29,6 +29,11 @@ export interface ListPRsQuery {
   requestedBy?: string;
   /** V3.13 — lọc phiếu theo đúng 1 ngày (`YYYY-MM-DD`, giờ Asia/Ho_Chi_Minh). */
   date?: string;
+  /** V3.16 — lọc khoảng ngày [from, to] (`YYYY-MM-DD`, giờ Asia/Ho_Chi_Minh). Có thể chỉ truyền 1 đầu. */
+  from?: string;
+  to?: string;
+  /** V3.16 — bảng phẳng thay thư mục: sort theo Ngày tạo. Mặc định "desc". */
+  sortDir?: "asc" | "desc";
   page: number;
   pageSize: number;
 }
@@ -55,6 +60,21 @@ export async function listPRs(q: ListPRsQuery): Promise<ListPRsResult> {
       sql`(${purchaseRequest.createdAt} AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = ${q.date}::date`,
     );
   }
+  // V3.16 — bảng phẳng thay thư mục: filter khoảng ngày [from, to] (1 hoặc cả
+  // 2 đầu). Cùng pattern AT TIME ZONE với listPRsInRange().
+  if (q.from && q.to) {
+    where.push(
+      sql`(${purchaseRequest.createdAt} AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN ${q.from}::date AND ${q.to}::date`,
+    );
+  } else if (q.from) {
+    where.push(
+      sql`(${purchaseRequest.createdAt} AT TIME ZONE 'Asia/Ho_Chi_Minh')::date >= ${q.from}::date`,
+    );
+  } else if (q.to) {
+    where.push(
+      sql`(${purchaseRequest.createdAt} AT TIME ZONE 'Asia/Ho_Chi_Minh')::date <= ${q.to}::date`,
+    );
+  }
   if (q.bomTemplateId) {
     // V1.8 — PR.linked_order_id → sales_order.bom_template_id. PR manual không
     // gắn linked_order_id sẽ không lọt vào workspace scope — đúng ý đồ.
@@ -77,7 +97,11 @@ export async function listPRs(q: ListPRsQuery): Promise<ListPRsResult> {
       .where(whereExpr),
     baseQuery
       .where(whereExpr)
-      .orderBy(desc(purchaseRequest.createdAt))
+      .orderBy(
+        q.sortDir === "asc"
+          ? asc(purchaseRequest.createdAt)
+          : desc(purchaseRequest.createdAt),
+      )
       .limit(q.pageSize)
       .offset(offset),
   ]);

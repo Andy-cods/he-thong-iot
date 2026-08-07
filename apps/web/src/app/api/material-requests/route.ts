@@ -47,6 +47,14 @@ export async function GET(req: NextRequest) {
   const myOnly = url.searchParams.get("mine") === "1";
   const dateParam = url.searchParams.get("date");
   const date = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : undefined;
+  // V3.16 — bảng phẳng thay thư mục: khoảng ngày [from, to] + sort theo
+  // Ngày tạo. Route này không dùng zod (parseSearchParams) — tự đọc +
+  // validate raw searchParams, theo đúng pattern `date` ở trên.
+  const fromParam = url.searchParams.get("from");
+  const from = fromParam && /^\d{4}-\d{2}-\d{2}$/.test(fromParam) ? fromParam : undefined;
+  const toParam = url.searchParams.get("to");
+  const to = toParam && /^\d{4}-\d{2}-\d{2}$/.test(toParam) ? toParam : undefined;
+  const sortDir = url.searchParams.get("sortDir") === "asc" ? "asc" : "desc";
   const page = Math.max(1, Number(url.searchParams.get("page") ?? "1"));
   const pageSize = Math.min(
     100,
@@ -69,6 +77,9 @@ export async function GET(req: NextRequest) {
       requestedBy: scopedRequestedBy,
       bomTemplateId: bomTemplateId ?? undefined,
       date,
+      from,
+      to,
+      sortDir,
       page,
       pageSize,
     });

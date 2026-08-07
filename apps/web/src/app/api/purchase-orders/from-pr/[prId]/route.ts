@@ -2,12 +2,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
 import { createPOFromPR } from "@/server/repos/purchaseOrders";
+import { getPR } from "@/server/repos/purchaseRequests";
 import {
   extractRequestMeta,
   jsonError,
   parseJson,
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
+import { notifyPOCreatedFromPR } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -78,6 +80,26 @@ export async function POST(
       notes: `Converted → ${result.createdPOs.length} PO`,
       ...meta,
     });
+
+    // V3.16 (vấn đề 2) — Convert PR→PO trước đây KHÔNG gửi thông báo cho ai.
+    // Lấy lại PR SAU convert (chỉ status/approvalStep đổi, code/paperFormNo/
+    // requestedBy giữ nguyên) để lấy prNo + creator cho notify. Fire-and-forget,
+    // không chặn response nếu lookup/notify lỗi.
+    if (result.createdPOs.length > 0) {
+      const pr = await getPR(params.prId).catch(() => null);
+      const firstPo = result.createdPOs[0];
+      if (firstPo) {
+        void notifyPOCreatedFromPR({
+          prId: params.prId,
+          prNo: pr?.paperFormNo ?? pr?.code ?? params.prId,
+          prCreatorUserId: pr?.requestedBy ?? null,
+          poCount: result.createdPOs.length,
+          firstPoId: firstPo.id,
+          actorUserId: guard.session.userId,
+          actorUsername: guard.session.username,
+        });
+      }
+    }
 
     return NextResponse.json({
       data: {

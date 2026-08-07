@@ -145,6 +145,9 @@ function buildListUrl(f: PRFilter): string {
   if (f.bomTemplateId) p.set("bomTemplateId", f.bomTemplateId);
   if (f.requestedBy) p.set("requestedBy", f.requestedBy);
   if (f.date) p.set("date", f.date);
+  if (f.from) p.set("from", f.from);
+  if (f.to) p.set("to", f.to);
+  if (f.sortDir) p.set("sortDir", f.sortDir);
   if (f.page) p.set("page", String(f.page));
   if (f.pageSize) p.set("pageSize", String(f.pageSize));
   for (const s of f.status ?? []) p.append("status", s);

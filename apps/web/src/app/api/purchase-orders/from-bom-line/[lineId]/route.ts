@@ -23,7 +23,7 @@ import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
 import { getLineById } from "@/server/repos/bomLines";
 import { createPO } from "@/server/repos/purchaseOrders";
 import { writeAudit } from "@/server/services/audit";
-import { emitNotification } from "@/server/services/notifications";
+import { emitToUsersWithRole } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -130,8 +130,9 @@ export async function POST(
     });
 
     // Notify TM-A (purchaser) về PO subcontract DRAFT cần chốt giá + duyệt.
-    await emitNotification({
-      recipientRole: "purchaser",
+    // V3.16 (fix badge) — đổi broadcast recipientRole → fan-out direct (đếm
+    // badge chuông, đồng nhất với các event "cần duyệt/xử lý" khác).
+    await emitToUsersWithRole("purchaser", {
       actorUserId: guard.session.userId,
       actorUsername: guard.session.username,
       eventType: "PO_SUBCONTRACT_DRAFT",

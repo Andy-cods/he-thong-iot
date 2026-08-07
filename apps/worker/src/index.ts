@@ -26,6 +26,10 @@ import {
   processEmailSend,
   type EmailSendJob,
 } from "./jobs/emailSend.js";
+import {
+  processPrReminderScan,
+  type PrReminderScanJob,
+} from "./jobs/prReminderScan.js";
 import { eq } from "drizzle-orm";
 import { importBatch } from "@iot/db/schema";
 import { db, pgClient } from "./db.js";
@@ -155,12 +159,31 @@ const emailSendWorker = new Worker<EmailSendJob>(
   },
 );
 
+// V3.16 — "Nhắc duyệt" PR: quét mỗi 1h (upsertJobScheduler bên dưới) các PR
+// SUBMITTED/DEPT_APPROVED quá 24h chưa xử lý. concurrency 1: job nhẹ (vài
+// query), không cần chạy song song nhiều instance.
+const prReminderScanWorker = new Worker<PrReminderScanJob>(
+  QUEUE_NAMES.PR_REMINDER_SCAN,
+  async (job) => {
+    logger.info({ jobId: job.id }, "pr-reminder-scan: start");
+    const res = await processPrReminderScan(job);
+    logger.info({ jobId: job.id, res }, "pr-reminder-scan: done");
+    return res;
+  },
+  {
+    connection,
+    prefix,
+    concurrency: 1,
+  },
+);
+
 for (const w of [
   itemImportCommitWorker,
   bomImportCommitWorker,
   assemblyScanWorker,
   ecoApplyBatchWorker,
   emailSendWorker,
+  prReminderScanWorker,
 ]) {
   w.on("ready", () => logger.info({ queue: w.name }, "worker ready"));
   w.on("failed", (job, err) => {
@@ -223,8 +246,23 @@ const metricQueues = {
     connection,
     prefix,
   }),
+  [QUEUE_NAMES.PR_REMINDER_SCAN]: new Queue(QUEUE_NAMES.PR_REMINDER_SCAN, {
+    connection,
+    prefix,
+  }),
 };
 registerQueueDepthGauge(metricQueues);
+
+// V3.16 — Đăng ký lịch quét "nhắc duyệt" PR mỗi 1 giờ (BullMQ 5.x
+// upsertJobScheduler, thay cho `repeat` cũ). Idempotent: gọi lại nhiều lần
+// khi worker restart KHÔNG tạo trùng scheduler (BullMQ tự upsert theo
+// schedulerId "pr-reminder-scan-hourly"). Mỗi 1h đủ dày để bắt ngưỡng 24h
+// với sai số ≤1h — không cần cron phút-giây phức tạp.
+await metricQueues[QUEUE_NAMES.PR_REMINDER_SCAN].upsertJobScheduler(
+  "pr-reminder-scan-hourly",
+  { every: 60 * 60 * 1000 },
+  { name: "scan" },
+);
 
 let shuttingDown = false;
 const shutdown = async (signal: string) => {
@@ -241,6 +279,7 @@ const shutdown = async (signal: string) => {
       assemblyScanWorker.close(),
       ecoApplyBatchWorker.close(),
       emailSendWorker.close(),
+      prReminderScanWorker.close(),
       ...Object.values(metricQueues).map((q) => q.close()),
     ]);
     await connection.quit();
@@ -264,6 +303,7 @@ logger.info(
       QUEUE_NAMES.ASSEMBLY_SCAN_SYNC,
       QUEUE_NAMES.ECO_APPLY_BATCH,
       QUEUE_NAMES.EMAIL_SEND,
+      QUEUE_NAMES.PR_REMINDER_SCAN,
     ],
     prefix,
   },

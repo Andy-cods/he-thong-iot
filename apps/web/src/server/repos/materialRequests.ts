@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import {
   item,
   materialRequest,
@@ -27,6 +27,11 @@ export interface ListRequestsQuery {
   bomTemplateId?: string;
   /** V3.13 — lọc phiếu theo đúng 1 ngày (`YYYY-MM-DD`, giờ Asia/Ho_Chi_Minh). */
   date?: string;
+  /** V3.16 — lọc khoảng ngày [from, to] (`YYYY-MM-DD`, giờ Asia/Ho_Chi_Minh). Có thể chỉ truyền 1 đầu. */
+  from?: string;
+  to?: string;
+  /** V3.16 — bảng phẳng thay thư mục: sort theo Ngày tạo. Mặc định "desc". */
+  sortDir?: "asc" | "desc";
   page: number;
   pageSize: number;
 }
@@ -49,6 +54,20 @@ export async function listMaterialRequests(q: ListRequestsQuery) {
   }
   if (q.date) {
     where.push(dayFilter(q.date));
+  }
+  // V3.16 — bảng phẳng thay thư mục: filter khoảng ngày [from, to] (1 hoặc
+  // cả 2 đầu). rangeFilter() đã có sẵn (dùng cho export range) — hàm khai
+  // báo `function` nên hoisted, gọi được dù định nghĩa ở dưới trong file.
+  if (q.from && q.to) {
+    where.push(rangeFilter(q.from, q.to));
+  } else if (q.from) {
+    where.push(
+      sql`(${materialRequest.createdAt} AT TIME ZONE 'Asia/Ho_Chi_Minh')::date >= ${q.from}::date`,
+    );
+  } else if (q.to) {
+    where.push(
+      sql`(${materialRequest.createdAt} AT TIME ZONE 'Asia/Ho_Chi_Minh')::date <= ${q.to}::date`,
+    );
   }
 
   const whereExpr = where.length > 0 ? and(...where) : sql`true`;
@@ -82,7 +101,11 @@ export async function listMaterialRequests(q: ListRequestsQuery) {
       .from(materialRequest)
       .leftJoin(userAccount, eq(userAccount.id, materialRequest.requestedBy))
       .where(whereExpr)
-      .orderBy(desc(materialRequest.createdAt))
+      .orderBy(
+        q.sortDir === "asc"
+          ? asc(materialRequest.createdAt)
+          : desc(materialRequest.createdAt),
+      )
       .limit(q.pageSize)
       .offset(offset),
   ]);

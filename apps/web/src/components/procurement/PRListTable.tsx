@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { PR_STATUS_LABELS, type PRStatus } from "@iot/shared";
 import { StatusBadge, type BadgeStatus } from "@/components/domain/StatusBadge";
@@ -13,6 +14,10 @@ import type { PRRow } from "@/hooks/usePurchaseRequests";
 export interface PRListTableProps {
   rows: PRRow[];
   loading?: boolean;
+  /** V3.16 — cột "Ngày tạo" sort được (bảng phẳng thay thư mục). */
+  sortDir?: "asc" | "desc";
+  /** Bấm header "Ngày tạo" để đổi chiều sort. Omit → header là text tĩnh. */
+  onSortDateClick?: () => void;
 }
 
 function statusToBadge(s: PRStatus): { v: BadgeStatus; label: string } {
@@ -34,11 +39,18 @@ function statusToBadge(s: PRStatus): { v: BadgeStatus; label: string } {
 /**
  * V2 PRListTable — compact row 36px, virtualize khi >50 rows.
  * Cols: [Mã 128 mono] [Tiêu đề 1fr] [Nguồn 88] [Trạng thái 112]
- *       [Ngày tạo 104]
+ *       [Ngày tạo 104 — sort được, V3.16]
  * V3.12 (mobile) — <md collapse còn 3 cột [Mã|Tiêu đề|Trạng thái],
  * Nguồn + Ngày tạo `hidden md:block` (pattern ItemListTable).
+ * V3.16 — bảng phẳng thay "thư mục ngày": header "Ngày tạo" là button đổi
+ * sortDir khi có `onSortDateClick` (PRTab truyền xuống, điều khiển qua URL).
  */
-export function PRListTable({ rows, loading }: PRListTableProps) {
+export function PRListTable({
+  rows,
+  loading,
+  sortDir,
+  onSortDateClick,
+}: PRListTableProps) {
   const parentRef = React.useRef<HTMLDivElement>(null);
   const virt = useVirtualizer({
     count: rows.length,
@@ -67,7 +79,24 @@ export function PRListTable({ rows, loading }: PRListTableProps) {
         <div>Tiêu đề</div>
         <div className="hidden md:block">Nguồn</div>
         <div>Trạng thái</div>
-        <div className="hidden md:block">Ngày tạo</div>
+        <div className="hidden md:block">
+          {onSortDateClick ? (
+            <button
+              type="button"
+              onClick={onSortDateClick}
+              className="inline-flex items-center gap-1 uppercase tracking-wide text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+            >
+              Ngày tạo
+              {sortDir === "asc" ? (
+                <ArrowUp className="h-3 w-3" aria-hidden="true" />
+              ) : (
+                <ArrowDown className="h-3 w-3" aria-hidden="true" />
+              )}
+            </button>
+          ) : (
+            "Ngày tạo"
+          )}
+        </div>
       </div>
 
       {loading && rows.length === 0 && (
@@ -118,6 +147,9 @@ export function PRListTable({ rows, loading }: PRListTableProps) {
               >
                 {row.code}
               </Link>
+              {/* TODO(V3.16): thay row.title bằng deriveDisplayLabel(lines) khi
+                  listPRs() có join purchase_request_line — hiện list API chỉ
+                  trả header (summary list), cố enrich ở đây sẽ N+1 query. */}
               <div className="truncate pr-2" title={row.title ?? ""}>
                 {row.title ?? <span className="text-zinc-400 dark:text-zinc-500">—</span>}
               </div>

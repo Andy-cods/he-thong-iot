@@ -21,10 +21,16 @@ export type NotificationEventType =
   | "PR_DEPT_APPROVED" // V3.7.69 YCVT step 2/3 — Trưởng bộ phận duyệt
   | "PR_APPROVED"      // = step 3/3 (Giám đốc) hoặc legacy 1-step
   | "PR_REJECTED"
+  // V3.16 — worker (pr-reminder-scan) nhắc phiếu SUBMITTED/DEPT_APPROVED quá
+  // 24h chưa xử lý. Insert trực tiếp từ apps/worker (không qua emitNotification)
+  // — xem apps/worker/src/jobs/prReminderScan.ts.
+  | "PR_PENDING_REMINDER"
   // Purchase Order flow
   | "PO_SENT"
   | "PO_RECEIVED_PARTIAL"
   | "PO_RECEIVED_FULL"
+  // V3.16 — PR convert → N PO mới tạo (createPOFromPR), cần Thu mua gửi NCC.
+  | "PO_CREATED_FROM_PR"
   // V3.7.43 — PO Subcontract (gia công ngoài) DRAFT cần TM-A chốt giá + duyệt
   | "PO_SUBCONTRACT_DRAFT"
   // Work Order flow
@@ -234,8 +240,9 @@ export interface PRNotifyContext {
  * (để Giám đốc/Mua hàng biết phiếu chờ duyệt cuối).
  */
 export async function notifyPRDeptApproved(ctx: PRNotifyContext) {
-  await emitNotification({
-    recipientRole: "purchaser",
+  // V3.16 (fix badge) — cần Thu mua HÀNH ĐỘNG (duyệt cuối) → fan-out direct
+  // (đếm badge chuông) thay vì broadcast recipientRole (không đếm).
+  await emitToUsersWithRole("purchaser", {
     actorUserId: ctx.actorUserId,
     actorUsername: ctx.actorUsername,
     eventType: "PR_DEPT_APPROVED",
@@ -269,9 +276,10 @@ export async function notifyPRDeptApproved(ctx: PRNotifyContext) {
 
 /** Engineer submit PR → notify purchaser role + fan-out direct tới admin */
 export async function notifyPRSubmitted(ctx: PRNotifyContext) {
-  // Broadcast cho Thu mua (backward-compat — purchaser thấy trong list).
-  await emitNotification({
-    recipientRole: "purchaser",
+  // V3.16 (fix badge) — trước đây broadcast recipientRole (không đếm badge,
+  // xác nhận qua DB: 29 dòng PR_SUBMITTED role=purchaser không ai bấm vào).
+  // Đổi sang fan-out direct để đếm badge + read-state riêng từng người.
+  await emitToUsersWithRole("purchaser", {
     actorUserId: ctx.actorUserId,
     actorUsername: ctx.actorUsername,
     eventType: "PR_SUBMITTED",
@@ -370,8 +378,8 @@ export interface PONotifyContext {
 
 /** Purchaser send PO → notify warehouse role */
 export async function notifyPOSent(ctx: PONotifyContext) {
-  await emitNotification({
-    recipientRole: "warehouse",
+  // V3.16 (fix badge) — warehouse cần xử lý (chuẩn bị nhận hàng) → fan-out direct.
+  await emitToUsersWithRole("warehouse", {
     actorUserId: ctx.actorUserId,
     actorUsername: ctx.actorUsername,
     eventType: "PO_SENT",
@@ -387,8 +395,8 @@ export async function notifyPOSent(ctx: PONotifyContext) {
 
 /** Warehouse nhận PO partial → notify purchaser role */
 export async function notifyPOReceivedPartial(ctx: PONotifyContext) {
-  await emitNotification({
-    recipientRole: "purchaser",
+  // V3.16 (fix badge) — purchaser cần theo dõi đợt nhận tiếp theo → fan-out direct.
+  await emitToUsersWithRole("purchaser", {
     actorUserId: ctx.actorUserId,
     actorUsername: ctx.actorUsername,
     eventType: "PO_RECEIVED_PARTIAL",
@@ -404,24 +412,22 @@ export async function notifyPOReceivedPartial(ctx: PONotifyContext) {
 
 /** Warehouse approve nhận đủ PO → notify purchaser + engineer creator + warehouse role */
 export async function notifyPOReceivedFull(ctx: PONotifyContext) {
-  const inputs: EmitNotificationInput[] = [
-    {
-      recipientRole: "purchaser",
-      actorUserId: ctx.actorUserId,
-      actorUsername: ctx.actorUsername,
-      eventType: "PO_RECEIVED_FULL",
-      entityType: "purchase_order",
-      entityId: ctx.poId,
-      entityCode: ctx.poNo,
-      title: `${ctx.poNo} đã nhận đủ`,
-      message: "PO đã hoàn tất, vào trạng thái RECEIVED",
-      link: `/procurement/purchase-orders/${ctx.poId}`,
-      severity: "success",
-    },
-  ];
-  // Engineer creator nhận thông báo cá nhân (đếm vào badge)
+  // V3.16 (fix badge) — purchaser role: đổi broadcast → fan-out direct (đếm badge).
+  await emitToUsersWithRole("purchaser", {
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "PO_RECEIVED_FULL",
+    entityType: "purchase_order",
+    entityId: ctx.poId,
+    entityCode: ctx.poNo,
+    title: `${ctx.poNo} đã nhận đủ`,
+    message: "PO đã hoàn tất, vào trạng thái RECEIVED",
+    link: `/procurement/purchase-orders/${ctx.poId}`,
+    severity: "success",
+  });
+  // Engineer creator nhận thông báo cá nhân (đếm vào badge) — vốn đã direct.
   if (ctx.prCreatorUserId) {
-    inputs.push({
+    await emitNotification({
       recipientUser: ctx.prCreatorUserId,
       actorUserId: ctx.actorUserId,
       actorUsername: ctx.actorUsername,
@@ -435,7 +441,53 @@ export async function notifyPOReceivedFull(ctx: PONotifyContext) {
       severity: "success",
     });
   }
-  await emitNotifications(inputs);
+}
+
+export interface POCreatedFromPRNotifyContext {
+  prId: string;
+  prNo: string;
+  /** PR creator (engineer) — báo tiến độ "đã lập PO". */
+  prCreatorUserId?: string | null;
+  poCount: number;
+  /** PO đầu tiên trong lô vừa tạo — dùng làm link cho purchaser xử lý ngay. */
+  firstPoId: string;
+  actorUserId: string;
+  actorUsername: string;
+}
+
+/**
+ * V3.16 (vấn đề 2) — Convert PR → PO (createPOFromPR) thành công → notify:
+ *  (a) PR creator: báo tiến độ (đã có PO, đang chờ gửi NCC).
+ *  (b) role purchaser (fan-out direct, đếm badge): cần gửi NCC ngay.
+ */
+export async function notifyPOCreatedFromPR(ctx: POCreatedFromPRNotifyContext) {
+  if (ctx.prCreatorUserId) {
+    await emitNotification({
+      recipientUser: ctx.prCreatorUserId,
+      actorUserId: ctx.actorUserId,
+      actorUsername: ctx.actorUsername,
+      eventType: "PO_CREATED_FROM_PR",
+      entityType: "purchase_request",
+      entityId: ctx.prId,
+      entityCode: ctx.prNo,
+      title: `Phiếu ${ctx.prNo} đã được lập ${ctx.poCount} đơn mua hàng (PO)`,
+      message: "Bộ phận Thu mua đang tiến hành gửi NCC.",
+      link: `/procurement/purchase-requests/${ctx.prId}`,
+      severity: "success",
+    });
+  }
+  await emitToUsersWithRole("purchaser", {
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "PO_CREATED_FROM_PR",
+    entityType: "purchase_order",
+    entityId: ctx.firstPoId,
+    entityCode: ctx.prNo,
+    title: `${ctx.poCount} PO mới từ phiếu ${ctx.prNo}`,
+    message: "Cần gửi NCC để tiến hành mua hàng.",
+    link: `/procurement/purchase-orders/${ctx.firstPoId}`,
+    severity: "info",
+  });
 }
 
 export interface WONotifyContext {
@@ -454,8 +506,8 @@ export interface WONotifyContext {
  * phải lệnh chính thức.
  */
 export async function notifyWORequestSubmitted(ctx: WONotifyContext) {
-  await emitNotification({
-    recipientRole: "operator",
+  // V3.16 (fix badge) — operator cần duyệt → fan-out direct thay vì broadcast.
+  await emitToUsersWithRole("operator", {
     actorUserId: ctx.actorUserId,
     actorUsername: ctx.actorUsername,
     eventType: "WO_REQUEST_SUBMITTED",
@@ -545,8 +597,8 @@ export async function notifyWOProgressUpdated(
 
 /** Engineer release WO → notify operator role (legacy /quick endpoint) */
 export async function notifyWOReleased(ctx: WONotifyContext) {
-  await emitNotification({
-    recipientRole: "operator",
+  // V3.16 (fix badge) — operator cần bắt đầu sản xuất → fan-out direct.
+  await emitToUsersWithRole("operator", {
     actorUserId: ctx.actorUserId,
     actorUsername: ctx.actorUsername,
     eventType: "WO_RELEASED",
@@ -564,23 +616,22 @@ export async function notifyWOReleased(ctx: WONotifyContext) {
 
 /** Operator complete WO → notify engineer creator + warehouse */
 export async function notifyWOCompleted(ctx: WONotifyContext & { goodQty?: number | string }) {
-  const inputs: EmitNotificationInput[] = [
-    {
-      recipientRole: "warehouse",
-      actorUserId: ctx.actorUserId,
-      actorUsername: ctx.actorUsername,
-      eventType: "WO_COMPLETED",
-      entityType: "work_order",
-      entityId: ctx.woId,
-      entityCode: ctx.woNo,
-      title: `${ctx.woNo} đã sản xuất xong`,
-      message: ctx.goodQty ? `Thành phẩm +${ctx.goodQty} đang chuẩn bị nhập kho` : undefined,
-      link: `/work-orders/${ctx.woId}`,
-      severity: "info",
-    },
-  ];
+  // V3.16 (fix badge) — warehouse cần xử lý (nhập kho thành phẩm) → fan-out
+  // direct thay vì broadcast recipientRole (giống lý do đổi notifyPOSent).
+  await emitToUsersWithRole("warehouse", {
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "WO_COMPLETED",
+    entityType: "work_order",
+    entityId: ctx.woId,
+    entityCode: ctx.woNo,
+    title: `${ctx.woNo} đã sản xuất xong`,
+    message: ctx.goodQty ? `Thành phẩm +${ctx.goodQty} đang chuẩn bị nhập kho` : undefined,
+    link: `/work-orders/${ctx.woId}`,
+    severity: "info",
+  });
   if (ctx.creatorUserId) {
-    inputs.push({
+    await emitNotification({
       recipientUser: ctx.creatorUserId,
       actorUserId: ctx.actorUserId,
       actorUsername: ctx.actorUsername,
@@ -596,7 +647,6 @@ export async function notifyWOCompleted(ctx: WONotifyContext & { goodQty?: numbe
       severity: "success",
     });
   }
-  await emitNotifications(inputs);
 }
 
 export interface MaterialRequestNotifyContext {
@@ -610,8 +660,8 @@ export interface MaterialRequestNotifyContext {
 
 /** Engineer tạo Material Request → notify warehouse */
 export async function notifyMaterialRequestNew(ctx: MaterialRequestNotifyContext) {
-  await emitNotification({
-    recipientRole: "warehouse",
+  // V3.16 (fix badge) — warehouse cần chuẩn bị hàng → fan-out direct.
+  await emitToUsersWithRole("warehouse", {
     actorUserId: ctx.actorUserId,
     actorUsername: ctx.actorUsername,
     eventType: "MATERIAL_REQUEST_NEW",
@@ -643,7 +693,14 @@ export async function notifyMaterialRequestReady(ctx: MaterialRequestNotifyConte
   });
 }
 
-/** Engineer DELIVERED → notify warehouse */
+/**
+ * Engineer DELIVERED → notify warehouse.
+ *
+ * V3.16 — GIỮ NGUYÊN broadcast (không đổi sang emitToUsersWithRole): đây là
+ * event ĐÓNG (linh kiện đã trao tay xong, do engineer tự xác nhận), warehouse
+ * không cần hành động gì tiếp theo — chỉ mang tính thông tin/đối soát, không
+ * cần đếm badge để "nhắc bấm vào xử lý" như các event chờ duyệt/chuẩn bị khác.
+ */
 export async function notifyMaterialRequestDelivered(
   ctx: MaterialRequestNotifyContext,
 ) {
@@ -674,10 +731,10 @@ interface IssueRequestNotifyContext {
   totalQty?: number | null;
 }
 
-/** Operations tạo ISR PENDING → notify warehouse role broadcast */
+/** Operations tạo ISR PENDING → notify warehouse role */
 export async function notifyIssueRequestNew(ctx: IssueRequestNotifyContext) {
-  await emitNotification({
-    recipientRole: "warehouse",
+  // V3.16 (fix badge) — warehouse cần duyệt xuất kho → fan-out direct.
+  await emitToUsersWithRole("warehouse", {
     actorUserId: ctx.actorUserId,
     actorUsername: ctx.actorUsername,
     eventType: "ISSUE_REQUEST_NEW",

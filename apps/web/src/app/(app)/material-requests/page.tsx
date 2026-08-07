@@ -3,12 +3,14 @@
 import * as React from "react";
 import Link from "next/link";
 import {
+  parseAsInteger,
   parseAsString,
   parseAsStringEnum,
   useQueryStates,
 } from "nuqs";
 import {
-  ArrowUpRight,
+  ArrowDown,
+  ArrowUp,
   Check,
   CheckCircle2,
   Clock,
@@ -22,34 +24,20 @@ import {
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  FolderBreadcrumb,
-  FolderCard,
-  FolderGrid,
-  type FolderChip,
-} from "@/components/archive/DateFolder";
 import { ExportExcelDialog } from "@/components/archive/ExportExcelDialog";
-import {
-  formatDayFull,
-  formatDayNum,
-  formatMonthLabel,
-  formatMonthShort,
-  formatWeekday,
-  groupDaysByMonth,
-  type DayBucket,
-} from "@/lib/date-folders";
+import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
- * V3.13 — Yêu cầu vật tư dạng "thư mục theo ngày".
+ * V3.16 — Yêu cầu vật tư dạng BẢNG PHẲNG.
  *
- * 3 cấp điều hướng (state trên URL):
- *   - (mặc định)       → lưới thư mục THÁNG
- *   - ?month=YYYY-MM   → lưới thư mục NGÀY trong tháng
- *   - ?date=YYYY-MM-DD → danh sách phiếu tạo trong ngày (+ action chuyển trạng thái)
+ * Trước là "thư mục Tháng → Ngày → phiếu" (V3.13); user dùng thử rồi đổi ý,
+ * quay về 1 danh sách dài + cột "Ngày tạo" bấm được để sort + bộ lọc khoảng
+ * ngày (Từ/Đến) để tra cứu — copy-adapt cấu trúc từ PRTab.tsx (module
+ * "Đề xuất vật tư" đã đổi tương tự).
  * Click 1 phiếu → trang chi tiết /material-requests/[id] (đã có sẵn).
  *
- * Scope "mine"/"all" áp dụng cho mọi cấp (kho/admin xem tất cả).
+ * Scope "mine"/"all" giữ nguyên, áp dụng cho toàn bảng.
  */
 
 type Status = "PENDING" | "PICKING" | "READY" | "DELIVERED" | "CANCELLED";
@@ -73,20 +61,6 @@ const STATUS_PILL: Record<Status, { label: string; short: string; cls: string; d
   CANCELLED: { label: "Đã huỷ",        short: "Huỷ",      cls: "bg-zinc-100 text-zinc-500 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",      dot: "bg-zinc-400",  icon: XCircle      },
 };
 
-const STATUS_ORDER: Status[] = ["PENDING", "PICKING", "READY", "DELIVERED", "CANCELLED"];
-
-function statusChips(statuses: Record<string, number>): FolderChip[] {
-  return STATUS_ORDER.map((s) => ({
-    label: STATUS_PILL[s].short,
-    count: statuses[s] ?? 0,
-    dot: STATUS_PILL[s].dot,
-  }));
-}
-
-interface CalendarResponse {
-  days: DayBucket[];
-}
-
 interface ListResponse {
   data: MaterialRequestRow[];
   meta: { page: number; pageSize: number; total: number };
@@ -96,61 +70,50 @@ export default function MaterialRequestsArchivePage() {
   const [urlState, setUrlState] = useQueryStates(
     {
       scope: parseAsStringEnum(["mine", "all"]).withDefault("mine"),
-      month: parseAsString.withDefault(""),
-      date: parseAsString.withDefault(""),
+      from: parseAsString.withDefault(""),
+      to: parseAsString.withDefault(""),
+      sortDir: parseAsStringEnum(["asc", "desc"]).withDefault("desc"),
+      page: parseAsInteger.withDefault(1),
+      pageSize: parseAsInteger.withDefault(50),
     },
-    { history: "push", shallow: true },
+    { history: "replace", shallow: true },
   );
-  const { scope, month, date } = urlState;
+  const { scope } = urlState;
   const qc = useQueryClient();
 
-  const level: "months" | "days" | "slips" = date ? "slips" : month ? "days" : "months";
+  // V3.16 — Khoảng ngày mặc định cho dialog xuất Excel: theo bộ lọc from/to
+  // hiện tại của trang (nếu user đã chọn), else để rỗng (dialog tự tính
+  // "hôm nay" lúc mở, client-only, tránh hydration mismatch).
+  const exportRange = React.useMemo(
+    () => ({ from: urlState.from, to: urlState.to }),
+    [urlState.from, urlState.to],
+  );
 
-  // V3.14 — Khoảng ngày mặc định cho dialog xuất Excel, theo cấp drill-down
-  // hiện tại. Không dùng new Date() vô tham số (tránh hydration mismatch) —
-  // ở cấp "months" để rỗng, dialog tự tính "hôm nay" lúc mở (client-only).
-  const exportRange = React.useMemo(() => {
-    if (date) return { from: date, to: date };
-    if (month) {
-      const [y, m] = month.split("-");
-      const lastDay = new Date(Number(y), Number(m), 0).getDate();
-      return { from: `${month}-01`, to: `${month}-${String(lastDay).padStart(2, "0")}` };
-    }
-    return { from: "", to: "" };
-  }, [date, month]);
-
-  const calendar = useQuery<CalendarResponse>({
-    queryKey: ["material-requests", "calendar", scope],
+  const listQuery = useQuery<ListResponse>({
+    queryKey: [
+      "material-requests",
+      "list",
+      scope,
+      urlState.from,
+      urlState.to,
+      urlState.sortDir,
+      urlState.page,
+      urlState.pageSize,
+    ],
     queryFn: async () => {
-      const p = new URLSearchParams({ view: "calendar" });
+      const p = new URLSearchParams();
       if (scope === "mine") p.set("mine", "1");
+      if (urlState.from) p.set("from", urlState.from);
+      if (urlState.to) p.set("to", urlState.to);
+      p.set("sortDir", urlState.sortDir);
+      p.set("page", String(urlState.page));
+      p.set("pageSize", String(urlState.pageSize));
       const res = await fetch(`/api/material-requests?${p}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to load");
       return res.json();
     },
     staleTime: 15_000,
-  });
-
-  const months = React.useMemo(
-    () => groupDaysByMonth(calendar.data?.days ?? []),
-    [calendar.data],
-  );
-  const activeMonth = React.useMemo(
-    () => months.find((m) => m.month === month),
-    [months, month],
-  );
-
-  const slips = useQuery<ListResponse>({
-    queryKey: ["material-requests", "day", scope, date],
-    queryFn: async () => {
-      const p = new URLSearchParams({ date, pageSize: "100" });
-      if (scope === "mine") p.set("mine", "1");
-      const res = await fetch(`/api/material-requests?${p}`, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to load");
-      return res.json();
-    },
-    enabled: level === "slips" && !!date,
-    staleTime: 15_000,
+    placeholderData: (prev) => prev,
   });
 
   const transition = useMutation({
@@ -175,51 +138,33 @@ export default function MaterialRequestsArchivePage() {
     },
   });
 
-  // Breadcrumb: giữ scope khi quay lại cấp trên.
-  const scopeQs = scope === "all" ? "?scope=all" : "";
-  const crumbs = [
-    { label: "Tất cả tháng", href: `/material-requests${scopeQs}` },
-    ...(month
-      ? [{
-          label: formatMonthShort(month),
-          href: `/material-requests?month=${month}${scope === "all" ? "&scope=all" : ""}`,
-        }]
-      : []),
-    ...(date ? [{ label: formatDayFull(date) }] : []),
-  ];
+  const total = listQuery.data?.meta.total ?? 0;
+  const rows = listQuery.data?.data ?? [];
+  const pageCount = Math.max(1, Math.ceil(total / urlState.pageSize));
+  const isEmpty = !listQuery.isLoading && rows.length === 0;
+  const hasFilter = urlState.from !== "" || urlState.to !== "";
 
-  const isLoading = level === "slips" ? slips.isLoading : calendar.isLoading;
+  const resetFilters = () => {
+    void setUrlState({ from: "", to: "", page: 1 });
+  };
 
   return (
     <div className="flex flex-col bg-zinc-50/30 md:h-full md:overflow-hidden dark:bg-zinc-950">
       <header className="border-b border-zinc-200 bg-white px-4 py-4 md:px-6 md:py-5 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            {level === "months" ? (
-              <nav aria-label="Breadcrumb" className="text-xs text-zinc-500 dark:text-zinc-400">
-                <Link href="/" className="hover:text-zinc-900 hover:underline dark:hover:text-zinc-50">Tổng quan</Link>
-                <span className="mx-1.5 text-zinc-300 dark:text-zinc-700">›</span>
-                <span className="font-medium text-zinc-900 dark:text-zinc-50">Yêu cầu vật tư</span>
-              </nav>
-            ) : (
-              <FolderBreadcrumb items={crumbs} />
-            )}
+            <nav aria-label="Breadcrumb" className="text-xs text-zinc-500 dark:text-zinc-400">
+              <Link href="/" className="hover:text-zinc-900 hover:underline dark:hover:text-zinc-50">Tổng quan</Link>
+              <span className="mx-1.5 text-zinc-300 dark:text-zinc-700">›</span>
+              <span className="font-medium text-zinc-900 dark:text-zinc-50">Yêu cầu vật tư</span>
+            </nav>
             <h1 className="mt-2 flex items-center gap-2 text-xl font-semibold tracking-tight text-zinc-900 md:text-2xl dark:text-zinc-50">
               <FileText className="h-5 w-5 shrink-0 text-indigo-600 md:h-6 md:w-6 dark:text-indigo-400" aria-hidden />
-              <span className="truncate">
-                {level === "slips"
-                  ? `Phiếu ngày ${formatDayFull(date)}`
-                  : level === "days"
-                    ? formatMonthLabel(month)
-                    : "Yêu cầu vật tư từ kho"}
-              </span>
+              <span className="truncate">Yêu cầu vật tư từ kho</span>
             </h1>
             <p className="mt-1 hidden text-sm text-zinc-500 sm:block dark:text-zinc-400">
-              {level === "months"
-                ? "Lưu trữ theo thư mục — chọn tháng, rồi ngày để xem các phiếu."
-                : level === "days"
-                  ? "Chọn một ngày để xem danh sách phiếu."
-                  : "Engineer tạo yêu cầu, kho chuẩn bị và bàn giao linh kiện."}
+              <span className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">{total.toLocaleString("vi-VN")}</span>{" "}
+              yêu cầu — Engineer tạo yêu cầu, kho chuẩn bị và bàn giao linh kiện.
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -240,14 +185,14 @@ export default function MaterialRequestsArchivePage() {
         </div>
       </header>
 
-      {/* Scope toggle — áp dụng mọi cấp */}
+      {/* Scope toggle + khoảng ngày — áp dụng toàn bảng */}
       <div className="flex flex-wrap items-center gap-3 border-b border-zinc-200 bg-white px-4 py-2.5 md:px-6 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-zinc-50 p-0.5 dark:border-zinc-700 dark:bg-zinc-800">
           {(["mine", "all"] as const).map((v) => (
             <button
               key={v}
               type="button"
-              onClick={() => void setUrlState({ scope: v })}
+              onClick={() => void setUrlState({ scope: v, page: 1 })}
               className={cn(
                 "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                 scope === v ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-zinc-50" : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200",
@@ -257,197 +202,270 @@ export default function MaterialRequestsArchivePage() {
             </button>
           ))}
         </div>
-        {level !== "months" && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => void setUrlState({ month: date ? month : "", date: "" })}
-            className="text-zinc-600 dark:text-zinc-400"
-          >
-            ← Quay lại
-          </Button>
-        )}
+
+        <div className="ml-auto flex items-center gap-2">
+          <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
+            <span className="text-zinc-500 dark:text-zinc-400">Từ</span>
+            <input
+              type="date"
+              value={urlState.from}
+              max={urlState.to || undefined}
+              onChange={(e) => void setUrlState({ from: e.target.value, page: 1 })}
+              className="h-8 rounded-lg border border-zinc-200 bg-white px-2.5 text-sm tabular-nums focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            />
+          </label>
+          <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
+            <span className="text-zinc-500 dark:text-zinc-400">Đến</span>
+            <input
+              type="date"
+              value={urlState.to}
+              min={urlState.from || undefined}
+              onChange={(e) => void setUrlState({ to: e.target.value, page: 1 })}
+              className="h-8 rounded-lg border border-zinc-200 bg-white px-2.5 text-sm tabular-nums focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            />
+          </label>
+          {hasFilter && (
+            <Button variant="ghost" size="sm" onClick={resetFilters}>
+              Xoá lọc
+            </Button>
+          )}
+        </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-4 md:p-6">
-        {isLoading ? (
+      <div className="flex-1 overflow-hidden p-4 md:p-6">
+        {listQuery.isLoading && rows.length === 0 ? (
           <div className="flex items-center justify-center gap-2 py-20 text-sm text-zinc-500 dark:text-zinc-400">
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
             Đang tải…
           </div>
-        ) : level === "months" ? (
-          months.length === 0 ? (
-            <EmptyFolders scope={scope} />
-          ) : (
-            <FolderGrid>
-              {months.map((m) => (
-                <FolderCard
-                  key={m.month}
-                  href={`/material-requests?month=${m.month}${scope === "all" ? "&scope=all" : ""}`}
-                  title={formatMonthLabel(m.month)}
-                  subtitle={`${m.days.length} ngày có phiếu`}
-                  count={m.count}
-                  chips={statusChips(m.statuses)}
-                />
-              ))}
-            </FolderGrid>
-          )
-        ) : level === "days" ? (
-          !activeMonth || activeMonth.days.length === 0 ? (
-            <EmptyFolders scope={scope} />
-          ) : (
-            <FolderGrid>
-              {activeMonth.days.map((d) => (
-                <FolderCard
-                  key={d.day}
-                  href={`/material-requests?date=${d.day}${scope === "all" ? "&scope=all" : ""}`}
-                  title={formatDayNum(d.day)}
-                  subtitle={formatWeekday(d.day)}
-                  count={d.count}
-                  chips={statusChips(d.statuses)}
-                />
-              ))}
-            </FolderGrid>
-          )
+        ) : isEmpty ? (
+          <EmptyRequestsCard scope={scope} hasFilter={hasFilter} onResetFilters={resetFilters} />
         ) : (
           <SlipList
-            rows={slips.data?.data ?? []}
+            rows={rows}
+            sortDir={urlState.sortDir as "asc" | "desc"}
+            onSortDateClick={() =>
+              void setUrlState({ sortDir: urlState.sortDir === "asc" ? "desc" : "asc" })
+            }
             onTransition={(id, to) => transition.mutate({ id, to })}
             transitioning={transition.isPending}
           />
         )}
       </div>
+
+      {!isEmpty && (
+        <footer className="flex h-9 items-center justify-between border-t border-zinc-200 bg-white px-4 text-base dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
+          <div className="text-zinc-600 tabular-nums dark:text-zinc-400">
+            Trang {urlState.page} / {pageCount}
+          </div>
+          <div className="flex items-center gap-1">
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={urlState.page <= 1}
+              onClick={() => void setUrlState({ page: Math.max(1, urlState.page - 1) })}
+            >
+              ‹
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={urlState.page >= pageCount}
+              onClick={() => void setUrlState({ page: Math.min(pageCount, urlState.page + 1) })}
+            >
+              ›
+            </Button>
+          </div>
+        </footer>
+      )}
     </div>
   );
 }
 
-function EmptyFolders({ scope }: { scope: "mine" | "all" }) {
+function EmptyRequestsCard({
+  scope,
+  hasFilter,
+  onResetFilters,
+}: {
+  scope: "mine" | "all";
+  hasFilter: boolean;
+  onResetFilters: () => void;
+}) {
   return (
     <div className="rounded-2xl border border-dashed border-zinc-300 bg-white p-8 text-center md:p-12 dark:border-zinc-700 dark:bg-zinc-900">
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-800">
         <FileText className="h-7 w-7 text-zinc-400 dark:text-zinc-500" aria-hidden />
       </div>
       <h3 className="mt-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-        Chưa có yêu cầu nào
+        {hasFilter ? "Không có yêu cầu khớp bộ lọc" : "Chưa có yêu cầu nào"}
       </h3>
       <p className="mt-1.5 text-sm text-zinc-500 dark:text-zinc-400">
-        {scope === "mine" ? "Bạn chưa tạo yêu cầu vật tư nào." : "Hệ thống chưa có yêu cầu nào."}
+        {hasFilter
+          ? "Thử điều chỉnh khoảng ngày hoặc xoá bộ lọc."
+          : scope === "mine"
+            ? "Bạn chưa tạo yêu cầu vật tư nào."
+            : "Hệ thống chưa có yêu cầu nào."}
       </p>
-      <Button asChild size="sm" className="mt-4">
-        <Link href="/material-requests/new">
-          <Plus className="h-4 w-4" /> Tạo yêu cầu mới
-        </Link>
-      </Button>
+      {hasFilter ? (
+        <Button variant="ghost" size="sm" className="mt-4" onClick={onResetFilters}>
+          Xoá bộ lọc
+        </Button>
+      ) : (
+        <Button asChild size="sm" className="mt-4">
+          <Link href="/material-requests/new">
+            <Plus className="h-4 w-4" /> Tạo yêu cầu mới
+          </Link>
+        </Button>
+      )}
     </div>
   );
 }
 
-function SlipList({
-  rows,
-  onTransition,
-  transitioning,
-}: {
+interface SlipListProps {
   rows: MaterialRequestRow[];
+  sortDir: "asc" | "desc";
+  onSortDateClick: () => void;
   onTransition: (id: string, to: Status) => void;
   transitioning: boolean;
-}) {
-  if (rows.length === 0) {
-    return (
-      <div className="rounded-2xl border border-dashed border-zinc-300 bg-white p-8 text-center dark:border-zinc-700 dark:bg-zinc-900">
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">Không có phiếu nào trong ngày này.</p>
-      </div>
-    );
-  }
+}
+
+/**
+ * V3.16 — Bảng phẳng (trước là card list trong "thư mục ngày").
+ * Cols: Mã yêu cầu | Người yêu cầu | Số dòng | Trạng thái | Ngày tạo
+ *       (sort được) | Hành động.
+ * Không virtualize: dòng PENDING có 2 nút hành động, PICKING/READY có 1 nút,
+ * DELIVERED/CANCELLED không có nút nào → chiều cao dòng co giãn theo nội
+ * dung, không hợp với virtualizer (cần estimateSize cố định).
+ * Mobile-safe: scroll ngang qua wrapper overflow-auto + min-width thay vì ẩn
+ * cột — ẩn cột sẽ mất nút thao tác quan trọng trên màn hình nhỏ.
+ */
+function SlipList({
+  rows,
+  sortDir,
+  onSortDateClick,
+  onTransition,
+  transitioning,
+}: SlipListProps) {
+  const gridCols =
+    "grid-cols-[130px_minmax(180px,1fr)_90px_150px_140px_minmax(220px,auto)]";
 
   return (
-    <div className="space-y-2.5">
-      {rows.map((r) => {
-        const cfg = STATUS_PILL[r.status];
-        return (
-          <div
-            key={r.id}
-            className="rounded-xl border border-zinc-200 bg-white p-3.5 shadow-sm transition-colors hover:border-indigo-200 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-indigo-800"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-2.5">
+    <div
+      className="h-full w-full overflow-auto rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+      role="region"
+      aria-label="Danh sách yêu cầu vật tư"
+    >
+      <div className="min-w-[910px]">
+        <div
+          className={cn(
+            "sticky top-0 z-sticky grid h-8 items-center border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400",
+            gridCols,
+          )}
+        >
+          <div>Mã yêu cầu</div>
+          <div>Người yêu cầu</div>
+          <div className="text-center">Số dòng</div>
+          <div>Trạng thái</div>
+          <div>
+            <button
+              type="button"
+              onClick={onSortDateClick}
+              className="inline-flex items-center gap-1 uppercase tracking-wide text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+            >
+              Ngày tạo
+              {sortDir === "asc" ? (
+                <ArrowUp className="h-3 w-3" aria-hidden="true" />
+              ) : (
+                <ArrowDown className="h-3 w-3" aria-hidden="true" />
+              )}
+            </button>
+          </div>
+          <div>Hành động</div>
+        </div>
+
+        <div>
+          {rows.map((r) => {
+            const cfg = STATUS_PILL[r.status];
+            const canAct =
+              r.status === "PENDING" || r.status === "PICKING" || r.status === "READY";
+            return (
+              <div
+                key={r.id}
+                role="row"
+                className={cn(
+                  "grid items-center gap-y-1.5 border-b border-zinc-100 px-3 py-2.5 text-base text-zinc-900 transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-800/60",
+                  gridCols,
+                )}
+              >
                 <Link
                   href={`/material-requests/${r.id}`}
-                  className="font-mono text-sm font-bold text-indigo-600 hover:underline dark:text-indigo-400"
+                  className="truncate font-mono text-sm font-semibold text-indigo-600 hover:underline dark:text-indigo-400"
+                  title={r.requestNo}
                 >
                   {r.requestNo}
                 </Link>
-                <span className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset",
-                  cfg.cls,
-                )}>
-                  <span className={cn("h-1.5 w-1.5 rounded-full", cfg.dot)} />
-                  {cfg.label}
-                </span>
-              </div>
-              <Link
-                href={`/material-requests/${r.id}`}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-indigo-600 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-indigo-400"
-                aria-label="Xem chi tiết"
-              >
-                <ArrowUpRight className="h-4 w-4" aria-hidden />
-              </Link>
-            </div>
-
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400">
-              <span>
-                Người yêu cầu:{" "}
-                <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                <div className="truncate pr-2 text-sm text-zinc-700 dark:text-zinc-300">
                   {r.requestedByName || r.requestedByUsername || "—"}
-                </span>
-              </span>
-              <span>
-                Số dòng:{" "}
-                <span className="font-mono font-semibold text-zinc-700 dark:text-zinc-300">{r.lineCount}</span>
-              </span>
-              <span className="tabular-nums">
-                {new Date(r.createdAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
-              </span>
-            </div>
-
-            {(r.status === "PENDING" || r.status === "PICKING" || r.status === "READY") && (
-              <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-2.5 dark:border-zinc-800">
-                {r.status === "PENDING" && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-950/40"
-                    onClick={() => onTransition(r.id, "PICKING")}
-                    disabled={transitioning}
+                </div>
+                <div className="text-center font-mono text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                  {r.lineCount}
+                </div>
+                <div>
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset",
+                      cfg.cls,
+                    )}
                   >
-                    <Package className="h-3.5 w-3.5" /> Bắt đầu chuẩn bị
-                  </Button>
-                )}
-                {(r.status === "PENDING" || r.status === "PICKING") && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 border-violet-200 text-violet-700 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-400 dark:hover:bg-violet-950/40"
-                    onClick={() => onTransition(r.id, "READY")}
-                    disabled={transitioning}
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Sẵn sàng
-                  </Button>
-                )}
-                {r.status === "READY" && (
-                  <Button
-                    size="sm"
-                    className="h-8 bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
-                    onClick={() => onTransition(r.id, "DELIVERED")}
-                    disabled={transitioning}
-                  >
-                    <Check className="h-3.5 w-3.5" /> Xác nhận đã nhận
-                  </Button>
-                )}
+                    <span className={cn("h-1.5 w-1.5 rounded-full", cfg.dot)} />
+                    {cfg.label}
+                  </span>
+                </div>
+                <div className="text-sm text-zinc-600 tabular-nums dark:text-zinc-400">
+                  {formatDate(r.createdAt, "dd/MM/yyyy HH:mm")}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {r.status === "PENDING" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-950/40"
+                      onClick={() => onTransition(r.id, "PICKING")}
+                      disabled={transitioning}
+                    >
+                      <Package className="h-3.5 w-3.5" /> Bắt đầu chuẩn bị
+                    </Button>
+                  )}
+                  {(r.status === "PENDING" || r.status === "PICKING") && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 border-violet-200 text-violet-700 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-400 dark:hover:bg-violet-950/40"
+                      onClick={() => onTransition(r.id, "READY")}
+                      disabled={transitioning}
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Sẵn sàng
+                    </Button>
+                  )}
+                  {r.status === "READY" && (
+                    <Button
+                      size="sm"
+                      className="h-7 bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                      onClick={() => onTransition(r.id, "DELIVERED")}
+                      disabled={transitioning}
+                    >
+                      <Check className="h-3.5 w-3.5" /> Xác nhận đã nhận
+                    </Button>
+                  )}
+                  {!canAct && (
+                    <span className="text-xs text-zinc-400 dark:text-zinc-500">—</span>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
-        );
-      })}
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

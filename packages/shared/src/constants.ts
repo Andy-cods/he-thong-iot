@@ -109,6 +109,9 @@ export const QUEUE_NAMES = {
   ASSEMBLY_SCAN_SYNC: "assembly-scan-sync",
   ECO_APPLY_BATCH: "eco-apply-batch",
   EMAIL_SEND: "email-send",
+  // V3.16 — "Nhắc duyệt" PR: repeatable job (upsertJobScheduler, mỗi 1h) quét
+  // purchase_request SUBMITTED/DEPT_APPROVED quá 24h chưa xử lý.
+  PR_REMINDER_SCAN: "pr-reminder-scan",
 } as const;
 
 /**

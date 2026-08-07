@@ -268,6 +268,11 @@ export interface PRFilter {
   requestedBy?: string;
   /** V3.13 — lọc phiếu theo đúng 1 ngày (`YYYY-MM-DD`). */
   date?: string;
+  /** V3.16 — lọc khoảng ngày [from, to] (`YYYY-MM-DD`), thay cho thư mục ngày. */
+  from?: string;
+  to?: string;
+  /** V3.16 — sort theo cột "Ngày tạo". Mặc định "desc". */
+  sortDir?: "asc" | "desc";
   page?: number;
   pageSize?: number;
 }
