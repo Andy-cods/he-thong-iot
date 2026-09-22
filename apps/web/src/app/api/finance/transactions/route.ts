@@ -30,11 +30,16 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const guard = await requireCan(req, "create", "finance");
   if ("response" in guard) return guard.response;
-  const body = await parseJson(req, finTransactionCreateSchema);
-  if ("response" in body) return body.response;
 
-  // Phòng thủ tường minh — nếu client cố tình gửi paymentId trong raw body,
-  // chặn ngay tại đây dù zod đã strip field lạ (an toàn kép theo yêu cầu brief).
+  // Phòng thủ tường minh — nếu client cố tình gửi paymentId, chặn ngay dù zod
+  // đã strip field lạ (an toàn kép chống double-count §C.2).
+  //
+  // ⚠ PHẢI đọc raw body TRƯỚC `parseJson`: body của Request là ReadableStream
+  // dùng-một-lần. Gọi `req.clone()` SAU khi parseJson đã đọc hết stream sẽ ném
+  // `TypeError: unusable` → 500. (Lỗi thật đã gặp trên prod 2026-09-22, phát
+  // hiện khi test API bằng curl — typecheck/vitest KHÔNG bắt được vì đây là
+  // hành vi runtime của Fetch API.)
+  // Cách đúng: clone TRƯỚC, đọc raw từ bản clone, rồi mới parseJson bản gốc.
   const rawBody = (await req.clone().json().catch(() => null)) as
     | Record<string, unknown>
     | null;
@@ -45,6 +50,9 @@ export async function POST(req: NextRequest) {
       400,
     );
   }
+
+  const body = await parseJson(req, finTransactionCreateSchema);
+  if ("response" in body) return body.response;
 
   try {
     const row = await createTransaction(body.data, guard.session.userId);
