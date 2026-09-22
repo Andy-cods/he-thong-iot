@@ -14,6 +14,7 @@ import {
   parseJson,
 } from "@/server/http";
 import { writeAudit, diffObjects } from "@/server/services/audit";
+import { notifyPOPriceUpdated } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 import { db } from "@/lib/db";
 
@@ -139,6 +140,12 @@ export async function PATCH(
       patch.supplierId = body.data.supplierId;
   }
 
+  // V4.0 Wave 3 Phase C — snapshot giá TRƯỚC khi update để phát hiện đổi giá
+  // (chỉ có thể xảy ra khi isDraft, vì SENT không cho sửa lines — HEADER_ONLY_FIELDS
+  // đã chặn ở trên). Dùng để quyết định có bắn notifyPOPriceUpdated hay không.
+  const beforeLinesForPriceDiff =
+    isDraft && body.data.lines ? await getPOLines(params.id) : null;
+
   try {
     const result = await updatePOWithLines(
       params.id,
@@ -187,6 +194,29 @@ export async function PATCH(
       },
       ...meta,
     });
+
+    // V4.0 Wave 3 Phase C — báo Kho nếu đơn giá dòng nào đó thực sự đổi (so
+    // sánh theo itemId — line bị xoá-tạo lại nên không còn id cũ để match).
+    // KHÔNG báo khi chỉ đổi qty/eta/notes (không ảnh hưởng tồn kho dự kiến).
+    if (beforeLinesForPriceDiff && body.data.lines) {
+      const beforeByItem = new Map(
+        beforeLinesForPriceDiff.map((l) => [l.itemId, Number(l.unitPrice)]),
+      );
+      const changedLineCount = body.data.lines.filter((l) => {
+        const beforePrice = beforeByItem.get(l.itemId);
+        const afterPrice = l.unitPrice ?? 0;
+        return beforePrice !== undefined && beforePrice !== afterPrice;
+      }).length;
+      if (changedLineCount > 0) {
+        void notifyPOPriceUpdated({
+          poId: params.id,
+          poNo: after.poNo,
+          changedLineCount,
+          actorUserId: guard.session.userId,
+          actorUsername: guard.session.username,
+        });
+      }
+    }
 
     return NextResponse.json({ data: after });
   } catch (err) {

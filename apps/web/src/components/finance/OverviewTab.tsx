@@ -17,11 +17,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CashflowChart } from "@/components/finance/CashflowChart";
 import { fmtVND, toDateInputValue } from "@/components/finance/_format";
-import {
-  useFinCashflow,
-  useFinSummary,
-  useReceivablesAging,
-} from "@/hooks/useFinance";
+import { useFinCashflow, useFinSummary } from "@/hooks/useFinance";
 import { cn } from "@/lib/utils";
 
 /**
@@ -50,14 +46,13 @@ export function OverviewTab() {
 
   const cashflowQuery = useFinCashflow({ from, to, compareWith: "previous_period" });
   const summaryQuery = useFinSummary();
-  const agingQuery = useReceivablesAging();
 
   const cashflow = cashflowQuery.data?.data;
   const summary = summaryQuery.data?.data;
-  const totalReceivable = (agingQuery.data?.data.buckets ?? []).reduce(
-    (s, b) => s + b.outstandingAmount,
-    0,
-  );
+  // TASK-20260922 — totalReceivable/totalPayable lấy trực tiếp từ dashboard
+  // summary (đã bổ sung server-side) thay vì gọi lại API aging riêng.
+  const totalReceivable = summary?.totalReceivable ?? 0;
+  const totalPayable = summary?.totalPayable ?? 0;
 
   const isLoading = cashflowQuery.isLoading || summaryQuery.isLoading;
   const hasData = (cashflow?.series.length ?? 0) > 0;
@@ -128,7 +123,7 @@ export function OverviewTab() {
         ) : (
           <div className="space-y-6">
             {/* KPI strip */}
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
               <KpiCard
                 icon={TrendingUp}
                 label="Tổng thu"
@@ -155,6 +150,12 @@ export function OverviewTab() {
                 label="Công nợ phải thu"
                 value={fmtVND(totalReceivable)}
                 accent="amber"
+              />
+              <KpiCard
+                icon={ReceiptText}
+                label="Công nợ phải trả"
+                value={fmtVND(totalPayable)}
+                accent="rose"
               />
               <KpiCard
                 icon={Landmark}

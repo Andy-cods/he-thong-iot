@@ -15,12 +15,19 @@ const schema = z.object({
   reason: z.string().trim().min(1, "Cần nhập lý do từ chối").max(500),
 });
 
-/** POST /api/warehouse/issue-request/[id]/reject — Kho từ chối yêu cầu. */
+/**
+ * POST /api/warehouse/issue-request/[id]/reject — Kho từ chối yêu cầu.
+ *
+ * V4.0 Wave 3 Phase D (fix bug) — cùng sửa guard như approve/route.ts: entity
+ * `deliveryNote` action `transition` (warehouse có quyền, admin cũng có) +
+ * hard-check admin cho case sales/return (xuất bán/trả NCC). Xem ghi chú đầy
+ * đủ ở approve/route.ts.
+ */
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireCan(req, "transition", "po");
+  const guard = await requireCan(req, "transition", "deliveryNote");
   if ("response" in guard) return guard.response;
 
   if (!/^[0-9a-f-]{36}$/i.test(params.id)) {
@@ -36,6 +43,7 @@ export async function POST(
       requestNo: warehouseIssueRequest.requestNo,
       status: warehouseIssueRequest.status,
       requestedBy: warehouseIssueRequest.requestedBy,
+      reason: warehouseIssueRequest.reason,
     })
     .from(warehouseIssueRequest)
     .where(eq(warehouseIssueRequest.id, params.id))
@@ -47,6 +55,16 @@ export async function POST(
       "INVALID_STATUS",
       `Yêu cầu đã ${current.status}`,
       409,
+    );
+  }
+  if (
+    ["sales", "return"].includes(current.reason) &&
+    !guard.session.roles.includes("admin")
+  ) {
+    return jsonError(
+      "FORBIDDEN",
+      "Xuất bán/trả hàng NCC chỉ Giám đốc được từ chối.",
+      403,
     );
   }
 

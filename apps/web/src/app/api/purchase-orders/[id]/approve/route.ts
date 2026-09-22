@@ -2,8 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { poApproveSchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import { approvePO } from "@/server/repos/purchaseOrders";
+import { getPR } from "@/server/repos/purchaseRequests";
 import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
+import { notifyPOApproved } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -42,6 +44,18 @@ export async function POST(
       after: { approvalStatus: "approved", notes: body.data.notes ?? null },
       notes: "Duyệt PO",
       ...meta,
+    });
+
+    // V4.0 Wave 3 Phase C — bổ sung notify còn thiếu: purchaser + warehouse +
+    // người đề xuất PR gốc (nếu PO tạo từ PR). Trước đây route này không bắn
+    // notify gì cả (gap thật).
+    const pr = row.prId ? await getPR(row.prId) : null;
+    void notifyPOApproved({
+      poId: row.id,
+      poNo: row.poNo,
+      actorUserId: guard.session.userId,
+      actorUsername: guard.session.username,
+      prRequesterUserId: pr?.requestedBy ?? null,
     });
 
     return NextResponse.json({ data: row });

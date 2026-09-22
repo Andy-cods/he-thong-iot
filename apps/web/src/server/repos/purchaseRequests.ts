@@ -14,6 +14,7 @@ import type {
 } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import { deriveDisplayLabel } from "@/lib/pr-display-label";
+import { currentYymm, genDocNoBatch } from "./_docNumber";
 
 /**
  * Repository purchase_request — V1.2.
@@ -467,6 +468,21 @@ export async function createPR(input: CreatePRInput): Promise<PurchaseRequest> {
       .returning();
     if (!header) throw new Error("PR_INSERT_FAILED");
 
+    // V4.0 Wave 3 Phase B — mã ID hệ thống duy nhất cho từng dòng, sinh 1 lượt
+    // trong cùng advisory lock (genDocNoBatch) để tránh trùng khi nhiều PR
+    // được tạo đồng thời.
+    const lineRefCodes = await genDocNoBatch(
+      tx,
+      {
+        table: "app.purchase_request_line",
+        column: "line_ref_code",
+        prefix: `PRL-${currentYymm()}`,
+        seqPart: 3,
+        pad: 5,
+      },
+      input.lines.length,
+    );
+
     await tx.insert(purchaseRequestLine).values(
       input.lines.map((l, idx) => ({
         prId: header.id,
@@ -496,6 +512,8 @@ export async function createPR(input: CreatePRInput): Promise<PurchaseRequest> {
         deliveryDate: l.deliveryDate
           ? l.deliveryDate.toISOString().slice(0, 10)
           : null,
+        // V4.0 Wave 3 Phase B
+        lineRefCode: lineRefCodes[idx],
       })),
     );
 
@@ -589,6 +607,23 @@ export async function replacePRLines(
     await tx
       .delete(purchaseRequestLine)
       .where(eq(purchaseRequestLine.prId, prId));
+
+    // V4.0 Wave 3 Phase B — replace xoá-tạo lại toàn bộ dòng (kể cả dòng
+    // không đổi) nên mã ref cũ không giữ được; sinh lại mã mới cho tất cả,
+    // chấp nhận "tốn" số thứ tự khi sửa DRAFT nhiều lần (đơn giản, đúng KISS —
+    // mã chỉ cần duy nhất, không cần liên tục).
+    const lineRefCodes = await genDocNoBatch(
+      tx,
+      {
+        table: "app.purchase_request_line",
+        column: "line_ref_code",
+        prefix: `PRL-${currentYymm()}`,
+        seqPart: 3,
+        pad: 5,
+      },
+      lines.length,
+    );
+
     await tx.insert(purchaseRequestLine).values(
       lines.map((l, idx) => ({
         prId,
@@ -617,6 +652,8 @@ export async function replacePRLines(
         deliveryDate: l.deliveryDate
           ? l.deliveryDate.toISOString().slice(0, 10)
           : null,
+        // V4.0 Wave 3 Phase B
+        lineRefCode: lineRefCodes[idx],
       })),
     );
   });
@@ -935,6 +972,8 @@ export async function getPRLinesEnriched(prId: string) {
       // V3.10 DNVT — Tham khảo + Ngày giao hàng.
       referenceNote: purchaseRequestLine.referenceNote,
       deliveryDate: purchaseRequestLine.deliveryDate,
+      // V4.0 Wave 3 Phase B — mã ID hệ thống duy nhất (khác referenceCode).
+      lineRefCode: purchaseRequestLine.lineRefCode,
     })
     .from(purchaseRequestLine)
     .leftJoin(item, eq(item.id, purchaseRequestLine.itemId))

@@ -22,4 +22,5 @@ export * from "./material-request";
 export * from "./warehouse-location";
 export * from "./report";
 export * from "./production-board";
+export * from "./delivery-note";
 export { appSchema } from "./_schema";

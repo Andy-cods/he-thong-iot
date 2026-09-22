@@ -275,6 +275,12 @@ export const purchaseRequestLine = appSchema.table(
     lineTotal: numeric("line_total", { precision: 18, scale: 2 })
       .notNull()
       .default("0"),
+    /**
+     * V4.0 Wave 3 Phase B — Mã ID hệ thống tự sinh duy nhất (`PRL-{yymm}-{seq}`),
+     * KHÁC `referenceCode` (free-text link/PO cũ, không unique). Sinh tự động
+     * lúc insert dòng, KHÔNG cho user tự nhập/sửa.
+     */
+    lineRefCode: varchar("line_ref_code", { length: 32 }),
   },
   (t) => ({
     prIdx: index("pr_line_pr_idx").on(t.prId),
@@ -284,6 +290,7 @@ export const purchaseRequestLine = appSchema.table(
     priorityIdx: index("pr_line_priority_idx").on(t.priority),
     categoryIdx: index("pr_line_category_idx").on(t.category),
     uniq: uniqueIndex("pr_line_uk").on(t.prId, t.lineNo),
+    lineRefCodeUk: uniqueIndex("pr_line_ref_code_uk").on(t.lineRefCode),
   }),
 );
 

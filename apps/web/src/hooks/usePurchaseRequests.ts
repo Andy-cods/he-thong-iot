@@ -99,6 +99,8 @@ export interface PRLineEnriched {
   // V3.7.69 YCVT
   onHandSnapshot?: string | null;
   lineTotal?: string | null;
+  // V4.0 Wave 3 Phase B — mã ID hệ thống duy nhất (khác referenceCode free-text).
+  lineRefCode?: string | null;
 }
 
 export interface PRListResponse {

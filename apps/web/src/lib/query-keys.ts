@@ -199,6 +199,7 @@ export const qk = {
       detail: (id: string) => ["finance", "payments", "detail", id] as const,
     },
     receivablesAging: ["finance", "receivables", "aging"] as const,
+    payablesAging: ["finance", "payables", "aging"] as const,
     dashboardCashflow: (filter: FinCashflowFilter) =>
       ["finance", "dashboard", "cashflow", filter] as const,
     dashboardSummary: ["finance", "dashboard", "summary"] as const,

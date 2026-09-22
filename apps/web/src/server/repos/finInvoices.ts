@@ -165,11 +165,22 @@ export async function recalcInvoicePaidAmount(tx: Tx, invoiceId: string) {
   return row ?? null;
 }
 
+export interface AgingBucketRow {
+  bucket: string;
+  invoiceCount: number;
+  outstandingAmount: number;
+}
+
 /**
- * C.1 — Aging bucket công nợ phải thu (direction=OUT), query động KHÔNG bảng
- * lưu trữ. Trả outstanding_amount đã convert Number() (xem cảnh báo §C.4).
+ * C.1 — Aging bucket công nợ theo `direction`, query động KHÔNG bảng lưu
+ * trữ. `direction='OUT'` = công nợ PHẢI THU (khách nợ mình); `direction='IN'`
+ * = công nợ PHẢI TRẢ (mình nợ NCC). Trả outstanding_amount đã convert
+ * Number() (xem cảnh báo §C.4).
+ *
+ * TASK-20260922 — tổng quát hoá từ `getReceivablesAging()` cũ (chỉ nhận
+ * OUT hard-code) để tái dùng chung cho cả 2 chiều công nợ, tránh trùng SQL.
  */
-export async function getReceivablesAging() {
+async function getInvoiceAging(direction: "IN" | "OUT"): Promise<AgingBucketRow[]> {
   const rows = (await db.execute(sql`
     SELECT
       CASE
@@ -182,7 +193,7 @@ export async function getReceivablesAging() {
       COUNT(*)::int AS invoice_count,
       SUM(total_amount - paid_amount) AS outstanding_amount
     FROM app.fin_invoice
-    WHERE direction = 'OUT' AND status IN ('UNPAID', 'PARTIAL', 'OVERDUE')
+    WHERE direction = ${direction} AND status IN ('UNPAID', 'PARTIAL', 'OVERDUE')
     GROUP BY bucket
   `)) as unknown as Array<{
     bucket: string;
@@ -194,6 +205,97 @@ export async function getReceivablesAging() {
     bucket: r.bucket,
     invoiceCount: Number(r.invoice_count),
     outstandingAmount: Number(r.outstanding_amount ?? 0),
+  }));
+}
+
+/** Công nợ PHẢI THU (direction=OUT) — khách hàng nợ mình. Giữ nguyên tên cũ (không phá link cũ). */
+export async function getReceivablesAging(): Promise<AgingBucketRow[]> {
+  return getInvoiceAging("OUT");
+}
+
+/** Công nợ PHẢI TRẢ (direction=IN) — mình nợ nhà cung cấp. */
+export async function getPayablesAging(): Promise<AgingBucketRow[]> {
+  return getInvoiceAging("IN");
+}
+
+export interface PartnerAgingRow {
+  /** id đối tác — chỉ có với NCC (supplierId); null khi group theo tên khách trong notes (OUT). */
+  partnerId: string | null;
+  partnerName: string;
+  invoiceCount: number;
+  outstandingAmount: number;
+  /** Số ngày quá hạn của hoá đơn quá hạn LÂU NHẤT trong nhóm — 0 nếu chưa có hoá đơn nào quá hạn. */
+  maxOverdueDays: number;
+}
+
+/**
+ * Công nợ PHẢI TRẢ nhóm theo NHÀ CUNG CẤP (direction=IN, có `supplierId` FK
+ * thật) — join `supplier` lấy tên. Sắp theo outstanding giảm dần (nợ nhiều
+ * nhất lên đầu).
+ */
+export async function getPayablesBySupplier(): Promise<PartnerAgingRow[]> {
+  const rows = (await db.execute(sql`
+    SELECT
+      fi.supplier_id AS partner_id,
+      COALESCE(s.name, '(Không rõ NCC)') AS partner_name,
+      COUNT(*)::int AS invoice_count,
+      SUM(fi.total_amount - fi.paid_amount) AS outstanding_amount,
+      COALESCE(MAX(GREATEST(CURRENT_DATE - fi.due_date, 0)), 0)::int AS max_overdue_days
+    FROM app.fin_invoice fi
+    LEFT JOIN app.supplier s ON s.id = fi.supplier_id
+    WHERE fi.direction = 'IN' AND fi.status IN ('UNPAID', 'PARTIAL', 'OVERDUE')
+    GROUP BY fi.supplier_id, s.name
+    ORDER BY outstanding_amount DESC
+  `)) as unknown as Array<{
+    partner_id: string | null;
+    partner_name: string;
+    invoice_count: number;
+    outstanding_amount: string | null;
+    max_overdue_days: number;
+  }>;
+
+  return rows.map((r) => ({
+    partnerId: r.partner_id,
+    partnerName: r.partner_name,
+    invoiceCount: Number(r.invoice_count),
+    outstandingAmount: Number(r.outstanding_amount ?? 0),
+    maxOverdueDays: Number(r.max_overdue_days ?? 0),
+  }));
+}
+
+/**
+ * Công nợ PHẢI THU nhóm theo KHÁCH HÀNG (direction=OUT). GIỚI HẠN QUAN TRỌNG:
+ * `fin_invoice` KHÔNG có FK khách hàng cho hoá đơn OUT — tên khách (nếu có)
+ * nằm tự do trong cột `notes`. V1 dùng luôn `notes` làm khoá nhóm (KHÔNG
+ * chuẩn hoá được, hoá đơn không có notes hoặc notes khác nhau dù cùng khách
+ * sẽ bị tách nhóm) — chấp nhận giới hạn này theo YAGNI, ghi rõ ở UI.
+ */
+export async function getReceivablesByCustomer(): Promise<PartnerAgingRow[]> {
+  const rows = (await db.execute(sql`
+    SELECT
+      NULL::uuid AS partner_id,
+      COALESCE(NULLIF(TRIM(fi.notes), ''), '(Chưa ghi tên khách hàng)') AS partner_name,
+      COUNT(*)::int AS invoice_count,
+      SUM(fi.total_amount - fi.paid_amount) AS outstanding_amount,
+      COALESCE(MAX(GREATEST(CURRENT_DATE - fi.due_date, 0)), 0)::int AS max_overdue_days
+    FROM app.fin_invoice fi
+    WHERE fi.direction = 'OUT' AND fi.status IN ('UNPAID', 'PARTIAL', 'OVERDUE')
+    GROUP BY COALESCE(NULLIF(TRIM(fi.notes), ''), '(Chưa ghi tên khách hàng)')
+    ORDER BY outstanding_amount DESC
+  `)) as unknown as Array<{
+    partner_id: string | null;
+    partner_name: string;
+    invoice_count: number;
+    outstanding_amount: string | null;
+    max_overdue_days: number;
+  }>;
+
+  return rows.map((r) => ({
+    partnerId: r.partner_id,
+    partnerName: r.partner_name,
+    invoiceCount: Number(r.invoice_count),
+    outstandingAmount: Number(r.outstanding_amount ?? 0),
+    maxOverdueDays: Number(r.max_overdue_days ?? 0),
   }));
 }
 

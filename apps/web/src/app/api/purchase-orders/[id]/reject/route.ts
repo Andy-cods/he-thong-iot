@@ -2,8 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { poRejectSchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import { rejectPO } from "@/server/repos/purchaseOrders";
+import { getPR } from "@/server/repos/purchaseRequests";
 import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
+import { notifyPOApprovalRejected } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -42,6 +44,18 @@ export async function POST(
       after: { approvalStatus: "rejected", reason: body.data.reason },
       notes: `Từ chối PO: ${body.data.reason}`,
       ...meta,
+    });
+
+    // V4.0 Wave 3 Phase C — bổ sung notify còn thiếu (trước đây route này
+    // không bắn notify gì): purchaser + người đề xuất PR gốc.
+    const pr = row.prId ? await getPR(row.prId) : null;
+    void notifyPOApprovalRejected({
+      poId: row.id,
+      poNo: row.poNo,
+      actorUserId: guard.session.userId,
+      actorUsername: guard.session.username,
+      prRequesterUserId: pr?.requestedBy ?? null,
+      reason: body.data.reason,
     });
 
     return NextResponse.json({ data: row });

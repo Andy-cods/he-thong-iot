@@ -1,58 +1,54 @@
 "use client";
 
 import * as React from "react";
-import { AlertCircle, CheckCircle2, Clock, TrendingUp } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Skeleton } from "@/components/ui/skeleton";
-import { fmtVND } from "@/components/finance/_format";
-import { useReceivablesAging, type AgingBucket } from "@/hooks/useFinance";
+import { Button } from "@/components/ui/button";
+import { DebtAgingPanel } from "@/components/finance/DebtAgingPanel";
+import { PartnerInvoicesDialog } from "@/components/finance/PartnerInvoicesDialog";
+import {
+  usePayablesAging,
+  usePayablesBySupplier,
+  useReceivablesAging,
+  useReceivablesByCustomer,
+  type PartnerAging,
+} from "@/hooks/useFinance";
 import { cn } from "@/lib/utils";
 
 /**
- * Tab "Công nợ" — bucket tuổi nợ phải thu (direction=OUT). Query động, không
- * bảng lưu trữ (§C.1). V1: chỉ tổng theo bucket (không drill-down theo khách
- * hàng — backlog theo plan §C.1, tránh over-engineering).
+ * Sub-tab "Công nợ" — TASK-20260922: bổ sung CÔNG NỢ PHẢI TRẢ (nợ nhà cung
+ * cấp, direction=IN) bên cạnh công nợ PHẢI THU (khách nợ mình, direction=OUT)
+ * đã có. Quyết định UI: dùng 1 SUB-TAB duy nhất (không tách 2 sub-tab cấp 2
+ * riêng) + segmented control "Phải thu / Phải trả" bên trong — vì:
+ *   1) Cả 2 đều thuộc cùng 1 khái niệm nghiệp vụ "công nợ", tách 2 sub-tab
+ *      sẽ làm nav cấp 2 phình to trong khi `SettlementsGroupTab` vừa mới
+ *      gộp 3 tab cũ lại để BỚT rối (xem comment ở đó).
+ *   2) User thường xem 1 chiều tại 1 thời điểm (kế toán trả nợ NCC khác lúc
+ *      với kế toán đòi nợ khách) — segmented control giữ context "đang ở
+ *      Công nợ" rõ ràng hơn là chuyển hẳn sang 1 tab khác.
+ *   3) Dùng `Button` pill-toggle (bám pattern date-range preset ở
+ *      `OverviewTab.tsx`) thay vì `Tabs` underline (đã dùng cho nav cấp 2
+ *      của `SettlementsGroupTab`) — tránh 2 thanh tab underline chồng nhau
+ *      gây rối mắt.
  */
 
-const BUCKET_DEF: Array<{ key: AgingBucket["bucket"]; label: string; icon: React.ElementType; accent: string }> = [
-  { key: "CURRENT", label: "Trong hạn",     icon: CheckCircle2, accent: "emerald" },
-  { key: "1-30",    label: "Quá hạn 1-30 ngày",  icon: Clock,        accent: "amber" },
-  { key: "31-60",   label: "Quá hạn 31-60 ngày", icon: Clock,        accent: "amber" },
-  { key: "61-90",   label: "Quá hạn 61-90 ngày", icon: AlertCircle,  accent: "red" },
-  { key: "90+",     label: "Quá hạn > 90 ngày",  icon: AlertCircle,  accent: "red" },
-];
-
-const ACCENT_CLS: Record<string, { card: string; icon: string; value: string }> = {
-  emerald: {
-    card: "border-emerald-200 bg-emerald-50/60 dark:border-emerald-800 dark:bg-emerald-950/40",
-    icon: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400",
-    value: "text-emerald-900 dark:text-emerald-200",
-  },
-  amber: {
-    card: "border-amber-200 bg-amber-50/60 dark:border-amber-800 dark:bg-amber-950/40",
-    icon: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400",
-    value: "text-amber-900 dark:text-amber-200",
-  },
-  red: {
-    card: "border-red-200 bg-red-50/60 dark:border-red-800 dark:bg-red-950/40",
-    icon: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400",
-    value: "text-red-900 dark:text-red-200",
-  },
-};
+type Direction = "payable" | "receivable";
 
 export function ReceivablesTab() {
-  const query = useReceivablesAging();
-  const buckets = query.data?.data.buckets ?? [];
-  const bucketMap = new Map(buckets.map((b) => [b.bucket, b]));
+  const [direction, setDirection] = React.useState<Direction>("payable");
+  const [selectedSupplier, setSelectedSupplier] = React.useState<{ id: string; name: string } | null>(null);
 
-  const totalOutstanding = buckets.reduce((s, b) => s + b.outstandingAmount, 0);
-  const totalInvoices = buckets.reduce((s, b) => s + b.invoiceCount, 0);
-  const overdueAmount = buckets
-    .filter((b) => b.bucket !== "CURRENT")
-    .reduce((s, b) => s + b.outstandingAmount, 0);
+  const receivablesQuery = useReceivablesAging();
+  const receivablePartnersQuery = useReceivablesByCustomer();
+  const payablesQuery = usePayablesAging();
+  const payablePartnersQuery = usePayablesBySupplier();
 
-  const isEmpty = !query.isLoading && buckets.length === 0;
+  const isPayable = direction === "payable";
+
+  const handlePartnerClick = (p: PartnerAging) => {
+    if (!isPayable || !p.partnerId) return; // Phải thu (OUT) không có FK — không mở được gì chính xác.
+    setSelectedSupplier({ id: p.partnerId, name: p.partnerName });
+  };
 
   return (
     <div className="flex h-full flex-col overflow-auto bg-zinc-50/30 dark:bg-zinc-950/30">
@@ -64,104 +60,72 @@ export function ReceivablesTab() {
             { label: "Tài chính: Công nợ" },
           ]}
         />
-        <h1 className="mt-2 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Công nợ phải thu
-        </h1>
-        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-          Hoá đơn đầu ra (bán hàng) chưa thu hết tiền, phân theo tuổi nợ
-        </p>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">Công nợ</h1>
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+              {isPayable
+                ? "Hoá đơn đầu vào (mua từ NCC) chưa trả hết tiền — mình đang nợ ai"
+                : "Hoá đơn đầu ra (bán hàng) chưa thu hết tiền — ai đang nợ mình"}
+            </p>
+          </div>
+          <div className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white p-1 dark:border-zinc-700 dark:bg-zinc-900">
+            <Button
+              type="button"
+              size="sm"
+              variant={isPayable ? "default" : "ghost"}
+              className={cn("gap-1.5 rounded-full", !isPayable && "text-zinc-500 dark:text-zinc-400")}
+              onClick={() => setDirection("payable")}
+            >
+              <ArrowUpCircle className="h-3.5 w-3.5" aria-hidden="true" />
+              Phải trả
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={!isPayable ? "default" : "ghost"}
+              className={cn("gap-1.5 rounded-full", isPayable && "text-zinc-500 dark:text-zinc-400")}
+              onClick={() => setDirection("receivable")}
+            >
+              <ArrowDownCircle className="h-3.5 w-3.5" aria-hidden="true" />
+              Phải thu
+            </Button>
+          </div>
+        </div>
       </header>
 
       <div className="flex-1 p-4 md:p-6">
-        {query.isLoading ? (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
-            </div>
-            <Skeleton className="h-48 rounded-2xl" />
-          </div>
-        ) : isEmpty ? (
-          <EmptyState preset="empty-success" title="Không có công nợ phải thu" description="Tất cả hoá đơn đầu ra đã được thanh toán đầy đủ." />
+        {isPayable ? (
+          <DebtAgingPanel
+            buckets={payablesQuery.data?.data.buckets ?? []}
+            partners={payablePartnersQuery.data?.data.partners ?? []}
+            isLoading={payablesQuery.isLoading}
+            emptyTitle="Không có công nợ phải trả"
+            emptyDescription="Tất cả hoá đơn đầu vào đã được thanh toán đầy đủ."
+            kpiLabel="Tổng phải trả"
+            partnerColumnLabel="Nhà cung cấp"
+            onPartnerClick={handlePartnerClick}
+          />
         ) : (
-          <div className="space-y-6">
-            {/* KPI tổng quan */}
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-              <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-                <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400">
-                  <TrendingUp className="h-4 w-4" />
-                  <p className="text-xs font-semibold uppercase tracking-wider">Tổng phải thu</p>
-                </div>
-                <p className="mt-1 font-mono text-2xl font-bold tabular-nums text-zinc-900 dark:text-zinc-50">{fmtVND(totalOutstanding)}</p>
-                <p className="text-xs text-zinc-400 dark:text-zinc-500">{totalInvoices} hoá đơn</p>
-              </div>
-              <div className="rounded-2xl border border-red-200 bg-red-50/60 p-4 dark:border-red-800 dark:bg-red-950/40">
-                <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
-                  <AlertCircle className="h-4 w-4" />
-                  <p className="text-xs font-semibold uppercase tracking-wider">Đã quá hạn</p>
-                </div>
-                <p className="mt-1 font-mono text-2xl font-bold tabular-nums text-red-900 dark:text-red-200">{fmtVND(overdueAmount)}</p>
-                <p className="text-xs text-red-500/80 dark:text-red-400/80">
-                  {totalOutstanding > 0 ? Math.round((overdueAmount / totalOutstanding) * 100) : 0}% tổng công nợ
-                </p>
-              </div>
-            </div>
-
-            {/* Bucket breakdown */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-              {BUCKET_DEF.map((def) => {
-                const b = bucketMap.get(def.key);
-                const cls = ACCENT_CLS[def.accent]!;
-                const Icon = def.icon;
-                return (
-                  <div key={def.key} className={cn("rounded-2xl border p-4", cls.card)}>
-                    <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg", cls.icon)}>
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <p className="mt-2 text-xs font-semibold text-zinc-600 dark:text-zinc-300">{def.label}</p>
-                    <p className={cn("mt-1 font-mono text-lg font-bold tabular-nums", cls.value)}>
-                      {fmtVND(b?.outstandingAmount ?? 0)}
-                    </p>
-                    <p className="text-[11px] text-zinc-400 dark:text-zinc-500">{b?.invoiceCount ?? 0} hoá đơn</p>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Bar tổng hợp trực quan */}
-            <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-              <p className="mb-3 text-sm font-semibold text-zinc-800 dark:text-zinc-200">Tỷ trọng theo tuổi nợ</p>
-              <div className="flex h-6 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-                {BUCKET_DEF.map((def) => {
-                  const b = bucketMap.get(def.key);
-                  const pct = totalOutstanding > 0 ? ((b?.outstandingAmount ?? 0) / totalOutstanding) * 100 : 0;
-                  if (pct <= 0) return null;
-                  const barColor =
-                    def.accent === "emerald" ? "bg-emerald-500" : def.accent === "amber" ? "bg-amber-500" : "bg-red-500";
-                  return (
-                    <div
-                      key={def.key}
-                      className={cn("h-full transition-all", barColor)}
-                      style={{ width: `${pct}%` }}
-                      title={`${def.label}: ${fmtVND(b?.outstandingAmount ?? 0)}`}
-                    />
-                  );
-                })}
-              </div>
-              <div className="mt-3 flex flex-wrap gap-3 text-xs text-zinc-500 dark:text-zinc-400">
-                {BUCKET_DEF.map((def) => (
-                  <span key={def.key} className="inline-flex items-center gap-1.5">
-                    <span className={cn(
-                      "h-2 w-2 rounded-full",
-                      def.accent === "emerald" ? "bg-emerald-500" : def.accent === "amber" ? "bg-amber-500" : "bg-red-500",
-                    )} />
-                    {def.label}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
+          <DebtAgingPanel
+            buckets={receivablesQuery.data?.data.buckets ?? []}
+            partners={receivablePartnersQuery.data?.data.partners ?? []}
+            isLoading={receivablesQuery.isLoading}
+            emptyTitle="Không có công nợ phải thu"
+            emptyDescription="Tất cả hoá đơn đầu ra đã được thanh toán đầy đủ."
+            kpiLabel="Tổng phải thu"
+            partnerColumnLabel="Khách hàng (theo ghi chú hoá đơn)"
+          />
         )}
       </div>
+
+      {selectedSupplier && (
+        <PartnerInvoicesDialog
+          supplierId={selectedSupplier.id}
+          supplierName={selectedSupplier.name}
+          onOpenChange={(open) => { if (!open) setSelectedSupplier(null); }}
+        />
+      )}
     </div>
   );
 }

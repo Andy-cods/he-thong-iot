@@ -52,6 +52,16 @@ export type NotificationEventType =
   | "ISSUE_REQUEST_NEW"
   | "ISSUE_REQUEST_APPROVED"
   | "ISSUE_REQUEST_REJECTED"
+  // V4.0 Wave 3 Phase C — PO approve/reject (Giám đốc) + đổi giá lúc DRAFT
+  // trước đây KHÔNG bắn notify gì (gap thật, xem wave-3 plan). Đặt tên khác
+  // PR_APPROVED/PR_REJECTED để không nhầm PO với PR trong log/UI.
+  | "PO_APPROVED"
+  | "PO_APPROVAL_REJECTED"
+  | "PO_PRICE_UPDATED"
+  // V4.0 Wave 3 Phase D — Phiếu giao hàng / Biên bản giao hàng (BBGH).
+  | "DELIVERY_NOTE_CREATED"
+  | "DELIVERY_NOTE_CONFIRMED"
+  | "DELIVERY_NOTE_REJECTED"
   // V4.0 đợt 2 Phase F — Tài chính: hoá đơn sắp/đã quá hạn, thanh toán ghi
   // nhận, công nợ phải thu quá hạn. FIN_INVOICE_DUE_SOON/FIN_INVOICE_OVERDUE
   // insert từ apps/worker (finInvoiceReminderScan.ts), tương tự
@@ -95,6 +105,8 @@ const EMAIL_EVENTS: ReadonlySet<NotificationEventType> = new Set([
   // chỉ in-app, tránh spam hộp thư mỗi ngày.
   "FIN_INVOICE_OVERDUE",
   "FIN_RECEIVABLE_OVERDUE",
+  // V4.0 Wave 3 Phase D — phiếu giao hàng chờ Giám đốc duyệt = "cần hành động".
+  "DELIVERY_NOTE_CREATED",
 ] satisfies NotificationEventType[]);
 
 /**
@@ -536,6 +548,121 @@ export async function notifyPOCreatedFromPR(ctx: POCreatedFromPRNotifyContext) {
   });
 }
 
+/**
+ * V4.0 Wave 3 Phase C — trước đây approvePO/rejectPO KHÔNG bắn notify gì
+ * (gap thật, xác nhận qua audit route approve/reject PO). Bổ sung: purchaser +
+ * warehouse (chuẩn bị nhận hàng) + người đề xuất PR gốc (nếu PO có prId).
+ */
+export interface POApprovalNotifyContext {
+  poId: string;
+  poNo: string;
+  actorUserId: string;
+  actorUsername: string;
+  /** Người đề xuất PR gốc (purchase_request.requestedBy qua purchase_order.prId). NULL nếu PO tạo thủ công. */
+  prRequesterUserId?: string | null;
+}
+
+export async function notifyPOApproved(ctx: POApprovalNotifyContext) {
+  await emitToUsersWithRole("purchaser", {
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "PO_APPROVED",
+    entityType: "purchase_order",
+    entityId: ctx.poId,
+    entityCode: ctx.poNo,
+    title: `${ctx.poNo} đã được Giám đốc duyệt`,
+    message: "Có thể gửi NCC.",
+    link: `/procurement/purchase-orders/${ctx.poId}`,
+    severity: "success",
+  });
+  await emitToUsersWithRole("warehouse", {
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "PO_APPROVED",
+    entityType: "purchase_order",
+    entityId: ctx.poId,
+    entityCode: ctx.poNo,
+    title: `${ctx.poNo} đã duyệt — chuẩn bị nhận hàng`,
+    link: `/procurement/purchase-orders/${ctx.poId}`,
+    severity: "info",
+  });
+  if (ctx.prRequesterUserId) {
+    await emitNotification({
+      recipientUser: ctx.prRequesterUserId,
+      actorUserId: ctx.actorUserId,
+      actorUsername: ctx.actorUsername,
+      eventType: "PO_APPROVED",
+      entityType: "purchase_order",
+      entityId: ctx.poId,
+      entityCode: ctx.poNo,
+      title: `Đơn mua cho đề xuất của bạn đã duyệt`,
+      message: `${ctx.poNo} đã được Giám đốc duyệt.`,
+      link: `/procurement/purchase-orders/${ctx.poId}`,
+      severity: "success",
+    });
+  }
+}
+
+export async function notifyPOApprovalRejected(
+  ctx: POApprovalNotifyContext & { reason?: string | null },
+) {
+  await emitToUsersWithRole("purchaser", {
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "PO_APPROVAL_REJECTED",
+    entityType: "purchase_order",
+    entityId: ctx.poId,
+    entityCode: ctx.poNo,
+    title: `${ctx.poNo} bị từ chối duyệt`,
+    message: ctx.reason ? `Lý do: ${ctx.reason}` : undefined,
+    link: `/procurement/purchase-orders/${ctx.poId}`,
+    severity: "warning",
+  });
+  if (ctx.prRequesterUserId) {
+    await emitNotification({
+      recipientUser: ctx.prRequesterUserId,
+      actorUserId: ctx.actorUserId,
+      actorUsername: ctx.actorUsername,
+      eventType: "PO_APPROVAL_REJECTED",
+      entityType: "purchase_order",
+      entityId: ctx.poId,
+      entityCode: ctx.poNo,
+      title: `Đơn mua cho đề xuất của bạn bị từ chối`,
+      message: ctx.reason ? `Lý do: ${ctx.reason}` : undefined,
+      link: `/procurement/purchase-orders/${ctx.poId}`,
+      severity: "warning",
+    });
+  }
+}
+
+/**
+ * V4.0 Wave 3 Phase C — Sửa đơn giá dòng PO khi còn DRAFT → báo Kho biết giá
+ * dự kiến đã đổi (Kho thường xem PR/PO để đối chiếu tồn kho + kế hoạch nhận
+ * hàng). Theo U-3: KHÔNG cho sửa giá khi đã SENT nên chỉ cần báo lúc DRAFT.
+ */
+export interface POPriceUpdateContext {
+  poId: string;
+  poNo: string;
+  changedLineCount: number;
+  actorUserId: string;
+  actorUsername: string;
+}
+
+export async function notifyPOPriceUpdated(ctx: POPriceUpdateContext) {
+  await emitToUsersWithRole("warehouse", {
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "PO_PRICE_UPDATED",
+    entityType: "purchase_order",
+    entityId: ctx.poId,
+    entityCode: ctx.poNo,
+    title: `${ctx.poNo} vừa đổi giá ${ctx.changedLineCount} dòng`,
+    message: "Kiểm tra lại giá trị khi đối chiếu nhận hàng.",
+    link: `/procurement/purchase-orders/${ctx.poId}`,
+    severity: "warning",
+  });
+}
+
 export interface WONotifyContext {
   woId: string;
   woNo: string;
@@ -941,6 +1068,83 @@ export async function notifyPaymentRecorded(ctx: FinPaymentNotifyContext) {
     message: `${ctx.direction === "IN" ? "Thu" : "Chi"} ${ctx.totalAmount.toLocaleString("vi-VN")}đ`,
     link: `/sales?tab=fin-payments`,
     severity: "success",
+  });
+}
+
+/**
+ * V4.0 Wave 3 Phase D — Phiếu giao hàng / BBGH.
+ * DELIVERY_NOTE_CREATED: Kho submit → chờ Giám đốc duyệt (cần hành động, có email).
+ * DELIVERY_NOTE_CONFIRMED: Giám đốc duyệt xong (= BBGH chính thức) → báo
+ *   Thu mua + Kho theo đúng yêu cầu B.6 "chuyển trả BBGH về cho Thu mua và Kho".
+ * DELIVERY_NOTE_REJECTED: Giám đốc từ chối → báo người tạo (Kho).
+ */
+export interface DeliveryNoteNotifyContext {
+  deliveryNoteId: string;
+  noteNo: string;
+  actorUserId: string;
+  actorUsername: string;
+}
+
+export async function notifyDeliveryNoteCreated(ctx: DeliveryNoteNotifyContext) {
+  await emitToUsersWithRole("admin", {
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "DELIVERY_NOTE_CREATED",
+    entityType: "delivery_note",
+    entityId: ctx.deliveryNoteId,
+    entityCode: ctx.noteNo,
+    title: `Phiếu giao hàng ${ctx.noteNo} chờ duyệt`,
+    message: "Chỉ Giám đốc được phê duyệt phiếu giao hàng ra ngoài công ty.",
+    link: `/warehouse/delivery-notes/${ctx.deliveryNoteId}`,
+    severity: "info",
+  });
+}
+
+export async function notifyDeliveryNoteConfirmed(ctx: DeliveryNoteNotifyContext) {
+  await emitToUsersWithRole("purchaser", {
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "DELIVERY_NOTE_CONFIRMED",
+    entityType: "delivery_note",
+    entityId: ctx.deliveryNoteId,
+    entityCode: ctx.noteNo,
+    title: `BBGH ${ctx.noteNo} đã hoàn tất`,
+    message: "Giám đốc đã duyệt — tải PDF để lưu hồ sơ/đối chiếu công nợ.",
+    link: `/warehouse/delivery-notes/${ctx.deliveryNoteId}`,
+    severity: "success",
+  });
+  await emitToUsersWithRole("warehouse", {
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "DELIVERY_NOTE_CONFIRMED",
+    entityType: "delivery_note",
+    entityId: ctx.deliveryNoteId,
+    entityCode: ctx.noteNo,
+    title: `BBGH ${ctx.noteNo} đã hoàn tất`,
+    message: "Có thể in 3 liên giao cho tài xế/khách ký nhận.",
+    link: `/warehouse/delivery-notes/${ctx.deliveryNoteId}`,
+    severity: "success",
+  });
+}
+
+export async function notifyDeliveryNoteRejected(
+  ctx: DeliveryNoteNotifyContext & {
+    deliveredByUserId: string;
+    reason?: string | null;
+  },
+) {
+  await emitNotification({
+    recipientUser: ctx.deliveredByUserId,
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "DELIVERY_NOTE_REJECTED",
+    entityType: "delivery_note",
+    entityId: ctx.deliveryNoteId,
+    entityCode: ctx.noteNo,
+    title: `Phiếu giao hàng ${ctx.noteNo} bị từ chối`,
+    message: ctx.reason ? `Lý do: ${ctx.reason}` : undefined,
+    link: `/warehouse/delivery-notes/${ctx.deliveryNoteId}`,
+    severity: "warning",
   });
 }
 

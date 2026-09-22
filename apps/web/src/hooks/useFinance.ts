@@ -359,6 +359,8 @@ export function useCreateFinInvoice() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.finance.invoices.all });
       qc.invalidateQueries({ queryKey: qk.finance.receivablesAging });
+      qc.invalidateQueries({ queryKey: qk.finance.payablesAging });
+      qc.invalidateQueries({ queryKey: qk.finance.dashboardSummary });
     },
   });
 }
@@ -389,6 +391,8 @@ export function useCancelFinInvoice() {
       qc.invalidateQueries({ queryKey: qk.finance.invoices.all });
       qc.invalidateQueries({ queryKey: qk.finance.invoices.detail(id) });
       qc.invalidateQueries({ queryKey: qk.finance.receivablesAging });
+      qc.invalidateQueries({ queryKey: qk.finance.payablesAging });
+      qc.invalidateQueries({ queryKey: qk.finance.dashboardSummary });
     },
   });
 }
@@ -454,6 +458,7 @@ export function useVoidFinPayment() {
       qc.invalidateQueries({ queryKey: qk.finance.transactions.all });
       qc.invalidateQueries({ queryKey: qk.finance.accounts.all });
       qc.invalidateQueries({ queryKey: qk.finance.receivablesAging });
+      qc.invalidateQueries({ queryKey: qk.finance.payablesAging });
       qc.invalidateQueries({ queryKey: qk.finance.dashboardSummary });
     },
   });
@@ -467,10 +472,54 @@ export interface AgingBucket {
   outstandingAmount: number;
 }
 
+/**
+ * TASK-20260922 — nhóm công nợ theo đối tác. `partnerId` chỉ có với NCC
+ * (công nợ phải trả); công nợ phải thu (OUT) không có FK khách hàng nên
+ * `partnerId=null` và `partnerName` lấy từ `notes` (xem giới hạn ở repo).
+ */
+export interface PartnerAging {
+  partnerId: string | null;
+  partnerName: string;
+  invoiceCount: number;
+  outstandingAmount: number;
+  maxOverdueDays: number;
+}
+
 export function useReceivablesAging() {
   return useQuery({
     queryKey: qk.finance.receivablesAging,
     queryFn: () => request<{ data: { buckets: AgingBucket[] } }>("/api/finance/receivables/aging"),
+    staleTime: 30_000,
+  });
+}
+
+export function useReceivablesByCustomer() {
+  return useQuery({
+    queryKey: [...qk.finance.receivablesAging, "by-customer"],
+    queryFn: () =>
+      request<{ data: { partners: PartnerAging[] } }>(
+        "/api/finance/receivables/aging?groupBy=customer",
+      ),
+    staleTime: 30_000,
+  });
+}
+
+/** Công nợ PHẢI TRẢ (direction=IN, mình nợ NCC) — đối xứng với useReceivablesAging. */
+export function usePayablesAging() {
+  return useQuery({
+    queryKey: qk.finance.payablesAging,
+    queryFn: () => request<{ data: { buckets: AgingBucket[] } }>("/api/finance/payables/aging"),
+    staleTime: 30_000,
+  });
+}
+
+export function usePayablesBySupplier() {
+  return useQuery({
+    queryKey: [...qk.finance.payablesAging, "by-supplier"],
+    queryFn: () =>
+      request<{ data: { partners: PartnerAging[] } }>(
+        "/api/finance/payables/aging?groupBy=supplier",
+      ),
     staleTime: 30_000,
   });
 }
@@ -505,6 +554,9 @@ export interface FinSummaryResponse {
   totalOut: number;
   netCashflow: number;
   totalBalance: number;
+  /** TASK-20260922 — tổng công nợ phải thu/phải trả, dùng cho KPI OverviewTab. */
+  totalReceivable: number;
+  totalPayable: number;
   period: { from: string; to: string };
 }
 

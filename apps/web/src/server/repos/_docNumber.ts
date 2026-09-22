@@ -61,6 +61,41 @@ export async function genDocNo(tx: Tx, opts: GenDocNoOpts): Promise<string> {
 }
 
 /**
+ * V4.0 Wave 3 Phase B — Sinh N mã liên tiếp trong CÙNG 1 lock (dùng khi insert
+ * nhiều dòng con 1 lượt, ví dụ `line_ref_code` cho từng dòng PR). Khác
+ * `genDocNo` (1 mã/lần, phải insert xen giữa các lần gọi để MAX+1 thấy dòng
+ * mới) — hàm này tính sẵn dãy số liên tiếp NGAY SAU khi giữ lock, không cần
+ * insert xen kẽ.
+ */
+export async function genDocNoBatch(
+  tx: Tx,
+  opts: GenDocNoOpts,
+  count: number,
+): Promise<string[]> {
+  if (count <= 0) return [];
+  const pad = opts.pad ?? 4;
+
+  await tx.execute(
+    sql`SELECT pg_advisory_xact_lock(hashtext(${"docno:" + opts.prefix}))`,
+  );
+
+  const rows = (await tx.execute(sql`
+    SELECT COALESCE(MAX(
+      CAST(SPLIT_PART(${sql.raw(opts.column)}, '-', ${opts.seqPart}) AS INTEGER)
+    ), 0) AS max_seq
+    FROM ${sql.raw(opts.table)}
+    WHERE ${sql.raw(opts.column)} LIKE ${opts.prefix + "-%"}
+      AND ${sql.raw(opts.column)} ~ ${"^" + opts.prefix + "-[0-9]+$"}
+  `)) as unknown as Array<{ max_seq: number }>;
+
+  const startSeq = (rows[0]?.max_seq ?? 0) + 1;
+  return Array.from(
+    { length: count },
+    (_, i) => `${opts.prefix}-${String(startSeq + i).padStart(pad, "0")}`,
+  );
+}
+
+/**
  * Tiện ích: yymm hiện tại theo giờ Việt Nam (VD '2607' cho tháng 07/2026).
  *
  * Review 2A-fix — PHẢI theo Asia/Ho_Chi_Minh (+07), KHÔNG dùng UTC. Trước đây

@@ -611,6 +611,7 @@ export default function PurchaseRequestDetailPage() {
                     <Th w="w-28" align="right">Đơn giá DK</Th>
                     <Th w="w-32" align="right">Tổng tiền</Th>
                     <Th w="w-24">Mã ref</Th>
+                    <Th w="w-28">Mã ID</Th>
                     <Th w="min-w-[120px]">Ghi chú</Th>
                   </tr>
                 </thead>
@@ -698,6 +699,15 @@ export default function PurchaseRequestDetailPage() {
                           </span>
                         </Td>
                         <Td>{l.referenceCode ?? "—"}</Td>
+                        <Td>
+                          {l.lineRefCode ? (
+                            <span className="font-mono text-[10px] text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
+                              {l.lineRefCode}
+                            </span>
+                          ) : (
+                            <span className="text-zinc-400">—</span>
+                          )}
+                        </Td>
                         <Td>{l.notes ?? "—"}</Td>
                       </tr>
                     );
@@ -705,7 +715,7 @@ export default function PurchaseRequestDetailPage() {
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 border-zinc-700 bg-[#F5F5F5] font-semibold dark:bg-zinc-800 print:dark:bg-zinc-100">
-                    <td colSpan={12} className="px-2 py-2 text-right text-[11px]">
+                    <td colSpan={13} className="px-2 py-2 text-right text-[11px]">
                       Tổng tiền dự kiến (VNĐ):
                     </td>
                     <td className="px-2 py-2 text-right font-mono text-[12px] text-[#005D9F] tabular-nums">
@@ -1159,6 +1169,7 @@ function LineItemCard({ line: l, idx }: { line: PRLineEnriched; idx: number }) {
         <Meta label="Ngày cần" value={fmtDateVN(l.neededBy)} />
         <Meta label="Ưu tiên" value={PRIORITY_LABELS[l.priority ?? "NORMAL"]} />
         <Meta label="Mã ref" value={l.referenceCode} />
+        <Meta label="Mã ID" value={l.lineRefCode} />
         <Meta label="Ghi chú" value={l.notes} wide />
       </dl>
     </div>

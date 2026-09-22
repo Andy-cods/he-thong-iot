@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeftRight, BarChart3, Map, Tag } from "lucide-react";
+import { ArrowLeftRight, BarChart3, FileText, Map, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -29,6 +29,12 @@ export const WAREHOUSE_TABS = [
     label: "Nhập / Xuất kho",
     icon: ArrowLeftRight,
   },
+  // V4.0 Wave 3 Phase D — Phiếu giao hàng / BBGH (xuất bán, trả NCC).
+  {
+    key: "delivery-notes" as const,
+    label: "Phiếu giao hàng",
+    icon: FileText,
+  },
   {
     key: "report" as const,
     label: "Báo cáo kho",
@@ -42,6 +48,7 @@ const TAB_HREF: Record<WarehouseTab, string> = {
   layout: "/warehouse?tab=layout",
   items: "/warehouse?tab=items",
   movement: "/warehouse?tab=movement&mode=in",
+  "delivery-notes": "/warehouse?tab=delivery-notes",
   report: "/warehouse?tab=report",
 };
 

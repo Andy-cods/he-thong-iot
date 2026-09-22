@@ -7,6 +7,7 @@ import {
 import { WarehouseLayoutTab } from "@/components/warehouse/WarehouseLayoutTab";
 import { ItemsTab } from "@/components/warehouse/ItemsTab";
 import { MovementTab, resolveMovementMode } from "@/components/warehouse/MovementTab";
+import { DeliveryNotesTab } from "@/components/warehouse/DeliveryNotesTab";
 import { ReportTab } from "@/components/warehouse/ReportTab";
 
 export const dynamic = "force-dynamic";
@@ -80,6 +81,8 @@ export default function WarehousePage({ searchParams }: WarehousePageProps) {
           <ItemsTab />
         ) : active === "movement" ? (
           <MovementTab mode={mode} />
+        ) : active === "delivery-notes" ? (
+          <DeliveryNotesTab />
         ) : (
           <ReportTab />
         )}

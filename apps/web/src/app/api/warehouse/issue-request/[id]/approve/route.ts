@@ -20,7 +20,18 @@ export const dynamic = "force-dynamic";
  * Kho duyệt yêu cầu PENDING → APPROVED → tự động execute OUT_ISSUE inventory_txn
  * cho tất cả picks → status = COMPLETED.
  *
- * RBAC: warehouse / admin (transition po).
+ * V4.0 Wave 3 Phase D (fix bug) — guard cũ dùng `requireCan(req, "transition", "po")`
+ * SAI entity (cho phép mọi role có `po.transition`, không đúng ý đồ "Kho duyệt
+ * xuất kho"). Đổi sang entity `deliveryNote` action `transition` (warehouse CÓ
+ * quyền này theo RBAC matrix Wave 1: `warehouse.deliveryNote = [create, read,
+ * update, transition]` — KHÔNG có `approve`, quyền đó CHỈ admin. Dùng
+ * `transition` ở đây để warehouse vẫn tự xử lý được case nội bộ).
+ *
+ * Theo QĐ-5/U-2 (plans/v4-finance/wave-3-procurement-warehouse.md mục 0):
+ * "Chỉ Giám đốc duyệt phiếu xuất hàng" CHỈ áp dụng cho xuất bán/giao khách
+ * (reason IN ('sales','return')) — xuất vật tư nội bộ SX (production/manual/
+ * loss/other) GIỮ NGUYÊN Kho tự duyệt như cũ, tránh làm tắc xưởng. Hard-check
+ * role admin bên dưới cho case sales/return (không chỉ dựa RBAC matrix mềm).
  */
 
 interface PicksJson {
@@ -37,7 +48,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireCan(req, "transition", "po");
+  const guard = await requireCan(req, "transition", "deliveryNote");
   if ("response" in guard) return guard.response;
 
   if (!/^[0-9a-f-]{36}$/i.test(params.id)) {
@@ -57,6 +68,22 @@ export async function POST(
       "INVALID_STATUS",
       `Yêu cầu đã ${request.status}, không thể duyệt`,
       409,
+    );
+  }
+
+  // V4.0 U-2 — hard-check: xuất bán/trả NCC (ra ngoài công ty) CHỈ Giám đốc
+  // (admin) được duyệt. Xuất nội bộ SX giữ nguyên Kho tự duyệt (RBAC matrix
+  // `warehouse.deliveryNote` không có "approve" nên warehouse tự nhiên bị
+  // chặn ở guard trên với case sales/return; nhưng hard-check thêm ở đây để
+  // không phụ thuộc hoàn toàn vào matrix mềm — cùng nguyên tắc QĐ-5).
+  if (
+    ["sales", "return"].includes(request.reason) &&
+    !guard.session.roles.includes("admin")
+  ) {
+    return jsonError(
+      "FORBIDDEN",
+      "Xuất bán/trả hàng NCC chỉ Giám đốc được phê duyệt.",
+      403,
     );
   }
 
