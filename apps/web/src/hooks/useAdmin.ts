@@ -205,7 +205,15 @@ export type RbacEntityKey =
   | "eco"
   | "audit"
   | "user"
-  | "session";
+  | "session"
+  // V1.9 P10 bỏ sót 3 entity này dù API `/api/admin/users/[id]/permissions`
+  // trả về đủ RBAC_ENTITIES → ma trận quyền hiển thị thiếu dòng. Vá ở V4.0.
+  | "inventory"
+  | "report"
+  | "productionBoard"
+  // V4.0 — 2 entity mới.
+  | "finance"
+  | "deliveryNote";
 
 export type OverrideKind = "GRANT" | "DENY" | null;
 export type EffectiveSource = "role" | "override-grant" | "override-deny";

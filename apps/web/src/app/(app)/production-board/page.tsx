@@ -22,6 +22,8 @@ import {
 } from "@/components/ui/select";
 import { DialogConfirm } from "@/components/ui/dialog";
 import { BoardItemDialog } from "@/components/production-board/BoardItemDialog";
+import { can } from "@iot/shared";
+import { useSession } from "@/hooks/useSession";
 import {
   useDeleteBoardItem,
   useProductionBoard,
@@ -66,6 +68,15 @@ export default function ProductionBoardAdminPage() {
   });
   const updateMut = useUpdateBoardItem();
   const deleteMut = useDeleteBoardItem();
+
+  // V4.0 — Cổ đông (shareholder) chỉ được `read` productionBoard: ẩn toàn bộ
+  // nút Thêm/Sửa/Xoá + đổi trạng thái nhanh. API đã chặn bằng requireCan,
+  // đây là lớp UI để không hiện chức năng người dùng không thể dùng.
+  const session = useSession();
+  const roles = session.data?.roles;
+  const canEditBoard = can(roles, "update", "productionBoard");
+  const canCreateBoard = can(roles, "create", "productionBoard");
+  const canDeleteBoard = can(roles, "delete", "productionBoard");
 
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editItem, setEditItem] = React.useState<BoardItem | null>(null);
@@ -130,10 +141,12 @@ export default function ProductionBoardAdminPage() {
               Mở màn hình TV
             </a>
           </Button>
-          <Button size="sm" onClick={openCreate}>
-            <Plus className="h-3.5 w-3.5" />
-            Thêm mã hàng
-          </Button>
+          {canCreateBoard && (
+            <Button size="sm" onClick={openCreate}>
+              <Plus className="h-3.5 w-3.5" />
+              Thêm mã hàng
+            </Button>
+          )}
         </div>
       </header>
 
@@ -162,10 +175,12 @@ export default function ProductionBoardAdminPage() {
               Bấm "Thêm mã hàng" để đưa các mã đang/sắp gia công lên bảng. Bảng
               sẽ tự hiển thị trên màn hình TV (/board).
             </p>
-            <Button size="sm" onClick={openCreate} className="mt-2">
-              <Plus className="h-3.5 w-3.5" />
-              Thêm mã hàng đầu tiên
-            </Button>
+            {canCreateBoard && (
+              <Button size="sm" onClick={openCreate} className="mt-2">
+                <Plus className="h-3.5 w-3.5" />
+                Thêm mã hàng đầu tiên
+              </Button>
+            )}
           </div>
         ) : (
           <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
@@ -178,7 +193,9 @@ export default function ProductionBoardAdminPage() {
                   <th className="px-3 py-2.5 text-right">Đạt / KH</th>
                   <th className="px-3 py-2.5 text-center">Hạn</th>
                   <th className="px-3 py-2.5 text-left">Trạng thái</th>
-                  <th className="px-3 py-2.5 text-right">Thao tác</th>
+                  {(canEditBoard || canDeleteBoard) && (
+                    <th className="px-3 py-2.5 text-right">Thao tác</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -237,6 +254,7 @@ export default function ProductionBoardAdminPage() {
                       <td className="px-3 py-2.5">
                         <Select
                           value={it.status}
+                          disabled={!canEditBoard}
                           onValueChange={(v) =>
                             quickStatus(it, v as BoardStatus)
                           }
@@ -258,28 +276,34 @@ export default function ProductionBoardAdminPage() {
                           </SelectContent>
                         </Select>
                       </td>
-                      <td className="px-3 py-2.5">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => openEdit(it)}
-                            title="Sửa"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-red-500 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/40 dark:hover:text-red-300"
-                            onClick={() => setDelItem(it)}
-                            title="Xóa"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </td>
+                      {(canEditBoard || canDeleteBoard) && (
+                        <td className="px-3 py-2.5">
+                          <div className="flex items-center justify-end gap-1">
+                            {canEditBoard && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => openEdit(it)}
+                                title="Sửa"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                            {canDeleteBoard && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-red-500 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/40 dark:hover:text-red-300"
+                                onClick={() => setDelItem(it)}
+                                title="Xóa"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

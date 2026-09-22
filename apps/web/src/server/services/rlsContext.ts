@@ -33,6 +33,8 @@ const ROLE_PRIORITY: Record<Role, number> = {
   display: 0,
   // V3.9 — accountant read-mostly (tải PDF/Excel PR đã duyệt).
   accountant: 1,
+  // V4.0 — shareholder (Cổ đông) read-only hoàn toàn; ưu tiên thấp như display.
+  shareholder: 0,
 };
 
 const ROLE_TO_PG: Record<Role, string> = {
@@ -49,6 +51,9 @@ const ROLE_TO_PG: Record<Role, string> = {
   // V3.9 — accountant chưa có PG role riêng; map iot_purchaser (đọc PR). RLS
   // đang off, app-level RBAC là chính.
   accountant: "iot_purchaser",
+  // V4.0 — shareholder chưa có PG role riêng; map iot_operator (read-only).
+  // Phân hệ Tài chính không gắn RLS policy — app-level RBAC là chính.
+  shareholder: "iot_operator",
 };
 
 function pickHighestRole(roles: Role[] | null | undefined): Role | null {

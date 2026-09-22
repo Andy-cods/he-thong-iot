@@ -6,6 +6,7 @@ import {
   Shield,
   ShoppingBag,
   ShoppingCart,
+  Wallet,
   Warehouse,
   type LucideIcon,
 } from "lucide-react";
@@ -31,7 +32,7 @@ import { canAny } from "@iot/shared";
 export type NavSection =
   | "dashboard"
   | "warehouse"
-  | "finance"
+  | "purchasing"
   | "engineering"
   | "operations"
   | "other";
@@ -70,7 +71,7 @@ export interface NavItem {
 export const NAV_SECTION_LABEL: Record<NavSection, string> = {
   dashboard: "Tổng quan",
   warehouse: "Bộ phận Kho",
-  finance: "Tài chính & Mua bán",
+  purchasing: "Bộ phận Thu mua",
   engineering: "Bộ phận Thiết kế",
   operations: "Bộ phận Gia công",
   other: "Quản trị",
@@ -82,7 +83,7 @@ export const NAV_SECTION_ORDER: NavSection[] = [
   "dashboard",
   "engineering",
   "operations",
-  "finance",
+  "purchasing",
   "warehouse",
   "other",
 ];
@@ -144,11 +145,13 @@ export const NAV_ITEMS: NavItem[] = [
     section: "operations",
   },
   // V3.8 — Bảng điều hành sản xuất (Tổ QC nhập liệu, chiếu TV) — chỉ qc + admin.
+  // V4.0 — thêm shareholder (Cổ đông) để theo dõi tiến độ gia công, read-only
+  // (trang tự ẩn nút CRUD qua can(), xem production-board/page.tsx).
   {
     href: "/production-board",
     label: "Bảng sản xuất (QC)",
     icon: MonitorPlay,
-    roles: ["admin", "qc"],
+    roles: ["admin", "qc", "shareholder"],
     section: "operations",
   },
   // --- Bộ phận Thu mua — chỉ purchaser + admin ---
@@ -157,7 +160,17 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Bộ phận Thu mua",
     icon: ShoppingBag,
     roles: ["admin", "purchaser"],
-    section: "finance",
+    section: "purchasing",
+  },
+  // V4.0 — Phân hệ Tài chính: Kế toán ghi thu chi/hoá đơn/công nợ, Cổ đông xem
+  // báo cáo read-only. Gate bằng entity `finance` để đồng bộ với RBAC matrix
+  // (override per-user ở /admin/users cũng tự động có hiệu lực).
+  {
+    href: "/finance",
+    label: "Tài chính",
+    icon: Wallet,
+    entity: "finance",
+    section: "purchasing",
   },
   // --- Bộ phận Kho — chỉ warehouse + admin ---
   {
@@ -220,7 +233,7 @@ export function groupNavBySection(
   const map: Record<NavSection, NavItem[]> = {
     dashboard: [],
     warehouse: [],
-    finance: [],
+    purchasing: [],
     engineering: [],
     operations: [],
     other: [],

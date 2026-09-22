@@ -9,8 +9,8 @@ import {
 
 /**
  * V3.1 — Unit tests cho nav-items sau khi gộp Kế toán + Mua bán thành
- * section "finance" (Tài chính & Mua bán). 6 sections: dashboard / warehouse /
- * finance / engineering / operations / other.
+ * section "purchasing" (Bộ phận Thu mua). 6 sections: dashboard / warehouse /
+ * purchasing / engineering / operations / other.
  */
 
 describe("NAV_ITEMS V3.1 cấu trúc 6 section", () => {
@@ -21,8 +21,8 @@ describe("NAV_ITEMS V3.1 cấu trúc 6 section", () => {
     expect(dashboard?.label).toBe("Tổng quan");
   });
 
-  it("Mua bán & Kế toán nằm trong section finance", () => {
-    const fin = NAV_ITEMS.find((i) => i.section === "finance");
+  it("Mua bán & Kế toán nằm trong section purchasing", () => {
+    const fin = NAV_ITEMS.find((i) => i.section === "purchasing");
     expect(fin).toBeDefined();
     expect(fin?.href).toBe("/sales");
   });
@@ -31,7 +31,7 @@ describe("NAV_ITEMS V3.1 cấu trúc 6 section", () => {
     expect(NAV_SECTION_LABEL).toEqual({
       dashboard:   "Tổng quan",
       warehouse:   "Bộ phận Kho",
-      finance:     "Tài chính & Mua bán",
+      purchasing:  "Bộ phận Thu mua",
       engineering: "Bộ phận Thiết kế",
       operations:  "Bộ phận Gia công",
       other:       "Quản trị",
@@ -43,7 +43,7 @@ describe("NAV_ITEMS V3.1 cấu trúc 6 section", () => {
       "dashboard",
       "engineering",
       "operations",
-      "finance",
+      "purchasing",
       "warehouse",
       "other",
     ]);
@@ -54,9 +54,10 @@ describe("NAV_ITEMS V3.1 cấu trúc 6 section", () => {
     expect(warehouseHrefs).toEqual(["/warehouse"]);
   });
 
-  it("Finance section có 1 hub /sales", () => {
-    const finHrefs = NAV_ITEMS.filter((i) => i.section === "finance").map((i) => i.href);
-    expect(finHrefs).toEqual(["/sales"]);
+  // V4.0 — section purchasing gồm hub Thu mua + phân hệ Tài chính mới.
+  it("Purchasing section có hub /sales và /finance", () => {
+    const finHrefs = NAV_ITEMS.filter((i) => i.section === "purchasing").map((i) => i.href);
+    expect(finHrefs).toEqual(["/sales", "/finance"]);
   });
 
   it("Bộ phận Thiết kế có hub và lối tắt đề xuất vật tư", () => {
@@ -76,8 +77,8 @@ describe("groupNavBySection", () => {
     const sections = groups.map((g) => g.section);
     expect(sections[0]).toBe("dashboard");
     expect(sections.indexOf("engineering")).toBeLessThan(sections.indexOf("operations"));
-    expect(sections.indexOf("operations")).toBeLessThan(sections.indexOf("finance"));
-    expect(sections.indexOf("finance")).toBeLessThan(sections.indexOf("warehouse"));
+    expect(sections.indexOf("operations")).toBeLessThan(sections.indexOf("purchasing"));
+    expect(sections.indexOf("purchasing")).toBeLessThan(sections.indexOf("warehouse"));
   });
 
   it("section rỗng (sau filter) sẽ KHÔNG xuất hiện trong groups", () => {
@@ -124,12 +125,13 @@ describe("filterNavByRoles", () => {
     expect(hrefs).toEqual(["/", "/engineering", "/procurement/purchase-requests"]);
   });
 
-  it("purchaser thấy BOM, đề xuất vật tư và hub thu mua", () => {
+  // V3.11.5 — Bộ phận Mua hàng chỉ thấy Tổng quan + Đề xuất vật tư + Thu mua
+  // (đã bỏ /engineering khỏi nav purchaser, xem nav-items.ts).
+  it("purchaser thấy đề xuất vật tư và hub thu mua", () => {
     const filtered = filterNavByRoles(NAV_ITEMS, ["purchaser"]);
     const hrefs = filtered.map((i) => i.href);
     expect(hrefs).toEqual([
       "/",
-      "/engineering",
       "/procurement/purchase-requests",
       "/sales",
     ]);
@@ -144,6 +146,29 @@ describe("filterNavByRoles", () => {
       "/procurement/purchase-requests",
       "/operations",
     ]);
+  });
+
+  // V4.0 — Cổ đông: CHỈ Tổng quan + Tài chính + Bảng sản xuất (tiến độ gia
+  // công). KHÔNG thấy Thiết kế / Đề xuất vật tư / Thu mua / Kho / Quản trị.
+  it("shareholder chỉ thấy tổng quan, tài chính và bảng sản xuất", () => {
+    const filtered = filterNavByRoles(NAV_ITEMS, ["shareholder"]);
+    const hrefs = filtered.map((i) => i.href);
+    expect(hrefs).toEqual(["/", "/production-board", "/finance"]);
+    expect(hrefs).not.toContain("/engineering");
+    expect(hrefs).not.toContain("/procurement/purchase-requests");
+    expect(hrefs).not.toContain("/sales");
+    expect(hrefs).not.toContain("/warehouse");
+    expect(hrefs).not.toContain("/admin");
+  });
+
+  // V4.0 — Kế toán thấy Tài chính (phân hệ chính) + Đề xuất vật tư (YCVT).
+  it("accountant thấy tài chính và đề xuất vật tư", () => {
+    const filtered = filterNavByRoles(NAV_ITEMS, ["accountant"]);
+    const hrefs = filtered.map((i) => i.href);
+    expect(hrefs).toContain("/finance");
+    expect(hrefs).toContain("/procurement/purchase-requests");
+    expect(hrefs).not.toContain("/admin");
+    expect(hrefs).not.toContain("/warehouse");
   });
 
   it("V3.3 — admin thấy toàn bộ", () => {

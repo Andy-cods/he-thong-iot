@@ -77,8 +77,8 @@ export interface EmitNotificationInput {
  * không email — tránh spam hộp thư.
  */
 const EMAIL_EVENTS: ReadonlySet<NotificationEventType> = new Set([
-  "PR_SUBMITTED", // DNVT/YCVT mới chờ duyệt → purchaser + admin
-  "PR_DEPT_APPROVED", // chờ Giám đốc duyệt bước cuối → purchaser
+  "PR_SUBMITTED", // V4.0: warehouse (kiểm tồn + duyệt bước 2) + purchaser + admin
+  "PR_DEPT_APPROVED", // chờ duyệt bước cuối → purchaser + admin
   "WO_REQUEST_SUBMITTED", // YCSX chờ duyệt → operator
   "ISSUE_REQUEST_NEW", // phiếu xuất kho chờ duyệt → warehouse
   "PO_SUBCONTRACT_DRAFT", // PO gia công chờ chốt giá → purchaser
@@ -256,6 +256,22 @@ export async function notifyPRDeptApproved(ctx: PRNotifyContext) {
     link: `/procurement/purchase-requests/${ctx.prId}`,
     severity: "info",
   });
+  // V4.0 — Giám đốc (admin) cũng duyệt bước cuối (director-approve/quick-approve)
+  // nên phải nhận thông báo, nếu không phiếu chỉ trông chờ Thu mua online.
+  await emitToUsersWithRole("admin", {
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "PR_DEPT_APPROVED",
+    entityType: "purchase_request",
+    entityId: ctx.prId,
+    entityCode: ctx.prNo,
+    title: `${ctx.prNo} chờ Giám đốc duyệt cuối`,
+    message: ctx.title
+      ? `"${ctx.title}" — Kho đã kiểm tồn và duyệt`
+      : "Kho đã kiểm tồn và duyệt — chờ duyệt cuối",
+    link: `/procurement/purchase-requests/${ctx.prId}`,
+    severity: "info",
+  });
   // Đồng thời báo cho creator biết tiến độ
   if (ctx.creatorUserId) {
     await emitNotification({
@@ -276,6 +292,23 @@ export async function notifyPRDeptApproved(ctx: PRNotifyContext) {
 
 /** Engineer submit PR → notify purchaser role + fan-out direct tới admin */
 export async function notifyPRSubmitted(ctx: PRNotifyContext) {
+  // V4.0 — KHO là người duyệt bước kế tiếp (dept-approve): phải nhận thông báo
+  // ĐẦU TIÊN để kiểm tra lượng tồn thực tế rồi mới duyệt cho mua. Trước V4.0
+  // chỉ báo purchaser + admin nên Kho hoàn toàn không biết có phiếu chờ mình.
+  await emitToUsersWithRole("warehouse", {
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "PR_SUBMITTED",
+    entityType: "purchase_request",
+    entityId: ctx.prId,
+    entityCode: ctx.prNo,
+    title: `Cần kiểm tra tồn kho: ${ctx.prNo}`,
+    message: ctx.title
+      ? `"${ctx.title}" — kiểm tra lượng tồn rồi duyệt`
+      : "Kiểm tra lượng tồn thực tế rồi duyệt phiếu",
+    link: `/procurement/purchase-requests/${ctx.prId}`,
+    severity: "warning",
+  });
   // V3.16 (fix badge) — trước đây broadcast recipientRole (không đếm badge,
   // xác nhận qua DB: 29 dòng PR_SUBMITTED role=purchaser không ai bấm vào).
   // Đổi sang fan-out direct để đếm badge + read-state riêng từng người.

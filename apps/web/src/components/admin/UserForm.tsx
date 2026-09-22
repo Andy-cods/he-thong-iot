@@ -49,6 +49,12 @@ export const ALL_ROLES: { code: Role; label: string; desc: string }[] = [
     label: "Kế toán",
     desc: "Nhận phiếu YCVT đã duyệt — tải PDF/Excel",
   },
+  // V4.0 — Cổ đông: READ-ONLY Tài chính + tiến độ sản xuất.
+  {
+    code: "shareholder",
+    label: "Cổ đông",
+    desc: "Chỉ xem Tài chính (thu chi, công nợ) + tiến độ sản xuất",
+  },
 ];
 
 export interface UserFormProps {

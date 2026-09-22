@@ -90,7 +90,8 @@ type ApprovalStep =
 
 const STEP_LABEL: Record<ApprovalStep, string> = {
   DRAFT: "Nháp",
-  SUBMITTED: "Chờ Trưởng bộ phận",
+  // V4.0 — bước 2 do Kho đảm nhiệm (kiểm lượng tồn rồi duyệt).
+  SUBMITTED: "Chờ Kho kiểm tồn",
   DEPT_APPROVED: "Chờ Giám đốc",
   DIRECTOR_APPROVED: "Đã duyệt",
   CONVERTED: "Đã tạo PO",
@@ -146,8 +147,9 @@ export default function PurchaseRequestDetailPage() {
   const session = useSession();
   const roles = session.data?.roles ?? [];
   const isAdmin = roles.includes("admin");
-  const isPlanner = roles.includes("planner");
   const isPurchaser = roles.includes("purchaser");
+  // V4.0 — Kho là "Trưởng bộ phận" duyệt bước 2 của phiếu YCVT.
+  const isWarehouse = roles.includes("warehouse");
 
   const router = useRouter();
   const detail = usePurchaseRequestDetail(id);
@@ -202,18 +204,23 @@ export default function PurchaseRequestDetailPage() {
   const step = (pr.approvalStep ?? "DRAFT") as ApprovalStep;
   const status = pr.status as PRStatus;
 
-  const canDeptApprove = (isAdmin || isPlanner) && step === "SUBMITTED";
+  // V4.0 — "Trưởng bộ phận" duyệt bước 2 LÀ KHO (kiểm lượng tồn rồi duyệt),
+  // không còn là Thiết kế (planner). Phải khớp guard server tại
+  // apps/web/src/app/api/purchase-requests/[id]/dept-approve/route.ts.
+  const canDeptApprove = (isAdmin || isWarehouse) && step === "SUBMITTED";
   const canDirectorApprove =
     (isAdmin || isPurchaser) && step === "DEPT_APPROVED";
   // V3.9 — Admin duyệt nhanh gộp 2 cấp khi phiếu vừa SUBMITTED.
   const canQuickApprove = isAdmin && step === "SUBMITTED";
+  // V4.0 — người từ chối phải là người duyệt được bước tương ứng: Kho (bước 2)
+  // hoặc Thu mua (bước 3), cộng admin. Planner không còn nằm trong luồng duyệt.
   const canReject =
-    (isAdmin || isPlanner || isPurchaser) &&
+    (isAdmin || isWarehouse || isPurchaser) &&
     (step === "SUBMITTED" || step === "DEPT_APPROVED");
   const canConvert = (isAdmin || isPurchaser) && status === "APPROVED";
   // V3.7.70 — Manual timeline events
   const canMarkIssued =
-    (isAdmin || roles.includes("warehouse")) &&
+    (isAdmin || isWarehouse) &&
     !!pr.goodsReceivedAt &&
     !pr.goodsIssuedAt;
   const canMarkCompleted =

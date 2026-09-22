@@ -10,7 +10,7 @@ import {
 } from "./matrix";
 
 describe("RBAC matrix — shape + consistency", () => {
-  it("có đủ 8 role × 17 entity × 6 action (V3.9 thêm accountant)", () => {
+  it("có đủ 9 role × 19 entity × 6 action (V4.0 thêm shareholder + finance/deliveryNote)", () => {
     expect(Object.keys(RBAC_MATRIX)).toEqual([
       "admin",
       "planner",
@@ -20,8 +20,9 @@ describe("RBAC matrix — shape + consistency", () => {
       "qc",
       "display",
       "accountant",
+      "shareholder",
     ]);
-    expect(RBAC_ENTITIES).toHaveLength(17);
+    expect(RBAC_ENTITIES).toHaveLength(19);
     expect(RBAC_ACTIONS).toHaveLength(6);
   });
 
@@ -87,7 +88,13 @@ describe("can() — assert 48+ cell từ matrix (§4 brainstorm)", () => {
     ["warehouse", "transition", "bomSnapshot", true],
     ["planner", "transition", "bomSnapshot", true],
     // PR
-    ["planner", "approve", "pr", true],
+    // V4.0 — planner MẤT quyền duyệt PR: bước 2 (Trưởng bộ phận) chuyển sang
+    // Kho (kiểm tồn rồi duyệt), bước 3 là Giám đốc (admin) / Thu mua.
+    ["planner", "approve", "pr", false],
+    ["warehouse", "approve", "pr", true],
+    ["admin", "approve", "pr", true],
+    ["purchaser", "approve", "pr", true],
+    ["operator", "approve", "pr", false],
     ["operator", "read", "pr", true],
     // V3.9 — operator/warehouse CÓ create pr (MRF GTAM) từ V3.7.55.
     ["operator", "create", "pr", true],
@@ -149,9 +156,38 @@ describe("can() — assert 48+ cell từ matrix (§4 brainstorm)", () => {
     ["display", "read", "item", false],
     // V3.9 — Accountant: tạo + xem PR để tải PDF/Excel; KHÔNG duyệt/PO/board.
     ["accountant", "approve", "pr", false],
-    ["accountant", "read", "po", false],
     ["accountant", "read", "productionBoard", false],
     ["accountant", "read", "user", true],
+    // V4.0 — Accountant sở hữu phân hệ Tài chính, đọc PO + BBGH để đối chiếu.
+    ["accountant", "create", "finance", true],
+    ["accountant", "update", "finance", true],
+    ["accountant", "delete", "finance", false], // huỷ chứng từ bằng VOID
+    ["accountant", "approve", "finance", false], // duyệt chi là của Giám đốc
+    ["accountant", "read", "po", true],
+    ["accountant", "read", "deliveryNote", true],
+    // V4.0 — Shareholder (Cổ đông): CHỈ đọc Tài chính + tiến độ sản xuất.
+    ["shareholder", "read", "finance", true],
+    ["shareholder", "read", "productionBoard", true],
+    ["shareholder", "create", "finance", false],
+    ["shareholder", "update", "finance", false],
+    ["shareholder", "delete", "finance", false],
+    ["shareholder", "approve", "finance", false],
+    ["shareholder", "update", "productionBoard", false],
+    // Cổ đông KHÔNG thấy nghiệp vụ chi tiết (BOM/PR/PO/vật tư/NCC/kho).
+    ["shareholder", "read", "pr", false],
+    ["shareholder", "read", "po", false],
+    ["shareholder", "read", "item", false],
+    ["shareholder", "read", "supplier", false],
+    ["shareholder", "read", "bomTemplate", false],
+    ["shareholder", "read", "inventory", false],
+    ["shareholder", "read", "deliveryNote", false],
+    // V4.0 — Phiếu giao hàng: chỉ Giám đốc (admin) duyệt.
+    ["admin", "approve", "deliveryNote", true],
+    ["warehouse", "create", "deliveryNote", true],
+    ["warehouse", "approve", "deliveryNote", false],
+    ["purchaser", "read", "deliveryNote", true],
+    ["purchaser", "approve", "deliveryNote", false],
+    ["operator", "read", "deliveryNote", false],
   ];
 
   it.each(cases)(
@@ -177,9 +213,15 @@ describe("canAny() — nav filter shortcut", () => {
     expect(canAny(["operator"], "supplier")).toBe(false);
   });
 
-  it("planner true trên mọi entity nghiệp vụ (trừ inventory + report)", () => {
-    // planner KHÔNG có inventory (thuộc warehouse) và report (KPI admin-only).
-    const plannerExcluded: RbacEntity[] = ["inventory", "report"];
+  it("planner true trên mọi entity nghiệp vụ (trừ inventory, report, finance, deliveryNote)", () => {
+    // planner KHÔNG có inventory (thuộc warehouse), report (KPI admin-only),
+    // finance (V4.0 — thuộc kế toán) và deliveryNote (V4.0 — thuộc kho).
+    const plannerExcluded: RbacEntity[] = [
+      "inventory",
+      "report",
+      "finance",
+      "deliveryNote",
+    ];
     for (const e of RBAC_ENTITIES) {
       if (plannerExcluded.includes(e)) {
         expect(canAny(["planner"], e)).toBe(false);

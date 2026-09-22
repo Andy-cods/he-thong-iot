@@ -110,12 +110,16 @@ export async function processPrReminderScan(
       continue;
     }
 
-    // SUBMITTED → chờ Trưởng bộ phận duyệt (dept-approve: admin OR planner).
+    // SUBMITTED → chờ Trưởng bộ phận duyệt (dept-approve: admin OR warehouse).
     // DEPT_APPROVED → chờ Giám đốc/Mua hàng duyệt cuối (director-approve:
     // admin OR purchaser). Luôn kèm admin vì admin duyệt được cả 2 bước.
+    //
+    // V4.0 — "Trưởng bộ phận" = KHO (trước đây là planner). PHẢI khớp guard
+    // trong apps/web/src/app/api/purchase-requests/[id]/dept-approve/route.ts,
+    // nếu lệch thì worker nhắc nhầm người → phiếu bị bỏ quên.
     const targetRoles: Role[] =
       pr.approvalStep === "SUBMITTED"
-        ? ["planner", "admin"]
+        ? ["warehouse", "admin"]
         : ["purchaser", "admin"];
     const cacheKey = [...targetRoles].sort().join(",");
     let userIds = roleUserCache.get(cacheKey);

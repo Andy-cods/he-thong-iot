@@ -42,7 +42,11 @@ const ROUTE_ROLE_GUARD: Array<{ prefix: string; roles: Role[] }> = [
   // Material requests: planner tạo + warehouse fulfil
   { prefix: "/material-requests", roles: ["admin", "planner", "warehouse"] },
   // V3.8 — Trang quản lý Bảng sản xuất: chỉ admin + qc nhập liệu.
-  { prefix: "/production-board", roles: ["admin", "qc"] },
+  // V4.0 — shareholder (Cổ đông) xem tiến độ gia công, READ-ONLY. UI phải ẩn
+  // nút CRUD qua can() — RBAC matrix chỉ cấp productionBoard:["read"].
+  { prefix: "/production-board", roles: ["admin", "qc", "shareholder"] },
+  // V4.0 — Phân hệ Tài chính: Kế toán (CRUD) + Cổ đông (read-only) + admin.
+  { prefix: "/finance",      roles: ["admin", "accountant", "shareholder"] },
   // Notifications + items + orders: ai cũng xem được (read-only ở các path)
   // /notifications, /items, /orders, /, /pwa → không guard
 ];

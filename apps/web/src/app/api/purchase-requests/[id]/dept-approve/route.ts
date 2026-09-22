@@ -18,7 +18,8 @@ const inputSchema = z.object({
  * V3.7.69 YCVT — POST /api/purchase-requests/[id]/dept-approve
  * Step 2/3: Trưởng bộ phận duyệt. SUBMITTED → DEPT_APPROVED.
  *
- * Authorization: admin OR planner (role "trưởng bộ phận thiết kế/kế hoạch").
+ * Authorization: admin OR warehouse — V4.0 "Trưởng bộ phận" của luồng YCVT là
+ * Bộ phận Kho (kiểm tra lượng tồn trước khi duyệt cho mua).
  */
 export async function POST(
   req: NextRequest,
@@ -28,13 +29,18 @@ export async function POST(
   if ("response" in guard) return guard.response;
   // RBAC action `approve:pr` được dùng cho cả hai cấp, nên route phải khóa
   // thêm đúng vai trò của cấp Trưởng bộ phận.
+  //
+  // V4.0 — "Trưởng bộ phận" trong luồng YCVT CHÍNH LÀ KHO: Kho kiểm tra lượng
+  // tồn thực tế rồi mới duyệt cho mua. Trước đây là `planner` (Thiết kế) —
+  // đã gỡ theo quyết định nghiệp vụ của user (đổi cứng, không giữ song song).
+  // Admin (Giám đốc) vẫn duyệt được mọi bước nên luồng không thể bị tắc.
   if (
     !guard.session.roles.includes("admin") &&
-    !guard.session.roles.includes("planner")
+    !guard.session.roles.includes("warehouse")
   ) {
     return jsonError(
       "FORBIDDEN",
-      "Chỉ Admin hoặc Trưởng bộ phận được duyệt bước này.",
+      "Chỉ Admin hoặc Bộ phận Kho (Trưởng bộ phận) được duyệt bước này.",
       403,
     );
   }

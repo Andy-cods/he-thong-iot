@@ -31,6 +31,7 @@ const ROLE_OPTIONS: { code: Role | "all"; label: string }[] = [
   { code: "qc", label: "Tổ QC / KCS" },
   { code: "display", label: "Màn hình TV" },
   { code: "accountant", label: "Bộ phận Kế toán" },
+  { code: "shareholder", label: "Cổ đông" },
 ];
 
 const ROLE_BADGE: Record<Role, string> = {
@@ -42,6 +43,8 @@ const ROLE_BADGE: Record<Role, string> = {
   qc: "bg-teal-50 text-teal-700 ring-teal-200 dark:bg-teal-950/40 dark:text-teal-400 dark:ring-teal-800",
   display: "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:ring-sky-800",
   accountant: "bg-lime-50 text-lime-700 ring-lime-200 dark:bg-lime-950/40 dark:text-lime-400 dark:ring-lime-800",
+  // V4.0 — Cổ đông (read-only Tài chính + tiến độ sản xuất).
+  shareholder: "bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-200 dark:bg-fuchsia-950/40 dark:text-fuchsia-400 dark:ring-fuchsia-800",
 };
 
 function formatDate(iso: string | null): string {

@@ -4,6 +4,8 @@
  * V3.8: thêm "qc" (Tổ KCS/QC) — quản lý Bảng điều hành sản xuất (production board).
  * V3.8.2: thêm "display" — tài khoản kiosk TV, CHỈ xem /board (read-only), phiên 24h.
  * V3.9: thêm "accountant" (Bộ phận Kế toán) — nhận phiếu YCVT đã duyệt, tải PDF/Excel.
+ * V4.0: thêm "shareholder" (Cổ đông) — READ-ONLY báo cáo Tài chính + tiến độ sản xuất.
+ *       Giám đốc KHÔNG có role riêng: dùng "admin" sẵn có.
  * Mapping bộ phận:
  *   - planner    → engineer (Bộ phận Thiết kế)
  *   - purchaser  → Bộ phận Thu mua
@@ -12,9 +14,10 @@
  *   - qc         → Tổ QC/KCS (kiểm tra chất lượng + bảng sản xuất)
  *   - display    → Màn hình TV (chỉ xem bảng sản xuất, không sửa)
  *   - accountant → Bộ phận Kế toán (nhận YCVT đã duyệt, tải PDF/Excel)
- *   - admin      → toàn quyền
+ *   - shareholder→ Cổ đông (xem báo cáo Tài chính + tiến độ sản xuất, read-only)
+ *   - admin      → toàn quyền (bao gồm vai trò Giám đốc)
  */
-export const ROLES = ["admin", "planner", "warehouse", "operator", "purchaser", "qc", "display", "accountant"] as const;
+export const ROLES = ["admin", "planner", "warehouse", "operator", "purchaser", "qc", "display", "accountant", "shareholder"] as const;
 export type Role = (typeof ROLES)[number];
 
 /** JWT access token payload (tối thiểu). */

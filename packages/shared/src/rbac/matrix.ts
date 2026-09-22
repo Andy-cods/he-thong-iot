@@ -37,7 +37,13 @@ export type RbacEntity =
   | "inventory"
   | "report"
   // V3.8 — Bảng điều hành sản xuất (production board) cho Tổ QC.
-  | "productionBoard";
+  | "productionBoard"
+  // V4.0 — Phân hệ Tài chính: thu chi, hoá đơn, thanh toán, công nợ, tài khoản
+  // giao dịch. Kế toán CRUD; Cổ đông + Giám đốc (admin) xem.
+  | "finance"
+  // V4.0 — Phiếu giao hàng / Biên bản giao hàng (BBGH). Chỉ Giám đốc (admin)
+  // duyệt; Kho + Thu mua theo dõi và nhận BBGH sau khi giao xong.
+  | "deliveryNote";
 
 /** Partial vì không phải role nào cũng có action trên mọi entity. */
 type Matrix = Record<Role, Partial<Record<RbacEntity, RbacAction[]>>>;
@@ -74,6 +80,9 @@ export const RBAC_MATRIX: Matrix = {
     report: ["create", "read", "update", "delete"],
     // V3.8 — Bảng điều hành sản xuất.
     productionBoard: ["create", "read", "update", "delete"],
+    // V4.0 — Giám đốc = admin: toàn quyền Tài chính + duyệt phiếu giao hàng.
+    finance: ["create", "read", "update", "delete", "approve"],
+    deliveryNote: ["create", "read", "update", "delete", "approve", "transition"],
   },
   planner: {
     item: ["create", "read", "update"],
@@ -82,7 +91,9 @@ export const RBAC_MATRIX: Matrix = {
     bomRevision: ["create", "read", "update", "approve"],
     salesOrder: ["create", "read", "update", "transition"],
     bomSnapshot: ["create", "read", "transition"],
-    pr: ["create", "read", "update", "approve"],
+    // V4.0 — planner MẤT `approve:pr`: bước 2 (Trưởng bộ phận) chuyển sang Kho,
+    // bước 3 (Giám đốc) là admin/purchaser. Thiết kế chỉ còn tạo/sửa đề xuất.
+    pr: ["create", "read", "update"],
     po: ["create", "read", "update"],
     wo: ["create", "read", "update", "transition"],
     reservation: ["create", "read", "update", "transition"],
@@ -121,7 +132,9 @@ export const RBAC_MATRIX: Matrix = {
     salesOrder: ["read"],
     bomSnapshot: ["read", "transition"],
     // V3.7.55 — Bộ phận Kho tạo Phiếu MRF GTAM gửi Thu mua duyệt.
-    pr: ["create", "read"],
+    // V4.0 — Kho LÀ "Trưởng bộ phận" của luồng YCVT: kiểm tra lượng tồn thực
+    // tế rồi duyệt bước 2 (dept-approve). Quyền này chuyển từ planner sang.
+    pr: ["create", "read", "update", "approve"],
     po: ["read", "update", "transition"],
     wo: ["read"],
     reservation: ["read"],
@@ -134,6 +147,9 @@ export const RBAC_MATRIX: Matrix = {
     inventory: ["create", "read", "update"],
     // V3.8 — warehouse xem bảng sản xuất (read-only).
     productionBoard: ["read"],
+    // V4.0 — Kho lập phiếu giao hàng + cập nhật quá trình giao nhận, nhưng
+    // KHÔNG duyệt (chỉ Giám đốc duyệt — yêu cầu nghiệp vụ V4.0).
+    deliveryNote: ["create", "read", "update", "transition"],
   },
   // V3.3 — Purchaser (Bộ phận Thu mua): full PR/PO + read supplier/item/BOM
   purchaser: {
@@ -154,6 +170,8 @@ export const RBAC_MATRIX: Matrix = {
     session: ["read"],
     // V3.8 — purchaser xem bảng sản xuất (read-only).
     productionBoard: ["read"],
+    // V4.0 — Thu mua nhận BBGH sau khi giao nhận xong (chỉ đọc + tải file).
+    deliveryNote: ["read"],
   },
   // V3.8 — QC/KCS (Tổ kiểm tra chất lượng): toàn quyền Bảng điều hành sản xuất
   // (production board) + read các entity sản xuất để đối chiếu. KHÔNG đụng
@@ -181,6 +199,24 @@ export const RBAC_MATRIX: Matrix = {
     pr: ["create", "read"],
     user: ["read"],
     session: ["read"],
+    // V4.0 — Kế toán là chủ sở hữu nghiệp vụ phân hệ Tài chính: ghi thu chi,
+    // hoá đơn, thanh toán, công nợ, danh mục tài khoản giao dịch. KHÔNG có
+    // `approve` (duyệt khoản chi lớn thuộc Giám đốc) và KHÔNG có `delete`
+    // (chứng từ đã ghi phải huỷ bằng trạng thái VOID, giữ vết kiểm toán).
+    finance: ["create", "read", "update"],
+    // Kế toán đọc PO để đối chiếu công nợ nhà cung cấp với đơn mua.
+    po: ["read"],
+    // Đọc BBGH để đối chiếu chứng từ giao nhận khi thanh toán.
+    deliveryNote: ["read"],
+  },
+  // V4.0 — Shareholder (Cổ đông): READ-ONLY. Chỉ theo dõi Tài chính (thu chi,
+  // công nợ, dòng tiền) + tiến độ gia công/sản xuất. KHÔNG thấy BOM, đề xuất
+  // vật tư, đơn mua, vật tư, nhà cung cấp — theo quyết định của user.
+  shareholder: {
+    finance: ["read"],
+    productionBoard: ["read"],
+    user: ["read"],
+    session: ["read"],
   },
 };
 
@@ -203,6 +239,8 @@ export const RBAC_ENTITIES: RbacEntity[] = [
   "inventory",
   "report",
   "productionBoard",
+  "finance",
+  "deliveryNote",
 ];
 
 export const RBAC_ACTIONS: RbacAction[] = [

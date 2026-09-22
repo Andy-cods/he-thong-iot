@@ -39,6 +39,14 @@ const ENTITY_LABELS: Record<RbacEntityKey, string> = {
   audit: "Nhật ký",
   user: "Người dùng",
   session: "Phiên đăng nhập",
+  // V4.0 — vá thiếu sót: API trả đủ RBAC_ENTITIES nhưng 3 entity dưới đây
+  // chưa từng có nhãn → bảng hiển thị dòng trống.
+  inventory: "Tồn kho",
+  report: "Báo cáo KPI",
+  productionBoard: "Bảng sản xuất",
+  // V4.0 — 2 phân hệ mới.
+  finance: "Tài chính",
+  deliveryNote: "Phiếu giao hàng",
 };
 
 const ACTION_LABELS: Record<RbacActionKey, string> = {

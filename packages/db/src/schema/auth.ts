@@ -17,6 +17,7 @@ import { appSchema } from "./_schema";
  * V3.8 thêm "qc" (Tổ KCS/QC) cho Bảng điều hành sản xuất.
  * V3.8.2 thêm "display" (kiosk TV — chỉ xem bảng).
  * V3.9 thêm "accountant" (Bộ phận Kế toán — nhận YCVT đã duyệt, tải PDF/Excel).
+ * V4.0 thêm "shareholder" (Cổ đông — read-only Tài chính + tiến độ sản xuất).
  * Khớp với ROLES trong @iot/shared.
  */
 export const roleCodeEnum = pgEnum("role_code", [
@@ -28,6 +29,7 @@ export const roleCodeEnum = pgEnum("role_code", [
   "qc",
   "display",
   "accountant",
+  "shareholder",
 ]);
 
 /** Bảng 1: user_account */
