@@ -171,7 +171,92 @@ export const qk = {
       ["reservations", "by-snapshot", snapshotLineId] as const,
     byWo: (woId: string) => ["reservations", "by-wo", woId] as const,
   },
+  finance: {
+    all: ["finance"] as const,
+    accounts: {
+      all: ["finance", "accounts"] as const,
+      list: (filter: FinAccountFilter) => ["finance", "accounts", "list", filter] as const,
+      detail: (id: string) => ["finance", "accounts", "detail", id] as const,
+    },
+    categories: {
+      all: ["finance", "categories"] as const,
+      list: (filter: FinCategoryFilter) => ["finance", "categories", "list", filter] as const,
+    },
+    transactions: {
+      all: ["finance", "transactions"] as const,
+      list: (filter: FinTransactionFilter) =>
+        ["finance", "transactions", "list", filter] as const,
+      detail: (id: string) => ["finance", "transactions", "detail", id] as const,
+    },
+    invoices: {
+      all: ["finance", "invoices"] as const,
+      list: (filter: FinInvoiceFilter) => ["finance", "invoices", "list", filter] as const,
+      detail: (id: string) => ["finance", "invoices", "detail", id] as const,
+    },
+    payments: {
+      all: ["finance", "payments"] as const,
+      list: (filter: FinPaymentFilter) => ["finance", "payments", "list", filter] as const,
+      detail: (id: string) => ["finance", "payments", "detail", id] as const,
+    },
+    receivablesAging: ["finance", "receivables", "aging"] as const,
+    dashboardCashflow: (filter: FinCashflowFilter) =>
+      ["finance", "dashboard", "cashflow", filter] as const,
+    dashboardSummary: ["finance", "dashboard", "summary"] as const,
+  },
 } as const;
+
+export interface FinAccountFilter {
+  type?: "BANK" | "CASH";
+  isActive?: boolean;
+  q?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface FinCategoryFilter {
+  direction?: "IN" | "OUT";
+  isActive?: boolean;
+  parentId?: string | null;
+}
+
+export interface FinTransactionFilter {
+  direction?: "IN" | "OUT";
+  accountId?: string;
+  categoryId?: string;
+  supplierId?: string;
+  status?: "DRAFT" | "POSTED" | "VOID";
+  hasInvoice?: boolean;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface FinInvoiceFilter {
+  direction?: "IN" | "OUT";
+  status?: string[];
+  supplierId?: string;
+  overdue?: boolean;
+  q?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface FinPaymentFilter {
+  direction?: "IN" | "OUT";
+  accountId?: string;
+  supplierId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface FinCashflowFilter {
+  from?: string;
+  to?: string;
+  compareWith?: "previous_period";
+}
 
 export interface WorkOrderFilter {
   q?: string;
