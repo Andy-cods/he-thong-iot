@@ -1,12 +1,16 @@
 import Link from "next/link";
-import { BarChart3, Map, PackageCheck, Tag, Truck } from "lucide-react";
+import { ArrowLeftRight, BarChart3, Map, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * V3 (TASK-20260427-014) — Warehouse tabs nav (server-rendered).
+ * V4.1 (Wave 5 Phase A) — Warehouse tabs nav (server-rendered).
  *
  * Tabs dùng URL search params `?tab=...` thay cho client state để giữ deep
  * link + back/forward + SSR friendly. Component này render trên server.
+ *
+ * `receiving` + `issue` đã gộp thành 1 tab `movement` (segmented control
+ * Nhập/Xuất bên trong `<MovementTab>`). Href mặc định trỏ `mode=in`; nav active
+ * state không phân biệt mode (đổi mode không đổi "nơi chốn" — xem plan Phase C).
  */
 
 export const WAREHOUSE_TABS = [
@@ -21,14 +25,9 @@ export const WAREHOUSE_TABS = [
     icon: Tag,
   },
   {
-    key: "receiving" as const,
-    label: "Nhận hàng",
-    icon: PackageCheck,
-  },
-  {
-    key: "issue" as const,
-    label: "Xuất hàng",
-    icon: Truck,
+    key: "movement" as const,
+    label: "Nhập / Xuất kho",
+    icon: ArrowLeftRight,
   },
   {
     key: "report" as const,
@@ -38,6 +37,13 @@ export const WAREHOUSE_TABS = [
 ];
 
 export type WarehouseTab = (typeof WAREHOUSE_TABS)[number]["key"];
+
+const TAB_HREF: Record<WarehouseTab, string> = {
+  layout: "/warehouse?tab=layout",
+  items: "/warehouse?tab=items",
+  movement: "/warehouse?tab=movement&mode=in",
+  report: "/warehouse?tab=report",
+};
 
 export function WarehouseTabsNav({
   active,
@@ -56,7 +62,7 @@ export function WarehouseTabsNav({
           return (
             <li key={t.key}>
               <Link
-                href={`/warehouse?tab=${t.key}`}
+                href={TAB_HREF[t.key]}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
                   "relative flex h-10 items-center gap-1.5 px-3 text-sm font-medium transition-colors",

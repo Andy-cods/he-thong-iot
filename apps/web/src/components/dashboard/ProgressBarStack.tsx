@@ -28,7 +28,7 @@ const DRILLDOWN_URLS = {
   componentsAvailable: "/engineering?tab=bom",
   assembly: "/operations",
   purchasing: "/sales?tab=po",
-  receiving: "/warehouse?tab=receiving",
+  receiving: "/warehouse?tab=movement&mode=in",
   production: "/engineering?tab=work-orders",
   purchaseRequests: "/engineering?tab=pr",
 } as const;

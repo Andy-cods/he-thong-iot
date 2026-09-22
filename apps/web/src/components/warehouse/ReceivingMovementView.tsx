@@ -2,16 +2,15 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
-  ArrowUpRight,
-  Calendar,
   Check,
   CheckCircle2,
   Clock,
   History,
   Loader2,
-  Monitor,
+  MoreVertical,
   Package,
   RefreshCw,
   Search,
@@ -27,7 +26,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
   usePurchaseOrdersList,
@@ -42,14 +49,14 @@ import { cn } from "@/lib/utils";
 import { ReceivingHistoryDrawer } from "./ReceivingHistoryDrawer";
 
 /**
- * V3.2 — `<ReceivingTab>` redesign cho `/warehouse?tab=receiving`.
+ * Wave 5 Phase B — `<ReceivingMovementView>` (trước đây `ReceivingTab`).
  *
- * Cải tiến:
- * - Stats KPI bar (4 cards: chờ nhận / đang nhận / quá hạn / hôm nay)
- * - Search + status filter
- * - Card grid responsive (1/2/3 cols)
- * - Drawer xem lịch sử nhận hàng (audit log) per PO
- * - 2 lối vào rõ ràng: wizard nhận hàng (chính) / form đơn giản (single-page)
+ * Redesign theo feedback user "Nhận hàng đang bị xấu và chiếm space không
+ * hợp lí": POCard cao ~6 khối → bảng compact (nhất quán `POListTable`), 5 nút
+ * hành động → 1 hành động chính (mở wizard) + menu phụ (dropdown).
+ *
+ * Header/segmented-control dùng chung đã chuyển lên `<MovementTab>` — view
+ * này chỉ còn KPI + filter + bảng/card.
  */
 
 function supplierLabel(po: PORow): string {
@@ -63,6 +70,13 @@ function daysUntil(dateStr: string | null | undefined): number | null {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   return Math.round((d - now.getTime()) / 86400000);
+}
+
+function fmtVND(n: number | string | null | undefined): string {
+  if (n === null || n === undefined || n === "") return "0";
+  const num = typeof n === "string" ? Number(n) : n;
+  if (!Number.isFinite(num)) return "0";
+  return Math.round(num).toLocaleString("vi-VN");
 }
 
 /* ── KPI Card ────────────────────────────────────────────────────────────── */
@@ -90,7 +104,7 @@ function KpiCard({ icon: Icon, label, value, sub, accent }: {
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</p>
-          <p className={cn("mt-1 font-mono text-2xl font-bold leading-tight tabular-nums", s.value)}>{value}</p>
+          <p className={cn("mt-1 font-mono text-xl font-bold leading-tight tabular-nums", s.value)}>{value}</p>
           {sub && <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{sub}</p>}
         </div>
       </div>
@@ -98,173 +112,269 @@ function KpiCard({ icon: Icon, label, value, sub, accent }: {
   );
 }
 
-/* ── PO Card ─────────────────────────────────────────────────────────────── */
+/* ── ETA badge ───────────────────────────────────────────────────────────── */
 
-function POCard({
-  po, onApprove, onReject, onHistory,
+function EtaBadge({ eta }: { eta: string | null | undefined }) {
+  const days = daysUntil(eta);
+  const overdue = days !== null && days < 0;
+  const isToday = days === 0;
+  const soon = days !== null && days > 0 && days <= 3;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium tabular-nums",
+        overdue ? "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400" :
+        isToday ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400" :
+        soon ? "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400" :
+        "bg-zinc-50 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
+      )}
+      title={eta ? `ETA ${eta}` : "Chưa có ETA"}
+    >
+      {overdue ? <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden /> : null}
+      {eta ?? "—"}
+      {overdue ? ` (quá ${Math.abs(days!)}d)` : isToday ? " (hôm nay)" : ""}
+    </span>
+  );
+}
+
+/* ── Progress mini bar ───────────────────────────────────────────────────── */
+
+function ReceivingProgress({ po }: { po: PORow }) {
+  const ordered = Number(po.totalAmount ?? 0);
+  const isPartial = po.status === "PARTIAL";
+  // PORow không expose received/ordered qty tổng hợp; dùng status làm proxy
+  // trực quan (không có số liệu chính xác % ở list API — tránh bịa số).
+  const pct = po.status === "RECEIVED" || po.status === "CLOSED" ? 100 : isPartial ? 50 : 0;
+  return (
+    <div className="flex items-center gap-2" title={`Trạng thái: ${po.status}`}>
+      <div className="h-1.5 w-16 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+        <div
+          className={cn(
+            "h-full rounded-full transition-all",
+            pct === 100 ? "bg-emerald-500" : pct > 0 ? "bg-amber-500" : "bg-zinc-300 dark:bg-zinc-600",
+          )}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400">{pct}%</span>
+      {ordered > 0 ? null : null}
+    </div>
+  );
+}
+
+/* ── Row actions menu ────────────────────────────────────────────────────── */
+
+function RowActionsMenu({
+  po,
+  onApprove,
+  onReject,
+  onHistory,
 }: {
   po: PORow;
   onApprove: () => void;
   onReject: () => void;
   onHistory: () => void;
 }) {
-  const days = daysUntil(po.expectedEta);
-  const overdue = days !== null && days < 0;
-  const isToday = days === 0;
-  const soon = days !== null && days > 0 && days <= 3;
-  const isPartial = po.status === "PARTIAL";
-
   return (
-    <article
-      className={cn(
-        "group relative flex flex-col gap-4 rounded-2xl border bg-white p-5 shadow-sm transition-all duration-150 hover:shadow-md dark:bg-zinc-900",
-        overdue ? "border-red-200 dark:border-red-800" : isPartial ? "border-amber-200 dark:border-amber-800" : "border-zinc-200 hover:border-indigo-300 dark:border-zinc-700 dark:hover:border-indigo-700",
-      )}
-      data-status={po.status}
-    >
-      {/* Header */}
-      <header className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <Package className="h-4 w-4 shrink-0 text-zinc-400 dark:text-zinc-500" aria-hidden />
-            <span className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-50">{po.poNo}</span>
-            <span className={cn(
-              "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
-              isPartial
-                ? "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800"
-                : "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:ring-blue-800",
-            )}>
-              <span className={cn("h-1.5 w-1.5 rounded-full", isPartial ? "bg-amber-500 animate-pulse" : "bg-blue-500")} />
-              {isPartial ? "Đang nhận" : "Chờ xử lý"}
-            </span>
-          </div>
-          <p className="mt-2 truncate text-base font-semibold text-zinc-900 dark:text-zinc-50">{supplierLabel(po)}</p>
-        </div>
-        <button
-          type="button"
-          onClick={onHistory}
-          title="Lịch sử nhận hàng"
-          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-indigo-600 transition-colors dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-indigo-400"
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-8 w-8 p-0"
+          title="Thao tác khác"
+          onClick={(e) => e.stopPropagation()}
         >
-          <History className="h-4 w-4" aria-hidden />
-        </button>
-      </header>
-
-      {/* ETA + Date info */}
-      <div className="flex flex-col gap-2">
-        <div className={cn(
-          "flex items-center gap-2 rounded-lg px-3 py-2 text-sm",
-          overdue ? "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400" :
-          isToday ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400" :
-          soon ? "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400" :
-          "bg-zinc-50 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
-        )}>
-          {overdue ? (
-            <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
-          ) : (
-            <Calendar className="h-4 w-4 shrink-0" aria-hidden />
-          )}
-          <span className="font-medium">
-            {overdue ? `Quá hạn ${Math.abs(days)} ngày` :
-             isToday ? "Giao hôm nay" :
-             days !== null && days > 0 ? `Còn ${days} ngày` :
-             "Chưa có ETA"}
-          </span>
-          <span className="ml-auto text-xs tabular-nums opacity-70">
-            ETA {po.expectedEta ?? "—"}
-          </span>
-        </div>
-
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          Ngày đặt: <span className="font-medium text-zinc-700 dark:text-zinc-300">{po.orderDate}</span>
-          {po.totalAmount && (
-            <>
-              <span className="mx-2 text-zinc-300 dark:text-zinc-600">·</span>
-              Giá trị: <span className="font-mono font-medium text-zinc-700 dark:text-zinc-300 tabular-nums">
-                {Number(po.totalAmount).toLocaleString("vi-VN")} ₫
-              </span>
-            </>
-          )}
-        </p>
-      </div>
-
-      {/* Action buttons */}
-      <div className="flex flex-col gap-2 border-t border-zinc-100 pt-3 dark:border-zinc-800">
-        {/* Primary: wizard */}
-        <Link
-          href={`/receiving/${po.id}/wizard`}
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700"
-        >
-          <Monitor className="h-4 w-4" aria-hidden />
-          Mở wizard nhận hàng
-          <ArrowUpRight className="h-3.5 w-3.5 opacity-70" aria-hidden />
-        </Link>
-
-        {/* Secondary: form đơn giản (single page) */}
-        <div className="grid grid-cols-2 gap-2">
-          <Link
-            href={`/receiving/${po.id}`}
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
-            title="Form nhận hàng đơn giản (single page)"
-          >
-            <Truck className="h-3.5 w-3.5" aria-hidden />
-            Form đơn giản
-          </Link>
-        </div>
-
-        {/* Approve / Reject */}
-        <div className="grid grid-cols-2 gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onApprove}
-            className="h-9 border-emerald-200 bg-emerald-50/50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-900/40 dark:hover:border-emerald-700"
-          >
-            <Check className="h-3.5 w-3.5" aria-hidden />
-            Duyệt nhận đủ
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onReject}
-            className="h-9 border-red-200 bg-red-50/50 text-red-700 hover:bg-red-100 hover:border-red-300 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400 dark:hover:bg-red-900/40 dark:hover:border-red-700"
-          >
-            <X className="h-3.5 w-3.5" aria-hidden />
-            Từ chối
-          </Button>
-        </div>
-      </div>
-    </article>
+          <MoreVertical className="h-4 w-4" aria-hidden />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52" onClick={(e) => e.stopPropagation()}>
+        <DropdownMenuItem onClick={onHistory}>
+          <History className="h-3.5 w-3.5" aria-hidden />
+          Lịch sử nhận hàng
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onApprove}>
+          <Check className="h-3.5 w-3.5" aria-hidden />
+          Duyệt nhận đủ
+        </DropdownMenuItem>
+        <DropdownMenuItem variant="danger" onClick={onReject}>
+          <X className="h-3.5 w-3.5" aria-hidden />
+          Từ chối
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
-/* ── Empty state ─────────────────────────────────────────────────────────── */
+/* ── Compact table (desktop, ≥ md) ───────────────────────────────────────── */
 
-function EmptyReceivingState() {
+function ReceivingTable({
+  rows,
+  onApprove,
+  onReject,
+  onHistory,
+}: {
+  rows: PORow[];
+  onApprove: (po: PORow) => void;
+  onReject: (po: PORow) => void;
+  onHistory: (po: PORow) => void;
+}) {
+  const router = useRouter();
+  const gridCols =
+    "grid-cols-[140px_minmax(0,1fr)_110px_100px_130px_120px_44px]";
+
   return (
-    <div className="rounded-2xl border border-dashed border-zinc-300 bg-white p-12 text-center dark:border-zinc-700 dark:bg-zinc-900">
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-800">
-        <Truck className="h-7 w-7 text-zinc-400 dark:text-zinc-500" aria-hidden />
+    <div className="hidden overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900 md:block">
+      <div
+        className={cn(
+          "grid h-11 items-center border-b border-zinc-200 bg-zinc-50/80 px-4 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-400",
+          gridCols,
+        )}
+      >
+        <div>Mã PO</div>
+        <div>Nhà cung cấp</div>
+        <div>ETA</div>
+        <div>Tiến độ</div>
+        <div className="text-right">Giá trị</div>
+        <div>Trạng thái</div>
+        <div />
       </div>
-      <h3 className="mt-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">Không có PO đang chờ nhận</h3>
-      <p className="mt-1.5 text-sm text-zinc-500 dark:text-zinc-400">
-        Chỉ PO trạng thái <strong>SENT</strong> hoặc <strong>PARTIAL</strong> mới xuất hiện ở đây.
-      </p>
-      <div className="mt-5 flex items-center justify-center gap-2">
-        <Link
-          href="/sales?tab=po"
-          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
-        >
-          Quản lý PO
-        </Link>
+      <div>
+        {rows.map((po) => {
+          const isPartial = po.status === "PARTIAL";
+          return (
+            <div
+              key={po.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => router.push(`/receiving/${po.id}/wizard`)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") router.push(`/receiving/${po.id}/wizard`);
+              }}
+              className={cn(
+                "group grid h-14 cursor-pointer items-center border-b border-zinc-50 px-4 transition-colors hover:bg-indigo-50/30 dark:border-zinc-800/50 dark:hover:bg-indigo-500/10",
+                gridCols,
+              )}
+            >
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Package className="h-3.5 w-3.5 shrink-0 text-zinc-400 dark:text-zinc-500" aria-hidden />
+                <span className="truncate font-mono text-sm font-bold text-indigo-600 group-hover:underline dark:text-indigo-400">
+                  {po.poNo}
+                </span>
+              </div>
+              <span className="truncate pr-3 text-sm text-zinc-800 dark:text-zinc-200">
+                {supplierLabel(po)}
+              </span>
+              <EtaBadge eta={po.expectedEta} />
+              <ReceivingProgress po={po} />
+              <span className="text-right font-mono text-sm tabular-nums text-zinc-700 dark:text-zinc-300">
+                {po.totalAmount ? `${fmtVND(po.totalAmount)} ₫` : "—"}
+              </span>
+              <span className={cn(
+                "inline-flex w-fit items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
+                isPartial
+                  ? "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800"
+                  : "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:ring-blue-800",
+              )}>
+                <span className={cn("h-1.5 w-1.5 rounded-full", isPartial ? "bg-amber-500 animate-pulse" : "bg-blue-500")} />
+                {isPartial ? "Đang nhận" : "Chờ xử lý"}
+              </span>
+              <div onClick={(e) => e.stopPropagation()}>
+                <RowActionsMenu
+                  po={po}
+                  onApprove={() => onApprove(po)}
+                  onReject={() => onReject(po)}
+                  onHistory={() => onHistory(po)}
+                />
+              </div>
+            </div>
+          );
+        })}
       </div>
+    </div>
+  );
+}
+
+/* ── Mobile card fallback (< md) ─────────────────────────────────────────── */
+
+function ReceivingCardList({
+  rows,
+  onApprove,
+  onReject,
+  onHistory,
+}: {
+  rows: PORow[];
+  onApprove: (po: PORow) => void;
+  onReject: (po: PORow) => void;
+  onHistory: (po: PORow) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2 md:hidden">
+      {rows.map((po) => {
+        const isPartial = po.status === "PARTIAL";
+        return (
+          <Link
+            key={po.id}
+            href={`/receiving/${po.id}/wizard`}
+            className="flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm active:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:active:bg-zinc-800/60"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Package className="h-3.5 w-3.5 shrink-0 text-zinc-400 dark:text-zinc-500" aria-hidden />
+                <span className="truncate font-mono text-sm font-bold text-zinc-900 dark:text-zinc-50">{po.poNo}</span>
+              </div>
+              <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                <RowActionsMenu
+                  po={po}
+                  onApprove={() => onApprove(po)}
+                  onReject={() => onReject(po)}
+                  onHistory={() => onHistory(po)}
+                />
+              </div>
+            </div>
+            <p className="truncate text-sm text-zinc-700 dark:text-zinc-300">{supplierLabel(po)}</p>
+            <div className="flex items-center justify-between gap-2">
+              <span className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
+                isPartial
+                  ? "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800"
+                  : "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:ring-blue-800",
+              )}>
+                <span className={cn("h-1.5 w-1.5 rounded-full", isPartial ? "bg-amber-500 animate-pulse" : "bg-blue-500")} />
+                {isPartial ? "Đang nhận" : "Chờ xử lý"}
+              </span>
+              <EtaBadge eta={po.expectedEta} />
+            </div>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── Skeleton ────────────────────────────────────────────────────────────── */
+
+function ReceivingTableSkeleton() {
+  return (
+    <div className="hidden overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900 md:block">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="grid h-14 grid-cols-[140px_minmax(0,1fr)_110px_100px_130px_120px_44px] items-center gap-3 border-b border-zinc-50 px-4 dark:border-zinc-800/50">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-3 w-16" />
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-5 w-20 rounded-full" />
+          <Skeleton className="h-6 w-6 rounded" />
+        </div>
+      ))}
     </div>
   );
 }
 
 /* ── Main component ──────────────────────────────────────────────────────── */
 
-export function ReceivingTab() {
+export function ReceivingMovementView() {
   const [search, setSearch] = React.useState("");
   const [debouncedQ, setDebouncedQ] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<"all" | "SENT" | "PARTIAL">("all");
@@ -305,17 +415,19 @@ export function ReceivingTab() {
   const approveMutation = useApproveReceiving();
   const rejectMutation = useRejectReceiving();
 
-  return (
-    <div className="flex h-full flex-col gap-5 overflow-auto bg-zinc-50/30 p-6 dark:bg-zinc-950/30">
+  const hasFilter = statusFilter !== "all" || debouncedQ !== "";
 
-      {/* Header */}
+  return (
+    <div className="flex h-full flex-col gap-5 p-4 sm:p-6">
+
+      {/* Header nhỏ (title phụ trong mode) + refresh */}
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-            PO chờ nhận hàng
-          </h1>
+          <h2 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+            Nhận hàng từ NCC
+          </h2>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            Danh sách PO đang chờ giao. Mở wizard để nhận hàng, hoặc duyệt nhanh từ card.
+            Danh sách PO đang chờ giao. Bấm vào hàng để mở wizard nhận hàng.
           </p>
         </div>
         <Button
@@ -378,10 +490,7 @@ export function ReceivingTab() {
 
       {/* Body */}
       {isLoading ? (
-        <div className="flex items-center justify-center gap-2 rounded-2xl border border-zinc-200 bg-white py-12 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-          Đang tải danh sách PO…
-        </div>
+        <ReceivingTableSkeleton />
       ) : isError ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
           <p className="font-semibold">Không tải được PO.</p>
@@ -391,22 +500,47 @@ export function ReceivingTab() {
           </Button>
         </div>
       ) : rows.length === 0 ? (
-        <EmptyReceivingState />
+        hasFilter ? (
+          <EmptyState
+            preset="no-filter-match"
+            title="Không có PO khớp bộ lọc"
+            description="Thử điều chỉnh từ khoá hoặc xoá bộ lọc."
+            actions={
+              <Button variant="ghost" size="sm" onClick={() => { setSearch(""); setStatusFilter("all"); }}>
+                Xoá bộ lọc
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState
+            title="Không có PO đang chờ nhận"
+            description="Chỉ PO trạng thái SENT hoặc PARTIAL mới xuất hiện ở đây."
+            actions={
+              <Link
+                href="/sales?tab=po"
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
+              >
+                <Truck className="h-3.5 w-3.5" aria-hidden />
+                Quản lý PO
+              </Link>
+            }
+          />
+        )
       ) : (
-        <section
-          aria-label="Danh sách PO đang chờ nhận"
-          className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
-        >
-          {rows.map((po) => (
-            <POCard
-              key={po.id}
-              po={po}
-              onApprove={() => { setApproveTarget(po); setApproveNote(""); }}
-              onReject={() => { setRejectTarget(po); setRejectReason(""); }}
-              onHistory={() => setHistoryTarget(po)}
-            />
-          ))}
-        </section>
+        <>
+          <ReceivingTable
+            rows={rows}
+            onApprove={(po) => { setApproveTarget(po); setApproveNote(""); }}
+            onReject={(po) => { setRejectTarget(po); setRejectReason(""); }}
+            onHistory={(po) => setHistoryTarget(po)}
+          />
+          <ReceivingCardList
+            rows={rows}
+            onApprove={(po) => { setApproveTarget(po); setApproveNote(""); }}
+            onReject={(po) => { setRejectTarget(po); setRejectReason(""); }}
+            onHistory={(po) => setHistoryTarget(po)}
+          />
+        </>
       )}
 
       {/* Approve dialog */}

@@ -421,7 +421,7 @@ export async function notifyPOSent(ctx: PONotifyContext) {
     entityCode: ctx.poNo,
     title: `${ctx.poNo} đã gửi NCC, sắp về kho`,
     message: ctx.supplierName ? `Nhà cung cấp: ${ctx.supplierName}` : undefined,
-    link: `/warehouse?tab=receiving`,
+    link: `/warehouse?tab=movement&mode=in`,
     severity: "info",
   });
 }
@@ -778,7 +778,7 @@ export async function notifyIssueRequestNew(ctx: IssueRequestNotifyContext) {
     message: ctx.reference
       ? `Tham chiếu ${ctx.reference}${ctx.totalQty ? ` · ${ctx.totalQty} qty` : ""}`
       : "Chờ duyệt xuất kho",
-    link: `/warehouse?tab=issue`,
+    link: `/warehouse?tab=movement&mode=out`,
     severity: "info",
   });
 }

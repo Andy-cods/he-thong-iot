@@ -20,7 +20,12 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 /**
- * V3.7.14 — Tab "Xuất hàng" — redesign đơn giản theo feedback user 2026-04-30.
+ * Wave 5 Phase A/B — `<IssueMovementView>` (trước đây `IssueTab`).
+ *
+ * Header gradient riêng đã bị bỏ (khung chung nằm ở `<MovementTab>`). Màu
+ * rose/pink lệch hệ thống đã đổi sang indigo/violet để nhất quán với
+ * `WarehouseLayoutTab`/`ReceivingMovementView`. Amber cảnh báo ở
+ * `PendingRequestsPanel` GIỮ NGUYÊN (đúng ngữ nghĩa "cần chú ý").
  *
  * Workflow:
  *   1. Pending requests panel (yêu cầu từ Gia công) — Kho duyệt 1-click
@@ -57,7 +62,7 @@ function uuid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
-export function IssueTab() {
+export function IssueMovementView() {
   const qc = useQueryClient();
   const [lines, setLines] = React.useState<IssueLine[]>([
     { rowId: uuid(), item: null, qty: "" },
@@ -169,21 +174,16 @@ export function IssueTab() {
   };
 
   return (
-    <div className="flex h-full flex-col gap-4 overflow-auto bg-gradient-to-br from-zinc-50 to-rose-50/30 p-3 sm:p-6 dark:from-zinc-950 dark:to-zinc-900">
-      {/* HEADER */}
+    <div className="flex h-full flex-col gap-4 p-3 sm:p-6">
+      {/* HEADER phụ trong mode */}
       <header className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 shadow-lg shadow-rose-200">
-            <Truck className="h-6 w-6 text-white" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-              Xuất hàng
-            </h2>
-            <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
-              Kho xuất ngay (auto FIFO) · duyệt yêu cầu từ Gia công
-            </p>
-          </div>
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+            Xuất hàng cho SX/bán hàng
+          </h2>
+          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+            Kho xuất ngay (auto FIFO) · duyệt yêu cầu từ Gia công
+          </p>
         </div>
         {totalLines > 0 && (
           <div className="hidden items-center gap-2 lg:flex">
@@ -210,7 +210,7 @@ export function IssueTab() {
       {/* QUICK ISSUE FORM — đơn giản */}
       <section className="rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
         <header className="flex items-center gap-2 border-b border-zinc-100 px-5 py-3 dark:border-zinc-800">
-          <Package className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+          <Package className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
           <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-50">Xuất nhanh</h3>
           <span className="text-xs text-zinc-500 dark:text-zinc-400">
             · Hệ thống tự pick FIFO (lô cũ trước)
@@ -237,7 +237,7 @@ export function IssueTab() {
             type="button"
             onClick={addLine}
             disabled={submitting}
-            className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-600 hover:border-rose-400 hover:bg-rose-50/50 hover:text-rose-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-rose-500 dark:hover:bg-rose-950/30 dark:hover:text-rose-400"
+            className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-600 hover:border-indigo-400 hover:bg-indigo-50/50 hover:text-indigo-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-indigo-500 dark:hover:bg-indigo-950/30 dark:hover:text-indigo-400"
           >
             <Plus className="h-3.5 w-3.5" />
             Thêm dòng
@@ -306,7 +306,7 @@ export function IssueTab() {
             <Button
               onClick={handleSubmit}
               disabled={submitting || totalLines === 0}
-              className="h-10 bg-gradient-to-r from-rose-500 to-pink-600 px-5 text-sm font-bold shadow-md hover:from-rose-600 hover:to-pink-700"
+              className="h-10 bg-gradient-to-r from-indigo-600 to-violet-600 px-5 text-sm font-bold shadow-md hover:from-indigo-700 hover:to-violet-700"
             >
               {submitting ? (
                 <>
@@ -416,7 +416,7 @@ function SimpleLineRow({
             type="button"
             onClick={onRemove}
             disabled={disabled}
-            className="ml-1 inline-flex h-7 w-7 items-center justify-center rounded text-zinc-400 hover:bg-rose-50 hover:text-rose-600 dark:text-zinc-500 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
+            className="ml-1 inline-flex h-7 w-7 items-center justify-center rounded text-zinc-400 hover:bg-indigo-50 hover:text-indigo-600 dark:text-zinc-500 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-400"
             title="Xoá dòng"
           >
             <Trash2 className="h-3.5 w-3.5" />
@@ -520,12 +520,12 @@ function ItemPicker({
 
   if (value) {
     return (
-      <div className="flex h-10 items-center justify-between gap-2 rounded-md border border-rose-200 bg-rose-50 px-3 dark:border-rose-800 dark:bg-rose-950/40">
+      <div className="flex h-10 items-center justify-between gap-2 rounded-md border border-indigo-200 bg-indigo-50 px-3 dark:border-indigo-800 dark:bg-indigo-950/40">
         <div className="min-w-0">
-          <code className="font-mono text-xs font-bold text-rose-900 dark:text-rose-200">
+          <code className="font-mono text-xs font-bold text-indigo-900 dark:text-indigo-200">
             {value.sku}
           </code>
-          <p className="truncate text-[10px] text-rose-700 dark:text-rose-400">{value.name}</p>
+          <p className="truncate text-[10px] text-indigo-700 dark:text-indigo-400">{value.name}</p>
         </div>
         <button
           type="button"
@@ -563,7 +563,7 @@ function ItemPicker({
                   setSearchTerm("");
                   setResults([]);
                 }}
-                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
               >
                 <div className="min-w-0">
                   <code className="font-mono text-xs font-bold text-zinc-900 dark:text-zinc-50">
@@ -819,7 +819,7 @@ function PendingRequestsPanel() {
                           variant="outline"
                           disabled={acting === r.id}
                           onClick={() => handleReject(r.id, r.requestNo)}
-                          className="border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                          className="border-indigo-300 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
                         >
                           <X className="h-3.5 w-3.5" />
                           Từ chối

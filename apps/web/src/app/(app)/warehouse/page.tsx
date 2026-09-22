@@ -6,39 +6,39 @@ import {
 } from "@/components/warehouse/WarehouseTabsNav";
 import { WarehouseLayoutTab } from "@/components/warehouse/WarehouseLayoutTab";
 import { ItemsTab } from "@/components/warehouse/ItemsTab";
-import { ReceivingTab } from "@/components/warehouse/ReceivingTab";
-import { IssueTab } from "@/components/warehouse/IssueTab";
+import { MovementTab, resolveMovementMode } from "@/components/warehouse/MovementTab";
 import { ReportTab } from "@/components/warehouse/ReportTab";
 
 export const dynamic = "force-dynamic";
 
 /**
- * V3 (TASK-20260427-014) — `/warehouse` Quản lí kho unified.
+ * V4.1 (Wave 5 Phase A) — `/warehouse` Quản lí kho unified.
  *
  * Server Component wrapper:
- *   1. Đọc `searchParams.tab` (default = 'overview').
+ *   1. Đọc `searchParams.tab` (default = 'layout') + `searchParams.mode` (chỉ
+ *      áp dụng cho tab `movement`, "in" | "out").
  *   2. Render breadcrumb + tabs nav (server).
  *   3. Switch render đúng tab component (client component).
  *
  * Tabs:
- *   - `overview`  — KPI tổng quan (SKU, lot, PO chờ, lot HOLD)
+ *   - `layout`    — Sơ đồ kho
  *   - `items`     — Danh mục vật tư (re-use logic /items cũ)
- *   - `lot-serial`— Lô & Serial (re-use + Hold/Release wired API thật)
- *   - `receiving` — Nhận hàng (re-use + Approve/Reject wired API thật)
+ *   - `movement`  — Nhập / Xuất kho (gộp `receiving` + `issue` cũ — Wave 5 Phase A)
+ *   - `report`    — Báo cáo kho
  *
- * Note: Các trang `/items`, `/lot-serial`, `/receiving` cũ đã redirect
- * về đây với param tab tương ứng (TASK-012 đã handle).
+ * Backward-compat: `?tab=receiving` → movement&mode=in, `?tab=issue`/`picking`
+ * → movement&mode=out, `?tab=overview` → layout, `?tab=lot-serial` → items.
  */
 
 interface WarehousePageProps {
-  searchParams: { tab?: string } & Record<string, string | string[] | undefined>;
+  searchParams: { tab?: string; mode?: string } & Record<string, string | string[] | undefined>;
 }
 
 function resolveTab(raw: string | undefined): WarehouseTab {
   // Backward compat: ?tab=overview → "layout" (Tổng quan đã thay bằng Sơ đồ kho)
   if (raw === "overview") return "layout";
-  // V3.7.7 — picking tab renamed → issue
-  if (raw === "picking") return "issue";
+  // V3.7.7 — picking tab renamed → issue; Wave 5 Phase A — issue/receiving gộp movement
+  if (raw === "picking" || raw === "issue" || raw === "receiving") return "movement";
   // V3.7.8 — lot-serial gộp vào items (xem chi tiết qua drawer item)
   if (raw === "lot-serial") return "items";
   const found = WAREHOUSE_TABS.find((t) => t.key === raw);
@@ -47,8 +47,11 @@ function resolveTab(raw: string | undefined): WarehouseTab {
 
 export default function WarehousePage({ searchParams }: WarehousePageProps) {
   const active = resolveTab(searchParams.tab);
+  // Backward-compat: ?tab=issue/picking (không có mode) → mặc định mode=out.
+  const legacyOutMode = searchParams.tab === "issue" || searchParams.tab === "picking";
+  const mode = resolveMovementMode(searchParams.mode ?? (legacyOutMode ? "out" : undefined));
   const tabLabel =
-    WAREHOUSE_TABS.find((t) => t.key === active)?.label ?? "Tổng quan";
+    WAREHOUSE_TABS.find((t) => t.key === active)?.label ?? "Sơ đồ kho";
 
   return (
     <div className="flex flex-col md:h-full md:overflow-hidden">
@@ -64,8 +67,7 @@ export default function WarehousePage({ searchParams }: WarehousePageProps) {
           Quản lí kho
         </h1>
         <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-          Trang gộp Vật tư · Lô & Serial · Nhận hàng. Đặt nền cho map vị trí
-          kệ/bin V2.
+          Trang gộp Vật tư · Nhập/Xuất kho · Sơ đồ vị trí kệ/bin.
         </p>
       </div>
 
@@ -76,10 +78,8 @@ export default function WarehousePage({ searchParams }: WarehousePageProps) {
           <WarehouseLayoutTab />
         ) : active === "items" ? (
           <ItemsTab />
-        ) : active === "receiving" ? (
-          <ReceivingTab />
-        ) : active === "issue" ? (
-          <IssueTab />
+        ) : active === "movement" ? (
+          <MovementTab mode={mode} />
         ) : (
           <ReportTab />
         )}

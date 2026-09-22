@@ -46,10 +46,10 @@ import { useApproveReceiving } from "@/hooks/useReceivingApprove";
  *   3. qc       — Tổng kết chip stats (#OK / #NG / #Chờ) → "Gửi nhận hàng" (POST events)
  *                 → sau đó hỏi "Duyệt PO ngay?" nếu received >= 95%.
  *
- * Form receiving cũ `/receiving/[poId]/page.tsx` GIỮ NGUYÊN làm "Form đơn giản"
- * (single page, nhập tay/máy quét HID — KHÔNG còn camera).
- * Tab Receiving warehouse có 2 lối vào: "Mở wizard nhận hàng" (form này) +
- * "Form đơn giản" (form cũ).
+ * Wave 5 Phase B — Form receiving cũ `/receiving/[poId]/page.tsx` ("Form đơn
+ * giản") đã bị GỠ, route giờ chỉ redirect vào wizard này. Wizard là lối vào
+ * DUY NHẤT để nhận hàng — khu PWA tablet đã xoá hoàn toàn ở V4.0 (commit
+ * bb3ad44) cùng với việc bỏ quét mã vạch.
  */
 
 export const dynamic = "force-dynamic";
@@ -234,7 +234,7 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
           {(error as Error | undefined)?.message ?? "Không tìm thấy PO."}
         </p>
         <Link
-          href="/warehouse?tab=receiving"
+          href="/warehouse?tab=movement&mode=in"
           className="mt-4 inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
         >
           <ArrowLeft className="h-3 w-3" aria-hidden="true" />
@@ -297,7 +297,7 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
     if (!po) return;
     if (submitted) {
       // Đã submit — bấm Hoàn tất = redirect
-      router.push("/warehouse?tab=receiving");
+      router.push("/warehouse?tab=movement&mode=in");
       return;
     }
 
@@ -343,7 +343,7 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
   const handleApprove = async () => {
     try {
       await approve.mutateAsync({ poId: po.poId, note: notes.trim() || null });
-      router.push("/warehouse?tab=receiving");
+      router.push("/warehouse?tab=movement&mode=in");
     } catch {
       // toast.error đã do hook show
     }
@@ -355,8 +355,8 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
         <Breadcrumb
           items={[
             { label: "Tổng quan", href: "/" },
-            { label: "Kho", href: "/warehouse?tab=receiving" },
-            { label: "Nhận hàng", href: "/warehouse?tab=receiving" },
+            { label: "Kho", href: "/warehouse?tab=movement&mode=in" },
+            { label: "Nhập / Xuất kho", href: "/warehouse?tab=movement&mode=in" },
             { label: `Wizard ${po.poCode}` },
           ]}
         />

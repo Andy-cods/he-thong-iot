@@ -132,7 +132,7 @@ export function OverviewTab() {
       value: fmt(poPending),
       description: "SENT + PARTIAL",
       icon: PackageCheck,
-      href: "/warehouse?tab=receiving",
+      href: "/warehouse?tab=movement&mode=in",
       tone: "amber",
     },
     {
@@ -416,7 +416,7 @@ export function OverviewTab() {
             <span className="text-zinc-500 dark:text-zinc-400">Hold / release · NSX / HSD</span>
           </Link>
           <Link
-            href="/warehouse?tab=receiving"
+            href="/warehouse?tab=movement&mode=in"
             className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs hover:border-indigo-300 hover:bg-indigo-50/40 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/40"
           >
             <span className="block font-medium text-zinc-900 dark:text-zinc-50">
