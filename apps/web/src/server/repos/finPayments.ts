@@ -145,7 +145,8 @@ export async function createPaymentWithAllocations(
       table: "app.fin_payment",
       column: "code",
       prefix: `TT-${currentYymm()}`,
-      seqPart: 2,
+      // Mã `TT-2609-0001` có 3 phần, seq ở phần 3 (xem ghi chú finTransactions).
+      seqPart: 3,
       pad: 4,
     });
 
@@ -188,7 +189,8 @@ export async function createPaymentWithAllocations(
         table: "app.fin_transaction",
         column: "code",
         prefix: `${input.direction === "IN" ? "PT" : "PC"}-${currentYymm()}`,
-        seqPart: 2,
+        // Mã `PC-2609-0001` có 3 phần, seq ở phần 3.
+        seqPart: 3,
         pad: 4,
       });
       transactionCodes.push(txCode);

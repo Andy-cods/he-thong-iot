@@ -89,7 +89,10 @@ export async function createTransaction(
       table: "app.fin_transaction",
       column: "code",
       prefix,
-      seqPart: 2,
+      // Mã dạng `PC-2609-0001` → SPLIT_PART theo '-' cho 3 phần, seq ở phần 3.
+      // (Từng để 2 → lấy nhầm "2609" làm seq → sinh mã PC-2609-2610 và vỡ
+      // unique constraint ở giao dịch thứ hai. Bắt được khi chạy e2e thật.)
+      seqPart: 3,
       pad: 4,
     });
 
