@@ -6,7 +6,10 @@ import {
 } from "@/components/warehouse/WarehouseTabsNav";
 import { WarehouseLayoutTab } from "@/components/warehouse/WarehouseLayoutTab";
 import { ItemsTab } from "@/components/warehouse/ItemsTab";
-import { MovementTab, resolveMovementMode } from "@/components/warehouse/MovementTab";
+import { MovementTab } from "@/components/warehouse/MovementTab";
+// Import helper thuần từ file KHÔNG có "use client" — import từ MovementTab
+// (client component) sẽ nhận stub và ném TypeError lúc render server.
+import { resolveMovementMode } from "@/components/warehouse/movement-mode";
 import { DeliveryNotesTab } from "@/components/warehouse/DeliveryNotesTab";
 import { ReportTab } from "@/components/warehouse/ReportTab";
 

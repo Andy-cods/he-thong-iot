@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import type { MovementMode } from "./movement-mode";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -17,11 +18,12 @@ import { IssueMovementView } from "./IssueMovementView";
  * `plans/v4-finance/wave-5-warehouse-redesign.md` §3.1.
  */
 
-export type MovementMode = "in" | "out";
-
-export function resolveMovementMode(raw: string | string[] | undefined): MovementMode {
-  return raw === "out" ? "out" : "in";
-}
+// `MovementMode` + `resolveMovementMode` ĐÃ CHUYỂN sang `./movement-mode.ts`
+// (file KHÔNG có "use client") vì Server Component `warehouse/page.tsx` cần
+// gọi helper này — import từ file client sẽ nhận stub và ném
+// `TypeError: T is not a function` lúc runtime. Re-export để các nơi đang
+// import từ đây không gãy.
+export { resolveMovementMode, type MovementMode } from "./movement-mode";
 
 export function MovementTab({ mode }: { mode: MovementMode }) {
   const router = useRouter();
