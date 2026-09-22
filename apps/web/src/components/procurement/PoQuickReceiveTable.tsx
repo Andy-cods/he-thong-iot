@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { BarcodeScanInput } from "@/components/ui/BarcodeScanInput";
 import { cn } from "@/lib/utils";
 import { uuidv7 } from "@/lib/uuid-v7";
 import {
@@ -46,11 +45,6 @@ type Action =
   | { type: "untick"; lineId: string }
   | { type: "set-qty"; lineId: string; qty: string }
   | { type: "set-qty-clamp"; lineId: string; remaining: number }
-  | {
-      type: "scan-increment";
-      lineId: string;
-      remaining: number;
-    }
   | { type: "reset" };
 
 function reducer(
@@ -103,18 +97,6 @@ function reducer(
         [action.lineId]: { ...cur, qty: String(clamped) },
       };
     }
-    case "scan-increment": {
-      const cur = state[action.lineId] ?? { ticked: false, qty: "" };
-      const currentQty = Number(cur.qty);
-      const safeQty = Number.isFinite(currentQty) && currentQty > 0
-        ? currentQty
-        : 0;
-      const nextQty = Math.min(action.remaining, safeQty + 1);
-      return {
-        ...state,
-        [action.lineId]: { ticked: true, qty: String(nextQty) },
-      };
-    }
     case "reset": {
       const next: Record<string, LineState> = {};
       for (const k of Object.keys(state)) {
@@ -149,45 +131,6 @@ export function PoQuickReceiveTable({
       dispatch({ type: "init", lines: po.lines });
     }
   }, [po?.lines]);
-
-  // Lookup map SKU → line cho barcode scan O(1).
-  const skuMap = React.useMemo(() => {
-    const m = new Map<string, POReceivingLine>();
-    if (po?.lines) {
-      for (const ln of po.lines) {
-        if (ln.sku) m.set(ln.sku.toUpperCase(), ln);
-      }
-    }
-    return m;
-  }, [po?.lines]);
-
-  const handleScan = React.useCallback(
-    (code: string) => {
-      const ln = skuMap.get(code.toUpperCase());
-      if (!ln) {
-        toast.warning("Không tìm thấy SKU", {
-          description: `Mã '${code}' không có trong PO này.`,
-        });
-        return;
-      }
-      if (ln.remainingQty <= 0) {
-        toast.info("Line đã đủ", {
-          description: `${ln.sku} đã nhận đủ ${ln.orderedQty}.`,
-        });
-        return;
-      }
-      dispatch({
-        type: "scan-increment",
-        lineId: ln.id,
-        remaining: ln.remainingQty,
-      });
-      toast.success("Đã ghi nhận", {
-        description: `${ln.sku} +1`,
-        duration: 1500,
-      });
-    },
-    [skuMap],
-  );
 
   const tickedCount = React.useMemo(
     () => Object.values(state).filter((s) => s.ticked).length,
@@ -275,12 +218,6 @@ export function PoQuickReceiveTable({
   return (
     <div className={cn("flex flex-col gap-4", className)}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <BarcodeScanInput
-          onScan={handleScan}
-          disabled={readOnly || allReceived}
-          hint="Scanner USB sẽ tự gửi Enter sau khi quét — Tab này nhận tự động."
-          className="w-full sm:max-w-md"
-        />
         <div className="flex items-center gap-2">
           <span className="text-sm text-zinc-500 dark:text-zinc-400">
             Đã chọn:{" "}

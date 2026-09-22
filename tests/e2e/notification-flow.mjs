@@ -32,13 +32,20 @@ const TAG = "[E2E-NOTIF]";
 const TS = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
 
 // ----- danh sách role cần cho kịch bản + username seed thực tế -----
-// (xem packages/db/migrations/seed-test-users.sql + seed-ketoan-user.sql)
+// V4.0 — dùng bộ account `e2e.*` RIÊNG cho test (xem
+// packages/db/migrations/seed-e2e-test-users.sql). KHÔNG dùng account nhân
+// viên thật trên prod (THIETKE-DUC, KHO-HOA, THUMUA-KETOAN...) vì test không
+// được biết/đổi mật khẩu của người dùng thật.
+//
+// Chạy seed trước khi test lần đầu:
+//   docker exec -i iot_postgres psql -U hethong_app -d hethong_iot \
+//     -f - < packages/db/migrations/seed-e2e-test-users.sql
 const ROLE_USERS = {
   admin: "admin",
-  planner: "bo.phan.thiet.ke",
-  purchaser: "bo.phan.thu.mua",
-  warehouse: "bo.phan.kho",
-  operator: "bo.phan.van.hanh", // dùng làm role "không liên quan" (Nhóm 2 + 4)
+  planner: "e2e.planner",
+  purchaser: "e2e.purchaser",
+  warehouse: "e2e.warehouse",
+  operator: "e2e.operator", // dùng làm role "không liên quan" (Nhóm 2 + 4)
   accountant: "ketoan",
 };
 

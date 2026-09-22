@@ -16,8 +16,6 @@ import {
   Package,
   PauseCircle,
   Plus,
-  ScanLine,
-  Smartphone,
   Wrench,
   NotebookPen,
 } from "lucide-react";
@@ -34,7 +32,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { BarcodeScanInput } from "@/components/scan/BarcodeScanInput";
 import {
   useAssemblyScan,
   useAssemblySessions,
@@ -56,10 +53,13 @@ export const dynamic = "force-dynamic";
 /**
  * V2.0-P2-W6 — Assembly workspace cho 1 WO.
  *
- * Layout 3 tab (URL `?mode=manual|barcode|sessions`):
+ * Layout 2 tab (URL `?mode=manual|sessions`):
  *   - Manual (default): bảng BOM lines + input qty/lot/note + nút "Lưu pick".
- *   - Barcode: UI quét barcode hiện tại.
  *   - Sessions: sổ ghi chép đợt lắp ráp (group scan theo window 30 phút).
+ *
+ * V4.0 — ĐÃ BỎ tab "Quét barcode" theo yêu cầu user. Luồng pick nay hoàn toàn
+ * bằng nhập tay (ManualPickPanel vốn đã là mặc định và độc lập, gọi cùng API
+ * `/api/assembly/scan` với mode="manual").
  *
  * Header sticky giữ nguyên (woNo, status, progress, nút Pause/Hoàn tất).
  *
@@ -78,7 +78,7 @@ interface ScanLog {
   message: string;
 }
 
-type TabMode = "manual" | "barcode" | "sessions";
+type TabMode = "manual" | "sessions";
 
 function formatTime(ts: number): string {
   return new Date(ts).toLocaleTimeString("vi-VN", {
@@ -123,8 +123,7 @@ export default function AssemblyWorkspacePage() {
   const woId = params?.woId ?? "";
 
   const rawMode = (searchParams?.get("mode") ?? "manual") as TabMode;
-  const tabMode: TabMode =
-    rawMode === "barcode" || rawMode === "sessions" ? rawMode : "manual";
+  const tabMode: TabMode = rawMode === "sessions" ? "sessions" : "manual";
 
   const setTab = React.useCallback(
     (mode: TabMode) => {
@@ -144,12 +143,6 @@ export default function AssemblyWorkspacePage() {
   const [fgQty, setFgQty] = React.useState<string>("1");
   const [fgLot, setFgLot] = React.useState<string>("");
   const [fgNote, setFgNote] = React.useState<string>("");
-
-  // Dedupe: lưu mã barcode + qty của scan trước đó để cảnh báo trùng trong 2s
-  const lastScanRef = React.useRef<{ code: string; at: number } | null>(null);
-  const [duplicateConfirm, setDuplicateConfirm] = React.useState<string | null>(
-    null,
-  );
 
   const woQuery = useWorkOrderDetail(woId || null);
   const progressQuery = useWoProgress(woId || null);
@@ -232,146 +225,6 @@ export default function AssemblyWorkspacePage() {
     [woId, scanMut, addLog],
   );
 
-  const handleScan = React.useCallback(
-    async (raw: string) => {
-      const code = raw.trim();
-      if (!code) return;
-
-      if (!progress) {
-        addLog({
-          code,
-          status: "error",
-          kind: "PICK",
-          message: "Chưa tải xong tiến độ WO.",
-        });
-        return;
-      }
-
-      const now = Date.now();
-      if (
-        lastScanRef.current &&
-        lastScanRef.current.code === code &&
-        now - lastScanRef.current.at < 2000
-      ) {
-        setDuplicateConfirm(code);
-        return;
-      }
-      lastScanRef.current = { code, at: now };
-
-      try {
-        const res = await fetch(
-          `/api/items/by-barcode/${encodeURIComponent(code)}`,
-          { credentials: "include" },
-        );
-        if (!res.ok) {
-          addLog({
-            code,
-            status: "error",
-            kind: "LOOKUP",
-            message: `Lookup HTTP ${res.status}`,
-          });
-          toast.error(`Không tra cứu được mã "${code}"`);
-          return;
-        }
-        const body = (await res.json()) as {
-          data: { itemId: string; sku: string; name: string } | null;
-        };
-
-        if (!body.data) {
-          // Fallback: match lot_code trực tiếp
-          const uc = code.toUpperCase();
-          for (const line of progress.lines) {
-            for (const r of line.reservations) {
-              if (r.status !== "ACTIVE") continue;
-              const lotCode = (r.lotCode ?? "").toUpperCase();
-              if (lotCode === uc || uc.startsWith(lotCode)) {
-                await submitPick(line, r.lotId, 1, {
-                  barcode: code,
-                  mode: "barcode",
-                });
-                return;
-              }
-            }
-          }
-          addLog({
-            code,
-            status: "no-match",
-            kind: "LOOKUP",
-            message: "Không tìm thấy barcode trong catalog",
-          });
-          toast.error(`Barcode "${code}" không trong catalog`);
-          return;
-        }
-
-        const { sku, name } = body.data;
-
-        const line = progress.lines.find((l) => l.componentSku === sku);
-        if (!line) {
-          addLog({
-            code,
-            status: "no-match",
-            kind: "LOOKUP",
-            sku,
-            message: `${sku} (${name}) không thuộc WO này`,
-          });
-          toast.error(`SKU ${sku} không thuộc WO này`);
-          return;
-        }
-
-        const remaining = line.requiredQty - line.completedQty;
-        if (remaining <= 0) {
-          addLog({
-            code,
-            status: "warn",
-            kind: "PICK",
-            sku,
-            message: `${sku} đã đủ qty`,
-          });
-          toast.warning(`Đã đủ qty cho ${sku}`);
-          return;
-        }
-
-        const reservation = line.reservations.find(
-          (r) => r.status === "ACTIVE" && r.reservedQty > 0,
-        );
-        if (!reservation) {
-          addLog({
-            code,
-            status: "error",
-            kind: "PICK",
-            sku,
-            message: `${sku}: chưa có reservation ACTIVE`,
-          });
-          toast.error(
-            `${sku} chưa có reservation ACTIVE — cần reserve lot trước`,
-          );
-          return;
-        }
-
-        await submitPick(line, reservation.lotId, 1, {
-          barcode: code,
-          mode: "barcode",
-        });
-      } catch (err) {
-        addLog({
-          code,
-          status: "error",
-          kind: "LOOKUP",
-          message: (err as Error).message,
-        });
-        toast.error((err as Error).message);
-      }
-    },
-    [progress, addLog, submitPick],
-  );
-
-  const handleConfirmDuplicate = React.useCallback(() => {
-    const code = duplicateConfirm;
-    setDuplicateConfirm(null);
-    if (!code) return;
-    lastScanRef.current = { code, at: 0 };
-    void handleScan(code);
-  }, [duplicateConfirm, handleScan]);
 
   const handlePause = async () => {
     if (!wo) return;
@@ -558,14 +411,6 @@ export default function AssemblyWorkspacePage() {
                 <ExternalLink className="h-3 w-3" aria-hidden />
                 Chi tiết
               </Link>
-              <Link
-                href={`/pwa/assembly/${wo.id}`}
-                className="inline-flex items-center gap-1 rounded-md border border-zinc-200 px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800/60"
-                title="Mở PWA"
-              >
-                <Smartphone className="h-3 w-3" aria-hidden />
-                PWA
-              </Link>
               <Button
                 size="sm"
                 variant="outline"
@@ -595,13 +440,6 @@ export default function AssemblyWorkspacePage() {
             icon={<Keyboard className="h-3.5 w-3.5" aria-hidden />}
             label="Nhập thủ công"
             sub="Mặc định"
-          />
-          <TabButton
-            active={tabMode === "barcode"}
-            onClick={() => setTab("barcode")}
-            icon={<ScanLine className="h-3.5 w-3.5" aria-hidden />}
-            label="Quét barcode"
-            sub="Tuỳ chọn"
           />
           <TabButton
             active={tabMode === "sessions"}
@@ -649,15 +487,6 @@ export default function AssemblyWorkspacePage() {
         />
       ) : null}
 
-      {!noLines && tabMode === "barcode" ? (
-        <BarcodeModePanel
-          progress={progress!}
-          log={log}
-          isPending={scanMut.isPending}
-          onScan={(code) => void handleScan(code)}
-        />
-      ) : null}
-
       {tabMode === "sessions" ? (
         <SessionsPanel
           isLoading={sessionsQuery.isLoading}
@@ -665,33 +494,6 @@ export default function AssemblyWorkspacePage() {
           gapMinutes={sessionsQuery.data?.data.gapMinutes ?? 30}
         />
       ) : null}
-
-      {/* Duplicate scan confirm */}
-      <Dialog
-        open={duplicateConfirm !== null}
-        onOpenChange={(open) => {
-          if (!open) setDuplicateConfirm(null);
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Quét trùng barcode?</DialogTitle>
-            <DialogDescription>
-              Mã <code className="font-mono">{duplicateConfirm}</code> vừa quét
-              cách đây dưới 2 giây. Bạn muốn quét lại không?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDuplicateConfirm(null)}
-            >
-              Bỏ qua
-            </Button>
-            <Button onClick={handleConfirmDuplicate}>Quét lại</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Complete WO dialog */}
       <Dialog open={completeOpen} onOpenChange={setCompleteOpen}>
@@ -1213,177 +1015,6 @@ function ManualPickPanel({
   );
 }
 
-// ---------------- BarcodeModePanel ----------------
-
-function BarcodeModePanel({
-  progress,
-  log,
-  isPending,
-  onScan,
-}: {
-  progress: NonNullable<ReturnType<typeof useWoProgress>["data"]>["data"];
-  log: ScanLog[];
-  isPending: boolean;
-  onScan: (code: string) => void;
-}) {
-  return (
-    <section className="grid gap-4 lg:grid-cols-[3fr,2fr]">
-      {/* BOM lines table */}
-      <div className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-        <header className="flex h-9 items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
-          <ClipboardList className="h-3.5 w-3.5" aria-hidden />
-          BOM lines cần lắp ({progress.lines.length})
-        </header>
-        <table className="w-full text-xs">
-          <thead className="border-b border-zinc-200 bg-zinc-50 text-[10px] uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
-            <tr>
-              <th className="px-3 py-2 text-left font-medium">SKU</th>
-              <th className="px-3 py-2 text-left font-medium">Tên</th>
-              <th className="px-3 py-2 text-right font-medium">Yêu cầu</th>
-              <th className="px-3 py-2 text-right font-medium">Đã pick</th>
-              <th className="px-3 py-2 text-right font-medium">Còn lại</th>
-              <th className="px-3 py-2 text-center font-medium">Trạng thái</th>
-            </tr>
-          </thead>
-          <tbody>
-            {progress.lines.map((l) => {
-              const remaining = Math.max(0, l.requiredQty - l.completedQty);
-              const done = remaining === 0;
-              return (
-                <tr
-                  key={l.snapshotLineId}
-                  className={cn(
-                    "border-t border-zinc-100 transition-colors dark:border-zinc-800",
-                    done && "bg-emerald-50/40 dark:bg-emerald-950/30",
-                  )}
-                >
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-1">
-                      <Package
-                        className={cn(
-                          "h-3.5 w-3.5",
-                          done ? "text-emerald-500 dark:text-emerald-400" : "text-zinc-400 dark:text-zinc-500",
-                        )}
-                        aria-hidden
-                      />
-                      <code className="font-mono text-xs font-semibold">
-                        {l.componentSku}
-                      </code>
-                    </div>
-                  </td>
-                  <td className="px-3 py-2 text-zinc-700 dark:text-zinc-300">
-                    {l.componentName}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums">
-                    {l.requiredQty}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums font-semibold">
-                    {l.completedQty}
-                  </td>
-                  <td
-                    className={cn(
-                      "px-3 py-2 text-right tabular-nums",
-                      done ? "text-emerald-700 dark:text-emerald-400" : "text-zinc-600 dark:text-zinc-400",
-                    )}
-                  >
-                    {remaining}
-                  </td>
-                  <td className="px-3 py-2 text-center">
-                    <Badge
-                      variant={done ? "success" : "outline"}
-                      className="text-[10px]"
-                    >
-                      {done ? "Đủ" : l.state}
-                    </Badge>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="flex flex-col gap-3">
-        <div className="rounded-md border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
-          <BarcodeScanInput
-            onScan={onScan}
-            placeholder="Quét barcode component (USB/BT + Enter)"
-            disabled={isPending}
-            autoFocus
-            label="Quét / Nhập mã barcode"
-          />
-          {isPending ? (
-            <p className="mt-2 inline-flex items-center gap-1 text-[11px] text-zinc-500 dark:text-zinc-400">
-              <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
-              Đang ghi nhận scan…
-            </p>
-          ) : (
-            <p className="mt-2 text-[11px] text-zinc-400 dark:text-zinc-500">
-              Tip: ô luôn auto-focus. Nếu mất focus, click vào ô. Phím tắt: gõ
-              tay rồi Enter.
-            </p>
-          )}
-        </div>
-
-        <div className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-          <header className="flex h-9 items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
-            <History className="h-3.5 w-3.5" aria-hidden />
-            10 scan gần nhất ({log.length})
-          </header>
-          {log.length === 0 ? (
-            <div className="px-4 py-8 text-center text-xs text-zinc-500 dark:text-zinc-400">
-              Chưa có scan nào. Quét barcode để bắt đầu.
-            </div>
-          ) : (
-            <ul className="max-h-[420px] divide-y divide-zinc-100 overflow-y-auto dark:divide-zinc-800">
-              {log.map((e) => (
-                <li key={e.id} className="px-3 py-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        "h-1.5 w-1.5 shrink-0 rounded-full",
-                        e.status === "ok"
-                          ? "bg-emerald-500"
-                          : e.status === "warn"
-                            ? "bg-amber-500"
-                            : e.status === "no-match"
-                              ? "bg-amber-500"
-                              : "bg-red-500",
-                      )}
-                      aria-hidden
-                    />
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                      {e.kind}
-                    </span>
-                    <code className="flex-1 truncate font-mono text-[11px] text-zinc-900 dark:text-zinc-50">
-                      {e.code}
-                    </code>
-                    <span className="shrink-0 text-[10px] tabular-nums text-zinc-400 dark:text-zinc-500">
-                      {formatTime(e.at)}
-                    </span>
-                  </div>
-                  <p
-                    className={cn(
-                      "mt-0.5 truncate pl-3.5 text-[11px]",
-                      e.status === "ok"
-                        ? "text-emerald-700 dark:text-emerald-400"
-                        : e.status === "warn" || e.status === "no-match"
-                          ? "text-amber-700 dark:text-amber-400"
-                          : "text-red-700 dark:text-red-400",
-                    )}
-                  >
-                    {e.message}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 // ---------------- SessionsPanel ----------------
 
 function SessionsPanel({
@@ -1415,8 +1046,8 @@ function SessionsPanel({
           Chưa có đợt lắp ráp nào
         </p>
         <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-          Pick linh kiện ở tab Nhập thủ công hoặc Quét barcode để bắt đầu đợt
-          đầu tiên. Sổ ghi chép sẽ tự nhóm theo cửa sổ {gapMinutes} phút.
+          Pick linh kiện ở tab Nhập thủ công để bắt đầu đợt đầu tiên. Sổ ghi
+          chép sẽ tự nhóm theo cửa sổ {gapMinutes} phút.
         </p>
       </div>
     );

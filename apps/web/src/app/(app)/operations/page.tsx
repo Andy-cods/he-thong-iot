@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Factory, Inbox, Wrench } from "lucide-react";
+import { Inbox, Wrench } from "lucide-react";
 import { HubTabsNav, type HubTabDef } from "@/components/common/HubTabsNav";
 import { WorkOrdersTab } from "@/components/engineering/WorkOrdersTab";
 import { AssemblyOverviewTab } from "@/components/operations/AssemblyOverviewTab";
@@ -7,19 +7,23 @@ import { AssemblyOverviewTab } from "@/components/operations/AssemblyOverviewTab
 export const dynamic = "force-dynamic";
 
 /**
- * V3.7.47 — `/operations` Bộ phận Gia công (3 tabs).
+ * V3.7.47 — `/operations` Bộ phận Gia công.
  *
  * Tabs:
  *   - requests   — Yêu cầu sản xuất (DRAFT WOs từ TK-A) — VH-A duyệt/từ chối
- *   - orders     — Lệnh sản xuất (RELEASED+) — đang/đã sản xuất
- *   - assembly   — Quy trình lắp ráp (xưởng + scan barcode)
+ *   - assembly   — Quy trình lắp ráp (xưởng)
  *
  * Phân biệt rõ ràng giữa "yêu cầu" (chờ duyệt) và "lệnh chính thức".
+ *
+ * V4.0 — ẨN tab "Lệnh sản xuất" theo yêu cầu user. Danh sách lệnh sản xuất
+ * KHÔNG mất: vẫn xem được ở `/engineering?tab=work-orders` (cùng component
+ * `WorkOrdersTab`, chỉ khác variant), và mọi link chi tiết `/work-orders/[id]`
+ * vẫn hoạt động bình thường. `resolveTab` tự fallback về "requests" nếu ai đó
+ * còn bookmark `?tab=orders`.
  */
 
 const OPERATIONS_TABS = [
   { key: "requests", label: "Yêu cầu sản xuất", icon: Inbox },
-  { key: "orders", label: "Lệnh sản xuất", icon: Factory },
   { key: "assembly", label: "Quy trình lắp ráp", icon: Wrench },
 ] as const satisfies ReadonlyArray<HubTabDef>;
 
@@ -69,8 +73,6 @@ export default function OperationsPage({ searchParams }: OperationsPageProps) {
       <div className="flex-1 md:min-h-0 md:overflow-hidden">
         {active === "requests" ? (
           <WorkOrdersTab variant="operations-requests" />
-        ) : active === "orders" ? (
-          <WorkOrdersTab variant="operations-orders" />
         ) : (
           <AssemblyOverviewTab />
         )}

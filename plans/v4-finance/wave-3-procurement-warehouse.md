@@ -10,7 +10,25 @@
   - Event type union `NotificationEventType` đã mở rộng chỗ trống cho `DELIVERY_NOTE_CREATED`/`DELIVERY_NOTE_CONFIRMED` (Phase 4 Đợt 1 chỉ khai báo, Đợt 3 mới thật sự dùng).
   - **QUAN TRỌNG:** tại thời điểm lập kế hoạch này (2026-09-22), Đợt 1 mới ở trạng thái DRAFT — `packages/shared/src/rbac/matrix.ts` hiện tại (đã đọc trực tiếp) **CHƯA CÓ** role `shareholder`, entity `finance`/`deliveryNote`, và `warehouse.pr` **CHƯA CÓ** `approve` (dòng 124 hiện là `pr: ["create", "read"]`). Người thực thi Đợt 3 PHẢI grep lại `matrix.ts` ngay trước khi code để xác nhận Đợt 1 đã merge đúng như plan, không suy đoán.
 - **Migration dự kiến:** `packages/db/migrations/0056_*.sql` trở đi — **CHƯA CHỐT SỐ THẬT**. Tại thời điểm khảo sát, `ls packages/db/migrations | sort` cho thấy file mới nhất là `0053_item_type_catchup.sql` / `0053_sales_order_priority.sql` (trùng số 0053 — xem `DRIFT-NOTES.md` mục 5 + Đợt 1 R-1); Đợt 1 dự kiến chiếm `0054` + `0055`. Vậy Đợt 3 dự kiến bắt đầu từ **`0056`**, nhưng đây CHỈ LÀ DỰ ĐOÁN — **BẮT BUỘC chạy `ls packages/db/migrations | sort` lại lần nữa ngay trước khi tạo file** (Đợt 2 Tài chính có thể đã chiếm một phần dải số nếu code trước Đợt 3), tuyệt đối không copy số này vào code mà không verify lại.
-- **Trạng thái:** DRAFT — chờ user duyệt các "Quyết định cần chốt" ở mục 2 trước khi `/cook`.
+- **Trạng thái:** ĐÃ CHỐT một phần — xem mục 0 (user đã trả lời, GHI ĐÈ đề xuất mặc định của planner).
+
+---
+
+## 0. ⚠️ QUYẾT ĐỊNH CHÍNH THỨC CỦA USER (2026-09-22) — GHI ĐÈ MỌI ĐỀ XUẤT BÊN DƯỚI
+
+Các câu trả lời trực tiếp của user. Khi mâu thuẫn với QĐ-1..QĐ-9 ở mục 2, **mục này thắng**.
+
+| # | Câu hỏi | User chốt | Ảnh hưởng tới plan |
+|---|---|---|---|
+| U-1 | Kho có phải nhập/xác nhận số tồn từng dòng khi duyệt không? | **KHÔNG** — chỉ cần bấm duyệt. Hệ thống hiện số tồn tham khảo là đủ. | **GHI ĐÈ QĐ-1 + QĐ-2 + QĐ-3.** Phase A thu hẹp mạnh: KHÔNG thêm cột `warehouseVerifiedQty`/`warehouseSupplyDecision`, KHÔNG bắt buộc nhập liệu khi duyệt, KHÔNG có logic skip dòng "cấp từ kho" khi convert PO. Chỉ cần đảm bảo UI duyệt của Kho HIỂN THỊ RÕ tồn kho hiện tại từng dòng để Kho nhìn rồi quyết. Effort Phase A giảm từ ~2.5 ngày xuống ~0.5 ngày. |
+| U-2 | "Chỉ Giám đốc duyệt phiếu xuất hàng" áp dụng cho loại xuất nào? | **CHỈ xuất bán / giao khách** (và trả hàng NCC). Xuất vật tư cho sản xuất nội bộ **giữ nguyên Kho tự duyệt**. | **XÁC NHẬN QĐ-5 theo hướng phân biệt `reason`.** Guard mới: `reason IN ('sales','return')` → bắt buộc admin; các `reason` khác (`production`/`manual`/`other`) → giữ nguyên warehouse+admin như hiện tại. Lý do: tránh làm tắc xuất vật tư hàng ngày cho xưởng. |
+| U-3 | Cho sửa đơn giá PO sau khi đã gửi NCC không? | **KHÔNG** — chỉ sửa khi chưa gửi (giữ nguyên hành vi hiện tại). | **GHI ĐÈ QĐ-7 + QĐ-8.** Phase C BỎ phần mở rộng sửa giá khi `SENT`, BỎ luôn phần lịch sử giá (không cần vì chỉ sửa được lúc DRAFT — audit_event hiện có đã đủ). Phase C chỉ còn: (a) notify Kho khi giá đổi lúc DRAFT, (b) bổ sung notify approve/reject PO còn thiếu, (c) trả kết quả PO về Thu mua + Kho + người đề xuất gốc. Effort giảm đáng kể. |
+| U-4 | Mẫu BBGH gồm những trường gì? | **Claude tự thiết kế 1 form**, user sẽ vào sửa sau. | **GHI ĐÈ QĐ-4** — không còn là gate chặn. Cứ code Phase D với bộ trường đề xuất ở mục 7.2, thiết kế sao cho DỄ SỬA (trường khai báo tập trung, không hardcode rải rác trong PDF template). |
+
+**Bối cảnh Đợt 1 đã DEPLOY (commit `17b8f79`)** — khác một điểm so với giả định của plan này:
+- `warehouse.pr` đã có `approve`, và **`planner` ĐÃ BỊ GỠ `approve:pr`** (user chọn "đổi cứng ngay", KHÔNG giữ song song như Phương án A mà plan Đợt 1 đề xuất). Route `dept-approve` hiện chỉ cho `admin | warehouse`.
+- Role `shareholder`, entity `finance` + `deliveryNote` đã có trên `main`.
+- Migration `0054` đã dùng. Đợt 2/3 tiếp từ `0055` — vẫn phải `ls` verify trước khi tạo file.
 
 ---
 
