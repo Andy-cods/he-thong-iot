@@ -8,6 +8,7 @@ export * from "./product-line";
 export * from "./order";
 export * from "./snapshot";
 export * from "./procurement";
+export * from "./finance";
 export * from "./inventory";
 export * from "./production";
 export * from "./assembly";

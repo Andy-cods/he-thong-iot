@@ -12,6 +12,7 @@ import {
   Truck,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -192,13 +193,14 @@ export default function ReceivingDetailPage({
     <div className="flex flex-col gap-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <Link
-            href="/warehouse?tab=receiving"
-            className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-            Về danh sách PO chờ nhận
-          </Link>
+          <Breadcrumb
+            items={[
+              { label: "Tổng quan", href: "/" },
+              { label: "Kho", href: "/warehouse?tab=receiving" },
+              { label: "Nhận hàng", href: "/warehouse?tab=receiving" },
+              { label: po.poCode },
+            ]}
+          />
           <div className="mt-2 flex items-center gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-900/50">
               <Truck className="h-6 w-6 text-indigo-700 dark:text-indigo-400" aria-hidden />

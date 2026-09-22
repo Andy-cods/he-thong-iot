@@ -1,16 +1,14 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import {
   ArrowDownCircle,
   ArrowUpCircle,
-  ChevronLeft,
   Factory,
   Lock,
   Package,
   RotateCcw,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 import {
   getLotHistory,
   type LotTimelineEvent,
@@ -104,28 +102,28 @@ export default async function LotSerialDetailPage({
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="flex items-center gap-3">
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/items">
-              <ChevronLeft className="h-3.5 w-3.5" />
-              Items
-            </Link>
-          </Button>
-          <div>
-            <h1 className="font-mono text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-              <Package className="mr-1 inline-block h-5 w-5 text-zinc-500 dark:text-zinc-400" />
-              {lot.lotCode ?? lot.serialCode ?? lot.id.slice(0, 8)}
-            </h1>
-            <div className="mt-0.5 flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-              <Badge variant={statusVariant(lot.status)}>{lot.status}</Badge>
-              <span>·</span>
-              <span>SKU: {lot.itemSku ?? "—"}</span>
-              <span>·</span>
-              <span className="truncate max-w-[320px]">
-                {lot.itemName ?? "—"}
-              </span>
-            </div>
+      <header className="border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
+        <Breadcrumb
+          items={[
+            { label: "Tổng quan", href: "/" },
+            { label: "Kho", href: "/warehouse?tab=items" },
+            { label: "Vật tư", href: "/warehouse?tab=items" },
+            { label: lot.lotCode ?? lot.serialCode ?? lot.id.slice(0, 8) },
+          ]}
+        />
+        <div className="mt-2">
+          <h1 className="font-mono text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+            <Package className="mr-1 inline-block h-5 w-5 text-zinc-500 dark:text-zinc-400" />
+            {lot.lotCode ?? lot.serialCode ?? lot.id.slice(0, 8)}
+          </h1>
+          <div className="mt-0.5 flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+            <Badge variant={statusVariant(lot.status)}>{lot.status}</Badge>
+            <span>·</span>
+            <span>SKU: {lot.itemSku ?? "—"}</span>
+            <span>·</span>
+            <span className="truncate max-w-[320px]">
+              {lot.itemName ?? "—"}
+            </span>
           </div>
         </div>
       </header>

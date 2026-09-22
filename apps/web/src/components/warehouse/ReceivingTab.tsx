@@ -49,7 +49,7 @@ import { ReceivingHistoryDrawer } from "./ReceivingHistoryDrawer";
  * - Search + status filter
  * - Card grid responsive (1/2/3 cols)
  * - Drawer xem lịch sử nhận hàng (audit log) per PO
- * - 3 entry points rõ ràng: wizard desktop / single-page / PWA tablet
+ * - 2 lối vào rõ ràng: wizard nhận hàng (chính) / form đơn giản (single-page)
  */
 
 function supplierLabel(po: PORow): string {
@@ -200,7 +200,7 @@ function POCard({
           <ArrowUpRight className="h-3.5 w-3.5 opacity-70" aria-hidden />
         </Link>
 
-        {/* Secondary: single page + PWA */}
+        {/* Secondary: form đơn giản (single page) */}
         <div className="grid grid-cols-2 gap-2">
           <Link
             href={`/receiving/${po.id}`}
@@ -315,7 +315,7 @@ export function ReceivingTab() {
             PO chờ nhận hàng
           </h1>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            Danh sách PO đang chờ giao. Mở wizard hoặc PWA tablet để quét nhận, hoặc duyệt nhanh từ card.
+            Danh sách PO đang chờ giao. Mở wizard để nhận hàng, hoặc duyệt nhanh từ card.
           </p>
         </div>
         <Button

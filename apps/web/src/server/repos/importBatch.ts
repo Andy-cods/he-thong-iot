@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 
 export async function findRecentByHash(
   fileHash: string,
-  kind: "item" | "bom",
+  kind: "item" | "bom" | "finance_transaction",
   sinceMinutes = 60,
 ): Promise<ImportBatch | null> {
   const sinceDate = new Date(Date.now() - sinceMinutes * 60_000);
@@ -34,7 +34,7 @@ export async function getImportBatch(id: string) {
 }
 
 export async function createImportBatch(input: {
-  kind: "item" | "bom";
+  kind: "item" | "bom" | "finance_transaction";
   fileHash: string;
   fileName: string;
   fileSizeBytes: number;

@@ -21,16 +21,13 @@ import {
  * Khác `/receiving/[poId]/page.tsx` (form đầy đủ với lot/qc per line):
  *   - Quick mode dành cho trường hợp hàng về đủ + OK (default qcStatus=PENDING,
  *     warehouse hậu kiểm sau).
- *   - Tickbox per-line + auto-fill qty = remaining.
- *   - Barcode scan đầu trang: scan SKU → tự tick line tương ứng + +1 qty
- *     (capped ở `remaining`).
+ *   - Tickbox per-line + auto-fill qty = remaining (nhập tay, không còn ô quét).
  *
  * Backend tái dùng POST `/api/receiving/events` (atomic 7-table).
  *
  * Performance:
- *   - `React.useMemo` cho lines map by SKU (lookup O(1) khi scan).
+ *   - `React.useMemo` cho lines map by SKU (lookup O(1)).
  *   - `useReducer` cho input state — batch update không re-render từng line.
- *   - Scan flash visual qua BarcodeScanInput không re-render table.
  */
 
 type LineState = {

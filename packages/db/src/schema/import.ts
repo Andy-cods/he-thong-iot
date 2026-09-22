@@ -12,7 +12,16 @@ import {
 import { appSchema } from "./_schema";
 import { userAccount } from "./auth";
 
-export const importKindEnum = pgEnum("import_kind", ["item", "bom"]);
+// V4.0 đợt 2 — thêm "finance_transaction" (Postgres enum được ALTER TYPE ADD
+// VALUE ở migration 0055_finance_core.sql, SAU khi drizzle-kit push tạo bảng
+// fin_*; xem wave-2-finance.md §0.2/§D.2). Cập nhật TS ở đây để đồng bộ
+// type-safety cho `import_batch.kind` — KHÔNG làm drizzle-kit push cố tạo lại
+// enum (Drizzle diff theo tên, giá trị đã tồn tại trên DB → no-op).
+export const importKindEnum = pgEnum("import_kind", [
+  "item",
+  "bom",
+  "finance_transaction",
+]);
 
 export const importStatusEnum = pgEnum("import_status", [
   "queued",

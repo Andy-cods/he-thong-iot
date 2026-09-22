@@ -14,6 +14,7 @@ import {
   Truck,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,9 +46,10 @@ import { useApproveReceiving } from "@/hooks/useReceivingApprove";
  *   3. qc       — Tổng kết chip stats (#OK / #NG / #Chờ) → "Gửi nhận hàng" (POST events)
  *                 → sau đó hỏi "Duyệt PO ngay?" nếu received >= 95%.
  *
- * Form receiving cũ `/receiving/[poId]/page.tsx` GIỮ NGUYÊN cho PWA mobile scan.
- * Tab Receiving warehouse có 2 button: "Mở wizard desktop" (form này) +
- * "Mở form nhận (single page)" (form cũ).
+ * Form receiving cũ `/receiving/[poId]/page.tsx` GIỮ NGUYÊN làm "Form đơn giản"
+ * (single page, nhập tay/máy quét HID — KHÔNG còn camera).
+ * Tab Receiving warehouse có 2 lối vào: "Mở wizard nhận hàng" (form này) +
+ * "Form đơn giản" (form cũ).
  */
 
 export const dynamic = "force-dynamic";
@@ -350,17 +352,14 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
   return (
     <div className="flex h-full flex-col overflow-hidden bg-zinc-50/30 dark:bg-zinc-950">
       <header className="border-b border-zinc-200 bg-white px-6 py-5 dark:border-zinc-800 dark:bg-zinc-900">
-        <nav aria-label="Breadcrumb" className="text-xs text-zinc-500 dark:text-zinc-400">
-          <Link href="/" className="hover:text-zinc-900 hover:underline dark:hover:text-zinc-50">Tổng quan</Link>
-          <span className="mx-1.5 text-zinc-300 dark:text-zinc-600">›</span>
-          <Link href="/warehouse?tab=receiving" className="hover:text-zinc-900 hover:underline dark:hover:text-zinc-50">
-            Quản lý kho
-          </Link>
-          <span className="mx-1.5 text-zinc-300 dark:text-zinc-600">›</span>
-          <span className="text-zinc-700 dark:text-zinc-300">Nhận hàng</span>
-          <span className="mx-1.5 text-zinc-300 dark:text-zinc-600">›</span>
-          <span className="font-medium text-zinc-900 dark:text-zinc-50">Wizard {po.poCode}</span>
-        </nav>
+        <Breadcrumb
+          items={[
+            { label: "Tổng quan", href: "/" },
+            { label: "Kho", href: "/warehouse?tab=receiving" },
+            { label: "Nhận hàng", href: "/warehouse?tab=receiving" },
+            { label: `Wizard ${po.poCode}` },
+          ]}
+        />
         <div className="mt-2 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-900/50">
