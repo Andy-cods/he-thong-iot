@@ -30,6 +30,14 @@ import {
   processPrReminderScan,
   type PrReminderScanJob,
 } from "./jobs/prReminderScan.js";
+import {
+  processFinanceTransactionImportCommit,
+  type FinanceTransactionImportCommitJob,
+} from "./jobs/financeTransactionImport.js";
+import {
+  processFinInvoiceReminderScan,
+  type FinInvoiceReminderScanJob,
+} from "./jobs/finInvoiceReminderScan.js";
 import { eq } from "drizzle-orm";
 import { importBatch } from "@iot/db/schema";
 import { db, pgClient } from "./db.js";
@@ -177,6 +185,47 @@ const prReminderScanWorker = new Worker<PrReminderScanJob>(
   },
 );
 
+// V4.0 đợt 2 Phase D — commit import Excel giao dịch tài chính. concurrency 1:
+// giống itemImportCommitWorker, loại bỏ khả năng deadlock giữa 2 job cùng
+// account (xem wave-2-finance.md §D.7 rủi ro).
+const financeTransactionImportCommitWorker = new Worker<FinanceTransactionImportCommitJob>(
+  QUEUE_NAMES.FINANCE_TRANSACTION_IMPORT_COMMIT,
+  async (job) => {
+    logger.info(
+      { jobId: job.id, batchId: job.data.batchId },
+      "finance-transaction-import-commit: start",
+    );
+    const res = await processFinanceTransactionImportCommit(job);
+    logger.info(
+      { jobId: job.id, batchId: job.data.batchId, res },
+      "finance-transaction-import-commit: done",
+    );
+    return res;
+  },
+  {
+    connection,
+    prefix,
+    concurrency: 1,
+  },
+);
+
+// V4.0 đợt 2 Phase F — "Nhắc hạn" hoá đơn tài chính: quét 1 lần/ngày (khác PR
+// reminder mỗi 1h — hoá đơn không cần tần suất cao, tránh spam).
+const finInvoiceReminderScanWorker = new Worker<FinInvoiceReminderScanJob>(
+  QUEUE_NAMES.FIN_INVOICE_REMINDER_SCAN,
+  async (job) => {
+    logger.info({ jobId: job.id }, "fin-invoice-reminder-scan: start");
+    const res = await processFinInvoiceReminderScan(job);
+    logger.info({ jobId: job.id, res }, "fin-invoice-reminder-scan: done");
+    return res;
+  },
+  {
+    connection,
+    prefix,
+    concurrency: 1,
+  },
+);
+
 for (const w of [
   itemImportCommitWorker,
   bomImportCommitWorker,
@@ -184,6 +233,8 @@ for (const w of [
   ecoApplyBatchWorker,
   emailSendWorker,
   prReminderScanWorker,
+  financeTransactionImportCommitWorker,
+  finInvoiceReminderScanWorker,
 ]) {
   w.on("ready", () => logger.info({ queue: w.name }, "worker ready"));
   w.on("failed", (job, err) => {
@@ -205,7 +256,10 @@ for (const w of [
     const batchId = (job?.data as { batchId?: string } | undefined)?.batchId;
     const isCommit =
       w.name === QUEUE_NAMES.BOM_IMPORT_COMMIT ||
-      w.name === QUEUE_NAMES.ITEM_IMPORT_COMMIT;
+      w.name === QUEUE_NAMES.ITEM_IMPORT_COMMIT ||
+      // V4.0 đợt 2 Phase D — cùng cơ chế "commit fail → set batch failed" để
+      // UI import Excel tài chính không kẹt mãi ở "committing".
+      w.name === QUEUE_NAMES.FINANCE_TRANSACTION_IMPORT_COMMIT;
     if (batchId && isCommit) {
       void db
         .update(importBatch)
@@ -250,6 +304,14 @@ const metricQueues = {
     connection,
     prefix,
   }),
+  [QUEUE_NAMES.FINANCE_TRANSACTION_IMPORT_COMMIT]: new Queue(
+    QUEUE_NAMES.FINANCE_TRANSACTION_IMPORT_COMMIT,
+    { connection, prefix },
+  ),
+  [QUEUE_NAMES.FIN_INVOICE_REMINDER_SCAN]: new Queue(
+    QUEUE_NAMES.FIN_INVOICE_REMINDER_SCAN,
+    { connection, prefix },
+  ),
 };
 registerQueueDepthGauge(metricQueues);
 
@@ -261,6 +323,17 @@ registerQueueDepthGauge(metricQueues);
 await metricQueues[QUEUE_NAMES.PR_REMINDER_SCAN].upsertJobScheduler(
   "pr-reminder-scan-hourly",
   { every: 60 * 60 * 1000 },
+  { name: "scan" },
+);
+
+// V4.0 đợt 2 Phase F — Đăng ký lịch quét "nhắc hạn" hoá đơn tài chính 1 LẦN/
+// NGÀY (khác PR reminder mỗi 1h — hoá đơn không cần tần suất cao, tránh spam
+// notification hàng ngày nhiều lần). `pattern` cron '0 0 * * *' = UTC 00:00 =
+// 07:00 Asia/Ho_Chi_Minh (server chạy UTC, VN luôn +07 không DST — xem
+// currentYymm() comment trong _docNumber.ts cho cùng logic quy đổi).
+await metricQueues[QUEUE_NAMES.FIN_INVOICE_REMINDER_SCAN].upsertJobScheduler(
+  "fin-invoice-reminder-scan-daily",
+  { pattern: "0 0 * * *" },
   { name: "scan" },
 );
 
@@ -280,6 +353,8 @@ const shutdown = async (signal: string) => {
       ecoApplyBatchWorker.close(),
       emailSendWorker.close(),
       prReminderScanWorker.close(),
+      financeTransactionImportCommitWorker.close(),
+      finInvoiceReminderScanWorker.close(),
       ...Object.values(metricQueues).map((q) => q.close()),
     ]);
     await connection.quit();
@@ -304,6 +379,8 @@ logger.info(
       QUEUE_NAMES.ECO_APPLY_BATCH,
       QUEUE_NAMES.EMAIL_SEND,
       QUEUE_NAMES.PR_REMINDER_SCAN,
+      QUEUE_NAMES.FINANCE_TRANSACTION_IMPORT_COMMIT,
+      QUEUE_NAMES.FIN_INVOICE_REMINDER_SCAN,
     ],
     prefix,
   },

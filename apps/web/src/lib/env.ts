@@ -62,6 +62,12 @@ export const env = {
     accessKey: readSecret("R2_ACCESS_KEY", false) ?? "",
     secretKey: readSecret("R2_SECRET_KEY", false) ?? "",
   },
+  // TASK-20260922 — R2 chưa cấu hình thật trên prod (endpoint vẫn là
+  // placeholder), nên chứng từ tài chính (ảnh/PDF hoá đơn) lưu tạm trên đĩa
+  // VPS thay vì R2. Thư mục này PHẢI mount volume từ host (xem
+  // deploy/docker-compose.yml service `app`, mount `./uploads:/app/uploads`)
+  // để không mất dữ liệu khi redeploy container.
+  UPLOAD_DIR: process.env.UPLOAD_DIR ?? "./uploads",
   // --- V1.4 Phase E: OpenTelemetry / Grafana Cloud ---
   // Nếu OTEL_EXPORTER_OTLP_ENDPOINT trống → telemetry SDK skip init (local dev).
   OTEL: {

@@ -2,10 +2,19 @@
 
 import * as React from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Minus, Plus, Search, ArrowRightLeft } from "lucide-react";
+import {
+  ArrowDownToLine,
+  ArrowRightLeft,
+  ArrowUpFromLine,
+  Loader2,
+  Minus,
+  Plus,
+  Search,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -56,6 +65,7 @@ export function BinActionsBar({
   allBins: BinNode[];
   onMutated: () => void;
 }) {
+  const [mode, setMode] = React.useState<BinQuickMode>("in");
   const [addOpen, setAddOpen] = React.useState(false);
   const [transferTarget, setTransferTarget] = React.useState<BinContent | null>(
     null,
@@ -66,31 +76,70 @@ export function BinActionsBar({
 
   return (
     <>
-      <div className="grid grid-cols-3 gap-2">
+      {/* Segmented control Nhập ⇄ Xuất — nhất quán với MovementTab + popover sơ đồ kho */}
+      <div
+        role="tablist"
+        aria-label="Chế độ Nhập/Xuất tại bin"
+        className="mb-2 inline-flex h-9 w-full items-center rounded-lg bg-zinc-100 p-1 dark:bg-zinc-800"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "in"}
+          onClick={() => setMode("in")}
+          className={cn(
+            "inline-flex h-7 flex-1 items-center justify-center gap-1.5 rounded-md text-xs font-semibold transition-colors",
+            mode === "in"
+              ? "bg-white text-indigo-700 shadow-sm dark:bg-zinc-900 dark:text-indigo-300"
+              : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200",
+          )}
+        >
+          <ArrowDownToLine className="h-3.5 w-3.5" aria-hidden /> Nhập
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "out"}
+          onClick={() => setMode("out")}
+          className={cn(
+            "inline-flex h-7 flex-1 items-center justify-center gap-1.5 rounded-md text-xs font-semibold transition-colors",
+            mode === "out"
+              ? "bg-white text-indigo-700 shadow-sm dark:bg-zinc-900 dark:text-indigo-300"
+              : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200",
+          )}
+        >
+          <ArrowUpFromLine className="h-3.5 w-3.5" aria-hidden /> Xuất
+        </button>
+      </div>
+
+      {mode === "in" ? (
         <Button
           size="sm"
           onClick={() => setAddOpen(true)}
-          className="bg-emerald-600 hover:bg-emerald-700"
+          className="w-full bg-emerald-600 hover:bg-emerald-700"
         >
-          <Plus className="h-3.5 w-3.5" /> Thêm hàng
+          <Plus className="h-3.5 w-3.5" /> Thêm hàng vào bin
         </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={contents.length === 0}
-          onClick={() => contents[0] && setRemoveTarget(contents[0])}
-        >
-          <Minus className="h-3.5 w-3.5" /> Rút hàng
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={contents.length === 0}
-          onClick={() => contents[0] && setTransferTarget(contents[0])}
-        >
-          <ArrowRightLeft className="h-3.5 w-3.5" /> Chuyển
-        </Button>
-      </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={contents.length === 0}
+            onClick={() => contents[0] && setRemoveTarget(contents[0])}
+          >
+            <Minus className="h-3.5 w-3.5" /> Rút hàng
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={contents.length === 0}
+            onClick={() => contents[0] && setTransferTarget(contents[0])}
+          >
+            <ArrowRightLeft className="h-3.5 w-3.5" /> Chuyển
+          </Button>
+        </div>
+      )}
 
       {addOpen && (
         <AddStockDialog
@@ -130,6 +179,180 @@ export function BinActionsBar({
         />
       )}
     </>
+  );
+}
+
+/* ============================================================ */
+/* PHASE E — QUICK ACTIONS POPOVER (thao tác nhanh tại bin)     */
+/* ============================================================ */
+
+export type BinQuickMode = "in" | "out";
+
+/**
+ * Phase E — bản compact của `BinActionsBar` dùng trong popover mini mở từ
+ * sơ đồ kho (click-phải / long-press 1 ô bin). Dùng cùng segmented control
+ * Nhập ⇄ Xuất như `MovementTab` để nhất quán trải nghiệm, nhưng tái dùng
+ * 100% dialog + API sẵn có (`AddStockDialog`/`RemoveStockDialog`/`TransferDialog`)
+ * — không viết API mới.
+ */
+export function BinQuickActionsPopover({
+  bin,
+  contents,
+  contentsLoading,
+  allBins,
+  onMutated,
+  onViewDetail,
+}: {
+  bin: BinNode;
+  contents: BinContent[];
+  contentsLoading?: boolean;
+  allBins: BinNode[];
+  onMutated: () => void;
+  onViewDetail: () => void;
+}) {
+  const [mode, setMode] = React.useState<BinQuickMode>("in");
+  const [addOpen, setAddOpen] = React.useState(false);
+  const [removeTarget, setRemoveTarget] = React.useState<BinContent | null>(null);
+  const [transferTarget, setTransferTarget] = React.useState<BinContent | null>(null);
+
+  return (
+    <div className="w-72">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Thao tác nhanh</p>
+          <p className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-50">{bin.fullCode}</p>
+        </div>
+        <div className="text-right">
+          <p className="font-mono text-base font-bold tabular-nums text-zinc-900 dark:text-zinc-50">
+            {bin.totalQty.toLocaleString("vi-VN")}
+            <span className="ml-1 text-xs font-normal text-zinc-400 dark:text-zinc-500">
+              / {bin.capacity ? Number(bin.capacity).toLocaleString("vi-VN") : "—"}
+            </span>
+          </p>
+          <p className="text-[10px] text-zinc-500 dark:text-zinc-400">tồn / sức chứa</p>
+        </div>
+      </div>
+
+      {/* Segmented control Nhập ⇄ Xuất — nhất quán với MovementTab */}
+      <div
+        role="tablist"
+        aria-label="Chế độ Nhập/Xuất tại bin"
+        className="mb-3 inline-flex h-9 w-full items-center rounded-lg bg-zinc-100 p-1 dark:bg-zinc-800"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "in"}
+          onClick={() => setMode("in")}
+          className={cn(
+            "inline-flex h-7 flex-1 items-center justify-center gap-1.5 rounded-md text-xs font-semibold transition-colors",
+            mode === "in"
+              ? "bg-white text-indigo-700 shadow-sm dark:bg-zinc-900 dark:text-indigo-300"
+              : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200",
+          )}
+        >
+          <ArrowDownToLine className="h-3.5 w-3.5" aria-hidden /> Nhập
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "out"}
+          onClick={() => setMode("out")}
+          className={cn(
+            "inline-flex h-7 flex-1 items-center justify-center gap-1.5 rounded-md text-xs font-semibold transition-colors",
+            mode === "out"
+              ? "bg-white text-indigo-700 shadow-sm dark:bg-zinc-900 dark:text-indigo-300"
+              : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200",
+          )}
+        >
+          <ArrowUpFromLine className="h-3.5 w-3.5" aria-hidden /> Xuất
+        </button>
+      </div>
+
+      {mode === "in" ? (
+        <Button
+          size="sm"
+          className="w-full bg-emerald-600 hover:bg-emerald-700"
+          onClick={() => setAddOpen(true)}
+        >
+          <Plus className="h-3.5 w-3.5" /> Thêm hàng vào bin
+        </Button>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={contentsLoading || contents.length === 0}
+            onClick={() => contents[0] && setRemoveTarget(contents[0])}
+          >
+            <Minus className="h-3.5 w-3.5" /> Rút hàng
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={contentsLoading || contents.length === 0}
+            onClick={() => contents[0] && setTransferTarget(contents[0])}
+          >
+            <ArrowRightLeft className="h-3.5 w-3.5" /> Chuyển
+          </Button>
+        </div>
+      )}
+
+      {mode === "out" && !contentsLoading && contents.length === 0 && (
+        <p className="mt-2 text-center text-xs text-zinc-500 dark:text-zinc-400">Bin đang trống, không có gì để rút.</p>
+      )}
+      {contentsLoading && (
+        <p className="mt-2 inline-flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400">
+          <Loader2 className="h-3 w-3 animate-spin" /> Đang tải nội dung bin…
+        </p>
+      )}
+
+      <button
+        type="button"
+        onClick={onViewDetail}
+        className="mt-3 w-full text-center text-xs font-semibold text-indigo-600 hover:underline dark:text-indigo-400"
+      >
+        Xem chi tiết đầy đủ →
+      </button>
+
+      {addOpen && (
+        <AddStockDialog
+          bin={bin}
+          onClose={() => setAddOpen(false)}
+          onSuccess={() => {
+            setAddOpen(false);
+            onMutated();
+          }}
+        />
+      )}
+
+      {removeTarget && (
+        <RemoveStockDialog
+          bin={bin}
+          contents={contents}
+          initialLot={removeTarget}
+          onClose={() => setRemoveTarget(null)}
+          onSuccess={() => {
+            setRemoveTarget(null);
+            onMutated();
+          }}
+        />
+      )}
+
+      {transferTarget && (
+        <TransferDialog
+          bin={bin}
+          contents={contents}
+          initialLot={transferTarget}
+          allBins={allBins}
+          onClose={() => setTransferTarget(null)}
+          onSuccess={() => {
+            setTransferTarget(null);
+            onMutated();
+          }}
+        />
+      )}
+    </div>
   );
 }
 

@@ -46,3 +46,36 @@ export async function enqueueItemImportCommit(payload: ItemImportCommitPayload) 
   const q = getItemImportQueue();
   return q.add("commit", payload, { jobId: payload.batchId });
 }
+
+/** V4.0 đợt 2 Phase D — queue commit import giao dịch tài chính. */
+let financeTransactionImportQueue: Queue | null = null;
+
+function getFinanceTransactionImportQueue() {
+  if (!financeTransactionImportQueue) {
+    financeTransactionImportQueue = new Queue(QUEUE_NAMES.FINANCE_TRANSACTION_IMPORT_COMMIT, {
+      connection: getConnection(),
+      prefix,
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: { type: "exponential", delay: 2000 },
+        removeOnComplete: { age: 7 * 24 * 3600, count: 200 },
+        removeOnFail: { age: 30 * 24 * 3600 },
+      },
+    });
+  }
+  return financeTransactionImportQueue;
+}
+
+export interface FinanceTransactionImportCommitPayload {
+  batchId: string;
+  fileHash: string;
+  actorId: string;
+}
+
+/** Idempotent enqueue: jobId = batchId, trùng sẽ bị BullMQ reject. */
+export async function enqueueFinanceTransactionImportCommit(
+  payload: FinanceTransactionImportCommitPayload,
+) {
+  const q = getFinanceTransactionImportQueue();
+  return q.add("commit", payload, { jobId: payload.batchId });
+}

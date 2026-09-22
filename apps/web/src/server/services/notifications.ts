@@ -51,7 +51,15 @@ export type NotificationEventType =
   // V3.7.17 — Warehouse Issue Request flow
   | "ISSUE_REQUEST_NEW"
   | "ISSUE_REQUEST_APPROVED"
-  | "ISSUE_REQUEST_REJECTED";
+  | "ISSUE_REQUEST_REJECTED"
+  // V4.0 đợt 2 Phase F — Tài chính: hoá đơn sắp/đã quá hạn, thanh toán ghi
+  // nhận, công nợ phải thu quá hạn. FIN_INVOICE_DUE_SOON/FIN_INVOICE_OVERDUE
+  // insert từ apps/worker (finInvoiceReminderScan.ts), tương tự
+  // PR_PENDING_REMINDER — worker không import code apps/web.
+  | "FIN_INVOICE_DUE_SOON"
+  | "FIN_INVOICE_OVERDUE"
+  | "FIN_PAYMENT_RECORDED"
+  | "FIN_RECEIVABLE_OVERDUE";
 
 export interface EmitNotificationInput {
   /** User cụ thể (đếm vào unread badge). Bỏ qua nếu chỉ broadcast role. */
@@ -82,6 +90,11 @@ const EMAIL_EVENTS: ReadonlySet<NotificationEventType> = new Set([
   "WO_REQUEST_SUBMITTED", // YCSX chờ duyệt → operator
   "ISSUE_REQUEST_NEW", // phiếu xuất kho chờ duyệt → warehouse
   "PO_SUBCONTRACT_DRAFT", // PO gia công chờ chốt giá → purchaser
+  // V4.0 đợt 2 Phase F — chỉ 2 event "công nợ quá hạn" CẦN HÀNH ĐỘNG mới gửi
+  // email (đề xuất trong wave-2-finance.md §F.1). DUE_SOON/PAYMENT_RECORDED
+  // chỉ in-app, tránh spam hộp thư mỗi ngày.
+  "FIN_INVOICE_OVERDUE",
+  "FIN_RECEIVABLE_OVERDUE",
 ] satisfies NotificationEventType[]);
 
 /**
@@ -820,6 +833,114 @@ export async function notifyIssueRequestRejected(
     message: ctx.reason ?? "Liên hệ Kho để biết lý do.",
     link: `/operations`,
     severity: "warning",
+  });
+}
+
+/* ── V4.0 đợt 2 Phase F — Tài chính: nhắc hạn + thông báo thanh toán ──────── */
+
+export interface FinInvoiceNotifyContext {
+  invoiceId: string;
+  invoiceNo: string;
+  supplierName?: string | null;
+  dueDate?: string | null;
+  outstandingAmount?: number;
+}
+
+/**
+ * Hoá đơn đầu vào (direction=IN) sắp đến hạn trong 3 ngày, chưa trả đủ.
+ * Gọi từ `finInvoiceReminderScan.ts` (worker, 1 lần/ngày) — fan-out direct
+ * tới accountant + admin (đếm badge chuông).
+ */
+export async function notifyInvoiceDueSoon(ctx: FinInvoiceNotifyContext) {
+  const dueLabel = ctx.dueDate ? ` — hạn ${ctx.dueDate}` : "";
+  const payload = {
+    eventType: "FIN_INVOICE_DUE_SOON" as const,
+    entityType: "fin_invoice",
+    entityId: ctx.invoiceId,
+    entityCode: ctx.invoiceNo,
+    title: `Hoá đơn ${ctx.invoiceNo} sắp đến hạn${dueLabel}`,
+    message: ctx.supplierName
+      ? `Nhà cung cấp: ${ctx.supplierName}${ctx.outstandingAmount ? ` — còn ${ctx.outstandingAmount.toLocaleString("vi-VN")}đ` : ""}`
+      : "Sắp đến hạn thanh toán.",
+    link: `/sales?tab=fin-invoices`,
+    severity: "warning" as const,
+  };
+  await emitToUsersWithRole("accountant", payload);
+  await emitToUsersWithRole("admin", payload);
+}
+
+/**
+ * Hoá đơn đầu vào (direction=IN) quá hạn chưa trả đủ — status đã chuyển
+ * OVERDUE (xem finInvoiceReminderScan.ts). Fan-out accountant + admin, CÓ
+ * email (whitelist EMAIL_EVENTS — cần hành động chi trả NCC).
+ */
+export async function notifyInvoiceOverdue(ctx: FinInvoiceNotifyContext) {
+  const payload = {
+    eventType: "FIN_INVOICE_OVERDUE" as const,
+    entityType: "fin_invoice",
+    entityId: ctx.invoiceId,
+    entityCode: ctx.invoiceNo,
+    title: `Hoá đơn ${ctx.invoiceNo} đã QUÁ HẠN thanh toán`,
+    message: ctx.supplierName
+      ? `Nhà cung cấp: ${ctx.supplierName}${ctx.outstandingAmount ? ` — còn ${ctx.outstandingAmount.toLocaleString("vi-VN")}đ` : ""}`
+      : "Cần thanh toán ngay để tránh ảnh hưởng quan hệ NCC.",
+    link: `/sales?tab=fin-invoices`,
+    severity: "error" as const,
+  };
+  await emitToUsersWithRole("accountant", payload);
+  await emitToUsersWithRole("admin", payload);
+}
+
+/**
+ * Hoá đơn đầu ra (direction=OUT, bán cho khách) quá hạn chưa thu đủ — công nợ
+ * phải thu. Fan-out accountant + admin + shareholder (cổ đông cần theo dõi
+ * công nợ phải thu theo đúng yêu cầu nghiệp vụ). CÓ email.
+ */
+export async function notifyReceivableOverdue(ctx: FinInvoiceNotifyContext) {
+  const payload = {
+    eventType: "FIN_RECEIVABLE_OVERDUE" as const,
+    entityType: "fin_invoice",
+    entityId: ctx.invoiceId,
+    entityCode: ctx.invoiceNo,
+    title: `Công nợ phải thu ${ctx.invoiceNo} đã quá hạn`,
+    message: ctx.supplierName
+      ? `Khách hàng: ${ctx.supplierName}${ctx.outstandingAmount ? ` — còn ${ctx.outstandingAmount.toLocaleString("vi-VN")}đ` : ""}`
+      : "Cần đôn đốc khách hàng thanh toán.",
+    link: `/sales?tab=fin-receivables`,
+    severity: "error" as const,
+  };
+  await emitToUsersWithRole("accountant", payload);
+  await emitToUsersWithRole("admin", payload);
+  await emitToUsersWithRole("shareholder", payload);
+}
+
+export interface FinPaymentNotifyContext {
+  paymentId: string;
+  paymentCode: string;
+  totalAmount: number;
+  direction: "IN" | "OUT";
+  actorUserId: string;
+  actorUsername: string;
+}
+
+/**
+ * Ghi nhận 1 đợt thanh toán thành công → notify accountant KHÁC actor (không
+ * tự báo cho chính mình) NGAY LẬP TỨC (không qua worker, gọi trực tiếp trong
+ * route `POST /api/finance/payments`, fire-and-forget). KHÔNG gửi email
+ * (không thuộc EMAIL_EVENTS — chỉ mang tính thông tin nội bộ kế toán).
+ */
+export async function notifyPaymentRecorded(ctx: FinPaymentNotifyContext) {
+  await emitToUsersWithRole("accountant", {
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "FIN_PAYMENT_RECORDED",
+    entityType: "fin_payment",
+    entityId: ctx.paymentId,
+    entityCode: ctx.paymentCode,
+    title: `${ctx.paymentCode} đã ghi nhận thanh toán`,
+    message: `${ctx.direction === "IN" ? "Thu" : "Chi"} ${ctx.totalAmount.toLocaleString("vi-VN")}đ`,
+    link: `/sales?tab=fin-payments`,
+    severity: "success",
   });
 }
 

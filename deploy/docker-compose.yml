@@ -88,6 +88,10 @@ services:
       R2_BUCKET: ${R2_BUCKET}
       R2_ENDPOINT: ${R2_ENDPOINT}
       R2_PUBLIC_URL: ${R2_PUBLIC_URL}
+      # TASK-20260922 — chứng từ tài chính lưu đĩa VPS (R2 chưa cấu hình thật).
+      # process.cwd() trong image Next.js standalone = /app, nên đường dẫn
+      # thật là /app/uploads — khớp volume mount ở trên.
+      UPLOAD_DIR: /app/uploads
       LOG_LEVEL: info
       # V3.12 — bật enqueue email "cần duyệt" (worker mới là bên gửi SMTP)
       MAIL_ENABLED: ${MAIL_ENABLED:-false}
@@ -104,6 +108,12 @@ services:
       - r2_secret_key
     volumes:
       - ./logs:/app/logs
+      # TASK-20260922 — chứng từ tài chính (ảnh/PDF hoá đơn) lưu trên đĩa VPS vì
+      # R2 chưa cấu hình thật (endpoint vẫn placeholder). Mount volume từ host
+      # để không mất file khi redeploy container (image bị pull mới hoàn toàn).
+      # PHẢI tạo thư mục `./uploads` trên VPS (cùng cấp `docker-compose.yml`)
+      # trước khi deploy — xem ghi chú deploy trong báo cáo.
+      - ./uploads:/app/uploads
     networks: [iot_net]
     mem_limit: 768m
     depends_on:

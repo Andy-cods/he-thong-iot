@@ -7,6 +7,7 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   Ban,
+  FileSpreadsheet,
   FileText,
   Plus,
   Receipt,
@@ -40,6 +41,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fmtDate, fmtVND } from "@/components/finance/_format";
+import { ImportTransactionsWizard } from "@/components/finance/ImportTransactionsWizard";
+import { TransactionDetailSheet } from "@/components/finance/TransactionDetailSheet";
 import {
   useCreateFinTransaction,
   useFinAccountsList,
@@ -130,6 +133,9 @@ export function CashbookTab() {
 
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createDirection, setCreateDirection] = React.useState<FinDirection>("OUT");
+  const [importOpen, setImportOpen] = React.useState(false);
+  // TASK-20260922 — click 1 dòng giao dịch → mở drawer chi tiết + chứng từ.
+  const [selectedRow, setSelectedRow] = React.useState<FinTransactionRow | null>(null);
 
   const resetFilters = () => {
     void setUrlState({ direction: "all", from: "", to: "", accountId: "", categoryId: "", page: 1 });
@@ -159,6 +165,14 @@ export function CashbookTab() {
             <Button
               size="sm"
               variant="outline"
+              onClick={() => setImportOpen((v) => !v)}
+            >
+              <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
+              Nhập từ Excel
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
               onClick={() => {
                 setCreateDirection("IN");
                 setCreateOpen(true);
@@ -180,6 +194,12 @@ export function CashbookTab() {
           </div>
         )}
       </header>
+
+      {canWrite && importOpen && (
+        <div className="border-b border-zinc-200 bg-zinc-50/50 px-4 py-4 dark:border-zinc-800 dark:bg-zinc-950/30 md:px-6">
+          <ImportTransactionsWizard onClose={() => setImportOpen(false)} />
+        </div>
+      )}
 
       {/* KPI strip */}
       <div className="grid grid-cols-2 gap-3 border-b border-zinc-200 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
@@ -316,6 +336,7 @@ export function CashbookTab() {
                       categoryName={r.categoryId ? categoryMap.get(r.categoryId)?.name : undefined}
                       canVoid={canVoid}
                       onVoid={() => void voidMut.mutateAsync(r.id)}
+                      onClick={() => setSelectedRow(r)}
                     />
                   ))}
                 </tbody>
@@ -325,7 +346,14 @@ export function CashbookTab() {
             {/* Mobile cards */}
             <div className="flex flex-col gap-2 md:hidden">
               {rows.map((r) => (
-                <div key={r.id} className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+                <div
+                  key={r.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedRow(r)}
+                  onKeyDown={(e) => { if (e.key === "Enter") setSelectedRow(r); }}
+                  className="cursor-pointer rounded-xl border border-zinc-200 bg-white p-3 shadow-sm hover:border-indigo-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-indigo-700"
+                >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="font-mono text-xs text-zinc-400 dark:text-zinc-500">{r.code}</p>
@@ -343,7 +371,12 @@ export function CashbookTab() {
                   </div>
                   {canVoid && r.status === "POSTED" && (
                     <div className="mt-2 border-t border-zinc-100 pt-2 dark:border-zinc-800">
-                      <Button size="sm" variant="ghost" onClick={() => void voidMut.mutateAsync(r.id)} className="text-rose-600 dark:text-rose-400">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={(e) => { e.stopPropagation(); void voidMut.mutateAsync(r.id); }}
+                        className="text-rose-600 dark:text-rose-400"
+                      >
                         <Ban className="h-3.5 w-3.5" aria-hidden="true" /> Huỷ giao dịch
                       </Button>
                     </div>
@@ -371,6 +404,12 @@ export function CashbookTab() {
       )}
 
       <TransactionFormDialog open={createOpen} onOpenChange={setCreateOpen} direction={createDirection} />
+      {selectedRow && (
+        <TransactionDetailSheet
+          row={selectedRow}
+          onOpenChange={(open) => { if (!open) setSelectedRow(null); }}
+        />
+      )}
     </div>
   );
 }
@@ -381,15 +420,20 @@ function TransactionRow({
   categoryName,
   canVoid,
   onVoid,
+  onClick,
 }: {
   row: FinTransactionRow;
   accountName?: string;
   categoryName?: string;
   canVoid: boolean;
   onVoid: () => void;
+  onClick: () => void;
 }) {
   return (
-    <tr className="hover:bg-zinc-50 dark:hover:bg-zinc-800/60">
+    <tr
+      onClick={onClick}
+      className="cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
+    >
       <td className="px-4 py-2.5 font-mono text-xs text-zinc-500 dark:text-zinc-400">{row.code}</td>
       <td className="px-4 py-2.5 whitespace-nowrap text-zinc-600 dark:text-zinc-400">{fmtDate(row.transactionDate)}</td>
       <td className="px-4 py-2.5 max-w-[280px] truncate text-zinc-800 dark:text-zinc-200">{row.description ?? "—"}</td>
@@ -412,7 +456,13 @@ function TransactionRow({
       </td>
       <td className="px-4 py-2.5 text-right">
         {canVoid && row.status === "POSTED" && (
-          <Button size="icon-sm" variant="ghost" onClick={onVoid} aria-label="Huỷ giao dịch" title="Huỷ giao dịch">
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            onClick={(e) => { e.stopPropagation(); onVoid(); }}
+            aria-label="Huỷ giao dịch"
+            title="Huỷ giao dịch"
+          >
             <Ban className="h-3.5 w-3.5 text-rose-500" aria-hidden="true" />
           </Button>
         )}

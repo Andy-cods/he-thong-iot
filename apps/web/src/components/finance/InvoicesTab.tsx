@@ -33,6 +33,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SupplierPicker, type SupplierPickerValue } from "@/components/procurement/SupplierPicker";
 import { fmtDate, fmtVND } from "@/components/finance/_format";
+import { InvoiceDetailSheet } from "@/components/finance/InvoiceDetailSheet";
 import {
   useCancelFinInvoice,
   useCreateFinInvoice,
@@ -103,6 +104,8 @@ export function InvoicesTab() {
 
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createDirection, setCreateDirection] = React.useState<FinDirection>("IN");
+  // TASK-20260922 — click 1 dòng hoá đơn → mở drawer chi tiết + chứng từ.
+  const [selectedInvoiceId, setSelectedInvoiceId] = React.useState<string | null>(null);
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-zinc-50/30 dark:bg-zinc-950/30">
@@ -200,7 +203,11 @@ export function InvoicesTab() {
                   {rows.map((inv) => {
                     const isOverdue = inv.status === "OVERDUE";
                     return (
-                      <tr key={inv.id} className={cn("hover:bg-zinc-50 dark:hover:bg-zinc-800/60", isOverdue && "bg-red-50/40 dark:bg-red-950/20")}>
+                      <tr
+                        key={inv.id}
+                        onClick={() => setSelectedInvoiceId(inv.id)}
+                        className={cn("cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/60", isOverdue && "bg-red-50/40 dark:bg-red-950/20")}
+                      >
                         <td className="px-4 py-2.5 font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-50">{inv.invoiceNo}</td>
                         <td className="px-4 py-2.5 text-zinc-600 dark:text-zinc-400">{inv.direction === "IN" ? "Đầu vào" : "Đầu ra"}</td>
                         <td className="px-4 py-2.5 text-zinc-700 dark:text-zinc-300">{inv.supplierId ? (supplierMap.get(inv.supplierId)?.name ?? "—") : "—"}</td>
@@ -219,7 +226,13 @@ export function InvoicesTab() {
                         </td>
                         <td className="px-4 py-2.5 text-right">
                           {canCancel && inv.status !== "CANCELLED" && Number(inv.paidAmount) === 0 && (
-                            <Button size="icon-sm" variant="ghost" onClick={() => void cancelMut.mutateAsync(inv.id)} aria-label="Huỷ hoá đơn" title="Huỷ hoá đơn">
+                            <Button
+                              size="icon-sm"
+                              variant="ghost"
+                              onClick={(e) => { e.stopPropagation(); void cancelMut.mutateAsync(inv.id); }}
+                              aria-label="Huỷ hoá đơn"
+                              title="Huỷ hoá đơn"
+                            >
                               <Ban className="h-3.5 w-3.5 text-rose-500" aria-hidden="true" />
                             </Button>
                           )}
@@ -236,7 +249,14 @@ export function InvoicesTab() {
               {rows.map((inv) => {
                 const isOverdue = inv.status === "OVERDUE";
                 return (
-                  <div key={inv.id} className={cn("rounded-xl border bg-white p-3 shadow-sm dark:bg-zinc-900", isOverdue ? "border-red-200 dark:border-red-800" : "border-zinc-200 dark:border-zinc-800")}>
+                  <div
+                    key={inv.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setSelectedInvoiceId(inv.id)}
+                    onKeyDown={(e) => { if (e.key === "Enter") setSelectedInvoiceId(inv.id); }}
+                    className={cn("cursor-pointer rounded-xl border bg-white p-3 shadow-sm hover:border-indigo-300 dark:bg-zinc-900 dark:hover:border-indigo-700", isOverdue ? "border-red-200 dark:border-red-800" : "border-zinc-200 dark:border-zinc-800")}
+                  >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-50">{inv.invoiceNo}</p>
@@ -276,6 +296,12 @@ export function InvoicesTab() {
       )}
 
       <InvoiceFormDialog open={createOpen} onOpenChange={setCreateOpen} direction={createDirection} />
+      {selectedInvoiceId && (
+        <InvoiceDetailSheet
+          invoiceId={selectedInvoiceId}
+          onOpenChange={(open) => { if (!open) setSelectedInvoiceId(null); }}
+        />
+      )}
     </div>
   );
 }

@@ -515,3 +515,150 @@ export function useFinSummary() {
     staleTime: 30_000,
   });
 }
+
+/* ══════════════════════════ Attachments (TASK-20260922) ══════════════════════════ */
+
+/**
+ * Upload 1 file chứng từ (ảnh/PDF) lên `/api/finance/attachments`. Trả về URL
+ * để PATCH tiếp vào `attachmentUrl` của transaction/invoice — 2 bước tách rời
+ * (upload rồi gắn) đơn giản hơn cho V1, giống pattern presigned URL.
+ */
+export function useUploadFinAttachment() {
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/finance/attachments", {
+        method: "POST",
+        credentials: "include",
+        body: form,
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as {
+          error?: { message?: string; code?: string };
+        };
+        const err = new Error(body.error?.message ?? `HTTP ${res.status}`) as RequestError;
+        err.status = res.status;
+        err.code = body.error?.code;
+        throw err;
+      }
+      return (await res.json()) as { data: { url: string; filename: string } };
+    },
+  });
+}
+
+/* ══════════════════════════ Import Excel giao dịch (Phase D) ══════════════════════════ */
+
+export interface FinanceImportPreviewRow {
+  transactionDate: string;
+  direction: "IN" | "OUT";
+  accountId: string;
+  accountCode: string;
+  categoryId: string | null;
+  amount: number;
+  description: string | null;
+  supplierId: string | null;
+  supplierNameRaw: string | null;
+  externalRef: string | null;
+  duplicate: boolean;
+}
+
+export interface FinanceImportRowError {
+  rowNumber: number;
+  field: string;
+  reason: string;
+  rawValue?: unknown;
+}
+
+export interface FinanceImportUploadResult {
+  batchId: string;
+  reused: boolean;
+  status: string;
+  rowTotal: number;
+  rowSuccess: number;
+  rowFail: number;
+  duplicateCount?: number;
+  previewRows?: FinanceImportPreviewRow[];
+  errors?: FinanceImportRowError[];
+  warnings?: Array<{ rowNumber: number; field: string; reason: string }>;
+}
+
+export function useUploadFinanceImport() {
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/finance/imports/transactions", {
+        method: "POST",
+        body: fd,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as {
+          error?: { message?: string };
+        };
+        throw new Error(body.error?.message ?? `HTTP ${res.status}`);
+      }
+      const json = (await res.json()) as { data: FinanceImportUploadResult };
+      return json.data;
+    },
+  });
+}
+
+export interface FinanceImportBatchStatus {
+  id: string;
+  status: string;
+  fileName: string;
+  rowTotal: number;
+  rowSuccess: number;
+  rowFail: number;
+  preview: {
+    freshCount: number;
+    duplicateCount: number;
+    errorCount: number;
+  } | null;
+  errorMessage: string | null;
+}
+
+export function useFinanceImportBatch(batchId: string | null) {
+  return useQuery({
+    queryKey: ["finance", "imports", batchId],
+    queryFn: async () => {
+      const res = await request<{ data: FinanceImportBatchStatus }>(
+        `/api/finance/imports/${batchId}`,
+      );
+      return res.data;
+    },
+    enabled: !!batchId,
+    refetchInterval: (q) => {
+      const data = q.state.data as FinanceImportBatchStatus | undefined;
+      if (!data) return false;
+      return data.status === "committing" ? 2000 : false;
+    },
+  });
+}
+
+export function useCommitFinanceImport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (batchId: string) =>
+      request<{ data: { batchId: string; status: string } }>(
+        `/api/finance/imports/${batchId}/commit`,
+        { method: "POST" },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.finance.transactions.all });
+      qc.invalidateQueries({ queryKey: qk.finance.accounts.all });
+      qc.invalidateQueries({ queryKey: qk.finance.dashboardSummary });
+      qc.invalidateQueries({ queryKey: qk.finance.all });
+    },
+  });
+}
+
+export function financeImportTemplateUrl() {
+  return "/api/finance/imports/template";
+}
+
+export function financeImportErrorsUrl(batchId: string) {
+  return `/api/finance/imports/${batchId}/errors`;
+}

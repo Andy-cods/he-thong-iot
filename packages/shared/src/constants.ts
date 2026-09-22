@@ -112,6 +112,11 @@ export const QUEUE_NAMES = {
   // V3.16 — "Nhắc duyệt" PR: repeatable job (upsertJobScheduler, mỗi 1h) quét
   // purchase_request SUBMITTED/DEPT_APPROVED quá 24h chưa xử lý.
   PR_REMINDER_SCAN: "pr-reminder-scan",
+  // V4.0 đợt 2 Phase D — commit import Excel giao dịch tài chính (fin_transaction).
+  FINANCE_TRANSACTION_IMPORT_COMMIT: "finance-transaction-import-commit",
+  // V4.0 đợt 2 Phase F — repeatable job (1 lần/ngày) quét fin_invoice sắp/đã
+  // quá hạn thanh toán, bắn notification + đồng bộ status OVERDUE.
+  FIN_INVOICE_REMINDER_SCAN: "fin-invoice-reminder-scan",
 } as const;
 
 /**

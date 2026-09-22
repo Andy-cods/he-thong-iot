@@ -22,7 +22,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { WarehouseLayout3D, type BinNode } from "./WarehouseLayout3D";
-import { BinActionsBar, useBinMutationRefresh } from "./BinActions";
+import { BinActionsBar, BinQuickActionsPopover, useBinMutationRefresh } from "./BinActions";
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 
 /**
  * V3.6.4 — WarehouseLayoutTab redesign theo design tham khảo của user.
@@ -88,7 +89,12 @@ export function WarehouseLayoutTab() {
   const [hoveredBinId, setHoveredBinId] = React.useState<string | null>(null);
   const [search, setSearch] = React.useState("");
   const [debouncedSearch, setDebouncedSearch] = React.useState("");
-  const [viewMode, setViewMode] = React.useState<"3d" | "2d">("3d");
+  // Phase E — mặc định 2D compact (Bin2DPro) để không tràn ngang ở màn laptop
+  // thường (~1280px); 3D isometric giữ làm tuỳ chọn qua toggle có sẵn.
+  const [viewMode, setViewMode] = React.useState<"3d" | "2d">("2d");
+  // Phase E — popover thao tác nhanh Nhập/Xuất khi click-phải/long-press 1 bin.
+  const [quickActionBin, setQuickActionBin] = React.useState<BinNode | null>(null);
+  const [quickActionPos, setQuickActionPos] = React.useState<{ x: number; y: number } | null>(null);
   const [subTab, setSubTab] = React.useState<SubTab>("layout");
   const [selectedRackKey, setSelectedRackKey] = React.useState<string>("");
   /** V3.7.3 — Filter bins theo fill status. */
@@ -142,6 +148,21 @@ export function WarehouseLayoutTab() {
       return res.json() as Promise<{ data: { binId: string; content: BinDetail[] } }>;
     },
     enabled: !!selectedBinId,
+    staleTime: 10_000,
+  });
+
+  // Phase E — nội dung bin cho popover thao tác nhanh (độc lập với drawer chi tiết).
+  const quickActionBinId = quickActionBin?.id ?? null;
+  const quickActionDetailQuery = useQuery({
+    queryKey: ["warehouse", "bin", quickActionBinId],
+    queryFn: async () => {
+      const res = await fetch(`/api/warehouse/bins/${quickActionBinId}`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error();
+      return res.json() as Promise<{ data: { binId: string; content: BinDetail[] } }>;
+    },
+    enabled: !!quickActionBinId,
     staleTime: 10_000,
   });
 
@@ -211,15 +232,27 @@ export function WarehouseLayoutTab() {
 
   const selectedBin = binsWithSku.find((b) => b.id === selectedBinId) ?? null;
 
-  // Stats kệ hiện tại
+  // Stats kệ hiện tại — Phase E: bỏ số liệu bịa (kích thước/tải trọng), tính
+  // "Số tầng"/"Số ô mỗi tầng" thật từ dữ liệu bin (levelNo/position), không
+  // thêm cột DB mới (packages/db/src/schema/master.ts không có field này).
   const rackStats = React.useMemo(() => {
-    if (!currentRack) return { occupied: 0, low: 0, empty: 0, totalQty: 0, totalSKU: 0 };
+    if (!currentRack) {
+      return { occupied: 0, low: 0, empty: 0, totalQty: 0, totalSKU: 0, levelCount: 0, maxPerLevel: 0 };
+    }
+    const levels = new Set(currentRack.items.map((b) => b.levelNo ?? 0));
+    const perLevelCounts = new Map<number, number>();
+    for (const b of currentRack.items) {
+      const lvl = b.levelNo ?? 0;
+      perLevelCounts.set(lvl, (perLevelCounts.get(lvl) ?? 0) + 1);
+    }
     return {
       occupied: currentRack.items.filter((b) => b.totalQty > 0).length,
       low: currentRack.items.filter((b) => b.isLow && b.totalQty > 0).length,
       empty: currentRack.items.filter((b) => b.totalQty === 0).length,
       totalQty: currentRack.items.reduce((s, b) => s + b.totalQty, 0),
       totalSKU: currentRack.items.reduce((s, b) => s + b.skuCount, 0),
+      levelCount: levels.size,
+      maxPerLevel: perLevelCounts.size > 0 ? Math.max(...perLevelCounts.values()) : 0,
     };
   }, [currentRack]);
 
@@ -299,11 +332,13 @@ export function WarehouseLayoutTab() {
             <dl className="space-y-2.5 text-sm">
               <Row label="Mã kệ" value={currentRack ? `${currentRack.area}-${currentRack.rack}` : "—"} mono />
               <Row label="Vị trí" value={currentRack ? `Khu ${currentRack.area}` : "—"} />
-              <Row label="Kích thước" value="6000 × 1200 × 2000 mm" />
-              <Row label="Tải trọng tối đa" value="1500 kg / tầng" />
-              <Row label="Số tầng" value="3" />
-              <Row label="Số ô / tầng" value="6" />
+              {/* Phase E — bỏ "Kích thước"/"Tải trọng" hard-code (DB chưa có
+                  cột này, xem packages/db/src/schema/master.ts). Thay bằng
+                  thống kê thật tính từ dữ liệu bin hiện có. */}
+              <Row label="Số tầng" value={String(rackStats.levelCount)} />
+              <Row label="Số ô / tầng (tối đa)" value={String(rackStats.maxPerLevel)} />
               <Row label="Tổng ô" value={String(currentRack?.total ?? 0)} bold />
+              <Row label="Tổng SKU" value={String(rackStats.totalSKU)} />
               <div className="pt-2">
                 <div className="flex items-center justify-between text-sm mb-1">
                   <span className="text-zinc-500 dark:text-zinc-400">Đã sử dụng</span>
@@ -534,6 +569,10 @@ export function WarehouseLayoutTab() {
                 onViewModeChange={setViewMode}
                 selectedRack={selectedRackKey}
                 onRackChange={setSelectedRackKey}
+                onBinContextMenu={(bin, pos) => {
+                  setQuickActionBin(bin);
+                  setQuickActionPos(pos);
+                }}
               />
             ) : (
               <BinListView bins={filteredItems} onSelect={setSelectedBinId} />
@@ -589,9 +628,62 @@ export function WarehouseLayoutTab() {
         </div>
       </div>
 
+      {/* Phase E — popover thao tác nhanh Nhập/Xuất khi click-phải/long-press 1 bin */}
+      {quickActionBin && quickActionPos && (
+        <Popover
+          open
+          onOpenChange={(o) => {
+            if (!o) {
+              setQuickActionBin(null);
+              setQuickActionPos(null);
+            }
+          }}
+        >
+          <PopoverAnchor asChild>
+            <div
+              className="pointer-events-none fixed z-40 h-px w-px"
+              style={{ left: quickActionPos.x, top: quickActionPos.y }}
+            />
+          </PopoverAnchor>
+          <PopoverContent className="w-auto p-4">
+            <BinQuickActionsPopover
+              bin={quickActionBin}
+              contents={(quickActionDetailQuery.data?.data.content ?? []).map((c) => ({
+                lotSerialId: c.lotSerialId,
+                lotCode: c.lotCode,
+                itemId: c.itemId,
+                itemSku: c.itemSku,
+                itemName: c.itemName,
+                itemUom: c.itemUom,
+                qty: c.qty,
+                status: c.status,
+              }))}
+              contentsLoading={quickActionDetailQuery.isLoading}
+              allBins={binsWithSku.map((b) => ({
+                id: b.id,
+                fullCode: b.fullCode,
+                isActive: b.isActive,
+                capacity: b.capacity,
+                totalQty: b.totalQty,
+              }))}
+              onMutated={() => {
+                refreshBins();
+                setQuickActionBin(null);
+                setQuickActionPos(null);
+              }}
+              onViewDetail={() => {
+                setSelectedBinId(quickActionBin.id);
+                setQuickActionBin(null);
+                setQuickActionPos(null);
+              }}
+            />
+          </PopoverContent>
+        </Popover>
+      )}
+
       {/* Bin detail drawer */}
       {selectedBin && (
-        <div className="fixed inset-y-0 right-0 z-30 w-[400px] shadow-2xl ring-1 ring-zinc-200 bg-white overflow-y-auto dark:ring-zinc-700 dark:bg-zinc-900">
+        <div className="fixed inset-y-0 right-0 z-30 w-[calc(100vw-2rem)] sm:w-[360px] md:w-[400px] max-w-[400px] shadow-2xl ring-1 ring-zinc-200 bg-white overflow-y-auto dark:ring-zinc-700 dark:bg-zinc-900">
           <div className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-200 bg-white px-5 py-3.5 dark:border-zinc-700 dark:bg-zinc-900">
             <div>
               <p className="text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Vị trí</p>
@@ -605,24 +697,8 @@ export function WarehouseLayoutTab() {
             </button>
           </div>
           <div className="p-5 space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <DetailStat label="Tổng SL" value={selectedBin.totalQty.toLocaleString("vi-VN")} />
-              <DetailStat label="Số SKU" value={String(selectedBin.skuCount)} />
-              <DetailStat label="Số lot" value={String(selectedBin.lotCount)} />
-              <DetailStat
-                label="Sức chứa"
-                value={selectedBin.capacity ? Number(selectedBin.capacity).toLocaleString("vi-VN") : "—"}
-              />
-            </div>
-            {selectedBin.isLow && selectedBin.totalQty > 0 && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400">
-                <p className="flex items-center gap-2 font-semibold">
-                  <AlertTriangle className="h-4 w-4" /> Cảnh báo sắp hết
-                </p>
-              </div>
-            )}
-
-            {/* V3.7.4 — Bin actions: + thêm / - rút / chuyển */}
+            {/* Phase E — Bin actions lên đầu drawer, trước thống kê, giảm số
+                thao tác để tới hành động chính (xem plan wave-5 §7.1). */}
             <BinActionsBar
               bin={{
                 id: selectedBin.id,
@@ -650,6 +726,23 @@ export function WarehouseLayoutTab() {
               }))}
               onMutated={refreshBins}
             />
+
+            <div className="grid grid-cols-2 gap-3">
+              <DetailStat label="Tổng SL" value={selectedBin.totalQty.toLocaleString("vi-VN")} />
+              <DetailStat label="Số SKU" value={String(selectedBin.skuCount)} />
+              <DetailStat label="Số lot" value={String(selectedBin.lotCount)} />
+              <DetailStat
+                label="Sức chứa"
+                value={selectedBin.capacity ? Number(selectedBin.capacity).toLocaleString("vi-VN") : "—"}
+              />
+            </div>
+            {selectedBin.isLow && selectedBin.totalQty > 0 && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400">
+                <p className="flex items-center gap-2 font-semibold">
+                  <AlertTriangle className="h-4 w-4" /> Cảnh báo sắp hết
+                </p>
+              </div>
+            )}
 
             <div>
               <h3 className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">

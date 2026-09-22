@@ -4,6 +4,7 @@ import { logger } from "@/lib/logger";
 import { createPaymentWithAllocations, listFinPayments } from "@/server/repos/finPayments";
 import { extractRequestMeta, jsonError, parseJson, parseSearchParams } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
+import { notifyPaymentRecorded } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -43,6 +44,17 @@ export async function POST(req: NextRequest) {
       after: result,
       ...meta,
     });
+    // Phase F.3 — fire-and-forget, KHÔNG await/chặn response (xem
+    // wave-2-finance.md §F.3). Lỗi notify không được làm fail request tạo
+    // payment đã commit thành công.
+    void notifyPaymentRecorded({
+      paymentId: result.payment.id,
+      paymentCode: result.payment.code,
+      totalAmount: Number(result.payment.totalAmount),
+      direction: result.payment.direction,
+      actorUserId: guard.session.userId,
+      actorUsername: guard.session.username,
+    }).catch((err) => logger.warn({ err }, "notifyPaymentRecorded failed"));
     return NextResponse.json({ data: result }, { status: 201 });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

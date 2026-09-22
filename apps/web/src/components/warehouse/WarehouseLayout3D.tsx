@@ -52,6 +52,12 @@ export interface WarehouseLayout3DProps {
   onViewModeChange?: (mode: "3d" | "2d") => void;
   selectedRack?: string;
   onRackChange?: (key: string) => void;
+  /**
+   * Phase E — click-phải (hoặc long-press) trực tiếp lên 1 ô bin (chỉ hỗ trợ
+   * ở chế độ 2D `Bin2DPro`, xem plan wave-5 §7.1) để mở popover thao tác nhanh
+   * Nhập/Xuất mà không cần mở drawer chi tiết trước.
+   */
+  onBinContextMenu?: (bin: BinNode, position: { x: number; y: number }) => void;
 }
 
 type ViewMode = "3d" | "2d";
@@ -264,6 +270,7 @@ export function WarehouseLayout3D({
   onViewModeChange,
   selectedRack: extSelectedRack,
   onRackChange,
+  onBinContextMenu,
 }: WarehouseLayout3DProps) {
   const [internalViewMode, setInternalViewMode] = React.useState<ViewMode>("3d");
   const viewMode = extViewMode ?? internalViewMode;
@@ -387,6 +394,7 @@ export function WarehouseLayout3D({
             hoveredBinId={hoveredBinId}
             onBinClick={onBinClick}
             onBinHover={onBinHover}
+            onBinContextMenu={onBinContextMenu}
           />
         )}
       </div>
@@ -1232,7 +1240,7 @@ function EmptyWoodPallet({ x, y, width }: { x: number; y: number; width: number 
 /* ─────────────────────────────────────────────────────────────────────── */
 
 function Rack2DView({
-  rack, levels, selectedBinId, hoveredBinId, onBinClick, onBinHover,
+  rack, levels, selectedBinId, hoveredBinId, onBinClick, onBinHover, onBinContextMenu,
 }: {
   rack: { key: string; area: string; rack: string; items: BinNode[] };
   levels: number;
@@ -1241,6 +1249,7 @@ function Rack2DView({
   hoveredBinId: string | null;
   onBinClick: (bin: BinNode) => void;
   onBinHover: (id: string | null) => void;
+  onBinContextMenu?: (bin: BinNode, position: { x: number; y: number }) => void;
 }) {
   const tierLabels = ["Tầng 3", "Tầng 2", "Tầng 1"];
 
@@ -1270,6 +1279,14 @@ function Rack2DView({
                     onClick={() => onBinClick(bin)}
                     onMouseEnter={() => onBinHover(bin.id)}
                     onMouseLeave={() => onBinHover(null)}
+                    onContextMenu={
+                      onBinContextMenu
+                        ? (e) => {
+                            e.preventDefault();
+                            onBinContextMenu(bin, { x: e.clientX, y: e.clientY });
+                          }
+                        : undefined
+                    }
                   />
                 ))}
               </div>
@@ -1282,7 +1299,7 @@ function Rack2DView({
 }
 
 function Bin2DPro({
-  bin, isSelected, isHovered, onClick, onMouseEnter, onMouseLeave,
+  bin, isSelected, isHovered, onClick, onMouseEnter, onMouseLeave, onContextMenu,
 }: {
   bin: BinNode;
   isSelected: boolean;
@@ -1290,9 +1307,33 @@ function Bin2DPro({
   onClick: () => void;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
+  /** Phase E — click-phải mở popover thao tác nhanh Nhập/Xuất ngay tại ô bin. */
+  onContextMenu?: (e: React.MouseEvent) => void;
 }) {
   const { theme, pct } = getBinTheme(bin);
   const hasStock = bin.totalQty > 0;
+
+  // Long-press (touch/tablet) → mở popover thao tác nhanh giống click-phải trên desktop.
+  const longPressTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!onContextMenu) return;
+    const touch = e.touches[0];
+    if (!touch) return;
+    const { clientX, clientY } = touch;
+    longPressTimer.current = setTimeout(() => {
+      onContextMenu({
+        preventDefault: () => {},
+        clientX,
+        clientY,
+      } as unknown as React.MouseEvent);
+    }, 500);
+  };
+  const clearLongPress = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
 
   return (
     <button
@@ -1300,6 +1341,10 @@ function Bin2DPro({
       onClick={onClick}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
+      onContextMenu={onContextMenu}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={clearLongPress}
+      onTouchMove={clearLongPress}
       style={{
         width: 160,
         height: 120,
