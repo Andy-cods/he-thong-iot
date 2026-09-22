@@ -151,7 +151,7 @@ export function POTab() {
           <Breadcrumb
             items={[
               { label: "Trang chủ", href: "/" },
-              { label: "Tài chính & Mua bán" },
+              { label: "Bộ phận Thu mua" },
               { label: "Đặt hàng (PO)" },
             ]}
           />

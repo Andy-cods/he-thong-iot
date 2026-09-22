@@ -70,8 +70,8 @@ export function CategoriesTab() {
           <Breadcrumb
             items={[
               { label: "Trang chủ", href: "/" },
-              { label: "Tài chính" },
-              { label: "Danh mục" },
+              { label: "Bộ phận Thu mua", href: "/sales" },
+              { label: "Tài chính: Danh mục" },
             ]}
           />
           <h1 className="mt-2 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">

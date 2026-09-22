@@ -6,7 +6,6 @@ import {
   Shield,
   ShoppingBag,
   ShoppingCart,
-  Wallet,
   Warehouse,
   type LucideIcon,
 } from "lucide-react";
@@ -21,7 +20,7 @@ import { canAny } from "@iot/shared";
  * 1 hub duy nhất (tabs bên trong) thay vì nhiều entry rời:
  *   - dashboard:   Tổng quan          (/)
  *   - warehouse:   Bộ phận Kho        (/warehouse)
- *   - purchasing:  Bộ phận Mua bán    (/sales — tab Suppliers + PO)
+ *   - purchasing:  Bộ phận Thu mua    (/sales — tab PO + Suppliers + Tài chính)
  *   - engineering: Bộ phận Thiết kế   (/engineering — tab BOM + WO + PR)
  *   - operations:  Bộ phận Gia công   (/operations — tab Assembly + future QC/Maint)
  *   - accounting:  Bộ phận Kế toán    (Coming soon)
@@ -154,22 +153,20 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ["admin", "qc", "shareholder"],
     section: "operations",
   },
-  // --- Bộ phận Thu mua — chỉ purchaser + admin ---
+  // --- Bộ phận Thu mua — nay gồm PO + Nhà cung cấp + phân hệ Tài chính ---
+  // TASK-20260922 — Tài chính trở thành tab con của /sales (yêu cầu user).
+  // CỐ Ý dùng `roles` (không phải `entities: canAny`) — nhiều role khác
+  // (warehouse, operator, planner) cũng có quyền `read` trên entity "po"/
+  // "supplier" trong RBAC matrix (để đối chiếu nghiệp vụ qua API) nhưng KHÔNG
+  // thuộc bộ phận Thu mua, nếu gate bằng `entities` thì nav item /sales sẽ lộ
+  // ra cho họ. roles liệt kê đúng 4 role được vào /sales (khớp route guard
+  // layout.tsx + tab-filter trong page.tsx): purchaser/admin thấy PO+NCC,
+  // accountant/shareholder thấy Tài chính.
   {
     href: "/sales",
     label: "Bộ phận Thu mua",
     icon: ShoppingBag,
-    roles: ["admin", "purchaser"],
-    section: "purchasing",
-  },
-  // V4.0 — Phân hệ Tài chính: Kế toán ghi thu chi/hoá đơn/công nợ, Cổ đông xem
-  // báo cáo read-only. Gate bằng entity `finance` để đồng bộ với RBAC matrix
-  // (override per-user ở /admin/users cũng tự động có hiệu lực).
-  {
-    href: "/finance",
-    label: "Tài chính",
-    icon: Wallet,
-    entity: "finance",
+    roles: ["admin", "purchaser", "accountant", "shareholder"],
     section: "purchasing",
   },
   // --- Bộ phận Kho — chỉ warehouse + admin ---

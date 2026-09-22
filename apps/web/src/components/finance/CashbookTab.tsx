@@ -143,8 +143,8 @@ export function CashbookTab() {
           <Breadcrumb
             items={[
               { label: "Trang chủ", href: "/" },
-              { label: "Tài chính" },
-              { label: "Thu chi" },
+              { label: "Bộ phận Thu mua", href: "/sales" },
+              { label: "Tài chính: Thu chi" },
             ]}
           />
           <h1 className="mt-2 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">

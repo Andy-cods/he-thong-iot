@@ -25,7 +25,9 @@ const FORCE_CHANGE_EXEMPT = [
 const ROUTE_ROLE_GUARD: Array<{ prefix: string; roles: Role[] }> = [
   { prefix: "/admin",        roles: ["admin"] },
   { prefix: "/warehouse",    roles: ["admin", "warehouse"] },
-  { prefix: "/sales",        roles: ["admin", "purchaser"] },
+  // TASK-20260922 — /sales nay gồm cả phân hệ Tài chính (tab con) nên phải
+  // mở cho accountant + shareholder; page.tsx tự lọc tab theo quyền từng role.
+  { prefix: "/sales",        roles: ["admin", "purchaser", "accountant", "shareholder"] },
   // V3.7.57 — BOM list mở cho TẤT CẢ bộ phận xem (read-only cho non-planner).
   // Edit BOM vẫn chỉ planner + admin (RBAC matrix).
   // V3.9 — qc + accountant vào /engineering để dùng tab "Đề xuất vật tư" (PR).
@@ -45,7 +47,8 @@ const ROUTE_ROLE_GUARD: Array<{ prefix: string; roles: Role[] }> = [
   // V4.0 — shareholder (Cổ đông) xem tiến độ gia công, READ-ONLY. UI phải ẩn
   // nút CRUD qua can() — RBAC matrix chỉ cấp productionBoard:["read"].
   { prefix: "/production-board", roles: ["admin", "qc", "shareholder"] },
-  // V4.0 — Phân hệ Tài chính: Kế toán (CRUD) + Cổ đông (read-only) + admin.
+  // TASK-20260922 — /finance nay chỉ còn redirect sang /sales?tab=... (giữ
+  // link/bookmark cũ), guard thật đã chuyển sang prefix /sales ở trên.
   { prefix: "/finance",      roles: ["admin", "accountant", "shareholder"] },
   // Notifications + items + orders: ai cũng xem được (read-only ở các path)
   // /notifications, /items, /orders, /, /pwa → không guard
