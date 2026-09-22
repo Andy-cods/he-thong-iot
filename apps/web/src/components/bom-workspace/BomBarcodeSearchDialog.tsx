@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Camera, ExternalLink, Keyboard, Loader2, Send } from "lucide-react";
+import { ExternalLink, Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -11,10 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { BarcodeScanner } from "@/components/scan/BarcodeScanner";
 import { cn } from "@/lib/utils";
 
 /**
@@ -29,9 +27,8 @@ import { cn } from "@/lib/utils";
  *      (reuse deep-link Batch 3) rồi đóng dialog.
  *   6. Nếu item có trong BOM khác → toast + link "Xem trong BOM khác".
  *
- * 2 tabs:
- *   - Camera: reuse `<BarcodeScanner>` (html5-qrcode + USB wedge + manual).
- *   - Nhập thủ công: Input đơn giản cho user gõ tay nhanh (không cần camera).
+ * V4.0 — ĐÃ BỎ tab Camera (html5-qrcode) theo yêu cầu user. Chỉ còn ô nhập
+ * tay: gõ barcode hoặc SKU rồi Enter — vẫn tra cứu được đầy đủ như cũ.
  */
 
 export interface BomBarcodeSearchDialogProps {
@@ -94,7 +91,6 @@ export function BomBarcodeSearchDialog({
   bomTemplateCode,
 }: BomBarcodeSearchDialogProps) {
   const router = useRouter();
-  const [tab, setTab] = React.useState<"camera" | "manual">("camera");
   const [manualInput, setManualInput] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [lastResult, setLastResult] = React.useState<{
@@ -228,31 +224,6 @@ export function BomBarcodeSearchDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs
-          value={tab}
-          onValueChange={(v) => setTab(v as "camera" | "manual")}
-          className="w-full"
-        >
-          <TabsList>
-            <TabsTrigger value="camera">
-              <Camera className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-              Camera / USB scanner
-            </TabsTrigger>
-            <TabsTrigger value="manual">
-              <Keyboard className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-              Nhập thủ công
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="camera" className="mt-3">
-            <BarcodeScanner
-              onDetect={(code) => void processCode(code)}
-              disabled={busy}
-              liveRegionLabel="Kết quả quét BOM"
-            />
-          </TabsContent>
-
-          <TabsContent value="manual" className="mt-3">
             <form
               onSubmit={handleManualSubmit}
               className="flex items-end gap-2 rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900"
@@ -286,8 +257,6 @@ export function BomBarcodeSearchDialog({
                 Tìm
               </Button>
             </form>
-          </TabsContent>
-        </Tabs>
 
         {/* Kết quả gần nhất */}
         {lastResult ? (

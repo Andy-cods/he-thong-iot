@@ -15,7 +15,6 @@ import {
   Package,
   RefreshCw,
   Search,
-  Smartphone,
   Truck,
   X,
 } from "lucide-react";
@@ -211,16 +210,6 @@ function POCard({
             <Truck className="h-3.5 w-3.5" aria-hidden />
             Form đơn giản
           </Link>
-          <Link
-            href={`/pwa/receive/${po.id}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
-            title="Mở PWA tablet (offline-capable)"
-          >
-            <Smartphone className="h-3.5 w-3.5" aria-hidden />
-            PWA tablet
-          </Link>
         </div>
 
         {/* Approve / Reject */}
@@ -267,13 +256,6 @@ function EmptyReceivingState() {
           className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
         >
           Quản lý PO
-        </Link>
-        <Link
-          href="/pwa/receive/demo"
-          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
-        >
-          <Package className="h-3.5 w-3.5" aria-hidden />
-          PWA demo
         </Link>
       </div>
     </div>

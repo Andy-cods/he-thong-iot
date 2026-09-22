@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   Loader2,
   Package,
-  Smartphone,
   Truck,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -236,15 +235,6 @@ export default function ReceivingDetailPage({
               {po.status}
             </span>
           )}
-          <Link
-            href={`/pwa/receive/${po.poId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition-colors dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
-          >
-            <Smartphone className="h-3.5 w-3.5" aria-hidden />
-            Mở PWA tablet
-          </Link>
         </div>
       </div>
 

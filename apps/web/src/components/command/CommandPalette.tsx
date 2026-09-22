@@ -12,7 +12,6 @@ import {
   Search,
   Settings,
   ShoppingCart,
-  Truck,
 } from "lucide-react";
 import { useHotkey, formatShortcut } from "@/lib/shortcuts";
 import { storage, STORAGE_KEYS } from "@/lib/storage";
@@ -68,14 +67,6 @@ const DEFAULT_ITEMS: CommandItemDef[] = [
     group: "nav",
     shortcut: "G S",
     roles: ["admin", "planner"],
-  },
-  {
-    id: "nav:receive",
-    label: "Nhận hàng (PWA)",
-    href: "/pwa/receive",
-    icon: Truck,
-    group: "nav",
-    roles: ["admin", "warehouse"],
   },
   {
     id: "nav:admin",
