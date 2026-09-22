@@ -18,7 +18,8 @@ import { currentYymm, genDocNo } from "./_docNumber";
  * `finPayments.createPaymentWithAllocations`, KHÔNG được gọi hàm này.
  */
 
-export async function listFinTransactions(opts: {
+/** Bộ lọc dùng chung cho list + stats (cùng điều kiện → số liệu luôn khớp). */
+export interface FinTransactionFilterOpts {
   direction?: "IN" | "OUT";
   accountId?: string;
   categoryId?: string;
@@ -27,9 +28,14 @@ export async function listFinTransactions(opts: {
   hasInvoice?: boolean;
   dateFrom?: string;
   dateTo?: string;
-  page: number;
-  pageSize: number;
-}) {
+}
+
+/**
+ * Dựng mệnh đề WHERE từ bộ lọc. Tách riêng để `listFinTransactions` và
+ * `getFinTransactionStats` dùng CHUNG — nếu mỗi hàm tự dựng điều kiện thì
+ * bảng và ô tổng dễ lệch nhau khi ai đó sửa 1 bên mà quên bên kia.
+ */
+function buildTxnWhere(opts: FinTransactionFilterOpts): SQL | undefined {
   const where: SQL[] = [];
   if (opts.direction) where.push(eq(finTransaction.direction, opts.direction));
   if (opts.accountId) where.push(eq(finTransaction.accountId, opts.accountId));
@@ -45,8 +51,52 @@ export async function listFinTransactions(opts: {
   }
   if (opts.dateFrom) where.push(gte(finTransaction.transactionDate, opts.dateFrom));
   if (opts.dateTo) where.push(lte(finTransaction.transactionDate, opts.dateTo));
+  return where.length > 0 ? and(...where) : undefined;
+}
 
-  const whereExpr = where.length > 0 ? and(...where) : undefined;
+/**
+ * Tổng thu / tổng chi của TOÀN BỘ giao dịch khớp bộ lọc — tính bằng SUM ở DB,
+ * KHÔNG phụ thuộc phân trang.
+ *
+ * Lý do tồn tại: trước đây UI tự cộng tay trên `pageSize=1000`, nhưng zod giới
+ * hạn `pageSize` tối đa 200 → request 422 → ô "Tổng đã thu/chi" LUÔN hiện 0đ
+ * dù bảng có dữ liệu (bug thật, phát hiện khi chụp ảnh tài liệu 2026-09-22).
+ * Tính ở DB vừa sửa lỗi vừa bỏ luôn giới hạn 1.000 giao dịch.
+ *
+ * VOID bị loại khỏi tổng (chứng từ đã huỷ không tính vào dòng tiền), trừ khi
+ * người dùng chủ động lọc `status=VOID` để soi riêng.
+ */
+export async function getFinTransactionStats(opts: FinTransactionFilterOpts) {
+  const whereExpr = buildTxnWhere(opts);
+  const voidFilter =
+    opts.status === undefined
+      ? sql`AND status <> 'VOID'`
+      : sql``;
+
+  const [row] = (await db.execute(sql`
+    SELECT
+      COALESCE(SUM(CASE WHEN direction = 'IN'  THEN amount ELSE 0 END), 0) AS total_in,
+      COALESCE(SUM(CASE WHEN direction = 'OUT' THEN amount ELSE 0 END), 0) AS total_out,
+      COUNT(*)::int AS txn_count
+    FROM app.fin_transaction
+    WHERE ${whereExpr ?? sql`TRUE`} ${voidFilter}
+  `)) as unknown as Array<{
+    total_in: string;
+    total_out: string;
+    txn_count: number;
+  }>;
+
+  return {
+    totalIn: Number(row?.total_in ?? 0),
+    totalOut: Number(row?.total_out ?? 0),
+    txnCount: Number(row?.txn_count ?? 0),
+  };
+}
+
+export async function listFinTransactions(
+  opts: FinTransactionFilterOpts & { page: number; pageSize: number },
+) {
+  const whereExpr = buildTxnWhere(opts);
   const offset = (opts.page - 1) * opts.pageSize;
 
   const [totalResult, rows] = await Promise.all([

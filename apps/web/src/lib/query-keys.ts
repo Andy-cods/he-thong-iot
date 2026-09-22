@@ -187,6 +187,10 @@ export const qk = {
       list: (filter: FinTransactionFilter) =>
         ["finance", "transactions", "list", filter] as const,
       detail: (id: string) => ["finance", "transactions", "detail", id] as const,
+      // Tổng thu/chi tính ở DB theo bộ lọc (bỏ page/pageSize khỏi key vì
+      // stats không phụ thuộc phân trang).
+      stats: (filter: Omit<FinTransactionFilter, "page" | "pageSize">) =>
+        ["finance", "transactions", "stats", filter] as const,
     },
     invoices: {
       all: ["finance", "invoices"] as const,

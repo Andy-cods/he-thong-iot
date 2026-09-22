@@ -293,6 +293,16 @@ export type FinInvoiceListQuery = z.infer<typeof finInvoiceListQuerySchema>;
 
 export type FinTransactionCreate = z.infer<typeof finTransactionCreateSchema>;
 export type FinTransactionUpdate = z.infer<typeof finTransactionUpdateSchema>;
+/**
+ * Bộ lọc cho endpoint thống kê tổng thu/chi — GIỐNG list nhưng KHÔNG có
+ * page/pageSize (tổng tính trên toàn bộ kết quả khớp lọc, không phân trang).
+ */
+export const finTransactionStatsQuerySchema = finTransactionListQuerySchema.omit({
+  page: true,
+  pageSize: true,
+});
+export type FinTransactionStatsQuery = z.infer<typeof finTransactionStatsQuerySchema>;
+
 export type FinTransactionListQuery = z.infer<typeof finTransactionListQuerySchema>;
 
 export type FinPaymentAllocationInput = z.infer<typeof finPaymentAllocationInputSchema>;

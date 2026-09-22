@@ -276,6 +276,26 @@ export function useFinTransactionsList(filter: FinTransactionFilter) {
   });
 }
 
+/**
+ * Tổng thu / tổng chi của TOÀN BỘ giao dịch khớp bộ lọc, tính bằng SUM ở DB.
+ *
+ * Thay cho cách cũ (tự cộng tay trên `pageSize=1000`) vốn LUÔN trả 0đ vì zod
+ * chặn pageSize > 200 → request 422. Xem `api/finance/transactions/stats`.
+ */
+export function useFinTransactionStats(
+  filter: Omit<FinTransactionFilter, "page" | "pageSize">,
+) {
+  return useQuery({
+    queryKey: qk.finance.transactions.stats(filter),
+    queryFn: () =>
+      request<{ data: { totalIn: number; totalOut: number; txnCount: number } }>(
+        `/api/finance/transactions/stats?${toParams(filter).toString()}`,
+      ),
+    staleTime: 15_000,
+    placeholderData: (prev) => prev,
+  });
+}
+
 export function useCreateFinTransaction() {
   const qc = useQueryClient();
   return useMutation({

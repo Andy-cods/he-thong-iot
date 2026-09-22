@@ -48,6 +48,7 @@ import {
   useFinAccountsList,
   useFinCategoriesList,
   useFinTransactionsList,
+  useFinTransactionStats,
   useVoidFinTransaction,
   type FinTransactionRow,
 } from "@/hooks/useFinance";
@@ -118,13 +119,16 @@ export function CashbookTab() {
     urlState.direction !== "all" || urlState.from !== "" || urlState.to !== "" ||
     urlState.accountId !== "" || urlState.categoryId !== "";
 
-  // KPI: tổng thu/chi của TẬP ĐANG LỌC (không chỉ trang hiện tại) — dùng
-  // pageSize lớn cho query riêng KPI để tránh chỉ tính trang hiện tại.
-  const kpiQuery = useFinTransactionsList({ ...filter, page: 1, pageSize: 1000 });
-  const kpiRows = kpiQuery.data?.data ?? [];
-  const totalIn = kpiRows.filter((r) => r.direction === "IN" && r.status === "POSTED").reduce((s, r) => s + Number(r.amount), 0);
-  const totalOut = kpiRows.filter((r) => r.direction === "OUT" && r.status === "POSTED").reduce((s, r) => s + Number(r.amount), 0);
-  const kpiCapped = (kpiQuery.data?.meta.total ?? 0) > 1000;
+  // KPI: tổng thu/chi của TOÀN BỘ tập đang lọc, tính bằng SUM ở DB.
+  //
+  // Trước đây tự cộng tay trên `pageSize: 1000` — nhưng zod chặn pageSize > 200
+  // nên request luôn 422 và 2 ô KPI LUÔN hiện 0đ dù bảng có dữ liệu (bug thật,
+  // phát hiện khi chụp ảnh tài liệu 2026-09-22). Endpoint /stats vừa sửa lỗi
+  // vừa bỏ luôn giới hạn "chỉ 1.000 giao dịch gần nhất" của cách cũ.
+  const { page: _p, pageSize: _ps, ...statsFilter } = filter;
+  const kpiQuery = useFinTransactionStats(statsFilter);
+  const totalIn = kpiQuery.data?.data.totalIn ?? 0;
+  const totalOut = kpiQuery.data?.data.totalOut ?? 0;
 
   const accounts = accountsQuery.data?.data ?? [];
   const categories = categoriesQuery.data?.data ?? [];
@@ -210,7 +214,6 @@ export function CashbookTab() {
           </div>
           <p className="mt-1 font-mono text-xl font-bold tabular-nums text-emerald-900 dark:text-emerald-200">
             {fmtVND(totalIn)}
-            {kpiCapped && <span className="ml-1 text-xs font-normal">*</span>}
           </p>
         </div>
         <div className="rounded-2xl border border-rose-200 bg-rose-50/60 p-4 dark:border-rose-800 dark:bg-rose-950/40">
@@ -220,14 +223,8 @@ export function CashbookTab() {
           </div>
           <p className="mt-1 font-mono text-xl font-bold tabular-nums text-rose-900 dark:text-rose-200">
             {fmtVND(totalOut)}
-            {kpiCapped && <span className="ml-1 text-xs font-normal">*</span>}
           </p>
         </div>
-        {kpiCapped && (
-          <p className="col-span-2 text-[11px] text-zinc-400 dark:text-zinc-500">
-            * Tính trên 1.000 giao dịch gần nhất khớp bộ lọc (tổng {kpiQuery.data?.meta.total} giao dịch)
-          </p>
-        )}
       </div>
 
       {/* Filter bar */}
