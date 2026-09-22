@@ -839,6 +839,14 @@ function LineRow({
               Đã đổi vị trí
             </span>
           )}
+          {/* V4.1 hotfix — chưa chọn bin + item chưa có default bin → hàng sẽ
+              vào "Chờ xếp kệ" (migration 0058). Hiện rõ để user biết hàng đi
+              đâu, tránh tưởng nhầm "để trống" = mất tồn kho. */}
+          {!input.binId && !ln.defaultBinCode && (
+            <span className="text-[10px] font-medium text-sky-600 dark:text-sky-400">
+              ⓘ Sẽ vào: Chờ xếp kệ
+            </span>
+          )}
         </div>
       </td>
       <td className="px-3 py-2">

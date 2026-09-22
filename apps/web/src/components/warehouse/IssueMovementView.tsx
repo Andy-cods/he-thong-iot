@@ -6,10 +6,13 @@ import {
   AlertCircle,
   CheckCircle2,
   ClipboardList,
+  FileWarning,
   Loader2,
   Package,
   Plus,
   Search,
+  Send,
+  ShieldCheck,
   Trash2,
   Truck,
   X,
@@ -18,6 +21,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useSession } from "@/hooks/useSession";
 
 /**
  * Wave 5 Phase A/B — `<IssueMovementView>` (trước đây `IssueTab`).
@@ -206,6 +210,9 @@ export function IssueMovementView() {
 
       {/* PENDING REQUESTS — Kho duyệt yêu cầu từ Gia công */}
       <PendingRequestsPanel />
+
+      {/* CREATE ISSUE REQUEST — yêu cầu xuất kho cần duyệt (bán hàng/trả NCC/SX) */}
+      <CreateIssueRequestPanel />
 
       {/* QUICK ISSUE FORM — đơn giản */}
       <section className="rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
@@ -459,6 +466,323 @@ function Stat({
 }
 
 /* ============================================================ */
+/* CreateIssueRequestPanel — Tạo yêu cầu xuất kho cần duyệt      */
+/* ============================================================ */
+
+const REQUEST_REASONS = [
+  { value: "sales", label: "Bán hàng / giao khách", needsApproval: true },
+  { value: "return", label: "Trả nhà cung cấp", needsApproval: true },
+  { value: "production", label: "Xuất cho sản xuất", needsApproval: false },
+  { value: "manual", label: "Xuất thủ công khác", needsApproval: false },
+] as const;
+
+type RequestReason = (typeof REQUEST_REASONS)[number]["value"];
+
+function CreateIssueRequestPanel() {
+  const qc = useQueryClient();
+  const [open, setOpen] = React.useState(false);
+  const [lines, setLines] = React.useState<IssueLine[]>([
+    { rowId: uuid(), item: null, qty: "" },
+  ]);
+  const [reason, setReason] = React.useState<RequestReason>("sales");
+  const [reference, setReference] = React.useState("");
+  const [notes, setNotes] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
+
+  const validLines = lines.filter((l) => l.item && Number(l.qty) > 0);
+  const totalLines = validLines.length;
+  const totalQty = validLines.reduce((s, l) => s + Number(l.qty), 0);
+  const totalShortage = validLines.reduce((s, l) => {
+    const need = Number(l.qty);
+    const have = l.item?.totalQty ?? 0;
+    return s + Math.max(0, need - have);
+  }, 0);
+
+  const reasonMeta = REQUEST_REASONS.find((r) => r.value === reason)!;
+
+  const addLine = () =>
+    setLines((p) => [...p, { rowId: uuid(), item: null, qty: "" }]);
+  const removeLine = (rowId: string) =>
+    setLines((p) => p.filter((l) => l.rowId !== rowId));
+  const updateLine = (rowId: string, patch: Partial<IssueLine>) =>
+    setLines((p) =>
+      p.map((l) => (l.rowId === rowId ? { ...l, ...patch } : l)),
+    );
+
+  const resetForm = () => {
+    setLines([{ rowId: uuid(), item: null, qty: "" }]);
+    setReason("sales");
+    setReference("");
+    setNotes("");
+  };
+
+  const handleSubmit = async () => {
+    if (validLines.length === 0) {
+      toast.error("Cần ít nhất 1 dòng SKU + số lượng.");
+      return;
+    }
+    if (totalShortage > 0) {
+      toast.error(
+        `Thiếu tồn ${totalShortage} đơn vị — giảm số lượng hoặc bỏ dòng thiếu trước khi gửi yêu cầu.`,
+      );
+      return;
+    }
+    setSubmitting(true);
+    try {
+      // Step 1: gọi FIFO cho từng line để có picks đúng shape picks_json
+      const requestLines: Array<{
+        itemId: string;
+        sku: string | null;
+        picks: Array<{
+          lotSerialId: string;
+          lotCode: string | null;
+          binId: string;
+          binCode: string | null;
+          qty: number;
+        }>;
+      }> = [];
+      for (const l of validLines) {
+        const fifoRes = await fetch("/api/warehouse/fifo-pick", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ itemId: l.item!.id, qty: Number(l.qty) }),
+        });
+        const fifoJson = (await fifoRes.json()) as {
+          data?: {
+            picks: Array<{
+              lotSerialId: string;
+              lotCode?: string | null;
+              binId: string;
+              binCode?: string | null;
+              qty: number;
+            }>;
+          };
+          error?: { message?: string };
+        };
+        if (!fifoRes.ok || !fifoJson.data) {
+          toast.error(
+            fifoJson.error?.message ?? `Không pick FIFO được cho ${l.item!.sku}`,
+          );
+          return;
+        }
+        if (fifoJson.data.picks.length === 0) {
+          toast.error(`SKU ${l.item!.sku} không có tồn AVAILABLE.`);
+          return;
+        }
+        requestLines.push({
+          itemId: l.item!.id,
+          sku: l.item!.sku,
+          picks: fifoJson.data.picks.map((p) => ({
+            lotSerialId: p.lotSerialId,
+            lotCode: p.lotCode ?? null,
+            binId: p.binId,
+            binCode: p.binCode ?? null,
+            qty: p.qty,
+          })),
+        });
+      }
+
+      // Step 2: gửi yêu cầu xuất kho (cần duyệt)
+      const res = await fetch("/api/warehouse/issue-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reason,
+          reference: reference.trim() || null,
+          notes: notes.trim() || null,
+          lines: requestLines,
+        }),
+      });
+      const json = (await res.json()) as {
+        data?: { id: string; requestNo: string };
+        error?: { message?: string };
+      };
+      if (!res.ok || !json.data) {
+        toast.error(json.error?.message ?? "Lỗi tạo yêu cầu xuất kho");
+        return;
+      }
+      toast.success(
+        `Đã tạo yêu cầu ${json.data.requestNo}${
+          reasonMeta.needsApproval
+            ? " · chờ Giám đốc duyệt"
+            : " · chờ Kho duyệt"
+        }.`,
+      );
+      void qc.invalidateQueries({ queryKey: ["issue-request"] });
+      resetForm();
+      setOpen(false);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-indigo-300 bg-indigo-50/40 px-4 py-3 text-sm font-bold text-indigo-700 transition-colors hover:border-indigo-400 hover:bg-indigo-50 dark:border-indigo-800 dark:bg-indigo-950/20 dark:text-indigo-300 dark:hover:bg-indigo-950/40"
+      >
+        <ClipboardList className="h-4 w-4" />
+        Tạo yêu cầu xuất kho (bán hàng / trả NCC / sản xuất…)
+      </button>
+    );
+  }
+
+  return (
+    <section className="rounded-2xl border border-indigo-200 bg-white shadow-sm dark:border-indigo-900 dark:bg-zinc-900">
+      <header className="flex items-center justify-between gap-2 border-b border-indigo-100 px-5 py-3 dark:border-indigo-900">
+        <div className="flex items-center gap-2">
+          <ClipboardList className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+          <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-50">
+            Tạo yêu cầu xuất kho
+          </h3>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            resetForm();
+          }}
+          disabled={submitting}
+          className="inline-flex h-7 w-7 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+          title="Đóng"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </header>
+
+      <div className="p-5">
+        {/* Lines */}
+        <div className="space-y-2">
+          {lines.map((line, idx) => (
+            <SimpleLineRow
+              key={line.rowId}
+              line={line}
+              index={idx}
+              onUpdate={(p) => updateLine(line.rowId, p)}
+              onRemove={() => removeLine(line.rowId)}
+              disabled={submitting}
+              removable={lines.length > 1}
+            />
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={addLine}
+          disabled={submitting}
+          className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-600 hover:border-indigo-400 hover:bg-indigo-50/50 hover:text-indigo-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-indigo-500 dark:hover:bg-indigo-950/30 dark:hover:text-indigo-400"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Thêm dòng
+        </button>
+
+        {/* Meta */}
+        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
+              Lý do xuất
+            </label>
+            <select
+              value={reason}
+              onChange={(e) => setReason(e.target.value as RequestReason)}
+              disabled={submitting}
+              className="mt-1.5 block h-10 w-full rounded-md border border-zinc-300 bg-white px-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            >
+              {REQUEST_REASONS.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
+              Tham chiếu (đơn hàng / khách hàng)
+            </label>
+            <Input
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
+              placeholder="VD: SO-2026-001 · Tên khách…"
+              className="mt-1.5 h-10 font-mono"
+              disabled={submitting}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
+              Ghi chú
+            </label>
+            <Input
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Tuỳ chọn…"
+              className="mt-1.5 h-10"
+              disabled={submitting}
+            />
+          </div>
+        </div>
+
+        {/* Cảnh báo hệ quả duyệt */}
+        {reasonMeta.needsApproval ? (
+          <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+            <FileWarning className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              Yêu cầu này cần <strong>Giám đốc</strong> duyệt (xuất ra ngoài
+              công ty). Sau khi duyệt, hệ thống xuất kho ngay và bạn có thể
+              lập <strong>Biên bản giao hàng (BBGH)</strong> ở tab &quot;Phiếu
+              giao hàng&quot;.
+            </span>
+          </div>
+        ) : (
+          <div className="mt-4 flex items-start gap-2 rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-xs text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              Lý do nội bộ — <strong>Kho tự duyệt</strong>, không cần Giám đốc,
+              không cần lập BBGH.
+            </span>
+          </div>
+        )}
+
+        {/* Submit */}
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800">
+          <div className="text-xs text-zinc-600 dark:text-zinc-400">
+            {totalLines === 0 ? (
+              "Chưa có dòng nào."
+            ) : totalShortage > 0 ? (
+              <span className="text-amber-700 dark:text-amber-400">
+                ⚠ Thiếu {totalShortage} đơn vị — không thể gửi yêu cầu.
+              </span>
+            ) : (
+              <span className="text-emerald-700 dark:text-emerald-400">
+                ✓ Đủ tồn cho {totalLines} SKU · tổng {totalQty.toLocaleString("vi-VN")} qty.
+              </span>
+            )}
+          </div>
+          <Button
+            onClick={handleSubmit}
+            disabled={submitting || totalLines === 0 || totalShortage > 0}
+            className="h-10 bg-gradient-to-r from-indigo-600 to-violet-600 px-5 text-sm font-bold shadow-md hover:from-indigo-700 hover:to-violet-700"
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Đang gửi…
+              </>
+            ) : (
+              <>
+                <Send className="h-4 w-4" />
+                Gửi yêu cầu xuất kho
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ============================================================ */
 /* ItemPicker — search + select                                 */
 /* ============================================================ */
 
@@ -620,13 +944,43 @@ interface IssueRequestRow {
   createdAt: string;
 }
 
+const STATUS_FILTERS = [
+  { value: "PENDING", label: "Chờ duyệt" },
+  { value: "COMPLETED", label: "Hoàn tất" },
+  { value: "REJECTED", label: "Bị từ chối" },
+  { value: "ALL", label: "Tất cả" },
+] as const;
+
+type StatusFilter = (typeof STATUS_FILTERS)[number]["value"];
+
+const ISR_STATUS_BADGE: Record<string, string> = {
+  PENDING: "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
+  APPROVED: "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400",
+  COMPLETED:
+    "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
+  REJECTED: "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400",
+};
+
+const ISR_STATUS_LABEL: Record<string, string> = {
+  PENDING: "Chờ duyệt",
+  APPROVED: "Đã duyệt",
+  COMPLETED: "Hoàn tất",
+  REJECTED: "Bị từ chối",
+};
+
 function PendingRequestsPanel() {
   const qc = useQueryClient();
+  const { data: session } = useSession();
+  const isAdmin = session?.roles.includes("admin") ?? false;
+  const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("PENDING");
+
   const { data, isLoading, refetch } = useQuery<{ data: IssueRequestRow[] }>({
-    queryKey: ["issue-request", "pending"],
+    queryKey: ["issue-request", "list", statusFilter],
     queryFn: async () => {
+      const qs =
+        statusFilter === "ALL" ? "" : `&status=${statusFilter}`;
       const res = await fetch(
-        "/api/warehouse/issue-request?status=PENDING&pageSize=50",
+        `/api/warehouse/issue-request?pageSize=50${qs}`,
       );
       return res.json();
     },
@@ -686,14 +1040,11 @@ function PendingRequestsPanel() {
   };
 
   const rows = data?.data ?? [];
-
-  if (rows.length === 0 && !isLoading) {
-    return null; // ẩn panel khi không có request nào
-  }
+  const pendingCount = rows.filter((r) => r.status === "PENDING").length;
 
   return (
     <section className="rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50/50 shadow-sm dark:border-amber-800 dark:from-amber-950/40 dark:to-orange-950/30">
-      <header className="flex items-center justify-between border-b border-amber-200 px-5 py-3 dark:border-amber-800">
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 px-5 py-3 dark:border-amber-800">
         <button
           type="button"
           onClick={() => setCollapsed((c) => !c)}
@@ -701,19 +1052,35 @@ function PendingRequestsPanel() {
         >
           <ClipboardList className="h-4 w-4" />
           <span>
-            Yêu cầu chờ duyệt từ Gia công ({rows.length})
+            Yêu cầu xuất kho
+            {statusFilter === "PENDING" && pendingCount > 0
+              ? ` chờ duyệt (${pendingCount})`
+              : ` (${rows.length})`}
           </span>
           <span className="text-xs font-normal text-amber-700 dark:text-amber-400">
             {collapsed ? "▶" : "▼"}
           </span>
         </button>
-        <button
-          type="button"
-          onClick={() => refetch()}
-          className="text-xs font-medium text-amber-700 hover:underline dark:text-amber-400"
-        >
-          ↻ Làm mới
-        </button>
+        <div className="flex items-center gap-2">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+            className="h-7 rounded-md border border-amber-300 bg-white px-2 text-xs font-medium text-amber-800 dark:border-amber-800 dark:bg-zinc-900 dark:text-amber-300"
+          >
+            {STATUS_FILTERS.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="text-xs font-medium text-amber-700 hover:underline dark:text-amber-400"
+          >
+            ↻ Làm mới
+          </button>
+        </div>
       </header>
 
       {!collapsed && (
@@ -721,6 +1088,10 @@ function PendingRequestsPanel() {
           {isLoading ? (
             <p className="inline-flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400">
               <Loader2 className="h-3 w-3 animate-spin" /> Đang tải…
+            </p>
+          ) : rows.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-zinc-300 p-4 text-center text-xs text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+              Không có yêu cầu nào ở trạng thái này.
             </p>
           ) : (
             <ul className="space-y-2">
@@ -741,9 +1112,23 @@ function PendingRequestsPanel() {
                           <code className="font-mono text-sm font-bold text-indigo-900 dark:text-indigo-300">
                             {r.requestNo}
                           </code>
-                          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
-                            {r.reason}
+                          <span
+                            className={cn(
+                              "rounded px-1.5 py-0.5 text-[10px] font-medium",
+                              ISR_STATUS_BADGE[r.status] ?? ISR_STATUS_BADGE.PENDING,
+                            )}
+                          >
+                            {ISR_STATUS_LABEL[r.status] ?? r.status}
                           </span>
+                          <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                            {REQUEST_REASONS.find((x) => x.value === r.reason)
+                              ?.label ?? r.reason}
+                          </span>
+                          {["sales", "return"].includes(r.reason) && (
+                            <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-400">
+                              Cần Giám đốc duyệt
+                            </span>
+                          )}
                           {r.reference && (
                             <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                               {r.reference}
@@ -769,6 +1154,11 @@ function PendingRequestsPanel() {
                         {r.notes && (
                           <p className="mt-0.5 text-xs italic text-zinc-500 dark:text-zinc-400">
                             &quot;{r.notes}&quot;
+                          </p>
+                        )}
+                        {r.status === "REJECTED" && r.rejectReason && (
+                          <p className="mt-0.5 text-xs text-rose-600 dark:text-rose-400">
+                            Lý do từ chối: {r.rejectReason}
                           </p>
                         )}
                         <details className="mt-1.5">
@@ -805,25 +1195,36 @@ function PendingRequestsPanel() {
                         </details>
                       </div>
                       <div className="flex shrink-0 flex-col gap-1">
-                        <Button
-                          size="sm"
-                          disabled={acting === r.id}
-                          onClick={() => handleApprove(r.id, r.requestNo)}
-                          className="bg-emerald-600 hover:bg-emerald-700"
-                        >
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          Duyệt + xuất
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={acting === r.id}
-                          onClick={() => handleReject(r.id, r.requestNo)}
-                          className="border-indigo-300 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                          Từ chối
-                        </Button>
+                        {r.status === "PENDING" ? (
+                          ["sales", "return"].includes(r.reason) &&
+                          !isAdmin ? (
+                            <span className="max-w-[120px] text-right text-[11px] italic text-zinc-500 dark:text-zinc-400">
+                              Chờ Giám đốc duyệt
+                            </span>
+                          ) : (
+                            <>
+                              <Button
+                                size="sm"
+                                disabled={acting === r.id}
+                                onClick={() => handleApprove(r.id, r.requestNo)}
+                                className="bg-emerald-600 hover:bg-emerald-700"
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                Duyệt + xuất
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={acting === r.id}
+                                onClick={() => handleReject(r.id, r.requestNo)}
+                                className="border-indigo-300 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                                Từ chối
+                              </Button>
+                            </>
+                          )
+                        ) : null}
                       </div>
                     </div>
                   </li>

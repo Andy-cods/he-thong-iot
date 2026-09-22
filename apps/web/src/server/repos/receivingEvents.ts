@@ -6,12 +6,62 @@ import {
   inventoryLotSerial,
   inventoryTxn,
   item,
+  locationBin,
   purchaseOrder,
   purchaseOrderLine,
   receivingEvent,
 } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import { currentYymm, genDocNo } from "./_docNumber";
+
+/**
+ * V4.1 hotfix — bin hệ thống "Chờ xếp kệ" (migration 0058). Nhận hàng KHÔNG
+ * BAO GIỜ được phép insert to_bin_id = NULL nữa: NULL bin bị view
+ * app.bin_inventory (migration 0034) loại hoàn toàn khỏi mọi màn hình Kho
+ * → hàng "biến mất" dù đã nhận. Nếu user không chọn bin và item không có
+ * default_bin_id, hàng tự vào bin này để LUÔN nhìn thấy được, xếp lại sau.
+ */
+const STAGING_BIN_WAREHOUSE_CODE = "WH-01";
+const STAGING_BIN_ZONE = "STAGING";
+const STAGING_BIN_CODE = "CHO-XEP-KE";
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+let cachedStagingBinId: string | null = null;
+
+/**
+ * Resolve id của bin "Chờ xếp kệ". Cache trong module vì bin này bất biến
+ * (tạo 1 lần bởi migration 0058, không bị xoá/sửa trong vận hành bình thường).
+ * Nếu không tìm thấy → throw rõ ràng thay vì âm thầm insert NULL (thà fail to
+ * còn hơn mất hàng âm thầm — yêu cầu hotfix).
+ */
+async function resolveStagingBinId(tx: Tx): Promise<string> {
+  if (cachedStagingBinId) return cachedStagingBinId;
+
+  const [bin] = await tx
+    .select({ id: locationBin.id })
+    .from(locationBin)
+    .where(
+      and(
+        eq(locationBin.warehouseCode, STAGING_BIN_WAREHOUSE_CODE),
+        eq(locationBin.zone, STAGING_BIN_ZONE),
+        eq(locationBin.binCode, STAGING_BIN_CODE),
+      ),
+    )
+    .limit(1);
+
+  if (!bin) {
+    throw new Error(
+      "STAGING_BIN_NOT_FOUND: Không tìm thấy bin hệ thống 'Chờ xếp kệ' " +
+        `(warehouse_code=${STAGING_BIN_WAREHOUSE_CODE}, zone=${STAGING_BIN_ZONE}, bin_code=${STAGING_BIN_CODE}). ` +
+        "Chạy migration 0058_staging_bin_fix_null_bin.sql trước khi nhận hàng — " +
+        "KHÔNG được insert inventory_txn với to_bin_id NULL (gây mất tồn kho âm thầm).",
+    );
+  }
+
+  cachedStagingBinId = bin.id;
+  return cachedStagingBinId;
+}
 
 export interface ReceivingEventInsertInput {
   id: string;
@@ -155,6 +205,9 @@ export async function postReceivingAtomic(
     if (!poLine) throw new Error("PO_LINE_NOT_FOUND");
 
     // V3.7 — Slotting: nếu caller không truyền locationBinId, fallback default_bin_id của item.
+    // V4.1 hotfix — nếu vẫn không có (item cũng chưa gán default_bin) → fallback
+    // bin "Chờ xếp kệ". KHÔNG BAO GIỜ để resolvedBinId = null khi insert
+    // inventory_txn IN_RECEIPT (xem resolveStagingBinId + migration 0058).
     let resolvedBinId: string | null = input.locationBinId ?? null;
     if (!resolvedBinId) {
       const [itm] = await tx
@@ -163,6 +216,9 @@ export async function postReceivingAtomic(
         .where(eq(item.id, input.itemId))
         .limit(1);
       if (itm?.defaultBinId) resolvedBinId = itm.defaultBinId;
+    }
+    if (!resolvedBinId) {
+      resolvedBinId = await resolveStagingBinId(tx);
     }
 
     // 1b) V3.2 — hard block over-delivery > 120% để tránh nhập sai SL nghiêm trọng

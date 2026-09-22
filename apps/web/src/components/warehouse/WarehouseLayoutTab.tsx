@@ -307,6 +307,8 @@ export function WarehouseLayoutTab() {
             <LegendDot color="#6366f1" label="Có hàng" />
             <LegendDot color="#f59e0b" label="Sắp hết" pulse />
             <LegendDot color="#e2e8f0" label="Trống" stroke="#cbd5e1" />
+            {/* V4.1 hotfix — bin "Chờ xếp kệ" (migration 0058), luôn cam nổi bật */}
+            <LegendDot color="#f97316" label="Chờ xếp kệ" pulse />
           </div>
         </div>
       </div>

@@ -76,8 +76,8 @@ const RACK_PAD = 36;
 /** V3.7.3 — base extends wider beyond rack content. */
 const BASE_OVERHANG = 36;
 
-/** 6 fill-level themes + 2 special states. */
-type ThemeKey = "full" | "high" | "mid" | "low" | "warning" | "slotted" | "empty" | "inactive";
+/** 6 fill-level themes + 3 special states. */
+type ThemeKey = "full" | "high" | "mid" | "low" | "warning" | "slotted" | "empty" | "inactive" | "staging";
 
 interface BinTheme {
   /** 4-stop gradient cho front face */
@@ -240,13 +240,37 @@ const THEMES: Record<ThemeKey, BinTheme> = {
     statusLabel: "Khoá",
     palletTone: "gray",
   },
+  // V4.1 hotfix — STAGING: bin "Chờ xếp kệ" (migration 0058). Cam nổi bật,
+  // khác hẳn mọi theme khác, để nhân viên luôn thấy và xếp lại vào kệ thật.
+  staging: {
+    frontStops: ["#fdba74", "#fb923c", "#f97316", "#c2410c"],
+    topStops: ["#fed7aa", "#fdba74"],
+    sideStops: ["#9a3412", "#7c2d12"],
+    stroke: "#9a3412",
+    shadow: "rgba(249, 115, 22, 0.5)",
+    textPrimary: "#ffffff",
+    textSecondary: "rgba(255, 247, 237, 0.95)",
+    progressFill: "#fef3c7",
+    progressTrack: "rgba(255, 255, 255, 0.3)",
+    glassRef: "rgba(255, 255, 255, 0.4)",
+    led: "#f97316",
+    ledGlow: "rgba(249, 115, 22, 0.7)",
+    statusLabel: "Chờ xếp kệ",
+    palletTone: "amber",
+  },
 };
+
+/** V4.1 hotfix — full_code của bin hệ thống "Chờ xếp kệ" (migration 0058). */
+const STAGING_BIN_FULL_CODE = "STAGING-CHO-XEP-KE";
 
 function getBinTheme(bin: BinNode): { key: ThemeKey; theme: BinTheme; pct: number } {
   const cap = Number(bin.capacity ?? "0");
   const pct = cap > 0 ? Math.min(100, Math.max(0, (bin.totalQty / cap) * 100)) : 0;
   let key: ThemeKey;
-  if (!bin.isActive) key = "inactive";
+  // V4.1 hotfix — bin "Chờ xếp kệ" luôn nổi bật màu cam, bất kể fill level,
+  // để nhắc nhân viên xếp lại. Check trước cả inactive/fill-level.
+  if (bin.fullCode === STAGING_BIN_FULL_CODE) key = "staging";
+  else if (!bin.isActive) key = "inactive";
   else if (bin.totalQty <= 0) {
     // V3.7.16 — Bin chưa có tồn nhưng đã gán SKU → theme "slotted" (sky-blue) thay "empty" gray
     key = (bin.slotCount ?? 0) > 0 ? "slotted" : "empty";
