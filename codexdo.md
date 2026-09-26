@@ -123,7 +123,7 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
-### TASK-20260927-001 — V4.1 Đợt 2 Thu mua + Đợt 3 Tài chính (nguồn thu/chi) + bỏ menu Yêu cầu vật tư
+### TASK-20260927-001 — V4.1 Đợt 2–7 (Thu mua, Tài chính nguồn thu/chi, Sản xuất, Quản trị, Giao diện, Dọn dẹp)
 - **Trạng thái:** DONE · **Hoàn thành:** 2026-09-27 02:45 (+07) · **Ưu tiên:** P1
 - Thang giao tự quyết D7-D10 theo khuyến nghị và tự chạy đến hết Đợt 7 (E2E trên prod rồi xoá dữ liệu test).
 - **Đợt 2** 004799f: backup `pre-v41-dot2-*.dump` → 0062 → smoke 11/11 → push → **E2E 30/30** (PR→PO giá dự kiến, VAT 0,
@@ -145,7 +145,14 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
   (streamed NEXT_REDIRECT)) → xoá WO test + 7 thông báo; dòng BOM không đổi. Prod còn đúng 2 WO thật.
 - **Đợt 7** 3ea53cf: −14.408 dòng (trang cũ → redirect trong next.config.js, code mồ côi, @dnd-kit), không đụng DB; sửa thêm /qc-inbound thiếu
   trong matcher. Smoke prod 23/23 (15 URL cũ 307 đúng đích + trang chính 200 + /qc-inbound chưa đăng nhập → login). Log 0 lỗi.
-- Còn Đợt 6 (chuẩn giao diện) — đang lập plan bằng ảnh chụp prod.
+- **Hotfix rate limit** 1c31ff0: API burst 60/phút THEO IP (cả xưởng chung 1 IP NAT → 429 → danh sách "trống") → 300/phút theo user,
+  IP chỉ cho chưa đăng nhập. Kiểm prod: 120 lượt liên tiếp 1 user đều 200.
+- **Đợt 6** (plan DOT6_PLAN.md từ ~40 ảnh chụp prod): 6A 1865522 (lỗi≠trống ~50 danh sách, sm=640, tab cuộn, BOM mobile,
+  chữ ≥11-12px, chạm 36px) · 6B 9432fc0 (lib/status.ts 22 miền, lib/format.ts giờ VN, useConfirm thay 22 confirm/prompt,
+  ~195 chuỗi tiếng Việt) · 6C 37f956f (ui/data-table + thẻ trên phone, bỏ gradient/cầu vồng, bỏ breadcrumb trùng, 16px input iOS).
+  Chụp lại prod sau mỗi bước: 41 trang phone không tràn ngang (trước 4 trang), desktop tải đủ, 0 chữ lỗi.
+- **V4.1 hoàn tất 2026-09-27 (+07).** Còn để sau (không chặn): ~194 text-[11px] trong mẫu in; delivery-notes/goods-issues/admin
+  users chưa dùng DataTable; nhãn vai trò UserForm tiếng Anh; lỗi zod phía server tiếng Anh; ô ngày theo locale trình duyệt.
 
 ### TASK-20260926-002 — V4.1 Đợt 1 "Kho: QC HOLD + phiếu xuất kho"
 - **Trạng thái:** DONE · **Hoàn thành:** 2026-09-27 01:40 (+07) · **Bắt đầu:** 2026-09-26 (+07) · **Tạo:** 2026-09-26 (+07) · **Ưu tiên:** P0
