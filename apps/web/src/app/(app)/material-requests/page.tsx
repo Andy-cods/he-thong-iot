@@ -9,21 +9,24 @@ import {
   useQueryStates,
 } from "nuqs";
 import {
+  AlertCircle,
   ArrowDown,
   ArrowUp,
-  Check,
   CheckCircle2,
   Clock,
   FileText,
   Loader2,
   Package,
+  PackageCheck,
   Plus,
   Truck,
   XCircle,
 } from "lucide-react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { can } from "@iot/shared";
 import { Button } from "@/components/ui/button";
+import { useSession } from "@/hooks/useSession";
 import { ExportExcelDialog } from "@/components/archive/ExportExcelDialog";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -38,9 +41,15 @@ import { cn } from "@/lib/utils";
  * Click 1 phiếu → trang chi tiết /material-requests/[id] (đã có sẵn).
  *
  * Scope "mine"/"all" giữ nguyên, áp dụng cho toàn bảng.
+ *
+ * V4.1 Đợt 1b (KHO-25/Q3):
+ *  - Bỏ nút "Xác nhận đã nhận" — giao vật tư phải lập phiếu xuất kho ở trang
+ *    chi tiết (trừ tồn + chứng từ PX). Thêm trạng thái "Giao một phần".
+ *  - Lỗi tải hiện khối lỗi + nút thử lại (trước đây hiện như danh sách rỗng).
+ *  - Lọc theo trạng thái; nút thao tác/nút tạo hiện theo quyền RBAC matrix.
  */
 
-type Status = "PENDING" | "PICKING" | "READY" | "DELIVERED" | "CANCELLED";
+type Status = "PENDING" | "PICKING" | "READY" | "PARTIAL" | "DELIVERED" | "CANCELLED";
 
 interface MaterialRequestRow {
   id: string;
@@ -57,6 +66,7 @@ const STATUS_PILL: Record<Status, { label: string; short: string; cls: string; d
   PENDING:   { label: "Chờ chuẩn bị", short: "Chờ",      cls: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800",    dot: "bg-amber-500", icon: Clock        },
   PICKING:   { label: "Đang chuẩn bị", short: "Chuẩn bị", cls: "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:ring-blue-800",       dot: "bg-blue-500",  icon: Package      },
   READY:     { label: "Đã sẵn sàng",   short: "Sẵn sàng", cls: "bg-violet-50 text-violet-700 ring-violet-200 dark:bg-violet-950/40 dark:text-violet-400 dark:ring-violet-800", dot: "bg-violet-500", icon: CheckCircle2 },
+  PARTIAL:   { label: "Giao một phần", short: "Một phần", cls: "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:ring-sky-800",             dot: "bg-sky-500",    icon: PackageCheck },
   DELIVERED: { label: "Đã giao",       short: "Đã giao",  cls: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800", dot: "bg-emerald-500", icon: Truck  },
   CANCELLED: { label: "Đã huỷ",        short: "Huỷ",      cls: "bg-zinc-100 text-zinc-500 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",      dot: "bg-zinc-400",  icon: XCircle      },
 };
@@ -70,6 +80,8 @@ export default function MaterialRequestsArchivePage() {
   const [urlState, setUrlState] = useQueryStates(
     {
       scope: parseAsStringEnum(["mine", "all"]).withDefault("mine"),
+      // V4.1 Đợt 1b (KHO-25) — lọc trạng thái ("" = tất cả; "open" = còn phải giao).
+      status: parseAsString.withDefault(""),
       from: parseAsString.withDefault(""),
       to: parseAsString.withDefault(""),
       sortDir: parseAsStringEnum(["asc", "desc"]).withDefault("desc"),
@@ -80,6 +92,10 @@ export default function MaterialRequestsArchivePage() {
   );
   const { scope } = urlState;
   const qc = useQueryClient();
+  const { data: session } = useSession();
+  const roles = session?.roles ?? [];
+  const canCreate = can(roles, "create", "materialRequest");
+  const canTransition = can(roles, "transition", "materialRequest");
 
   // V3.16 — Khoảng ngày mặc định cho dialog xuất Excel: theo bộ lọc from/to
   // hiện tại của trang (nếu user đã chọn), else để rỗng (dialog tự tính
@@ -94,6 +110,7 @@ export default function MaterialRequestsArchivePage() {
       "material-requests",
       "list",
       scope,
+      urlState.status,
       urlState.from,
       urlState.to,
       urlState.sortDir,
@@ -103,14 +120,26 @@ export default function MaterialRequestsArchivePage() {
     queryFn: async () => {
       const p = new URLSearchParams();
       if (scope === "mine") p.set("mine", "1");
+      if (urlState.status === "open") {
+        for (const st of ["PENDING", "PICKING", "READY", "PARTIAL"]) p.append("status", st);
+      } else if (urlState.status) {
+        p.set("status", urlState.status);
+      }
       if (urlState.from) p.set("from", urlState.from);
       if (urlState.to) p.set("to", urlState.to);
       p.set("sortDir", urlState.sortDir);
       p.set("page", String(urlState.page));
       p.set("pageSize", String(urlState.pageSize));
       const res = await fetch(`/api/material-requests?${p}`, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to load");
-      return res.json();
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          res.status === 403
+            ? "Bạn không có quyền xem phiếu yêu cầu vật tư."
+            : body?.error?.message ?? "Không tải được danh sách yêu cầu.",
+        );
+      }
+      return body as ListResponse;
     },
     staleTime: 15_000,
     placeholderData: (prev) => prev,
@@ -141,11 +170,12 @@ export default function MaterialRequestsArchivePage() {
   const total = listQuery.data?.meta.total ?? 0;
   const rows = listQuery.data?.data ?? [];
   const pageCount = Math.max(1, Math.ceil(total / urlState.pageSize));
-  const isEmpty = !listQuery.isLoading && rows.length === 0;
-  const hasFilter = urlState.from !== "" || urlState.to !== "";
+  const isError = listQuery.isError && rows.length === 0;
+  const isEmpty = !listQuery.isLoading && !isError && rows.length === 0;
+  const hasFilter = urlState.from !== "" || urlState.to !== "" || urlState.status !== "";
 
   const resetFilters = () => {
-    void setUrlState({ from: "", to: "", page: 1 });
+    void setUrlState({ from: "", to: "", status: "", page: 1 });
   };
 
   return (
@@ -174,13 +204,15 @@ export default function MaterialRequestsArchivePage() {
               defaultFrom={exportRange.from}
               defaultTo={exportRange.to}
             />
-            <Button asChild size="sm">
-              <Link href="/material-requests/new">
-                <Plus className="h-4 w-4" aria-hidden />
-                <span className="hidden sm:inline">Tạo yêu cầu mới</span>
-                <span className="sm:hidden">Tạo</span>
-              </Link>
-            </Button>
+            {canCreate && (
+              <Button asChild size="sm">
+                <Link href="/material-requests/new">
+                  <Plus className="h-4 w-4" aria-hidden />
+                  <span className="hidden sm:inline">Tạo yêu cầu mới</span>
+                  <span className="sm:hidden">Tạo</span>
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
       </header>
@@ -203,7 +235,22 @@ export default function MaterialRequestsArchivePage() {
           ))}
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
+        <select
+          value={urlState.status}
+          onChange={(e) => void setUrlState({ status: e.target.value, page: 1 })}
+          aria-label="Lọc trạng thái"
+          className="h-8 rounded-lg border border-zinc-200 bg-white px-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+        >
+          <option value="">Mọi trạng thái</option>
+          <option value="open">Còn phải giao</option>
+          {(Object.keys(STATUS_PILL) as Status[]).map((st) => (
+            <option key={st} value={st}>
+              {STATUS_PILL[st].label}
+            </option>
+          ))}
+        </select>
+
+        <div className="ml-auto flex flex-wrap items-center gap-2">
           <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
             <span className="text-zinc-500 dark:text-zinc-400">Từ</span>
             <input
@@ -238,8 +285,26 @@ export default function MaterialRequestsArchivePage() {
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
             Đang tải…
           </div>
+        ) : isError ? (
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-800 dark:bg-red-950/40">
+            <AlertCircle className="mx-auto h-6 w-6 text-red-600 dark:text-red-400" aria-hidden />
+            <p className="mt-2 text-sm font-semibold text-red-700 dark:text-red-400">
+              Không tải được danh sách yêu cầu vật tư
+            </p>
+            <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+              {(listQuery.error as Error)?.message}
+            </p>
+            <Button variant="outline" size="sm" className="mt-4" onClick={() => void listQuery.refetch()}>
+              Thử lại
+            </Button>
+          </div>
         ) : isEmpty ? (
-          <EmptyRequestsCard scope={scope} hasFilter={hasFilter} onResetFilters={resetFilters} />
+          <EmptyRequestsCard
+            scope={scope}
+            hasFilter={hasFilter}
+            canCreate={canCreate}
+            onResetFilters={resetFilters}
+          />
         ) : (
           <SlipList
             rows={rows}
@@ -249,11 +314,12 @@ export default function MaterialRequestsArchivePage() {
             }
             onTransition={(id, to) => transition.mutate({ id, to })}
             transitioning={transition.isPending}
+            canTransition={canTransition}
           />
         )}
       </div>
 
-      {!isEmpty && (
+      {!isEmpty && !isError && (
         <footer className="flex h-9 items-center justify-between border-t border-zinc-200 bg-white px-4 text-base dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
           <div className="text-zinc-600 tabular-nums dark:text-zinc-400">
             Trang {urlState.page} / {pageCount}
@@ -285,10 +351,12 @@ export default function MaterialRequestsArchivePage() {
 function EmptyRequestsCard({
   scope,
   hasFilter,
+  canCreate,
   onResetFilters,
 }: {
   scope: "mine" | "all";
   hasFilter: boolean;
+  canCreate: boolean;
   onResetFilters: () => void;
 }) {
   return (
@@ -310,13 +378,13 @@ function EmptyRequestsCard({
         <Button variant="ghost" size="sm" className="mt-4" onClick={onResetFilters}>
           Xoá bộ lọc
         </Button>
-      ) : (
+      ) : canCreate ? (
         <Button asChild size="sm" className="mt-4">
           <Link href="/material-requests/new">
             <Plus className="h-4 w-4" /> Tạo yêu cầu mới
           </Link>
         </Button>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -327,6 +395,8 @@ interface SlipListProps {
   onSortDateClick: () => void;
   onTransition: (id: string, to: Status) => void;
   transitioning: boolean;
+  /** V4.1 Đợt 1b — chỉ Kho/admin (`transition:materialRequest`) thấy nút. */
+  canTransition: boolean;
 }
 
 /**
@@ -345,6 +415,7 @@ function SlipList({
   onSortDateClick,
   onTransition,
   transitioning,
+  canTransition,
 }: SlipListProps) {
   const gridCols =
     "grid-cols-[130px_minmax(180px,1fr)_90px_150px_140px_minmax(220px,auto)]";
@@ -386,8 +457,11 @@ function SlipList({
         <div>
           {rows.map((r) => {
             const cfg = STATUS_PILL[r.status];
+            // V4.1 Đợt 1b — READY/PARTIAL: giao bằng phiếu xuất ở trang chi tiết.
             const canAct =
-              r.status === "PENDING" || r.status === "PICKING" || r.status === "READY";
+              canTransition && (r.status === "PENDING" || r.status === "PICKING");
+            const needsIssue =
+              canTransition && (r.status === "READY" || r.status === "PARTIAL");
             return (
               <div
                 key={r.id}
@@ -425,7 +499,7 @@ function SlipList({
                   {formatDate(r.createdAt, "dd/MM/yyyy HH:mm")}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  {r.status === "PENDING" && (
+                  {canAct && r.status === "PENDING" && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -436,7 +510,7 @@ function SlipList({
                       <Package className="h-3.5 w-3.5" /> Bắt đầu chuẩn bị
                     </Button>
                   )}
-                  {(r.status === "PENDING" || r.status === "PICKING") && (
+                  {canAct && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -447,17 +521,18 @@ function SlipList({
                       <CheckCircle2 className="h-3.5 w-3.5" /> Sẵn sàng
                     </Button>
                   )}
-                  {r.status === "READY" && (
+                  {needsIssue && (
                     <Button
+                      asChild
                       size="sm"
                       className="h-7 bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
-                      onClick={() => onTransition(r.id, "DELIVERED")}
-                      disabled={transitioning}
                     >
-                      <Check className="h-3.5 w-3.5" /> Xác nhận đã nhận
+                      <Link href={`/material-requests/${r.id}`}>
+                        <Truck className="h-3.5 w-3.5" /> Lập phiếu xuất
+                      </Link>
                     </Button>
                   )}
-                  {!canAct && (
+                  {!canAct && !needsIssue && (
                     <span className="text-xs text-zinc-400 dark:text-zinc-500">—</span>
                   )}
                 </div>

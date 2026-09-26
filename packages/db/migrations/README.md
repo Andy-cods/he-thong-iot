@@ -35,6 +35,7 @@ phải apply thủ công qua `psql` bằng script
 | `0031_seed_full_master_catalog.sql`| `hethong_app`| **V2.0 Sprint 6** — seed FULL Excel sheet 3 (60 materials + 19 processes) |
 | `0032_backfill_full_catalog_to_all_bom_sheets.sql` | `hethong_app`| **V2.0 Sprint 6** — auto-populate 63 mat + 19 proc rows vào MỌI MATERIAL sheet (tạo sheet mới cho BOM thiếu) |
 | `0059_qc_hold.sql`                 | `hethong_app`| **V4.1 Đợt 1a** — QC HOLD hàng nhận (`inventory_lot_serial.hold_code`), QC theo dòng phiếu nhập (`inbound_receipt_line.lot_serial_id/qc_*`), view tồn chuẩn `app.v_lot_stock`/`app.v_item_stock`, trigger `inventory_txn_lot_guard` chặn xuất lô không AVAILABLE. Apply TRƯỚC khi deploy code 1a |
+| `0060_goods_issue.sql`             | `hethong_app`| **V4.1 Đợt 1b** — Phiếu xuất kho `app.goods_issue`/`goods_issue_line` (PX-YYMM-NNNN, unique 1 phiếu/ISR), `material_request.status` thêm `PARTIAL` (thay CHECK cũ của 0033), CHECK `inventory_txn_out_requires_bin` NOT VALID (txn xuất phải có bin). Apply SAU khi code 1a chạy prod, TRƯỚC khi deploy code 1b |
 
 ### Flow apply V1.1-alpha
 

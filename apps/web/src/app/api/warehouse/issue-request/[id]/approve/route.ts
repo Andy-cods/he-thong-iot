@@ -5,11 +5,12 @@ import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { jsonError } from "@/server/http";
 import {
-  assertIssuable,
-  mapDbGuardError,
-  postOutboundTxns,
-  type IssuePick,
-} from "@/server/repos/stockGuard";
+  createGoodsIssueTx,
+  GoodsIssueError,
+  type GoodsIssuePickInput,
+  type GoodsIssueReason,
+} from "@/server/repos/goodsIssues";
+import { mapDbGuardError } from "@/server/repos/stockGuard";
 import { requireCan } from "@/server/session";
 import { writeAudit } from "@/server/services/audit";
 import { notifyIssueRequestApproved } from "@/server/services/notifications";
@@ -35,6 +36,10 @@ export const dynamic = "force-dynamic";
  * (reason IN ('sales','return')) — xuất vật tư nội bộ SX (production/manual/
  * loss/other) GIỮ NGUYÊN Kho tự duyệt như cũ, tránh làm tắc xưởng. Hard-check
  * role admin bên dưới cho case sales/return (không chỉ dựa RBAC matrix mềm).
+ *
+ * V4.1 Đợt 1b (Q3) — duyệt sinh 1 phiếu xuất kho PX-YYMM-NNNN
+ * (`source_type='ISSUE_REQUEST'`) cùng transaction; unique index
+ * `goods_issue_isr_uk` chặn 1 ISR sinh 2 phiếu (lưới an toàn sau bước claim).
  */
 
 interface PicksJson {
@@ -121,7 +126,8 @@ export async function POST(
       // V4.1 Đợt 1a (KHO-05/10) — guard chung: khoá item → lô theo thứ tự cố
       // định, chỉ lô AVAILABLE, không vượt tồn bin, không lấn phần đã giữ chỗ.
       // ISR lập từ trước mà lô nay đang HOLD (chờ QC) → 409 rõ lý do.
-      const picks: IssuePick[] = lines.flatMap((l) =>
+      // V4.1 Đợt 1b — đi qua phiếu xuất kho PX (guard + ledger + dòng phiếu).
+      const picks: GoodsIssuePickInput[] = lines.flatMap((l) =>
         l.picks.map((p) => ({
           itemId: l.itemId,
           lotSerialId: p.lotSerialId,
@@ -129,20 +135,29 @@ export async function POST(
           qty: Number(p.qty),
         })),
       );
-      await assertIssuable(tx, picks);
-      const posted = await postOutboundTxns(tx, picks, {
-        txType: "OUT_ISSUE",
-        refTable: "warehouse_issue_request",
-        refId: request.id,
-        postedBy: guard.session.userId,
-        notes: `${request.requestNo} · approved`,
+      const gi = await createGoodsIssueTx(tx, {
+        sourceType: "ISSUE_REQUEST",
+        reason: toGoodsIssueReason(request.reason),
+        issueRequestId: request.id,
+        reference: request.reference ?? request.requestNo,
+        notes: `${request.requestNo} · approved${request.notes ? ` · ${request.notes}` : ""}`.slice(0, 500),
+        issuedBy: guard.session.userId,
+        receivedBy: request.requestedBy,
+        picks,
       });
-      const txnIds = posted.txnIds;
-      const consumedLots = posted.consumedLots;
-      const totalQty = picks.reduce((s, p) => s + p.qty, 0);
+      const txnIds = gi.txnIds;
+      const consumedLots = gi.consumedLots;
+      const totalQty = gi.totalQty;
 
       // Status đã set COMPLETED ở bước CLAIM đầu transaction.
-      return { txnIds, totalQty, consumedLots, request: claimed[0] };
+      return {
+        txnIds,
+        totalQty,
+        consumedLots,
+        request: claimed[0],
+        goodsIssueId: gi.id,
+        issueNo: gi.issueNo,
+      };
     });
 
     await writeAudit({
@@ -152,10 +167,11 @@ export async function POST(
       objectId: params.id,
       after: {
         requestNo: request.requestNo,
+        issueNo: result.issueNo,
         totalQty: result.totalQty,
         txnCount: result.txnIds.length,
       },
-      notes: `Duyệt + xuất ${request.requestNo} · ${result.txnIds.length} pick · ${result.totalQty} qty`,
+      notes: `Duyệt + xuất ${request.requestNo} · ${result.issueNo} · ${result.txnIds.length} pick · ${result.totalQty} qty`,
     });
 
     // V3.7.17 — Notify requester (Vận hành) về xuất kho thành công
@@ -170,13 +186,35 @@ export async function POST(
 
     return NextResponse.json({ data: result });
   } catch (err) {
+    if (err instanceof GoodsIssueError) {
+      return jsonError(err.code, err.message, err.status);
+    }
     const g = mapDbGuardError(err);
     if (g) return jsonError(g.code, g.message, g.status);
     const msg = err instanceof Error ? err.message : "Lỗi duyệt yêu cầu";
-    if (msg.startsWith("ALREADY_PROCESSED")) {
+    // V4.1 Đợt 1b — goods_issue_isr_uk: ISR đã có phiếu xuất (duyệt 2 lần).
+    const pgCode =
+      (err as { code?: string })?.code ?? (err as { cause?: { code?: string } })?.cause?.code;
+    if (msg.startsWith("ALREADY_PROCESSED") || pgCode === "23505") {
       return jsonError("APPROVE_FAILED", "Yêu cầu đã được duyệt/xử lý bởi người khác.", 409);
     }
     logger.error({ err, requestId: params.id }, "issue request approve failed");
     return jsonError("APPROVE_FAILED", msg, 500);
   }
+}
+
+const GOODS_ISSUE_REASONS: GoodsIssueReason[] = [
+  "production",
+  "sales",
+  "manual",
+  "loss",
+  "return",
+  "other",
+];
+
+/** ISR.reason là varchar tự do (dữ liệu cũ) → chuẩn hoá về CHECK của goods_issue. */
+function toGoodsIssueReason(reason: string | null | undefined): GoodsIssueReason {
+  return (GOODS_ISSUE_REASONS as string[]).includes(reason ?? "")
+    ? (reason as GoodsIssueReason)
+    : "other";
 }

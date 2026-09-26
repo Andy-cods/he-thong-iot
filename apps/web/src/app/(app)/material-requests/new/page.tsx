@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, FileText, Loader2, Plus, Search, Trash2 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeft, Factory, FileText, Loader2, Plus, Search, Trash2, X } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,26 @@ import { cn } from "@/lib/utils";
  *   - Add line (item + qty)
  *   - Notes
  *   - Submit POST /api/material-requests
+ *
+ * V4.1 Đợt 1c (D6) — chọn Lệnh sản xuất (woId) cho phiếu; mở từ trang lệnh SX
+ * qua `?woId=` thì điền sẵn. Xưởng (operator) nay cũng lập phiếu được.
  */
+
+interface WoRef {
+  id: string;
+  woNo: string;
+  status: string;
+}
+
+const WO_STATUS_LABEL: Record<string, string> = {
+  DRAFT: "Chờ duyệt",
+  QUEUED: "Hàng đợi",
+  RELEASED: "Đã phát hành",
+  IN_PROGRESS: "Đang SX",
+  PAUSED: "Tạm dừng",
+  COMPLETED: "Hoàn thành",
+  CANCELLED: "Đã huỷ",
+};
 
 interface ItemSearch {
   id: string;
@@ -37,6 +56,11 @@ interface RequestLine {
 
 export default function NewMaterialRequestPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const presetWoId = searchParams?.get("woId") ?? null;
+  const [wo, setWo] = React.useState<WoRef | null>(null);
+  const [woSearch, setWoSearch] = React.useState("");
+  const [debouncedWoQ, setDebouncedWoQ] = React.useState("");
   const [search, setSearch] = React.useState("");
   const [debouncedQ, setDebouncedQ] = React.useState("");
   const [lines, setLines] = React.useState<RequestLine[]>([]);
@@ -61,9 +85,47 @@ export default function NewMaterialRequestPage() {
 
   const items = itemsQuery.data?.data ?? [];
 
+  // V4.1 Đợt 1c — điền sẵn lệnh SX từ ?woId= (nút "Tạo yêu cầu vật tư" ở trang WO).
+  const presetWoQuery = useQuery({
+    queryKey: ["workOrders", "detail-ref", presetWoId],
+    queryFn: async () => {
+      const res = await fetch(`/api/work-orders/${presetWoId}`, { credentials: "include" });
+      if (!res.ok) throw new Error();
+      return (await res.json()) as { data: WoRef };
+    },
+    enabled: !!presetWoId && /^[0-9a-f-]{36}$/i.test(presetWoId),
+    staleTime: 60_000,
+  });
+  React.useEffect(() => {
+    const d = presetWoQuery.data?.data;
+    if (d) setWo({ id: d.id, woNo: d.woNo, status: d.status });
+  }, [presetWoQuery.data]);
+
+  React.useEffect(() => {
+    const t = setTimeout(() => setDebouncedWoQ(woSearch.trim()), 300);
+    return () => clearTimeout(t);
+  }, [woSearch]);
+
+  const woQuery = useQuery({
+    queryKey: ["workOrders", "picker", debouncedWoQ],
+    queryFn: async () => {
+      const p = new URLSearchParams({ q: debouncedWoQ, pageSize: "10" });
+      for (const st of ["DRAFT", "QUEUED", "RELEASED", "IN_PROGRESS", "PAUSED"]) {
+        p.append("status", st);
+      }
+      const res = await fetch(`/api/work-orders?${p}`, { credentials: "include" });
+      if (!res.ok) throw new Error();
+      return (await res.json()) as { data: WoRef[] };
+    },
+    enabled: debouncedWoQ.length >= 1 && !wo,
+    staleTime: 30_000,
+  });
+  const woOptions = woQuery.data?.data ?? [];
+
   const submit = useMutation({
     mutationFn: async () => {
       const payload = {
+        woId: wo?.id ?? null,
         notes: notes.trim() || null,
         lines: lines.map((l) => ({
           itemId: l.itemId,
@@ -129,12 +191,81 @@ export default function NewMaterialRequestPage() {
           Tạo yêu cầu vật tư mới
         </h1>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          Chọn linh kiện cần lấy từ kho, nhập số lượng. Thông báo sẽ tự động gửi cho Bộ phận Kho.
+          Chọn lệnh sản xuất (nếu có) và linh kiện cần lấy từ kho. Thông báo tự động gửi Bộ phận Kho;
+          Kho giao bằng phiếu xuất kho (giao từng phần được).
         </p>
       </header>
 
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-4 md:p-6">
         <div className="mx-auto max-w-3xl space-y-5">
+          {/* V4.1 Đợt 1c — Lệnh sản xuất (tuỳ chọn) */}
+          <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+              <Factory className="h-4 w-4 text-zinc-500" aria-hidden /> Lệnh sản xuất
+              <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">(tuỳ chọn)</span>
+            </h2>
+            {wo ? (
+              <div className="mt-3 flex items-center gap-3 rounded-lg border border-indigo-200 bg-indigo-50/50 px-3 py-2 dark:border-indigo-900 dark:bg-indigo-950/30">
+                <span className="font-mono text-sm font-semibold text-indigo-700 dark:text-indigo-300">{wo.woNo}</span>
+                <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                  {WO_STATUS_LABEL[wo.status] ?? wo.status}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWo(null);
+                    setWoSearch("");
+                  }}
+                  className="ml-auto inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 hover:bg-white hover:text-red-600 dark:hover:bg-zinc-800"
+                  title="Bỏ chọn lệnh SX"
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="relative mt-3">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" aria-hidden />
+                  <input
+                    type="text"
+                    value={woSearch}
+                    onChange={(e) => setWoSearch(e.target.value)}
+                    placeholder={presetWoQuery.isLoading ? "Đang tải lệnh SX…" : "Tìm số lệnh sản xuất (WO/LSX)…"}
+                    className="h-10 w-full rounded-lg border border-zinc-200 bg-white pl-9 pr-3 text-sm placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500"
+                  />
+                </div>
+                {debouncedWoQ && (
+                  <div className="mt-2 max-h-56 overflow-y-auto rounded-lg border border-zinc-100 bg-zinc-50/40 dark:border-zinc-800 dark:bg-zinc-800/40">
+                    {woQuery.isLoading ? (
+                      <p className="px-4 py-4 text-center text-sm text-zinc-500 dark:text-zinc-400">Đang tìm…</p>
+                    ) : woQuery.isError ? (
+                      <p className="px-4 py-4 text-center text-sm text-red-600 dark:text-red-400">Không tải được lệnh sản xuất.</p>
+                    ) : woOptions.length === 0 ? (
+                      <p className="px-4 py-4 text-center text-sm text-zinc-500 dark:text-zinc-400">Không có lệnh SX đang mở khớp.</p>
+                    ) : (
+                      <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                        {woOptions.map((o) => (
+                          <li key={o.id}>
+                            <button
+                              type="button"
+                              onClick={() => setWo(o)}
+                              className="flex w-full items-center gap-3 px-4 py-2 text-left hover:bg-white dark:hover:bg-zinc-800/60"
+                            >
+                              <span className="font-mono text-sm font-semibold text-indigo-600 dark:text-indigo-400">{o.woNo}</span>
+                              <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                                {WO_STATUS_LABEL[o.status] ?? o.status}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+
           {/* Search + add */}
           <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Thêm linh kiện</h2>

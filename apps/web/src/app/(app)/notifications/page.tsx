@@ -58,6 +58,8 @@ const EVENT_ICON: Record<string, React.ElementType> = {
   MATERIAL_REQUEST_PICKING: Clock,
   MATERIAL_REQUEST_READY: CheckCircle2,
   MATERIAL_REQUEST_DELIVERED: CheckCheck,
+  // V4.1 Đợt 1b — giao một phần qua phiếu xuất kho.
+  MATERIAL_REQUEST_ISSUED: Package,
 };
 
 const EVENT_LABEL: Record<string, string> = {
@@ -72,7 +74,8 @@ const EVENT_LABEL: Record<string, string> = {
   MATERIAL_REQUEST_NEW: "Yêu cầu xuất kho",
   MATERIAL_REQUEST_PICKING: "Đang chuẩn bị",
   MATERIAL_REQUEST_READY: "Đã chuẩn bị xong",
-  MATERIAL_REQUEST_DELIVERED: "Đã giao",
+  MATERIAL_REQUEST_DELIVERED: "Đã giao đủ",
+  MATERIAL_REQUEST_ISSUED: "Đã giao một phần",
 };
 
 const SEVERITY_CLS: Record<string, string> = {

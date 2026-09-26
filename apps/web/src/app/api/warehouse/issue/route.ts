@@ -1,15 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { can } from "@iot/shared";
-import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { jsonError, parseJson } from "@/server/http";
 import {
-  assertIssuable,
-  mapDbGuardError,
-  postOutboundTxns,
-  type IssuePick,
-} from "@/server/repos/stockGuard";
+  createGoodsIssue,
+  GoodsIssueError,
+  type GoodsIssuePickInput,
+} from "@/server/repos/goodsIssues";
+import { mapDbGuardError } from "@/server/repos/stockGuard";
 import { writeAudit } from "@/server/services/audit";
 import { canForUser } from "@/server/services/rbac";
 import { requireCan } from "@/server/session";
@@ -45,6 +44,9 @@ export const dynamic = "force-dynamic";
  *    Kho phải lập Yêu cầu xuất kho để Giám đốc duyệt.
  *  - KHO-05/10: guard chung `assertIssuable` — chỉ lô AVAILABLE, không vượt
  *    tồn bin, không lấn phần đã giữ chỗ cho lệnh SX.
+ *
+ * V4.1 Đợt 1b (Q3) — mỗi lượt xuất nhanh sinh 1 phiếu xuất kho PX-YYMM-NNNN
+ * (`source_type='QUICK_ISSUE'`), txn `ref_table='goods_issue'`.
  */
 const pickSchema = z.object({
   lotSerialId: z.string().uuid(),
@@ -95,7 +97,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const picks: IssuePick[] = lines.flatMap((l) =>
+  const picks: GoodsIssuePickInput[] = lines.flatMap((l) =>
     l.picks.map((p) => ({
       itemId: l.itemId,
       lotSerialId: p.lotSerialId,
@@ -105,33 +107,31 @@ export async function POST(req: NextRequest) {
   );
 
   try {
-    const result = await db.transaction(async (tx) => {
-      const issueRefId = crypto.randomUUID();
-      // V4.1 Đợt 1a — khoá item → lô theo thứ tự cố định + kiểm trạng thái lô,
-      // tồn bin, phần đã giữ chỗ (thay advisory lock 'lot:' + check rời rạc).
-      await assertIssuable(tx, picks);
-      const posted = await postOutboundTxns(tx, picks, {
-        txType: "OUT_ISSUE",
-        refTable: `issue_${reason}`,
-        refId: issueRefId,
-        postedBy: guard.session.userId,
-        notes: [reference, notes].filter(Boolean).join(" · ") || null,
-      });
-      const totalQty = picks.reduce((s, p) => s + p.qty, 0);
-      return {
-        txnIds: posted.txnIds,
-        totalQty,
-        consumedLots: posted.consumedLots,
-        issueRefId,
-      };
+    // V4.1 Đợt 1b — phiếu xuất PX (guard chung + ledger + dòng phiếu, 1 transaction).
+    const gi = await createGoodsIssue({
+      sourceType: "QUICK_ISSUE",
+      reason,
+      reference: reference ?? null,
+      notes: notes ?? null,
+      issuedBy: guard.session.userId,
+      picks,
     });
+    const result = {
+      txnIds: gi.txnIds,
+      totalQty: gi.totalQty,
+      consumedLots: gi.consumedLots,
+      issueRefId: gi.id,
+      goodsIssueId: gi.id,
+      issueNo: gi.issueNo,
+    };
 
     await writeAudit({
       actor: guard.session,
       action: "ISSUE",
-      objectType: "inventory_txn",
-      objectId: result.issueRefId,
+      objectType: "goods_issue",
+      objectId: result.goodsIssueId,
       after: {
+        issueNo: result.issueNo,
         reason,
         reference,
         lines: lines.length,
@@ -140,11 +140,14 @@ export async function POST(req: NextRequest) {
       },
       notes:
         notes ??
-        `Xuất ${result.txnIds.length} pick · ${lines.length} SKU · ${result.totalQty} qty · ${reason}`,
+        `${result.issueNo} · xuất ${result.txnIds.length} pick · ${lines.length} SKU · ${result.totalQty} qty · ${reason}`,
     });
 
     return NextResponse.json({ data: result });
   } catch (err) {
+    if (err instanceof GoodsIssueError) {
+      return jsonError(err.code, err.message, err.status);
+    }
     const g = mapDbGuardError(err);
     if (g) return jsonError(g.code, g.message, g.status);
     logger.error({ err }, "warehouse issue failed");

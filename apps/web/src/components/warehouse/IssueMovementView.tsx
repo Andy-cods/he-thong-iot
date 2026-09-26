@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useSession } from "@/hooks/useSession";
 import { can } from "@iot/shared";
+import { invalidateStockQueries } from "@/lib/stock-cache";
 
 /**
  * Wave 5 Phase A/B — `<IssueMovementView>` (trước đây `IssueTab`).
@@ -170,7 +171,12 @@ export function IssueMovementView() {
         }),
       });
       const json = (await res.json()) as {
-        data?: { txnIds: string[]; totalQty: number; consumedLots: number };
+        data?: {
+          txnIds: string[];
+          totalQty: number;
+          consumedLots: number;
+          issueNo?: string;
+        };
         error?: { message?: string };
       };
       if (!res.ok || !json.data) {
@@ -178,9 +184,10 @@ export function IssueMovementView() {
         return;
       }
       toast.success(
-        `Đã xuất ${json.data.totalQty} qty từ ${json.data.txnIds.length} bin · ${totalLines} SKU.`,
+        `${json.data.issueNo ? `Phiếu xuất ${json.data.issueNo}: ` : ""}Đã xuất ${json.data.totalQty} qty từ ${json.data.txnIds.length} bin · ${totalLines} SKU.`,
       );
-      void qc.invalidateQueries({ queryKey: ["warehouse"] });
+      // V4.1 Đợt 1b (KHO-24) — làm mới mọi màn đọc tồn + tab Phiếu xuất kho.
+      invalidateStockQueries(qc);
       // Reset
       setLines([{ rowId: uuid(), item: null, qty: "" }]);
       setReference("");
@@ -1012,7 +1019,7 @@ function PendingRequestsPanel() {
         method: "POST",
       });
       const json = (await res.json()) as {
-        data?: { totalQty: number; txnIds: string[] };
+        data?: { totalQty: number; txnIds: string[]; issueNo?: string };
         error?: { message?: string };
       };
       if (!res.ok || !json.data) {
@@ -1020,9 +1027,10 @@ function PendingRequestsPanel() {
         return;
       }
       toast.success(
-        `Duyệt + xuất ${reqNo} · ${json.data.totalQty} qty · ${json.data.txnIds.length} pick.`,
+        `Duyệt + xuất ${reqNo}${json.data.issueNo ? ` → phiếu xuất ${json.data.issueNo}` : ""} · ${json.data.totalQty} qty · ${json.data.txnIds.length} pick.`,
       );
-      void qc.invalidateQueries({ queryKey: ["warehouse"] });
+      // V4.1 Đợt 1b (KHO-24) — làm mới mọi màn đọc tồn.
+      invalidateStockQueries(qc);
       void refetch();
     } finally {
       setActing(null);

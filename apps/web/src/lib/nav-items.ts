@@ -1,4 +1,5 @@
 import {
+  ClipboardList,
   Factory,
   LayoutDashboard,
   Layers,
@@ -134,6 +135,16 @@ export const NAV_ITEMS: NavItem[] = [
       "qc",
       "accountant",
     ],
+    section: "engineering",
+  },
+  // V4.1 Đợt 1c (D6) — Phiếu yêu cầu vật tư (lấy vật tư từ kho cho lệnh SX):
+  // Thiết kế + Gia công lập phiếu, Kho chuẩn bị + lập phiếu xuất giao hàng.
+  // Khớp ROUTE_ROLE_GUARD `/material-requests` trong (app)/layout.tsx.
+  {
+    href: "/material-requests",
+    label: "Yêu cầu vật tư",
+    icon: ClipboardList,
+    roles: ["admin", "planner", "operator", "warehouse"],
     section: "engineering",
   },
   // --- Bộ phận Gia công — chỉ operator + admin ---

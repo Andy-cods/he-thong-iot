@@ -2,7 +2,7 @@ import { type NextRequest } from "next/server";
 import { logger } from "@/lib/logger";
 import { listMaterialRequestsInRange } from "@/server/repos/materialRequests";
 import { jsonError } from "@/server/http";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 import {
   buildSlipsWorkbook,
   formatVNDateTime,
@@ -19,6 +19,7 @@ const MR_STATUS_LABELS: Record<string, string> = {
   PENDING: "Chờ chuẩn bị",
   PICKING: "Đang chuẩn bị",
   READY: "Đã sẵn sàng",
+  PARTIAL: "Giao một phần",
   DELIVERED: "Đã giao",
   CANCELLED: "Đã huỷ",
 };
@@ -29,7 +30,8 @@ const MR_STATUS_LABELS: Record<string, string> = {
  * 1 sheet "Tổng hợp" + mỗi phiếu 1 sheet chi tiết.
  */
 export async function GET(req: NextRequest) {
-  const guard = await requireSession(req);
+  // V4.1 Đợt 1b — theo RBAC matrix (trước đây mọi user đăng nhập).
+  const guard = await requireCan(req, "read", "materialRequest");
   if ("response" in guard) return guard.response;
 
   const url = new URL(req.url);

@@ -48,6 +48,8 @@ export type NotificationEventType =
   | "MATERIAL_REQUEST_READY"
   | "MATERIAL_REQUEST_DELIVERED"
   | "MATERIAL_REQUEST_CANCELLED"
+  // V4.1 Đợt 1b — Kho lập phiếu xuất giao MỘT PHẦN phiếu yêu cầu (→ người lập).
+  | "MATERIAL_REQUEST_ISSUED"
   // V3.7.17 — Warehouse Issue Request flow
   | "ISSUE_REQUEST_NEW"
   | "ISSUE_REQUEST_APPROVED"
@@ -871,28 +873,48 @@ export async function notifyMaterialRequestReady(ctx: MaterialRequestNotifyConte
 }
 
 /**
- * Engineer DELIVERED → notify warehouse.
+ * V4.1 Đợt 1b — Kho lập phiếu xuất kho giao ĐỦ phiếu yêu cầu → báo người lập.
  *
- * V3.16 — GIỮ NGUYÊN broadcast (không đổi sang emitToUsersWithRole): đây là
- * event ĐÓNG (linh kiện đã trao tay xong, do engineer tự xác nhận), warehouse
- * không cần hành động gì tiếp theo — chỉ mang tính thông tin/đối soát, không
- * cần đếm badge để "nhắc bấm vào xử lý" như các event chờ duyệt/chuẩn bị khác.
+ * Trước đây event này do engineer tự bấm "Xác nhận đã nhận" (không trừ tồn)
+ * rồi broadcast cho Kho. Nay DELIVERED chỉ sinh ra khi Kho lập phiếu xuất
+ * (PX) giao đủ → người cần biết là người lập phiếu yêu cầu (đếm vào badge).
  */
 export async function notifyMaterialRequestDelivered(
-  ctx: MaterialRequestNotifyContext,
+  ctx: MaterialRequestNotifyContext & { issueNo: string },
 ) {
+  if (!ctx.requesterUserId) return;
   await emitNotification({
-    recipientRole: "warehouse",
+    recipientUser: ctx.requesterUserId,
     actorUserId: ctx.actorUserId,
     actorUsername: ctx.actorUsername,
     eventType: "MATERIAL_REQUEST_DELIVERED",
     entityType: "material_request",
     entityId: ctx.requestId,
     entityCode: ctx.requestNo,
-    title: `${ctx.requestNo} đã giao thành công`,
-    message: "Linh kiện đã được trao tay người yêu cầu.",
+    title: `${ctx.requestNo} đã giao đủ`,
+    message: `Kho đã xuất đủ vật tư theo phiếu xuất ${ctx.issueNo}.`,
     link: `/material-requests/${ctx.requestId}`,
     severity: "success",
+  });
+}
+
+/** V4.1 Đợt 1b — Kho lập phiếu xuất giao MỘT PHẦN → báo người lập phiếu. */
+export async function notifyMaterialRequestIssued(
+  ctx: MaterialRequestNotifyContext & { issueNo: string; totalQty?: number },
+) {
+  if (!ctx.requesterUserId) return;
+  await emitNotification({
+    recipientUser: ctx.requesterUserId,
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "MATERIAL_REQUEST_ISSUED",
+    entityType: "material_request",
+    entityId: ctx.requestId,
+    entityCode: ctx.requestNo,
+    title: `${ctx.requestNo} đã giao một phần`,
+    message: `Kho đã xuất ${ctx.issueNo}${ctx.totalQty ? ` (${ctx.totalQty.toLocaleString("vi-VN")} đơn vị)` : ""}; phần còn lại sẽ giao tiếp.`,
+    link: `/material-requests/${ctx.requestId}`,
+    severity: "info",
   });
 }
 

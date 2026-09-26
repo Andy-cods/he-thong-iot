@@ -11,6 +11,7 @@ import { MovementTab } from "@/components/warehouse/MovementTab";
 // (client component) sẽ nhận stub và ném TypeError lúc render server.
 import { resolveMovementMode } from "@/components/warehouse/movement-mode";
 import { DeliveryNotesTab } from "@/components/warehouse/DeliveryNotesTab";
+import { GoodsIssuesTab } from "@/components/warehouse/GoodsIssuesTab";
 import { ReportTab } from "@/components/warehouse/ReportTab";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +29,7 @@ export const dynamic = "force-dynamic";
  *   - `layout`    — Sơ đồ kho
  *   - `items`     — Danh mục vật tư (re-use logic /items cũ)
  *   - `movement`  — Nhập / Xuất kho (gộp `receiving` + `issue` cũ — Wave 5 Phase A)
+ *   - `goods-issues` — Phiếu xuất kho PX (V4.1 Đợt 1b; `?id=` mở sẵn 1 phiếu)
  *   - `report`    — Báo cáo kho
  *
  * Backward-compat: `?tab=receiving` → movement&mode=in, `?tab=issue`/`picking`
@@ -84,6 +86,8 @@ export default function WarehousePage({ searchParams }: WarehousePageProps) {
           <ItemsTab />
         ) : active === "movement" ? (
           <MovementTab mode={mode} />
+        ) : active === "goods-issues" ? (
+          <GoodsIssuesTab />
         ) : active === "delivery-notes" ? (
           <DeliveryNotesTab />
         ) : (

@@ -50,7 +50,11 @@ export type RbacEntity =
   | "goodsIssue"
   // V4.1 Đợt 1a — QC nhập kho. `approve` = kết luận Đạt/Không đạt lô nhận;
   // `update` = đặt/nhả HOLD thủ công (MANUAL); `read` = xem màn Chờ QC.
-  | "qcInspection";
+  | "qcInspection"
+  // V4.1 Đợt 1b — Phiếu yêu cầu vật tư (material_request). `create` = lập
+  // phiếu (planner/operator/admin); `transition` = Kho chuẩn bị / huỷ; giao
+  // hàng THẬT phải qua phiếu xuất (`create:goodsIssue`), không đổi trạng thái tay.
+  | "materialRequest";
 
 /** Partial vì không phải role nào cũng có action trên mọi entity. */
 type Matrix = Record<Role, Partial<Record<RbacEntity, RbacAction[]>>>;
@@ -93,6 +97,8 @@ export const RBAC_MATRIX: Matrix = {
     // V4.1 Đợt 1a — Giám đốc: xuất bán/trả NCC (approve) + kết luận QC.
     goodsIssue: ["create", "read", "delete", "approve"],
     qcInspection: ["read", "update", "approve"],
+    // V4.1 Đợt 1b — toàn quyền phiếu yêu cầu vật tư.
+    materialRequest: ["create", "read", "update", "delete", "transition"],
   },
   planner: {
     item: ["create", "read", "update"],
@@ -116,6 +122,8 @@ export const RBAC_MATRIX: Matrix = {
     // V4.1 Đợt 1a — planner xem phiếu xuất. KHÔNG có qcInspection: planner
     // mất quyền HOLD/nhả HOLD lô (KHO-12), vẫn giữ `reservation:update`.
     goodsIssue: ["read"],
+    // V4.1 Đợt 1b — planner lập + sửa phiếu yêu cầu vật tư (không chuẩn bị/giao).
+    materialRequest: ["create", "read", "update"],
   },
   operator: {
     item: ["read"],
@@ -138,6 +146,8 @@ export const RBAC_MATRIX: Matrix = {
     productionBoard: ["read"],
     // V4.1 Đợt 1a — operator xem phiếu xuất (vật tư đã giao cho xưởng).
     goodsIssue: ["read"],
+    // V4.1 Đợt 1b (D6) — xưởng tự lập phiếu yêu cầu vật tư cho lệnh SX.
+    materialRequest: ["create", "read"],
   },
   warehouse: {
     item: ["read"],
@@ -170,6 +180,9 @@ export const RBAC_MATRIX: Matrix = {
     // QC Đạt/Không đạt (thuộc Tổ QC / Giám đốc).
     goodsIssue: ["create", "read"],
     qcInspection: ["read", "update"],
+    // V4.1 Đợt 1b — Kho chuẩn bị (PICKING/READY), huỷ/đóng phiếu yêu cầu vật
+    // tư; giao hàng bằng phiếu xuất (`create:goodsIssue`). KHÔNG lập phiếu.
+    materialRequest: ["read", "update", "transition"],
   },
   // V3.3 — Purchaser (Bộ phận Thu mua): full PR/PO + read supplier/item/BOM
   purchaser: {
@@ -266,6 +279,7 @@ export const RBAC_ENTITIES: RbacEntity[] = [
   "deliveryNote",
   "goodsIssue",
   "qcInspection",
+  "materialRequest",
 ];
 
 export const RBAC_ACTIONS: RbacAction[] = [

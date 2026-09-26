@@ -216,7 +216,9 @@ export type RbacEntityKey =
   | "deliveryNote"
   // V4.1 Đợt 1a — xuất kho + QC nhập kho.
   | "goodsIssue"
-  | "qcInspection";
+  | "qcInspection"
+  // V4.1 Đợt 1b — phiếu yêu cầu vật tư.
+  | "materialRequest";
 
 export type OverrideKind = "GRANT" | "DENY" | null;
 export type EffectiveSource = "role" | "override-grant" | "override-deny";

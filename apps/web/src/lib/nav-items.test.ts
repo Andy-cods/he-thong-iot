@@ -74,9 +74,20 @@ describe("NAV_ITEMS V3.1 cấu trúc 6 section", () => {
     expect(sales?.roles).toEqual(["admin", "purchaser", "accountant", "shareholder"]);
   });
 
-  it("Bộ phận Thiết kế có hub và lối tắt đề xuất vật tư", () => {
+  it("Bộ phận Thiết kế có hub, lối tắt đề xuất vật tư và yêu cầu vật tư", () => {
     const engHrefs = NAV_ITEMS.filter((i) => i.section === "engineering").map((i) => i.href);
-    expect(engHrefs).toEqual(["/engineering", "/procurement/purchase-requests"]);
+    expect(engHrefs).toEqual([
+      "/engineering",
+      "/procurement/purchase-requests",
+      "/material-requests",
+    ]);
+  });
+
+  // V4.1 Đợt 1c (D6) — "Yêu cầu vật tư" cho admin/planner/operator/warehouse.
+  it("/material-requests cho đúng 4 role: admin/planner/operator/warehouse", () => {
+    const mr = NAV_ITEMS.find((i) => i.href === "/material-requests");
+    expect(mr?.label).toBe("Yêu cầu vật tư");
+    expect(mr?.roles).toEqual(["admin", "planner", "operator", "warehouse"]);
   });
 
   it("Bộ phận Gia công có hub, bảng sản xuất QC và QC nhập kho", () => {
@@ -132,6 +143,7 @@ describe("filterNavByRoles", () => {
       "/",
       "/engineering",
       "/procurement/purchase-requests",
+      "/material-requests",
       "/warehouse",
     ]);
     expect(hrefs).not.toContain("/admin");
@@ -142,7 +154,12 @@ describe("filterNavByRoles", () => {
   it("planner thấy thiết kế và đề xuất vật tư", () => {
     const filtered = filterNavByRoles(NAV_ITEMS, ["planner"]);
     const hrefs = filtered.map((i) => i.href);
-    expect(hrefs).toEqual(["/", "/engineering", "/procurement/purchase-requests"]);
+    expect(hrefs).toEqual([
+      "/",
+      "/engineering",
+      "/procurement/purchase-requests",
+      "/material-requests",
+    ]);
   });
 
   // V3.11.5 — Bộ phận Mua hàng chỉ thấy Tổng quan + Đề xuất vật tư + Thu mua
@@ -155,6 +172,8 @@ describe("filterNavByRoles", () => {
       "/procurement/purchase-requests",
       "/sales",
     ]);
+    // V4.1 Đợt 1c — Thu mua không thấy "Yêu cầu vật tư".
+    expect(hrefs).not.toContain("/material-requests");
   });
 
   it("operator thấy BOM, đề xuất vật tư và hub gia công", () => {
@@ -164,6 +183,7 @@ describe("filterNavByRoles", () => {
       "/",
       "/engineering",
       "/procurement/purchase-requests",
+      "/material-requests",
       "/operations",
     ]);
   });
@@ -213,6 +233,7 @@ describe("filterNavByRoles", () => {
     expect(hrefs).toContain("/sales");
     expect(hrefs).toContain("/operations");
     expect(hrefs).toContain("/warehouse");
+    expect(hrefs).toContain("/material-requests");
     expect(hrefs).toContain("/");
   });
 });

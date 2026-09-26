@@ -4,10 +4,11 @@ import {
   createMaterialRequest,
   listMaterialRequests,
   listMaterialRequestDayBuckets,
+  MATERIAL_REQUEST_STATUSES,
   type MaterialRequestStatus,
 } from "@/server/repos/materialRequests";
 import { jsonError, parseJson } from "@/server/http";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 import {
   notifyMaterialRequestNew,
   lookupUsername,
@@ -16,7 +17,8 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const STATUS_VALUES = ["PENDING", "PICKING", "READY", "DELIVERED", "CANCELLED"] as const;
+// V4.1 Đợt 1b — thêm PARTIAL (giao một phần qua phiếu xuất kho).
+const STATUS_VALUES: readonly string[] = MATERIAL_REQUEST_STATUSES;
 
 const createSchema = z.object({
   bomTemplateId: z.string().uuid().nullable().optional(),
@@ -33,14 +35,18 @@ const createSchema = z.object({
     .min(1, "Cần ít nhất 1 dòng linh kiện"),
 });
 
-/** GET /api/material-requests — list theo filter status/requester. */
+/**
+ * GET /api/material-requests — list theo filter status/requester.
+ * V4.1 Đợt 1b — guard theo RBAC matrix `read:materialRequest` (trước đây mọi
+ * user đăng nhập đều đọc được).
+ */
 export async function GET(req: NextRequest) {
-  const guard = await requireSession(req);
+  const guard = await requireCan(req, "read", "materialRequest");
   if ("response" in guard) return guard.response;
 
   const url = new URL(req.url);
   const statusParams = url.searchParams.getAll("status").filter((s) =>
-    (STATUS_VALUES as readonly string[]).includes(s),
+    STATUS_VALUES.includes(s),
   ) as MaterialRequestStatus[];
   const requestedBy = url.searchParams.get("requestedBy");
   const bomTemplateId = url.searchParams.get("bomTemplateId");
@@ -96,9 +102,13 @@ export async function GET(req: NextRequest) {
   }
 }
 
-/** POST /api/material-requests — engineer tạo yêu cầu. */
+/**
+ * POST /api/material-requests — lập phiếu yêu cầu vật tư.
+ * V4.1 Đợt 1b (D6) — `create:materialRequest` (admin, planner, operator):
+ * xưởng tự lập phiếu cho lệnh SX (trước đây cứng admin+planner).
+ */
 export async function POST(req: NextRequest) {
-  const guard = await requireSession(req, "admin", "planner");
+  const guard = await requireCan(req, "create", "materialRequest");
   if ("response" in guard) return guard.response;
 
   const body = await parseJson(req, createSchema);
@@ -131,6 +141,16 @@ export async function POST(req: NextRequest) {
       data: { id: created.id, requestNo: created.requestNo },
     });
   } catch (e) {
+    // V4.1 — woId/itemId không tồn tại (FK) → 400 rõ ràng thay vì 500.
+    const code = (e as { code?: string; cause?: { code?: string } })?.code ??
+      (e as { cause?: { code?: string } })?.cause?.code;
+    if (code === "23503") {
+      return jsonError(
+        "MR_INVALID_REF",
+        "Lệnh sản xuất hoặc linh kiện đã chọn không còn tồn tại — vui lòng tải lại.",
+        400,
+      );
+    }
     return jsonError(
       "MR_CREATE_FAILED",
       (e as Error).message ?? "Không tạo được yêu cầu",

@@ -1,5 +1,12 @@
 import Link from "next/link";
-import { ArrowLeftRight, BarChart3, FileText, Map, Tag } from "lucide-react";
+import {
+  ArrowLeftRight,
+  BarChart3,
+  FileOutput,
+  FileText,
+  Map,
+  Tag,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -29,6 +36,12 @@ export const WAREHOUSE_TABS = [
     label: "Nhập / Xuất kho",
     icon: ArrowLeftRight,
   },
+  // V4.1 Đợt 1b (Q3) — sổ phiếu xuất kho PX (mọi đường xuất).
+  {
+    key: "goods-issues" as const,
+    label: "Phiếu xuất kho",
+    icon: FileOutput,
+  },
   // V4.0 Wave 3 Phase D — Phiếu giao hàng / BBGH (xuất bán, trả NCC).
   {
     key: "delivery-notes" as const,
@@ -48,6 +61,7 @@ const TAB_HREF: Record<WarehouseTab, string> = {
   layout: "/warehouse?tab=layout",
   items: "/warehouse?tab=items",
   movement: "/warehouse?tab=movement&mode=in",
+  "goods-issues": "/warehouse?tab=goods-issues",
   "delivery-notes": "/warehouse?tab=delivery-notes",
   report: "/warehouse?tab=report",
 };
@@ -62,7 +76,7 @@ export function WarehouseTabsNav({
       aria-label="Warehouse sections"
       className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
     >
-      <ul className="flex items-center gap-1 px-4">
+      <ul className="flex items-center gap-1 overflow-x-auto px-4">
         {WAREHOUSE_TABS.map((t) => {
           const Icon = t.icon;
           const isActive = active === t.key;
@@ -72,7 +86,7 @@ export function WarehouseTabsNav({
                 href={TAB_HREF[t.key]}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "relative flex h-10 items-center gap-1.5 px-3 text-sm font-medium transition-colors",
+                  "relative flex h-10 items-center gap-1.5 whitespace-nowrap px-3 text-sm font-medium transition-colors",
                   isActive
                     ? "text-indigo-700 dark:text-indigo-300"
                     : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50",

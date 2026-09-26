@@ -10,7 +10,7 @@ import {
 } from "./matrix";
 
 describe("RBAC matrix — shape + consistency", () => {
-  it("có đủ 9 role × 21 entity × 6 action (V4.1 Đợt 1a thêm goodsIssue + qcInspection)", () => {
+  it("có đủ 9 role × 22 entity × 6 action (V4.1 Đợt 1a goodsIssue + qcInspection, 1b materialRequest)", () => {
     expect(Object.keys(RBAC_MATRIX)).toEqual([
       "admin",
       "planner",
@@ -22,7 +22,7 @@ describe("RBAC matrix — shape + consistency", () => {
       "accountant",
       "shareholder",
     ]);
-    expect(RBAC_ENTITIES).toHaveLength(21);
+    expect(RBAC_ENTITIES).toHaveLength(22);
     expect(RBAC_ACTIONS).toHaveLength(6);
   });
 
@@ -206,6 +206,19 @@ describe("can() — assert 48+ cell từ matrix (§4 brainstorm)", () => {
     ["planner", "read", "goodsIssue", true],
     ["planner", "create", "goodsIssue", false],
     ["qc", "read", "goodsIssue", false],
+    // V4.1 Đợt 1b — Phiếu yêu cầu vật tư: xưởng (operator) tự lập phiếu;
+    // Kho chuẩn bị/huỷ nhưng không lập; QC/Thu mua không đụng.
+    ["operator", "create", "materialRequest", true],
+    ["operator", "read", "materialRequest", true],
+    ["operator", "transition", "materialRequest", false],
+    ["planner", "create", "materialRequest", true],
+    ["planner", "transition", "materialRequest", false],
+    ["warehouse", "transition", "materialRequest", true],
+    ["warehouse", "create", "materialRequest", false],
+    ["admin", "transition", "materialRequest", true],
+    ["qc", "read", "materialRequest", false],
+    ["purchaser", "read", "materialRequest", false],
+    ["accountant", "read", "materialRequest", false],
   ];
 
   it.each(cases)(

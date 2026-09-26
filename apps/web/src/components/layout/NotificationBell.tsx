@@ -60,6 +60,8 @@ const EVENT_ICON: Record<string, React.ElementType> = {
   MATERIAL_REQUEST_PICKING: Clock,
   MATERIAL_REQUEST_READY: CheckCircle2,
   MATERIAL_REQUEST_DELIVERED: CheckCheck,
+  // V4.1 Đợt 1b — giao một phần qua phiếu xuất kho.
+  MATERIAL_REQUEST_ISSUED: Package,
 };
 
 const SEVERITY_CLS: Record<string, string> = {

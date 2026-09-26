@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query-keys";
+import { invalidateStockQueries } from "@/lib/stock-cache";
 
 /**
  * Receiving events hooks — Phase B2.7 + V1.8 Batch 6.
@@ -121,12 +122,15 @@ async function request<T>(input: string, init?: RequestInit): Promise<T> {
  * Trả { acked, rejected, count }. acked = server đã persist OR đã tồn tại trước đó.
  */
 export function useReplayQueue() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (events: ReceivingEventInput[]) =>
       request<ReplayResponse>("/api/receiving/events", {
         method: "POST",
         body: JSON.stringify({ events }),
       }),
+    // V4.1 Đợt 1b (KHO-24) — wizard nhận hàng dùng replay → làm mới tồn.
+    onSuccess: () => invalidateStockQueries(qc),
   });
 }
 
@@ -255,6 +259,9 @@ export function useSubmitReceivingEvent() {
       qc.invalidateQueries({ queryKey: qk.procurement.orders.all });
       qc.invalidateQueries({ queryKey: qk.receiving.all });
       qc.invalidateQueries({ queryKey: ["po", "detail"] });
+      // V4.1 Đợt 1b (KHO-24) — nhận hàng đổi tồn + tạo lô chờ QC → làm mới
+      // Vật tư, Sơ đồ kho, tồn popover, Chờ QC… (trước đây hiện số cũ).
+      invalidateStockQueries(qc);
     },
   });
 }

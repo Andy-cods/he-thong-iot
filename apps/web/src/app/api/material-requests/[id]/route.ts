@@ -1,17 +1,21 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getMaterialRequest } from "@/server/repos/materialRequests";
 import { jsonError } from "@/server/http";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** GET /api/material-requests/[id] — chi tiết + lines. */
+/**
+ * GET /api/material-requests/[id] — chi tiết + lines.
+ * V4.1 Đợt 1b — `read:materialRequest`; lines kèm remainingQty/issuableQty,
+ * kèm danh sách phiếu xuất kho (goodsIssues).
+ */
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireSession(req);
+  const guard = await requireCan(req, "read", "materialRequest");
   if ("response" in guard) return guard.response;
 
   const id = params.id;

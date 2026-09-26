@@ -23,4 +23,6 @@ export * from "./warehouse-location";
 export * from "./report";
 export * from "./production-board";
 export * from "./delivery-note";
+// V4.1 Đợt 1b — phiếu xuất kho.
+export * from "./goods-issue";
 export { appSchema } from "./_schema";

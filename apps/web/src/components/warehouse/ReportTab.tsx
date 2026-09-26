@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Loader2, Package, AlertTriangle, Box, RefreshCw, Printer, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ReconciliationSection } from "./ReconciliationSection";
 
 /**
  * V3.7 — Tab "Báo cáo kho".
@@ -12,6 +13,7 @@ import { cn } from "@/lib/utils";
  *   2. Capacity utilization theo kệ (bar chart đơn giản)
  *   3. Bins low-stock (qty < lowThreshold)
  *   4. SKUs chưa gán bin
+ *   5. V4.1 Đợt 1c — Đối soát trước kiểm kê (ReconciliationSection, D4)
  */
 
 interface BinNode {
@@ -453,6 +455,9 @@ export function ReportTab() {
           </ul>
         )}
       </section>
+
+      {/* V4.1 Đợt 1c (D4) — đối soát trước kiểm kê (chỉ đọc, không tự trừ tồn) */}
+      <ReconciliationSection />
     </div>
   );
 }

@@ -50,6 +50,8 @@ const ENTITY_LABELS: Record<RbacEntityKey, string> = {
   // V4.1 Đợt 1a — xuất kho + QC nhập kho.
   goodsIssue: "Xuất kho",
   qcInspection: "QC nhập kho",
+  // V4.1 Đợt 1b.
+  materialRequest: "Yêu cầu vật tư",
 };
 
 const ACTION_LABELS: Record<RbacActionKey, string> = {

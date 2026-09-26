@@ -132,6 +132,12 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
   E2E admin: /qc-inbound, tab Chờ QC, qc-pending API 200; tồn 1 mã khớp DB/list/summary/FIFO (820); view toàn bộ 13ms; log 0 lỗi.
   Prod lúc deploy: 486 lô AVAILABLE, 0 HOLD, 0 ISR chờ, 1 user qc active. CHƯA test luồng nhận→QC→xuất (cần PO test).
 - **CÒN:** 1b (goods_issue, 0060 — apply sau khi 1a chạy) + 1c (menu, báo cáo đối soát D4).
+- **1b+1c CODE XONG 2026-09-27 (+07)** trên nhánh `fix/v4.1-dot1-kho` (CHƯA push/deploy): migration `0060_goods_issue.sql`
+  (goods_issue/goods_issue_line, unique 1 phiếu/ISR, material_request thêm PARTIAL — phải thay CHECK cũ của 0033,
+  CHECK txn xuất phải có bin NOT VALID), `goodsIssues.ts` + API `/api/material-requests/[id]/goods-issue`,
+  `/api/goods-issues`, xuất nhanh + duyệt ISR sinh phiếu PX, tab Kho "Phiếu xuất kho", menu "Yêu cầu vật tư"
+  (+operator), form chọn lệnh SX, báo cáo "Đối soát trước kiểm kê" (chỉ đọc, D4). Smoke `sql/dot1b_smoke.sql`,
+  SQL đối soát `sql/d4_reconciliation.sql`. Deploy: backup → apply 0060 → smoke → push.
 
 ### TASK-20260926-001 — V4.1 Đợt 0 "Chặn cháy" (8 lỗi P0 + phiên 4h + UI nhanh)
 - **Trạng thái:** DONE · **Hoàn thành:** 2026-09-26 18:25 (+07) · **Bắt đầu:** 2026-09-26 (+07) · **Tạo:** 2026-09-26 (+07) · **Ưu tiên:** P0

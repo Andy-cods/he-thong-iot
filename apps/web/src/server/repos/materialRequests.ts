@@ -7,6 +7,7 @@ import {
 } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import { currentYymm, genDocNo } from "./_docNumber";
+import { listGoodsIssuesForMaterialRequest } from "./goodsIssues";
 
 /**
  * V3.3 — Material Request repository.
@@ -18,8 +19,27 @@ export type MaterialRequestStatus =
   | "PENDING"
   | "PICKING"
   | "READY"
+  // V4.1 Đợt 1b — đã giao một phần qua phiếu xuất kho.
+  | "PARTIAL"
   | "DELIVERED"
   | "CANCELLED";
+
+export const MATERIAL_REQUEST_STATUSES: MaterialRequestStatus[] = [
+  "PENDING",
+  "PICKING",
+  "READY",
+  "PARTIAL",
+  "DELIVERED",
+  "CANCELLED",
+];
+
+/** Lỗi claim trạng thái (người khác vừa đổi) → route trả 409. */
+export class MaterialRequestConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MaterialRequestConflictError";
+  }
+}
 
 export interface ListRequestsQuery {
   status?: MaterialRequestStatus[];
@@ -159,6 +179,7 @@ export async function listMaterialRequestDayBuckets(q: {
       pending: sql<number>`count(*) filter (where ${materialRequest.status} = 'PENDING')::int`,
       picking: sql<number>`count(*) filter (where ${materialRequest.status} = 'PICKING')::int`,
       ready: sql<number>`count(*) filter (where ${materialRequest.status} = 'READY')::int`,
+      partial: sql<number>`count(*) filter (where ${materialRequest.status} = 'PARTIAL')::int`,
       delivered: sql<number>`count(*) filter (where ${materialRequest.status} = 'DELIVERED')::int`,
       cancelled: sql<number>`count(*) filter (where ${materialRequest.status} = 'CANCELLED')::int`,
     })
@@ -174,6 +195,7 @@ export async function listMaterialRequestDayBuckets(q: {
       PENDING: r.pending,
       PICKING: r.picking,
       READY: r.ready,
+      PARTIAL: r.partial,
       DELIVERED: r.delivered,
       CANCELLED: r.cancelled,
     },
@@ -330,7 +352,34 @@ export async function getMaterialRequest(id: string) {
     .where(eq(materialRequestLine.requestId, id))
     .orderBy(materialRequestLine.lineNo);
 
-  return { ...header, lines };
+  // V4.1 Đợt 1b — SL còn phải giao + "Khả dụng" (issuable_qty — chỉ lô
+  // AVAILABLE trừ giữ chỗ, view chuẩn 0059) + các phiếu xuất đã lập.
+  const itemIds = [...new Set(lines.map((l) => l.itemId))];
+  const issuableByItem = new Map<string, number>();
+  if (itemIds.length > 0) {
+    const stock = (await db.execute(sql`
+      SELECT item_id::text AS item_id, COALESCE(issuable_qty, 0)::text AS issuable_qty
+      FROM app.v_item_stock
+      WHERE item_id IN (${sql.join(
+        itemIds.map((x) => sql`${x}::uuid`),
+        sql`, `,
+      )})
+    `)) as unknown as Array<{ item_id: string; issuable_qty: string }>;
+    for (const r of stock) issuableByItem.set(r.item_id, Number(r.issuable_qty) || 0);
+  }
+  const goodsIssues = await listGoodsIssuesForMaterialRequest(id);
+
+  return {
+    ...header,
+    lines: lines.map((l) => ({
+      ...l,
+      remainingQty: String(
+        Math.max(0, (Number(l.requestedQty) || 0) - (Number(l.deliveredQty) || 0)),
+      ),
+      issuableQty: String(issuableByItem.get(l.itemId) ?? 0),
+    })),
+    goodsIssues,
+  };
 }
 
 export interface CreateMaterialRequestInput {
@@ -383,52 +432,48 @@ export async function createMaterialRequest(input: CreateMaterialRequestInput) {
   });
 }
 
+/**
+ * Đổi trạng thái phiếu yêu cầu (Kho chuẩn bị / huỷ / đóng phiếu giao dở).
+ *
+ * V4.1 Đợt 1b (KHO-17/35):
+ *  - BỎ tham số `lines` — trước đây client gửi được SL soạn/giao của dòng
+ *    BẤT KỲ (kể cả phiếu khác). SL giao nay chỉ đổi qua phiếu xuất kho.
+ *  - Claim có điều kiện `status = fromStatus` → 2 người bấm cùng lúc: người
+ *    sau nhận MaterialRequestConflictError (409) thay vì ghi đè.
+ *  - `pickedBy`/`pickedAt` giữ người soạn đầu tiên (COALESCE), không ghi đè.
+ *  - DELIVERED/PARTIAL KHÔNG đi qua đây (chỉ `issueMaterialRequest`).
+ */
 export async function updateMaterialRequestStatus(
   id: string,
-  status: MaterialRequestStatus,
+  fromStatus: MaterialRequestStatus,
+  toStatus: Exclude<MaterialRequestStatus, "DELIVERED" | "PARTIAL">,
   actorUserId: string,
-  payload?: { warehouseNotes?: string | null; lines?: Array<{ id: string; pickedQty?: number; deliveredQty?: number }> },
+  payload?: { warehouseNotes?: string | null },
 ) {
-  return db.transaction(async (tx) => {
-    const now = new Date();
-    const update: Record<string, unknown> = { status, updatedAt: now };
-    if (status === "PICKING") {
-      update.pickedBy = actorUserId;
-      update.pickedAt = now;
-    } else if (status === "READY") {
-      update.readyAt = now;
-      if (!update.pickedBy) {
-        update.pickedBy = actorUserId;
-      }
-    } else if (status === "DELIVERED") {
-      update.deliveredTo = actorUserId;
-      update.deliveredAt = now;
-    }
-    if (payload?.warehouseNotes !== undefined) {
-      update.warehouseNotes = payload.warehouseNotes;
-    }
+  const now = new Date();
+  const update: Record<string, unknown> = { status: toStatus, updatedAt: now };
+  if (toStatus === "PICKING" || toStatus === "READY") {
+    update.pickedBy = sql`COALESCE(${materialRequest.pickedBy}, ${actorUserId}::uuid)`;
+    update.pickedAt = sql`COALESCE(${materialRequest.pickedAt}, now())`;
+  }
+  if (toStatus === "READY") {
+    update.readyAt = now;
+  }
+  if (payload?.warehouseNotes !== undefined) {
+    update.warehouseNotes = payload.warehouseNotes;
+  }
 
-    const [updated] = await tx
-      .update(materialRequest)
-      .set(update)
-      .where(eq(materialRequest.id, id))
-      .returning();
-
-    // Update line qty if provided
-    if (payload?.lines) {
-      for (const ln of payload.lines) {
-        const lineUpdate: Record<string, unknown> = {};
-        if (ln.pickedQty !== undefined) lineUpdate.pickedQty = String(ln.pickedQty);
-        if (ln.deliveredQty !== undefined) lineUpdate.deliveredQty = String(ln.deliveredQty);
-        if (Object.keys(lineUpdate).length > 0) {
-          await tx
-            .update(materialRequestLine)
-            .set(lineUpdate)
-            .where(eq(materialRequestLine.id, ln.id));
-        }
-      }
-    }
-
-    return updated;
-  });
+  const [updated] = await db
+    .update(materialRequest)
+    .set(update)
+    .where(
+      and(eq(materialRequest.id, id), eq(materialRequest.status, fromStatus)),
+    )
+    .returning();
+  if (!updated) {
+    throw new MaterialRequestConflictError(
+      "Phiếu yêu cầu vừa được người khác cập nhật — vui lòng tải lại trang.",
+    );
+  }
+  return updated;
 }

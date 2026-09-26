@@ -1,16 +1,19 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
+import { can } from "@iot/shared";
 import {
   getMaterialRequest,
+  MaterialRequestConflictError,
   updateMaterialRequestStatus,
   type MaterialRequestStatus,
 } from "@/server/repos/materialRequests";
 import { jsonError, parseJson } from "@/server/http";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
+import { canForUser } from "@/server/services/rbac";
+import { writeAudit } from "@/server/services/audit";
 import {
   lookupUsername,
   notifyMaterialRequestReady,
-  notifyMaterialRequestDelivered,
 } from "@/server/services/notifications";
 
 export const runtime = "nodejs";
@@ -19,30 +22,29 @@ export const dynamic = "force-dynamic";
 /**
  * POST /api/material-requests/[id]/transition — chuyển trạng thái.
  *
- * Cho phép:
- *   - PENDING → PICKING | READY | CANCELLED  (warehouse / admin)
- *   - PICKING → READY | CANCELLED            (warehouse)
- *   - READY → DELIVERED                       (engineer requester / admin)
- *   - * → CANCELLED                           (admin / requester nếu PENDING)
+ * V4.1 Đợt 1b (Q3/KHO-04/KHO-17):
+ *   - PENDING → PICKING | READY | CANCELLED
+ *   - PICKING → READY | CANCELLED
+ *   - READY   → PICKING | CANCELLED
+ *   - PARTIAL → CANCELLED   (đóng phiếu giao dở, phần còn lại không giao nữa)
+ *   - KHÔNG còn chuyển tay sang DELIVERED/PARTIAL → 409 "Phải lập phiếu xuất
+ *     kho" (giao hàng phải trừ tồn + có chứng từ PX, xem /goods-issue).
+ *   - PICKING/READY/đóng phiếu PARTIAL: `transition:materialRequest` (Kho, admin).
+ *   - Huỷ: `transition:materialRequest`, hoặc người lập khi phiếu còn PENDING.
+ *   - Không nhận `lines` nữa (trước đây sửa được SL dòng của phiếu khác).
  */
 const transitionSchema = z.object({
-  to: z.enum(["PENDING", "PICKING", "READY", "DELIVERED", "CANCELLED"]),
+  to: z.enum(["PENDING", "PICKING", "READY", "PARTIAL", "DELIVERED", "CANCELLED"]),
   warehouseNotes: z.string().max(2000).nullable().optional(),
-  lines: z
-    .array(
-      z.object({
-        id: z.string().uuid(),
-        pickedQty: z.coerce.number().nonnegative().optional(),
-        deliveredQty: z.coerce.number().nonnegative().optional(),
-      }),
-    )
-    .optional(),
 });
 
-const ALLOWED: Record<MaterialRequestStatus, MaterialRequestStatus[]> = {
+type ManualTarget = "PICKING" | "READY" | "CANCELLED";
+
+const ALLOWED: Record<MaterialRequestStatus, ManualTarget[]> = {
   PENDING:   ["PICKING", "READY", "CANCELLED"],
   PICKING:   ["READY", "CANCELLED"],
-  READY:     ["DELIVERED", "CANCELLED"],
+  READY:     ["PICKING", "CANCELLED"],
+  PARTIAL:   ["CANCELLED"],
   DELIVERED: [],
   CANCELLED: [],
 };
@@ -51,7 +53,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireSession(req);
+  const guard = await requireCan(req, "read", "materialRequest");
   if ("response" in guard) return guard.response;
 
   const id = params.id;
@@ -68,8 +70,16 @@ export async function POST(
   const fromStatus = current.status as MaterialRequestStatus;
   const toStatus = body.data.to;
 
-  // Validate transition
-  if (!ALLOWED[fromStatus].includes(toStatus)) {
+  if (toStatus === "DELIVERED" || toStatus === "PARTIAL") {
+    return jsonError(
+      "GOODS_ISSUE_REQUIRED",
+      "Phải lập phiếu xuất kho để giao vật tư (trừ tồn + chứng từ PX) — không đổi trạng thái tay.",
+      409,
+    );
+  }
+
+  const allowedTargets: string[] = ALLOWED[fromStatus] ?? [];
+  if (!allowedTargets.includes(toStatus)) {
     return jsonError(
       "INVALID_TRANSITION",
       `Không thể chuyển ${fromStatus} → ${toStatus}`,
@@ -77,33 +87,29 @@ export async function POST(
     );
   }
 
-  // Authorization rules
-  const roles = guard.session.roles;
-  const isAdmin = roles.includes("admin");
-  const isWarehouse = roles.includes("warehouse") || isAdmin;
+  // Authorization theo RBAC matrix (+ override per-user, fail-open về role).
+  const canTransition = await canForUser(
+    guard.session.userId,
+    guard.session.roles,
+    "transition",
+    "materialRequest",
+  ).then(
+    (r) => r.allowed,
+    () => can(guard.session.roles, "transition", "materialRequest"),
+  );
   const isRequester = current.requestedBy === guard.session.userId;
 
   if (toStatus === "PICKING" || toStatus === "READY") {
-    if (!isWarehouse) {
+    if (!canTransition) {
       return jsonError(
         "FORBIDDEN",
-        "Chỉ Bộ phận Kho được chuyển sang PICKING/READY",
-        403,
-      );
-    }
-  }
-  if (toStatus === "DELIVERED") {
-    if (!isRequester && !isAdmin && !isWarehouse) {
-      return jsonError(
-        "FORBIDDEN",
-        "Chỉ người yêu cầu hoặc Kho được xác nhận DELIVERED",
+        "Chỉ Bộ phận Kho được chuyển sang Đang chuẩn bị / Sẵn sàng",
         403,
       );
     }
   }
   if (toStatus === "CANCELLED") {
-    // Requester (chỉ khi PENDING) hoặc admin
-    if (!(isAdmin || (fromStatus === "PENDING" && isRequester) || isWarehouse)) {
+    if (!(canTransition || (fromStatus === "PENDING" && isRequester))) {
       return jsonError("FORBIDDEN", "Không có quyền huỷ yêu cầu này", 403);
     }
   }
@@ -111,15 +117,25 @@ export async function POST(
   try {
     const updated = await updateMaterialRequestStatus(
       id,
-      toStatus,
+      fromStatus,
+      toStatus as ManualTarget,
       guard.session.userId,
-      {
-        warehouseNotes: body.data.warehouseNotes ?? undefined,
-        lines: body.data.lines,
-      },
+      { warehouseNotes: body.data.warehouseNotes ?? undefined },
     );
 
-    // Emit notifications
+    await writeAudit({
+      actor: guard.session,
+      action: toStatus === "CANCELLED" ? "CANCEL" : "TRANSITION",
+      objectType: "material_request",
+      objectId: id,
+      before: { status: fromStatus },
+      after: { status: toStatus },
+      notes:
+        fromStatus === "PARTIAL" && toStatus === "CANCELLED"
+          ? `Đóng ${current.requestNo} khi mới giao một phần`
+          : `${current.requestNo}: ${fromStatus} → ${toStatus}`,
+    });
+
     const actorUsername =
       guard.session.username ??
       (await lookupUsername(guard.session.userId)) ??
@@ -133,18 +149,13 @@ export async function POST(
         actorUsername,
         requesterUserId: current.requestedBy,
       });
-    } else if (toStatus === "DELIVERED") {
-      void notifyMaterialRequestDelivered({
-        requestId: id,
-        requestNo: current.requestNo,
-        actorUserId: guard.session.userId,
-        actorUsername,
-        requesterUserId: current.requestedBy,
-      });
     }
 
-    return NextResponse.json({ data: { id: updated?.id, status: updated?.status } });
+    return NextResponse.json({ data: { id: updated.id, status: updated.status } });
   } catch (e) {
+    if (e instanceof MaterialRequestConflictError) {
+      return jsonError("MR_CONFLICT", e.message, 409);
+    }
     return jsonError(
       "MR_TRANSITION_FAILED",
       (e as Error).message ?? "Không chuyển được trạng thái",

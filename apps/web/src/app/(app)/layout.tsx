@@ -44,7 +44,9 @@ const ROUTE_ROLE_GUARD: Array<{ prefix: string; roles: Role[] }> = [
   { prefix: "/receiving",    roles: ["admin", "warehouse"] },
   { prefix: "/assembly",     roles: ["admin", "operator"] },
   // Material requests: planner tạo + warehouse fulfil
-  { prefix: "/material-requests", roles: ["admin", "planner", "warehouse"] },
+  // V4.1 Đợt 1c (D6) — thêm operator (xưởng tự lập phiếu cho lệnh SX).
+  // Khớp nav "Yêu cầu vật tư" + RBAC `materialRequest`.
+  { prefix: "/material-requests", roles: ["admin", "planner", "operator", "warehouse"] },
   // V3.8 — Trang quản lý Bảng sản xuất: chỉ admin + qc nhập liệu.
   // V4.0 — shareholder (Cổ đông) xem tiến độ gia công, READ-ONLY. UI phải ẩn
   // nút CRUD qua can() — RBAC matrix chỉ cấp productionBoard:["read"].
