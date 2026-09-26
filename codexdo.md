@@ -140,7 +140,12 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
   + /admin chuyển hướng; ghi log đăng nhập sai/LOGIN; admin tự hạ quyền 409) + 18/18 trang hằng ngày theo vai trò vẫn 200. Log 0 lỗi.
 - **Đợt 4** 0672204: backup `pre-v41-dot4-*.dump` → 0066 (work_order.bom_template_id/bom_line_id + backfill) → smoke 8/8.
   Lần build CI đầu fail ở `pnpm --filter @iot/web build` (build local cùng env PASS 54/54 trang) → nghi lỗi mạng tải font, chạy lại.
-- Còn Đợt 6, 7.
+- **Đợt 4** CI chạy lại PASS (520e8b5) → E2E prod 26/26 (LSX từ dòng BOM WO-2609-0001, tạo trùng 409, bắt đầu khi nháp 422, duyệt 2 lần 409,
+  hoàn thành khi SL đạt=0 422, tiến độ sau hoàn thành 409, xoá lệnh đã xong 409, LSX ngày sai 422, huỷ+xoá LSX; /orders*, /assembly* chuyển hướng
+  (streamed NEXT_REDIRECT)) → xoá WO test + 7 thông báo; dòng BOM không đổi. Prod còn đúng 2 WO thật.
+- **Đợt 7** 3ea53cf: −14.408 dòng (trang cũ → redirect trong next.config.js, code mồ côi, @dnd-kit), không đụng DB; sửa thêm /qc-inbound thiếu
+  trong matcher. Smoke prod 23/23 (15 URL cũ 307 đúng đích + trang chính 200 + /qc-inbound chưa đăng nhập → login). Log 0 lỗi.
+- Còn Đợt 6 (chuẩn giao diện) — đang lập plan bằng ảnh chụp prod.
 
 ### TASK-20260926-002 — V4.1 Đợt 1 "Kho: QC HOLD + phiếu xuất kho"
 - **Trạng thái:** DONE · **Hoàn thành:** 2026-09-27 01:40 (+07) · **Bắt đầu:** 2026-09-26 (+07) · **Tạo:** 2026-09-26 (+07) · **Ưu tiên:** P0
