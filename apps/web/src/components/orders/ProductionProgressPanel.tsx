@@ -304,7 +304,7 @@ function WorkOrdersSection({
           </span>
         )}
         <Link
-          href={`/work-orders/new?orderCode=${encodeURIComponent(orderCode)}`}
+          href={`/work-orders/new-lsx?orderCode=${encodeURIComponent(orderCode)}`}
           className="ml-auto"
         >
           <Button variant="ghost" size="sm" className="h-7 text-xs">

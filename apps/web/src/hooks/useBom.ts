@@ -8,7 +8,6 @@ import {
 } from "@tanstack/react-query";
 import type {
   BomLineCreate,
-  BomLineMove,
   BomLineUpdate,
   BomTemplateClone,
   BomTemplateCreate,
@@ -242,7 +241,6 @@ export function useCreateBomTemplate() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.bom.all });
-      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
   });
 }
@@ -270,7 +268,6 @@ export function useDeleteBomTemplate() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.bom.all });
-      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
   });
 }
@@ -365,88 +362,6 @@ export interface MoveBomLineVars {
   lineId: string;
   newParentLineId: string | null;
   newPosition: number;
-}
-
-/**
- * Move line với optimistic update trên tree cache — cross-parent support.
- *
- * Flow:
- *   1. onMutate: cập nhật parentLineId + position ngay lập tức trên cache
- *      (`qk.bom.detail` + `qk.bom.tree`). KHÔNG update `level` optimistic vì
- *      subtree shift phức tạp — server trả `newLevel` + `shift` qua response,
- *      onSettled refetch sẽ lấy level đúng.
- *   2. onError (409/422 MAX_DEPTH_EXCEEDED, CANNOT_MOVE_INTO_DESCENDANT):
- *      rollback cache về snapshot trước mutation.
- *   3. onSettled: invalidate detail + tree → refetch level đúng từ server.
- */
-export function useMoveBomLine(templateId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (vars: MoveBomLineVars) => {
-      const body: BomLineMove = {
-        newParentLineId: vars.newParentLineId,
-        newPosition: vars.newPosition,
-      };
-      return request<{
-        data: { id: string; newLevel: number; shift: number };
-      }>(
-        `/api/bom/templates/${templateId}/lines/${vars.lineId}/move`,
-        {
-          method: "POST",
-          body: JSON.stringify(body),
-        },
-      );
-    },
-    onMutate: async (vars) => {
-      await qc.cancelQueries({ queryKey: qk.bom.detail(templateId) });
-      await qc.cancelQueries({ queryKey: qk.bom.tree(templateId) });
-
-      const prevDetail = qc.getQueryData<BomDetailResponse>(
-        qk.bom.detail(templateId),
-      );
-      const prevTree = qc.getQueryData<BomTreeResponse>(
-        qk.bom.tree(templateId),
-      );
-
-      const updateTree = (nodes: BomTreeNodeRaw[]): BomTreeNodeRaw[] =>
-        nodes.map((n) =>
-          n.id === vars.lineId
-            ? {
-                ...n,
-                parentLineId: vars.newParentLineId,
-                position: vars.newPosition,
-              }
-            : n,
-        );
-
-      if (prevDetail?.data) {
-        qc.setQueryData<BomDetailResponse>(qk.bom.detail(templateId), {
-          ...prevDetail,
-          data: { ...prevDetail.data, tree: updateTree(prevDetail.data.tree) },
-        });
-      }
-      if (prevTree?.data) {
-        qc.setQueryData<BomTreeResponse>(qk.bom.tree(templateId), {
-          data: { tree: updateTree(prevTree.data.tree) },
-        });
-      }
-
-      return { prevDetail, prevTree };
-    },
-    onError: (_err, _vars, ctx) => {
-      if (!ctx) return;
-      if (ctx.prevDetail) {
-        qc.setQueryData(qk.bom.detail(templateId), ctx.prevDetail);
-      }
-      if (ctx.prevTree) {
-        qc.setQueryData(qk.bom.tree(templateId), ctx.prevTree);
-      }
-    },
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: qk.bom.detail(templateId) });
-      qc.invalidateQueries({ queryKey: qk.bom.tree(templateId) });
-    },
-  });
 }
 
 // ─────────────────────────────────────────────────────────
@@ -626,98 +541,6 @@ export function useBomFabProgress(templateId: string, enabled = true) {
 // V2.0 P2 W6 — TASK-20260427-013
 // Gộp tabs Order detail (Snapshot Board / Sản xuất / Lịch sử) vào BOM workspace.
 // ─────────────────────────────────────────────────────────
-
-export interface BomSnapshotLineRow {
-  id: string;
-  orderId: string;
-  orderNo: string;
-  customerName: string;
-  revisionId: string;
-  parentSnapshotLineId: string | null;
-  level: number;
-  path: string;
-  componentItemId: string;
-  componentSku: string;
-  componentName: string;
-  requiredQty: string;
-  grossRequiredQty: string;
-  openPurchaseQty: string;
-  receivedQty: string;
-  qcPassQty: string;
-  reservedQty: string;
-  issuedQty: string;
-  assembledQty: string;
-  remainingShortQty: string | null;
-  state:
-    | "PLANNED"
-    | "PURCHASING"
-    | "IN_PRODUCTION"
-    | "INBOUND_QC"
-    | "PROD_QC"
-    | "AVAILABLE"
-    | "RESERVED"
-    | "ISSUED"
-    | "ASSEMBLED"
-    | "CLOSED";
-  transitionedAt: string | null;
-  transitionedBy: string | null;
-  versionLock: number;
-  notes: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface BomSnapshotLinesResponse {
-  data: BomSnapshotLineRow[];
-  meta: {
-    page: number;
-    pageSize: number;
-    total: number;
-    byState: { state: string; count: number }[];
-  };
-}
-
-export interface BomSnapshotLinesFilter {
-  state?: string[];
-  q?: string;
-  orderCode?: string;
-  shortOnly?: boolean;
-  page?: number;
-  pageSize?: number;
-}
-
-function buildBomSnapshotUrl(
-  bomId: string,
-  filter: BomSnapshotLinesFilter,
-): string {
-  const p = new URLSearchParams();
-  for (const s of filter.state ?? []) p.append("state", s);
-  if (filter.q && filter.q.trim()) p.set("q", filter.q.trim());
-  if (filter.orderCode && filter.orderCode.trim())
-    p.set("orderCode", filter.orderCode.trim());
-  if (filter.shortOnly) p.set("shortOnly", "1");
-  if (filter.page) p.set("page", String(filter.page));
-  if (filter.pageSize) p.set("pageSize", String(filter.pageSize));
-  const qs = p.toString();
-  return `/api/bom/templates/${bomId}/snapshot-lines${qs ? `?${qs}` : ""}`;
-}
-
-export function useBomSnapshotLines(
-  bomId: string | null,
-  filter: BomSnapshotLinesFilter = {},
-  enabled = true,
-) {
-  return useQuery<BomSnapshotLinesResponse>({
-    queryKey: ["bom", "snapshot-lines", bomId, filter],
-    queryFn: () =>
-      request<BomSnapshotLinesResponse>(
-        buildBomSnapshotUrl(bomId as string, filter),
-      ),
-    enabled: enabled && !!bomId,
-    staleTime: 15_000,
-    placeholderData: (prev) => prev,
-  });
-}
 
 export interface BomWorkOrderSummaryItem {
   id: string;

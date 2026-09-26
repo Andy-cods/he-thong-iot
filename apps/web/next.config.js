@@ -123,10 +123,33 @@ const nextConfig = {
   // V1.8 Batch 1 — backward-compat redirects:
   // - /eco + /shortage gộp vào BOM workspace BottomPanel → redirect về /bom.
   // - /product-lines gộp vào /items (Danh mục vật tư).
-  // Các sub-route deep-link trong BOM workspace (/bom/[id]/eco, /shortage)
-  // giữ nguyên — KHÔNG match ở đây (chỉ match top-level prefix).
+  //
+  // V4.1 Đợt 7 (Q6 — dọn trang cũ): các trang chỉ còn làm nhiệm vụ chuyển
+  // hướng được XOÁ file page, chuyển hướng dời về đây để bookmark/link cũ không
+  // 404. Next tự GIỮ query string gốc (AD-18: dữ liệu điền sẵn không mất).
   async redirects() {
     return [
+      // Trang chọn loại nhập Excel (2 link) → nhập vật tư.
+      { source: "/import", destination: "/items/import", permanent: false },
+      // Form tạo LSX / đề xuất cũ → form GTAM chính thức.
+      { source: "/work-orders/new", destination: "/work-orders/new-lsx", permanent: false },
+      { source: "/work-orders/quick-new", destination: "/work-orders/new-lsx", permanent: false },
+      {
+        source: "/procurement/purchase-requests/new",
+        destination: "/procurement/purchase-requests/new-mrf",
+        permanent: false,
+      },
+      // Hub nhận hàng cũ (giữ /receiving/[poId] + wizard).
+      { source: "/receiving", destination: "/warehouse?tab=movement&mode=in", permanent: false },
+      // BOM workspace: cây linh kiện cũ + 7 sub-route permalink V1.7-beta.
+      { source: "/bom/:id/tree", destination: "/bom/:id/grid", permanent: false },
+      { source: "/bom/:id/history", destination: "/bom/:id/grid?drawer=history", permanent: false },
+      {
+        source: "/bom/:id/:panel(eco|shortage|assembly|orders|procurement|work-orders)",
+        destination: "/bom/:id/grid?panel=:panel&autoOpen=1",
+        permanent: false,
+      },
+
       { source: "/eco", destination: "/bom", permanent: false },
       { source: "/eco/:path*", destination: "/bom", permanent: false },
       { source: "/shortage", destination: "/bom", permanent: false },

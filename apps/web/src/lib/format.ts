@@ -74,19 +74,3 @@ export function formatSku(sku: string | null | undefined): string {
   if (!sku) return "—";
   return sku.trim().toUpperCase();
 }
-
-/**
- * Format độ lệch ngày so với hôm nay. Trả về nhãn ngắn.
- * VD: +3d (còn 3 ngày), -1d (quá 1 ngày), today.
- */
-export function formatDaysLeft(
-  target: Date | string,
-  now: Date = new Date(),
-): { label: string; overdue: boolean } {
-  const d = target instanceof Date ? target : new Date(target);
-  const oneDay = 24 * 60 * 60 * 1000;
-  const diff = Math.floor((d.getTime() - now.getTime()) / oneDay);
-  if (diff === 0) return { label: "hôm nay", overdue: false };
-  if (diff > 0) return { label: `còn ${diff}d`, overdue: false };
-  return { label: `quá ${Math.abs(diff)}d`, overdue: true };
-}

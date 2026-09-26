@@ -4,7 +4,6 @@ import {
   NAV_SECTION_LABEL,
   NAV_SECTION_ORDER,
   filterNavByRoles,
-  groupNavBySection,
 } from "./nav-items";
 
 /**
@@ -93,29 +92,6 @@ describe("NAV_ITEMS V3.1 cấu trúc 6 section", () => {
   it("/qc-inbound chỉ cho role qc", () => {
     const qcInbound = NAV_ITEMS.find((i) => i.href === "/qc-inbound");
     expect(qcInbound?.roles).toEqual(["qc"]);
-  });
-});
-
-describe("groupNavBySection", () => {
-  it("preserve thứ tự section ORDER", () => {
-    const groups = groupNavBySection(NAV_ITEMS);
-    const sections = groups.map((g) => g.section);
-    expect(sections[0]).toBe("dashboard");
-    expect(sections.indexOf("engineering")).toBeLessThan(sections.indexOf("operations"));
-    expect(sections.indexOf("operations")).toBeLessThan(sections.indexOf("purchasing"));
-    expect(sections.indexOf("purchasing")).toBeLessThan(sections.indexOf("warehouse"));
-  });
-
-  it("section rỗng (sau filter) sẽ KHÔNG xuất hiện trong groups", () => {
-    const groups = groupNavBySection([]);
-    expect(groups).toEqual([]);
-  });
-
-  it("item không có section → vào group other", () => {
-    const firstIcon = NAV_ITEMS[0]!.icon;
-    const groups = groupNavBySection([{ href: "/x", label: "X", icon: firstIcon }]);
-    expect(groups).toHaveLength(1);
-    expect(groups[0]!.section).toBe("other");
   });
 });
 

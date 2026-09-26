@@ -81,7 +81,7 @@ else
   expect "Follow /bom/[id] → /grid" "$BASE_URL/bom/$BOM_ID/grid" "$FINAL_URL"
   # Grid + tree vẫn 200
   expect "GET /bom/[id]/grid (default)" "200" "$(status "$BASE_URL/bom/$BOM_ID/grid")"
-  expect "GET /bom/[id]/tree (V1.7 NEW)" "200" "$(status "$BASE_URL/bom/$BOM_ID/tree")"
+  expect "GET /bom/[id]/tree (V4.1 Đợt 7: redirect grid)" "307" "$(status "$BASE_URL/bom/$BOM_ID/tree")"
   # V1.7-beta — 7 sub-route redirect 307 sang /grid?panel=X (back-compat bookmark)
   expect "GET /bom/[id]/orders (V1.7-beta 307)" "307" "$(status "$BASE_URL/bom/$BOM_ID/orders")"
   expect "GET /bom/[id]/work-orders (V1.7-beta 307)" "307" "$(status "$BASE_URL/bom/$BOM_ID/work-orders")"

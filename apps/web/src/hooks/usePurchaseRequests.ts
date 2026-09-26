@@ -7,7 +7,6 @@ import {
 } from "@tanstack/react-query";
 import type {
   PRCreateInput,
-  PRCreateFromShortageInput,
   PRUpdateInput,
   PRRejectInput,
   PRStatus,
@@ -209,23 +208,6 @@ export function useCreatePurchaseRequest() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.procurement.requests.all });
-      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
-    },
-  });
-}
-
-export function useCreatePRFromShortage() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data: PRCreateFromShortageInput) =>
-      request<{ data: PRRow }>("/api/purchase-requests/from-shortage", {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.procurement.requests.all });
-      qc.invalidateQueries({ queryKey: qk.shortage.all });
-      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
   });
 }
@@ -260,7 +242,6 @@ export function useQuickApprovePR(id: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.procurement.requests.all });
       qc.invalidateQueries({ queryKey: qk.procurement.requests.detail(id) });
-      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
   });
 }
@@ -341,7 +322,6 @@ export function useSubmitPR(id: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.procurement.requests.all });
       qc.invalidateQueries({ queryKey: qk.procurement.requests.detail(id) });
-      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
   });
 }
@@ -358,7 +338,6 @@ export function useDeptApprovePR(id: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.procurement.requests.all });
       qc.invalidateQueries({ queryKey: qk.procurement.requests.detail(id) });
-      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
   });
 }
@@ -375,7 +354,6 @@ export function useDirectorApprovePR(id: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.procurement.requests.all });
       qc.invalidateQueries({ queryKey: qk.procurement.requests.detail(id) });
-      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
   });
 }
@@ -427,7 +405,6 @@ export function useDeletePR(id: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.procurement.requests.all });
       qc.invalidateQueries({ queryKey: qk.procurement.requests.detail(id) });
-      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
   });
 }

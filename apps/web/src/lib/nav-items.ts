@@ -272,31 +272,3 @@ export function navToCommandItems(items: NavItem[]): NavCommandItem[] {
       group: "nav" as const,
     }));
 }
-
-/**
- * Group nav items theo `section`. Items thiếu `section` → rơi vào `other`.
- * Giữ thứ tự item trong mỗi group như trong NAV_ITEMS.
- *
- * Section rỗng (không có item nào sau filter role) sẽ KHÔNG render.
- */
-export function groupNavBySection(
-  items: NavItem[],
-): Array<{ section: NavSection; label: string; items: NavItem[] }> {
-  const map: Record<NavSection, NavItem[]> = {
-    dashboard: [],
-    warehouse: [],
-    purchasing: [],
-    engineering: [],
-    operations: [],
-    other: [],
-  };
-  for (const it of items) {
-    const sec: NavSection = it.section ?? "other";
-    map[sec].push(it);
-  }
-  return NAV_SECTION_ORDER.filter((s) => map[s].length > 0).map((s) => ({
-    section: s,
-    label: NAV_SECTION_LABEL[s],
-    items: map[s],
-  }));
-}

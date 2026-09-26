@@ -261,7 +261,6 @@ export function useCreateWorkOrder() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.workOrders.all });
-      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
   });
 }
@@ -297,7 +296,6 @@ export function useCreateLsxWorkOrder() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.workOrders.all });
-      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
   });
 }
@@ -378,7 +376,6 @@ export function useDeleteWorkOrder(id: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.workOrders.all });
       qc.invalidateQueries({ queryKey: qk.workOrders.detail(id) });
-      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
   });
 }
@@ -463,20 +460,6 @@ export interface UpdateWoInput {
   versionLock: number;
 }
 
-export function useUpdateWorkOrder(id: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data: UpdateWoInput) =>
-      request<{ data: WorkOrderRow }>(`/api/work-orders/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify(data),
-      }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.workOrders.detail(id) });
-    },
-  });
-}
-
 // ============================================================================
 // V1.9 Phase 4 — QC check items hooks
 // ============================================================================
@@ -498,87 +481,4 @@ export interface QcCheckItemRow {
   checkedAt: string | null;
   sortOrder: number;
   createdAt: string;
-}
-
-export function useQcCheckItems(checkId: string | null) {
-  return useQuery({
-    queryKey: checkId
-      ? qk.workOrders.qcItems(checkId)
-      : (["workOrders", "qc-items", "__none__"] as const),
-    queryFn: () =>
-      request<{ data: QcCheckItemRow[] }>(`/api/qc-checks/${checkId}/items`),
-    enabled: !!checkId,
-    staleTime: 5_000,
-  });
-}
-
-export function useBulkCreateQcItems(checkId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (
-      items: Array<{
-        description: string;
-        checkType?: QcCheckItemType;
-        expectedValue?: string | null;
-        sortOrder?: number;
-      }>,
-    ) =>
-      request<{ data: QcCheckItemRow[] }>(
-        `/api/qc-checks/${checkId}/items`,
-        { method: "POST", body: JSON.stringify({ items }) },
-      ),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.workOrders.qcItems(checkId) });
-    },
-  });
-}
-
-export function useUpdateQcItem(checkId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data: {
-      id: string;
-      description?: string;
-      checkType?: QcCheckItemType;
-      expectedValue?: string | null;
-      actualValue?: string | null;
-      result?: QcCheckItemResult;
-      defectReason?: string | null;
-      photoUrl?: string | null;
-      sortOrder?: number;
-    }) =>
-      request<{ data: QcCheckItemRow }>(
-        `/api/qc-checks/${checkId}/items/${data.id}`,
-        {
-          method: "PATCH",
-          body: JSON.stringify({
-            description: data.description,
-            checkType: data.checkType,
-            expectedValue: data.expectedValue,
-            actualValue: data.actualValue,
-            result: data.result,
-            defectReason: data.defectReason,
-            photoUrl: data.photoUrl,
-            sortOrder: data.sortOrder,
-          }),
-        },
-      ),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.workOrders.qcItems(checkId) });
-    },
-  });
-}
-
-export function useDeleteQcItem(checkId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) =>
-      request<{ data: { id: string; deleted: boolean } }>(
-        `/api/qc-checks/${checkId}/items/${id}`,
-        { method: "DELETE" },
-      ),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.workOrders.qcItems(checkId) });
-    },
-  });
 }

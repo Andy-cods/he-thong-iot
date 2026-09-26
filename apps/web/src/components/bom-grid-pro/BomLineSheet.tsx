@@ -445,7 +445,7 @@ export function BomLineSheet({
       onOpenChange(false);
 
       if (createWOAfterSave && form.kind === "fab" && line) {
-        // Redirect sang /work-orders/new với prefill note (WO yêu cầu
+        // Chuyển thẳng sang /work-orders/new-lsx với prefill note (WO yêu cầu
         // orderId + snapshotLineIds nên không thể prefill trực tiếp item —
         // ghi chú sẽ giúp user biết ngữ cảnh).
         const routeNames = form.processRoute
@@ -476,7 +476,7 @@ export function BomLineSheet({
         if (routeNames) noteParts.push(`Quy trình: ${routeNames}`);
         if (form.blankSize) noteParts.push(`Phôi: ${form.blankSize}`);
         q.set("note", noteParts.join(" · "));
-        const woHref = `/work-orders/new?${q.toString()}`;
+        const woHref = `/work-orders/new-lsx?${q.toString()}`;
         toast.success("Đã lưu — chuyển sang tạo Lệnh SX", {
           action: {
             label: "Mở Lệnh SX",

@@ -186,7 +186,6 @@ export function useCreatePurchaseOrder() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.procurement.orders.all });
-      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
   });
 }
@@ -238,7 +237,6 @@ export function useConvertPRToPOs() {
       qc.invalidateQueries({ queryKey: qk.procurement.requests.detail(prId) });
       qc.invalidateQueries({ queryKey: qk.snapshots.all });
       qc.invalidateQueries({ queryKey: qk.shortage.all });
-      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
   });
 }
@@ -333,7 +331,6 @@ export function usePOTransition(id: string, action: "cancel" | "close") {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.procurement.orders.all });
       qc.invalidateQueries({ queryKey: qk.procurement.orders.detail(id) });
-      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
   });
 }

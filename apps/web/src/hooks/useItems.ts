@@ -184,7 +184,6 @@ export function useCreateItem() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.items.all });
-      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
   });
 }
@@ -299,7 +298,6 @@ export function useDeleteItem() {
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: qk.items.all });
-      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
   });
 }
@@ -313,7 +311,6 @@ export function useRestoreItem() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.items.all });
-      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
   });
 }
@@ -344,7 +341,6 @@ export function useBulkDeleteItems() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.items.all });
-      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
   });
 }

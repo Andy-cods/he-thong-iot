@@ -40,11 +40,6 @@ export const qk = {
     list: ["suppliers", "list"] as const,
     detail: (id: string) => ["suppliers", "detail", id] as const,
   },
-  dashboard: {
-    overview: ["dashboard", "overview"] as const,
-    alerts: ["dashboard", "alerts"] as const,
-    systemHealth: ["dashboard", "system-health"] as const,
-  },
   import: {
     preview: (fileHash: string) => ["import", "preview", fileHash] as const,
     job: (jobId: string) => ["import", "job", jobId] as const,
@@ -131,9 +126,6 @@ export const qk = {
   },
   shortage: {
     all: ["shortage"] as const,
-    list: (filter: ShortageBoardFilter) =>
-      ["shortage", "list", filter] as const,
-    byOrder: (orderId: string) => ["shortage", "by-order", orderId] as const,
   },
   receiving: {
     all: ["receiving"] as const,
@@ -145,25 +137,10 @@ export const qk = {
     list: (filter: WorkOrderFilter) =>
       ["workOrders", "list", filter] as const,
     detail: (id: string) => ["workOrders", "detail", id] as const,
-    qcChecks: (id: string) => ["workOrders", "qc-checks", id] as const,
     /** V1.9-P4 — nhật ký tiến độ thật. */
     progressLog: (id: string) => ["workOrders", id, "progress-log"] as const,
     /** V1.9-P4 — audit merged timeline. */
     audit: (id: string) => ["workOrders", id, "audit"] as const,
-    /** V1.9-P4 — QC checklist items per stage. */
-    qcItems: (checkId: string) =>
-      ["workOrders", "qc-items", checkId] as const,
-  },
-  productLines: {
-    all: ["productLines"] as const,
-    list: (filter: ProductLineFilter) =>
-      ["productLines", "list", filter] as const,
-    detail: (id: string) => ["productLines", "detail", id] as const,
-    members: (id: string) => ["productLines", "members", id] as const,
-    orders: (id: string) => ["productLines", "orders", id] as const,
-    workOrders: (id: string) => ["productLines", "workOrders", id] as const,
-    purchaseOrders: (id: string) =>
-      ["productLines", "purchaseOrders", id] as const,
   },
   reservations: {
     all: ["reservations"] as const,
@@ -388,24 +365,6 @@ export interface POFilter {
   to?: string;
   /** V4.1 Đợt 2 — chỉ PO quá ETA chưa nhận đủ. */
   overdue?: boolean;
-  page?: number;
-  pageSize?: number;
-}
-
-export interface ShortageBoardFilter {
-  itemId?: string[];
-  supplierId?: string[];
-  orderId?: string;
-  /** V1.6 — filter shortage theo BOM template (JOIN snapshot_line → sales_order). */
-  bomTemplateId?: string;
-  minShortQty?: number;
-  q?: string;
-  limit?: number;
-}
-
-export interface ProductLineFilter {
-  q?: string;
-  status?: ("ACTIVE" | "ARCHIVED")[];
   page?: number;
   pageSize?: number;
 }

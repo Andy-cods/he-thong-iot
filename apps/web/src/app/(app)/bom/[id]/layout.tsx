@@ -12,6 +12,9 @@
 //
 // Side-effect: sub-route redirect + `/bom/[id]` redirect hoạt động lại
 // với HTTP 307 đúng chuẩn.
+//
+// V4.1 Đợt 7 — tree/page.tsx + 7 sub-route redirect đã xoá (chuyển hướng dời
+// sang next.config.js). Còn lại: `/bom/[id]` (redirect) + `/bom/[id]/grid`.
 export default function BomWorkspaceLayout({
   children,
 }: {

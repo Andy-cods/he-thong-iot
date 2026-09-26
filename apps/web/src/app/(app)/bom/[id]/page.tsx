@@ -6,8 +6,8 @@ import { redirect } from "next/navigation";
  * User feedback: "design để bảng grid như này là mặc định, redesign lại để
  * nhìn sao cho nó đẹp và trông chuyên nghiệp hơn".
  *
- * Giữ đường truy cập Tree view qua `/bom/[id]/tree` (ContextualSidebar
- * item "Cây linh kiện").
+ * V4.1 Đợt 7 — trang cây `/bom/[id]/tree` + 7 sub-route cũ đã xoá; chuyển
+ * hướng về grid nằm trong `next.config.js` (redirects).
  */
 // Next 14.2 dùng params sync (không Promise như Next 15).
 export default function BomWorkspaceRoot({

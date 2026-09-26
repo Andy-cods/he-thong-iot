@@ -4,12 +4,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   BankInfo,
   ContactPerson,
-  ItemSupplierCreate,
   ItemSupplierUpdate,
   SupplierCreate,
   SupplierUpdate,
 } from "@iot/shared";
-import { qk } from "@/lib/query-keys";
 
 export interface SupplierRow {
   id: string;
@@ -194,7 +192,6 @@ export function useCreateSupplier() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["suppliers"] });
-      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
   });
 }
@@ -221,29 +218,7 @@ export function useDeleteSupplier() {
       request(`/api/suppliers/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["suppliers"] });
-      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
-  });
-}
-
-export function useItemSuppliers(itemId: string | null) {
-  return useQuery({
-    queryKey: ["item-suppliers", itemId],
-    queryFn: () =>
-      request<{ data: unknown[] }>(`/api/items/${itemId}/suppliers`),
-    enabled: !!itemId,
-  });
-}
-
-export function useAddItemSupplier(itemId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (input: ItemSupplierCreate) =>
-      request(`/api/items/${itemId}/suppliers`, {
-        method: "POST",
-        body: JSON.stringify(input),
-      }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["item-suppliers", itemId] }),
   });
 }
 
@@ -254,26 +229,6 @@ export function useUpdateItemSupplier(itemId: string, sid: string) {
       request(`/api/items/${itemId}/suppliers/${sid}`, {
         method: "PATCH",
         body: JSON.stringify(input),
-      }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["item-suppliers", itemId] }),
-  });
-}
-
-export function useRemoveItemSupplier(itemId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (sid: string) =>
-      request(`/api/items/${itemId}/suppliers/${sid}`, { method: "DELETE" }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["item-suppliers", itemId] }),
-  });
-}
-
-export function useSetPreferredItemSupplier(itemId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (sid: string) =>
-      request(`/api/items/${itemId}/suppliers/${sid}/preferred`, {
-        method: "POST",
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["item-suppliers", itemId] }),
   });

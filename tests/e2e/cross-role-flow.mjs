@@ -269,14 +269,22 @@ async function main() {
         fail(2, "GET /api/purchase-requests?status=SUBMITTED", prList.status, prList.body, "TM-A không list được PR.");
       }
 
-      // 2c approve PR
-      const approve = await call("TM-A", "POST", `/api/purchase-requests/${created.prId}/approve`, {
-        body: { notes: `${TAG} approved by TM-A` },
+      // 2c approve PR — V4.1 Đợt 7: route /approve (410) đã xoá; duyệt 2 cấp:
+      // Trưởng bộ phận (KHO-A, /dept-approve) → Giám đốc/Mua hàng (TM-A, /director-approve).
+      const dept = await call("KHO-A", "POST", `/api/purchase-requests/${created.prId}/dept-approve`, {
+        body: { note: `${TAG} dept-approved by KHO-A` },
+      });
+      if (!dept.ok) {
+        fail(2, `POST /api/purchase-requests/${created.prId}/dept-approve`, dept.status, dept.body,
+          "KHO-A không duyệt cấp bộ phận được (phiếu phải ở bước SUBMITTED).");
+      }
+      const approve = await call("TM-A", "POST", `/api/purchase-requests/${created.prId}/director-approve`, {
+        body: { note: `${TAG} approved by TM-A` },
       });
       if (approve.ok) {
         logInfo(`PR approved → status=${approve.body?.data?.status}`);
       } else {
-        fail(2, `POST /api/purchase-requests/${created.prId}/approve`, approve.status, approve.body,
+        fail(2, `POST /api/purchase-requests/${created.prId}/director-approve`, approve.status, approve.body,
           "TM-A không duyệt được PR. Có thể RBAC role purchaser thiếu 'approve'/'pr', hoặc PR đang state không hợp lệ (chỉ DRAFT/SUBMITTED → APPROVED).");
       }
     }

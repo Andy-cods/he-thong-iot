@@ -19,8 +19,7 @@ import type { OrderActivityLogRow } from "@/app/api/orders/[code]/activity-log/r
 /**
  * Order TanStack Query hooks — V1.2 Phase B1.
  *
- * Pattern theo useBom.ts: mutation invalidate qk.orders.all +
- * qk.dashboard.overview (readiness % tuỳ thuộc count open orders).
+ * Pattern theo useBom.ts: mutation invalidate qk.orders.all.
  */
 
 export interface OrderListResponse<T> {
@@ -131,7 +130,6 @@ export function useCreateOrder() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.orders.all });
-      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
   });
 }
@@ -185,7 +183,6 @@ export function useCloseOrder(code: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.orders.all });
       qc.invalidateQueries({ queryKey: qk.orders.detail(code) });
-      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
   });
 }
@@ -252,7 +249,6 @@ export function useReopenOrder(code: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.orders.all });
       qc.invalidateQueries({ queryKey: qk.orders.detail(code) });
-      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
   });
 }

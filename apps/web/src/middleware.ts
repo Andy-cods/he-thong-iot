@@ -2,8 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { AUTH_COOKIE_NAME, verifyAccessTokenEdge } from "./lib/auth-edge";
 
 /**
- * Protect UI routes có state auth: `/` (Dashboard), `/items`, `/suppliers`,
- * `/imports`, `/app` (legacy).
+ * Protect UI routes có state auth: `/` (Dashboard) + các prefix bên dưới.
  *
  * API routes tự verify JWT bên trong handler (để trả JSON 401 thay vì redirect).
  *
@@ -12,23 +11,14 @@ import { AUTH_COOKIE_NAME, verifyAccessTokenEdge } from "./lib/auth-edge";
  * và deployment compose set env inline cho container).
  */
 const PROTECTED_PREFIXES = [
-  "/app",
   "/items",
   "/suppliers",
-  "/imports",
   "/admin",
   "/bom",
   "/orders",
   "/work-orders",
-  "/eco",
-  "/po",
-  "/purchase-requests",
-  "/purchase-orders",
   "/receiving",
-  "/reservations",
-  "/qc-checks",
   "/lot-serial",
-  "/shortage",
   // V3.3 — Hub pages + module mới
   "/sales",
   "/warehouse",
@@ -43,10 +33,11 @@ const PROTECTED_PREFIXES = [
   "/production-board",
   // V4.1 Đợt 1a — màn Chờ QC nhập kho.
   "/qc-inbound",
-  // V4.1 AD-01/AD-07 — /me (trang cá nhân + đổi MK bắt buộc), /finance, /import.
+  // V4.1 AD-01/AD-07 — /me (trang cá nhân + đổi MK bắt buộc), /finance.
+  // V4.1 Đợt 7 — bỏ prefix không còn trang (/app, /imports, /po, /purchase-*,
+  // /reservations, /qc-checks; /eco, /shortage, /import chuyển hướng ở next.config.js).
   "/me",
   "/finance",
-  "/import",
 ];
 
 function isProtected(pathname: string): boolean {
@@ -103,23 +94,14 @@ function redirectToLogin(req: NextRequest) {
 export const config = {
   matcher: [
     "/",
-    "/app/:path*",
     "/items/:path*",
     "/suppliers/:path*",
-    "/imports/:path*",
     "/admin/:path*",
     "/bom/:path*",
     "/orders/:path*",
     "/work-orders/:path*",
-    "/eco/:path*",
-    "/po/:path*",
-    "/purchase-requests/:path*",
-    "/purchase-orders/:path*",
     "/receiving/:path*",
-    "/reservations/:path*",
-    "/qc-checks/:path*",
     "/lot-serial/:path*",
-    "/shortage/:path*",
     // V3.3 — Hub pages + module mới
     "/sales/:path*",
     "/warehouse/:path*",
@@ -138,6 +120,8 @@ export const config = {
     "/board/:path*",
     "/production-board/:path*",
     "/finance/:path*",
-    "/import/:path*",
+    // V4.1 Đợt 7 — /qc-inbound có trong PROTECTED_PREFIXES (Đợt 1a) nhưng thiếu
+    // ở matcher → middleware không chạy (không x-pathname cho guard role).
+    "/qc-inbound/:path*",
   ],
 };

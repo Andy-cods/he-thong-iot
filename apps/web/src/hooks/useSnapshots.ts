@@ -166,7 +166,6 @@ export function useExplodeSnapshot(orderCode: string) {
       qc.invalidateQueries({ queryKey: qk.snapshots.all });
       qc.invalidateQueries({ queryKey: qk.orders.detail(orderCode) });
       qc.invalidateQueries({ queryKey: qk.orders.all });
-      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
   });
 }
