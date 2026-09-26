@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { poUpdateSchema } from "@iot/shared";
-import { eq } from "drizzle-orm";
-import { supplier } from "@iot/db/schema";
+import { eq, inArray } from "drizzle-orm";
+import { supplier, userAccount } from "@iot/db/schema";
 import { logger } from "@/lib/logger";
 import {
   getPO,
@@ -54,8 +54,31 @@ export async function GET(
     supplierName = sup?.name ?? null;
     supplierCode = sup?.code ?? null;
   }
+  // V4.1 UI-28 (Đợt 6C): tên người gửi duyệt / duyệt / từ chối — timeline phê
+  // duyệt từng hiện UUID "af584041…". 1 truy vấn nhỏ theo ≤3 id trong metadata.
+  const meta = (row.metadata ?? {}) as Record<string, unknown>;
+  const actorIds = Array.from(
+    new Set(
+      [meta.submittedBy, meta.approvedBy, meta.rejectedBy].filter(
+        (v): v is string => typeof v === "string" && v.length > 0,
+      ),
+    ),
+  );
+  const actorNames: Record<string, string> = {};
+  if (actorIds.length > 0) {
+    try {
+      const users = await db
+        .select({ id: userAccount.id, fullName: userAccount.fullName, username: userAccount.username })
+        .from(userAccount)
+        .where(inArray(userAccount.id, actorIds));
+      for (const u of users) actorNames[u.id] = u.fullName || u.username;
+    } catch (err) {
+      // id không phải UUID hợp lệ (dữ liệu cũ) → bỏ qua, FE tự rút gọn id.
+      logger.warn({ err, poId: params.id }, "PO actorNames lookup failed");
+    }
+  }
   return NextResponse.json({
-    data: { ...row, supplierName, supplierCode, lines },
+    data: { ...row, supplierName, supplierCode, lines, actorNames },
   });
 }
 

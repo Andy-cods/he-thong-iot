@@ -73,7 +73,8 @@ export interface POListResponse {
 }
 
 export interface PODetailResponse {
-  data: PORow & { lines: POLineRow[] };
+  /** V4.1 UI-28: actorNames = id người dùng → họ tên (timeline phê duyệt). */
+  data: PORow & { lines: POLineRow[]; actorNames?: Record<string, string> };
 }
 
 interface RequestError extends Error {

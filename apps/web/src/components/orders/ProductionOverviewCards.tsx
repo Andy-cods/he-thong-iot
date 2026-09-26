@@ -159,7 +159,7 @@ function KpiCard({
       >
         {value}
       </div>
-      {hint && <div className="text-[11px] text-zinc-500 dark:text-zinc-400">{hint}</div>}
+      {hint && <div className="text-xs text-zinc-500 dark:text-zinc-400">{hint}</div>}
       {progress !== undefined && (
         <div
           className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800"

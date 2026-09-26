@@ -690,11 +690,12 @@ export default function WorkOrderDetailPage() {
           {/* ProgressReportForm */}
           {canOperate && (status === "IN_PROGRESS" || status === "PAUSED") && (
             <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-              <div className="border-b border-zinc-100 bg-gradient-to-r from-indigo-600 to-indigo-500 px-6 py-4 dark:border-zinc-800">
-                <p className="text-base font-semibold text-white">
+              {/* V4.1 UI-24 (X8): dải indigo đặc/gradient → header trắng. */}
+              <div className="border-b border-zinc-100 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
+                <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
                   Báo cáo tiến độ
                 </p>
-                <p className="mt-0.5 text-xs text-indigo-100">
+                <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
                   Ghi nhận sản lượng đạt / phế cho Work Order
                 </p>
               </div>

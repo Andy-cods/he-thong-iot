@@ -15,7 +15,7 @@ import { HIDDEN_FEATURES } from "@/lib/hidden-features";
 import type { DashboardOverviewV2Payload } from "@/app/api/dashboard/overview-v2/route";
 
 /**
- * V3.5 ProgressBarStack — 6 BigStatCards với gradient backgrounds.
+ * V3.5 ProgressBarStack — 6 BigStatCards (V4.1 UI-24: thẻ trung tính, bỏ gradient).
  *
  * Color semantics gắn cứng theo metric (KHÔNG đổi theo % giá trị):
  *   - Linh kiện sẵn sàng → emerald

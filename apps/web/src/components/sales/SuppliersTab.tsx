@@ -10,13 +10,13 @@ import {
   parseAsString,
   useQueryStates,
 } from "nuqs";
-import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/ui/query-error";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/domain/StatusBadge";
+import { CodeText, DataTable, RowActionsMenu, type DataTableColumn } from "@/components/ui/data-table";
 import { useSuppliersList, type SupplierRow } from "@/hooks/useSuppliers";
 import { useHotkey } from "@/lib/shortcuts";
 import { activeStatusCode, getStatus, statusLabel } from "@/lib/status";
@@ -110,14 +110,73 @@ export function SuppliersTab() {
   const activeMode: ActiveMode =
     urlState.active === null ? "all" : urlState.active ? "active" : "inactive";
 
+  const columns: DataTableColumn<SupplierRow>[] = [
+    {
+      id: "code",
+      header: "Mã",
+      kind: "code",
+      mobile: "primary",
+      width: 140,
+      cell: (r) => <CodeText value={r.code} className="text-zinc-900 dark:text-zinc-50" maxWidth="9rem" />,
+    },
+    {
+      id: "name",
+      header: "Tên",
+      mobileLabel: "Tên NCC",
+      cell: (r) => (
+        <span className="block max-w-[24rem] truncate text-zinc-900 dark:text-zinc-50" title={r.name}>
+          {r.name}
+        </span>
+      ),
+    },
+    {
+      id: "phone",
+      header: "Điện thoại",
+      width: 140,
+      cell: (r) => <span className="tabular-nums text-zinc-600 dark:text-zinc-400">{r.phone ?? "—"}</span>,
+    },
+    {
+      id: "email",
+      header: "Email",
+      width: 220,
+      cell: (r) => (
+        <span className="block max-w-[14rem] truncate text-zinc-600 dark:text-zinc-400" title={r.email ?? undefined}>
+          {r.email ?? "—"}
+        </span>
+      ),
+    },
+    {
+      id: "status",
+      header: "Trạng thái",
+      kind: "status",
+      width: 120,
+      cell: (r) => {
+        const st = getStatus("supplier", activeStatusCode(r.isActive));
+        return <StatusBadge status={st.tone} label={st.label} size="sm" />;
+      },
+    },
+    {
+      id: "actions",
+      header: <span className="sr-only">Thao tác</span>,
+      kind: "actions",
+      width: 56,
+      cell: (r) => (
+        <RowActionsMenu
+          label={`Thao tác NCC ${r.code}`}
+          actions={[
+            { label: "Xem chi tiết", icon: Eye, onSelect: () => router.push(`/suppliers/${r.id}`) },
+            { label: "Sửa", icon: Pencil, onSelect: () => router.push(`/suppliers/${r.id}`) },
+          ]}
+        />
+      ),
+    },
+  ];
+
   return (
     <div className="flex h-full flex-col overflow-hidden bg-zinc-50/30 dark:bg-zinc-950/30">
       {/* V2 compact header: Breadcrumb + H1 xl + Tạo mới top-right */}
-      <header className="border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <Breadcrumb
-          items={[{ label: "Trang chủ", href: "/" }, { label: "Nhà cung cấp" }]}
-          className="mb-0.5"
-        />
+      <header className="border-b border-zinc-200 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
+        {/* V4.1 UI-09 (X6): bỏ breadcrumb thân trang — topbar đã hiện cùng đường dẫn (+ nhãn tab). */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
@@ -137,8 +196,8 @@ export function SuppliersTab() {
       </header>
 
       {/* Filter bar compact h-11 */}
-      <div className="flex h-11 items-center gap-2 border-b border-zinc-200 bg-white px-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="relative w-[280px]">
+      <div className="flex min-h-11 flex-wrap items-center gap-2 border-b border-zinc-200 bg-white px-4 py-1.5 dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="relative w-full sm:w-[280px]">
           <Search
             className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400 dark:text-zinc-500"
             aria-hidden="true"
@@ -244,85 +303,22 @@ export function SuppliersTab() {
             />
           )
         ) : (
-          <div className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
-            <table className="min-w-full border-collapse text-base">
-              <thead className="bg-zinc-50 dark:bg-zinc-800">
-                <tr className="text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                  <th className="h-8 px-3 w-[128px]">Mã</th>
-                  <th className="h-8 px-3">Tên</th>
-                  <th className="h-8 px-3 w-[140px]">Điện thoại</th>
-                  <th className="h-8 px-3 w-[220px]">Email</th>
-                  <th className="h-8 px-3 w-[100px]">Trạng thái</th>
-                  <th className="h-8 px-3 w-[80px] text-right">Hành động</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r, i) => (
-                  <tr
-                    key={r.id}
-                    tabIndex={0}
-                    role="link"
-                    aria-label={`Mở NCC ${r.code}`}
-                    onClick={() => router.push(`/suppliers/${r.id}`)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        router.push(`/suppliers/${r.id}`);
-                      }
-                    }}
-                    className={cn(
-                      "group h-9 cursor-pointer border-t border-zinc-100 transition-colors hover:bg-zinc-50 focus:outline-none dark:border-zinc-800 dark:hover:bg-zinc-800/60",
-                      focusedIndex === i &&
-                        "bg-blue-50 outline outline-2 -outline-offset-2 outline-blue-500 dark:bg-blue-950/40",
-                    )}
-                  >
-                    <td className="px-3 font-mono text-sm text-zinc-900 dark:text-zinc-50">
-                      {r.code}
-                    </td>
-                    <td className="px-3 text-zinc-900 dark:text-zinc-50">{r.name}</td>
-                    <td className="px-3 text-zinc-600 tabular-nums dark:text-zinc-400">
-                      {r.phone ?? "—"}
-                    </td>
-                    <td className="max-w-xs truncate px-3 text-zinc-600 dark:text-zinc-400">
-                      {r.email ?? "—"}
-                    </td>
-                    <td className="px-3">
-                      {(() => {
-                        const st = getStatus("supplier", activeStatusCode(r.isActive));
-                        return <StatusBadge status={st.tone} label={st.label} size="sm" />;
-                      })()}
-                    </td>
-                    <td className="px-3 text-right">
-                      <div className="inline-flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-                        <Button
-                          asChild
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label={`Xem NCC ${r.code}`}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <Link href={`/suppliers/${r.id}`}>
-                            <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                          </Link>
-                        </Button>
-                        <Button
-                          asChild
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label={`Sửa NCC ${r.code}`}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <Link href={`/suppliers/${r.id}`}>
-                            <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-                          </Link>
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          // V4.1 UI-11 (Đợt 6C): ui/data-table — điện thoại dạng thẻ; nút Xem/Sửa
+          // (trước chỉ hiện khi hover — không dùng được trên cảm ứng) vào menu ⋯.
+          <DataTable
+            columns={columns}
+            rows={rows}
+            getRowKey={(r) => r.id}
+            ariaLabel="Danh sách nhà cung cấp"
+            className="max-h-full"
+            minWidth={760}
+            onRowClick={(r) => router.push(`/suppliers/${r.id}`)}
+            rowClassName={(_, i) =>
+              focusedIndex === i
+                ? "bg-indigo-50 outline outline-2 -outline-offset-2 outline-indigo-500 dark:bg-indigo-950/40"
+                : undefined
+            }
+          />
         )}
       </div>
 

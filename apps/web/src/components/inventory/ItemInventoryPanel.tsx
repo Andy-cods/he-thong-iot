@@ -81,7 +81,7 @@ export function ItemInventoryPanel({
         </div>
         <div className="flex items-center gap-2">
           {query.isFetching ? (
-            <span className="inline-flex items-center gap-1 text-[11px] text-zinc-500">
+            <span className="inline-flex items-center gap-1 text-xs text-zinc-500">
               <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
               Đang tải…
             </span>
@@ -135,7 +135,7 @@ export function ItemInventoryPanel({
               </span>
               <a
                 href={`/lot-serial?itemId=${encodeURIComponent(itemId)}`}
-                className="text-[11px] font-medium text-indigo-600 hover:text-indigo-700"
+                className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
               >
                 Xem đầy đủ tại Lot/Serial →
               </a>

@@ -97,7 +97,7 @@ export function LowStockCard({ className }: LowStockCardProps) {
   return (
     <section
       className={cn(
-        "dashboard-stagger-fade relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-white/60 bg-white/70 p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.04)] backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/70 dark:shadow-[0_1px_2px_rgba(0,0,0,0.4),0_4px_16px_rgba(0,0,0,0.3)]",
+        "dashboard-stagger-fade relative flex flex-col gap-4 overflow-hidden rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900 md:p-5",
         className,
       )}
     >

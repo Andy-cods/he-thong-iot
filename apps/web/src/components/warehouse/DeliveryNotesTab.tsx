@@ -308,7 +308,7 @@ function DeliveryNoteRowItem({
             </>
           ) : null}
           {row.status === "PENDING_APPROVAL" && !isAdmin ? (
-            <span className="text-[11px] italic text-zinc-500 dark:text-zinc-400">
+            <span className="text-xs italic text-zinc-500 dark:text-zinc-400">
               Chờ Giám đốc duyệt
             </span>
           ) : null}

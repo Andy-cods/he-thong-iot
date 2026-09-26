@@ -20,14 +20,15 @@ export default function NewItemPage() {
   const create = useCreateItem();
 
   const breadcrumbItems = [
-    { label: "Dashboard", href: "/" },
+    { label: "Tổng quan", href: "/" },
     { label: "Vật tư", href: "/items" },
     { label: "Tạo mới" },
   ];
 
   return (
     <div className="mx-auto w-full max-w-4xl p-6">
-      <Breadcrumb items={breadcrumbItems} className="mb-3" />
+      {/* V4.1 UI-09 (X6): breadcrumb thân trang chỉ hiện trên điện thoại — desktop dùng breadcrumb topbar (tránh trùng). */}
+      <Breadcrumb items={breadcrumbItems} className="mb-3 md:hidden" />
       <header className="mb-4">
         <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
           Tạo vật tư mới

@@ -46,7 +46,7 @@ const METRIC_OPTIONS: Record<string, Array<{ id: string; label: string }>> = {
     { id: "inv_minus", label: "Giảm tồn (−)" },
     { id: "receivings", label: "Nhận hàng (PO)" },
     { id: "qc_checks", label: "QC kiểm" },
-    { id: "putaways", label: "Putaway lots" },
+    { id: "putaways", label: "Lô xếp kệ" },
     { id: "issues_picked", label: "Xuất kho" },
   ],
   purchaser: [
@@ -408,7 +408,7 @@ function TargetRow({ target }: { target: ReportTargetRow }) {
             </span>
           </div>
           {target.notes ? (
-            <p className="mt-0.5 text-[11px] italic text-zinc-500 dark:text-zinc-400">
+            <p className="mt-0.5 text-xs italic text-zinc-500 dark:text-zinc-400">
               {target.notes}
             </p>
           ) : null}

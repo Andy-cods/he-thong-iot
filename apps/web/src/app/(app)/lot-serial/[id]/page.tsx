@@ -85,6 +85,7 @@ export default async function LotSerialDetailPage({
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <header className="border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
+        {/* V4.1 UI-09 (X6): breadcrumb thân trang chỉ hiện trên điện thoại — desktop dùng breadcrumb topbar (tránh trùng). */}
         <Breadcrumb
           items={[
             { label: "Tổng quan", href: "/" },
@@ -92,6 +93,7 @@ export default async function LotSerialDetailPage({
             { label: "Vật tư", href: "/warehouse?tab=items" },
             { label: lot.lotCode ?? lot.serialCode ?? lot.id.slice(0, 8) },
           ]}
+          className="md:hidden"
         />
         <div className="mt-2">
           <h1 className="font-mono text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">

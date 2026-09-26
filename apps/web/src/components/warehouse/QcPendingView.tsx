@@ -196,7 +196,7 @@ export function QcPendingView({ className }: { className?: string }) {
                       <div className="font-mono text-xs font-semibold text-zinc-900 dark:text-zinc-50">
                         {r.receiptNo}
                       </div>
-                      <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                      <div className="text-xs text-zinc-500 dark:text-zinc-400">
                         {r.poNo ?? "—"}
                         {r.supplierName ? ` · ${r.supplierName}` : ""}
                       </div>
@@ -205,24 +205,24 @@ export function QcPendingView({ className }: { className?: string }) {
                       <code className="font-mono text-xs font-semibold text-zinc-900 dark:text-zinc-50">
                         {r.sku}
                       </code>
-                      <div className="truncate text-[11px] text-zinc-600 dark:text-zinc-400" title={r.itemName}>
+                      <div className="truncate text-xs text-zinc-600 dark:text-zinc-400" title={r.itemName}>
                         {r.itemName}
                       </div>
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums">
                       {formatQty(r.receivedQty)}{" "}
-                      <span className="text-[11px] text-zinc-500">{r.uom}</span>
+                      <span className="text-xs text-zinc-500">{r.uom}</span>
                     </td>
                     <td className="px-3 py-2 text-xs">
                       <div className="font-mono">{r.lotCode ?? "(không mã lô)"}</div>
-                      <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                      <div className="text-xs text-zinc-500 dark:text-zinc-400">
                         {r.binCode ?? "—"}
                       </div>
                     </td>
                     <td className="px-3 py-2 text-xs text-zinc-600 dark:text-zinc-400">
                       {fmtDate(r.receivedAt)}
                       {r.receivedByUsername ? (
-                        <div className="text-[11px] text-zinc-500">bởi {r.receivedByUsername}</div>
+                        <div className="text-xs text-zinc-500">bởi {r.receivedByUsername}</div>
                       ) : null}
                     </td>
                     <td className="px-3 py-2 text-xs">
@@ -230,12 +230,12 @@ export function QcPendingView({ className }: { className?: string }) {
                         <>
                           <StatusPill domain="receiptQc" code="NG" icon={XCircle} />
                           {r.qcNotes ? (
-                            <div className="mt-1 max-w-[14rem] text-[11px] text-zinc-600 dark:text-zinc-400">
+                            <div className="mt-1 max-w-[14rem] text-xs text-zinc-600 dark:text-zinc-400">
                               {r.qcNotes}
                             </div>
                           ) : null}
                           {r.qcCheckedByUsername ? (
-                            <div className="text-[11px] text-zinc-500">
+                            <div className="text-xs text-zinc-500">
                               {r.qcCheckedByUsername} · {fmtDate(r.qcCheckedAt)}
                             </div>
                           ) : null}
@@ -270,7 +270,7 @@ export function QcPendingView({ className }: { className?: string }) {
                           ) : null}
                         </div>
                       ) : (
-                        <span className="text-[11px] text-zinc-400">Chờ Tổ QC</span>
+                        <span className="text-xs text-zinc-400">Chờ Tổ QC</span>
                       )}
                     </td>
                   </tr>
@@ -320,7 +320,7 @@ export function QcPendingView({ className }: { className?: string }) {
               }
             />
             {dialog?.result === "FAIL" && notes.trim().length > 0 && notes.trim().length < 3 ? (
-              <p className="text-[11px] text-red-600">Lý do tối thiểu 3 ký tự.</p>
+              <p className="text-xs text-red-600">Lý do tối thiểu 3 ký tự.</p>
             ) : null}
           </div>
           <DialogFooter>

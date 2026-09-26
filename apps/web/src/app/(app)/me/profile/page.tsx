@@ -121,7 +121,7 @@ export default function ProfilePage() {
           <div className="space-y-4">
             {/* Hero card */}
             <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-              <div className="flex items-center gap-4 bg-gradient-to-br from-indigo-50 to-violet-50/50 p-5 dark:from-indigo-950/40 dark:to-violet-950/30">
+              <div className="flex items-center gap-4 border-b border-zinc-100 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-800/40">
                 <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-2xl font-bold uppercase text-white shadow-md">
                   {u.fullName.charAt(0)}
                 </div>

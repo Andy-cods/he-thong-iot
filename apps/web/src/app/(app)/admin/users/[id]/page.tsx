@@ -267,7 +267,7 @@ export default function AdminUserDetailPage({
             {/* Left: avatar card */}
             <aside className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
               <div className="flex flex-col items-center text-center">
-                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 text-2xl font-semibold tracking-tight text-white shadow-sm">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-indigo-600 text-2xl font-semibold tracking-tight text-white">
                   {initials || user.username.slice(0, 2).toUpperCase()}
                 </div>
                 <p className="mt-3 text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">

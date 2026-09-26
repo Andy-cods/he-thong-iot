@@ -234,12 +234,14 @@ export default function OrderDetailPage({
   return (
     <div className="flex h-full flex-col overflow-auto">
       <header className="border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
+        {/* V4.1 UI-09 (X6): breadcrumb thân trang chỉ hiện trên điện thoại — desktop dùng breadcrumb topbar (tránh trùng). */}
         <Breadcrumb
           items={[
             { label: "Tổng quan", href: "/" },
             { label: "Đơn hàng", href: "/orders" },
             { label: order.orderNo },
           ]}
+          className="md:hidden"
         />
         <div className="mt-2 flex items-start justify-between gap-4">
           <div>

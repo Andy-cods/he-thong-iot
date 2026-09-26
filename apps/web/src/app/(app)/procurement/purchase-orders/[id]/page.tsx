@@ -396,7 +396,7 @@ export default function PurchaseOrderDetailPage() {
         </Link>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md shadow-blue-500/30">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-indigo-600">
               <Receipt className="h-6 w-6 text-white" />
             </div>
             <div className="min-w-0">
@@ -558,6 +558,7 @@ export default function PurchaseOrderDetailPage() {
                 createdAt={po.createdAt}
                 sentAt={po.sentAt}
                 cancelledAt={po.cancelledAt}
+                actorNames={po.actorNames}
               />
             </section>
             {/* Info card */}
@@ -610,7 +611,7 @@ export default function PurchaseOrderDetailPage() {
               </div>
 
               {/* Total breakdown */}
-              <div className="mt-6 rounded-xl bg-gradient-to-br from-indigo-50 to-blue-50 p-5 ring-1 ring-indigo-100 dark:from-indigo-950/40 dark:to-blue-950/40 dark:ring-indigo-900">
+              <div className="mt-6 rounded-lg bg-zinc-50 p-5 ring-1 ring-zinc-200 dark:bg-zinc-800/40 dark:ring-zinc-700">
                 <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Tổng giá trị</p>
                 <div className="mt-3 space-y-1.5">
                   <div className="flex items-center justify-between text-sm">

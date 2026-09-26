@@ -91,7 +91,7 @@ export function ActionItemsCard({ className }: ActionItemsCardProps) {
   return (
     <section
       className={cn(
-        "dashboard-stagger-fade relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-white/60 bg-white/70 p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.04)] backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/70 dark:shadow-[0_1px_2px_rgba(0,0,0,0.4),0_4px_16px_rgba(0,0,0,0.3)]",
+        "dashboard-stagger-fade relative flex flex-col gap-4 overflow-hidden rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900 md:p-5",
         className,
       )}
     >
@@ -218,14 +218,14 @@ function ActionRow({
       ? "bg-rose-50 text-rose-700 ring-rose-200/60 dark:bg-rose-950/50 dark:text-rose-300 dark:ring-rose-800/60"
       : tone === "amber"
         ? "bg-amber-50 text-amber-700 ring-amber-200/60 dark:bg-amber-950/50 dark:text-amber-300 dark:ring-amber-800/60"
-        : "bg-violet-50 text-violet-700 ring-violet-200/60 dark:bg-violet-950/50 dark:text-violet-300 dark:ring-violet-800/60";
+        : "bg-indigo-50 text-indigo-700 ring-indigo-200/60 dark:bg-indigo-950/50 dark:text-indigo-300 dark:ring-indigo-800/60"; // V4.1 UI-24: tím → indigo
   const countCls = muted
     ? "text-zinc-400 dark:text-zinc-500"
     : tone === "rose"
       ? "text-rose-700 dark:text-rose-300"
       : tone === "amber"
         ? "text-amber-700 dark:text-amber-300"
-        : "text-violet-700 dark:text-violet-300";
+        : "text-indigo-700 dark:text-indigo-300";
 
   return (
     <li>

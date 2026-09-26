@@ -11,7 +11,6 @@ import {
   TrendingUp,
   Wallet,
 } from "lucide-react";
-import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/ui/query-error";
@@ -66,14 +65,8 @@ export function OverviewTab() {
     <div className="flex h-full flex-col overflow-auto bg-zinc-50/30 dark:bg-zinc-950/30">
       <header className="flex flex-col gap-3 border-b border-zinc-200 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900 md:flex-row md:items-center md:justify-between md:px-6">
         <div>
-          <Breadcrumb
-            items={[
-              { label: "Trang chủ", href: "/" },
-              { label: "Bộ phận Thu mua", href: "/sales" },
-              { label: "Tài chính: Tổng quan" },
-            ]}
-          />
-          <h1 className="mt-2 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+          {/* V4.1 UI-09 (X6): bỏ breadcrumb thân trang — topbar đã hiện cùng đường dẫn (+ nhãn tab). */}
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             Tổng quan Tài chính
           </h1>
         </div>
@@ -224,41 +217,49 @@ function KpiCard({
   growthInverse?: boolean;
   accent: "emerald" | "rose" | "indigo" | "amber" | "zinc";
 }) {
-  const map = {
-    emerald: { card: "bg-emerald-50/60 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800", icon: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400", value: "text-emerald-900 dark:text-emerald-200" },
-    rose:    { card: "bg-rose-50/60 border-rose-200 dark:bg-rose-950/40 dark:border-rose-800",       icon: "bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-400",       value: "text-rose-900 dark:text-rose-200" },
-    indigo:  { card: "bg-indigo-50/60 border-indigo-200 dark:bg-indigo-950/40 dark:border-indigo-800", icon: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400", value: "text-indigo-900 dark:text-indigo-200" },
-    amber:   { card: "bg-amber-50/60 border-amber-200 dark:bg-amber-950/40 dark:border-amber-800",   icon: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400",   value: "text-amber-900 dark:text-amber-200" },
-    zinc:    { card: "bg-white border-zinc-200 dark:bg-zinc-900 dark:border-zinc-700",              icon: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",         value: "text-zinc-900 dark:text-zinc-50" },
+  // V4.1 UI-24 (X8): 6 thẻ 6 màu → thẻ trung tính (trắng, viền zinc, số đen, icon zinc).
+  // `accent` chỉ còn là CHẤM nhỏ cạnh nhãn (thu = lục, chi/nợ = hồng, phải trả = amber).
+  const dot: Record<typeof accent, string | null> = {
+    emerald: "bg-emerald-500",
+    rose: "bg-rose-500",
+    amber: "bg-amber-500",
+    indigo: null,
+    zinc: null,
   };
-  const s = map[accent];
+  const accentDot = dot[accent];
   const isGood = growth !== undefined && (growthInverse ? growth <= 0 : growth >= 0);
 
   return (
-    <div className={cn("rounded-2xl border p-4 shadow-sm", s.card)}>
+    <div className="min-w-0 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
       <div className="flex items-start justify-between gap-2">
-        <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl", s.icon)}>
-          <Icon className="h-4.5 w-4.5" />
+        <div className="flex min-w-0 items-center gap-2">
+          <Icon className="h-4 w-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
+          <p className="truncate text-xs font-medium text-zinc-500 dark:text-zinc-400">{label}</p>
+          {accentDot ? <span className={cn("h-2 w-2 shrink-0 rounded-full", accentDot)} aria-hidden /> : null}
         </div>
         {growth !== undefined && (
           <span
             className={cn(
               "inline-flex whitespace-nowrap items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-semibold",
               isGood
-                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
-                : "bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400",
+                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+                : "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400",
             )}
           >
-            {growth >= 0 ? <ArrowUpRight className="h-2.5 w-2.5" /> : <ArrowDownRight className="h-2.5 w-2.5" />}
+            {growth >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
             {Math.abs(growth).toFixed(1)}%
           </span>
         )}
       </div>
-      <p className="mt-2 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</p>
-      <p className={cn("mt-0.5 text-xl font-bold tabular-nums", s.value)} title={amount === null ? undefined : fmtVND(amount)}>
+      <p className="mt-1 truncate text-xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50" title={amount === null ? undefined : fmtVND(amount)}>
         {amount === null ? "—" : fmtVNDShort(amount)}
       </p>
-      <p className="truncate text-[11px] tabular-nums text-zinc-500 dark:text-zinc-400">{amount === null ? "Không tải được" : fmtVND(amount)}</p>
+      {/* Dòng phụ = số đủ — chỉ hiện khi khác số rút gọn (trước lặp "0 ₫" 2 lần). */}
+      {amount === null ? (
+        <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">Không tải được</p>
+      ) : fmtVND(amount) !== fmtVNDShort(amount) ? (
+        <p className="truncate text-xs tabular-nums text-zinc-500 dark:text-zinc-400">{fmtVND(amount)}</p>
+      ) : null}
     </div>
   );
 }

@@ -343,7 +343,7 @@ export function IssueMovementView() {
             <Button
               onClick={handleSubmit}
               disabled={submitting || totalLines === 0}
-              className="h-10 bg-gradient-to-r from-indigo-600 to-violet-600 px-5 text-sm font-bold shadow-md hover:from-indigo-700 hover:to-violet-700"
+              className="h-10 px-5 text-sm font-bold"
             >
               {submitting ? (
                 <>
@@ -424,7 +424,7 @@ function SimpleLineRow({
           )}
         </div>
       </div>
-      <div className="flex items-center gap-1 text-[11px]">
+      <div className="flex items-center gap-1 text-xs">
         {line.item && need > 0 && (
           <>
             {ok ? (
@@ -792,7 +792,7 @@ function CreateIssueRequestPanel() {
           <Button
             onClick={handleSubmit}
             disabled={submitting || totalLines === 0 || totalShortage > 0}
-            className="h-10 bg-gradient-to-r from-indigo-600 to-violet-600 px-5 text-sm font-bold shadow-md hover:from-indigo-700 hover:to-violet-700"
+            className="h-10 px-5 text-sm font-bold"
           >
             {submitting ? (
               <>
@@ -1084,7 +1084,7 @@ function PendingRequestsPanel() {
   const pendingCount = rows.filter((r) => r.status === "PENDING").length;
 
   return (
-    <section className="rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50/50 shadow-sm dark:border-amber-800 dark:from-amber-950/40 dark:to-orange-950/30">
+    <section className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40">
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 px-5 py-3 dark:border-amber-800">
         <button
           type="button"
@@ -1204,10 +1204,10 @@ function PendingRequestsPanel() {
                           </p>
                         )}
                         <details className="mt-1.5">
-                          <summary className="cursor-pointer text-[11px] font-medium text-indigo-600 hover:underline dark:text-indigo-400">
+                          <summary className="cursor-pointer text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-400">
                             Chi tiết lô lấy ({totalPicks})
                           </summary>
-                          <div className="mt-1 max-h-40 overflow-auto rounded border border-zinc-100 bg-zinc-50 p-2 text-[11px] dark:border-zinc-800 dark:bg-zinc-800">
+                          <div className="mt-1 max-h-40 overflow-auto rounded border border-zinc-100 bg-zinc-50 p-2 text-xs dark:border-zinc-800 dark:bg-zinc-800">
                             {r.picksJson.map((line, li) => (
                               <div key={li} className="mb-1.5">
                                 <code className="font-mono font-semibold text-zinc-700 dark:text-zinc-300">
@@ -1240,7 +1240,7 @@ function PendingRequestsPanel() {
                         {r.status === "PENDING" ? (
                           ["sales", "return"].includes(r.reason) &&
                           !isAdmin ? (
-                            <span className="max-w-[120px] text-right text-[11px] italic text-zinc-500 dark:text-zinc-400">
+                            <span className="max-w-[120px] text-right text-xs italic text-zinc-500 dark:text-zinc-400">
                               Chờ Giám đốc duyệt
                             </span>
                           ) : (

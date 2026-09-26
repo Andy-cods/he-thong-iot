@@ -34,16 +34,6 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Building2,
 };
 
-const COLOR_PILL: Record<string, { bg: string; iconBg: string; iconText: string; valueText: string }> = {
-  indigo:  { bg: "hover:bg-indigo-50/60 dark:hover:bg-indigo-950/30",   iconBg: "bg-indigo-100 dark:bg-indigo-950/60",   iconText: "text-indigo-700 dark:text-indigo-300",   valueText: "text-indigo-700 dark:text-indigo-300"   },
-  blue:    { bg: "hover:bg-blue-50/60 dark:hover:bg-blue-950/30",       iconBg: "bg-blue-100 dark:bg-blue-950/60",       iconText: "text-blue-700 dark:text-blue-300",       valueText: "text-blue-700 dark:text-blue-300"       },
-  violet:  { bg: "hover:bg-violet-50/60 dark:hover:bg-violet-950/30",   iconBg: "bg-violet-100 dark:bg-violet-950/60",   iconText: "text-violet-700 dark:text-violet-300",   valueText: "text-violet-700 dark:text-violet-300"   },
-  amber:   { bg: "hover:bg-amber-50/60 dark:hover:bg-amber-950/30",     iconBg: "bg-amber-100 dark:bg-amber-950/60",     iconText: "text-amber-700 dark:text-amber-300",     valueText: "text-amber-700 dark:text-amber-300"     },
-  rose:    { bg: "hover:bg-rose-50/60 dark:hover:bg-rose-950/30",       iconBg: "bg-rose-100 dark:bg-rose-950/60",       iconText: "text-rose-700 dark:text-rose-300",       valueText: "text-rose-700 dark:text-rose-300"       },
-  emerald: { bg: "hover:bg-emerald-50/60 dark:hover:bg-emerald-950/30", iconBg: "bg-emerald-100 dark:bg-emerald-950/60", iconText: "text-emerald-700 dark:text-emerald-300", valueText: "text-emerald-700 dark:text-emerald-300" },
-  cyan:    { bg: "hover:bg-cyan-50/60 dark:hover:bg-cyan-950/30",       iconBg: "bg-cyan-100 dark:bg-cyan-950/60",       iconText: "text-cyan-700 dark:text-cyan-300",       valueText: "text-cyan-700 dark:text-cyan-300"       },
-};
-
 export interface EntityCountChartProps {
   data: DashboardCountsPayload | null;
   loading?: boolean;
@@ -56,7 +46,7 @@ export function EntityCountChart({ data, loading, className }: EntityCountChartP
   return (
     <section
       className={cn(
-        "rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900",
+        "rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900",
         className,
       )}
     >
@@ -68,7 +58,7 @@ export function EntityCountChart({ data, loading, className }: EntityCountChartP
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4 lg:grid-cols-7">
           {Array.from({ length: 7 }).map((_, i) => (
             <Skeleton key={i} className="h-14 w-full rounded-xl" />
           ))}
@@ -76,37 +66,36 @@ export function EntityCountChart({ data, loading, className }: EntityCountChartP
       ) : items.length === 0 ? (
         <p className="py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">Chưa có dữ liệu</p>
       ) : (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+        // V4.1 UI-24 (X8, Đợt 6C): ô trung tính (bỏ 7 màu nền/icon/số); nhãn trên –
+        // số dưới, nhãn không in hoa + truncate → hết cắt "LINH KIỆN 86" ở 390px.
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4 lg:grid-cols-7">
           {items.map((it) => {
             const Icon = ICON_MAP[it.iconName] ?? Layers;
-            const cls = COLOR_PILL[it.color] ?? COLOR_PILL.indigo!;
             return (
               <Link
                 key={it.key}
                 href={it.href}
-                className={cn(
-                  "group flex items-center gap-2.5 rounded-xl border border-zinc-100 bg-white px-3 py-2.5 transition-all hover:border-zinc-200 hover:shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700",
-                  cls.bg,
-                )}
+                className="group flex min-w-0 flex-col gap-1 rounded-lg border border-zinc-200 bg-white px-3 py-2.5 transition-colors hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700 dark:hover:bg-zinc-800/60"
               >
-                <span className={cn("inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", cls.iconBg)}>
-                  <Icon className={cn("h-4 w-4", cls.iconText)} strokeWidth={2.25} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <Icon className="h-3.5 w-3.5 shrink-0 text-zinc-400 dark:text-zinc-500" strokeWidth={2.25} aria-hidden />
+                  <span className="truncate text-xs font-medium text-zinc-500 dark:text-zinc-400" title={it.label}>
                     {it.label}
-                  </p>
-                  <div className="flex items-baseline gap-1">
-                    <span className={cn("text-lg font-bold leading-none tabular-nums", cls.valueText)}>
-                      {it.total.toLocaleString("vi-VN")}
+                  </span>
+                </span>
+                <span className="flex items-baseline gap-1">
+                  <span className="text-lg font-semibold leading-none tabular-nums text-zinc-900 dark:text-zinc-50">
+                    {it.total.toLocaleString("vi-VN")}
+                  </span>
+                  {it.active !== it.total && it.total > 0 && (
+                    <span
+                      className="truncate text-xs tabular-nums text-zinc-500 dark:text-zinc-400"
+                      title={`${it.active} đang hoạt động`}
+                    >
+                      / {it.active}
                     </span>
-                    {it.active !== it.total && it.total > 0 && (
-                      <span className="text-xs tabular-nums text-zinc-400 dark:text-zinc-500">
-                        / {it.active}
-                      </span>
-                    )}
-                  </div>
-                </div>
+                  )}
+                </span>
               </Link>
             );
           })}

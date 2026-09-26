@@ -38,15 +38,16 @@ function KpiCard({ label, value, subtitle, tone }: {
 }) {
   const styles = {
     zinc:    "border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900",
-    emerald: "border-emerald-200 bg-emerald-50/60 dark:border-emerald-800 dark:bg-emerald-950/40",
-    indigo:  "border-indigo-200 bg-indigo-50/60 dark:border-indigo-800 dark:bg-indigo-950/40",
-    blue:    "border-blue-200 bg-blue-50/60 dark:border-blue-800 dark:bg-blue-950/40",
+    // V4.1 UI-24 (X8): thẻ KPI trung tính — bỏ nền lục/indigo/xanh.
+    emerald: "border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900",
+    indigo:  "border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900",
+    blue:    "border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900",
   };
   return (
     <div className={cn("rounded-xl border px-4 py-3.5", styles[tone])}>
-      <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">{label}</p>
+      <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</p>
       <div className="mt-1 flex items-baseline gap-1.5">
-        <span className="font-mono text-2xl font-bold tabular-nums text-zinc-900 dark:text-zinc-50">
+        <span className="text-2xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
           {typeof value === "number" ? formatNumber(value) : value}
         </span>
         {subtitle && <span className="font-mono text-sm tabular-nums text-zinc-500 dark:text-zinc-400">{subtitle}</span>}

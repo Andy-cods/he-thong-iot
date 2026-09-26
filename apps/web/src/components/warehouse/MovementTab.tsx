@@ -101,7 +101,7 @@ export function MovementTab({ mode }: { mode: MovementMode }) {
               Chờ QC
               {pendingQc > 0 ? (
                 <span
-                  className="ml-0.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-amber-500 px-1.5 text-[11px] font-bold tabular-nums text-white"
+                  className="ml-0.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-amber-500 px-1.5 text-xs font-bold tabular-nums text-white"
                   aria-label={`${pendingQc} dòng chờ QC`}
                 >
                   {pendingQc > 99 ? "99+" : pendingQc}

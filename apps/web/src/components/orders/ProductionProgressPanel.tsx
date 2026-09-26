@@ -116,7 +116,7 @@ export function ProductionProgressPanel({
             <span className="ml-auto text-xs text-zinc-500 dark:text-zinc-400">
               {snapshotRows.length} dòng{" "}
               {!canEdit && (
-                <span className="text-[11px] text-amber-600 dark:text-amber-400">
+                <span className="text-xs text-amber-600 dark:text-amber-400">
                   (chỉ đọc — không có quyền sửa)
                 </span>
               )}
@@ -258,7 +258,7 @@ function SnapshotRow({
       <td className="px-4 py-2">
         <span
           className={cn(
-            "inline-flex h-5 items-center rounded-sm border px-1.5 text-[11px] font-medium",
+            "inline-flex h-5 items-center rounded-sm border px-1.5 text-xs font-medium",
             toneClass,
           )}
         >
@@ -271,7 +271,7 @@ function SnapshotRow({
             variant="ghost"
             size="sm"
             onClick={onEdit}
-            className="h-6 px-1.5 text-[11px]"
+            className="h-6 px-1.5 text-xs"
           >
             <Pencil className="h-3 w-3" aria-hidden="true" />
             Sửa
@@ -395,7 +395,7 @@ function WoRow({ wo }: { wo: WorkOrderSummaryItem }) {
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 px-1.5 text-[11px]"
+            className="h-6 px-1.5 text-xs"
             aria-label={`Xem chi tiết ${wo.woCode}`}
           >
             <ArrowRight className="h-3 w-3" aria-hidden="true" />
@@ -438,7 +438,7 @@ function WoProgressBar({
           style={{ width: `${clamped}%` }}
         />
       </div>
-      <span className="font-mono text-[11px] tabular-nums text-zinc-600 dark:text-zinc-400">
+      <span className="font-mono text-xs tabular-nums text-zinc-600 dark:text-zinc-400">
         {completed}/{total}
       </span>
     </div>

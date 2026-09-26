@@ -37,6 +37,8 @@ export interface PoApprovalWorkflowProps {
   createdAt: string;
   sentAt: string | null;
   cancelledAt: string | null;
+  /** V4.1 UI-28: id → họ tên người thao tác (từ API chi tiết PO). */
+  actorNames?: Record<string, string>;
 }
 
 export function PoApprovalWorkflow({
@@ -46,6 +48,7 @@ export function PoApprovalWorkflow({
   createdAt,
   sentAt,
   cancelledAt,
+  actorNames,
 }: PoApprovalWorkflowProps) {
   const session = useSession();
   const roles = session.data?.roles ?? [];
@@ -187,7 +190,7 @@ export function PoApprovalWorkflow({
                 <div className="text-sm font-medium">{s.label}</div>
                 <div className="text-xs opacity-75">
                   {s.at ? formatDate(s.at, "dd/MM/yyyy HH:mm") : "—"}
-                  {s.actor ? ` · ${s.actor.slice(0, 8)}…` : ""}
+                  {s.actor ? ` · ${actorNames?.[s.actor] ?? `${s.actor.slice(0, 8)}…`}` : ""}
                 </div>
               </div>
             </li>

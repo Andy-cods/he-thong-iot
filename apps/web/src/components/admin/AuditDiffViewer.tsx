@@ -45,7 +45,7 @@ export function AuditDiffViewer({
         <div className="border-b border-emerald-200 bg-emerald-100 px-3 py-1.5 text-xs font-semibold uppercase tracking-normal text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400">
           Bản ghi mới
         </div>
-        <pre className="overflow-x-auto p-3 font-mono text-[11px] leading-relaxed text-emerald-900 dark:text-emerald-300">
+        <pre className="overflow-x-auto p-3 font-mono text-xs leading-relaxed text-emerald-900 dark:text-emerald-300">
           {after}
         </pre>
       </div>
@@ -59,7 +59,7 @@ export function AuditDiffViewer({
         <div className="border-b border-rose-200 bg-rose-100 px-3 py-1.5 text-xs font-semibold uppercase tracking-normal text-rose-700 dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-400">
           Bản ghi bị xoá
         </div>
-        <pre className="overflow-x-auto p-3 font-mono text-[11px] leading-relaxed text-rose-900 dark:text-rose-300">
+        <pre className="overflow-x-auto p-3 font-mono text-xs leading-relaxed text-rose-900 dark:text-rose-300">
           {before}
         </pre>
       </div>
@@ -76,7 +76,7 @@ export function AuditDiffViewer({
   }
 
   return (
-    <div className="overflow-hidden rounded-md border border-zinc-200 bg-white text-[11px] dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="overflow-hidden rounded-md border border-zinc-200 bg-white text-xs dark:border-zinc-800 dark:bg-zinc-900">
       <ReactDiffViewer
         oldValue={before}
         newValue={after}

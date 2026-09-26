@@ -183,7 +183,7 @@ export default function SessionsPage() {
                         </span>
                       ) : null}
                     </div>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-zinc-500 dark:text-zinc-400">
                       <span className="font-mono tracking-normal">
                         IP: {s.ipAddress ?? "—"}
                       </span>
@@ -195,7 +195,7 @@ export default function SessionsPage() {
                   </div>
                   <div className="shrink-0">
                     {s.isCurrent ? (
-                      <span className="text-[11px] text-zinc-400 dark:text-zinc-500">
+                      <span className="text-xs text-zinc-400 dark:text-zinc-500">
                         (đang sử dụng)
                       </span>
                     ) : (

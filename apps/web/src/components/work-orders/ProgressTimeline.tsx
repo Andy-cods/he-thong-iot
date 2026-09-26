@@ -108,7 +108,7 @@ export function ProgressTimeline({ woId }: { woId: string }) {
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
           Nhật ký tiến độ
-          <span className="ml-2 rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] font-mono text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+          <span className="ml-2 rounded bg-zinc-100 px-1.5 py-0.5 text-xs font-mono text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
             {query.data?.meta.total ?? 0}
           </span>
         </h3>
@@ -123,7 +123,7 @@ export function ProgressTimeline({ woId }: { woId: string }) {
               key={s}
               type="button"
               onClick={() => toggleFilter(s)}
-              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors ${
+              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors ${
                 active
                   ? meta.tone
                   : "border-zinc-200 bg-white text-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-500 dark:hover:bg-zinc-800/60"
@@ -242,7 +242,7 @@ function TimelineEntry({
             variant="ghost"
             size="sm"
             onClick={onToggle}
-            className="mt-1 h-6 px-2 text-[11px] text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+            className="mt-1 h-6 px-2 text-xs text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
           >
             {expanded ? "Thu gọn" : "Xem thêm"}
           </Button>
@@ -252,7 +252,7 @@ function TimelineEntry({
             href={row.photoUrl}
             target="_blank"
             rel="noreferrer"
-            className="mt-2 block max-w-[300px] break-all rounded border border-zinc-200 bg-zinc-50 p-2 text-[11px] text-indigo-700 underline dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-indigo-400"
+            className="mt-2 block max-w-[300px] break-all rounded border border-zinc-200 bg-zinc-50 p-2 text-xs text-indigo-700 underline dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-indigo-400"
           >
             {row.photoUrl}
           </a>

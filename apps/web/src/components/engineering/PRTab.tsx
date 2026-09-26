@@ -14,7 +14,6 @@ import {
   can,
   type PRStatus,
 } from "@iot/shared";
-import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/ui/query-error";
@@ -129,13 +128,8 @@ export function PRTab() {
           (trang từng rộng 501px, tiêu đề gãy từng chữ). */}
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-zinc-200 bg-white px-4 py-4 md:px-6 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="min-w-0 flex-1 basis-56">
-          <Breadcrumb
-            items={[
-              { label: "Trang chủ", href: "/" },
-              { label: "Đề xuất vật tư" },
-            ]}
-          />
-          <h1 className="mt-1 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+          {/* V4.1 UI-09 (X6): bỏ breadcrumb thân trang — topbar đã hiện cùng đường dẫn (+ nhãn tab). */}
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             {/* V4.1 UI-28: thống nhất 1 tên "Đề xuất vật tư" (menu, tab, tiêu đề). */}
             Đề xuất vật tư
           </h1>
@@ -203,7 +197,7 @@ export function PRTab() {
       </div>
 
       {/* Nội dung */}
-      <div className="flex-1 overflow-hidden p-4">
+      <div className="flex-1 p-4 md:overflow-hidden">
         {showError ? (
           <QueryError
             error={query.error}

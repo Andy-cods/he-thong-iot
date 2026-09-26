@@ -262,7 +262,7 @@ function Leaderboard({
                 <div className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
                   {row.user.fullName}
                 </div>
-                <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                <div className="text-xs text-zinc-500 dark:text-zinc-400">
                   {row.user.username}
                 </div>
               </div>

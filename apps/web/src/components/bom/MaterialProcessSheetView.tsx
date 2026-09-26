@@ -210,7 +210,7 @@ function MaterialPanel({
                         }}
                         placeholder="AL6061"
                         disabled={readOnly}
-                        className="h-6 w-24 font-mono text-[11px]"
+                        className="h-6 w-24 font-mono text-xs"
                       />
                     </td>
                     <td className="px-2 py-1">
@@ -223,7 +223,7 @@ function MaterialPanel({
                         }}
                         placeholder="Tên / mô tả"
                         disabled={readOnly}
-                        className="h-6 min-w-[140px] text-[11px]"
+                        className="h-6 min-w-[140px] text-xs"
                       />
                     </td>
                     <td className="px-2 py-1">
@@ -241,7 +241,7 @@ function MaterialPanel({
                         }}
                         placeholder="100×50×20 mm"
                         disabled={readOnly}
-                        className="h-6 w-32 text-[11px]"
+                        className="h-6 w-32 text-xs"
                       />
                     </td>
                     <td className="px-2 py-1">
@@ -256,7 +256,7 @@ function MaterialPanel({
                         }}
                         placeholder="NCC mã"
                         disabled={readOnly}
-                        className="h-6 w-24 font-mono text-[11px]"
+                        className="h-6 w-24 font-mono text-xs"
                       />
                     </td>
                     <td className="px-2 py-1 text-right">
@@ -272,7 +272,7 @@ function MaterialPanel({
                             });
                         }}
                         disabled={readOnly}
-                        className="h-6 w-20 text-right text-[11px] tabular-nums"
+                        className="h-6 w-20 text-right text-xs tabular-nums"
                       />
                     </td>
                     <td className="px-2 py-1 text-right">
@@ -298,7 +298,7 @@ function MaterialPanel({
                         }}
                         placeholder="0"
                         disabled={readOnly}
-                        className="h-6 w-16 text-right text-[11px] tabular-nums"
+                        className="h-6 w-16 text-right text-xs tabular-nums"
                       />
                     </td>
                     <td className="px-2 py-1">
@@ -312,7 +312,7 @@ function MaterialPanel({
                         placeholder="Ghi chú"
                         disabled={readOnly}
                         rows={1}
-                        className="h-6 min-h-[24px] w-40 resize-y rounded border border-zinc-200 bg-white px-2 py-0.5 text-[11px] text-zinc-900 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-300 disabled:cursor-not-allowed disabled:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:disabled:bg-zinc-800/60"
+                        className="h-6 min-h-[24px] w-40 resize-y rounded border border-zinc-200 bg-white px-2 py-0.5 text-xs text-zinc-900 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-300 disabled:cursor-not-allowed disabled:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:disabled:bg-zinc-800/60"
                       />
                     </td>
                     <td className="px-2 py-1">
@@ -327,7 +327,7 @@ function MaterialPanel({
                       >
                         <SelectTrigger
                           className={cn(
-                            "h-6 w-28 text-[11px]",
+                            "h-6 w-28 text-xs",
                             TONE_CLASSES[getStatus("materialRow", row.status).tone].pill,
                             "ring-1 ring-inset",
                           )}
@@ -500,7 +500,7 @@ function ProcessPanel({
                         }}
                         placeholder="MILLING"
                         disabled={readOnly}
-                        className="h-6 w-24 font-mono text-[11px]"
+                        className="h-6 w-24 font-mono text-xs"
                       />
                     </td>
                     <td className="px-2 py-1">
@@ -513,7 +513,7 @@ function ProcessPanel({
                         }}
                         placeholder="Tên / mô tả"
                         disabled={readOnly}
-                        className="h-6 min-w-[140px] text-[11px]"
+                        className="h-6 min-w-[140px] text-xs"
                       />
                     </td>
                     <td className="px-2 py-1">
@@ -526,7 +526,7 @@ function ProcessPanel({
                         }}
                         placeholder="T1 / EXTERNAL"
                         disabled={readOnly}
-                        className="h-6 w-24 font-mono text-[11px]"
+                        className="h-6 w-24 font-mono text-xs"
                       />
                     </td>
                     <td className="px-2 py-1 text-right">
@@ -555,7 +555,7 @@ function ProcessPanel({
                         }}
                         placeholder="0"
                         disabled={readOnly}
-                        className="h-6 w-20 text-right text-[11px] tabular-nums"
+                        className="h-6 w-20 text-right text-xs tabular-nums"
                       />
                     </td>
                     <td className="px-2 py-1 text-right">
@@ -571,7 +571,7 @@ function ProcessPanel({
                             });
                         }}
                         disabled={readOnly}
-                        className="h-6 w-20 text-right text-[11px] tabular-nums"
+                        className="h-6 w-20 text-right text-xs tabular-nums"
                       />
                     </td>
                     <td className="px-2 py-1">
@@ -584,7 +584,7 @@ function ProcessPanel({
                         }
                         disabled={readOnly}
                       >
-                        <SelectTrigger className="h-6 w-20 text-[11px]">
+                        <SelectTrigger className="h-6 w-20 text-xs">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -605,7 +605,7 @@ function ProcessPanel({
                         placeholder="Ghi chú"
                         disabled={readOnly}
                         rows={1}
-                        className="h-6 min-h-[24px] w-40 resize-y rounded border border-zinc-200 bg-white px-2 py-0.5 text-[11px] text-zinc-900 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-300 disabled:cursor-not-allowed disabled:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:disabled:bg-zinc-800/60"
+                        className="h-6 min-h-[24px] w-40 resize-y rounded border border-zinc-200 bg-white px-2 py-0.5 text-xs text-zinc-900 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-300 disabled:cursor-not-allowed disabled:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:disabled:bg-zinc-800/60"
                       />
                     </td>
                     {!readOnly ? (

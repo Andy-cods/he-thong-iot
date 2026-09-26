@@ -104,22 +104,22 @@ export function BomAuditPanel({ bomId }: { bomId: string }) {
       {/* Inline toolbar — date range + entity type chips */}
       <div className="flex flex-wrap items-center gap-2 border-b border-zinc-200 bg-zinc-50/60 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-800/60">
         <Activity className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" aria-hidden />
-        <label className="flex items-center gap-1 text-[11px] text-zinc-600 dark:text-zinc-400">
+        <label className="flex items-center gap-1 text-xs text-zinc-600 dark:text-zinc-400">
           Từ
           <input
             type="date"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
-            className="h-6 rounded-sm border border-zinc-200 bg-white px-1.5 text-[11px] tabular-nums focus:border-indigo-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            className="h-6 rounded-sm border border-zinc-200 bg-white px-1.5 text-xs tabular-nums focus:border-indigo-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
           />
         </label>
-        <label className="flex items-center gap-1 text-[11px] text-zinc-600 dark:text-zinc-400">
+        <label className="flex items-center gap-1 text-xs text-zinc-600 dark:text-zinc-400">
           Đến
           <input
             type="date"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
-            className="h-6 rounded-sm border border-zinc-200 bg-white px-1.5 text-[11px] tabular-nums focus:border-indigo-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            className="h-6 rounded-sm border border-zinc-200 bg-white px-1.5 text-xs tabular-nums focus:border-indigo-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
           />
         </label>
         <div className="flex flex-wrap items-center gap-1">
@@ -131,7 +131,7 @@ export function BomAuditPanel({ bomId }: { bomId: string }) {
                 type="button"
                 onClick={() => toggleEntity(t)}
                 className={cn(
-                  "inline-flex h-6 items-center rounded-sm border px-2 text-[11px] font-medium transition-colors",
+                  "inline-flex h-6 items-center rounded-sm border px-2 text-xs font-medium transition-colors",
                   active
                     ? "border-indigo-300 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-800"
                     : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800",
@@ -198,7 +198,7 @@ export function BomAuditPanel({ bomId }: { bomId: string }) {
                         {formatDate(r.occurredAt, "dd/MM/yyyy HH:mm")}
                       </div>
                     </td>
-                    <td className="px-3 py-1.5 align-top text-[11px] text-zinc-700 dark:text-zinc-300">
+                    <td className="px-3 py-1.5 align-top text-xs text-zinc-700 dark:text-zinc-300">
                       {r.actorUsername ?? "—"}
                     </td>
                     <td className="px-3 py-1.5 align-top">
@@ -211,7 +211,7 @@ export function BomAuditPanel({ bomId }: { bomId: string }) {
                         {actionText}
                       </span>
                     </td>
-                    <td className="px-3 py-1.5 align-top text-[11px] text-zinc-700 dark:text-zinc-300">
+                    <td className="px-3 py-1.5 align-top text-xs text-zinc-700 dark:text-zinc-300">
                       <span className="font-medium">{objectLabel}</span>
                       {r.objectId && (
                         <span className="ml-1 font-mono text-xs text-zinc-400 dark:text-zinc-500">
@@ -219,7 +219,7 @@ export function BomAuditPanel({ bomId }: { bomId: string }) {
                         </span>
                       )}
                     </td>
-                    <td className="px-3 py-1.5 align-top text-[11px] text-zinc-600 dark:text-zinc-400">
+                    <td className="px-3 py-1.5 align-top text-xs text-zinc-600 dark:text-zinc-400">
                       {r.notes ?? <span className="text-zinc-300 dark:text-zinc-600">—</span>}
                     </td>
                   </tr>

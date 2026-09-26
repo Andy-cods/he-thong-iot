@@ -271,7 +271,7 @@ function HeroCard({ data }: { data: EmployeeReport }) {
     .map((r) => roleLabels[r] ?? r)
     .join(" · ");
   return (
-    <div className="rounded-xl border border-zinc-200 bg-gradient-to-br from-indigo-50 to-violet-50/30 p-5 shadow-sm dark:border-zinc-800 dark:from-indigo-950/40 dark:to-violet-950/20">
+    <div className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
@@ -299,7 +299,7 @@ function HeroCard({ data }: { data: EmployeeReport }) {
             actions
           </p>
           {data.summary.lastSeen ? (
-            <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
               Lần online cuối:{" "}
               {new Date(data.summary.lastSeen).toLocaleString("vi-VN")}
             </p>
@@ -370,11 +370,11 @@ function MetricCard({ metric }: { metric: ProductivityMetric }) {
           {showValue ? formatNumber(metric.value!) : metric.count}
         </span>
         {showValue && metric.unit ? (
-          <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{metric.unit}</span>
+          <span className="text-xs text-zinc-500 dark:text-zinc-400">{metric.unit}</span>
         ) : null}
       </div>
       {showValue && metric.count > 0 ? (
-        <div className="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+        <div className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
           {metric.count} {metric.count === 1 ? "lần" : "lượt"}
         </div>
       ) : null}
@@ -483,7 +483,7 @@ function RecentActions({
               </span>
             </div>
             {a.notes ? (
-              <p className="mt-0.5 pl-[60px] text-[11px] italic text-zinc-500 dark:text-zinc-400">
+              <p className="mt-0.5 pl-[60px] text-xs italic text-zinc-500 dark:text-zinc-400">
                 "{a.notes}"
               </p>
             ) : null}

@@ -36,6 +36,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/ui/query-error";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatTile } from "@/components/ui/data-table";
 import { Textarea } from "@/components/ui/textarea";
 import {
   usePurchaseOrdersList,
@@ -77,39 +78,6 @@ function daysUntil(dateStr: string | null | undefined): number | null {
 }
 
 // V4.1 UI-13: bỏ fmtVND cục bộ → formatMoney (lib/format).
-
-/* ── KPI Card ────────────────────────────────────────────────────────────── */
-
-function KpiCard({ icon: Icon, label, value, sub, accent }: {
-  icon: React.ElementType;
-  label: string;
-  value: string | number;
-  sub?: string;
-  accent: "indigo" | "amber" | "red" | "emerald" | "zinc";
-}) {
-  const map = {
-    indigo:  { card: "bg-indigo-50/70 border-indigo-200 dark:bg-indigo-950/40 dark:border-indigo-800",   icon: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400",   value: "text-indigo-900 dark:text-indigo-200"  },
-    amber:   { card: "bg-amber-50/70 border-amber-200 dark:bg-amber-950/40 dark:border-amber-800",     icon: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400",     value: "text-amber-900 dark:text-amber-200"   },
-    red:     { card: "bg-red-50/70 border-red-200 dark:bg-red-950/40 dark:border-red-800",         icon: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400",         value: "text-red-900 dark:text-red-200"     },
-    emerald: { card: "bg-emerald-50/70 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800", icon: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400", value: "text-emerald-900 dark:text-emerald-200" },
-    zinc:    { card: "bg-white border-zinc-200 dark:bg-zinc-900 dark:border-zinc-700",            icon: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",       value: "text-zinc-900 dark:text-zinc-50"    },
-  };
-  const s = map[accent];
-  return (
-    <div className={cn("rounded-2xl border p-4 shadow-sm", s.card)}>
-      <div className="flex items-start gap-3">
-        <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", s.icon)}>
-          <Icon className="h-5 w-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</p>
-          <p className={cn("mt-1 font-mono text-xl font-bold leading-tight tabular-nums", s.value)}>{value}</p>
-          {sub && <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{sub}</p>}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /* ── ETA badge ───────────────────────────────────────────────────────────── */
 
@@ -428,10 +396,12 @@ export function ReceivingMovementView() {
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {/* V4.1 UI-05: danh sách lỗi → KPI hiện "—" thay vì 0. */}
-        <KpiCard icon={Clock}          label="Chờ xử lý"      value={stats?.sentCount ?? (isError ? "—" : sentCount)}       sub="đã gửi NCC, chưa nhận"    accent="indigo" />
-        <KpiCard icon={Package}        label="Đang nhận"      value={stats?.partialCount ?? (isError ? "—" : partialCount)} sub="đã nhận một phần"         accent="amber"  />
-        <KpiCard icon={AlertTriangle}  label="Quá hạn giao"   value={isError ? "—" : overdueRows.length}                    sub="cần xử lý gấp"            accent={overdueRows.length > 0 ? "red" : "zinc"} />
-        <KpiCard icon={CheckCircle2}   label="Giao hôm nay"   value={isError ? "—" : todayRows.length}                      sub="theo ngày dự kiến"                  accent="emerald" />
+        {/* V4.1 UI-24/UI-07 (Đợt 6C): thẻ trung tính; nhãn KPI TRÙNG nhãn pill trạng thái
+            PO ("Đã gửi NCC" / "Nhận một phần") để người xem đối chiếu được với bảng. */}
+        <StatTile icon={Clock} label={statusLabel("po", "SENT")} value={stats?.sentCount ?? (isError ? "—" : sentCount)} sub="chưa nhận hàng" />
+        <StatTile icon={Package} label={statusLabel("po", "PARTIAL")} value={stats?.partialCount ?? (isError ? "—" : partialCount)} sub="đang nhận tiếp" />
+        <StatTile icon={AlertTriangle} label="Quá hạn giao" value={isError ? "—" : overdueRows.length} sub="cần xử lý gấp" tone={!isError && overdueRows.length > 0 ? "warning" : undefined} />
+        <StatTile icon={CheckCircle2} label="Giao hôm nay" value={isError ? "—" : todayRows.length} sub="theo ngày dự kiến" />
       </div>
 
       {/* Filter bar */}

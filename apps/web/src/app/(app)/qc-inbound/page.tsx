@@ -14,11 +14,13 @@ export default function QcInboundPage() {
   return (
     <div className="flex flex-col md:h-full md:overflow-hidden">
       <div className="border-b border-zinc-200 bg-white px-4 pb-3 pt-4 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
+        {/* V4.1 UI-09 (X6): breadcrumb thân trang chỉ hiện trên điện thoại — desktop dùng breadcrumb topbar (tránh trùng). */}
         <Breadcrumb
           items={[
             { label: "Tổng quan", href: "/" },
             { label: "QC nhập kho" },
           ]}
+          className="md:hidden"
         />
         <h1 className="mt-1.5 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
           QC nhập kho

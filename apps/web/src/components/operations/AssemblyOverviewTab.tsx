@@ -146,9 +146,9 @@ export function AssemblyOverviewTab() {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Hero with scan */}
-      <header className="border-b border-zinc-200 bg-gradient-to-br from-orange-50 via-white to-amber-50 px-6 py-5 dark:border-zinc-800 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-900">
+      <header className="border-b border-zinc-200 bg-white px-4 py-5 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
         <div className="flex items-start gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 shadow-md shadow-orange-200">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-zinc-700 dark:bg-zinc-700">
             <Wrench className="h-5 w-5 text-white" aria-hidden />
           </div>
           <div className="min-w-0 flex-1">
@@ -322,12 +322,12 @@ function WoCard({ wo, compact }: { wo: WorkOrderRow; compact?: boolean }) {
         compact ? "border-emerald-100 dark:border-emerald-800" : "border-zinc-200 dark:border-zinc-700",
       )}
     >
-      <div className="flex items-start justify-between gap-2 border-b border-zinc-100 bg-gradient-to-br from-zinc-50 to-white px-4 py-2.5 dark:border-zinc-800 dark:from-zinc-800 dark:to-zinc-900">
+      <div className="flex items-start justify-between gap-2 border-b border-zinc-100 bg-zinc-50 px-4 py-2.5 dark:border-zinc-800 dark:bg-zinc-800">
         <div className="min-w-0">
           <div className="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-50">
             {wo.woNo}
           </div>
-          <div className="mt-0.5 line-clamp-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+          <div className="mt-0.5 line-clamp-2 text-xs text-zinc-500 dark:text-zinc-400">
             {wo.notes?.split("\n")[0]?.slice(0, 80) ?? "Lệnh sản xuất"}
           </div>
         </div>
@@ -365,7 +365,7 @@ function WoCard({ wo, compact }: { wo: WorkOrderRow; compact?: boolean }) {
           />
         </div>
         {!compact && (
-          <div className="mt-2.5 flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400">
+          <div className="mt-2.5 flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
             <span>
               ⌚ {wo.plannedStart ? wo.plannedStart : "—"}
               {wo.plannedEnd ? ` → ${wo.plannedEnd}` : ""}
@@ -392,14 +392,15 @@ function StatCard({
   accent: "blue" | "emerald" | "amber";
 }) {
   const ringClass = {
-    blue: "ring-blue-200 bg-blue-50/50 dark:ring-blue-800 dark:bg-blue-950/40",
-    emerald: "ring-emerald-200 bg-emerald-50/50 dark:ring-emerald-800 dark:bg-emerald-950/40",
-    amber: "ring-amber-200 bg-amber-50/50 dark:ring-amber-800 dark:bg-amber-950/40",
+    // V4.1 UI-24 (X8): thẻ trung tính.
+    blue: "ring-zinc-200 bg-white dark:ring-zinc-800 dark:bg-zinc-900",
+    emerald: "ring-zinc-200 bg-white dark:ring-zinc-800 dark:bg-zinc-900",
+    amber: "ring-zinc-200 bg-white dark:ring-zinc-800 dark:bg-zinc-900",
   }[accent];
   return (
     <div
       className={cn(
-        "rounded-xl border border-white/60 px-4 py-3 ring-1 ring-inset shadow-sm dark:border-zinc-700/60",
+        "rounded-lg px-4 py-3 ring-1 ring-inset",
         ringClass,
       )}
     >

@@ -336,7 +336,7 @@ export function UserPermissionMatrix({ userId, isSelf = false }: Props) {
                           `Hiệu lực: ${cell.effectiveAllowed ? "ALLOW" : "DENY"} (${cell.source})`
                         }
                         className={cn(
-                          "relative inline-flex h-9 w-full min-w-[56px] items-center justify-center rounded-md border text-[11px] font-semibold transition",
+                          "relative inline-flex h-9 w-full min-w-[56px] items-center justify-center rounded-md border text-xs font-semibold transition",
                           cell.roleAllowed
                             ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400"
                             : "border-zinc-200 bg-zinc-50 text-zinc-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-500",

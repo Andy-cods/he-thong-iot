@@ -346,7 +346,7 @@ export default function AdminIndexPage() {
                           {entityLabel(ev.entity)}
                         </span>
                       </p>
-                      <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+                      <p className="mt-0.5 flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
                         <ActionBadge action={ev.action} />
                         <span aria-hidden="true">·</span>
                         <span className="font-mono tabular-nums">
@@ -390,7 +390,7 @@ export default function AdminIndexPage() {
                     key={s.id}
                     className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-zinc-50/70 dark:hover:bg-zinc-800/60"
                   >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-50 to-emerald-50 text-zinc-600 ring-1 ring-zinc-200 dark:from-indigo-950/40 dark:to-emerald-950/40 dark:text-zinc-400 dark:ring-zinc-700">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-600 ring-1 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700">
                       <DeviceIcon userAgent={s.userAgent} />
                     </span>
                     <div className="min-w-0 flex-1">
@@ -405,11 +405,11 @@ export default function AdminIndexPage() {
                           </span>
                         ) : null}
                       </p>
-                      <p className="truncate font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
+                      <p className="truncate font-mono text-xs text-zinc-500 dark:text-zinc-400">
                         {s.ip ?? "—"}
                       </p>
                     </div>
-                    <span className="shrink-0 font-mono text-[11px] tabular-nums text-zinc-500 dark:text-zinc-400">
+                    <span className="shrink-0 font-mono text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
                       {formatShortTime(s.lastSeenAt ?? s.issuedAt)}
                     </span>
                   </li>
@@ -429,11 +429,12 @@ const ACCENT_CLASSES: Record<
   "indigo" | "emerald" | "sky" | "amber" | "zinc",
   { iconBg: string; iconText: string; ring: string; trend: string }
 > = {
+  // V4.1 UI-24 (X8): indigo trang trí → trung tính (màu chỉ cho trạng thái emerald/amber).
   indigo: {
-    iconBg: "bg-indigo-50 dark:bg-indigo-950/40",
-    iconText: "text-indigo-600 dark:text-indigo-400",
-    ring: "ring-indigo-100 dark:ring-indigo-800",
-    trend: "text-indigo-600 dark:text-indigo-400",
+    iconBg: "bg-zinc-100 dark:bg-zinc-800",
+    iconText: "text-zinc-600 dark:text-zinc-400",
+    ring: "ring-zinc-200 dark:ring-zinc-700",
+    trend: "text-zinc-500 dark:text-zinc-400",
   },
   emerald: {
     iconBg: "bg-emerald-50 dark:bg-emerald-950/40",
@@ -441,11 +442,12 @@ const ACCENT_CLASSES: Record<
     ring: "ring-emerald-100 dark:ring-emerald-800",
     trend: "text-emerald-600 dark:text-emerald-400",
   },
+  // V4.1 UI-24 (X8): sky trang trí → trung tính (màu chỉ cho trạng thái emerald/amber).
   sky: {
-    iconBg: "bg-sky-50 dark:bg-sky-950/40",
-    iconText: "text-sky-600 dark:text-sky-400",
-    ring: "ring-sky-100 dark:ring-sky-800",
-    trend: "text-sky-600 dark:text-sky-400",
+    iconBg: "bg-zinc-100 dark:bg-zinc-800",
+    iconText: "text-zinc-600 dark:text-zinc-400",
+    ring: "ring-zinc-200 dark:ring-zinc-700",
+    trend: "text-zinc-500 dark:text-zinc-400",
   },
   amber: {
     iconBg: "bg-amber-50 dark:bg-amber-950/40",
@@ -514,12 +516,12 @@ function KpiCard({
       {/* Sub + trend */}
       <div className="mt-2 flex items-center gap-1.5">
         {trendLabel ? (
-          <span className={cn("text-[11px] font-medium", cls.trend)}>
+          <span className={cn("text-xs font-medium", cls.trend)}>
             {trendLabel}
           </span>
         ) : null}
         {sub ? (
-          <p className="truncate text-[11px] text-zinc-500 dark:text-zinc-400">
+          <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
             {trendLabel ? <span className="text-zinc-300 dark:text-zinc-600">·</span> : null}{" "}
             {sub}
           </p>
@@ -546,14 +548,14 @@ function ActionBar({
         return (
           <div
             key={r.action}
-            className="flex items-center gap-2 text-[11px] text-zinc-600 dark:text-zinc-400"
+            className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400"
           >
             <span className="w-24 shrink-0 truncate" title={r.action}>
               {actionLabel(r.action)}
             </span>
             <div className="relative h-1 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
               <div
-                className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-indigo-400 to-indigo-600 dark:from-indigo-400 dark:to-indigo-500"
+                className="absolute left-0 top-0 h-full rounded-full bg-indigo-500"
                 style={{ width: `${pct}%` }}
               />
             </div>
@@ -601,7 +603,7 @@ function Card({
               {title}
             </h2>
             {subtitle ? (
-              <p className="mt-0.5 truncate text-[11px] text-zinc-500 dark:text-zinc-400">
+              <p className="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400">
                 {subtitle}
               </p>
             ) : null}
@@ -751,7 +753,7 @@ function HealthCard({
             {config.label}
           </span>
         </div>
-        <p className="mt-0.5 truncate text-[11px] text-zinc-500 dark:text-zinc-400">{detail}</p>
+        <p className="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400">{detail}</p>
       </div>
     </div>
   );
@@ -791,7 +793,7 @@ function QuickLink({
           <p className="truncate text-sm font-medium tracking-tight text-zinc-900 dark:text-zinc-50">
             {title}
           </p>
-          <p className="truncate text-[11px] text-zinc-500 dark:text-zinc-400">{description}</p>
+          <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">{description}</p>
         </div>
         <ArrowUpRight
           className="h-3.5 w-3.5 shrink-0 text-zinc-300 transition-colors group-hover:text-zinc-500 dark:text-zinc-600 dark:group-hover:text-zinc-400"

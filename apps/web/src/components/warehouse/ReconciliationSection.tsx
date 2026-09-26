@@ -293,7 +293,7 @@ export function ReconciliationSection() {
               </div>
             )}
             {d.mrDelivered.rows.length > 0 ? (
-              <p className="mt-1 text-[11px] text-zinc-500">
+              <p className="mt-1 text-xs text-zinc-500">
                 SL ước tính = SL ghi đã giao nếu có, ngược lại = SL yêu cầu (bản cũ không ghi SL giao).
                 {d.mrDelivered.truncated ? " Chi tiết chỉ hiện 2.000 dòng đầu." : ""} Xem phiếu:{" "}
                 {[...new Map(d.mrDelivered.rows.map((r) => [r.requestId, r.requestNo])).entries()]
@@ -352,7 +352,7 @@ export function ReconciliationSection() {
               </div>
             )}
             {d.outboundWithoutBin.truncated ? (
-              <p className="mt-1 text-[11px] text-zinc-500">Chi tiết CSV chỉ gồm 2.000 giao dịch đầu.</p>
+              <p className="mt-1 text-xs text-zinc-500">Chi tiết CSV chỉ gồm 2.000 giao dịch đầu.</p>
             ) : null}
           </div>
         </div>

@@ -119,21 +119,22 @@ const ACTION_META: Record<string, ActionMeta> = {
 
 const TONE_DOT: Record<string, string> = {
   emerald: "bg-emerald-500 ring-emerald-100 dark:ring-emerald-950",
-  blue: "bg-blue-500 ring-blue-100 dark:ring-blue-950",
+  blue: "bg-sky-500 ring-sky-100 dark:ring-sky-950",
   rose: "bg-rose-500 ring-rose-100 dark:ring-rose-950",
   amber: "bg-amber-500 ring-amber-100 dark:ring-amber-950",
   indigo: "bg-indigo-500 ring-indigo-100 dark:ring-indigo-950",
-  violet: "bg-violet-500 ring-violet-100 dark:ring-violet-950",
+  // V4.1 UI-24: bỏ tím (ngoài bảng màu) — dùng indigo thương hiệu.
+  violet: "bg-indigo-500 ring-indigo-100 dark:ring-indigo-950",
   zinc: "bg-zinc-400 ring-zinc-100 dark:ring-zinc-800",
 };
 
 const TONE_ICON_BG: Record<string, string> = {
   emerald: "bg-emerald-50 text-emerald-700 ring-emerald-200/60 dark:bg-emerald-950/50 dark:text-emerald-300 dark:ring-emerald-800/60",
-  blue: "bg-blue-50 text-blue-700 ring-blue-200/60 dark:bg-blue-950/50 dark:text-blue-300 dark:ring-blue-800/60",
+  blue: "bg-sky-50 text-sky-700 ring-sky-200/60 dark:bg-sky-950/50 dark:text-sky-300 dark:ring-sky-800/60",
   rose: "bg-rose-50 text-rose-700 ring-rose-200/60 dark:bg-rose-950/50 dark:text-rose-300 dark:ring-rose-800/60",
   amber: "bg-amber-50 text-amber-700 ring-amber-200/60 dark:bg-amber-950/50 dark:text-amber-300 dark:ring-amber-800/60",
   indigo: "bg-indigo-50 text-indigo-700 ring-indigo-200/60 dark:bg-indigo-950/50 dark:text-indigo-300 dark:ring-indigo-800/60",
-  violet: "bg-violet-50 text-violet-700 ring-violet-200/60 dark:bg-violet-950/50 dark:text-violet-300 dark:ring-violet-800/60",
+  violet: "bg-indigo-50 text-indigo-700 ring-indigo-200/60 dark:bg-indigo-950/50 dark:text-indigo-300 dark:ring-indigo-800/60",
   zinc: "bg-zinc-100 text-zinc-600 ring-zinc-200/60 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700",
 };
 
@@ -214,7 +215,7 @@ export function RecentActivityCard({ className }: RecentActivityCardProps) {
   return (
     <section
       className={cn(
-        "dashboard-stagger-fade relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-white/60 bg-white/70 p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.04)] backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/70 dark:shadow-[0_1px_2px_rgba(0,0,0,0.4),0_4px_16px_rgba(0,0,0,0.3)]",
+        "dashboard-stagger-fade relative flex flex-col gap-4 overflow-hidden rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900 md:p-5",
         className,
       )}
     >
@@ -265,7 +266,7 @@ export function RecentActivityCard({ className }: RecentActivityCardProps) {
           {/* Vertical spine */}
           <div
             aria-hidden="true"
-            className="absolute left-[15px] top-2 bottom-2 w-px bg-gradient-to-b from-zinc-200 via-zinc-200/70 to-transparent dark:from-zinc-700 dark:via-zinc-700/70"
+            className="absolute left-[15px] top-2 bottom-2 w-px bg-zinc-200 dark:bg-zinc-700"
           />
           {data.items.map((it) => {
             const meta: ActionMeta =

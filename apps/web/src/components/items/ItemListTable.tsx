@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Copy, Eye, Pencil } from "lucide-react";
+import { RowActionsMenu } from "@/components/ui/data-table";
 import { ITEM_TYPE_LABELS, type ItemType } from "@iot/shared";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -121,9 +122,12 @@ export function ItemListTable({
   );
 
   return (
+    <>
+    {/* V4.1 UI-11 (Đợt 6C): điện thoại dạng thẻ — PHẢI thấy Tồn kho (#9). */}
+    <ItemMobileCards rows={rows} loading={loading} onEdit={onEdit} onPreview={onPreview} onCopySku={copySku} />
     <div
       ref={parentRef}
-      className="relative h-full w-full overflow-auto rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+      className="relative hidden h-full w-full overflow-auto rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 md:block"
       role="region"
       aria-label="Danh mục vật tư"
     >
@@ -287,7 +291,7 @@ export function ItemListTable({
                 title={row.defaultBinCode ?? "Chưa gán bin"}
               >
                 {row.defaultBinCode ? (
-                  <span className="inline-flex whitespace-nowrap items-center rounded bg-blue-50 px-1.5 py-0.5 font-mono text-xs font-medium text-blue-700">
+                  <span className="inline-flex whitespace-nowrap items-center rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                     {row.defaultBinCode}
                   </span>
                 ) : (
@@ -300,45 +304,7 @@ export function ItemListTable({
                     - Tooltip hiển thị on-hand / reserved chi tiết. */}
               <div className="hidden flex-col items-end justify-center whitespace-nowrap pr-2 tabular-nums text-zinc-700 md:flex dark:text-zinc-300">
                 {row.inventorySummary ? (
-                  (() => {
-                    const sum = row.inventorySummary;
-                    const minStock = Number(row.minStockQty ?? 0) || 0;
-                    const availColor =
-                      sum.availableQty <= 0
-                        ? "text-rose-700"
-                        : minStock > 0 && sum.availableQty < minStock
-                          ? "text-amber-700"
-                          : "text-zinc-900 dark:text-zinc-100";
-                    return (
-                      <span
-                        title={`Tồn thực tế: ${formatNumber(sum.totalQty)} ${row.uom}\nĐang giữ: ${formatNumber(sum.reservedQty)} ${row.uom}\nKhả dụng: ${formatNumber(sum.availableQty)} ${row.uom}${minStock > 0 ? `\nTồn tối thiểu: ${formatNumber(minStock)}` : ""}`}
-                        className="flex flex-col items-end"
-                      >
-                        <span
-                          className={`text-sm font-medium ${availColor}`}
-                        >
-                          {formatNumber(sum.availableQty)}{" "}
-                          <span className="text-xs font-normal text-zinc-500">
-                            {row.uom}
-                          </span>
-                        </span>
-                        <span className="text-xs leading-tight text-zinc-500">
-                          Tổng:{" "}
-                          <span className="tabular-nums text-zinc-700 dark:text-zinc-300">
-                            {formatNumber(sum.totalQty)}
-                          </span>
-                          {sum.reservedQty > 0 && (
-                            <>
-                              {" · Giữ: "}
-                              <span className="tabular-nums text-amber-600">
-                                {formatNumber(sum.reservedQty)}
-                              </span>
-                            </>
-                          )}
-                        </span>
-                      </span>
-                    );
-                  })()
+                  <StockCell row={row} />
                 ) : row.onHand !== null && row.onHand !== undefined ? (
                   <span>{formatNumber(row.onHand)}</span>
                 ) : (
@@ -389,5 +355,133 @@ export function ItemListTable({
         })}
       </div>
     </div>
+    </>
+  );
+}
+
+/**
+ * Ô tồn kho — V1.9 P6 + TASK-20260427-017: khả dụng đỏ nếu ≤ 0, amber nếu < tồn
+ * tối thiểu; tooltip chi tiết thực tế / đang giữ.
+ */
+function StockCell({ row, align = "end" }: { row: ItemRow; align?: "start" | "end" }) {
+  const sum = row.inventorySummary;
+  if (!sum) {
+    return <span>{row.onHand !== null && row.onHand !== undefined ? formatNumber(row.onHand) : "—"}</span>;
+  }
+  const minStock = Number(row.minStockQty ?? 0) || 0;
+  const availColor =
+    sum.availableQty <= 0
+      ? "text-rose-700 dark:text-rose-400"
+      : minStock > 0 && sum.availableQty < minStock
+        ? "text-amber-700 dark:text-amber-400"
+        : "text-zinc-900 dark:text-zinc-100";
+  return (
+    <span
+      title={`Tồn thực tế: ${formatNumber(sum.totalQty)} ${row.uom}
+Đang giữ: ${formatNumber(sum.reservedQty)} ${row.uom}
+Khả dụng: ${formatNumber(sum.availableQty)} ${row.uom}${minStock > 0 ? `
+Tồn tối thiểu: ${formatNumber(minStock)}` : ""}`}
+      className={cn("flex flex-col tabular-nums", align === "end" ? "items-end" : "items-start")}
+    >
+      <span className={cn("text-sm font-medium", availColor)}>
+        {formatNumber(sum.availableQty)}{" "}
+        <span className="text-xs font-normal text-zinc-500">{row.uom}</span>
+      </span>
+      <span className="text-xs leading-tight text-zinc-500">
+        Tổng:{" "}
+        <span className="tabular-nums text-zinc-700 dark:text-zinc-300">{formatNumber(sum.totalQty)}</span>
+        {sum.reservedQty > 0 && (
+          <>
+            {" · Giữ: "}
+            <span className="tabular-nums text-amber-600">{formatNumber(sum.reservedQty)}</span>
+          </>
+        )}
+      </span>
+    </span>
+  );
+}
+
+/** V4.1 UI-11 (Đợt 6C) — danh sách thẻ vật tư trên điện thoại (< md). */
+function ItemMobileCards({
+  rows,
+  loading,
+  onEdit,
+  onPreview,
+  onCopySku,
+}: {
+  rows: ItemRow[];
+  loading?: boolean;
+  onEdit: (row: ItemRow) => void;
+  onPreview?: (row: ItemRow) => void;
+  onCopySku: (sku: string) => void;
+}) {
+  if (loading && rows.length === 0) {
+    return (
+      <ul className="space-y-2 md:hidden" aria-label="Danh mục vật tư">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <li key={i} className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="mt-2 h-3 w-48" />
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  return (
+    <ul className="space-y-2 md:hidden" aria-label="Danh mục vật tư">
+      {rows.map((row) => {
+        const st = getStatus("item", activeStatusCode(row.isActive));
+        return (
+          <li
+            key={row.id}
+            className="rounded-lg border border-zinc-200 bg-white p-3 text-sm dark:border-zinc-800 dark:bg-zinc-900"
+          >
+            <div className="flex items-start gap-2">
+              <div className="min-w-0 flex-1">
+                <Link
+                  href={`/items/${row.id}`}
+                  className="block truncate font-mono text-sm font-medium text-indigo-600 dark:text-indigo-400"
+                  title={row.sku}
+                >
+                  {row.sku}
+                </Link>
+                <Link
+                  href={`/items/${row.id}`}
+                  className="mt-0.5 line-clamp-2 text-zinc-900 dark:text-zinc-100"
+                  title={row.name}
+                >
+                  {row.name}
+                </Link>
+              </div>
+              <StatusBadge status={st.tone} size="sm" label={st.label} />
+              <RowActionsMenu
+                className="-mr-1 -mt-1"
+                actions={[
+                  { label: "Xem chi tiết", icon: Eye, onSelect: () => onPreview?.(row), hidden: !onPreview },
+                  { label: "Sửa nhanh", icon: Pencil, onSelect: () => onEdit(row) },
+                  { label: "Sao chép mã", icon: Copy, onSelect: () => onCopySku(row.sku) },
+                ]}
+              />
+            </div>
+            <dl className="mt-2 grid grid-cols-3 gap-x-3 gap-y-1">
+              <div className="min-w-0">
+                <dt className="text-xs text-zinc-500 dark:text-zinc-400">Tồn kho</dt>
+                <dd><StockCell row={row} align="start" /></dd>
+              </div>
+              <div className="min-w-0">
+                <dt className="text-xs text-zinc-500 dark:text-zinc-400">Vị trí</dt>
+                <dd className="truncate font-mono text-xs text-zinc-700 dark:text-zinc-300" title={row.defaultBinCode ?? undefined}>
+                  {row.defaultBinCode ?? "—"}
+                </dd>
+              </div>
+              <div className="min-w-0">
+                <dt className="text-xs text-zinc-500 dark:text-zinc-400">Loại</dt>
+                <dd className="truncate text-zinc-700 dark:text-zinc-300">{ITEM_TYPE_LABELS[row.itemType]}</dd>
+              </div>
+            </dl>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

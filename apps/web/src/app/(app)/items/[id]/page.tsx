@@ -176,7 +176,8 @@ export default function ItemDetailPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
-      <Breadcrumb items={breadcrumbItems} className="mb-3" />
+      {/* V4.1 UI-09 (X6): breadcrumb thân trang chỉ hiện trên điện thoại — desktop dùng breadcrumb topbar (tránh trùng). */}
+      <Breadcrumb items={breadcrumbItems} className="mb-3 md:hidden" />
 
       {/* V2 Header — Name + SKU + Status + Actions */}
       <header className="mb-4 flex flex-wrap items-start justify-between gap-3">

@@ -306,7 +306,8 @@ async function ensureMaterialSheetWithCatalog(
     .insert(bomSheet)
     .values({
       templateId,
-      name: "Material & Process",
+      // V4.1 UI-27 (Đợt 6C): tên mặc định tiếng Việt cho sheet MỚI (dữ liệu cũ không đổi).
+      name: "Vật tư & Quy trình",
       kind: "MATERIAL",
       position: 2,
       metadata: { defaultSheet: true, combined: true },

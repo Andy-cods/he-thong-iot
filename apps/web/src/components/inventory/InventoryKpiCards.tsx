@@ -122,7 +122,7 @@ function KpiCard({
       <div
         className={cn(
           "font-medium uppercase tracking-wide text-zinc-500",
-          compact ? "text-xs" : "text-[11px]",
+          compact ? "text-xs" : "text-xs",
         )}
       >
         {label}
@@ -137,7 +137,7 @@ function KpiCard({
         {formatNumber(value)}
       </div>
       {hint ? (
-        <div className="mt-0.5 text-[11px] text-zinc-500">{hint}</div>
+        <div className="mt-0.5 text-xs text-zinc-500">{hint}</div>
       ) : null}
     </div>
   );

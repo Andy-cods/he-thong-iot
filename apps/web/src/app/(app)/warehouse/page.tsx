@@ -1,4 +1,3 @@
-import { Breadcrumb } from "@/components/ui/breadcrumb";
 import {
   WAREHOUSE_TABS,
   WarehouseTabsNav,
@@ -56,20 +55,12 @@ export default function WarehousePage({ searchParams }: WarehousePageProps) {
   // Backward-compat: ?tab=issue/picking (không có mode) → mặc định mode=out.
   const legacyOutMode = searchParams.tab === "issue" || searchParams.tab === "picking";
   const mode = resolveMovementMode(searchParams.mode ?? (legacyOutMode ? "out" : undefined));
-  const tabLabel =
-    WAREHOUSE_TABS.find((t) => t.key === active)?.label ?? "Sơ đồ kho";
 
   return (
     <div className="flex flex-col md:h-full md:overflow-hidden">
       <div className="border-b border-zinc-200 bg-white px-4 pb-3 pt-4 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
-        <Breadcrumb
-          items={[
-            { label: "Tổng quan", href: "/" },
-            { label: "Kho", href: "/warehouse" },
-            { label: tabLabel },
-          ]}
-        />
-        <h1 className="mt-1.5 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+        {/* V4.1 UI-09 (X6): bỏ breadcrumb thân trang — topbar đã hiện cùng đường dẫn (+ nhãn tab). */}
+        <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
           Quản lí kho
         </h1>
         <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">

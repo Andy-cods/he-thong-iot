@@ -17,7 +17,7 @@ import type { DashboardCountsPayload } from "@/app/api/dashboard/counts/route";
  * Sections:
  *   1. Hero overview với 3 quick stats
  *   2. EntityCountChart — bar chart 7 cột (BOM/Đơn hàng/PR/PO/Lệnh SX/Linh kiện/NCC)
- *   3. ProgressBarStack — 6 BigStatCards với gradient backgrounds
+ *   3. ProgressBarStack — 6 BigStatCards (V4.1: thẻ trung tính, bỏ gradient)
  *   4. RecentActivity + ActionItems (2 col)
  *   5. LowStock (full width)
  *
@@ -131,7 +131,7 @@ export function DashboardClient({
       {error ? (
         <div
           role="alert"
-          className="rounded-xl border border-rose-200 bg-rose-50/80 px-4 py-3 text-sm text-rose-800 backdrop-blur-sm dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300"
+          className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300"
         >
           {error}
         </div>

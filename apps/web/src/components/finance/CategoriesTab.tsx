@@ -10,7 +10,6 @@ import {
   type FinCategoryCreate,
   type FinDirection,
 } from "@iot/shared";
-import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -68,14 +67,8 @@ export function CategoriesTab() {
     <div className="flex h-full flex-col overflow-auto bg-zinc-50/30 dark:bg-zinc-950/30">
       <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
         <div>
-          <Breadcrumb
-            items={[
-              { label: "Trang chủ", href: "/" },
-              { label: "Bộ phận Thu mua", href: "/sales" },
-              { label: "Tài chính: Danh mục" },
-            ]}
-          />
-          <h1 className="mt-2 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+          {/* V4.1 UI-09 (X6): bỏ breadcrumb thân trang — topbar đã hiện cùng đường dẫn (+ nhãn tab). */}
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             Danh mục thu chi
           </h1>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">

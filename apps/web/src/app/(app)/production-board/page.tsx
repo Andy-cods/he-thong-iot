@@ -21,7 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DialogConfirm } from "@/components/ui/dialog";
+import { useConfirm } from "@/components/ui/confirm-dialog";
+import { DataTable, RowActionsMenu, type DataTableColumn } from "@/components/ui/data-table";
 import { BoardItemDialog } from "@/components/production-board/BoardItemDialog";
 import { can } from "@iot/shared";
 import { useSession } from "@/hooks/useSession";
@@ -83,7 +84,6 @@ export default function ProductionBoardAdminPage() {
 
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editItem, setEditItem] = React.useState<BoardItem | null>(null);
-  const [delItem, setDelItem] = React.useState<BoardItem | null>(null);
 
   const items = data?.data ?? [];
   const counts = data?.counts;
@@ -106,23 +106,150 @@ export default function ProductionBoardAdminPage() {
     }
   };
 
-  const confirmDelete = async () => {
-    if (!delItem) return;
+  // V4.1 UX-01 (Đợt 6C): xoá qua hộp xác nhận chung (useConfirm, 6B) — nút
+  // "Xoá khỏi bảng" chỉ bật khi gõ đúng "XOA" (typeToConfirm), mở từ menu ⋯.
+  const confirm = useConfirm();
+  const requestDelete = async (it: BoardItem) => {
+    const ok = await confirm({
+      title: "Xoá mã hàng khỏi bảng?",
+      description: `Xoá "${it.productCode}" khỏi bảng sản xuất — không hoàn tác được.`,
+      confirmLabel: "Xoá khỏi bảng",
+      tone: "danger",
+      typeToConfirm: "XOA",
+    });
+    if (!ok) return;
     try {
-      await deleteMut.mutateAsync(delItem.id);
-      toast.success(`Đã xoá ${shortCode(delItem.productCode)}`);
-      setDelItem(null);
+      await deleteMut.mutateAsync(it.id);
+      toast.success(`Đã xoá ${shortCode(it.productCode)}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Lỗi xoá");
     }
   };
 
+  const columns: DataTableColumn<BoardItem>[] = [
+    {
+      id: "code",
+      header: "Mã hàng",
+      kind: "code",
+      mobile: "primary",
+      width: 170,
+      cell: (it) => (
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5">
+            {it.isPinned && <Pin className="h-3 w-3 shrink-0 fill-amber-500 text-amber-500" aria-label="Đã ghim" />}
+            <span className="truncate font-mono font-semibold text-zinc-900 dark:text-zinc-100" title={it.productCode}>
+              {it.productCode}
+            </span>
+          </div>
+          {it.rfqNo && (
+            <span className="block truncate font-mono text-xs text-zinc-500 dark:text-zinc-400" title={it.rfqNo}>
+              {it.rfqNo}
+            </span>
+          )}
+          {/* Điện thoại: tên SP ngay dưới mã (cột Sản phẩm ẩn trong thẻ). */}
+          <span className="block truncate text-xs font-normal text-zinc-600 dark:text-zinc-300 md:hidden">
+            {firstLine(it.productName)}
+          </span>
+        </div>
+      ),
+    },
+    {
+      id: "product",
+      header: "Sản phẩm",
+      mobile: "hide",
+      cell: (it) => (
+        <div className="min-w-0 max-w-[280px]">
+          <p className="truncate text-zinc-700 dark:text-zinc-200" title={it.productName}>
+            {firstLine(it.productName)}
+          </p>
+          {it.currentStage && (
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">▸ {it.currentStage}</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      // V4.1 UI-27: "KH" dễ nhầm với "kế hoạch" ở cột Đạt / KH → ghi rõ "Khách".
+      id: "customer",
+      header: "Khách",
+      width: 110,
+      cell: (it) => <span className="text-zinc-600 dark:text-zinc-300">{it.customer ?? "—"}</span>,
+    },
+    {
+      // V4.1 UI-14: SL + ĐVT viết HOA thống nhất.
+      id: "qty",
+      header: "Đạt / KH",
+      kind: "number",
+      width: 140,
+      cell: (it) => (
+        <span>
+          <span className="font-semibold text-zinc-900 dark:text-zinc-50">{formatQty(Number(it.qtyDone) || 0)}</span>
+          <span className="text-zinc-500 dark:text-zinc-400">/{formatQty(Number(it.qtyPlanned) || 0, it.uom)}</span>
+        </span>
+      ),
+    },
+    {
+      id: "deadline",
+      header: "Hạn",
+      kind: "date",
+      width: 110,
+      cell: (it) => (
+        <span className={deadlineTone(it.deadline, it.status)}>{formatDate(it.deadline, "dd/MM/yyyy")}</span>
+      ),
+    },
+    {
+      id: "status",
+      header: "Trạng thái",
+      kind: "status",
+      width: 150,
+      cell: (it) => (
+        <Select
+          value={it.status}
+          disabled={!canEditBoard}
+          onValueChange={(v) => quickStatus(it, v as BoardStatus)}
+        >
+          <SelectTrigger
+            aria-label={`Trạng thái ${it.productCode}`}
+            className={cn("h-8 w-32 border-0 text-sm font-semibold", boardPillClass(it.status))}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {STATUS_OPTIONS.map((st) => (
+              <SelectItem key={st} value={st} className="text-sm">
+                {boardLabel(st)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ),
+    },
+  ];
+  if (canEditBoard || canDeleteBoard) {
+    columns.push({
+      id: "actions",
+      header: <span className="sr-only">Thao tác</span>,
+      kind: "actions",
+      width: 56,
+      cell: (it) => (
+        <RowActionsMenu
+          label={`Thao tác ${it.productCode}`}
+          actions={[
+            { label: "Sửa", icon: Pencil, onSelect: () => openEdit(it), hidden: !canEditBoard },
+            { label: "Xoá khỏi bảng", icon: Trash2, danger: true, onSelect: () => void requestDelete(it), hidden: !canDeleteBoard },
+          ]}
+        />
+      ),
+    });
+  }
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Header */}
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <div>
-          <nav aria-label="Breadcrumb" className="text-xs text-zinc-500 dark:text-zinc-400">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
+        <div className="min-w-0">
+          {/* V4.1 UI-09 (X6): desktop dùng breadcrumb topbar — ở đây chỉ hiện trên điện thoại. */}
+          <nav aria-label="Breadcrumb" className="text-xs text-zinc-500 dark:text-zinc-400 md:hidden">
             <Link href="/" className="hover:text-zinc-900 hover:underline dark:hover:text-zinc-100">
               Tổng quan
             </Link>
@@ -155,7 +282,7 @@ export default function ProductionBoardAdminPage() {
 
       {/* Count strip */}
       {counts && (
-        <div className="flex flex-wrap items-center gap-3 border-b border-zinc-200 bg-zinc-50 px-6 py-2.5 dark:border-zinc-800 dark:bg-zinc-900/40">
+        <div className="flex flex-wrap items-center gap-3 border-b border-zinc-200 bg-zinc-50 px-4 py-2.5 md:px-6 dark:border-zinc-800 dark:bg-zinc-900/40">
           {(["IN_PROGRESS", "QC", "QUEUED", "COMPLETED", "DELIVERED"] as const).map((s) => (
             <CountPill
               key={s}
@@ -197,135 +324,16 @@ export default function ProductionBoardAdminPage() {
             )}
           </div>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-            <table className="w-full text-sm">
-              <thead className="bg-zinc-50 text-[11px] uppercase tracking-wide text-zinc-500 dark:bg-zinc-800/50 dark:text-zinc-400">
-                <tr>
-                  <th className="px-3 py-2.5 text-left">Mã hàng</th>
-                  <th className="px-3 py-2.5 text-left">Sản phẩm</th>
-                  {/* V4.1 UI-27: "KH" dễ nhầm với "kế hoạch" ở cột Đạt / KH → ghi rõ "Khách". */}
-                  <th className="px-3 py-2.5 text-center">Khách</th>
-                  <th className="px-3 py-2.5 text-right">Đạt / KH</th>
-                  <th className="px-3 py-2.5 text-center">Hạn</th>
-                  <th className="px-3 py-2.5 text-left">Trạng thái</th>
-                  {(canEditBoard || canDeleteBoard) && (
-                    <th className="px-3 py-2.5 text-right">Thao tác</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                {items.map((it) => {
-                  const done = Number(it.qtyDone) || 0;
-                  const planned = Number(it.qtyPlanned) || 0;
-                  return (
-                    <tr
-                      key={it.id}
-                      className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40"
-                    >
-                      <td className="px-3 py-2.5">
-                        <div className="flex items-center gap-1.5">
-                          {it.isPinned && (
-                            <Pin className="h-3 w-3 fill-orange-400 text-orange-400" />
-                          )}
-                          <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100">
-                            {it.productCode}
-                          </span>
-                        </div>
-                        {it.rfqNo && (
-                          <span className="font-mono text-sm text-zinc-400 dark:text-zinc-500">
-                            {it.rfqNo}
-                          </span>
-                        )}
-                      </td>
-                      <td className="max-w-[280px] px-3 py-2.5">
-                        <p className="truncate text-zinc-700 dark:text-zinc-200">
-                          {firstLine(it.productName)}
-                        </p>
-                        {it.currentStage && (
-                          <span className="text-sm text-zinc-400 dark:text-zinc-500">
-                            ▸ {it.currentStage}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2.5 text-center text-zinc-600 dark:text-zinc-300">
-                        {it.customer ?? "—"}
-                      </td>
-                      {/* V4.1 UI-14: SL + ĐVT viết HOA thống nhất (trước đây Pcs/SET/Set lẫn lộn). */}
-                      <td className="px-3 py-2.5 text-right tabular-nums">
-                        <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                          {formatQty(done)}
-                        </span>
-                        <span className="text-zinc-400 dark:text-zinc-500">
-                          /{formatQty(planned, it.uom)}
-                        </span>
-                      </td>
-                      <td
-                        className={cn(
-                          "whitespace-nowrap px-3 py-2.5 text-center text-sm",
-                          deadlineTone(it.deadline, it.status),
-                        )}
-                      >
-                        {formatDate(it.deadline, "dd/MM/yyyy")}
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <Select
-                          value={it.status}
-                          disabled={!canEditBoard}
-                          onValueChange={(v) =>
-                            quickStatus(it, v as BoardStatus)
-                          }
-                        >
-                          <SelectTrigger
-                            className={cn(
-                              "h-7 w-32 border-0 text-sm font-semibold",
-                              boardPillClass(it.status),
-                            )}
-                          >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {STATUS_OPTIONS.map((s) => (
-                              <SelectItem key={s} value={s} className="text-xs">
-                                {boardLabel(s)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </td>
-                      {(canEditBoard || canDeleteBoard) && (
-                        <td className="px-3 py-2.5">
-                          <div className="flex items-center justify-end gap-1">
-                            {canEditBoard && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
-                                onClick={() => openEdit(it)}
-                                title="Sửa"
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Button>
-                            )}
-                            {canDeleteBoard && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-red-500 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/40 dark:hover:text-red-300"
-                                onClick={() => setDelItem(it)}
-                                title="Xoá"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          // V4.1 UI-11 (Đợt 6C): ui/data-table — điện thoại dạng thẻ hiện đủ
+          // trạng thái / hạn / Đạt-KH (#8, trước chỉ 2 cột); xoá vào menu ⋯.
+          <DataTable
+            columns={columns}
+            rows={items}
+            getRowKey={(it) => it.id}
+            ariaLabel="Bảng sản xuất"
+            className="max-h-full"
+            minWidth={880}
+          />
         )}
       </div>
 
@@ -335,15 +343,6 @@ export default function ProductionBoardAdminPage() {
         item={editItem}
       />
 
-      <DialogConfirm
-        open={!!delItem}
-        onOpenChange={(v) => !v && setDelItem(null)}
-        title="Xoá mã hàng khỏi bảng?"
-        description={`Xoá "${delItem?.productCode ?? ""}" khỏi bảng sản xuất. Gõ XOA để xác nhận — không hoàn tác được.`}
-        actionLabel="Xoá khỏi bảng"
-        loading={deleteMut.isPending}
-        onConfirm={confirmDelete}
-      />
     </div>
   );
 }
@@ -360,7 +359,7 @@ function CountPill({
   const toneCls = TONE_CLASSES[tone].text;
   return (
     <div className="flex items-center gap-1.5">
-      <span className={cn("font-mono text-lg font-bold tabular-nums", toneCls)}>
+      <span className={cn("text-lg font-semibold tabular-nums", toneCls)}>
         {n}
       </span>
       <span className="text-xs text-zinc-500 dark:text-zinc-400">{label}</span>

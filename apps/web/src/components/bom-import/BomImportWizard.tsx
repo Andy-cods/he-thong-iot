@@ -329,7 +329,7 @@ function UploadStep({
   return (
     <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
       {/* Header */}
-      <div className="border-b border-zinc-100 bg-gradient-to-br from-indigo-50 via-white to-cyan-50 px-6 py-5 dark:border-zinc-800 dark:from-indigo-950/30 dark:via-zinc-900 dark:to-cyan-950/30">
+      <div className="border-b border-zinc-100 bg-white px-6 py-5 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-600 shadow-md shadow-indigo-200 dark:shadow-indigo-950">
             <UploadCloud className="h-5 w-5 text-white" aria-hidden />
@@ -499,8 +499,8 @@ function ReviewStep({
           className={cn(
             "flex items-start gap-3 rounded-xl border px-4 py-3 shadow-sm",
             officialFormat.isOfficial
-              ? "border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50 dark:border-emerald-800 dark:from-emerald-950/40 dark:to-green-950/40"
-              : "border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 dark:border-amber-800 dark:from-amber-950/40 dark:to-orange-950/40",
+              ? "border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40"
+              : "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40",
           )}
         >
           {officialFormat.isOfficial ? (
@@ -762,7 +762,7 @@ function PreviewTable({
   return (
     <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-800">
       <table className="w-full border-collapse text-xs">
-        <thead className="bg-gradient-to-br from-zinc-100 to-zinc-50 dark:from-zinc-800 dark:to-zinc-800/60">
+        <thead className="bg-zinc-50 dark:bg-zinc-800">
           <tr>
             <th className="border-b border-zinc-200 px-2 py-2 text-left text-xs font-medium uppercase text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
               #
@@ -865,10 +865,10 @@ function ResultStep({
         className={cn(
           "overflow-hidden rounded-xl border shadow-sm",
           isDone
-            ? "border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50 dark:border-emerald-800 dark:from-emerald-950/40 dark:to-green-950/40"
+            ? "border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40"
             : isFailed
-              ? "border-red-200 bg-gradient-to-br from-red-50 to-rose-50 dark:border-red-800 dark:from-red-950/40 dark:to-rose-950/40"
-              : "border-indigo-200 bg-gradient-to-br from-indigo-50 to-cyan-50 dark:border-indigo-800 dark:from-indigo-950/40 dark:to-cyan-950/40",
+              ? "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/40"
+              : "border-indigo-200 bg-indigo-50 dark:border-indigo-800 dark:bg-indigo-950/40",
         )}
       >
         <div className="flex items-center gap-4 p-6">
@@ -1039,9 +1039,9 @@ function StepIndicator({ step }: { step: Step }) {
               className={cn(
                 "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold tabular-nums transition-all",
                 state === "current" &&
-                  "bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-200",
+                  "bg-indigo-600 text-white",
                 state === "done" &&
-                  "bg-gradient-to-br from-emerald-500 to-teal-500 text-white",
+                  "bg-emerald-600 text-white",
                 state === "pending" &&
                   "border-2 border-zinc-200 bg-white text-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-500",
               )}
@@ -1068,7 +1068,7 @@ function StepIndicator({ step }: { step: Step }) {
                 className={cn(
                   "mx-2 h-1 flex-1 rounded-full transition-colors",
                   state === "done"
-                    ? "bg-gradient-to-r from-emerald-500 to-teal-500"
+                    ? "bg-emerald-500"
                     : "bg-zinc-200 dark:bg-zinc-700",
                 )}
               />

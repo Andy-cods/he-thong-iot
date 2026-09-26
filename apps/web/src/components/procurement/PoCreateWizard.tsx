@@ -62,8 +62,8 @@ function StepIndicator({
       <div
         className={cn(
           "flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold transition-all",
-          done && "bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md shadow-blue-200",
-          active && "bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-300 ring-4 ring-blue-100",
+          done && "bg-indigo-600 text-white",
+          active && "bg-indigo-600 text-white ring-4 ring-indigo-100 dark:ring-indigo-900",
           !done && !active && "bg-white text-zinc-400 ring-2 ring-zinc-200 dark:bg-zinc-900 dark:text-zinc-500 dark:ring-zinc-700",
         )}
       >
@@ -215,9 +215,9 @@ export function PoCreateWizard() {
         className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-5 py-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
       >
         <StepIndicator step={1} current={step} label="Nguồn" />
-        <div className={cn("h-0.5 flex-1 transition-colors", step >= 2 ? "bg-gradient-to-r from-blue-500 to-indigo-600" : "bg-zinc-200 dark:bg-zinc-700")} />
+        <div className={cn("h-0.5 flex-1 transition-colors", step >= 2 ? "bg-indigo-600" : "bg-zinc-200 dark:bg-zinc-700")} />
         <StepIndicator step={2} current={step} label="NCC + dòng hàng" />
-        <div className={cn("h-0.5 flex-1 transition-colors", step >= 3 ? "bg-gradient-to-r from-blue-500 to-indigo-600" : "bg-zinc-200 dark:bg-zinc-700")} />
+        <div className={cn("h-0.5 flex-1 transition-colors", step >= 3 ? "bg-indigo-600" : "bg-zinc-200 dark:bg-zinc-700")} />
         <StepIndicator step={3} current={step} label="Điều khoản & Duyệt" />
       </nav>
 
@@ -238,7 +238,7 @@ export function PoCreateWizard() {
               className={cn(
                 "group relative flex cursor-pointer flex-col gap-2 rounded-2xl border-2 p-5 transition-all",
                 state.source === "MANUAL"
-                  ? "border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-md ring-2 ring-blue-100"
+                  ? "border-indigo-500 bg-indigo-50 ring-2 ring-indigo-100 dark:bg-indigo-950/40 dark:ring-indigo-900"
                   : "border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm dark:border-zinc-700 dark:bg-zinc-900",
               )}
             >
@@ -255,7 +255,7 @@ export function PoCreateWizard() {
                 className={cn(
                   "flex h-10 w-10 items-center justify-center rounded-xl transition-all",
                   state.source === "MANUAL"
-                    ? "bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md shadow-blue-200"
+                    ? "bg-indigo-600 text-white"
                     : "bg-zinc-100 text-zinc-600 group-hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400",
                 )}
               >
@@ -278,7 +278,7 @@ export function PoCreateWizard() {
               className={cn(
                 "group relative flex cursor-pointer flex-col gap-2 rounded-2xl border-2 p-5 transition-all",
                 state.source === "FROM_PR"
-                  ? "border-violet-500 bg-gradient-to-br from-violet-50 to-purple-50 shadow-md ring-2 ring-violet-100"
+                  ? "border-indigo-500 bg-indigo-50 ring-2 ring-indigo-100 dark:bg-indigo-950/40 dark:ring-indigo-900"
                   : "border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm dark:border-zinc-700 dark:bg-zinc-900",
               )}
             >
@@ -295,7 +295,7 @@ export function PoCreateWizard() {
                 className={cn(
                   "flex h-10 w-10 items-center justify-center rounded-xl transition-all",
                   state.source === "FROM_PR"
-                    ? "bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-md shadow-violet-200"
+                    ? "bg-indigo-600 text-white"
                     : "bg-zinc-100 text-zinc-600 group-hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400",
                 )}
               >

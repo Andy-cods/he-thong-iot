@@ -266,7 +266,7 @@ export function ItemsTab() {
         searchInputRef={searchRef}
       />
 
-      <div className="flex-1 overflow-hidden p-4">
+      <div className="flex-1 overflow-auto p-4 md:overflow-hidden">
         {query.isError && rows.length === 0 ? (
           <QueryError
             error={query.error}

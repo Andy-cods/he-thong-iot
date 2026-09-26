@@ -15,7 +15,6 @@ import {
   type FinDirection,
   type FinPaymentCreate,
 } from "@iot/shared";
-import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/ui/query-error";
+import { RowActionsMenu } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -113,14 +113,8 @@ export function PaymentsTab() {
     <div className="flex h-full flex-col overflow-hidden bg-zinc-50/30 dark:bg-zinc-950/30">
       <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
         <div>
-          <Breadcrumb
-            items={[
-              { label: "Trang chủ", href: "/" },
-              { label: "Bộ phận Thu mua", href: "/sales" },
-              { label: "Tài chính: Thanh toán" },
-            ]}
-          />
-          <h1 className="mt-2 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+          {/* V4.1 UI-09 (X6): bỏ breadcrumb thân trang — topbar đã hiện cùng đường dẫn (+ nhãn tab). */}
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             Lịch sử thanh toán
           </h1>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
@@ -254,10 +248,14 @@ function PaymentCard({
 
   return (
     <div className={cn("overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900", isVoid && "opacity-70")}>
+      {/* V4.1 UI-12 (Đợt 6C): nút huỷ đợt (phá huỷ) ra khỏi nút mở rộng (hết lồng
+          phần tử tương tác) và vào menu ⋯. */}
+      <div className="flex items-center hover:bg-zinc-50 dark:hover:bg-zinc-800/60">
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
+        aria-expanded={expanded}
+        className="flex min-w-0 flex-1 items-center justify-between gap-3 px-4 py-3 text-left"
       >
         <div className="flex min-w-0 items-center gap-3">
           {expanded ? <ChevronDown className="h-4 w-4 shrink-0 text-zinc-400" /> : <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" />}
@@ -282,21 +280,16 @@ function PaymentCard({
           <p className={cn("whitespace-nowrap text-sm font-bold tabular-nums", row.direction === "IN" ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400", isVoid && "line-through")}>
             {row.direction === "IN" ? "+" : "−"}{fmtVND(row.totalAmount)}
           </p>
-          {canVoid && (
-            <span
-              role="button"
-              tabIndex={0}
-              onClick={(e) => { e.stopPropagation(); void onVoid(); }}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); void onVoid(); } }}
-              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40"
-              aria-label={`Huỷ đợt thanh toán ${row.code}`}
-              title="Huỷ đợt thanh toán"
-            >
-              <Ban className="h-3.5 w-3.5" aria-hidden="true" />
-            </span>
-          )}
         </div>
       </button>
+        {canVoid && (
+          <RowActionsMenu
+            className="mr-2 shrink-0"
+            label={`Thao tác ${row.code}`}
+            actions={[{ label: "Huỷ đợt thanh toán", icon: Ban, danger: true, onSelect: () => void onVoid() }]}
+          />
+        )}
+      </div>
       {expanded && (
         <div className="border-t border-zinc-100 bg-zinc-50/50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800/30">
           {detailQuery.isLoading ? (
@@ -547,7 +540,7 @@ function PaymentFormDialog({
                           ))}
                         </select>
                         {remaining !== undefined && (
-                          <p className="mt-0.5 text-[11px] text-zinc-400 dark:text-zinc-500">Còn nợ: {fmtVND(remaining)}</p>
+                          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">Còn nợ: {fmtVND(remaining)}</p>
                         )}
                       </div>
                       <Input

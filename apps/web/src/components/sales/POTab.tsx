@@ -18,10 +18,10 @@ import {
   useQueryStates,
 } from "nuqs";
 import { PO_STATUSES } from "@iot/shared";
-import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/ui/query-error";
+import { StatTile } from "@/components/ui/data-table";
 import { POListTable } from "@/components/procurement/POListTable";
 import { PoExportDialog } from "@/components/procurement/PoExportDialog";
 import { usePurchaseOrdersList, usePurchaseOrdersStats } from "@/hooks/usePurchaseOrders";
@@ -41,39 +41,6 @@ const fmtVND = formatMoneyShort;
 const PO_STATUS_CHIPS = statusOptions("po");
 const CHIP_ALL_ACTIVE =
   "bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 dark:border-zinc-100";
-
-/* ── KPI Card ────────────────────────────────────────────────────────────── */
-
-function KpiCard({ icon: Icon, label, value, sub, accent }: {
-  icon: React.ElementType;
-  label: string;
-  value: string;
-  sub?: string;
-  accent: "indigo" | "emerald" | "amber" | "red" | "zinc";
-}) {
-  const map = {
-    indigo:  { card: "bg-indigo-50/60 border-indigo-200 dark:bg-indigo-950/40 dark:border-indigo-800",   icon: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400",   value: "text-indigo-900 dark:text-indigo-200"  },
-    emerald: { card: "bg-emerald-50/60 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800", icon: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400", value: "text-emerald-900 dark:text-emerald-200" },
-    amber:   { card: "bg-amber-50/60 border-amber-200 dark:bg-amber-950/40 dark:border-amber-800",     icon: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400",     value: "text-amber-900 dark:text-amber-200"   },
-    red:     { card: "bg-red-50/60 border-red-200 dark:bg-red-950/40 dark:border-red-800",         icon: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400",         value: "text-red-900 dark:text-red-200"     },
-    zinc:    { card: "bg-white border-zinc-200 dark:bg-zinc-900 dark:border-zinc-700",            icon: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",       value: "text-zinc-900 dark:text-zinc-50"    },
-  };
-  const s = map[accent];
-  return (
-    <div className={cn("rounded-2xl border p-4 shadow-sm", s.card)}>
-      <div className="flex items-start gap-3">
-        <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", s.icon)}>
-          <Icon className="h-5 w-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</p>
-          <p className={cn("mt-1 text-xl font-bold leading-tight tabular-nums", s.value)}>{value}</p>
-          {sub && <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{sub}</p>}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /* ── Component ───────────────────────────────────────────────────────────── */
 
@@ -152,14 +119,8 @@ export function POTab() {
       {/* V4.1 UI-X6: header chuẩn flex-wrap + min-w-0 — điện thoại nút xuống dòng, không tràn/gãy chữ. */}
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
         <div className="min-w-0 flex-1 basis-56">
-          <Breadcrumb
-            items={[
-              { label: "Trang chủ", href: "/" },
-              { label: "Bộ phận Thu mua" },
-              { label: "Đặt hàng (PO)" },
-            ]}
-          />
-          <h1 className="mt-2 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+          {/* V4.1 UI-09 (X6): bỏ breadcrumb thân trang — topbar đã hiện cùng đường dẫn (+ nhãn tab). */}
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             Đơn đặt hàng (PO)
           </h1>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
@@ -178,34 +139,32 @@ export function POTab() {
       </header>
 
       {/* ── KPI cards ── */}
+      {/* V4.1 UI-24 (X8): thẻ KPI trung tính (trắng, viền zinc) — màu chỉ khi mã hoá trạng thái (quá hạn). */}
       <div className="grid grid-cols-2 gap-3 border-b border-zinc-200 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900 md:px-6 lg:grid-cols-4">
-        <KpiCard
+        <StatTile
           icon={TrendingUp}
           label="Tổng giá trị"
           value={kpi(fmtVND(stats?.totalSpend ?? 0))}
           sub={kpi(`${stats?.total ?? 0} PO`)}
-          accent="indigo"
         />
-        <KpiCard
+        <StatTile
           icon={Clock}
           label="PO đang mở"
           value={kpi(String(stats?.openCount ?? 0))}
           sub={kpi(`${fmtVND(stats?.pendingSpend ?? 0)} chờ nhận`)}
-          accent="amber"
         />
-        <KpiCard
+        <StatTile
           icon={CheckCircle2}
           label="Đã hoàn tất"
           value={kpi(String(stats?.receivedCount ?? 0))}
           sub={kpi(`${fmtVND(stats?.receivedSpend ?? 0)} đã nhận`)}
-          accent="emerald"
         />
-        <KpiCard
+        <StatTile
           icon={(stats?.overdueCount ?? 0) > 0 ? AlertTriangle : Users}
           label={(stats?.overdueCount ?? 0) > 0 ? "Quá hạn" : "Số NCC"}
           value={kpi(String((stats?.overdueCount ?? 0) > 0 ? stats?.overdueCount : (stats?.supplierCount ?? 0)))}
           sub={(stats?.overdueCount ?? 0) > 0 ? "PO quá ngày dự kiến chưa nhận đủ" : "nhà cung cấp"}
-          accent={(stats?.overdueCount ?? 0) > 0 ? "red" : "zinc"}
+          tone={(stats?.overdueCount ?? 0) > 0 ? "warning" : undefined}
         />
       </div>
 
@@ -316,7 +275,8 @@ export function POTab() {
       </div>
 
       {/* ── Table ── */}
-      <div className="flex-1 overflow-hidden p-4">
+      {/* V4.1 UI-11: điện thoại dạng thẻ cuộn theo khung; desktop bảng tự cuộn (header dính). */}
+      <div className="flex-1 overflow-auto p-4 md:overflow-hidden">
         {showError ? (
           <QueryError
             error={query.error}

@@ -78,7 +78,7 @@ export function OrderNotesSection({
             Ghi chú sản xuất
           </h3>
           {order.productionNotesUpdatedAt && (
-            <span className="ml-auto text-[11px] text-zinc-500 dark:text-zinc-400">
+            <span className="ml-auto text-xs text-zinc-500 dark:text-zinc-400">
               Cập nhật{" "}
               {formatDate(order.productionNotesUpdatedAt, "dd/MM HH:mm")}
             </span>
@@ -101,7 +101,7 @@ export function OrderNotesSection({
                 setDirty(true);
               }}
             />
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
               Ghi chú ngắn cho toàn đơn hàng. Lịch sử chi tiết xem ở cột bên
               phải.
             </p>
@@ -145,7 +145,7 @@ export function OrderNotesSection({
             Lịch sử thao tác
           </h3>
           {activity.data?.data && (
-            <span className="ml-auto text-[11px] text-zinc-500 dark:text-zinc-400">
+            <span className="ml-auto text-xs text-zinc-500 dark:text-zinc-400">
               {activity.data.data.length} sự kiện
             </span>
           )}
@@ -204,7 +204,7 @@ export function OrderNotesSection({
                           )}
                         </div>
                         {ev.notes && (
-                          <p className="mt-0.5 truncate text-[11px] text-zinc-600 dark:text-zinc-400">
+                          <p className="mt-0.5 truncate text-xs text-zinc-600 dark:text-zinc-400">
                             {ev.notes}
                           </p>
                         )}

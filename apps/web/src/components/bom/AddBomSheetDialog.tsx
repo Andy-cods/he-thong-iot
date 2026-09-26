@@ -62,10 +62,10 @@ const KIND_PRESETS: KindPreset[] = [
   {
     kind: "MATERIAL",
     icon: Beaker,
-    label: "Material & Process",
+    label: "Vật tư & Quy trình",
     description:
       "Bảng vật liệu + bảng quy trình gia công song song trong 1 sheet (như Excel sheet 3)",
-    placeholder: "Ví dụ: Material & Process",
+    placeholder: "Ví dụ: Vật tư & Quy trình",
     iconColor: "text-emerald-600",
     borderActive: "border-emerald-500 bg-emerald-50 dark:border-emerald-500 dark:bg-emerald-950/40",
   },

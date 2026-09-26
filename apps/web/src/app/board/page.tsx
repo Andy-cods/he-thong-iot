@@ -37,32 +37,32 @@ const STATUS_META: Record<
     label: tvLabel("IN_PROGRESS"),
     dot: "bg-amber-400 shadow-[0_0_10px_2px_rgba(251,191,36,0.6)]",
     chip: "bg-amber-400/15 text-amber-300 ring-amber-400/40",
-    bar: "from-amber-500 to-amber-300",
+    bar: "bg-amber-400",
     boarding: true,
   },
   QC: {
     label: tvLabel("QC"),
     dot: "bg-cyan-400 shadow-[0_0_10px_2px_rgba(34,211,238,0.5)]",
     chip: "bg-cyan-400/15 text-cyan-300 ring-cyan-400/40",
-    bar: "from-cyan-500 to-cyan-300",
+    bar: "bg-cyan-400",
   },
   QUEUED: {
     label: tvLabel("QUEUED"),
     dot: "bg-slate-400",
     chip: "bg-slate-400/10 text-slate-300 ring-slate-400/30",
-    bar: "from-slate-500 to-slate-400",
+    bar: "bg-slate-400",
   },
   COMPLETED: {
     label: tvLabel("COMPLETED"),
     dot: "bg-emerald-400",
     chip: "bg-emerald-400/15 text-emerald-300 ring-emerald-400/40",
-    bar: "from-emerald-500 to-emerald-300",
+    bar: "bg-emerald-400",
   },
   DELIVERED: {
     label: tvLabel("DELIVERED"),
     dot: "bg-slate-500",
     chip: "bg-slate-500/10 text-slate-400 ring-slate-500/30",
-    bar: "from-slate-600 to-slate-500",
+    bar: "bg-slate-500",
   },
 };
 
@@ -202,7 +202,7 @@ export default function BoardPage() {
           </div>
         </div>
         {/* frame accent */}
-        <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-amber-400/50 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-px bg-slate-700" />
       </header>
 
       {/* ===== Column header ===== */}
@@ -400,7 +400,7 @@ function BoardRow({ item, zebra }: { item: BoardItem; zebra: boolean }) {
       <div className="flex items-center gap-3">
         <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-white/10">
           <div
-            className={`h-full rounded-full bg-gradient-to-r ${meta.bar} transition-all duration-700`}
+            className={`h-full rounded-full ${meta.bar} transition-all duration-700`}
             style={{ width: `${pct}%` }}
           />
         </div>

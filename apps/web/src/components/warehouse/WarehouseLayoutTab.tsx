@@ -285,7 +285,7 @@ export function WarehouseLayoutTab() {
                 className={cn(
                   "inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-semibold transition-all",
                   isActive
-                    ? "bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/40"
+                    ? "bg-indigo-600 text-white" /* V4.1 UI-24: bỏ gradient tím */
                     : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700",
                 )}
               >
@@ -312,12 +312,22 @@ export function WarehouseLayoutTab() {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-3 rounded-xl bg-zinc-50 px-3 py-2 dark:bg-zinc-800">
-            <LegendDot color="#6366f1" label="Có hàng" />
+          {/* V4.1 UI-24 (X8): chú giải KHỚP màu ô — thang indigo theo % lấp đầy
+              (Ít → Đầy) + các trạng thái chức năng. flex-wrap để không tràn điện thoại. */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-800">
+            <div className="flex items-center gap-1.5" title="Mức lấp đầy: ít → đầy">
+              <span className="flex overflow-hidden rounded-sm ring-1 ring-indigo-200 dark:ring-indigo-800" aria-hidden>
+                {["#eef2ff", "#c7d2fe", "#6366f1", "#4f46e5", "#4338ca"].map((c) => (
+                  <span key={c} className="h-2.5 w-2.5" style={{ backgroundColor: c }} />
+                ))}
+              </span>
+              <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Ít → Đầy</span>
+            </div>
             <LegendDot color="#f59e0b" label="Sắp hết" pulse />
-            <LegendDot color="#e2e8f0" label="Trống" stroke="#cbd5e1" />
+            <LegendDot color="#f1f5f9" label="Trống" stroke="#cbd5e1" />
+            <LegendDot color="#71717a" label="Khoá" />
             {/* V4.1 hotfix — bin "Chờ xếp kệ" (migration 0058), luôn cam nổi bật */}
-            <LegendDot color="#f97316" label="Chờ xếp kệ" pulse />
+            <LegendDot color="#fb923c" label="Chờ xếp kệ" pulse />
           </div>
         </div>
       </div>
@@ -336,7 +346,7 @@ export function WarehouseLayoutTab() {
                 Kệ {currentRack?.rack ?? "—"}
               </span>
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                 Hoạt động
               </span>
             </div>
@@ -359,7 +369,7 @@ export function WarehouseLayoutTab() {
                 </div>
                 <div className="h-2 w-full rounded-full bg-zinc-100 overflow-hidden dark:bg-zinc-800">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all"
+                    className="h-full rounded-full bg-indigo-500 transition-all"
                     style={{ width: `${occupiedPct}%` }}
                   />
                 </div>
@@ -633,7 +643,6 @@ export function WarehouseLayoutTab() {
                 <Button
                   size="sm"
                   asChild
-                  className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-md"
                 >
                   <a href="/warehouse?tab=report">
                     <TrendingUp className="h-3.5 w-3.5" />
@@ -794,7 +803,7 @@ export function WarehouseLayoutTab() {
                           {c.itemUom && <span className="ml-1 text-xs font-normal text-zinc-500 dark:text-zinc-400">{c.itemUom}</span>}
                         </span>
                       </div>
-                      <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+                      <div className="mt-2 flex flex-wrap gap-2 text-xs text-zinc-500 dark:text-zinc-400">
                         {c.lotCode && (
                           <span className="rounded bg-indigo-50 px-1.5 py-0.5 font-mono text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400">
                             Lô: {c.lotCode}

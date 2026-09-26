@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Activity,
   CheckCircle2,
@@ -21,6 +22,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/ui/query-error";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DataTable, StatTile, type DataTableColumn } from "@/components/ui/data-table";
 import { useWorkOrdersList, type WorkOrderStatus, type WorkOrderRow } from "@/hooks/useWorkOrders";
 import type { WorkOrderFilter } from "@/lib/query-keys";
 import { BomFilterChip } from "@/components/bom/BomFilterChip";
@@ -36,8 +38,9 @@ import { formatDate } from "@/lib/format";
 
 const PRIORITY_CONFIG: Record<string, { label: string; color: string }> = {
   LOW:    { label: "Thấp",       color: "text-zinc-500 dark:text-zinc-400"   },
-  NORMAL: { label: "Bình thường",color: "text-blue-600 dark:text-blue-400"   },
-  HIGH:   { label: "Cao",        color: "text-orange-600 dark:text-orange-400" },
+  // V4.1 UI-24: bỏ xanh/cam trang trí — chỉ Cao (amber) / Khẩn cấp (đỏ) mang màu.
+  NORMAL: { label: "Bình thường",color: "text-zinc-600 dark:text-zinc-400"   },
+  HIGH:   { label: "Cao",        color: "text-amber-700 dark:text-amber-400" },
   URGENT: { label: "Khẩn cấp",  color: "text-red-600 dark:text-red-400"    },
 };
 
@@ -57,7 +60,7 @@ function ProgressRing({ pct, size = 52, strokeWidth = 5 }: { pct: number; size?:
           style={{ transition: "stroke-dashoffset 0.4s ease" }}
         />
       </svg>
-      <span className={cn("absolute inset-0 flex items-center justify-center font-mono text-[11px] font-bold tabular-nums", pct >= 100 ? "text-emerald-700 dark:text-emerald-400" : "text-zinc-700 dark:text-zinc-300")}>
+      <span className={cn("absolute inset-0 flex items-center justify-center font-mono text-xs font-bold tabular-nums", pct >= 100 ? "text-emerald-700 dark:text-emerald-400" : "text-zinc-700 dark:text-zinc-300")}>
         {pct}%
       </span>
     </div>
@@ -115,7 +118,7 @@ function WoCard({ wo }: { wo: WorkOrderRow }) {
       </div>
 
       {/* Row 3: priority + CTA */}
-      <div className="flex items-center justify-between border-t border-zinc-100 pt-2 text-[11px] dark:border-zinc-800">
+      <div className="flex items-center justify-between border-t border-zinc-100 pt-2 text-xs dark:border-zinc-800">
         <span className={cn("font-medium", pri.color)}>{pri.label}</span>
         <span className={cn("inline-flex items-center gap-1 font-medium transition-colors",
           isPaused ? "text-amber-600 group-hover:text-amber-700 dark:text-amber-400 dark:group-hover:text-amber-300" : "text-indigo-600 group-hover:text-indigo-700 dark:text-indigo-400 dark:group-hover:text-indigo-300"
@@ -241,17 +244,131 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
   // "chờ duyệt" kể cả khi đang xem mọi trạng thái).
   const showingPendingOnly = urlState.status === "DRAFT";
 
+  const router = useRouter();
+  const woColumns = React.useMemo<DataTableColumn<WorkOrderRow>[]>(
+    () => [
+      {
+        id: "woNo",
+        header: "Số lệnh",
+        kind: "code",
+        mobile: "primary",
+        width: 150,
+        cell: (r) => (
+          <Link
+            href={`/work-orders/${r.id}`}
+            className="font-mono text-sm font-semibold text-indigo-600 hover:underline dark:text-indigo-400"
+            title={r.woNo}
+          >
+            {r.woNo}
+          </Link>
+        ),
+      },
+      {
+        id: "product",
+        header: "Sản phẩm",
+        // V4.1 SX-33 — cột Sản phẩm thay "Đơn hàng" (Q4).
+        cell: (r) => (
+          <div className="min-w-0 max-w-[16rem]">
+            <span className="block truncate font-mono text-xs text-zinc-700 dark:text-zinc-300" title={r.productSku ?? undefined}>
+              {r.productSku ?? "—"}
+            </span>
+            {r.productName ? (
+              <span className="block truncate text-xs text-zinc-500 dark:text-zinc-400" title={r.productName}>
+                {r.productName}
+              </span>
+            ) : null}
+          </div>
+        ),
+      },
+      {
+        id: "priority",
+        header: "Ưu tiên",
+        width: 110,
+        cell: (r) => {
+          const pri = PRIORITY_CONFIG[r.priority] ?? PRIORITY_CONFIG.NORMAL!;
+          return <span className={cn("text-xs font-medium", pri.color)}>{pri.label}</span>;
+        },
+      },
+      {
+        id: "qty",
+        header: "Đạt / KH",
+        kind: "number",
+        width: 110,
+        cell: (r) => {
+          const planned = Number(r.plannedQty);
+          const good = Number(r.goodQty);
+          return (
+            <span>
+              <span className={cn("font-semibold", good >= planned ? "text-emerald-700 dark:text-emerald-400" : "text-zinc-800 dark:text-zinc-200")}>
+                {good.toLocaleString("vi-VN")}
+              </span>
+              <span className="text-zinc-400 dark:text-zinc-500"> / {planned.toLocaleString("vi-VN")}</span>
+            </span>
+          );
+        },
+      },
+      {
+        id: "progress",
+        header: "Tiến độ",
+        width: 140,
+        mobile: "hide",
+        cell: (r) => {
+          const planned = Number(r.plannedQty);
+          const good = Number(r.goodQty);
+          const pct = planned > 0 ? Math.min(100, Math.round((good / planned) * 100)) : 0;
+          return (
+            <div className="flex items-center gap-2">
+              <div className="relative h-1.5 w-20 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+                <div
+                  className={cn("absolute inset-y-0 left-0 rounded-full", pct >= 100 ? "bg-emerald-500" : pct > 0 ? "bg-indigo-500" : "bg-zinc-300")}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <span className="min-w-[2.5rem] text-right text-xs tabular-nums text-zinc-600 dark:text-zinc-400">{pct}%</span>
+            </div>
+          );
+        },
+      },
+      {
+        id: "status",
+        header: "Trạng thái",
+        kind: "status",
+        width: 140,
+        cell: (r) => <StatusPill domain="wo" code={r.status} dot pulse={r.status === "IN_PROGRESS"} />,
+      },
+      {
+        id: "created",
+        header: "Ngày tạo",
+        kind: "date",
+        width: 110,
+        cell: (r) => (r.createdAt ? formatDate(r.createdAt, "dd/MM/yyyy") : "—"),
+      },
+      {
+        id: "notes",
+        header: "Ghi chú",
+        mobile: "hide",
+        hideBelowLg: true,
+        cell: (r) => (
+          <span className="block max-w-[14rem] truncate text-xs text-zinc-500 dark:text-zinc-400" title={r.notes ?? undefined}>
+            {r.notes ?? "—"}
+          </span>
+        ),
+      },
+    ],
+    [],
+  );
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
 
       {/* ── Header + Stats ── */}
-      <header className="border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-100 dark:bg-orange-950/40">
-              <Factory className="h-5 w-5 text-orange-600 dark:text-orange-400" aria-hidden />
+      <header className="border-b border-zinc-200 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-1 basis-56 items-center gap-3">
+            <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800 sm:flex">
+              <Factory className="h-5 w-5 text-zinc-500 dark:text-zinc-400" aria-hidden />
             </div>
-            <div>
+            <div className="min-w-0">
               <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
                 {variant === "operations-orders"
                   ? "Lệnh sản xuất"
@@ -283,26 +400,16 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {[
-            isRequestVariant
-              ? { icon: Clock,      label: statusLabel("wo", "DRAFT"), value: stats.draft,   color: "text-sky-700 dark:text-sky-400",    bg: "bg-sky-50 dark:bg-sky-950/40" }
-              : { icon: TrendingUp, label: "Tổng lệnh",       value: stats.total,      color: "text-zinc-600 dark:text-zinc-400",   bg: "bg-zinc-50 dark:bg-zinc-800"   },
-            { icon: Activity,     label: "Đang sản xuất",    value: stats.inProgress, color: "text-orange-600 dark:text-orange-400", bg: "bg-orange-50 dark:bg-orange-950/40" },
-            { icon: Clock,        label: "Hàng đợi / Đã duyệt", value: stats.queued,     color: "text-indigo-600 dark:text-indigo-400", bg: "bg-indigo-50 dark:bg-indigo-950/40" },
-            { icon: CheckCircle2, label: "Hoàn thành",       value: stats.completed,  color: "text-emerald-600 dark:text-emerald-400",bg: "bg-emerald-50 dark:bg-emerald-950/40"},
-          ].map((s) => (
-            <div key={s.label} className={cn("flex items-center gap-2.5 rounded-xl px-3 py-2.5", s.bg)}>
-              <s.icon className={cn("h-4 w-4 shrink-0", s.color)} aria-hidden />
-              <div className="min-w-0">
-                <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{s.label}</p>
-                <p className={cn("font-mono text-lg font-bold leading-none tabular-nums", s.color)}>
-                  {query.isLoading || query.isError ? "—" : s.value}
-                </p>
-              </div>
-            </div>
-          ))}
+        {/* Stats — V4.1 UI-24 (X8): thẻ trung tính, bỏ nền cam/lam/lục. */}
+        <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
+          <StatTile
+            icon={isRequestVariant ? Clock : TrendingUp}
+            label={isRequestVariant ? statusLabel("wo", "DRAFT") : "Tổng lệnh"}
+            value={query.isLoading || query.isError ? "—" : isRequestVariant ? stats.draft : stats.total}
+          />
+          <StatTile icon={Activity} label="Đang sản xuất" value={query.isLoading || query.isError ? "—" : stats.inProgress} />
+          <StatTile icon={Clock} label="Hàng đợi / Đã duyệt" value={query.isLoading || query.isError ? "—" : stats.queued} />
+          <StatTile icon={CheckCircle2} label="Hoàn thành" value={query.isLoading || query.isError ? "—" : stats.completed} />
         </div>
       </header>
 
@@ -338,7 +445,7 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
                 type="button"
                 onClick={() => void setUrlState({ status: opt.value, page: 1 })}
                 className={cn(
-                  "rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors",
+                  "rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors",
                   isActive
                     ? tone
                       ? cn("border-transparent ring-1 ring-inset", tone.pill)
@@ -509,99 +616,19 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
             )}
           </div>
         ) : (
-          /* ── Table view ── */
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 z-10 border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-              <tr className="text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                <th className="px-4 py-2.5 text-left font-medium">Số lệnh</th>
-                <th className="px-4 py-2.5 text-left font-medium">Sản phẩm</th>
-                <th className="px-4 py-2.5 text-left font-medium">Ưu tiên</th>
-                <th className="px-4 py-2.5 text-right font-medium">KH / Đạt</th>
-                <th className="px-4 py-2.5 text-left font-medium">Tiến độ</th>
-                <th className="px-4 py-2.5 text-left font-medium">Trạng thái</th>
-                <th className="px-4 py-2.5 text-left font-medium">Ghi chú</th>
-                <th className="w-20 px-4 py-2.5" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-              {rows.map((r) => {
-                const planned = Number(r.plannedQty);
-                const good = Number(r.goodQty);
-                const pct = planned > 0 ? Math.min(100, Math.round((good / planned) * 100)) : 0;
-                const pri = PRIORITY_CONFIG[r.priority] ?? PRIORITY_CONFIG.NORMAL!;
-                return (
-                  <tr
-                    key={r.id}
-                    className="group cursor-pointer transition-colors hover:bg-zinc-50/80 dark:hover:bg-zinc-800/60"
-                    onClick={() => { window.location.href = `/work-orders/${r.id}`; }}
-                  >
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/work-orders/${r.id}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="font-mono text-xs font-bold text-indigo-700 hover:underline dark:text-indigo-400"
-                      >
-                        {r.woNo}
-                      </Link>
-                      <p className="mt-0.5 text-[11px] text-zinc-400 dark:text-zinc-500">
-                        {r.createdAt ? formatDate(r.createdAt, "dd/MM/yyyy") : ""}
-                      </p>
-                    </td>
-                    {/* V4.1 SX-33 — cột Sản phẩm thay "Đơn hàng" (Q4). */}
-                    <td className="max-w-[220px] px-4 py-3 text-xs">
-                      <span className="block font-mono text-zinc-700 dark:text-zinc-300">{r.productSku ?? "—"}</span>
-                      {r.productName ? (
-                        <span className="block truncate text-[11px] text-zinc-500 dark:text-zinc-400" title={r.productName}>
-                          {r.productName}
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={cn("text-xs font-medium", pri.color)}>{pri.label}</span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <span className="tabular-nums text-sm font-semibold text-zinc-800 dark:text-zinc-200">{planned}</span>
-                      <span className="text-zinc-400 dark:text-zinc-500"> / </span>
-                      <span className={cn("tabular-nums text-sm font-semibold", good >= planned ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-600 dark:text-zinc-400")}>
-                        {good}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="relative h-1.5 w-20 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-                          <div
-                            className={cn("absolute inset-y-0 left-0 rounded-full transition-all", pct >= 100 ? "bg-emerald-500" : pct > 0 ? "bg-indigo-500" : "bg-zinc-300")}
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        <span className="min-w-[2.5rem] text-right text-[11px] tabular-nums text-zinc-600 dark:text-zinc-400">{pct}%</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusPill domain="wo" code={r.status} dot pulse={r.status === "IN_PROGRESS"} />
-                    </td>
-                    <td className="max-w-[180px] px-4 py-3 text-xs text-zinc-500 dark:text-zinc-400">
-                      <span className="line-clamp-1">{r.notes ?? "—"}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <Link
-                          href={`/work-orders/${r.id}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="rounded border border-zinc-200 px-2 py-1 text-[11px] text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                        >
-                          Chi tiết
-                        </Link>
-                        {/* V4.1 SX-03/D10 — bỏ nút cờ-lê "Mở xưởng lắp ráp": lắp ráp
-                            kiểu cũ chỉ chạy với WO từ đơn hàng bán (đang ẩn); WO
-                            LSX / từ dòng BOM không có dòng linh kiện → vào là lỗi. */}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          /* ── Table view ── V4.1 UI-11 (Đợt 6C): ui/data-table — header thẳng cột,
+             số canh phải, điện thoại dạng thẻ (số lệnh + trạng thái, SP, Đạt/KH). */
+          <div className="h-full p-4">
+            <DataTable
+              className="max-h-full"
+              columns={woColumns}
+              rows={rows}
+              getRowKey={(r) => r.id}
+              ariaLabel="Danh sách lệnh sản xuất"
+              minWidth={900}
+              onRowClick={(r) => router.push(`/work-orders/${r.id}`)}
+            />
+          </div>
         )}
       </div>
 

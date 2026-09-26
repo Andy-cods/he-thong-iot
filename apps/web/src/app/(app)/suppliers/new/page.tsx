@@ -16,13 +16,14 @@ export default function NewSupplierPage() {
 
   return (
     <div className="mx-auto w-full max-w-4xl p-6">
+      {/* V4.1 UI-09 (X6): breadcrumb thân trang chỉ hiện trên điện thoại — desktop dùng breadcrumb topbar (tránh trùng). */}
       <Breadcrumb
         items={[
           { label: "Trang chủ", href: "/" },
           { label: "Nhà cung cấp", href: "/suppliers" },
           { label: "Tạo mới" },
         ]}
-        className="mb-2"
+        className="mb-2 md:hidden"
       />
       <header className="mb-6">
         <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">

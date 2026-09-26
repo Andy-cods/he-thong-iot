@@ -28,7 +28,6 @@ import {
   type FinTransactionCreate,
   type FinTransferCreate,
 } from "@iot/shared";
-import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -42,6 +41,7 @@ import { QueryError } from "@/components/ui/query-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RowActionsMenu, StatTile } from "@/components/ui/data-table";
 import {
   AccountSourceSelect,
   BalanceAfterHint,
@@ -180,14 +180,8 @@ export function CashbookTab() {
       {/* Header */}
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
         <div>
-          <Breadcrumb
-            items={[
-              { label: "Trang chủ", href: "/" },
-              { label: "Bộ phận Thu mua", href: "/sales" },
-              { label: "Tài chính: Thu chi" },
-            ]}
-          />
-          <h1 className="mt-2 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+          {/* V4.1 UI-09 (X6): bỏ breadcrumb thân trang — topbar đã hiện cùng đường dẫn (+ nhãn tab). */}
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             Sổ thu chi
           </h1>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
@@ -235,28 +229,23 @@ export function CashbookTab() {
         </div>
       )}
 
-      {/* KPI strip — thẻ KPI được rút gọn, bảng bên dưới luôn số đủ */}
+      {/* KPI strip — thẻ KPI được rút gọn, bảng bên dưới luôn số đủ.
+          V4.1 UI-24 (X8): thẻ trung tính; chỉ chấm + dòng phụ mang màu thu (lục) / chi (hồng). */}
       <div className="grid grid-cols-2 gap-3 border-b border-zinc-200 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 dark:border-emerald-800 dark:bg-emerald-950/40" title={fmtVND(totalIn)}>
-          <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
-            <TrendingUp className="h-4 w-4" />
-            <p className="text-xs font-semibold uppercase tracking-wider">Tổng đã thu</p>
-          </div>
-          <p className="mt-1 text-xl font-bold tabular-nums text-emerald-900 dark:text-emerald-200">
-            {kpiFailed ? "—" : fmtVNDShort(totalIn)}
-          </p>
-          <p className="text-xs tabular-nums text-emerald-800/80 dark:text-emerald-300/80">{kpiFailed ? "Không tải được" : fmtVND(totalIn)}</p>
-        </div>
-        <div className="rounded-2xl border border-rose-200 bg-rose-50/60 p-4 dark:border-rose-800 dark:bg-rose-950/40" title={fmtVND(totalOut)}>
-          <div className="flex items-center gap-2 text-rose-700 dark:text-rose-400">
-            <TrendingDown className="h-4 w-4" />
-            <p className="text-xs font-semibold uppercase tracking-wider">Tổng đã chi</p>
-          </div>
-          <p className="mt-1 text-xl font-bold tabular-nums text-rose-900 dark:text-rose-200">
-            {kpiFailed ? "—" : fmtVNDShort(totalOut)}
-          </p>
-          <p className="text-xs tabular-nums text-rose-800/80 dark:text-rose-300/80">{kpiFailed ? "Không tải được" : fmtVND(totalOut)}</p>
-        </div>
+        <StatTile
+          icon={TrendingUp}
+          label="Tổng đã thu"
+          value={<span title={fmtVND(totalIn)}>{kpiFailed ? "—" : fmtVNDShort(totalIn)}</span>}
+          sub={kpiFailed ? "Không tải được" : fmtVND(totalIn)}
+          tone={kpiFailed ? undefined : "success"}
+        />
+        <StatTile
+          icon={TrendingDown}
+          label="Tổng đã chi"
+          value={<span title={fmtVND(totalOut)}>{kpiFailed ? "—" : fmtVNDShort(totalOut)}</span>}
+          sub={kpiFailed ? "Không tải được" : fmtVND(totalOut)}
+          tone={kpiFailed ? undefined : "danger"}
+        />
       </div>
 
       {/* Filter bar */}
@@ -350,7 +339,7 @@ export function CashbookTab() {
             {/* Desktop table — overflow-clip để header `sticky` bám theo vùng cuộn cha */}
             <div className="hidden overflow-clip rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900 md:block">
               <table className="w-full text-sm">
-                <thead className="sticky top-0 z-10 border-b border-zinc-100 bg-zinc-50 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
+                <thead className="sticky top-0 z-10 border-b border-zinc-100 bg-zinc-50 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
                   <tr>
                     <th className="px-4 py-2.5 text-left">Mã</th>
                     <th className="px-4 py-2.5 text-left">Ngày</th>
@@ -409,25 +398,20 @@ export function CashbookTab() {
                       <p className="text-xs text-zinc-500 dark:text-zinc-400">{fmtDate(r.transactionDate)} · {accountMap.get(r.accountId)?.name ?? "—"}</p>
                       {r.transferGroupId && <TransferBadge />}
                     </div>
-                    <div className="shrink-0 text-right">
+                    {canVoid && r.status === "POSTED" && (
+                      <RowActionsMenu
+                        className="order-last -mr-1 -mt-1"
+                        label={`Thao tác ${r.code}`}
+                        actions={[{ label: "Huỷ giao dịch", icon: Ban, danger: true, onSelect: () => setVoidTarget(r) }]}
+                      />
+                    )}
+                    <div className="ml-auto shrink-0 text-right">
                       <p className={cn("text-sm font-bold tabular-nums", r.direction === "IN" ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
                         {r.direction === "IN" ? "+" : "−"}{fmtVND(r.amount)}
                       </p>
                       <StatusPill domain="finTxn" code={r.status} className="mt-1" />
                     </div>
                   </div>
-                  {canVoid && r.status === "POSTED" && (
-                    <div className="mt-2 border-t border-zinc-100 pt-2 dark:border-zinc-800">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={(e) => { e.stopPropagation(); setVoidTarget(r); }}
-                        className="text-rose-600 dark:text-rose-400"
-                      >
-                        <Ban className="h-3.5 w-3.5" aria-hidden="true" /> Huỷ giao dịch
-                      </Button>
-                    </div>
-                  )}
                 </div>
               ))}
               <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm dark:border-zinc-700 dark:bg-zinc-800/60">
@@ -515,7 +499,7 @@ function TransactionRow({
       onClick={onClick}
       className={cn("cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/60", row.status === "VOID" && "opacity-60")}
     >
-      <td className="px-4 py-2.5 font-mono text-xs text-zinc-500 dark:text-zinc-400">{row.code}</td>
+      <td className="px-4 py-2.5 font-mono text-sm text-zinc-600 dark:text-zinc-400"><span className="inline-block max-w-[9rem] truncate align-bottom" title={row.code}>{row.code}</span></td>
       <td className="px-4 py-2.5 whitespace-nowrap text-zinc-600 dark:text-zinc-400">{fmtDate(row.transactionDate)}</td>
       <td className="px-4 py-2.5 max-w-[280px] truncate text-zinc-800 dark:text-zinc-200">{row.description ?? "—"}</td>
       <td className="px-4 py-2.5 text-zinc-600 dark:text-zinc-400">{accountName ?? "—"}</td>
@@ -536,16 +520,15 @@ function TransactionRow({
         <StatusPill domain="finTxn" code={row.status} />
       </td>
       <td className="px-4 py-2.5 text-right">
+        {/* V4.1 UI-12 (Đợt 6C): huỷ (phá huỷ) vào menu ⋯, không để icon đỏ mỗi dòng. */}
         {canVoid && row.status === "POSTED" && (
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            onClick={(e) => { e.stopPropagation(); onVoid(); }}
-            aria-label={`Huỷ giao dịch ${row.code}`}
-            title="Huỷ giao dịch"
-          >
-            <Ban className="h-3.5 w-3.5 text-rose-500" aria-hidden="true" />
-          </Button>
+          <RowActionsMenu
+            label={`Thao tác ${row.code}`}
+            actions={[
+              { label: "Xem chi tiết", icon: FileText, onSelect: onClick },
+              { label: "Huỷ giao dịch", icon: Ban, danger: true, onSelect: onVoid },
+            ]}
+          />
         )}
       </td>
     </tr>

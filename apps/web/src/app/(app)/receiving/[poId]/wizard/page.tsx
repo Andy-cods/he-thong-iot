@@ -419,6 +419,7 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
   return (
     <div className="flex h-full flex-col overflow-hidden bg-zinc-50/30 dark:bg-zinc-950">
       <header className="border-b border-zinc-200 bg-white px-6 py-5 dark:border-zinc-800 dark:bg-zinc-900">
+        {/* V4.1 UI-09 (X6): breadcrumb thân trang chỉ hiện trên điện thoại — desktop dùng breadcrumb topbar (tránh trùng). */}
         <Breadcrumb
           items={[
             { label: "Tổng quan", href: "/" },
@@ -426,6 +427,7 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
             { label: "Nhập / Xuất kho", href: "/warehouse?tab=movement&mode=in" },
             { label: `Wizard ${po.poCode}` },
           ]}
+          className="md:hidden"
         />
         <div className="mt-2 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">

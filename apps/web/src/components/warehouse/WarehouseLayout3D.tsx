@@ -103,78 +103,89 @@ interface BinTheme {
   palletTone: "indigo" | "blue" | "teal" | "amber" | "gray" | "empty";
 }
 
+/**
+ * V4.1 UI-24 (X8, Đợt 6C): ô kệ theo MỘT thang indigo theo % lấp đầy (trước:
+ * tím/xanh dương/xanh ngọc gradient + LED xanh/vàng lẫn lộn, chú giải không khớp).
+ * Mặt trước tô đặc (4 stop cùng màu); mặt trên/cạnh chỉ sáng/tối hơn 1 bậc để
+ * giữ khối 3D. Màu chức năng giữ riêng: Sắp hết = amber, Chờ xếp kệ = cam,
+ * Khoá = zinc đậm, Trống = zinc nhạt.
+ */
+function solid(c: string): [string, string, string, string] {
+  return [c, c, c, c];
+}
+
 const THEMES: Record<ThemeKey, BinTheme> = {
-  // FULL: >85% capacity — đậm indigo→violet
+  // FULL: >85% — indigo-700
   full: {
-    frontStops: ["#8b5cf6", "#6d5df6", "#5b21b6", "#4c1d95"],
-    topStops: ["#a78bfa", "#8b5cf6"],
-    sideStops: ["#5b21b6", "#3b0764"],
-    stroke: "#4c1d95",
-    shadow: "rgba(91, 33, 182, 0.45)",
+    frontStops: solid("#4338ca"),
+    topStops: ["#4f46e5", "#4f46e5"],
+    sideStops: ["#3730a3", "#3730a3"],
+    stroke: "#3730a3",
+    shadow: "rgba(55, 48, 163, 0.35)",
     textPrimary: "#ffffff",
-    textSecondary: "rgba(243, 232, 255, 0.9)",
-    progressFill: "#fcd34d",
+    textSecondary: "rgba(238, 242, 255, 0.92)",
+    progressFill: "#ffffff",
     progressTrack: "rgba(255, 255, 255, 0.25)",
-    glassRef: "rgba(255, 255, 255, 0.35)",
-    led: "#fbbf24",
-    ledGlow: "rgba(251, 191, 36, 0.6)",
+    glassRef: "rgba(255, 255, 255, 0.12)",
+    led: "#c7d2fe",
+    ledGlow: "rgba(199, 210, 254, 0.4)",
     statusLabel: "Đầy",
     palletTone: "indigo",
   },
-  // HIGH: 60-85% — indigo
+  // HIGH: 60-85% — indigo-600
   high: {
-    frontStops: ["#818cf8", "#6366f1", "#4f46e5", "#4338ca"],
-    topStops: ["#a5b4fc", "#818cf8"],
-    sideStops: ["#3730a3", "#312e81"],
-    stroke: "#3730a3",
-    shadow: "rgba(67, 56, 202, 0.4)",
+    frontStops: solid("#4f46e5"),
+    topStops: ["#6366f1", "#6366f1"],
+    sideStops: ["#4338ca", "#4338ca"],
+    stroke: "#4338ca",
+    shadow: "rgba(67, 56, 202, 0.3)",
     textPrimary: "#ffffff",
-    textSecondary: "rgba(224, 231, 255, 0.9)",
-    progressFill: "#34d399",
+    textSecondary: "rgba(238, 242, 255, 0.92)",
+    progressFill: "#ffffff",
     progressTrack: "rgba(255, 255, 255, 0.25)",
-    glassRef: "rgba(255, 255, 255, 0.32)",
-    led: "#10b981",
-    ledGlow: "rgba(16, 185, 129, 0.6)",
+    glassRef: "rgba(255, 255, 255, 0.12)",
+    led: "#c7d2fe",
+    ledGlow: "rgba(199, 210, 254, 0.4)",
     statusLabel: "Có hàng",
     palletTone: "indigo",
   },
-  // MID: 30-60% — blue
+  // MID: 30-60% — indigo-500
   mid: {
-    frontStops: ["#60a5fa", "#3b82f6", "#2563eb", "#1d4ed8"],
-    topStops: ["#93c5fd", "#60a5fa"],
-    sideStops: ["#1e40af", "#1e3a8a"],
-    stroke: "#1e40af",
-    shadow: "rgba(30, 64, 175, 0.4)",
+    frontStops: solid("#6366f1"),
+    topStops: ["#818cf8", "#818cf8"],
+    sideStops: ["#4f46e5", "#4f46e5"],
+    stroke: "#4f46e5",
+    shadow: "rgba(79, 70, 229, 0.28)",
     textPrimary: "#ffffff",
-    textSecondary: "rgba(219, 234, 254, 0.9)",
-    progressFill: "#34d399",
-    progressTrack: "rgba(255, 255, 255, 0.25)",
-    glassRef: "rgba(255, 255, 255, 0.3)",
-    led: "#10b981",
-    ledGlow: "rgba(16, 185, 129, 0.6)",
-    statusLabel: "Có hàng",
-    palletTone: "blue",
-  },
-  // LOW: <30% but >lowThreshold — teal (light)
-  low: {
-    frontStops: ["#5eead4", "#2dd4bf", "#14b8a6", "#0d9488"],
-    topStops: ["#99f6e4", "#5eead4"],
-    sideStops: ["#0f766e", "#115e59"],
-    stroke: "#0f766e",
-    shadow: "rgba(15, 118, 110, 0.4)",
-    textPrimary: "#ffffff",
-    textSecondary: "rgba(204, 251, 241, 0.95)",
-    progressFill: "#fbbf24",
+    textSecondary: "rgba(238, 242, 255, 0.95)",
+    progressFill: "#ffffff",
     progressTrack: "rgba(255, 255, 255, 0.3)",
-    glassRef: "rgba(255, 255, 255, 0.32)",
-    led: "#fbbf24",
-    ledGlow: "rgba(251, 191, 36, 0.6)",
+    glassRef: "rgba(255, 255, 255, 0.14)",
+    led: "#e0e7ff",
+    ledGlow: "rgba(224, 231, 255, 0.4)",
+    statusLabel: "Có hàng",
+    palletTone: "indigo",
+  },
+  // LOW: <30% — indigo-200 (nền nhạt → chữ tối)
+  low: {
+    frontStops: solid("#c7d2fe"),
+    topStops: ["#e0e7ff", "#e0e7ff"],
+    sideStops: ["#a5b4fc", "#a5b4fc"],
+    stroke: "#818cf8",
+    shadow: "rgba(99, 102, 241, 0.2)",
+    textPrimary: "#312e81",
+    textSecondary: "rgba(49, 46, 129, 0.8)",
+    progressFill: "#4f46e5",
+    progressTrack: "rgba(79, 70, 229, 0.18)",
+    glassRef: "rgba(255, 255, 255, 0.3)",
+    led: "#6366f1",
+    ledGlow: "rgba(99, 102, 241, 0.35)",
     statusLabel: "Còn ít",
-    palletTone: "teal",
+    palletTone: "indigo",
   },
   // WARNING: dưới lowThreshold — amber pulse
   warning: {
-    frontStops: ["#fbbf24", "#f59e0b", "#d97706", "#b45309"],
+    frontStops: solid("#f59e0b"),
     topStops: ["#fde68a", "#fbbf24"],
     sideStops: ["#92400e", "#78350f"],
     stroke: "#92400e",
@@ -191,7 +202,7 @@ const THEMES: Record<ThemeKey, BinTheme> = {
   },
   // EMPTY: trống
   empty: {
-    frontStops: ["#f8fafc", "#f1f5f9", "#e2e8f0", "#cbd5e1"],
+    frontStops: solid("#f1f5f9"),
     topStops: ["#ffffff", "#e2e8f0"],
     sideStops: ["#94a3b8", "#64748b"],
     stroke: "#cbd5e1",
@@ -206,26 +217,26 @@ const THEMES: Record<ThemeKey, BinTheme> = {
     statusLabel: "Trống",
     palletTone: "empty",
   },
-  // V3.7.16 — SLOTTED: bin đã được gán SKU nhưng chưa nhập hàng (sky blue)
+  // V3.7.16 — SLOTTED: đã gán mã nhưng chưa có hàng. V4.1 UI-24: indigo-50 (0% của thang).
   slotted: {
-    frontStops: ["#bae6fd", "#7dd3fc", "#38bdf8", "#0284c7"],
-    topStops: ["#e0f2fe", "#bae6fd"],
-    sideStops: ["#0369a1", "#0c4a6e"],
-    stroke: "#0369a1",
-    shadow: "rgba(14, 165, 233, 0.35)",
-    textPrimary: "#0c4a6e",
-    textSecondary: "rgba(12, 74, 110, 0.85)",
-    progressFill: "#38bdf8",
-    progressTrack: "rgba(14, 165, 233, 0.2)",
+    frontStops: solid("#eef2ff"),
+    topStops: ["#ffffff", "#ffffff"],
+    sideStops: ["#c7d2fe", "#c7d2fe"],
+    stroke: "#a5b4fc",
+    shadow: "rgba(99, 102, 241, 0.15)",
+    textPrimary: "#3730a3",
+    textSecondary: "rgba(55, 48, 163, 0.8)",
+    progressFill: "#818cf8",
+    progressTrack: "rgba(99, 102, 241, 0.15)",
     glassRef: "rgba(255, 255, 255, 0.5)",
-    led: "#0ea5e9",
-    ledGlow: "rgba(14, 165, 233, 0.5)",
+    led: "#a5b4fc",
+    ledGlow: "rgba(165, 180, 252, 0.4)",
     statusLabel: "Đã gán",
-    palletTone: "blue",
+    palletTone: "empty",
   },
   // INACTIVE
   inactive: {
-    frontStops: ["#a1a1aa", "#71717a", "#52525b", "#3f3f46"],
+    frontStops: solid("#71717a"),
     topStops: ["#d4d4d8", "#a1a1aa"],
     sideStops: ["#52525b", "#27272a"],
     stroke: "#3f3f46",
@@ -243,7 +254,7 @@ const THEMES: Record<ThemeKey, BinTheme> = {
   // V4.1 hotfix — STAGING: bin "Chờ xếp kệ" (migration 0058). Cam nổi bật,
   // khác hẳn mọi theme khác, để nhân viên luôn thấy và xếp lại vào kệ thật.
   staging: {
-    frontStops: ["#fdba74", "#fb923c", "#f97316", "#c2410c"],
+    frontStops: solid("#fb923c"),
     topStops: ["#fed7aa", "#fdba74"],
     sideStops: ["#9a3412", "#7c2d12"],
     stroke: "#9a3412",
@@ -362,7 +373,7 @@ export function WarehouseLayout3D({
                   className={cn(
                     "group inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-semibold transition-all",
                     isActive
-                      ? "bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/40 scale-[1.02]"
+                      ? "bg-indigo-600 text-white" /* V4.1 UI-24: bỏ gradient tím */
                       : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700",
                   )}
                 >
@@ -394,7 +405,7 @@ export function WarehouseLayout3D({
         </div>
       )}
 
-      <div className="relative flex-1 overflow-auto rounded-2xl bg-gradient-to-br from-slate-50 via-white to-slate-100 shadow-inner ring-1 ring-zinc-200/60 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-900 dark:ring-zinc-700/60">
+      <div className="relative flex-1 overflow-auto rounded-lg bg-zinc-50 ring-1 ring-zinc-200/60 dark:bg-zinc-950 dark:ring-zinc-700/60">
         {!currentRack ? (
           <div className="flex h-full items-center justify-center text-sm text-zinc-500 dark:text-zinc-400">
             Chọn 1 kệ để xem chi tiết
@@ -466,8 +477,11 @@ function Rack3DView({
   const rackLeftX = TIER_LABEL_W + RACK_PAD + POST_W;
 
   return (
-    <div className="flex h-full items-center justify-center overflow-auto p-4">
-      <svg width={svgWidth} height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`} style={{ display: "block" }}>
+    // V4.1 UI-24 (#13): bỏ justify-center trong khung cuộn — flex căn giữa làm SVG
+    // rộng hơn khung bị cắt mất mép trái ("TẦNG 3" → "NG 3"). margin:auto vẫn căn
+    // giữa khi đủ chỗ, còn khi tràn thì cuộn được từ mép trái.
+    <div className="flex h-full overflow-auto p-4">
+      <svg width={svgWidth} height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`} style={{ display: "block", margin: "auto", flexShrink: 0 }}>
         <defs>
           {/* Bin gradients per theme */}
           {(Object.keys(THEMES) as ThemeKey[]).map((tone) => {
@@ -1278,8 +1292,9 @@ function Rack2DView({
   const tierLabels = ["Tầng 3", "Tầng 2", "Tầng 1"];
 
   return (
-    <div className="flex h-full items-center justify-center p-6">
-      <div className="flex flex-col gap-4">
+    // V4.1 UI-24 (#13): khung cuộn + m-auto (không cắt mép trái), cột nhãn tầng dính trái.
+    <div className="flex h-full overflow-auto p-4 md:p-6">
+      <div className="m-auto flex flex-col gap-4">
         {Array.from({ length: levels }).map((_, idx) => {
           const lvl = levels - idx;
           const tier = tierLabels[idx];
@@ -1289,9 +1304,9 @@ function Rack2DView({
 
           return (
             <div key={lvl} className="flex items-stretch gap-3">
-              <div className="flex w-[80px] shrink-0 flex-col items-center justify-center rounded-xl border border-zinc-200 bg-white px-2 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-                <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{tier}</span>
-                <span className="mt-0.5 text-[10px] text-zinc-400 dark:text-zinc-500">Cao 2.0m</span>
+              <div className="sticky left-0 z-10 flex w-[84px] shrink-0 flex-col items-center justify-center rounded-lg border border-zinc-200 bg-white px-2 dark:border-zinc-700 dark:bg-zinc-900">
+                <span className="whitespace-nowrap text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{tier}</span>
+                <span className="mt-0.5 whitespace-nowrap text-xs text-zinc-500 dark:text-zinc-400">Cao 2.0m</span>
               </div>
               <div className="flex gap-3">
                 {items.map((bin) => (
@@ -1408,7 +1423,7 @@ function Bin2DPro({
       <div className="relative flex items-start justify-between">
         <div className="inline-flex items-center gap-1 rounded-full bg-white/20 px-1.5 py-0.5 backdrop-blur-sm border border-white/30">
           <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: theme.led }} />
-          <span className="text-[9px] font-bold leading-none" style={{ color: theme.textPrimary }}>
+          <span className="text-xs font-bold leading-none" style={{ color: theme.textPrimary }}>
             {theme.statusLabel}
           </span>
         </div>

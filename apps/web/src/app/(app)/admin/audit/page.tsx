@@ -311,7 +311,9 @@ export default function AdminAuditPage() {
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div
             className={cn(
-              "sticky top-0 z-sticky grid h-9 items-center border-b border-zinc-200 bg-zinc-50/70 px-4 text-[11px] font-semibold uppercase tracking-normal text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-400",
+              // V4.1 UI-11 (Đợt 6C): header lệch khỏi pill vì thiếu gap-3 (hàng có gap-3) và
+              // thanh cuộn của thân bảng ăn bề ngang → cả 2 cùng scrollbar-gutter:stable.
+              "sticky top-0 z-sticky grid h-9 items-center gap-3 overflow-hidden border-b border-zinc-200 bg-zinc-50/70 px-4 text-xs font-semibold uppercase tracking-normal text-zinc-500 [scrollbar-gutter:stable] dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-400",
               GRID_COLS,
             )}
           >
@@ -360,7 +362,7 @@ export default function AdminAuditPage() {
               />
             </div>
           ) : virtualize ? (
-            <div ref={parentRef} className="max-h-[60vh] flex-1 overflow-auto">
+            <div ref={parentRef} className="max-h-[60vh] flex-1 overflow-auto [scrollbar-gutter:stable]">
               <div
                 style={{
                   height: `${virt.getTotalSize()}px`,
@@ -389,7 +391,7 @@ export default function AdminAuditPage() {
               </div>
             </div>
           ) : (
-            <div className="max-h-[60vh] flex-1 overflow-auto">
+            <div className="max-h-[60vh] flex-1 overflow-auto [scrollbar-gutter:stable]">
               {rows.map((row) => (
                 <AuditRow key={row.id} row={row} gridCols={GRID_COLS} />
               ))}

@@ -64,7 +64,7 @@ export function ProcurementPanel({
               aria-selected={subTab === k}
               onClick={() => setSubTab(k)}
               className={cn(
-                "inline-flex h-6 items-center rounded-sm px-2.5 text-[11px] font-medium transition-colors",
+                "inline-flex h-6 items-center rounded-sm px-2.5 text-xs font-medium transition-colors",
                 subTab === k
                   ? "bg-indigo-50 text-indigo-700 shadow-sm dark:bg-indigo-950/40 dark:text-indigo-400"
                   : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50",
@@ -77,7 +77,7 @@ export function ProcurementPanel({
           ))}
         </div>
 
-        <div className="ml-auto flex items-center gap-3 text-[11px] text-zinc-500 dark:text-zinc-400">
+        <div className="ml-auto flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
           {subTab === "pr" ? (
             <span>
               {/* V4.1 Q4 — bỏ gợi ý tab "Thiếu vật tư" (đang ẩn). */}
@@ -165,7 +165,7 @@ export function ProcurementPanel({
         <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
           {rows.map((row) => (
             <tr key={row.id} className="h-8 hover:bg-zinc-50 dark:hover:bg-zinc-800/60">
-              <td className="px-3 font-mono text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">
+              <td className="px-3 font-mono text-xs font-semibold text-indigo-600 dark:text-indigo-400">
                 {row.code}
               </td>
               <td className="px-3 text-zinc-700 dark:text-zinc-300">
@@ -238,7 +238,7 @@ export function ProcurementPanel({
         <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
           {rows.map((row) => (
             <tr key={row.id} className="h-8 hover:bg-zinc-50 dark:hover:bg-zinc-800/60">
-              <td className="px-3 font-mono text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">
+              <td className="px-3 font-mono text-xs font-semibold text-indigo-600 dark:text-indigo-400">
                 {row.poNo}
               </td>
               <td className="px-3 text-zinc-700 dark:text-zinc-300">

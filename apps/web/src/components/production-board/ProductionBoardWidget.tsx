@@ -40,11 +40,12 @@ export function ProductionBoardWidget() {
   }
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-      <div className="flex items-center justify-between border-b border-zinc-100 bg-gradient-to-r from-indigo-600 to-indigo-500 px-5 py-3.5 dark:border-zinc-800">
-        <div className="flex items-center gap-2">
-          <MonitorPlay className="h-4 w-4 text-white" />
-          <h2 className="text-sm font-semibold text-white">
+    // V4.1 UI-24 (X8, Đợt 6C): dải tiêu đề indigo đặc/gradient → header trắng.
+    <section className="overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex items-center justify-between gap-2 border-b border-zinc-100 px-4 py-3 dark:border-zinc-800 md:px-5">
+        <div className="flex min-w-0 items-center gap-2">
+          <MonitorPlay className="h-4 w-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
+          <h2 className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-50">
             Bảng điều hành sản xuất
           </h2>
         </div>
@@ -52,7 +53,7 @@ export function ProductionBoardWidget() {
           href="/board"
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-white/25"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
           title="Mở màn hình TV full-screen"
         >
           <Tv className="h-3.5 w-3.5" />
@@ -60,7 +61,7 @@ export function ProductionBoardWidget() {
         </a>
       </div>
 
-      <div className="p-5">
+      <div className="p-4 md:p-5">
         {/* Counts */}
         <div className="grid grid-cols-3 gap-3">
           {(["IN_PROGRESS", "QC", "QUEUED"] as BoardStatus[]).map((s) => (
@@ -70,13 +71,13 @@ export function ProductionBoardWidget() {
             >
               <p
                 className={cn(
-                  "font-mono text-2xl font-bold tabular-nums",
+                  "text-2xl font-semibold tabular-nums",
                   boardMeta(s).text,
                 )}
               >
                 {counts?.[s] ?? 0}
               </p>
-              <p className="mt-0.5 flex items-center justify-center gap-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+              <p className="mt-0.5 flex items-center justify-center gap-1 text-xs text-zinc-500 dark:text-zinc-400">
                 <span className={cn("h-1.5 w-1.5 rounded-full", boardMeta(s).dot)} />
                 {boardMeta(s).label}
               </p>

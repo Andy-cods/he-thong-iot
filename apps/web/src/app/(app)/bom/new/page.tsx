@@ -30,12 +30,14 @@ export default function BomNewPage() {
   return (
     <div className="flex h-full flex-col overflow-auto">
       <header className="border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
+        {/* V4.1 UI-09 (X6): breadcrumb thân trang chỉ hiện trên điện thoại — desktop dùng breadcrumb topbar (tránh trùng). */}
         <Breadcrumb
           items={[
             { label: "Tổng quan", href: "/" },
             { label: "BOM", href: "/bom" },
             { label: "Tạo mới" },
           ]}
+          className="md:hidden"
         />
         <h1 className="mt-2 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
           Tạo BOM mới

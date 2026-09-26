@@ -125,6 +125,7 @@ export default function SupplierDetailPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
+      {/* V4.1 UI-09 (X6): breadcrumb thân trang chỉ hiện trên điện thoại — desktop dùng breadcrumb topbar (tránh trùng). */}
       <Breadcrumb
         items={[
           { label: "Trang chủ", href: "/" },
@@ -133,7 +134,7 @@ export default function SupplierDetailPage() {
             : { label: "Nhà cung cấp" },
           { label: supplier.code },
         ]}
-        className="mb-2"
+        className="mb-2 md:hidden"
       />
 
       {/* V4.1 UI-X6: header flex-wrap + min-w-0 (trang từng tràn 418px trên 390px). */}

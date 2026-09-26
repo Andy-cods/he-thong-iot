@@ -74,7 +74,7 @@ const NAV_ITEMS: Array<{
   },
   {
     href: "/admin/audit",
-    label: "Audit log",
+    label: "Nhật ký", // V4.1 UI-27 (X6): "Audit log" → tiếng Việt
     icon: FileText,
     matchPrefix: "/admin/audit",
   },
@@ -105,19 +105,13 @@ export function AdminPageShell({
 
   return (
     <div className="relative -mx-4 -my-4 md:-mx-6 md:-my-5">
-      {/* Background gradient + subtle blob — full-bleed (đè lên padding của
-          AppShell qua negative margin ở trên). */}
-      <div className="relative bg-gradient-to-b from-zinc-50/60 via-white to-white dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-900">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-0 h-64 overflow-hidden"
-        >
-          <div className="mx-auto h-full w-full max-w-6xl bg-[radial-gradient(60%_60%_at_20%_0%,rgba(99,102,241,0.08),transparent_70%),radial-gradient(40%_50%_at_80%_0%,rgba(16,185,129,0.06),transparent_70%)]" />
-        </div>
+      {/* V4.1 UI-24 (X6/X8): bỏ nền gradient + quầng màu — khung admin giống các trang khác. */}
+      <div className="relative bg-white dark:bg-zinc-900">
 
         <div className="relative z-10 mx-auto w-full max-w-6xl px-4 pb-12 pt-5 md:px-6 md:pt-6">
         {/* Top: breadcrumb + meta */}
-        <div className="flex items-center justify-between gap-3">
+        {/* V4.1 UI-09 (X6): breadcrumb riêng chỉ hiện trên điện thoại — desktop dùng breadcrumb topbar. */}
+        <div className="flex items-center justify-between gap-3 md:hidden">
           <Breadcrumb items={breadcrumb} />
           {meta ? (
             <div className="hidden font-mono text-[11px] tracking-normal text-zinc-500 dark:text-zinc-400 sm:block">
@@ -127,7 +121,7 @@ export function AdminPageShell({
         </div>
 
         {/* Page header */}
-        <header className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <header className="mt-3 flex flex-col gap-3 md:mt-0 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
             <h1 className="truncate text-2xl font-semibold leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">
               {title}

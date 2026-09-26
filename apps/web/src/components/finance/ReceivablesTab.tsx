@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { ArrowDownCircle, ArrowUpCircle } from "lucide-react";
-import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { DebtAgingPanel } from "@/components/finance/DebtAgingPanel";
 import { PartnerInvoicesDialog } from "@/components/finance/PartnerInvoicesDialog";
@@ -59,14 +58,8 @@ export function ReceivablesTab() {
   return (
     <div className="flex h-full flex-col overflow-auto bg-zinc-50/30 dark:bg-zinc-950/30">
       <header className="border-b border-zinc-200 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
-        <Breadcrumb
-          items={[
-            { label: "Trang chủ", href: "/" },
-            { label: "Bộ phận Thu mua", href: "/sales" },
-            { label: "Tài chính: Công nợ" },
-          ]}
-        />
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+        {/* V4.1 UI-09 (X6): bỏ breadcrumb thân trang — topbar đã hiện cùng đường dẫn (+ nhãn tab). */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">Công nợ</h1>
             <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">

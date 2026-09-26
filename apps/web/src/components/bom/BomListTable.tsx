@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { type BomStatus } from "@iot/shared";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RowActionsMenu } from "@/components/ui/data-table";
 import { StatusPill } from "@/components/ui/status-badge";
 import {
   Tooltip,
@@ -245,9 +246,10 @@ export function BomListTable({
 
   // Mobile: 4 col primary (checkbox + code + name + status).
   // md+: 9 col full (thêm parent/lines/target/updated/actions).
+  // V4.1 UI-11 (Đợt 6C): gap-x giữa cột — trước dính "SL MỤC TIÊUTRẠNG THÁI" / số sát pill.
   const gridCols = cn(
-    "grid-cols-[32px_96px_minmax(0,1fr)_80px]",
-    "md:grid-cols-[32px_128px_minmax(0,1fr)_128px_72px_80px_96px_96px_112px]",
+    "grid-cols-[32px_96px_minmax(0,1fr)_88px] gap-x-2",
+    "md:grid-cols-[32px_128px_minmax(0,1fr)_128px_72px_88px_112px_104px_104px] md:gap-x-3",
   );
 
   return (
@@ -321,7 +323,7 @@ export function BomListTable({
             onSortChange={onSortChange}
           />
         </div>
-        <div role="columnheader" className="hidden text-center md:block">
+        <div role="columnheader" className="hidden text-right md:block">
           Thao tác
         </div>
       </div>
@@ -448,7 +450,7 @@ export function BomListTable({
                 {formatDate(row.updatedAt, "dd/MM/yyyy HH:mm")}
               </div>
 
-              <div className="hidden items-center justify-center gap-0.5 md:flex">
+              <div className="hidden items-center justify-end gap-0.5 md:flex">
                 {onPreview && (
                   <button
                     type="button"
@@ -461,48 +463,23 @@ export function BomListTable({
                 )}
                 <Link
                   href={`/bom/${row.id}/grid`}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-emerald-600 transition-colors hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-500 dark:text-emerald-400 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-indigo-600 transition-colors hover:bg-indigo-50 hover:text-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:text-indigo-400 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-300"
                   aria-label={`Mở bảng BOM ${row.code}`}
                   title="Mở bảng BOM"
                 >
                   <LayoutGrid className="h-3.5 w-3.5" aria-hidden="true" />
                 </Link>
-                <button
-                  type="button"
-                  onClick={() => onEdit(row)}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
-                  aria-label={`Sửa ${row.code}`}
-                >
-                  <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => copyCode(row.code)}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
-                  aria-label={`Sao chép mã ${row.code}`}
-                >
-                  <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-                </button>
-                {onClone && (
-                  <button
-                    type="button"
-                    onClick={() => onClone(row)}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
-                    aria-label={`Nhân bản ${row.code}`}
-                  >
-                    <GitBranch className="h-3.5 w-3.5" aria-hidden="true" />
-                  </button>
-                )}
-                {onDelete && (
-                  <button
-                    type="button"
-                    onClick={() => onDelete(row)}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-red-500 transition-colors hover:bg-red-50 hover:text-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500 dark:text-red-400 dark:hover:bg-red-950/40 dark:hover:text-red-300"
-                    aria-label={`Xoá ${row.code}`}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                  </button>
-                )}
+                {/* V4.1 UI-12 (Đợt 6C): tối đa 2 icon hiện sẵn; Sửa / Sao chép / Nhân bản /
+                    Xoá (phá huỷ, chữ đỏ) vào menu ⋯ — hết nút xoá đỏ mỗi dòng. */}
+                <RowActionsMenu
+                  label={`Thao tác ${row.code}`}
+                  actions={[
+                    { label: "Sửa", icon: Pencil, onSelect: () => onEdit(row) },
+                    { label: "Sao chép mã", icon: Copy, onSelect: () => copyCode(row.code) },
+                    { label: "Nhân bản", icon: GitBranch, onSelect: () => onClone?.(row), hidden: !onClone },
+                    { label: "Xoá BOM", icon: Trash2, danger: true, onSelect: () => onDelete?.(row), hidden: !onDelete },
+                  ]}
+                />
               </div>
             </div>
               </TooltipTrigger>

@@ -112,7 +112,7 @@ export default function AdminSettingsPage() {
                 href="/admin/audit"
                 className="font-medium text-indigo-600 hover:text-indigo-700 hover:underline dark:text-indigo-400 dark:hover:text-indigo-300"
               >
-                Audit log
+                Nhật ký hệ thống
               </Link>
               .
             </Tip>

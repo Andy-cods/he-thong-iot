@@ -10,7 +10,7 @@ import type { DashboardOverviewV2Payload } from "@/app/api/dashboard/overview-v2
  * (TASK-20260427-027).
  *
  * Khác DashboardHeader cũ (T-010):
- *  - Glass + radial gradient ambient indigo (background ấn tượng).
+ *  - (V4.1 UI-24: đã bỏ nền gradient — thẻ trắng trung tính.)
  *  - 3 quick stats sống: WO running, tổng SKU active (= componentsAvailable
  *    denominator → tổng line snapshot active), tổng PR pending
  *    (denominator-numerator).
@@ -79,57 +79,34 @@ export function HeroOverviewCard({
     : 0;
 
   return (
+    // V4.1 UI-24 (X8, Đợt 6C): bỏ gradient + quầng màu + lưới nền — thẻ trắng viền zinc.
     <section
       className={cn(
-        "dashboard-stagger-fade relative isolate overflow-hidden rounded-3xl border border-white/60",
-        "bg-gradient-to-br from-white via-white/95 to-indigo-50/80",
-        "shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_32px_rgba(79,70,229,0.07)]",
-        "backdrop-blur-sm",
-        "dark:border-zinc-800 dark:from-zinc-900 dark:via-zinc-900/95 dark:to-indigo-950/40 dark:shadow-[0_1px_2px_rgba(0,0,0,0.4),0_8px_32px_rgba(79,70,229,0.15)]",
+        "dashboard-stagger-fade relative overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900",
         className,
       )}
       style={{ ["--stagger-delay" as never]: "0ms" }}
     >
-      {/* Ambient gradient blobs */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-gradient-to-br from-indigo-300/40 via-violet-200/30 to-transparent blur-3xl"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -bottom-32 -left-16 h-72 w-72 rounded-full bg-gradient-to-tr from-emerald-200/35 via-sky-100/25 to-transparent blur-3xl"
-      />
-      {/* Subtle grid pattern — light=zinc-900, dark=zinc-50 (mượn currentColor) */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 opacity-[0.04] text-zinc-900 dark:text-zinc-50 dark:opacity-[0.06]"
-        style={{
-          backgroundImage:
-            "linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)",
-          backgroundSize: "32px 32px",
-        }}
-      />
-
-      <div className="relative grid gap-6 p-6 sm:p-8 lg:grid-cols-[1.4fr_1fr] lg:items-center">
+      <div className="relative grid gap-5 p-4 sm:p-6 lg:grid-cols-[1.4fr_1fr] lg:items-center">
         {/* ---- Left: title + status ---- */}
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-2">
             <span
               aria-hidden="true"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md ring-1 ring-white/40"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600 text-white"
             >
               <Activity className="h-5 w-5" strokeWidth={2.25} />
             </span>
-            <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-indigo-700/80 dark:text-indigo-300">
+            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
               Trung tâm gia công
             </span>
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <h1 className="text-balance text-3xl font-bold leading-tight tracking-tight text-zinc-900 sm:text-4xl dark:text-zinc-50">
+            <h1 className="text-balance text-2xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-3xl dark:text-zinc-50">
               Tổng quan gia công
             </h1>
-            <p className="max-w-xl text-[13.5px] leading-relaxed text-zinc-600 sm:text-sm dark:text-zinc-400">
+            <p className="max-w-xl text-sm leading-relaxed text-zinc-600 sm:text-sm dark:text-zinc-400">
               Theo dõi tiến độ tổng hợp các bộ phận theo thời gian thực — BOM,
               kho, lắp ráp, sản xuất, mua hàng. Tự động làm mới mỗi 60 giây.
             </p>
@@ -137,7 +114,7 @@ export function HeroOverviewCard({
 
           <div className="mt-1 flex flex-wrap items-center gap-2.5">
             <span
-              className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1 text-[12.5px] font-medium text-zinc-700 ring-1 ring-zinc-200/80 backdrop-blur-sm dark:bg-zinc-800/80 dark:text-zinc-200 dark:ring-zinc-700"
+              className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200/80 dark:bg-zinc-800/80 dark:text-zinc-200 dark:ring-zinc-700"
               aria-live="polite"
             >
               <span className="relative inline-flex h-2 w-2">
@@ -171,7 +148,7 @@ export function HeroOverviewCard({
                 onClick={onRefresh}
                 disabled={refreshing}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1 text-[12.5px] font-medium text-zinc-700 ring-1 ring-zinc-200/80 backdrop-blur-sm transition-all dark:bg-zinc-800/80 dark:text-zinc-200 dark:ring-zinc-700",
+                  "inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200/80 transition-all dark:bg-zinc-800/80 dark:text-zinc-200 dark:ring-zinc-700",
                   "hover:bg-white hover:text-indigo-700 hover:ring-indigo-300 hover:shadow-sm dark:hover:bg-zinc-800 dark:hover:text-indigo-300 dark:hover:ring-indigo-700",
                   "focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1",
                   "disabled:cursor-not-allowed disabled:opacity-60",
@@ -189,7 +166,8 @@ export function HeroOverviewCard({
         </div>
 
         {/* ---- Right: 3 quick stats ---- */}
-        <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
+        {/* V4.1 UI-24: điện thoại 1 cột dạng hàng ngang (icon · số · nhãn) — trước 3 ô hẹp gãy nhãn 4 dòng. */}
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
           <HeroStat
             icon={Factory}
             value={woRunning}
@@ -225,38 +203,20 @@ interface HeroStatProps {
   loading?: boolean;
 }
 
-function HeroStat({ icon: Icon, value, label, tone, loading }: HeroStatProps) {
-  const toneCls =
-    tone === "rose"
-      ? "from-rose-500 to-rose-600 ring-rose-200/70"
-      : tone === "indigo"
-        ? "from-indigo-500 to-violet-600 ring-indigo-200/70"
-        : "from-amber-500 to-orange-500 ring-amber-200/70";
-
+function HeroStat({ icon: Icon, value, label, loading }: HeroStatProps) {
+  // V4.1 UI-24: ô trung tính (bỏ nền gradient hồng/tím/cam cho icon).
   return (
-    <div className="flex flex-col gap-1.5 rounded-2xl border border-white/70 bg-white/70 p-3 shadow-sm ring-1 ring-zinc-100/60 backdrop-blur-sm sm:p-3.5 dark:border-zinc-800 dark:bg-zinc-800/60 dark:ring-zinc-700">
+    <div className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-zinc-50/60 px-3 py-2.5 dark:border-zinc-800 dark:bg-zinc-800/40 sm:flex-col sm:items-start sm:gap-1.5 sm:p-3">
+      <Icon className="h-4 w-4 shrink-0 text-zinc-400 dark:text-zinc-500" strokeWidth={2.25} aria-hidden="true" />
       <span
-        aria-hidden="true"
         className={cn(
-          "inline-flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br text-white shadow-sm ring-1",
-          toneCls,
+          "text-2xl font-semibold leading-none tabular-nums tracking-tight text-zinc-900 dark:text-zinc-50",
+          loading && "opacity-40",
         )}
       >
-        <Icon className="h-3.5 w-3.5" strokeWidth={2.25} />
+        {loading ? "—" : formatNum(value)}
       </span>
-      <div className="flex flex-col">
-        <span
-          className={cn(
-            "text-2xl font-bold leading-none tabular-nums tracking-tight text-zinc-900 sm:text-3xl dark:text-zinc-50",
-            loading && "opacity-40",
-          )}
-        >
-          {loading ? "—" : formatNum(value)}
-        </span>
-        <span className="mt-1 text-[10.5px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-          {label}
-        </span>
-      </div>
+      <span className="min-w-0 text-xs font-medium text-zinc-500 dark:text-zinc-400 sm:mt-0.5">{label}</span>
     </div>
   );
 }

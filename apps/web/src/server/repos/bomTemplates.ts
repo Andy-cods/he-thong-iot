@@ -224,7 +224,7 @@ export async function createTemplate(
   // list hiện tại chứ không phải giờ mới thêm mới vào từng vật liệu 1".
   //
   // 1. Sheet PROJECT "Sheet 1" — chứa bom_lines (cấu trúc).
-  // 2. Sheet MATERIAL "Material & Process" — auto-populate FULL catalog
+  // 2. Sheet MATERIAL "Vật tư & Quy trình" — auto-populate FULL catalog
   //    (~63 material_master + ~19 process_master active rows). User chỉ
   //    cần fill price/qty/status thay vì click + Thêm từng cái.
   return await db.transaction(async (tx) => {
@@ -255,7 +255,9 @@ export async function createTemplate(
         },
         {
           templateId: row.id,
-          name: "Material & Process",
+          // V4.1 UI-27 (Đợt 6C): sheet MỚI mặc định tên tiếng Việt; sheet cũ giữ tên
+          // "Material & Process" trong DB (BomSheetTabs vẫn hiển thị tiếng Việt).
+          name: "Vật tư & Quy trình",
           kind: "MATERIAL",
           position: 2,
           metadata: { defaultSheet: true, combined: true },

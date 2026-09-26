@@ -83,7 +83,7 @@ export function AuditRow({ row, style, gridCols }: AuditRowProps) {
           gridCols,
         )}
       >
-        <span className="break-words text-[11px] leading-tight text-zinc-500 tabular-nums md:whitespace-nowrap dark:text-zinc-400">
+        <span className="break-words text-xs leading-tight text-zinc-500 tabular-nums md:whitespace-nowrap dark:text-zinc-400">
           {fmtTime(row.occurredAt)}
         </span>
         <span className="truncate text-zinc-700 dark:text-zinc-300">
@@ -133,7 +133,7 @@ export function AuditRow({ row, style, gridCols }: AuditRowProps) {
       {expanded && hasDiff ? (
         <div className="space-y-2 border-t border-zinc-100 bg-zinc-50/50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800/40">
           {row.notes ? (
-            <p className="text-[11px] text-zinc-600 dark:text-zinc-400">
+            <p className="text-xs text-zinc-600 dark:text-zinc-400">
               <span className="font-semibold text-zinc-700 dark:text-zinc-300">Ghi chú:</span>{" "}
               {row.notes}
             </p>

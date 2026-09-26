@@ -10,7 +10,7 @@ import { PoCreateWizard } from "@/components/procurement/PoCreateWizard";
  */
 export default function NewPurchaseOrderPage() {
   return (
-    <div className="flex h-full flex-col overflow-auto bg-gradient-to-br from-zinc-50 to-blue-50/30 dark:from-zinc-950 dark:to-zinc-900">
+    <div className="flex h-full flex-col overflow-auto bg-zinc-50 dark:bg-zinc-950">
       <header className="border-b border-zinc-200 bg-white px-6 py-5 dark:border-zinc-800 dark:bg-zinc-900">
         <nav aria-label="Breadcrumb" className="text-xs text-zinc-500 dark:text-zinc-400">
           <Link href="/" className="hover:text-zinc-900 hover:underline dark:hover:text-zinc-50">
@@ -35,7 +35,7 @@ export default function NewPurchaseOrderPage() {
         </nav>
         <div className="mt-2 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-200 dark:shadow-blue-950">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-indigo-600">
               <ShoppingCart className="h-6 w-6 text-white" />
             </div>
             <div>
