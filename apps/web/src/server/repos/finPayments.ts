@@ -117,6 +117,7 @@ export async function createPaymentWithAllocations(
         totalAmount: finInvoice.totalAmount,
         paidAmount: finInvoice.paidAmount,
         status: finInvoice.status,
+        direction: finInvoice.direction,
       })
       .from(finInvoice)
       .where(inArray(finInvoice.id, invoiceIds))
@@ -133,6 +134,12 @@ export async function createPaymentWithAllocations(
       if (!invoiceRow) throw new Error(`FIN_INVOICE_NOT_FOUND:${invoiceId}`);
       if (invoiceRow.status === "CANCELLED") {
         throw new Error(`FIN_INVOICE_CANCELLED:${invoiceId}`);
+      }
+      // V4.1 TC-01: thanh toán phải NGƯỢC chiều hoá đơn (Chi OUT ↔ HĐ mua IN,
+      // Thu IN ↔ HĐ bán OUT). Chặn ở server để không còn đường "thu" vào hoá đơn
+      // phải trả (làm số dư tăng sai).
+      if (invoiceRow.direction === input.direction) {
+        throw new Error(`FIN_INVOICE_DIRECTION_MISMATCH:${invoiceId}`);
       }
       const remaining = Number(invoiceRow.totalAmount) - Number(invoiceRow.paidAmount);
       if (allocAmount - remaining > 1) {

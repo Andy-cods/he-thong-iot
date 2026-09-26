@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { userUpdateSchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import { getUserById, updateUser } from "@/server/repos/userAccounts";
+import { revokeAllUserSessions } from "@/server/repos/sessions";
 import {
   extractRequestMeta,
   jsonError,
@@ -65,6 +66,22 @@ export async function PATCH(
       roles: body.data.roles,
     });
     if (!updated) return jsonError("NOT_FOUND", "Không tìm thấy user.", 404);
+
+    // V4.1 AD-04: khoá tài khoản / đổi vai trò phải có hiệu lực ngay — trước đây
+    // JWT cũ vẫn chạy tới hết hạn (giờ là 4h) với quyền cũ. Thu hồi mọi phiên để
+    // user đăng nhập lại và nhận roles mới. Không tự thu hồi phiên của chính admin
+    // đang thao tác (chỉ có thể đổi roles của mình, không thể tự khoá).
+    const deactivated = body.data.isActive === false && before.isActive !== false;
+    const rolesChanged =
+      body.data.roles !== undefined &&
+      [...body.data.roles].sort().join(",") !== [...before.roles].sort().join(",");
+    if ((deactivated || rolesChanged) && guard.session.userId !== params.id) {
+      const revoked = await revokeAllUserSessions(params.id);
+      logger.info(
+        { id: params.id, revoked, deactivated, rolesChanged },
+        "revoked user sessions after admin update",
+      );
+    }
 
     const after = await getUserById(params.id);
     const meta = extractRequestMeta(req);

@@ -6,14 +6,16 @@ import type { Role } from "@iot/shared";
 import { AUTH_COOKIE_NAME, verifyAccessToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { AppShell } from "@/components/layout/AppShell";
+import { SessionExpiryGuard } from "@/components/auth/SessionExpiryGuard";
+import { isSessionValid } from "@/server/repos/sessions";
 
 export const dynamic = "force-dynamic";
 
 /** Path user bị must_change_password vẫn được truy cập (để đổi mật khẩu). */
-const FORCE_CHANGE_EXEMPT = [
-  "/admin/settings/force-change-password",
-  "/logout",
-];
+// V4.1 AD-01: trang đổi MK bắt buộc chuyển từ /admin/... sang /me/change-password
+// (dưới /admin thì user không phải admin bị admin layout đá về "/" → kẹt vòng).
+const FORCE_CHANGE_PATH = "/me/change-password";
+const FORCE_CHANGE_EXEMPT = [FORCE_CHANGE_PATH, "/logout"];
 
 /**
  * V3.3 — Route → required roles map (server-side guard).
@@ -72,6 +74,10 @@ export default async function AppLayout({
   const payload = await verifyAccessToken(token);
   if (!payload) redirect("/login");
 
+  // V4.1 AD-04: phiên bị thu hồi (admin khoá / đổi vai trò) thì trang cũng phải
+  // chặn, không chỉ API. isSessionValid có cache 30s nên rẻ.
+  if (payload.sid && !(await isSessionValid(payload.sid))) redirect("/login");
+
   // Hydrate fullName + roles từ DB để sidebar/topbar hiển thị đúng.
   // Query này chạy mỗi navigation trong (app)/* — acceptable vì cache plan có
   // thể thêm sau; tạm thời mỗi request 1 query (~2-5 ms Postgres indexed).
@@ -95,7 +101,7 @@ export default async function AppLayout({
     userRow.mustChangePassword &&
     !FORCE_CHANGE_EXEMPT.some((p) => currentPath.startsWith(p))
   ) {
-    redirect("/admin/settings/force-change-password");
+    redirect(FORCE_CHANGE_PATH);
   }
 
   const roles = await db
@@ -135,6 +141,7 @@ export default async function AppLayout({
         role: roleCodes.join(","),
       }}
     >
+      <SessionExpiryGuard expiresAt={payload.exp ? payload.exp * 1000 : null} />
       {children}
     </AppShell>
   );

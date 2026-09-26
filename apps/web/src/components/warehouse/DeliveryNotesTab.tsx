@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 import { FileText, Loader2, Plus, RefreshCw, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,8 @@ export function DeliveryNotesTab() {
   const { data: session } = useSession();
   const isAdmin = session?.roles.includes("admin") ?? false;
   const [showCreate, setShowCreate] = React.useState(false);
+  // V4.1 AD-05: link thông báo trỏ về ?tab=delivery-notes&id=… → cuộn tới phiếu.
+  const focusId = useSearchParams()?.get("id") ?? null;
 
   const { data, isLoading, refetch } = useQuery<{ data: DeliveryNoteRow[] }>({
     queryKey: ["delivery-notes", "list"],
@@ -70,6 +73,13 @@ export function DeliveryNotesTab() {
   });
 
   const rows = data?.data ?? [];
+
+  React.useEffect(() => {
+    if (!focusId || rows.length === 0) return;
+    document
+      .getElementById(`delivery-note-${focusId}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [focusId, rows.length]);
 
   const invalidate = () => {
     void qc.invalidateQueries({ queryKey: ["delivery-notes"] });
@@ -114,6 +124,7 @@ export function DeliveryNotesTab() {
               key={r.id}
               row={r}
               isAdmin={isAdmin}
+              highlighted={r.id === focusId}
               onChanged={invalidate}
             />
           ))}
@@ -136,10 +147,12 @@ export function DeliveryNotesTab() {
 function DeliveryNoteRowItem({
   row,
   isAdmin,
+  highlighted,
   onChanged,
 }: {
   row: DeliveryNoteRow;
   isAdmin: boolean;
+  highlighted?: boolean;
   onChanged: () => void;
 }) {
   const [acting, setActing] = React.useState(false);
@@ -215,7 +228,13 @@ function DeliveryNoteRowItem({
   };
 
   return (
-    <li className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
+    <li
+      id={`delivery-note-${row.id}`}
+      className={cn(
+        "rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900",
+        highlighted && "ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-zinc-950",
+      )}
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">

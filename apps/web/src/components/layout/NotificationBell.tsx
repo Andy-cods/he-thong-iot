@@ -150,8 +150,8 @@ export function NotificationBell() {
           role="menu"
           // Mobile: fixed căng đều 2 mép viewport (neo absolute theo nút chuông sẽ
           // đẩy panel lệch trái ra ngoài màn vì nút không nằm sát mép phải).
-          // Desktop (sm+): giữ absolute right-0 như cũ.
-          className="fixed left-2 right-2 top-14 z-dropdown w-auto origin-top-right overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl shadow-zinc-900/10 ring-1 ring-zinc-900/5 sm:absolute sm:left-auto sm:right-0 sm:top-10 sm:w-[400px] dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/40 dark:ring-white/5"
+          // Desktop (md+): giữ absolute right-0. V4.1 UI-02: không dùng sm vì sm của dự án = 375px.
+          className="fixed left-2 right-2 top-14 z-dropdown w-auto origin-top-right overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl shadow-zinc-900/10 ring-1 ring-zinc-900/5 md:absolute md:left-auto md:right-0 md:top-10 md:w-[400px] dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/40 dark:ring-white/5"
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50/60 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800/40">

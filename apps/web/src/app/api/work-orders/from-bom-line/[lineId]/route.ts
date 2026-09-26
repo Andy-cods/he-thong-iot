@@ -28,6 +28,7 @@ import { z } from "zod";
 import { item as itemTable, workOrder } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { routingPlanForInsert } from "@/lib/wo-routing";
 import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
 import { getLineById } from "@/server/repos/bomLines";
 import { writeAudit } from "@/server/services/audit";
@@ -106,11 +107,10 @@ export async function POST(
       line.description ? ` — ${line.description}` : ""
     }${meta.size ? ` · Quy cách ${meta.size}` : ""}`;
 
-  // routingPlan từ metadata.routing (có thể null nếu BOM mới import)
-  const routingPlan =
-    meta.routing && typeof meta.routing === "object" && Object.keys(meta.routing).length > 0
-      ? meta.routing
-      : null;
+  // V4.1 SX-01: metadata.routing là OBJECT { processRoute: string[], … } — trước đây
+  // chép nguyên object vào routingPlan làm trang chi tiết WO văng trắng. Giờ chuyển
+  // processRoute thành mảng RoutingStep (null nếu không có công đoạn).
+  const routingPlan = routingPlanForInsert(meta.routing);
 
   try {
     // V3.7.46 — status=DRAFT (yêu cầu chờ duyệt). releasedAt=null.
@@ -127,7 +127,7 @@ export async function POST(
         plannedEnd: body.data.plannedEnd || null,
         notes: notesText,
         materialRequirements: [],
-        routingPlan: routingPlan as Record<string, unknown> | null,
+        routingPlan,
         releasedAt: null,
         createdBy: guard.session.userId,
       })

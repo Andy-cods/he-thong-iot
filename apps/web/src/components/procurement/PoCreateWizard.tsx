@@ -110,6 +110,15 @@ export function PoCreateWizard() {
   React.useEffect(() => {
     if (state.source === "FROM_PR" && prDetail.data?.data.lines) {
       const prLines = prDetail.data.data.lines;
+      // V4.1 TM-01: trước đây bỏ IM LẶNG các dòng vật tư nhập tay (chưa có mã)
+      // → PO thiếu hàng mà người dùng không biết. Giờ báo rõ số dòng bị bỏ.
+      const skipped = prLines.filter((l) => !l.itemId).length;
+      if (skipped > 0) {
+        toast.warning(
+          `${skipped} dòng trong phiếu đề xuất chưa có mã vật tư nên không đưa vào PO được. ` +
+            "Hãy dùng nút “Tạo PO” ở trang chi tiết phiếu (tự tạo mã cho dòng nhập tay).",
+        );
+      }
       // V3.7.72 — filter lines có itemId (bỏ free-text lines chưa link master)
       const next: PoLineDraft[] = prLines
         .filter((l): l is typeof l & { itemId: string } => !!l.itemId)

@@ -528,7 +528,7 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
                       <span className="line-clamp-1">{r.notes ?? "—"}</span>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="invisible flex items-center gap-1 group-hover:visible">
+                      <div className="flex items-center gap-1">
                         <Link
                           href={`/work-orders/${r.id}`}
                           onClick={(e) => e.stopPropagation()}

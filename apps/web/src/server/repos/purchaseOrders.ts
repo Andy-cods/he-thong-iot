@@ -520,11 +520,14 @@ export async function createPOFromPR(
   newSupplierNames?: Record<string, string>,
 ): Promise<ConvertPRResult> {
   return db.transaction(async (tx) => {
+    // V4.1 TM-08: khoá hàng PR (FOR UPDATE) — 2 request đồng thời (bấm đúp, 2 tab,
+    // bấm lại sau lỗi mạng) không cùng đọc được status=APPROVED rồi tạo 2 bộ PO.
     const [pr] = await tx
       .select()
       .from(purchaseRequest)
       .where(eq(purchaseRequest.id, prId))
-      .limit(1);
+      .limit(1)
+      .for("update");
     if (!pr) throw new Error("PR_NOT_FOUND");
     if (pr.status !== "APPROVED") {
       throw new Error(`PR_NOT_APPROVED (status=${pr.status})`);
@@ -732,6 +735,26 @@ export async function createPO(
   if (input.lines.length === 0) throw new Error("PO_MUST_HAVE_LINES");
 
   return db.transaction(async (tx) => {
+    // V4.1 TM-01: PO tạo từ PR qua wizard trước đây KHÔNG kiểm tra PR đã duyệt và
+    // KHÔNG chuyển PR sang CONVERTED → trang chi tiết PR vẫn hiện nút "Tạo PO" và
+    // tạo thêm bộ PO thứ hai (trùng). Giờ: khoá PR, chỉ nhận PR APPROVED/CONVERTED
+    // (CONVERTED = đã có PO — vẫn cho tạo tiếp PO cho NCC khác bằng wizard), và
+    // đánh dấu CONVERTED ngay trong transaction này.
+    let prToConvert: string | null = null;
+    if (input.prId) {
+      const [pr] = await tx
+        .select({ id: purchaseRequest.id, status: purchaseRequest.status })
+        .from(purchaseRequest)
+        .where(eq(purchaseRequest.id, input.prId))
+        .limit(1)
+        .for("update");
+      if (!pr) throw new Error("PR_NOT_FOUND");
+      if (pr.status !== "APPROVED" && pr.status !== "CONVERTED") {
+        throw new Error(`PR_NOT_APPROVED (status=${pr.status})`);
+      }
+      if (pr.status === "APPROVED") prToConvert = pr.id;
+    }
+
     // V3.11.4 (audit 1.21) — genDocNo: advisory lock + MAX(seq)+1 (thay COUNT+1
     // vốn sai khi có gap). Seq nằm ở part 4 của 'PO-yymm-MAN-###', pad 3.
     const poNo = await genDocNo(tx, {
@@ -812,6 +835,25 @@ export async function createPO(
     await tx.insert(purchaseOrderLine).values(
       linesPrepared.map((l) => ({ ...l, poId: header.id })),
     );
+
+    // V4.1 TM-01: PR đã có PO → CONVERTED (giống createPOFromPR), để nút
+    // "Tạo PO" hàng loạt ở trang PR không tạo thêm bộ PO trùng.
+    if (prToConvert) {
+      await tx
+        .update(purchaseRequest)
+        .set({
+          status: "CONVERTED",
+          approvalStep: "CONVERTED",
+          poCreatedAt: now,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(purchaseRequest.id, prToConvert),
+            eq(purchaseRequest.status, "APPROVED"),
+          ),
+        );
+    }
 
     return header;
   });

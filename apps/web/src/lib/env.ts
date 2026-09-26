@@ -46,8 +46,7 @@ export const env = {
   BULLMQ_PREFIX: process.env.BULLMQ_PREFIX ?? "iot-",
   JWT_SECRET: readSecret("JWT_SECRET") as string,
   SESSION_SECRET: readSecret("SESSION_SECRET", false) ?? "",
-  JWT_ACCESS_TTL: Number(process.env.JWT_ACCESS_TTL ?? 900),
-  JWT_REFRESH_TTL: Number(process.env.JWT_REFRESH_TTL ?? 604800),
+  JWT_ACCESS_TTL: Number(process.env.JWT_ACCESS_TTL ?? 14400), // V4.1 D1: 4h = 1 ca
   // V3.8.2 — TTL phiên cho tài khoản kiosk TV (role "display"). Mặc định 24h.
   JWT_KIOSK_TTL: Number(process.env.JWT_KIOSK_TTL ?? 86400),
   LOG_LEVEL: process.env.LOG_LEVEL ?? "info",

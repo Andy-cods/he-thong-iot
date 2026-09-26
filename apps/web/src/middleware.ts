@@ -41,6 +41,10 @@ const PROTECTED_PREFIXES = [
   // V3.8 — Bảng sản xuất: TV /board (ngoài (app)) + trang QC /production-board
   "/board",
   "/production-board",
+  // V4.1 AD-01/AD-07 — /me (trang cá nhân + đổi MK bắt buộc), /finance, /import.
+  "/me",
+  "/finance",
+  "/import",
 ];
 
 function isProtected(pathname: string): boolean {
@@ -117,5 +121,15 @@ export const config = {
     "/material-requests/:path*",
     "/assembly/:path*",
     "/procurement/:path*",
+    // V4.1 AD-01/AD-07 — thiếu trong matcher nên layout không nhận `x-pathname`:
+    //  - /me: trang đổi MK bắt buộc ở đây; thiếu header → layout tưởng path "" →
+    //    lại redirect vào chính nó (vòng lặp).
+    //  - /board, /production-board, /finance: guard role trong (app) layout không
+    //    chạy; TV /board hết phiên không được đưa về /login.
+    "/me/:path*",
+    "/board/:path*",
+    "/production-board/:path*",
+    "/finance/:path*",
+    "/import/:path*",
   ],
 };

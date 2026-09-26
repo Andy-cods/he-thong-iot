@@ -123,6 +123,23 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
+### TASK-20260926-001 — V4.1 Đợt 0 "Chặn cháy" (8 lỗi P0 + phiên 4h + UI nhanh)
+- **Trạng thái:** IN_PROGRESS · **Bắt đầu:** 2026-09-26 (+07) · **Tạo:** 2026-09-26 (+07) · **Ưu tiên:** P0
+- **Nguồn:** `plans/v4.1-audit-hoan-thien/AUDIT.md` (audit 7 agent 26/09). Nhánh `fix/v4.1-dot0-chan-chay`.
+- **Phạm vi:** SX-01 (crash WO từ dòng BOM) · AD-01 (kẹt vòng đổi MK bắt buộc) · TC-01 (thanh toán lọc
+  sai chiều HĐ) · TM-01+TM-08 (PO trùng từ PR) · KHO-03 (nhận hàng 2 lần khi gửi lại) · error/loading
+  tiếng Việt · phiên 4h tuyệt đối (D1) + thu hồi phiên khi khoá/đổi role (AD-04) + cảnh báo sắp hết
+  phiên + đăng nhập lại tại chỗ · AD-05 (link BBGH 404) · UI-01/02/03/06 (modal/popup mobile, focus) ·
+  UX-02 (nút chỉ hiện khi hover).
+- **KHÔNG thuộc đợt 0:** KHO-01/02/04 (QC HOLD, phiếu xuất) → Đợt 1.
+- **DoD:** `pnpm build` + vitest PASS local; mỗi lỗi có kiểm chứng; hỏi Thang trước khi push `main`;
+  sau deploy test E2E thật (login + cookie 4h + thao tác) trên mes.songchau.vn.
+- **Tiến độ 2026-09-26 18:10 (+07):** code xong toàn bộ phạm vi trên nhánh; `pnpm build` OK, `tsc --noEmit`
+  sạch, vitest web 81/81 (thêm wo-routing 10 ca, finance TC-01 1 ca). Phiên 4h qua cơ chế cảnh báo
+  10 phút trước + hộp thoại "Đăng nhập lại" (bắt 401 toàn cục), chưa làm modal nhập mật khẩu tại chỗ.
+  CÒN: Thang duyệt push `main` · sửa tay `/opt/hethong-iot/docker-compose.yml` thêm `JWT_ACCESS_TTL=14400`
+  (CI không chép compose) · E2E prod · soát dữ liệu cũ thanh toán cùng chiều hoá đơn (TC-01).
+
 ### TASK-20260718-001 — Dark mode nhóm A + size thông báo mobile (V3.12.4)
 - **Trạng thái:** DONE · **Hoàn thành:** 2026-07-18 (+07) · **Ưu tiên:** P1
 - **Yêu cầu user:** "còn phần dark mode và phần thông báo nữa, size chưa ổn với mobile" + agents phối hợp.

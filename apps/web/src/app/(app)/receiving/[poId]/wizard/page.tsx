@@ -99,6 +99,12 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
   const [inputs, setInputs] = React.useState<Record<string, LineInput>>({});
   const [notes, setNotes] = React.useState("");
   const [submitted, setSubmitted] = React.useState(false);
+  // V4.1 KHO-03 — id/scanId cố định theo từng dòng PO giữa các lần bấm Gửi.
+  // `sig` = nội dung dòng (SL|lô|bin|QC): đổi nội dung CHƯA gửi thành công thì
+  // cấp scanId mới; dòng đã acked thì không gửi lại nữa.
+  const sentRef = React.useRef(
+    new Map<string, { id: string; scanId: string; sig: string; acked: boolean }>(),
+  );
 
   // V3.7 — fetch danh sách bin để dropdown override.
   const [bins, setBins] = React.useState<
@@ -301,11 +307,38 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
       return;
     }
 
+    // V4.1 KHO-03: trước đây mỗi lần bấm Gửi sinh scanId MỚI → gửi lỗi một phần
+    // (hoặc mạng rớt SAU khi server đã ghi) rồi bấm lại = NHẬP KHO 2 LẦN. Server
+    // chống trùng theo scanId, nên giữ scanId CỐ ĐỊNH cho mỗi dòng (cùng nội dung)
+    // và KHÔNG gửi lại dòng server đã xác nhận (acked).
     const scannedAt = new Date().toISOString();
-    const events: ReceivingEventInput[] = activeLines.map(
+    const pending: typeof activeLines = [];
+    let alreadySent = 0;
+    for (const row of activeLines) {
+      const sig = `${row.qtyNum}|${row.input.lotCode.trim()}|${row.input.binId}|${row.input.qcStatus}`;
+      const prev = sentRef.current.get(row.ln.id);
+      if (prev?.acked) {
+        alreadySent += 1;
+        continue;
+      }
+      if (!prev || prev.sig !== sig) {
+        sentRef.current.set(row.ln.id, {
+          id: uuidv7(),
+          scanId: uuidv7(),
+          sig,
+          acked: false,
+        });
+      }
+      pending.push(row);
+    }
+    if (pending.length === 0) {
+      if (alreadySent > 0) setSubmitted(true);
+      return;
+    }
+    const events: ReceivingEventInput[] = pending.map(
       ({ ln, input, qtyNum }) => ({
-        id: uuidv7(),
-        scanId: uuidv7(),
+        id: sentRef.current.get(ln.id)!.id,
+        scanId: sentRef.current.get(ln.id)!.scanId,
         poCode: po.poCode,
         sku: ln.sku,
         qty: qtyNum,
@@ -325,17 +358,21 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
     );
 
     const res = await submit.mutateAsync(events);
+    const ackedIds = new Set(res.data.acked);
+    for (const entry of sentRef.current.values()) {
+      if (ackedIds.has(entry.id)) entry.acked = true;
+    }
     const ackedCount = res.data.acked.length;
     const rejectedCount = res.data.rejected.length;
 
     if (rejectedCount === 0) {
-      toast.success(`Đã gửi ${ackedCount} events nhận hàng.`);
+      toast.success(`Đã ghi nhận ${ackedCount + alreadySent} dòng nhận hàng.`);
       setSubmitted(true);
     } else {
       toast.warning(
-        `Gửi ${ackedCount} events, ${rejectedCount} lỗi: ${res.data.rejected
+        `Đã ghi nhận ${ackedCount} dòng, ${rejectedCount} dòng lỗi: ${res.data.rejected
           .map((r) => r.reason)
-          .join(", ")}`,
+          .join(", ")}. Sửa dòng lỗi rồi bấm Gửi lại — các dòng đã ghi nhận sẽ không bị nhập lần 2.`,
       );
     }
   };

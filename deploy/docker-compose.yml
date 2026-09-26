@@ -97,6 +97,8 @@ services:
       MAIL_ENABLED: ${MAIL_ENABLED:-false}
       DB_PASSWORD_FILE: /run/secrets/db_password
       JWT_SECRET_FILE: /run/secrets/jwt_secret
+      # V4.1 D1: phiên 4 tiếng (1 ca)
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-14400}
       SESSION_SECRET_FILE: /run/secrets/session_secret
       R2_ACCESS_KEY_FILE: /run/secrets/r2_access_key
       R2_SECRET_KEY_FILE: /run/secrets/r2_secret_key

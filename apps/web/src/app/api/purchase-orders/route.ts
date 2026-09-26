@@ -117,6 +117,17 @@ export async function POST(req: NextRequest) {
     if (msg.includes("PO_MUST_HAVE_LINES")) {
       return jsonError("VALIDATION", "PO phải có ít nhất 1 dòng.", 422);
     }
+    // V4.1 TM-01
+    if (msg.startsWith("PR_NOT_FOUND")) {
+      return jsonError("PR_NOT_FOUND", "Không tìm thấy phiếu đề xuất.", 404);
+    }
+    if (msg.startsWith("PR_NOT_APPROVED")) {
+      return jsonError(
+        "PR_NOT_APPROVED",
+        "Phiếu đề xuất chưa được duyệt xong nên chưa tạo được PO.",
+        409,
+      );
+    }
     return jsonError("INTERNAL", "Không tạo được PO.", 500);
   }
 }

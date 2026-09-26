@@ -64,6 +64,13 @@ export async function POST(req: NextRequest) {
     if (message.startsWith("FIN_INVOICE_CANCELLED")) {
       return jsonError("FIN_INVOICE_CANCELLED", "Hoá đơn đã huỷ, không thể thanh toán.", 409);
     }
+    if (message.startsWith("FIN_INVOICE_DIRECTION_MISMATCH")) {
+      return jsonError(
+        "FIN_INVOICE_DIRECTION_MISMATCH",
+        "Hoá đơn không đúng loại: phiếu chi chỉ trả cho hoá đơn mua vào, phiếu thu chỉ thu cho hoá đơn bán ra.",
+        409,
+      );
+    }
     if (message.startsWith("FIN_PAYMENT_ALLOCATION_EXCEEDS_REMAINING")) {
       return jsonError(
         "FIN_PAYMENT_ALLOCATION_EXCEEDS_REMAINING",

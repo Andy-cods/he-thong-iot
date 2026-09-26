@@ -505,6 +505,31 @@ describe("createPaymentWithAllocations — chống đếm trùng (§C.2)", () =>
     ).rejects.toThrow(/FIN_PAYMENT_ALLOCATION_EXCEEDS_REMAINING/);
   });
 
+  it("V4.1 TC-01: chặn thanh toán CÙNG chiều hoá đơn (phiếu thu vào hoá đơn mua)", async () => {
+    const { finPaymentsRepo, fakeTables: tables } = await loadReposWithFreshDb();
+    // Hoá đơn mua vào (IN, nợ NCC) — chỉ được trả bằng phiếu CHI (OUT).
+    const inv = seedInvoice(tables, { totalAmount: "500000" });
+
+    await expect(
+      finPaymentsRepo.createPaymentWithAllocations(
+        {
+          direction: "IN",
+          accountId: "acc-1",
+          supplierId: null,
+          paymentDate: new Date("2026-09-22"),
+          totalAmount: 500_000,
+          method: "CASH",
+          referenceNo: null,
+          notes: null,
+          allocations: [{ invoiceId: inv.id as string, amount: 500_000 }],
+        },
+        "user-1",
+      ),
+    ).rejects.toThrow(/FIN_INVOICE_DIRECTION_MISMATCH/);
+    expect(tables.finTransaction).toHaveLength(0);
+    expect(tables.finPayment).toHaveLength(0);
+  });
+
   it("partial payment 2 đợt cho 1 invoice → status PARTIAL rồi PAID, paidAmount cộng dồn đúng", async () => {
     const { finPaymentsRepo, fakeTables: tables } = await loadReposWithFreshDb();
     const inv1 = seedInvoice(tables, { totalAmount: "1000000" });

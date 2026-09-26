@@ -1095,7 +1095,7 @@ export async function notifyDeliveryNoteCreated(ctx: DeliveryNoteNotifyContext) 
     entityCode: ctx.noteNo,
     title: `Phiếu giao hàng ${ctx.noteNo} chờ duyệt`,
     message: "Chỉ Giám đốc được phê duyệt phiếu giao hàng ra ngoài công ty.",
-    link: `/warehouse/delivery-notes/${ctx.deliveryNoteId}`,
+    link: `/warehouse?tab=delivery-notes&id=${ctx.deliveryNoteId}`, // V4.1 AD-05: trang /warehouse/delivery-notes/:id không tồn tại
     severity: "info",
   });
 }
@@ -1110,7 +1110,7 @@ export async function notifyDeliveryNoteConfirmed(ctx: DeliveryNoteNotifyContext
     entityCode: ctx.noteNo,
     title: `BBGH ${ctx.noteNo} đã hoàn tất`,
     message: "Giám đốc đã duyệt — tải PDF để lưu hồ sơ/đối chiếu công nợ.",
-    link: `/warehouse/delivery-notes/${ctx.deliveryNoteId}`,
+    link: `/warehouse?tab=delivery-notes&id=${ctx.deliveryNoteId}`, // V4.1 AD-05: trang /warehouse/delivery-notes/:id không tồn tại
     severity: "success",
   });
   await emitToUsersWithRole("warehouse", {
@@ -1122,7 +1122,7 @@ export async function notifyDeliveryNoteConfirmed(ctx: DeliveryNoteNotifyContext
     entityCode: ctx.noteNo,
     title: `BBGH ${ctx.noteNo} đã hoàn tất`,
     message: "Có thể in 3 liên giao cho tài xế/khách ký nhận.",
-    link: `/warehouse/delivery-notes/${ctx.deliveryNoteId}`,
+    link: `/warehouse?tab=delivery-notes&id=${ctx.deliveryNoteId}`, // V4.1 AD-05: trang /warehouse/delivery-notes/:id không tồn tại
     severity: "success",
   });
 }
@@ -1143,7 +1143,7 @@ export async function notifyDeliveryNoteRejected(
     entityCode: ctx.noteNo,
     title: `Phiếu giao hàng ${ctx.noteNo} bị từ chối`,
     message: ctx.reason ? `Lý do: ${ctx.reason}` : undefined,
-    link: `/warehouse/delivery-notes/${ctx.deliveryNoteId}`,
+    link: `/warehouse?tab=delivery-notes&id=${ctx.deliveryNoteId}`, // V4.1 AD-05: trang /warehouse/delivery-notes/:id không tồn tại
     severity: "warning",
   });
 }

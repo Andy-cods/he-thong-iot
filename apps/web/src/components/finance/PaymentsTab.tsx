@@ -270,9 +270,13 @@ function PaymentFormDialog({
   const accountsQuery = useFinAccountsList({ isActive: true });
   const accounts = accountsQuery.data?.data ?? [];
 
-  // Hoá đơn còn nợ của đối tác đã chọn, cùng chiều thanh toán.
+  // V4.1 TC-01: hoá đơn NGƯỢC chiều với thanh toán — Chi (OUT) trả cho hoá đơn
+  // mua vào (IN, nợ NCC); Thu (IN) thu cho hoá đơn bán ra (OUT, khách nợ).
+  // Trước đây lọc CÙNG chiều → "Chi cho NCC" chỉ thấy hoá đơn bán, muốn trả NCC
+  // phải bấm "Thu" → sinh phiếu thu làm số dư TĂNG khi thực ra đang trả tiền.
+  const invoiceDirection: FinDirection = direction === "OUT" ? "IN" : "OUT";
   const invoicesQuery = useFinInvoicesList({
-    direction,
+    direction: invoiceDirection,
     supplierId: supplier?.id,
     status: ["UNPAID", "PARTIAL", "OVERDUE"],
     pageSize: 100,

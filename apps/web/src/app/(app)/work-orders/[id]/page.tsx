@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ProgressReportForm } from "@/components/work-orders/ProgressReportForm";
 import { ProgressTimeline } from "@/components/work-orders/ProgressTimeline";
 import { WorkOrderActions } from "@/components/work-orders/WorkOrderActions";
+import { normalizeRoutingPlan } from "@/lib/wo-routing";
 import { useSession } from "@/hooks/useSession";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -178,9 +179,11 @@ export default function WorkOrderDetailPage() {
   const orderTypeLabel = ORDER_TYPE_LABEL[wo.orderType ?? "NEW"] ?? "—";
   const priorityLabel = PRIORITY_LABEL[wo.priority] ?? wo.priority;
   const productSpec = wo.productSpecification ?? {};
-  const routing = wo.routingPlan ?? [];
-  const materials = wo.materialRequirements ?? [];
-  const tools = wo.toolsRequired ?? [];
+  // V4.1 SX-01: routingPlan có thể là OBJECT (WO cũ tạo từ dòng BOM) → chuẩn hoá,
+  // không thì `.reduce/.map` văng trắng trang.
+  const routing = normalizeRoutingPlan(wo.routingPlan);
+  const materials = Array.isArray(wo.materialRequirements) ? wo.materialRequirements : [];
+  const tools = Array.isArray(wo.toolsRequired) ? wo.toolsRequired : [];
   const totalRoutingMin = routing.reduce(
     (s, r) => s + Number(r.duration_min ?? r.cycle_min ?? 0),
     0,
