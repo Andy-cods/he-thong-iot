@@ -124,14 +124,20 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
 ### TASK-20260926-002 — V4.1 Đợt 1 "Kho: QC HOLD + phiếu xuất kho"
-- **Trạng thái:** IN_PROGRESS · **Bắt đầu:** 2026-09-26 (+07) · **Tạo:** 2026-09-26 (+07) · **Ưu tiên:** P0
+- **Trạng thái:** DONE · **Hoàn thành:** 2026-09-27 01:40 (+07) · **Bắt đầu:** 2026-09-26 (+07) · **Tạo:** 2026-09-26 (+07) · **Ưu tiên:** P0
 - **Nguồn:** `plans/v4.1-audit-hoan-thien/AUDIT.md` mục 2 + `DOT1_PLAN.md`. Quyết định: D2 bảng `goods_issue`,
   D3 lô cũ coi là đạt, D4 kiểm kê rồi điều chỉnh (không tự trừ), D5 tách lô khi nhận trùng mã, D6 menu Yêu cầu vật tư.
 - **1a DEPLOYED 2026-09-27 00:45 (+07)** commit fdaa1bc: backup `/opt/hethong-iot/backups/pre-v41-dot1a-20260927-0036.dump`
   → apply `0059_qc_hold.sql` (hethong_app, không lỗi) → smoke `sql/dot1_smoke.sql` 9/9 (ROLLBACK) → push main.
   E2E admin: /qc-inbound, tab Chờ QC, qc-pending API 200; tồn 1 mã khớp DB/list/summary/FIFO (820); view toàn bộ 13ms; log 0 lỗi.
   Prod lúc deploy: 486 lô AVAILABLE, 0 HOLD, 0 ISR chờ, 1 user qc active. CHƯA test luồng nhận→QC→xuất (cần PO test).
-- **CÒN:** 1b (goods_issue, 0060 — apply sau khi 1a chạy) + 1c (menu, báo cáo đối soát D4).
+- **1b+1c DEPLOYED 2026-09-27 01:25 (+07)** commit f79df59: backup `pre-v41-dot1b-20260927-0120.dump` → 0060 → smoke 7/7 → D4 baseline 0 dòng (không có tồn thừa) → push.
+- **HOTFIX 0061** `app.reservation_lock`: 0006c gọi `pg_advisory_xact_lock(bigint, int)` (không tồn tại) → MỌI đường xuất/QC Đạt/giữ lô/chuyển kệ
+  500 từ lúc 1a lên (00:45–01:27, không ghi sai dữ liệu vì transaction huỷ). Sửa sang `(int,int)`; apply prod 01:27.
+  Bài học: smoke SQL phải GỌI hàm khoá, không chỉ insert thẳng.
+- **E2E prod 23/23 + giữ/nhả lô**: MR giao 2 lần PARTIAL→DELIVERED, giao vượt 409, to=DELIVERED 409, xuất nhanh + ISR sinh PX,
+  duyệt ISR 2 lần 409, tồn giảm đúng 5, lô HOLD → khả dụng 0 + xuất 409 + FIFO bỏ qua. Đã XOÁ toàn bộ dữ liệu test
+  (4 PX, 4 txn, 2 MR, 2 ISR, 11 thông báo); giữ audit_event (bất biến). Tồn lô mẫu về 820.
 - **1b+1c CODE XONG 2026-09-27 (+07)** trên nhánh `fix/v4.1-dot1-kho` (CHƯA push/deploy): migration `0060_goods_issue.sql`
   (goods_issue/goods_issue_line, unique 1 phiếu/ISR, material_request thêm PARTIAL — phải thay CHECK cũ của 0033,
   CHECK txn xuất phải có bin NOT VALID), `goodsIssues.ts` + API `/api/material-requests/[id]/goods-issue`,
