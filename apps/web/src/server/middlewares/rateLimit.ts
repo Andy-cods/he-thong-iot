@@ -213,12 +213,17 @@ export function changePasswordRateLimit(userId: string) {
   });
 }
 
-/** Helper preset: global API burst IP-based 60/60s. */
-export function apiBurstRateLimit(req: NextRequest) {
-  return rateLimit({
-    bucket: "api",
-    key: getClientIp(req),
-    limit: 60,
-    windowSec: 60,
-  });
+/**
+ * Helper preset: global API burst.
+ *
+ * V4.1 Đợt 6 — trước đây 60 req/60s THEO IP. Cả xưởng ra Internet qua 1 IP
+ * (NAT) nên mọi người dùng chung 60 lượt/phút; 1 trang dashboard đã gọi 10–20
+ * API → người khác nhận 429 → danh sách hiện "trống". Nay:
+ *   - Đã đăng nhập: theo user, 300 req/60s (đủ cho duyệt nhanh nhiều tab).
+ *   - Chưa đăng nhập: theo IP, 60 req/60s (chặn dò quét).
+ */
+export function apiBurstRateLimit(req: NextRequest, userId?: string | null) {
+  return userId
+    ? rateLimit({ bucket: "api-user", key: userId, limit: 300, windowSec: 60 })
+    : rateLimit({ bucket: "api", key: getClientIp(req), limit: 60, windowSec: 60 });
 }

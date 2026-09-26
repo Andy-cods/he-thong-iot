@@ -89,10 +89,12 @@ export async function requireSession(
   req: NextRequest,
   ...roles: Role[]
 ): Promise<{ session: Session } | { response: NextResponse }> {
-  const burst = await apiBurstRateLimit(req);
+  // V4.1 Đợt 6 — đọc phiên TRƯỚC để giới hạn theo user (cả xưởng dùng chung
+  // 1 IP NAT → giới hạn theo IP làm mọi người chặn lẫn nhau).
+  const session = await getSession(req);
+  const burst = await apiBurstRateLimit(req, session?.userId);
   if (!burst.ok) return { response: tooManyRequests(burst.retryAfter) };
 
-  const session = await getSession(req);
   if (!session) return { response: unauthorized() };
 
   // V3.11.4 (audit S.8) — role `display` (kiosk TV, mật khẩu chia sẻ, phiên 24h)
@@ -125,10 +127,12 @@ export async function requireCan(
   action: RbacAction,
   entity: RbacEntity,
 ): Promise<{ session: Session } | { response: NextResponse }> {
-  const burst = await apiBurstRateLimit(req);
+  // V4.1 Đợt 6 — đọc phiên TRƯỚC để giới hạn theo user (cả xưởng dùng chung
+  // 1 IP NAT → giới hạn theo IP làm mọi người chặn lẫn nhau).
+  const session = await getSession(req);
+  const burst = await apiBurstRateLimit(req, session?.userId);
   if (!burst.ok) return { response: tooManyRequests(burst.retryAfter) };
 
-  const session = await getSession(req);
   if (!session) return { response: unauthorized() };
 
   // V1.9 P10 — check override trước (deny wins, grant escalate).
