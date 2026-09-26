@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { QueryError } from "@/components/ui/query-error";
 
 /**
  * V4.1 D7 (TM-18) — Hoá đơn mua của PO (trên trang chi tiết PO).
@@ -201,9 +202,14 @@ export function PoInvoicePanel({ poId }: { poId: string }) {
   if (ctx.error && (ctx.error as HttpError).status === 403) return null;
   if (ctx.error || !ctx.data) {
     return (
-      <p className="text-sm text-red-600 dark:text-red-400">
-        Không tải được hoá đơn mua: {(ctx.error as Error | null)?.message ?? "lỗi"}
-      </p>
+      // V4.1 UI-05: khối lỗi chung + nút "Thử lại".
+      <QueryError
+        compact
+        error={ctx.error}
+        onRetry={() => void ctx.refetch()}
+        retrying={ctx.isFetching}
+        title="Không tải được hoá đơn mua"
+      />
     );
   }
 

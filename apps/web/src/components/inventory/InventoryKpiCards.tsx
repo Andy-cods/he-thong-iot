@@ -122,7 +122,7 @@ function KpiCard({
       <div
         className={cn(
           "font-medium uppercase tracking-wide text-zinc-500",
-          compact ? "text-[10px]" : "text-[11px]",
+          compact ? "text-xs" : "text-[11px]",
         )}
       >
         {label}

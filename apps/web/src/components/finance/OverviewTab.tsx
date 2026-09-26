@@ -14,6 +14,7 @@ import {
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryError } from "@/components/ui/query-error";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CashflowChart } from "@/components/finance/CashflowChart";
 import { fmtVND, fmtVNDShort, toDateInputValue } from "@/components/finance/_format";
@@ -57,6 +58,9 @@ export function OverviewTab() {
 
   const isLoading = cashflowQuery.isLoading || summaryQuery.isLoading;
   const hasData = (cashflow?.series.length ?? 0) > 0;
+  // V4.1 UI-05: query lỗi → KPI hiện "—" (null) thay vì 0.
+  const cashflowFailed = cashflowQuery.isError && !cashflow;
+  const summaryFailed = summaryQuery.isError && !summary;
 
   return (
     <div className="flex h-full flex-col overflow-auto bg-zinc-50/30 dark:bg-zinc-950/30">
@@ -128,14 +132,14 @@ export function OverviewTab() {
               <KpiCard
                 icon={TrendingUp}
                 label="Tổng thu"
-                amount={cashflow?.summary.totalIn ?? 0}
+                amount={cashflowFailed ? null : (cashflow?.summary.totalIn ?? 0)}
                 growth={cashflow?.growth?.inPct}
                 accent="emerald"
               />
               <KpiCard
                 icon={TrendingDown}
                 label="Tổng chi"
-                amount={cashflow?.summary.totalOut ?? 0}
+                amount={cashflowFailed ? null : (cashflow?.summary.totalOut ?? 0)}
                 growth={cashflow?.growth?.outPct}
                 growthInverse
                 accent="rose"
@@ -143,25 +147,25 @@ export function OverviewTab() {
               <KpiCard
                 icon={BarChart3}
                 label="Chênh lệch"
-                amount={cashflow?.summary.netCashflow ?? 0}
+                amount={cashflowFailed ? null : (cashflow?.summary.netCashflow ?? 0)}
                 accent={(cashflow?.summary.netCashflow ?? 0) >= 0 ? "indigo" : "rose"}
               />
               <KpiCard
                 icon={ReceiptText}
                 label="Công nợ phải thu"
-                amount={totalReceivable}
+                amount={summaryFailed ? null : totalReceivable}
                 accent="amber"
               />
               <KpiCard
                 icon={ReceiptText}
                 label="Công nợ phải trả"
-                amount={totalPayable}
+                amount={summaryFailed ? null : totalPayable}
                 accent="rose"
               />
               <KpiCard
                 icon={Landmark}
                 label="Số dư tài khoản"
-                amount={summary?.totalBalance ?? 0}
+                amount={summaryFailed ? null : (summary?.totalBalance ?? 0)}
                 accent="zinc"
               />
             </div>
@@ -183,7 +187,14 @@ export function OverviewTab() {
                   </div>
                 )}
               </div>
-              {!hasData ? (
+              {cashflowFailed ? (
+                <QueryError
+                  error={cashflowQuery.error}
+                  onRetry={() => void cashflowQuery.refetch()}
+                  retrying={cashflowQuery.isFetching}
+                  title="Không tải được dữ liệu dòng tiền"
+                />
+              ) : !hasData ? (
                 <EmptyState preset="no-data" title="Chưa có dữ liệu dòng tiền" description="Chưa có giao dịch nào trong khoảng thời gian đã chọn." />
               ) : (
                 <CashflowChart data={cashflow!.series} />
@@ -206,8 +217,9 @@ function KpiCard({
 }: {
   icon: React.ElementType;
   label: string;
-  /** V4.1 (UI) — thẻ KPI hiện số rút gọn (dấu phẩy) + số đủ ngay bên dưới. */
-  amount: number;
+  /** V4.1 (UI) — thẻ KPI hiện số rút gọn (dấu phẩy) + số đủ ngay bên dưới.
+   *  V4.1 UI-05: null = không tải được → hiện "—". */
+  amount: number | null;
   growth?: number;
   growthInverse?: boolean;
   accent: "emerald" | "rose" | "indigo" | "amber" | "zinc";
@@ -231,7 +243,7 @@ function KpiCard({
         {growth !== undefined && (
           <span
             className={cn(
-              "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+              "inline-flex whitespace-nowrap items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-semibold",
               isGood
                 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
                 : "bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400",
@@ -243,10 +255,10 @@ function KpiCard({
         )}
       </div>
       <p className="mt-2 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</p>
-      <p className={cn("mt-0.5 font-mono text-xl font-bold tabular-nums", s.value)} title={fmtVND(amount)}>
-        {fmtVNDShort(amount)}
+      <p className={cn("mt-0.5 font-mono text-xl font-bold tabular-nums", s.value)} title={amount === null ? undefined : fmtVND(amount)}>
+        {amount === null ? "—" : fmtVNDShort(amount)}
       </p>
-      <p className="truncate text-[11px] tabular-nums text-zinc-500 dark:text-zinc-400">{fmtVND(amount)}</p>
+      <p className="truncate text-[11px] tabular-nums text-zinc-500 dark:text-zinc-400">{amount === null ? "Không tải được" : fmtVND(amount)}</p>
     </div>
   );
 }

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryError } from "@/components/ui/query-error";
 
 /**
  * V3.2 ActionItemsCard — 3 row "Cần xử lý" cho Dashboard Tổng quan
@@ -49,8 +50,10 @@ interface ActionItemsCardProps {
 
 export function ActionItemsCard({ className }: ActionItemsCardProps) {
   const [data, setData] = React.useState<ActionItemsPayload | null>(null);
-  const [error, setError] = React.useState<string | null>(null);
+  // V4.1 UI-05: giữ nguyên lỗi (có "HTTP xxx") để QueryError phân loại.
+  const [error, setError] = React.useState<Error | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [retrying, setRetrying] = React.useState(false);
 
   const fetchData = React.useCallback(async (signal?: AbortSignal) => {
     try {
@@ -65,7 +68,7 @@ export function ActionItemsCard({ className }: ActionItemsCardProps) {
       setError(null);
     } catch (e) {
       if ((e as Error).name === "AbortError") return;
-      setError("Không tải được danh sách cần xử lý.");
+      setError(e as Error);
     } finally {
       setLoading(false);
     }
@@ -119,9 +122,16 @@ export function ActionItemsCard({ className }: ActionItemsCardProps) {
       </header>
 
       {error ? (
-        <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
-          {error}
-        </div>
+        <QueryError
+          compact
+          error={error}
+          retrying={retrying}
+          onRetry={() => {
+            setRetrying(true);
+            void fetchData().finally(() => setRetrying(false));
+          }}
+          title="Không tải được danh sách cần xử lý"
+        />
       ) : null}
 
       {loading ? (
@@ -174,7 +184,7 @@ export function ActionItemsCard({ className }: ActionItemsCardProps) {
             />
           </ul>
         )
-      ) : (
+      ) : error ? null : (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-200 bg-zinc-50/50 py-8 dark:border-zinc-700 dark:bg-zinc-800/40">
           <Inbox className="h-5 w-5 text-zinc-400 dark:text-zinc-500" />
           <p className="text-sm text-zinc-500 dark:text-zinc-400">Chưa có dữ liệu</p>

@@ -176,45 +176,61 @@ export function BomWorkspaceTopbar({
 
   const isObsolete = template.status === "OBSOLETE";
 
-  return (
-    <header className="flex h-12 shrink-0 items-center gap-2 border-b border-zinc-200 bg-white pl-2 pr-2 dark:border-zinc-800 dark:bg-zinc-900">
-      {/* Left: back + breadcrumb + title — V1.7-beta.2.3 compact polish */}
-      <Link
-        href="/bom"
-        className="inline-flex h-7 items-center gap-1 rounded-md px-1.5 text-[11px] font-medium text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
-        title="Thoát workspace về danh sách BOM"
-      >
-        <ArrowLeft className="h-3 w-3" aria-hidden />
-        BOM
-      </Link>
-      <span className="text-xs text-zinc-300 dark:text-zinc-600" aria-hidden>
-        ·
-      </span>
-      <span className="font-mono text-[13px] font-medium text-zinc-800 dark:text-zinc-200">
-        {template.code}
-      </span>
-      <span className="text-xs text-zinc-300 dark:text-zinc-600" aria-hidden>
-        ·
-      </span>
-      <h1 className="truncate text-sm font-normal text-zinc-700 dark:text-zinc-300">
-        {template.name}
-      </h1>
-      <StatusBadge
-        status={badge.badgeStatus}
-        size="sm"
-        label={badge.label}
-      />
-      {isObsolete && (
-        <span className="inline-flex items-center rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-700 ring-1 ring-red-200 dark:bg-red-950/40 dark:text-red-400 dark:ring-red-800">
-          Ngừng dùng
-        </span>
-      )}
+  // V4.1 UI-02: ẩn tên khi gần trùng mã (VD "Z0000002-565488-SL1 · Z0000002-565488 SL1").
+  const normalize = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const nameDupCode = normalize(template.name) === normalize(template.code);
 
-      {/* Spacer */}
-      <div className="flex-1" />
+  // V4.1 UI-02: điện thoại — vùng chạm 36px, desktop giữ 28px compact.
+  const tapBtn = "h-9 min-w-9 px-2 md:h-7 md:min-w-0 md:px-2.5";
+
+  return (
+    <header className="flex min-h-12 shrink-0 items-center gap-1.5 border-b border-zinc-200 bg-white px-2 py-1 dark:border-zinc-800 dark:bg-zinc-900 md:gap-2">
+      {/* Left: back + mã + tên + trạng thái — V4.1 UI-02: khối co giãn, mã truncate
+          (trước đây mã font-mono gãy 3 dòng trên 390px). */}
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 md:gap-2">
+        <Link
+          href="/bom"
+          className="inline-flex h-9 shrink-0 items-center gap-1 rounded-md px-1.5 text-xs font-medium text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50 md:h-7"
+          title="Thoát workspace về danh sách BOM"
+          aria-label="Về danh sách BOM"
+        >
+          <ArrowLeft className="h-3.5 w-3.5 md:h-3 md:w-3" aria-hidden />
+          <span className="hidden md:inline">BOM</span>
+        </Link>
+        <span className="hidden text-xs text-zinc-300 dark:text-zinc-600 md:inline" aria-hidden>
+          ·
+        </span>
+        <span
+          className="min-w-0 truncate font-mono text-[13px] font-medium text-zinc-800 dark:text-zinc-200"
+          title={nameDupCode ? template.code : `${template.code} · ${template.name}`}
+        >
+          {template.code}
+        </span>
+        {!nameDupCode && (
+          <>
+            <span className="hidden text-xs text-zinc-300 dark:text-zinc-600 md:inline" aria-hidden>
+              ·
+            </span>
+            <h1 className="hidden min-w-0 truncate text-sm font-normal text-zinc-700 dark:text-zinc-300 md:block">
+              {template.name}
+            </h1>
+          </>
+        )}
+        {nameDupCode && <h1 className="sr-only">{template.name}</h1>}
+        <StatusBadge
+          status={badge.badgeStatus}
+          size="sm"
+          label={badge.label}
+        />
+        {isObsolete && (
+          <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded bg-red-50 px-1.5 py-0.5 text-xs font-medium text-red-700 ring-1 ring-red-200 dark:bg-red-950/40 dark:text-red-400 dark:ring-red-800">
+            Ngừng dùng
+          </span>
+        )}
+      </div>
 
       {/* KPI chips */}
-      <div className="hidden items-center gap-1 text-xs md:flex">
+      <div className="hidden shrink-0 items-center gap-1 text-xs md:flex">
         {/* V4.1 Q4 — chip "Đơn hàng" ẩn cùng Đơn hàng bán. */}
         {!HIDDEN_FEATURES.salesOrder && (
           <KpiChip
@@ -231,7 +247,7 @@ export function BomWorkspaceTopbar({
         {/* TASK-20260427-016 — KPI `Thiếu vật tư` & `ECO` retired cùng tab tương ứng. */}
       </div>
 
-      {/* Scan barcode — V1.8 Batch 7 */}
+      {/* Scan barcode — V1.8 Batch 7. V4.1 UI-02: điện thoại chuyển vào menu ⋯. */}
       {onOpenScan ? (
         <Button
           size="sm"
@@ -239,69 +255,98 @@ export function BomWorkspaceTopbar({
           onClick={onOpenScan}
           title="Quét barcode linh kiện (Alt+S)"
           aria-label="Quét barcode linh kiện"
+          className="hidden shrink-0 md:inline-flex"
         >
           <ScanLine className="h-3.5 w-3.5" aria-hidden />
-          <span className="hidden sm:inline">Quét</span>
+          Quét
         </Button>
       ) : null}
 
       {/* V3.7.54 — Nút "Kích hoạt BOM" hiển thị rõ khi BOM đang DRAFT.
-          V3.7.57 — chỉ admin/planner thấy. Các role khác xem read-only. */}
+          V3.7.57 — chỉ admin/planner thấy. Các role khác xem read-only.
+          V4.1 UI-02: nút chính màu thương hiệu indigo (không dùng emerald
+          "thành công" làm nút); điện thoại chỉ icon + aria-label. */}
       {canEditBom && template.status === "DRAFT" && (
         <Button
           size="sm"
           onClick={() => setReleaseOpen(true)}
           title="Kích hoạt BOM (chuyển từ Nháp → Hoạt động)"
-          className="bg-emerald-600 hover:bg-emerald-700"
+          aria-label="Kích hoạt BOM"
+          className={cn("shrink-0", tapBtn)}
         >
-          <Rocket className="h-3.5 w-3.5" aria-hidden />
-          <span className="hidden sm:inline">Kích hoạt BOM</span>
+          <Rocket className="h-4 w-4 md:h-3.5 md:w-3.5" aria-hidden />
+          <span className="hidden whitespace-nowrap md:inline">Kích hoạt BOM</span>
         </Button>
       )}
 
-      {/* History — mọi role đều xem được */}
-      <Button size="sm" variant="ghost" onClick={onOpenHistory} title="Lịch sử thay đổi">
+      {/* History — mọi role đều xem được. V4.1 UI-02: điện thoại vào menu ⋯. */}
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={onOpenHistory}
+        title="Lịch sử thay đổi"
+        className="hidden shrink-0 md:inline-flex"
+      >
         <History className="h-3.5 w-3.5" aria-hidden />
-        <span className="hidden sm:inline">Lịch sử</span>
+        Lịch sử
       </Button>
 
-      {/* Actions dropdown — chỉ admin/planner */}
-      {canEditBom && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="sm" variant="ghost">
-              <MoreHorizontal className="h-3.5 w-3.5" aria-hidden />
-              <ChevronDown className="h-3 w-3" aria-hidden />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {!isObsolete && (
-              <DropdownMenuItem onClick={() => void handleRename()}>
-                <Pencil className="h-3.5 w-3.5" aria-hidden />
-                Đổi tên BOM
-              </DropdownMenuItem>
-            )}
-            {isObsolete && (
-              <DropdownMenuItem onClick={() => void handleRestore()}>
-                <RefreshCw className="h-3.5 w-3.5" aria-hidden />
-                Khôi phục về DRAFT
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuItem onClick={() => void handleClone()}>
-              <Copy className="h-3.5 w-3.5" aria-hidden />
-              Nhân bản BOM
+      {/* Menu ⋯ — admin/planner: đổi tên/nhân bản/xoá; điện thoại: thêm Quét + Lịch sử. */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label="Thao tác khác"
+            title="Thao tác khác"
+            className={cn("shrink-0", tapBtn, !canEditBom && "md:hidden")}
+          >
+            <MoreHorizontal className="h-4 w-4 md:h-3.5 md:w-3.5" aria-hidden />
+            <ChevronDown className="hidden h-3 w-3 md:block" aria-hidden />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {onOpenScan ? (
+            <DropdownMenuItem className="md:hidden" onClick={onOpenScan}>
+              <ScanLine className="h-3.5 w-3.5" aria-hidden />
+              Quét barcode
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              variant="danger"
-              onClick={() => setDeleteOpen(true)}
-            >
-              <Trash2 className="h-3.5 w-3.5" aria-hidden />
-              Xoá (ngừng dùng)
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
+          ) : null}
+          <DropdownMenuItem className="md:hidden" onClick={onOpenHistory}>
+            <History className="h-3.5 w-3.5" aria-hidden />
+            Lịch sử thay đổi
+          </DropdownMenuItem>
+          {canEditBom && (
+            <>
+              <DropdownMenuSeparator className="md:hidden" />
+              {!isObsolete && (
+                <DropdownMenuItem onClick={() => void handleRename()}>
+                  <Pencil className="h-3.5 w-3.5" aria-hidden />
+                  Đổi tên BOM
+                </DropdownMenuItem>
+              )}
+              {isObsolete && (
+                <DropdownMenuItem onClick={() => void handleRestore()}>
+                  <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+                  Khôi phục về DRAFT
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onClick={() => void handleClone()}>
+                <Copy className="h-3.5 w-3.5" aria-hidden />
+                Nhân bản BOM
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                variant="danger"
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                Xoá (ngừng dùng)
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <ReleaseRevisionDialog
         open={releaseOpen}
@@ -350,7 +395,7 @@ function KpiChip({ label, count, tone = "default", onClick }: KpiChipProps) {
       )}
       title={`Xem ${label.toLowerCase()}`}
     >
-      <span className="text-[11px]">{label}</span>
+      <span className="text-xs">{label}</span>
       <span className="font-mono text-xs font-semibold tabular-nums">
         {display}
       </span>

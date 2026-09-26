@@ -38,6 +38,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryError } from "@/components/ui/query-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -140,6 +141,8 @@ export function CashbookTab() {
   const kpiQuery = useFinTransactionStats(statsFilter);
   const totalIn = kpiQuery.data?.data.totalIn ?? 0;
   const totalOut = kpiQuery.data?.data.totalOut ?? 0;
+  // V4.1 UI-05: KPI lỗi → hiện "—" thay vì 0 ₫.
+  const kpiFailed = kpiQuery.isError && !kpiQuery.data;
 
   const accounts = accountsQuery.data?.data ?? [];
   // Nguồn đã ngưng vẫn phải hiện tên cho giao dịch cũ.
@@ -247,9 +250,9 @@ export function CashbookTab() {
             <p className="text-xs font-semibold uppercase tracking-wider">Tổng đã thu</p>
           </div>
           <p className="mt-1 font-mono text-xl font-bold tabular-nums text-emerald-900 dark:text-emerald-200">
-            {fmtVNDShort(totalIn)}
+            {kpiFailed ? "—" : fmtVNDShort(totalIn)}
           </p>
-          <p className="text-xs tabular-nums text-emerald-800/80 dark:text-emerald-300/80">{fmtVND(totalIn)}</p>
+          <p className="text-xs tabular-nums text-emerald-800/80 dark:text-emerald-300/80">{kpiFailed ? "Không tải được" : fmtVND(totalIn)}</p>
         </div>
         <div className="rounded-2xl border border-rose-200 bg-rose-50/60 p-4 dark:border-rose-800 dark:bg-rose-950/40" title={fmtVND(totalOut)}>
           <div className="flex items-center gap-2 text-rose-700 dark:text-rose-400">
@@ -257,15 +260,15 @@ export function CashbookTab() {
             <p className="text-xs font-semibold uppercase tracking-wider">Tổng đã chi</p>
           </div>
           <p className="mt-1 font-mono text-xl font-bold tabular-nums text-rose-900 dark:text-rose-200">
-            {fmtVNDShort(totalOut)}
+            {kpiFailed ? "—" : fmtVNDShort(totalOut)}
           </p>
-          <p className="text-xs tabular-nums text-rose-800/80 dark:text-rose-300/80">{fmtVND(totalOut)}</p>
+          <p className="text-xs tabular-nums text-rose-800/80 dark:text-rose-300/80">{kpiFailed ? "Không tải được" : fmtVND(totalOut)}</p>
         </div>
       </div>
 
       {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-2 border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
-        <div className="flex items-center gap-1.5 overflow-x-auto">
+        <div className="flex min-w-0 max-w-full items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
           {(["all", "IN", "OUT"] as const).map((d) => (
             <button
               key={d}
@@ -336,11 +339,12 @@ export function CashbookTab() {
             {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-12 rounded-lg" />)}
           </div>
         ) : query.isError ? (
-          <EmptyState
-            preset="error"
+          // V4.1 UI-05: khối lỗi chung (thông điệp theo mã 429/403/5xx).
+          <QueryError
+            error={query.error}
+            onRetry={() => void query.refetch()}
+            retrying={query.isFetching}
             title="Không tải được sổ thu chi"
-            description={query.error instanceof Error ? query.error.message : "Vui lòng thử lại."}
-            actions={<Button size="sm" variant="outline" onClick={() => void query.refetch()}>Thử lại</Button>}
           />
         ) : isEmpty ? (
           hasFilter ? (
@@ -494,7 +498,7 @@ export function CashbookTab() {
 
 function TransferBadge() {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
+    <span className="inline-flex whitespace-nowrap items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
       <ArrowLeftRight className="h-3 w-3" aria-hidden="true" /> Chuyển quỹ
     </span>
   );

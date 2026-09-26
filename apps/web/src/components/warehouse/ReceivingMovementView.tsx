@@ -33,6 +33,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryError } from "@/components/ui/query-error";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
@@ -122,7 +123,7 @@ function EtaBadge({ eta }: { eta: string | null | undefined }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium tabular-nums",
+        "inline-flex whitespace-nowrap items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium tabular-nums",
         overdue ? "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400" :
         isToday ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400" :
         soon ? "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400" :
@@ -271,7 +272,7 @@ function ReceivingTable({
                 {po.totalAmount ? `${fmtVND(po.totalAmount)} ₫` : "—"}
               </span>
               <span className={cn(
-                "inline-flex w-fit items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
+                "inline-flex whitespace-nowrap w-fit items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
                 isPartial
                   ? "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800"
                   : "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:ring-blue-800",
@@ -335,7 +336,7 @@ function ReceivingCardList({
             <p className="truncate text-sm text-zinc-700 dark:text-zinc-300">{supplierLabel(po)}</p>
             <div className="flex items-center justify-between gap-2">
               <span className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
+                "inline-flex whitespace-nowrap items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
                 isPartial
                   ? "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800"
                   : "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:ring-blue-800",
@@ -443,10 +444,11 @@ export function ReceivingMovementView() {
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <KpiCard icon={Clock}          label="Chờ xử lý"      value={stats?.sentCount ?? sentCount}             sub="PO status SENT"           accent="indigo" />
-        <KpiCard icon={Package}        label="Đang nhận"      value={stats?.partialCount ?? partialCount}       sub="đã nhận một phần"         accent="amber"  />
-        <KpiCard icon={AlertTriangle}  label="Quá hạn ETA"   value={overdueRows.length}                         sub="cần xử lý gấp"            accent={overdueRows.length > 0 ? "red" : "zinc"} />
-        <KpiCard icon={CheckCircle2}   label="Giao hôm nay"   value={todayRows.length}                           sub="theo ETA"                  accent="emerald" />
+        {/* V4.1 UI-05: danh sách lỗi → KPI hiện "—" thay vì 0. */}
+        <KpiCard icon={Clock}          label="Chờ xử lý"      value={stats?.sentCount ?? (isError ? "—" : sentCount)}       sub="PO status SENT"           accent="indigo" />
+        <KpiCard icon={Package}        label="Đang nhận"      value={stats?.partialCount ?? (isError ? "—" : partialCount)} sub="đã nhận một phần"         accent="amber"  />
+        <KpiCard icon={AlertTriangle}  label="Quá hạn ETA"   value={isError ? "—" : overdueRows.length}                    sub="cần xử lý gấp"            accent={overdueRows.length > 0 ? "red" : "zinc"} />
+        <KpiCard icon={CheckCircle2}   label="Giao hôm nay"   value={isError ? "—" : todayRows.length}                      sub="theo ETA"                  accent="emerald" />
       </div>
 
       {/* Filter bar */}
@@ -492,13 +494,13 @@ export function ReceivingMovementView() {
       {isLoading ? (
         <ReceivingTableSkeleton />
       ) : isError ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
-          <p className="font-semibold">Không tải được PO.</p>
-          <p className="mt-1 text-xs">{(error as Error)?.message}</p>
-          <Button variant="outline" size="sm" onClick={() => void refetch()} className="mt-3">
-            Thử lại
-          </Button>
-        </div>
+        // V4.1 UI-05: khối lỗi chung (thông điệp theo mã 429/403/5xx).
+        <QueryError
+          error={error}
+          onRetry={() => void refetch()}
+          retrying={isFetching}
+          title="Không tải được PO chờ nhận"
+        />
       ) : rows.length === 0 ? (
         hasFilter ? (
           <EmptyState

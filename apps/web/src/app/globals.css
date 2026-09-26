@@ -565,3 +565,14 @@
     animation: none !important;
   }
 }
+
+/* V4.1 UI-X7: <select> native có chiều cao cố định (h-7..h-10) — plugin
+ * @tailwindcss/forms thêm py-2 + pr-10, còn utility px-2 ghi đè pr → chữ bị cắt
+ * chân ("Mọi nguồn", "Tất cả danh mục") và chạy dưới mũi tên. Specificity
+ * (0,1,1) > utility (0,1,0) nên thắng px-*, không cần sửa từng chỗ. */
+select:is([class*="h-7"], [class*="h-8"], [class*="h-9"], [class*="h-10"]) {
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-right: 1.75rem;
+  background-position: right 0.375rem center;
+}

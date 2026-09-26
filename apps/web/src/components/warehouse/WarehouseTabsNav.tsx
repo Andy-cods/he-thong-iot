@@ -8,6 +8,7 @@ import {
   Tag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ScrollTabsList } from "@/components/common/ScrollTabsList";
 
 /**
  * V4.1 (Wave 5 Phase A) — Warehouse tabs nav (server-rendered).
@@ -76,12 +77,13 @@ export function WarehouseTabsNav({
       aria-label="Warehouse sections"
       className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
     >
-      <ul className="flex items-center gap-1 overflow-x-auto px-4">
+      {/* V4.1 UI-X6: tự cuộn tab đang chọn + mép mờ báo còn tab. */}
+      <ScrollTabsList className="gap-1 px-2 md:px-4">
         {WAREHOUSE_TABS.map((t) => {
           const Icon = t.icon;
           const isActive = active === t.key;
           return (
-            <li key={t.key}>
+            <li key={t.key} className="shrink-0">
               <Link
                 href={TAB_HREF[t.key]}
                 aria-current={isActive ? "page" : undefined}
@@ -104,7 +106,7 @@ export function WarehouseTabsNav({
             </li>
           );
         })}
-      </ul>
+      </ScrollTabsList>
     </nav>
   );
 }

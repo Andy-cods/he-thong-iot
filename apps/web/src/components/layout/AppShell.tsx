@@ -132,7 +132,7 @@ export function AppShell({
                       <span className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-zinc-400 cursor-not-allowed dark:text-zinc-600">
                         <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
                         <span className="flex-1">{item.label}</span>
-                        {item.badge && <span className="text-[10px] bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded dark:bg-zinc-800 dark:text-zinc-400">{item.badge}</span>}
+                        {item.badge && <span className="text-xs bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded dark:bg-zinc-800 dark:text-zinc-400">{item.badge}</span>}
                       </span>
                     ) : (
                       <Link href={item.href}

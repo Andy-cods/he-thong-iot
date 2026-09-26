@@ -323,7 +323,7 @@ function SupplierPicker({
           <span className="flex min-w-0 items-center gap-1.5">
             <span className="truncate">{triggerLabel}</span>
             {isNew ? (
-              <span className="shrink-0 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+              <span className="shrink-0 rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
                 mới
               </span>
             ) : null}

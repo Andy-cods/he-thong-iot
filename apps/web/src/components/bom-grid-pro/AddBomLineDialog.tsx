@@ -155,7 +155,7 @@ export function AddBomLineDialog({
                     </span>
                     <span className="truncate text-zinc-700 dark:text-zinc-300">{item.name}</span>
                     {item.uom && (
-                      <span className="ml-auto shrink-0 text-[10px] text-zinc-400 dark:text-zinc-500">
+                      <span className="ml-auto shrink-0 text-xs text-zinc-400 dark:text-zinc-500">
                         {item.uom}
                       </span>
                     )}

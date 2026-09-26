@@ -64,7 +64,7 @@ export function EntityCountChart({ data, loading, className }: EntityCountChartP
         <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
           Số lượng dữ liệu hệ thống
         </p>
-        <p className="text-[10px] text-zinc-400 dark:text-zinc-500">cập nhật mỗi 30s</p>
+        <p className="text-xs text-zinc-400 dark:text-zinc-500">cập nhật mỗi 30s</p>
       </div>
 
       {loading ? (
@@ -93,7 +93,7 @@ export function EntityCountChart({ data, loading, className }: EntityCountChartP
                   <Icon className={cn("h-4 w-4", cls.iconText)} strokeWidth={2.25} />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                     {it.label}
                   </p>
                   <div className="flex items-baseline gap-1">
@@ -101,7 +101,7 @@ export function EntityCountChart({ data, loading, className }: EntityCountChartP
                       {it.total.toLocaleString("vi-VN")}
                     </span>
                     {it.active !== it.total && it.total > 0 && (
-                      <span className="text-[10px] tabular-nums text-zinc-400 dark:text-zinc-500">
+                      <span className="text-xs tabular-nums text-zinc-400 dark:text-zinc-500">
                         / {it.active}
                       </span>
                     )}

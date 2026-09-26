@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { QueryError } from "@/components/ui/query-error";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -190,6 +191,17 @@ export default function PurchaseRequestDetailPage() {
     );
   }
   const pr = detail.data?.data;
+  // V4.1 UI-05: lỗi API (429/500/403) ≠ "không tìm thấy".
+  if (!pr && detail.isError && (detail.error as { status?: number } | null)?.status !== 404) {
+    return (
+      <QueryError
+        error={detail.error}
+        onRetry={() => void detail.refetch()}
+        retrying={detail.isFetching}
+        title="Không tải được phiếu đề xuất vật tư"
+      />
+    );
+  }
   if (!pr) {
     return (
       <div className="m-6 rounded-xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-800 dark:bg-red-950/40">
@@ -342,7 +354,7 @@ export default function PurchaseRequestDetailPage() {
                 ) : null}
                 <span
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset",
+                    "inline-flex whitespace-nowrap items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset",
                     STEP_PILL[step],
                   )}
                 >
@@ -643,7 +655,7 @@ export default function PurchaseRequestDetailPage() {
             <div className="hidden overflow-x-auto md:block print:block print:overflow-visible">
               <table className="w-full border-collapse text-[11px]">
                 <thead>
-                  <tr className="bg-[#F5F5F5] text-[10px] font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
+                  <tr className="bg-[#F5F5F5] text-xs font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
                     <Th w="w-8">STT</Th>
                     <Th w="min-w-[160px]">Tên vật tư</Th>
                     <Th w="w-28">Mã VT</Th>
@@ -748,7 +760,7 @@ export default function PurchaseRequestDetailPage() {
                         <Td>{l.referenceCode ?? "—"}</Td>
                         <Td>
                           {l.lineRefCode ? (
-                            <span className="font-mono text-[10px] text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
+                            <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
                               {l.lineRefCode}
                             </span>
                           ) : (
@@ -797,7 +809,7 @@ export default function PurchaseRequestDetailPage() {
             <div className="overflow-x-auto print:overflow-visible">
             <table className="w-full min-w-[520px] border-collapse text-[11px] print:min-w-0">
               <thead>
-                <tr className="bg-[#F5F5F5] text-[10px] font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
+                <tr className="bg-[#F5F5F5] text-xs font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
                   <Th w="w-44">Vai trò</Th>
                   <Th w="w-48">Họ tên</Th>
                   <Th w="w-40">Ký tên / Ngày</Th>
@@ -867,7 +879,7 @@ export default function PurchaseRequestDetailPage() {
             <div className="overflow-x-auto print:overflow-visible">
             <table className="w-full min-w-[520px] border-collapse text-[11px] print:min-w-0">
               <thead>
-                <tr className="bg-[#F5F5F5] text-[10px] font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
+                <tr className="bg-[#F5F5F5] text-xs font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
                   <Th w="w-52">Trạng thái</Th>
                   <Th w="w-44">Người phụ trách</Th>
                   <Th w="w-40">Ngày thực hiện</Th>
@@ -1173,7 +1185,7 @@ function LineItemCard({ line: l, idx }: { line: PRLineEnriched; idx: number }) {
             {l.sku ?? "—"}
           </div>
         </div>
-        <span className="shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+        <span className="shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
           #{idx + 1} · {CATEGORY_LABELS[l.category ?? "OTHER"] ?? "—"}
         </span>
       </div>
@@ -1236,7 +1248,7 @@ function Metric({
 }) {
   return (
     <div className="min-w-0">
-      <div className="text-[10px] uppercase tracking-wide text-zinc-400">
+      <div className="text-xs uppercase tracking-wide text-zinc-400">
         {label}
       </div>
       <div className={cn("font-mono text-[15px] tabular-nums", className)}>

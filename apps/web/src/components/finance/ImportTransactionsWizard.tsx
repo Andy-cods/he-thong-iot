@@ -250,7 +250,7 @@ export function ImportTransactionsWizard({ onClose }: ImportTransactionsWizardPr
                         <td className="max-w-[200px] truncate px-3 text-zinc-600 dark:text-zinc-400">
                           {r.description ?? "—"}
                           {r.duplicate && (
-                            <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950/50 dark:text-amber-400">
+                            <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/50 dark:text-amber-400">
                               Trùng
                             </span>
                           )}

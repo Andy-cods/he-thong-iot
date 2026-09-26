@@ -96,7 +96,7 @@ export function LoginHero() {
       </div>
 
       {/* Build line bottom-right */}
-      <div className="absolute bottom-4 right-6 z-20 font-mono text-[10px] tracking-wider text-white/40">
+      <div className="absolute bottom-4 right-6 z-20 font-mono text-xs tracking-wider text-white/40">
         v1.0 · MES SONG CHAU
       </div>
 

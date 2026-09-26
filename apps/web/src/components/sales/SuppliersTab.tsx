@@ -13,6 +13,7 @@ import {
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryError } from "@/components/ui/query-error";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/domain/StatusBadge";
@@ -94,7 +95,9 @@ export function SuppliersTab() {
   });
   useHotkey("Escape", () => setFocusedIndex(-1));
 
-  const isEmpty = !query.isLoading && rows.length === 0;
+  // V4.1 UI-05: tách lỗi khỏi rỗng — lỗi API không được hiện "Tạo NCC đầu tiên".
+  const isListError = query.isError && rows.length === 0;
+  const isEmpty = !query.isLoading && !query.isError && rows.length === 0;
   const hasFilter = urlState.q !== "" || urlState.active !== null;
 
   const handleReset = () => {
@@ -119,7 +122,7 @@ export function SuppliersTab() {
               Nhà cung cấp
             </h1>
             <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-              {total.toLocaleString("vi-VN")} NCC
+              {isListError ? "—" : total.toLocaleString("vi-VN")} NCC
             </p>
           </div>
           <Button asChild size="sm">
@@ -204,6 +207,13 @@ export function SuppliersTab() {
               <Skeleton key={i} className="h-9 w-full" />
             ))}
           </div>
+        ) : isListError ? (
+          <QueryError
+            error={query.error}
+            onRetry={() => void query.refetch()}
+            retrying={query.isFetching}
+            title="Không tải được danh sách nhà cung cấp"
+          />
         ) : isEmpty ? (
           hasFilter ? (
             <EmptyState
@@ -314,7 +324,7 @@ export function SuppliersTab() {
         )}
       </div>
 
-      {!isEmpty ? (
+      {!isEmpty && !isListError ? (
         <footer className="flex h-9 items-center justify-between border-t border-zinc-200 bg-white px-4 text-base dark:border-zinc-800 dark:bg-zinc-900">
           <div className="text-zinc-600 dark:text-zinc-400">
             Hiển thị{" "}

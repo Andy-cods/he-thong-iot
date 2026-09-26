@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryError } from "@/components/ui/query-error";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/domain/StatusBadge";
 import {
@@ -88,7 +89,7 @@ export default function ItemDetailPage() {
   const id = params?.id ?? "";
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data, isLoading } = useItem(id);
+  const { data, isLoading, isError, error, refetch, isFetching } = useItem(id);
   const update = useUpdateItem(id);
   const del = useDeleteItem();
   const restore = useRestoreItem();
@@ -108,7 +109,7 @@ export default function ItemDetailPage() {
   const itemData = (data?.data as ItemDetail | undefined) ?? null;
 
   const breadcrumbItems = [
-    { label: "Dashboard", href: "/" },
+    { label: "Tổng quan", href: "/" }, // V4.1 UI-27
     { label: "Vật tư", href: "/items" },
     { label: itemData?.sku ?? "Chi tiết" },
   ];
@@ -130,6 +131,20 @@ export default function ItemDetailPage() {
           <Skeleton className="h-9 w-3/4" />
           <Skeleton className="h-20 w-full" />
         </div>
+      </div>
+    );
+  }
+
+  // V4.1 UI-05: lỗi API (429/500/403) ≠ "không tìm thấy".
+  if (!itemData && isError && (error as { status?: number } | null)?.status !== 404) {
+    return (
+      <div className="flex h-full items-center justify-center p-6">
+        <QueryError
+          error={error}
+          onRetry={() => void refetch()}
+          retrying={isFetching}
+          title="Không tải được thông tin vật tư"
+        />
       </div>
     );
   }
@@ -159,14 +174,14 @@ export default function ItemDetailPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-5xl p-6">
+    <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
       <Breadcrumb items={breadcrumbItems} className="mb-3" />
 
       {/* V2 Header — Name + SKU + Status + Actions */}
       <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="min-w-0 break-words text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
               {itemData.name}
             </h1>
             <StatusBadge
@@ -175,21 +190,21 @@ export default function ItemDetailPage() {
               label={itemData.isActive ? "Đang dùng" : "Đã xoá"}
             />
           </div>
-          <div className="mt-1 flex items-center gap-1.5 text-base text-zinc-500 dark:text-zinc-400">
-            <span className="font-mono text-base tabular-nums text-zinc-700 dark:text-zinc-300">
+          <div className="mt-1 flex min-w-0 items-center gap-1.5 text-base text-zinc-500 dark:text-zinc-400">
+            <span className="min-w-0 truncate font-mono text-base tabular-nums text-zinc-700 dark:text-zinc-300" title={itemData.sku}>
               {itemData.sku}
             </span>
             <button
               type="button"
               onClick={handleCopySku}
               aria-label="Copy SKU"
-              className="inline-flex h-5 w-5 items-center justify-center rounded-sm text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-0 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-sm text-zinc-400 md:h-5 md:w-5 transition-colors hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-0 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
             >
               <Copy className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <Button variant="ghost" size="sm" asChild>
             <Link href="/items">Về danh sách</Link>
           </Button>
@@ -245,7 +260,7 @@ export default function ItemDetailPage() {
           <TabsTrigger value="info">Thông tin</TabsTrigger>
           <TabsTrigger value="inventory">Kho</TabsTrigger>
           <TabsTrigger value="bom-usages">Dùng trong BOM</TabsTrigger>
-          <TabsTrigger value="tracking">Tracking</TabsTrigger>
+          <TabsTrigger value="tracking">Truy vết</TabsTrigger>
           <TabsTrigger value="media">Ảnh</TabsTrigger>
         </TabsList>
 

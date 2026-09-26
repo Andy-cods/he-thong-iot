@@ -48,7 +48,7 @@ export function TempPasswordDisplay({
       )}
     >
       <div className="flex min-w-0 flex-1 flex-col">
-        <span className="text-[10px] font-semibold uppercase tracking-normal text-zinc-500 dark:text-zinc-400">
+        <span className="text-xs font-semibold uppercase tracking-normal text-zinc-500 dark:text-zinc-400">
           {label}
         </span>
         <code className="truncate font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-50">

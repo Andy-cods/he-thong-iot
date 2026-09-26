@@ -9,6 +9,7 @@ import {
   type BarcodeCreate,
 } from "@iot/shared";
 import { Badge } from "@/components/ui/badge";
+import { QueryError } from "@/components/ui/query-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,7 +36,7 @@ interface BarcodeRow {
 }
 
 export function BarcodeList({ itemId }: { itemId: string }) {
-  const { data, isLoading } = useBarcodes(itemId);
+  const { data, isLoading, isError, error, refetch, isFetching } = useBarcodes(itemId);
   const create = useCreateBarcode(itemId);
   const remove = useDeleteBarcode(itemId);
   const setPrimary = useSetPrimaryBarcode(itemId);
@@ -160,7 +161,21 @@ export function BarcodeList({ itemId }: { itemId: string }) {
               </td>
             </tr>
           )}
-          {!isLoading && rows.length === 0 && (
+          {/* V4.1 UI-05: lỗi tải ≠ "Chưa có barcode". */}
+          {!isLoading && isError && rows.length === 0 && (
+            <tr>
+              <td colSpan={5} className="py-2">
+                <QueryError
+                  compact
+                  error={error}
+                  onRetry={() => void refetch()}
+                  retrying={isFetching}
+                  title="Không tải được danh sách barcode"
+                />
+              </td>
+            </tr>
+          )}
+          {!isLoading && !isError && rows.length === 0 && (
             <tr>
               <td colSpan={5} className="py-3 text-center text-zinc-500 dark:text-zinc-400">
                 Chưa có barcode nào.

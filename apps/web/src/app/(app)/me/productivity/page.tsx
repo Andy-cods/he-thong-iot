@@ -9,6 +9,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { QueryError } from "@/components/ui/query-error";
 import { useMyProductivityReport, type EmployeeReport, type ProductivityMetric } from "@/hooks/useReports";
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/format";
@@ -74,7 +75,7 @@ export default function MyProductivityPage() {
       {/* Filter bar */}
       <div className="flex flex-wrap items-end gap-3 border-b border-zinc-200 bg-white px-6 py-3 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="space-y-1">
-          <Label className="text-[10px] uppercase">Khoảng</Label>
+          <Label className="text-xs uppercase">Khoảng</Label>
           <div className="flex gap-1">
             {(["month", "quarter", "year"] as PeriodMode[]).map((m) => (
               <button
@@ -95,7 +96,7 @@ export default function MyProductivityPage() {
         </div>
         {mode === "month" ? (
           <div className="space-y-1">
-            <Label className="text-[10px] uppercase">Tháng</Label>
+            <Label className="text-xs uppercase">Tháng</Label>
             <select
               value={month}
               onChange={(e) => setMonth(Number(e.target.value))}
@@ -109,7 +110,7 @@ export default function MyProductivityPage() {
         ) : null}
         {mode === "quarter" ? (
           <div className="space-y-1">
-            <Label className="text-[10px] uppercase">Quý</Label>
+            <Label className="text-xs uppercase">Quý</Label>
             <select
               value={quarter}
               onChange={(e) => setQuarter(Number(e.target.value))}
@@ -122,7 +123,7 @@ export default function MyProductivityPage() {
           </div>
         ) : null}
         <div className="space-y-1">
-          <Label className="text-[10px] uppercase">Năm</Label>
+          <Label className="text-xs uppercase">Năm</Label>
           <select
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
@@ -141,9 +142,13 @@ export default function MyProductivityPage() {
             <Loader2 className="h-4 w-4 animate-spin" /> Đang tải báo cáo…
           </div>
         ) : reportQuery.isError ? (
-          <div className="rounded-md border border-rose-200 bg-rose-50 px-6 py-12 text-center text-sm text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-400">
-            Lỗi: {(reportQuery.error as Error)?.message ?? "Không tải được"}
-          </div>
+          // V4.1 UI-05: khối lỗi dùng chung + "Thử lại".
+          <QueryError
+            error={reportQuery.error}
+            onRetry={() => void reportQuery.refetch()}
+            retrying={reportQuery.isFetching}
+            title="Không tải được báo cáo"
+          />
         ) : data ? (
           <ReportView data={data} />
         ) : null}
@@ -203,7 +208,7 @@ function HeroCard({ data }: { data: EmployeeReport }) {
         <div className="flex flex-col items-end gap-1 text-right">
           {data.summary.productionQty != null && data.summary.productionQty > 0 ? (
             <div>
-              <div className="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Sản lượng đạt</div>
+              <div className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Sản lượng đạt</div>
               <div className="text-2xl font-bold text-emerald-700 tabular-nums dark:text-emerald-400">
                 {formatNumber(data.summary.productionQty)}
               </div>
@@ -211,7 +216,7 @@ function HeroCard({ data }: { data: EmployeeReport }) {
           ) : null}
           {data.summary.poValue != null && data.summary.poValue > 0 ? (
             <div className="mt-2">
-              <div className="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Giá trị PO</div>
+              <div className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Giá trị PO</div>
               <div className="text-base font-semibold text-blue-700 tabular-nums dark:text-blue-400">
                 {formatVND(data.summary.poValue)}
               </div>
@@ -238,11 +243,11 @@ function MetricCard({ metric }: { metric: ProductivityMetric }) {
       )}
     >
       <div className="flex items-start justify-between gap-1">
-        <div className="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{metric.label}</div>
+        <div className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{metric.label}</div>
         {t ? (
           <span
             className={cn(
-              "rounded px-1 py-0.5 text-[9px] font-bold uppercase tracking-wide",
+              "rounded px-1 py-0.5 text-xs font-bold uppercase tracking-wide",
               t.achieved ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400" : "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400",
             )}
             title={`Target ${t.comparison === "gte" ? "≥" : "≤"} ${t.value}`}
@@ -265,7 +270,7 @@ function MetricCard({ metric }: { metric: ProductivityMetric }) {
         </div>
       ) : null}
       {t ? (
-        <div className="mt-1 text-[10px] text-zinc-500 dark:text-zinc-400">
+        <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
           Target {t.comparison === "gte" ? "≥" : "≤"}{" "}
           <strong className="text-zinc-700 dark:text-zinc-300">{formatNumber(t.value)}</strong>
           {" · "}
@@ -298,7 +303,7 @@ function Trend6mChart({
           const heightPct = (d.actions / max) * 100;
           return (
             <div key={d.month} className="flex flex-1 flex-col items-center justify-end gap-1">
-              <span className="font-mono text-[10px] text-zinc-700 dark:text-zinc-300">{d.actions}</span>
+              <span className="font-mono text-xs text-zinc-700 dark:text-zinc-300">{d.actions}</span>
               <div
                 className={cn(
                   "w-full rounded-t-md transition-colors",
@@ -306,7 +311,7 @@ function Trend6mChart({
                 )}
                 style={{ height: `${Math.max(8, heightPct)}px` }}
               />
-              <span className="font-mono text-[10px] text-zinc-500 dark:text-zinc-400">{d.label}</span>
+              <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400">{d.label}</span>
             </div>
           );
         })}
@@ -345,7 +350,7 @@ function DailyChart({
                 )}
                 style={{ height: `${Math.max(2, heightPct)}px`, minHeight: "2px" }}
               />
-              <span className="mt-0.5 font-mono text-[8px] text-zinc-400 dark:text-zinc-500">
+              <span className="mt-0.5 font-mono text-xs text-zinc-400 dark:text-zinc-500">
                 {d.date.slice(8)}
               </span>
             </div>
@@ -377,8 +382,8 @@ function RecentActions({ actions }: { actions: EmployeeReport["recentActions"] }
         {actions.map((a, i) => (
           <li key={i} className="py-2 text-[12px]">
             <div className="flex items-baseline gap-2">
-              <span className="font-mono text-[10px] text-zinc-500 dark:text-zinc-400">{a.timestamp}</span>
-              <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700 ring-1 ring-inset ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-800">
+              <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400">{a.timestamp}</span>
+              <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-800">
                 {a.action}
               </span>
               <span className="text-zinc-700 dark:text-zinc-300">

@@ -98,7 +98,14 @@ async function request<T>(input: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body?.error?.message ?? `HTTP ${res.status}`);
+    // V4.1 UI-05: gắn status để QueryError phân biệt 429/403/500.
+    const err = new Error(body?.error?.message ?? `HTTP ${res.status}`) as Error & {
+      status?: number;
+      details?: unknown;
+    };
+    err.status = res.status;
+    err.details = body?.error?.details;
+    throw err;
   }
   return (await res.json()) as T;
 }

@@ -832,12 +832,12 @@ function LineRow({
             {ln.sku}
           </code>
           {ln.expectedLotSerial === "LOT" ? (
-            <span className="inline-flex items-center rounded-sm bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-400">
+            <span className="inline-flex whitespace-nowrap items-center rounded-sm bg-blue-50 px-1.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-400">
               Lô
             </span>
           ) : null}
           {ln.expectedLotSerial === "SERIAL" ? (
-            <span className="inline-flex items-center rounded-sm bg-purple-50 px-1.5 py-0.5 text-[10px] font-medium text-purple-700 dark:bg-purple-950/40 dark:text-purple-400">
+            <span className="inline-flex whitespace-nowrap items-center rounded-sm bg-purple-50 px-1.5 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-950/40 dark:text-purple-400">
               Serial
             </span>
           ) : null}
@@ -910,12 +910,12 @@ function LineRow({
             ))}
           </select>
           {ln.defaultBinCode && !input.binId && (
-            <span className="text-[10px] text-emerald-600 dark:text-emerald-400">
+            <span className="text-xs text-emerald-600 dark:text-emerald-400">
               ✓ Mặc định {ln.defaultBinCode}
             </span>
           )}
           {input.binId && input.binId !== ln.defaultBinId && (
-            <span className="text-[10px] text-amber-600 dark:text-amber-400">
+            <span className="text-xs text-amber-600 dark:text-amber-400">
               Đã đổi vị trí
             </span>
           )}
@@ -923,7 +923,7 @@ function LineRow({
               vào "Chờ xếp kệ" (migration 0058). Hiện rõ để user biết hàng đi
               đâu, tránh tưởng nhầm "để trống" = mất tồn kho. */}
           {!input.binId && !ln.defaultBinCode && (
-            <span className="text-[10px] font-medium text-sky-600 dark:text-sky-400">
+            <span className="text-xs font-medium text-sky-600 dark:text-sky-400">
               ⓘ Sẽ vào: Chờ xếp kệ
             </span>
           )}

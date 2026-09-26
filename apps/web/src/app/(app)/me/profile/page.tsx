@@ -141,7 +141,7 @@ export default function ProfilePage() {
                           <span
                             key={r}
                             className={cn(
-                              "inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ring-1 ring-inset",
+                              "inline-flex whitespace-nowrap items-center rounded px-1.5 py-0.5 text-xs font-medium ring-1 ring-inset",
                               meta.tone,
                             )}
                           >

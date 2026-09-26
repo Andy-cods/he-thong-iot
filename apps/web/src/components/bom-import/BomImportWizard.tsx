@@ -592,16 +592,16 @@ function ReviewStep({
                 >
                   <Checkbox checked={checked} className="h-3.5 w-3.5" />
                   <span className="truncate">{s.sheetName}</span>
-                  <span className="rounded bg-white/70 px-1.5 py-0.5 text-[10px] tabular-nums text-zinc-600 dark:bg-zinc-950/40 dark:text-zinc-400">
+                  <span className="rounded bg-white/70 px-1.5 py-0.5 text-xs tabular-nums text-zinc-600 dark:bg-zinc-950/40 dark:text-zinc-400">
                     {s.rowCount} dòng
                   </span>
                   {kind === "PROJECT" && (
-                    <span className="rounded bg-emerald-100 px-1 text-[10px] text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+                    <span className="rounded bg-emerald-100 px-1 text-xs text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
                       Project
                     </span>
                   )}
                   {kind === "MASTER_MATERIAL_PROCESS" && (
-                    <span className="rounded bg-zinc-100 px-1 text-[10px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                    <span className="rounded bg-zinc-100 px-1 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
                       Master
                     </span>
                   )}
@@ -764,17 +764,17 @@ function PreviewTable({
       <table className="w-full border-collapse text-xs">
         <thead className="bg-gradient-to-br from-zinc-100 to-zinc-50 dark:from-zinc-800 dark:to-zinc-800/60">
           <tr>
-            <th className="border-b border-zinc-200 px-2 py-2 text-left text-[10px] font-medium uppercase text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+            <th className="border-b border-zinc-200 px-2 py-2 text-left text-xs font-medium uppercase text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
               #
             </th>
             {mappedCols.map((c) => (
               <th
                 key={c.header}
-                className="border-b border-zinc-200 px-2 py-2 text-left text-[10px] font-medium uppercase text-indigo-700 dark:border-zinc-700 dark:text-indigo-400"
+                className="border-b border-zinc-200 px-2 py-2 text-left text-xs font-medium uppercase text-indigo-700 dark:border-zinc-700 dark:text-indigo-400"
                 title={`Excel: ${c.header} → DB: ${c.target}`}
               >
                 {TARGET_LABELS[c.target ?? ""] ?? c.target}
-                <span className="ml-1 text-[9px] text-zinc-400 dark:text-zinc-500">({c.header})</span>
+                <span className="ml-1 text-xs text-zinc-400 dark:text-zinc-500">({c.header})</span>
               </th>
             ))}
           </tr>
@@ -792,7 +792,7 @@ function PreviewTable({
           ) : (
             rows.slice(0, 5).map((r, ri) => (
               <tr key={ri} className="border-b border-zinc-100 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/60">
-                <td className="px-2 py-1.5 font-mono text-[10px] text-zinc-400 dark:text-zinc-500">
+                <td className="px-2 py-1.5 font-mono text-xs text-zinc-400 dark:text-zinc-500">
                   {ri + 1}
                 </td>
                 {mappedCols.map((c) => (
@@ -968,7 +968,7 @@ function ResultStep({
           <div className="max-h-[320px] overflow-auto">
             <table className="w-full border-collapse text-xs">
               <thead className="sticky top-0 bg-white dark:bg-zinc-900">
-                <tr className="border-b border-zinc-200 text-left text-[10px] font-medium uppercase tracking-wider text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                <tr className="border-b border-zinc-200 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
                   <th className="px-3 py-2">Sheet</th>
                   <th className="px-3 py-2 text-right">Dòng</th>
                   <th className="px-3 py-2">Cột</th>
@@ -1100,7 +1100,7 @@ function StatCard({
   }[accent];
   return (
     <div className={cn("rounded-xl border p-3 shadow-sm", accentClass)}>
-      <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+      <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
         {icon}
         {label}
       </div>

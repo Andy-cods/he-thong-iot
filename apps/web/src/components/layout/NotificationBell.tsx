@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import { QueryError } from "@/components/ui/query-error";
 
 /**
  * V3.3 — NotificationBell với dropdown panel.
@@ -86,7 +87,8 @@ export function NotificationBell() {
       const res = await fetch("/api/notifications?limit=15", {
         credentials: "include",
       });
-      if (!res.ok) throw new Error("Failed to load");
+      // V4.1 UI-05: kèm mã HTTP để QueryError phân biệt 429/403/5xx.
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.json();
     },
     refetchInterval: 30_000,
@@ -145,7 +147,7 @@ export function NotificationBell() {
       >
         <Bell className="h-4 w-4" aria-hidden />
         {unreadCount > 0 && (
-          <span className="absolute right-0.5 top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white dark:ring-zinc-900">
+          <span className="absolute right-0.5 top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold leading-none text-white ring-2 ring-white dark:ring-zinc-900">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
@@ -156,7 +158,7 @@ export function NotificationBell() {
           role="menu"
           // Mobile: fixed căng đều 2 mép viewport (neo absolute theo nút chuông sẽ
           // đẩy panel lệch trái ra ngoài màn vì nút không nằm sát mép phải).
-          // Desktop (md+): giữ absolute right-0. V4.1 UI-02: không dùng sm vì sm của dự án = 375px.
+          // Desktop (md+): giữ absolute right-0. V4.1 UI-02: dùng md (sm đã về 640px ở Đợt 6 — vẫn giữ md cho dropdown).
           className="fixed left-2 right-2 top-14 z-dropdown w-auto origin-top-right overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl shadow-zinc-900/10 ring-1 ring-zinc-900/5 md:absolute md:left-auto md:right-0 md:top-10 md:w-[400px] dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/40 dark:ring-white/5"
         >
           {/* Header */}
@@ -191,6 +193,16 @@ export function NotificationBell() {
               <div className="flex items-center justify-center py-10 text-sm text-zinc-500 dark:text-zinc-400">
                 Đang tải…
               </div>
+            ) : query.isError && !query.data ? (
+              // V4.1 UI-05: lỗi tải → báo lỗi gọn + "Thử lại".
+              <QueryError
+                compact
+                className="m-3"
+                error={query.error}
+                onRetry={() => void query.refetch()}
+                retrying={query.isFetching}
+                title="Không tải được thông báo"
+              />
             ) : items.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-12 text-center">
                 <Bell className="h-8 w-8 text-zinc-300 dark:text-zinc-600" aria-hidden />
@@ -286,7 +298,7 @@ function NotificationItemRow({
           {!item.isDirect && (
             <>
               <span>·</span>
-              <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+              <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
                 Bộ phận
               </span>
             </>

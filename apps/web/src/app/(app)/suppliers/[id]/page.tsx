@@ -24,6 +24,7 @@ import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { DialogConfirm } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryError } from "@/components/ui/query-error";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -99,6 +100,19 @@ export default function SupplierDetailPage() {
   }
 
   const supplier = query.data?.data;
+  // V4.1 UI-05: lỗi API (429/500/403) ≠ "không tìm thấy".
+  if (!supplier && query.isError) {
+    return (
+      <div className="p-6">
+        <QueryError
+          error={query.error}
+          onRetry={() => void query.refetch()}
+          retrying={query.isFetching}
+          title="Không tải được nhà cung cấp"
+        />
+      </div>
+    );
+  }
   if (!supplier) {
     return (
       <div className="p-6">
@@ -117,7 +131,7 @@ export default function SupplierDetailPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl p-6">
+    <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
       <Breadcrumb
         items={[
           { label: "Trang chủ", href: "/" },
@@ -129,10 +143,11 @@ export default function SupplierDetailPage() {
         className="mb-2"
       />
 
-      <header className="mb-4 flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+      {/* V4.1 UI-X6: header flex-wrap + min-w-0 (trang từng tràn 418px trên 390px). */}
+      <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="min-w-0 break-words text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
               {supplier.name}
             </h1>
             <StatusBadge
@@ -140,7 +155,7 @@ export default function SupplierDetailPage() {
               size="sm"
             />
             {supplier.region ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400">
+              <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400">
                 <MapPin className="h-3 w-3" aria-hidden="true" />
                 {supplier.region}
               </span>
@@ -150,7 +165,7 @@ export default function SupplierDetailPage() {
             {supplier.code}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {canUpdate && supplier.isActive && !editing && (
             <Button
               size="sm"
@@ -594,6 +609,14 @@ function ItemsTab({
       {/* Table */}
       {q.isLoading ? (
         <Skeleton className="h-64 w-full" />
+      ) : q.isError && rows.length === 0 ? (
+        // V4.1 UI-05: lỗi tải → khối lỗi + "Thử lại".
+        <QueryError
+          error={q.error}
+          onRetry={() => void q.refetch()}
+          retrying={q.isFetching}
+          title="Không tải được danh sách vật tư"
+        />
       ) : rows.length === 0 ? (
         <EmptyState
           preset="no-data"
@@ -631,7 +654,7 @@ function ItemsTab({
                   <td className="px-3 font-mono text-sm text-zinc-900 dark:text-zinc-50">
                     {r.sku}
                     {r.isPreferred ? (
-                      <span className="ml-1 inline-flex items-center rounded bg-indigo-50 px-1 py-0.5 text-[10px] font-medium text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400">
+                      <span className="ml-1 inline-flex items-center rounded bg-indigo-50 px-1 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400">
                         ưu tiên
                       </span>
                     ) : null}
@@ -676,11 +699,13 @@ function StatsTab({ supplierId }: { supplierId: string }) {
   if (stats.isLoading) return <Skeleton className="h-64 w-full" />;
   const d = stats.data?.data;
   if (!d) {
+    // V4.1 UI-05: khối lỗi dùng chung + "Thử lại".
     return (
-      <EmptyState
-        preset="error"
+      <QueryError
+        error={stats.error}
+        onRetry={() => void stats.refetch()}
+        retrying={stats.isFetching}
         title="Không tải được thống kê"
-        description="Thử lại sau hoặc báo admin."
       />
     );
   }
@@ -718,6 +743,14 @@ function StatsTab({ supplierId }: { supplierId: string }) {
         </div>
         {top.isLoading ? (
           <Skeleton className="h-48 w-full" />
+        ) : top.isError && !top.data ? (
+          <QueryError
+            compact
+            error={top.error}
+            onRetry={() => void top.refetch()}
+            retrying={top.isFetching}
+            title="Không tải được top vật tư"
+          />
         ) : (top.data?.data ?? []).length === 0 ? (
           <EmptyState preset="no-data" title="Chưa có PO nào với NCC này" />
         ) : (
@@ -803,7 +836,7 @@ function StatsTab({ supplierId }: { supplierId: string }) {
                       {po.poNo}
                     </td>
                     <td className="px-3">
-                      <span className="inline-flex items-center rounded bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                      <span className="inline-flex whitespace-nowrap items-center rounded bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                         {po.status}
                       </span>
                     </td>

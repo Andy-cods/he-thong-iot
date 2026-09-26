@@ -7,6 +7,7 @@ import { KeyRound, MoreHorizontal, UserX } from "lucide-react";
 import { toast } from "sonner";
 import type { Role } from "@iot/shared";
 import { Button } from "@/components/ui/button";
+import { QueryError } from "@/components/ui/query-error";
 import { DialogConfirm } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -214,7 +215,7 @@ export default function AdminUserDetailPage({
           </code>
           <span
             className={cn(
-              "inline-flex h-5 items-center gap-1 rounded-full px-1.5 text-[10px] font-semibold uppercase ring-1 ring-inset",
+              "inline-flex h-5 items-center gap-1 rounded-full px-1.5 text-xs font-semibold uppercase ring-1 ring-inset",
               user.isActive
                 ? "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800"
                 : "bg-zinc-100 text-zinc-500 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",
@@ -233,7 +234,7 @@ export default function AdminUserDetailPage({
             <span
               key={r}
               className={cn(
-                "inline-flex h-5 items-center rounded-full px-1.5 font-mono text-[10px] font-semibold uppercase ring-1 ring-inset",
+                "inline-flex h-5 items-center rounded-full px-1.5 font-mono text-xs font-semibold uppercase ring-1 ring-inset",
                 ROLE_BADGE[r],
               )}
             >
@@ -393,6 +394,16 @@ export default function AdminUserDetailPage({
               <div className="p-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
                 Đang tải…
               </div>
+            ) : auditQuery.isError && !auditQuery.data ? (
+              // V4.1 UI-05: lỗi tải audit → khối lỗi + "Thử lại".
+              <QueryError
+                compact
+                className="m-4"
+                error={auditQuery.error}
+                onRetry={() => void auditQuery.refetch()}
+                retrying={auditQuery.isFetching}
+                title="Không tải được lịch sử hoạt động"
+              />
             ) : (auditQuery.data?.data ?? []).length === 0 ? (
               <div className="p-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
                 Chưa có hoạt động nào được ghi lại.
@@ -409,7 +420,7 @@ export default function AdminUserDetailPage({
                     </span>
                     <span
                       className={cn(
-                        "inline-flex h-5 w-fit items-center justify-center rounded-full px-1.5 font-mono text-[10px] font-semibold uppercase ring-1 ring-inset",
+                        "inline-flex h-5 w-fit items-center justify-center rounded-full px-1.5 font-mono text-xs font-semibold uppercase ring-1 ring-inset",
                         ACTION_COLORS[ev.action] ?? ACTION_COLORS.UPDATE,
                       )}
                     >
@@ -418,7 +429,7 @@ export default function AdminUserDetailPage({
                     <span className="truncate text-zinc-700 dark:text-zinc-300">
                       {ev.objectType}
                       {ev.objectId ? (
-                        <code className="ml-1 font-mono text-[10px] text-zinc-400 dark:text-zinc-500">
+                        <code className="ml-1 font-mono text-xs text-zinc-400 dark:text-zinc-500">
                           #{ev.objectId.slice(0, 8)}
                         </code>
                       ) : null}

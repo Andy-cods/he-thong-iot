@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { ArrowUpRight, Wrench } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryError } from "@/components/ui/query-error";
 import { useWorkOrdersList, type WorkOrderStatus } from "@/hooks/useWorkOrders";
 import { formatDate, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -59,6 +60,18 @@ export function AssemblyPanel({ bomId }: { bomId: string }) {
       <div className="space-y-2 p-5">
         {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}
       </div>
+    );
+  }
+
+  // V4.1 UI-05: lỗi API không được hiện "Chưa có lệnh SX".
+  if (query.isError && rows.length === 0) {
+    return (
+      <QueryError
+        error={query.error}
+        onRetry={() => void query.refetch()}
+        retrying={query.isFetching}
+        title="Không tải được lệnh sản xuất"
+      />
     );
   }
 

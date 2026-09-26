@@ -188,7 +188,7 @@ function TimelineEntry({
       </div>
       <div className="min-w-0 flex-1 pb-3">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className={`${meta.tone} text-[10px]`}>
+          <Badge variant="outline" className={`${meta.tone} text-xs`}>
             {meta.label}
           </Badge>
           <span className="flex items-center gap-1 text-xs font-medium text-zinc-800 dark:text-zinc-100">
@@ -198,11 +198,11 @@ function TimelineEntry({
               "Hệ thống"}
           </span>
           {row.station && (
-            <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+            <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
               {row.station}
             </span>
           )}
-          <span className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500">
+          <span className="font-mono text-xs text-zinc-400 dark:text-zinc-500">
             {new Date(row.createdAt).toLocaleString("vi-VN")}
           </span>
         </div>

@@ -73,7 +73,7 @@ export function UserMenu({
       >
         <span
           aria-hidden="true"
-          className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-200 text-[10px] font-semibold text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200"
+          className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-200 text-xs font-semibold text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200"
         >
           {user.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element

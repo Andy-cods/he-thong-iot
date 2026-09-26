@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { ArrowRight, ChevronDown, ChevronRight, Layers } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryError } from "@/components/ui/query-error";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { StatusBadge, type BadgeStatus } from "@/components/domain/StatusBadge";
@@ -88,10 +89,12 @@ export function ItemBomUsagesPanel({ itemId }: ItemBomUsagesPanelProps) {
   if (query.isError) {
     return (
       <div className="rounded-md border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-        <EmptyState
-          preset="error"
+        {/* V4.1 UI-05: khối lỗi dùng chung + "Thử lại". */}
+        <QueryError
+          error={query.error}
+          onRetry={() => void query.refetch()}
+          retrying={query.isFetching}
           title="Không tải được danh sách BOM"
-          description={(query.error as Error)?.message ?? "Thử lại sau."}
         />
       </div>
     );
@@ -200,7 +203,7 @@ export function ItemBomUsagesPanel({ itemId }: ItemBomUsagesPanelProps) {
                 <div className="border-t border-zinc-100 bg-zinc-50/40 dark:border-zinc-800 dark:bg-zinc-800/40">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="text-[10px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                      <tr className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                         <th className="px-4 py-2 text-left">Dòng</th>
                         <th className="px-2 py-2 text-right">SL/bộ</th>
                         <th className="px-2 py-2 text-right">Hao hụt</th>
@@ -216,11 +219,11 @@ export function ItemBomUsagesPanel({ itemId }: ItemBomUsagesPanelProps) {
                         >
                           <td className="px-4 py-2 font-mono text-xs text-zinc-700 dark:text-zinc-300">
                             #{idx + 1}
-                            <span className="ml-2 text-[10px] text-zinc-400 dark:text-zinc-500">
+                            <span className="ml-2 text-xs text-zinc-400 dark:text-zinc-500">
                               {u.lineId.slice(0, 8)}
                             </span>
                             {u.childCount > 0 && (
-                              <span className="ml-2 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700 ring-1 ring-inset ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-800">
+                              <span className="ml-2 rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-800">
                                 cụm · {u.childCount} con
                               </span>
                             )}

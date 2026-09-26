@@ -4,6 +4,7 @@ import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import type { AuditRow } from "@/hooks/useAdmin";
+import { QueryError } from "@/components/ui/query-error";
 import { AUDIT_ACTION_OPTIONS } from "@/lib/audit-scope";
 
 const ACTION_LABEL = new Map(AUDIT_ACTION_OPTIONS.map((a) => [a.code, a.label]));
@@ -54,14 +55,17 @@ export function ObjectAuditList({
       </div>
     );
   }
-  if (q.isError) {
+  if (q.isError && !q.data) {
+    // V4.1 UI-05: khối lỗi dùng chung (phân biệt 429/403/5xx) + "Thử lại".
     return (
-      <p className="p-6 text-center text-sm text-rose-600 dark:text-rose-400">
-        Không tải được lịch sử.{" "}
-        <button type="button" className="underline" onClick={() => void q.refetch()}>
-          Thử lại
-        </button>
-      </p>
+      <QueryError
+        compact
+        className="m-4"
+        error={q.error}
+        onRetry={() => void q.refetch()}
+        retrying={q.isFetching}
+        title="Không tải được lịch sử thay đổi"
+      />
     );
   }
   const rows = q.data?.data ?? [];

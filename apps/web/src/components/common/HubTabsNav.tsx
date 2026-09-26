@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ScrollTabsList } from "@/components/common/ScrollTabsList";
 
 /**
  * V3.2 — Generic Hub tabs nav (server-rendered).
@@ -30,17 +31,18 @@ export function HubTabsNav<K extends string>({
 }) {
   return (
     <nav aria-label={ariaLabel} className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-      <ul className="flex items-center gap-1 px-4">
+      {/* V4.1 UI-X6: cuộn ngang + nowrap — hết tràn trang trên điện thoại. */}
+      <ScrollTabsList className="gap-1 px-2 md:px-4">
         {tabs.map((t) => {
           const Icon = t.icon;
           const isActive = active === t.key;
           return (
-            <li key={t.key}>
+            <li key={t.key} className="shrink-0">
               <Link
                 href={`${basePath}?tab=${t.key}`}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "relative flex h-12 items-center gap-2 rounded-t-md px-4 text-sm font-semibold transition-colors",
+                  "relative flex h-11 items-center gap-2 whitespace-nowrap rounded-t-md px-3 text-sm font-semibold transition-colors md:h-12 md:px-4",
                   "after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-t-full after:transition-all",
                   isActive
                     ? "text-indigo-700 after:bg-indigo-600 dark:text-indigo-300 dark:after:bg-indigo-400"
@@ -53,7 +55,7 @@ export function HubTabsNav<K extends string>({
             </li>
           );
         })}
-      </ul>
+      </ScrollTabsList>
     </nav>
   );
 }

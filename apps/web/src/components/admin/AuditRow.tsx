@@ -99,7 +99,7 @@ export function AuditRow({ row, style, gridCols }: AuditRowProps) {
         </span>
         <span
           className={cn(
-            "inline-flex h-5 w-fit items-center justify-center rounded-full px-1.5 font-mono text-[10px] font-semibold uppercase ring-1 ring-inset",
+            "inline-flex h-5 w-fit items-center justify-center rounded-full px-1.5 font-mono text-xs font-semibold uppercase ring-1 ring-inset",
             ACTION_PILL[row.action] ?? ACTION_PILL.UPDATE,
           )}
         >
@@ -108,7 +108,7 @@ export function AuditRow({ row, style, gridCols }: AuditRowProps) {
         <span className="truncate text-zinc-700 dark:text-zinc-300" title={row.objectType}>
           {auditObjectLabel(row.objectType)}
         </span>
-        <code className="hidden truncate font-mono text-[10px] text-zinc-500 md:block dark:text-zinc-400">
+        <code className="hidden truncate font-mono text-xs text-zinc-500 md:block dark:text-zinc-400">
           {row.objectId ? row.objectId.slice(0, 8) : "—"}
         </code>
         <div className="hidden items-center gap-1.5 md:flex">
@@ -116,7 +116,7 @@ export function AuditRow({ row, style, gridCols }: AuditRowProps) {
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
-              className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-medium text-zinc-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50/50 hover:text-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-400"
+              className="inline-flex whitespace-nowrap items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-xs font-medium text-zinc-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50/50 hover:text-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-400"
               aria-expanded={expanded}
               aria-label={expanded ? "Thu gọn diff" : "Mở rộng diff"}
             >

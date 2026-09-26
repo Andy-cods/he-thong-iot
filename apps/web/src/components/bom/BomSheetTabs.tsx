@@ -189,7 +189,7 @@ export function BomSheetTabs({
                 {sheet.kind === "PROJECT" && sheet.lineCount > 0 ? (
                   <span
                     className={cn(
-                      "ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-sm px-1 text-[10px] font-medium tabular-nums",
+                      "ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-sm px-1 text-xs font-medium tabular-nums",
                       isActive
                         ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300"
                         : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
@@ -214,7 +214,7 @@ export function BomSheetTabs({
                       className={cn(
                         "ml-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-sm text-zinc-400 transition-colors dark:text-zinc-500",
                         "hover:bg-zinc-100 hover:text-zinc-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200",
-                        "opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100",
+                        "opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 [@media(hover:none)]:opacity-100", // V4.1 UI-X7: màn cảm ứng không có hover → luôn hiện
                         isActive && "opacity-100",
                       )}
                       aria-label={`Tuỳ chọn sheet ${sheet.name}`}

@@ -361,7 +361,11 @@ export default {
       },
 
       screens: {
-        sm: "375px",
+        // V4.1 UI-X1: trả `sm` về mặc định Tailwind 640px. Trước đây 375px làm mọi
+        // `sm:*` (viết theo nghĩa 640) kích hoạt ngay trên điện thoại 390px →
+        // nhãn nút `hidden sm:inline` vẫn hiện, lưới 2 cột bị bóp.
+        // (Không thêm `xs` — 0 chỗ dùng; thêm vào `extend` sẽ bị xếp SAU 2xl.)
+        sm: "640px",
         md: "768px",
         lg: "1024px",
         xl: "1280px",

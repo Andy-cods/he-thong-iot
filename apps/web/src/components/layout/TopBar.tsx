@@ -127,7 +127,7 @@ export function TopBar({
           >
             <Search className="h-3.5 w-3.5 shrink-0" aria-hidden />
             <span className="flex-1 text-left">Tìm kiếm và lệnh...</span>
-            <kbd className="rounded border border-zinc-200 bg-white px-1.5 font-mono text-[10px] text-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-500">{shortcutLabel}</kbd>
+            <kbd className="rounded border border-zinc-200 bg-white px-1.5 font-mono text-xs text-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-500">{shortcutLabel}</kbd>
           </button>
 
           {/* Search icon (md-xl) */}
@@ -195,7 +195,7 @@ export function TopBar({
                 />
                 <span>{item.label}</span>
                 {item.badge && (
-                  <span className="ml-0.5 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                  <span className="ml-0.5 rounded-full bg-zinc-100 px-1.5 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
                     {item.badge}
                   </span>
                 )}

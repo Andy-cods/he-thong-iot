@@ -22,6 +22,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryError } from "@/components/ui/query-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -88,7 +89,7 @@ export function AccountsTab() {
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
             Tổng số dư:{" "}
             <span className="font-mono font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
-              {fmtVND(totalBalance)}
+              {query.isError && rows.length === 0 ? "—" : fmtVND(totalBalance)}
             </span>{" "}
             trên {rows.length} nguồn đang hoạt động. Phiếu thu cộng vào nguồn thu, phiếu chi
             trừ nguồn chi; chuyển quỹ nội bộ ở tab Thu chi.
@@ -115,6 +116,14 @@ export function AccountsTab() {
               <Skeleton key={i} className="h-32 rounded-2xl" />
             ))}
           </div>
+        ) : query.isError && rows.length === 0 ? (
+          // V4.1 UI-05: lỗi API không được hiện "Chưa có nguồn tiền nào".
+          <QueryError
+            error={query.error}
+            onRetry={() => void query.refetch()}
+            retrying={query.isFetching}
+            title="Không tải được danh sách nguồn tiền"
+          />
         ) : rows.length === 0 ? (
           <EmptyState
             preset="no-data"

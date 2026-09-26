@@ -35,6 +35,23 @@ describe("V4.1 UI-BOM — buildBreadcrumbItems", () => {
     ]);
   });
 
+  it("V4.1 UI-09: route hub/thu mua/quản trị có nhãn tiếng Việt", () => {
+    expect(buildBreadcrumbItems("/engineering").map((i) => i.label)).toEqual([
+      "Trang chủ",
+      "Bộ phận Thiết kế",
+    ]);
+    expect(
+      buildBreadcrumbItems(`/procurement/purchase-requests/${BOM_ID}`).map(
+        (i) => i.label,
+      ),
+    ).toEqual(["Trang chủ", "Thu mua", "Đề xuất vật tư", "Chi tiết"]);
+    expect(buildBreadcrumbItems("/admin/users").map((i) => i.label)).toEqual([
+      "Trang chủ",
+      "Quản trị",
+      "Người dùng",
+    ]);
+  });
+
   it("trang chủ", () => {
     expect(buildBreadcrumbItems("/")).toEqual([{ label: "Trang chủ" }]);
   });

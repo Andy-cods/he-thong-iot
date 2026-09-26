@@ -145,7 +145,7 @@ export function CommandPalette({
             placeholder="Tìm kiếm hoặc gõ lệnh..."
             className="h-full flex-1 bg-transparent text-md text-zinc-900 placeholder:text-zinc-400 focus:outline-none dark:text-zinc-50 dark:placeholder:text-zinc-500"
           />
-          <kbd className="rounded-sm border border-zinc-200 bg-zinc-50 px-1.5 py-0 font-mono text-[10px] text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
+          <kbd className="rounded-sm border border-zinc-200 bg-zinc-50 px-1.5 py-0 font-mono text-xs text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
             Esc
           </kbd>
         </div>
@@ -209,19 +209,19 @@ export function CommandPalette({
         {/* V2 footer hints — consistent với Linear CmdK */}
         <div className="flex h-8 items-center gap-3 border-t border-zinc-100 px-3 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
           <span className="inline-flex items-center gap-1">
-            <kbd className="rounded-sm border border-zinc-200 bg-zinc-50 px-1 font-mono text-[10px] dark:border-zinc-700 dark:bg-zinc-800">
+            <kbd className="rounded-sm border border-zinc-200 bg-zinc-50 px-1 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-800">
               ↑↓
             </kbd>
             Di chuyển
           </span>
           <span className="inline-flex items-center gap-1">
-            <kbd className="rounded-sm border border-zinc-200 bg-zinc-50 px-1 font-mono text-[10px] dark:border-zinc-700 dark:bg-zinc-800">
+            <kbd className="rounded-sm border border-zinc-200 bg-zinc-50 px-1 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-800">
               ↵
             </kbd>
             Chọn
           </span>
           <span className="inline-flex items-center gap-1">
-            <kbd className="rounded-sm border border-zinc-200 bg-zinc-50 px-1 font-mono text-[10px] dark:border-zinc-700 dark:bg-zinc-800">
+            <kbd className="rounded-sm border border-zinc-200 bg-zinc-50 px-1 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-800">
               Esc
             </kbd>
             Đóng
@@ -260,7 +260,7 @@ function CommandRow({
       />
       <span className="flex-1 truncate">{label}</span>
       {shortcut ? (
-        <span className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500">{shortcut}</span>
+        <span className="font-mono text-xs text-zinc-400 dark:text-zinc-500">{shortcut}</span>
       ) : null}
     </CommandPrimitive.Item>
   );

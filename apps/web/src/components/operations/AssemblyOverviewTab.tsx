@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { QueryError } from "@/components/ui/query-error";
 import { useWorkOrdersList, type WorkOrderRow } from "@/hooks/useWorkOrders";
 import { cn } from "@/lib/utils";
 
@@ -114,12 +115,14 @@ export function AssemblyOverviewTab() {
     );
   }, [activeRows, searchQ]);
 
-  // Stats
+  // Stats — V4.1 UI-05: query lỗi → "—" thay vì 0.
+  const activeFailed = activeQuery.isError && activeRows.length === 0;
+  const completedFailed = completedQuery.isError && completedRows.length === 0;
   const stats = {
-    active: activeRows.length,
-    inProg: activeRows.filter((r) => r.status === "IN_PROGRESS").length,
-    paused: activeRows.filter((r) => r.status === "PAUSED").length,
-    completedToday: completedToday.length,
+    active: activeFailed ? "—" : activeRows.length,
+    inProg: activeFailed ? "—" : activeRows.filter((r) => r.status === "IN_PROGRESS").length,
+    paused: activeFailed ? "—" : activeRows.filter((r) => r.status === "PAUSED").length,
+    completedToday: completedFailed ? "—" : completedToday.length,
   };
 
   // Scan barcode handler — try direct woNo lookup
@@ -239,7 +242,7 @@ export function AssemblyOverviewTab() {
           <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
             <Factory className="h-4 w-4 text-orange-600" aria-hidden />
             Lệnh đang hoạt động
-            <span className="ml-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-mono text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+            <span className="ml-1 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-mono text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
               {filteredActive.length}
             </span>
           </h2>
@@ -253,6 +256,13 @@ export function AssemblyOverviewTab() {
                 />
               ))}
             </div>
+          ) : activeFailed ? (
+            <QueryError
+              error={activeQuery.error}
+              onRetry={() => void activeQuery.refetch()}
+              retrying={activeQuery.isFetching}
+              title="Không tải được lệnh sản xuất"
+            />
           ) : filteredActive.length === 0 ? (
             <EmptyState
               icon={<Factory className="h-8 w-8 text-zinc-300 dark:text-zinc-600" />}
@@ -282,7 +292,7 @@ export function AssemblyOverviewTab() {
             <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
               <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-hidden />
               Hoàn thành hôm nay
-              <span className="ml-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-mono text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+              <span className="ml-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-mono text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
                 {completedToday.length}
               </span>
             </h2>
@@ -323,7 +333,7 @@ function WoCard({ wo, compact }: { wo: WorkOrderRow; compact?: boolean }) {
         </div>
         <span
           className={cn(
-            "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ring-inset",
+            "inline-flex whitespace-nowrap shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
             theme.bg,
             theme.text,
             theme.ring,
@@ -378,7 +388,7 @@ function StatCard({
 }: {
   icon: React.ReactNode;
   label: string;
-  value: number;
+  value: number | string;
   accent: "blue" | "emerald" | "amber";
 }) {
   const ringClass = {
@@ -393,7 +403,7 @@ function StatCard({
         ringClass,
       )}
     >
-      <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
+      <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
         {icon}
         {label}
       </div>

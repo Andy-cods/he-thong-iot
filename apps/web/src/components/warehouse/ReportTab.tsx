@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Loader2, Package, AlertTriangle, Box, RefreshCw, Printer, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { QueryError } from "@/components/ui/query-error";
 import { ReconciliationSection } from "./ReconciliationSection";
 
 /**
@@ -57,17 +58,24 @@ export function ReportTab() {
   const [topItems, setTopItems] = React.useState<ItemRow[]>([]);
   const [unslotted, setUnslotted] = React.useState<ItemRow[]>([]);
   const [loading, setLoading] = React.useState(true);
+  // V4.1 UI-05: lỗi tải → khối lỗi + "Thử lại", không hiện "Chưa có …".
+  const [loadError, setLoadError] = React.useState<unknown>(null);
   const [refreshTick, setRefreshTick] = React.useState(0);
 
   React.useEffect(() => {
     let cancelled = false;
     void (async () => {
       setLoading(true);
+      setLoadError(null);
       try {
         const [layoutRes, itemsRes] = await Promise.all([
           fetch("/api/warehouse/layout"),
           fetch("/api/items?pageSize=100"),
         ]);
+        const badRes = !layoutRes.ok ? layoutRes : !itemsRes.ok ? itemsRes : null;
+        if (badRes) {
+          throw Object.assign(new Error(`HTTP ${badRes.status}`), { status: badRes.status });
+        }
         const layoutJson = (await layoutRes.json()) as {
           data: WarehouseLayoutResp;
         };
@@ -88,6 +96,8 @@ export function ReportTab() {
               .slice(0, 8),
           );
         }
+      } catch (e) {
+        if (!cancelled) setLoadError(e);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -111,9 +121,14 @@ export function ReportTab() {
     );
   }
 
-  if (!data) {
+  if (loadError || !data) {
     return (
-      <div className="p-6 text-sm text-rose-600 dark:text-rose-400">Lỗi tải dữ liệu báo cáo.</div>
+      <QueryError
+        error={loadError}
+        onRetry={handleRefresh}
+        retrying={loading}
+        title="Không tải được dữ liệu báo cáo kho"
+      />
     );
   }
 

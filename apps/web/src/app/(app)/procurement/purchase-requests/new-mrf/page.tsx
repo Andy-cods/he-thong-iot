@@ -406,7 +406,7 @@ export default function NewMRFPage() {
             <div className="overflow-x-auto print:overflow-visible">
               <table className="w-full border-collapse text-[11px]">
                 <thead>
-                  <tr className="bg-[#F5F5F5] text-[10px] font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
+                  <tr className="bg-[#F5F5F5] text-xs font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
                     <Th w="w-8">STT</Th>
                     <Th w="min-w-[160px]">Tên vật tư</Th>
                     <Th w="w-28">Mã VT</Th>
@@ -669,7 +669,7 @@ export default function NewMRFPage() {
             <SectionTitle>III. Kiểm tra &amp; Phê duyệt</SectionTitle>
             <table className="w-full border-collapse text-[11px]">
               <thead>
-                <tr className="bg-[#F5F5F5] text-[10px] font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
+                <tr className="bg-[#F5F5F5] text-xs font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
                   <Th w="w-40">Vai trò</Th>
                   <Th w="w-44">Họ tên</Th>
                   <Th w="w-40">Ký tên / Ngày</Th>
@@ -704,7 +704,7 @@ export default function NewMRFPage() {
             <SectionTitle>IV. Theo dõi</SectionTitle>
             <table className="w-full border-collapse text-[11px]">
               <thead>
-                <tr className="bg-[#F5F5F5] text-[10px] font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
+                <tr className="bg-[#F5F5F5] text-xs font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
                   <Th w="w-44">Trạng thái</Th>
                   <Th w="w-44">Người phụ trách</Th>
                   <Th w="w-32">Ngày thực hiện</Th>

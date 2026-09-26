@@ -207,7 +207,7 @@ function MilestoneRow({ reached, label }: MilestoneRowProps) {
       )}
       <span
         className={cn(
-          "text-[11px]",
+          "text-sm",
           reached ? "text-zinc-50" : "text-zinc-400",
         )}
       >
@@ -238,7 +238,7 @@ function ComMilestoneList({
 }) {
   return (
     <div className="flex flex-col gap-0 min-w-[180px]">
-      <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+      <div className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-400">
         Mốc tiến độ
       </div>
       <MilestoneRow reached={milestones.planned} label="Lập kế hoạch" />
@@ -247,7 +247,7 @@ function ComMilestoneList({
       <MilestoneRow reached={milestones.available} label="Có sẵn kho" />
       <MilestoneRow reached={milestones.issued} label="Hoàn thiện" />
       {requiredQty !== undefined && requiredQty > 0 ? (
-        <div className="mt-1.5 border-t border-zinc-700 pt-1 font-mono text-[10px] tabular-nums text-zinc-400">
+        <div className="mt-1.5 border-t border-zinc-700 pt-1 font-mono text-xs tabular-nums text-zinc-400">
           {purchasedQty ?? 0} / {requiredQty} {uom ?? ""}
         </div>
       ) : null}
@@ -278,7 +278,7 @@ function FabMilestoneList({
 }) {
   return (
     <div className="flex flex-col gap-0 min-w-[180px]">
-      <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+      <div className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-400">
         Mốc sản xuất {woNo ? `· ${woNo}` : ""}
       </div>
       <MilestoneRow reached={milestones.waiting} label="Chưa sản xuất" />
@@ -290,7 +290,7 @@ function FabMilestoneList({
       <MilestoneRow reached={milestones.qc} label="QC đạt" />
       <MilestoneRow reached={milestones.completed} label="Hoàn thành" />
       {plannedQty !== undefined && plannedQty > 0 ? (
-        <div className="mt-1.5 border-t border-zinc-700 pt-1 font-mono text-[10px] tabular-nums text-zinc-400">
+        <div className="mt-1.5 border-t border-zinc-700 pt-1 font-mono text-xs tabular-nums text-zinc-400">
           {goodQty ?? 0} / {plannedQty}
           {scrapQty && scrapQty > 0 ? ` · phế ${scrapQty}` : ""}
         </div>
@@ -351,7 +351,7 @@ export function ProgressCell({
       <div className="flex items-center gap-1.5">
         <span
           className={cn(
-            "inline-flex h-4 items-center gap-0.5 rounded px-1 text-[10px] font-medium",
+            "inline-flex h-4 items-center gap-0.5 rounded px-1 text-xs font-medium",
             meta.badgeBg,
             meta.text,
           )}
@@ -360,7 +360,7 @@ export function ProgressCell({
           {meta.label}
         </span>
         {fill > 0 && (
-          <span className="font-mono text-[10px] tabular-nums text-zinc-500 dark:text-zinc-400">
+          <span className="font-mono text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
             {fill}%
           </span>
         )}
@@ -379,7 +379,7 @@ export function ProgressCell({
         />
       </div>
       {computedSubLabel && (
-        <span className="font-mono text-[10px] tabular-nums text-zinc-500 dark:text-zinc-400 truncate">
+        <span className="font-mono text-xs tabular-nums text-zinc-500 dark:text-zinc-400 truncate">
           {computedSubLabel}
         </span>
       )}
@@ -473,7 +473,7 @@ export function FabProgressCell({
       <div className="flex items-center gap-1.5">
         <span
           className={cn(
-            "inline-flex h-4 items-center gap-0.5 rounded px-1 text-[10px] font-medium",
+            "inline-flex h-4 items-center gap-0.5 rounded px-1 text-xs font-medium",
             meta.badgeBg,
             meta.text,
           )}
@@ -482,7 +482,7 @@ export function FabProgressCell({
           {meta.label}
         </span>
         {fill > 0 && (
-          <span className="font-mono text-[10px] tabular-nums text-zinc-500 dark:text-zinc-400">
+          <span className="font-mono text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
             {fill}%
           </span>
         )}
@@ -504,7 +504,7 @@ export function FabProgressCell({
         />
       </div>
       {subLabel && (
-        <span className="font-mono text-[10px] tabular-nums text-zinc-500 dark:text-zinc-400 truncate">
+        <span className="font-mono text-xs tabular-nums text-zinc-500 dark:text-zinc-400 truncate">
           {subLabel}
         </span>
       )}

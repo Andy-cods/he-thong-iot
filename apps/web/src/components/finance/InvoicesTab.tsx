@@ -28,6 +28,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryError } from "@/components/ui/query-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -190,11 +191,12 @@ export function InvoicesTab() {
         {query.isLoading ? (
           <div className="space-y-2">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-14 rounded-lg" />)}</div>
         ) : query.isError ? (
-          <EmptyState
-            preset="error"
+          // V4.1 UI-05: khối lỗi chung (thông điệp theo mã 429/403/5xx).
+          <QueryError
+            error={query.error}
+            onRetry={() => void query.refetch()}
+            retrying={query.isFetching}
             title="Không tải được danh sách hoá đơn"
-            description={query.error instanceof Error ? query.error.message : "Vui lòng thử lại."}
-            actions={<Button size="sm" variant="outline" onClick={() => void query.refetch()}>Thử lại</Button>}
           />
         ) : isEmpty ? (
           hasFilter ? (
@@ -299,7 +301,7 @@ export function InvoicesTab() {
                           {inv.supplierName ?? "—"} · {inv.direction === "IN" ? "Đầu vào" : "Đầu ra"}
                         </p>
                       </div>
-                      <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold", STATUS_CHIP[inv.status])}>
+                      <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold", STATUS_CHIP[inv.status])}>
                         {STATUS_LABEL[inv.status]}
                       </span>
                     </div>
@@ -321,7 +323,7 @@ export function InvoicesTab() {
         )}
       </div>
 
-      {!isEmpty && (
+      {!isEmpty && !query.isError && (
         <footer className="flex h-11 items-center justify-between border-t border-zinc-200 bg-white px-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 md:px-6">
           <div className="tabular-nums">Trang <span className="font-semibold text-zinc-900 dark:text-zinc-50">{urlState.page}</span> / {pageCount}</div>
           <div className="flex items-center gap-1">

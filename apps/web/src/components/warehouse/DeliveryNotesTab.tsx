@@ -7,6 +7,7 @@ import { FileText, Loader2, Plus, RefreshCw, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { QueryError } from "@/components/ui/query-error";
 import { cn } from "@/lib/utils";
 import { useSession } from "@/hooks/useSession";
 
@@ -63,10 +64,16 @@ export function DeliveryNotesTab() {
   // V4.1 AD-05: link thông báo trỏ về ?tab=delivery-notes&id=… → cuộn tới phiếu.
   const focusId = useSearchParams()?.get("id") ?? null;
 
-  const { data, isLoading, refetch } = useQuery<{ data: DeliveryNoteRow[] }>({
+  const { data, isLoading, isError, error, isFetching, refetch } = useQuery<{
+    data: DeliveryNoteRow[];
+  }>({
     queryKey: ["delivery-notes", "list"],
     queryFn: async () => {
       const res = await fetch("/api/warehouse/delivery-notes?pageSize=50");
+      // V4.1 UI-05: HTTP lỗi phải ném ra, không nuốt thành danh sách rỗng.
+      if (!res.ok) {
+        throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status });
+      }
       return res.json();
     },
     staleTime: 15_000,
@@ -112,6 +119,13 @@ export function DeliveryNotesTab() {
         <p className="inline-flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400">
           <Loader2 className="h-3 w-3 animate-spin" /> Đang tải…
         </p>
+      ) : isError && rows.length === 0 ? (
+        <QueryError
+          error={error}
+          onRetry={() => void refetch()}
+          retrying={isFetching}
+          title="Không tải được danh sách phiếu giao hàng"
+        />
       ) : rows.length === 0 ? (
         <div className="rounded-xl border border-dashed border-zinc-300 p-8 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
           Chưa có phiếu giao hàng nào. Tạo từ 1 yêu cầu xuất kho đã hoàn tất
@@ -243,18 +257,18 @@ function DeliveryNoteRowItem({
             </code>
             <span
               className={cn(
-                "rounded px-1.5 py-0.5 text-[10px] font-medium",
+                "rounded px-1.5 py-0.5 text-xs font-medium",
                 STATUS_BADGE[row.status] ?? STATUS_BADGE.DRAFT,
               )}
             >
               {STATUS_LABEL[row.status] ?? row.status}
             </span>
             {row.issueRequestNo ? (
-              <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+              <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-xs text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                 {row.issueRequestNo}
               </span>
             ) : null}
-            <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">
               {new Date(row.createdAt).toLocaleString("vi-VN")}
             </span>
           </div>
@@ -314,17 +328,22 @@ function CreateDeliveryNoteDialog({
   onClose: () => void;
   onCreated: () => void;
 }) {
-  const { data, isLoading } = useQuery<{ data: EligibleIssueRequest[] }>({
+  const eligibleQuery = useQuery<{ data: EligibleIssueRequest[] }>({
     queryKey: ["issue-request", "completed-eligible-for-dn"],
     queryFn: async () => {
       const res = await fetch(
         "/api/warehouse/issue-request?status=COMPLETED&pageSize=100",
       );
+      // V4.1 UI-05: HTTP lỗi phải ném ra, không giả làm "không có yêu cầu".
+      if (!res.ok) {
+        throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status });
+      }
       return res.json();
     },
     staleTime: 10_000,
   });
 
+  const { data, isLoading } = eligibleQuery;
   const [issueRequestId, setIssueRequestId] = React.useState("");
   const [recipientName, setRecipientName] = React.useState("");
   const [recipientAddress, setRecipientAddress] = React.useState("");
@@ -394,6 +413,14 @@ function CreateDeliveryNoteDialog({
             </label>
             {isLoading ? (
               <p className="text-xs text-zinc-500">Đang tải…</p>
+            ) : eligibleQuery.isError && eligible.length === 0 ? (
+              <QueryError
+                compact
+                error={eligibleQuery.error}
+                onRetry={() => void eligibleQuery.refetch()}
+                retrying={eligibleQuery.isFetching}
+                title="Không tải được yêu cầu xuất kho"
+              />
             ) : eligible.length === 0 ? (
               <p className="text-xs italic text-zinc-500 dark:text-zinc-400">
                 Không có yêu cầu xuất kho nào đủ điều kiện (COMPLETED +

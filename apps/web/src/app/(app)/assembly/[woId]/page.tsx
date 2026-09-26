@@ -360,7 +360,7 @@ export default function AssemblyWorkspacePage() {
                       style={{ transition: "stroke-dashoffset 0.5s ease" }}
                     />
                   </svg>
-                  <span className="absolute text-[10px] font-bold tabular-nums text-zinc-700 dark:text-zinc-300">
+                  <span className="absolute text-xs font-bold tabular-nums text-zinc-700 dark:text-zinc-300">
                     {progressPct}%
                   </span>
                 </div>
@@ -373,7 +373,7 @@ export default function AssemblyWorkspacePage() {
                 <h1 className="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-50">
                   {wo.woNo}
                 </h1>
-                <Badge variant="info" className="text-[10px]">
+                <Badge variant="info" className="text-xs">
                   {wo.status}
                 </Badge>
               </div>
@@ -631,7 +631,7 @@ function TabButton({
       {icon}
       <span>{label}</span>
       {sub ? (
-        <span className="ml-1 text-[10px] text-zinc-400 dark:text-zinc-500">{sub}</span>
+        <span className="ml-1 text-xs text-zinc-400 dark:text-zinc-500">{sub}</span>
       ) : null}
     </button>
   );
@@ -824,7 +824,7 @@ function ManualPickPanel({
           },
         ].map((k) => (
           <div key={k.label} className="px-4 py-2.5 text-center">
-            <p className="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+            <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
               {k.label}
             </p>
             <p
@@ -841,7 +841,7 @@ function ManualPickPanel({
 
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
-          <thead className="border-b border-zinc-200 bg-zinc-50 text-[10px] uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
+          <thead className="border-b border-zinc-200 bg-zinc-50 text-xs uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
             <tr>
               <th className="w-10 px-2 py-2 text-left font-medium">#</th>
               <th className="px-3 py-2 text-left font-medium">SKU</th>
@@ -919,7 +919,7 @@ function ManualPickPanel({
                   </td>
                   <td className="px-3 py-2">
                     {done ? (
-                      <Badge variant="success" className="text-[10px]">
+                      <Badge variant="success" className="text-xs">
                         Đã đủ
                       </Badge>
                     ) : (
@@ -1097,7 +1097,7 @@ function SessionCard({ session }: { session: AssemblySession }) {
         <div className="flex items-center gap-2 min-w-0">
           <Badge
             variant={session.isLive ? "info" : "outline"}
-            className="text-[10px]"
+            className="text-xs"
           >
             Đợt #{session.sessionNo}
           </Badge>
@@ -1153,7 +1153,7 @@ function SessionCard({ session }: { session: AssemblySession }) {
       {expanded ? (
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
-            <thead className="bg-zinc-50 text-[10px] uppercase tracking-wider text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+            <thead className="bg-zinc-50 text-xs uppercase tracking-wider text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
               <tr>
                 <th className="px-3 py-1.5 text-left font-medium">Thời gian</th>
                 <th className="px-3 py-1.5 text-left font-medium">SKU</th>
@@ -1191,7 +1191,7 @@ function SessionCard({ session }: { session: AssemblySession }) {
                   <td className="px-3 py-1.5 text-center">
                     <Badge
                       variant={l.mode === "manual" ? "warning" : "info"}
-                      className="text-[10px]"
+                      className="text-xs"
                     >
                       {l.mode === "manual" ? "Thủ công" : "Barcode"}
                     </Badge>

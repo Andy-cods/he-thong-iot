@@ -257,7 +257,8 @@ export default function BoardPage() {
         </span>
         <div className="relative flex-1 overflow-hidden">
           {completed.length === 0 ? (
-            <span className="text-slate-600">— Chưa có</span>
+            // V4.1 UI-05: lỗi tải → không báo "Chưa có".
+            <span className="text-slate-600">{isError && !data ? "—" : "— Chưa có"}</span>
           ) : (
             <div className="ticker-track flex w-max items-center gap-10">
               {[...completed, ...completed].map((c, i) => (

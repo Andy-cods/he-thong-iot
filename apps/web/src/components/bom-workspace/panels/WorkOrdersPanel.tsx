@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowUpRight, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryError } from "@/components/ui/query-error";
 import { useWorkOrdersList, type WorkOrderStatus } from "@/hooks/useWorkOrders";
 import { formatDate, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -119,10 +120,14 @@ export function WorkOrdersPanel({ bomId }: { bomId: string }) {
             {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}
           </div>
         ) : query.isError ? (
-          /* V4.1 SX-31 — lỗi hiện rõ, không giả làm "chưa có lệnh". */
-          <div className="m-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400">
-            {(query.error as Error)?.message ?? "Không tải được danh sách lệnh sản xuất."}
-          </div>
+          /* V4.1 SX-31 — lỗi hiện rõ, không giả làm "chưa có lệnh".
+             V4.1 UI-05: khối lỗi chung + nút "Thử lại". */
+          <QueryError
+            error={query.error}
+            onRetry={() => void query.refetch()}
+            retrying={query.isFetching}
+            title="Không tải được danh sách lệnh sản xuất"
+          />
         ) : rows.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
             <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">

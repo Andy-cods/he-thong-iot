@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { ArrowUpRight, Factory } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryError } from "@/components/ui/query-error";
 import { cn } from "@/lib/utils";
 import { useBomProductionSummary } from "@/hooks/useBom";
 import { formatDate, formatNumber } from "@/lib/format";
@@ -94,9 +95,13 @@ export function BomProductionPanel({ bomId }: { bomId: string }) {
   }
   if (query.isError) {
     return (
-      <div className="m-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400">
-        {(query.error as Error)?.message ?? "Không tải được tiến độ sản xuất."}
-      </div>
+      // V4.1 UI-05: khối lỗi chung + nút "Thử lại".
+      <QueryError
+        error={query.error}
+        onRetry={() => void query.refetch()}
+        retrying={query.isFetching}
+        title="Không tải được tiến độ sản xuất"
+      />
     );
   }
   if (!data) return (

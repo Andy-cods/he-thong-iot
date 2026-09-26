@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/sheet";
 import { useReceivingAudit } from "@/hooks/useReceivingEvents";
 import { cn } from "@/lib/utils";
+import { QueryError } from "@/components/ui/query-error";
 import type { PORow } from "@/hooks/usePurchaseOrders";
 
 /**
@@ -49,7 +50,7 @@ export function ReceivingHistoryDrawer({ po, onClose }: ReceivingHistoryDrawerPr
 
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <SheetContent side="right" size="lg" className="flex flex-col p-0 w-[640px] sm:max-w-[640px]">
+      <SheetContent side="right" size="lg" className="flex flex-col p-0 md:w-[640px]"> {/* V4.1 UI-X1: điện thoại full-width */}
         <SheetHeader className="border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -80,9 +81,13 @@ export function ReceivingHistoryDrawer({ po, onClose }: ReceivingHistoryDrawerPr
               Đang tải lịch sử…
             </div>
           ) : audit.isError ? (
-            <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400">
-              {(audit.error as Error)?.message ?? "Không tải được lịch sử"}
-            </div>
+            // V4.1 UI-05: khối lỗi chung + nút "Thử lại".
+            <QueryError
+              error={audit.error}
+              onRetry={() => void audit.refetch()}
+              retrying={audit.isFetching}
+              title="Không tải được lịch sử nhận hàng"
+            />
           ) : !data ? null : (
             <div className="space-y-6">
 
@@ -106,7 +111,7 @@ export function ReceivingHistoryDrawer({ po, onClose }: ReceivingHistoryDrawerPr
                         <div className="flex items-center justify-between">
                           <span className="font-mono text-sm font-bold text-indigo-700 dark:text-indigo-400">{r.receiptNo}</span>
                           <span className={cn(
-                            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
+                            "inline-flex whitespace-nowrap items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
                             (QC_BADGE[r.qcFlag] ?? QC_BADGE.PENDING)!.cls,
                           )}>
                             {(QC_BADGE[r.qcFlag] ?? QC_BADGE.PENDING)!.label}
@@ -186,7 +191,7 @@ export function ReceivingHistoryDrawer({ po, onClose }: ReceivingHistoryDrawerPr
                       return (
                         <li key={ev.id} className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900">
                           <span className={cn(
-                            "inline-flex shrink-0 items-center rounded px-1.5 py-0.5 text-xs font-medium ring-1 ring-inset",
+                            "inline-flex whitespace-nowrap shrink-0 items-center rounded px-1.5 py-0.5 text-xs font-medium ring-1 ring-inset",
                             qc.cls,
                           )}>
                             {qc.label}

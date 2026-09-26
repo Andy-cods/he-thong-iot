@@ -105,7 +105,7 @@ function StatusDotPill({ status }: { status: BomStatus }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium",
+        "inline-flex whitespace-nowrap items-center gap-1.5 rounded-full border px-2 py-0.5 text-sm font-medium",
         meta.bg,
         meta.text,
         meta.border,
@@ -570,7 +570,7 @@ export function BomListTable({
                   </div>
                   <div className="grid grid-cols-2 gap-2 border-t border-zinc-100 pt-2 text-xs dark:border-zinc-800">
                     <div>
-                      <div className="text-[10px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+                      <div className="text-xs uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
                         Parent SKU
                       </div>
                       <div className="font-mono text-zinc-700 dark:text-zinc-300">
@@ -578,7 +578,7 @@ export function BomListTable({
                       </div>
                     </div>
                     <div>
-                      <div className="text-[10px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+                      <div className="text-xs uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
                         Sheet
                       </div>
                       <div className="tabular-nums text-zinc-700 dark:text-zinc-300">
@@ -586,7 +586,7 @@ export function BomListTable({
                       </div>
                     </div>
                     <div>
-                      <div className="text-[10px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+                      <div className="text-xs uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
                         Linh kiện
                       </div>
                       <div className="tabular-nums text-zinc-700 dark:text-zinc-300">
@@ -594,7 +594,7 @@ export function BomListTable({
                       </div>
                     </div>
                     <div>
-                      <div className="text-[10px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+                      <div className="text-xs uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
                         Cập nhật
                       </div>
                       <div className="tabular-nums text-zinc-700 dark:text-zinc-300">
@@ -604,7 +604,7 @@ export function BomListTable({
                   </div>
                   {row.description && (
                     <div className="border-t border-zinc-100 pt-2 dark:border-zinc-800">
-                      <div className="text-[10px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+                      <div className="text-xs uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
                         Mô tả
                       </div>
                       <div className="line-clamp-3 text-xs text-zinc-600 dark:text-zinc-400">

@@ -379,7 +379,7 @@ function WoRow({ wo }: { wo: WorkOrderSummaryItem }) {
       <td className="px-4 py-2">
         <span
           className={cn(
-            "inline-flex items-center rounded-sm px-1.5 py-0.5 text-[11px] font-medium",
+            "inline-flex whitespace-nowrap items-center rounded-sm px-1.5 py-0.5 text-[11px] font-medium",
             badge.className,
           )}
         >

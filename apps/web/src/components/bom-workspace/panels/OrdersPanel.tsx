@@ -10,6 +10,7 @@ import {
 } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryError } from "@/components/ui/query-error";
 import { useOrdersList } from "@/hooks/useOrders";
 import { formatDate, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -59,7 +60,7 @@ export function OrdersPanel({ bomId, bomCode }: OrdersPanelProps) {
       {/* Toolbar */}
       <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-5 py-3 dark:border-zinc-800 dark:bg-zinc-900">
         <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          {query.isLoading ? "Đang tải…" : (
+          {query.isLoading ? "Đang tải…" : query.isError && rows.length === 0 ? "—" : (
             <><span className="tabular-nums font-semibold text-zinc-900 dark:text-zinc-50">{rows.length}</span> đơn hàng dùng BOM này</>
           )}
         </p>
@@ -79,6 +80,14 @@ export function OrdersPanel({ bomId, bomCode }: OrdersPanelProps) {
               <Skeleton key={i} className="h-12 w-full rounded-lg" />
             ))}
           </div>
+        ) : query.isError && rows.length === 0 ? (
+          // V4.1 UI-05: lỗi API không được hiện "Chưa có đơn hàng nào".
+          <QueryError
+            error={query.error}
+            onRetry={() => void query.refetch()}
+            retrying={query.isFetching}
+            title="Không tải được đơn hàng"
+          />
         ) : rows.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800">

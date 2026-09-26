@@ -5,6 +5,7 @@ import { Laptop, LogOut, RefreshCw, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryError } from "@/components/ui/query-error";
 import {
   Dialog,
   DialogContent,
@@ -142,6 +143,14 @@ export default function SessionsPage() {
           <div className="p-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
             Đang tải…
           </div>
+        ) : query.isError && sessions.length === 0 ? (
+          // V4.1 UI-05: API lỗi → khối lỗi + "Thử lại", không phải "Không có phiên nào".
+          <QueryError
+            error={query.error}
+            onRetry={() => void query.refetch()}
+            retrying={query.isFetching}
+            title="Không tải được danh sách phiên"
+          />
         ) : sessions.length === 0 ? (
           <div className="p-6">
             <EmptyState
@@ -180,7 +189,7 @@ export default function SessionsPage() {
                         {ua.summary}
                       </span>
                       {s.isCurrent ? (
-                        <span className="inline-flex h-5 items-center gap-1 rounded-full bg-emerald-50 px-1.5 text-[10px] font-semibold uppercase tracking-normal text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800">
+                        <span className="inline-flex h-5 items-center gap-1 rounded-full bg-emerald-50 px-1.5 text-xs font-semibold uppercase tracking-normal text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800">
                           <span
                             className="h-1.5 w-1.5 rounded-full bg-emerald-500"
                             aria-hidden="true"

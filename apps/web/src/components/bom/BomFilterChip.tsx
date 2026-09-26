@@ -34,7 +34,7 @@ export function BomFilterChip({
         className,
       )}
     >
-      <span className="text-[10px] font-medium uppercase tracking-wide text-indigo-500">
+      <span className="text-xs font-medium uppercase tracking-wide text-indigo-500">
         BOM:
       </span>
       <Link

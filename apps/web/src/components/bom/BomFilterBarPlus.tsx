@@ -200,7 +200,7 @@ export function BomFilterBarPlus({
               <Filter className="h-3.5 w-3.5" aria-hidden="true" />
               Bộ lọc
               {advancedCount > 0 && (
-                <span className="ml-0.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-indigo-600 px-1 text-[10px] font-semibold tabular-nums text-white dark:bg-indigo-500">
+                <span className="ml-0.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-indigo-600 px-1 text-xs font-semibold tabular-nums text-white dark:bg-indigo-500">
                   {advancedCount}
                 </span>
               )}
@@ -259,7 +259,7 @@ export function BomFilterBarPlus({
                 className="w-full accent-indigo-600"
                 aria-label="Số linh kiện tối thiểu"
               />
-              <div className="mt-1 flex justify-between text-[10px] text-zinc-400 tabular-nums dark:text-zinc-500">
+              <div className="mt-1 flex justify-between text-xs text-zinc-400 tabular-nums dark:text-zinc-500">
                 <span>0</span>
                 <span>50</span>
                 <span>100</span>

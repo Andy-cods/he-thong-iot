@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { QueryError } from "@/components/ui/query-error";
 import { useSession } from "@/hooks/useSession";
 import { ObjectAuditList } from "@/components/admin/ObjectAuditList";
 import {
@@ -168,7 +169,10 @@ export default function PurchaseOrderDetailPage() {
     queryKey: ["items-search", debouncedQ],
     queryFn: async () => {
       const res = await fetch(`/api/items?q=${encodeURIComponent(debouncedQ)}&pageSize=15`, { credentials: "include" });
-      if (!res.ok) throw new Error();
+      // V4.1 UI-05: kèm mã HTTP để khối lỗi báo đúng.
+      if (!res.ok) {
+        throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status });
+      }
       return res.json() as Promise<{ data: ItemSearch[] }>;
     },
     enabled: searchOpen && debouncedQ.length >= 1,
@@ -327,6 +331,17 @@ export default function PurchaseOrderDetailPage() {
       </div>
     );
   }
+  // V4.1 UI-05: lỗi API (429/500/403) ≠ "không tìm thấy PO".
+  if (!po && detail.isError && (detail.error as { status?: number } | null)?.status !== 404) {
+    return (
+      <QueryError
+        error={detail.error}
+        onRetry={() => void detail.refetch()}
+        retrying={detail.isFetching}
+        title="Không tải được đơn đặt hàng"
+      />
+    );
+  }
   if (!po) {
     return (
       <div className="m-6 rounded-xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-800 dark:bg-red-950/40">
@@ -397,7 +412,7 @@ export default function PurchaseOrderDetailPage() {
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <span className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset",
+                  "inline-flex whitespace-nowrap items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset",
                   cfg.cls,
                 )}>
                   <span className={cn("h-1.5 w-1.5 rounded-full", cfg.dot)} />
@@ -405,12 +420,12 @@ export default function PurchaseOrderDetailPage() {
                 </span>
                 {/* V3.7.43 — Badge phân loại PO type */}
                 {po.poType === "SUBCONTRACT" && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold text-orange-700 ring-1 ring-inset ring-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:ring-orange-800">
+                  <span className="inline-flex whitespace-nowrap items-center gap-1.5 rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold text-orange-700 ring-1 ring-inset ring-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:ring-orange-800">
                     Gia công ngoài
                   </span>
                 )}
                 {(!po.poType || po.poType === "COMMERCIAL") && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:ring-blue-800">
+                  <span className="inline-flex whitespace-nowrap items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:ring-blue-800">
                     Thương mại
                   </span>
                 )}
@@ -688,6 +703,15 @@ export default function PurchaseOrderDetailPage() {
                       <div className="mt-2 max-h-60 overflow-y-auto rounded-lg border border-zinc-100 bg-zinc-50/40 dark:border-zinc-800 dark:bg-zinc-800/60">
                         {itemsQuery.isLoading ? (
                           <p className="px-4 py-4 text-center text-xs text-zinc-500 dark:text-zinc-400">Đang tìm…</p>
+                        ) : itemsQuery.isError && !itemsQuery.data ? (
+                          <QueryError
+                            compact
+                            className="m-2"
+                            error={itemsQuery.error}
+                            onRetry={() => void itemsQuery.refetch()}
+                            retrying={itemsQuery.isFetching}
+                            title="Không tìm được vật tư"
+                          />
                         ) : (itemsQuery.data?.data ?? []).length === 0 ? (
                           <p className="px-4 py-4 text-center text-xs text-zinc-500 dark:text-zinc-400">Không tìm thấy</p>
                         ) : (
@@ -995,7 +1019,7 @@ function KpiInline({ icon: Icon, label, value, accent }: {
         <Icon className="h-4 w-4" />
       </div>
       <div className="min-w-0">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</p>
         <p className="text-sm font-bold text-zinc-900 truncate dark:text-zinc-50">{value}</p>
       </div>
     </div>
@@ -1013,9 +1037,13 @@ function ReceivingHistorySection({ poId }: { poId: string }) {
   }
   if (audit.isError || !audit.data?.data) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400">
-        {(audit.error as Error)?.message ?? "Không tải được lịch sử"}
-      </div>
+      // V4.1 UI-05: khối lỗi chung + nút "Thử lại".
+      <QueryError
+        error={audit.error}
+        onRetry={() => void audit.refetch()}
+        retrying={audit.isFetching}
+        title="Không tải được lịch sử nhận hàng"
+      />
     );
   }
   const data = audit.data.data;

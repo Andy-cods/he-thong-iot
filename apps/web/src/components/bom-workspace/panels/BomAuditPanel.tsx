@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Activity, Clock } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryError } from "@/components/ui/query-error";
 import { useBomAuditLog } from "@/hooks/useBom";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -110,6 +111,18 @@ export function BomAuditPanel({ bomId }: { bomId: string }) {
     );
   }
 
+  // V4.1 UI-05: lỗi API không được hiện "Chưa có lịch sử".
+  if (query.isError && allRows.length === 0) {
+    return (
+      <QueryError
+        error={query.error}
+        onRetry={() => void query.refetch()}
+        retrying={query.isFetching}
+        title="Không tải được lịch sử thao tác"
+      />
+    );
+  }
+
   if (allRows.length === 0) {
     return (
       <div className="flex h-full items-center justify-center p-6 text-xs text-zinc-500 dark:text-zinc-400">
@@ -169,13 +182,13 @@ export function BomAuditPanel({ bomId }: { bomId: string }) {
                 setDateTo("");
                 setEntityTypes([]);
               }}
-              className="ml-1 text-[10px] text-zinc-500 underline hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300"
+              className="ml-1 text-xs text-zinc-500 underline hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300"
             >
               Bỏ lọc
             </button>
           )}
         </div>
-        <span className="ml-auto text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+        <span className="ml-auto text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
           {filtered.length} / {allRows.length} sự kiện
         </span>
       </div>
@@ -188,7 +201,7 @@ export function BomAuditPanel({ bomId }: { bomId: string }) {
         ) : (
           <table className="w-full text-xs">
             <thead className="sticky top-0 z-10 bg-zinc-50/80 backdrop-blur-sm dark:bg-zinc-800/60">
-              <tr className="border-b border-zinc-200 text-[10px] uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+              <tr className="border-b border-zinc-200 text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
                 <th className="px-3 py-1.5 text-left font-medium">
                   Thời gian
                 </th>
@@ -212,7 +225,7 @@ export function BomAuditPanel({ bomId }: { bomId: string }) {
                   OBJECT_TYPE_LABELS[r.objectType] ?? r.objectType;
                 return (
                   <tr key={r.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/60">
-                    <td className="px-3 py-1.5 align-top font-mono text-[10px] tabular-nums text-zinc-500 whitespace-nowrap dark:text-zinc-400">
+                    <td className="px-3 py-1.5 align-top font-mono text-xs tabular-nums text-zinc-500 whitespace-nowrap dark:text-zinc-400">
                       <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3" aria-hidden="true" />
                         {formatDate(r.occurredAt, "dd/MM/yyyy HH:mm")}
@@ -224,7 +237,7 @@ export function BomAuditPanel({ bomId }: { bomId: string }) {
                     <td className="px-3 py-1.5 align-top">
                       <span
                         className={cn(
-                          "inline-flex h-5 items-center rounded-sm border px-1.5 text-[10px] font-medium",
+                          "inline-flex h-5 items-center rounded-sm border px-1.5 text-xs font-medium",
                           actionTone,
                         )}
                       >
@@ -234,7 +247,7 @@ export function BomAuditPanel({ bomId }: { bomId: string }) {
                     <td className="px-3 py-1.5 align-top text-[11px] text-zinc-700 dark:text-zinc-300">
                       <span className="font-medium">{objectLabel}</span>
                       {r.objectId && (
-                        <span className="ml-1 font-mono text-[10px] text-zinc-400 dark:text-zinc-500">
+                        <span className="ml-1 font-mono text-xs text-zinc-400 dark:text-zinc-500">
                           #{r.objectId.slice(0, 8)}
                         </span>
                       )}

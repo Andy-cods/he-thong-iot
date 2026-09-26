@@ -273,7 +273,7 @@ function Stat({
       >
         {value}
       </div>
-      <div className="mt-0.5 truncate text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+      <div className="mt-0.5 truncate text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
         {label}
       </div>
     </div>
@@ -316,7 +316,7 @@ function StatusDotBadge({ meta }: { meta: StatusDotMeta }) {
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium",
+        "inline-flex whitespace-nowrap shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium",
         meta.bg,
         meta.text,
         meta.border,

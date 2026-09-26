@@ -175,7 +175,7 @@ export function ItemInventoryPanel({
                       <td className="px-3 py-2">
                         <span
                           className={cn(
-                            "inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset",
+                            "inline-flex whitespace-nowrap items-center rounded px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset",
                             LOT_STATUS_CLASS[lot.status] ??
                               "bg-zinc-50 text-zinc-600 ring-zinc-200",
                           )}

@@ -106,6 +106,12 @@ export function ReceivablesTab() {
             buckets={payablesQuery.data?.data.buckets ?? []}
             partners={payablePartnersQuery.data?.data.partners ?? []}
             isLoading={payablesQuery.isLoading}
+            isError={payablesQuery.isError}
+            error={payablesQuery.error}
+            onRetry={() => void payablesQuery.refetch()}
+            retrying={payablesQuery.isFetching}
+            partnersError={payablePartnersQuery.isError ? payablePartnersQuery.error : undefined}
+            onRetryPartners={() => void payablePartnersQuery.refetch()}
             emptyTitle="Không có công nợ phải trả"
             emptyDescription="Tất cả hoá đơn đầu vào đã được thanh toán đầy đủ."
             kpiLabel="Tổng phải trả"
@@ -117,6 +123,12 @@ export function ReceivablesTab() {
             buckets={receivablesQuery.data?.data.buckets ?? []}
             partners={receivablePartnersQuery.data?.data.partners ?? []}
             isLoading={receivablesQuery.isLoading}
+            isError={receivablesQuery.isError}
+            error={receivablesQuery.error}
+            onRetry={() => void receivablesQuery.refetch()}
+            retrying={receivablesQuery.isFetching}
+            partnersError={receivablePartnersQuery.isError ? receivablePartnersQuery.error : undefined}
+            onRetryPartners={() => void receivablePartnersQuery.refetch()}
             emptyTitle="Không có công nợ phải thu"
             emptyDescription="Tất cả hoá đơn đầu ra đã được thanh toán đầy đủ."
             kpiLabel="Tổng phải thu"

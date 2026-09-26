@@ -362,7 +362,7 @@ export default function NewDnvtPage() {
             <div className="overflow-x-auto print:overflow-visible">
               <table className="w-full border-collapse text-[11px]">
                 <thead>
-                  <tr className="bg-[#F5F5F5] text-[10px] font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
+                  <tr className="bg-[#F5F5F5] text-xs font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
                     <Th w="w-8">STT</Th>
                     <Th w="min-w-[150px]">Tên vật tư</Th>
                     <Th w="min-w-[120px]">Quy cách chi tiết</Th>
@@ -588,7 +588,7 @@ export default function NewDnvtPage() {
             <SectionTitle>III. Kiểm tra &amp; Phê duyệt</SectionTitle>
             <table className="w-full border-collapse text-[11px]">
               <thead>
-                <tr className="bg-[#F5F5F5] text-[10px] font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
+                <tr className="bg-[#F5F5F5] text-xs font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
                   <Th w="w-48">Vai trò</Th>
                   <Th w="w-56">Họ tên</Th>
                   <Th>Ký tên / Ngày</Th>
@@ -609,7 +609,7 @@ export default function NewDnvtPage() {
           </section>
 
           {/* Footer mẫu */}
-          <div className="px-4 py-2 text-right text-[10px] italic text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
+          <div className="px-4 py-2 text-right text-xs italic text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
             Mẫu No: GTAM/PRD-MRF-02 | Phiên bản: 1.0 | Hiệu lực: 2025
           </div>
         </article>

@@ -125,7 +125,8 @@ export function StateMachineBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-sm border font-medium",
+        // V4.1 UI-10: badge không bao giờ gãy dòng/chồng lên dòng dưới.
+        "inline-flex shrink-0 items-center whitespace-nowrap rounded-sm border font-medium",
         meta.color,
         sizeClass,
         className,

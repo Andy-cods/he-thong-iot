@@ -286,7 +286,7 @@ export function ItemListTable({
                 title={row.defaultBinCode ?? "Chưa gán bin"}
               >
                 {row.defaultBinCode ? (
-                  <span className="inline-flex items-center rounded bg-blue-50 px-1.5 py-0.5 font-mono text-xs font-medium text-blue-700">
+                  <span className="inline-flex whitespace-nowrap items-center rounded bg-blue-50 px-1.5 py-0.5 font-mono text-xs font-medium text-blue-700">
                     {row.defaultBinCode}
                   </span>
                 ) : (
@@ -321,7 +321,7 @@ export function ItemListTable({
                             {row.uom}
                           </span>
                         </span>
-                        <span className="text-[10px] leading-tight text-zinc-500">
+                        <span className="text-xs leading-tight text-zinc-500">
                           Tổng:{" "}
                           <span className="tabular-nums text-zinc-700 dark:text-zinc-300">
                             {formatNumber(sum.totalQty)}

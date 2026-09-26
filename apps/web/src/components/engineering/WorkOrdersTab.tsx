@@ -18,6 +18,7 @@ import {
 import { parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryError } from "@/components/ui/query-error";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkOrdersList, type WorkOrderStatus, type WorkOrderRow } from "@/hooks/useWorkOrders";
@@ -95,7 +96,7 @@ function WoCard({ wo }: { wo: WorkOrderRow }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <code className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-50">{wo.woNo}</code>
-            <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium", cfg.bg, cfg.color, cfg.border)}>
+            <span className={cn("inline-flex whitespace-nowrap items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium", cfg.bg, cfg.color, cfg.border)}>
               <span className={cn("h-1.5 w-1.5 rounded-full", cfg.dot)} aria-hidden />
               {cfg.label}
             </span>
@@ -289,9 +290,9 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
             <div key={s.label} className={cn("flex items-center gap-2.5 rounded-xl px-3 py-2.5", s.bg)}>
               <s.icon className={cn("h-4 w-4 shrink-0", s.color)} aria-hidden />
               <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{s.label}</p>
+                <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{s.label}</p>
                 <p className={cn("font-mono text-lg font-bold leading-none tabular-nums", s.color)}>
-                  {query.isLoading ? "—" : s.value}
+                  {query.isLoading || query.isError ? "—" : s.value}
                 </p>
               </div>
             </div>
@@ -379,17 +380,53 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
             </div>
           )
         ) : query.isError ? (
-          /* V4.1 SX-31 — lỗi tải hiện rõ, không giả làm "chưa có lệnh". */
-          <div className="m-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
-            Không tải được danh sách lệnh sản xuất: {(query.error as Error)?.message ?? "lỗi không rõ"}.
-            <Button size="sm" variant="outline" className="ml-3" onClick={() => void query.refetch()}>
-              Thử lại
-            </Button>
+          /* V4.1 SX-31 — lỗi tải hiện rõ, không giả làm "chưa có lệnh".
+             V4.1 UI-05: dùng khối QueryError chung (thông điệp theo mã 429/403/5xx). */
+          <QueryError
+            error={query.error}
+            onRetry={() => void query.refetch()}
+            retrying={query.isFetching}
+            title="Không tải được danh sách lệnh sản xuất"
+          />
+        ) : rows.length === 0 &&
+          (urlState.status !== "all" || urlState.q || urlState.bomTemplateId) ? (
+          /* V4.1 UI-WO: KPI "Tổng WO 2" nhưng danh sách báo "Chưa có lệnh sản
+             xuất nào" vì bộ lọc mặc định (Nháp/Đang hoạt động). Phân biệt
+             "không khớp bộ lọc" với "chưa có dữ liệu". */
+          <div className="p-4">
+            <EmptyState
+              preset="no-filter-match"
+              title={
+                urlState.status !== "all"
+                  ? `Không có lệnh ở trạng thái "${
+                      STATUS_CHIPS.find((c) => c.value === urlState.status)?.label ??
+                      urlState.status
+                    }"`
+                  : "Không có lệnh khớp bộ lọc"
+              }
+              description={
+                stats.total > 0
+                  ? `Có ${stats.total} lệnh sản xuất ở trạng thái khác.`
+                  : "Thử bỏ bộ lọc hoặc từ khoá tìm kiếm."
+              }
+              actions={
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setSearchInput("");
+                    void setUrlState({ status: "all", q: "", bomTemplateId: "", page: 1 });
+                  }}
+                >
+                  Xem tất cả lệnh
+                </Button>
+              }
+            />
           </div>
         ) : rows.length === 0 ? (
           <div className="p-4">
             <EmptyState
-              preset="no-filter-match"
+              preset="no-data"
               title="Chưa có lệnh sản xuất nào"
               description="Lập phiếu LSX mới, hoặc gửi yêu cầu sản xuất từ dòng BOM (nút GTAM)."
               actions={
@@ -538,7 +575,7 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium", cfg.bg, cfg.color, cfg.border)}>
+                      <span className={cn("inline-flex whitespace-nowrap items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium", cfg.bg, cfg.color, cfg.border)}>
                         <span className={cn("h-1.5 w-1.5 rounded-full", cfg.dot)} aria-hidden />
                         {cfg.label}
                       </span>
@@ -593,7 +630,7 @@ function CardSectionHeader({ icon, title, count, color }: { icon: React.ReactNod
     <div className="mb-3 flex items-center gap-2">
       {icon}
       <h2 className={cn("text-xs font-semibold uppercase tracking-wider", color)}>{title}</h2>
-      <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">{count}</span>
+      <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-xs font-medium tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">{count}</span>
     </div>
   );
 }

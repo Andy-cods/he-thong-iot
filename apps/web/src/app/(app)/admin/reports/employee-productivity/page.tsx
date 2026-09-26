@@ -10,6 +10,7 @@ import {
   Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { QueryError } from "@/components/ui/query-error";
 import { AdminPageShell } from "@/components/admin/AdminPageShell";
 import {
   useEmployeeReport,
@@ -163,16 +164,27 @@ export default function EmployeeProductivityPage() {
         </section>
 
         <div>
-          {!selectedUserId ? (
+          {!selectedUserId && usersQuery.isError && users.length === 0 ? (
+            // V4.1 UI-05: không tải được danh sách NV → báo lỗi, không bảo "chọn nhân viên".
+            <QueryError
+              error={usersQuery.error}
+              onRetry={() => void usersQuery.refetch()}
+              retrying={usersQuery.isFetching}
+              title="Không tải được danh sách nhân viên"
+            />
+          ) : !selectedUserId ? (
             <EmptyMessage text="Vui lòng chọn 1 nhân viên để xem báo cáo." />
           ) : reportQuery.isLoading ? (
             <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white p-12 text-zinc-500 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
               <Loader2 className="h-4 w-4 animate-spin" /> Đang tải báo cáo…
             </div>
           ) : reportQuery.isError ? (
-            <EmptyMessage
-              text={`Lỗi: ${(reportQuery.error as Error)?.message ?? "Không tải được"}`}
-              isError
+            // V4.1 UI-05: khối lỗi dùng chung + "Thử lại".
+            <QueryError
+              error={reportQuery.error}
+              onRetry={() => void reportQuery.refetch()}
+              retrying={reportQuery.isFetching}
+              title="Không tải được báo cáo"
             />
           ) : data ? (
             <ReportView data={data} />
@@ -297,7 +309,7 @@ function HeroCard({ data }: { data: EmployeeReport }) {
         <div className="flex flex-col items-end gap-1 text-right">
           {data.summary.productionQty != null && data.summary.productionQty > 0 ? (
             <div>
-              <div className="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              <div className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                 Sản lượng đạt
               </div>
               <div className="text-2xl font-bold text-emerald-700 tabular-nums dark:text-emerald-400">
@@ -307,7 +319,7 @@ function HeroCard({ data }: { data: EmployeeReport }) {
           ) : null}
           {data.summary.poValue != null && data.summary.poValue > 0 ? (
             <div className="mt-2">
-              <div className="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              <div className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                 Giá trị PO
               </div>
               <div className="text-base font-semibold text-blue-700 tabular-nums dark:text-blue-400">
@@ -336,13 +348,13 @@ function MetricCard({ metric }: { metric: ProductivityMetric }) {
       )}
     >
       <div className="flex items-start justify-between gap-1">
-        <div className="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+        <div className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
           {metric.label}
         </div>
         {t ? (
           <span
             className={cn(
-              "rounded px-1 py-0.5 text-[9px] font-bold uppercase tracking-wide",
+              "rounded px-1 py-0.5 text-xs font-bold uppercase tracking-wide",
               t.achieved
                 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
                 : "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400",
@@ -367,7 +379,7 @@ function MetricCard({ metric }: { metric: ProductivityMetric }) {
         </div>
       ) : null}
       {t ? (
-        <div className="mt-1 text-[10px] text-zinc-500 dark:text-zinc-400">
+        <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
           Target {t.comparison === "gte" ? "≥" : "≤"}{" "}
           <strong className="text-zinc-700 dark:text-zinc-300">{formatNumber(t.value)}</strong>
           {" · "}
@@ -415,14 +427,14 @@ function DailyChart({
                 )}
                 style={{ height: `${Math.max(2, heightPct)}px`, minHeight: "2px" }}
               />
-              <span className="mt-0.5 font-mono text-[8px] text-zinc-400 dark:text-zinc-500">
+              <span className="mt-0.5 font-mono text-xs text-zinc-400 dark:text-zinc-500">
                 {d.date.slice(8)}
               </span>
             </div>
           );
         })}
       </div>
-      <div className="mt-2 flex items-center gap-3 text-[10px] text-zinc-500 dark:text-zinc-400">
+      <div className="mt-2 flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
         <span>0 → {max} actions/ngày</span>
         <span>·</span>
         <span>
@@ -459,10 +471,10 @@ function RecentActions({
         {actions.map((a, i) => (
           <li key={i} className="py-2 text-[12px]">
             <div className="flex items-baseline gap-2">
-              <span className="font-mono text-[10px] text-zinc-500 dark:text-zinc-400">
+              <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400">
                 {a.timestamp}
               </span>
-              <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700 ring-1 ring-inset ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-800">
+              <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-800">
                 {a.action}
               </span>
               <span className="text-zinc-700 dark:text-zinc-300">
@@ -603,6 +615,18 @@ function CompareCard({
     );
   }
   const d = q.data?.data;
+  // V4.1 UI-05: lỗi tải báo cáo so sánh → báo lỗi gọn thay vì ẩn im lặng.
+  if (!d && q.isError) {
+    return (
+      <QueryError
+        compact
+        error={q.error}
+        onRetry={() => void q.refetch()}
+        retrying={q.isFetching}
+        title="Không tải được báo cáo so sánh"
+      />
+    );
+  }
   if (!d) return null;
   return (
     <div className="rounded-md border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
@@ -612,9 +636,9 @@ function CompareCard({
         </span>
         <div>
           <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">{d.user.fullName}</div>
-          <div className="text-[10px] text-zinc-500 dark:text-zinc-400">{d.user.username}</div>
+          <div className="text-xs text-zinc-500 dark:text-zinc-400">{d.user.username}</div>
         </div>
-        <div className="ml-auto text-[10px] text-zinc-500 dark:text-zinc-400">
+        <div className="ml-auto text-xs text-zinc-500 dark:text-zinc-400">
           {d.period.activeDays} ngày · {d.summary.totalActions} actions
         </div>
       </div>
@@ -626,7 +650,7 @@ function CompareCard({
           const better = myValue > peerValue;
           return (
             <div key={m.id} className="rounded bg-zinc-50 px-2 py-1.5 dark:bg-zinc-800/60">
-              <div className="text-[9px] uppercase text-zinc-500 dark:text-zinc-400">{m.label}</div>
+              <div className="text-xs uppercase text-zinc-500 dark:text-zinc-400">{m.label}</div>
               <div
                 className={cn(
                   "text-sm font-semibold tabular-nums",
@@ -635,7 +659,7 @@ function CompareCard({
               >
                 {formatNumOrDash(myValue)}
                 {peer && peerValue > 0 ? (
-                  <span className="ml-1 text-[10px] text-zinc-400 dark:text-zinc-500">
+                  <span className="ml-1 text-xs text-zinc-400 dark:text-zinc-500">
                     (vs {formatNumOrDash(peerValue)})
                   </span>
                 ) : null}

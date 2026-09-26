@@ -21,6 +21,7 @@ import { PO_STATUSES, PO_STATUS_LABELS, type POStatus } from "@iot/shared";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryError } from "@/components/ui/query-error";
 import { POListTable } from "@/components/procurement/POListTable";
 import { PoExportDialog } from "@/components/procurement/PoExportDialog";
 import { usePurchaseOrdersList, usePurchaseOrdersStats } from "@/hooks/usePurchaseOrders";
@@ -130,11 +131,16 @@ export function POTab() {
     to: urlState.to || undefined,
   });
   const stats = statsQuery.data?.data;
+  // V4.1 UI-05: stats lỗi → KPI hiện "—" thay vì 0.
+  const statsFailed = statsQuery.isError && !stats;
+  const kpi = (v: string) => (statsFailed ? "—" : v);
 
   const total = query.data?.meta.total ?? 0;
   const rows = query.data?.data ?? [];
   const pageCount = Math.max(1, Math.ceil(total / urlState.pageSize));
-  const isEmpty = !query.isLoading && rows.length === 0;
+  // V4.1 UI-05: lỗi API không được coi là "chưa có PO".
+  const showError = query.isError && rows.length === 0;
+  const isEmpty = !query.isLoading && !query.isError && rows.length === 0;
   const hasFilter =
     urlState.status !== "all" ||
     urlState.q !== "" ||
@@ -151,8 +157,9 @@ export function POTab() {
     <div className="flex h-full flex-col overflow-hidden bg-zinc-50/30 dark:bg-zinc-950/30">
 
       {/* ── Header ── */}
-      <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <div>
+      {/* V4.1 UI-X6: header chuẩn flex-wrap + min-w-0 — điện thoại nút xuống dòng, không tràn/gãy chữ. */}
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
+        <div className="min-w-0 flex-1 basis-56">
           <Breadcrumb
             items={[
               { label: "Trang chủ", href: "/" },
@@ -167,65 +174,65 @@ export function POTab() {
             <span className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">{(stats?.total ?? total).toLocaleString("vi-VN")}</span> PO trong hệ thống
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <PoExportDialog />
           <Button asChild size="sm">
             <Link href="/procurement/purchase-orders/new">
               <Plus className="h-4 w-4" aria-hidden="true" />
-              Tạo PO
+              <span className="whitespace-nowrap">Tạo PO</span>
             </Link>
           </Button>
         </div>
       </header>
 
       {/* ── KPI cards ── */}
-      <div className="grid grid-cols-2 gap-3 border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 border-b border-zinc-200 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900 md:px-6 lg:grid-cols-4">
         <KpiCard
           icon={TrendingUp}
           label="Tổng giá trị"
-          value={fmtVND(stats?.totalSpend ?? 0)}
-          sub={`${stats?.total ?? 0} PO`}
+          value={kpi(fmtVND(stats?.totalSpend ?? 0))}
+          sub={kpi(`${stats?.total ?? 0} PO`)}
           accent="indigo"
         />
         <KpiCard
           icon={Clock}
           label="PO đang mở"
-          value={String(stats?.openCount ?? 0)}
-          sub={`${fmtVND(stats?.pendingSpend ?? 0)} chờ nhận`}
+          value={kpi(String(stats?.openCount ?? 0))}
+          sub={kpi(`${fmtVND(stats?.pendingSpend ?? 0)} chờ nhận`)}
           accent="amber"
         />
         <KpiCard
           icon={CheckCircle2}
           label="Đã hoàn tất"
-          value={String(stats?.receivedCount ?? 0)}
-          sub={`${fmtVND(stats?.receivedSpend ?? 0)} đã nhận`}
+          value={kpi(String(stats?.receivedCount ?? 0))}
+          sub={kpi(`${fmtVND(stats?.receivedSpend ?? 0)} đã nhận`)}
           accent="emerald"
         />
         <KpiCard
           icon={(stats?.overdueCount ?? 0) > 0 ? AlertTriangle : Users}
           label={(stats?.overdueCount ?? 0) > 0 ? "Quá hạn" : "Số NCC"}
-          value={String((stats?.overdueCount ?? 0) > 0 ? stats?.overdueCount : (stats?.supplierCount ?? 0))}
+          value={kpi(String((stats?.overdueCount ?? 0) > 0 ? stats?.overdueCount : (stats?.supplierCount ?? 0)))}
           sub={(stats?.overdueCount ?? 0) > 0 ? "PO quá ETA chưa nhận đủ" : "nhà cung cấp"}
           accent={(stats?.overdueCount ?? 0) > 0 ? "red" : "zinc"}
         />
       </div>
 
       {/* ── Filter bar ── */}
-      <div className="flex flex-wrap items-center gap-3 border-b border-zinc-200 bg-white px-6 py-3 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex flex-wrap items-center gap-3 border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
         {/* Search */}
-        <div className="relative">
+        <div className="relative w-full sm:w-auto">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" aria-hidden />
           <input
             type="text"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Tìm mã PO hoặc NCC..."
-            className="h-9 w-64 rounded-lg border border-zinc-200 bg-white pl-9 pr-3 text-sm placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500"
+            className="h-9 w-full rounded-lg border sm:w-64 border-zinc-200 bg-white pl-9 pr-3 text-sm placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500"
           />
         </div>
 
-        {/* Status pills */}
-        <div className="flex flex-wrap items-center gap-1.5">
+        {/* Status pills — V4.1 UI-X6: điện thoại 1 dòng cuộn ngang (từng gãy 4 dòng). */}
+        <div className="flex w-full min-w-0 items-center gap-1.5 overflow-x-auto [scrollbar-width:none] sm:w-auto sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
           {(["all", ...PO_STATUSES] as const).map((s) => {
             const active = urlState.status === s;
             const cfg = PO_STATUS_PILL[s];
@@ -308,7 +315,14 @@ export function POTab() {
 
       {/* ── Table ── */}
       <div className="flex-1 overflow-hidden p-4">
-        {isEmpty ? (
+        {showError ? (
+          <QueryError
+            error={query.error}
+            onRetry={() => void query.refetch()}
+            retrying={query.isFetching}
+            title="Không tải được danh sách PO"
+          />
+        ) : isEmpty ? (
           hasFilter ? (
             <EmptyState
               preset="no-filter-match"
@@ -336,7 +350,7 @@ export function POTab() {
       </div>
 
       {/* ── Footer pagination ── */}
-      {!isEmpty && (
+      {!isEmpty && !showError && (
         <footer className="flex h-11 items-center justify-between border-t border-zinc-200 bg-white px-6 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
           <div className="tabular-nums">
             Trang <span className="font-semibold text-zinc-900 dark:text-zinc-50">{urlState.page}</span> / {pageCount}

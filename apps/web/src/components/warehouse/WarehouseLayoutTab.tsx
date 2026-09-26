@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { QueryError } from "@/components/ui/query-error";
 import { cn } from "@/lib/utils";
 import { WarehouseLayout3D, type BinNode } from "./WarehouseLayout3D";
 import { BinActionsBar, BinQuickActionsPopover, useBinMutationRefresh } from "./BinActions";
@@ -112,7 +113,10 @@ export function WarehouseLayoutTab() {
     queryKey: ["warehouse", "layout"],
     queryFn: async () => {
       const res = await fetch("/api/warehouse/layout", { credentials: "include" });
-      if (!res.ok) throw new Error("Không tải được layout kho");
+      // V4.1 UI-05: kèm mã HTTP để khối lỗi báo đúng (429/403/5xx).
+      if (!res.ok) {
+        throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status });
+      }
       return res.json();
     },
     staleTime: 30_000,
@@ -144,7 +148,9 @@ export function WarehouseLayoutTab() {
       const res = await fetch(`/api/warehouse/bins/${selectedBinId}`, {
         credentials: "include",
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status });
+      }
       return res.json() as Promise<{ data: { binId: string; content: BinDetail[] } }>;
     },
     enabled: !!selectedBinId,
@@ -167,6 +173,9 @@ export function WarehouseLayoutTab() {
   });
 
   const data = layoutQuery.data?.data;
+  // V4.1 UI-05: layout lỗi → không coi là "chưa có bins", KPI hiện "—".
+  const layoutFailed = layoutQuery.isError && !data;
+  const kpi = (v: string) => (layoutFailed ? "—" : v);
 
   // Group by rack key
   const racksList = React.useMemo(() => {
@@ -280,13 +289,13 @@ export function WarehouseLayoutTab() {
                     : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700",
                 )}
               >
-                <span className={cn("flex h-5 w-5 items-center justify-center rounded-md text-[10px] font-bold",
+                <span className={cn("flex h-5 w-5 items-center justify-center rounded-md text-xs font-bold",
                   isActive ? "bg-white/20 text-white" : "bg-white text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400",
                 )}>
                   <Boxes className="h-3 w-3" />
                 </span>
                 <span className="font-mono">Kệ {r.rack}</span>
-                <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] tabular-nums font-bold",
+                <span className={cn("rounded-full px-1.5 py-0.5 text-xs tabular-nums font-bold",
                   isActive ? "bg-white/25 text-white" : "bg-white text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400",
                 )}>{r.occupied}/{r.total}</span>
               </button>
@@ -319,7 +328,7 @@ export function WarehouseLayoutTab() {
         <div className="flex flex-col gap-4 overflow-y-auto">
           {/* Card: Thông tin kệ */}
           <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-            <h3 className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-3 dark:text-zinc-400">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-3 dark:text-zinc-400">
               Thông tin kệ
             </h3>
             <div className="flex items-center justify-between mb-3">
@@ -360,7 +369,7 @@ export function WarehouseLayoutTab() {
 
           {/* Card: Thống kê kệ */}
           <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-            <h3 className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-3 dark:text-zinc-400">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-3 dark:text-zinc-400">
               Thống kê kệ
             </h3>
             <div className="space-y-2.5">
@@ -554,6 +563,13 @@ export function WarehouseLayoutTab() {
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Đang tải sơ đồ kho...
               </div>
+            ) : layoutFailed ? (
+              <QueryError
+                error={layoutQuery.error}
+                onRetry={() => void layoutQuery.refetch()}
+                retrying={layoutQuery.isFetching}
+                title="Không tải được sơ đồ kho"
+              />
             ) : binsWithSku.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
                 <Warehouse className="h-12 w-12 text-zinc-300 dark:text-zinc-700" />
@@ -584,11 +600,11 @@ export function WarehouseLayoutTab() {
           {/* Footer stats card */}
           <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
             <div className="flex flex-wrap items-center gap-4">
-              <FooterStat label="Tổng ô" value={String(currentRack?.total ?? 0)} icon={BoxIcon} />
+              <FooterStat label="Tổng ô" value={kpi(String(currentRack?.total ?? 0))} icon={BoxIcon} />
               <Divider />
               <FooterStat
                 label="Đã sử dụng"
-                value={String(rackStats.occupied)}
+                value={kpi(String(rackStats.occupied))}
                 icon={CheckCircle2}
                 badge={`${occupiedPct}%`}
                 badgeTone="emerald"
@@ -596,20 +612,20 @@ export function WarehouseLayoutTab() {
               <Divider />
               <FooterStat
                 label="Tổng số lượng"
-                value={rackStats.totalQty.toLocaleString("vi-VN")}
+                value={kpi(rackStats.totalQty.toLocaleString("vi-VN"))}
                 icon={Package}
               />
               <Divider />
               <FooterStat
                 label="Sắp hết"
-                value={`${rackStats.low} ô`}
+                value={kpi(`${rackStats.low} ô`)}
                 icon={AlertTriangle}
                 tone="amber"
               />
               <Divider />
               <FooterStat
                 label="Trống"
-                value={`${rackStats.empty} ô`}
+                value={kpi(`${rackStats.empty} ô`)}
                 icon={BoxIcon}
                 tone="zinc"
               />
@@ -752,6 +768,14 @@ export function WarehouseLayoutTab() {
               </h3>
               {binDetailQuery.isLoading ? (
                 <p className="text-sm text-zinc-500 dark:text-zinc-400">Đang tải...</p>
+              ) : binDetailQuery.isError && !binDetailQuery.data ? (
+                <QueryError
+                  compact
+                  error={binDetailQuery.error}
+                  onRetry={() => void binDetailQuery.refetch()}
+                  retrying={binDetailQuery.isFetching}
+                  title="Không tải được nội dung vị trí"
+                />
               ) : !binDetailQuery.data?.data.content.length ? (
                 <p className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 p-4 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
                   Vị trí trống
@@ -853,12 +877,12 @@ function FooterStat({
         <Icon className={cn("h-4 w-4", cls.iconColor)} />
       </div>
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</p>
+        <p className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</p>
         <div className="flex items-center gap-1.5">
           <span className={cn("text-lg font-bold tabular-nums leading-none", cls.valueColor)}>{value}</span>
           {badge && (
             <span className={cn(
-              "rounded-full px-1.5 py-0.5 text-[10px] font-bold",
+              "rounded-full px-1.5 py-0.5 text-xs font-bold",
               badgeTone === "emerald" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400" : "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
             )}>
               {badge}
@@ -891,7 +915,7 @@ function LegendDot({ color, label, pulse, stroke }: {
 function DetailStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-800">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</p>
+      <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</p>
       <p className="mt-1 font-mono text-base font-bold text-zinc-900 dark:text-zinc-50">{value}</p>
     </div>
   );
@@ -938,11 +962,11 @@ function BinListView({ bins, onSelect }: { bins: BinNode[]; onSelect: (id: strin
                 <td className="px-3 py-2.5 text-sm text-zinc-700 dark:text-zinc-300">{b.lotCount}</td>
                 <td className="px-3 py-2.5">
                   {b.totalQty === 0 ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">Trống</span>
+                    <span className="inline-flex whitespace-nowrap items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">Trống</span>
                   ) : b.isLow ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800">Sắp hết</span>
+                    <span className="inline-flex whitespace-nowrap items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800">Sắp hết</span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800">Có hàng</span>
+                    <span className="inline-flex whitespace-nowrap items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800">Có hàng</span>
                   )}
                 </td>
                 <td className="px-3 py-2.5">

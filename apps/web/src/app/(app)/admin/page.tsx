@@ -19,6 +19,7 @@ import {
   Users,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryError } from "@/components/ui/query-error";
 import { useAdminStats, type AdminStatsPayload } from "@/hooks/useAdmin";
 import { cn } from "@/lib/utils";
 import { AdminPageShell } from "@/components/admin/AdminPageShell";
@@ -37,6 +38,18 @@ import { AdminPageShell } from "@/components/admin/AdminPageShell";
 export default function AdminIndexPage() {
   const statsQuery = useAdminStats();
   const stats = statsQuery.data?.data ?? null;
+  // V4.1 UI-05: lỗi tải stats → khối báo lỗi gọn + "Thử lại" (không báo "Chưa có…").
+  const statsError =
+    statsQuery.isError && !stats ? (
+      <QueryError
+        compact
+        className="m-4"
+        error={statsQuery.error}
+        onRetry={() => void statsQuery.refetch()}
+        retrying={statsQuery.isFetching}
+        title="Không tải được số liệu quản trị"
+      />
+    ) : null;
 
   const sha = (process.env.NEXT_PUBLIC_BUILD_SHA || "dev").slice(0, 7);
   const date = process.env.NEXT_PUBLIC_BUILD_DATE || "";
@@ -172,6 +185,8 @@ export default function AdminIndexPage() {
                   </div>
                 ))}
               </div>
+            ) : statsError ? (
+              statsError
             ) : !stats ? (
               <EmptyRow text="Không tải được trạng thái." />
             ) : (
@@ -291,6 +306,8 @@ export default function AdminIndexPage() {
           >
             {statsQuery.isLoading ? (
               <SkeletonList rows={6} />
+            ) : statsError ? (
+              statsError
             ) : !stats || stats.recentAuditEvents.length === 0 ? (
               <EmptyRow text="Chưa có hoạt động." />
             ) : (
@@ -359,6 +376,8 @@ export default function AdminIndexPage() {
           >
             {statsQuery.isLoading ? (
               <SkeletonList rows={5} />
+            ) : statsError ? (
+              statsError
             ) : !stats || stats.recentActiveSessions.length === 0 ? (
               <EmptyRow text="Không có phiên nào đang hoạt động." />
             ) : (
@@ -632,7 +651,7 @@ function ActionBadge({ action }: { action: string }) {
   return (
     <span
       className={cn(
-        "inline-flex h-4 items-center rounded px-1.5 font-mono text-[10px] font-semibold uppercase tracking-normal ring-1 ring-inset",
+        "inline-flex h-4 items-center rounded px-1.5 font-mono text-xs font-semibold uppercase tracking-normal ring-1 ring-inset",
         cls,
       )}
     >
@@ -715,7 +734,7 @@ function HealthCard({
           </p>
           <span
             className={cn(
-              "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium ring-1 ring-inset",
+              "inline-flex whitespace-nowrap items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium ring-1 ring-inset",
               config.chip,
               config.ring,
             )}

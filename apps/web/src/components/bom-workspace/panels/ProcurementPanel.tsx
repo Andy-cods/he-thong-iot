@@ -10,6 +10,7 @@ import {
   type POStatus,
 } from "@iot/shared";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryError } from "@/components/ui/query-error";
 import {
   StatusBadge,
   type BadgeStatus,
@@ -78,6 +79,9 @@ export function ProcurementPanel({
 
   const prRows = prQuery.data?.data ?? [];
   const poRows = poQuery.data?.data ?? [];
+  // V4.1 UI-05: lỗi API không được hiện "Chưa có PR/PO".
+  const prFailed = prQuery.isError && prRows.length === 0;
+  const poFailed = poQuery.isError && poRows.length === 0;
 
   return (
     <div className="flex h-full flex-col">
@@ -103,8 +107,8 @@ export function ProcurementPanel({
               )}
             >
               {k === "pr"
-                ? `PR · ${prQuery.isLoading ? "…" : prRows.length}`
-                : `PO · ${poQuery.isLoading ? "…" : poRows.length}`}
+                ? `PR · ${prQuery.isLoading ? "…" : prFailed ? "—" : prRows.length}`
+                : `PO · ${poQuery.isLoading ? "…" : poFailed ? "—" : poRows.length}`}
             </button>
           ))}
         </div>
@@ -130,7 +134,27 @@ export function ProcurementPanel({
       {/* Content */}
       <div className="flex-1 overflow-auto">
         {subTab === "pr" ? (
-          <PRTable rows={prRows} loading={prQuery.isLoading} />
+          prFailed && !prQuery.isLoading ? (
+            <QueryError
+              compact
+              className="m-3"
+              error={prQuery.error}
+              onRetry={() => void prQuery.refetch()}
+              retrying={prQuery.isFetching}
+              title="Không tải được danh sách PR"
+            />
+          ) : (
+            <PRTable rows={prRows} loading={prQuery.isLoading} />
+          )
+        ) : poFailed && !poQuery.isLoading ? (
+          <QueryError
+            compact
+            className="m-3"
+            error={poQuery.error}
+            onRetry={() => void poQuery.refetch()}
+            retrying={poQuery.isFetching}
+            title="Không tải được danh sách PO"
+          />
         ) : (
           <POTable rows={poRows} loading={poQuery.isLoading} />
         )}
@@ -165,7 +189,7 @@ export function ProcurementPanel({
     return (
       <table className="w-full text-xs">
         <thead className="sticky top-0 z-10 bg-zinc-50/80 backdrop-blur-sm dark:bg-zinc-800/60">
-          <tr className="border-b border-zinc-200 text-[10px] uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+          <tr className="border-b border-zinc-200 text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
             <th className="px-3 py-1.5 text-left font-medium">Mã PR</th>
             <th className="px-3 py-1.5 text-left font-medium">Tiêu đề</th>
             <th className="px-3 py-1.5 text-left font-medium">Nguồn</th>
@@ -183,7 +207,7 @@ export function ProcurementPanel({
               <td className="px-3 text-zinc-700 dark:text-zinc-300">
                 {row.title ?? <span className="text-zinc-400 dark:text-zinc-500">—</span>}
               </td>
-              <td className="px-3 text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              <td className="px-3 text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                 {row.source}
               </td>
               <td className="px-3">
@@ -233,7 +257,7 @@ export function ProcurementPanel({
         <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-xs text-zinc-500 dark:text-zinc-400">
           <Package className="h-5 w-5 text-zinc-300 dark:text-zinc-600" aria-hidden />
           <span>Chưa có Purchase Order gắn với BOM này.</span>
-          <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
+          <span className="text-xs text-zinc-400 dark:text-zinc-500">
             PO thường được sinh từ PR đã APPROVED → CONVERT.
           </span>
         </div>
@@ -242,7 +266,7 @@ export function ProcurementPanel({
     return (
       <table className="w-full text-xs">
         <thead className="sticky top-0 z-10 bg-zinc-50/80 backdrop-blur-sm dark:bg-zinc-800/60">
-          <tr className="border-b border-zinc-200 text-[10px] uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+          <tr className="border-b border-zinc-200 text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
             <th className="px-3 py-1.5 text-left font-medium">Mã PO</th>
             <th className="px-3 py-1.5 text-left font-medium">NCC</th>
             <th className="px-3 py-1.5 text-left font-medium">Trạng thái</th>
@@ -276,7 +300,7 @@ export function ProcurementPanel({
               </td>
               <td className="px-3 text-right font-mono tabular-nums text-zinc-700 dark:text-zinc-300">
                 {Number(row.totalAmount ?? 0).toLocaleString("vi-VN")}{" "}
-                <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
+                <span className="text-xs text-zinc-400 dark:text-zinc-500">
                   {row.currency}
                 </span>
               </td>

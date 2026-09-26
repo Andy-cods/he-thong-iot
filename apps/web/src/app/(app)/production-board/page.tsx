@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryError } from "@/components/ui/query-error";
 import {
   Select,
   SelectContent,
@@ -61,7 +62,7 @@ const STATUS_OPTIONS: BoardStatus[] = [
 ];
 
 export default function ProductionBoardAdminPage() {
-  const { data, isLoading } = useProductionBoard({
+  const { data, isLoading, isError, error, isFetching, refetch } = useProductionBoard({
     all: true,
     completedLimit: 20,
     refetchInterval: 0,
@@ -165,6 +166,14 @@ export default function ProductionBoardAdminPage() {
       <div className="flex-1 overflow-auto p-4">
         {isLoading ? (
           <Skeleton className="h-64 w-full rounded-xl" />
+        ) : isError && items.length === 0 ? (
+          // V4.1 UI-05: lỗi API không được hiện "Chưa có mã hàng nào".
+          <QueryError
+            error={error}
+            onRetry={() => void refetch()}
+            retrying={isFetching}
+            title="Không tải được bảng sản xuất"
+          />
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
             <Monitor className="h-12 w-12 text-zinc-300 dark:text-zinc-700" />
@@ -217,7 +226,7 @@ export default function ProductionBoardAdminPage() {
                           </span>
                         </div>
                         {it.rfqNo && (
-                          <span className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500">
+                          <span className="font-mono text-sm text-zinc-400 dark:text-zinc-500">
                             {it.rfqNo}
                           </span>
                         )}
@@ -227,7 +236,7 @@ export default function ProductionBoardAdminPage() {
                           {firstLine(it.productName)}
                         </p>
                         {it.currentStage && (
-                          <span className="text-[11px] text-zinc-400 dark:text-zinc-500">
+                          <span className="text-sm text-zinc-400 dark:text-zinc-500">
                             ▸ {it.currentStage}
                           </span>
                         )}
@@ -245,8 +254,8 @@ export default function ProductionBoardAdminPage() {
                       </td>
                       <td
                         className={cn(
-                          "px-3 py-2.5 text-center text-xs",
-                          deadlineTone(it.deadline),
+                          "whitespace-nowrap px-3 py-2.5 text-center text-sm",
+                          deadlineTone(it.deadline, it.status),
                         )}
                       >
                         {fmtDeadline(it.deadline)}
@@ -261,7 +270,7 @@ export default function ProductionBoardAdminPage() {
                         >
                           <SelectTrigger
                             className={cn(
-                              "h-7 w-32 border-0 text-xs font-semibold",
+                              "h-7 w-32 border-0 text-sm font-semibold",
                               STATUS_META[it.status].chip,
                             )}
                           >
@@ -371,8 +380,13 @@ function fmtDeadline(deadline: string | null): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
 }
-function deadlineTone(deadline: string | null): string {
+// V4.1 UI-07: dòng đã Hoàn thành/Đã giao KHÔNG tô đỏ/cam theo hạn — trước đây
+// cả bảng đỏ vì hàng đã giao quá ngày hạn, mất tín hiệu thật.
+function deadlineTone(deadline: string | null, status?: BoardStatus): string {
   if (!deadline) return "text-zinc-400 dark:text-zinc-500";
+  if (status === "COMPLETED" || status === "DELIVERED") {
+    return "text-zinc-500 dark:text-zinc-400";
+  }
   const days = (new Date(deadline).getTime() - Date.now()) / 86_400_000;
   if (days < 0) return "text-red-600 font-semibold dark:text-red-400";
   if (days <= 3) return "text-amber-600 font-medium dark:text-amber-400";

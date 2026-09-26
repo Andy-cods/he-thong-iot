@@ -271,7 +271,7 @@ function Leaderboard({
                   .slice(0, 4)
                   .map(([k, v]) => (
                     <div key={k} className="text-right">
-                      <div className="text-[10px] font-semibold uppercase tracking-normal text-zinc-500 dark:text-zinc-400">
+                      <div className="text-xs font-semibold uppercase tracking-normal text-zinc-500 dark:text-zinc-400">
                         {SORT_OPTIONS_BY_ROLE[data.department.role]?.find(
                           (o) => o.value === k,
                         )?.label ?? k}

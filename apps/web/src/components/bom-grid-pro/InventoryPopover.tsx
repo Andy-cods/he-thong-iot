@@ -149,7 +149,7 @@ export function InventoryPopover({
                   <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                     Lot gần nhất
                   </span>
-                  <span className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500">
+                  <span className="font-mono text-xs text-zinc-400 dark:text-zinc-500">
                     {query.data.data.lots.length} / 5
                   </span>
                 </div>
@@ -166,10 +166,10 @@ export function InventoryPopover({
                           <div className="truncate font-mono text-[11px] font-medium text-zinc-800 dark:text-zinc-200">
                             {lot.lotCode ?? lot.serialCode ?? "—"}
                           </div>
-                          <div className="flex items-center gap-1 text-[10px] text-zinc-500 dark:text-zinc-400">
+                          <div className="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400">
                             <span
                               className={cn(
-                                "inline-flex h-4 items-center rounded px-1.5 text-[9px] font-medium ring-1 ring-inset",
+                                "inline-flex h-4 items-center rounded px-1.5 text-xs font-medium ring-1 ring-inset",
                                 LOT_STATUS_CLASS[lot.status] ??
                                   "bg-zinc-50 text-zinc-600 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",
                               )}

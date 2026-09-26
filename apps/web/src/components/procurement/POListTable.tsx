@@ -136,7 +136,7 @@ export function POListTable({ rows, loading }: POListTableProps) {
               <span className="hidden md:block">
                 {approvalCfg ? (
                   <span className={cn(
-                    "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset",
+                    "inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset",
                     approvalCfg.cls,
                   )}>
                     {approvalCfg.label}
@@ -149,7 +149,7 @@ export function POListTable({ rows, loading }: POListTableProps) {
                 {row.expectedEta ? formatDate(row.expectedEta, "dd/MM/yyyy") : "—"}
               </span>
               <span className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset w-fit",
+                "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset w-fit",
                 statusCfg.cls,
               )}>
                 <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", statusCfg.dot)} aria-hidden />

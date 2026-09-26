@@ -21,6 +21,7 @@ import {
 } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryError } from "@/components/ui/query-error";
 import { DialogConfirm } from "@/components/ui/dialog";
 import { BulkActionBar } from "@/components/items/BulkActionBar";
 import {
@@ -216,7 +217,8 @@ export function ItemsTab() {
     toast.info("Xuất Excel: sẽ có ở V1.1.");
   };
 
-  const isEmpty = !query.isLoading && rows.length === 0;
+  // V4.1 UI-05: lỗi API không được coi là "chưa có vật tư".
+  const isEmpty = !query.isLoading && !query.isError && rows.length === 0;
   const hasFilter =
     urlState.q !== "" ||
     urlState.type.length > 0 ||
@@ -229,18 +231,19 @@ export function ItemsTab() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <div>
+      {/* V4.1 UI-X6: header chuẩn flex-wrap + min-w-0 — điện thoại nút xuống dòng, không tràn/gãy chữ. */}
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
+        <div className="min-w-0 flex-1 basis-48">
           <h2 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             Danh mục vật tư
           </h2>
           <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-            {total.toLocaleString("vi-VN")} vật tư · cập nhật realtime
+            {query.isError ? "—" : total.toLocaleString("vi-VN")} vật tư · cập nhật realtime
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button asChild variant="ghost" size="sm">
-            <Link href="/items/import">
+            <Link href="/items/import" className="whitespace-nowrap">
               <FileUp className="h-3.5 w-3.5" aria-hidden="true" />
               Nhập Excel
             </Link>
@@ -264,7 +267,14 @@ export function ItemsTab() {
       />
 
       <div className="flex-1 overflow-hidden p-4">
-        {isEmpty ? (
+        {query.isError && rows.length === 0 ? (
+          <QueryError
+            error={query.error}
+            onRetry={() => void query.refetch()}
+            retrying={query.isFetching}
+            title="Không tải được danh mục vật tư"
+          />
+        ) : isEmpty ? (
           hasFilter ? (
             <EmptyState
               preset="no-filter-match"

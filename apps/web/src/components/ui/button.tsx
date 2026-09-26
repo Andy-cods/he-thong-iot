@@ -33,12 +33,14 @@ const buttonVariants = cva(
       },
       size: {
         xs: "h-6 px-2 text-xs", // 24px
-        sm: "h-7 px-2.5 text-sm", // 28px
-        md: "h-8 px-3 text-base", // 32px — default V2
-        default: "h-8 px-3 text-base", // alias md cho back-compat V1
+        // V4.1 UI-X7: màn cảm ứng (pointer: coarse) → vùng chạm tối thiểu 36px;
+        // desktop giữ mật độ compact 28/32px.
+        sm: "h-7 px-2.5 text-sm [@media(pointer:coarse)]:h-9", // 28px
+        md: "h-8 px-3 text-base [@media(pointer:coarse)]:h-9", // 32px — default V2
+        default: "h-8 px-3 text-base [@media(pointer:coarse)]:h-9", // alias md cho back-compat V1
         lg: "h-11 px-4 text-md", // 44px — PWA touch
-        icon: "h-8 w-8", // 32px square
-        "icon-sm": "h-7 w-7", // 28px square
+        icon: "h-8 w-8 [@media(pointer:coarse)]:h-9 [@media(pointer:coarse)]:w-9", // 32px square
+        "icon-sm": "h-7 w-7 [@media(pointer:coarse)]:h-9 [@media(pointer:coarse)]:w-9", // 28px square
       },
     },
     defaultVariants: {

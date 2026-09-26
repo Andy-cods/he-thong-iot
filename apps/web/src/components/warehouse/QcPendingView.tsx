@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { QueryError } from "@/components/ui/query-error";
 import { Textarea } from "@/components/ui/textarea";
 import { useSession } from "@/hooks/useSession";
 import {
@@ -112,10 +113,10 @@ export function QcPendingView({ className }: { className?: string }) {
         </div>
         <div className="flex items-center gap-2 text-xs">
           <span className="rounded-md bg-amber-50 px-2 py-1 font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
-            Chờ kiểm: <strong className="tabular-nums">{counts?.pending ?? "…"}</strong>
+            Chờ kiểm: <strong className="tabular-nums">{counts?.pending ?? (list.isError ? "—" : "…")}</strong>
           </span>
           <span className="rounded-md bg-red-50 px-2 py-1 font-medium text-red-700 dark:bg-red-950/40 dark:text-red-400">
-            Không đạt: <strong className="tabular-nums">{counts?.failed ?? "…"}</strong>
+            Không đạt: <strong className="tabular-nums">{counts?.failed ?? (list.isError ? "—" : "…")}</strong>
           </span>
         </div>
       </header>
@@ -163,9 +164,13 @@ export function QcPendingView({ className }: { className?: string }) {
             Đang tải…
           </div>
         ) : list.isError ? (
-          <div className="p-6 text-sm text-red-700 dark:text-red-400">
-            {(list.error as Error)?.message ?? "Không tải được danh sách chờ QC."}
-          </div>
+          // V4.1 UI-05: khối lỗi chung + nút "Thử lại".
+          <QueryError
+            error={list.error}
+            onRetry={() => void list.refetch()}
+            retrying={list.isFetching}
+            title="Không tải được danh sách chờ QC"
+          />
         ) : rows.length === 0 ? (
           <div className="p-10 text-center text-sm text-zinc-500 dark:text-zinc-400">
             {filter === "FAIL"
@@ -228,7 +233,7 @@ export function QcPendingView({ className }: { className?: string }) {
                     <td className="px-3 py-2 text-xs">
                       {r.qcStatus === "FAIL" ? (
                         <>
-                          <span className="inline-flex items-center gap-1 rounded bg-red-100 px-1.5 py-0.5 font-medium text-red-700 dark:bg-red-950/40 dark:text-red-400">
+                          <span className="inline-flex whitespace-nowrap items-center gap-1 rounded bg-red-100 px-1.5 py-0.5 font-medium text-red-700 dark:bg-red-950/40 dark:text-red-400">
                             <XCircle className="h-3 w-3" aria-hidden />
                             Không đạt
                           </span>
@@ -244,7 +249,7 @@ export function QcPendingView({ className }: { className?: string }) {
                           ) : null}
                         </>
                       ) : (
-                        <span className="inline-flex items-center rounded bg-amber-100 px-1.5 py-0.5 font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
+                        <span className="inline-flex whitespace-nowrap items-center rounded bg-amber-100 px-1.5 py-0.5 font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
                           Chờ kiểm
                         </span>
                       )}

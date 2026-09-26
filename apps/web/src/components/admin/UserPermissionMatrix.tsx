@@ -314,7 +314,7 @@ export function UserPermissionMatrix({ userId, isSelf = false }: Props) {
                 <td className="sticky left-0 z-10 bg-white px-3 py-2 font-medium tracking-tight text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200">
                   <div className="flex flex-col">
                     <span>{ENTITY_LABELS[entity]}</span>
-                    <code className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500">
+                    <code className="font-mono text-xs text-zinc-400 dark:text-zinc-500">
                       {entity}
                     </code>
                   </div>
@@ -388,7 +388,7 @@ export function UserPermissionMatrix({ userId, isSelf = false }: Props) {
             </span>
           </span>
           {dirtyCount > 0 ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-amber-700 ring-1 ring-inset ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800">
+            <span className="inline-flex whitespace-nowrap items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-amber-700 ring-1 ring-inset ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800">
               {dirtyCount} thay đổi chưa lưu
             </span>
           ) : null}

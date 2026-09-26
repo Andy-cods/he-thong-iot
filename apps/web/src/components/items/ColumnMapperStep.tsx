@@ -287,7 +287,7 @@ export function ColumnMapperStep({
                       </span>
                       {isDuplicate ? (
                         <span
-                          className="inline-flex items-center rounded-sm bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
+                          className="inline-flex whitespace-nowrap items-center rounded-sm bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
                           title={`Có ${headerCounts[header]} cột trùng tên`}
                         >
                           Trùng #{dupIndex}

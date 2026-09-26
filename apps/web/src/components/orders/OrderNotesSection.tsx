@@ -228,7 +228,7 @@ export function OrderNotesSection({
                             {ev.notes}
                           </p>
                         )}
-                        <p className="mt-0.5 font-mono text-[10px] text-zinc-500 dark:text-zinc-400">
+                        <p className="mt-0.5 font-mono text-xs text-zinc-500 dark:text-zinc-400">
                           {formatDate(ev.occurredAt, "dd/MM/yyyy HH:mm")}
                         </p>
                       </div>

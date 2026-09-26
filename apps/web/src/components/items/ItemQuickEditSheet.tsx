@@ -500,7 +500,7 @@ function LotsPanel({ itemId }: { itemId: string }) {
       ) : (
         <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-800">
           <table className="w-full text-xs">
-            <thead className="bg-zinc-50 text-[10px] uppercase tracking-wide text-zinc-500 dark:bg-zinc-800/60 dark:text-zinc-400">
+            <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-800/60 dark:text-zinc-400">
               <tr>
                 <th className="px-2 py-1.5 text-left">Lô / Serial</th>
                 <th className="px-2 py-1.5 text-right">Tồn</th>
@@ -516,7 +516,7 @@ function LotsPanel({ itemId }: { itemId: string }) {
                       {r.lotCode ?? r.serialCode ?? r.id.slice(0, 8)}
                     </code>
                     {r.expDate && (
-                      <span className="ml-1 text-[10px] text-zinc-500 dark:text-zinc-400">
+                      <span className="ml-1 text-xs text-zinc-500 dark:text-zinc-400">
                         HSD {new Date(r.expDate).toLocaleDateString("vi-VN")}
                       </span>
                     )}
@@ -540,7 +540,7 @@ function LotsPanel({ itemId }: { itemId: string }) {
                     </span>
                     {r.holdReason && (
                       <span
-                        className="ml-1 cursor-help text-[10px] text-amber-600 dark:text-amber-400"
+                        className="ml-1 cursor-help text-xs text-amber-600 dark:text-amber-400"
                         title={r.holdReason}
                       >
                         ⓘ
@@ -553,7 +553,7 @@ function LotsPanel({ itemId }: { itemId: string }) {
                         type="button"
                         onClick={() => handleHold(r.id, r.lotCode)}
                         disabled={holdMut.isPending}
-                        className="inline-flex h-6 items-center gap-0.5 rounded bg-amber-50 px-1.5 text-[10px] font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50 dark:bg-amber-950/40 dark:text-amber-400 dark:hover:bg-amber-900/40"
+                        className="inline-flex h-6 items-center gap-0.5 rounded bg-amber-50 px-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50 dark:bg-amber-950/40 dark:text-amber-400 dark:hover:bg-amber-900/40"
                         title="Hold (giữ lại — không pick)"
                       >
                         <Lock className="h-3 w-3" /> Hold
@@ -563,13 +563,13 @@ function LotsPanel({ itemId }: { itemId: string }) {
                         type="button"
                         onClick={() => handleRelease(r.id)}
                         disabled={releaseMut.isPending}
-                        className="inline-flex h-6 items-center gap-0.5 rounded bg-emerald-50 px-1.5 text-[10px] font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-900/40"
+                        className="inline-flex h-6 items-center gap-0.5 rounded bg-emerald-50 px-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-900/40"
                         title="Release → AVAILABLE"
                       >
                         <Unlock className="h-3 w-3" /> Release
                       </button>
                     ) : (
-                      <span className="text-[10px] text-zinc-400 dark:text-zinc-500">—</span>
+                      <span className="text-xs text-zinc-400 dark:text-zinc-500">—</span>
                     )}
                   </td>
                 </tr>

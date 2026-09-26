@@ -21,7 +21,8 @@ export const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "inline-flex h-9 w-full items-center justify-start gap-1 border-b border-zinc-200 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400",
+      // V4.1 UI-X6: cuộn ngang khi nhiều tab (chi tiết vật tư/NCC tràn 432/418px trên 390px).
+      "inline-flex h-9 w-full items-end justify-start gap-1 overflow-x-auto overflow-y-hidden border-b border-zinc-200 text-zinc-500 [scrollbar-width:none] dark:border-zinc-800 dark:text-zinc-400 [&::-webkit-scrollbar]:hidden",
       className,
     )}
     {...props}
@@ -36,7 +37,7 @@ export const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      "inline-flex h-8 items-center justify-center whitespace-nowrap border-b-2 border-transparent px-3 text-base font-medium text-zinc-500 transition-colors duration-100 ease-out -mb-px dark:text-zinc-400",
+      "inline-flex h-8 shrink-0 items-center justify-center whitespace-nowrap border-b-2 border-transparent px-3 text-base font-medium text-zinc-500 transition-colors duration-100 ease-out dark:text-zinc-400",
       "hover:text-zinc-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2 dark:hover:text-zinc-200",
       "disabled:pointer-events-none disabled:opacity-50",
       "data-[state=active]:border-zinc-900 data-[state=active]:text-zinc-900 dark:data-[state=active]:border-zinc-50 dark:data-[state=active]:text-zinc-50",

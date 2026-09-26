@@ -193,7 +193,7 @@ export default function MaterialRequestsArchivePage() {
               <span className="truncate">Yêu cầu vật tư từ kho</span>
             </h1>
             <p className="mt-1 hidden text-sm text-zinc-500 sm:block dark:text-zinc-400">
-              <span className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">{total.toLocaleString("vi-VN")}</span>{" "}
+              <span className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">{/* V4.1 UI-05: lỗi → "—" */}{isError ? "—" : total.toLocaleString("vi-VN")}</span>{" "}
               yêu cầu — Engineer tạo yêu cầu, kho chuẩn bị và bàn giao linh kiện.
             </p>
           </div>

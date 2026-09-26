@@ -14,6 +14,7 @@ import {
 import { useSession } from "@/hooks/useSession";
 import { useBomSheetsList } from "@/hooks/useBomSheets";
 import { BomSheetTabs } from "@/components/bom/BomSheetTabs";
+import { QueryError } from "@/components/ui/query-error";
 import { AddBomSheetDialog } from "@/components/bom/AddBomSheetDialog";
 import { MaterialProcessSheetView } from "@/components/bom/MaterialProcessSheetView";
 import { CustomSheetView } from "@/components/bom/CustomSheetView";
@@ -288,7 +289,13 @@ export default function BomGridPage() {
                   Đang tải BOM…
                 </>
               ) : (
-                "Không tải được dữ liệu BOM."
+                // V4.1 UI-05: lỗi tải → thông điệp rõ + "Thử lại".
+                <QueryError
+                  error={detailQuery.error}
+                  onRetry={() => void detailQuery.refetch()}
+                  retrying={detailQuery.isFetching}
+                  title="Không tải được dữ liệu BOM"
+                />
               )}
             </div>
           ) : (

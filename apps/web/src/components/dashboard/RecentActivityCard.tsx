@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryError } from "@/components/ui/query-error";
 
 /**
  * V3.2 RecentActivityCard — vertical timeline 10 audit_event gần đây
@@ -159,8 +160,10 @@ interface RecentActivityCardProps {
 
 export function RecentActivityCard({ className }: RecentActivityCardProps) {
   const [data, setData] = React.useState<ActivityPayload | null>(null);
-  const [error, setError] = React.useState<string | null>(null);
+  // V4.1 UI-05: giữ nguyên lỗi (có "HTTP xxx") để QueryError phân loại.
+  const [error, setError] = React.useState<Error | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [retrying, setRetrying] = React.useState(false);
   const [, setTick] = React.useState(0);
 
   const fetchData = React.useCallback(async (signal?: AbortSignal) => {
@@ -176,7 +179,7 @@ export function RecentActivityCard({ className }: RecentActivityCardProps) {
       setError(null);
     } catch (e) {
       if ((e as Error).name === "AbortError") return;
-      setError("Không tải được hoạt động.");
+      setError(e as Error);
     } finally {
       setLoading(false);
     }
@@ -219,9 +222,16 @@ export function RecentActivityCard({ className }: RecentActivityCardProps) {
       </header>
 
       {error ? (
-        <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
-          {error}
-        </div>
+        <QueryError
+          compact
+          error={error}
+          retrying={retrying}
+          onRetry={() => {
+            setRetrying(true);
+            void fetchData().finally(() => setRetrying(false));
+          }}
+          title="Không tải được hoạt động"
+        />
       ) : null}
 
       {loading ? (
@@ -296,7 +306,7 @@ export function RecentActivityCard({ className }: RecentActivityCardProps) {
             );
           })}
         </ol>
-      ) : (
+      ) : error ? null : (
         <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-200 bg-zinc-50/50 py-10 dark:border-zinc-700 dark:bg-zinc-800/40">
           <div className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-700">
             <Activity className="h-4 w-4 text-zinc-400 dark:text-zinc-500" strokeWidth={2} />

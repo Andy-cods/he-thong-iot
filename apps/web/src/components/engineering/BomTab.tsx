@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { type BomStatus } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryError } from "@/components/ui/query-error";
 import { DialogConfirm } from "@/components/ui/dialog";
 import { BulkActionBar } from "@/components/items/BulkActionBar";
 import {
@@ -309,7 +310,8 @@ export function BomTab() {
     void setUrlState({ sort: `${field}:${nextDir}` as BomSortKey, page: 1 });
   };
 
-  const isEmpty = !query.isLoading && rows.length === 0;
+  // V4.1 UI-05: lỗi API không được coi là "rỗng".
+  const isEmpty = !query.isLoading && !query.isError && rows.length === 0;
   const hasFilter =
     filterState.q !== "" ||
     filterState.statuses.length > 0 ||
@@ -385,7 +387,14 @@ export function BomTab() {
       />
 
       <div className="flex-1 overflow-auto p-4">
-        {isEmpty ? (
+        {query.isError && rows.length === 0 ? (
+          <QueryError
+            error={query.error}
+            onRetry={() => void query.refetch()}
+            retrying={query.isFetching}
+            title="Không tải được danh sách BOM"
+          />
+        ) : isEmpty ? (
           hasFilter ? (
             <EmptyState
               preset="no-filter-match"

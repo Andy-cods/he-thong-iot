@@ -1199,7 +1199,7 @@ function MaterialCombobox({ value, onChange }: MaterialComboboxProps) {
                 <CommandPrimitive.Group
                   key={group}
                   heading={group}
-                  className="px-1 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-1.5 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-zinc-500 dark:[&_[cmdk-group-heading]]:text-zinc-400"
+                  className="px-1 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-zinc-500 dark:[&_[cmdk-group-heading]]:text-zinc-400"
                 >
                   {items.map((m) => (
                     <CommandPrimitive.Item
@@ -1282,7 +1282,7 @@ function ProcessRouteBuilder({
               >
                 <span className="inline-flex items-center gap-0.5 text-emerald-400 dark:text-emerald-500">
                   <GripVertical className="h-3 w-3" aria-hidden />
-                  <span className="font-mono text-[10px] text-emerald-600 dark:text-emerald-400">
+                  <span className="font-mono text-xs text-emerald-600 dark:text-emerald-400">
                     {idx + 1}
                   </span>
                 </span>

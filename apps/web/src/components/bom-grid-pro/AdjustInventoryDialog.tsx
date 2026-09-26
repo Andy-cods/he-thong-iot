@@ -328,7 +328,7 @@ export function AdjustInventoryDialog({
                 className="font-mono text-xs"
               />
               {type === "MINUS" ? (
-                <p className="text-[10px] text-zinc-400 dark:text-zinc-500">
+                <p className="text-xs text-zinc-400 dark:text-zinc-500">
                   MINUS: tự pick lot trong ô có sẵn.
                 </p>
               ) : null}

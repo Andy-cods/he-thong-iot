@@ -20,6 +20,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { QueryError } from "@/components/ui/query-error";
 import { cn } from "@/lib/utils";
 import { useSession } from "@/hooks/useSession";
 import { can } from "@iot/shared";
@@ -408,7 +409,7 @@ function SimpleLineRow({
             disabled={disabled || !line.item}
           />
           {line.item && (
-            <span className="text-[10px] text-zinc-500 whitespace-nowrap dark:text-zinc-400">
+            <span className="text-xs text-zinc-500 whitespace-nowrap dark:text-zinc-400">
               {line.item.uom}
             </span>
           )}
@@ -418,12 +419,12 @@ function SimpleLineRow({
         {line.item && need > 0 && (
           <>
             {ok ? (
-              <span className="inline-flex items-center gap-0.5 rounded bg-emerald-100 px-1.5 py-0.5 font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+              <span className="inline-flex whitespace-nowrap items-center gap-0.5 rounded bg-emerald-100 px-1.5 py-0.5 font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
                 <CheckCircle2 className="h-3 w-3" />
                 Đủ
               </span>
             ) : (
-              <span className="inline-flex items-center gap-0.5 rounded bg-amber-100 px-1.5 py-0.5 font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
+              <span className="inline-flex whitespace-nowrap items-center gap-0.5 rounded bg-amber-100 px-1.5 py-0.5 font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
                 <AlertCircle className="h-3 w-3" />
                 Thiếu {shortage}
               </span>
@@ -432,7 +433,7 @@ function SimpleLineRow({
         )}
         {line.item && (
           <span
-            className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] text-zinc-500 dark:text-zinc-400"
+            className="inline-flex whitespace-nowrap items-center rounded px-1.5 py-0.5 text-xs text-zinc-500 dark:text-zinc-400"
             title={`Khả dụng: ${have} ${line.item.uom} (không tính hàng chờ QC / đã giữ chỗ)`}
           >
             khả dụng {have.toLocaleString("vi-VN")}
@@ -870,13 +871,13 @@ function ItemPicker({
           <code className="font-mono text-xs font-bold text-indigo-900 dark:text-indigo-200">
             {value.sku}
           </code>
-          <p className="truncate text-[10px] text-indigo-700 dark:text-indigo-400">{value.name}</p>
+          <p className="truncate text-xs text-indigo-700 dark:text-indigo-400">{value.name}</p>
         </div>
         <button
           type="button"
           onClick={() => onChange(null)}
           disabled={disabled}
-          className="text-[10px] text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+          className="text-xs text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
         >
           Đổi
         </button>
@@ -914,13 +915,13 @@ function ItemPicker({
                   <code className="font-mono text-xs font-bold text-zinc-900 dark:text-zinc-50">
                     {r.sku}
                   </code>
-                  <p className="truncate text-[10px] text-zinc-600 dark:text-zinc-400">
+                  <p className="truncate text-xs text-zinc-600 dark:text-zinc-400">
                     {r.name}
                   </p>
                 </div>
                 <span
                   className={cn(
-                    "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold tabular-nums",
+                    "shrink-0 rounded px-1.5 py-0.5 text-xs font-bold tabular-nums",
                     r.totalQty > 0
                       ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
                       : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400",
@@ -995,7 +996,9 @@ function PendingRequestsPanel() {
   const isAdmin = session?.roles.includes("admin") ?? false;
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("PENDING");
 
-  const { data, isLoading, refetch } = useQuery<{ data: IssueRequestRow[] }>({
+  const { data, isLoading, isError, error, isFetching, refetch } = useQuery<{
+    data: IssueRequestRow[];
+  }>({
     queryKey: ["issue-request", "list", statusFilter],
     queryFn: async () => {
       const qs =
@@ -1003,6 +1006,10 @@ function PendingRequestsPanel() {
       const res = await fetch(
         `/api/warehouse/issue-request?pageSize=50${qs}`,
       );
+      // V4.1 UI-05: HTTP lỗi phải ném ra, không nuốt thành danh sách rỗng.
+      if (!res.ok) {
+        throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status });
+      }
       return res.json();
     },
     staleTime: 15_000,
@@ -1111,6 +1118,14 @@ function PendingRequestsPanel() {
             <p className="inline-flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400">
               <Loader2 className="h-3 w-3 animate-spin" /> Đang tải…
             </p>
+          ) : isError && rows.length === 0 ? (
+            <QueryError
+              compact
+              error={error}
+              onRetry={() => void refetch()}
+              retrying={isFetching}
+              title="Không tải được yêu cầu xuất kho"
+            />
           ) : rows.length === 0 ? (
             <p className="rounded-lg border border-dashed border-zinc-300 p-4 text-center text-xs text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
               Không có yêu cầu nào ở trạng thái này.
@@ -1136,27 +1151,27 @@ function PendingRequestsPanel() {
                           </code>
                           <span
                             className={cn(
-                              "rounded px-1.5 py-0.5 text-[10px] font-medium",
+                              "rounded px-1.5 py-0.5 text-xs font-medium",
                               ISR_STATUS_BADGE[r.status] ?? ISR_STATUS_BADGE.PENDING,
                             )}
                           >
                             {ISR_STATUS_LABEL[r.status] ?? r.status}
                           </span>
-                          <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                          <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                             {REQUEST_REASONS.find((x) => x.value === r.reason)
                               ?.label ?? r.reason}
                           </span>
                           {["sales", "return"].includes(r.reason) && (
-                            <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-400">
+                            <span className="rounded bg-violet-100 px-1.5 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-400">
                               Cần Giám đốc duyệt
                             </span>
                           )}
                           {r.reference && (
-                            <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                            <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-xs text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                               {r.reference}
                             </span>
                           )}
-                          <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                          <span className="text-xs text-zinc-500 dark:text-zinc-400">
                             {new Date(r.createdAt).toLocaleString("vi-VN")}
                           </span>
                         </div>
@@ -1199,7 +1214,7 @@ function PendingRequestsPanel() {
                                       key={pi}
                                       className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400"
                                     >
-                                      <span className="rounded bg-blue-50 px-1 font-mono text-[10px] text-blue-700 dark:bg-blue-950/40 dark:text-blue-400">
+                                      <span className="rounded bg-blue-50 px-1 font-mono text-xs text-blue-700 dark:bg-blue-950/40 dark:text-blue-400">
                                         {p.binCode ?? p.binId.slice(0, 8)}
                                       </span>
                                       <span className="font-mono">

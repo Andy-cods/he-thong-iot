@@ -219,7 +219,7 @@ export function BinQuickActionsPopover({
     <div className="w-72">
       <div className="mb-3 flex items-center justify-between gap-2">
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Thao tác nhanh</p>
+          <p className="text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Thao tác nhanh</p>
           <p className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-50">{bin.fullCode}</p>
         </div>
         <div className="text-right">
@@ -229,7 +229,7 @@ export function BinQuickActionsPopover({
               / {bin.capacity ? Number(bin.capacity).toLocaleString("vi-VN") : "—"}
             </span>
           </p>
-          <p className="text-[10px] text-zinc-500 dark:text-zinc-400">tồn / sức chứa</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">tồn / sức chứa</p>
         </div>
       </div>
 

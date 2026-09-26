@@ -20,6 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryError } from "@/components/ui/query-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -97,6 +98,18 @@ export function CategoriesTab() {
               icon={ArrowUpCircle}
               accent="rose"
               rows={outQuery.data?.data ?? []}
+              errorNode={
+                outQuery.isError && !outQuery.data ? (
+                  <QueryError
+                    compact
+                    className="m-3"
+                    error={outQuery.error}
+                    onRetry={() => void outQuery.refetch()}
+                    retrying={outQuery.isFetching}
+                    title="Không tải được danh mục chi"
+                  />
+                ) : null
+              }
               canWrite={canWrite}
               onCreate={() => openCreate("OUT")}
               onEdit={openEdit}
@@ -107,6 +120,18 @@ export function CategoriesTab() {
               icon={ArrowDownCircle}
               accent="emerald"
               rows={inQuery.data?.data ?? []}
+              errorNode={
+                inQuery.isError && !inQuery.data ? (
+                  <QueryError
+                    compact
+                    className="m-3"
+                    error={inQuery.error}
+                    onRetry={() => void inQuery.refetch()}
+                    retrying={inQuery.isFetching}
+                    title="Không tải được danh mục thu"
+                  />
+                ) : null
+              }
               canWrite={canWrite}
               onCreate={() => openCreate("IN")}
               onEdit={openEdit}
@@ -130,6 +155,7 @@ function CategoryColumn({
   icon: Icon,
   accent,
   rows,
+  errorNode,
   canWrite,
   onCreate,
   onEdit,
@@ -139,6 +165,8 @@ function CategoryColumn({
   icon: React.ElementType;
   accent: "emerald" | "rose";
   rows: FinCategoryRow[];
+  /** V4.1 UI-05: khối lỗi tải — khi có thì KHÔNG hiện "Chưa có danh mục nào". */
+  errorNode?: React.ReactNode;
   canWrite: boolean;
   onCreate: () => void;
   onEdit: (row: FinCategoryRow) => void;
@@ -156,7 +184,7 @@ function CategoryColumn({
             <Icon className="h-4 w-4" />
           </div>
           <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-            {title} <span className="font-normal text-zinc-400 dark:text-zinc-500">({rows.length})</span>
+            {title} <span className="font-normal text-zinc-400 dark:text-zinc-500">({errorNode ? "—" : rows.length})</span>
           </p>
         </div>
         {canWrite && (
@@ -166,7 +194,9 @@ function CategoryColumn({
           </Button>
         )}
       </header>
-      {rows.length === 0 ? (
+      {errorNode ? (
+        errorNode
+      ) : rows.length === 0 ? (
         <EmptyState
           preset="no-data"
           title="Chưa có danh mục nào"
@@ -183,7 +213,7 @@ function CategoryColumn({
                 <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-50">
                   {r.name}
                   {!r.isActive && (
-                    <span className="ml-2 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                    <span className="ml-2 rounded-full bg-zinc-100 px-1.5 py-0.5 text-xs font-semibold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
                       Đã ẩn
                     </span>
                   )}

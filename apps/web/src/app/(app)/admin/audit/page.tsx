@@ -13,6 +13,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryError } from "@/components/ui/query-error";
 import { AuditRow } from "@/components/admin/AuditRow";
 import { AdminPageShell } from "@/components/admin/AdminPageShell";
 import { useAuditList } from "@/hooks/useAdmin";
@@ -64,6 +65,9 @@ export default function AdminAuditPage() {
 
   const rows = query.data?.data ?? [];
   const total = query.data?.meta.total ?? 0;
+  // V4.1 UI-05: lỗi tải → hiển thị "—" thay vì "0".
+  const totalLabel =
+    query.isError && !query.data ? "—" : total.toLocaleString("vi-VN");
   const pageCount = Math.max(1, Math.ceil(total / urlState.pageSize));
 
   const hasFilter =
@@ -158,7 +162,7 @@ export default function AdminAuditPage() {
           Theo dõi toàn bộ thao tác ghi (CREATE / UPDATE / DELETE) và sự kiện
           phiên đăng nhập.{" "}
           <span className="font-medium text-zinc-700 dark:text-zinc-300">
-            {total.toLocaleString("vi-VN")} bản ghi
+            {totalLabel} bản ghi
           </span>
           .
         </>
@@ -322,6 +326,15 @@ export default function AdminAuditPage() {
             <div className="flex-1 p-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
               Đang tải…
             </div>
+          ) : query.isError && rows.length === 0 ? (
+            // V4.1 UI-05: API lỗi → khối lỗi + "Thử lại", không phải "Chưa có hoạt động".
+            <QueryError
+              className="flex-1"
+              error={query.error}
+              onRetry={() => void query.refetch()}
+              retrying={query.isFetching}
+              title="Không tải được nhật ký hoạt động"
+            />
           ) : rows.length === 0 ? (
             <div className="flex-1 p-6">
               <EmptyState
@@ -395,7 +408,7 @@ export default function AdminAuditPage() {
             </span>{" "}
             /{" "}
             <span className="tabular-nums text-zinc-900 dark:text-zinc-50">
-              {total.toLocaleString("vi-VN")}
+              {totalLabel}
             </span>
           </span>
           <div className="flex items-center gap-1">

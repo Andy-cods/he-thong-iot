@@ -92,8 +92,10 @@ export function DnvtDetailBody({ pr }: { pr: DnvtDetailPr }) {
   return (
     <article className="border-2 border-zinc-900 bg-white text-zinc-900 shadow-md print:border print:border-zinc-900 print:shadow-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 print:dark:border-zinc-900 print:dark:bg-white print:dark:text-zinc-900">
       {/* Header */}
-      <div className="grid grid-cols-[1fr_2fr_1fr] items-center gap-2 border-b-2 border-zinc-900 px-4 py-3 text-[12px] dark:border-zinc-700 print:dark:border-zinc-900">
-        <div className="flex items-center gap-2">
+      {/* V4.1 UI-15: < md xếp chồng (logo đè tên công ty trên điện thoại);
+          md + bản in giữ 3 cột như mẫu giấy. */}
+      <div className="grid grid-cols-1 items-center gap-2 border-b-2 border-zinc-900 px-4 py-3 text-[12px] dark:border-zinc-700 md:grid-cols-[1fr_2fr_1fr] print:grid-cols-[1fr_2fr_1fr] print:dark:border-zinc-900">
+        <div className="flex min-w-0 items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/img/logo-gtam.png"
@@ -109,14 +111,14 @@ export function DnvtDetailBody({ pr }: { pr: DnvtDetailPr }) {
           <br />
           CÔNG NGHỆ TOÀN CẦU
         </div>
-        <div className="space-y-1 text-right text-[12px]">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[12px] md:block md:space-y-1 md:text-right print:block print:space-y-1 print:text-right">
+          <div className="whitespace-nowrap">
             <span className="font-bold">Số phiếu: </span>
             <span className="rounded bg-[#005D9F] px-2 py-0.5 font-mono text-[12px] text-white">
               {paperFormNo}
             </span>
           </div>
-          <div>
+          <div className="whitespace-nowrap">
             <span className="font-bold">Ngày lập: </span>
             <span className="font-mono">{fmtDateVN(pr.createdAt)}</span>
           </div>
@@ -157,7 +159,7 @@ export function DnvtDetailBody({ pr }: { pr: DnvtDetailPr }) {
         <div className="overflow-x-auto print:overflow-visible">
           <table className="w-full border-collapse text-[11px]">
             <thead>
-              <tr className="bg-[#F5F5F5] text-[10px] font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
+              <tr className="bg-[#F5F5F5] text-xs font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
                 <Th w="w-8">STT</Th>
                 <Th w="min-w-[150px]">Tên vật tư</Th>
                 <Th w="min-w-[120px]">Quy cách chi tiết</Th>
@@ -253,7 +255,7 @@ export function DnvtDetailBody({ pr }: { pr: DnvtDetailPr }) {
         <SectionTitle>III. Kiểm tra &amp; Phê duyệt</SectionTitle>
         <table className="w-full border-collapse text-[11px]">
           <thead>
-            <tr className="bg-[#F5F5F5] text-[10px] font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
+            <tr className="bg-[#F5F5F5] text-xs font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
               <Th w="w-48">Vai trò</Th>
               <Th w="w-56">Họ tên</Th>
               <Th>Ký tên / Ngày</Th>
@@ -304,7 +306,7 @@ export function DnvtDetailBody({ pr }: { pr: DnvtDetailPr }) {
       </section>
 
       {/* Footer mẫu */}
-      <div className="px-4 py-2 text-right text-[10px] italic text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
+      <div className="px-4 py-2 text-right text-xs italic text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
         Mẫu No: GTAM/PRD-MRF-02 | Phiên bản: 1.0 | Hiệu lực: 2025
       </div>
     </article>

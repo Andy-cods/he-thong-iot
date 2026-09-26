@@ -383,13 +383,13 @@ function TargetRow({ target }: { target: ReportTargetRow }) {
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <span className="font-mono text-[10px] font-semibold uppercase tracking-normal text-zinc-500 dark:text-zinc-400">
+            <span className="font-mono text-xs font-semibold uppercase tracking-normal text-zinc-500 dark:text-zinc-400">
               {target.roleCode ?? "ALL"}
             </span>
             <span className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
               {metricLabel}
             </span>
-            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-600 ring-1 ring-inset ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700">
+            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 ring-1 ring-inset ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700">
               {target.periodType === "monthly"
                 ? "Tháng"
                 : target.periodType === "quarterly"
@@ -445,7 +445,7 @@ function TargetRow({ target }: { target: ReportTargetRow }) {
                   : "bg-amber-50 ring-amber-200 dark:bg-amber-950/40 dark:ring-amber-800",
               )}
             >
-              <div className="text-[10px] font-semibold uppercase tracking-normal text-zinc-500 dark:text-zinc-400">
+              <div className="text-xs font-semibold uppercase tracking-normal text-zinc-500 dark:text-zinc-400">
                 Target {target.comparison === "gte" ? "≥" : "≤"}
               </div>
               <div className="font-mono text-sm font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">

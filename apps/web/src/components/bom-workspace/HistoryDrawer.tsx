@@ -9,6 +9,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryError } from "@/components/ui/query-error";
 import { useActivityLog } from "@/hooks/useBom";
 
 const ACTION_LABELS: Record<string, string> = {
@@ -38,7 +39,7 @@ export function HistoryDrawer({ bomId, open, onOpenChange }: HistoryDrawerProps)
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[440px] sm:max-w-[440px]">
+      <SheetContent side="right" className="md:w-[440px]"> {/* V4.1 UI-X1: điện thoại full-width (w-[440px] tràn màn 390px) */}
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <History className="h-4 w-4 text-indigo-500" aria-hidden />
@@ -53,6 +54,15 @@ export function HistoryDrawer({ bomId, open, onOpenChange }: HistoryDrawerProps)
                 <Skeleton key={i} className="h-10 w-full" />
               ))}
             </>
+          ) : query.isError && entries.length === 0 ? (
+            // V4.1 UI-05: lỗi API không được hiện "Chưa có lịch sử".
+            <QueryError
+              compact
+              error={query.error}
+              onRetry={() => void query.refetch()}
+              retrying={query.isFetching}
+              title="Không tải được lịch sử thay đổi"
+            />
           ) : entries.length === 0 ? (
             <p className="py-8 text-center text-xs text-zinc-500 dark:text-zinc-400">
               Chưa có lịch sử thay đổi.

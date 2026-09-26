@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { QueryError } from "@/components/ui/query-error";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -163,6 +164,17 @@ export default function WorkOrderDetailPage() {
       </div>
     );
   }
+  // V4.1 UI-05: lỗi API (429/500/403) ≠ "không tìm thấy".
+  if (!wo && query.isError && (query.error as { status?: number } | null)?.status !== 404) {
+    return (
+      <QueryError
+        error={query.error}
+        onRetry={() => void query.refetch()}
+        retrying={query.isFetching}
+        title="Không tải được lệnh sản xuất"
+      />
+    );
+  }
   if (!wo) {
     return (
       <div className="m-6 rounded-xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-800 dark:bg-red-950/40">
@@ -216,7 +228,7 @@ export default function WorkOrderDetailPage() {
             </span>
             <span
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset",
+                "inline-flex whitespace-nowrap items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset",
                 STATUS_PILL[status],
               )}
             >
@@ -297,7 +309,7 @@ export default function WorkOrderDetailPage() {
                 <h2 className="mt-1 text-xl font-bold tracking-wide text-zinc-900 dark:text-zinc-50 print:dark:text-zinc-900">
                   LỆNH SẢN XUẤT
                 </h2>
-                <p className="mt-0.5 text-[10px] text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
+                <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
                   Mẫu No: GTAM/PRD-LSX · Phiên bản 1.0 ·{" "}
                   <span className="font-mono text-zinc-700 dark:text-zinc-300 print:dark:text-zinc-700">
                     {wo.woNo}
@@ -392,7 +404,7 @@ export default function WorkOrderDetailPage() {
               <div className="overflow-x-auto rounded-md border border-zinc-200 print:overflow-visible dark:border-zinc-700">
                 <table className="w-full text-[11px]">
                   <thead className="bg-zinc-100 dark:bg-zinc-800 print:dark:bg-zinc-100">
-                    <tr className="text-[10px] font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300 print:dark:text-zinc-600">
+                    <tr className="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300 print:dark:text-zinc-600">
                       <th className="border-r border-zinc-200 px-2 py-1.5 w-8 dark:border-zinc-700">#</th>
                       <th className="border-r border-zinc-200 px-2 py-1.5 text-left min-w-[200px] dark:border-zinc-700">Mã VT · Tên</th>
                       <th className="border-r border-zinc-200 px-2 py-1.5 text-right w-24 dark:border-zinc-700">Định mức</th>
@@ -412,13 +424,13 @@ export default function WorkOrderDetailPage() {
                       materials.map((m, i) => (
                         <tr key={i} className="border-t border-zinc-100 align-top dark:border-zinc-800 print:dark:border-zinc-200">
                           <Td>
-                            <span className="block text-center font-mono text-[10px] text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
+                            <span className="block text-center font-mono text-xs text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
                               {i + 1}
                             </span>
                           </Td>
                           <Td>
                             {m.sku ? (
-                              <span className="block font-mono text-[10px] text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
+                              <span className="block font-mono text-xs text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
                                 {m.sku}
                               </span>
                             ) : null}
@@ -434,7 +446,7 @@ export default function WorkOrderDetailPage() {
                             </span>
                           </Td>
                           <Td>
-                            <span className="font-mono text-[10px]">
+                            <span className="font-mono text-xs">
                               {m.warehouse_code ?? "—"}
                             </span>
                           </Td>
@@ -454,7 +466,7 @@ export default function WorkOrderDetailPage() {
               <div className="overflow-x-auto rounded-md border border-zinc-200 print:overflow-visible dark:border-zinc-700">
                 <table className="w-full text-[11px]">
                   <thead className="bg-zinc-100 dark:bg-zinc-800 print:dark:bg-zinc-100">
-                    <tr className="text-[10px] font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300 print:dark:text-zinc-600">
+                    <tr className="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300 print:dark:text-zinc-600">
                       <th className="border-r border-zinc-200 px-2 py-1.5 w-8 dark:border-zinc-700">#</th>
                       <th className="border-r border-zinc-200 px-2 py-1.5 text-left min-w-[140px] dark:border-zinc-700">Tên công đoạn</th>
                       <th className="border-r border-zinc-200 px-2 py-1.5 text-left min-w-[140px] dark:border-zinc-700">Thiết bị</th>
@@ -475,7 +487,7 @@ export default function WorkOrderDetailPage() {
                       routing.map((r, i) => (
                         <tr key={i} className="border-t border-zinc-100 align-top dark:border-zinc-800 print:dark:border-zinc-200">
                           <Td>
-                            <span className="block text-center font-mono text-[10px] text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
+                            <span className="block text-center font-mono text-xs text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
                               {r.step_no}
                             </span>
                           </Td>
@@ -551,7 +563,7 @@ export default function WorkOrderDetailPage() {
               <div className="overflow-x-auto rounded-md border border-zinc-200 print:overflow-visible dark:border-zinc-700">
                 <table className="w-full text-[11px]">
                   <thead className="bg-zinc-100 dark:bg-zinc-800 print:dark:bg-zinc-100">
-                    <tr className="text-[10px] font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300 print:dark:text-zinc-600">
+                    <tr className="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300 print:dark:text-zinc-600">
                       <th className="border-r border-zinc-200 px-2 py-1.5 w-8 dark:border-zinc-700">#</th>
                       <th className="border-r border-zinc-200 px-2 py-1.5 text-left min-w-[140px] dark:border-zinc-700">Tên dao/CCDC</th>
                       <th className="border-r border-zinc-200 px-2 py-1.5 text-left min-w-[120px] dark:border-zinc-700">Mã hiệu</th>
@@ -573,7 +585,7 @@ export default function WorkOrderDetailPage() {
                       tools.map((t, i) => (
                         <tr key={i} className="border-t border-zinc-100 align-top dark:border-zinc-800 print:dark:border-zinc-200">
                           <Td>
-                            <span className="block text-center font-mono text-[10px] text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
+                            <span className="block text-center font-mono text-xs text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
                               {i + 1}
                             </span>
                           </Td>
@@ -581,7 +593,7 @@ export default function WorkOrderDetailPage() {
                             <span className="block break-words font-medium">{t.name}</span>
                           </Td>
                           <Td>
-                            <span className="font-mono text-[10px]">{t.code ?? "—"}</span>
+                            <span className="font-mono text-xs">{t.code ?? "—"}</span>
                           </Td>
                           <Td>{t.machine ?? "—"}</Td>
                           <Td align="right">
@@ -591,7 +603,7 @@ export default function WorkOrderDetailPage() {
                           <Td>
                             <span
                               className={cn(
-                                "rounded px-1.5 py-0.5 text-[10px] font-semibold",
+                                "rounded px-1.5 py-0.5 text-xs font-semibold",
                                 t.status === "OK"
                                   ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
                                   : t.status === "WORN"
@@ -616,7 +628,7 @@ export default function WorkOrderDetailPage() {
             {/* Notes */}
             {wo.notes ? (
               <section className="border-b border-zinc-200 px-6 py-4 print:dark:border-zinc-300">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
                   Ghi chú chung
                 </p>
                 <p className="mt-1 whitespace-pre-line text-[12px] text-zinc-700 dark:text-zinc-200 print:dark:text-zinc-700">
@@ -632,7 +644,7 @@ export default function WorkOrderDetailPage() {
               </h3>
               <table className="w-full text-[11px]">
                 <thead className="bg-zinc-50 dark:bg-zinc-800 print:dark:bg-zinc-50">
-                  <tr className="text-[10px] uppercase text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
+                  <tr className="text-xs uppercase text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
                     <th className="border border-zinc-200 px-2 py-1 text-left dark:border-zinc-700 print:dark:border-zinc-200">
                       Người lập
                     </th>
@@ -650,10 +662,10 @@ export default function WorkOrderDetailPage() {
                 <tbody>
                   <tr>
                     <td className="border border-zinc-200 px-2 py-6 align-top dark:border-zinc-700 print:dark:border-zinc-200">
-                      <span className="block text-[10px] font-semibold text-zinc-700 dark:text-zinc-200 print:dark:text-zinc-700">
+                      <span className="block text-xs font-semibold text-zinc-700 dark:text-zinc-200 print:dark:text-zinc-700">
                         {createdByName}
                       </span>
-                      <span className="block text-[9px] text-zinc-400 dark:text-zinc-500 print:dark:text-zinc-400">
+                      <span className="block text-xs text-zinc-400 dark:text-zinc-500 print:dark:text-zinc-400">
                         {todayStr}
                       </span>
                     </td>
@@ -668,7 +680,7 @@ export default function WorkOrderDetailPage() {
                   </tr>
                 </tbody>
               </table>
-              <p className="mt-2 text-[10px] italic text-zinc-500 print:hidden dark:text-zinc-400">
+              <p className="mt-2 text-xs italic text-zinc-500 print:hidden dark:text-zinc-400">
                 Workflow phê duyệt 4 chữ ký + xác nhận liên bộ phận sẽ làm ở phase
                 sau. Hiện tại {STATUS_LABEL[status]} —{" "}
                 {status === "DRAFT" ? "chờ Gia công duyệt YCSX." : ""}
@@ -731,7 +743,7 @@ export default function WorkOrderDetailPage() {
               </div>
               <table className="w-full text-[12px]">
                 <thead className="bg-zinc-50 dark:bg-zinc-800/40">
-                  <tr className="text-[10px] uppercase text-zinc-500 dark:text-zinc-400">
+                  <tr className="text-xs uppercase text-zinc-500 dark:text-zinc-400">
                     <th className="px-4 py-2 text-left">SKU</th>
                     <th className="px-4 py-2 text-left">Tên</th>
                     <th className="px-4 py-2 text-right">Cần</th>
@@ -802,7 +814,7 @@ export default function WorkOrderDetailPage() {
               <ol className="divide-y divide-zinc-100 dark:divide-zinc-800">
                 {auditQuery.data.data.map((a) => (
                   <li key={a.id} className="flex items-start gap-3 px-5 py-3 text-[12px]">
-                    <span className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500 whitespace-nowrap">
+                    <span className="font-mono text-xs text-zinc-400 dark:text-zinc-500 whitespace-nowrap">
                       {formatDate(a.occurredAt, "dd/MM/yyyy HH:mm")}
                     </span>
                     <div className="min-w-0 flex-1">
@@ -860,7 +872,7 @@ function ROField({
 }) {
   return (
     <div className={cn("space-y-1", wide ? "md:col-span-2" : "")}>
-      <span className="block text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
+      <span className="block text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
         {label}
       </span>
       <div className="min-h-[28px] rounded-md border border-zinc-200 bg-zinc-50/60 px-3 py-1.5 text-[12px] text-zinc-800 dark:border-zinc-700 dark:bg-zinc-800/40 dark:text-zinc-100 print:dark:border-zinc-300 print:dark:bg-zinc-50/60 print:dark:text-zinc-800">
@@ -921,7 +933,7 @@ function KpiCard({
         >
           <Icon className="h-3.5 w-3.5" aria-hidden />
         </span>
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+        <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
           {label}
         </span>
       </div>

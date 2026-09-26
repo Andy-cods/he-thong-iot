@@ -3,6 +3,7 @@
 import * as React from "react";
 import { AlertCircle, CheckCircle2, Clock, TrendingUp } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryError } from "@/components/ui/query-error";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fmtVND } from "@/components/finance/_format";
 import type { AgingBucket, PartnerAging } from "@/hooks/useFinance";
@@ -50,6 +51,12 @@ export function DebtAgingPanel({
   kpiLabel,
   partnerColumnLabel,
   onPartnerClick,
+  isError,
+  error,
+  onRetry,
+  retrying,
+  partnersError,
+  onRetryPartners,
 }: {
   buckets: AgingBucket[];
   partners: PartnerAging[];
@@ -60,6 +67,14 @@ export function DebtAgingPanel({
   partnerColumnLabel: string;
   /** Click 1 dòng đối tác — chỉ khả dụng khi có invoice cụ thể để mở (V1: không mở gì nếu không truyền). */
   onPartnerClick?: (partner: PartnerAging) => void;
+  /** V4.1 UI-05: query buckets lỗi → khối lỗi, KHÔNG hiện "Không có công nợ". */
+  isError?: boolean;
+  error?: unknown;
+  onRetry?: () => void;
+  retrying?: boolean;
+  /** V4.1 UI-05: lỗi riêng của query theo đối tác (bảng chi tiết). */
+  partnersError?: unknown;
+  onRetryPartners?: () => void;
 }) {
   const bucketMap = new Map(buckets.map((b) => [b.bucket, b]));
 
@@ -69,7 +84,7 @@ export function DebtAgingPanel({
     .filter((b) => b.bucket !== "CURRENT")
     .reduce((s, b) => s + b.outstandingAmount, 0);
 
-  const isEmpty = !isLoading && buckets.length === 0;
+  const isEmpty = !isLoading && !isError && buckets.length === 0;
 
   if (isLoading) {
     return (
@@ -79,6 +94,17 @@ export function DebtAgingPanel({
         </div>
         <Skeleton className="h-48 rounded-2xl" />
       </div>
+    );
+  }
+
+  if (isError && buckets.length === 0) {
+    return (
+      <QueryError
+        error={error}
+        onRetry={onRetry}
+        retrying={retrying}
+        title="Không tải được dữ liệu công nợ"
+      />
     );
   }
 
@@ -169,7 +195,15 @@ export function DebtAgingPanel({
         <div className="border-b border-zinc-100 px-5 py-3 dark:border-zinc-800">
           <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Chi tiết theo {partnerColumnLabel.toLowerCase()}</p>
         </div>
-        {partners.length === 0 ? (
+        {partnersError && partners.length === 0 ? (
+          <QueryError
+            compact
+            className="m-4"
+            error={partnersError}
+            onRetry={onRetryPartners}
+            title="Không tải được chi tiết theo đối tác"
+          />
+        ) : partners.length === 0 ? (
           <p className="px-5 py-6 text-center text-sm text-zinc-400 dark:text-zinc-500">Chưa có dữ liệu.</p>
         ) : (
           <div className="overflow-x-auto">

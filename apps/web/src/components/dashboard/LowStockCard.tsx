@@ -208,7 +208,7 @@ export function LowStockCard({ className }: LowStockCardProps) {
                     <td className="px-3 py-2 text-right">
                       <span
                         className={cn(
-                          "inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide",
+                          "inline-flex whitespace-nowrap items-center rounded-full px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide",
                           critical
                             ? "bg-rose-100 text-rose-800 ring-1 ring-rose-200/60 dark:bg-rose-950/60 dark:text-rose-300 dark:ring-rose-800/60"
                             : "bg-amber-100 text-amber-800 ring-1 ring-amber-200/60 dark:bg-amber-950/60 dark:text-amber-300 dark:ring-amber-800/60",

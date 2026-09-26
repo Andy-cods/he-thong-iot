@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { QueryError } from "@/components/ui/query-error";
 import { cn } from "@/lib/utils";
 
 /**
@@ -101,7 +102,8 @@ export default function NotificationsPage() {
     queryFn: async () => {
       const url = filter === "unread" ? "/api/notifications?unread=1&limit=100" : "/api/notifications?limit=100";
       const res = await fetch(url, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to load");
+      // V4.1 UI-05: kèm mã HTTP để QueryError phân biệt 429/403/5xx.
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.json();
     },
     refetchInterval: 30_000,
@@ -212,6 +214,14 @@ export default function NotificationsPage() {
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
             Đang tải…
           </div>
+        ) : query.isError && !query.data ? (
+          // V4.1 UI-05: API lỗi → khối lỗi + "Thử lại", không phải "Chưa có thông báo".
+          <QueryError
+            error={query.error}
+            onRetry={() => void query.refetch()}
+            retrying={query.isFetching}
+            title="Không tải được thông báo"
+          />
         ) : items.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-zinc-300 bg-white p-8 text-center md:p-12 dark:border-zinc-700 dark:bg-zinc-900">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-800">
@@ -269,7 +279,7 @@ export default function NotificationsPage() {
                       <span>{relativeTime(n.createdAt)}</span>
                       {n.actorUsername && <span>· bởi {n.actorUsername}</span>}
                       {!n.isDirect && (
-                        <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-600 ring-1 ring-inset ring-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-300 dark:ring-indigo-800">
+                        <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-600 ring-1 ring-inset ring-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-300 dark:ring-indigo-800">
                           Cho bộ phận
                         </span>
                       )}

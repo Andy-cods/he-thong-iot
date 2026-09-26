@@ -388,7 +388,7 @@ export default function NewLsxPage() {
               <h2 className="mt-1 text-xl font-bold tracking-wide text-zinc-900 dark:text-zinc-50">
                 LỆNH SẢN XUẤT
               </h2>
-              <p className="mt-0.5 text-[10px] text-zinc-500 dark:text-zinc-400">
+              <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
                 Mẫu No: GTAM/PRD-LSX · Phiên bản 1.0
               </p>
             </div>
@@ -505,7 +505,7 @@ export default function NewLsxPage() {
             <div className="overflow-x-auto rounded-md border border-zinc-200 print:overflow-visible dark:border-zinc-700">
               <table className="w-full text-[11px]">
                 <thead className="bg-zinc-100 dark:bg-zinc-800">
-                  <tr className="text-[10px] font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
+                  <tr className="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
                     <th className="border-r border-zinc-200 px-1 py-1.5 w-8 dark:border-zinc-700">#</th>
                     <th className="border-r border-zinc-200 px-1 py-1.5 text-left min-w-[200px] dark:border-zinc-700">Mã VT · Tên</th>
                     <th className="border-r border-zinc-200 px-1 py-1.5 text-right w-20 dark:border-zinc-700">Định mức</th>
@@ -519,7 +519,7 @@ export default function NewLsxPage() {
                 <tbody>
                   {materials.map((m, idx) => (
                     <tr key={m.localId} className="border-t border-zinc-100 align-top dark:border-zinc-800">
-                      <td className="border-r border-zinc-100 px-1 py-1 text-center font-mono text-[10px] text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">{idx + 1}</td>
+                      <td className="border-r border-zinc-100 px-1 py-1 text-center font-mono text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">{idx + 1}</td>
                       <td className="border-r border-zinc-100 px-1 py-1 dark:border-zinc-800">
                         <ItemPicker value={m.item} onChange={(it) => updateMaterial(m.localId, { item: it, uom: m.uom || it?.uom || "" })} disabled={pending} />
                       </td>
@@ -563,7 +563,7 @@ export default function NewLsxPage() {
             <div className="overflow-x-auto rounded-md border border-zinc-200 print:overflow-visible dark:border-zinc-700">
               <table className="w-full text-[11px]">
                 <thead className="bg-zinc-100 dark:bg-zinc-800">
-                  <tr className="text-[10px] font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
+                  <tr className="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
                     <th className="border-r border-zinc-200 px-1 py-1.5 w-8 dark:border-zinc-700">#</th>
                     <th className="border-r border-zinc-200 px-1 py-1.5 text-left min-w-[140px] dark:border-zinc-700">Tên công đoạn</th>
                     <th className="border-r border-zinc-200 px-1 py-1.5 text-left min-w-[140px] dark:border-zinc-700">Thiết bị</th>
@@ -577,7 +577,7 @@ export default function NewLsxPage() {
                 <tbody>
                   {routings.map((r, idx) => (
                     <tr key={r.localId} className="border-t border-zinc-100 align-top dark:border-zinc-800">
-                      <td className="border-r border-zinc-100 px-1 py-1 text-center font-mono text-[10px] text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">{idx + 1}</td>
+                      <td className="border-r border-zinc-100 px-1 py-1 text-center font-mono text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">{idx + 1}</td>
                       <td className="border-r border-zinc-100 px-1 py-1 dark:border-zinc-800">
                         <input value={r.name} onChange={(e) => updateRouting(r.localId, { name: e.target.value })} placeholder="VD: CNC, Lắp ráp" className="w-full bg-transparent px-1 text-[11px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600" />
                       </td>
@@ -647,7 +647,7 @@ export default function NewLsxPage() {
             <div className="overflow-x-auto rounded-md border border-zinc-200 print:overflow-visible dark:border-zinc-700">
               <table className="w-full text-[11px]">
                 <thead className="bg-zinc-100 dark:bg-zinc-800">
-                  <tr className="text-[10px] font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
+                  <tr className="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
                     <th className="border-r border-zinc-200 px-1 py-1.5 w-8 dark:border-zinc-700">#</th>
                     <th className="border-r border-zinc-200 px-1 py-1.5 text-left min-w-[140px] dark:border-zinc-700">Tên dao/CCDC</th>
                     <th className="border-r border-zinc-200 px-1 py-1.5 text-left min-w-[120px] dark:border-zinc-700">Mã hiệu</th>
@@ -662,7 +662,7 @@ export default function NewLsxPage() {
                 <tbody>
                   {tools.map((t, idx) => (
                     <tr key={t.localId} className="border-t border-zinc-100 align-top dark:border-zinc-800">
-                      <td className="border-r border-zinc-100 px-1 py-1 text-center font-mono text-[10px] text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">{idx + 1}</td>
+                      <td className="border-r border-zinc-100 px-1 py-1 text-center font-mono text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">{idx + 1}</td>
                       <td className="border-r border-zinc-100 px-1 py-1 dark:border-zinc-800">
                         <input value={t.name} onChange={(e) => updateTool(t.localId, { name: e.target.value })} placeholder="VD: Mũi phay R3" className="w-full bg-transparent px-1 text-[11px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600" />
                       </td>
@@ -713,7 +713,7 @@ export default function NewLsxPage() {
             </h3>
             <table className="w-full text-[11px]">
               <thead className="bg-zinc-50 dark:bg-zinc-800">
-                <tr className="text-[10px] uppercase text-zinc-500 dark:text-zinc-400">
+                <tr className="text-xs uppercase text-zinc-500 dark:text-zinc-400">
                   <th className="border border-zinc-200 px-2 py-1 text-left dark:border-zinc-700">Người lập</th>
                   <th className="border border-zinc-200 px-2 py-1 text-left dark:border-zinc-700">Kế toán</th>
                   <th className="border border-zinc-200 px-2 py-1 text-left dark:border-zinc-700">QLSX</th>
@@ -728,7 +728,7 @@ export default function NewLsxPage() {
                 </tr>
               </tbody>
             </table>
-            <p className="mt-2 text-[10px] italic text-zinc-500 print:hidden dark:text-zinc-400">
+            <p className="mt-2 text-xs italic text-zinc-500 print:hidden dark:text-zinc-400">
               Workflow phê duyệt 4 chữ ký + xác nhận liên bộ phận (Kho/Máy/Nhân sự/QLSX/QC) sẽ làm phase 3.
             </p>
           </section>

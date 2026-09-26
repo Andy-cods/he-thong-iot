@@ -187,7 +187,7 @@ function PreferenceRow({
         </div>
         <div className="text-[11px] text-zinc-500 dark:text-zinc-400">{hint}</div>
       </div>
-      <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-normal text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+      <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs font-medium uppercase tracking-normal text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
         V1.1
       </span>
     </div>
@@ -243,16 +243,16 @@ function SessionsList() {
                   {isMobile ? "Mobile" : "Desktop"}
                 </span>
                 {isCurrent ? (
-                  <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-normal text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                  <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-bold uppercase tracking-normal text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
                     Phiên này
                   </span>
                 ) : null}
               </div>
-              <div className="font-mono text-[10px] text-zinc-500 dark:text-zinc-400">
+              <div className="font-mono text-xs text-zinc-500 dark:text-zinc-400">
                 {s.ipAddress ?? "—"}
                 {s.userAgent ? ` · ${s.userAgent.slice(0, 60)}` : ""}
               </div>
-              <div className="text-[10px] text-zinc-400 dark:text-zinc-500">
+              <div className="text-xs text-zinc-400 dark:text-zinc-500">
                 Bắt đầu: {new Date(s.issuedAt).toLocaleString("vi-VN")}
               </div>
             </div>

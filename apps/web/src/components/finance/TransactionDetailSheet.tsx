@@ -153,7 +153,7 @@ export function TransactionDetailSheet({
                 {STATUS_LABEL[row.status]}
               </span>
               {isTransfer && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
+                <span className="inline-flex whitespace-nowrap items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
                   <ArrowLeftRight className="h-3 w-3" aria-hidden="true" /> Chuyển quỹ nội bộ
                 </span>
               )}

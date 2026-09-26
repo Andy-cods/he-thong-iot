@@ -144,7 +144,7 @@ function MaterialPanel({
         <h3 className="flex items-center gap-1.5 text-sm font-semibold text-emerald-900 dark:text-emerald-300">
           <Beaker className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden />
           Vật liệu
-          <span className="ml-1 inline-flex h-4 items-center rounded-sm bg-emerald-100 px-1.5 text-[10px] font-mono text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+          <span className="ml-1 inline-flex h-4 items-center rounded-sm bg-emerald-100 px-1.5 text-xs font-mono text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
             {rows.length}
           </span>
         </h3>
@@ -181,7 +181,7 @@ function MaterialPanel({
           </div>
         ) : (
           <table className="w-full text-xs">
-            <thead className="sticky top-0 bg-zinc-50 text-[10px] uppercase tracking-wide text-zinc-500 dark:bg-zinc-800/60 dark:text-zinc-400">
+            <thead className="sticky top-0 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-800/60 dark:text-zinc-400">
               <tr>
                 <th className="px-2 py-1 text-left">Code</th>
                 <th className="px-2 py-1 text-left">Tên / Mô tả</th>
@@ -433,7 +433,7 @@ function ProcessPanel({
         <h3 className="flex items-center gap-1.5 text-sm font-semibold text-amber-900 dark:text-amber-300">
           <Layers className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
           Quy trình gia công
-          <span className="ml-1 inline-flex h-4 items-center rounded-sm bg-amber-100 px-1.5 text-[10px] font-mono text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+          <span className="ml-1 inline-flex h-4 items-center rounded-sm bg-amber-100 px-1.5 text-xs font-mono text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
             {rows.length}
           </span>
         </h3>
@@ -470,7 +470,7 @@ function ProcessPanel({
           </div>
         ) : (
           <table className="w-full text-xs">
-            <thead className="sticky top-0 bg-zinc-50 text-[10px] uppercase tracking-wide text-zinc-500 dark:bg-zinc-800/60 dark:text-zinc-400">
+            <thead className="sticky top-0 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-800/60 dark:text-zinc-400">
               <tr>
                 <th className="px-2 py-1 text-left">Code</th>
                 <th className="px-2 py-1 text-left">Tên / Công đoạn</th>

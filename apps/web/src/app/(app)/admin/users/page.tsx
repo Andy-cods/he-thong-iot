@@ -14,6 +14,7 @@ import type { Role } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryError } from "@/components/ui/query-error";
 import { useUsersList } from "@/hooks/useAdmin";
 import { AdminPageShell } from "@/components/admin/AdminPageShell";
 import { cn } from "@/lib/utils";
@@ -120,7 +121,8 @@ export default function AdminUsersPage() {
         <>
           Quản lý tài khoản, phân vai trò và theo dõi trạng thái hoạt động.{" "}
           <span className="font-medium text-zinc-700 dark:text-zinc-300">
-            {total.toLocaleString("vi-VN")} tài khoản
+            {/* V4.1 UI-05: lỗi tải → "—" thay vì "0 tài khoản" */}
+            {query.isError && !query.data ? "—" : total.toLocaleString("vi-VN")} tài khoản
           </span>
           .
         </>
@@ -236,6 +238,14 @@ export default function AdminUsersPage() {
             <div className="p-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
               Đang tải…
             </div>
+          ) : query.isError && rows.length === 0 ? (
+            // V4.1 UI-05: API lỗi (429/500/403) → KHÔNG hiện "Tạo user đầu tiên".
+            <QueryError
+              error={query.error}
+              onRetry={() => void query.refetch()}
+              retrying={query.isFetching}
+              title="Không tải được danh sách người dùng"
+            />
           ) : rows.length === 0 ? (
             <div className="p-6">
               {hasFilter ? (
@@ -292,7 +302,7 @@ export default function AdminUsersPage() {
                         <span
                           key={r}
                           className={cn(
-                            "inline-flex h-5 items-center rounded-full px-1.5 font-mono text-[10px] font-semibold uppercase ring-1 ring-inset",
+                            "inline-flex h-5 items-center rounded-full px-1.5 font-mono text-xs font-semibold uppercase ring-1 ring-inset",
                             ROLE_BADGE[r],
                           )}
                         >
@@ -304,7 +314,7 @@ export default function AdminUsersPage() {
                   <span className="text-center">
                     <span
                       className={cn(
-                        "inline-flex h-5 items-center gap-1 rounded-full px-1.5 text-[10px] font-semibold uppercase ring-1 ring-inset",
+                        "inline-flex h-5 items-center gap-1 rounded-full px-1.5 text-xs font-semibold uppercase ring-1 ring-inset",
                         u.isActive
                           ? "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800"
                           : "bg-zinc-100 text-zinc-500 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",
@@ -359,7 +369,7 @@ export default function AdminUsersPage() {
             </span>{" "}
             /{" "}
             <span className="tabular-nums text-zinc-900 dark:text-zinc-50">
-              {total.toLocaleString("vi-VN")}
+              {query.isError && !query.data ? "—" : total.toLocaleString("vi-VN")}
             </span>
           </span>
           <div className="flex items-center gap-1">

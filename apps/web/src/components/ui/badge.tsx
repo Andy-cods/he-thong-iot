@@ -10,7 +10,8 @@ import { cn } from "@/lib/utils";
  */
 
 const badgeVariants = cva(
-  "inline-flex items-center gap-1 rounded-sm font-medium uppercase tracking-wide",
+  // V4.1 UI-10: whitespace-nowrap — badge không gãy 2 dòng.
+  "inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-sm font-medium uppercase tracking-wide",
   {
     variants: {
       variant: {
@@ -24,7 +25,7 @@ const badgeVariants = cva(
         outline: "border border-zinc-300 bg-white text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300",
       },
       size: {
-        sm: "h-[18px] px-1.5 text-[10px]",
+        sm: "h-5 px-1.5 text-xs", // V4.1 UI-X7: 10px → 11px (nhãn in hoa)
         md: "h-5 px-2 text-xs", // 20px / 11px
         default: "h-5 px-2 text-xs",
       },

@@ -25,6 +25,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryError } from "@/components/ui/query-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -154,11 +155,12 @@ export function PaymentsTab() {
         {query.isLoading ? (
           <div className="space-y-2">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-14 rounded-lg" />)}</div>
         ) : query.isError ? (
-          <EmptyState
-            preset="error"
+          // V4.1 UI-05: khối lỗi chung (thông điệp theo mã 429/403/5xx).
+          <QueryError
+            error={query.error}
+            onRetry={() => void query.refetch()}
+            retrying={query.isFetching}
             title="Không tải được lịch sử thanh toán"
-            description={query.error instanceof Error ? query.error.message : "Vui lòng thử lại."}
-            actions={<Button size="sm" variant="outline" onClick={() => void query.refetch()}>Thử lại</Button>}
           />
         ) : isEmpty ? (
           <EmptyState preset="no-data" title="Chưa có thanh toán nào" description="Ghi nhận thanh toán cho hoá đơn để theo dõi công nợ." actions={canWrite ? <Button size="sm" onClick={() => setCreateOpen(true)}>Ghi nhận thanh toán</Button> : undefined} />
@@ -190,7 +192,7 @@ export function PaymentsTab() {
         )}
       </div>
 
-      {!isEmpty && (
+      {!isEmpty && !query.isError && (
         <footer className="flex h-11 items-center justify-between border-t border-zinc-200 bg-white px-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 md:px-6">
           <div className="tabular-nums">Trang <span className="font-semibold text-zinc-900 dark:text-zinc-50">{urlState.page}</span> / {pageCount}</div>
           <div className="flex items-center gap-1">
@@ -300,6 +302,14 @@ function PaymentCard({
         <div className="border-t border-zinc-100 bg-zinc-50/50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800/30">
           {detailQuery.isLoading ? (
             <Skeleton className="h-16 rounded-lg" />
+          ) : detailQuery.isError && allocations.length === 0 ? (
+            <QueryError
+              compact
+              error={detailQuery.error}
+              onRetry={() => void detailQuery.refetch()}
+              retrying={detailQuery.isFetching}
+              title="Không tải được phân bổ"
+            />
           ) : allocations.length === 0 ? (
             <p className="text-xs text-zinc-400 dark:text-zinc-500">Không có phân bổ.</p>
           ) : (
