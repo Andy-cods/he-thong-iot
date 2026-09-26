@@ -191,6 +191,11 @@
 ## 8. Việc cần anh Thang chốt
 
 > **ĐÃ CHỐT 2026-09-26:** D1 = A (4h tuyệt đối kể từ đăng nhập) · D2 = A (bảng phiếu xuất mới `goods_issue`) · D3 = lô cũ coi là đã đạt, chỉ áp HOLD cho hàng nhận từ ngày triển khai · D6 = thêm menu "Yêu cầu vật tư" cho Sản xuất (cả operator) + Kho, gắn với lệnh SX. **Còn chờ:** D4, D5, D7, D8, D9, D10 (không chặn đợt 0).
+>
+> **ĐÃ CHỐT 2026-09-27 (Thang giao Claude tự quyết theo khuyến nghị):** D4 = kiểm kê rồi điều chỉnh (baseline đối soát prod = 0 dòng) ·
+> D5 = tách lô `-N` · **D7 = KHÔNG tự sinh HĐ; nút "Tạo HĐ mua từ PO" điền sẵn (nháp), chặn tạo trùng cho cùng PO** ·
+> **D8 = người tạo KHÔNG tự duyệt phiếu của mình (trừ admin); Kho KHÔNG sửa đơn giá PO (chỉ purchaser/admin)** ·
+> **D9 = chưa thêm loại nguồn "Khác" (YAGNI) — chỉ BANK / CASH / EXPENSE** · **D10 = ẩn Lắp ráp kiểu cũ cùng Đơn hàng bán, không xoá code.**
 
 | # | Câu hỏi | Khuyến nghị |
 |---|---|---|
