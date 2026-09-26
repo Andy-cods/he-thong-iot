@@ -133,7 +133,12 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
   backfill 5 thanh toán đã huỷ → VOID) → smoke 9/9 → push → **E2E 21/22** (ca hỏng do script gọi NCC pageSize 200 — UI không còn gọi)
   → xoá 2 nguồn test + chuyển quỹ + HĐ; số dư 3 nguồn thật giữ nguyên (750tr).
 - **Bỏ menu "Yêu cầu vật tư"** 53a865c (Thang: trùng "Đề xuất vật tư"); giữ route cho link cũ; bỏ nút ở trang lệnh SX.
-- Đang làm: sửa hiển thị lưới BOM (worktree iot-bomgrid), Đợt 5 Quản trị (worktree iot-dot5).
+- **Lưới BOM** 8d8e433: gốc = virtualizer đặt `<tr>` absolute không có khung relative + hàng cố định 36px + AppShell min-h-screen
+  + TopTabBar sticky + colSpan cứng. Sửa: hàng trong luồng + spacer + measureElement, h-dvh cho workspace BOM, breadcrumb tên BOM.
+  Kiểm bằng Playwright chụp prod (1536@150%, 1920@125%, 390 mobile): hết chồng dòng. Còn: header BOM chật trên mobile, pill PIC bị cắt → Đợt 6.
+- **Đợt 5** 98e7562 (không migration): E2E prod 43/43 (401 khi chưa đăng nhập; 4 tài khoản e2e.* → 403 ở audit/stats/export/users/sessions
+  + /admin chuyển hướng; ghi log đăng nhập sai/LOGIN; admin tự hạ quyền 409) + 18/18 trang hằng ngày theo vai trò vẫn 200. Log 0 lỗi.
+- Đang làm: Đợt 4 (worktree iot-dot4). Còn Đợt 6, 7.
 
 ### TASK-20260926-002 — V4.1 Đợt 1 "Kho: QC HOLD + phiếu xuất kho"
 - **Trạng thái:** DONE · **Hoàn thành:** 2026-09-27 01:40 (+07) · **Bắt đầu:** 2026-09-26 (+07) · **Tạo:** 2026-09-26 (+07) · **Ưu tiên:** P0
