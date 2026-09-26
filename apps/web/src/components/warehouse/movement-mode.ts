@@ -16,11 +16,14 @@
  * client cùng dùng thì phải nằm ở file KHÔNG có `"use client"`.
  */
 
-export type MovementMode = "in" | "out";
+// V4.1 Đợt 1a — thêm "qc": màn Chờ QC nhập kho (hàng nhận đang HOLD chờ QC).
+export type MovementMode = "in" | "out" | "qc";
 
-/** Chuẩn hoá query param `?mode=` → "in" (mặc định) hoặc "out". */
+/** Chuẩn hoá query param `?mode=` → "in" (mặc định) | "out" | "qc". */
 export function resolveMovementMode(
   raw: string | string[] | undefined,
 ): MovementMode {
-  return raw === "out" ? "out" : "in";
+  if (raw === "out") return "out";
+  if (raw === "qc") return "qc";
+  return "in";
 }

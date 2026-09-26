@@ -343,10 +343,22 @@ export const inboundReceiptLine = appSchema.table(
     lotCode: varchar("lot_code", { length: 64 }),
     serialCode: varchar("serial_code", { length: 128 }),
     notes: text("notes"),
+    /**
+     * V4.1 Đợt 1a (migration 0059) — mỗi dòng phiếu nhập ↔ đúng 1 lô (D5 tách
+     * lô khi trùng mã). Không khai `.references()` để tránh import vòng với
+     * inventory.ts — FK có sẵn ở DB.
+     */
+    lotSerialId: uuid("lot_serial_id"),
+    /** PENDING | PASS | FAIL · NULL = dòng cũ trước V4.1 (coi là đạt, D3). */
+    qcStatus: varchar("qc_status", { length: 8 }),
+    qcCheckedBy: uuid("qc_checked_by").references(() => userAccount.id),
+    qcCheckedAt: timestamp("qc_checked_at", { withTimezone: true }),
+    qcNotes: text("qc_notes"),
   },
   (t) => ({
     receiptIdx: index("inbound_receipt_line_receipt_idx").on(t.receiptId),
     itemIdx: index("inbound_receipt_line_item_idx").on(t.itemId),
+    lotIdx: index("inbound_receipt_line_lot_idx").on(t.lotSerialId),
   }),
 );
 

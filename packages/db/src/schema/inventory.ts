@@ -54,6 +54,12 @@ export const inventoryLotSerial = appSchema.table(
     /** V1.2 — lot status: AVAILABLE (default) / HOLD (QC fail) / CONSUMED / EXPIRED */
     status: lotStatusEnum("status").notNull().default("AVAILABLE"),
     holdReason: text("hold_reason"),
+    /**
+     * V4.1 KHO-01 (migration 0059) — mã lý do HOLD có cấu trúc:
+     * QC_PENDING (chờ QC nhập) · QC_FAIL (QC không đạt) · MANUAL (giữ thủ công)
+     * · NULL (không HOLD). CHECK constraint ở DB, không dùng enum.
+     */
+    holdCode: varchar("hold_code", { length: 24 }),
     notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -100,6 +106,8 @@ export const inventoryTxn = appSchema.table(
     typeIdx: index("inventory_txn_type_idx").on(t.txType),
     refIdx: index("inventory_txn_ref_idx").on(t.refTable, t.refId),
     occurredIdx: index("inventory_txn_occurred_idx").on(t.occurredAt),
+    // V4.1 Đợt 1a (migration 0059) — view tồn chuẩn + guard xuất lọc theo lô.
+    lotIdx: index("inventory_txn_lot_idx").on(t.lotSerialId),
   }),
 );
 

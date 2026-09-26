@@ -44,15 +44,16 @@ const KPI_DEFS: Array<{
   },
   {
     key: "availableQty",
-    label: "Sẵn dùng",
+    // V4.1 KHO-16 — "Khả dụng" = lô AVAILABLE trừ giữ chỗ (không tính HOLD).
+    label: "Khả dụng",
     accent: "emerald",
-    hint: "Lot AVAILABLE, cấp phát được",
+    hint: "Lô AVAILABLE trừ phần đã giữ chỗ — xuất được ngay",
   },
   {
     key: "holdQty",
     label: "Giữ QC",
     accent: "amber",
-    hint: "Lot HOLD, chờ QC thả",
+    hint: "Lô HOLD (chờ QC / không đạt / giữ thủ công) — chưa xuất được",
   },
   {
     key: "reservedQty",

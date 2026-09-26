@@ -1,12 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { eq, sql } from "drizzle-orm";
-import {
-  inventoryLotSerial,
-  inventoryTxn,
-  warehouseIssueRequest,
-} from "@iot/db/schema";
+import { warehouseIssueRequest } from "@iot/db/schema";
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 import { jsonError } from "@/server/http";
+import {
+  assertIssuable,
+  mapDbGuardError,
+  postOutboundTxns,
+  type IssuePick,
+} from "@/server/repos/stockGuard";
 import { requireCan } from "@/server/session";
 import { writeAudit } from "@/server/services/audit";
 import { notifyIssueRequestApproved } from "@/server/services/notifications";
@@ -115,83 +118,28 @@ export async function POST(
         throw new Error("ALREADY_PROCESSED: yêu cầu đã được duyệt/xử lý");
       }
 
-      const txnIds: string[] = [];
-      let totalQty = 0;
-      let consumedLots = 0;
-
-      // V3.11.4 (audit 1.4) — advisory lock theo lot trước khi check-then-act để
-      // 2 issue-request khác nhau không cùng rút quá tồn 1 lot.
-      // Review 2A-fix — lock TẤT CẢ lot phân biệt theo THỨ TỰ SORT ổn định TRƯỚC
-      // vòng xử lý (cùng namespace 'lot:' với /warehouse/issue) để 2 approve —
-      // hoặc approve vs issue — chia sẻ ≥2 lot không deadlock (40P01 → 500).
-      const lockIds = [
-        ...new Set(lines.flatMap((l) => l.picks.map((p) => p.lotSerialId))),
-      ].sort();
-      for (const lotId of lockIds) {
-        await tx.execute(
-          sql`SELECT pg_advisory_xact_lock(hashtext('lot:' || ${lotId}))`,
-        );
-      }
-
-      for (const line of lines) {
-        for (const pick of line.picks) {
-          // Validate qty available
-          const onHandRows = await tx.execute<{ qty: string }>(sql`
-            SELECT qty_on_hand::text AS qty
-            FROM app.bin_inventory
-            WHERE bin_id = ${pick.binId}
-              AND lot_serial_id = ${pick.lotSerialId}
-              AND item_id = ${line.itemId}
-            LIMIT 1
-          `);
-          const onHand = Number(
-            (onHandRows as unknown as Array<{ qty: string }>)[0]?.qty ?? "0",
-          );
-          if (onHand < pick.qty) {
-            throw new Error(
-              `INSUFFICIENT: bin/lot có ${onHand} < yêu cầu ${pick.qty}`,
-            );
-          }
-
-          const [txn] = await tx
-            .insert(inventoryTxn)
-            .values({
-              txType: "OUT_ISSUE",
-              itemId: line.itemId,
-              qty: String(pick.qty),
-              fromBinId: pick.binId,
-              lotSerialId: pick.lotSerialId,
-              refTable: "warehouse_issue_request",
-              refId: request.id,
-              postedBy: guard.session.userId,
-              notes: `${request.requestNo} · approved`,
-            })
-            .returning({ id: inventoryTxn.id });
-
-          txnIds.push(txn!.id);
-          totalQty += pick.qty;
-
-          // Auto CONSUMED nếu lot hết
-          if (onHand === pick.qty) {
-            const totalLeft = await tx.execute<{ total: string }>(sql`
-              SELECT COALESCE(SUM(qty_on_hand), 0)::text AS total
-              FROM app.bin_inventory
-              WHERE lot_serial_id = ${pick.lotSerialId}
-            `);
-            const left = Number(
-              (totalLeft as unknown as Array<{ total: string }>)[0]?.total ??
-                "0",
-            );
-            if (left <= 0) {
-              await tx
-                .update(inventoryLotSerial)
-                .set({ status: "CONSUMED" })
-                .where(eq(inventoryLotSerial.id, pick.lotSerialId));
-              consumedLots += 1;
-            }
-          }
-        }
-      }
+      // V4.1 Đợt 1a (KHO-05/10) — guard chung: khoá item → lô theo thứ tự cố
+      // định, chỉ lô AVAILABLE, không vượt tồn bin, không lấn phần đã giữ chỗ.
+      // ISR lập từ trước mà lô nay đang HOLD (chờ QC) → 409 rõ lý do.
+      const picks: IssuePick[] = lines.flatMap((l) =>
+        l.picks.map((p) => ({
+          itemId: l.itemId,
+          lotSerialId: p.lotSerialId,
+          binId: p.binId,
+          qty: Number(p.qty),
+        })),
+      );
+      await assertIssuable(tx, picks);
+      const posted = await postOutboundTxns(tx, picks, {
+        txType: "OUT_ISSUE",
+        refTable: "warehouse_issue_request",
+        refId: request.id,
+        postedBy: guard.session.userId,
+        notes: `${request.requestNo} · approved`,
+      });
+      const txnIds = posted.txnIds;
+      const consumedLots = posted.consumedLots;
+      const totalQty = picks.reduce((s, p) => s + p.qty, 0);
 
       // Status đã set COMPLETED ở bước CLAIM đầu transaction.
       return { txnIds, totalQty, consumedLots, request: claimed[0] };
@@ -222,9 +170,13 @@ export async function POST(
 
     return NextResponse.json({ data: result });
   } catch (err) {
+    const g = mapDbGuardError(err);
+    if (g) return jsonError(g.code, g.message, g.status);
     const msg = err instanceof Error ? err.message : "Lỗi duyệt yêu cầu";
-    const is409 =
-      msg.startsWith("INSUFFICIENT") || msg.startsWith("ALREADY_PROCESSED");
-    return jsonError("APPROVE_FAILED", msg, is409 ? 409 : 500);
+    if (msg.startsWith("ALREADY_PROCESSED")) {
+      return jsonError("APPROVE_FAILED", "Yêu cầu đã được duyệt/xử lý bởi người khác.", 409);
+    }
+    logger.error({ err, requestId: params.id }, "issue request approve failed");
+    return jsonError("APPROVE_FAILED", msg, 500);
   }
 }

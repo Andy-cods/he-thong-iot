@@ -213,7 +213,10 @@ export type RbacEntityKey =
   | "productionBoard"
   // V4.0 — 2 entity mới.
   | "finance"
-  | "deliveryNote";
+  | "deliveryNote"
+  // V4.1 Đợt 1a — xuất kho + QC nhập kho.
+  | "goodsIssue"
+  | "qcInspection";
 
 export type OverrideKind = "GRANT" | "DENY" | null;
 export type EffectiveSource = "role" | "override-grant" | "override-deny";

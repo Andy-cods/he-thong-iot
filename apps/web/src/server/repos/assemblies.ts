@@ -4,13 +4,20 @@ import {
   assemblyScan,
   bomSnapshotLine,
   inventoryLotSerial,
-  inventoryTxn,
   reservation,
   workOrder,
   workOrderLine,
 } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import {
+  StockGuardError,
+  assertIssuable,
+  lockItemsAndLots,
+  mapDbGuardError,
+  postOutboundTxns,
+  type IssuePick,
+} from "./stockGuard";
 
 /**
  * V1.3 Phase B3 — Assembly scan repository (FULL atomic).
@@ -27,6 +34,13 @@ import { logger } from "@/lib/logger";
  *
  * Advisory lock per lot (`pg_advisory_xact_lock(hashtext('scan:'||lot_id))`)
  * để serialize concurrent scan cùng lot.
+ *
+ * V4.1 Đợt 1a (KHO-02/06): bỏ khoá riêng `scan:` (khác namespace `lot:` của
+ * đường xuất → không chặn nhau). Nay dùng khoá chung item → lô của
+ * `stockGuard`, kiểm lô AVAILABLE (lô HOLD/chờ QC không tiêu hao được) + tồn
+ * bin + phần giữ chỗ (trừ giữ chỗ của chính dòng này). ASSEMBLY_CONSUME ghi
+ * `from_bin_id` (chia qua các bin của lô — `allocateAcrossBins`) để sơ đồ kho
+ * trừ đúng; trước đây không có bin → bin_inventory không bao giờ giảm.
  *
  * Error codes:
  *   - INSUFFICIENT_RESERVED (409): reserved < requested qty
@@ -45,6 +59,33 @@ export class AssemblyScanError extends Error {
   ) {
     super(message);
   }
+}
+
+/**
+ * V4.1 KHO-02 — THUẦN: chia `qty` cần tiêu hao qua các bin đang chứa lô.
+ * Lấy bin nhiều hàng trước (ít tách dòng nhất), hoà thì theo binId cho ổn
+ * định. Trả null nếu tổng tồn các bin không đủ.
+ */
+export function allocateAcrossBins(
+  bins: Array<{ binId: string; qty: number }>,
+  qty: number,
+): Array<{ binId: string; qty: number }> | null {
+  const EPS = 1e-6;
+  const round4 = (n: number) => Number(n.toFixed(4));
+  if (!(qty > 0)) return [];
+  const sorted = bins
+    .filter((b) => b.qty > EPS)
+    .sort((a, b) => b.qty - a.qty || a.binId.localeCompare(b.binId));
+  const out: Array<{ binId: string; qty: number }> = [];
+  let remaining = round4(qty);
+  for (const b of sorted) {
+    if (remaining <= EPS) break;
+    const take = round4(Math.min(b.qty, remaining));
+    if (take <= EPS) continue;
+    out.push({ binId: b.binId, qty: take });
+    remaining = round4(remaining - take);
+  }
+  return remaining > EPS ? null : out;
 }
 
 export interface AssemblyScanInput {
@@ -134,6 +175,21 @@ export async function recordAssemblyScanAtomic(
     throw new AssemblyScanError("Qty phải > 0", "INVALID_QTY", 400);
   }
 
+  try {
+    return await recordAssemblyScanTx(input);
+  } catch (err) {
+    // V4.1 Đợt 1a — lỗi guard xuất kho / trigger 0059 / lock_timeout → 409
+    // qua AssemblyScanError để 2 route scan (đơn + batch) trả mã lỗi rõ.
+    if (err instanceof AssemblyScanError) throw err;
+    const g = mapDbGuardError(err);
+    if (g) throw new AssemblyScanError(g.message, g.code, g.status);
+    throw err;
+  }
+}
+
+async function recordAssemblyScanTx(
+  input: AssemblyScanInput,
+): Promise<AssemblyScanResult> {
   return db.transaction(async (tx) => {
     // 1) Idempotency — offline_queue_id UNIQUE
     const [existing] = await tx
@@ -177,13 +233,7 @@ export async function recordAssemblyScanAtomic(
       };
     }
 
-    // 2) Advisory lock per lot — serialize concurrent scan cùng lot
-    await tx.execute(sql`SET LOCAL lock_timeout = '5s'`);
-    await tx.execute(
-      sql`SELECT pg_advisory_xact_lock(hashtext('scan:' || ${input.lotSerialId}::text))`,
-    );
-
-    // 3) Load snapshot_line + WO line
+    // 2-3) Load snapshot_line + WO line
     const [snap] = await tx
       .select()
       .from(bomSnapshotLine)
@@ -215,6 +265,10 @@ export async function recordAssemblyScanAtomic(
       );
     }
 
+    // 3b) V4.1 KHO-06 — khoá chung item → lô (cùng thứ tự với mọi đường
+    //     xuất) thay khoá riêng 'scan:'.
+    await lockItemsAndLots(tx, [snap.componentItemId], [input.lotSerialId]);
+
     // 4) Find active reservation (line, lot)
     const [resv] = await tx
       .select()
@@ -244,6 +298,48 @@ export async function recordAssemblyScanAtomic(
       );
     }
 
+    // 4b) V4.1 KHO-02/06 — chia SL qua các bin của lô + guard chung (lô phải
+    //     AVAILABLE, đủ tồn bin, không lấn giữ chỗ của lệnh khác — được dùng
+    //     phần giữ chỗ của chính dòng này).
+    const binRows = (await tx.execute(sql`
+      SELECT bin_id::text AS bin_id, qty_on_hand::text AS qty
+      FROM app.bin_inventory
+      WHERE lot_serial_id = ${input.lotSerialId}
+        AND item_id = ${snap.componentItemId}
+    `)) as unknown as Array<{ bin_id: string; qty: string }>;
+    const alloc = allocateAcrossBins(
+      binRows.map((r) => ({ binId: r.bin_id, qty: Number(r.qty) || 0 })),
+      input.qty,
+    );
+    if (!alloc) {
+      throw new AssemblyScanError(
+        "Lô không đủ tồn tại các vị trí kho để tiêu hao — kiểm tra sơ đồ kho / chuyển hàng về đúng vị trí.",
+        "INSUFFICIENT_BIN",
+        409,
+      );
+    }
+    const picks: IssuePick[] = alloc.map((a) => ({
+      itemId: snap.componentItemId,
+      lotSerialId: input.lotSerialId,
+      binId: a.binId,
+      qty: a.qty,
+    }));
+    try {
+      await assertIssuable(tx, picks, {
+        ownReservations: [
+          {
+            lotSerialId: input.lotSerialId,
+            qty: Math.min(reservedQty, input.qty),
+          },
+        ],
+      });
+    } catch (err) {
+      if (err instanceof StockGuardError) {
+        throw new AssemblyScanError(err.message, err.code, err.status);
+      }
+      throw err;
+    }
+
     // 5) Ensure AO for this WO (1:1)
     const aoId = await ensureAssemblyOrder(tx, input.woId);
 
@@ -268,12 +364,11 @@ export async function recordAssemblyScanAtomic(
       .returning();
     if (!scan) throw new Error("ASSEMBLY_SCAN_INSERT_FAILED");
 
-    // 7) INSERT inventory_txn ASSEMBLY_CONSUME (qty positive; sign handled bởi tx_type)
-    await tx.insert(inventoryTxn).values({
+    // 7) INSERT inventory_txn ASSEMBLY_CONSUME (qty positive; sign handled bởi
+    //    tx_type). V4.1 KHO-02 — có from_bin_id (1 dòng / bin). Lô về 0 được
+    //    postOutboundTxns đánh dấu CONSUMED ngay SAU khi insert (trigger 0059).
+    await postOutboundTxns(tx, picks, {
       txType: "ASSEMBLY_CONSUME",
-      itemId: snap.componentItemId,
-      lotSerialId: input.lotSerialId,
-      qty: String(input.qty),
       refTable: "assembly_scan",
       refId: scan.id,
       postedBy: input.userId,
@@ -343,35 +438,14 @@ export async function recordAssemblyScanAtomic(
       })
       .where(eq(workOrderLine.id, wol.id));
 
-    // 11) UPDATE lot status CONSUMED nếu on_hand = 0
-    const onHandRows = (await tx.execute(sql`
-      SELECT
-        COALESCE(SUM(
-          CASE
-            WHEN t.tx_type IN ('IN_RECEIPT','ADJUST_PLUS','PROD_IN') THEN t.qty
-            WHEN t.tx_type IN ('OUT_ISSUE','ADJUST_MINUS','PROD_OUT','ASSEMBLY_CONSUME') THEN -t.qty
-            ELSE 0
-          END
-        ), 0)::numeric AS on_hand
-      FROM app.inventory_txn t
-      WHERE t.lot_serial_id = ${input.lotSerialId}
-    `)) as unknown as Array<{ on_hand: string }>;
-    const onHand = Number(onHandRows[0]?.on_hand ?? 0);
-    let lotStatus: string;
-    if (onHand <= 0.0001) {
-      await tx
-        .update(inventoryLotSerial)
-        .set({ status: "CONSUMED" })
-        .where(eq(inventoryLotSerial.id, input.lotSerialId));
-      lotStatus = "CONSUMED";
-    } else {
-      const [curLot] = await tx
-        .select({ status: inventoryLotSerial.status })
-        .from(inventoryLotSerial)
-        .where(eq(inventoryLotSerial.id, input.lotSerialId))
-        .limit(1);
-      lotStatus = curLot?.status ?? "AVAILABLE";
-    }
+    // 11) Trạng thái lô sau tiêu hao (CONSUMED đã được postOutboundTxns set
+    //     ở bước 7 nếu on_hand về 0).
+    const [curLot] = await tx
+      .select({ status: inventoryLotSerial.status })
+      .from(inventoryLotSerial)
+      .where(eq(inventoryLotSerial.id, input.lotSerialId))
+      .limit(1);
+    const lotStatus: string = curLot?.status ?? "AVAILABLE";
 
     logger.info(
       {

@@ -305,12 +305,16 @@ export async function suggestFifoPicks(
   itemId: string,
   qtyNeeded: number,
 ): Promise<{ picks: FifoPickSuggestion[]; covered: number; shortage: number }> {
+  // V4.1 KHO-23/16 — chỉ lô AVAILABLE còn khả dụng (issuable_qty > 0, đã trừ
+  // giữ chỗ cho lệnh SX); không gợi ý vượt issuable của từng lô dù tồn bin
+  // lớn hơn; FEFO: hạn dùng sớm trước (NULL sau cùng), rồi lô cũ trước.
   const rows = await db.execute<{
     lot_serial_id: string;
     lot_code: string | null;
     bin_id: string;
     bin_full_code: string;
     qty: string;
+    issuable: string;
     received_at: string;
     exp_date: string | null;
   }>(sql`
@@ -320,21 +324,30 @@ export async function suggestFifoPicks(
       bi.bin_id,
       lb.full_code AS bin_full_code,
       bi.qty_on_hand::text AS qty,
+      vs.issuable_qty::text AS issuable,
       ils.created_at::text AS received_at,
       ils.exp_date::text   AS exp_date
     FROM app.bin_inventory bi
     JOIN app.inventory_lot_serial ils ON ils.id = bi.lot_serial_id
+    JOIN app.v_lot_stock vs ON vs.lot_serial_id = bi.lot_serial_id
     JOIN app.location_bin lb ON lb.id = bi.bin_id
     WHERE bi.item_id = ${itemId}
       AND ils.status = 'AVAILABLE'
-    ORDER BY ils.created_at ASC, bi.qty_on_hand DESC
+      AND vs.issuable_qty > 0
+    ORDER BY ils.exp_date ASC NULLS LAST, ils.created_at ASC, bi.qty_on_hand DESC
   `);
 
   const picks: FifoPickSuggestion[] = [];
   let remaining = qtyNeeded;
+  // Phần issuable còn lại của từng lô (1 lô có thể nằm ở nhiều bin).
+  const lotLeft = new Map<string, number>();
   for (const r of rows as unknown as Array<typeof rows[number]>) {
     if (remaining <= 0) break;
-    const available = Number(r.qty ?? "0");
+    if (!lotLeft.has(r.lot_serial_id)) {
+      lotLeft.set(r.lot_serial_id, Number(r.issuable ?? "0"));
+    }
+    const left = lotLeft.get(r.lot_serial_id) ?? 0;
+    const available = Math.min(Number(r.qty ?? "0"), left);
     if (available <= 0) continue;
     const take = Math.min(available, remaining);
     picks.push({
@@ -346,6 +359,7 @@ export async function suggestFifoPicks(
       receivedAt: r.received_at,
       expDate: r.exp_date,
     });
+    lotLeft.set(r.lot_serial_id, left - take);
     remaining -= take;
   }
 

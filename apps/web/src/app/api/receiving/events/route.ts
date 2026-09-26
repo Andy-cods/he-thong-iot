@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { item, purchaseOrder, purchaseOrderLine } from "@iot/db/schema";
-import { receivingEventsBatchSchema } from "@iot/shared";
+import { can, receivingEventsBatchSchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import {
   getEventPostState,
@@ -19,7 +19,9 @@ import { getPR } from "@/server/repos/purchaseRequests";
 import {
   notifyPOReceivedFull,
   notifyPOReceivedPartial,
+  notifyReceiptQcPending,
 } from "@/server/services/notifications";
+import { canForUser } from "@/server/services/rbac";
 import { requireCan } from "@/server/session";
 import { db } from "@/lib/db";
 import { receivingScanCounter } from "@/lib/metrics";
@@ -47,6 +49,23 @@ export async function POST(req: NextRequest) {
   const body = await parseJson(req, receivingEventsBatchSchema);
   if ("response" in body) return body.response;
 
+  // V4.1 KHO-01 — chỉ người có `approve:qcInspection` (Tổ QC / Giám đốc) được
+  // nhận hàng thẳng "Đạt QC". Người khác gửi OK → server hạ về Chờ QC.
+  // canForUser tôn trọng permission override; DB lỗi → fallback theo role.
+  let canApproveQc = can(guard.session.roles, "approve", "qcInspection");
+  try {
+    canApproveQc = (
+      await canForUser(
+        guard.session.userId,
+        guard.session.roles,
+        "approve",
+        "qcInspection",
+      )
+    ).allowed;
+  } catch (err) {
+    logger.warn({ err }, "canForUser qcInspection failed — fallback role");
+  }
+
   const acked: string[] = [];
   const rejected: Array<{ id: string; reason: string }> = [];
   // V3.16 (vấn đề 3) — dedupe trong phạm vi 1 batch request: nhiều event cùng
@@ -55,11 +74,20 @@ export async function POST(req: NextRequest) {
   // không tự nhớ đã notify chưa — route phải tự canh.
   const notifiedFullPoIds = new Set<string>();
   const notifiedPartialPoIds = new Set<string>();
+  // V4.1 Đợt 1a — gom dòng chờ QC theo phiếu nhập → notify Tổ QC 1 lần/phiếu.
+  const qcPendingByReceipt = new Map<
+    string,
+    { receiptNo: string; poId: string; poNo: string; lines: number }
+  >();
   const details: Array<{
     id: string;
     poStatus?: string | null;
     newSnapshotState?: string | null;
     lotStatus?: string;
+    lotCode?: string | null;
+    lotSplit?: boolean;
+    qcStatus?: string;
+    qcDowngraded?: boolean;
     overDelivery?: boolean;
     warning?: string | null;
   }> = [];
@@ -124,16 +152,43 @@ export async function POST(req: NextRequest) {
       // khác cũng chứa item này (trước đây eq(itemId) only → received_qty
       // cộng sai vào PO đầu tiên trong DB có chứa SKU, không phải PO đang
       // nhận hàng).
-      const [poLine] = await db
-        .select()
-        .from(purchaseOrderLine)
-        .where(
-          and(
-            eq(purchaseOrderLine.poId, po.id),
-            eq(purchaseOrderLine.itemId, itm.id),
-          ),
-        )
-        .limit(1);
+      // V4.1 KHO-09 — PO có 2 dòng cùng mã: trước đây LIMIT 1 luôn trúng dòng
+      // đầu → dòng 2 không bao giờ đủ. Ưu tiên poLineId client gửi (top-level
+      // hoặc metadata.poLineId của wizard) nếu khớp PO + mã; không có thì chọn
+      // dòng CÒN THIẾU hàng trước, line_no nhỏ trước.
+      const metaLineId =
+        typeof e.metadata?.poLineId === "string" ? e.metadata.poLineId : null;
+      const requestedLineId = e.poLineId ?? metaLineId;
+      let poLine: typeof purchaseOrderLine.$inferSelect | undefined;
+      if (requestedLineId && /^[0-9a-f-]{36}$/i.test(requestedLineId)) {
+        [poLine] = await db
+          .select()
+          .from(purchaseOrderLine)
+          .where(
+            and(
+              eq(purchaseOrderLine.id, requestedLineId),
+              eq(purchaseOrderLine.poId, po.id),
+              eq(purchaseOrderLine.itemId, itm.id),
+            ),
+          )
+          .limit(1);
+      }
+      if (!poLine) {
+        [poLine] = await db
+          .select()
+          .from(purchaseOrderLine)
+          .where(
+            and(
+              eq(purchaseOrderLine.poId, po.id),
+              eq(purchaseOrderLine.itemId, itm.id),
+            ),
+          )
+          .orderBy(
+            sql`(${purchaseOrderLine.orderedQty} - ${purchaseOrderLine.receivedQty}) > 0 DESC`,
+            asc(purchaseOrderLine.lineNo),
+          )
+          .limit(1);
+      }
       if (!poLine) {
         rejected.push({
           id: e.id,
@@ -153,6 +208,7 @@ export async function POST(req: NextRequest) {
         locationBinId: e.locationBinId ?? null,
         userId: guard.session.userId,
         qcStatus: e.qcStatus ?? "PENDING",
+        canApproveQc,
       });
 
       // V3.11.3 (audit 1.2) — chỉ ack SAU khi post tồn kho thành công.
@@ -163,9 +219,25 @@ export async function POST(req: NextRequest) {
         poStatus: posted.poStatus,
         newSnapshotState: posted.newSnapshotState,
         lotStatus: posted.lotStatus,
+        lotCode: posted.lotCode,
+        lotSplit: posted.lotSplit,
+        qcStatus: posted.qcStatus,
+        qcDowngraded: posted.qcDowngraded,
         overDelivery: posted.overDelivery,
         warning: posted.overDelivery ? "Qty nhận > 105% ordered" : null,
       });
+
+      if (posted.qcStatus === "PENDING") {
+        const cur = qcPendingByReceipt.get(posted.receiptId);
+        if (cur) cur.lines += 1;
+        else
+          qcPendingByReceipt.set(posted.receiptId, {
+            receiptNo: posted.receiptNo,
+            poId: po.id,
+            poNo: po.poNo,
+            lines: 1,
+          });
+      }
 
       receivingScanCounter.add(1, {
         qc_status: e.qcStatus ?? "PENDING",
@@ -233,7 +305,11 @@ export async function POST(req: NextRequest) {
           sku: e.sku,
           qty: e.qty,
           lotNo: e.lotNo,
-          qcStatus: e.qcStatus,
+          qcStatus: posted.qcStatus,
+          requestedQcStatus: e.qcStatus,
+          qcDowngraded: posted.qcDowngraded,
+          lotCode: posted.lotCode,
+          lotSplit: posted.lotSplit,
           newSnapshotState: posted.newSnapshotState,
           lotStatus: posted.lotStatus,
           poStatus: posted.poStatus,
@@ -250,6 +326,19 @@ export async function POST(req: NextRequest) {
         reason: err instanceof Error ? err.message : "post failed",
       });
     }
+  }
+
+  // V4.1 Đợt 1a — báo Tổ QC: 1 notify / phiếu nhập có dòng chờ QC.
+  for (const [receiptId, info] of qcPendingByReceipt) {
+    void notifyReceiptQcPending({
+      receiptId,
+      receiptNo: info.receiptNo,
+      poId: info.poId,
+      poNo: info.poNo,
+      lineCount: info.lines,
+      actorUserId: guard.session.userId,
+      actorUsername: guard.session.username,
+    });
   }
 
   return NextResponse.json({

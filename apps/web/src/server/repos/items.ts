@@ -17,9 +17,16 @@ import type {
 import { db } from "@/lib/db";
 
 export interface ItemInventorySummary {
+  /** Tồn thực tế mọi lô (kể cả HOLD) — app.v_item_stock.on_hand_total. */
   totalQty: number;
+  /**
+   * V4.1 KHO-16 — "Khả dụng" = issuable_qty: chỉ lô AVAILABLE, trừ giữ chỗ
+   * ACTIVE. KHÔNG BAO GIỜ tính hàng HOLD (chờ QC / không đạt).
+   */
   availableQty: number;
   reservedQty: number;
+  /** V4.1 — tồn các lô HOLD (chờ QC / QC không đạt / giữ thủ công). */
+  holdQty: number;
 }
 
 export interface ItemListRow {
@@ -155,22 +162,23 @@ export async function listItems(q: ItemListQuery): Promise<ListItemsResult> {
         // V1.9 P6 — inventory aggregate subqueries (indexed item_id).
         // Dùng tên qualified `app.item.id` để tránh ambiguous khi outer FROM
         // không có alias (Drizzle gen `FROM "app"."item"`, không alias `item`).
+        // V4.1 KHO-16 — 1 công thức tồn DUY NHẤT: view app.v_item_stock
+        // (migration 0059). Trước đây 3 chỗ tính 3 kiểu → các trang lệch số.
         totalQty: sql<string>`(
-          SELECT COALESCE(SUM(
-            CASE
-              WHEN t.tx_type IN ('IN_RECEIPT','ADJUST_PLUS','PROD_IN') THEN t.qty
-              WHEN t.tx_type IN ('OUT_ISSUE','ADJUST_MINUS','PROD_OUT','ASSEMBLY_CONSUME') THEN -t.qty
-              ELSE 0
-            END
-          ), 0)::text
-          FROM app.inventory_txn t
-          WHERE t.item_id = app.item.id
+          SELECT COALESCE(v.on_hand_total, 0)::text
+          FROM app.v_item_stock v WHERE v.item_id = app.item.id
         )`,
         reservedQty: sql<string>`(
-          SELECT COALESCE(SUM(r.reserved_qty), 0)::text
-          FROM app.reservation r
-          JOIN app.inventory_lot_serial ll ON ll.id = r.lot_serial_id
-          WHERE ll.item_id = app.item.id AND r.status = 'ACTIVE'
+          SELECT COALESCE(v.reserved, 0)::text
+          FROM app.v_item_stock v WHERE v.item_id = app.item.id
+        )`,
+        issuableQty: sql<string>`(
+          SELECT COALESCE(v.issuable_qty, 0)::text
+          FROM app.v_item_stock v WHERE v.item_id = app.item.id
+        )`,
+        holdQty: sql<string>`(
+          SELECT COALESCE(v.hold_qty, 0)::text
+          FROM app.v_item_stock v WHERE v.item_id = app.item.id
         )`,
         defaultBinId: item.defaultBinId,
         defaultBinCode: sql<string | null>`(
@@ -186,14 +194,19 @@ export async function listItems(q: ItemListQuery): Promise<ListItemsResult> {
       .offset(offset),
   ]);
 
-  // Map rows → ItemListRow: totalQty/reservedQty text → number, availableQty = total - reserved.
+  // Map rows → ItemListRow: text → number. V4.1 — availableQty = issuable_qty
+  // của view (chỉ lô AVAILABLE trừ giữ chỗ), không còn total − reserved.
   type RawRow = Omit<ItemListRow, "inventorySummary"> & {
-    totalQty: string;
-    reservedQty: string;
+    totalQty: string | null;
+    reservedQty: string | null;
+    issuableQty: string | null;
+    holdQty: string | null;
   };
   const mapped: ItemListRow[] = (rows as RawRow[]).map((r) => {
     const total = Number(r.totalQty ?? 0) || 0;
     const reserved = Number(r.reservedQty ?? 0) || 0;
+    const issuable = Number(r.issuableQty ?? 0) || 0;
+    const hold = Number(r.holdQty ?? 0) || 0;
     return {
       id: r.id,
       sku: r.sku,
@@ -213,8 +226,9 @@ export async function listItems(q: ItemListQuery): Promise<ListItemsResult> {
       updatedAt: r.updatedAt,
       inventorySummary: {
         totalQty: total,
-        availableQty: Math.max(0, total - reserved),
+        availableQty: Math.max(0, issuable),
         reservedQty: reserved,
+        holdQty: hold,
       },
     };
   });

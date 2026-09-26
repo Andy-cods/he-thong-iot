@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { snapshotTransitionSchema } from "@iot/shared";
+import { can, snapshotTransitionSchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import {
   ConflictError,
@@ -13,6 +13,7 @@ import {
   parseJson,
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
+import { canForUser } from "@/server/services/rbac";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -48,6 +49,26 @@ export async function PATCH(
     return jsonError(
       "FORBIDDEN",
       "Chỉ admin được phép override state transition.",
+      403,
+    );
+  }
+
+  // V4.1 Đợt 1a (AUDIT §2 mục 9) — INBOUND_QC → AVAILABLE là kết luận QC:
+  // chỉ người có `approve:qcInspection` (Tổ QC / Giám đốc). Trước đây mọi role
+  // có `transition:bomSnapshot` (warehouse, operator…) bấm được.
+  if (
+    before.state === "INBOUND_QC" &&
+    body.data.toState === "AVAILABLE" &&
+    !(await canForUser(
+      guard.session.userId,
+      guard.session.roles,
+      "approve",
+      "qcInspection",
+    ).then((r) => r.allowed, () => can(guard.session.roles, "approve", "qcInspection")))
+  ) {
+    return jsonError(
+      "FORBIDDEN",
+      "Chuyển Chờ QC → Sẵn sàng là kết luận QC — chỉ Tổ QC / Giám đốc được thực hiện (màn Chờ QC nhập kho).",
       403,
     );
   }

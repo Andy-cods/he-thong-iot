@@ -69,7 +69,11 @@ export type NotificationEventType =
   | "FIN_INVOICE_DUE_SOON"
   | "FIN_INVOICE_OVERDUE"
   | "FIN_PAYMENT_RECORDED"
-  | "FIN_RECEIVABLE_OVERDUE";
+  | "FIN_RECEIVABLE_OVERDUE"
+  // V4.1 Đợt 1a — QC nhập kho: hàng nhận chờ QC (→ Tổ QC) + QC không đạt
+  // (→ Kho + Thu mua). Cột event_type là varchar(64) → không cần migration.
+  | "QC_RECEIPT_PENDING"
+  | "QC_RECEIPT_FAILED";
 
 export interface EmitNotificationInput {
   /** User cụ thể (đếm vào unread badge). Bỏ qua nếu chỉ broadcast role. */
@@ -1172,4 +1176,67 @@ export async function lookupUsername(userId: string): Promise<string | null> {
     .where(eq(userAccount.id, userId))
     .limit(1);
   return row?.username ?? null;
+}
+
+/* ── V4.1 Đợt 1a — QC nhập kho ───────────────────────────────────────── */
+
+export interface ReceiptQcNotifyContext {
+  receiptId: string;
+  receiptNo: string;
+  poId?: string | null;
+  poNo?: string | null;
+  actorUserId: string;
+  actorUsername: string;
+}
+
+/**
+ * Hàng vừa nhận đang HOLD chờ QC → báo Tổ QC (fan-out từng user để đếm badge).
+ * Gọi 1 lần / request nhận hàng (route tự gom), không phải mỗi dòng.
+ */
+export async function notifyReceiptQcPending(
+  ctx: ReceiptQcNotifyContext & { lineCount: number },
+) {
+  await emitToUsersWithRole("qc", {
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "QC_RECEIPT_PENDING",
+    entityType: "inbound_receipt",
+    entityId: ctx.receiptId,
+    entityCode: ctx.receiptNo,
+    title: `${ctx.lineCount} dòng hàng nhận chờ QC (${ctx.receiptNo})`,
+    message: ctx.poNo
+      ? `Hàng của PO ${ctx.poNo} đang bị giữ (HOLD) cho tới khi QC kết luận Đạt.`
+      : "Hàng đang bị giữ (HOLD) cho tới khi QC kết luận Đạt.",
+    link: "/qc-inbound",
+    severity: "warning",
+  });
+}
+
+/** QC kết luận Không đạt → báo Kho (cách ly hàng) + Thu mua (làm việc NCC). */
+export async function notifyReceiptQcFailed(
+  ctx: ReceiptQcNotifyContext & {
+    sku: string;
+    lotCode: string | null;
+    qty: number;
+    notes: string | null;
+  },
+) {
+  const input = {
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "QC_RECEIPT_FAILED" as const,
+    entityType: "inbound_receipt",
+    entityId: ctx.receiptId,
+    entityCode: ctx.receiptNo,
+    title: `QC không đạt: ${ctx.sku}${ctx.lotCode ? ` · lô ${ctx.lotCode}` : ""} (${ctx.receiptNo})`,
+    message: `SL ${ctx.qty}${ctx.poNo ? ` · PO ${ctx.poNo}` : ""}${ctx.notes ? ` · Lý do: ${ctx.notes}` : ""}`,
+    link: "/warehouse?tab=movement&mode=qc",
+    severity: "error" as const,
+  };
+  await emitToUsersWithRole("warehouse", input);
+  // Thu mua không vào được màn Chờ QC → link về PO để làm việc với NCC.
+  await emitToUsersWithRole("purchaser", {
+    ...input,
+    link: ctx.poId ? `/procurement/purchase-orders/${ctx.poId}` : undefined,
+  });
 }

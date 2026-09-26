@@ -4,6 +4,7 @@ import {
   Layers,
   MonitorPlay,
   Shield,
+  ShieldCheck,
   ShoppingBag,
   ShoppingCart,
   Warehouse,
@@ -151,6 +152,15 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Bảng sản xuất (QC)",
     icon: MonitorPlay,
     roles: ["admin", "qc", "shareholder"],
+    section: "operations",
+  },
+  // V4.1 Đợt 1a — Tổ QC kết luận QC nhập kho (hàng nhận đang HOLD chờ QC).
+  // CHỈ role qc: admin + warehouse vào qua tab Kho › Nhập/Xuất kho › Chờ QC.
+  {
+    href: "/qc-inbound",
+    label: "QC nhập kho",
+    icon: ShieldCheck,
+    roles: ["qc"],
     section: "operations",
   },
   // --- Bộ phận Thu mua — nay gồm PO + Nhà cung cấp + phân hệ Tài chính ---

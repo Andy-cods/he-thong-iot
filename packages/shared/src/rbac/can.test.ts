@@ -10,7 +10,7 @@ import {
 } from "./matrix";
 
 describe("RBAC matrix — shape + consistency", () => {
-  it("có đủ 9 role × 19 entity × 6 action (V4.0 thêm shareholder + finance/deliveryNote)", () => {
+  it("có đủ 9 role × 21 entity × 6 action (V4.1 Đợt 1a thêm goodsIssue + qcInspection)", () => {
     expect(Object.keys(RBAC_MATRIX)).toEqual([
       "admin",
       "planner",
@@ -22,7 +22,7 @@ describe("RBAC matrix — shape + consistency", () => {
       "accountant",
       "shareholder",
     ]);
-    expect(RBAC_ENTITIES).toHaveLength(19);
+    expect(RBAC_ENTITIES).toHaveLength(21);
     expect(RBAC_ACTIONS).toHaveLength(6);
   });
 
@@ -188,6 +188,24 @@ describe("can() — assert 48+ cell từ matrix (§4 brainstorm)", () => {
     ["purchaser", "read", "deliveryNote", true],
     ["purchaser", "approve", "deliveryNote", false],
     ["operator", "read", "deliveryNote", false],
+    // V4.1 Đợt 1a — QC nhập kho: chỉ qc + admin kết luận Đạt/Không đạt.
+    ["qc", "approve", "qcInspection", true],
+    ["qc", "update", "qcInspection", true],
+    ["admin", "approve", "qcInspection", true],
+    ["planner", "approve", "qcInspection", false],
+    ["planner", "update", "qcInspection", false],
+    ["warehouse", "approve", "qcInspection", false],
+    ["warehouse", "update", "qcInspection", true],
+    ["warehouse", "read", "qcInspection", true],
+    ["purchaser", "read", "qcInspection", false],
+    // V4.1 Đợt 1a — Xuất kho: kho xuất nội bộ, bán/trả NCC chỉ Giám đốc.
+    ["warehouse", "create", "goodsIssue", true],
+    ["warehouse", "approve", "goodsIssue", false],
+    ["purchaser", "create", "goodsIssue", false],
+    ["admin", "approve", "goodsIssue", true],
+    ["planner", "read", "goodsIssue", true],
+    ["planner", "create", "goodsIssue", false],
+    ["qc", "read", "goodsIssue", false],
   ];
 
   it.each(cases)(
@@ -216,11 +234,13 @@ describe("canAny() — nav filter shortcut", () => {
   it("planner true trên mọi entity nghiệp vụ (trừ inventory, report, finance, deliveryNote)", () => {
     // planner KHÔNG có inventory (thuộc warehouse), report (KPI admin-only),
     // finance (V4.0 — thuộc kế toán) và deliveryNote (V4.0 — thuộc kho).
+    // V4.1 Đợt 1a — qcInspection: planner mất quyền HOLD/nhả HOLD (KHO-12).
     const plannerExcluded: RbacEntity[] = [
       "inventory",
       "report",
       "finance",
       "deliveryNote",
+      "qcInspection",
     ];
     for (const e of RBAC_ENTITIES) {
       if (plannerExcluded.includes(e)) {

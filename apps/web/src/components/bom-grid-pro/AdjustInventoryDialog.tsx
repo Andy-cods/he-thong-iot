@@ -244,11 +244,15 @@ export function AdjustInventoryDialog({
               >
                 <PackagePlus className="h-4 w-4" /> Bổ sung tồn
               </button>
+              {/* V4.1 KHO-11 — giảm tồn nay BẮT BUỘC chọn đúng lô; popup này
+                  không có bước chọn lô nên tắt, dùng Sơ đồ kho → "Rút hàng". */}
               <button
                 type="button"
                 onClick={() => setType("MINUS")}
+                disabled
+                title="Giảm tồn phải chọn đúng lô — dùng Kho › Sơ đồ kho › Rút hàng"
                 className={cn(
-                  "flex items-center justify-center gap-2 rounded-md border-2 px-3 py-2 text-sm font-medium transition-colors",
+                  "flex items-center justify-center gap-2 rounded-md border-2 px-3 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
                   type === "MINUS"
                     ? "border-rose-500 bg-rose-50 text-rose-700 dark:border-rose-700 dark:bg-rose-950/40 dark:text-rose-400"
                     : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-zinc-600",

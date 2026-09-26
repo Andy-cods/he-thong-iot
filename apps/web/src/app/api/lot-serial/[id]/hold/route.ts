@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { inventoryLotSerial } from "@iot/db/schema";
 import { db } from "@/lib/db";
@@ -9,6 +9,8 @@ import {
   jsonError,
   parseJson,
 } from "@/server/http";
+import { releaseLotReservationsTx } from "@/server/repos/reservations";
+import { mapDbGuardError } from "@/server/repos/stockGuard";
 import { writeAudit } from "@/server/services/audit";
 import { requireCan } from "@/server/session";
 
@@ -29,6 +31,14 @@ export const dynamic = "force-dynamic";
  * RBAC: tạm dùng entity `reservation` (admin+planner+operator có update;
  * warehouse role chưa có quyền update reservation — cần escalate qua
  * permission_override hoặc admin tự handle).
+ *
+ * V4.1 Đợt 1a (KHO-12/06):
+ *  - RBAC đổi sang `update:qcInspection` (admin, qc, warehouse). Planner
+ *    KHÔNG còn HOLD/nhả HOLD lô.
+ *  - Ghi `hold_code='MANUAL'` (HOLD thủ công, khác QC_PENDING/QC_FAIL).
+ *  - Nhả MỌI reservation ACTIVE của lô trong cùng transaction: lô đang HOLD
+ *    không xuất được thì giữ chỗ trên nó làm lệnh SX "tưởng đã có hàng".
+ *  - Khoá item → lô (cùng thứ tự với guard xuất kho) để không đua với lượt xuất.
  */
 
 const holdSchema = z.object({
@@ -43,7 +53,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireCan(req, "update", "reservation");
+  const guard = await requireCan(req, "update", "qcInspection");
   if ("response" in guard) return guard.response;
 
   const body = await parseJson(req, holdSchema);
@@ -70,19 +80,36 @@ export async function POST(
   }
 
   try {
-    const [row] = await db
-      .update(inventoryLotSerial)
-      .set({ status: "HOLD", holdReason: body.data.reason })
-      .where(
-        and(
-          eq(inventoryLotSerial.id, params.id),
-          eq(inventoryLotSerial.status, before.status),
-        ),
-      )
-      .returning();
-    if (!row) {
+    const outcome = await db.transaction(async (tx) => {
+      await tx.execute(sql`SET LOCAL lock_timeout = '5s'`);
+      await tx.execute(sql`SELECT app.reservation_lock(${before.itemId}::uuid)`);
+      const [locked] = await tx
+        .select()
+        .from(inventoryLotSerial)
+        .where(eq(inventoryLotSerial.id, params.id))
+        .limit(1)
+        .for("update");
+      if (!locked || locked.status !== before.status) return null;
+      const [updated] = await tx
+        .update(inventoryLotSerial)
+        .set({
+          status: "HOLD",
+          holdCode: "MANUAL",
+          holdReason: body.data.reason,
+        })
+        .where(eq(inventoryLotSerial.id, params.id))
+        .returning();
+      const released = await releaseLotReservationsTx(tx, {
+        lotSerialId: params.id,
+        userId: guard.session.userId,
+        reason: "LOT_HOLD",
+      });
+      return { row: updated!, released };
+    });
+    if (!outcome) {
       return jsonError("CONFLICT", "Lot vừa thay đổi trạng thái.", 409);
     }
+    const { row, released } = outcome;
 
     const meta = extractRequestMeta(req);
     await writeAudit({
@@ -91,23 +118,32 @@ export async function POST(
       objectType: "lot_serial",
       objectId: params.id,
       before: { status: before.status, holdReason: before.holdReason },
-      after: { status: row.status, holdReason: row.holdReason },
-      notes: `HOLD: ${body.data.reason}`,
+      after: {
+        status: row.status,
+        holdCode: row.holdCode,
+        holdReason: row.holdReason,
+        releasedReservations: released,
+      },
+      notes: `HOLD: ${body.data.reason}${released > 0 ? ` · nhả ${released} giữ chỗ` : ""}`,
       ...meta,
     });
 
     return NextResponse.json({
       ok: true,
+      releasedReservations: released,
       lotSerial: {
         id: row.id,
         status: row.status,
         holdReason: row.holdReason,
+        holdCode: row.holdCode,
         lotCode: row.lotCode,
         serialCode: row.serialCode,
         itemId: row.itemId,
       },
     });
   } catch (err) {
+    const g = mapDbGuardError(err);
+    if (g) return jsonError(g.code, g.message, g.status);
     logger.error({ err, lotId: params.id }, "lot hold failed");
     return jsonError("INTERNAL", "Không đặt được trạng thái HOLD.", 500);
   }

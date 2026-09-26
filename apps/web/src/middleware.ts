@@ -41,6 +41,8 @@ const PROTECTED_PREFIXES = [
   // V3.8 — Bảng sản xuất: TV /board (ngoài (app)) + trang QC /production-board
   "/board",
   "/production-board",
+  // V4.1 Đợt 1a — màn Chờ QC nhập kho.
+  "/qc-inbound",
   // V4.1 AD-01/AD-07 — /me (trang cá nhân + đổi MK bắt buộc), /finance, /import.
   "/me",
   "/finance",

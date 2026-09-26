@@ -27,7 +27,7 @@ export interface InventoryBalanceRow {
   reserved: number;
   /** SUM(IN−OUT) qua các lot HOLD (chờ QC). */
   holdQty: number;
-  /** = MAX(0, onHand − reserved). */
+  /** V4.1 — = issuable_qty của app.v_item_stock (lô AVAILABLE − giữ chỗ). */
   available: number;
 }
 
@@ -49,6 +49,7 @@ interface RawRow {
   on_hand: string;
   reserved: string;
   hold_qty: string;
+  issuable: string;
 }
 
 /**
@@ -79,50 +80,30 @@ export async function getInventoryBalance(
     ? sql`AND EXISTS (SELECT 1 FROM app.inventory_lot_serial lz WHERE lz.item_id = i.id)`
     : sql``;
 
-  // SQL: aggregate per lot bằng inventory_txn, sau đó group by item.
-  // Dùng raw SQL vì phức tạp + có CTE; reuse pattern từ items.ts.
+  // V4.1 KHO-16 — dùng view tồn chuẩn app.v_item_stock (migration 0059)
+  // thay CTE tự tính (trước đây gom TOÀN BỘ lot rồi mới lọc item).
+  //   onHand   = on_hand_available (tồn lô AVAILABLE)
+  //   holdQty  = hold_qty          (tồn lô HOLD)
+  //   reserved = reserved          (giữ chỗ ACTIVE)
+  //   available= issuable_qty      (Khả dụng xuất — không bao giờ tính HOLD)
   const rows = (await db.execute(sql`
-    WITH lot_balance AS (
-      SELECT
-        l.id            AS lot_id,
-        l.item_id       AS item_id,
-        l.status        AS lot_status,
-        COALESCE(SUM(
-          CASE
-            WHEN t.tx_type IN ('IN_RECEIPT','ADJUST_PLUS','PROD_IN') THEN t.qty
-            WHEN t.tx_type IN ('OUT_ISSUE','ADJUST_MINUS','PROD_OUT','ASSEMBLY_CONSUME') THEN -t.qty
-            ELSE 0
-          END
-        ), 0) AS qty
-      FROM app.inventory_lot_serial l
-      LEFT JOIN app.inventory_txn t ON t.lot_serial_id = l.id
-      GROUP BY l.id, l.item_id, l.status
-    ),
-    item_agg AS (
-      SELECT
-        i.id::text       AS item_id,
-        i.sku            AS sku,
-        i.name           AS name,
-        i.uom::text      AS uom,
-        i.category       AS category,
-        i.min_stock_qty::text AS min_stock_qty,
-        COALESCE(SUM(CASE WHEN lb.lot_status = 'AVAILABLE' THEN lb.qty ELSE 0 END), 0)::text AS on_hand,
-        COALESCE(SUM(CASE WHEN lb.lot_status = 'HOLD'      THEN lb.qty ELSE 0 END), 0)::text AS hold_qty,
-        COALESCE((
-          SELECT SUM(r.reserved_qty)
-          FROM app.reservation r
-          JOIN app.inventory_lot_serial ll ON ll.id = r.lot_serial_id
-          WHERE ll.item_id = i.id AND r.status = 'ACTIVE'
-        ), 0)::text AS reserved
-      FROM app.item i
-      LEFT JOIN lot_balance lb ON lb.item_id = i.id
-      WHERE i.is_active = true
-        ${itemIdFilter}
-        ${havingLot}
-      GROUP BY i.id, i.sku, i.name, i.uom, i.category, i.min_stock_qty
-    )
-    SELECT * FROM item_agg
-    ORDER BY sku ASC
+    SELECT
+      i.id::text       AS item_id,
+      i.sku            AS sku,
+      i.name           AS name,
+      i.uom::text      AS uom,
+      i.category       AS category,
+      i.min_stock_qty::text AS min_stock_qty,
+      COALESCE(v.on_hand_available, 0)::text AS on_hand,
+      COALESCE(v.hold_qty, 0)::text          AS hold_qty,
+      COALESCE(v.reserved, 0)::text          AS reserved,
+      COALESCE(v.issuable_qty, 0)::text      AS issuable
+    FROM app.item i
+    LEFT JOIN app.v_item_stock v ON v.item_id = i.id
+    WHERE i.is_active = true
+      ${itemIdFilter}
+      ${havingLot}
+    ORDER BY i.sku ASC
     LIMIT ${pageSize} OFFSET ${offset}
   `)) as unknown as RawRow[];
 
@@ -150,7 +131,7 @@ export async function getInventoryBalance(
       onHand,
       reserved,
       holdQty,
-      available: Math.max(0, onHand - reserved),
+      available: Math.max(0, Number(r.issuable) || 0),
     };
   });
 

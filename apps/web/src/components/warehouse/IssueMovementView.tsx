@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useSession } from "@/hooks/useSession";
+import { can } from "@iot/shared";
 
 /**
  * Wave 5 Phase A/B — `<IssueMovementView>` (trước đây `IssueTab`).
@@ -42,6 +43,11 @@ interface ItemRef {
   sku: string;
   name: string;
   uom: string;
+  /**
+   * V4.1 KHO-23/16 — "Khả dụng" (inventorySummary.availableQty = issuable):
+   * chỉ lô AVAILABLE trừ giữ chỗ. Trước đây dùng tổng tồn (có cả HOLD) → báo
+   * "Đủ tồn" nhưng FIFO chỉ lấy được lô AVAILABLE → xuất thiếu im lặng.
+   */
   totalQty: number;
 }
 
@@ -68,6 +74,13 @@ function uuid() {
 
 export function IssueMovementView() {
   const qc = useQueryClient();
+  // V4.1 KHO-14 — xuất nhanh Bán hàng / Trả NCC chỉ Giám đốc; người khác lập
+  // "Yêu cầu xuất kho" để Giám đốc duyệt.
+  const { data: session } = useSession();
+  const canIssueExternal = can(session?.roles ?? [], "approve", "goodsIssue");
+  const quickReasons = REASONS.filter(
+    (r) => canIssueExternal || (r.value !== "sales" && r.value !== "return"),
+  );
   const [lines, setLines] = React.useState<IssueLine[]>([
     { rowId: uuid(), item: null, qty: "" },
   ]);
@@ -262,7 +275,7 @@ export function IssueMovementView() {
                 disabled={submitting}
                 className="mt-1.5 block h-10 w-full rounded-md border border-zinc-300 bg-white px-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
               >
-                {REASONS.map((r) => (
+                {quickReasons.map((r) => (
                   <option key={r.value} value={r.value}>
                     {r.label}
                   </option>
@@ -306,7 +319,7 @@ export function IssueMovementView() {
                 </span>
               ) : (
                 <span className="text-emerald-700 dark:text-emerald-400">
-                  ✓ Đủ tồn cho {totalLines} SKU · tổng {totalQty.toLocaleString("vi-VN")} qty.
+                  ✓ Đủ khả dụng cho {totalLines} SKU · tổng {totalQty.toLocaleString("vi-VN")} qty.
                 </span>
               )}
             </div>
@@ -413,9 +426,9 @@ function SimpleLineRow({
         {line.item && (
           <span
             className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] text-zinc-500 dark:text-zinc-400"
-            title={`Tồn: ${have} ${line.item.uom}`}
+            title={`Khả dụng: ${have} ${line.item.uom} (không tính hàng chờ QC / đã giữ chỗ)`}
           >
-            tồn {have.toLocaleString("vi-VN")}
+            khả dụng {have.toLocaleString("vi-VN")}
           </span>
         )}
         {removable && (
@@ -755,7 +768,7 @@ function CreateIssueRequestPanel() {
               </span>
             ) : (
               <span className="text-emerald-700 dark:text-emerald-400">
-                ✓ Đủ tồn cho {totalLines} SKU · tổng {totalQty.toLocaleString("vi-VN")} qty.
+                ✓ Đủ khả dụng cho {totalLines} SKU · tổng {totalQty.toLocaleString("vi-VN")} qty.
               </span>
             )}
           </div>
@@ -818,7 +831,7 @@ function ItemPicker({
             sku: string;
             name: string;
             uom: string;
-            inventorySummary?: { totalQty: number };
+            inventorySummary?: { totalQty: number; availableQty?: number };
           }>;
         };
         if (!cancelled) {
@@ -828,7 +841,8 @@ function ItemPicker({
               sku: x.sku,
               name: x.name,
               uom: x.uom,
-              totalQty: x.inventorySummary?.totalQty ?? 0,
+              // V4.1 — khả dụng (không tính HOLD / đã giữ chỗ).
+              totalQty: x.inventorySummary?.availableQty ?? 0,
             })),
           );
         }

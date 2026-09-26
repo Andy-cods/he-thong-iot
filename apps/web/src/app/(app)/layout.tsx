@@ -49,6 +49,9 @@ const ROUTE_ROLE_GUARD: Array<{ prefix: string; roles: Role[] }> = [
   // V4.0 — shareholder (Cổ đông) xem tiến độ gia công, READ-ONLY. UI phải ẩn
   // nút CRUD qua can() — RBAC matrix chỉ cấp productionBoard:["read"].
   { prefix: "/production-board", roles: ["admin", "qc", "shareholder"] },
+  // V4.1 Đợt 1a — màn Chờ QC nhập kho: Tổ QC kết luận; Kho xem (Kho cũng
+  // thấy ở /warehouse?tab=movement&mode=qc). Khớp `read:qcInspection`.
+  { prefix: "/qc-inbound",  roles: ["admin", "qc", "warehouse"] },
   // TASK-20260922 — /finance nay chỉ còn redirect sang /sales?tab=... (giữ
   // link/bookmark cũ), guard thật đã chuyển sang prefix /sales ở trên.
   { prefix: "/finance",      roles: ["admin", "accountant", "shareholder"] },

@@ -79,9 +79,15 @@ describe("NAV_ITEMS V3.1 cấu trúc 6 section", () => {
     expect(engHrefs).toEqual(["/engineering", "/procurement/purchase-requests"]);
   });
 
-  it("Bộ phận Gia công có hub và bảng sản xuất QC", () => {
+  it("Bộ phận Gia công có hub, bảng sản xuất QC và QC nhập kho", () => {
     const opsHrefs = NAV_ITEMS.filter((i) => i.section === "operations").map((i) => i.href);
-    expect(opsHrefs).toEqual(["/operations", "/production-board"]);
+    expect(opsHrefs).toEqual(["/operations", "/production-board", "/qc-inbound"]);
+  });
+
+  // V4.1 Đợt 1a — "QC nhập kho" chỉ role qc (admin/warehouse vào qua tab Kho).
+  it("/qc-inbound chỉ cho role qc", () => {
+    const qcInbound = NAV_ITEMS.find((i) => i.href === "/qc-inbound");
+    expect(qcInbound?.roles).toEqual(["qc"]);
   });
 });
 
@@ -186,6 +192,17 @@ describe("filterNavByRoles", () => {
     expect(hrefs).not.toContain("/finance");
     expect(hrefs).not.toContain("/admin");
     expect(hrefs).not.toContain("/warehouse");
+  });
+
+  it("V4.1 — qc thấy đề xuất vật tư, bảng sản xuất và QC nhập kho", () => {
+    const filtered = filterNavByRoles(NAV_ITEMS, ["qc"]);
+    const hrefs = filtered.map((i) => i.href);
+    expect(hrefs).toEqual([
+      "/",
+      "/procurement/purchase-requests",
+      "/production-board",
+      "/qc-inbound",
+    ]);
   });
 
   it("V3.3 — admin thấy toàn bộ", () => {

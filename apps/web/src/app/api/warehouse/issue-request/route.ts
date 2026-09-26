@@ -8,6 +8,7 @@ import {
 import { db } from "@/lib/db";
 import { jsonError, parseJson } from "@/server/http";
 import { requireSession } from "@/server/session";
+import { currentYymm, genDocNo } from "@/server/repos/_docNumber";
 import { writeAudit } from "@/server/services/audit";
 import { notifyIssueRequestNew } from "@/server/services/notifications";
 
@@ -125,33 +126,36 @@ export async function POST(req: NextRequest) {
     0,
   );
 
-  // Generate request_no
-  const yymm = new Date().toISOString().slice(2, 7).replace("-", "");
-  const cntRows = await db.execute<{ c: number }>(sql`
-    SELECT COUNT(*)::int AS c FROM app.warehouse_issue_request
-    WHERE request_no LIKE ${`ISR-${yymm}-%`}
-  `);
-  const cnt =
-    (cntRows as unknown as Array<{ c: number }>)[0]?.c ?? 0;
-  const requestNo = `ISR-${yymm}-${(cnt + 1).toString().padStart(4, "0")}`;
-
   try {
-    const [created] = await db
-      .insert(warehouseIssueRequest)
-      .values({
-        requestNo,
-        status: "PENDING",
-        reason,
-        reference: reference ?? null,
-        notes: notes ?? null,
-        picksJson: lines,
-        totalQty: String(totalQty),
-        requestedBy: guard.session.userId,
-      })
-      .returning({
-        id: warehouseIssueRequest.id,
-        requestNo: warehouseIssueRequest.requestNo,
+    // V4.1 KHO-20 — số ISR sinh bằng genDocNo (advisory lock + MAX(seq)+1,
+    // tháng theo giờ VN) trong transaction. Trước đây COUNT(*)+1 ngoài
+    // transaction → 2 người tạo cùng lúc trùng số → 500.
+    const created = await db.transaction(async (tx) => {
+      const no = await genDocNo(tx, {
+        table: "app.warehouse_issue_request",
+        column: "request_no",
+        prefix: `ISR-${currentYymm()}`,
+        seqPart: 3,
       });
+      const [row] = await tx
+        .insert(warehouseIssueRequest)
+        .values({
+          requestNo: no,
+          status: "PENDING",
+          reason,
+          reference: reference ?? null,
+          notes: notes ?? null,
+          picksJson: lines,
+          totalQty: String(totalQty),
+          requestedBy: guard.session.userId,
+        })
+        .returning({
+          id: warehouseIssueRequest.id,
+          requestNo: warehouseIssueRequest.requestNo,
+        });
+      return row;
+    });
+    const requestNo = created!.requestNo;
 
     await writeAudit({
       actor: guard.session,

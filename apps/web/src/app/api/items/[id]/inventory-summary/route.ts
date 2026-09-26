@@ -19,7 +19,8 @@ export const dynamic = "force-dynamic";
  */
 
 interface LotSummaryRow {
-  available: string;
+  available_on_hand: string;
+  issuable: string;
   hold: string;
   consumed: string;
   expired: string;
@@ -50,46 +51,28 @@ export async function GET(
   }
 
   try {
-    // Aggregate qty theo lot status (gom qua inventory_txn)
+    // V4.1 KHO-16 — tổng hợp từ view tồn chuẩn app.v_lot_stock (0059).
     const summaryRows = (await db.execute(sql`
-      WITH lot_on_hand AS (
-        SELECT
-          l.id,
-          l.status,
-          COALESCE(SUM(
-            CASE
-              WHEN t.tx_type IN ('IN_RECEIPT','ADJUST_PLUS','PROD_IN') THEN t.qty
-              WHEN t.tx_type IN ('OUT_ISSUE','ADJUST_MINUS','PROD_OUT','ASSEMBLY_CONSUME') THEN -t.qty
-              ELSE 0
-            END
-          ), 0)::numeric AS on_hand
-        FROM app.inventory_lot_serial l
-        LEFT JOIN app.inventory_txn t ON t.lot_serial_id = l.id
-        WHERE l.item_id = ${itemId}
-        GROUP BY l.id, l.status
-      )
       SELECT
-        COALESCE(SUM(CASE WHEN status = 'AVAILABLE' THEN on_hand END), 0)::text AS available,
-        COALESCE(SUM(CASE WHEN status = 'HOLD'      THEN on_hand END), 0)::text AS hold,
-        COALESCE(SUM(CASE WHEN status = 'CONSUMED'  THEN on_hand END), 0)::text AS consumed,
-        COALESCE(SUM(CASE WHEN status = 'EXPIRED'   THEN on_hand END), 0)::text AS expired,
-        COALESCE(SUM(on_hand), 0)::text AS total,
-        COALESCE((
-          SELECT SUM(r.reserved_qty)
-          FROM app.reservation r
-          JOIN app.inventory_lot_serial ll ON ll.id = r.lot_serial_id
-          WHERE ll.item_id = ${itemId} AND r.status = 'ACTIVE'
-        ), 0)::text AS reserved
-      FROM lot_on_hand
+        COALESCE(SUM(on_hand) FILTER (WHERE status = 'AVAILABLE'), 0)::text AS available_on_hand,
+        COALESCE(SUM(on_hand) FILTER (WHERE status = 'HOLD'), 0)::text      AS hold,
+        COALESCE(SUM(on_hand) FILTER (WHERE status = 'CONSUMED'), 0)::text  AS consumed,
+        COALESCE(SUM(on_hand) FILTER (WHERE status = 'EXPIRED'), 0)::text   AS expired,
+        COALESCE(SUM(on_hand), 0)::text      AS total,
+        COALESCE(SUM(reserved), 0)::text     AS reserved,
+        COALESCE(SUM(issuable_qty), 0)::text AS issuable
+      FROM app.v_lot_stock
+      WHERE item_id = ${itemId}
     `)) as unknown as LotSummaryRow[];
 
     const s = summaryRows[0] ?? {
-      available: "0",
+      available_on_hand: "0",
       hold: "0",
       consumed: "0",
       expired: "0",
       total: "0",
       reserved: "0",
+      issuable: "0",
     };
 
     // Top 5 lots gần nhất
@@ -101,17 +84,10 @@ export async function GET(
         l.status::text,
         l.exp_date::text,
         l.created_at::text,
-        COALESCE(SUM(
-          CASE
-            WHEN t.tx_type IN ('IN_RECEIPT','ADJUST_PLUS','PROD_IN') THEN t.qty
-            WHEN t.tx_type IN ('OUT_ISSUE','ADJUST_MINUS','PROD_OUT','ASSEMBLY_CONSUME') THEN -t.qty
-            ELSE 0
-          END
-        ), 0)::text AS on_hand
+        v.on_hand::text AS on_hand
       FROM app.inventory_lot_serial l
-      LEFT JOIN app.inventory_txn t ON t.lot_serial_id = l.id
+      JOIN app.v_lot_stock v ON v.lot_serial_id = l.id
       WHERE l.item_id = ${itemId}
-      GROUP BY l.id, l.lot_code, l.serial_code, l.status, l.exp_date, l.created_at
       ORDER BY l.created_at DESC
       LIMIT 5
     `)) as unknown as RecentLotRow[];
@@ -119,7 +95,9 @@ export async function GET(
     return NextResponse.json({
       data: {
         summary: {
-          availableQty: Number(s.available),
+          // V4.1 — "Khả dụng" = issuable (lô AVAILABLE − giữ chỗ ACTIVE).
+          availableQty: Number(s.issuable),
+          availableOnHandQty: Number(s.available_on_hand),
           holdQty: Number(s.hold),
           consumedQty: Number(s.consumed),
           expiredQty: Number(s.expired),

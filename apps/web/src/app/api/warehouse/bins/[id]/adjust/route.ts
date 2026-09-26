@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import {
   inventoryLotSerial,
   inventoryTxn,
@@ -8,7 +8,13 @@ import {
   locationBin,
 } from "@iot/db/schema";
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 import { jsonError, parseJson } from "@/server/http";
+import {
+  assertIssuable,
+  mapDbGuardError,
+  postOutboundTxns,
+} from "@/server/repos/stockGuard";
 import { writeAudit } from "@/server/services/audit";
 import { requireCan } from "@/server/session";
 
@@ -34,12 +40,24 @@ export const dynamic = "force-dynamic";
  *            với fromBinId = bin.
  *
  * RBAC: update inventory (warehouse, admin).
+ *
+ * V4.1 Đợt 1a (KHO-11/10/19):
+ *  - MINUS BẮT BUỘC `lotSerialId` (dialog "Rút hàng" chọn lô nhưng trước đây
+ *    không gửi → server trừ nhầm lô lớn nhất trong bin).
+ *  - MINUS qua guard chung: khoá item → lô, không vượt tồn bin, không lấn
+ *    phần đã giữ chỗ. Kho chỉ rút lô AVAILABLE; Giám đốc (admin) được rút cả
+ *    lô HOLD (huỷ hàng hỏng/không đạt).
+ *  - PLUS vào mã lô đang HOLD/EXPIRED → 409 (không trộn hàng mới vào lô bị
+ *    giữ). Lô CONSUMED nhận thêm → mở lại AVAILABLE (nếu không, hàng cộng vào
+ *    lô đã "hết" sẽ bị ẩn khỏi mọi luồng xuất).
  */
 const schema = z.object({
   itemId: z.string().uuid(),
   qty: z.coerce.number().positive(),
   type: z.enum(["PLUS", "MINUS"]),
   lotCode: z.string().trim().max(64).optional().nullable(),
+  /** V4.1 KHO-11 — bắt buộc khi type=MINUS: lô cụ thể cần rút. */
+  lotSerialId: z.string().uuid().optional().nullable(),
   notes: z.string().trim().max(500).optional().nullable(),
 });
 
@@ -57,8 +75,17 @@ export async function POST(
   const body = await parseJson(req, schema);
   if ("response" in body) return body.response;
 
-  const { itemId, qty, type, lotCode, notes } = body.data;
+  const { itemId, qty, type, lotCode, lotSerialId: minusLotId, notes } =
+    body.data;
   const binId = params.id;
+
+  if (type === "MINUS" && !minusLotId) {
+    return jsonError(
+      "LOT_REQUIRED",
+      "Giảm tồn phải chọn đúng lô cần rút (lotSerialId).",
+      400,
+    );
+  }
 
   // Validate bin exists + active
   const [bin] = await db
@@ -90,16 +117,35 @@ export async function POST(
         // Tìm/tạo lot
         if (lotCode && lotCode.trim()) {
           const [existing] = await tx
-            .select({ id: inventoryLotSerial.id })
+            .select({
+              id: inventoryLotSerial.id,
+              status: inventoryLotSerial.status,
+              holdCode: inventoryLotSerial.holdCode,
+            })
             .from(inventoryLotSerial)
             .where(
               and(
                 eq(inventoryLotSerial.itemId, itemId),
                 eq(inventoryLotSerial.lotCode, lotCode.trim()),
+                isNull(inventoryLotSerial.serialCode),
               ),
             )
-            .limit(1);
+            .limit(1)
+            .for("update");
           if (existing) {
+            if (existing.status === "HOLD" || existing.status === "EXPIRED") {
+              throw new Error(
+                existing.status === "HOLD"
+                  ? `LOT_ON_HOLD: lô ${lotCode.trim()} đang bị giữ (${existing.holdCode === "QC_PENDING" ? "chờ QC" : existing.holdCode === "QC_FAIL" ? "QC không đạt" : "HOLD"}) — không cộng thêm hàng vào lô này, hãy dùng mã lô khác.`
+                  : `LOT_ON_HOLD: lô ${lotCode.trim()} đã hết hạn — hãy dùng mã lô khác.`,
+              );
+            }
+            if (existing.status === "CONSUMED") {
+              await tx
+                .update(inventoryLotSerial)
+                .set({ status: "AVAILABLE" })
+                .where(eq(inventoryLotSerial.id, existing.id));
+            }
             lotSerialId = existing.id;
           } else {
             const [newLot] = await tx
@@ -143,54 +189,24 @@ export async function POST(
 
         return { txnId: txn!.id, lotSerialId };
       } else {
-        // MINUS — tìm lot có qty trong bin
-        // Sử dụng bin_inventory view để pick lot có sẵn
-        const lotsInBin = await tx.execute<{
-          lot_serial_id: string;
-          qty_on_hand: string;
-        }>(sql`
-          SELECT lot_serial_id, qty_on_hand::text
-          FROM app.bin_inventory
-          WHERE bin_id = ${binId} AND item_id = ${itemId}
-          ORDER BY qty_on_hand DESC
-          LIMIT 1
-        `);
-        const rows = lotsInBin as unknown as Array<{
-          lot_serial_id: string;
-          qty_on_hand: string;
-        }>;
-
-        if (rows.length === 0) {
-          throw new Error(
-            "NO_STOCK_IN_BIN: bin này không có tồn cho SKU đã chọn",
-          );
-        }
-
-        const target = rows[0]!;
-        const onHand = Number(target.qty_on_hand);
-        if (onHand < qty) {
-          throw new Error(
-            `INSUFFICIENT: tồn ${onHand} < yêu cầu trừ ${qty}`,
-          );
-        }
-
-        lotSerialId = target.lot_serial_id;
-
-        const [txn] = await tx
-          .insert(inventoryTxn)
-          .values({
-            txType: "ADJUST_MINUS",
-            itemId,
-            qty: String(qty),
-            fromBinId: binId,
-            lotSerialId,
-            refTable: "manual_adjust",
-            postedBy: guard.session.userId,
-            notes: notes ?? null,
-          })
-          .returning({ id: inventoryTxn.id });
-
-        return { txnId: txn!.id, lotSerialId };
+        // MINUS — V4.1 KHO-11: rút ĐÚNG lô user chọn, qua guard chung.
+        // Admin (Giám đốc) được rút cả lô HOLD (huỷ hàng hỏng); ADJUST_MINUS
+        // không bị trigger 0059 chặn nên phải chặn ở đây.
+        lotSerialId = minusLotId!;
+        const picks = [{ itemId, lotSerialId, binId, qty }];
+        await assertIssuable(tx, picks, {
+          allowStatuses: guard.session.roles.includes("admin")
+            ? ["AVAILABLE", "HOLD"]
+            : ["AVAILABLE"],
+        });
+        const posted = await postOutboundTxns(tx, picks, {
+          txType: "ADJUST_MINUS",
+          refTable: "manual_adjust",
+          refId: null,
+          postedBy: guard.session.userId,
+          notes: notes ?? null,
+        });
+        return { txnId: posted.txnIds[0]!, lotSerialId };
       }
     });
 
@@ -199,17 +215,19 @@ export async function POST(
       action: type === "PLUS" ? "RECEIVE" : "ISSUE",
       objectType: "location_bin",
       objectId: binId,
-      after: { itemId, qty, type, lotCode, notes },
+      after: { itemId, qty, type, lotCode, lotSerialId: result.lotSerialId, notes },
       notes: `Manual adjust ${type} qty=${qty} bin=${bin.fullCode} sku=${it.sku}`,
     });
 
     return NextResponse.json({ data: result });
   } catch (err) {
+    const g = mapDbGuardError(err);
+    if (g) return jsonError(g.code, g.message, g.status);
     const msg = err instanceof Error ? err.message : "Lỗi không xác định";
-    return jsonError(
-      "ADJUST_FAILED",
-      msg,
-      msg.startsWith("NO_STOCK") || msg.startsWith("INSUFFICIENT") ? 409 : 500,
-    );
+    if (msg.startsWith("LOT_ON_HOLD")) {
+      return jsonError("LOT_ON_HOLD", msg.replace(/^LOT_ON_HOLD:\s*/, ""), 409);
+    }
+    logger.error({ err, binId }, "bin adjust failed");
+    return jsonError("ADJUST_FAILED", msg, 500);
   }
 }

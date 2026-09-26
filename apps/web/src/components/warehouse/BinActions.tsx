@@ -636,6 +636,9 @@ function RemoveStockDialog({
           itemId: lot.itemId,
           qty: q,
           type: "MINUS",
+          // V4.1 KHO-11 — gửi ĐÚNG lô user chọn (trước đây không gửi → server
+          // trừ nhầm lô lớn nhất trong bin).
+          lotSerialId: lot.lotSerialId,
           notes: notes.trim() || null,
         }),
       });

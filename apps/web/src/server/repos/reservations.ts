@@ -466,6 +466,91 @@ export async function releaseReservation(
   });
 }
 
+/**
+ * V4.1 Đợt 1a (KHO-06) — nhả MỌI reservation ACTIVE của 1 lô trong transaction
+ * có sẵn (khi lô bị HOLD thủ công hoặc QC Không đạt): lô không còn xuất được
+ * thì giữ chỗ trên nó chỉ làm lệnh SX "tưởng đã có hàng". Cùng logic
+ * `releaseReservation` (rollback snapshot_line.reserved_qty + UNRESERVE txn).
+ *
+ * Caller PHẢI đã khoá `app.reservation_lock(item)` + hàng lô (FOR UPDATE).
+ * Trả số reservation đã nhả.
+ */
+export async function releaseLotReservationsTx(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  input: { lotSerialId: string; userId: string | null; reason: string },
+): Promise<number> {
+  const active = await tx
+    .select()
+    .from(reservation)
+    .where(
+      and(
+        eq(reservation.lotSerialId, input.lotSerialId),
+        eq(reservation.status, "ACTIVE"),
+      ),
+    )
+    .for("update");
+
+  for (const resv of active) {
+    await tx
+      .update(reservation)
+      .set({
+        status: "RELEASED",
+        releasedAt: new Date(),
+        releasedBy: input.userId,
+        releaseReason: input.reason,
+        versionLock: sql`${reservation.versionLock} + 1`,
+      })
+      .where(eq(reservation.id, resv.id));
+
+    const qty = Number(resv.reservedQty);
+    const [snap] = await tx
+      .select({
+        id: bomSnapshotLine.id,
+        componentItemId: bomSnapshotLine.componentItemId,
+        reservedQty: bomSnapshotLine.reservedQty,
+        grossRequiredQty: bomSnapshotLine.grossRequiredQty,
+        state: bomSnapshotLine.state,
+      })
+      .from(bomSnapshotLine)
+      .where(eq(bomSnapshotLine.id, resv.snapshotLineId))
+      .limit(1);
+    if (snap) {
+      const newReserved = Math.max(0, Number(snap.reservedQty) - qty);
+      const newState =
+        snap.state === "RESERVED" && newReserved < Number(snap.grossRequiredQty)
+          ? "AVAILABLE"
+          : snap.state;
+      await tx
+        .update(bomSnapshotLine)
+        .set({
+          reservedQty: String(newReserved),
+          state: newState,
+          versionLock: sql`${bomSnapshotLine.versionLock} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(eq(bomSnapshotLine.id, snap.id));
+      await tx.insert(inventoryTxn).values({
+        txType: "UNRESERVE",
+        itemId: snap.componentItemId,
+        lotSerialId: resv.lotSerialId,
+        qty: String(qty),
+        refTable: "reservation",
+        refId: resv.id,
+        postedBy: input.userId,
+        notes: `Nhả giữ chỗ do lô bị giữ (${input.reason})`,
+      });
+    }
+  }
+
+  if (active.length > 0) {
+    logger.info(
+      { lotSerialId: input.lotSerialId, count: active.length, reason: input.reason },
+      "released lot reservations",
+    );
+  }
+  return active.length;
+}
+
 export interface BulkReserveResult {
   successCount: number;
   failures: Array<{ snapshotLineId: string; error: string; code: string }>;

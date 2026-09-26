@@ -1,6 +1,5 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import {
-  bomSnapshotLine,
   inboundReceipt,
   inboundReceiptLine,
   inventoryLotSerial,
@@ -13,6 +12,7 @@ import {
 } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import { currentYymm, genDocNo } from "./_docNumber";
+import { applySnapshotQc, recomputeReceiptQcFlag } from "./inboundQc";
 
 /**
  * V4.1 hotfix — bin hệ thống "Chờ xếp kệ" (migration 0058). Nhận hàng KHÔNG
@@ -145,13 +145,20 @@ export async function listEventsByPo(poCode: string, limit = 100) {
  *
  * 1) INSERT receiving_event (nếu chưa có — idempotent scan_id)
  * 2) Tìm/tạo inbound_receipt (1 per PO + ngày) + inbound_receipt_line
- * 3) Tìm/tạo inventory_lot_serial (theo lot_code + item_id)
+ * 3) Tạo inventory_lot_serial MỚI cho mỗi dòng nhận (V4.1 D5 — trùng mã lô → tách -N)
  * 4) INSERT inventory_txn tx_type=IN_RECEIPT
  * 5) UPDATE purchase_order_line.received_qty += qty
  * 6) UPDATE bom_snapshot_line.received_qty += qty (qua po_line.snapshot_line_id)
  * 7) (QC flow) transition state PURCHASING → INBOUND_QC (nếu applicable)
  *
  * Tất cả atomic trong 1 Drizzle transaction. Trả về chi tiết kết quả.
+ *
+ * V4.1 Đợt 1a:
+ *  - KHO-08: khoá PO + chỉ nhận khi PO ở SENT/PARTIAL/RECEIVED.
+ *  - KHO-01: lô mới HOLD/QC_PENDING cho tới khi QC kết luận (OK chỉ hiệu lực
+ *    với người có `approve:qcInspection` — caller truyền `canApproveQc`).
+ *  - KHO-07/D5: LUÔN tạo lô mới; mã lô đã có (cùng item) → tách `-2`, `-3`…
+ *  - KHO-15: dòng phiếu nhập ghi qc_status + lot_serial_id; tính lại qc_flag.
  */
 export interface PostReceivingInput {
   scanEventId: string; // id của receiving_event (đã insert)
@@ -168,16 +175,30 @@ export interface PostReceivingInput {
    * V1.2 B5.2: QC status của sự kiện scan này.
    * - OK: snapshot transition INBOUND_QC→AVAILABLE + qc_pass_qty += qty.
    * - NG: lot status HOLD + snapshot rollback INBOUND_QC→PLANNED.
-   * - PENDING (default): chờ QC manual qua /receiving/qc (giữ INBOUND_QC).
+   * - PENDING (default): chờ QC ở màn "Chờ QC" (giữ INBOUND_QC).
    */
   qcStatus?: "OK" | "NG" | "PENDING";
+  /**
+   * V4.1 KHO-01 — người nhận có `approve:qcInspection` không. Không có quyền
+   * mà gửi OK → hạ về PENDING (không báo lỗi), ghi metadata.qcDowngraded.
+   */
+  canApproveQc?: boolean;
 }
 
 export interface PostReceivingResult {
+  receiptId: string;
+  receiptNo: string;
   receiptLineId: string;
   inventoryTxnId: string;
   lotSerialId: string;
+  /** V4.1 D5 — mã lô THỰC TẾ đã ghi (có thể đã tách thành `<mã>-N`). */
+  lotCode: string | null;
+  /** true nếu mã lô bị tách do trùng lô cũ cùng mã hàng. */
+  lotSplit: boolean;
   lotStatus: "AVAILABLE" | "HOLD" | "CONSUMED" | "EXPIRED";
+  /** Trạng thái QC hiệu lực sau khi xét quyền (OK có thể bị hạ PENDING). */
+  qcStatus: "OK" | "NG" | "PENDING";
+  qcDowngraded: boolean;
   snapshotLineUpdated: boolean;
   newSnapshotState: string | null;
   poStatus: string | null;
@@ -188,10 +209,102 @@ export interface PostReceivingResult {
 const OVER_DELIVERY_WARN_RATIO = 1.05; // > 105%: log warning
 const OVER_DELIVERY_HARD_RATIO = 1.20; // > 120%: throw OVER_DELIVERY_REJECTED
 
+/** V4.1 KHO-08 — PO ở các trạng thái này mới được nhận hàng. */
+export const RECEIVABLE_PO_STATUSES = ["SENT", "PARTIAL", "RECEIVED"] as const;
+
+/** Độ dài tối đa cột inventory_lot_serial.lot_code. */
+const LOT_CODE_MAX = 64;
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * V4.1 D5 — THUẦN: mã lô cho lần nhận mới khi `base` có thể đã tồn tại.
+ * `existing` = các mã lô của CÙNG item bằng `base` hoặc dạng `base-N`.
+ *  - base chưa có → dùng base.
+ *  - đã có → `base-(maxN+1)`, maxN tính từ các hậu tố `-N` hiện có (tối thiểu 1).
+ */
+export function nextSplitLotCode(base: string, existing: string[]): string {
+  if (!existing.includes(base)) return base;
+  const re = new RegExp(`^${escapeRegex(base)}-(\\d+)$`);
+  let max = 1;
+  for (const code of existing) {
+    const m = re.exec(code);
+    if (m) max = Math.max(max, Number.parseInt(m[1]!, 10));
+  }
+  return `${base}-${max + 1}`;
+}
+
+/**
+ * V4.1 KHO-01 — THUẦN: QC hiệu lực của lần nhận.
+ * OK mà người nhận không có quyền QC → hạ về PENDING (downgraded=true).
+ */
+export function resolveReceiveQc(
+  requested: "OK" | "NG" | "PENDING" | null | undefined,
+  canApproveQc: boolean,
+): { qc: "OK" | "NG" | "PENDING"; downgraded: boolean } {
+  const req = requested ?? "PENDING";
+  if (req === "OK" && !canApproveQc) return { qc: "PENDING", downgraded: true };
+  return { qc: req, downgraded: false };
+}
+
+/**
+ * V4.1 D5 — chọn mã lô thực tế cho (item, base) trong transaction. Advisory
+ * lock theo (item, base) để 2 lần nhận song song cùng mã không cùng ra `-2`;
+ * unique index `inventory_lot_uk (item_id, lot_code)` là chốt chặn cuối.
+ */
+export async function resolveReceiptLotCode(
+  tx: Tx,
+  itemId: string,
+  base: string,
+): Promise<string> {
+  await tx.execute(
+    sql`SELECT pg_advisory_xact_lock(hashtext(${"lotcode:" + itemId + ":" + base}))`,
+  );
+  const rows = (await tx.execute(sql`
+    SELECT lot_code
+    FROM app.inventory_lot_serial
+    WHERE item_id = ${itemId}
+      AND lot_code IS NOT NULL
+      AND (lot_code = ${base} OR left(lot_code, ${base.length + 1}) = ${base + "-"})
+  `)) as unknown as Array<{ lot_code: string }>;
+  const code = nextSplitLotCode(
+    base,
+    rows.map((r) => r.lot_code),
+  );
+  if (code.length > LOT_CODE_MAX) {
+    throw new Error(
+      `LOT_CODE_TOO_LONG: mã lô "${code}" vượt ${LOT_CODE_MAX} ký tự sau khi tách lô — rút ngắn mã lô.`,
+    );
+  }
+  return code;
+}
+
 export async function postReceivingAtomic(
   input: PostReceivingInput,
 ): Promise<PostReceivingResult> {
   return db.transaction(async (tx) => {
+    // 0) V4.1 KHO-08 — khoá PO header TRƯỚC (thứ tự: PO → PO line) + chỉ nhận
+    //    PO đã gửi NCC. DRAFT/CANCELLED/CLOSED trước đây vẫn nhận được và
+    //    CANCELLED còn tự nhảy thành RECEIVED.
+    const [po] = await tx
+      .select({
+        id: purchaseOrder.id,
+        poNo: purchaseOrder.poNo,
+        status: purchaseOrder.status,
+      })
+      .from(purchaseOrder)
+      .where(eq(purchaseOrder.id, input.poId))
+      .limit(1)
+      .for("update");
+    if (!po) throw new Error("PO_NOT_FOUND");
+    if (!(RECEIVABLE_PO_STATUSES as readonly string[]).includes(po.status)) {
+      throw new Error(
+        `PO_NOT_RECEIVABLE: PO ${po.poNo} đang ở trạng thái ${po.status} — chỉ nhận hàng khi PO đã gửi NCC (SENT/PARTIAL).`,
+      );
+    }
+
     // 1) Validate PO line
     // V3.11.4 (audit 1.5) — FOR UPDATE: khoá row PO line để nhiều scan song song
     // cùng line tuần tự nhau; guard over-delivery 120% (bước 1b) + cộng dồn
@@ -203,6 +316,11 @@ export async function postReceivingAtomic(
       .limit(1)
       .for("update");
     if (!poLine) throw new Error("PO_LINE_NOT_FOUND");
+    if (poLine.poId !== input.poId || poLine.itemId !== input.itemId) {
+      throw new Error(
+        "PO_LINE_MISMATCH: dòng PO không thuộc PO/mã hàng đang nhận.",
+      );
+    }
 
     // V3.7 — Slotting: nếu caller không truyền locationBinId, fallback default_bin_id của item.
     // V4.1 hotfix — nếu vẫn không có (item cũng chưa gán default_bin) → fallback
@@ -247,12 +365,14 @@ export async function postReceivingAtomic(
       .limit(1);
 
     let receiptId: string;
+    let receiptNo: string;
     if (existingHeader) {
       receiptId = existingHeader.id;
+      receiptNo = existingHeader.receiptNo;
     } else {
       // V3.11.4 (audit 1.8/1.21) — advisory lock + MAX(seq)+1 thay COUNT(*)+1
       // (COUNT sai khi có gap + không lock → trùng số phiếu nhập).
-      const receiptNo = await genDocNo(tx, {
+      receiptNo = await genDocNo(tx, {
         table: "app.inbound_receipt",
         column: "receipt_no",
         prefix: `RCV-${currentYymm()}`,
@@ -272,7 +392,52 @@ export async function postReceivingAtomic(
       receiptId = newHeader.id;
     }
 
-    // 3) Insert inbound_receipt_line
+    // 3) V4.1 KHO-01 — QC hiệu lực (OK không có quyền → PENDING).
+    const { qc, downgraded: qcDowngraded } = resolveReceiveQc(
+      input.qcStatus,
+      input.canApproveQc ?? false,
+    );
+    const lotStatus: "AVAILABLE" | "HOLD" = qc === "OK" ? "AVAILABLE" : "HOLD";
+    const holdCode: "QC_PENDING" | "QC_FAIL" | null =
+      qc === "OK" ? null : qc === "NG" ? "QC_FAIL" : "QC_PENDING";
+    const holdReason =
+      qc === "OK"
+        ? null
+        : qc === "NG"
+          ? `QC không đạt khi nhận hàng (${receiptNo})`
+          : `Chờ QC nhập kho (${receiptNo})`;
+
+    // 4) V4.1 D5 — LUÔN tạo lô MỚI cho mỗi dòng nhận. Trước đây nhận vào mã lô
+    //    đã có thì dùng lại lô cũ: lô CONSUMED nhận thêm → hàng "biến mất";
+    //    NG khoá lây sang hàng tốt nhận trước (KHO-07). Mã lô trùng → tách -N.
+    const requestedLot = input.lotCode?.trim() || null;
+    const lotCode = requestedLot
+      ? await resolveReceiptLotCode(tx, input.itemId, requestedLot)
+      : null;
+    const lotSplit = requestedLot !== null && lotCode !== requestedLot;
+
+    const [newLot] = await tx
+      .insert(inventoryLotSerial)
+      .values({
+        itemId: input.itemId,
+        lotCode,
+        serialCode: input.serialCode ?? null,
+        // Lô không mã → supplier_ref = số phiếu nhập để truy vết.
+        supplierRef: lotCode || input.serialCode ? null : receiptNo,
+        status: lotStatus,
+        holdCode,
+        holdReason,
+        notes: lotSplit
+          ? `Tách lô: mã ${requestedLot} đã tồn tại, ghi thành ${lotCode}`
+          : null,
+      })
+      .returning({ id: inventoryLotSerial.id });
+    if (!newLot) throw new Error("LOT_INSERT_FAILED");
+    const lotSerialId = newLot.id;
+
+    // 5) Insert inbound_receipt_line (gắn lô + trạng thái QC theo dòng)
+    const lineQc: "PENDING" | "PASS" | "FAIL" =
+      qc === "OK" ? "PASS" : qc === "NG" ? "FAIL" : "PENDING";
     const [receiptLine] = await tx
       .insert(inboundReceiptLine)
       .values({
@@ -281,90 +446,19 @@ export async function postReceivingAtomic(
         itemId: input.itemId,
         receivedQty: String(input.qty),
         locationBinId: resolvedBinId,
-        lotCode: input.lotCode ?? null,
+        lotCode,
         serialCode: input.serialCode ?? null,
         notes: input.notes ?? null,
+        lotSerialId,
+        qcStatus: lineQc,
+        qcCheckedBy: lineQc === "PENDING" ? null : input.userId,
+        qcCheckedAt: lineQc === "PENDING" ? null : new Date(),
+        qcNotes: lineQc === "FAIL" ? "Không đạt khi nhận hàng" : null,
       })
       .returning();
     if (!receiptLine) throw new Error("RECEIPT_LINE_INSERT_FAILED");
 
-    // 4) Find/create inventory_lot_serial (match item + lot_code)
-    // V1.2 B5.2: QC NG khi scan → lot status HOLD ngay từ đầu (không wait QC manual).
-    const qc = input.qcStatus ?? "PENDING";
-    const initialLotStatus: "AVAILABLE" | "HOLD" =
-      qc === "NG" ? "HOLD" : "AVAILABLE";
-    let lotSerialId: string;
-    let lotStatus: "AVAILABLE" | "HOLD" | "CONSUMED" | "EXPIRED" =
-      initialLotStatus;
-
-    if (input.lotCode || input.serialCode) {
-      const lotConds = [eq(inventoryLotSerial.itemId, input.itemId)];
-      if (input.lotCode) lotConds.push(eq(inventoryLotSerial.lotCode, input.lotCode));
-      if (input.serialCode)
-        lotConds.push(eq(inventoryLotSerial.serialCode, input.serialCode));
-
-      const [existingLot] = await tx
-        .select({
-          id: inventoryLotSerial.id,
-          status: inventoryLotSerial.status,
-        })
-        .from(inventoryLotSerial)
-        .where(and(...lotConds))
-        .limit(1);
-
-      if (existingLot) {
-        lotSerialId = existingLot.id;
-        lotStatus = existingLot.status;
-        // Nếu QC NG trên lot hiện tại → ép HOLD
-        if (qc === "NG" && existingLot.status !== "HOLD") {
-          await tx
-            .update(inventoryLotSerial)
-            .set({
-              status: "HOLD",
-              holdReason: `QC NG khi nhận hàng (event ${input.scanEventId})`,
-            })
-            .where(eq(inventoryLotSerial.id, existingLot.id));
-          lotStatus = "HOLD";
-        }
-      } else {
-        const [newLot] = await tx
-          .insert(inventoryLotSerial)
-          .values({
-            itemId: input.itemId,
-            lotCode: input.lotCode ?? null,
-            serialCode: input.serialCode ?? null,
-            status: initialLotStatus,
-            holdReason:
-              qc === "NG" ? "QC NG khi nhận hàng" : null,
-          })
-          .returning({
-            id: inventoryLotSerial.id,
-            status: inventoryLotSerial.status,
-          });
-        if (!newLot) throw new Error("LOT_INSERT_FAILED");
-        lotSerialId = newLot.id;
-        lotStatus = newLot.status;
-      }
-    } else {
-      // Không có lot code → tạo lot anonymous (1 per receipt line)
-      const [anonLot] = await tx
-        .insert(inventoryLotSerial)
-        .values({
-          itemId: input.itemId,
-          supplierRef: `RCV-${receiptLine.id.slice(0, 8)}`,
-          status: initialLotStatus,
-          holdReason: qc === "NG" ? "QC NG khi nhận hàng" : null,
-        })
-        .returning({
-          id: inventoryLotSerial.id,
-          status: inventoryLotSerial.status,
-        });
-      if (!anonLot) throw new Error("LOT_INSERT_FAILED");
-      lotSerialId = anonLot.id;
-      lotStatus = anonLot.status;
-    }
-
-    // 5) Insert inventory_txn IN_RECEIPT
+    // 6) Insert inventory_txn IN_RECEIPT
     const [txn] = await tx
       .insert(inventoryTxn)
       .values({
@@ -381,7 +475,7 @@ export async function postReceivingAtomic(
       .returning({ id: inventoryTxn.id });
     if (!txn) throw new Error("INVENTORY_TXN_INSERT_FAILED");
 
-    // 6) UPDATE PO line received_qty
+    // 7) UPDATE PO line received_qty
     await tx
       .update(purchaseOrderLine)
       .set({
@@ -389,7 +483,7 @@ export async function postReceivingAtomic(
       })
       .where(eq(purchaseOrderLine.id, input.poLineId));
 
-    // 7) UPDATE PO status nếu tất cả line đều đủ (→ RECEIVED) hoặc partial (→ PARTIAL)
+    // 8) UPDATE PO status nếu tất cả line đều đủ (→ RECEIVED) hoặc partial (→ PARTIAL)
     const allLines = await tx
       .select({
         ordered: purchaseOrderLine.orderedQty,
@@ -405,12 +499,19 @@ export async function postReceivingAtomic(
       (l) => Number.parseFloat(l.received) > 0,
     );
 
+    // V4.1 KHO-08 — chỉ chuyển trạng thái từ SENT/PARTIAL. PO đã RECEIVED
+    // (nhận vượt) giữ nguyên + poStatus=null → route không bắn notify lặp.
     let poStatus: string | null = null;
     if (allFull) {
       const [updated] = await tx
         .update(purchaseOrder)
         .set({ status: "RECEIVED" })
-        .where(eq(purchaseOrder.id, input.poId))
+        .where(
+          and(
+            eq(purchaseOrder.id, input.poId),
+            inArray(purchaseOrder.status, ["SENT", "PARTIAL"]),
+          ),
+        )
         .returning({ status: purchaseOrder.status });
       poStatus = updated?.status ?? null;
     } else if (anyReceived) {
@@ -428,72 +529,32 @@ export async function postReceivingAtomic(
     }
 
     // Over-delivery warning: nhận > 105% ordered
-    const poLineAfter = allLines.find((l) => true); // placeholder
-    void poLineAfter;
     const orderedNum = Number.parseFloat(poLine.orderedQty);
     const receivedAfter =
       Number.parseFloat(poLine.receivedQty) + input.qty;
     const overDelivery = orderedNum > 0 && receivedAfter > orderedNum * OVER_DELIVERY_WARN_RATIO;
 
-    // 8) UPDATE bom_snapshot_line + transition state theo qcStatus
-    //    - qty snapshot: receivedQty luôn += input.qty.
-    //    - qc_pass_qty += input.qty CHỈ khi qcStatus=OK.
-    //    - Transition target:
-    //        PENDING: PURCHASING → INBOUND_QC (wait QC manual)
-    //        OK:      * → AVAILABLE + qc_pass_qty += qty
-    //        NG:      * → PLANNED  (rollback, lot đã HOLD ở bước 4)
+    // 9) UPDATE bom_snapshot_line + transition state theo QC HIỆU LỰC (đã hạ
+    //    cấp nếu thiếu quyền): PENDING → INBOUND_QC, OK → AVAILABLE, NG → PLANNED.
     let snapshotLineUpdated = false;
     let newSnapshotState: string | null = null;
     if (poLine.snapshotLineId) {
-      const [curLine] = await tx
-        .select({
-          id: bomSnapshotLine.id,
-          state: bomSnapshotLine.state,
-          versionLock: bomSnapshotLine.versionLock,
-        })
-        .from(bomSnapshotLine)
-        .where(eq(bomSnapshotLine.id, poLine.snapshotLineId))
-        .limit(1);
-
-      if (curLine) {
-        snapshotLineUpdated = true;
-
-        // update received + qc_pass (nếu OK)
-        const updateSet: Record<string, unknown> = {
-          receivedQty: sql`${bomSnapshotLine.receivedQty} + ${input.qty}`,
-          updatedAt: new Date(),
-        };
-        if (qc === "OK") {
-          updateSet.qcPassQty = sql`${bomSnapshotLine.qcPassQty} + ${input.qty}`;
-        }
-
-        // Decide target state
-        let targetState: string | null = null;
-        if (qc === "PENDING" && curLine.state === "PURCHASING") {
-          targetState = "INBOUND_QC";
-        } else if (qc === "OK") {
-          targetState = "AVAILABLE";
-        } else if (qc === "NG") {
-          targetState = "PLANNED";
-        }
-
-        if (targetState) {
-          updateSet.state = targetState;
-          updateSet.versionLock = curLine.versionLock + 1;
-          updateSet.transitionedAt = new Date();
-          updateSet.transitionedBy = input.userId;
-        }
-
-        const [after] = await tx
-          .update(bomSnapshotLine)
-          .set(updateSet)
-          .where(eq(bomSnapshotLine.id, poLine.snapshotLineId))
-          .returning({ state: bomSnapshotLine.state });
-        newSnapshotState = after?.state ?? curLine.state;
-      }
+      const snap = await applySnapshotQc(tx, {
+        snapshotLineId: poLine.snapshotLineId,
+        qty: input.qty,
+        qc: lineQc,
+        mode: "receive",
+        receivedDelta: input.qty,
+        userId: input.userId,
+      });
+      snapshotLineUpdated = snap.updated;
+      newSnapshotState = snap.newState;
     }
 
-    // 9) Update receiving_event: qc_status + link chain qua metadata
+    // 10) V4.1 KHO-15 — qc_flag phiếu nhập tính lại theo các dòng.
+    await recomputeReceiptQcFlag(tx, receiptId, input.userId);
+
+    // 11) Update receiving_event: qc_status + link chain qua metadata
     await tx
       .update(receivingEvent)
       .set({
@@ -503,7 +564,11 @@ export async function postReceivingAtomic(
             inventoryTxnId: txn.id,
             receiptLineId: receiptLine.id,
             lotSerialId,
+            lotCode,
+            lotSplit,
             lotStatus,
+            qcDowngraded,
+            requestedQcStatus: input.qcStatus ?? "PENDING",
             poStatus,
             overDelivery,
             postedAt: new Date().toISOString(),
@@ -513,10 +578,16 @@ export async function postReceivingAtomic(
       .where(eq(receivingEvent.id, input.scanEventId));
 
     return {
+      receiptId,
+      receiptNo,
       receiptLineId: receiptLine.id,
       inventoryTxnId: txn.id,
       lotSerialId,
+      lotCode,
+      lotSplit,
       lotStatus,
+      qcStatus: qc,
+      qcDowngraded,
       snapshotLineUpdated,
       newSnapshotState,
       poStatus,

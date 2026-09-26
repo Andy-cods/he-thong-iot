@@ -43,7 +43,14 @@ export type RbacEntity =
   | "finance"
   // V4.0 — Phiếu giao hàng / Biên bản giao hàng (BBGH). Chỉ Giám đốc (admin)
   // duyệt; Kho + Thu mua theo dõi và nhận BBGH sau khi giao xong.
-  | "deliveryNote";
+  | "deliveryNote"
+  // V4.1 Đợt 1a — Xuất kho (phiếu xuất). `create` = xuất vật tư nội bộ;
+  // `approve` = xuất bán/trả NCC (chỉ Giám đốc). Tạm thời gate
+  // /api/warehouse/issue; Đợt 1b gắn bảng goods_issue.
+  | "goodsIssue"
+  // V4.1 Đợt 1a — QC nhập kho. `approve` = kết luận Đạt/Không đạt lô nhận;
+  // `update` = đặt/nhả HOLD thủ công (MANUAL); `read` = xem màn Chờ QC.
+  | "qcInspection";
 
 /** Partial vì không phải role nào cũng có action trên mọi entity. */
 type Matrix = Record<Role, Partial<Record<RbacEntity, RbacAction[]>>>;
@@ -83,6 +90,9 @@ export const RBAC_MATRIX: Matrix = {
     // V4.0 — Giám đốc = admin: toàn quyền Tài chính + duyệt phiếu giao hàng.
     finance: ["create", "read", "update", "delete", "approve"],
     deliveryNote: ["create", "read", "update", "delete", "approve", "transition"],
+    // V4.1 Đợt 1a — Giám đốc: xuất bán/trả NCC (approve) + kết luận QC.
+    goodsIssue: ["create", "read", "delete", "approve"],
+    qcInspection: ["read", "update", "approve"],
   },
   planner: {
     item: ["create", "read", "update"],
@@ -103,6 +113,9 @@ export const RBAC_MATRIX: Matrix = {
     session: ["read"],
     // V3.8 — planner xem bảng sản xuất (read-only).
     productionBoard: ["read"],
+    // V4.1 Đợt 1a — planner xem phiếu xuất. KHÔNG có qcInspection: planner
+    // mất quyền HOLD/nhả HOLD lô (KHO-12), vẫn giữ `reservation:update`.
+    goodsIssue: ["read"],
   },
   operator: {
     item: ["read"],
@@ -123,6 +136,8 @@ export const RBAC_MATRIX: Matrix = {
     session: ["read"],
     // V3.8 — operator xem bảng sản xuất (read-only).
     productionBoard: ["read"],
+    // V4.1 Đợt 1a — operator xem phiếu xuất (vật tư đã giao cho xưởng).
+    goodsIssue: ["read"],
   },
   warehouse: {
     item: ["read"],
@@ -150,6 +165,11 @@ export const RBAC_MATRIX: Matrix = {
     // V4.0 — Kho lập phiếu giao hàng + cập nhật quá trình giao nhận, nhưng
     // KHÔNG duyệt (chỉ Giám đốc duyệt — yêu cầu nghiệp vụ V4.0).
     deliveryNote: ["create", "read", "update", "transition"],
+    // V4.1 Đợt 1a — Kho xuất vật tư nội bộ (KHÔNG approve: bán/trả NCC phải
+    // qua Giám đốc). Kho xem Chờ QC + HOLD/nhả HOLD thủ công, KHÔNG kết luận
+    // QC Đạt/Không đạt (thuộc Tổ QC / Giám đốc).
+    goodsIssue: ["create", "read"],
+    qcInspection: ["read", "update"],
   },
   // V3.3 — Purchaser (Bộ phận Thu mua): full PR/PO + read supplier/item/BOM
   purchaser: {
@@ -187,6 +207,9 @@ export const RBAC_MATRIX: Matrix = {
     user: ["read"],
     session: ["read"],
     productionBoard: ["create", "read", "update", "delete"],
+    // V4.1 Đợt 1a (KHO-12) — Tổ QC kết luận QC nhập kho (Đạt/Không đạt) +
+    // HOLD/nhả HOLD thủ công. Trước đây role qc không có quyền kho nào.
+    qcInspection: ["read", "update", "approve"],
   },
   // V3.8.2 — Display (kiosk TV): CHỈ đọc bảng sản xuất để chiếu màn hình.
   // Không sửa, không thấy gì khác. Phiên đăng nhập 24h (xem login route).
@@ -241,6 +264,8 @@ export const RBAC_ENTITIES: RbacEntity[] = [
   "productionBoard",
   "finance",
   "deliveryNote",
+  "goodsIssue",
+  "qcInspection",
 ];
 
 export const RBAC_ACTIONS: RbacAction[] = [

@@ -35,6 +35,8 @@ import {
   type ReceivingEventInput,
 } from "@/hooks/useReceivingEvents";
 import { useApproveReceiving } from "@/hooks/useReceivingApprove";
+import { useSession } from "@/hooks/useSession";
+import { can } from "@iot/shared";
 
 /**
  * V3 (TASK-20260427-030) — Wizard nhận hàng desktop cho từng PO.
@@ -95,6 +97,10 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
   const { data: po, isLoading, isError, error } = usePOForReceiving(poId);
   const submit = useSubmitReceivingEvent();
   const approve = useApproveReceiving();
+  // V4.1 KHO-01 — chỉ Tổ QC / Giám đốc (`approve:qcInspection`) được nhận hàng
+  // thẳng "Đạt QC". Người khác chỉ chọn Chờ kiểm / NG; server cũng tự hạ OK.
+  const { data: session } = useSession();
+  const canApproveQc = can(session?.roles ?? [], "approve", "qcInspection");
 
   const [inputs, setInputs] = React.useState<Record<string, LineInput>>({});
   const [notes, setNotes] = React.useState("");
@@ -157,16 +163,18 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
       let filled = 0;
       for (const ln of po.lines) {
         if (ln.remainingQty <= 0) continue;
+        // V4.1 KHO-01 — "Điền tất cả" KHÔNG tự đặt QC OK nữa (trước đây làm
+        // hàng chưa kiểm vào kho AVAILABLE). Mặc định Chờ kiểm → vào màn Chờ QC.
         next[ln.id!] = {
           qty: String(ln.remainingQty),
           lotCode: prev[ln.id!]?.lotCode ?? "",
-          qcStatus: "OK",
+          qcStatus: "PENDING",
           binId: prev[ln.id!]?.binId ?? "",
         };
         filled += 1;
       }
       if (filled > 0) {
-        toast.success(`Đã điền ${filled} dòng = số còn lại + QC OK.`, {
+        toast.success(`Đã điền ${filled} dòng = số còn lại (QC: Chờ kiểm).`, {
           duration: 1500,
         });
       } else {
@@ -348,6 +356,8 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
         rawCode: ln.sku,
         // V3.7 — pass bin override; if empty server falls back to item.defaultBinId.
         locationBinId: input.binId || ln.defaultBinId || null,
+        // V4.1 KHO-09 — server dùng đúng dòng PO này (PO 2 dòng cùng mã).
+        poLineId: ln.id,
         metadata: {
           source: "receiving-wizard",
           poId: po.poId,
@@ -364,6 +374,26 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
     }
     const ackedCount = res.data.acked.length;
     const rejectedCount = res.data.rejected.length;
+
+    // V4.1 D5 — báo lô bị tách mã (trùng mã lô cũ) + dòng bị hạ QC.
+    const splitLots = (res.data.details ?? []).filter((d) => d.lotSplit && d.lotCode);
+    if (splitLots.length > 0) {
+      toast.info(
+        `Mã lô đã tồn tại — hệ thống tách lô mới: ${splitLots
+          .map((d) => d.lotCode)
+          .join(", ")}.`,
+        { duration: 6000 },
+      );
+    }
+    const pendingQc = (res.data.details ?? []).filter(
+      (d) => d.qcStatus === "PENDING",
+    ).length;
+    if (pendingQc > 0) {
+      toast.message(
+        `${pendingQc} dòng đang chờ QC — hàng bị giữ (HOLD), chưa xuất được cho tới khi QC kết luận Đạt.`,
+        { duration: 6000 },
+      );
+    }
 
     if (rejectedCount === 0) {
       toast.success(`Đã ghi nhận ${ackedCount + alreadySent} dòng nhận hàng.`);
@@ -455,6 +485,7 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
             onFillAll={fillAll}
             onResetAll={resetAll}
             disabled={isComplete || submitted}
+            canApproveQc={canApproveQc}
           />
         ) : null}
         {step === "qc" ? (
@@ -627,7 +658,9 @@ function StepCapture({
   onFillAll,
   onResetAll,
   disabled,
+  canApproveQc,
 }: {
+  canApproveQc: boolean;
   po: NonNullable<ReturnType<typeof usePOForReceiving>["data"]>;
   inputs: Record<string, LineInput>;
   bins: Array<{ id: string; fullCode: string; isActive: boolean }>;
@@ -736,6 +769,7 @@ function StepCapture({
                   bins={bins}
                   input={inputs[ln.id!] ?? emptyLineInput()}
                   disabled={disabled}
+                  canApproveQc={canApproveQc}
                   onChange={(patch) => onUpdate(ln.id!, patch)}
                   onReset={() => onResetLine(ln.id!)}
                 />
@@ -749,6 +783,13 @@ function StepCapture({
         Mẹo: Có thể bỏ qua dòng không nhận trong lô này (qty = 0). Khi sẵn
         sàng, bấm <strong>Tiếp</strong> để xem tổng kết.
       </p>
+      {!canApproveQc ? (
+        <p className="text-xs text-amber-700 dark:text-amber-400">
+          Hàng nhận sẽ ở trạng thái <strong>Chờ QC</strong> (bị giữ, chưa xuất
+          được) cho tới khi Tổ QC kết luận Đạt ở màn &quot;Chờ QC nhập kho&quot;.
+          Hàng hỏng rõ ràng có thể chọn <strong>NG</strong> ngay.
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -758,6 +799,7 @@ function LineRow({
   bins,
   input,
   disabled,
+  canApproveQc,
   onChange,
   onReset,
 }: {
@@ -765,6 +807,7 @@ function LineRow({
   bins: Array<{ id: string; fullCode: string; isActive: boolean }>;
   input: LineInput;
   disabled: boolean;
+  canApproveQc: boolean;
   onChange: (patch: Partial<LineInput>) => void;
   onReset: () => void;
 }) {
@@ -892,7 +935,11 @@ function LineRow({
           role="radiogroup"
           aria-label={`Trạng thái QC ${ln.sku}`}
         >
-          {(["OK", "NG", "PENDING"] as const).map((qc) => (
+          {/* V4.1 KHO-01 — ẩn "OK" với người không có quyền kết luận QC. */}
+          {(canApproveQc
+            ? (["OK", "NG", "PENDING"] as const)
+            : (["NG", "PENDING"] as const)
+          ).map((qc) => (
             <button
               key={qc}
               type="button"

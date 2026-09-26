@@ -47,6 +47,9 @@ const ENTITY_LABELS: Record<RbacEntityKey, string> = {
   // V4.0 — 2 phân hệ mới.
   finance: "Tài chính",
   deliveryNote: "Phiếu giao hàng",
+  // V4.1 Đợt 1a — xuất kho + QC nhập kho.
+  goodsIssue: "Xuất kho",
+  qcInspection: "QC nhập kho",
 };
 
 const ACTION_LABELS: Record<RbacActionKey, string> = {

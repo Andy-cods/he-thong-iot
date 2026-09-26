@@ -163,7 +163,9 @@ export function PoQuickReceiveTable({
         qcStatus: "PENDING",
         scannedAt: new Date().toISOString(),
         rawCode: null,
-        metadata: { source: "po-quick-receive" },
+        // V4.1 KHO-09 — gửi đúng dòng PO (PO có 2 dòng cùng mã hàng).
+        poLineId: ln.id,
+        metadata: { source: "po-quick-receive", poLineId: ln.id },
       });
     }
 

@@ -59,6 +59,8 @@ export interface ReceivingEventInput {
   rawCode?: string | null;
   /** V3.7 — bin override. NULL → fallback item.defaultBinId server-side. */
   locationBinId?: string | null;
+  /** V4.1 KHO-09 — dòng PO cụ thể (PO có 2 dòng cùng mã hàng). */
+  poLineId?: string | null;
   metadata?: Record<string, unknown>;
 }
 
@@ -67,6 +69,12 @@ export interface ReceivingEventDetail {
   poStatus?: string | null;
   newSnapshotState?: string | null;
   lotStatus?: string;
+  /** V4.1 D5 — mã lô thực tế (có thể đã tách `<mã>-N` do trùng lô cũ). */
+  lotCode?: string | null;
+  lotSplit?: boolean;
+  /** V4.1 — QC hiệu lực; OK bị hạ về PENDING nếu người nhận không có quyền QC. */
+  qcStatus?: string;
+  qcDowngraded?: boolean;
   overDelivery?: boolean;
   warning?: string | null;
 }

@@ -1,10 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { eq, sql } from "drizzle-orm";
-import { inventoryLotSerial, inventoryTxn } from "@iot/db/schema";
+import { can } from "@iot/shared";
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 import { jsonError, parseJson } from "@/server/http";
+import {
+  assertIssuable,
+  mapDbGuardError,
+  postOutboundTxns,
+  type IssuePick,
+} from "@/server/repos/stockGuard";
 import { writeAudit } from "@/server/services/audit";
+import { canForUser } from "@/server/services/rbac";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -30,6 +37,14 @@ export const dynamic = "force-dynamic";
  *   3. Nếu lot tiêu thụ hết → optional update status='CONSUMED' (V2)
  *
  * Atomic transaction: nếu 1 pick fail → rollback hết.
+ *
+ * V4.1 Đợt 1a:
+ *  - KHO-13: RBAC `create:goodsIssue` (admin, warehouse) thay `transition:po`
+ *    (trước đây Thu mua cũng xuất kho được).
+ *  - KHO-14: xuất Bán hàng / Trả NCC cần `approve:goodsIssue` (Giám đốc);
+ *    Kho phải lập Yêu cầu xuất kho để Giám đốc duyệt.
+ *  - KHO-05/10: guard chung `assertIssuable` — chỉ lô AVAILABLE, không vượt
+ *    tồn bin, không lấn phần đã giữ chỗ cho lệnh SX.
  */
 const pickSchema = z.object({
   lotSerialId: z.string().uuid(),
@@ -52,7 +67,7 @@ const issueSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const guard = await requireCan(req, "transition", "po");
+  const guard = await requireCan(req, "create", "goodsIssue");
   if ("response" in guard) return guard.response;
 
   const body = await parseJson(req, issueSchema);
@@ -60,93 +75,55 @@ export async function POST(req: NextRequest) {
 
   const { reason, reference, notes, lines } = body.data;
 
+  // V4.1 KHO-14 — xuất ra ngoài công ty (bán/trả NCC) chỉ Giám đốc.
+  if (reason === "sales" || reason === "return") {
+    const allowed = await canForUser(
+      guard.session.userId,
+      guard.session.roles,
+      "approve",
+      "goodsIssue",
+    ).then(
+      (r) => r.allowed,
+      () => can(guard.session.roles, "approve", "goodsIssue"),
+    );
+    if (!allowed) {
+      return jsonError(
+        "FORBIDDEN",
+        "Xuất bán hàng / trả NCC phải được Giám đốc duyệt — hãy lập \"Yêu cầu xuất kho\" thay vì xuất nhanh.",
+        403,
+      );
+    }
+  }
+
+  const picks: IssuePick[] = lines.flatMap((l) =>
+    l.picks.map((p) => ({
+      itemId: l.itemId,
+      lotSerialId: p.lotSerialId,
+      binId: p.binId,
+      qty: p.qty,
+    })),
+  );
+
   try {
     const result = await db.transaction(async (tx) => {
-      const txnIds: string[] = [];
       const issueRefId = crypto.randomUUID();
-      let totalQty = 0;
-      let consumedLots = 0;
-
-      // V3.11.4 (audit 1.4) — advisory lock theo lot: serialize check-then-act
-      // (đọc bin_inventory → INSERT OUT_ISSUE) để 2 issue đồng thời cùng bin/lot
-      // không đều pass check → tránh tồn âm.
-      // Review 2A-fix — lock TẤT CẢ lot phân biệt theo THỨ TỰ SORT ổn định TRƯỚC
-      // vòng xử lý, thay vì lock rải rác theo thứ tự pick trong body. Nếu không,
-      // 2 request chia sẻ ≥2 lot theo thứ tự ngược nhau → deadlock (40P01) → 500.
-      const lockIds = [
-        ...new Set(lines.flatMap((l) => l.picks.map((p) => p.lotSerialId))),
-      ].sort();
-      for (const lotId of lockIds) {
-        await tx.execute(
-          sql`SELECT pg_advisory_xact_lock(hashtext('lot:' || ${lotId}))`,
-        );
-      }
-
-      for (const line of lines) {
-        for (const pick of line.picks) {
-          // Validate qty available
-          const onHandRows = await tx.execute<{ qty: string }>(sql`
-            SELECT qty_on_hand::text AS qty
-            FROM app.bin_inventory
-            WHERE bin_id = ${pick.binId}
-              AND lot_serial_id = ${pick.lotSerialId}
-              AND item_id = ${line.itemId}
-            LIMIT 1
-          `);
-          const onHand = Number(
-            (onHandRows as unknown as Array<{ qty: string }>)[0]?.qty ?? "0",
-          );
-          if (onHand < pick.qty) {
-            throw new Error(
-              `INSUFFICIENT: bin/lot có ${onHand} < yêu cầu ${pick.qty}`,
-            );
-          }
-
-          // INSERT OUT_ISSUE
-          const [txn] = await tx
-            .insert(inventoryTxn)
-            .values({
-              txType: "OUT_ISSUE",
-              itemId: line.itemId,
-              qty: String(pick.qty),
-              fromBinId: pick.binId,
-              lotSerialId: pick.lotSerialId,
-              refTable: `issue_${reason}`,
-              refId: issueRefId,
-              postedBy: guard.session.userId,
-              notes:
-                [reference, notes].filter(Boolean).join(" · ") || null,
-            })
-            .returning({ id: inventoryTxn.id });
-
-          txnIds.push(txn!.id);
-          totalQty += pick.qty;
-
-          // Nếu sau pick này lot không còn qty trên bất cứ bin nào → CONSUMED
-          if (onHand === pick.qty) {
-            const totalLeftRows = await tx.execute<{ total: string }>(sql`
-              SELECT COALESCE(SUM(qty_on_hand), 0)::text AS total
-              FROM app.bin_inventory
-              WHERE lot_serial_id = ${pick.lotSerialId}
-            `);
-            const totalLeft = Number(
-              (totalLeftRows as unknown as Array<{ total: string }>)[0]
-                ?.total ?? "0",
-            );
-            // sau khi insert OUT_ISSUE thì view sẽ trừ pick.qty.
-            // Vì view aggregate trực tiếp từ inventory_txn, totalLeft đã là sau khi trừ.
-            if (totalLeft <= 0) {
-              await tx
-                .update(inventoryLotSerial)
-                .set({ status: "CONSUMED" })
-                .where(eq(inventoryLotSerial.id, pick.lotSerialId));
-              consumedLots += 1;
-            }
-          }
-        }
-      }
-
-      return { txnIds, totalQty, consumedLots, issueRefId };
+      // V4.1 Đợt 1a — khoá item → lô theo thứ tự cố định + kiểm trạng thái lô,
+      // tồn bin, phần đã giữ chỗ (thay advisory lock 'lot:' + check rời rạc).
+      await assertIssuable(tx, picks);
+      const posted = await postOutboundTxns(tx, picks, {
+        txType: "OUT_ISSUE",
+        refTable: `issue_${reason}`,
+        refId: issueRefId,
+        postedBy: guard.session.userId,
+        notes: [reference, notes].filter(Boolean).join(" · ") || null,
+      });
+      const totalQty = picks.reduce((s, p) => s + p.qty, 0);
+      return {
+        txnIds: posted.txnIds,
+        totalQty,
+        consumedLots: posted.consumedLots,
+        issueRefId,
+      };
     });
 
     await writeAudit({
@@ -168,12 +145,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ data: result });
   } catch (err) {
+    const g = mapDbGuardError(err);
+    if (g) return jsonError(g.code, g.message, g.status);
+    logger.error({ err }, "warehouse issue failed");
     const msg = err instanceof Error ? err.message : "Lỗi xuất hàng";
-    return jsonError(
-      "ISSUE_FAILED",
-      msg,
-      msg.startsWith("INSUFFICIENT") ? 409 : 500,
-    );
+    return jsonError("ISSUE_FAILED", msg, 500);
   }
 }
-
