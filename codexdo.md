@@ -123,6 +123,18 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
+### TASK-20260927-001 — V4.1 Đợt 2 Thu mua + Đợt 3 Tài chính (nguồn thu/chi) + bỏ menu Yêu cầu vật tư
+- **Trạng thái:** DONE · **Hoàn thành:** 2026-09-27 02:45 (+07) · **Ưu tiên:** P1
+- Thang giao tự quyết D7-D10 theo khuyến nghị và tự chạy đến hết Đợt 7 (E2E trên prod rồi xoá dữ liệu test).
+- **Đợt 2** 004799f: backup `pre-v41-dot2-*.dump` → 0062 → smoke 11/11 → push → **E2E 30/30** (PR→PO giá dự kiến, VAT 0,
+  duyệt/gửi, nhận 6/10 PARTIAL, duyệt đủ 409 theo dòng, HĐ mua nháp 9.000 + chặn trùng + xác nhận UNPAID, đóng PO chặn nhận,
+  huỷ PO, PO giá 0 chặn gửi duyệt) → xoá 2 PR, 6 PO, 1 HĐ, 1 phiếu nhập/lô, 37 thông báo.
+- **Đợt 3** 21ea5e8: backup `pre-v41-dot3-*.dump` → 0063 (EXPENSE, ngoài transaction) + 0064 (transfer_group_id, fin_payment.status;
+  backfill 5 thanh toán đã huỷ → VOID) → smoke 9/9 → push → **E2E 21/22** (ca hỏng do script gọi NCC pageSize 200 — UI không còn gọi)
+  → xoá 2 nguồn test + chuyển quỹ + HĐ; số dư 3 nguồn thật giữ nguyên (750tr).
+- **Bỏ menu "Yêu cầu vật tư"** 53a865c (Thang: trùng "Đề xuất vật tư"); giữ route cho link cũ; bỏ nút ở trang lệnh SX.
+- Đang làm: sửa hiển thị lưới BOM (worktree iot-bomgrid), Đợt 5 Quản trị (worktree iot-dot5).
+
 ### TASK-20260926-002 — V4.1 Đợt 1 "Kho: QC HOLD + phiếu xuất kho"
 - **Trạng thái:** DONE · **Hoàn thành:** 2026-09-27 01:40 (+07) · **Bắt đầu:** 2026-09-26 (+07) · **Tạo:** 2026-09-26 (+07) · **Ưu tiên:** P0
 - **Nguồn:** `plans/v4.1-audit-hoan-thien/AUDIT.md` mục 2 + `DOT1_PLAN.md`. Quyết định: D2 bảng `goods_issue`,
