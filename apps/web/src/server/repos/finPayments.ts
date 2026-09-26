@@ -117,6 +117,8 @@ export async function createPaymentWithAllocations(
         totalAmount: finInvoice.totalAmount,
         paidAmount: finInvoice.paidAmount,
         status: finInvoice.status,
+        direction: finInvoice.direction,
+        supplierId: finInvoice.supplierId,
       })
       .from(finInvoice)
       .where(inArray(finInvoice.id, invoiceIds))
@@ -133,6 +135,19 @@ export async function createPaymentWithAllocations(
       if (!invoiceRow) throw new Error(`FIN_INVOICE_NOT_FOUND:${invoiceId}`);
       if (invoiceRow.status === "CANCELLED") {
         throw new Error(`FIN_INVOICE_CANCELLED:${invoiceId}`);
+      }
+      // Chiều tiền phải ngược chiều hoá đơn: CHI (OUT) trả hoá đơn MUA (IN,
+      // phải trả NCC); THU (IN) thu hoá đơn BÁN (OUT, phải thu khách).
+      const expectedInvoiceDir = input.direction === "OUT" ? "IN" : "OUT";
+      if (invoiceRow.direction !== expectedInvoiceDir) {
+        throw new Error(`FIN_PAYMENT_DIRECTION_MISMATCH:${invoiceId}`);
+      }
+      if (
+        input.supplierId &&
+        invoiceRow.supplierId &&
+        invoiceRow.supplierId !== input.supplierId
+      ) {
+        throw new Error(`FIN_PAYMENT_SUPPLIER_MISMATCH:${invoiceId}`);
       }
       const remaining = Number(invoiceRow.totalAmount) - Number(invoiceRow.paidAmount);
       if (allocAmount - remaining > 1) {

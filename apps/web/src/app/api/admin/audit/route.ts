@@ -21,6 +21,15 @@ export async function GET(req: NextRequest) {
   if ("response" in q) return q.response;
   const data = q.data as ReturnType<typeof auditListQuerySchema.parse>;
 
+  // Non-admin chỉ được xem lịch sử của MỘT đối tượng cụ thể (vd tab "Lịch sử"
+  // của lệnh sản xuất) — không được duyệt/tìm toàn bộ nhật ký hệ thống.
+  if (
+    !guard.session.roles.includes("admin") &&
+    (!data.entity || !data.objectId)
+  ) {
+    return jsonError("FORBIDDEN", "Chỉ quản trị viên được xem toàn bộ nhật ký.", 403);
+  }
+
   try {
     const page = data.page ?? 1;
     const pageSize = data.pageSize ?? 50;

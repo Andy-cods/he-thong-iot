@@ -2,8 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { AUTH_COOKIE_NAME, verifyAccessTokenEdge } from "./lib/auth-edge";
 
 /**
- * Protect UI routes có state auth: `/` (Dashboard), `/items`, `/suppliers`,
- * `/imports`, `/app` (legacy).
+ * Protect mọi UI route (trừ /login).
  *
  * API routes tự verify JWT bên trong handler (để trả JSON 401 thay vì redirect).
  *
@@ -11,41 +10,16 @@ import { AUTH_COOKIE_NAME, verifyAccessTokenEdge } from "./lib/auth-edge";
  * trực tiếp từ process.env.JWT_SECRET (Next Edge expose biến non-secret OK,
  * và deployment compose set env inline cho container).
  */
-const PROTECTED_PREFIXES = [
-  "/app",
-  "/items",
-  "/suppliers",
-  "/imports",
-  "/admin",
-  "/bom",
-  "/orders",
-  "/work-orders",
-  "/eco",
-  "/po",
-  "/purchase-requests",
-  "/purchase-orders",
-  "/receiving",
-  "/reservations",
-  "/qc-checks",
-  "/lot-serial",
-  "/shortage",
-  // V3.3 — Hub pages + module mới
-  "/sales",
-  "/warehouse",
-  "/engineering",
-  "/operations",
-  "/notifications",
-  "/material-requests",
-  "/assembly",
-  "/procurement",
-  // V3.8 — Bảng sản xuất: TV /board (ngoài (app)) + trang QC /production-board
-  "/board",
-  "/production-board",
-];
+/**
+ * Trang public (không cần đăng nhập). Mọi trang UI khác đều bắt buộc có JWT.
+ * Trước đây dùng whitelist PROTECTED_PREFIXES + matcher liệt kê tay → thiếu
+ * /production-board, /board, /me, /finance, /import… khiến header x-pathname
+ * không được set → route guard theo role trong (app)/layout bị bỏ qua.
+ */
+const PUBLIC_PREFIXES = ["/login"];
 
 function isProtected(pathname: string): boolean {
-  if (pathname === "/") return true; // Dashboard root
-  return PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));
+  return !PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
 }
 
 export async function middleware(req: NextRequest) {
@@ -89,33 +63,7 @@ function redirectToLogin(req: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/",
-    "/app/:path*",
-    "/items/:path*",
-    "/suppliers/:path*",
-    "/imports/:path*",
-    "/admin/:path*",
-    "/bom/:path*",
-    "/orders/:path*",
-    "/work-orders/:path*",
-    "/eco/:path*",
-    "/po/:path*",
-    "/purchase-requests/:path*",
-    "/purchase-orders/:path*",
-    "/receiving/:path*",
-    "/reservations/:path*",
-    "/qc-checks/:path*",
-    "/lot-serial/:path*",
-    "/shortage/:path*",
-    // V3.3 — Hub pages + module mới
-    "/sales/:path*",
-    "/warehouse/:path*",
-    "/engineering/:path*",
-    "/operations/:path*",
-    "/notifications/:path*",
-    "/material-requests/:path*",
-    "/assembly/:path*",
-    "/procurement/:path*",
-  ],
+  // Chạy cho MỌI trang UI (trừ API, asset tĩnh, file có đuôi mở rộng) để
+  // x-pathname luôn được set bởi server — client không thể tự gửi header giả.
+  matcher: ["/((?!api/|_next/static|_next/image|favicon.ico|.*\\.[a-zA-Z0-9]+$).*)"],
 };

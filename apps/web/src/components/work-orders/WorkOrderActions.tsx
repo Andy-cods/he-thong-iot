@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { qk } from "@/lib/query-keys";
 import {
   CheckCircle2,
   Loader2,
@@ -90,8 +91,10 @@ export function WorkOrderActions({
       return res.json();
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["work-orders"] });
-      qc.invalidateQueries({ queryKey: ["wo-detail", woId] });
+      // Key thật là ["workOrders", …] (lib/query-keys) — key cũ
+      // ["work-orders"]/["wo-detail"] không khớp nên trang không refresh sau duyệt.
+      qc.invalidateQueries({ queryKey: qk.workOrders.all });
+      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
   });
   const rejectMut = useMutation({
@@ -109,8 +112,10 @@ export function WorkOrderActions({
       return res.json();
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["work-orders"] });
-      qc.invalidateQueries({ queryKey: ["wo-detail", woId] });
+      // Key thật là ["workOrders", …] (lib/query-keys) — key cũ
+      // ["work-orders"]/["wo-detail"] không khớp nên trang không refresh sau duyệt.
+      qc.invalidateQueries({ queryKey: qk.workOrders.all });
+      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
   });
 
@@ -266,9 +271,10 @@ export function WorkOrderActions({
           Hủy
         </Button>
       )}
-      {/* V3.7.71 — Xoá vĩnh viễn (admin only). Server-side cho phép DRAFT/CANCELLED;
-          với state khác → force=1 + null-out reservation/assembly refs. */}
-      {canDelete && (
+      {/* Xoá (admin only) CHỈ cho lệnh Nháp/Đã huỷ — lệnh đã phát hành/đang chạy/
+          hoàn tất phải "Huỷ" để giữ vết (tiến độ, QC, hàng đã giữ). Trước đây
+          luôn gửi force=1 nên xoá được cả lệnh đang sản xuất. */}
+      {canDelete && (status === "DRAFT" || status === "CANCELLED") && (
         <Button
           size={size}
           variant="outline"
@@ -291,13 +297,7 @@ export function WorkOrderActions({
             <DialogDescription>
               Hành động này xoá vĩnh viễn lệnh{" "}
               <strong className="font-mono">{woNo ?? woId.slice(0, 8)}</strong>{" "}
-              + toàn bộ routing/material/tool/QC lines. Nếu có reservation hoặc
-              assembly work-order link, hệ thống sẽ bỏ link trước khi xoá.
-              <br />
-              <span className="mt-2 block text-red-700 dark:text-red-400">
-                Trạng thái <strong>{status}</strong> — chỉ dùng khi cần loại bỏ
-                hoàn toàn. Cân nhắc dùng "Huỷ" thay vì "Xoá" để giữ vết audit.
-              </span>
+              cùng toàn bộ công đoạn, vật tư, dụng cụ và dòng QC.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
@@ -322,7 +322,7 @@ export function WorkOrderActions({
               disabled={deleteConfirm.trim() !== "XOA" || deleteMut.isPending}
               onClick={() => {
                 deleteMut.mutate(
-                  { force: true },
+                  {},
                   {
                     onSuccess: () => {
                       toast.success(`Đã xoá lệnh ${woNo ?? ""}`.trim());

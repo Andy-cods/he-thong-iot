@@ -30,6 +30,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SupplierPicker, type SupplierPickerValue } from "@/components/procurement/SupplierPicker";
 import { fmtDate, fmtVND } from "@/components/finance/_format";
+import { VoidConfirmDialog, type VoidTarget } from "@/components/finance/VoidConfirmDialog";
 import {
   useCreateFinPayment,
   useFinAccountsList,
@@ -83,6 +84,7 @@ export function PaymentsTab() {
   const supplierMap = new Map((suppliersQuery.data?.data ?? []).map((s) => [s.id, s]));
   const accountMap = new Map((accountsQuery.data?.data ?? []).map((a) => [a.id, a]));
   const voidMut = useVoidFinPayment();
+  const [voidTarget, setVoidTarget] = React.useState<VoidTarget | null>(null);
 
   const total = query.data?.meta.total ?? 0;
   const rows = query.data?.data ?? [];
@@ -151,7 +153,7 @@ export function PaymentsTab() {
                 expanded={expandedId === p.id}
                 onToggle={() => setExpandedId(expandedId === p.id ? null : p.id)}
                 canVoid={canVoid}
-                onVoid={() => void voidMut.mutateAsync(p.id)}
+                onVoid={() => setVoidTarget({ id: p.id, code: p.code, amount: p.totalAmount })}
               />
             ))}
           </div>
@@ -171,6 +173,12 @@ export function PaymentsTab() {
       )}
 
       <PaymentFormDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <VoidConfirmDialog
+        target={voidTarget}
+        kind="thanh toán"
+        onClose={() => setVoidTarget(null)}
+        onConfirm={(id) => voidMut.mutateAsync(id)}
+      />
     </div>
   );
 }
@@ -197,10 +205,12 @@ function PaymentCard({
 
   return (
     <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex w-full items-center hover:bg-zinc-50 dark:hover:bg-zinc-800/60">
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
+        aria-expanded={expanded}
+        className="flex min-w-0 flex-1 items-center justify-between gap-3 py-3 pl-4 pr-2 text-left"
       >
         <div className="flex min-w-0 items-center gap-3">
           {expanded ? <ChevronDown className="h-4 w-4 shrink-0 text-zinc-400" /> : <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" />}
@@ -215,20 +225,20 @@ function PaymentCard({
           <p className={cn("font-mono text-sm font-bold tabular-nums", row.direction === "IN" ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
             {row.direction === "IN" ? "+" : "-"}{fmtVND(row.totalAmount)}
           </p>
-          {canVoid && (
-            <span
-              role="button"
-              tabIndex={0}
-              onClick={(e) => { e.stopPropagation(); void onVoid(); }}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); void onVoid(); } }}
-              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40"
-              aria-label="Huỷ thanh toán"
-            >
-              <Ban className="h-3.5 w-3.5" aria-hidden="true" />
-            </span>
-          )}
         </div>
       </button>
+      {canVoid && (
+        <button
+          type="button"
+          onClick={onVoid}
+          className="mr-3 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+          aria-label={`Huỷ thanh toán ${row.code}`}
+          title="Huỷ thanh toán"
+        >
+          <Ban className="h-4 w-4" aria-hidden="true" />
+        </button>
+      )}
+      </div>
       {expanded && (
         <div className="border-t border-zinc-100 bg-zinc-50/50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800/30">
           {detailQuery.isLoading ? (
@@ -270,9 +280,10 @@ function PaymentFormDialog({
   const accountsQuery = useFinAccountsList({ isActive: true });
   const accounts = accountsQuery.data?.data ?? [];
 
-  // Hoá đơn còn nợ của đối tác đã chọn, cùng chiều thanh toán.
+  // Hoá đơn còn nợ của đối tác đã chọn. Chiều hoá đơn NGƯỢC chiều tiền:
+  // Chi cho NCC (OUT) → trả hoá đơn mua (IN); Thu từ khách (IN) → hoá đơn bán (OUT).
   const invoicesQuery = useFinInvoicesList({
-    direction,
+    direction: direction === "OUT" ? "IN" : "OUT",
     supplierId: supplier?.id,
     status: ["UNPAID", "PARTIAL", "OVERDUE"],
     pageSize: 100,

@@ -20,7 +20,7 @@ import { sql as drizzleSql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { jsonError } from "@/server/http";
-import { requireCan } from "@/server/session";
+import { requireAdminCan } from "@/server/session";
 import {
   cacheGetJson,
   cacheSetJson,
@@ -149,7 +149,7 @@ async function pingDb(): Promise<"ok" | "slow" | "down"> {
 }
 
 export async function GET(req: NextRequest) {
-  const guard = await requireCan(req, "read", "session");
+  const guard = await requireAdminCan(req, "read", "session");
   if ("response" in guard) return guard.response;
 
   const cached = await cacheGetJson<AdminStatsPayload>(CACHE_KEY);

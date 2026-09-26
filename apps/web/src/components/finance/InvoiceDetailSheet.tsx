@@ -16,6 +16,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { AttachmentField } from "@/components/finance/AttachmentField";
 import { fmtDate, fmtVND } from "@/components/finance/_format";
+import { VoidConfirmDialog } from "@/components/finance/VoidConfirmDialog";
 import {
   useCancelFinInvoice,
   useFinInvoiceDetail,
@@ -70,6 +71,7 @@ export function InvoiceDetailSheet({
 
   const updateMut = useUpdateFinInvoice(invoiceId ?? "__none__");
   const cancelMut = useCancelFinInvoice();
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
 
   if (!invoiceId) return null;
 
@@ -194,7 +196,7 @@ export function InvoiceDetailSheet({
               variant="ghost"
               className="text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"
               disabled={cancelMut.isPending}
-              onClick={() => void cancelMut.mutateAsync(inv.id).then(() => onOpenChange(false))}
+              onClick={() => setConfirmOpen(true)}
             >
               <Ban className="h-3.5 w-3.5" aria-hidden="true" />
               {cancelMut.isPending ? "Đang huỷ…" : "Huỷ hoá đơn"}
@@ -202,6 +204,15 @@ export function InvoiceDetailSheet({
           </SheetFooter>
         )}
       </SheetContent>
+      <VoidConfirmDialog
+        target={confirmOpen && inv ? { id: inv.id, code: inv.invoiceNo, amount: inv.totalAmount } : null}
+        kind="hoá đơn"
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={async (id) => {
+          await cancelMut.mutateAsync(id);
+          onOpenChange(false);
+        }}
+      />
     </Sheet>
   );
 }

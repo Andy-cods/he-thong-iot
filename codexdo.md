@@ -123,6 +123,28 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
+### TASK-20260926-002 — Đợt 2–6 sửa lỗi theo audit toàn luồng
+- **Trạng thái:** TODO · **Tạo:** 2026-09-26 17:00 (+07) bởi Claude (planner) · **Ưu tiên:** P0→P3 theo đợt
+- **Phụ thuộc:** TASK-20260926-001
+- **Mô tả:** Danh sách lỗi + mã tham chiếu + quyết định nghiệp vụ ở [`plans/260926-full-flow-audit.md`](plans/260926-full-flow-audit.md).
+  Đợt 2 tồn kho (K1–K5, K8–K12, W1, W3, M2 + đối soát) → Đợt 3 chứng từ (P*, W*, B*) → Đợt 4 RBAC/điều hướng →
+  Đợt 5 component dùng chung (DataTable/QueryState/StatusBadge/PageHeader/MoneyInput/useConfirm) → Đợt 6 xưởng/token/a11y.
+- **DoD mỗi đợt:** typecheck + test + `next build` pass; E2E login + luồng liên quan; commit riêng; ghi log vào đây.
+
+### TASK-20260926-001 — Audit toàn luồng + Đợt 1 sửa lỗi khẩn
+- **Trạng thái:** DONE · **Tạo/Bắt đầu:** 2026-09-26 16:10 (+07) · **Hoàn thành:** 2026-09-26 17:05 (+07) · **Ưu tiên:** P0
+- **Phụ trách:** Claude
+- **Yêu cầu user:** "đọc codebase, lên plan hoàn thiện toàn bộ luồng, list lỗi function + giao diện" → sửa lần lượt, xoá trang cũ.
+- **Đợt 1 đã sửa:** S1 vòng lặp đổi MK (→ `/change-password`), S2 API admin chặn non-admin, S3 open redirect login,
+  S4 middleware phủ mọi trang, S7 phiên 4h + 401 → login, M1 chiều thanh toán vs hoá đơn (UI + server + test),
+  M3 VAT 0%→8%, U1 tiền đầy đủ trong Tài chính, U4 xác nhận "HUY" khi huỷ thu chi/thanh toán/hoá đơn,
+  B1 đổi tên BOM, W5 query key duyệt WO, K6 xoá WO chỉ DRAFT/CANCELLED, U32 link BBGH 404, xoá trang/component chết.
+- **Verify (local Postgres 16 + Redis + `next start`):** typecheck sạch · vitest 72/72 · `next build` OK ·
+  login admin → cookie 14400s → /items 307 → /warehouse 200 · reset MK planner → `/` 307 `/change-password` 200 (hết loop) ·
+  planner `/api/admin/{users,stats,audit,audit/export}` 403, audit theo objectId 200 · planner `/production-board` → `/?denied=1` ·
+  Playwright: `?next=https://evil…` → `/`; đổi tên BOM PATCH đúng id, DB cập nhật; huỷ thanh toán cần gõ HUY, hoá đơn về UNPAID ·
+  API: CHI trả hoá đơn bán → 409 FIN_PAYMENT_DIRECTION_MISMATCH.
+
 ### TASK-20260718-001 — Dark mode nhóm A + size thông báo mobile (V3.12.4)
 - **Trạng thái:** DONE · **Hoàn thành:** 2026-07-18 (+07) · **Ưu tiên:** P1
 - **Yêu cầu user:** "còn phần dark mode và phần thông báo nữa, size chưa ổn với mobile" + agents phối hợp.

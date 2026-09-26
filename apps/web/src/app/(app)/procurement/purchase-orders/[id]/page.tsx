@@ -228,7 +228,8 @@ export default function PurchaseOrderDetailPage() {
           itemId: l.itemId,
           orderedQty: Number(l.orderedQty),
           unitPrice: Number(l.unitPrice) || 0,
-          taxRate: Number(l.taxRate) || 8,
+          // KHÔNG dùng `|| 8`: VAT 0% (hàng miễn thuế) là giá trị hợp lệ.
+          taxRate: l.taxRate.trim() === "" ? 8 : Number(l.taxRate),
           notes: l.notes.trim() || null,
         }));
       }
