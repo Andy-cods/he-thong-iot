@@ -7,6 +7,7 @@ import { AUTH_COOKIE_NAME, verifyAccessToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { jsonError, parseJson } from "@/server/http";
 import { updateUser } from "@/server/repos/userAccounts";
+import { isSessionValid } from "@/server/repos/sessions";
 import { writeAudit } from "@/server/services/audit";
 import { requireSession } from "@/server/session";
 
@@ -23,7 +24,8 @@ export async function GET(req: NextRequest) {
   }
 
   const payload = await verifyAccessToken(token);
-  if (!payload) {
+  // V4.1 AD-04: token của phiên đã đăng xuất / bị thu hồi không được dùng tiếp.
+  if (!payload || (payload.sid && !(await isSessionValid(payload.sid)))) {
     return NextResponse.json(
       { error: { code: "INVALID_TOKEN", message: "Phiên đăng nhập hết hạn." } },
       { status: 401 },

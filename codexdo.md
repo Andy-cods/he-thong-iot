@@ -123,8 +123,13 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
-### TASK-20260926-001 — V4.1 Đợt 0 "Chặn cháy" (8 lỗi P0 + phiên 4h + UI nhanh)
+### TASK-20260926-002 — V4.1 Đợt 1 "Kho: QC HOLD + phiếu xuất kho"
 - **Trạng thái:** IN_PROGRESS · **Bắt đầu:** 2026-09-26 (+07) · **Tạo:** 2026-09-26 (+07) · **Ưu tiên:** P0
+- **Nguồn:** `plans/v4.1-audit-hoan-thien/AUDIT.md` mục 2 + `DOT1_PLAN.md`. Quyết định: D2 bảng `goods_issue`,
+  D3 lô cũ coi là đạt, D4 kiểm kê rồi điều chỉnh (không tự trừ), D5 tách lô khi nhận trùng mã, D6 menu Yêu cầu vật tư.
+
+### TASK-20260926-001 — V4.1 Đợt 0 "Chặn cháy" (8 lỗi P0 + phiên 4h + UI nhanh)
+- **Trạng thái:** DONE · **Hoàn thành:** 2026-09-26 18:25 (+07) · **Bắt đầu:** 2026-09-26 (+07) · **Tạo:** 2026-09-26 (+07) · **Ưu tiên:** P0
 - **Nguồn:** `plans/v4.1-audit-hoan-thien/AUDIT.md` (audit 7 agent 26/09). Nhánh `fix/v4.1-dot0-chan-chay`.
 - **Phạm vi:** SX-01 (crash WO từ dòng BOM) · AD-01 (kẹt vòng đổi MK bắt buộc) · TC-01 (thanh toán lọc
   sai chiều HĐ) · TM-01+TM-08 (PO trùng từ PR) · KHO-03 (nhận hàng 2 lần khi gửi lại) · error/loading
@@ -139,6 +144,10 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
   10 phút trước + hộp thoại "Đăng nhập lại" (bắt 401 toàn cục), chưa làm modal nhập mật khẩu tại chỗ.
   CÒN: Thang duyệt push `main` · sửa tay `/opt/hethong-iot/docker-compose.yml` thêm `JWT_ACCESS_TTL=14400`
   (CI không chép compose) · E2E prod · soát dữ liệu cũ thanh toán cùng chiều hoá đơn (TC-01).
+- **Deploy 2026-09-26 18:20 (+07):** push `main` 3a83aed, CI recreate app; VPS compose thêm `JWT_ACCESS_TTL: "14400"`
+  (backup `docker-compose.yml.bak-v41-dot0`), container nhận 14400. Smoke prod: /me, /finance, /import,
+  /production-board, /warehouse → 307 login; /api/me 401; health 200; log sạch. TC-01 dữ liệu cũ: 5 phân bổ,
+  0 sai chiều. CHƯA test E2E có đăng nhập (không có tài khoản test prod — chờ Thang).
 
 ### TASK-20260718-001 — Dark mode nhóm A + size thông báo mobile (V3.12.4)
 - **Trạng thái:** DONE · **Hoàn thành:** 2026-07-18 (+07) · **Ưu tiên:** P1
