@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AttachmentField } from "@/components/finance/AttachmentField";
 import { fmtDate, fmtVND } from "@/components/finance/_format";
+import { VoidConfirmDialog } from "@/components/finance/VoidConfirmDialog";
 import {
   useFinAccountsList,
   useFinCategoriesList,
@@ -78,6 +79,7 @@ export function TransactionDetailSheet({
 
   const updateMut = useUpdateFinTransaction(row?.id ?? "__none__");
   const voidMut = useVoidFinTransaction();
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
 
   const [editingDesc, setEditingDesc] = React.useState(false);
   const { register, handleSubmit, reset } = useForm<EditForm>({
@@ -278,7 +280,7 @@ export function TransactionDetailSheet({
               variant="ghost"
               className="text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"
               disabled={voidMut.isPending}
-              onClick={() => void voidMut.mutateAsync(row.id).then(() => onOpenChange(false))}
+              onClick={() => setConfirmOpen(true)}
             >
               <Ban className="h-3.5 w-3.5" aria-hidden="true" />
               {voidMut.isPending ? "Đang huỷ…" : "Huỷ giao dịch"}
@@ -286,6 +288,15 @@ export function TransactionDetailSheet({
           </SheetFooter>
         )}
       </SheetContent>
+      <VoidConfirmDialog
+        target={confirmOpen ? { id: row.id, code: row.code, amount: row.amount } : null}
+        kind="giao dịch"
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={async (id) => {
+          await voidMut.mutateAsync(id);
+          onOpenChange(false);
+        }}
+      />
     </Sheet>
   );
 }

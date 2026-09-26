@@ -21,7 +21,7 @@ import {
   parseJson,
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
-import { requireCan } from "@/server/session";
+import { requireAdminCan, requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,7 +39,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireCan(req, "read", "user");
+  const guard = await requireAdminCan(req, "read", "user");
   if ("response" in guard) return guard.response;
 
   const user = await getUserById(params.id);

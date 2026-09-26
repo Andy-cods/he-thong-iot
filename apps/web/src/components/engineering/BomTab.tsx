@@ -29,7 +29,7 @@ import {
   type BomSortField,
 } from "@/components/bom/BomListTable";
 import { BomCardGrid, type BomCardItem } from "@/components/bom/BomCardGrid";
-import { useBomList, useDeleteBomTemplate, useUpdateBomTemplate } from "@/hooks/useBom";
+import { useBomList, useDeleteBomTemplate, useRenameBomTemplate } from "@/hooks/useBom";
 import { useSession } from "@/hooks/useSession";
 import {
   isSelected,
@@ -222,16 +222,17 @@ export function BomTab() {
   );
   const deleteBom = useDeleteBomTemplate();
 
-  const [renamingId, setRenamingId] = React.useState<string | null>(null);
-  const renameMut = useUpdateBomTemplate(renamingId ?? "skip");
+  const renameMut = useRenameBomTemplate();
 
   const handleRename = async (row: BomRow, newName: string) => {
-    setRenamingId(row.id);
     try {
-      await renameMut.mutateAsync({ name: newName });
+      await renameMut.mutateAsync({ id: row.id, name: newName });
       toast.success("Đã đổi tên BOM");
-    } finally {
-      setRenamingId(null);
+    } catch (e) {
+      toast.error(
+        `Đổi tên BOM thất bại: ${e instanceof Error ? e.message : "lỗi không xác định"}`,
+      );
+      throw e;
     }
   };
 

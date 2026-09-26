@@ -343,12 +343,13 @@ function seedInvoice(
     paidAmount: string;
     status: string;
     dueDate: string | null;
+    direction: "IN" | "OUT";
   }> = {},
 ) {
   const row = {
     id: overrides.id ?? tables.nextId("invoice"),
     invoiceNo: "HD-001",
-    direction: "IN",
+    direction: overrides.direction ?? "IN",
     supplierId: null,
     purchaseOrderId: null,
     salesOrderId: null,
@@ -369,6 +370,53 @@ function seedInvoice(
   tables.finInvoice.push(row);
   return row;
 }
+
+describe("createPaymentWithAllocations — chiều thanh toán vs chiều hoá đơn", () => {
+  it("CHI (OUT) phân bổ vào hoá đơn BÁN (OUT) → từ chối, không ghi gì", async () => {
+    const { finPaymentsRepo, fakeTables: tables } = await loadReposWithFreshDb();
+    const inv = seedInvoice(tables, { totalAmount: "500000", direction: "OUT" });
+
+    await expect(
+      finPaymentsRepo.createPaymentWithAllocations(
+        {
+          direction: "OUT",
+          accountId: "acc-1",
+          supplierId: null,
+          paymentDate: new Date("2026-09-22"),
+          totalAmount: 500_000,
+          method: "BANK_TRANSFER",
+          referenceNo: null,
+          notes: null,
+          allocations: [{ invoiceId: inv.id as string, amount: 500_000 }],
+        },
+        "user-1",
+      ),
+    ).rejects.toThrow(/FIN_PAYMENT_DIRECTION_MISMATCH/);
+    expect(tables.finPayment).toHaveLength(0);
+    expect(tables.finTransaction).toHaveLength(0);
+  });
+
+  it("THU (IN) phân bổ vào hoá đơn BÁN (OUT) → hợp lệ", async () => {
+    const { finPaymentsRepo, fakeTables: tables } = await loadReposWithFreshDb();
+    const inv = seedInvoice(tables, { totalAmount: "500000", direction: "OUT" });
+
+    const result = await finPaymentsRepo.createPaymentWithAllocations(
+      {
+        direction: "IN",
+        accountId: "acc-1",
+        supplierId: null,
+        paymentDate: new Date("2026-09-22"),
+        totalAmount: 500_000,
+        method: "BANK_TRANSFER",
+        referenceNo: null,
+        notes: null,
+        allocations: [{ invoiceId: inv.id as string, amount: 500_000 }],
+      },
+      "user-1",
+    );
+    expect(result.allocations).toHaveLength(1);
+  });
+});
 
 describe("createPaymentWithAllocations — chống đếm trùng (§C.2)", () => {
   it("payment với 2 allocation cho 2 invoice khác nhau → sinh ĐÚNG 2 fin_transaction, không phải 1 hoặc 3", async () => {

@@ -130,7 +130,7 @@ export default function WorkOrderDetailPage() {
   const wo = query.data?.data;
 
   const auditQuery = useQuery<{ data: AuditRow[] }>({
-    queryKey: ["work-orders", "audit", id],
+    queryKey: ["workOrders", id, "audit"],
     queryFn: async () => {
       const p = new URLSearchParams({
         entity: "work_order",

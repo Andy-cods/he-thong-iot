@@ -257,6 +257,25 @@ export function useUpdateBomTemplate(id: string) {
   });
 }
 
+/**
+ * Đổi tên BOM từ danh sách — id truyền lúc gọi `mutate`, KHÔNG lúc tạo hook.
+ * (Trước đây BomTab dùng `useUpdateBomTemplate(renamingId ?? "skip")` rồi
+ * setState + mutate ngay trong cùng tick → request đi tới `/templates/skip`.)
+ */
+export function useRenameBomTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      request<{ data: BomTemplateDetail }>(`/api/bom/templates/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.bom.all });
+    },
+  });
+}
+
 export function useDeleteBomTemplate() {
   const qc = useQueryClient();
   return useMutation({

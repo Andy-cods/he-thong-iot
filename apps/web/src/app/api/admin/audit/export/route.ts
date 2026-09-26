@@ -15,7 +15,7 @@ import { auditListQuerySchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import { listAudit } from "@/server/repos/auditEvents";
 import { jsonError, parseSearchParams } from "@/server/http";
-import { requireCan } from "@/server/session";
+import { requireAdminCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -55,7 +55,7 @@ function diffSummary(
 }
 
 export async function GET(req: NextRequest) {
-  const guard = await requireCan(req, "read", "audit");
+  const guard = await requireAdminCan(req, "read", "audit");
   if ("response" in guard) return guard.response;
 
   const q = parseSearchParams(

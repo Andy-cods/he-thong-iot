@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 import { FileText, Loader2, Plus, RefreshCw, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -143,6 +144,12 @@ function DeliveryNoteRowItem({
   onChanged: () => void;
 }) {
   const [acting, setActing] = React.useState(false);
+  // Mở từ thông báo (`?dn=<id>`) → làm nổi bật + cuộn tới phiếu tương ứng.
+  const highlighted = useSearchParams().get("dn") === row.id;
+  const liRef = React.useRef<HTMLLIElement>(null);
+  React.useEffect(() => {
+    if (highlighted) liRef.current?.scrollIntoView({ block: "center" });
+  }, [highlighted]);
 
   const handleSubmit = async () => {
     setActing(true);
@@ -215,7 +222,13 @@ function DeliveryNoteRowItem({
   };
 
   return (
-    <li className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
+    <li
+      ref={liRef}
+      className={cn(
+        "rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900",
+        highlighted && "ring-2 ring-indigo-500 ring-offset-1 dark:ring-indigo-400",
+      )}
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">

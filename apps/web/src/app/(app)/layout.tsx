@@ -10,10 +10,11 @@ import { AppShell } from "@/components/layout/AppShell";
 export const dynamic = "force-dynamic";
 
 /** Path user bị must_change_password vẫn được truy cập (để đổi mật khẩu). */
-const FORCE_CHANGE_EXEMPT = [
-  "/admin/settings/force-change-password",
-  "/logout",
-];
+// Trang đổi mật khẩu bắt buộc nằm NGOÀI /admin — nếu để dưới /admin thì user
+// không phải admin bị guard /admin đẩy về "/" → "/" lại đẩy về trang đổi mật
+// khẩu → vòng lặp redirect vô hạn (tài khoản bị khoá hoàn toàn).
+const FORCE_CHANGE_PATH = "/change-password";
+const FORCE_CHANGE_EXEMPT = [FORCE_CHANGE_PATH];
 
 /**
  * V3.3 — Route → required roles map (server-side guard).
@@ -95,7 +96,7 @@ export default async function AppLayout({
     userRow.mustChangePassword &&
     !FORCE_CHANGE_EXEMPT.some((p) => currentPath.startsWith(p))
   ) {
-    redirect("/admin/settings/force-change-password");
+    redirect(FORCE_CHANGE_PATH);
   }
 
   const roles = await db

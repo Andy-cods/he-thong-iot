@@ -9,12 +9,13 @@
  * trước khi truyền vào các hàm này (xem wave-2-finance.md §C.4).
  */
 
+/**
+ * Số tiền ĐẦY ĐỦ, vd `1.250.000 ₫`. Kế toán cần số chính xác tới đồng — KHÔNG
+ * rút gọn "1.3 tr ₫" trong bảng/form (vừa mất độ chính xác, vừa dễ nhầm dấu
+ * "." thập phân với dấu phân cách hàng nghìn của vi-VN).
+ */
 export function fmtVND(n: number | string | null | undefined): string {
-  const v = typeof n === "string" ? Number(n) : (n ?? 0);
-  if (!Number.isFinite(v) || v === 0) return "0 ₫";
-  if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(1)} tỷ ₫`;
-  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)} tr ₫`;
-  return `${Math.round(v).toLocaleString("vi-VN")} ₫`;
+  return fmtVNDFull(n);
 }
 
 /** Không rút gọn — dùng cho input/tooltip cần số chính xác tuyệt đối. */
@@ -28,7 +29,11 @@ export function fmtDate(s: string | null | undefined): string {
   if (!s) return "—";
   const d = new Date(s);
   if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("vi-VN");
+  return d.toLocaleDateString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 }
 
 export function fmtDateShort(s: string | null | undefined): string {

@@ -43,6 +43,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { fmtDate, fmtVND } from "@/components/finance/_format";
 import { ImportTransactionsWizard } from "@/components/finance/ImportTransactionsWizard";
 import { TransactionDetailSheet } from "@/components/finance/TransactionDetailSheet";
+import { VoidConfirmDialog, type VoidTarget } from "@/components/finance/VoidConfirmDialog";
 import {
   useCreateFinTransaction,
   useFinAccountsList,
@@ -110,6 +111,7 @@ export function CashbookTab() {
   const accountsQuery = useFinAccountsList({ isActive: true });
   const categoriesQuery = useFinCategoriesList({});
   const voidMut = useVoidFinTransaction();
+  const [voidTarget, setVoidTarget] = React.useState<VoidTarget | null>(null);
 
   const total = query.data?.meta.total ?? 0;
   const rows = query.data?.data ?? [];
@@ -332,7 +334,7 @@ export function CashbookTab() {
                       accountName={accountMap.get(r.accountId)?.name}
                       categoryName={r.categoryId ? categoryMap.get(r.categoryId)?.name : undefined}
                       canVoid={canVoid}
-                      onVoid={() => void voidMut.mutateAsync(r.id)}
+                      onVoid={() => setVoidTarget({ id: r.id, code: r.code, amount: r.amount })}
                       onClick={() => setSelectedRow(r)}
                     />
                   ))}
@@ -371,7 +373,7 @@ export function CashbookTab() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={(e) => { e.stopPropagation(); void voidMut.mutateAsync(r.id); }}
+                        onClick={(e) => { e.stopPropagation(); setVoidTarget({ id: r.id, code: r.code, amount: r.amount }); }}
                         className="text-rose-600 dark:text-rose-400"
                       >
                         <Ban className="h-3.5 w-3.5" aria-hidden="true" /> Huỷ giao dịch
@@ -401,6 +403,12 @@ export function CashbookTab() {
       )}
 
       <TransactionFormDialog open={createOpen} onOpenChange={setCreateOpen} direction={createDirection} />
+      <VoidConfirmDialog
+        target={voidTarget}
+        kind="giao dịch"
+        onClose={() => setVoidTarget(null)}
+        onConfirm={(id) => voidMut.mutateAsync(id)}
+      />
       {selectedRow && (
         <TransactionDetailSheet
           row={selectedRow}

@@ -157,3 +157,23 @@ export async function requireCan(
   }
   return { response: forbidden() };
 }
+
+/**
+ * Guard cho API quản trị (`/api/admin/*`): vẫn qua `requireCan` (rate limit +
+ * override) nhưng BẮT BUỘC role admin. Matrix cấp `user/session/audit:read`
+ * cho mọi role (để xem hồ sơ + lịch sử của chính đối tượng mình làm) — nếu chỉ
+ * dựa matrix thì nhân viên nào cũng đọc được danh sách tài khoản, phiên đăng
+ * nhập (IP), toàn bộ nhật ký hệ thống.
+ */
+export async function requireAdminCan(
+  req: NextRequest,
+  action: RbacAction,
+  entity: RbacEntity,
+): Promise<{ session: Session } | { response: NextResponse }> {
+  const guard = await requireCan(req, action, entity);
+  if ("response" in guard) return guard;
+  if (!guard.session.roles.includes("admin")) {
+    return { response: forbidden() };
+  }
+  return guard;
+}

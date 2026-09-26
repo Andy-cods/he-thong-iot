@@ -61,6 +61,20 @@ export async function POST(req: NextRequest) {
     if (message.startsWith("FIN_INVOICE_NOT_FOUND")) {
       return jsonError("FIN_INVOICE_NOT_FOUND", "Hoá đơn không tồn tại.", 404);
     }
+    if (message.startsWith("FIN_PAYMENT_DIRECTION_MISMATCH")) {
+      return jsonError(
+        "FIN_PAYMENT_DIRECTION_MISMATCH",
+        "Hoá đơn không cùng loại với khoản thanh toán (chi cho NCC chỉ trả hoá đơn mua; thu từ khách chỉ thu hoá đơn bán).",
+        409,
+      );
+    }
+    if (message.startsWith("FIN_PAYMENT_SUPPLIER_MISMATCH")) {
+      return jsonError(
+        "FIN_PAYMENT_SUPPLIER_MISMATCH",
+        "Hoá đơn thuộc đối tác khác với đối tác của khoản thanh toán.",
+        409,
+      );
+    }
     if (message.startsWith("FIN_INVOICE_CANCELLED")) {
       return jsonError("FIN_INVOICE_CANCELLED", "Hoá đơn đã huỷ, không thể thanh toán.", 409);
     }
