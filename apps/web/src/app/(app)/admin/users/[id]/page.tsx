@@ -27,6 +27,7 @@ import {
   useUserDetail,
 } from "@/hooks/useAdmin";
 import { useSession } from "@/hooks/useSession";
+import { isSelfAdminDemotion } from "@/lib/admin-guards";
 import { cn } from "@/lib/utils";
 
 const ROLE_BADGE: Record<Role, string> = {
@@ -150,6 +151,20 @@ export default function AdminUserDetailPage({
       JSON.stringify([...user.roles].sort());
 
   const handleSave = async () => {
+    // V4.1 AD-12 — server cũng chặn (409); báo sớm ở UI cho rõ.
+    if (
+      isSelfAdminDemotion({
+        actorUserId: session.data?.id ?? "",
+        targetUserId: user.id,
+        beforeRoles: user.roles,
+        nextRoles: form.roles,
+      })
+    ) {
+      toast.error(
+        "Không được tự gỡ quyền Quản trị của chính bạn. Nhờ một quản trị viên khác thực hiện.",
+      );
+      return;
+    }
     try {
       await update.mutateAsync({
         fullName: form.fullName.trim(),

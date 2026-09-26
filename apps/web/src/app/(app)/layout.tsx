@@ -8,6 +8,10 @@ import { db } from "@/lib/db";
 import { AppShell } from "@/components/layout/AppShell";
 import { SessionExpiryGuard } from "@/components/auth/SessionExpiryGuard";
 import { isSessionValid } from "@/server/repos/sessions";
+import { listActiveOverridesByUser } from "@/server/repos/userPermissionOverrides";
+import { isRouteAllowed } from "@/lib/route-guard";
+import type { PermissionOverrideLite } from "@/lib/permissions";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -17,49 +21,8 @@ export const dynamic = "force-dynamic";
 const FORCE_CHANGE_PATH = "/me/change-password";
 const FORCE_CHANGE_EXEMPT = [FORCE_CHANGE_PATH, "/logout"];
 
-/**
- * V3.3 — Route → required roles map (server-side guard).
- * Mỗi prefix path chỉ cho phép user có ít nhất 1 trong các roles này.
- * Admin bypass tất cả. User không thuộc → redirect về /.
- *
- * KHỚP với NAV_ITEMS roles trong nav-items.ts.
- */
-const ROUTE_ROLE_GUARD: Array<{ prefix: string; roles: Role[] }> = [
-  { prefix: "/admin",        roles: ["admin"] },
-  { prefix: "/warehouse",    roles: ["admin", "warehouse"] },
-  // TASK-20260922 — /sales nay gồm cả phân hệ Tài chính (tab con) nên phải
-  // mở cho accountant + shareholder; page.tsx tự lọc tab theo quyền từng role.
-  { prefix: "/sales",        roles: ["admin", "purchaser", "accountant", "shareholder"] },
-  // V3.7.57 — BOM list mở cho TẤT CẢ bộ phận xem (read-only cho non-planner).
-  // Edit BOM vẫn chỉ planner + admin (RBAC matrix).
-  // V3.9 — qc + accountant vào /engineering để dùng tab "Đề xuất vật tư" (PR).
-  { prefix: "/engineering",  roles: ["admin", "planner", "warehouse", "operator", "purchaser", "qc", "accountant"] },
-  { prefix: "/operations",   roles: ["admin", "operator"] },
-  { prefix: "/bom",          roles: ["admin", "planner", "warehouse", "operator", "purchaser"] },
-  { prefix: "/work-orders",  roles: ["admin", "planner", "operator"] },
-  // V3.7.55 — operator + warehouse access /procurement để tạo MRF GTAM (PR submit gửi Thu mua duyệt).
-  // V3.9 — qc + accountant cũng vào /procurement (form new-mrf + list + detail PR).
-  { prefix: "/procurement",  roles: ["admin", "planner", "purchaser", "operator", "warehouse", "qc", "accountant"] },
-  // Receiving + assembly: chỉ kho/vận hành/admin
-  { prefix: "/receiving",    roles: ["admin", "warehouse"] },
-  { prefix: "/assembly",     roles: ["admin", "operator"] },
-  // Material requests: planner tạo + warehouse fulfil
-  // V4.1 Đợt 1c (D6) — thêm operator (xưởng tự lập phiếu cho lệnh SX).
-  // Khớp nav "Yêu cầu vật tư" + RBAC `materialRequest`.
-  { prefix: "/material-requests", roles: ["admin", "planner", "operator", "warehouse"] },
-  // V3.8 — Trang quản lý Bảng sản xuất: chỉ admin + qc nhập liệu.
-  // V4.0 — shareholder (Cổ đông) xem tiến độ gia công, READ-ONLY. UI phải ẩn
-  // nút CRUD qua can() — RBAC matrix chỉ cấp productionBoard:["read"].
-  { prefix: "/production-board", roles: ["admin", "qc", "shareholder"] },
-  // V4.1 Đợt 1a — màn Chờ QC nhập kho: Tổ QC kết luận; Kho xem (Kho cũng
-  // thấy ở /warehouse?tab=movement&mode=qc). Khớp `read:qcInspection`.
-  { prefix: "/qc-inbound",  roles: ["admin", "qc", "warehouse"] },
-  // TASK-20260922 — /finance nay chỉ còn redirect sang /sales?tab=... (giữ
-  // link/bookmark cũ), guard thật đã chuyển sang prefix /sales ở trên.
-  { prefix: "/finance",      roles: ["admin", "accountant", "shareholder"] },
-  // Notifications + items + orders: ai cũng xem được (read-only ở các path)
-  // /notifications, /items, /orders, /, /pwa → không guard
-];
+// V4.1 AD-17/AD-19 — bảng guard theo route chuyển sang lib/route-guard.ts
+// (dùng chung với menu + Ctrl+K, có áp override quyền riêng từng user).
 
 /**
  * Direction B — `(app)` layout.
@@ -73,15 +36,23 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // V4.1 AD-18 — về /login kèm `next` = đường dẫn + query hiện tại để đăng nhập
+  // lại xong quay về đúng trang, không mất dữ liệu điền sẵn trên URL.
+  const currentPath = headers().get("x-pathname") ?? "";
+  const currentSearch = headers().get("x-search") ?? "";
+  const loginUrl = currentPath
+    ? `/login?next=${encodeURIComponent(currentPath + currentSearch)}`
+    : "/login";
+
   const token = cookies().get(AUTH_COOKIE_NAME)?.value;
-  if (!token) redirect("/login");
+  if (!token) redirect(loginUrl);
 
   const payload = await verifyAccessToken(token);
-  if (!payload) redirect("/login");
+  if (!payload) redirect(loginUrl);
 
   // V4.1 AD-04: phiên bị thu hồi (admin khoá / đổi vai trò) thì trang cũng phải
   // chặn, không chỉ API. isSessionValid có cache 30s nên rẻ.
-  if (payload.sid && !(await isSessionValid(payload.sid))) redirect("/login");
+  if (payload.sid && !(await isSessionValid(payload.sid))) redirect(loginUrl);
 
   // Hydrate fullName + roles từ DB để sidebar/topbar hiển thị đúng.
   // Query này chạy mỗi navigation trong (app)/* — acceptable vì cache plan có
@@ -97,11 +68,10 @@ export default async function AppLayout({
     .where(eq(userAccount.id, payload.sub))
     .limit(1);
 
-  if (!userRow) redirect("/login");
+  if (!userRow) redirect(loginUrl);
 
   // V1.4 — nếu admin đã reset password, user phải đổi trước khi dùng tiếp.
   // Middleware đã forward x-pathname header để RSC đọc được current path.
-  const currentPath = headers().get("x-pathname") ?? "";
   if (
     userRow.mustChangePassword &&
     !FORCE_CHANGE_EXEMPT.some((p) => currentPath.startsWith(p))
@@ -123,18 +93,25 @@ export default async function AppLayout({
     redirect("/board");
   }
 
-  // V3.3 — Route guard: chặn user truy cập trang ngoài bộ phận.
-  // Admin bypass mọi guard.
+  // V4.1 AD-19 — override quyền riêng từng user (còn hiệu lực) áp cho cả menu +
+  // chặn trang, cùng quy tắc với API (DENY thắng). Lỗi DB → bỏ qua override
+  // (giống requireCan: fallback theo vai trò).
+  let overrides: PermissionOverrideLite[] = [];
   if (!roleCodes.includes("admin")) {
-    for (const guard of ROUTE_ROLE_GUARD) {
-      if (currentPath.startsWith(guard.prefix)) {
-        const allowed = guard.roles.some((r) => roleCodes.includes(r));
-        if (!allowed) {
-          redirect("/?denied=1");
-        }
-        break;
-      }
+    try {
+      overrides = (await listActiveOverridesByUser(userRow.id)).map((o) => ({
+        entity: o.entity,
+        action: o.action,
+        granted: o.granted,
+      }));
+    } catch (err) {
+      logger.warn({ err, userId: userRow.id }, "layout: load overrides failed");
     }
+  }
+
+  // V3.3 — Route guard: chặn user truy cập trang ngoài bộ phận. Admin bypass.
+  if (!isRouteAllowed(currentPath, roleCodes, overrides)) {
+    redirect("/?denied=1");
   }
 
   return (
@@ -145,6 +122,7 @@ export default async function AppLayout({
         fullName: userRow.fullName ?? undefined,
         role: roleCodes.join(","),
       }}
+      permissionOverrides={overrides}
     >
       <SessionExpiryGuard expiresAt={payload.exp ? payload.exp * 1000 : null} />
       {children}

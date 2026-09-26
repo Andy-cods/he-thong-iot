@@ -55,6 +55,7 @@ function diffSummary(
 }
 
 export async function GET(req: NextRequest) {
+  // V4.1 AD-02: xuất Excel toàn bộ nhật ký — `read:audit` nay chỉ admin (matrix).
   const guard = await requireCan(req, "read", "audit");
   if ("response" in guard) return guard.response;
 
@@ -73,6 +74,7 @@ export async function GET(req: NextRequest) {
       action: data.action,
       actorUsername: data.actorUsername,
       userId: data.userId,
+      objectId: data.objectId,
       from: data.from,
       to: data.to,
       page: 1,

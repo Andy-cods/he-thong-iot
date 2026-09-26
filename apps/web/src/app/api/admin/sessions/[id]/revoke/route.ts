@@ -7,7 +7,6 @@
  */
 
 import { NextResponse, type NextRequest } from "next/server";
-import { can } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import {
   getSessionById,
@@ -20,6 +19,7 @@ import {
   getSession,
   unauthorized,
 } from "@/server/session";
+import { canForUser } from "@/server/services/rbac";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,7 +40,10 @@ export async function POST(
   }
 
   const isOwner = target.userId === s.userId;
-  const isAdmin = can(s.roles, "delete", "session");
+  // V4.1 AD-14 — tôn trọng override quyền riêng (như requireCan).
+  const isAdmin = isOwner
+    ? false
+    : (await canForUser(s.userId, s.roles, "delete", "session")).allowed;
   if (!isOwner && !isAdmin) {
     return forbidden();
   }

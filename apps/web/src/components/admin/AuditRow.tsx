@@ -6,6 +6,7 @@ import { ChevronDown, ChevronRight, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { AuditRow as AuditRowData } from "@/hooks/useAdmin";
 import { cn } from "@/lib/utils";
+import { auditObjectLabel } from "@/lib/audit-scope";
 
 // Lazy-load diff viewer (heavy lib) + rollback dialog — chỉ load khi user mở row
 const AuditDiffViewer = dynamic(
@@ -104,7 +105,9 @@ export function AuditRow({ row, style, gridCols }: AuditRowProps) {
         >
           {row.action}
         </span>
-        <span className="truncate text-zinc-700 dark:text-zinc-300">{row.objectType}</span>
+        <span className="truncate text-zinc-700 dark:text-zinc-300" title={row.objectType}>
+          {auditObjectLabel(row.objectType)}
+        </span>
         <code className="hidden truncate font-mono text-[10px] text-zinc-500 md:block dark:text-zinc-400">
           {row.objectId ? row.objectId.slice(0, 8) : "—"}
         </code>

@@ -17,31 +17,11 @@ import { AuditRow } from "@/components/admin/AuditRow";
 import { AdminPageShell } from "@/components/admin/AdminPageShell";
 import { useAuditList } from "@/hooks/useAdmin";
 import { cn } from "@/lib/utils";
-
-const ENTITY_OPTIONS = [
-  { code: "item", label: "Vật tư" },
-  { code: "supplier", label: "Nhà cung cấp" },
-  { code: "bom_template", label: "BOM template" },
-  { code: "bom_line", label: "BOM line" },
-  { code: "user_account", label: "User" },
-  { code: "receiving_event", label: "Receiving event" },
-];
-
-const ACTION_OPTIONS = [
-  { code: "CREATE", label: "Tạo" },
-  { code: "UPDATE", label: "Sửa" },
-  { code: "DELETE", label: "Xoá" },
-  { code: "LOGIN", label: "Đăng nhập" },
-  { code: "LOGOUT", label: "Đăng xuất" },
-];
-
-const ACTION_PILL: Record<string, string> = {
-  CREATE: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800",
-  UPDATE: "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:ring-sky-800",
-  DELETE: "bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:ring-rose-800",
-  LOGIN: "bg-indigo-50 text-indigo-700 ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-800",
-  LOGOUT: "bg-zinc-100 text-zinc-600 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",
-};
+import {
+  AUDIT_ACTION_OPTIONS,
+  AUDIT_OBJECT_TYPES,
+  auditObjectLabel,
+} from "@/lib/audit-scope";
 
 const GRID_COLS =
   "grid-cols-[120px,100px,70px,minmax(0,1fr)] md:grid-cols-[170px,130px,80px,140px,90px,minmax(0,1fr)]";
@@ -54,6 +34,8 @@ export default function AdminAuditPage() {
       to: parseAsString.withDefault(""),
       entity: parseAsArrayOf(parseAsString).withDefault([]),
       action: parseAsArrayOf(parseAsString).withDefault([]),
+      // V4.1 AD-10 — lọc theo 1 chứng từ (nút "Mở audit" ở trang PO…).
+      objectId: parseAsString.withDefault(""),
       userQ: parseAsString.withDefault(""),
       page: parseAsInteger.withDefault(1),
       pageSize: parseAsInteger.withDefault(100),
@@ -73,6 +55,7 @@ export default function AdminAuditPage() {
     actorUsername: urlState.userQ || undefined,
     entity: urlState.entity.length > 0 ? urlState.entity : undefined,
     action: urlState.action.length > 0 ? urlState.action : undefined,
+    objectId: urlState.objectId || undefined,
     from: fromIso,
     to: toIso,
     page: urlState.page,
@@ -89,7 +72,8 @@ export default function AdminAuditPage() {
     urlState.from !== "" ||
     urlState.to !== "" ||
     urlState.entity.length > 0 ||
-    urlState.action.length > 0;
+    urlState.action.length > 0 ||
+    urlState.objectId !== "";
 
   const handleReset = () => {
     void setUrlState({
@@ -99,22 +83,9 @@ export default function AdminAuditPage() {
       to: "",
       entity: [],
       action: [],
+      objectId: "",
       page: 1,
     });
-  };
-
-  const toggleEntity = (code: string) => {
-    const next = urlState.entity.includes(code)
-      ? urlState.entity.filter((e) => e !== code)
-      : [...urlState.entity, code];
-    void setUrlState({ entity: next, page: 1 });
-  };
-
-  const toggleAction = (code: string) => {
-    const next = urlState.action.includes(code)
-      ? urlState.action.filter((e) => e !== code)
-      : [...urlState.action, code];
-    void setUrlState({ action: next, page: 1 });
   };
 
   const parentRef = React.useRef<HTMLDivElement>(null);
@@ -139,6 +110,7 @@ export default function AdminAuditPage() {
     if (toIso) p.set("to", toIso);
     for (const e of urlState.entity) p.append("entity", e);
     for (const a of urlState.action) p.append("action", a);
+    if (urlState.objectId) p.set("objectId", urlState.objectId);
     try {
       const res = await fetch(`/api/admin/audit/export?${p.toString()}`, {
         credentials: "include",
@@ -265,48 +237,68 @@ export default function AdminAuditPage() {
             ) : null}
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-1.5">
-            <FilterLabel className="mr-1">Entity</FilterLabel>
-            {ENTITY_OPTIONS.map((o) => {
-              const active = urlState.entity.includes(o.code);
-              return (
+          {/* V4.1 AD-10 — bộ lọc đủ mọi loại đối tượng + hành động (trước chỉ 6 loại). */}
+          <div className="mt-3 flex flex-wrap items-end gap-3">
+            <div className="min-w-[220px]">
+              <FilterLabel>Loại đối tượng</FilterLabel>
+              <select
+                value={urlState.entity[0] ?? ""}
+                onChange={(e) =>
+                  void setUrlState({
+                    entity: e.target.value ? [e.target.value] : [],
+                    page: 1,
+                  })
+                }
+                className="mt-1 h-9 w-full rounded-md border border-zinc-200 bg-white px-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                aria-label="Lọc theo loại đối tượng"
+              >
+                <option value="">Tất cả</option>
+                {AUDIT_OBJECT_TYPES.map((o) => (
+                  <option key={o.code} value={o.code}>
+                    {o.label}
+                  </option>
+                ))}
+                {urlState.entity[0] &&
+                !AUDIT_OBJECT_TYPES.some((o) => o.code === urlState.entity[0]) ? (
+                  <option value={urlState.entity[0]}>{urlState.entity[0]}</option>
+                ) : null}
+              </select>
+            </div>
+            <div className="min-w-[180px]">
+              <FilterLabel>Hành động</FilterLabel>
+              <select
+                value={urlState.action[0] ?? ""}
+                onChange={(e) =>
+                  void setUrlState({
+                    action: e.target.value ? [e.target.value] : [],
+                    page: 1,
+                  })
+                }
+                className="mt-1 h-9 w-full rounded-md border border-zinc-200 bg-white px-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                aria-label="Lọc theo hành động"
+              >
+                <option value="">Tất cả</option>
+                {AUDIT_ACTION_OPTIONS.map((o) => (
+                  <option key={o.code} value={o.code}>
+                    {o.label} ({o.code})
+                  </option>
+                ))}
+              </select>
+            </div>
+            {urlState.objectId ? (
+              <div className="flex h-9 items-center gap-2 rounded-md bg-indigo-50 px-3 text-xs text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
+                Chỉ 1 chứng từ
+                {urlState.entity[0] ? ` (${auditObjectLabel(urlState.entity[0])})` : ""}
                 <button
-                  key={o.code}
                   type="button"
-                  onClick={() => toggleEntity(o.code)}
-                  className={cn(
-                    "inline-flex h-7 items-center rounded-full border px-2.5 text-[11px] font-medium tracking-normal transition-colors",
-                    active
-                      ? "border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-400"
-                      : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60",
-                  )}
+                  aria-label="Bỏ lọc chứng từ"
+                  onClick={() => void setUrlState({ objectId: "", page: 1 })}
+                  className="rounded p-0.5 hover:bg-indigo-100 dark:hover:bg-indigo-900"
                 >
-                  {o.label}
+                  <X className="h-3 w-3" aria-hidden="true" />
                 </button>
-              );
-            })}
-          </div>
-
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <FilterLabel className="mr-1">Action</FilterLabel>
-            {ACTION_OPTIONS.map((o) => {
-              const active = urlState.action.includes(o.code);
-              return (
-                <button
-                  key={o.code}
-                  type="button"
-                  onClick={() => toggleAction(o.code)}
-                  className={cn(
-                    "inline-flex h-7 items-center rounded-full border px-2.5 font-mono text-[10px] font-semibold uppercase ring-1 ring-inset transition-colors",
-                    active
-                      ? cn(ACTION_PILL[o.code] ?? "", "border-transparent")
-                      : "border-zinc-200 bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:ring-zinc-700 dark:hover:bg-zinc-800/60",
-                  )}
-                >
-                  {o.code}
-                </button>
-              );
-            })}
+              </div>
+            ) : null}
           </div>
         </section>
 

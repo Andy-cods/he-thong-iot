@@ -41,6 +41,26 @@ async function request<T>(input: string, init?: RequestInit): Promise<T> {
 }
 
 const KEY_MY_SESSIONS = ["admin", "sessions", "me"] as const;
+const KEY_ALL_SESSIONS = ["admin", "sessions", "all"] as const;
+
+/** V4.1 AD-14 — phiên của mọi người dùng (chỉ admin). */
+export interface AdminActiveSession extends ActiveSession {
+  userId: string;
+  username: string;
+  fullName: string;
+}
+
+export function useAllSessions() {
+  return useQuery({
+    queryKey: KEY_ALL_SESSIONS,
+    queryFn: () =>
+      request<{ data: AdminActiveSession[]; meta: { total: number } }>(
+        "/api/admin/sessions",
+      ),
+    staleTime: 10_000,
+    refetchOnWindowFocus: true,
+  });
+}
 
 export function useMySessions() {
   return useQuery({
@@ -63,6 +83,7 @@ export function useRevokeSession() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEY_MY_SESSIONS });
+      qc.invalidateQueries({ queryKey: KEY_ALL_SESSIONS });
     },
   });
 }
@@ -77,6 +98,7 @@ export function useRevokeAllOtherSessions() {
       ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEY_MY_SESSIONS });
+      qc.invalidateQueries({ queryKey: KEY_ALL_SESSIONS });
     },
   });
 }

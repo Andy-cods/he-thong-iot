@@ -317,6 +317,8 @@ export interface AuditFilter {
   action?: string[];
   actorUsername?: string;
   userId?: string;
+  /** V4.1 AD-10 — lịch sử 1 chứng từ (vd nút "Mở audit" ở PO). */
+  objectId?: string;
   from?: string;
   to?: string;
   page?: number;

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Plus, Printer, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -153,7 +153,18 @@ export default function NewLsxPage() {
   const [tools, setTools] = React.useState<ToolDraft[]>([blankTool()]);
 
   // Notes / footer
-  const [notes, setNotes] = React.useState("");
+  // V4.1 AD-18 — nhận ghi chú điền sẵn khi đi từ "Lưu & tạo Lệnh SX" ở dòng BOM
+  // (?note=…) hoặc từ tiến độ đơn hàng (?orderCode=…). Trước đây trang
+  // /work-orders/new redirect sang đây làm rơi mất query → form trống.
+  const searchParams = useSearchParams();
+  const [notes, setNotes] = React.useState(() => {
+    const parts: string[] = [];
+    const note = searchParams?.get("note")?.trim();
+    const orderCode = searchParams?.get("orderCode")?.trim();
+    if (note) parts.push(note);
+    if (orderCode) parts.push(`Đơn hàng: ${orderCode}`);
+    return parts.join(" · ");
+  });
 
   // Auto-fill creator department theo role
   React.useEffect(() => {

@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import type { RbacEntity, Role } from "@iot/shared";
 import { canAny } from "@iot/shared";
+import type { PermissionOverrideLite } from "./permissions";
+import { isRouteAllowed } from "./route-guard";
 
 /**
  * Redesign V3 — nav-items registry.
@@ -229,6 +231,42 @@ export function filterNavByRoles(
     if (it.roles && !it.roles.some((r) => userRoles.includes(r))) return false;
     return true;
   });
+}
+
+/**
+ * V4.1 AD-17/AD-19 — lọc menu cho 1 user: theo vai trò (filterNavByRoles) VÀ
+ * theo đúng quy tắc chặn trang (lib/route-guard.ts, có áp override quyền riêng).
+ * Menu, Ctrl+K và guard trang dùng chung → không hiện mục mà server sẽ chặn.
+ */
+export function filterNavForUser(
+  items: NavItem[],
+  userRoles: Role[] | undefined,
+  overrides: readonly PermissionOverrideLite[] = [],
+): NavItem[] {
+  const byRole = filterNavByRoles(items, userRoles);
+  if (!userRoles || userRoles.length === 0) return byRole;
+  return byRole.filter((it) => isRouteAllowed(it.href, userRoles, overrides));
+}
+
+/** V4.1 AD-13 — mục Ctrl+K sinh từ CHÍNH menu đã lọc (không còn danh sách riêng). */
+export interface NavCommandItem {
+  id: string;
+  label: string;
+  href: string;
+  icon: LucideIcon;
+  group: "nav";
+}
+
+export function navToCommandItems(items: NavItem[]): NavCommandItem[] {
+  return items
+    .filter((it) => !it.disabled)
+    .map((it) => ({
+      id: `nav:${it.href}`,
+      label: it.label,
+      href: it.href,
+      icon: it.icon,
+      group: "nav" as const,
+    }));
 }
 
 /**

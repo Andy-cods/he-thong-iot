@@ -10,6 +10,7 @@ import {
 } from "@/server/http";
 import { writeAudit, diffObjects } from "@/server/services/audit";
 import { requireCan } from "@/server/session";
+import { isSelfAdminDemotion } from "@/lib/admin-guards";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,6 +49,22 @@ export async function PATCH(
     return jsonError(
       "CANNOT_DEACTIVATE_SELF",
       "Không được deactivate tài khoản của chính bạn.",
+      409,
+    );
+  }
+
+  // V4.1 AD-12 — chặn admin tự gỡ vai trò admin của chính mình.
+  if (
+    isSelfAdminDemotion({
+      actorUserId: guard.session.userId,
+      targetUserId: params.id,
+      beforeRoles: before.roles,
+      nextRoles: body.data.roles,
+    })
+  ) {
+    return jsonError(
+      "CANNOT_DEMOTE_SELF",
+      "Không được tự gỡ quyền Quản trị của chính bạn. Nhờ một quản trị viên khác thực hiện.",
       409,
     );
   }

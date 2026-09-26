@@ -3,16 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Command as CommandPrimitive } from "cmdk";
-import {
-  Clock,
-  Factory,
-  LayoutDashboard,
-  Package,
-  Plus,
-  Search,
-  Settings,
-  ShoppingCart,
-} from "lucide-react";
+import { Clock, Plus, Search } from "lucide-react";
 import { useHotkey, formatShortcut } from "@/lib/shortcuts";
 import { storage, STORAGE_KEYS } from "@/lib/storage";
 import { cn } from "@/lib/utils";
@@ -23,11 +14,12 @@ import { cn } from "@/lib/utils";
  * - cmdk lib, mở với Ctrl+K / Cmd+K (Mod+K) global.
  * - Groups: Điều hướng, Gần đây, Hành động. (Vật tư server-search để screen phase.)
  * - Recent items localStorage `iot:cmdk-recent`, expire 30 ngày.
- * - Permission-gated: ẩn item không đúng role.
+ * - V4.1 AD-13: danh sách mục do AppShell truyền vào, sinh từ CHÍNH menu đã lọc
+ *   theo vai trò + override (lib/nav-items.ts `filterNavForUser` →
+ *   `navToCommandItems`). Trước đây palette có danh sách vai trò cũ riêng
+ *   ("viewer", thiếu purchaser/qc/kế toán…) nên hiện mục bị chặn / thiếu mục.
  * - Empty state "Không có kết quả".
  */
-
-type Role = "admin" | "planner" | "warehouse" | "viewer";
 
 export interface CommandItemDef {
   id: string;
@@ -37,71 +29,13 @@ export interface CommandItemDef {
   icon?: React.ElementType;
   shortcut?: string;
   group: "nav" | "action";
-  roles?: Role[];
 }
-
-const DEFAULT_ITEMS: CommandItemDef[] = [
-  {
-    id: "nav:dashboard",
-    label: "Tổng quan",
-    href: "/",
-    icon: LayoutDashboard,
-    group: "nav",
-    shortcut: "G D",
-    roles: ["admin", "planner", "viewer"],
-  },
-  {
-    id: "nav:items",
-    label: "Vật tư",
-    href: "/items",
-    icon: Package,
-    group: "nav",
-    shortcut: "G I",
-    roles: ["admin", "planner", "warehouse", "viewer"],
-  },
-  {
-    id: "nav:suppliers",
-    label: "Nhà cung cấp",
-    href: "/suppliers",
-    icon: ShoppingCart,
-    group: "nav",
-    shortcut: "G S",
-    roles: ["admin", "planner"],
-  },
-  {
-    id: "nav:admin",
-    label: "Quản trị",
-    href: "/admin",
-    icon: Settings,
-    group: "nav",
-    roles: ["admin"],
-  },
-  {
-    id: "action:item-new",
-    label: "Thêm vật tư mới",
-    href: "/items/new",
-    icon: Plus,
-    group: "action",
-    shortcut: "N I",
-    roles: ["admin", "planner"],
-  },
-  {
-    id: "action:wo-new",
-    label: "Tạo Work Order (V1.1)",
-    icon: Factory,
-    group: "action",
-    roles: ["admin", "planner"],
-    action: () => {
-      /* disabled V1 */
-    },
-  },
-];
 
 export interface CommandPaletteProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  items?: CommandItemDef[];
-  userRole?: Role;
+  /** Mục đã lọc quyền sẵn (xem navToCommandItems). */
+  items: CommandItemDef[];
 }
 
 interface RecentEntry {
@@ -117,8 +51,7 @@ const RECENT_MAX = 5;
 export function CommandPalette({
   open,
   onOpenChange,
-  items = DEFAULT_ITEMS,
-  userRole,
+  items,
 }: CommandPaletteProps) {
   const router = useRouter();
   const [query, setQuery] = React.useState("");
@@ -137,22 +70,19 @@ export function CommandPalette({
     const now = Date.now();
     const expireMs = RECENT_TTL_DAYS * 24 * 60 * 60 * 1000;
     const loaded = storage.get<RecentEntry[]>(STORAGE_KEYS.cmdkRecents, []);
-    const valid = loaded.filter((e) => now - e.at < expireMs);
+    // V4.1 AD-13 — chỉ giữ mục gần đây còn nằm trong menu hiện tại của user.
+    const allowed = new Set(items.map((it) => it.id));
+    const valid = loaded.filter((e) => now - e.at < expireMs && allowed.has(e.id));
     setRecents(valid);
-  }, [open]);
+  }, [open, items]);
 
   // Reset query khi đóng.
   React.useEffect(() => {
     if (!open) setQuery("");
   }, [open]);
 
-  const visibleItems = React.useMemo(() => {
-    if (!userRole) return items;
-    return items.filter((it) => !it.roles || it.roles.includes(userRole));
-  }, [items, userRole]);
-
-  const navItems = visibleItems.filter((it) => it.group === "nav");
-  const actionItems = visibleItems.filter((it) => it.group === "action");
+  const navItems = items.filter((it) => it.group === "nav");
+  const actionItems = items.filter((it) => it.group === "action");
 
   const runItem = React.useCallback(
     (item: CommandItemDef) => {

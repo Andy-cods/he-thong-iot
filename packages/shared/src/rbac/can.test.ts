@@ -128,15 +128,26 @@ describe("can() — assert 48+ cell từ matrix (§4 brainstorm)", () => {
     ["operator", "approve", "eco", false],
     // Audit
     ["admin", "read", "audit", true],
-    ["planner", "read", "audit", true],
-    ["operator", "read", "audit", true],
-    ["warehouse", "read", "audit", true],
+    // V4.1 AD-02: nhật ký hệ thống chỉ admin (trước đây 5 vai trò đọc + xuất 50k dòng).
+    ["planner", "read", "audit", false],
+    ["operator", "read", "audit", false],
+    ["warehouse", "read", "audit", false],
+    ["purchaser", "read", "audit", false],
+    ["qc", "read", "audit", false],
     ["operator", "update", "audit", false],
     // User
     ["admin", "create", "user", true],
-    ["planner", "read", "user", true],
+    // V4.1 AD-22: đọc danh sách user/quyền/email người khác chỉ admin.
+    ["planner", "read", "user", false],
     ["planner", "create", "user", false],
-    ["operator", "read", "user", true],
+    ["operator", "read", "user", false],
+    ["admin", "read", "user", true],
+    // V4.1 AD-03: /api/admin/stats (phiên của mọi người) + thu hồi phiên người khác chỉ admin.
+    ["admin", "read", "session", true],
+    ["admin", "delete", "session", true],
+    ["planner", "read", "session", false],
+    ["purchaser", "read", "session", false],
+    ["shareholder", "read", "session", false],
     ["operator", "update", "user", false],
     // V3.8 — Production board: chỉ qc + admin CRUD; còn lại read-only.
     ["qc", "create", "productionBoard", true],
@@ -157,7 +168,7 @@ describe("can() — assert 48+ cell từ matrix (§4 brainstorm)", () => {
     // V3.9 — Accountant: tạo + xem PR để tải PDF/Excel; KHÔNG duyệt/PO/board.
     ["accountant", "approve", "pr", false],
     ["accountant", "read", "productionBoard", false],
-    ["accountant", "read", "user", true],
+    ["accountant", "read", "user", false],
     // V4.0 — Accountant sở hữu phân hệ Tài chính, đọc PO + BBGH để đối chiếu.
     ["accountant", "create", "finance", true],
     ["accountant", "update", "finance", true],
@@ -246,7 +257,7 @@ describe("canAny() — nav filter shortcut", () => {
     expect(canAny(["operator"], "supplier")).toBe(false);
   });
 
-  it("planner true trên mọi entity nghiệp vụ (trừ inventory, report, finance, deliveryNote)", () => {
+  it("planner true trên mọi entity nghiệp vụ (trừ inventory, report, finance, deliveryNote, audit/user/session)", () => {
     // planner KHÔNG có inventory (thuộc warehouse), report (KPI admin-only),
     // finance (V4.0 — thuộc kế toán) và deliveryNote (V4.0 — thuộc kho).
     // V4.1 Đợt 1a — qcInspection: planner mất quyền HOLD/nhả HOLD (KHO-12).
@@ -256,12 +267,25 @@ describe("canAny() — nav filter shortcut", () => {
       "finance",
       "deliveryNote",
       "qcInspection",
+      // V4.1 AD-02/03/22 — nhật ký hệ thống, user, phiên của người khác: chỉ admin.
+      "audit",
+      "user",
+      "session",
     ];
     for (const e of RBAC_ENTITIES) {
       if (plannerExcluded.includes(e)) {
         expect(canAny(["planner"], e)).toBe(false);
       } else {
         expect(canAny(["planner"], e)).toBe(true);
+      }
+    }
+  });
+
+  it("V4.1 AD-02/03/22 — audit/user/session chỉ admin có quyền", () => {
+    const nonAdmin = Object.keys(RBAC_MATRIX).filter((r) => r !== "admin") as Role[];
+    for (const r of nonAdmin) {
+      for (const e of ["audit", "user", "session"] as RbacEntity[]) {
+        expect(canAny([r], e)).toBe(false);
       }
     }
   });

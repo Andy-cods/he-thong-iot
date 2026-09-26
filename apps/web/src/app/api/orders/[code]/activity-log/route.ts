@@ -35,7 +35,8 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { code: string } },
 ) {
-  const guard = await requireCan(req, "read", "audit");
+  // V4.1 AD-02: `read:audit` nay chỉ admin — lịch sử đơn hàng gate theo quyền đọc đơn hàng.
+  const guard = await requireCan(req, "read", "salesOrder");
   if ("response" in guard) return guard.response;
 
   const order = await getOrderByCode(params.code);

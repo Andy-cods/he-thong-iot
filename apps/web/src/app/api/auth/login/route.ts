@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { eq, sql } from "drizzle-orm";
+import { eq, lt, sql } from "drizzle-orm";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { role, session, userAccount, userRole } from "@iot/db/schema/auth";
@@ -19,6 +19,7 @@ import {
   loginRateLimit,
   loginRateLimitByUsername,
 } from "@/server/middlewares/rateLimit";
+import { writeAudit } from "@/server/services/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,6 +32,51 @@ const LoginSchema = z.object({
 // V3.11.4 (audit S.4) — khoá tài khoản sau N lần sai liên tiếp.
 const LOGIN_MAX_FAILS = 10;
 const LOGIN_LOCK_MS = 15 * 60 * 1000; // 15 phút
+
+// V4.1 AD-21 — dọn bản ghi phiên đã hết hạn quá 30 ngày (giữ 30 ngày để tra cứu).
+const SESSION_PURGE_AFTER_DAYS = 30;
+
+/**
+ * V4.1 AD-10 — ghi nhật ký đăng nhập sai / bị khoá (trước đây không ghi gì).
+ * Dùng action LOGIN có sẵn trong enum + object_type `login_failed` → KHÔNG cần
+ * migration thêm giá trị enum.
+ */
+async function auditLoginFailed(
+  req: NextRequest,
+  username: string,
+  userId: string | null,
+  reason: string,
+): Promise<void> {
+  const meta = extractRequestMeta(req);
+  await writeAudit({
+    actor: null,
+    actorUserId: userId,
+    actorUsername: username,
+    action: "LOGIN",
+    objectType: "login_failed",
+    objectId: null,
+    notes: reason,
+    requestId: meta.requestId,
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+  });
+}
+
+/** V4.1 AD-21 — xoá phiên hết hạn lâu ngày; best-effort, không chặn đăng nhập. */
+async function purgeExpiredSessions(): Promise<void> {
+  try {
+    await db
+      .delete(session)
+      .where(
+        lt(
+          session.expiresAt,
+          sql`now() - make_interval(days => ${SESSION_PURGE_AFTER_DAYS})`,
+        ),
+      );
+  } catch (err) {
+    logger.warn({ err }, "purge expired sessions failed");
+  }
+}
 
 export async function POST(req: NextRequest) {
   // V3.7.29 — Rate limit IP nới lên 60/60s (cho văn phòng NAT nhiều user
@@ -102,11 +148,18 @@ export async function POST(req: NextRequest) {
     );
     loginCounter.add(1, { result: "invalid" });
     apiErrorCounter.add(1, { route: "/api/auth/login", status: "401" });
+    await auditLoginFailed(
+      req,
+      username,
+      user?.id ?? null,
+      user ? "Tài khoản đã bị khoá (ngưng hoạt động)" : "Tài khoản không tồn tại",
+    );
     return invalid;
   }
 
   if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
     loginCounter.add(1, { result: "locked" });
+    await auditLoginFailed(req, username, user.id, "Đang bị khoá tạm thời do sai nhiều lần");
     return NextResponse.json(
       {
         error: {
@@ -143,6 +196,12 @@ export async function POST(req: NextRequest) {
     const lockedNow =
       afterFail?.lockedUntil != null &&
       afterFail.lockedUntil.getTime() > Date.now();
+    await auditLoginFailed(
+      req,
+      username,
+      user.id,
+      lockedNow ? "Sai mật khẩu — đã khoá 15 phút" : "Sai mật khẩu",
+    );
     if (lockedNow) {
       loginCounter.add(1, { result: "locked" });
       return NextResponse.json(
@@ -213,6 +272,24 @@ export async function POST(req: NextRequest) {
       lockedUntil: null,
     })
     .where(eq(userAccount.id, user.id));
+
+  // V4.1 AD-10 — nhật ký đăng nhập thành công (object = phiên vừa tạo).
+  await writeAudit({
+    actor: {
+      userId: user.id,
+      username: user.username,
+      roles: roleCodes,
+      sessionId: sessionRow?.id ?? null,
+    },
+    action: "LOGIN",
+    objectType: "session",
+    objectId: sessionRow?.id ?? null,
+    notes: isKiosk ? "Đăng nhập (kiosk)" : "Đăng nhập",
+    requestId: meta.requestId,
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+  });
+  void purgeExpiredSessions();
 
   loginCounter.add(1, { result: "success" });
   logger.info(

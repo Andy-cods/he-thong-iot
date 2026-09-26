@@ -96,7 +96,7 @@ export default function AdminIndexPage() {
             }
             sub={
               stats
-                ? `${stats.sessions.activeNow.toLocaleString("vi-VN")} phiên đang hoạt động`
+                ? `${stats.sessions.activeNow.toLocaleString("vi-VN")} phiên còn hiệu lực`
                 : undefined
             }
             trendLabel="đăng nhập"
@@ -342,7 +342,10 @@ export default function AdminIndexPage() {
 
           <Card
             title="Phiên đang hoạt động"
-            subtitle="Người dùng online trong 30 phút qua"
+            // V4.1 AD-09 — nhãn cũ "online trong 30 phút qua" sai: danh sách là
+            // phiên CÒN HIỆU LỰC (chưa hết hạn 4h, chưa thu hồi), sắp theo lần
+            // hoạt động gần nhất (last_seen cập nhật ~30s khi người dùng thao tác).
+            subtitle="Phiên còn hiệu lực · sắp theo lần hoạt động gần nhất"
             icon={
               <Activity
                 className="h-4 w-4 text-emerald-500"

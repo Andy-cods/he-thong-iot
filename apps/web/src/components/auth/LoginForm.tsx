@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertCircle, ArrowRight, Loader2, LockKeyhole, User } from "lucide-react";
 import { LoginSuccessSplash } from "./LoginSuccessSplash";
+import { sanitizeNextPath } from "@/lib/safe-next";
 
 /**
  * V3.2 LoginForm — dark theme matching login hero (cyan accent + glassmorphism).
@@ -22,11 +23,11 @@ export function LoginForm() {
   // `/bom` redirect sang `/engineering` (V3) → role purchaser/operator/warehouse
   // không có quyền truy cập → bị denied / redirect loop.
   // `/` ai cũng vào được; sidebar tự lọc tab theo role.
-  const nextPath = params.get("next") || "/";
+  // V4.1 AD-20 — lọc `next` (chỉ đường dẫn nội bộ) chống open-redirect.
+  const nextPath = sanitizeNextPath(params.get("next"));
 
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
-  const [rememberMe, setRememberMe] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -70,7 +71,7 @@ export function LoginForm() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, rememberMe }),
+        body: JSON.stringify({ username, password }),
       });
 
       if (res.status === 429) {
@@ -200,27 +201,9 @@ export function LoginForm() {
         </div>
       </div>
 
-      {/* Remember me */}
-      <label className="flex cursor-pointer items-center gap-2.5 select-none text-sm text-zinc-300">
-        <span className="relative flex h-4 w-4 items-center justify-center">
-          <input
-            type="checkbox"
-            checked={rememberMe}
-            onChange={(e) => setRememberMe(e.target.checked)}
-            disabled={disabled}
-            className="peer h-4 w-4 cursor-pointer appearance-none rounded border border-white/20 bg-white/5 transition-colors checked:border-cyan-400 checked:bg-cyan-500 disabled:opacity-50"
-          />
-          <svg
-            className="pointer-events-none absolute h-3 w-3 text-white opacity-0 peer-checked:opacity-100"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            aria-hidden
-          >
-            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414L8.414 15a1 1 0 01-1.414 0L3.293 11.293a1 1 0 011.414-1.414L7.707 13l7.586-7.707a1 1 0 011.414 0z" clipRule="evenodd" />
-          </svg>
-        </span>
-        Ghi nhớ đăng nhập (7 ngày)
-      </label>
+      {/* V4.1 AD-08 — bỏ ô "Ghi nhớ đăng nhập (7 ngày)": ô này chưa từng có tác
+          dụng (server bỏ qua). Phiên cố định 4 giờ kể từ đăng nhập (quyết định D1). */}
+      <p className="text-xs text-zinc-500">Phiên đăng nhập có hiệu lực 4 giờ.</p>
 
       {/* Error */}
       {error && (

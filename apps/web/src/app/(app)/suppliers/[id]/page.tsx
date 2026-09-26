@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import type { SupplierUpdate } from "@iot/shared";
+import { can } from "@iot/shared";
+import { useSession } from "@/hooks/useSession";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { DialogConfirm } from "@/components/ui/dialog";
@@ -70,6 +72,12 @@ export default function SupplierDetailPage() {
   const router = useRouter();
 
   const query = useSupplier(id || null);
+  // V4.1 AD-16 — kế toán/kho/planner chỉ ĐỌC NCC: ẩn Sửa/Ngưng hoạt động và
+  // breadcrumb không trỏ về /sales?tab=suppliers (tab họ không có quyền xem).
+  const session = useSession();
+  const roles = session.data?.roles ?? [];
+  const canUpdate = can(roles, "update", "supplier");
+  const canDelete = can(roles, "delete", "supplier");
   const update = useUpdateSupplier(id);
   const del = useDeleteSupplier();
 
@@ -113,7 +121,9 @@ export default function SupplierDetailPage() {
       <Breadcrumb
         items={[
           { label: "Trang chủ", href: "/" },
-          { label: "Nhà cung cấp", href: "/suppliers" },
+          canUpdate
+            ? { label: "Nhà cung cấp", href: "/suppliers" }
+            : { label: "Nhà cung cấp" },
           { label: supplier.code },
         ]}
         className="mb-2"
@@ -141,7 +151,7 @@ export default function SupplierDetailPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {supplier.isActive && !editing && (
+          {canUpdate && supplier.isActive && !editing && (
             <Button
               size="sm"
               onClick={() => {
@@ -153,15 +163,17 @@ export default function SupplierDetailPage() {
               Chỉnh sửa
             </Button>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setDeleteOpen(true)}
-            disabled={!supplier.isActive}
-          >
-            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-            {supplier.isActive ? "Ngưng hoạt động" : "Đã ngưng"}
-          </Button>
+          {canDelete ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDeleteOpen(true)}
+              disabled={!supplier.isActive}
+            >
+              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+              {supplier.isActive ? "Ngưng hoạt động" : "Đã ngưng"}
+            </Button>
+          ) : null}
         </div>
       </header>
 

@@ -61,6 +61,8 @@ export async function middleware(req: NextRequest) {
   // check must_change_password + sidebar active state).
   const forwardHeaders = new Headers(req.headers);
   forwardHeaders.set("x-pathname", pathname);
+  // V4.1 AD-18 — layout cần query để redirect /login?next= không mất dữ liệu.
+  forwardHeaders.set("x-search", req.nextUrl.search);
 
   if (!isProtected(pathname)) {
     return NextResponse.next({ request: { headers: forwardHeaders } });
@@ -90,7 +92,11 @@ export async function middleware(req: NextRequest) {
 function redirectToLogin(req: NextRequest) {
   const url = req.nextUrl.clone();
   url.pathname = "/login";
-  url.searchParams.set("next", req.nextUrl.pathname);
+  // V4.1 AD-18 — giữ cả query string (dữ liệu điền sẵn, tab đang mở) để sau khi
+  // đăng nhập lại quay về đúng trạng thái. `url` là bản clone → xoá query cũ trước.
+  const next = req.nextUrl.pathname + req.nextUrl.search;
+  url.search = "";
+  url.searchParams.set("next", next);
   return NextResponse.redirect(url);
 }
 

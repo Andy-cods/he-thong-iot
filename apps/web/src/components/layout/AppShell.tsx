@@ -12,7 +12,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { NAV_ITEMS, filterNavByRoles, type NavItem } from "@/lib/nav-items";
+import {
+  NAV_ITEMS,
+  filterNavForUser,
+  navToCommandItems,
+  type NavItem,
+} from "@/lib/nav-items";
+import type { PermissionOverrideLite } from "@/lib/permissions";
 import type { UserMenuUser } from "@/components/layout/UserMenu";
 import type { Role } from "@iot/shared";
 import { cn } from "@/lib/utils";
@@ -40,22 +46,37 @@ function matchActive(pathname: string, href: string, allHrefs: string[] = []): b
 export interface AppShellProps {
   user: UserMenuUser;
   navItems?: NavItem[];
+  /** V4.1 AD-19 — override quyền riêng (còn hiệu lực) của user, từ layout. */
+  permissionOverrides?: PermissionOverrideLite[];
   children: React.ReactNode;
 }
 
-export function AppShell({ user, navItems = NAV_ITEMS, children }: AppShellProps) {
+export function AppShell({
+  user,
+  navItems = NAV_ITEMS,
+  permissionOverrides,
+  children,
+}: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname() ?? "/";
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [paletteOpen, setPaletteOpen] = React.useState(false);
 
-  const userRoles = user.role
-    ? (user.role.split(",").map((r) => r.trim()) as Role[])
-    : undefined;
+  const roleKey = user.role ?? "";
+  const userRoles = React.useMemo(
+    () => (roleKey ? (roleKey.split(",").map((r) => r.trim()) as Role[]) : undefined),
+    [roleKey],
+  );
 
+  // V4.1 AD-17/AD-19 — menu lọc theo vai trò + quy tắc chặn trang + override.
   const filteredNav = React.useMemo(
-    () => filterNavByRoles(navItems, userRoles),
-    [navItems, userRoles],
+    () => filterNavForUser(navItems, userRoles, permissionOverrides ?? []),
+    [navItems, userRoles, permissionOverrides],
+  );
+  // V4.1 AD-13 — Ctrl+K dùng chung nguồn với menu.
+  const commandItems = React.useMemo(
+    () => navToCommandItems(filteredNav),
+    [filteredNav],
   );
 
   const allHrefs = filteredNav.map((i) => i.href);
@@ -149,10 +170,8 @@ export function AppShell({ user, navItems = NAV_ITEMS, children }: AppShellProps
       <CommandPalette
         open={paletteOpen}
         onOpenChange={setPaletteOpen}
-        userRole={userRoles?.[0] as CommandPaletteRole | undefined}
+        items={commandItems}
       />
     </div>
   );
 }
-
-type CommandPaletteRole = "admin" | "planner" | "warehouse" | "viewer";

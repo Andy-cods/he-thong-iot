@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { AdminPageShell } from "@/components/admin/AdminPageShell";
 import {
+  useAllSessions,
   useMySessions,
   useRevokeAllOtherSessions,
   useRevokeSession,
@@ -49,12 +50,24 @@ function fmtAbs(iso: string): string {
 
 export default function SessionsPage() {
   const query = useMySessions();
+  // V4.1 AD-14 — admin xem + thu hồi phiên của người khác.
+  const allQuery = useAllSessions();
+  const [userFilter, setUserFilter] = React.useState("");
   const revokeOne = useRevokeSession();
   const revokeAll = useRevokeAllOtherSessions();
   const [confirmRevokeAllOpen, setConfirmRevokeAllOpen] = React.useState(false);
 
   const sessions = query.data?.data ?? [];
   const otherCount = sessions.filter((s) => !s.isCurrent).length;
+  const allSessions = allQuery.data?.data ?? [];
+  const needle = userFilter.trim().toLowerCase();
+  const filteredAll = needle
+    ? allSessions.filter(
+        (s) =>
+          s.username.toLowerCase().includes(needle) ||
+          (s.fullName ?? "").toLowerCase().includes(needle),
+      )
+    : allSessions;
 
   const handleRevoke = async (id: string) => {
     try {
@@ -88,14 +101,17 @@ export default function SessionsPage() {
         { label: "Phiên đăng nhập" },
       ]}
       title="Phiên đăng nhập"
-      description="Danh sách thiết bị đang đăng nhập với tài khoản của bạn. Thu hồi sẽ chặn refresh token; access token hiện tại có thể còn hiệu lực tối đa 15 phút."
+      description="Phiên có hiệu lực 4 giờ kể từ lúc đăng nhập (máy chiếu TV: 24 giờ). Thu hồi có hiệu lực trong vòng 30 giây: thiết bị đó phải đăng nhập lại."
       actions={
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => query.refetch()}
-            disabled={query.isFetching}
+            onClick={() => {
+              void query.refetch();
+              void allQuery.refetch();
+            }}
+            disabled={query.isFetching || allQuery.isFetching}
           >
             <RefreshCw
               className={cn(
@@ -118,6 +134,9 @@ export default function SessionsPage() {
         </div>
       }
     >
+      <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+        Thiết bị của bạn
+      </h2>
       <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
         {query.isLoading ? (
           <div className="p-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
@@ -203,6 +222,94 @@ export default function SessionsPage() {
           </ul>
         )}
       </div>
+
+      {/* V4.1 AD-14 — phiên của mọi người dùng */}
+      <section className="mt-6">
+        <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+              Phiên của mọi người dùng
+            </h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              {allSessions.length} phiên còn hiệu lực · sắp theo lần hoạt động gần nhất
+              (cập nhật khoảng mỗi 30 giây khi người dùng thao tác).
+            </p>
+          </div>
+          <input
+            value={userFilter}
+            onChange={(e) => setUserFilter(e.target.value)}
+            placeholder="Lọc theo tài khoản / họ tên"
+            aria-label="Lọc phiên theo tài khoản"
+            className="h-9 w-full max-w-[260px] rounded-md border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          />
+        </div>
+        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          {allQuery.isLoading ? (
+            <div className="p-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
+              Đang tải…
+            </div>
+          ) : allQuery.isError ? (
+            <div className="p-6 text-center text-sm text-rose-600 dark:text-rose-400">
+              Không tải được danh sách phiên.{" "}
+              <button
+                type="button"
+                className="underline"
+                onClick={() => void allQuery.refetch()}
+              >
+                Thử lại
+              </button>
+            </div>
+          ) : filteredAll.length === 0 ? (
+            <div className="p-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
+              Không có phiên nào khớp.
+            </div>
+          ) : (
+            <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+              {filteredAll.map((s) => {
+                const ua = parseUserAgent(s.userAgent);
+                return (
+                  <li
+                    key={s.id}
+                    className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm text-zinc-900 dark:text-zinc-50">
+                        <span className="font-medium">{s.username}</span>
+                        {s.fullName ? (
+                          <span className="text-zinc-500 dark:text-zinc-400"> · {s.fullName}</span>
+                        ) : null}
+                        {s.isCurrent ? (
+                          <span className="ml-2 text-xs text-emerald-700 dark:text-emerald-400">
+                            (phiên của bạn)
+                          </span>
+                        ) : null}
+                      </p>
+                      <p className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-zinc-500 dark:text-zinc-400">
+                        <span>{ua.summary}</span>
+                        <span className="font-mono">IP: {s.ipAddress ?? "—"}</span>
+                        <span>Đăng nhập: {fmtAbs(s.issuedAt)}</span>
+                        <span>Hoạt động: {fmtRelative(s.lastSeenAt ?? s.issuedAt)}</span>
+                        <span>Hết hạn: {fmtAbs(s.expiresAt)}</span>
+                      </p>
+                    </div>
+                    {s.isCurrent ? null : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => void handleRevoke(s.id)}
+                        disabled={revokeOne.isPending}
+                        className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
+                      >
+                        Thu hồi
+                      </Button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </section>
 
       <Dialog
         open={confirmRevokeAllOpen}

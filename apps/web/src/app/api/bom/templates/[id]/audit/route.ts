@@ -42,7 +42,8 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireCan(req, "read", "audit");
+  // V4.1 AD-02: `read:audit` nay chỉ admin — lịch sử BOM gate theo quyền đọc BOM.
+  const guard = await requireCan(req, "read", "bomTemplate");
   if ("response" in guard) return guard.response;
 
   const id = params.id;

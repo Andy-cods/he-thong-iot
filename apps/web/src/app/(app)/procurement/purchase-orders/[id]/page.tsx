@@ -46,6 +46,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useSession } from "@/hooks/useSession";
+import { ObjectAuditList } from "@/components/admin/ObjectAuditList";
 import {
   usePOTransition,
   usePurchaseOrderDetail,
@@ -858,22 +859,25 @@ export default function PurchaseOrderDetailPage() {
 
         {tab === "audit" && (
           <div className="mx-auto max-w-3xl">
-            <section className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-              <div className="text-center">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800">
-                  <History className="h-6 w-6 text-zinc-400 dark:text-zinc-500" />
-                </div>
-                <h3 className="mt-3 text-base font-semibold text-zinc-900 dark:text-zinc-50">Audit log</h3>
-                <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                  Xem chi tiết tất cả thay đổi tại trang quản trị
-                </p>
-                <Button asChild variant="outline" size="sm" className="mt-4">
-                  <Link href={`/admin/audit?objectType=purchase_order&objectId=${po.id}`}>
-                    Mở trang audit
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </Link>
-                </Button>
+            {/* V4.1 AD-10 — lịch sử của CHÍNH PO này, xem ngay tại đây. Nút cũ
+                "Mở trang audit" truyền sai tham số (objectType) nên trang Nhật
+                ký không lọc, và người không phải admin bị chặn khỏi /admin. */}
+            <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="flex items-center justify-between gap-2 border-b border-zinc-100 px-5 py-3 dark:border-zinc-800">
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                  <History className="h-4 w-4 text-zinc-500" aria-hidden="true" />
+                  Lịch sử thay đổi
+                </h3>
+                {roles.includes("admin") ? (
+                  <Button asChild variant="ghost" size="sm">
+                    <Link href={`/admin/audit?entity=purchase_order&objectId=${po.id}`}>
+                      Mở trong Nhật ký hệ thống
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </Link>
+                  </Button>
+                ) : null}
               </div>
+              <ObjectAuditList objectType="purchase_order" objectId={po.id} />
             </section>
           </div>
         )}

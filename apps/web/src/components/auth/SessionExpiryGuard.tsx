@@ -78,7 +78,9 @@ export function SessionExpiryGuard({ expiresAt }: { expiresAt: number | null }) 
   const remaining = expiresAt ? expiresAt - now : Infinity;
   const expired = forcedExpired || remaining <= 0;
   const warn = !expired && !dismissed && remaining <= WARN_BEFORE_MS;
-  const loginHref = `/login?next=${encodeURIComponent(pathname || "/")}`;
+  // V4.1 AD-18 — giữ cả query (?tab=…, dữ liệu điền sẵn) khi quay lại sau đăng nhập.
+  const search = typeof window !== "undefined" ? window.location.search : "";
+  const loginHref = `/login?next=${encodeURIComponent((pathname || "/") + search)}`;
 
   return (
     <>

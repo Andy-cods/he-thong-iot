@@ -66,7 +66,9 @@ export async function listUserActiveSessions(
 /**
  * Admin scope — toàn bộ phiên đang active của mọi user.
  */
-export async function listAllActiveSessions(): Promise<SessionListRow[]> {
+export async function listAllActiveSessions(
+  currentSessionId: string | null = null,
+): Promise<SessionListRow[]> {
   const rows = await db
     .select({
       id: session.id,
@@ -87,9 +89,10 @@ export async function listAllActiveSessions(): Promise<SessionListRow[]> {
         gt(session.expiresAt, new Date()),
       ),
     )
-    .orderBy(desc(session.issuedAt));
+    // V4.1 AD-14 — sắp theo lần hoạt động gần nhất (last_seen cập nhật khi dùng).
+    .orderBy(desc(sql`coalesce(${session.lastSeenAt}, ${session.issuedAt})`));
 
-  return rows.map((r) => ({ ...r, isCurrent: false }));
+  return rows.map((r) => ({ ...r, isCurrent: r.id === currentSessionId }));
 }
 
 /**
@@ -125,13 +128,22 @@ export async function isSessionValid(sessionId: string): Promise<boolean> {
   }
 
   try {
+    // V4.1 AD-09/AD-14 — kiểm tra hợp lệ ĐỒNG THỜI cập nhật last_seen_at (1 câu
+    // UPDATE … RETURNING). Chỉ chạy khi cache 30s hết hạn → "Hoạt động lần cuối"
+    // chính xác ~30s mà không thêm query mỗi request. Không trả dòng = phiên
+    // không tồn tại / đã thu hồi / hết hạn.
     const [row] = await db
-      .select({ revokedAt: session.revokedAt, expiresAt: session.expiresAt })
-      .from(session)
-      .where(eq(session.id, sessionId))
-      .limit(1);
-    const valid =
-      !!row && row.revokedAt === null && row.expiresAt.getTime() > Date.now();
+      .update(session)
+      .set({ lastSeenAt: sql`now()` })
+      .where(
+        and(
+          eq(session.id, sessionId),
+          isNull(session.revokedAt),
+          gt(session.expiresAt, sql`now()`),
+        ),
+      )
+      .returning({ id: session.id });
+    const valid = !!row;
     try {
       await cacheSetJson(key, { valid }, SESSION_VALID_TTL);
     } catch {
@@ -189,16 +201,6 @@ export async function revokeAllUserSessions(userId: string): Promise<number> {
     .returning({ id: session.id });
   await Promise.all(result.map((r) => invalidateSessionValidCache(r.id)));
   return result.length;
-}
-
-/**
- * Update lastSeenAt — gọi từ refresh endpoint.
- */
-export async function touchSessionLastSeen(id: string) {
-  await db
-    .update(session)
-    .set({ lastSeenAt: sql`now()` })
-    .where(eq(session.id, id));
 }
 
 /**

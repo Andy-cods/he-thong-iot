@@ -35,6 +35,12 @@ type AuditAction =
 
 export interface AuditInput {
   actor: Session | null;
+  /**
+   * V4.1 AD-10 — khi chưa có Session (vd đăng nhập sai): ghi tên đăng nhập đã
+   * thử + user id (nếu tài khoản tồn tại). Bị bỏ qua nếu có `actor`.
+   */
+  actorUserId?: string | null;
+  actorUsername?: string | null;
   action: AuditAction;
   objectType: string;
   objectId?: string | null;
@@ -78,8 +84,8 @@ export function diffObjects(
 export async function writeAudit(input: AuditInput): Promise<void> {
   try {
     await db.insert(auditEvent).values({
-      actorUserId: input.actor?.userId ?? null,
-      actorUsername: input.actor?.username ?? null,
+      actorUserId: input.actor?.userId ?? input.actorUserId ?? null,
+      actorUsername: (input.actor?.username ?? input.actorUsername ?? null)?.slice(0, 64) ?? null,
       action: input.action,
       objectType: input.objectType,
       objectId: input.objectId ?? null,

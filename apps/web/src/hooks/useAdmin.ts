@@ -313,6 +313,7 @@ function buildAuditListUrl(f: AuditFilter): string {
   if (f.q && f.q.trim()) p.set("q", f.q.trim());
   if (f.actorUsername) p.set("actorUsername", f.actorUsername);
   if (f.userId) p.set("userId", f.userId);
+  if (f.objectId) p.set("objectId", f.objectId);
   if (f.from) p.set("from", f.from);
   if (f.to) p.set("to", f.to);
   if (f.page) p.set("page", String(f.page));

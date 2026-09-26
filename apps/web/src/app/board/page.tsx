@@ -97,10 +97,17 @@ function deadlineInfo(deadline: string | null): { text: string; cls: string } {
 export default function BoardPage() {
   const now = useClock();
   const clock = fmtClock(now);
-  const { data, isLoading, isError } = useProductionBoard({
+  const { data, isLoading, isError, error } = useProductionBoard({
     completedLimit: 8,
     refetchInterval: 15_000,
   });
+
+  // V4.1 AD-07 — TV kiosk: hết phiên / bị thu hồi (401) thì về trang đăng nhập
+  // (quay lại /board sau khi đăng nhập) thay vì kẹt màn lỗi mãi.
+  const status = (error as { status?: number } | null)?.status;
+  React.useEffect(() => {
+    if (status === 401) window.location.href = "/login?next=%2Fboard";
+  }, [status]);
 
   const items = data?.data ?? [];
   const active = items.filter(

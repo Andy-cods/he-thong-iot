@@ -63,7 +63,7 @@ type Matrix = Record<Role, Partial<Record<RbacEntity, RbacAction[]>>>;
  * Matrix chính — tham chiếu duy nhất cho `can()` + UI nav + API guard.
  * - Admin: full quyền trên mọi entity (bao gồm approve/transition/delete).
  * - Planner: CRUD nghiệp vụ (item/supplier/bom/order/snapshot/WO/PR);
- *   APPROVE PR + ECO; TRANSITION snapshot/WO; READ audit.
+ *   APPROVE PR + ECO; TRANSITION snapshot/WO. (V4.1: audit chỉ admin.)
  * - Operator: READ base; CREATE receiving qua WO; TRANSITION WO/AO/snapshot
  *   (RESERVED→ISSUED→ASSEMBLED).
  * - Warehouse: READ base; CREATE receiving_event; TRANSITION snapshot
@@ -82,6 +82,9 @@ export const RBAC_MATRIX: Matrix = {
     wo: ["create", "read", "update", "delete", "approve", "transition"],
     reservation: ["create", "read", "update", "delete", "transition"],
     eco: ["create", "read", "update", "delete", "approve"],
+    // V4.1 AD-02/03/22: nhật ký hệ thống (audit), danh sách user (kèm email,
+    // quyền) và phiên đăng nhập của người khác CHỈ admin. Vai trò khác xem lịch
+    // sử 1 chứng từ qua quyền đọc chính chứng từ đó (xem lib/audit-scope.ts).
     audit: ["read"],
     user: ["create", "read", "update", "delete"],
     session: ["read", "delete"],
@@ -114,9 +117,6 @@ export const RBAC_MATRIX: Matrix = {
     wo: ["create", "read", "update", "transition"],
     reservation: ["create", "read", "update", "transition"],
     eco: ["create", "read", "update", "approve"],
-    audit: ["read"],
-    user: ["read"],
-    session: ["read"],
     // V3.8 — planner xem bảng sản xuất (read-only).
     productionBoard: ["read"],
     // V4.1 Đợt 1a — planner xem phiếu xuất. KHÔNG có qcInspection: planner
@@ -139,9 +139,6 @@ export const RBAC_MATRIX: Matrix = {
     wo: ["create", "read", "transition"],
     reservation: ["create", "read", "transition"],
     eco: ["read"],
-    audit: ["read"],
-    user: ["read"],
-    session: ["read"],
     // V3.8 — operator xem bảng sản xuất (read-only).
     productionBoard: ["read"],
     // V4.1 Đợt 1a — operator xem phiếu xuất (vật tư đã giao cho xưởng).
@@ -164,9 +161,6 @@ export const RBAC_MATRIX: Matrix = {
     wo: ["read"],
     reservation: ["read"],
     eco: ["read"],
-    audit: ["read"],
-    user: ["read"],
-    session: ["read"],
     // V3.7.53 — warehouse có quyền điều chỉnh tồn kho thủ công (manual adjust)
     // qua BOM list popover + receiving + transfer + putaway.
     inventory: ["create", "read", "update"],
@@ -198,9 +192,6 @@ export const RBAC_MATRIX: Matrix = {
     wo: ["read"],
     reservation: ["read"],
     eco: ["read"],
-    audit: ["read"],
-    user: ["read"],
-    session: ["read"],
     // V3.8 — purchaser xem bảng sản xuất (read-only).
     productionBoard: ["read"],
     // V4.0 — Thu mua nhận BBGH sau khi giao nhận xong (chỉ đọc + tải file).
@@ -216,9 +207,6 @@ export const RBAC_MATRIX: Matrix = {
     wo: ["read"],
     // V3.9 — QC tự đề xuất mua vật tư (dụng cụ đo, tiêu hao QC).
     pr: ["create", "read"],
-    audit: ["read"],
-    user: ["read"],
-    session: ["read"],
     productionBoard: ["create", "read", "update", "delete"],
     // V4.1 Đợt 1a (KHO-12) — Tổ QC kết luận QC nhập kho (Đạt/Không đạt) +
     // HOLD/nhả HOLD thủ công. Trước đây role qc không có quyền kho nào.
@@ -230,11 +218,10 @@ export const RBAC_MATRIX: Matrix = {
     productionBoard: ["read"],
   },
   // V3.9 — Accountant (Bộ phận Kế toán): tạo + xem YCVT để tải PDF/Excel.
-  // KHÔNG duyệt, KHÔNG PO. user/session read để dùng profile + admin hiển thị.
+  // KHÔNG duyệt, KHÔNG PO. (V4.1 AD-22: bỏ user/session read — hồ sơ cá nhân
+  // đọc qua /api/me, không cần quyền đọc user khác.)
   accountant: {
     pr: ["create", "read"],
-    user: ["read"],
-    session: ["read"],
     // V4.0 — Kế toán là chủ sở hữu nghiệp vụ phân hệ Tài chính: ghi thu chi,
     // hoá đơn, thanh toán, công nợ, danh mục tài khoản giao dịch. KHÔNG có
     // `approve` (duyệt khoản chi lớn thuộc Giám đốc) và KHÔNG có `delete`
@@ -255,8 +242,6 @@ export const RBAC_MATRIX: Matrix = {
   shareholder: {
     finance: ["read"],
     productionBoard: ["read"],
-    user: ["read"],
-    session: ["read"],
   },
 };
 

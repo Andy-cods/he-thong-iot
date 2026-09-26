@@ -149,6 +149,8 @@ async function pingDb(): Promise<"ok" | "slow" | "down"> {
 }
 
 export async function GET(req: NextRequest) {
+  // V4.1 AD-03: `read:session` nay CHỈ admin (matrix) — trước đây mọi vai trò
+  // đọc được username/IP/thiết bị phiên của tất cả người dùng qua route này.
   const guard = await requireCan(req, "read", "session");
   if ("response" in guard) return guard.response;
 
