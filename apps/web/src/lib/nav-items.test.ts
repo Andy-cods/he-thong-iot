@@ -74,20 +74,14 @@ describe("NAV_ITEMS V3.1 cấu trúc 6 section", () => {
     expect(sales?.roles).toEqual(["admin", "purchaser", "accountant", "shareholder"]);
   });
 
-  it("Bộ phận Thiết kế có hub, lối tắt đề xuất vật tư và yêu cầu vật tư", () => {
+  it("Bộ phận Thiết kế có hub và lối tắt đề xuất vật tư", () => {
     const engHrefs = NAV_ITEMS.filter((i) => i.section === "engineering").map((i) => i.href);
-    expect(engHrefs).toEqual([
-      "/engineering",
-      "/procurement/purchase-requests",
-      "/material-requests",
-    ]);
+    expect(engHrefs).toEqual(["/engineering", "/procurement/purchase-requests"]);
   });
 
-  // V4.1 Đợt 1c (D6) — "Yêu cầu vật tư" cho admin/planner/operator/warehouse.
-  it("/material-requests cho đúng 4 role: admin/planner/operator/warehouse", () => {
-    const mr = NAV_ITEMS.find((i) => i.href === "/material-requests");
-    expect(mr?.label).toBe("Yêu cầu vật tư");
-    expect(mr?.roles).toEqual(["admin", "planner", "operator", "warehouse"]);
+  // V4.1 (27/09) — "Yêu cầu vật tư" trùng "Đề xuất vật tư" → bỏ khỏi menu.
+  it("không còn menu /material-requests cho bất kỳ role nào", () => {
+    expect(NAV_ITEMS.find((i) => i.href === "/material-requests")).toBeUndefined();
   });
 
   it("Bộ phận Gia công có hub, bảng sản xuất QC và QC nhập kho", () => {
@@ -143,7 +137,6 @@ describe("filterNavByRoles", () => {
       "/",
       "/engineering",
       "/procurement/purchase-requests",
-      "/material-requests",
       "/warehouse",
     ]);
     expect(hrefs).not.toContain("/admin");
@@ -158,7 +151,6 @@ describe("filterNavByRoles", () => {
       "/",
       "/engineering",
       "/procurement/purchase-requests",
-      "/material-requests",
     ]);
   });
 
@@ -172,7 +164,6 @@ describe("filterNavByRoles", () => {
       "/procurement/purchase-requests",
       "/sales",
     ]);
-    // V4.1 Đợt 1c — Thu mua không thấy "Yêu cầu vật tư".
     expect(hrefs).not.toContain("/material-requests");
   });
 
@@ -183,7 +174,6 @@ describe("filterNavByRoles", () => {
       "/",
       "/engineering",
       "/procurement/purchase-requests",
-      "/material-requests",
       "/operations",
     ]);
   });
@@ -233,7 +223,7 @@ describe("filterNavByRoles", () => {
     expect(hrefs).toContain("/sales");
     expect(hrefs).toContain("/operations");
     expect(hrefs).toContain("/warehouse");
-    expect(hrefs).toContain("/material-requests");
+    expect(hrefs).not.toContain("/material-requests");
     expect(hrefs).toContain("/");
   });
 });

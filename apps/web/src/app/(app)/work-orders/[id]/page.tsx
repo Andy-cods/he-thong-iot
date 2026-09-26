@@ -12,12 +12,10 @@ import {
   Factory,
   History as HistoryIcon,
   Loader2,
-  PackagePlus,
   Printer,
   Wrench,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { can } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProgressReportForm } from "@/components/work-orders/ProgressReportForm";
@@ -156,7 +154,6 @@ export default function WorkOrderDetailPage() {
   const canOperate = isAdmin || roles.includes("planner") || roles.includes("operator");
   const canComplete = isAdmin || roles.includes("planner");
   // V4.1 Đợt 1c (D6) — lập phiếu yêu cầu vật tư gắn lệnh SX này.
-  const canRequestMaterial = can(roles, "create", "materialRequest");
 
   if (query.isLoading) {
     return (
@@ -234,14 +231,6 @@ export default function WorkOrderDetailPage() {
               <Printer className="h-3.5 w-3.5" />
               In phiếu
             </Button>
-            {canRequestMaterial && status !== "COMPLETED" && status !== "CANCELLED" ? (
-              <Button asChild variant="outline" size="sm">
-                <Link href={`/material-requests/new?woId=${wo.id}`}>
-                  <PackagePlus className="h-3.5 w-3.5" />
-                  Tạo yêu cầu vật tư
-                </Link>
-              </Button>
-            ) : null}
             <WorkOrderActions
               woId={wo.id}
               woNo={wo.woNo}

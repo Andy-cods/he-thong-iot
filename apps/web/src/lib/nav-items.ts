@@ -1,5 +1,4 @@
 import {
-  ClipboardList,
   Factory,
   LayoutDashboard,
   Layers,
@@ -137,16 +136,9 @@ export const NAV_ITEMS: NavItem[] = [
     ],
     section: "engineering",
   },
-  // V4.1 Đợt 1c (D6) — Phiếu yêu cầu vật tư (lấy vật tư từ kho cho lệnh SX):
-  // Thiết kế + Gia công lập phiếu, Kho chuẩn bị + lập phiếu xuất giao hàng.
-  // Khớp ROUTE_ROLE_GUARD `/material-requests` trong (app)/layout.tsx.
-  {
-    href: "/material-requests",
-    label: "Yêu cầu vật tư",
-    icon: ClipboardList,
-    roles: ["admin", "planner", "operator", "warehouse"],
-    section: "engineering",
-  },
+  // V4.1 (27/09) — Đã BỎ menu "Yêu cầu vật tư" (/material-requests): Thang chốt
+  // "Đề xuất vật tư" và "Yêu cầu vật tư" là một → chỉ giữ Đề xuất vật tư.
+  // Route /material-requests vẫn còn để link thông báo/phiếu xuất cũ không 404.
   // --- Bộ phận Gia công — chỉ operator + admin ---
   {
     href: "/operations",
