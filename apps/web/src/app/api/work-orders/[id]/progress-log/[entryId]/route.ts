@@ -1,6 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { logger } from "@/lib/logger";
-import { deleteProgressLog } from "@/server/repos/woProgressLog";
+import {
+  ProgressLogError,
+  deleteProgressLog,
+} from "@/server/repos/woProgressLog";
 import { extractRequestMeta, jsonError } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { hasRole, requireCan } from "@/server/session";
@@ -11,7 +14,7 @@ export const dynamic = "force-dynamic";
 /**
  * DELETE /api/work-orders/[id]/progress-log/[entryId]
  *
- * Admin only — soft restriction, không rollback qty (legacy protection).
+ * Admin only. V4.1 SX-12 — trừ lại SL/giờ đã cộng (trước đây không rollback).
  */
 export async function DELETE(
   req: NextRequest,
@@ -42,6 +45,9 @@ export async function DELETE(
       data: { id: params.entryId, deleted: true },
     });
   } catch (err) {
+    if (err instanceof ProgressLogError) {
+      return jsonError(err.code, err.message, err.httpStatus);
+    }
     logger.error(
       { err, id: params.id, entryId: params.entryId },
       "delete progress-log failed",

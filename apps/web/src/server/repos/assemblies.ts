@@ -10,6 +10,7 @@ import {
 } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { WO_STATUS_LABEL_VI, isWoScannable } from "@/lib/wo-guards";
 import {
   StockGuardError,
   assertIssuable,
@@ -247,6 +248,26 @@ async function recordAssemblyScanTx(
       );
     }
 
+    // V4.1 SX-22 — chỉ quét (trừ kho) khi lệnh đã duyệt / đang chạy. Khoá
+    // hàng WO để không đổi trạng thái (huỷ/hoàn thành) giữa chừng.
+    const [woRow] = await tx
+      .select({ status: workOrder.status })
+      .from(workOrder)
+      .where(eq(workOrder.id, input.woId))
+      .for("update");
+    if (!woRow) {
+      throw new AssemblyScanError("Work Order không tồn tại", "WO_NOT_FOUND", 404);
+    }
+    if (!isWoScannable(woRow.status)) {
+      throw new AssemblyScanError(
+        `Lệnh đang "${WO_STATUS_LABEL_VI[woRow.status] ?? woRow.status}" — chỉ quét lắp ráp khi lệnh đã duyệt hoặc đang sản xuất.`,
+        "WO_INVALID_STATE",
+        409,
+      );
+    }
+
+    // V4.1 SX-23 — khoá dòng WO (FOR UPDATE) → 2 lần quét đồng thời cùng dòng
+    // chạy tuần tự, không cùng đọc completed_qty cũ.
     const [wol] = await tx
       .select()
       .from(workOrderLine)
@@ -256,12 +277,21 @@ async function recordAssemblyScanTx(
           eq(workOrderLine.snapshotLineId, input.snapshotLineId),
         ),
       )
-      .limit(1);
+      .for("update");
     if (!wol) {
       throw new AssemblyScanError(
         "WO line không tồn tại cho snapshot_line này",
         "WO_LINE_NOT_FOUND",
         404,
+      );
+    }
+    // V4.1 SX-22 — không tiêu hao vượt SL cần của dòng.
+    const remainingNeed = Number(wol.requiredQty) - Number(wol.completedQty);
+    if (input.qty > remainingNeed + 1e-9) {
+      throw new AssemblyScanError(
+        `Vượt số lượng cần: dòng chỉ còn thiếu ${Math.max(0, Number(remainingNeed.toFixed(4)))}.`,
+        "OVER_REQUIRED",
+        409,
       );
     }
 

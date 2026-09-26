@@ -100,10 +100,14 @@ export function WorkOrdersPanel({ bomId }: { bomId: string }) {
           <span className="text-sm text-zinc-500 dark:text-zinc-400">
             <span className="font-semibold text-zinc-900 tabular-nums dark:text-zinc-50">{rows.length}</span> WO
           </span>
-          <Button size="sm" variant="outline" disabled
-            title="Tạo WO cần chọn đơn hàng — vào tab Đơn hàng để tạo WO từ đơn đã snapshot.">
-            <Plus className="h-3.5 w-3.5" aria-hidden />
-            Tạo lệnh SX
+          {/* V4.1 SX-16/Q4 — tạo lệnh SX trực tiếp từ BOM (phiếu LSX gắn BOM),
+              không còn qua tab Đơn hàng (đang ẩn). */}
+          <Button asChild size="sm" variant="outline"
+            title="Lập phiếu LSX gắn BOM này (hoặc bấm nút GTAM trên dòng linh kiện gia công).">
+            <Link href={`/work-orders/new-lsx?bomTemplateId=${bomId}`}>
+              <Plus className="h-3.5 w-3.5" aria-hidden />
+              Tạo lệnh SX
+            </Link>
           </Button>
         </div>
       </div>
@@ -114,19 +118,26 @@ export function WorkOrdersPanel({ bomId }: { bomId: string }) {
           <div className="space-y-2 p-5">
             {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}
           </div>
+        ) : query.isError ? (
+          /* V4.1 SX-31 — lỗi hiện rõ, không giả làm "chưa có lệnh". */
+          <div className="m-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400">
+            {(query.error as Error)?.message ?? "Không tải được danh sách lệnh sản xuất."}
+          </div>
         ) : rows.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
             <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
               {statuses.length > 0 ? "Không có WO nào khớp bộ lọc." : "Chưa có lệnh sản xuất nào."}
             </p>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Chọn đơn hàng và tạo WO từ tab Đơn hàng.</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Bấm nút GTAM trên dòng linh kiện gia công, hoặc “Tạo lệnh SX” để lập phiếu LSX gắn BOM này.
+            </p>
           </div>
         ) : (
           <table className="w-full border-collapse">
             <thead className="sticky top-0 z-10 bg-white dark:bg-zinc-900">
               <tr className="border-b-2 border-zinc-100 dark:border-zinc-800">
                 <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Mã WO</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Đơn hàng</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Sản phẩm</th>
                 <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Kế hoạch</th>
                 <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Đã SX</th>
                 <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Trạng thái</th>
@@ -145,7 +156,11 @@ export function WorkOrdersPanel({ bomId }: { bomId: string }) {
                       <span className="font-mono text-sm font-bold text-indigo-600 dark:text-indigo-400">{row.woNo}</span>
                     </td>
                     <td className="px-5 py-3.5">
-                      <span className="font-mono text-sm text-zinc-700 dark:text-zinc-300">{row.orderNo ?? "—"}</span>
+                      {/* V4.1 SX-33/Q4 — Sản phẩm thay Đơn hàng. */}
+                      <span className="font-mono text-sm text-zinc-700 dark:text-zinc-300">{row.productSku ?? "—"}</span>
+                      {row.productName ? (
+                        <span className="block max-w-[240px] truncate text-xs text-zinc-500 dark:text-zinc-400" title={row.productName}>{row.productName}</span>
+                      ) : null}
                     </td>
                     <td className="px-5 py-3.5 text-right">
                       <span className="font-mono text-sm font-semibold tabular-nums text-zinc-700 dark:text-zinc-300">{formatNumber(planned)}</span>

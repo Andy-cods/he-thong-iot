@@ -293,14 +293,7 @@ function QcStagePanel({
               </li>
             ))}
           </ul>
-          <div className="mt-2">
-            <a
-              href="/eco"
-              className="text-xs font-semibold text-indigo-700 underline dark:text-indigo-400"
-            >
-              Tạo ECO / Rework request
-            </a>
-          </div>
+          {/* V4.1 Q4 — bỏ link "Tạo ECO / Rework request" (ECO đang ẩn). */}
         </div>
       )}
 

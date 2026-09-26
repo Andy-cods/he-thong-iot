@@ -6,7 +6,7 @@
  */
 
 import { NextResponse, type NextRequest } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { item as itemTable, workOrder } from "@iot/db/schema";
 import { db } from "@/lib/db";
@@ -65,9 +65,17 @@ export async function POST(
       status: "CANCELLED",
       notes: `${wo.notes ?? ""}\n[Rejected by ${guard.session.username}] ${reason}`.trim(),
     })
-    .where(eq(workOrder.id, params.id))
+    // V4.1 SX-10 — chỉ cập nhật khi VẪN đang DRAFT (2 người bấm cùng lúc →
+    // người sau nhận 409 thay vì ghi đè trạng thái/ghi chú của người trước).
+    .where(and(eq(workOrder.id, params.id), eq(workOrder.status, "DRAFT")))
     .returning();
-  if (!updated) return jsonError("INTERNAL", "Không update được.", 500);
+  if (!updated) {
+    return jsonError(
+      "INVALID_STATE",
+      "Yêu cầu đã được người khác xử lý — tải lại trang.",
+      409,
+    );
+  }
 
   const [it] = await db
     .select({ sku: itemTable.sku, name: itemTable.name })

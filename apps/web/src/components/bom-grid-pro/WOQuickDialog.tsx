@@ -105,6 +105,7 @@ export function WOQuickDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, line?.id]);
 
+  const submittingRef = React.useRef(false);
   const mutation = useMutation({
     mutationFn: async () => {
       if (!line) throw new Error("NO_LINE");
@@ -281,7 +282,17 @@ export function WOQuickDialog({
             Huỷ
           </Button>
           <Button
-            onClick={() => mutation.mutate()}
+            onClick={() => {
+              // V4.1 SX-18 — chặn double-click trước khi React kịp render
+              // isPending (server cũng chặn YCSX trùng cho cùng dòng BOM).
+              if (mutation.isPending || submittingRef.current) return;
+              submittingRef.current = true;
+              mutation.mutate(undefined, {
+                onSettled: () => {
+                  submittingRef.current = false;
+                },
+              });
+            }}
             disabled={mutation.isPending}
             className="bg-purple-600 hover:bg-purple-700 dark:bg-purple-700 dark:hover:bg-purple-600"
           >

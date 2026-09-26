@@ -63,7 +63,7 @@ const SORT_KEYS = [
  *
  * Filter mapping:
  * - q, statuses, hasSheet → SERVER (BomFilter API).
- * - dateFrom, dateTo, minComponents → CLIENT-side (API chưa hỗ trợ).
+ * - dateFrom, dateTo, minComponents → V4.1 SX-30: lọc phía server (updatedFrom/updatedTo/minComponents).
  */
 export function BomTab() {
   const router = useRouter();
@@ -158,6 +158,11 @@ export function BomTab() {
       q: filterState.q || undefined,
       status: filterState.statuses.length > 0 ? filterState.statuses : undefined,
       hasComponents: filterState.hasSheet ? true : undefined,
+      // V4.1 SX-30 — ngày + số linh kiện lọc phía server.
+      updatedFrom: filterState.dateFrom || undefined,
+      updatedTo: filterState.dateTo || undefined,
+      minComponents:
+        filterState.minComponents > 0 ? filterState.minComponents : undefined,
       page: urlState.page,
       pageSize: urlState.pageSize,
       sort: sortField,
@@ -185,29 +190,10 @@ export function BomTab() {
     [query.data],
   );
 
-  // CLIENT-side post-filter: dateRange + minComponents (API chưa hỗ trợ).
-  const rows: BomRow[] = React.useMemo(() => {
-    const fromTs = filterState.dateFrom
-      ? new Date(filterState.dateFrom).getTime()
-      : null;
-    const toTs = filterState.dateTo
-      ? new Date(filterState.dateTo).getTime() + 24 * 60 * 60 * 1000 // inclusive end-of-day
-      : null;
-    return rowsRaw.filter((r) => {
-      if (filterState.minComponents > 0 && r.componentCount < filterState.minComponents) {
-        return false;
-      }
-      if (fromTs !== null || toTs !== null) {
-        // updatedAt as proxy for "thời điểm tạo/cập nhật"
-        const t = new Date(r.updatedAt).getTime();
-        if (fromTs !== null && t < fromTs) return false;
-        if (toTs !== null && t > toTs) return false;
-      }
-      return true;
-    });
-  }, [rowsRaw, filterState.minComponents, filterState.dateFrom, filterState.dateTo]);
-
-  const total = rows.length === rowsRaw.length ? totalRaw : rows.length;
+  // V4.1 SX-30 — bỏ lọc phía client (chỉ lọc được 1 trang, tổng/trang sai):
+  // ngày + số linh kiện nay lọc ở server qua queryFilter.
+  const rows: BomRow[] = rowsRaw;
+  const total = totalRaw;
   const pageCount = Math.max(1, Math.ceil(totalRaw / urlState.pageSize));
 
   const [selection, selectionActions] = useSelection(

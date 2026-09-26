@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useBomProductionSummary } from "@/hooks/useBom";
 import { formatDate, formatNumber } from "@/lib/format";
+import { HIDDEN_FEATURES } from "@/lib/hidden-features";
 
 /* ── Status badge ─────────────────────────────────────────────────────────── */
 const WO_STATUS_BADGE: Record<string, { label: string; cls: string; dot: string }> = {
@@ -137,7 +138,9 @@ export function BomProductionPanel({ bomId }: { bomId: string }) {
         </div>
 
         {/* Material readiness */}
-        {data.snapshotSummary && (
+        {/* V4.1 Q4 — "Sẵn sàng vật liệu" tính từ snapshot đơn hàng bán / thiếu
+            vật tư (đang ẩn) → ẩn cùng. */}
+        {!HIDDEN_FEATURES.shortage && data.snapshotSummary && (
           <div className="rounded-xl border border-zinc-200 bg-white px-5 py-4 dark:border-zinc-800 dark:bg-zinc-900">
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Sẵn sàng vật liệu</span>
@@ -181,7 +184,6 @@ export function BomProductionPanel({ bomId }: { bomId: string }) {
               <thead className="bg-zinc-50/80 dark:bg-zinc-800/60">
                 <tr className="border-b border-zinc-100 dark:border-zinc-800">
                   <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Mã WO</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Đơn hàng</th>
                   <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Trạng thái</th>
                   <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">SL Đạt / KH</th>
                   <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Tiến độ</th>
@@ -197,13 +199,7 @@ export function BomProductionPanel({ bomId }: { bomId: string }) {
                         {wo.woNo}
                       </Link>
                     </td>
-                    <td className="px-5 py-3.5">
-                      {wo.orderNo ? (
-                        <Link href={`/orders/${wo.orderNo}`} className="font-mono text-sm text-zinc-700 hover:text-indigo-600 hover:underline dark:text-zinc-300 dark:hover:text-indigo-400">
-                          {wo.orderNo}
-                        </Link>
-                      ) : <span className="text-sm text-zinc-400 dark:text-zinc-500">—</span>}
-                    </td>
+                    {/* V4.1 Q4 — bỏ cột/link "Đơn hàng" (Đơn hàng bán đang ẩn). */}
                     <td className="px-5 py-3.5"><WoStatusBadge status={wo.status} /></td>
                     <td className="px-5 py-3.5 text-right">
                       <span className="font-mono text-sm font-semibold tabular-nums text-zinc-800 dark:text-zinc-200">{formatNumber(wo.goodQty)}</span>

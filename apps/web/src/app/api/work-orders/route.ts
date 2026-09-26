@@ -75,6 +75,7 @@ export async function GET(req: NextRequest) {
         page: q.data.page,
         pageSize: q.data.pageSize,
         total: result.total,
+        statusCounts: result.statusCounts,
       },
     });
   } catch (err) {

@@ -137,6 +137,10 @@ function buildBomListUrl(f: BomFilter): string {
   if (f.sort) p.set("sort", f.sort);
   if (f.sortDir) p.set("sortDir", f.sortDir);
   if (f.hasComponents !== undefined) p.set("hasComponents", String(f.hasComponents));
+  if (f.updatedFrom) p.set("updatedFrom", f.updatedFrom);
+  if (f.updatedTo) p.set("updatedTo", f.updatedTo);
+  if (f.minComponents && f.minComponents > 0)
+    p.set("minComponents", String(f.minComponents));
   for (const s of f.status ?? []) p.append("status", s);
   return `/api/bom/templates?${p.toString()}`;
 }

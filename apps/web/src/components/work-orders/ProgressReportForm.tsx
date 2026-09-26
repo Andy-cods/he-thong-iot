@@ -23,14 +23,15 @@ import {
  * Zinc + indigo styling, không emoji.
  */
 
+// V4.1 SX-15 — bỏ "Tạm dừng/Tiếp tục (ghi nhận)": chỉ ghi log, KHÔNG đổi
+// trạng thái lệnh (gây hiểu nhầm) → dùng nút "Tạm dừng"/"Tiếp tục" thật.
+// QC đạt/lỗi chỉ là ghi chú kiểm tra (không có ô SL vô tác dụng).
 const STEP_OPTIONS: Array<{ value: WoProgressStepType; label: string }> = [
-  { value: "PROGRESS_REPORT", label: "Báo cáo tiến độ" },
+  { value: "PROGRESS_REPORT", label: "Báo cáo sản lượng" },
   { value: "NOTE", label: "Ghi chú" },
   { value: "ISSUE", label: "Báo sự cố" },
-  { value: "QC_PASS", label: "QC đạt" },
-  { value: "QC_FAIL", label: "QC lỗi" },
-  { value: "PAUSE", label: "Tạm dừng (ghi nhận)" },
-  { value: "RESUME", label: "Tiếp tục (ghi nhận)" },
+  { value: "QC_PASS", label: "QC đạt (ghi chú)" },
+  { value: "QC_FAIL", label: "QC lỗi (ghi chú)" },
   { value: "PHOTO", label: "Ảnh hiện trường" },
 ];
 
@@ -48,9 +49,9 @@ export function ProgressReportForm({
   const mut = useCreateProgressLog(woId);
   const [stepType, setStepType] =
     React.useState<WoProgressStepType>("PROGRESS_REPORT");
-  const [lineId, setLineId] = React.useState<string>(
-    defaultLineId ?? lines[0]?.id ?? "",
-  );
+  // V4.1 SX-14 — mặc định báo cho THÀNH PHẨM (cộng SL đạt của lệnh); chọn
+  // dòng linh kiện chỉ cộng tiến độ dòng đó.
+  const [lineId, setLineId] = React.useState<string>(defaultLineId ?? "");
   const [qtyCompleted, setQtyCompleted] = React.useState("");
   const [qtyScrap, setQtyScrap] = React.useState("");
   const [station, setStation] = React.useState("");
@@ -71,19 +72,23 @@ export function ProgressReportForm({
     setPhotoUrl("");
   };
 
-  const canSubmit = stepType !== "PROGRESS_REPORT" || Number(qtyCompleted) > 0;
+  const canSubmit =
+    stepType !== "PROGRESS_REPORT" ||
+    Number(qtyCompleted) > 0 ||
+    Number(qtyScrap) > 0;
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) {
-      toast.error("Nhập số lượng hoàn thành > 0 cho báo cáo tiến độ.");
+      toast.error("Nhập SL đạt hoặc SL phế > 0 cho báo cáo sản lượng.");
       return;
     }
+    const isQtyStep = stepType === "PROGRESS_REPORT";
     const payload: ProgressLogInput = {
-      workOrderLineId: lineId || null,
+      workOrderLineId: isQtyStep ? lineId || null : null,
       stepType,
-      qtyCompleted: qtyCompleted ? Number(qtyCompleted) : 0,
-      qtyScrap: qtyScrap ? Number(qtyScrap) : 0,
+      qtyCompleted: isQtyStep && qtyCompleted ? Number(qtyCompleted) : 0,
+      qtyScrap: isQtyStep && qtyScrap ? Number(qtyScrap) : 0,
       notes: notes.trim() || null,
       photoUrl: photoUrl.trim() || null,
       station: station.trim() || null,
@@ -129,15 +134,15 @@ export function ProgressReportForm({
           </select>
         </div>
 
-        {lines.length > 0 && (
+        {lines.length > 0 && stepType === "PROGRESS_REPORT" && (
           <div>
-            <Label className="text-xs">Line (linh kiện)</Label>
+            <Label className="text-xs">Báo cho</Label>
             <select
               value={lineId}
               onChange={(e) => setLineId(e.target.value)}
               className="mt-1 h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
             >
-              <option value="">— không chọn —</option>
+              <option value="">Thành phẩm (cộng SL đạt của lệnh)</option>
               {lines.map((l) => (
                 <option key={l.id} value={l.id}>
                   #{l.position} · {l.componentSku} · {l.componentName}
@@ -147,12 +152,10 @@ export function ProgressReportForm({
           </div>
         )}
 
-        {(stepType === "PROGRESS_REPORT" ||
-          stepType === "QC_PASS" ||
-          stepType === "QC_FAIL") && (
+        {stepType === "PROGRESS_REPORT" && (
           <>
             <div>
-              <Label className="text-xs">Qty hoàn thành</Label>
+              <Label className="text-xs">SL đạt</Label>
               <Input
                 type="number"
                 step="0.01"
@@ -164,7 +167,7 @@ export function ProgressReportForm({
               />
             </div>
             <div>
-              <Label className="text-xs">Qty phế</Label>
+              <Label className="text-xs">SL phế</Label>
               <Input
                 type="number"
                 step="0.01"

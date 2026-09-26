@@ -40,7 +40,10 @@ export async function GET(
       FROM app.bom_line bl
       JOIN app.bom_template bt ON bt.id = bl.template_id
       LEFT JOIN app.item i ON i.id = bl.component_item_id
-      WHERE (bl.metadata #>> '{routing,linkedWorkOrderId}') = ${id}
+      -- V4.1 SX-17: ưu tiên link thật work_order.bom_line_id, fallback metadata cũ.
+      WHERE bl.id = (SELECT wo.bom_line_id FROM app.work_order wo WHERE wo.id::text = ${id})
+         OR (bl.metadata #>> '{routing,linkedWorkOrderId}') = ${id}
+      ORDER BY (bl.id = (SELECT wo.bom_line_id FROM app.work_order wo WHERE wo.id::text = ${id})) DESC NULLS LAST
       LIMIT 1
     `)) as unknown as Array<{
       line_id: string;

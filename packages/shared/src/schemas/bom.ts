@@ -84,6 +84,19 @@ export const bomTemplateListQuerySchema = z.object({
       if (typeof v === "boolean") return v;
       return v === "true";
     }),
+  /**
+   * V4.1 SX-30 — lọc ngày cập nhật (YYYY-MM-DD, theo giờ VN) + số linh kiện
+   * tối thiểu PHÍA SERVER (trước đây lọc client trên 1 trang → sai tổng/trang).
+   */
+  updatedFrom: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  updatedTo: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  minComponents: z.coerce.number().int().nonnegative().max(100000).optional(),
   sort: z.enum(["updatedAt", "code", "name"]).default("updatedAt"),
   sortDir: z.enum(["asc", "desc"]).default("desc"),
   page: z.coerce.number().int().positive().default(1),

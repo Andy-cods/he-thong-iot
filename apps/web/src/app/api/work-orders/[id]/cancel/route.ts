@@ -35,14 +35,18 @@ export async function POST(
   if ("response" in body) return body.response;
 
   try {
-    const wo = await cancelWO(params.id, body.data.versionLock);
+    // V4.1 SX-08 — huỷ + nhả giữ chỗ của lệnh trong cùng transaction.
+    const wo = await cancelWO(params.id, body.data.versionLock, {
+      userId: guard.session.userId,
+      reason: body.data.reason ?? null,
+    });
     const meta = extractRequestMeta(req);
     await writeAudit({
       actor: guard.session,
       action: "CANCEL",
       objectType: "work_order",
       objectId: wo.id,
-      after: { status: wo.status },
+      after: { status: wo.status, releasedReservations: wo.releasedReservations },
       notes: body.data.reason ?? null,
       ...meta,
     });

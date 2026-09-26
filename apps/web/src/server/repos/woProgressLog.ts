@@ -7,6 +7,7 @@ import {
   type WoProgressLog,
 } from "@iot/db/schema";
 import { db } from "@/lib/db";
+import { checkProgressLoggable, progressAffectsHeader } from "@/lib/wo-guards";
 
 /**
  * V1.9 Phase 4 — repo nhật ký tiến độ WO (wo_progress_log).
@@ -58,25 +59,83 @@ export interface InsertProgressLogInput {
   operatorId: string | null;
 }
 
+/** V4.1 SX-12/13 — lỗi nghiệp vụ nhật ký tiến độ (map HTTP ở route). */
+export class ProgressLogError extends Error {
+  constructor(
+    message: string,
+    public readonly code: string,
+    public readonly httpStatus: number,
+  ) {
+    super(message);
+  }
+}
+
 /**
  * Insert 1 entry + áp side effect:
- * - Nếu stepType="PROGRESS_REPORT" + qtyCompleted>0 và có workOrderLineId:
- *     update work_order_line.completed_qty += qtyCompleted (cap ở requiredQty).
- *     update work_order.good_qty += qtyCompleted, scrap_qty += qtyScrap.
+ * - PROGRESS_REPORT có workOrderLineId (dòng linh kiện WO kiểu cũ):
+ *     work_order_line.completed_qty += qtyCompleted (cap ở requiredQty).
+ * - PROGRESS_REPORT KHÔNG chọn dòng (báo thành phẩm):
+ *     work_order.good_qty += qtyCompleted, scrap_qty += qtyScrap.
+ *   V4.1 SX-14: trước đây báo cho dòng linh kiện cũng cộng vào good_qty của
+ *   thành phẩm → SL đạt sai nghĩa.
  * - Nếu durationMinutes > 0: cộng vào work_order.actual_hours.
+ *
+ * V4.1 SX-13: khoá WO `FOR UPDATE`; chặn WO đã xong/huỷ, báo SL khi chưa
+ * chạy, và dòng thuộc WO khác.
  */
 export async function insertProgressLog(
   input: InsertProgressLogInput,
 ): Promise<WoProgressLog> {
   return db.transaction(async (tx) => {
+    const [wo] = await tx
+      .select({ id: workOrder.id, status: workOrder.status })
+      .from(workOrder)
+      .where(eq(workOrder.id, input.workOrderId))
+      .for("update");
+    if (!wo) {
+      throw new ProgressLogError("Lệnh sản xuất không tồn tại.", "WO_NOT_FOUND", 404);
+    }
+
+    const qtyCompleted = Number(input.qtyCompleted ?? 0);
+    const qtyScrap = Number(input.qtyScrap ?? 0);
+    const check = checkProgressLoggable({
+      status: wo.status,
+      stepType: input.stepType,
+      qtyCompleted,
+      qtyScrap,
+    });
+    if (!check.ok) {
+      throw new ProgressLogError(check.reason, "WO_INVALID_STATE", 409);
+    }
+
+    if (input.workOrderLineId) {
+      const [line] = await tx
+        .select({ id: workOrderLine.id })
+        .from(workOrderLine)
+        .where(
+          and(
+            eq(workOrderLine.id, input.workOrderLineId),
+            eq(workOrderLine.woId, input.workOrderId),
+          ),
+        )
+        .limit(1);
+      if (!line) {
+        throw new ProgressLogError(
+          "Dòng linh kiện không thuộc lệnh sản xuất này.",
+          "WO_LINE_MISMATCH",
+          422,
+        );
+      }
+    }
+
     const [row] = await tx
       .insert(woProgressLog)
       .values({
         workOrderId: input.workOrderId,
         workOrderLineId: input.workOrderLineId ?? null,
         stepType: input.stepType,
-        qtyCompleted: String(input.qtyCompleted ?? 0),
-        qtyScrap: String(input.qtyScrap ?? 0),
+        qtyCompleted: String(qtyCompleted),
+        qtyScrap: String(qtyScrap),
         notes: input.notes ?? null,
         photoUrl: input.photoUrl ?? null,
         operatorId: input.operatorId,
@@ -86,10 +145,7 @@ export async function insertProgressLog(
       .returning();
     if (!row) throw new Error("PROGRESS_LOG_INSERT_FAILED");
 
-    const qtyCompleted = Number(input.qtyCompleted ?? 0);
-    const qtyScrap = Number(input.qtyScrap ?? 0);
-
-    // Cộng dồn vào work_order_line.completed_qty khi PROGRESS_REPORT.
+    // Dòng linh kiện (WO kiểu cũ).
     if (
       input.stepType === "PROGRESS_REPORT" &&
       qtyCompleted > 0 &&
@@ -104,9 +160,9 @@ export async function insertProgressLog(
         .where(eq(workOrderLine.id, input.workOrderLineId));
     }
 
-    // Cộng dồn good/scrap/actual_hours trên work_order header.
+    // Thành phẩm → SL đạt/phế trên header WO.
     if (
-      input.stepType === "PROGRESS_REPORT" &&
+      progressAffectsHeader(input) &&
       (qtyCompleted > 0 || qtyScrap > 0)
     ) {
       await tx
@@ -132,18 +188,79 @@ export async function insertProgressLog(
   });
 }
 
+/**
+ * V4.1 SX-12 — Xoá entry VÀ trừ lại mọi số đã cộng (SL dòng, SL đạt/phế, giờ
+ * thực tế) trong 1 transaction. Không xoá được entry của lệnh đã hoàn thành
+ * (số liệu đã chốt). Entry có SL trên dòng linh kiện bị cap ở requiredQty khi
+ * cộng → trừ lại GREATEST(0, …) (không âm).
+ */
 export async function deleteProgressLog(
   woId: string,
   entryId: string,
 ): Promise<boolean> {
-  const rows = await db
-    .delete(woProgressLog)
-    .where(
-      and(
-        eq(woProgressLog.id, entryId),
-        eq(woProgressLog.workOrderId, woId),
-      ),
-    )
-    .returning({ id: woProgressLog.id });
-  return rows.length > 0;
+  return db.transaction(async (tx) => {
+    const [wo] = await tx
+      .select({ status: workOrder.status })
+      .from(workOrder)
+      .where(eq(workOrder.id, woId))
+      .for("update");
+    if (!wo) return false;
+    if (wo.status === "COMPLETED") {
+      throw new ProgressLogError(
+        "Lệnh đã hoàn thành — không xoá được nhật ký tiến độ (số liệu đã chốt).",
+        "WO_INVALID_STATE",
+        409,
+      );
+    }
+
+    const [entry] = await tx
+      .delete(woProgressLog)
+      .where(
+        and(
+          eq(woProgressLog.id, entryId),
+          eq(woProgressLog.workOrderId, woId),
+        ),
+      )
+      .returning();
+    if (!entry) return false;
+
+    const qtyCompleted = Number(entry.qtyCompleted ?? 0);
+    const qtyScrap = Number(entry.qtyScrap ?? 0);
+
+    if (
+      entry.stepType === "PROGRESS_REPORT" &&
+      qtyCompleted > 0 &&
+      entry.workOrderLineId
+    ) {
+      await tx
+        .update(workOrderLine)
+        .set({
+          completedQty: sql`GREATEST(0, ${workOrderLine.completedQty} - ${String(qtyCompleted)})`,
+          updatedAt: new Date(),
+        })
+        .where(eq(workOrderLine.id, entry.workOrderLineId));
+    }
+    if (
+      progressAffectsHeader(entry) &&
+      (qtyCompleted > 0 || qtyScrap > 0)
+    ) {
+      await tx
+        .update(workOrder)
+        .set({
+          goodQty: sql`GREATEST(0, ${workOrder.goodQty} - ${String(qtyCompleted)})`,
+          scrapQty: sql`GREATEST(0, ${workOrder.scrapQty} - ${String(qtyScrap)})`,
+        })
+        .where(eq(workOrder.id, woId));
+    }
+    const duration = entry.durationMinutes ?? 0;
+    if (duration > 0) {
+      await tx
+        .update(workOrder)
+        .set({
+          actualHours: sql`GREATEST(0, COALESCE(${workOrder.actualHours}, 0) - ${String(duration / 60)})`,
+        })
+        .where(eq(workOrder.id, woId));
+    }
+    return true;
+  });
 }

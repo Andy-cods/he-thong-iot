@@ -1,55 +1,20 @@
-import { NextResponse, type NextRequest } from "next/server";
-import { z } from "zod";
-import { logger } from "@/lib/logger";
-import {
-  WoConflictError,
-  WoNotFoundError,
-  WoTransitionError,
-  completeWO,
-} from "@/server/repos/workOrders";
-import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
-import { writeAudit } from "@/server/services/audit";
-import { requireCan } from "@/server/session";
+import type { NextRequest } from "next/server";
+import { POST as completeWorkOrder } from "@/app/api/work-orders/[id]/complete/route";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const schema = z.object({
-  versionLock: z.number().int().nonnegative().optional(),
-});
-
-/** POST /api/assembly/wo/[id]/complete — finalize WO (check all issued). */
+/**
+ * POST /api/assembly/wo/[id]/complete — finalize WO từ màn lắp ráp.
+ *
+ * V4.1 SX-24: trước đây là đường hoàn tất WO THỨ HAI (không thông báo, không
+ * activity log). Nay dùng CHUNG handler `/api/work-orders/[id]/complete` →
+ * cùng guard `checkWoCompletable`, audit, thông báo.
+ * (Màn lắp ráp kiểu cũ đang ẩn — D10; API giữ cho tương thích.)
+ */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  ctx: { params: { id: string } },
 ) {
-  const guard = await requireCan(req, "transition", "wo");
-  if ("response" in guard) return guard.response;
-
-  const body = await parseJson(req, schema);
-  if ("response" in body) return body.response;
-
-  try {
-    const wo = await completeWO(params.id, body.data.versionLock);
-    const meta = extractRequestMeta(req);
-    await writeAudit({
-      actor: guard.session,
-      action: "UPDATE",
-      objectType: "work_order",
-      objectId: wo.id,
-      after: { status: wo.status, completedAt: wo.completedAt },
-      notes: `WO ${wo.woNo} completed via assembly flow`,
-      ...meta,
-    });
-    return NextResponse.json({ data: wo });
-  } catch (err) {
-    if (err instanceof WoConflictError)
-      return jsonError(err.code, err.message, err.httpStatus);
-    if (err instanceof WoTransitionError)
-      return jsonError(err.code, err.message, err.httpStatus);
-    if (err instanceof WoNotFoundError)
-      return jsonError(err.code, err.message, err.httpStatus);
-    logger.error({ err }, "complete WO via assembly failed");
-    return jsonError("INTERNAL", "Lỗi hoàn tất WO.", 500);
-  }
+  return completeWorkOrder(req, ctx);
 }

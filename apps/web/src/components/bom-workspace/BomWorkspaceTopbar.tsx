@@ -41,6 +41,7 @@ import { useBomRevisions } from "@/hooks/useBomRevisions";
 import { useSession } from "@/hooks/useSession";
 import { ReleaseRevisionDialog } from "@/components/bom-revision/ReleaseRevisionDialog";
 import { cn } from "@/lib/utils";
+import { HIDDEN_FEATURES } from "@/lib/hidden-features";
 import { TOP_TAB_LABELS, type TopTabKey } from "./useTopTabState";
 
 function bomStatusToBadge(status: BomStatus): {
@@ -214,11 +215,14 @@ export function BomWorkspaceTopbar({
 
       {/* KPI chips */}
       <div className="hidden items-center gap-1 text-xs md:flex">
-        <KpiChip
-          label={TOP_TAB_LABELS.orders}
-          count={summary?.ordersActive}
-          onClick={() => onOpenTab("orders")}
-        />
+        {/* V4.1 Q4 — chip "Đơn hàng" ẩn cùng Đơn hàng bán. */}
+        {!HIDDEN_FEATURES.salesOrder && (
+          <KpiChip
+            label={TOP_TAB_LABELS.orders}
+            count={summary?.ordersActive}
+            onClick={() => onOpenTab("orders")}
+          />
+        )}
         <KpiChip
           label={TOP_TAB_LABELS["work-orders"]}
           count={summary?.workOrdersActive}

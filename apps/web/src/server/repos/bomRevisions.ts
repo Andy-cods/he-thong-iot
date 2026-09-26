@@ -67,11 +67,13 @@ export async function releaseRevision(
   input: ReleaseRevisionInput,
 ): Promise<BomRevision> {
   return db.transaction(async (tx) => {
+    // V4.1 SX-32 — khoá template: 2 lần phát hành đồng thời không sinh trùng
+    // số revision / 2 bản RELEASED.
     const [tpl] = await tx
       .select()
       .from(bomTemplate)
       .where(eq(bomTemplate.id, input.templateId))
-      .limit(1);
+      .for("update");
     if (!tpl) throw new Error("TEMPLATE_NOT_FOUND");
 
     const lines = await tx
@@ -113,6 +115,21 @@ export async function releaseRevision(
       .where(eq(bomRevision.templateId, input.templateId));
 
     const revisionNo = nextRevisionNo(existing.map((r) => r.revisionNo));
+
+    // V4.1 SX-32 — chỉ 1 bản RELEASED hiệu lực: bản cũ → SUPERSEDED (giữ lịch sử).
+    await tx
+      .update(bomRevision)
+      .set({
+        status: "SUPERSEDED",
+        notes: sql`COALESCE(${bomRevision.notes}, '') || ${`
+[SUPERSEDED bởi ${revisionNo} lúc ${new Date().toISOString()}]`}`,
+      })
+      .where(
+        and(
+          eq(bomRevision.templateId, input.templateId),
+          eq(bomRevision.status, "RELEASED"),
+        ),
+      );
 
     const [inserted] = await tx
       .insert(bomRevision)

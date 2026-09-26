@@ -33,6 +33,8 @@ import {
   useStartWorkOrder,
   type WorkOrderStatus,
 } from "@/hooks/useWorkOrders";
+import { qk } from "@/lib/query-keys";
+import { isWoDeletable } from "@/lib/wo-guards";
 
 /**
  * V1.9-P4 — action buttons pause / resume / complete / cancel.
@@ -89,9 +91,11 @@ export function WorkOrderActions({
       }
       return res.json();
     },
+    // V4.1 SX-09 — key đúng `qk.workOrders` (trước đây ["work-orders"] /
+    // ["wo-detail"] không khớp → trang không cập nhật, bấm lần 2 ra 409).
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["work-orders"] });
-      qc.invalidateQueries({ queryKey: ["wo-detail", woId] });
+      qc.invalidateQueries({ queryKey: qk.workOrders.all });
+      qc.invalidateQueries({ queryKey: qk.workOrders.detail(woId) });
     },
   });
   const rejectMut = useMutation({
@@ -108,9 +112,11 @@ export function WorkOrderActions({
       }
       return res.json();
     },
+    // V4.1 SX-09 — key đúng `qk.workOrders` (trước đây ["work-orders"] /
+    // ["wo-detail"] không khớp → trang không cập nhật, bấm lần 2 ra 409).
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["work-orders"] });
-      qc.invalidateQueries({ queryKey: ["wo-detail", woId] });
+      qc.invalidateQueries({ queryKey: qk.workOrders.all });
+      qc.invalidateQueries({ queryKey: qk.workOrders.detail(woId) });
     },
   });
 
@@ -167,7 +173,14 @@ export function WorkOrderActions({
   };
 
   const onComplete = async () => {
-    if (!confirm("Xác nhận hoàn thành WO? Tất cả line phải đã đủ qty.")) return;
+    // TODO V4.1 Q2: bước "Nhập kho thành phẩm" (SL đạt → PROD_IN) đang TẠM ẨN
+    // theo quyết định anh Thang — hoàn thành hiện chỉ chuyển trạng thái.
+    if (
+      !confirm(
+        "Xác nhận hoàn thành lệnh? Cần đã báo sản lượng đạt > 0 (và đủ các dòng linh kiện nếu có).",
+      )
+    )
+      return;
     try {
       await completeMut.mutateAsync(versionLock);
       toast.success("WO đã hoàn thành.");
@@ -266,9 +279,10 @@ export function WorkOrderActions({
           Hủy
         </Button>
       )}
-      {/* V3.7.71 — Xoá vĩnh viễn (admin only). Server-side cho phép DRAFT/CANCELLED;
-          với state khác → force=1 + null-out reservation/assembly refs. */}
-      {canDelete && (
+      {/* V3.7.71 — Xoá vĩnh viễn (admin only).
+          V4.1 SX-07 — chỉ hiện với lệnh Nháp/Đã huỷ (server cũng chặn; force
+          chỉ còn nghĩa bỏ link reservation/assembly sót lại). */}
+      {canDelete && isWoDeletable(status) && (
         <Button
           size={size}
           variant="outline"
@@ -291,12 +305,12 @@ export function WorkOrderActions({
             <DialogDescription>
               Hành động này xoá vĩnh viễn lệnh{" "}
               <strong className="font-mono">{woNo ?? woId.slice(0, 8)}</strong>{" "}
-              + toàn bộ routing/material/tool/QC lines. Nếu có reservation hoặc
-              assembly work-order link, hệ thống sẽ bỏ link trước khi xoá.
+              + toàn bộ routing/material/tool/QC lines. Giữ chỗ vật tư còn lại
+              (nếu có) sẽ được nhả trước khi xoá.
               <br />
               <span className="mt-2 block text-red-700 dark:text-red-400">
-                Trạng thái <strong>{status}</strong> — chỉ dùng khi cần loại bỏ
-                hoàn toàn. Cân nhắc dùng "Huỷ" thay vì "Xoá" để giữ vết audit.
+                Chỉ xoá được lệnh Nháp / Đã huỷ. Cân nhắc dùng "Huỷ" thay vì
+                "Xoá" để giữ vết.
               </span>
             </DialogDescription>
           </DialogHeader>

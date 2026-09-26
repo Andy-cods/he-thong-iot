@@ -100,13 +100,11 @@ function WoCard({ wo }: { wo: WorkOrderRow }) {
               {cfg.label}
             </span>
           </div>
-          {wo.orderNo ? (
-            <p className="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400">
-              Đơn: <span className="font-medium text-zinc-700 dark:text-zinc-300">{wo.orderNo}</span>
-            </p>
-          ) : (
-            <p className="mt-0.5 text-xs text-zinc-400 dark:text-zinc-500">Không liên kết đơn</p>
-          )}
+          {/* V4.1 SX-33/Q4 — hiện Sản phẩm thay "Đơn hàng" (đơn hàng bán đang ẩn). */}
+          <p className="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400" title={wo.productName ?? undefined}>
+            <span className="font-mono text-zinc-700 dark:text-zinc-300">{wo.productSku ?? "—"}</span>
+            {wo.productName ? ` · ${wo.productName}` : ""}
+          </p>
         </div>
       </div>
 
@@ -134,7 +132,7 @@ function WoCard({ wo }: { wo: WorkOrderRow }) {
           ) : isDone ? (
             <><CheckCircle2 className="h-3 w-3" aria-hidden />Xem lại</>
           ) : (
-            <><Wrench className="h-3 w-3" aria-hidden />Vào xưởng →</>
+            <><Wrench className="h-3 w-3" aria-hidden />Xem lệnh →</>
           )}
         </span>
       </div>
@@ -203,19 +201,24 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlState]);
 
-  const allQuery = useWorkOrdersList({ page: 1, pageSize: 200 });
   const query = useWorkOrdersList(filter);
   const rows = query.data?.data ?? [];
   const total = query.data?.meta.total ?? 0;
-  const allRows = allQuery.data?.data ?? [];
   const pageCount = Math.max(1, Math.ceil(total / urlState.pageSize));
 
-  const stats = React.useMemo(() => ({
-    total:      allQuery.data?.meta.total ?? 0,
-    inProgress: allRows.filter((r) => r.status === "IN_PROGRESS").length,
-    queued:     allRows.filter((r) => r.status === "QUEUED" || r.status === "RELEASED").length,
-    completed:  allRows.filter((r) => r.status === "COMPLETED").length,
-  }), [allRows, allQuery.data]);
+  // V4.1 SX-29 — KPI từ `meta.statusCounts` (server GROUP BY trên TOÀN bộ WO
+  // khớp tìm kiếm/BOM, không theo trạng thái) thay vì đếm 200 dòng đầu.
+  const statusCounts = query.data?.meta.statusCounts;
+  const stats = React.useMemo(() => {
+    const c = statusCounts ?? {};
+    const n = (k: WorkOrderStatus) => c[k] ?? 0;
+    return {
+      total: Object.values(c).reduce((a, b) => a + (b ?? 0), 0),
+      inProgress: n("IN_PROGRESS"),
+      queued: n("QUEUED") + n("RELEASED"),
+      completed: n("COMPLETED"),
+    };
+  }, [statusCounts]);
 
   // Group cho card view
   const grouped = React.useMemo(() => ({
@@ -288,7 +291,7 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
               <div className="min-w-0">
                 <p className="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{s.label}</p>
                 <p className={cn("font-mono text-lg font-bold leading-none tabular-nums", s.color)}>
-                  {allQuery.isLoading ? "—" : s.value}
+                  {query.isLoading ? "—" : s.value}
                 </p>
               </div>
             </div>
@@ -375,17 +378,25 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
               {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
             </div>
           )
+        ) : query.isError ? (
+          /* V4.1 SX-31 — lỗi tải hiện rõ, không giả làm "chưa có lệnh". */
+          <div className="m-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
+            Không tải được danh sách lệnh sản xuất: {(query.error as Error)?.message ?? "lỗi không rõ"}.
+            <Button size="sm" variant="outline" className="ml-3" onClick={() => void query.refetch()}>
+              Thử lại
+            </Button>
+          </div>
         ) : rows.length === 0 ? (
           <div className="p-4">
             <EmptyState
               preset="no-filter-match"
-              title="Chưa có Work Order nào"
-              description="Tạo WO mới từ snapshot của đơn hàng đã sẵn sàng."
+              title="Chưa có lệnh sản xuất nào"
+              description="Lập phiếu LSX mới, hoặc gửi yêu cầu sản xuất từ dòng BOM (nút GTAM)."
               actions={
                 <Button asChild size="sm">
-                  <Link href="/work-orders/new">
+                  <Link href="/work-orders/new-lsx">
                     <Plus className="h-3.5 w-3.5" />
-                    Tạo WO mới
+                    Phiếu LSX mới
                   </Link>
                 </Button>
               }
@@ -462,7 +473,7 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
             <thead className="sticky top-0 z-10 border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
               <tr className="text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                 <th className="px-4 py-2.5 text-left font-medium">Số WO</th>
-                <th className="px-4 py-2.5 text-left font-medium">Đơn hàng</th>
+                <th className="px-4 py-2.5 text-left font-medium">Sản phẩm</th>
                 <th className="px-4 py-2.5 text-left font-medium">Ưu tiên</th>
                 <th className="px-4 py-2.5 text-right font-medium">KH / Đạt</th>
                 <th className="px-4 py-2.5 text-left font-medium">Tiến độ</th>
@@ -496,7 +507,15 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
                         {r.createdAt ? new Date(r.createdAt).toLocaleDateString("vi-VN") : ""}
                       </p>
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-zinc-700 dark:text-zinc-300">{r.orderNo ?? "—"}</td>
+                    {/* V4.1 SX-33 — cột Sản phẩm thay "Đơn hàng" (Q4). */}
+                    <td className="max-w-[220px] px-4 py-3 text-xs">
+                      <span className="block font-mono text-zinc-700 dark:text-zinc-300">{r.productSku ?? "—"}</span>
+                      {r.productName ? (
+                        <span className="block truncate text-[11px] text-zinc-500 dark:text-zinc-400" title={r.productName}>
+                          {r.productName}
+                        </span>
+                      ) : null}
+                    </td>
                     <td className="px-4 py-3">
                       <span className={cn("text-xs font-medium", pri.color)}>{pri.label}</span>
                     </td>
@@ -536,16 +555,9 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
                         >
                           Chi tiết
                         </Link>
-                        {(r.status === "IN_PROGRESS" || r.status === "RELEASED") && (
-                          <Link
-                            href={`/assembly/${r.id}`}
-                            onClick={(e) => e.stopPropagation()}
-                            className="rounded border border-orange-200 bg-orange-50 px-2 py-1 text-[11px] text-orange-700 hover:bg-orange-100"
-                            title="Mở xưởng lắp ráp"
-                          >
-                            <Wrench className="inline h-3 w-3" />
-                          </Link>
-                        )}
+                        {/* V4.1 SX-03/D10 — bỏ nút cờ-lê "Mở xưởng lắp ráp": lắp ráp
+                            kiểu cũ chỉ chạy với WO từ đơn hàng bán (đang ẩn); WO
+                            LSX / từ dòng BOM không có dòng linh kiện → vào là lỗi. */}
                       </div>
                     </td>
                   </tr>

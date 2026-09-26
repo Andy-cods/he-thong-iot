@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { HIDDEN_FEATURES } from "@/lib/hidden-features";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
@@ -262,7 +263,8 @@ export default function AssemblyWorkspacePage() {
     try {
       await completeMut.mutateAsync();
       toast.success(`WO ${wo?.woNo ?? ""} đã hoàn tất`, {
-        description: fgLot ? `Lot FG: ${fgLot}` : undefined,
+        description:
+          !HIDDEN_FEATURES.fgReceipt && fgLot ? `Lot FG: ${fgLot}` : undefined,
       });
       setCompleteOpen(false);
       router.push("/assembly");
@@ -501,11 +503,18 @@ export default function AssemblyWorkspacePage() {
           <DialogHeader>
             <DialogTitle>Hoàn tất Work Order</DialogTitle>
             <DialogDescription>
-              Hoàn tất WO sẽ chuyển status sang COMPLETED, consume reservation
-              và trừ kho. Hành động này không thể hoàn tác.
+              Hoàn tất lệnh sẽ chuyển trạng thái sang Hoàn thành (cần đã báo
+              sản lượng đạt &gt; 0 và đủ các dòng linh kiện). Chưa có bước nhập kho
+              thành phẩm. Hành động này không thể hoàn tác.
             </DialogDescription>
           </DialogHeader>
 
+          {/* TODO V4.1 Q2 — Bước "Nhập kho thành phẩm" (SL FG / Lot FG / ghi chú)
+              TẠM ẨN theo quyết định anh Thang: backend CHƯA ghi PROD_IN nên các
+              ô này trước đây bị bỏ qua (gây hiểu nhầm đã nhập kho). Bật lại khi
+              làm backend: `HIDDEN_FEATURES.fgReceipt = false` + gửi giá trị
+              sang completeWO (repo workOrders — điểm móc TODO V4.1 Q2). */}
+          {!HIDDEN_FEATURES.fgReceipt && (
           <div className="grid gap-3 py-2">
             <div>
               <label
@@ -559,6 +568,7 @@ export default function AssemblyWorkspacePage() {
               />
             </div>
           </div>
+          )}
 
           <DialogFooter>
             <Button

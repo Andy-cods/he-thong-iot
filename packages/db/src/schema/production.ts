@@ -83,6 +83,13 @@ export const workOrder = appSchema.table(
       .notNull()
       .default(sql`now()`),
     createdBy: uuid("created_by").references(() => userAccount.id),
+    /**
+     * V4.1 Đợt 4 (SX-16/17, migration 0066) — BOM nguồn + dòng BOM sinh lệnh.
+     * FK ON DELETE SET NULL khai ở migration (không `.references()` để tránh
+     * vòng import schema bom ↔ production).
+     */
+    bomTemplateId: uuid("bom_template_id"),
+    bomLineId: uuid("bom_line_id"),
   },
   (t) => ({
     woNoIdx: uniqueIndex("work_order_no_uk").on(t.woNo),

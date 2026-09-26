@@ -458,6 +458,16 @@ export function BomLineSheet({
         if (form.materialCode) q.set("materialCode", form.materialCode);
         if (form.processRoute.length > 0)
           q.set("processRoute", form.processRoute.join(","));
+        // V4.1 SX-21 — new-lsx điền sẵn sản phẩm + công đoạn (tên) từ dòng BOM.
+        if (line.node.componentItemId)
+          q.set("productItemId", line.node.componentItemId);
+        if (form.processRoute.length > 0)
+          q.set(
+            "processNames",
+            form.processRoute
+              .map((c) => PROCESS_MAP.get(c)?.name ?? c)
+              .join("|"),
+          );
         const noteParts = [
           `Tạo từ BOM ${templateCode}`,
           `dòng ${line.node.componentSku ?? ""}`,

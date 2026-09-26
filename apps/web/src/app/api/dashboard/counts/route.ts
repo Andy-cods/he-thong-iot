@@ -11,6 +11,7 @@ import {
 } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { HIDDEN_FEATURES } from "@/lib/hidden-features";
 import { jsonError } from "@/server/http";
 import { forbidden, getSession, isDisplayKiosk, unauthorized } from "@/server/session";
 import { cacheGetJson, cacheSetJson } from "@/server/services/redis";
@@ -26,7 +27,8 @@ export const dynamic = "force-dynamic";
  * Cache Redis 30s (đồng bộ với overview-v2).
  */
 
-const CACHE_KEY = "dashboard:counts:v1";
+// V4.1 Q4 — đổi key để bỏ cache cũ còn cột "Đơn hàng".
+const CACHE_KEY = "dashboard:counts:v2";
 const CACHE_TTL_SECONDS = 30;
 
 export interface EntityCount {
@@ -196,9 +198,12 @@ export async function GET(req: NextRequest) {
       suppliers: "NCC",
     };
 
+    // V4.1 Q4 — cột "Đơn hàng" (Đơn hàng bán đang ẩn) không lên biểu đồ.
     const chart = (Object.entries(counts) as Array<
       [keyof typeof counts, EntityCount]
-    >).map(([k, v]) => ({
+    >)
+      .filter(([k]) => !(k === "salesOrders" && HIDDEN_FEATURES.salesOrder))
+      .map(([k, v]) => ({
       key: k,
       label: labels[k],
       total: v.total,

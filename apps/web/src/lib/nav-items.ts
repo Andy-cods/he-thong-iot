@@ -14,6 +14,7 @@ import type { RbacEntity, Role } from "@iot/shared";
 import { canAny } from "@iot/shared";
 import type { PermissionOverrideLite } from "./permissions";
 import { isRouteAllowed } from "./route-guard";
+import { isHiddenHref } from "./hidden-features";
 
 /**
  * Redesign V3 — nav-items registry.
@@ -220,8 +221,11 @@ export function filterNavByRoles(
   items: NavItem[],
   userRoles: Role[] | undefined,
 ): NavItem[] {
-  if (!userRoles || userRoles.length === 0) return items;
-  return items.filter((it) => {
+  // V4.1 Q4/D10 — tính năng đang ẩn (Đơn hàng bán, ECO, Thiếu vật tư, Lắp
+  // ráp kiểu cũ) không bao giờ hiện trong nav / command palette.
+  const visible = items.filter((it) => !isHiddenHref(it.href));
+  if (!userRoles || userRoles.length === 0) return visible;
+  return visible.filter((it) => {
     if (it.entities && it.entities.length > 0) {
       const anyEntity = it.entities.some((e) => canAny(userRoles, e));
       if (!anyEntity) return false;

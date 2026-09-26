@@ -112,9 +112,9 @@ export function ProcurementPanel({
         <div className="ml-auto flex items-center gap-3 text-[11px] text-zinc-500 dark:text-zinc-400">
           {subTab === "pr" ? (
             <span>
+              {/* V4.1 Q4 — bỏ gợi ý tab "Thiếu vật tư" (đang ẩn). */}
               Tạo PR mới: dùng nút <em className="font-normal">Đặt mua nhanh</em>{" "}
-              trên dòng grid hoặc tab{" "}
-              <em className="font-normal">Thiếu vật tư</em> để bulk PR.
+              trên dòng grid hoặc menu <em className="font-normal">Đề xuất vật tư</em>.
             </span>
           ) : (
             <Link

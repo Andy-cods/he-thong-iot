@@ -23,14 +23,18 @@
  */
 
 import { NextResponse, type NextRequest } from "next/server";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { item as itemTable, workOrder } from "@iot/db/schema";
+import { item as itemTable } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import { routingPlanForInsert } from "@/lib/wo-routing";
+import { checkPlannedDates } from "@/lib/wo-guards";
 import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
 import { getLineById } from "@/server/repos/bomLines";
+import {
+  WoDuplicateRequestError,
+  createFromBomLine,
+} from "@/server/repos/workOrders";
 import { writeAudit } from "@/server/services/audit";
 import { notifyWORequestSubmitted } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
@@ -91,15 +95,6 @@ export async function POST(
     .limit(1);
   if (!it) return jsonError("ITEM_NOT_FOUND", "Item không tồn tại.", 404);
 
-  // Generate WO no
-  const yymm = new Date().toISOString().slice(2, 7).replace("-", "");
-  const cntRows = await db.execute<{ c: number }>(sql`
-    SELECT COUNT(*)::int AS c FROM app.work_order
-    WHERE wo_no LIKE ${`WO-${yymm}-%`}
-  `);
-  const cnt = (cntRows as unknown as Array<{ c: number }>)[0]?.c ?? 0;
-  const woNo = `WO-${yymm}-${(cnt + 1).toString().padStart(4, "0")}`;
-
   // Compose notes
   const notesText =
     body.data.notes ??
@@ -107,33 +102,25 @@ export async function POST(
       line.description ? ` — ${line.description}` : ""
     }${meta.size ? ` · Quy cách ${meta.size}` : ""}`;
 
-  // V4.1 SX-01: metadata.routing là OBJECT { processRoute: string[], … } — trước đây
-  // chép nguyên object vào routingPlan làm trang chi tiết WO văng trắng. Giờ chuyển
-  // processRoute thành mảng RoutingStep (null nếu không có công đoạn).
-  const routingPlan = routingPlanForInsert(meta.routing);
+  // V4.1 SX-20 — ngày kết thúc không trước ngày bắt đầu.
+  const dates = checkPlannedDates(body.data.plannedStart, body.data.plannedEnd);
+  if (!dates.ok) return jsonError("VALIDATION", dates.reason, 422);
 
   try {
-    // V3.7.46 — status=DRAFT (yêu cầu chờ duyệt). releasedAt=null.
-    // VH-A approve sẽ set RELEASED + releasedAt.
-    const [wo] = await db
-      .insert(workOrder)
-      .values({
-        woNo,
-        productItemId: line.componentItemId,
-        plannedQty: String(plannedQty),
-        status: "DRAFT",
-        priority: body.data.priority,
-        plannedStart: body.data.plannedStart || null,
-        plannedEnd: body.data.plannedEnd || null,
-        notes: notesText,
-        materialRequirements: [],
-        routingPlan,
-        releasedAt: null,
-        createdBy: guard.session.userId,
-      })
-      .returning();
-
-    if (!wo) throw new Error("INSERT_FAILED");
+    // V4.1 SX-02/17/18 — số WO qua genDocNo (khoá + giờ VN), ghi link BOM,
+    // chặn 2 YCSX chờ duyệt cho cùng dòng BOM. Xem repo createFromBomLine.
+    const wo = await createFromBomLine({
+      bomLineId: line.id,
+      bomTemplateId: line.templateId,
+      productItemId: line.componentItemId,
+      plannedQty,
+      priority: body.data.priority,
+      plannedStart: body.data.plannedStart || null,
+      plannedEnd: body.data.plannedEnd || null,
+      notes: notesText,
+      routing: meta.routing,
+      userId: guard.session.userId,
+    });
 
     // Audit
     const reqMeta = extractRequestMeta(req);
@@ -168,6 +155,9 @@ export async function POST(
 
     return NextResponse.json({ data: wo }, { status: 201 });
   } catch (err) {
+    if (err instanceof WoDuplicateRequestError) {
+      return jsonError(err.code, err.message, err.httpStatus);
+    }
     logger.error(
       { err, lineId: params.lineId },
       "create WO from BOM line failed",

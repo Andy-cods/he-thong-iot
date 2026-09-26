@@ -19,6 +19,7 @@ import {
   type ToolRequirement,
 } from "@/hooks/useWorkOrders";
 import { cn } from "@/lib/utils";
+import { checkPlannedDates } from "@/lib/wo-guards";
 
 /**
  * V3.7.58 — `/work-orders/new-lsx` — Phiếu Lệnh Sản Xuất GTAM.
@@ -166,6 +167,51 @@ export default function NewLsxPage() {
     return parts.join(" · ");
   });
 
+  // V4.1 SX-16/21 — ngữ cảnh BOM khi mở từ BOM (tab Lệnh SX / sửa dòng BOM):
+  // điền sẵn sản phẩm, ghi chú, quy trình + ghi link WO ↔ BOM khi tạo.
+  const [bomLink, setBomLink] = React.useState<{
+    bomTemplateId: string | null;
+    bomLineId: string | null;
+  }>({ bomTemplateId: null, bomLineId: null });
+  const prefilledRef = React.useRef(false);
+  React.useEffect(() => {
+    if (prefilledRef.current) return;
+    prefilledRef.current = true;
+    // Đọc query 1 lần khi mở trang (không dùng useSearchParams để khỏi cần
+    // Suspense boundary cho trang tĩnh).
+    const sp = new URLSearchParams(window.location.search);
+    const uuidRe = /^[0-9a-f-]{36}$/i;
+    const tplId = sp.get("bomTemplateId");
+    const lineId = sp.get("bomLineId");
+    setBomLink({
+      bomTemplateId: tplId && uuidRe.test(tplId) ? tplId : null,
+      bomLineId: lineId && uuidRe.test(lineId) ? lineId : null,
+    });
+    const note = sp.get("note");
+    if (note) setNotes(note.slice(0, 2000));
+    const processNames = (sp.get("processNames") ?? "")
+      .split("|")
+      .map((x) => x.trim())
+      .filter(Boolean);
+    if (processNames.length > 0) {
+      setRoutings(
+        processNames.map((name) => ({ ...blankRouting(), name: name.slice(0, 255) })),
+      );
+    }
+    const productItemId = sp.get("productItemId");
+    if (productItemId && uuidRe.test(productItemId)) {
+      void fetch(`/api/items/${productItemId}`, { credentials: "include" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((b: { data?: { id: string; sku: string; name: string; uom?: string | null } } | null) => {
+          const it = b?.data;
+          if (!it) return;
+          setProduct({ id: it.id, sku: it.sku, name: it.name, uom: it.uom ?? undefined });
+          if (it.uom) setProductUom(it.uom);
+        })
+        .catch(() => undefined);
+    }
+  }, []);
+
   // Auto-fill creator department theo role
   React.useEffect(() => {
     const roles = session.data?.roles ?? [];
@@ -209,6 +255,12 @@ export default function NewLsxPage() {
     const qtyNum = Number(plannedQty);
     if (!Number.isFinite(qtyNum) || qtyNum <= 0) {
       toast.error("Số lượng kế hoạch phải > 0.");
+      return;
+    }
+    // V4.1 SX-20 — kiểm ngày (server cũng kiểm).
+    const dates = checkPlannedDates(plannedStart, plannedEnd);
+    if (!dates.ok) {
+      toast.error(dates.reason);
       return;
     }
 
@@ -265,7 +317,11 @@ export default function NewLsxPage() {
         dimensions: productDimensions.trim() || null,
         technicalRequirements: technicalRequirements.trim() || null,
         notes: productNotes.trim() || null,
+        // V4.1 SX-20 — lưu ĐVT nhập trên phiếu (trước đây bị bỏ).
+        uom: productUom.trim() || null,
       },
+      bomTemplateId: bomLink.bomTemplateId,
+      bomLineId: bomLink.bomLineId,
       technicalDrawingUrl: technicalDrawingUrl.trim() || null,
       estimatedHours: totalRoutingMin > 0 ? totalRoutingMin / 60 : null,
     };
@@ -309,6 +365,11 @@ export default function NewLsxPage() {
       </header>
 
       <div className="mx-auto w-full max-w-[1200px] p-6 print:p-4">
+        {bomLink.bomTemplateId ? (
+          <p className="mb-3 rounded-md border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs text-indigo-800 print:hidden dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300">
+            Lệnh này lập từ BOM — sau khi gửi sẽ hiện ở tab “Lệnh SX” của BOM.
+          </p>
+        ) : null}
         <article className="rounded-md border border-zinc-300 bg-white shadow-sm print:border-zinc-900 print:shadow-none dark:border-zinc-700 dark:bg-zinc-900">
           {/* Title bar */}
           <div className="flex items-center gap-4 border-b-2 border-zinc-900 px-6 py-4 print:py-2">
@@ -375,7 +436,12 @@ export default function NewLsxPage() {
             </div>
             <div className="space-y-1">
               <Label>Ngày kết thúc</Label>
-              <Input type="date" value={plannedEnd} onChange={(e) => setPlannedEnd(e.target.value)} />
+              <Input
+                type="date"
+                value={plannedEnd}
+                min={plannedStart || undefined}
+                onChange={(e) => setPlannedEnd(e.target.value)}
+              />
             </div>
           </section>
 

@@ -3,6 +3,7 @@ import { Inbox, Wrench } from "lucide-react";
 import { HubTabsNav, type HubTabDef } from "@/components/common/HubTabsNav";
 import { WorkOrdersTab } from "@/components/engineering/WorkOrdersTab";
 import { AssemblyOverviewTab } from "@/components/operations/AssemblyOverviewTab";
+import { HIDDEN_FEATURES } from "@/lib/hidden-features";
 
 export const dynamic = "force-dynamic";
 
@@ -22,12 +23,18 @@ export const dynamic = "force-dynamic";
  * còn bookmark `?tab=orders`.
  */
 
-const OPERATIONS_TABS = [
+const ALL_OPERATIONS_TABS = [
   { key: "requests", label: "Yêu cầu sản xuất", icon: Inbox },
   { key: "assembly", label: "Quy trình lắp ráp", icon: Wrench },
 ] as const satisfies ReadonlyArray<HubTabDef>;
 
-type OperationsTab = (typeof OPERATIONS_TABS)[number]["key"];
+type OperationsTab = (typeof ALL_OPERATIONS_TABS)[number]["key"];
+
+// V4.1 D10 — ẩn tab "Quy trình lắp ráp" (lắp ráp kiểu cũ cần đơn hàng bán,
+// đang ẩn cùng Đơn hàng bán). `?tab=assembly` cũ rơi về "requests".
+const OPERATIONS_TABS = ALL_OPERATIONS_TABS.filter(
+  (t) => !(t.key === "assembly" && HIDDEN_FEATURES.legacyAssembly),
+);
 
 interface OperationsPageProps {
   searchParams: { tab?: string } & Record<string, string | string[] | undefined>;
@@ -59,7 +66,7 @@ export default function OperationsPage({ searchParams }: OperationsPageProps) {
           Gia công
         </h1>
         <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-          Duyệt yêu cầu Thiết kế · Theo dõi lệnh sản xuất · Quy trình lắp ráp xưởng.
+          Duyệt yêu cầu sản xuất từ Thiết kế · Theo dõi lệnh sản xuất.
         </p>
       </div>
 

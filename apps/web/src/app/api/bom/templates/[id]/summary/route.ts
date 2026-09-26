@@ -54,9 +54,10 @@ export async function GET(
           COUNT(wo.id) FILTER (
             WHERE wo.status IN ('IN_PROGRESS', 'PAUSED')
           )::int AS in_progress
+        -- V4.1 SX-16: WO gắn BOM trực tiếp (bom_template_id) HOẶC qua đơn hàng.
         FROM app.work_order wo
-        JOIN app.sales_order so ON so.id = wo.linked_order_id
-        WHERE so.bom_template_id = ${id}
+        LEFT JOIN app.sales_order so ON so.id = wo.linked_order_id
+        WHERE (wo.bom_template_id = ${id} OR so.bom_template_id = ${id})
           AND wo.status NOT IN ('COMPLETED', 'CANCELLED')
       ),
       shortage_agg AS (

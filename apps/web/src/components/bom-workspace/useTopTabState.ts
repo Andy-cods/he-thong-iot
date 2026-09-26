@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { HIDDEN_FEATURES } from "@/lib/hidden-features";
 
 /**
  * V2.0 P2 W6 — TASK-20260427-015.
@@ -19,7 +20,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 // TASK-20260427-016 — bỏ 3 tab `snapshot`, `shortage`, `eco` khỏi BOM workspace.
 // Legacy URL `?tab=snapshot|shortage|eco` rớt vào fallback `materials` (logic
 // `useTopTabState` bên dưới — invalid key → `materials`).
-export const TOP_TAB_KEYS = [
+//
+// V4.1 Q4/D10 — ẩn tab "Đơn hàng" (Đơn hàng bán) + "Lắp ráp" (lắp ráp kiểu
+// cũ). Kiểu `TopTabKey` giữ đủ key (panel còn code, bật lại được); chỉ danh
+// sách HIỂN THỊ `TOP_TAB_KEYS` lọc bỏ. URL cũ `?tab=orders|assembly` rơi về
+// `materials` như tab đã retire.
+const ALL_TOP_TAB_KEYS = [
   "materials",
   "orders",
   "production",
@@ -29,7 +35,17 @@ export const TOP_TAB_KEYS = [
   "audit",
 ] as const;
 
-export type TopTabKey = (typeof TOP_TAB_KEYS)[number];
+export type TopTabKey = (typeof ALL_TOP_TAB_KEYS)[number];
+
+/** V4.1 Q4/D10 — tab đang ẩn (xem lib/hidden-features.ts). */
+export const HIDDEN_TOP_TAB_KEYS: readonly TopTabKey[] = [
+  ...(HIDDEN_FEATURES.salesOrder ? (["orders"] as const) : []),
+  ...(HIDDEN_FEATURES.legacyAssembly ? (["assembly"] as const) : []),
+];
+
+export const TOP_TAB_KEYS: readonly TopTabKey[] = ALL_TOP_TAB_KEYS.filter(
+  (k) => !HIDDEN_TOP_TAB_KEYS.includes(k),
+);
 
 export const TOP_TAB_LABELS: Record<TopTabKey, string> = {
   materials: "Vật tư & Quy trình",

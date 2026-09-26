@@ -179,7 +179,8 @@ export async function DELETE(
       const state = msg.replace("WO_INVALID_STATE: ", "");
       return jsonError(
         "INVALID_STATE",
-        `Lệnh đang ${state} — chỉ xoá được lệnh ở trạng thái DRAFT hoặc CANCELLED. Dùng ?force=1 nếu cần xoá cưỡng bức.`,
+        // V4.1 SX-07 — force KHÔNG còn vượt kiểm trạng thái.
+        `Lệnh đang ${state} — chỉ xoá được lệnh Nháp hoặc Đã huỷ. Lệnh đang chạy/đã xong phải Huỷ (giữ vết), không xoá.`,
         409,
       );
     }

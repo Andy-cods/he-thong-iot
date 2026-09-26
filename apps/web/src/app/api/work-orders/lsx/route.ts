@@ -1,7 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
+import { eq } from "drizzle-orm";
+import { item as itemTable } from "@iot/db/schema";
+import { db } from "@/lib/db";
+import { checkPlannedDates } from "@/lib/wo-guards";
 import { createLsxWorkOrder } from "@/server/repos/workOrders";
+import { notifyWORequestSubmitted } from "@/server/services/notifications";
 import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { requireCan } from "@/server/session";
@@ -58,6 +63,8 @@ const productSpecSchema = z.object({
   dimensions: z.string().trim().max(255).optional().nullable(),
   technicalRequirements: z.string().trim().max(2000).optional().nullable(),
   notes: z.string().trim().max(500).optional().nullable(),
+  /** V4.1 SX-20 — ĐVT thành phẩm nhập trên form (trước đây bị bỏ). */
+  uom: z.string().trim().max(16).optional().nullable(),
 });
 
 const lsxCreateSchema = z.object({
@@ -75,6 +82,9 @@ const lsxCreateSchema = z.object({
   productSpecification: productSpecSchema.optional(),
   technicalDrawingUrl: z.string().trim().max(2000).optional().nullable(),
   estimatedHours: z.coerce.number().nonnegative().optional().nullable(),
+  /** V4.1 SX-16 — LSX mở từ BOM → ghi link WO ↔ BOM. */
+  bomTemplateId: z.string().uuid().optional().nullable(),
+  bomLineId: z.string().uuid().optional().nullable(),
 });
 
 export async function POST(req: NextRequest) {
@@ -83,6 +93,10 @@ export async function POST(req: NextRequest) {
 
   const body = await parseJson(req, lsxCreateSchema);
   if ("response" in body) return body.response;
+
+  // V4.1 SX-20 — ngày kết thúc không trước ngày bắt đầu.
+  const dates = checkPlannedDates(body.data.plannedStart, body.data.plannedEnd);
+  if (!dates.ok) return jsonError("VALIDATION", dates.reason, 422);
 
   try {
     const wo = await createLsxWorkOrder({
@@ -100,6 +114,8 @@ export async function POST(req: NextRequest) {
       productSpecification: body.data.productSpecification ?? null,
       technicalDrawingUrl: body.data.technicalDrawingUrl ?? null,
       estimatedHours: body.data.estimatedHours ?? null,
+      bomTemplateId: body.data.bomTemplateId ?? null,
+      bomLineId: body.data.bomLineId ?? null,
       userId: guard.session.userId,
     });
 
@@ -118,9 +134,29 @@ export async function POST(req: NextRequest) {
         routingSteps: body.data.routingPlan?.length ?? 0,
         materials: body.data.materialRequirements?.length ?? 0,
         tools: body.data.toolsRequired?.length ?? 0,
+        bomTemplateId: wo.bomTemplateId,
+        bomLineId: wo.bomLineId,
       },
       notes: `LSX ${wo.woNo} created (orderType=${body.data.orderType})`,
       ...meta,
+    });
+
+    // V4.1 SX-19 — LSX tạo ra ở trạng thái Chờ duyệt (DRAFT) như YCSX GTAM
+    // → báo Bộ phận Gia công duyệt (trước đây không ai biết có lệnh mới).
+    const [it] = await db
+      .select({ sku: itemTable.sku, name: itemTable.name })
+      .from(itemTable)
+      .where(eq(itemTable.id, wo.productItemId))
+      .limit(1);
+    await notifyWORequestSubmitted({
+      woId: wo.id,
+      woNo: wo.woNo,
+      productName: it?.name ?? it?.sku,
+      plannedQty: body.data.plannedQty,
+      actorUserId: guard.session.userId,
+      actorUsername: guard.session.username,
+    }).catch((err) => {
+      logger.warn({ err, woId: wo.id }, "notify LSX request submitted failed");
     });
 
     return NextResponse.json({ data: wo }, { status: 201 });

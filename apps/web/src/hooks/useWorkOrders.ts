@@ -74,6 +74,8 @@ export interface ProductSpecification {
   /** Yêu cầu kỹ thuật (free text / multiline). */
   technicalRequirements?: string | null;
   notes?: string | null;
+  /** V4.1 SX-20 — ĐVT thành phẩm nhập trên phiếu LSX. */
+  uom?: string | null;
 }
 
 /** V3.7.58 LSX — Loại lệnh sản xuất. */
@@ -118,6 +120,16 @@ export interface WorkOrderRow {
   productItemSku?: string | null;
   productItemName?: string | null;
   productItemUom?: string | null;
+  /** V4.1 SX-33 — danh sách WO: mã/tên sản phẩm. */
+  productSku?: string | null;
+  productName?: string | null;
+  /** V4.1 SX-16/17 — BOM nguồn. */
+  bomTemplateId?: string | null;
+  bomLineId?: string | null;
+  bomTemplateCode?: string | null;
+  bomTemplateName?: string | null;
+  /** V4.1 SX-11 — tên người lập thật. */
+  createdByName?: string | null;
 }
 
 export type WoProgressStepType =
@@ -208,7 +220,13 @@ export function useWorkOrdersList(filter: WorkOrderFilter) {
     queryFn: () =>
       request<{
         data: WorkOrderRow[];
-        meta: { page: number; pageSize: number; total: number };
+        meta: {
+          page: number;
+          pageSize: number;
+          total: number;
+          /** V4.1 SX-29 — đếm theo trạng thái (toàn bộ, không theo trang). */
+          statusCounts?: Partial<Record<WorkOrderStatus, number>>;
+        };
       }>(buildUrl(filter)),
     staleTime: 15_000,
     placeholderData: (prev) => prev,
@@ -264,6 +282,9 @@ export interface CreateLsxWoInput {
   productSpecification?: ProductSpecification;
   technicalDrawingUrl?: string | null;
   estimatedHours?: number | null;
+  /** V4.1 SX-16 — LSX mở từ BOM. */
+  bomTemplateId?: string | null;
+  bomLineId?: string | null;
 }
 
 export function useCreateLsxWorkOrder() {

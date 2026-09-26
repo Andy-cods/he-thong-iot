@@ -490,6 +490,84 @@ export async function releaseLotReservationsTx(
     )
     .for("update");
 
+  await releaseReservationRowsTx(
+    tx,
+    active,
+    input.userId,
+    input.reason,
+    `Nhả giữ chỗ do lô bị giữ (${input.reason})`,
+  );
+
+  if (active.length > 0) {
+    logger.info(
+      { lotSerialId: input.lotSerialId, count: active.length, reason: input.reason },
+      "released lot reservations",
+    );
+  }
+  return active.length;
+}
+
+/**
+ * V4.1 Đợt 4 (SX-08) — nhả MỌI reservation ACTIVE gắn 1 lệnh SX (`wo_id`)
+ * trong transaction có sẵn (huỷ / xoá lệnh). Tự khoá `reservation_lock(item)`
+ * theo thứ tự item cố định (tránh deadlock) rồi dùng chung logic nhả với
+ * `releaseLotReservationsTx`. Trả số reservation đã nhả.
+ */
+export async function releaseWoReservationsTx(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  input: { woId: string; userId: string | null; reason: string },
+): Promise<number> {
+  const itemRows = (await tx.execute(sql`
+    SELECT DISTINCT bsl.component_item_id::text AS item_id
+    FROM app.reservation r
+    JOIN app.bom_snapshot_line bsl ON bsl.id = r.snapshot_line_id
+    WHERE r.wo_id = ${input.woId} AND r.status = 'ACTIVE'
+    ORDER BY 1
+  `)) as unknown as Array<{ item_id: string }>;
+  if (itemRows.length === 0) return 0;
+
+  await tx.execute(sql`SET LOCAL lock_timeout = '5s'`);
+  for (const r of itemRows) {
+    await tx.execute(sql`SELECT app.reservation_lock(${r.item_id}::uuid)`);
+  }
+
+  const active = await tx
+    .select()
+    .from(reservation)
+    .where(
+      and(eq(reservation.woId, input.woId), eq(reservation.status, "ACTIVE")),
+    )
+    .for("update");
+
+  await releaseReservationRowsTx(
+    tx,
+    active,
+    input.userId,
+    input.reason,
+    input.reason,
+  );
+
+  if (active.length > 0) {
+    logger.info(
+      { woId: input.woId, count: active.length, reason: input.reason },
+      "released work-order reservations",
+    );
+  }
+  return active.length;
+}
+
+/**
+ * Nhả danh sách reservation ACTIVE (đã khoá): RELEASED + rollback
+ * snapshot_line.reserved_qty + UNRESERVE txn. Dùng chung lô / lệnh SX.
+ */
+async function releaseReservationRowsTx(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  active: Array<typeof reservation.$inferSelect>,
+  userId: string | null,
+  reason: string,
+  txnNote: string,
+): Promise<void> {
+  const input = { userId, reason };
   for (const resv of active) {
     await tx
       .update(reservation)
@@ -537,18 +615,10 @@ export async function releaseLotReservationsTx(
         refTable: "reservation",
         refId: resv.id,
         postedBy: input.userId,
-        notes: `Nhả giữ chỗ do lô bị giữ (${input.reason})`,
+        notes: txnNote,
       });
     }
   }
-
-  if (active.length > 0) {
-    logger.info(
-      { lotSerialId: input.lotSerialId, count: active.length, reason: input.reason },
-      "released lot reservations",
-    );
-  }
-  return active.length;
 }
 
 export interface BulkReserveResult {

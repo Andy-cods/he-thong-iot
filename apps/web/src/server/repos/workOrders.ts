@@ -1,8 +1,11 @@
 import { and, asc, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import {
+  bomLine,
   bomSnapshotLine,
+  bomTemplate,
   item,
   salesOrder,
+  userAccount,
   workOrder,
   workOrderLine,
   type WorkOrder,
@@ -11,32 +14,34 @@ import {
 } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { routingPlanForInsert } from "@/lib/wo-routing";
+import {
+  WO_STATUS_LABEL_VI,
+  checkWoCompletable,
+  isWoDeletable,
+  isWoTransitionAllowed,
+} from "@/lib/wo-guards";
 import { currentYymm, genDocNo } from "./_docNumber";
+import { releaseWoReservationsTx } from "./reservations";
 
 /**
  * V1.3 Work Order repository.
  *
- * State machine:
- *   DRAFT → QUEUED | CANCELLED
- *   QUEUED → IN_PROGRESS | CANCELLED
+ * State machine: xem `WO_ALLOWED_TRANSITIONS` (lib/wo-guards.ts).
+ *   DRAFT (Yêu cầu SX) → RELEASED (qua /approve) | QUEUED | CANCELLED
+ *   RELEASED/QUEUED → IN_PROGRESS | CANCELLED
  *   IN_PROGRESS → PAUSED | COMPLETED | CANCELLED
  *   PAUSED → IN_PROGRESS | CANCELLED
  *
- * (RELEASED giữ lại cho backward-compat V1 — không phát sinh mới V1.3.)
+ * V4.1 Đợt 4:
+ *  - SX-06 bỏ DRAFT → IN_PROGRESS (phải duyệt trước).
+ *  - SX-04/05 mọi chuyển trạng thái chạy trong 1 transaction thật, khoá hàng WO
+ *    `FOR UPDATE` (trước đây completeWO mở tx nhưng transitionStatus dùng `db`
+ *    ngoài tx → tx vô tác dụng).
+ *  - SX-16/17 WO ↔ BOM qua `bom_template_id` / `bom_line_id`.
  */
 
-const ALLOWED_TRANSITIONS: Record<WorkOrderStatus, WorkOrderStatus[]> = {
-  // V3.7.46: DRAFT = Yêu cầu SX (TK-A submit). VH-A approve → RELEASED (lệnh
-  // chính thức). Hoặc reject → CANCELLED. Vẫn giữ DRAFT → IN_PROGRESS cho
-  // legacy snapshot flow + DRAFT → QUEUED cho schedule pipeline.
-  DRAFT: ["QUEUED", "RELEASED", "IN_PROGRESS", "CANCELLED"],
-  QUEUED: ["IN_PROGRESS", "CANCELLED"],
-  RELEASED: ["IN_PROGRESS", "CANCELLED"],
-  IN_PROGRESS: ["PAUSED", "COMPLETED", "CANCELLED"],
-  PAUSED: ["IN_PROGRESS", "CANCELLED"],
-  COMPLETED: [],
-  CANCELLED: [],
-};
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export class WoConflictError extends Error {
   public readonly code = "CONFLICT";
@@ -57,17 +62,32 @@ export interface WorkOrderListQuery {
   q?: string;
   status?: WorkOrderStatus[];
   orderId?: string;
-  /** V1.6 — filter WO theo BOM template (JOIN qua sales_order.bom_template_id). */
+  /**
+   * V1.6 — filter WO theo BOM template.
+   * V4.1 SX-16: khớp `work_order.bom_template_id` (WO tạo từ chính BOM) HOẶC
+   * `sales_order.bom_template_id` (WO kiểu cũ từ đơn hàng).
+   */
   bomTemplateId?: string;
   page: number;
   pageSize: number;
 }
 
+export type WorkOrderListRow = WorkOrder & {
+  orderNo: string | null;
+  /** V4.1 SX-33 — cột Sản phẩm trên danh sách WO. */
+  productSku: string | null;
+  productName: string | null;
+};
+
 export async function listWorkOrders(q: WorkOrderListQuery): Promise<{
-  rows: (WorkOrder & { orderNo: string | null })[];
+  rows: WorkOrderListRow[];
   total: number;
+  /** V4.1 SX-29 — đếm theo trạng thái trên TOÀN bộ (không theo trang). */
+  statusCounts: Partial<Record<WorkOrderStatus, number>>;
 }> {
   const where: SQL[] = [];
+  // Điều kiện không gồm trạng thái — dùng cho statusCounts (chip KPI).
+  const baseWhere: SQL[] = [];
   if (q.status && q.status.length > 0) {
     where.push(
       inArray(
@@ -76,45 +96,74 @@ export async function listWorkOrders(q: WorkOrderListQuery): Promise<{
       ),
     );
   }
-  if (q.orderId) where.push(eq(workOrder.linkedOrderId, q.orderId));
+  if (q.orderId) baseWhere.push(eq(workOrder.linkedOrderId, q.orderId));
   if (q.bomTemplateId) {
-    // JOIN đã có sẵn qua salesOrder — thêm WHERE trên salesOrder.bomTemplateId.
-    where.push(eq(salesOrder.bomTemplateId, q.bomTemplateId));
+    const byBom = or(
+      eq(workOrder.bomTemplateId, q.bomTemplateId),
+      eq(salesOrder.bomTemplateId, q.bomTemplateId),
+    );
+    if (byBom) baseWhere.push(byBom);
   }
   if (q.q && q.q.trim().length > 0) {
     const needle = `%${q.q.trim()}%`;
     const search = or(
       ilike(workOrder.woNo, needle),
       ilike(workOrder.notes, needle),
+      ilike(item.sku, needle),
+      ilike(item.name, needle),
     );
-    if (search) where.push(search);
+    if (search) baseWhere.push(search);
   }
-  const whereExpr = where.length > 0 ? and(...where) : sql`true`;
+  const all = [...baseWhere, ...where];
+  const whereExpr = all.length > 0 ? and(...all) : sql`true`;
+  const baseExpr = baseWhere.length > 0 ? and(...baseWhere) : sql`true`;
   const offset = (q.page - 1) * q.pageSize;
 
-  // JOIN salesOrder trong cả COUNT + rows query (để WHERE bomTemplateId khớp).
-  const [totalRows, rows] = await Promise.all([
+  const [totalRows, rows, countRows] = await Promise.all([
     db
       .select({ count: sql<number>`count(*)::int` })
       .from(workOrder)
       .leftJoin(salesOrder, eq(salesOrder.id, workOrder.linkedOrderId))
+      .leftJoin(item, eq(item.id, workOrder.productItemId))
       .where(whereExpr),
     db
       .select({
         wo: workOrder,
         orderNo: salesOrder.orderNo,
+        productSku: item.sku,
+        productName: item.name,
       })
       .from(workOrder)
       .leftJoin(salesOrder, eq(salesOrder.id, workOrder.linkedOrderId))
+      .leftJoin(item, eq(item.id, workOrder.productItemId))
       .where(whereExpr)
       .orderBy(desc(workOrder.createdAt))
       .limit(q.pageSize)
       .offset(offset),
+    db
+      .select({
+        status: workOrder.status,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(workOrder)
+      .leftJoin(salesOrder, eq(salesOrder.id, workOrder.linkedOrderId))
+      .leftJoin(item, eq(item.id, workOrder.productItemId))
+      .where(baseExpr)
+      .groupBy(workOrder.status),
   ]);
 
+  const statusCounts: Partial<Record<WorkOrderStatus, number>> = {};
+  for (const r of countRows) statusCounts[r.status] = Number(r.count) || 0;
+
   return {
-    rows: rows.map((r) => ({ ...r.wo, orderNo: r.orderNo ?? null })),
+    rows: rows.map((r) => ({
+      ...r.wo,
+      orderNo: r.orderNo ?? null,
+      productSku: r.productSku ?? null,
+      productName: r.productName ?? null,
+    })),
     total: totalRows[0]?.count ?? 0,
+    statusCounts,
   };
 }
 
@@ -129,6 +178,11 @@ export async function getWorkOrder(id: string): Promise<
       productItemSku: string | null;
       productItemName: string | null;
       productItemUom: string | null;
+      /** V4.1 SX-11 — tên người lập thật (trước đây lấy người đang xem). */
+      createdByName: string | null;
+      /** V4.1 SX-16 — BOM nguồn. */
+      bomTemplateCode: string | null;
+      bomTemplateName: string | null;
     })
   | null
 > {
@@ -140,10 +194,15 @@ export async function getWorkOrder(id: string): Promise<
       productItemSku: item.sku,
       productItemName: item.name,
       productItemUom: item.uom,
+      createdByName: sql<string | null>`COALESCE(${userAccount.fullName}, ${userAccount.username})`,
+      bomTemplateCode: bomTemplate.code,
+      bomTemplateName: bomTemplate.name,
     })
     .from(workOrder)
     .leftJoin(salesOrder, eq(salesOrder.id, workOrder.linkedOrderId))
     .leftJoin(item, eq(item.id, workOrder.productItemId))
+    .leftJoin(userAccount, eq(userAccount.id, workOrder.createdBy))
+    .leftJoin(bomTemplate, eq(bomTemplate.id, workOrder.bomTemplateId))
     .where(eq(workOrder.id, id))
     .limit(1);
   if (!wo) return null;
@@ -169,6 +228,9 @@ export async function getWorkOrder(id: string): Promise<
     productItemSku: wo.productItemSku ?? null,
     productItemName: wo.productItemName ?? null,
     productItemUom: wo.productItemUom ?? null,
+    createdByName: wo.createdByName ?? null,
+    bomTemplateCode: wo.bomTemplateCode ?? null,
+    bomTemplateName: wo.bomTemplateName ?? null,
     lines: lines.map((l) => ({
       ...l.line,
       componentSku: l.componentSku,
@@ -189,10 +251,7 @@ export interface CreateWorkOrderInput {
 }
 
 /**
- * Tạo WO từ 1 order + N snapshot_lines. Derive required_qty từ
- * `bom_snapshot_line.gross_required_qty` và productItemId từ order.
- * Atomic: 1 transaction, WO no gen by in-memory sequence pattern
- * (TODO: move to Postgres function nếu race — V1.3 OK với serial insert).
+ * Tạo WO từ 1 order + N snapshot_lines (kiểu cũ — đơn hàng bán đang ẩn, API giữ).
  */
 export async function createFromSnapshot(
   input: CreateWorkOrderInput,
@@ -208,6 +267,7 @@ export async function createFromSnapshot(
         id: salesOrder.id,
         productItemId: salesOrder.productItemId,
         orderQty: salesOrder.orderQty,
+        bomTemplateId: salesOrder.bomTemplateId,
       })
       .from(salesOrder)
       .where(eq(salesOrder.id, input.orderId))
@@ -228,8 +288,7 @@ export async function createFromSnapshot(
       throw new Error("SOME_SNAPSHOT_LINES_NOT_FOUND");
     }
 
-    // 3) Gen WO no — WO-YYMM-####
-    // V3.11.4 (audit 1.21) — advisory lock chống trùng số khi tạo đồng thời.
+    // 3) Gen WO no — WO-YYMM-#### (V3.11.4 advisory lock chống trùng số).
     const woNo = await genDocNo(tx, {
       table: "app.work_order",
       column: "wo_no",
@@ -245,6 +304,8 @@ export async function createFromSnapshot(
         woNo,
         productItemId: orderRow.productItemId,
         linkedOrderId: input.orderId,
+        // V4.1 SX-16 — ghi BOM nguồn ngay khi tạo.
+        bomTemplateId: orderRow.bomTemplateId ?? null,
         plannedQty,
         priority: input.priority ?? "NORMAL",
         plannedStart: input.plannedStart
@@ -318,7 +379,37 @@ export interface CreateLsxWorkOrderInput {
   productSpecification?: unknown;
   technicalDrawingUrl?: string | null;
   estimatedHours?: number | null;
+  /** V4.1 SX-16 — LSX mở từ BOM (tab Lệnh SX / sửa dòng BOM). */
+  bomTemplateId?: string | null;
+  bomLineId?: string | null;
   userId: string | null;
+}
+
+/**
+ * V4.1 SX-16 — Chuẩn hoá cặp (bomTemplateId, bomLineId): nếu có dòng BOM thì
+ * BOM lấy theo dòng (không tin client); BOM không tồn tại → bỏ link.
+ */
+async function resolveBomLink(
+  tx: Tx,
+  input: { bomTemplateId?: string | null; bomLineId?: string | null },
+): Promise<{ bomTemplateId: string | null; bomLineId: string | null }> {
+  if (input.bomLineId) {
+    const [line] = await tx
+      .select({ id: bomLine.id, templateId: bomLine.templateId })
+      .from(bomLine)
+      .where(eq(bomLine.id, input.bomLineId))
+      .limit(1);
+    if (line) return { bomTemplateId: line.templateId, bomLineId: line.id };
+  }
+  if (input.bomTemplateId) {
+    const [tpl] = await tx
+      .select({ id: bomTemplate.id })
+      .from(bomTemplate)
+      .where(eq(bomTemplate.id, input.bomTemplateId))
+      .limit(1);
+    if (tpl) return { bomTemplateId: tpl.id, bomLineId: null };
+  }
+  return { bomTemplateId: null, bomLineId: null };
 }
 
 export async function createLsxWorkOrder(
@@ -329,7 +420,7 @@ export async function createLsxWorkOrder(
   }
 
   return db.transaction(async (tx) => {
-    // Generate WO no — WO-YYMM-####
+    const link = await resolveBomLink(tx, input);
     // V3.11.4 (audit 1.21) — advisory lock chống trùng số khi tạo đồng thời.
     const woNo = await genDocNo(tx, {
       table: "app.work_order",
@@ -344,6 +435,8 @@ export async function createLsxWorkOrder(
         woNo,
         productItemId: input.productItemId,
         linkedOrderId: null,
+        bomTemplateId: link.bomTemplateId,
+        bomLineId: link.bomLineId,
         plannedQty: String(input.plannedQty),
         priority: input.priority ?? "NORMAL",
         plannedStart: input.plannedStart
@@ -371,6 +464,92 @@ export async function createLsxWorkOrder(
 
     logger.info({ woId: newWo.id, woNo, type: "LSX" }, "LSX work order created");
     return newWo;
+  });
+}
+
+/** V4.1 SX-18 — đã có YCSX đang chờ duyệt cho cùng dòng BOM. */
+export class WoDuplicateRequestError extends Error {
+  public readonly code = "WO_DUPLICATE_REQUEST";
+  public readonly httpStatus = 409;
+  constructor(public readonly existingWoNo: string) {
+    super(
+      `Dòng BOM này đã có yêu cầu sản xuất ${existingWoNo} đang chờ duyệt — mở yêu cầu đó thay vì tạo thêm.`,
+    );
+  }
+}
+
+export interface CreateFromBomLineInput {
+  bomLineId: string;
+  bomTemplateId: string;
+  productItemId: string;
+  plannedQty: number;
+  priority: string;
+  plannedStart: string | null;
+  plannedEnd: string | null;
+  notes: string;
+  /** metadata.routing của dòng BOM (object) — chuyển thành RoutingStep[]. */
+  routing: unknown;
+  userId: string | null;
+}
+
+/**
+ * V4.1 SX-02/17/18 — Tạo Yêu cầu SX (DRAFT) từ 1 dòng BOM (nút GTAM).
+ *  - Số WO qua `genDocNo` (advisory lock + giờ VN) — trước đây COUNT+1 giờ UTC
+ *    → trùng số → 500.
+ *  - Ghi `bom_template_id` + `bom_line_id` (link WO ↔ BOM).
+ *  - Khoá theo dòng BOM + chặn tạo thêm khi đã có YCSX DRAFT cho dòng đó
+ *    (bấm 2 lần / 2 người cùng bấm → không ra 2 yêu cầu).
+ */
+export async function createFromBomLine(
+  input: CreateFromBomLineInput,
+): Promise<WorkOrder> {
+  return db.transaction(async (tx) => {
+    await tx.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtext(${"wo-bom-line:" + input.bomLineId}))`,
+    );
+    const [dup] = await tx
+      .select({ woNo: workOrder.woNo })
+      .from(workOrder)
+      .where(
+        and(
+          eq(workOrder.bomLineId, input.bomLineId),
+          eq(workOrder.status, "DRAFT"),
+        ),
+      )
+      .limit(1);
+    if (dup) throw new WoDuplicateRequestError(dup.woNo);
+
+    const woNo = await genDocNo(tx, {
+      table: "app.work_order",
+      column: "wo_no",
+      prefix: `WO-${currentYymm()}`,
+      seqPart: 3,
+    });
+
+    // V4.1 SX-01: metadata.routing là OBJECT → chuyển processRoute thành mảng.
+    const routingPlan = routingPlanForInsert(input.routing);
+
+    const [wo] = await tx
+      .insert(workOrder)
+      .values({
+        woNo,
+        productItemId: input.productItemId,
+        bomTemplateId: input.bomTemplateId,
+        bomLineId: input.bomLineId,
+        plannedQty: String(input.plannedQty),
+        status: "DRAFT",
+        priority: input.priority,
+        plannedStart: input.plannedStart || null,
+        plannedEnd: input.plannedEnd || null,
+        notes: input.notes,
+        materialRequirements: [],
+        routingPlan,
+        releasedAt: null,
+        createdBy: input.userId,
+      })
+      .returning();
+    if (!wo) throw new Error("WO_INSERT_FAILED");
+    return wo;
   });
 }
 
@@ -428,8 +607,30 @@ export async function updateWorkOrder(
   return first;
 }
 
-/** Chung — transition WO status với guard rule + version_lock. */
-async function transitionStatus(
+/** Khoá hàng WO trong tx, trả status + versionLock. */
+async function lockWo(
+  tx: Tx,
+  id: string,
+): Promise<{ status: WorkOrderStatus; versionLock: number; goodQty: string }> {
+  const [cur] = await tx
+    .select({
+      status: workOrder.status,
+      versionLock: workOrder.versionLock,
+      goodQty: workOrder.goodQty,
+    })
+    .from(workOrder)
+    .where(eq(workOrder.id, id))
+    .for("update");
+  if (!cur) throw new WoNotFoundError("Lệnh sản xuất không tồn tại.");
+  return cur;
+}
+
+/**
+ * Chung — transition WO status với guard rule + version_lock, TRONG tx đã có
+ * (caller đã/không khoá; hàm tự khoá hàng WO `FOR UPDATE`).
+ */
+async function transitionStatusTx(
+  tx: Tx,
   id: string,
   toStatus: WorkOrderStatus,
   extra: Partial<{
@@ -437,20 +638,16 @@ async function transitionStatus(
     completedAt: Date;
     pausedAt: Date | null;
     pausedReason: string | null;
-    releasedAt: Date;
+    /** V4.1 SX-06 — chỉ đặt nếu chưa có (không ghi đè giờ duyệt). */
+    releasedAtIfNull: Date;
   }> = {},
   expectedVersionLock?: number,
 ): Promise<WorkOrder> {
-  const [cur] = await db
-    .select({ status: workOrder.status, versionLock: workOrder.versionLock })
-    .from(workOrder)
-    .where(eq(workOrder.id, id))
-    .limit(1);
-  if (!cur) throw new WoNotFoundError("WO không tồn tại.");
+  const cur = await lockWo(tx, id);
 
-  if (!ALLOWED_TRANSITIONS[cur.status].includes(toStatus)) {
+  if (!isWoTransitionAllowed(cur.status, toStatus)) {
     throw new WoTransitionError(
-      `Không thể chuyển WO ${cur.status} → ${toStatus}.`,
+      `Không thể chuyển lệnh từ "${WO_STATUS_LABEL_VI[cur.status] ?? cur.status}" sang "${WO_STATUS_LABEL_VI[toStatus] ?? toStatus}".`,
     );
   }
   const locked = expectedVersionLock ?? cur.versionLock;
@@ -463,9 +660,11 @@ async function transitionStatus(
   if (extra.completedAt !== undefined) values.completedAt = extra.completedAt;
   if (extra.pausedAt !== undefined) values.pausedAt = extra.pausedAt;
   if (extra.pausedReason !== undefined) values.pausedReason = extra.pausedReason;
-  if (extra.releasedAt !== undefined) values.releasedAt = extra.releasedAt;
+  if (extra.releasedAtIfNull !== undefined) {
+    values.releasedAt = sql`COALESCE(${workOrder.releasedAt}, ${extra.releasedAtIfNull.toISOString()}::timestamptz)`;
+  }
 
-  const rows = await db
+  const rows = await tx
     .update(workOrder)
     .set(values)
     .where(
@@ -474,7 +673,7 @@ async function transitionStatus(
     .returning();
   if (rows.length === 0) {
     throw new WoConflictError(
-      "WO version_lock mismatch, vui lòng refresh.",
+      "Lệnh đã bị người khác thay đổi — tải lại trang rồi thử lại.",
     );
   }
   const first = rows[0];
@@ -483,11 +682,14 @@ async function transitionStatus(
 }
 
 export async function startWO(id: string, versionLock?: number): Promise<WorkOrder> {
-  return transitionStatus(
-    id,
-    "IN_PROGRESS",
-    { startedAt: new Date(), releasedAt: new Date() },
-    versionLock,
+  return db.transaction((tx) =>
+    transitionStatusTx(
+      tx,
+      id,
+      "IN_PROGRESS",
+      { startedAt: new Date(), releasedAtIfNull: new Date() },
+      versionLock,
+    ),
   );
 }
 
@@ -496,45 +698,55 @@ export async function pauseWO(
   reason: string | null,
   versionLock?: number,
 ): Promise<WorkOrder> {
-  return transitionStatus(
-    id,
-    "PAUSED",
-    { pausedAt: new Date(), pausedReason: reason },
-    versionLock,
+  return db.transaction((tx) =>
+    transitionStatusTx(
+      tx,
+      id,
+      "PAUSED",
+      { pausedAt: new Date(), pausedReason: reason },
+      versionLock,
+    ),
   );
 }
 
 export async function resumeWO(id: string, versionLock?: number): Promise<WorkOrder> {
-  return transitionStatus(
-    id,
-    "IN_PROGRESS",
-    { pausedAt: null, pausedReason: null },
-    versionLock,
+  return db.transaction((tx) =>
+    transitionStatusTx(
+      tx,
+      id,
+      "IN_PROGRESS",
+      { pausedAt: null, pausedReason: null },
+      versionLock,
+    ),
   );
 }
 
 /**
- * Complete WO: check mọi work_order_line có completed_qty >= required_qty.
- * Nếu có line chưa complete → reject với message rõ.
+ * Complete WO — V4.1 SX-04/05: 1 transaction thật, khoá WO rồi kiểm
+ * `checkWoCompletable` (đang chạy + SL đạt > 0 + mọi dòng linh kiện đủ).
+ *
+ * TODO V4.1 Q2: điểm móc nhập kho thành phẩm — ghi `inventory_txn` PROD_IN
+ * (SL đạt, lô FG) TRONG CÙNG transaction này khi anh Thang bật lại bước nhập
+ * kho thành phẩm (`HIDDEN_FEATURES.fgReceipt`). Hiện chỉ chuyển trạng thái.
  */
 export async function completeWO(id: string, versionLock?: number): Promise<WorkOrder> {
   return db.transaction(async (tx) => {
-    const incompleteLines = await tx
-      .select({ id: workOrderLine.id })
+    const cur = await lockWo(tx, id);
+    const lines = await tx
+      .select({
+        requiredQty: workOrderLine.requiredQty,
+        completedQty: workOrderLine.completedQty,
+      })
       .from(workOrderLine)
-      .where(
-        and(
-          eq(workOrderLine.woId, id),
-          sql`${workOrderLine.completedQty} < ${workOrderLine.requiredQty}`,
-        ),
-      );
-    if (incompleteLines.length > 0) {
-      throw new WoTransitionError(
-        `Còn ${incompleteLines.length} line chưa hoàn tất, không thể complete WO.`,
-      );
-    }
-    // Re-check trong cùng tx (double-read rủi ro race thấp vì WO là owner-exclusive)
-    return transitionStatus(
+      .where(eq(workOrderLine.woId, id));
+    const check = checkWoCompletable({
+      status: cur.status,
+      goodQty: cur.goodQty,
+      lines,
+    });
+    if (!check.ok) throw new WoTransitionError(check.reason);
+    return transitionStatusTx(
+      tx,
       id,
       "COMPLETED",
       { completedAt: new Date() },
@@ -543,18 +755,33 @@ export async function completeWO(id: string, versionLock?: number): Promise<Work
   });
 }
 
-export async function cancelWO(id: string, versionLock?: number): Promise<WorkOrder> {
-  return transitionStatus(id, "CANCELLED", {}, versionLock);
+/**
+ * V4.1 SX-08 — Huỷ WO + nhả MỌI giữ chỗ ACTIVE của WO (trước đây giữ chỗ
+ * treo vĩnh viễn → tồn khả dụng bị khoá). Cùng 1 transaction.
+ */
+export async function cancelWO(
+  id: string,
+  versionLock?: number,
+  opts: { userId?: string | null; reason?: string | null } = {},
+): Promise<WorkOrder & { releasedReservations: number }> {
+  return db.transaction(async (tx) => {
+    const wo = await transitionStatusTx(tx, id, "CANCELLED", {}, versionLock);
+    const released = await releaseWoReservationsTx(tx, {
+      woId: id,
+      userId: opts.userId ?? null,
+      reason: `Huỷ lệnh SX ${wo.woNo}${opts.reason ? `: ${opts.reason}` : ""}`,
+    });
+    return { ...wo, releasedReservations: released };
+  });
 }
 
 /**
  * V3.7.71 — Hard-delete WO (admin only).
  *
- * Guards:
- *   - WO chỉ xoá được khi DRAFT/CANCELLED (chưa release vào production).
- *   - Cascade tự động qua FK onDelete: cascade cho work_order_line, routing,
- *     material, tool, qc.
- *   - reservation/assembly link KHÔNG cascade — phải check thủ công.
+ * V4.1 SX-07: CHỈ xoá được DRAFT/CANCELLED — `force` KHÔNG còn vượt qua kiểm
+ * trạng thái (trước đây UI luôn gửi force → xoá được cả lệnh đang chạy/đã
+ * xong). `force` chỉ còn nghĩa: bỏ link reservation/assembly còn sót trước khi
+ * xoá lệnh Nháp/Đã huỷ.
  *
  * Throws "WO_INVALID_STATE", "WO_HAS_RESERVATIONS", "WO_HAS_ASSEMBLY", "WO_NOT_FOUND".
  */
@@ -567,19 +794,14 @@ export async function deleteWO(
       .select({ id: workOrder.id, status: workOrder.status })
       .from(workOrder)
       .where(eq(workOrder.id, id))
-      .limit(1);
+      .for("update");
     if (!wo) throw new Error("WO_NOT_FOUND");
 
-    // Chỉ cho phép xoá DRAFT/CANCELLED — đã release thì block
-    const DELETABLE_STATES: WorkOrderStatus[] = ["DRAFT", "CANCELLED"];
-    if (
-      !DELETABLE_STATES.includes(wo.status as WorkOrderStatus) &&
-      !options.force
-    ) {
+    if (!isWoDeletable(wo.status)) {
       throw new Error(`WO_INVALID_STATE: ${wo.status}`);
     }
 
-    // Check reservation link (no cascade)
+    // Reservation ACTIVE còn sót (lệnh Nháp chưa huỷ) → nhả trước, rồi bỏ link.
     const reservations = await tx.execute(sql`
       SELECT id FROM app.reservation WHERE wo_id = ${id}
     `);
@@ -588,7 +810,11 @@ export async function deleteWO(
       throw new Error(`WO_HAS_RESERVATIONS: ${reservationRows.length}`);
     }
     if (options.force && reservationRows.length > 0) {
-      // Null-out reservation.wo_id
+      await releaseWoReservationsTx(tx, {
+        woId: id,
+        userId: null,
+        reason: "Xoá lệnh SX",
+      });
       await tx.execute(sql`
         UPDATE app.reservation SET wo_id = NULL WHERE wo_id = ${id}
       `);
@@ -620,8 +846,6 @@ export async function deleteWO(
         UPDATE app.assembly_scan SET wo_id = NULL WHERE wo_id = ${id}
       `);
     }
-
-    // Null-out material_request.wo_id đã set null cascade auto via schema FK.
 
     // DELETE WO — work_order_line, routing, material, tool, qc cascade auto
     const result = await tx.delete(workOrder).where(eq(workOrder.id, id));

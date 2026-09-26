@@ -414,6 +414,10 @@ export interface BomFilter {
   q?: string;
   status?: ("DRAFT" | "ACTIVE" | "OBSOLETE")[];
   hasComponents?: boolean;
+  /** V4.1 SX-30 — lọc phía server. */
+  updatedFrom?: string;
+  updatedTo?: string;
+  minComponents?: number;
   sort?: string;
   sortDir?: "asc" | "desc";
   page?: number;

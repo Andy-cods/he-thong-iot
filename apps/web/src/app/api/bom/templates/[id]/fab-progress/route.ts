@@ -44,8 +44,11 @@ export async function GET(
         WHERE bl.template_id = ${id}
           AND COALESCE(bl.metadata #>> '{kind}', '') = 'fab'
       ),
+      -- V4.1 SX-17: link tường minh = work_order.bom_line_id (ghi khi tạo WO
+      -- từ dòng BOM) hoặc metadata.routing.linkedWorkOrderId (cũ). Nhiều WO
+      -- cho 1 dòng → lấy WO "sống" nhất (đang chạy > … > huỷ), mới nhất.
       explicit_link AS (
-        SELECT
+        SELECT DISTINCT ON (fl.bom_line_id)
           fl.bom_line_id,
           wo.id AS wo_id,
           wo.wo_no,
@@ -55,8 +58,22 @@ export async function GET(
           wo.scrap_qty,
           1 AS link_kind
         FROM fab_lines fl
-        JOIN app.work_order wo ON wo.id::text = fl.linked_wo_id
-        WHERE fl.linked_wo_id IS NOT NULL
+        JOIN app.work_order wo
+          ON wo.bom_line_id = fl.bom_line_id
+          OR (fl.linked_wo_id IS NOT NULL AND wo.id::text = fl.linked_wo_id)
+        ORDER BY
+          fl.bom_line_id,
+          CASE wo.status::text
+            WHEN 'IN_PROGRESS' THEN 1
+            WHEN 'PAUSED'      THEN 2
+            WHEN 'RELEASED'    THEN 3
+            WHEN 'QUEUED'      THEN 4
+            WHEN 'COMPLETED'   THEN 5
+            WHEN 'DRAFT'       THEN 6
+            WHEN 'CANCELLED'   THEN 99
+            ELSE 50
+          END,
+          wo.created_at DESC
       ),
       fallback_link AS (
         SELECT DISTINCT ON (fl.bom_line_id)
@@ -70,7 +87,9 @@ export async function GET(
           2 AS link_kind
         FROM fab_lines fl
         JOIN app.work_order wo ON wo.product_item_id = fl.component_item_id
-        WHERE fl.linked_wo_id IS NULL
+        WHERE NOT EXISTS (
+          SELECT 1 FROM explicit_link el WHERE el.bom_line_id = fl.bom_line_id
+        )
         ORDER BY
           fl.bom_line_id,
           CASE wo.status::text

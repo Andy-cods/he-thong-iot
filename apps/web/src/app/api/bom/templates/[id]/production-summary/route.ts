@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { desc, eq, or, sql } from "drizzle-orm";
 import {
   bomSnapshotLine,
   bomTemplate,
@@ -51,7 +51,7 @@ export interface BomProductionSummary {
  *
  * GET /api/bom/templates/[id]/production-summary
  *
- * Aggregate Work Orders theo bom_template_id (qua sales_order link).
+ * Aggregate Work Orders theo BOM (V4.1 SX-16: work_order.bom_template_id hoặc qua sales_order).
  *
  * Response:
  *   - totalWorkOrders / doneWorkOrders / inProgressWorkOrders
@@ -65,7 +65,8 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireCan(req, "read", "salesOrder");
+  // V4.1 Q4 — đọc theo quyền Lệnh SX (không cần quyền Đơn hàng bán đang ẩn).
+  const guard = await requireCan(req, "read", "wo");
   if ("response" in guard) return guard.response;
 
   const id = params.id;
@@ -92,8 +93,14 @@ export async function GET(
         totalScrap: sql<number>`coalesce(sum(${workOrder.scrapQty})::float, 0)`,
       })
       .from(workOrder)
-      .innerJoin(salesOrder, eq(salesOrder.id, workOrder.linkedOrderId))
-      .where(eq(salesOrder.bomTemplateId, id));
+      .leftJoin(salesOrder, eq(salesOrder.id, workOrder.linkedOrderId))
+      // V4.1 SX-16 — WO gắn BOM trực tiếp HOẶC qua đơn hàng.
+      .where(
+        or(
+          eq(workOrder.bomTemplateId, id),
+          eq(salesOrder.bomTemplateId, id),
+        ),
+      );
 
     const agg = aggRows[0] ?? {
       total: 0,
@@ -119,8 +126,14 @@ export async function GET(
         plannedEnd: workOrder.plannedEnd,
       })
       .from(workOrder)
-      .innerJoin(salesOrder, eq(salesOrder.id, workOrder.linkedOrderId))
-      .where(eq(salesOrder.bomTemplateId, id))
+      .leftJoin(salesOrder, eq(salesOrder.id, workOrder.linkedOrderId))
+      // V4.1 SX-16 — WO gắn BOM trực tiếp HOẶC qua đơn hàng.
+      .where(
+        or(
+          eq(workOrder.bomTemplateId, id),
+          eq(salesOrder.bomTemplateId, id),
+        ),
+      )
       .orderBy(desc(workOrder.createdAt))
       .limit(20);
 

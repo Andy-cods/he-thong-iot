@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
 import {
+  ProgressLogError,
   insertProgressLog,
   listProgressLog,
 } from "@/server/repos/woProgressLog";
@@ -115,6 +116,9 @@ export async function POST(
 
     return NextResponse.json({ data: row }, { status: 201 });
   } catch (err) {
+    if (err instanceof ProgressLogError) {
+      return jsonError(err.code, err.message, err.httpStatus);
+    }
     logger.error({ err, id: params.id }, "insert progress-log failed");
     return jsonError("INTERNAL", "Lỗi ghi nhật ký tiến độ.", 500);
   }

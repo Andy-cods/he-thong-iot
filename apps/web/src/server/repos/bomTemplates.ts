@@ -23,6 +23,10 @@ export interface BomTemplateListQuery {
    */
   includeObsolete?: boolean;
   hasComponents?: boolean;
+  /** V4.1 SX-30 — YYYY-MM-DD theo giờ VN (bao gồm cả ngày cuối). */
+  updatedFrom?: string;
+  updatedTo?: string;
+  minComponents?: number;
   sort?: "updatedAt" | "code" | "name";
   sortDir?: "asc" | "desc";
   page: number;
@@ -88,6 +92,23 @@ export async function listTemplates(
   } else if (q.hasComponents === false) {
     where.push(
       sql`NOT EXISTS (SELECT 1 FROM ${bomLine} WHERE ${bomLine.templateId} = ${bomTemplate.id})`,
+    );
+  }
+
+  // V4.1 SX-30 — lọc ngày + số linh kiện phía server.
+  if (q.updatedFrom) {
+    where.push(
+      sql`${bomTemplate.updatedAt} >= (${q.updatedFrom}::date::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')`,
+    );
+  }
+  if (q.updatedTo) {
+    where.push(
+      sql`${bomTemplate.updatedAt} < ((${q.updatedTo}::date + 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')`,
+    );
+  }
+  if (q.minComponents && q.minComponents > 0) {
+    where.push(
+      sql`(SELECT count(*) FROM ${bomLine} l WHERE l.template_id = ${bomTemplate.id}) >= ${q.minComponents}`,
     );
   }
 

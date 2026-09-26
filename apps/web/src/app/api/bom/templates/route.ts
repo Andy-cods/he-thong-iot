@@ -39,6 +39,9 @@ export async function GET(req: NextRequest) {
         typeof q.data.hasComponents === "boolean"
           ? q.data.hasComponents
           : undefined,
+      updatedFrom: q.data.updatedFrom,
+      updatedTo: q.data.updatedTo,
+      minComponents: q.data.minComponents,
       sort: q.data.sort ?? "updatedAt",
       sortDir: q.data.sortDir ?? "desc",
       page,

@@ -190,10 +190,11 @@ export default function WorkOrderDetailPage() {
     0,
   );
   const todayStr = fmtDate(wo.createdAt);
-  const createdByName =
-    (wo.createdBy === session.data?.id ? session.data?.fullName : null) ??
-    session.data?.fullName ??
-    "—"; // V3.8 — sẽ enrich từ user_account khi backend trả thêm field
+  // V4.1 SX-11 — "Người lập" = người TẠO lệnh (JOIN user_account ở server),
+  // trước đây lấy tên người đang xem → in phiếu ra sai người lập.
+  const createdByName = wo.createdByName ?? "—";
+  // V4.1 SX-20 — ĐVT nhập trên phiếu LSX, fallback ĐVT danh mục vật tư.
+  const productUom = productSpec.uom ?? wo.productItemUom ?? "";
 
   const handlePrint = () => window.print();
 
@@ -314,6 +315,22 @@ export default function WorkOrderDetailPage() {
               <ROField label="Người lập" value={createdByName} />
               <ROField label="Ngày bắt đầu" value={fmtDate(wo.plannedStart)} />
               <ROField label="Ngày kết thúc" value={fmtDate(wo.plannedEnd)} />
+              {/* V4.1 SX-16 — BOM nguồn của lệnh (tạo từ dòng BOM / LSX mở từ BOM). */}
+              {wo.bomTemplateId ? (
+                <ROField
+                  label="BOM nguồn"
+                  wide
+                  value={
+                    <Link
+                      href={`/bom/${wo.bomTemplateId}/grid`}
+                      className="text-indigo-700 hover:underline dark:text-indigo-400 print:text-zinc-900 print:no-underline"
+                    >
+                      <span className="font-mono">{wo.bomTemplateCode ?? "—"}</span>
+                      {wo.bomTemplateName ? ` · ${wo.bomTemplateName}` : ""}
+                    </Link>
+                  }
+                />
+              ) : null}
             </section>
 
             {/* I. Thông tin sản phẩm */}
@@ -346,7 +363,7 @@ export default function WorkOrderDetailPage() {
                         {fmtNum(wo.plannedQty)}
                       </span>
                       <span className="ml-1 text-zinc-500 dark:text-zinc-400 print:dark:text-zinc-500">
-                        {wo.productItemUom ?? ""}
+                        {productUom}
                       </span>
                     </span>
                   }

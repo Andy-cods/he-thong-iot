@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BigStatCard } from "./BigStatCard";
+import { HIDDEN_FEATURES } from "@/lib/hidden-features";
 import type { DashboardOverviewV2Payload } from "@/app/api/dashboard/overview-v2/route";
 
 /**
@@ -53,11 +54,16 @@ export function ProgressBarStack({
   return (
     <div
       className={cn(
-        "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3",
+        "grid grid-cols-1 gap-4 sm:grid-cols-2",
+        HIDDEN_FEATURES.salesOrder ? "lg:grid-cols-4" : "lg:grid-cols-3",
         className,
       )}
       aria-label="Tổng quan các bộ phận"
     >
+      {/* V4.1 Q4/D10 — 2 thẻ "Linh kiện sẵn sàng" + "Lắp ráp" tính từ snapshot
+          ĐƠN HÀNG BÁN (đang ẩn) → đứng yên / gây hiểu nhầm → ẩn cùng. */}
+      {!HIDDEN_FEATURES.salesOrder && (
+        <>
       {/* V4.1 Đợt 2 — thẻ này đếm DÒNG VẬT TƯ snapshot sẵn sàng, không phải
           "đơn hàng đang sản xuất" (nhãn cũ sai nghĩa). */}
       <BigStatCard
@@ -96,6 +102,8 @@ export function ProgressBarStack({
         }
         loading={loading}
       />
+        </>
+      )}
       <BigStatCard
         label="Đặt mua"
         icon={ShoppingCart}
