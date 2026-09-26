@@ -71,7 +71,10 @@ export function MaterialProcessSheetView({
   readOnly,
 }: MaterialProcessSheetViewProps) {
   return (
-    <div className="grid h-full grid-cols-1 gap-3 p-3 lg:grid-cols-2">
+    // V4.1 UI-BOM: workspace nay có chiều cao xác định (AppShell h-dvh) →
+    // desktop: 1 hàng minmax(0,1fr) để mỗi panel tự cuộn bên trong; mobile
+    // (2 hàng xếp chồng): cả khối cuộn (overflow-auto) thay vì bị cắt.
+    <div className="grid h-full grid-cols-1 gap-3 overflow-auto p-3 lg:grid-cols-2 lg:grid-rows-[minmax(0,1fr)]">
       <MaterialPanel sheetId={sheetId} readOnly={readOnly} />
       <ProcessPanel sheetId={sheetId} readOnly={readOnly} />
     </div>

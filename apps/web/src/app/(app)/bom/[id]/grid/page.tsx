@@ -41,7 +41,7 @@ import {
  *
  * Layout:
  *   [BomWorkspaceTopbar h-12]
- *   [TopTabBar h-9 sticky top-0 z-20]
+ *   [TopTabBar h-11 — V4.1 UI-BOM: không sticky, nằm ngoài vùng cuộn]
  *     ├ Vật tư & Quy trình (default — BOM grid + sheet tabs)
  *     ├ Đơn hàng / Snapshot / Sản xuất / Lệnh SX / Mua sắm / ...
  *   [Content area — render panel theo activeTab]

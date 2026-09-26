@@ -71,7 +71,17 @@ export function AppShell({ user, navItems = NAV_ITEMS, children }: AppShellProps
   }, [router]);
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-zinc-50 dark:bg-zinc-950">
+    // V4.1 UI-BOM: workspace BOM (/bom/[id]/...) cần chuỗi chiều cao XÁC ĐỊNH
+    // (h-dvh + overflow-hidden) để lưới vật tư tự cuộn bên trong vùng
+    // `overflow-auto` của nó. Với `min-h-screen` chiều cao chỉ là tối thiểu →
+    // `h-full` của trang/lưới không có mốc, cả trang dài theo nội dung, tài
+    // liệu cuộn thay vì lưới → thead sticky không dính, virtualizer đo sai.
+    <div
+      className={cn(
+        "flex w-full flex-col bg-zinc-50 dark:bg-zinc-950",
+        isWorkspace ? "h-screen overflow-hidden supports-[height:100dvh]:h-dvh" : "min-h-screen",
+      )}
+    >
 
       {/* ══ TOP BAR với horizontal nav ══ */}
       <TopBar

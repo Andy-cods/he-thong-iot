@@ -8,6 +8,7 @@ import { UserMenu, type UserMenuUser } from "@/components/layout/UserMenu";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { ThemeQuickToggle } from "@/components/theme/ThemeToggle";
 import { formatShortcut } from "@/lib/shortcuts";
+import { useBomDetail } from "@/hooks/useBom";
 import { cn } from "@/lib/utils";
 import type { NavItem } from "@/lib/nav-items";
 
@@ -58,7 +59,19 @@ export function TopBar({
   pathname = "/",
   allHrefs = [],
 }: TopBarProps) {
-  const breadcrumbs = useBreadcrumb(pathname);
+  // V4.1 UI-BOM: breadcrumb workspace BOM hiện MÃ BOM thay UUID thô. Dùng
+  // chung query cache `useBomDetail` với trang lưới → không gọi API thêm.
+  const bomId = React.useMemo(() => {
+    const m = /^\/bom\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(\/|$)/i.exec(pathname);
+    return m ? m[1]! : null;
+  }, [pathname]);
+  const bomDetail = useBomDetail(bomId);
+  const bomCode = bomDetail.data?.data?.template?.code;
+  const segmentLabels = React.useMemo(
+    () => (bomId && bomCode ? { [bomId]: bomCode } : undefined),
+    [bomId, bomCode],
+  );
+  const breadcrumbs = useBreadcrumb(pathname, segmentLabels);
   const shortcutLabel = formatShortcut("Mod+K");
 
   return (

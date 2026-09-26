@@ -115,6 +115,11 @@ export interface BomGridProProps {
 
 const DEFAULT_STATUS: MaterialStatus = "PLANNED";
 
+/** V4.1 UI-BOM: bề rộng cột Thao tác (sticky phải) — đủ chỗ 4 nút. */
+const ACTIONS_COL_W = 132;
+/** V4.1 UI-BOM: chiều cao thead (h-8) — offset đầu cho virtualizer. */
+const GRID_HEADER_H = 32;
+
 /**
  * V3.8.3 — Tổng SL cần của 1 dòng: ưu tiên metadata.totalQty (raw Excel),
  * fallback qtyPerParent × parentQty. Khớp logic cell "SL" (đã có).
@@ -403,16 +408,56 @@ export function BomGridPro({
     return { overdue, dueSoon };
   }, [visibleRows, parentQty]);
 
+  // V4.1 UI-BOM: tổng số cột đang hiển thị — dùng cho colSpan của dòng nhóm,
+  // dòng rỗng và 2 dòng đệm (spacer) của virtualizer. Trước đây colSpan cứng
+  // 14/16 → khi "Tự ẩn cột rỗng" bật, dòng nhóm sinh thêm cột ảo ở bên phải,
+  // cột Thao tác của dòng nhóm lệch so với dòng thường (+ khối trắng thừa).
+  const colCount =
+    2 + // # + Image
+    (showCol("positionCode") ? 1 : 0) +
+    4 + // Quantity + BOM gốc + Ghi chú + Category
+    (showCol("dimensions") ? 1 : 0) +
+    (showCol("supplier") ? 1 : 0) +
+    (showCol("pic") ? 1 : 0) +
+    1 + // SL
+    (showCol("notes") ? 1 : 0) +
+    (showCol("scrap") ? 1 : 0) +
+    (showCol("progress") ? 1 : 0) +
+    (showEtaCol ? 1 : 0) +
+    1; // Thao tác
+
   // Virtualizer setup
+  // V4.1 UI-BOM: GỐC RỄ lỗi dòng chồng nhau / header nằm giữa danh sách /
+  // tab bar đè lên dòng (BOM > 80 dòng). Bản cũ render mỗi <tr> với
+  // `position:absolute; transform:translateY(...)` ngay trong <tbody> mà KHÔNG
+  // có phần tử cha `position:relative` và KHÔNG có khối đệm chiều cao tổng:
+  //   - <tr> absolute thoát khỏi vùng cuộn, định vị theo tổ tiên positioned xa
+  //     (trang) → đè lên tab bar, thead nằm lại giữa danh sách;
+  //   - vùng cuộn chỉ cao bằng thead → virtualizer chỉ render ~14 dòng đầu;
+  //   - <tr> absolute bị ép display:block → mỗi dòng tự tính độ rộng cột riêng,
+  //     không theo <colgroup> → ô lệch ngang, cột Thao tác lệch từng dòng;
+  //   - chiều cao cố định 36px trong khi ô Tiến độ (pill + thanh + "0 / 2 · còn
+  //     2") cao ~50px → nội dung tràn đè dòng trên/dưới.
+  // Cách sửa: dòng ảo nằm TRONG luồng bảng bình thường (không absolute), 2 dòng
+  // đệm trên/dưới giữ chiều cao cuộn, mỗi dòng được đo thật (measureElement)
+  // → chiều cao biến thiên vẫn đúng, cột dùng chung <colgroup>.
   const parentRef = React.useRef<HTMLDivElement>(null);
   const useVirtualize = visibleRows.length > 80;
+  const hasProgressCol = showCol("progress");
   const virt = useVirtualizer({
     count: visibleRows.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 36,
+    // Ước lượng ban đầu; chiều cao thật đo qua measureElement.
+    estimateSize: (i) =>
+      visibleRows[i]?.isGroup ? 36 : hasProgressCol ? 52 : 38,
+    // thead (h-8) nằm trong vùng cuộn, trước dòng đầu tiên.
+    paddingStart: GRID_HEADER_H,
     overscan: 12,
     enabled: useVirtualize,
+    getItemKey: (i) => visibleRows[i]?.id ?? i,
   });
+  const visibleRowsRef = React.useRef(visibleRows);
+  visibleRowsRef.current = visibleRows;
 
   // V1.8 Batch 3 — Deep-link highlight: đọc `?highlightLine=<lineId>` từ
   // query param (khi navigate từ /items/[id] tab "Dùng trong BOM"). Nếu match:
@@ -455,7 +500,14 @@ export function BomGridPro({
       const el = document.getElementById(`bom-line-${highlightParam}`);
       if (el && typeof el.scrollIntoView === "function") {
         el.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
       }
+      // V4.1 UI-BOM: chế độ ảo hoá — dòng đích có thể chưa được render,
+      // cuộn theo index qua virtualizer.
+      const targetIdx = visibleRowsRef.current.findIndex(
+        (r) => r.id === highlightParam,
+      );
+      if (targetIdx >= 0) virt.scrollToIndex(targetIdx, { align: "center" });
     }, 80);
 
     // Clear highlight after 3s.
@@ -467,6 +519,7 @@ export function BomGridPro({
       window.clearTimeout(scrollTimer);
       window.clearTimeout(clearTimer);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [highlightParam, flat]);
 
   const handleDelete = () => {
@@ -485,7 +538,13 @@ export function BomGridPro({
     );
   };
 
-  const renderRow = (row: BomFlatRow, idx: number, style?: React.CSSProperties) => {
+  // V4.1 UI-BOM: `virtualIndex` (khi ảo hoá) → gắn ref đo chiều cao thật +
+  // data-index cho virtualizer. Không còn truyền style absolute.
+  const renderRow = (row: BomFlatRow, idx: number, virtualIndex?: number) => {
+    const measureProps =
+      virtualIndex !== undefined
+        ? { ref: virt.measureElement, "data-index": virtualIndex }
+        : {};
     const isGroup = row.isGroup;
     const isExpanded = expanded.has(row.id);
     const status =
@@ -500,7 +559,7 @@ export function BomGridPro({
         <tr
           key={row.id}
           id={`bom-line-${row.id}`}
-          style={style}
+          {...measureProps}
           className={cn(
             "group border-b border-indigo-100 bg-indigo-50 transition-colors dark:border-indigo-900 dark:bg-indigo-950/40",
             "hover:bg-indigo-100/70 dark:hover:bg-indigo-900/40",
@@ -511,7 +570,7 @@ export function BomGridPro({
           <td className="w-10 px-2 text-[11px] font-mono text-indigo-400 tabular-nums dark:text-indigo-500">
             {idx + 1}
           </td>
-          <td colSpan={14} className="px-2 py-1.5">{/* V3.8.3 +1: cột Dự kiến nhận */}
+          <td colSpan={colCount - 2} className="px-2 py-1.5">{/* V4.1 UI-BOM: colSpan theo số cột thực tế */}
             <button
               type="button"
               onClick={() => toggleExpand(row.id)}
@@ -532,7 +591,9 @@ export function BomGridPro({
               </span>
             </button>
           </td>
-          <td className="sticky right-0 z-10 w-[100px] bg-indigo-50 border-l border-indigo-100 px-1 dark:bg-indigo-950/40 dark:border-indigo-900">
+          {/* V4.1 UI-BOM: nền ĐẶC (không /40) — ô sticky trong suốt để lộ
+              nội dung cuộn ngang bên dưới. */}
+          <td className="sticky right-0 z-10 border-l border-indigo-100 bg-indigo-50 px-1 group-hover:bg-indigo-100 dark:border-indigo-900 dark:bg-indigo-950 dark:group-hover:bg-indigo-900">
             <ActionsCell
               row={row}
               onEdit={readOnly ? undefined : handleEditRow}
@@ -548,7 +609,7 @@ export function BomGridPro({
       <tr
         key={row.id}
         id={`bom-line-${row.id}`}
-        style={style}
+        {...measureProps}
         className={cn(
           "group border-b border-zinc-100 bg-white transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800/60",
           isHighlighted &&
@@ -987,7 +1048,9 @@ export function BomGridPro({
             {showCol("scrap") && <col style={{ width: "60px" }} />}{/* Hao hụt */}
             {showCol("progress") && <col style={{ width: "150px" }} />}{/* Tiến độ */}
             {showEtaCol && <col style={{ width: "172px" }} />}{/* V3.8.3 Dự kiến nhận (luôn hiện, đủ rộng cho "dd/MM · quá NN ngày") */}
-            <col style={{ width: "100px" }} />  {/* Thao tác */}
+            {/* V4.1 UI-BOM: 100px → 132px. Tối đa 4 nút 24px + gap + padding
+                ≈ 118px; 100px làm nút tràn sang cột/dòng bên cạnh. */}
+            <col style={{ width: `${ACTIONS_COL_W}px` }} />  {/* Thao tác */}
           </colgroup>
           <thead>
             <tr className="h-8 text-[10px] font-medium uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
@@ -1187,25 +1250,47 @@ export function BomGridPro({
           <tbody>
             {!useVirtualize &&
               visibleRows.map((row, idx) => renderRow(row, idx))}
-            {useVirtualize && (
-              <>
-                {virt.getVirtualItems().map((v) => {
-                  const row = visibleRows[v.index];
-                  if (!row) return null;
-                  return renderRow(row, v.index, {
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    transform: `translateY(${v.start}px)`,
-                    height: `${v.size}px`,
-                  });
-                })}
-              </>
-            )}
+            {useVirtualize &&
+              (() => {
+                // V4.1 UI-BOM: dòng ảo trong luồng bảng + 2 dòng đệm.
+                const items = virt.getVirtualItems();
+                const first = items[0];
+                const last = items[items.length - 1];
+                const padTop = first
+                  ? Math.max(0, first.start - GRID_HEADER_H)
+                  : 0;
+                const padBottom = last
+                  ? Math.max(0, virt.getTotalSize() - last.end)
+                  : 0;
+                return (
+                  <>
+                    {padTop > 0 && (
+                      <tr aria-hidden>
+                        <td
+                          colSpan={colCount}
+                          style={{ height: padTop, padding: 0, border: 0 }}
+                        />
+                      </tr>
+                    )}
+                    {items.map((v) => {
+                      const row = visibleRows[v.index];
+                      if (!row) return null;
+                      return renderRow(row, v.index, v.index);
+                    })}
+                    {padBottom > 0 && (
+                      <tr aria-hidden>
+                        <td
+                          colSpan={colCount}
+                          style={{ height: padBottom, padding: 0, border: 0 }}
+                        />
+                      </tr>
+                    )}
+                  </>
+                );
+              })()}
             {visibleRows.length === 0 && (
               <tr>
-                <td colSpan={16} className="py-8 text-center text-xs text-zinc-400 dark:text-zinc-500">{/* V3.8.3 +1 */}
+                <td colSpan={colCount} className="py-8 text-center text-xs text-zinc-400 dark:text-zinc-500">
                   BOM chưa có linh kiện nào.
                 </td>
               </tr>

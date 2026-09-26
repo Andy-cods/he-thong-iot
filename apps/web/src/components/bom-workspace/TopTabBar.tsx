@@ -29,7 +29,10 @@ export function TopTabBar({ activeTab, onSelect, counts }: TopTabBarProps) {
     <div
       role="tablist"
       aria-label="BOM workspace tabs"
-      className="sticky top-0 z-20 flex h-11 shrink-0 items-center gap-0.5 border-b border-zinc-200 bg-white px-3 dark:border-zinc-800 dark:bg-zinc-900"
+      // V4.1 UI-BOM: bỏ `sticky top-0 z-20`. Tab bar nằm NGOÀI vùng cuộn của
+      // lưới (flex-col shrink-0) nên không cần sticky; khi trang bị cuộn cả
+      // tài liệu, sticky z-20 khiến thanh tab "trôi" đè lên các dòng lưới.
+      className="flex h-11 shrink-0 items-center gap-0.5 overflow-x-auto border-b border-zinc-200 bg-white px-3 dark:border-zinc-800 dark:bg-zinc-900"
     >
       {TOP_TAB_KEYS.map((key, idx) => {
         const isActive = activeTab === key;

@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { buildBreadcrumbItems } from "@/lib/breadcrumb-items";
 
 /**
  * V2 Breadcrumb — Linear-inspired.
@@ -111,34 +112,16 @@ function collapseItems(
 /**
  * useBreadcrumb — auto-generate từ pathname.
  * VD: `/items/ABC-001` → [{label:"Vật tư",href:"/items"},{label:"ABC-001"}].
+ * V4.1 UI-BOM: logic tách sang `@/lib/breadcrumb-items` (thuần, có test).
+ *
+ * @param segmentLabels nhãn ghi đè theo segment (vd UUID BOM → mã BOM).
  */
-const SEGMENT_LABELS: Record<string, string> = {
-  "": "Trang chủ",
-  items: "Vật tư",
-  suppliers: "Nhà cung cấp",
-  import: "Nhập Excel",
-  new: "Tạo mới",
-  pwa: "PWA",
-  receive: "Nhận hàng",
-  dashboard: "Tổng quan",
-  admin: "Quản trị",
-};
-
-export function useBreadcrumb(pathname: string): BreadcrumbItemData[] {
-  return React.useMemo(() => {
-    const segments = pathname.split("/").filter(Boolean);
-    const items: BreadcrumbItemData[] = [{ label: "Trang chủ", href: "/" }];
-    let acc = "";
-    for (const seg of segments) {
-      acc += `/${seg}`;
-      const label = SEGMENT_LABELS[seg] ?? decodeURIComponent(seg);
-      items.push({ label, href: acc });
-    }
-    // Item cuối: bỏ href (trang hiện tại).
-    if (items.length > 0) {
-      const lastItem = items[items.length - 1]!;
-      items[items.length - 1] = { label: lastItem.label };
-    }
-    return items;
-  }, [pathname]);
+export function useBreadcrumb(
+  pathname: string,
+  segmentLabels?: Record<string, string | undefined>,
+): BreadcrumbItemData[] {
+  return React.useMemo(
+    () => buildBreadcrumbItems(pathname, segmentLabels),
+    [pathname, segmentLabels],
+  );
 }
