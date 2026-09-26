@@ -19,6 +19,7 @@ import {
   usePurchaseRequestDetail,
 } from "@/hooks/usePurchaseRequests";
 import { cn } from "@/lib/utils";
+import { prLineToPoLine } from "@/lib/procurement-policy";
 import {
   SupplierPicker,
   type SupplierPickerValue,
@@ -120,8 +121,11 @@ export function PoCreateWizard() {
         );
       }
       // V3.7.72 — filter lines có itemId (bỏ free-text lines chưa link master)
+      // V4.1 TM-10 — dòng bị gạch (SL duyệt = 0) không đưa vào PO; SL = SL
+      // duyệt nếu có, đơn giá = đơn giá dự kiến trên phiếu (trước đây luôn 0).
       const next: PoLineDraft[] = prLines
         .filter((l): l is typeof l & { itemId: string } => !!l.itemId)
+        .filter((l) => prLineToPoLine(l) !== null)
         .map((l) => ({
         localId: crypto.randomUUID(),
         item: {
@@ -130,11 +134,14 @@ export function PoCreateWizard() {
           name: l.name ?? "",
           uom: undefined,
         },
-        qty: String(l.qty),
-        unitPrice: "0",
+        qty: String(prLineToPoLine(l)!.orderedQty),
+        unitPrice: String(prLineToPoLine(l)!.unitPrice),
         taxRate: "8",
         neededBy: l.neededBy ?? null,
         notes: l.notes ?? null,
+        snapshotLineId: l.snapshotLineId ?? null,
+        // cột purchase_order_line.spec là varchar(255)
+        spec: l.specification ? l.specification.slice(0, 255) : null,
       }));
       setState((s) => ({ ...s, lines: next }));
     }
@@ -178,9 +185,10 @@ export function PoCreateWizard() {
         orderedQty: Number(l.qty) || 0,
         unitPrice: Number(l.unitPrice) || 0,
         taxRate: Number(l.taxRate) || 0,
-        snapshotLineId: null,
+        snapshotLineId: l.snapshotLineId ?? null,
         expectedEta: l.neededBy ? new Date(l.neededBy) : null,
         notes: l.notes ?? null,
+        spec: l.spec ?? null,
       })),
     };
 

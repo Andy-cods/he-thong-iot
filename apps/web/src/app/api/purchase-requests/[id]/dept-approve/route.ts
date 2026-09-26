@@ -6,6 +6,7 @@ import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { notifyPRDeptApproved } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
+import { isSelfApprovalBlocked } from "@/lib/procurement-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,6 +53,21 @@ export async function POST(
       "INVALID_STATE",
       `Phiếu đang ở bước ${before.approvalStep} — chỉ duyệt được khi SUBMITTED.`,
       409,
+    );
+  }
+
+  // V4.1 D8 — người lập phiếu không tự duyệt phiếu của mình (trừ admin).
+  if (
+    isSelfApprovalBlocked({
+      creatorId: before.requestedBy,
+      actorId: guard.session.userId,
+      actorRoles: guard.session.roles,
+    })
+  ) {
+    return jsonError(
+      "SELF_APPROVAL",
+      "Bạn là người lập phiếu này — cần người khác duyệt.",
+      403,
     );
   }
 

@@ -270,8 +270,13 @@ export default function NewDnvtPage() {
             </div>
             <div className="space-y-1 text-right text-[12px]">
               <div>
-                <span className="font-bold">Số phiếu: </span>
-                <span className="rounded bg-[#005D9F] px-2 py-0.5 font-mono text-[12px] text-white">
+                {/* V4.1 TM-21 — số hiện ở đây chỉ là DỰ KIẾN; số thật cấp khi gửi
+                    phiếu (người khác gửi trước sẽ lấy số này). */}
+                <span className="font-bold">Số phiếu (dự kiến): </span>
+                <span
+                  className="rounded bg-[#005D9F] px-2 py-0.5 font-mono text-[12px] text-white"
+                  title="Số chính thức được cấp khi gửi phiếu"
+                >
                   {paperFormNoPreview}
                 </span>
               </div>

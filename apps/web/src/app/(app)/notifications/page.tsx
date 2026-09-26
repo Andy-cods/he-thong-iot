@@ -60,6 +60,10 @@ const EVENT_ICON: Record<string, React.ElementType> = {
   MATERIAL_REQUEST_DELIVERED: CheckCheck,
   // V4.1 Đợt 1b — giao một phần qua phiếu xuất kho.
   MATERIAL_REQUEST_ISSUED: Package,
+  // V4.1 Đợt 2 — Thu mua.
+  PO_APPROVAL_REQUESTED: Clock,
+  PO_CANCELLED: XCircle,
+  PO_INVOICE_DRAFT: FileText,
 };
 
 const EVENT_LABEL: Record<string, string> = {
@@ -76,6 +80,9 @@ const EVENT_LABEL: Record<string, string> = {
   MATERIAL_REQUEST_READY: "Đã chuẩn bị xong",
   MATERIAL_REQUEST_DELIVERED: "Đã giao đủ",
   MATERIAL_REQUEST_ISSUED: "Đã giao một phần",
+  PO_APPROVAL_REQUESTED: "PO chờ duyệt",
+  PO_CANCELLED: "PO bị huỷ",
+  PO_INVOICE_DRAFT: "HĐ mua chờ xác nhận",
 };
 
 const SEVERITY_CLS: Record<string, string> = {

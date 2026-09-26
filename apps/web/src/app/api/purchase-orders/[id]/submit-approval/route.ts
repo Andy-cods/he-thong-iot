@@ -1,6 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { logger } from "@/lib/logger";
-import { submitPOForApproval } from "@/server/repos/purchaseOrders";
+import {
+  getPOLines,
+  submitPOForApproval,
+} from "@/server/repos/purchaseOrders";
+import { findUnpricedPoLines } from "@/lib/procurement-policy";
+import { notifyPOApprovalRequested } from "@/server/services/notifications";
 import { extractRequestMeta, jsonError } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { forbidden, hasRole, requireCan } from "@/server/session";
@@ -23,9 +28,29 @@ export async function POST(
   if ("response" in guard) return guard.response;
   if (!hasRole(guard.session, "planner", "purchaser")) return forbidden();
 
+  // V4.1 TM-10 — PO phải có đủ đơn giá trước khi gửi duyệt.
+  const unpriced = findUnpricedPoLines(await getPOLines(params.id));
+  if (unpriced.length > 0) {
+    return jsonError(
+      "UNPRICED_LINES",
+      `PO còn ${unpriced.length} dòng chưa có đơn giá (dòng ${unpriced.join(", ")}) — nhập giá trước khi gửi duyệt.`,
+      409,
+      { lineNos: unpriced },
+    );
+  }
+
   try {
     const row = await submitPOForApproval(params.id, guard.session.userId);
     if (!row) return jsonError("NOT_FOUND", "Không tìm thấy PO.", 404);
+
+    // V4.1 TM-07 — báo Giám đốc (người duyệt PO duy nhất) có PO chờ duyệt.
+    void notifyPOApprovalRequested({
+      poId: row.id,
+      poNo: row.poNo,
+      totalAmount: row.totalAmount,
+      actorUserId: guard.session.userId,
+      actorUsername: guard.session.username,
+    });
 
     const meta = extractRequestMeta(req);
     await writeAudit({

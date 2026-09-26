@@ -34,12 +34,14 @@ function fmtDate(d: string | Date | null | undefined): string {
   return `${dd}/${mm}/${yyyy}`;
 }
 
-function fmtVND(n: number | string | null | undefined): string {
-  if (n === null || n === undefined || n === "") return "0";
+/**
+ * V4.1 TM-20 — ghi tiền dạng SỐ (trước đây chuỗi "1.234.567" → kế toán không
+ * SUM/lọc được). Định dạng hàng nghìn bằng numFmt của Excel.
+ */
+function money(n: number | string | null | undefined): number {
+  if (n === null || n === undefined || n === "") return 0;
   const num = typeof n === "string" ? Number(n) : n;
-  if (!Number.isFinite(num)) return "0";
-  // VN locale: dot thousand separator, no decimal.
-  return Math.round(num).toLocaleString("vi-VN");
+  return Number.isFinite(num) ? Math.round(num) : 0;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -90,7 +92,7 @@ export async function GET(req: NextRequest) {
       { header: "Ngày dự kiến nhận", key: "expectedEta", width: 18 },
       { header: "Ngày thực tế nhận", key: "actualDelivery", width: 18 },
       { header: "Trạng thái", key: "status", width: 14 },
-      { header: "Mã PR liên kết", key: "prId", width: 20 },
+      { header: "Số phiếu đề xuất (PR)", key: "prCode", width: 22 },
     ];
 
     sheet.getRow(1).font = { bold: true };
@@ -120,15 +122,15 @@ export async function GET(req: NextRequest) {
         itemName: r.itemName ?? "",
         uom: r.itemUom ?? "",
         qty: qty,
-        unitPrice: fmtVND(price),
+        unitPrice: money(price),
         taxRate: tax,
-        preTax: fmtVND(preTax),
-        vat: fmtVND(vat),
-        lineTotal: fmtVND(lineTotal),
+        preTax: money(preTax),
+        vat: money(vat),
+        lineTotal: money(lineTotal),
         expectedEta: fmtDate(r.expectedEta ?? null),
         actualDelivery: fmtDate(r.actualDeliveryDate ?? null),
         status: STATUS_LABEL[r.status] ?? r.status,
-        prId: r.prId ?? "",
+        prCode: r.prCode ?? "",
       });
     }
 
@@ -137,6 +139,9 @@ export async function GET(req: NextRequest) {
     for (const col of numCols) {
       const c = sheet.getColumn(col);
       c.alignment = { horizontal: "right" };
+    }
+    for (const col of ["unitPrice", "preTax", "vat", "lineTotal"]) {
+      sheet.getColumn(col).numFmt = "#,##0";
     }
 
     const buffer = await workbook.xlsx.writeBuffer();

@@ -5,6 +5,7 @@ import { extractRequestMeta, jsonError } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { canViewAllPRs } from "@/server/services/prAccess";
 import { requireCan } from "@/server/session";
+import { notifyPRSubmitted } from "@/server/services/notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -58,6 +59,16 @@ export async function POST(
       },
       notes: `Gửi phiếu YCVT — Số ${row.paperFormNo}`,
       ...meta,
+    });
+
+    // V4.1 TM-06 — trước đây gửi phiếu từ DRAFT (VD phiếu tạo từ thiếu hụt)
+    // không báo ai → Kho không biết có phiếu chờ duyệt bước 2.
+    void notifyPRSubmitted({
+      prId: row.id,
+      prNo: row.paperFormNo ?? row.code,
+      title: row.title ?? null,
+      actorUserId: guard.session.userId,
+      actorUsername: guard.session.username,
     });
 
     return NextResponse.json({ data: row });

@@ -19,8 +19,8 @@ import type { DashboardOverviewV2Payload } from "@/app/api/dashboard/overview-v2
  * Color semantics gắn cứng theo metric (KHÔNG đổi theo % giá trị):
  *   - Linh kiện sẵn sàng → emerald
  *   - Lắp ráp → blue
- *   - Đặt mua → amber
- *   - Nhận hàng → indigo
+ *   - Đặt mua → amber (V4.1: PO đã gửi NCC / PO không huỷ)
+ *   - Nhận hàng → indigo (V4.1: dòng PO nhận đạt đủ / dòng PO đã gửi)
  *   - Sản xuất nội bộ → rose
  *   - Yêu cầu mua (PR) → violet
  */
@@ -58,12 +58,14 @@ export function ProgressBarStack({
       )}
       aria-label="Tổng quan các bộ phận"
     >
+      {/* V4.1 Đợt 2 — thẻ này đếm DÒNG VẬT TƯ snapshot sẵn sàng, không phải
+          "đơn hàng đang sản xuất" (nhãn cũ sai nghĩa). */}
       <BigStatCard
-        label="Đơn hàng đang sản xuất"
-        icon={Factory}
+        label="Linh kiện sẵn sàng"
+        icon={Boxes}
         tone="emerald"
-        moduleLabel="Gia công"
-        href={DRILLDOWN_URLS.assembly}
+        moduleLabel="Linh kiện"
+        href={DRILLDOWN_URLS.componentsAvailable}
         value={p?.componentsAvailable.percent ?? 0}
         valueSuffix="%"
         percent={p?.componentsAvailable.percent ?? 0}
@@ -71,7 +73,7 @@ export function ProgressBarStack({
         denominator={p?.componentsAvailable.denominator ?? 0}
         subText={
           p && p.componentsAvailable.denominator > 0
-            ? `${formatNum(p.componentsAvailable.numerator)} / ${formatNum(p.componentsAvailable.denominator)} đơn hàng`
+            ? `${formatNum(p.componentsAvailable.numerator)} / ${formatNum(p.componentsAvailable.denominator)} dòng vật tư`
             : undefined
         }
         loading={loading}
@@ -107,7 +109,7 @@ export function ProgressBarStack({
         denominator={p?.purchasing.denominator ?? 0}
         subText={
           p && p.purchasing.denominator > 0
-            ? `${formatNum(p.purchasing.numerator)} / ${formatNum(p.purchasing.denominator)} đơn vị`
+            ? `${formatNum(p.purchasing.numerator)} / ${formatNum(p.purchasing.denominator)} PO đã gửi NCC`
             : undefined
         }
         loading={loading}
@@ -125,7 +127,7 @@ export function ProgressBarStack({
         denominator={p?.receiving.denominator ?? 0}
         subText={
           p && p.receiving.denominator > 0
-            ? `${formatNum(p.receiving.numerator)} / ${formatNum(p.receiving.denominator)} đơn vị`
+            ? `${formatNum(p.receiving.numerator)} / ${formatNum(p.receiving.denominator)} dòng PO đã nhận đủ`
             : undefined
         }
         loading={loading}

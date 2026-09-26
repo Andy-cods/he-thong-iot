@@ -112,6 +112,7 @@ function buildListUrl(f: POFilter): string {
   if (f.bomTemplateId) p.set("bomTemplateId", f.bomTemplateId);
   if (f.from) p.set("from", f.from);
   if (f.to) p.set("to", f.to);
+  if (f.overdue) p.set("overdue", "1");
   if (f.page) p.set("page", String(f.page));
   if (f.pageSize) p.set("pageSize", String(f.pageSize));
   for (const s of f.status ?? []) p.append("status", s);
@@ -155,6 +156,7 @@ export function usePurchaseOrdersStats(filter: Omit<POFilter, "page" | "pageSize
       if (filter.bomTemplateId) p.set("bomTemplateId", filter.bomTemplateId);
       if (filter.from) p.set("from", filter.from);
       if (filter.to) p.set("to", filter.to);
+      if (filter.overdue) p.set("overdue", "1");
       for (const s of filter.status ?? []) p.append("status", s);
       return request<POStatsResponse>(`/api/purchase-orders/stats?${p.toString()}`);
     },
@@ -312,6 +314,26 @@ export function useRejectPO(id: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.procurement.orders.all });
       qc.invalidateQueries({ queryKey: qk.procurement.orders.detail(id) });
+    },
+  });
+}
+
+/**
+ * V4.1 TM-17 — Huỷ PO chưa nhận hàng (`cancel`) / Đóng PO đã nhận một phần
+ * hoặc đủ (`close`). Cả hai bắt buộc lý do.
+ */
+export function usePOTransition(id: string, action: "cancel" | "close") {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { reason: string }) =>
+      request<{ data: PORow }>(`/api/purchase-orders/${id}/${action}`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.procurement.orders.all });
+      qc.invalidateQueries({ queryKey: qk.procurement.orders.detail(id) });
+      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
     },
   });
 }

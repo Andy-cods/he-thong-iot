@@ -14,6 +14,9 @@ export interface PoLineDraft {
   taxRate: string;
   neededBy?: string | null;
   notes?: string | null;
+  /** V4.1 TM-10 — mang từ dòng PR (liên kết snapshot + quy cách DNVT). */
+  snapshotLineId?: string | null;
+  spec?: string | null;
 }
 
 export interface PoLineEditorProps {

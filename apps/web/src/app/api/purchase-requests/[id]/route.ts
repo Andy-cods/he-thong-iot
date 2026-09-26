@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prUpdateSchema } from "@iot/shared";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { purchaseRequest, userAccount } from "@iot/db/schema";
 import { logger } from "@/lib/logger";
 import {
@@ -87,6 +87,12 @@ export async function GET(
 }
 
 const EDITABLE_STATUSES = ["DRAFT", "SUBMITTED"] as const;
+/**
+ * V4.1 TM-11 — status vẫn `SUBMITTED` sau khi Kho duyệt bước 2 (bước nằm ở
+ * `approval_step`) → trước đây sửa được phiếu ĐÃ được Kho duyệt. Nay chỉ sửa
+ * khi bước là DRAFT/SUBMITTED (chưa ai duyệt).
+ */
+const EDITABLE_STEPS = ["DRAFT", "SUBMITTED"] as const;
 
 export async function PATCH(
   req: NextRequest,
@@ -107,6 +113,18 @@ export async function PATCH(
     );
   }
 
+  if (
+    !(EDITABLE_STEPS as readonly string[]).includes(
+      (before.approvalStep as string | null) ?? "DRAFT",
+    )
+  ) {
+    return jsonError(
+      "NOT_EDITABLE",
+      "Phiếu đã được duyệt một phần — không sửa được. Hãy từ chối phiếu để người lập làm lại.",
+      409,
+    );
+  }
+
   const body = await parseJson(req, prUpdateSchema);
   if ("response" in body) return body.response;
 
@@ -123,16 +141,55 @@ export async function PATCH(
     if (body.data.requestReason !== undefined)
       headerPatch.requestReason = body.data.requestReason;
 
-    const [after] = await db
-      .update(purchaseRequest)
-      .set(headerPatch)
-      .where(
-        and(
-          eq(purchaseRequest.id, params.id),
-          inArray(purchaseRequest.status, [...EDITABLE_STATUSES]),
-        ),
-      )
-      .returning();
+    // V4.1 TM-12 — header + dòng trong CÙNG transaction (trước đây 2 bước rời,
+    // lỗi giữa chừng để phiếu nửa sửa), guard bước duyệt ngay trong UPDATE.
+    const after = await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(purchaseRequest)
+        .set(headerPatch)
+        .where(
+          and(
+            eq(purchaseRequest.id, params.id),
+            inArray(purchaseRequest.status, [...EDITABLE_STATUSES]),
+            sql`COALESCE(${purchaseRequest.approvalStep}::text, 'DRAFT') IN ('DRAFT','SUBMITTED')`,
+          ),
+        )
+        .returning();
+      if (!updated) return null;
+
+      // V3.4 — Replace lines if provided
+      if (body.data.lines && body.data.lines.length > 0) {
+        await replacePRLines(
+          params.id,
+          body.data.lines.map((l) => ({
+            itemId: l.itemId ?? null,
+            // V3.7.72 — free-text fallback
+            itemName: l.itemName ?? null,
+            itemSku: l.itemSku ?? null,
+            qty: l.qty,
+            preferredSupplierId: l.preferredSupplierId ?? null,
+            snapshotLineId: l.snapshotLineId ?? null,
+            neededBy: l.neededBy ? new Date(l.neededBy) : null,
+            notes: l.notes ?? null,
+            // V3.7.55 — MRF GTAM line fields
+            specification: l.specification ?? null,
+            uom: l.uom ?? null,
+            priority: l.priority ?? null,
+            category: l.category ?? null,
+            estimatedUnitPrice: l.estimatedUnitPrice ?? null,
+            referenceCode: l.referenceCode ?? null,
+            // V3.7.69 YCVT
+            onHandSnapshot: l.onHandSnapshot ?? null,
+            // V4.1 TM-12 — trước đây bỏ mất cột "Tham khảo" / "Ngày giao" / SL duyệt.
+            referenceNote: l.referenceNote ?? null,
+            deliveryDate: l.deliveryDate ? new Date(l.deliveryDate) : null,
+            approvedQty: l.approvedQty ?? null,
+          })),
+          tx,
+        );
+      }
+      return updated;
+    });
 
     if (!after)
       return jsonError(
@@ -140,33 +197,6 @@ export async function PATCH(
         "PR đã chuyển trạng thái khi đang sửa.",
         409,
       );
-
-    // V3.4 — Replace lines if provided
-    if (body.data.lines && body.data.lines.length > 0) {
-      await replacePRLines(
-        params.id,
-        body.data.lines.map((l) => ({
-          itemId: l.itemId ?? null,
-          // V3.7.72 — free-text fallback
-          itemName: l.itemName ?? null,
-          itemSku: l.itemSku ?? null,
-          qty: l.qty,
-          preferredSupplierId: l.preferredSupplierId ?? null,
-          snapshotLineId: l.snapshotLineId ?? null,
-          neededBy: l.neededBy ? new Date(l.neededBy) : null,
-          notes: l.notes ?? null,
-          // V3.7.55 — MRF GTAM line fields
-          specification: l.specification ?? null,
-          uom: l.uom ?? null,
-          priority: l.priority ?? null,
-          category: l.category ?? null,
-          estimatedUnitPrice: l.estimatedUnitPrice ?? null,
-          referenceCode: l.referenceCode ?? null,
-          // V3.7.69 YCVT
-          onHandSnapshot: l.onHandSnapshot ?? null,
-        })),
-      );
-    }
 
     const meta = extractRequestMeta(req);
     const diff = diffObjects(

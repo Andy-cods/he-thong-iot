@@ -7,6 +7,7 @@ import { writeAudit } from "@/server/services/audit";
 import {
   notifyPRApproved,
   notifyPRApprovedToAccounting,
+  notifyPRApprovedToPurchasing,
 } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 
@@ -81,6 +82,14 @@ export async function POST(
       actorUserId: guard.session.userId,
       actorUsername: guard.session.username,
       creatorUserId: before.requestedBy,
+    });
+    // V4.1 TM-05 — báo Thu mua tạo PO.
+    void notifyPRApprovedToPurchasing({
+      prId: params.id,
+      prNo: before.paperFormNo ?? before.code,
+      title: before.title ?? null,
+      actorUserId: guard.session.userId,
+      actorUsername: guard.session.username,
     });
     void notifyPRApprovedToAccounting({
       prId: params.id,

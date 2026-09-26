@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prCreateFromShortageSchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
-import { createPRFromShortage } from "@/server/repos/purchaseRequests";
+import { createPRFromShortage, submitPR } from "@/server/repos/purchaseRequests";
+import { notifyPRSubmitted } from "@/server/services/notifications";
 import {
   extractRequestMeta,
   jsonError,
@@ -28,9 +29,21 @@ export async function POST(req: NextRequest) {
   if ("response" in body) return body.response;
 
   try {
-    const row = await createPRFromShortage(body.data.itemIds, guard.session.userId, {
+    const created = await createPRFromShortage(body.data.itemIds, guard.session.userId, {
       title: body.data.title ?? null,
     });
+    // V4.1 TM-06 — tự gửi phiếu như POST /api/purchase-requests (trước đây kẹt
+    // DRAFT mãi vì không có nút/hook gửi) + báo Kho duyệt bước 2.
+    const row = (await submitPR(created.id)) ?? created;
+    if (row.status === "SUBMITTED") {
+      void notifyPRSubmitted({
+        prId: row.id,
+        prNo: row.paperFormNo ?? row.code,
+        title: row.title ?? null,
+        actorUserId: guard.session.userId,
+        actorUsername: guard.session.username,
+      });
+    }
 
     const meta = extractRequestMeta(req);
     await writeAudit({

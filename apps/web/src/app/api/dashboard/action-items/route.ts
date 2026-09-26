@@ -30,7 +30,7 @@ export const dynamic = "force-dynamic";
  * }
  */
 
-const CACHE_KEY = "dashboard:action-items:v1";
+const CACHE_KEY = "dashboard:action-items:v2";
 const CACHE_TTL_SECONDS = 30;
 
 export interface DashboardActionItem {
@@ -49,7 +49,9 @@ async function buildPayload(): Promise<DashboardActionItemsPayload> {
   const [prRows, poRows, woRows] = await Promise.all([
     db
       .select({
-        count: sql<number>`COUNT(*) FILTER (WHERE ${purchaseRequest.status} = 'DRAFT')::int`,
+        // V4.1 Đợt 2 — "PR chờ duyệt" = đang ở bước 1-2 (phiếu tự gửi khi tạo
+        // nên DRAFT gần như luôn 0 → thẻ báo sai "không có việc").
+        count: sql<number>`COUNT(*) FILTER (WHERE ${purchaseRequest.status} = 'SUBMITTED')::int`,
       })
       .from(purchaseRequest),
     db
@@ -57,7 +59,7 @@ async function buildPayload(): Promise<DashboardActionItemsPayload> {
         count: sql<number>`COUNT(*) FILTER (
           WHERE ${purchaseOrder.expectedEta} IS NOT NULL
             AND ${purchaseOrder.expectedEta} < CURRENT_DATE
-            AND ${purchaseOrder.status} NOT IN ('CLOSED','RECEIVED','CANCELLED')
+            AND ${purchaseOrder.status} IN ('SENT','PARTIAL')
         )::int`,
       })
       .from(purchaseOrder),
@@ -76,11 +78,12 @@ async function buildPayload(): Promise<DashboardActionItemsPayload> {
     cachedAt: new Date().toISOString(),
     prDraft: {
       count: prRows[0]?.count ?? 0,
-      href: "/procurement/purchase-requests?status=DRAFT",
+      href: "/procurement/purchase-requests?status=SUBMITTED",
     },
     poOverdue: {
       count: poRows[0]?.count ?? 0,
-      href: "/procurement/purchase-orders?overdue=true",
+      // V4.1 Đợt 2 — link cũ redirect sang /sales?tab=po làm MẤT bộ lọc.
+      href: "/sales?tab=po&overdue=1",
     },
     woOverdue: {
       count: woRows[0]?.count ?? 0,

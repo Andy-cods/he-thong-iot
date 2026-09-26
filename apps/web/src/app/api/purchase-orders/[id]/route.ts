@@ -17,6 +17,7 @@ import { writeAudit, diffObjects } from "@/server/services/audit";
 import { notifyPOPriceUpdated } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 import { db } from "@/lib/db";
+import { canEditPoPrices, detectPoPriceChanges } from "@/lib/procurement-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -146,6 +147,23 @@ export async function PATCH(
   const beforeLinesForPriceDiff =
     isDraft && body.data.lines ? await getPOLines(params.id) : null;
 
+  // V4.1 D8 (TM-19) — chỉ Thu mua / Giám đốc được đổi đơn giá hoặc VAT
+  // (Kho + vai trò khác có `update:po` chỉ sửa SL/ETA/ghi chú).
+  if (
+    beforeLinesForPriceDiff &&
+    body.data.lines &&
+    !canEditPoPrices(guard.session.roles)
+  ) {
+    const diff = detectPoPriceChanges(beforeLinesForPriceDiff, body.data.lines);
+    if (diff.changed > 0 || diff.added > 0) {
+      return jsonError(
+        "PRICE_EDIT_FORBIDDEN",
+        "Chỉ Bộ phận Thu mua hoặc Giám đốc được sửa đơn giá / VAT của PO.",
+        403,
+      );
+    }
+  }
+
   try {
     const result = await updatePOWithLines(
       params.id,
@@ -160,6 +178,8 @@ export async function PATCH(
           snapshotLineId: l.snapshotLineId ?? null,
           expectedEta: l.expectedEta ? new Date(l.expectedEta) : null,
           notes: l.notes ?? null,
+          // V4.1 TM-03 — giữ quy cách DNVT.
+          spec: l.spec ?? null,
         }))
         : undefined,
     );

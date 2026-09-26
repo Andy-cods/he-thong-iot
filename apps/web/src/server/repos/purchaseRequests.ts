@@ -13,6 +13,7 @@ import type {
   PurchaseRequestStatus,
 } from "@iot/db/schema";
 import { db } from "@/lib/db";
+import { vnToday } from "../../lib/procurement-policy";
 import { deriveDisplayLabel } from "@/lib/pr-display-label";
 import { currentYymm, genDocNoBatch } from "./_docNumber";
 
@@ -556,12 +557,14 @@ export async function createPRFromShortage(
 
   const lines: CreatePRLineInput[] = rows.map((r) => ({
     itemId: r.item_id,
-    qty: Number.parseFloat(r.total_short) * 1.1, // 10% buffer
+    // V4.1 TM-23 — làm tròn 4 số lẻ (float `x*1.1` ra 10.000000000000002).
+    qty: Math.round(Number.parseFloat(r.total_short) * 1.1 * 10_000) / 10_000, // 10% buffer
     snapshotLineId: r.sample_line_id,
   }));
 
   return createPR({
-    title: options.title ?? `Shortage auto-PR ${new Date().toISOString().slice(0, 10)}`,
+    // V4.1 TM-24 — ngày theo giờ VN (0h-7h sáng không lùi 1 ngày).
+    title: options.title ?? `Đề xuất mua do thiếu vật tư ${vnToday()}`,
     source: "SHORTAGE",
     linkedOrderId: rows[0]?.linked_order_id ?? null,
     requestedBy: userId,
@@ -596,14 +599,20 @@ export interface ReplacePRLineInput {
   // V3.10 DNVT
   referenceNote?: string | null;
   deliveryDate?: Date | null;
+  // V4.1 TM-12 — SL duyệt (Kho ghi ở bước 2).
+  approvedQty?: number | null;
 }
+
+type PrTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export async function replacePRLines(
   prId: string,
   lines: ReplacePRLineInput[],
+  /** V4.1 TM-12 — chạy trong transaction của caller (sửa header + dòng cùng lúc). */
+  outerTx?: PrTx,
 ): Promise<void> {
   if (lines.length === 0) throw new Error("PR_MUST_HAVE_LINES");
-  await db.transaction(async (tx) => {
+  const run = async (tx: PrTx) => {
     await tx
       .delete(purchaseRequestLine)
       .where(eq(purchaseRequestLine.prId, prId));
@@ -654,9 +663,13 @@ export async function replacePRLines(
           : null,
         // V4.0 Wave 3 Phase B
         lineRefCode: lineRefCodes[idx],
+        // V4.1 TM-12 — không làm mất SL duyệt khi sửa phiếu.
+        approvedQty: l.approvedQty != null ? String(l.approvedQty) : null,
       })),
     );
-  });
+  };
+  if (outerTx) await run(outerTx);
+  else await db.transaction(run);
 }
 
 /**

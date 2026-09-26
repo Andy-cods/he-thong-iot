@@ -75,7 +75,12 @@ export type NotificationEventType =
   // V4.1 Đợt 1a — QC nhập kho: hàng nhận chờ QC (→ Tổ QC) + QC không đạt
   // (→ Kho + Thu mua). Cột event_type là varchar(64) → không cần migration.
   | "QC_RECEIPT_PENDING"
-  | "QC_RECEIPT_FAILED";
+  | "QC_RECEIPT_FAILED"
+  // V4.1 Đợt 2 — Thu mua: PO chờ Giám đốc duyệt (TM-07), PO bị huỷ (TM-17),
+  // HĐ mua nháp tạo từ PO chờ Kế toán xác nhận (D7).
+  | "PO_APPROVAL_REQUESTED"
+  | "PO_CANCELLED"
+  | "PO_INVOICE_DRAFT";
 
 export interface EmitNotificationInput {
   /** User cụ thể (đếm vào unread badge). Bỏ qua nếu chỉ broadcast role. */
@@ -113,6 +118,8 @@ const EMAIL_EVENTS: ReadonlySet<NotificationEventType> = new Set([
   "FIN_RECEIVABLE_OVERDUE",
   // V4.0 Wave 3 Phase D — phiếu giao hàng chờ Giám đốc duyệt = "cần hành động".
   "DELIVERY_NOTE_CREATED",
+  // V4.1 TM-07 — PO chờ Giám đốc duyệt = "cần hành động".
+  "PO_APPROVAL_REQUESTED",
 ] satisfies NotificationEventType[]);
 
 /**
@@ -340,21 +347,8 @@ export async function notifyPRSubmitted(ctx: PRNotifyContext) {
     link: `/procurement/purchase-requests/${ctx.prId}`,
     severity: "warning",
   });
-  // V3.16 (fix badge) — trước đây broadcast recipientRole (không đếm badge,
-  // xác nhận qua DB: 29 dòng PR_SUBMITTED role=purchaser không ai bấm vào).
-  // Đổi sang fan-out direct để đếm badge + read-state riêng từng người.
-  await emitToUsersWithRole("purchaser", {
-    actorUserId: ctx.actorUserId,
-    actorUsername: ctx.actorUsername,
-    eventType: "PR_SUBMITTED",
-    entityType: "purchase_request",
-    entityId: ctx.prId,
-    entityCode: ctx.prNo,
-    title: `Yêu cầu mua mới: ${ctx.prNo}`,
-    message: ctx.title ? `"${ctx.title}" — chờ duyệt` : "Chờ Bộ phận Thu mua duyệt",
-    link: `/procurement/purchase-requests/${ctx.prId}`,
-    severity: "info",
-  });
+  // V4.1 TM-22 — BỎ fan-out Thu mua ở bước 1: Thu mua chỉ hành động ở bước 3
+  // (đã nhận PR_DEPT_APPROVED sau khi Kho duyệt) → bước 1 chỉ là tin nhiễu.
   // V3.9 — fan-out DIRECT tới mọi admin (đếm badge) để duyệt nhanh.
   await emitToUsersWithRole("admin", {
     actorUserId: ctx.actorUserId,
@@ -387,6 +381,27 @@ export async function notifyPRApproved(ctx: PRNotifyContext) {
     message: "Bộ phận Thu mua đang tiến hành tạo PO.",
     link: `/procurement/purchase-requests/${ctx.prId}`,
     severity: "success",
+  });
+}
+
+/**
+ * V4.1 TM-05 — Duyệt cuối xong → Bộ phận Thu mua phải tạo PO. Trước đây chỉ
+ * báo người lập + Kế toán nên Thu mua không biết phiếu đã sẵn sàng.
+ */
+export async function notifyPRApprovedToPurchasing(ctx: PRNotifyContext) {
+  await emitToUsersWithRole("purchaser", {
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "PR_APPROVED",
+    entityType: "purchase_request",
+    entityId: ctx.prId,
+    entityCode: ctx.prNo,
+    title: `Cần tạo PO: ${ctx.prNo} đã duyệt cuối`,
+    message: ctx.title
+      ? `"${ctx.title}" — mở phiếu và bấm “Tạo PO”.`
+      : "Mở phiếu và bấm “Tạo PO”.",
+    link: `/procurement/purchase-requests/${ctx.prId}`,
+    severity: "info",
   });
 }
 
@@ -666,6 +681,81 @@ export async function notifyPOPriceUpdated(ctx: POPriceUpdateContext) {
     message: "Kiểm tra lại giá trị khi đối chiếu nhận hàng.",
     link: `/procurement/purchase-orders/${ctx.poId}`,
     severity: "warning",
+  });
+}
+
+/**
+ * V4.1 TM-07 — PO gửi duyệt (hoặc tạo kèm gửi duyệt) → Giám đốc (admin, người
+ * duyệt PO duy nhất) nhận thông báo + email. Trước đây không ai được báo.
+ */
+export async function notifyPOApprovalRequested(ctx: {
+  poId: string;
+  poNo: string;
+  totalAmount?: string | number | null;
+  actorUserId: string;
+  actorUsername: string;
+}) {
+  const total = Number(ctx.totalAmount ?? 0);
+  await emitToUsersWithRole("admin", {
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "PO_APPROVAL_REQUESTED",
+    entityType: "purchase_order",
+    entityId: ctx.poId,
+    entityCode: ctx.poNo,
+    title: `PO chờ duyệt: ${ctx.poNo}`,
+    message:
+      total > 0
+        ? `Giá trị ${Math.round(total).toLocaleString("vi-VN")} ₫ — mở PO để duyệt/từ chối.`
+        : "Mở PO để duyệt/từ chối.",
+    link: `/procurement/purchase-orders/${ctx.poId}`,
+    severity: "warning",
+  });
+}
+
+/** V4.1 TM-17 — PO đã gửi NCC bị huỷ → Kho thôi chờ hàng. */
+export async function notifyPOCancelled(ctx: {
+  poId: string;
+  poNo: string;
+  reason: string;
+  actorUserId: string;
+  actorUsername: string;
+}) {
+  await emitToUsersWithRole("warehouse", {
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "PO_CANCELLED",
+    entityType: "purchase_order",
+    entityId: ctx.poId,
+    entityCode: ctx.poNo,
+    title: `${ctx.poNo} đã bị huỷ — không nhận hàng`,
+    message: `Lý do: ${ctx.reason}`,
+    link: `/procurement/purchase-orders/${ctx.poId}`,
+    severity: "warning",
+  });
+}
+
+/** V4.1 D7 — HĐ mua NHÁP tạo từ PO → Kế toán kiểm tra số HĐ NCC + xác nhận ghi nợ. */
+export async function notifyPoInvoiceDraftCreated(ctx: {
+  poId: string;
+  poNo: string;
+  invoiceId: string;
+  invoiceNo: string;
+  totalAmount: string | number;
+  actorUserId: string;
+  actorUsername: string;
+}) {
+  await emitToUsersWithRole("accountant", {
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    eventType: "PO_INVOICE_DRAFT",
+    entityType: "fin_invoice",
+    entityId: ctx.invoiceId,
+    entityCode: ctx.invoiceNo,
+    title: `HĐ mua nháp từ ${ctx.poNo} chờ xác nhận`,
+    message: `Tổng ${Math.round(Number(ctx.totalAmount) || 0).toLocaleString("vi-VN")} ₫ — nhập số HĐ của NCC rồi “Xác nhận ghi công nợ”.`,
+    link: `/procurement/purchase-orders/${ctx.poId}#hoa-don-mua`,
+    severity: "info",
   });
 }
 

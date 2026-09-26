@@ -3,6 +3,7 @@ import { poListQuerySchema } from "@iot/shared";
 import { getPOStats } from "@/server/repos/purchaseOrders";
 import { jsonError, parseSearchParams } from "@/server/http";
 import { requireCan } from "@/server/session";
+import { parseDateParam } from "@/lib/procurement-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,9 +21,13 @@ export async function GET(req: NextRequest) {
   const q = parseSearchParams(req, poListQuerySchema);
   if ("response" in q) return q.response;
 
+  // V4.1 TM-25 — ngày sai định dạng → 400 (trước đây 500).
   const url = new URL(req.url);
-  const fromParam = url.searchParams.get("from");
-  const toParam = url.searchParams.get("to");
+  const from = parseDateParam(url.searchParams.get("from"));
+  const to = parseDateParam(url.searchParams.get("to"));
+  if (from === "invalid" || to === "invalid") {
+    return jsonError("VALIDATION", "Ngày lọc không hợp lệ (dùng YYYY-MM-DD).", 400);
+  }
 
   try {
     const stats = await getPOStats({
@@ -31,8 +36,9 @@ export async function GET(req: NextRequest) {
       prId: q.data.prId,
       bomTemplateId: q.data.bomTemplateId,
       q: q.data.q,
-      from: fromParam ? new Date(fromParam) : null,
-      to: toParam ? new Date(toParam) : null,
+      from,
+      to,
+      overdue: q.data.overdue,
     });
     return NextResponse.json({ data: stats });
   } catch (e) {

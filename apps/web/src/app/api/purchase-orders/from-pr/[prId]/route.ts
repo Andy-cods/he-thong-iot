@@ -42,17 +42,29 @@ export async function POST(
   if ("response" in guard) return guard.response;
 
   // Body optional — POST không body cũng OK (legacy)
+  // V4.1 TM-09 — body SAI trước đây bị nuốt → convert "im lặng" bỏ mất NCC người
+  // dùng đã chọn (tạo PO sai NCC). Nay trả 422.
   let supplierOverrides: Record<string, string> | undefined;
   let newSupplierNames: Record<string, string> | undefined;
-  try {
-    const text = await req.text();
-    if (text && text.trim().length > 0) {
-      const parsed = bodySchema.parse(JSON.parse(text));
-      supplierOverrides = parsed?.supplierOverrides;
-      newSupplierNames = parsed?.newSupplierNames;
+  const text = await req.text().catch(() => "");
+  if (text && text.trim().length > 0) {
+    let json: unknown;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      return jsonError("VALIDATION", "Dữ liệu gửi lên không phải JSON hợp lệ.", 422);
     }
-  } catch {
-    // Ignore body parse errors — convert without overrides
+    const parsed = bodySchema.safeParse(json);
+    if (!parsed.success) {
+      return jsonError(
+        "VALIDATION",
+        "Danh sách NCC chọn cho từng dòng không hợp lệ.",
+        422,
+        { issues: parsed.error.issues },
+      );
+    }
+    supplierOverrides = parsed.data?.supplierOverrides;
+    newSupplierNames = parsed.data?.newSupplierNames;
   }
 
   try {
@@ -131,6 +143,12 @@ export async function POST(
         422,
       );
     }
+    if (msg.includes("LINE_NOT_IN_PR"))
+      return jsonError(
+        "LINE_NOT_IN_PR",
+        "Có dòng chọn NCC không thuộc phiếu này — tải lại trang rồi thử lại.",
+        422,
+      );
     if (msg.includes("PR_EMPTY"))
       return jsonError("VALIDATION", "PR không có dòng nào.", 422);
 

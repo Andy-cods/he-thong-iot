@@ -14,6 +14,12 @@ import type {
   PurchaseOrderLine,
 } from "@iot/db/schema";
 import { db } from "@/lib/db";
+import {
+  computePoLineTotal,
+  nextPoStatusAfterReceipt,
+  prLineToPoLine,
+  type PoReceiptLine,
+} from "../../lib/procurement-policy";
 import { currentYymm, genDocNo } from "./_docNumber";
 
 /**
@@ -42,8 +48,24 @@ export interface ListPOsQuery {
   /** V1.9-P9: filter theo orderDate range. */
   from?: Date | null;
   to?: Date | null;
+  /** V4.1 Đợt 2 — chỉ PO quá ETA chưa nhận đủ (link "PO quá hạn" ở Tổng quan). */
+  overdue?: boolean;
   page: number;
   pageSize: number;
+}
+
+/**
+ * V4.1 Đợt 2 — lọc PO theo BOM: qua đơn hàng bán (cũ) HOẶC PO tạo thẳng từ
+ * dòng BOM (metadata.bomTemplateId, ghi từ Đợt 2 + backfill 0062). Trước đây
+ * tab "Mua sắm" của BOM luôn rỗng vì PO từ dòng BOM không gắn đơn hàng bán.
+ */
+function bomTemplateFilter(bomTemplateId: string): SQL {
+  return sql`(${salesOrder.bomTemplateId} = ${bomTemplateId} OR ${purchaseOrder.metadata} ->> 'bomTemplateId' = ${bomTemplateId})`;
+}
+
+/** V4.1 Đợt 2 — PO quá ETA chưa nhận đủ (khớp KPI "Quá hạn" + Tổng quan). */
+function overdueFilter(): SQL {
+  return sql`(${purchaseOrder.status} IN ('SENT','PARTIAL') AND ${purchaseOrder.expectedEta} IS NOT NULL AND ${purchaseOrder.expectedEta} < CURRENT_DATE)`;
 }
 
 export async function listPOs(q: ListPOsQuery) {
@@ -58,9 +80,8 @@ export async function listPOs(q: ListPOsQuery) {
   }
   if (q.supplierId) where.push(eq(purchaseOrder.supplierId, q.supplierId));
   if (q.prId) where.push(eq(purchaseOrder.prId, q.prId));
-  if (q.bomTemplateId) {
-    where.push(eq(salesOrder.bomTemplateId, q.bomTemplateId));
-  }
+  if (q.bomTemplateId) where.push(bomTemplateFilter(q.bomTemplateId));
+  if (q.overdue) where.push(overdueFilter());
   if (q.q) {
     const like = `%${q.q}%`;
     const combined = or(
@@ -129,7 +150,7 @@ export async function listPOs(q: ListPOsQuery) {
  * Trả về: total count, open count (DRAFT/SENT/PARTIAL), totalSpend (tổng amount tất cả PO),
  * supplierCount distinct, overdueCount (SENT|PARTIAL với expectedEta < now).
  */
-export async function getPOStats(q: Pick<ListPOsQuery, "status" | "supplierId" | "prId" | "bomTemplateId" | "q" | "from" | "to">) {
+export async function getPOStats(q: Pick<ListPOsQuery, "status" | "supplierId" | "prId" | "bomTemplateId" | "q" | "from" | "to" | "overdue">) {
   const where: SQL[] = [];
   if (q.status && q.status.length > 0) {
     where.push(
@@ -141,7 +162,8 @@ export async function getPOStats(q: Pick<ListPOsQuery, "status" | "supplierId" |
   }
   if (q.supplierId) where.push(eq(purchaseOrder.supplierId, q.supplierId));
   if (q.prId) where.push(eq(purchaseOrder.prId, q.prId));
-  if (q.bomTemplateId) where.push(eq(salesOrder.bomTemplateId, q.bomTemplateId));
+  if (q.bomTemplateId) where.push(bomTemplateFilter(q.bomTemplateId));
+  if (q.overdue) where.push(overdueFilter());
   if (q.q) {
     const like = `%${q.q}%`;
     const combined = or(
@@ -244,6 +266,8 @@ export interface ReplacePOLineInput {
   snapshotLineId?: string | null;
   expectedEta?: Date | null;
   notes?: string | null;
+  /** V4.1 TM-03 — quy cách (DNVT) phải giữ khi sửa PO nháp, PDF in cột này. */
+  spec?: string | null;
 }
 
 export async function replacePOLines(
@@ -388,7 +412,8 @@ function mapUomTextToEnum(uom: string | null): UomEnum {
 
 /** Sinh SKU tạm cho vật tư nhập tay: VT-<yymm>-<rand>. */
 function genAutoItemSku(): string {
-  const yymm = new Date().toISOString().slice(2, 7).replace("-", "");
+  // V4.1 TM-24 — yymm theo giờ VN (UTC lệch tháng lúc 0h-7h ngày 1).
+  const yymm = currentYymm();
   const rand = Math.random().toString(36).slice(2, 7).toUpperCase();
   return `VT-${yymm}-${rand}`;
 }
@@ -480,10 +505,16 @@ async function findOrCreateSupplierByName(
   const name = rawName.trim();
   if (!name) throw new Error("SUPPLIER_NAME_EMPTY");
 
+  // V4.1 TM-26 — chỉ khớp NCC đang hoạt động (NCC đã ngưng không nhận PO mới).
   const [byName] = await tx
     .select({ id: supplier.id })
     .from(supplier)
-    .where(sql`lower(${supplier.name}) = lower(${name})`)
+    .where(
+      and(
+        sql`lower(${supplier.name}) = lower(${name})`,
+        eq(supplier.isActive, true),
+      ),
+    )
     .limit(1);
   if (byName) return byName.id;
 
@@ -570,13 +601,27 @@ export async function createPOFromPR(
     }
 
     // V3.4 — Apply overrides nếu có
+    // V4.1 TM-09 — chỉ áp cho dòng THUỘC PR này. Trước đây WHERE chỉ theo id →
+    // gửi lineId của phiếu khác là đổi được NCC ưu tiên của phiếu khác.
     if (Object.keys(effectiveOverrides).length > 0) {
+      const ownIds = new Set(lines.map((l) => l.id));
+      const foreign = Object.keys(effectiveOverrides).filter(
+        (id) => !ownIds.has(id),
+      );
+      if (foreign.length > 0) {
+        throw new Error(`LINE_NOT_IN_PR: ${foreign.length} dòng không thuộc phiếu`);
+      }
       for (const [lineId, supplierId] of Object.entries(effectiveOverrides)) {
         if (!supplierId) continue;
         await tx
           .update(purchaseRequestLine)
           .set({ preferredSupplierId: supplierId })
-          .where(eq(purchaseRequestLine.id, lineId));
+          .where(
+            and(
+              eq(purchaseRequestLine.id, lineId),
+              eq(purchaseRequestLine.prId, prId),
+            ),
+          );
       }
       // Refresh lines
       lines = await tx
@@ -593,10 +638,17 @@ export async function createPOFromPR(
     );
     if (stillMissing.length > 0) {
       for (const line of stillMissing) {
+        // V4.1 TM-26 — bỏ qua NCC đã ngưng hoạt động.
         const [pref] = await tx
           .select({ supplierId: itemSupplier.supplierId })
           .from(itemSupplier)
-          .where(eq(itemSupplier.itemId, line.itemId as string))
+          .innerJoin(supplier, eq(supplier.id, itemSupplier.supplierId))
+          .where(
+            and(
+              eq(itemSupplier.itemId, line.itemId as string),
+              eq(supplier.isActive, true),
+            ),
+          )
           .orderBy(desc(itemSupplier.isPreferred))
           .limit(1);
         if (pref?.supplierId) {
@@ -611,6 +663,10 @@ export async function createPOFromPR(
         .from(purchaseRequestLine)
         .where(eq(purchaseRequestLine.prId, prId));
     }
+
+    // V4.1 TM-10 — dòng bị gạch (SL duyệt = 0) không đưa vào PO.
+    lines = lines.filter((l) => prLineToPoLine(l) !== null);
+    if (lines.length === 0) throw new Error("PR_EMPTY");
 
     // Guard: toàn bộ line phải có preferred_supplier_id
     const missing = lines.filter((l) => !l.preferredSupplierId);
@@ -661,20 +717,36 @@ export async function createPOFromPR(
         .returning();
       if (!poHeader) throw new Error("PO_INSERT_FAILED");
 
-      await tx.insert(purchaseOrderLine).values(
-        supplierLines.map((l, idx) => ({
+      // V4.1 TM-10 — mang SL duyệt + đơn giá dự kiến sang PO (trước đây giá 0,
+      // dùng `qty` đề xuất), VAT mặc định 8, tính line_total + tổng PO.
+      let poTotal = 0;
+      const poLines = supplierLines.map((l, idx) => {
+        const mapped = prLineToPoLine(l)!;
+        const lineTotal = computePoLineTotal(mapped.orderedQty, mapped.unitPrice, 8);
+        poTotal += lineTotal;
+        return {
           poId: poHeader.id,
           lineNo: idx + 1,
           // Non-null: freetext lines đã được normalize sang item master (V3.10.2)
           itemId: l.itemId as string,
-          orderedQty: l.qty,
+          orderedQty: String(mapped.orderedQty),
+          unitPrice: String(mapped.unitPrice),
+          taxRate: "8",
+          lineTotal: String(lineTotal),
           // V3.10.2 — giữ quy cách chi tiết từ dòng PR (DNVT) sang PO line.
-          spec: l.specification ?? null,
+          // V4.1 — cột PO spec varchar(255) < PR specification (512) → cắt bớt.
+          spec: l.specification ? l.specification.slice(0, 255) : null,
           snapshotLineId: l.snapshotLineId ?? null,
           expectedEta: l.neededBy,
           notes: l.notes,
-        })),
-      );
+        };
+      });
+      await tx.insert(purchaseOrderLine).values(poLines);
+      await tx
+        .update(purchaseOrder)
+        .set({ totalAmount: poTotal.toFixed(2) })
+        .where(eq(purchaseOrder.id, poHeader.id));
+      poHeader.totalAmount = poTotal.toFixed(2);
 
       createdPOs.push(poHeader);
       linesBySupplier[supplierId] = supplierLines.length;
@@ -710,6 +782,8 @@ export interface CreatePOManualInput {
   autoApprove?: boolean;
   submitForApproval?: boolean;
   createdBy: string | null;
+  /** V4.1 Đợt 2 — metadata bổ sung (VD PO từ dòng BOM: bomTemplateId/bomLineId). */
+  extraMetadata?: Record<string, unknown>;
   lines: Array<{
     itemId: string;
     orderedQty: number;
@@ -792,6 +866,10 @@ export async function createPO(
 
     const approve = input.autoApprove === true;
     const submit = input.submitForApproval === true && !approve;
+    // V4.1 TM-10 — không cho gửi duyệt / tạo-kèm-duyệt PO còn dòng chưa có giá.
+    if ((approve || submit) && linesPrepared.some((l) => Number(l.unitPrice) <= 0)) {
+      throw new Error("UNPRICED_LINES");
+    }
     const now = new Date();
     const metadata: Record<string, unknown> = approve
       ? {
@@ -807,6 +885,7 @@ export async function createPO(
             submittedAt: now.toISOString(),
           }
         : {};
+    if (input.extraMetadata) Object.assign(metadata, input.extraMetadata);
 
     const [header] = await tx
       .insert(purchaseOrder)
@@ -982,6 +1061,8 @@ export async function updatePOWithLines(
           : null,
         snapshotLineId: line.snapshotLineId ?? null,
         notes: line.notes ?? null,
+        // V4.1 TM-03 — giữ quy cách DNVT (trước đây mất khi sửa PO nháp).
+        spec: line.spec ?? null,
       };
     });
 
@@ -1067,35 +1148,10 @@ async function transitionMiss(
 }
 
 /**
- * V3 (TASK-20260427-014) — Aggregate qty đã nhận trên 1 PO (sum lines).
- *
- * Trả `{ ordered, received, ratio }`. Dùng làm guard cho approve receiving
- * (yêu cầu received >= 95% ordered).
- */
-export async function getPOReceivingTotals(id: string): Promise<{
-  ordered: number;
-  received: number;
-  ratio: number;
-}> {
-  const [row] = await db
-    .select({
-      ordered: sql<string>`COALESCE(SUM(${purchaseOrderLine.orderedQty}), 0)::text`,
-      received: sql<string>`COALESCE(SUM(${purchaseOrderLine.receivedQty}), 0)::text`,
-    })
-    .from(purchaseOrderLine)
-    .where(eq(purchaseOrderLine.poId, id));
-
-  const ordered = Number(row?.ordered ?? "0");
-  const received = Number(row?.received ?? "0");
-  const ratio = ordered > 0 ? received / ordered : 0;
-  return { ordered, received, ratio };
-}
-
-/**
  * V3 (TASK-20260427-014) — Approve PO sau khi nhận hàng.
  *
  * SENT/PARTIAL → RECEIVED. Lưu actualDeliveryDate=now, metadata receivedBy/At/note.
- * Caller phải check threshold 95% trước khi gọi (để tách validation/db).
+ * Caller phải kiểm từng dòng đủ hàng đạt trước (V4.1 `evaluatePoReceipt`).
  */
 export async function markPOReceived(
   id: string,
@@ -1218,6 +1274,8 @@ export async function listPOsForExport(q: {
       totalAmount: purchaseOrder.totalAmount,
       currency: purchaseOrder.currency,
       prId: purchaseOrder.prId,
+      // V4.1 TM-20 — số phiếu PR (thay UUID) cho cột "Mã PR liên kết".
+      prCode: sql<string | null>`(SELECT COALESCE(pr.paper_form_no, pr.code) FROM app.purchase_request pr WHERE pr.id = ${purchaseOrder.prId})`,
       supplierId: purchaseOrder.supplierId,
       supplierCode: supplier.code,
       supplierName: supplier.name,
@@ -1243,4 +1301,179 @@ export async function listPOsForExport(q: {
     .orderBy(desc(purchaseOrder.createdAt), purchaseOrderLine.lineNo);
 
   return rows;
+}
+
+/* ── V4.1 Đợt 2 — nhận hàng theo dòng, huỷ/đóng PO ─────────────────────── */
+
+/** Executor tối thiểu (db hoặc tx). */
+type Exec = Pick<typeof db, "execute">;
+
+/**
+ * V4.1 TM-15/16 — dòng PO kèm SL QC KHÔNG ĐẠT (Σ dòng phiếu nhập qc_status=FAIL).
+ * SL "đạt" = received − rejected (xem `acceptedQtyOf`).
+ */
+export async function getPOLineReceiptStats(
+  poId: string,
+  exec: Exec = db,
+): Promise<Array<PoReceiptLine & { id: string }>> {
+  const rows = (await exec.execute(sql`
+    SELECT pol.id, pol.line_no, pol.ordered_qty::text AS ordered_qty,
+           pol.received_qty::text AS received_qty,
+           COALESCE((
+             SELECT SUM(rl.received_qty)
+             FROM app.inbound_receipt_line rl
+             WHERE rl.po_line_id = pol.id AND rl.qc_status = 'FAIL'
+           ), 0)::text AS rejected_qty
+    FROM app.purchase_order_line pol
+    WHERE pol.po_id = ${poId}
+    ORDER BY pol.line_no
+  `)) as unknown as Array<{
+    id: string;
+    line_no: number;
+    ordered_qty: string;
+    received_qty: string;
+    rejected_qty: string;
+  }>;
+  return rows.map((r) => ({
+    id: r.id,
+    lineNo: Number(r.line_no),
+    orderedQty: r.ordered_qty,
+    receivedQty: r.received_qty,
+    rejectedQty: r.rejected_qty,
+  }));
+}
+
+/**
+ * V4.1 TM-16 — tính lại trạng thái PO theo SL đạt sau khi QC kết luận muộn
+ * (PENDING → FAIL làm PO RECEIVED thiếu hàng đạt → về PARTIAL, và ngược lại).
+ * Chỉ chạm PO SENT/PARTIAL/RECEIVED (CLOSED/CANCELLED giữ nguyên). Transaction
+ * riêng, khoá PO trước — gọi SAU khi transaction QC đã commit.
+ */
+export async function recomputePoReceiptStatus(
+  poId: string,
+): Promise<{ from: string; to: string } | null> {
+  return db.transaction(async (tx) => {
+    const [po] = await tx
+      .select({ status: purchaseOrder.status })
+      .from(purchaseOrder)
+      .where(eq(purchaseOrder.id, poId))
+      .limit(1)
+      .for("update");
+    if (!po || !["SENT", "PARTIAL", "RECEIVED"].includes(po.status)) return null;
+    const next = nextPoStatusAfterReceipt(await getPOLineReceiptStats(poId, tx));
+    if (!next || next === po.status) return null;
+    await tx
+      .update(purchaseOrder)
+      .set({ status: next })
+      .where(eq(purchaseOrder.id, poId));
+    return { from: po.status, to: next };
+  });
+}
+
+export class POTransitionError extends Error {
+  constructor(
+    public code: string,
+    message: string,
+    public status = 409,
+  ) {
+    super(message);
+  }
+}
+
+/**
+ * V4.1 TM-17 — Huỷ PO chưa nhận hàng (DRAFT/SENT, mọi dòng received = 0).
+ * PO đã nhận một phần phải dùng "Đóng PO" (hàng đã vào kho, không huỷ được).
+ */
+export async function cancelPO(
+  id: string,
+  userId: string | null,
+  reason: string,
+): Promise<PurchaseOrder> {
+  return db.transaction(async (tx) => {
+    const [po] = await tx
+      .select()
+      .from(purchaseOrder)
+      .where(eq(purchaseOrder.id, id))
+      .limit(1)
+      .for("update");
+    if (!po) throw new POTransitionError("NOT_FOUND", "Không tìm thấy PO.", 404);
+    if (po.status !== "DRAFT" && po.status !== "SENT") {
+      throw new POTransitionError(
+        "INVALID_STATE",
+        po.status === "PARTIAL"
+          ? "PO đã nhận một phần — dùng “Đóng PO” thay vì huỷ."
+          : `PO đang ở trạng thái ${po.status} — không huỷ được.`,
+      );
+    }
+    const [recv] = await tx
+      .select({
+        received: sql<string>`COALESCE(SUM(${purchaseOrderLine.receivedQty}), 0)::text`,
+      })
+      .from(purchaseOrderLine)
+      .where(eq(purchaseOrderLine.poId, id));
+    if (Number(recv?.received ?? 0) > 0) {
+      throw new POTransitionError(
+        "HAS_RECEIPTS",
+        "PO đã có hàng nhận — dùng “Đóng PO” thay vì huỷ.",
+      );
+    }
+    const now = new Date();
+    const [row] = await tx
+      .update(purchaseOrder)
+      .set({
+        status: "CANCELLED",
+        cancelledAt: now,
+        metadata: sql`${purchaseOrder.metadata} || ${JSON.stringify({
+          cancelledBy: userId,
+          cancelledReason: reason,
+          cancelledStage: po.status,
+        })}::jsonb`,
+      })
+      .where(eq(purchaseOrder.id, id))
+      .returning();
+    if (!row) throw new Error("PO_UPDATE_FAILED");
+    return row;
+  });
+}
+
+/**
+ * V4.1 TM-17 — Đóng PO: PARTIAL (NCC không giao nốt) hoặc RECEIVED (chốt hồ sơ)
+ * → CLOSED. Sau khi đóng không nhận thêm hàng (RECEIVABLE_PO_STATUSES).
+ */
+export async function closePO(
+  id: string,
+  userId: string | null,
+  reason: string,
+): Promise<PurchaseOrder> {
+  return db.transaction(async (tx) => {
+    const [po] = await tx
+      .select()
+      .from(purchaseOrder)
+      .where(eq(purchaseOrder.id, id))
+      .limit(1)
+      .for("update");
+    if (!po) throw new POTransitionError("NOT_FOUND", "Không tìm thấy PO.", 404);
+    if (po.status !== "PARTIAL" && po.status !== "RECEIVED") {
+      throw new POTransitionError(
+        "INVALID_STATE",
+        `PO đang ở trạng thái ${po.status} — chỉ đóng được PO đã nhận một phần/đủ.`,
+      );
+    }
+    const [row] = await tx
+      .update(purchaseOrder)
+      .set({
+        status: "CLOSED",
+        actualDeliveryDate: sql`COALESCE(${purchaseOrder.actualDeliveryDate}, CURRENT_DATE)`,
+        metadata: sql`${purchaseOrder.metadata} || ${JSON.stringify({
+          closedBy: userId,
+          closedAt: new Date().toISOString(),
+          closedReason: reason,
+          closedFromStatus: po.status,
+        })}::jsonb`,
+      })
+      .where(eq(purchaseOrder.id, id))
+      .returning();
+    if (!row) throw new Error("PO_UPDATE_FAILED");
+    return row;
+  });
 }

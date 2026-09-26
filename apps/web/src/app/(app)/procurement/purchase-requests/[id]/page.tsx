@@ -41,12 +41,14 @@ import {
   useDeptApprovePR,
   useDirectorApprovePR,
   useMarkPRCompleted,
+  useSubmitPR,
   useMarkPRIssued,
   usePurchaseRequestDetail,
   useQuickApprovePR,
   useRejectPurchaseRequest,
   type PRLineEnriched,
 } from "@/hooks/usePurchaseRequests";
+import { isSelfApprovalBlocked } from "@/lib/procurement-policy";
 import { useConvertPRToPOs } from "@/hooks/usePurchaseOrders";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -160,6 +162,7 @@ export default function PurchaseRequestDetailPage() {
   const convert = useConvertPRToPOs();
   const markIssued = useMarkPRIssued(id);
   const markCompleted = useMarkPRCompleted(id);
+  const submitPr = useSubmitPR(id);
   const deletePR = useDeletePR(id);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = React.useState("");
@@ -207,9 +210,29 @@ export default function PurchaseRequestDetailPage() {
   // V4.0 — "Trưởng bộ phận" duyệt bước 2 LÀ KHO (kiểm lượng tồn rồi duyệt),
   // không còn là Thiết kế (planner). Phải khớp guard server tại
   // apps/web/src/app/api/purchase-requests/[id]/dept-approve/route.ts.
-  const canDeptApprove = (isAdmin || isWarehouse) && step === "SUBMITTED";
+  // V4.1 D8 — người lập phiếu không tự duyệt (trừ admin) — khớp guard server.
+  const selfApprovalBlocked = isSelfApprovalBlocked({
+    creatorId: pr.requestedBy,
+    actorId: session.data?.id ?? "",
+    actorRoles: roles,
+  });
+  const canDeptApprove =
+    (isAdmin || isWarehouse) && step === "SUBMITTED" && !selfApprovalBlocked;
   const canDirectorApprove =
-    (isAdmin || isPurchaser) && step === "DEPT_APPROVED";
+    (isAdmin || isPurchaser) && step === "DEPT_APPROVED" && !selfApprovalBlocked;
+  const waitingOthers =
+    selfApprovalBlocked &&
+    (((isWarehouse) && step === "SUBMITTED") ||
+      (isPurchaser && step === "DEPT_APPROVED"));
+  // V4.1 TM-06 — phiếu DRAFT (VD tạo từ thiếu hụt) có nút Gửi cho người lập.
+  const canSubmit =
+    status === "DRAFT" &&
+    (pr.requestedBy === session.data?.id ||
+      isAdmin ||
+      isPurchaser ||
+      isWarehouse ||
+      roles.includes("planner") ||
+      roles.includes("accountant"));
   // V3.9 — Admin duyệt nhanh gộp 2 cấp khi phiếu vừa SUBMITTED.
   const canQuickApprove = isAdmin && step === "SUBMITTED";
   // V4.0 — người từ chối phải là người duyệt được bước tương ứng: Kho (bước 2)
@@ -365,6 +388,30 @@ export default function PurchaseRequestDetailPage() {
               PDF
             </Button>
 
+            {canSubmit && (
+              <Button
+                size="sm"
+                onClick={() =>
+                  submitPr.mutate(undefined, {
+                    onSuccess: () => toast.success("Đã gửi phiếu — chờ Kho duyệt"),
+                    onError: (e) => toast.error(`Gửi thất bại: ${(e as Error).message}`),
+                  })
+                }
+                disabled={submitPr.isPending}
+              >
+                {submitPr.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <ArrowRight className="h-3.5 w-3.5" />
+                )}
+                Gửi phiếu
+              </Button>
+            )}
+            {waitingOthers && (
+              <span className="rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                Bạn là người lập phiếu — cần người khác duyệt bước này
+              </span>
+            )}
             {canReject && (
               <Button
                 variant="outline"

@@ -62,6 +62,10 @@ const EVENT_ICON: Record<string, React.ElementType> = {
   MATERIAL_REQUEST_DELIVERED: CheckCheck,
   // V4.1 Đợt 1b — giao một phần qua phiếu xuất kho.
   MATERIAL_REQUEST_ISSUED: Package,
+  // V4.1 Đợt 2 — Thu mua.
+  PO_APPROVAL_REQUESTED: Clock,
+  PO_CANCELLED: XCircle,
+  PO_INVOICE_DRAFT: FileText,
 };
 
 const SEVERITY_CLS: Record<string, string> = {

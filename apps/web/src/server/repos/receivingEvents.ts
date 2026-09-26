@@ -11,8 +11,13 @@ import {
   receivingEvent,
 } from "@iot/db/schema";
 import { db } from "@/lib/db";
+import {
+  acceptedQtyOf,
+  nextPoStatusAfterReceipt,
+} from "../../lib/procurement-policy";
 import { currentYymm, genDocNo } from "./_docNumber";
 import { applySnapshotQc, recomputeReceiptQcFlag } from "./inboundQc";
+import { getPOLineReceiptStats } from "./purchaseOrders";
 
 /**
  * V4.1 hotfix — bin hệ thống "Chờ xếp kệ" (migration 0058). Nhận hàng KHÔNG
@@ -340,9 +345,15 @@ export async function postReceivingAtomic(
     }
 
     // 1b) V3.2 — hard block over-delivery > 120% để tránh nhập sai SL nghiêm trọng
+    // V4.1 TM-16 — tính trên SL ĐẠT (trừ hàng QC không đạt) để NCC giao bù
+    // hàng NG không bị chặn nhầm là giao vượt.
+    const lineStatsBefore = await getPOLineReceiptStats(input.poId, tx);
     {
       const ordered = Number.parseFloat(poLine.orderedQty);
-      const already = Number.parseFloat(poLine.receivedQty);
+      const cur = lineStatsBefore.find((l) => l.id === poLine.id);
+      const already = cur
+        ? acceptedQtyOf(cur)
+        : Number.parseFloat(poLine.receivedQty);
       const projected = already + input.qty;
       if (ordered > 0 && projected > ordered * OVER_DELIVERY_HARD_RATIO) {
         throw new Error(
@@ -352,14 +363,15 @@ export async function postReceivingAtomic(
     }
 
     // 2) Find/create inbound_receipt header (1 per po + ngày)
-    const today = new Date().toISOString().slice(0, 10);
+    // V4.1 TM-24 — "ngày" theo giờ Việt Nam ở CẢ HAI vế (trước đây so ngày UTC
+    // của Node với ngày theo TZ phiên DB → 0h-7h sáng tách thêm phiếu nhập).
     const [existingHeader] = await tx
       .select()
       .from(inboundReceipt)
       .where(
         and(
           eq(inboundReceipt.poId, input.poId),
-          sql`${inboundReceipt.receivedAt}::date = ${today}::date`,
+          sql`(${inboundReceipt.receivedAt} AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = (now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date`,
         ),
       )
       .limit(1);
@@ -484,20 +496,13 @@ export async function postReceivingAtomic(
       .where(eq(purchaseOrderLine.id, input.poLineId));
 
     // 8) UPDATE PO status nếu tất cả line đều đủ (→ RECEIVED) hoặc partial (→ PARTIAL)
-    const allLines = await tx
-      .select({
-        ordered: purchaseOrderLine.orderedQty,
-        received: purchaseOrderLine.receivedQty,
-      })
-      .from(purchaseOrderLine)
-      .where(eq(purchaseOrderLine.poId, input.poId));
-
-    const allFull = allLines.every(
-      (l) => Number.parseFloat(l.received) >= Number.parseFloat(l.ordered),
+    // V4.1 TM-16 — "đủ" tính theo SL ĐẠT (dòng phiếu nhập vừa ghi FAIL đã nằm
+    // trong thống kê) → nhận hàng NG không làm PO thành RECEIVED.
+    const nextStatus = nextPoStatusAfterReceipt(
+      await getPOLineReceiptStats(input.poId, tx),
     );
-    const anyReceived = allLines.some(
-      (l) => Number.parseFloat(l.received) > 0,
-    );
+    const allFull = nextStatus === "RECEIVED";
+    const anyReceived = nextStatus !== null;
 
     // V4.1 KHO-08 — chỉ chuyển trạng thái từ SENT/PARTIAL. PO đã RECEIVED
     // (nhận vượt) giữ nguyên + poStatus=null → route không bắn notify lặp.

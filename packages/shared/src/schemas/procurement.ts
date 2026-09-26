@@ -227,6 +227,8 @@ export const poLineInputSchema = z.object({
   snapshotLineId: uuid.optional().nullable(),
   expectedEta: dateStringOrDate.optional().nullable(),
   notes: z.string().trim().max(500).optional().nullable(),
+  /** V4.1 TM-03/TM-10 — quy cách (DNVT) mang từ PR sang PO. */
+  spec: z.string().trim().max(255).optional().nullable(),
 });
 
 export const poCreateSchema = z.object({
@@ -243,6 +245,15 @@ export const poCreateSchema = z.object({
   /** Tạo PO và đưa vào hàng chờ duyệt trong cùng transaction. */
   submitForApproval: z.boolean().optional().default(false),
   lines: z.array(poLineInputSchema).min(1, "PO cần ít nhất 1 dòng"),
+});
+
+/** V4.1 TM-17 — huỷ / đóng PO bắt buộc ghi lý do. */
+export const poCancelCloseSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(3, "Lý do tối thiểu 3 ký tự")
+    .max(500, "Tối đa 500 ký tự"),
 });
 
 export const poApproveSchema = z.object({
@@ -294,6 +305,8 @@ export const poUpdateSchema = z.object({
         snapshotLineId: uuid.optional().nullable(),
         expectedEta: dateStringOrDate.optional().nullable(),
         notes: z.string().trim().max(500).optional().nullable(),
+        /** V4.1 TM-03 — giữ quy cách khi sửa PO nháp. */
+        spec: z.string().trim().max(255).optional().nullable(),
       }),
     )
     .min(1, "PO cần ít nhất 1 dòng")
@@ -311,6 +324,11 @@ export const poListQuerySchema = z.object({
   bomTemplateId: uuid.optional(),
   /** V3.7.43 — filter theo loại PO. */
   poType: z.enum(["COMMERCIAL", "SUBCONTRACT"]).optional(),
+  /** V4.1 Đợt 2 — chỉ PO quá ETA chưa nhận đủ (`overdue=1|true`). */
+  overdue: z
+    .enum(["1", "true", "0", "false"])
+    .optional()
+    .transform((v) => v === "1" || v === "true"),
   q: z.string().trim().max(120).optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(200).default(50),

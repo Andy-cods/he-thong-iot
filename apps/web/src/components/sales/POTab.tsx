@@ -93,6 +93,8 @@ export function POTab() {
       q: parseAsString.withDefault(""),
       from: parseAsString.withDefault(""),
       to: parseAsString.withDefault(""),
+      // V4.1 Đợt 2 — link "PO quá hạn" ở Tổng quan (`?overdue=1`).
+      overdue: parseAsString.withDefault(""),
     },
     { history: "replace", shallow: true },
   );
@@ -106,6 +108,7 @@ export function POTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchInput]);
 
+  const overdueOnly = urlState.overdue === "1" || urlState.overdue === "true";
   const filter: POFilter = React.useMemo(
     () => ({
       status: urlState.status === "all" ? undefined : [urlState.status as (typeof PO_STATUSES)[number]],
@@ -114,8 +117,9 @@ export function POTab() {
       q: urlState.q || undefined,
       from: urlState.from || undefined,
       to: urlState.to || undefined,
+      overdue: overdueOnly || undefined,
     }),
-    [urlState],
+    [urlState, overdueOnly],
   );
 
   const query = usePurchaseOrdersList(filter);
@@ -135,11 +139,12 @@ export function POTab() {
     urlState.status !== "all" ||
     urlState.q !== "" ||
     urlState.from !== "" ||
-    urlState.to !== "";
+    urlState.to !== "" ||
+    overdueOnly;
 
   const resetFilters = () => {
     setSearchInput("");
-    void setUrlState({ status: "all", q: "", from: "", to: "", page: 1 });
+    void setUrlState({ status: "all", q: "", from: "", to: "", overdue: "", page: 1 });
   };
 
   return (
@@ -255,6 +260,23 @@ export function POTab() {
             );
           })}
         </div>
+
+        {/* V4.1 Đợt 2 — lọc PO quá hạn ETA (bật từ Tổng quan hoặc bấm tại đây). */}
+        <button
+          type="button"
+          onClick={() => void setUrlState({ overdue: overdueOnly ? "" : "1", page: 1 })}
+          className={cn(
+            "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors",
+            overdueOnly
+              ? "border-red-200 bg-red-50 text-red-700 ring-1 ring-inset ring-red-200 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400 dark:ring-red-800"
+              : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60",
+          )}
+          aria-pressed={overdueOnly}
+        >
+          <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
+          Quá hạn ETA
+          <span className="font-mono text-xs tabular-nums opacity-80">{stats?.overdueCount ?? 0}</span>
+        </button>
 
         {/* Date range */}
         <div className="ml-auto flex items-center gap-2">

@@ -152,7 +152,7 @@ export function ActionItemsCard({ className }: ActionItemsCardProps) {
               icon={ClipboardList}
               tone="violet"
               label="PR chờ duyệt"
-              hint="Yêu cầu mua trạng thái DRAFT"
+              hint="Phiếu đang chờ Kho / Giám đốc duyệt"
               count={data.prDraft.count}
               href={data.prDraft.href}
             />

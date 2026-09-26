@@ -47,10 +47,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useSession } from "@/hooks/useSession";
 import {
+  usePOTransition,
   usePurchaseOrderDetail,
   useUpdatePurchaseOrder,
   useSendPurchaseOrder,
 } from "@/hooks/usePurchaseOrders";
+import { canEditPoPrices } from "@/lib/procurement-policy";
+import { PoInvoicePanel } from "@/components/procurement/PoInvoicePanel";
 import { useReceivingAudit } from "@/hooks/useReceivingEvents";
 import { formatDate, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -96,6 +99,16 @@ interface EditableLine {
   unitPrice: string;
   taxRate: string;
   notes: string;
+  /** V4.1 TM-03 — giữ liên kết snapshot + quy cách DNVT + ETA dòng khi sửa. */
+  snapshotLineId: string | null;
+  spec: string | null;
+  expectedEta: string | null;
+}
+
+/** V4.1 TM-04 — VAT 0% hợp lệ (trước đây `|| 8` biến 0 thành 8). */
+function parseTaxRate(v: string): number {
+  const n = Number(v);
+  return v.trim() !== "" && Number.isFinite(n) ? n : 8;
 }
 
 function fmtVND(n: number | string | null | undefined): string {
@@ -115,6 +128,13 @@ export default function PurchaseOrderDetailPage() {
     roles.includes("planner") ||
     roles.includes("purchaser");
   const canMarkSent = roles.includes("admin") || roles.includes("purchaser");
+  // V4.1 D8 — chỉ Thu mua / Giám đốc sửa đơn giá, VAT.
+  const canPrice = canEditPoPrices(roles);
+  // V4.1 D7 — khung HĐ mua cho Thu mua / Kế toán / Giám đốc.
+  const canSeeInvoice =
+    roles.includes("admin") ||
+    roles.includes("accountant") ||
+    roles.includes("purchaser");
   const qc = useQueryClient();
 
   const detail = usePurchaseOrderDetail(id);
@@ -132,6 +152,11 @@ export default function PurchaseOrderDetailPage() {
   const [search, setSearch] = React.useState("");
   const [debouncedQ, setDebouncedQ] = React.useState("");
   const [sendConfirmOpen, setSendConfirmOpen] = React.useState(false);
+  // V4.1 TM-17 — huỷ / đóng PO.
+  const [transitionOpen, setTransitionOpen] = React.useState<null | "cancel" | "close">(null);
+  const [transitionReason, setTransitionReason] = React.useState("");
+  const cancelPo = usePOTransition(id, "cancel");
+  const closePo = usePOTransition(id, "close");
 
   React.useEffect(() => {
     const t = setTimeout(() => setDebouncedQ(search), 300);
@@ -168,6 +193,9 @@ export default function PurchaseOrderDetailPage() {
         unitPrice: String(l.unitPrice ?? 0),
         taxRate: String(l.taxRate ?? 8),
         notes: l.notes ?? "",
+        snapshotLineId: l.snapshotLineId ?? null,
+        spec: l.spec ?? null,
+        expectedEta: l.expectedEta ?? null,
       })),
     );
     setEditing(true);
@@ -195,6 +223,9 @@ export default function PurchaseOrderDetailPage() {
         unitPrice: "0",
         taxRate: "8",
         notes: "",
+        snapshotLineId: null,
+        spec: null,
+        expectedEta: null,
       },
     ]);
     setSearch("");
@@ -228,8 +259,12 @@ export default function PurchaseOrderDetailPage() {
           itemId: l.itemId,
           orderedQty: Number(l.orderedQty),
           unitPrice: Number(l.unitPrice) || 0,
-          taxRate: Number(l.taxRate) || 8,
+          taxRate: parseTaxRate(l.taxRate),
           notes: l.notes.trim() || null,
+          // V4.1 TM-03 — trước đây không gửi → mất snapshot/quy cách trên PDF.
+          snapshotLineId: l.snapshotLineId,
+          spec: l.spec,
+          expectedEta: l.expectedEta,
         }));
       }
       await update.mutateAsync(payload as never);
@@ -237,6 +272,23 @@ export default function PurchaseOrderDetailPage() {
       setEditing(false);
     } catch (err) {
       toast.error(`Cập nhật thất bại: ${(err as Error).message}`);
+    }
+  };
+
+  const handleTransition = async () => {
+    if (!transitionOpen) return;
+    const reason = transitionReason.trim();
+    if (reason.length < 3) {
+      toast.error("Lý do tối thiểu 3 ký tự");
+      return;
+    }
+    try {
+      await (transitionOpen === "cancel" ? cancelPo : closePo).mutateAsync({ reason });
+      toast.success(transitionOpen === "cancel" ? "Đã huỷ PO" : "Đã đóng PO");
+      setTransitionOpen(null);
+      setTransitionReason("");
+    } catch (err) {
+      toast.error((err as Error).message);
     }
   };
 
@@ -297,6 +349,14 @@ export default function PurchaseOrderDetailPage() {
     canManage && ((isDraft && draftIsEditable) || isSent);
   const canSend =
     canMarkSent && isDraft && approvalStatus === "approved";
+  // V4.1 TM-17 — huỷ khi chưa nhận gì; đóng khi đã nhận một phần/đủ.
+  const hasReceipts = po.lines.some((l) => Number(l.receivedQty) > 0);
+  const canCancelPo =
+    canMarkSent && (isDraft || isSent) && !hasReceipts && approvalStatus !== "pending";
+  const canClosePo =
+    canMarkSent && (po.status === "PARTIAL" || po.status === "RECEIVED");
+  const invoiceable =
+    po.status === "PARTIAL" || po.status === "RECEIVED" || po.status === "CLOSED";
 
   // Compute totals from lines (current data)
   let subtotal = 0;
@@ -385,6 +445,32 @@ export default function PurchaseOrderDetailPage() {
               >
                 {send.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                 Đánh dấu đã gửi
+              </Button>
+            )}
+            {!editing && canClosePo && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setTransitionReason("");
+                  setTransitionOpen("close");
+                }}
+                title="NCC không giao nốt / chốt hồ sơ — không nhận thêm hàng"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" /> Đóng PO
+              </Button>
+            )}
+            {!editing && canCancelPo && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setTransitionReason("");
+                  setTransitionOpen("cancel");
+                }}
+                className="border-red-200 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/40"
+              >
+                <XCircle className="h-3.5 w-3.5" /> Huỷ PO
               </Button>
             )}
             {/* V3.11 — Xuất PDF cho MỌI PO (độc lập gửi NCC, không đổi trạng thái). */}
@@ -558,6 +644,8 @@ export default function PurchaseOrderDetailPage() {
               </div>
             </section>
 
+            {canSeeInvoice && invoiceable && <PoInvoicePanel poId={po.id} />}
+
             {isSent && editing && (
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400">
                 <p className="flex items-center gap-2 font-semibold">
@@ -646,7 +734,7 @@ export default function PurchaseOrderDetailPage() {
                     ? editLines.map((l, i) => {
                         const qty = Number(l.orderedQty) || 0;
                         const price = Number(l.unitPrice) || 0;
-                        const tax = Number(l.taxRate) || 0;
+                        const tax = parseTaxRate(l.taxRate);
                         const lineTotal = qty * price * (1 + tax / 100);
                         return (
                           <tr key={l.itemId} className="border-b border-zinc-50 dark:border-zinc-800">
@@ -674,7 +762,9 @@ export default function PurchaseOrderDetailPage() {
                                 step="any"
                                 value={l.unitPrice}
                                 onChange={(e) => updateLine(i, { unitPrice: e.target.value })}
-                                className="ml-auto block h-9 w-32 rounded-md border border-zinc-200 bg-white px-2 text-right font-mono text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                                readOnly={!canPrice}
+                                title={canPrice ? undefined : "Chỉ Thu mua / Giám đốc sửa đơn giá"}
+                                className="ml-auto read-only:bg-zinc-100 read-only:text-zinc-500 dark:read-only:bg-zinc-800 block h-9 w-32 rounded-md border border-zinc-200 bg-white px-2 text-right font-mono text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
                               />
                             </td>
                             <td className="px-4 py-3">
@@ -685,7 +775,8 @@ export default function PurchaseOrderDetailPage() {
                                 step="0.5"
                                 value={l.taxRate}
                                 onChange={(e) => updateLine(i, { taxRate: e.target.value })}
-                                className="ml-auto block h-9 w-16 rounded-md border border-zinc-200 bg-white px-2 text-right font-mono text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                                readOnly={!canPrice}
+                                className="ml-auto read-only:bg-zinc-100 read-only:text-zinc-500 dark:read-only:bg-zinc-800 block h-9 w-16 rounded-md border border-zinc-200 bg-white px-2 text-right font-mono text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
                               />
                             </td>
                             <td className="px-4 py-3 text-right font-mono text-sm font-semibold text-zinc-800 dark:text-zinc-200">
@@ -787,6 +878,56 @@ export default function PurchaseOrderDetailPage() {
           </div>
         )}
       </div>
+
+      {/* ── V4.1 TM-17 — Huỷ / Đóng PO ───────────────────────────── */}
+      <Dialog
+        open={transitionOpen !== null}
+        onOpenChange={(o) => {
+          if (!o) setTransitionOpen(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {transitionOpen === "cancel" ? "Huỷ PO" : "Đóng PO"} {po.poNo}
+            </DialogTitle>
+            <DialogDescription>
+              {transitionOpen === "cancel"
+                ? "PO chưa nhận hàng sẽ chuyển sang Đã huỷ. Kho sẽ được báo nếu PO đã gửi NCC."
+                : "PO chuyển sang Đã đóng — không nhận thêm hàng. Dùng khi NCC không giao nốt phần còn lại hoặc để chốt hồ sơ."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="po-transition-reason">Lý do</Label>
+            <Textarea
+              id="po-transition-reason"
+              rows={3}
+              value={transitionReason}
+              onChange={(e) => setTransitionReason(e.target.value)}
+              placeholder="Tối thiểu 3 ký tự"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setTransitionOpen(null)}>
+              Thôi
+            </Button>
+            <Button
+              onClick={() => void handleTransition()}
+              disabled={cancelPo.isPending || closePo.isPending}
+              className={
+                transitionOpen === "cancel"
+                  ? "bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600"
+                  : undefined
+              }
+            >
+              {(cancelPo.isPending || closePo.isPending) && (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              )}
+              {transitionOpen === "cancel" ? "Huỷ PO" : "Đóng PO"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Send confirm dialog ───────────────────────────────── */}
       <Dialog open={sendConfirmOpen} onOpenChange={setSendConfirmOpen}>

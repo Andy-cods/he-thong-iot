@@ -384,6 +384,8 @@ export interface POFilter {
   /** V1.9-P9: filter orderDate range (ISO strings). */
   from?: string;
   to?: string;
+  /** V4.1 Đợt 2 — chỉ PO quá ETA chưa nhận đủ. */
+  overdue?: boolean;
   page?: number;
   pageSize?: number;
 }

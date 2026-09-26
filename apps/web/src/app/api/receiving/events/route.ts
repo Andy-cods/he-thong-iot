@@ -15,7 +15,7 @@ import {
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { insertActivityLog } from "@/server/repos/activityLogs";
-import { getPR } from "@/server/repos/purchaseRequests";
+import { getPR, markPRGoodsReceived } from "@/server/repos/purchaseRequests";
 import {
   notifyPOReceivedFull,
   notifyPOReceivedPartial,
@@ -255,6 +255,10 @@ export async function POST(req: NextRequest) {
         if (po.prId) {
           const pr = await getPR(po.prId).catch(() => null);
           prCreatorUserId = pr?.requestedBy ?? null;
+          // V4.1 TM-14 — nhận nhanh đủ hàng cũng ghi mốc "Đã nhận hàng" của PR
+          // (trước đây chỉ route duyệt thủ công làm) → nút "Đã xuất kho /
+          // Hoàn tất" ở trang PR mới hiện ra.
+          void markPRGoodsReceived(po.prId).catch(() => {});
         }
         void notifyPOReceivedFull({
           poId: po.id,

@@ -326,6 +326,26 @@ export function useBulkInventoryBalance(itemIds: string[]) {
   });
 }
 
+/**
+ * V4.1 TM-06 — Gửi phiếu DRAFT (VD phiếu tạo từ thiếu hụt) → SUBMITTED, sinh
+ * số phiếu giấy + báo Kho duyệt bước 2.
+ */
+export function useSubmitPR(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      request<{ data: PRRow }>(`/api/purchase-requests/${id}/submit`, {
+        method: "POST",
+        body: "{}",
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.procurement.requests.all });
+      qc.invalidateQueries({ queryKey: qk.procurement.requests.detail(id) });
+      qc.invalidateQueries({ queryKey: qk.dashboard.overview });
+    },
+  });
+}
+
 /** V3.7.69 YCVT — Step 2: Trưởng bộ phận duyệt. */
 export function useDeptApprovePR(id: string) {
   const qc = useQueryClient();

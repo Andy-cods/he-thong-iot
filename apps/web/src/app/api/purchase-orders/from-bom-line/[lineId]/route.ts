@@ -100,6 +100,11 @@ export async function POST(
           line.description ? ` — ${line.description}` : ""
         }`,
       createdBy: guard.session.userId,
+      // V4.1 Đợt 2 — gắn BOM để tab "Mua sắm" của BOM thấy PO này.
+      extraMetadata: {
+        bomLineId: params.lineId,
+        bomTemplateId: line.templateId,
+      },
       lines: [
         {
           itemId: line.componentItemId,

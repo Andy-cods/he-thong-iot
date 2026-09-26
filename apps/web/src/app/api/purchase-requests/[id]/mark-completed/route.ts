@@ -25,6 +25,23 @@ export async function POST(
   const before = await getPR(params.id);
   if (!before) return jsonError("NOT_FOUND", "Không tìm thấy phiếu.", 404);
 
+  // V4.1 TM-13 — trước đây đẩy được cả phiếu đang chờ duyệt sang DONE.
+  // Chỉ phiếu đã duyệt cuối / đã lên PO và đã ghi nhận xuất kho (khớp nút UI).
+  if (before.status !== "APPROVED" && before.status !== "CONVERTED") {
+    return jsonError(
+      "INVALID_STATE",
+      "Phiếu chưa được duyệt xong — không hoàn tất được.",
+      409,
+    );
+  }
+  if (!before.completedAt && !before.goodsIssuedAt) {
+    return jsonError(
+      "INVALID_STATE",
+      "Phiếu chưa ghi nhận “Đã xuất kho” — chưa hoàn tất được.",
+      409,
+    );
+  }
+
   if (before.completedAt) {
     return NextResponse.json({
       data: before,

@@ -4,6 +4,7 @@ import { logger } from "@/lib/logger";
 import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
 import { QcDecisionError, decideReceiptLineQc } from "@/server/repos/inboundQc";
 import { mapDbGuardError } from "@/server/repos/stockGuard";
+import { recomputePoReceiptStatus } from "@/server/repos/purchaseOrders";
 import { writeAudit } from "@/server/services/audit";
 import { notifyReceiptQcFailed } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
@@ -75,6 +76,29 @@ export async function POST(
       notes: `QC ${r.result === "PASS" ? "Đạt" : "Không đạt"} ${r.sku} (${r.receiptNo})${notes ? `: ${notes}` : ""}`,
       ...extractRequestMeta(req),
     });
+
+    // V4.1 TM-16 — QC kết luận muộn đổi SL "đạt" của dòng PO → tính lại trạng
+    // thái PO (RECEIVED ⇄ PARTIAL). Transaction riêng SAU khi QC đã commit để
+    // không đảo thứ tự khoá (nhận hàng khoá PO → phiếu nhập; QC khoá ngược lại).
+    if (r.poId) {
+      try {
+        const changed = await recomputePoReceiptStatus(r.poId);
+        if (changed) {
+          await writeAudit({
+            actor: guard.session,
+            action: "UPDATE",
+            objectType: "purchase_order",
+            objectId: r.poId,
+            before: { status: changed.from },
+            after: { status: changed.to },
+            notes: `Tính lại trạng thái PO sau QC ${r.result === "PASS" ? "Đạt" : "Không đạt"} (${r.receiptNo})`,
+            ...extractRequestMeta(req),
+          });
+        }
+      } catch (e) {
+        logger.warn({ err: e, poId: r.poId }, "recompute PO status after QC failed");
+      }
+    }
 
     if (r.result === "FAIL") {
       void notifyReceiptQcFailed({

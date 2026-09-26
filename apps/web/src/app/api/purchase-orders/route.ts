@@ -9,7 +9,12 @@ import {
   parseSearchParams,
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
+import {
+  notifyPOApprovalRequested,
+  notifyPOSent,
+} from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
+import { parseDateParam } from "@/lib/procurement-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,9 +30,13 @@ export async function GET(req: NextRequest) {
   const q = parseSearchParams(req, poListQuerySchema);
   if ("response" in q) return q.response;
 
+  // V4.1 TM-25 — `?from=abc` trước đây ném lỗi trong toISOString() → 500.
   const url = new URL(req.url);
-  const fromParam = url.searchParams.get("from");
-  const toParam = url.searchParams.get("to");
+  const from = parseDateParam(url.searchParams.get("from"));
+  const to = parseDateParam(url.searchParams.get("to"));
+  if (from === "invalid" || to === "invalid") {
+    return jsonError("VALIDATION", "Ngày lọc không hợp lệ (dùng YYYY-MM-DD).", 400);
+  }
 
   try {
     const result = await listPOs({
@@ -36,8 +45,9 @@ export async function GET(req: NextRequest) {
       prId: q.data.prId,
       bomTemplateId: q.data.bomTemplateId,
       q: q.data.q,
-      from: fromParam ? new Date(fromParam) : null,
-      to: toParam ? new Date(toParam) : null,
+      from,
+      to,
+      overdue: q.data.overdue,
       page: q.data.page,
       pageSize: q.data.pageSize,
     });
@@ -88,6 +98,7 @@ export async function POST(req: NextRequest) {
         snapshotLineId: l.snapshotLineId ?? null,
         expectedEta: l.expectedEta ?? null,
         notes: l.notes ?? null,
+        spec: l.spec ?? null,
       })),
     });
 
@@ -110,10 +121,40 @@ export async function POST(req: NextRequest) {
       ...meta,
     });
 
+    // V4.1 TM-07 — tạo kèm gửi duyệt → báo Giám đốc; Giám đốc tạo kèm duyệt
+    // (PO chuyển thẳng SENT) → báo Kho chuẩn bị nhận hàng.
+    const approvalStatus = (row.metadata as { approvalStatus?: string } | null)
+      ?.approvalStatus;
+    if (row.status === "SENT") {
+      void notifyPOSent({
+        poId: row.id,
+        poNo: row.poNo,
+        supplierName: null,
+        actorUserId: guard.session.userId,
+        actorUsername: guard.session.username,
+      });
+    } else if (approvalStatus === "pending") {
+      void notifyPOApprovalRequested({
+        poId: row.id,
+        poNo: row.poNo,
+        totalAmount: row.totalAmount,
+        actorUserId: guard.session.userId,
+        actorUsername: guard.session.username,
+      });
+    }
+
     return NextResponse.json({ data: row }, { status: 201 });
   } catch (err) {
     logger.error({ err }, "create PO failed");
     const msg = (err as Error).message ?? "";
+    // V4.1 TM-10
+    if (msg.startsWith("UNPRICED_LINES")) {
+      return jsonError(
+        "UNPRICED_LINES",
+        "PO còn dòng chưa có đơn giá — lưu nháp rồi nhập giá trước khi gửi duyệt/duyệt.",
+        409,
+      );
+    }
     if (msg.includes("PO_MUST_HAVE_LINES")) {
       return jsonError("VALIDATION", "PO phải có ít nhất 1 dòng.", 422);
     }

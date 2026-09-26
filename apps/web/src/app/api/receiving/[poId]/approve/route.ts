@@ -3,9 +3,10 @@ import { z } from "zod";
 import { logger } from "@/lib/logger";
 import {
   getPO,
-  getPOReceivingTotals,
+  getPOLineReceiptStats,
   markPOReceived,
 } from "@/server/repos/purchaseOrders";
+import { evaluatePoReceipt } from "@/lib/procurement-policy";
 import {
   extractRequestMeta,
   jsonError,
@@ -27,8 +28,9 @@ export const dynamic = "force-dynamic";
  *
  * Duyệt nhận đủ một PO. SENT/PARTIAL → RECEIVED.
  *
- * Guard: tổng `received_qty / ordered_qty` ≥ 95% (sum across PO lines).
- * Nếu < 95% → 409 NOT_ENOUGH_RECEIVED + chi tiết ratio.
+ * Guard (V4.1 TM-15/16): TỪNG dòng có SL ĐẠT (đã nhận − QC không đạt)
+ * ≥ 95% SL đặt. Trước đây tính tổng gộp mọi dòng → một dòng nhận 0 vẫn qua,
+ * hàng NG vẫn tính. Thiếu → 409 NOT_ENOUGH_RECEIVED + danh sách dòng thiếu.
  *
  * Body: `{ note?: string }` (optional ghi chú duyệt).
  *
@@ -72,7 +74,17 @@ export async function POST(
       ? (body.data.note ?? null)
       : null;
 
-  const totals = await getPOReceivingTotals(params.poId);
+  const evaluation = evaluatePoReceipt(
+    await getPOLineReceiptStats(params.poId),
+    RECEIVED_THRESHOLD,
+  );
+  const t = evaluation.totals;
+  const totals = {
+    ordered: t.ordered,
+    received: t.accepted,
+    rejected: t.rejected,
+    ratio: t.ordered > 0 ? t.accepted / t.ordered : 0,
+  };
   if (totals.ordered <= 0) {
     return jsonError(
       "EMPTY_PO",
@@ -81,14 +93,23 @@ export async function POST(
       { totals },
     );
   }
-  if (totals.ratio < RECEIVED_THRESHOLD) {
+  if (!evaluation.ok) {
+    const list = evaluation.shortLines
+      .slice(0, 5)
+      .map(
+        (l) =>
+          `dòng ${l.lineNo}: đạt ${l.accepted}/${l.ordered}${
+            l.rejected > 0 ? ` (QC không đạt ${l.rejected})` : ""
+          }`,
+      )
+      .join("; ");
     return jsonError(
       "NOT_ENOUGH_RECEIVED",
-      `Mới nhận ${(totals.ratio * 100).toFixed(1)}% (yêu cầu ≥ ${
+      `Còn ${evaluation.shortLines.length} dòng chưa nhận đủ hàng đạt (yêu cầu ≥ ${
         RECEIVED_THRESHOLD * 100
-      }%).`,
+      }% từng dòng) — ${list}. Nếu NCC không giao nốt, dùng “Đóng PO”.`,
       409,
-      { totals, threshold: RECEIVED_THRESHOLD },
+      { totals, threshold: RECEIVED_THRESHOLD, shortLines: evaluation.shortLines },
     );
   }
 
