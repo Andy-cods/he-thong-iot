@@ -242,6 +242,10 @@ export const RBAC_MATRIX: Matrix = {
     finance: ["create", "read", "update"],
     // Kế toán đọc PO để đối chiếu công nợ nhà cung cấp với đơn mua.
     po: ["read"],
+    // V4.1 Đợt 3 (mới) — chọn NCC/khách khi ghi hoá đơn, thanh toán (SupplierPicker
+    // gọi /api/suppliers). CHỈ đọc; nav /sales vẫn lọc tab theo role nên không lộ
+    // tab "Nhà cung cấp" cho kế toán.
+    supplier: ["read"],
     // Đọc BBGH để đối chiếu chứng từ giao nhận khi thanh toán.
     deliveryNote: ["read"],
   },

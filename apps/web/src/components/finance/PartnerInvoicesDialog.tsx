@@ -21,16 +21,19 @@ import { cn } from "@/lib/utils";
 export function PartnerInvoicesDialog({
   supplierId,
   supplierName,
+  direction = "IN",
   onOpenChange,
 }: {
   supplierId: string | null;
   supplierName: string;
+  /** V4.1 TC-07 — IN = HĐ mua (phải trả), OUT = HĐ bán (phải thu). */
+  direction?: "IN" | "OUT";
   onOpenChange: (open: boolean) => void;
 }) {
   const [selectedInvoiceId, setSelectedInvoiceId] = React.useState<string | null>(null);
 
   const query = useFinInvoicesList({
-    direction: "IN",
+    direction,
     supplierId: supplierId ?? undefined,
     page: 1,
     pageSize: 100,
@@ -44,14 +47,16 @@ export function PartnerInvoicesDialog({
       <Dialog open onOpenChange={onOpenChange}>
         <DialogContent size="md">
           <DialogHeader>
-            <DialogTitle>Hoá đơn chưa trả hết — {supplierName}</DialogTitle>
+            <DialogTitle>
+              {direction === "IN" ? "Hoá đơn chưa trả hết" : "Hoá đơn chưa thu hết"} — {supplierName}
+            </DialogTitle>
           </DialogHeader>
           <div className="max-h-[60vh] space-y-2 overflow-y-auto">
             {query.isLoading ? (
               [...Array(3)].map((_, i) => <Skeleton key={i} className="h-14 rounded-lg" />)
             ) : rows.length === 0 ? (
               <p className="py-6 text-center text-sm text-zinc-400 dark:text-zinc-500">
-                Không còn hoá đơn nào chưa trả hết.
+                {direction === "IN" ? "Không còn hoá đơn nào chưa trả hết." : "Không còn hoá đơn nào chưa thu hết."}
               </p>
             ) : (
               rows.map((inv) => {

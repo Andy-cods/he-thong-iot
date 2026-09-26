@@ -1,7 +1,11 @@
 import { and, asc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 import { finAccount } from "@iot/db/schema";
-import type { FinAccountCreate, FinAccountUpdate } from "@iot/shared";
+import type { FinAccountCreate, FinAccountType, FinAccountUpdate } from "@iot/shared";
 import { db } from "@/lib/db";
+import { evaluateSpend, FinSourceError, isoDateVN } from "@/lib/finance";
+
+/** Transaction handle của Drizzle (giống pattern `_docNumber.ts`). */
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /**
  * Repo `fin_account` — Tài khoản giao dịch (ngân hàng/tiền mặt) tập trung.
@@ -11,7 +15,7 @@ import { db } from "@/lib/db";
  */
 
 export async function listFinAccounts(opts: {
-  type?: "BANK" | "CASH";
+  type?: FinAccountType;
   isActive?: boolean;
   q?: string;
   page: number;
@@ -72,7 +76,7 @@ export async function createFinAccount(input: FinAccountCreate, actorId: string 
       // trigger chỉ chạy khi fin_transaction thay đổi).
       currentBalance: String(input.openingBalance ?? 0),
       openingBalanceDate: input.openingBalanceDate
-        ? input.openingBalanceDate.toISOString().slice(0, 10)
+        ? isoDateVN(input.openingBalanceDate)
         : null,
       createdBy: actorId,
     })
@@ -110,4 +114,69 @@ export async function softDeleteFinAccount(id: string) {
     .where(eq(finAccount.id, id))
     .returning();
   return row ?? null;
+}
+
+/**
+ * V4.1 Đợt 3 (Q7) — Khoá nguồn tiền (`SELECT … FOR UPDATE`) rồi kiểm tra 1
+ * khoản CHI `amount` từ nguồn này. PHẢI gọi trong transaction TRƯỚC khi insert
+ * dòng fin_transaction OUT:
+ *   - khoá dòng fin_account → 2 phiếu chi đồng thời cùng nguồn phải xếp hàng,
+ *     phiếu sau đọc `current_balance` ĐÃ gồm phiếu trước (trigger 0055 cập nhật
+ *     dòng này trong cùng transaction của phiếu trước).
+ *   - nguồn ngưng dùng → FIN_ACCOUNT_INACTIVE; vượt số dư mà không có
+ *     `allowOverdraft` (chỉ route mới quyết, chỉ admin) → FIN_INSUFFICIENT_BALANCE
+ *     "Nguồn chi X chỉ còn Y ₫".
+ * Trả về số dư trước/sau để caller ghi audit nếu cần.
+ */
+export async function lockSpendSource(
+  tx: Tx,
+  accountId: string,
+  amount: number,
+  opts: { allowOverdraft?: boolean } = {},
+): Promise<{ id: string; name: string; balance: number; balanceAfter: number }> {
+  const [acc] = await tx
+    .select({
+      id: finAccount.id,
+      name: finAccount.name,
+      currentBalance: finAccount.currentBalance,
+      isActive: finAccount.isActive,
+    })
+    .from(finAccount)
+    .where(eq(finAccount.id, accountId))
+    .for("update");
+  if (!acc) throw new FinSourceError("FIN_ACCOUNT_NOT_FOUND", "Không tìm thấy nguồn tiền.", 404);
+  const check = evaluateSpend({
+    accountName: acc.name,
+    balance: acc.currentBalance,
+    amount,
+    isActive: acc.isActive,
+    allowOverdraft: opts.allowOverdraft,
+  });
+  if (!check.ok) throw new FinSourceError(check.code, check.message);
+  return {
+    id: acc.id,
+    name: acc.name,
+    balance: Number(acc.currentBalance),
+    balanceAfter: check.balanceAfter,
+  };
+}
+
+/**
+ * Khoá + kiểm nguồn NHẬN tiền (thu / chân IN chuyển quỹ): chỉ cần tồn tại và
+ * đang hoạt động — thu không bao giờ làm âm số dư.
+ */
+export async function lockReceiveSource(
+  tx: Tx,
+  accountId: string,
+): Promise<{ id: string; name: string }> {
+  const [acc] = await tx
+    .select({ id: finAccount.id, name: finAccount.name, isActive: finAccount.isActive })
+    .from(finAccount)
+    .where(eq(finAccount.id, accountId))
+    .for("update");
+  if (!acc) throw new FinSourceError("FIN_ACCOUNT_NOT_FOUND", "Không tìm thấy nguồn tiền.", 404);
+  if (acc.isActive === false) {
+    throw new FinSourceError("FIN_ACCOUNT_INACTIVE", `Nguồn "${acc.name}" đã ngưng sử dụng.`);
+  }
+  return { id: acc.id, name: acc.name };
 }

@@ -66,6 +66,7 @@ function createFakeDb(
   }
 
   function tablePrefixFor(table: unknown): string {
+    if (table === namedTables.finAccount) return "acc";
     if (table === namedTables.finPayment) return "payment";
     if (table === namedTables.finPaymentAllocation) return "alloc";
     if (table === namedTables.finTransaction) return "txn";
@@ -329,10 +330,45 @@ async function loadReposWithFreshDb() {
     };
   });
 
+  // V4.1 Đợt 3 (Q7) — repo nay khoá + kiểm nguồn tiền trước khi ghi. Nguồn mặc
+  // định "acc-1" số dư rất lớn để các test cũ (không quan tâm số dư) chạy như trước.
+  fakeTables.finAccount.push({
+    id: "acc-1",
+    code: "TK01",
+    name: "Ngân hàng chính",
+    type: "BANK",
+    currentBalance: "100000000000",
+    openingBalance: "100000000000",
+    isActive: true,
+  });
+
   const finInvoicesRepo = await import("./finInvoices");
   const finPaymentsRepo = await import("./finPayments");
+  const finTransactionsRepo = await import("./finTransactions");
   const { db: fakeDbFromMock } = await import("@/lib/db");
-  return { finInvoicesRepo, finPaymentsRepo, schema, fakeTables, fakeDb: fakeDbFromMock };
+  return {
+    finInvoicesRepo,
+    finPaymentsRepo,
+    finTransactionsRepo,
+    schema,
+    fakeTables,
+    fakeDb: fakeDbFromMock,
+  };
+}
+
+function seedAccount(
+  tables: FakeTables,
+  row: { id: string; name: string; balance: string; isActive?: boolean; type?: string },
+) {
+  tables.finAccount.push({
+    id: row.id,
+    code: row.id.toUpperCase(),
+    name: row.name,
+    type: row.type ?? "CASH",
+    currentBalance: row.balance,
+    openingBalance: row.balance,
+    isActive: row.isActive ?? true,
+  });
 }
 
 function seedInvoice(
@@ -665,5 +701,236 @@ describe("voidPaymentWithAllocations — rollback + recalc", () => {
       tables.finTransaction.every((t) => t.paymentId !== created.payment.id || t.status === "VOID"),
     ).toBe(true);
     expect(tables.finInvoice.find((r) => r.id === inv.id)?.status).toBe("UNPAID");
+  });
+});
+
+
+// ════════════════════════════════════════════════════════════════════
+// V4.1 Đợt 3 — Nguồn thu/chi (Q7) + TC-06/09/25
+// ════════════════════════════════════════════════════════════════════
+
+describe("V4.1 Q7 — chặn chi vượt số dư nguồn (khoá nguồn FOR UPDATE)", () => {
+  const basePayment = {
+    direction: "OUT" as const,
+    supplierId: null,
+    paymentDate: new Date("2026-09-22"),
+    method: "CASH" as const,
+    referenceNo: null,
+    notes: null,
+  };
+
+  it("thanh toán CHI vượt số dư quỹ tiền mặt → FIN_INSUFFICIENT_BALANCE, không ghi gì", async () => {
+    const { finPaymentsRepo, fakeTables: tables } = await loadReposWithFreshDb();
+    seedAccount(tables, { id: "cash", name: "Quỹ tiền mặt", balance: "400000" });
+    const inv = seedInvoice(tables, { totalAmount: "500000" });
+
+    await expect(
+      finPaymentsRepo.createPaymentWithAllocations(
+        {
+          ...basePayment,
+          accountId: "cash",
+          totalAmount: 500_000,
+          allocations: [{ invoiceId: inv.id as string, amount: 500_000 }],
+        },
+        "user-1",
+      ),
+    ).rejects.toMatchObject({
+      code: "FIN_INSUFFICIENT_BALANCE",
+      message: 'Nguồn chi "Quỹ tiền mặt" chỉ còn 400.000 ₫.',
+    });
+    expect(tables.finPayment).toHaveLength(0);
+    expect(tables.finTransaction).toHaveLength(0);
+    expect(tables.finInvoice.find((r) => r.id === inv.id)?.status).toBe("UNPAID");
+  });
+
+  it("admin cho phép vượt (allowOverdraft) → ghi được", async () => {
+    const { finPaymentsRepo, fakeTables: tables } = await loadReposWithFreshDb();
+    seedAccount(tables, { id: "cash", name: "Quỹ tiền mặt", balance: "400000" });
+    const inv = seedInvoice(tables, { totalAmount: "500000" });
+    await finPaymentsRepo.createPaymentWithAllocations(
+      {
+        ...basePayment,
+        accountId: "cash",
+        totalAmount: 500_000,
+        allowOverdraft: true,
+        allocations: [{ invoiceId: inv.id as string, amount: 500_000 }],
+      },
+      "user-1",
+    );
+    expect(tables.finTransaction).toHaveLength(1);
+  });
+
+  it("phiếu THU không bị chặn dù số dư 0; nguồn đã ngưng thì chặn", async () => {
+    const { finTransactionsRepo, fakeTables: tables } = await loadReposWithFreshDb();
+    seedAccount(tables, { id: "exp", name: "TK chi tiêu", balance: "0", type: "EXPENSE" });
+    seedAccount(tables, { id: "old", name: "Quỹ cũ", balance: "0", isActive: false });
+    const txIn = {
+      direction: "IN" as const,
+      amount: 1_000_000,
+      transactionDate: new Date("2026-09-27"),
+      categoryId: null,
+      description: "Thu khác",
+    };
+    const row = await finTransactionsRepo.createTransaction(
+      { ...txIn, accountId: "exp" } as never,
+      "user-1",
+    );
+    expect(row.accountId).toBe("exp");
+    expect(row.transactionDate).toBe("2026-09-27");
+    await expect(
+      finTransactionsRepo.createTransaction({ ...txIn, accountId: "old" } as never, "user-1"),
+    ).rejects.toMatchObject({ code: "FIN_ACCOUNT_INACTIVE" });
+  });
+
+  it("phiếu CHI tay từ TK chi tiêu vượt số dư → chặn", async () => {
+    const { finTransactionsRepo, fakeTables: tables } = await loadReposWithFreshDb();
+    seedAccount(tables, { id: "exp", name: "TK chi tiêu", balance: "200000", type: "EXPENSE" });
+    await expect(
+      finTransactionsRepo.createTransaction(
+        {
+          direction: "OUT",
+          accountId: "exp",
+          amount: 250_000,
+          transactionDate: new Date("2026-09-27"),
+        } as never,
+        "user-1",
+      ),
+    ).rejects.toMatchObject({ code: "FIN_INSUFFICIENT_BALANCE" });
+    expect(tables.finTransaction).toHaveLength(0);
+  });
+});
+
+describe("V4.1 Q7 — chuyển quỹ nội bộ", () => {
+  const transfer = {
+    fromAccountId: "cash",
+    toAccountId: "exp",
+    amount: 3_000_000,
+    transactionDate: new Date("2026-09-27"),
+    description: "Nạp quỹ tuần 40",
+  };
+
+  it("sinh ĐÚNG 2 dòng (OUT nguồn đi + IN nguồn nhận) cùng transfer_group_id, mã CQ", async () => {
+    const { finTransactionsRepo, fakeTables: tables } = await loadReposWithFreshDb();
+    seedAccount(tables, { id: "cash", name: "Quỹ tiền mặt", balance: "5000000" });
+    seedAccount(tables, { id: "exp", name: "TK chi tiêu", balance: "0", type: "EXPENSE" });
+
+    const result = await finTransactionsRepo.createTransfer(transfer, "user-1");
+
+    expect(tables.finTransaction).toHaveLength(2);
+    const out = tables.finTransaction.find((t) => t.direction === "OUT")!;
+    const inn = tables.finTransaction.find((t) => t.direction === "IN")!;
+    expect(out.accountId).toBe("cash");
+    expect(inn.accountId).toBe("exp");
+    expect(out.amount).toBe("3000000");
+    expect(inn.amount).toBe("3000000");
+    expect(out.transferGroupId).toBe(result.transferGroupId);
+    expect(inn.transferGroupId).toBe(result.transferGroupId);
+    expect(out.code).toBe("CQ-2609-0001");
+    expect(inn.code).toBe("CQ-2609-0001-N");
+    expect(out.invoiceId).toBeNull();
+    expect(out.paymentId).toBeNull();
+    expect(out.description).toBe("Chuyển quỹ: Quỹ tiền mặt → TK chi tiêu — Nạp quỹ tuần 40");
+  });
+
+  it("nguồn đi không đủ → chặn, không sinh dòng nào", async () => {
+    const { finTransactionsRepo, fakeTables: tables } = await loadReposWithFreshDb();
+    seedAccount(tables, { id: "cash", name: "Quỹ tiền mặt", balance: "1000000" });
+    seedAccount(tables, { id: "exp", name: "TK chi tiêu", balance: "0", type: "EXPENSE" });
+    await expect(finTransactionsRepo.createTransfer(transfer, "user-1")).rejects.toMatchObject({
+      code: "FIN_INSUFFICIENT_BALANCE",
+    });
+    expect(tables.finTransaction).toHaveLength(0);
+  });
+
+  it("huỷ 1 chân = huỷ cả nhóm (cả 2 dòng VOID)", async () => {
+    const { finTransactionsRepo, fakeTables: tables } = await loadReposWithFreshDb();
+    seedAccount(tables, { id: "cash", name: "Quỹ tiền mặt", balance: "5000000" });
+    seedAccount(tables, { id: "exp", name: "TK chi tiêu", balance: "0", type: "EXPENSE" });
+    const { transferGroupId } = await finTransactionsRepo.createTransfer(transfer, "user-1");
+    const legs = await finTransactionsRepo.voidTransferGroup(transferGroupId);
+    expect(legs).toHaveLength(2);
+    expect(tables.finTransaction.every((t) => t.status === "VOID")).toBe(true);
+  });
+});
+
+describe("V4.1 TC-09 — chọn cùng hoá đơn ở 2 dòng phân bổ", () => {
+  it("mergeAllocations gộp cộng dồn, giữ thứ tự", async () => {
+    const { finPaymentsRepo } = await loadReposWithFreshDb();
+    expect(
+      finPaymentsRepo.mergeAllocations([
+        { invoiceId: "a", amount: 100 },
+        { invoiceId: "b", amount: 50 },
+        { invoiceId: "a", amount: 25 },
+      ]),
+    ).toEqual([
+      { invoiceId: "a", amount: 125 },
+      { invoiceId: "b", amount: 50 },
+    ]);
+  });
+
+  it("thanh toán có 2 dòng cùng HĐ → 1 phân bổ + 1 giao dịch (không vỡ unique → 500)", async () => {
+    const { finPaymentsRepo, fakeTables: tables } = await loadReposWithFreshDb();
+    const inv = seedInvoice(tables, { totalAmount: "500000" });
+    await finPaymentsRepo.createPaymentWithAllocations(
+      {
+        direction: "OUT",
+        accountId: "acc-1",
+        supplierId: null,
+        paymentDate: new Date("2026-09-22"),
+        totalAmount: 500_000,
+        method: "CASH",
+        referenceNo: null,
+        notes: null,
+        allocations: [
+          { invoiceId: inv.id as string, amount: 200_000 },
+          { invoiceId: inv.id as string, amount: 300_000 },
+        ],
+      },
+      "user-1",
+    );
+    expect(tables.finPaymentAllocation).toHaveLength(1);
+    expect(tables.finPaymentAllocation[0]?.amount).toBe("500000");
+    expect(tables.finTransaction).toHaveLength(1);
+    expect(tables.finInvoice.find((r) => r.id === inv.id)?.status).toBe("PAID");
+  });
+});
+
+describe("V4.1 TC-06 — trạng thái đợt thanh toán", () => {
+  it("huỷ → payment.status VOID + voidedAt; huỷ lần 2 → FIN_PAYMENT_ALREADY_VOID", async () => {
+    const { finPaymentsRepo, fakeTables: tables } = await loadReposWithFreshDb();
+    const inv = seedInvoice(tables, { totalAmount: "500000" });
+    const created = await finPaymentsRepo.createPaymentWithAllocations(
+      {
+        direction: "OUT",
+        accountId: "acc-1",
+        supplierId: null,
+        paymentDate: new Date("2026-09-22"),
+        totalAmount: 500_000,
+        method: "CASH",
+        referenceNo: null,
+        notes: null,
+        allocations: [{ invoiceId: inv.id as string, amount: 500_000 }],
+      },
+      "user-1",
+    );
+    await finPaymentsRepo.voidPaymentWithAllocations(created.payment.id as string);
+    const p = tables.finPayment.find((r) => r.id === created.payment.id);
+    expect(p?.status).toBe("VOID");
+    expect(p?.voidedAt).toBeInstanceOf(Date);
+    await expect(
+      finPaymentsRepo.voidPaymentWithAllocations(created.payment.id as string),
+    ).rejects.toThrow("FIN_PAYMENT_ALREADY_VOID");
+  });
+});
+
+describe("V4.1 TC-25 — computeInvoiceStatus", () => {
+  it("HĐ 0 ₫ → PAID ngay; các nhánh còn lại giữ quy tắc cũ", async () => {
+    const { finInvoicesRepo } = await loadReposWithFreshDb();
+    const s = finInvoicesRepo.computeInvoiceStatus;
+    expect(s({ total: 0, paid: 0, dueDate: "2020-01-01", today: "2026-09-27" })).toBe("PAID");
+    expect(s({ total: 100, paid: 0, dueDate: "2026-10-01", today: "2026-09-27" })).toBe("UNPAID");
+    expect(s({ total: 100, paid: 0, dueDate: "2026-09-26", today: "2026-09-27" })).toBe("OVERDUE");
+    expect(s({ total: 100, paid: 40, dueDate: null, today: "2026-09-27" })).toBe("PARTIAL");
+    expect(s({ total: 100, paid: 100, dueDate: "2020-01-01", today: "2026-09-27" })).toBe("PAID");
   });
 });

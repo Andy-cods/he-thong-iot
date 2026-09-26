@@ -13,15 +13,16 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AttachmentField } from "@/components/finance/AttachmentField";
+import { ConfirmActionDialog } from "@/components/finance/ConfirmActionDialog";
 import { fmtDate, fmtVND } from "@/components/finance/_format";
 import {
   useCancelFinInvoice,
   useFinInvoiceDetail,
   useUpdateFinInvoice,
 } from "@/hooks/useFinance";
-import { useSuppliersList } from "@/hooks/useSuppliers";
 import { useSession } from "@/hooks/useSession";
 import { cn } from "@/lib/utils";
 
@@ -63,13 +64,19 @@ export function InvoiceDetailSheet({
   const roles = session?.roles ?? [];
   const canEdit = can(roles, "update", "finance");
 
+  const canSeeSupplier = can(roles, "read", "supplier");
+
   const detailQuery = useFinInvoiceDetail(invoiceId);
-  const suppliersQuery = useSuppliersList({ pageSize: 200, isActive: true });
   const inv = detailQuery.data?.data;
-  const supplier = suppliersQuery.data?.data.find((s) => s.id === inv?.supplierId);
 
   const updateMut = useUpdateFinInvoice(invoiceId ?? "__none__");
   const cancelMut = useCancelFinInvoice();
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
+  // V4.1 TC-11 — gia hạn thanh toán (server tính lại trạng thái quá hạn).
+  const [dueDraft, setDueDraft] = React.useState<string>("");
+  React.useEffect(() => {
+    setDueDraft(inv?.dueDate ?? "");
+  }, [inv?.id, inv?.dueDate]);
 
   if (!invoiceId) return null;
 
@@ -108,23 +115,59 @@ export function InvoiceDetailSheet({
                 <InfoRow label="Còn nợ" value={<span className="font-mono font-semibold text-rose-600 dark:text-rose-400">{fmtVND(Number(inv.totalAmount) - Number(inv.paidAmount))}</span>} />
               </dl>
 
-              {supplier && (
+              {canEdit && !["CANCELLED", "PAID"].includes(inv.status) && (
+                <div>
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    Gia hạn thanh toán
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="date"
+                      value={dueDraft}
+                      onChange={(e) => setDueDraft(e.target.value)}
+                      aria-label="Hạn thanh toán mới"
+                      className="w-44"
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={updateMut.isPending || dueDraft === (inv.dueDate ?? "")}
+                      onClick={() =>
+                        void updateMut
+                          .mutateAsync({ dueDate: dueDraft ? (dueDraft as unknown as Date) : null })
+                          .catch(() => undefined)
+                      }
+                    >
+                      Lưu hạn mới
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {inv.supplierName && (
                 <div>
                   <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                     {inv.direction === "IN" ? "Nhà cung cấp" : "Khách hàng"}
                   </p>
-                  <Link
-                    href={`/suppliers/${supplier.id}`}
-                    className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-700 hover:underline dark:text-indigo-400"
-                  >
-                    <User className="h-3.5 w-3.5" aria-hidden="true" />
-                    {supplier.name}
-                    <ExternalLink className="h-3 w-3" aria-hidden="true" />
-                  </Link>
+                  {canSeeSupplier && inv.supplierId ? (
+                    <Link
+                      href={`/suppliers/${inv.supplierId}`}
+                      className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-700 hover:underline dark:text-indigo-400"
+                    >
+                      <User className="h-3.5 w-3.5" aria-hidden="true" />
+                      {inv.supplierName}
+                      <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                    </Link>
+                  ) : (
+                    <p className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                      <User className="h-3.5 w-3.5" aria-hidden="true" />
+                      {inv.supplierName}
+                    </p>
+                  )}
                 </div>
               )}
 
-              {inv.purchaseOrderId && (
+              {inv.purchaseOrderId && can(roles, "read", "po") && (
                 <div>
                   <Link
                     href={`/procurement/purchase-orders/${inv.purchaseOrderId}`}
@@ -172,11 +215,8 @@ export function InvoiceDetailSheet({
                   attachmentUrl={inv.attachmentUrl}
                   canEdit={canEdit && inv.status !== "CANCELLED"}
                   onUploaded={async (url) => {
-                    await updateMut.mutateAsync({
-                      dueDate: inv.dueDate ? new Date(inv.dueDate) : null,
-                      notes: inv.notes,
-                      attachmentUrl: url,
-                    });
+                    // V4.1 TC-05 — PATCH chỉ trường đổi (không gửi lại dueDate/notes cũ).
+                    await updateMut.mutateAsync({ attachmentUrl: url });
                   }}
                   uploading={updateMut.isPending}
                 />
@@ -194,7 +234,7 @@ export function InvoiceDetailSheet({
               variant="ghost"
               className="text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"
               disabled={cancelMut.isPending}
-              onClick={() => void cancelMut.mutateAsync(inv.id).then(() => onOpenChange(false))}
+              onClick={() => setConfirmOpen(true)}
             >
               <Ban className="h-3.5 w-3.5" aria-hidden="true" />
               {cancelMut.isPending ? "Đang huỷ…" : "Huỷ hoá đơn"}
@@ -202,6 +242,25 @@ export function InvoiceDetailSheet({
           </SheetFooter>
         )}
       </SheetContent>
+      {inv && (
+        <ConfirmActionDialog
+          open={confirmOpen}
+          onOpenChange={setConfirmOpen}
+          title="Huỷ hoá đơn?"
+          description={`Huỷ hoá đơn ${inv.invoiceNo} (${fmtVND(inv.totalAmount)}). Hoá đơn đã huỷ không tính vào công nợ và không thể thanh toán nữa.`}
+          confirmLabel="Huỷ hoá đơn"
+          loading={cancelMut.isPending}
+          onConfirm={async () => {
+            try {
+              await cancelMut.mutateAsync(inv.id);
+              setConfirmOpen(false);
+              onOpenChange(false);
+            } catch {
+              /* toast lỗi đã hiện ở hook */
+            }
+          }}
+        />
+      )}
     </Sheet>
   );
 }

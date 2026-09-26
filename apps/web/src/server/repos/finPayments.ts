@@ -1,9 +1,33 @@
-import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
-import { finInvoice, finPayment, finPaymentAllocation, finTransaction } from "@iot/db/schema";
+import { and, desc, eq, getTableColumns, inArray, sql, type SQL } from "drizzle-orm";
+import {
+  finInvoice,
+  finPayment,
+  finPaymentAllocation,
+  finTransaction,
+  supplier,
+} from "@iot/db/schema";
 import type { FinPaymentCreate } from "@iot/shared";
 import { db } from "@/lib/db";
+import { isoDateVN } from "@/lib/finance";
 import { currentYymm, genDocNo } from "./_docNumber";
+import { lockReceiveSource, lockSpendSource } from "./finAccounts";
 import { recalcInvoicePaidAmount } from "./finInvoices";
+
+/**
+ * V4.1 TC-09 — Gộp các dòng phân bổ trùng hoá đơn (người dùng chọn cùng 1 HĐ ở
+ * 2 dòng) thành 1 dòng cộng dồn. Trước đây insert thẳng → vỡ unique
+ * `fin_payment_allocation_uk (payment_id, invoice_id)` → 500. Giữ thứ tự xuất
+ * hiện đầu tiên.
+ */
+export function mergeAllocations(
+  allocations: Array<{ invoiceId: string; amount: number }>,
+): Array<{ invoiceId: string; amount: number }> {
+  const merged = new Map<string, number>();
+  for (const a of allocations) {
+    merged.set(a.invoiceId, (merged.get(a.invoiceId) ?? 0) + a.amount);
+  }
+  return [...merged.entries()].map(([invoiceId, amount]) => ({ invoiceId, amount }));
+}
 
 /**
  * ============================================================================
@@ -52,9 +76,12 @@ export async function listFinPayments(opts: {
       .select({ count: sql<number>`count(*)::int` })
       .from(finPayment)
       .where(whereExpr ?? sql`true`),
+    // V4.1 TC-03 — kèm tên đối tác (LEFT JOIN) để UI không phải tải danh
+    // sách NCC riêng (từng vượt giới hạn pageSize 100 → 422 → cột "—").
     db
-      .select()
+      .select({ ...getTableColumns(finPayment), supplierName: supplier.name })
       .from(finPayment)
+      .leftJoin(supplier, eq(supplier.id, finPayment.supplierId))
       .where(whereExpr ?? sql`true`)
       .orderBy(desc(finPayment.paymentDate), desc(finPayment.createdAt))
       .limit(opts.pageSize)
@@ -108,9 +135,12 @@ export async function createPaymentWithAllocations(
       throw new Error("FIN_PAYMENT_ALLOCATION_SUM_MISMATCH");
     }
 
+    // V4.1 TC-09 — gộp phân bổ trùng HĐ trước mọi bước sau.
+    const allocationsMerged = mergeAllocations(input.allocations);
+
     // (b) Validate từng allocation không vượt số còn nợ — lock hàng invoice
     // bằng FOR UPDATE để 2 payment đồng thời cho cùng invoice không vượt nợ.
-    const invoiceIds = [...new Set(input.allocations.map((a) => a.invoiceId))];
+    const invoiceIds = allocationsMerged.map((a) => a.invoiceId);
     const invoiceRows = await tx
       .select({
         id: finInvoice.id,
@@ -125,10 +155,9 @@ export async function createPaymentWithAllocations(
 
     const invoiceMap = new Map(invoiceRows.map((r) => [r.id, r]));
     // Gộp allocation cùng invoiceId (hiếm nhưng có thể xảy ra) để validate đúng.
-    const allocByInvoice = new Map<string, number>();
-    for (const a of input.allocations) {
-      allocByInvoice.set(a.invoiceId, (allocByInvoice.get(a.invoiceId) ?? 0) + a.amount);
-    }
+    const allocByInvoice = new Map<string, number>(
+      allocationsMerged.map((a) => [a.invoiceId, a.amount]),
+    );
     for (const [invoiceId, allocAmount] of allocByInvoice) {
       const invoiceRow = invoiceMap.get(invoiceId);
       if (!invoiceRow) throw new Error(`FIN_INVOICE_NOT_FOUND:${invoiceId}`);
@@ -145,6 +174,16 @@ export async function createPaymentWithAllocations(
       if (allocAmount - remaining > 1) {
         throw new Error(`FIN_PAYMENT_ALLOCATION_EXCEEDS_REMAINING:${invoiceId}`);
       }
+    }
+
+    // V4.1 Đợt 3 (Q7) — khoá nguồn tiền; phiếu CHI không được vượt số dư nguồn
+    // (trừ admin chủ động cho phép — route quyết `allowOverdraft`).
+    if (input.direction === "OUT") {
+      await lockSpendSource(tx, input.accountId, input.totalAmount, {
+        allowOverdraft: input.allowOverdraft,
+      });
+    } else {
+      await lockReceiveSource(tx, input.accountId);
     }
 
     // (c) Sinh mã TT-{yymm}-{seq}.
@@ -164,7 +203,7 @@ export async function createPaymentWithAllocations(
         direction: input.direction,
         accountId: input.accountId,
         supplierId: input.supplierId ?? null,
-        paymentDate: input.paymentDate.toISOString().slice(0, 10),
+        paymentDate: isoDateVN(input.paymentDate),
         totalAmount: String(input.totalAmount),
         method: input.method ?? "BANK_TRANSFER",
         referenceNo: input.referenceNo ?? null,
@@ -178,7 +217,7 @@ export async function createPaymentWithAllocations(
     const allocations = await tx
       .insert(finPaymentAllocation)
       .values(
-        input.allocations.map((a) => ({
+        allocationsMerged.map((a) => ({
           paymentId: payment.id,
           invoiceId: a.invoiceId,
           amount: String(a.amount),
@@ -189,9 +228,9 @@ export async function createPaymentWithAllocations(
     // (e) Insert ĐÚNG 1 fin_transaction cho MỖI allocation — KHÔNG ĐƯỢC BỎ
     // BƯỚC NÀY (xem BẤT BIẾN đầu file). Mỗi transaction trỏ paymentId về
     // payment vừa tạo và invoiceId về hoá đơn tương ứng.
-    const paymentDateStr = input.paymentDate.toISOString().slice(0, 10);
+    const paymentDateStr = isoDateVN(input.paymentDate);
     const transactionCodes: string[] = [];
-    for (const alloc of input.allocations) {
+    for (const alloc of allocationsMerged) {
       const txCode = await genDocNo(tx, {
         table: "app.fin_transaction",
         column: "code",
@@ -239,6 +278,8 @@ export async function voidPaymentWithAllocations(paymentId: string) {
       .where(eq(finPayment.id, paymentId))
       .limit(1);
     if (!payment) throw new Error("FIN_PAYMENT_NOT_FOUND");
+    // V4.1 TC-06 — huỷ 2 lần là thao tác sai (UI đã ẩn nút), báo rõ.
+    if (payment.status === "VOID") throw new Error("FIN_PAYMENT_ALREADY_VOID");
 
     const allocations = await tx
       .select()
@@ -260,6 +301,12 @@ export async function voidPaymentWithAllocations(paymentId: string) {
     for (const invoiceId of invoiceIds) {
       await recalcInvoicePaidAmount(tx, invoiceId);
     }
+
+    // V4.1 TC-06 — đánh dấu đợt thanh toán đã huỷ (giữ dòng để kiểm toán).
+    await tx
+      .update(finPayment)
+      .set({ status: "VOID", voidedAt: new Date() })
+      .where(eq(finPayment.id, paymentId));
 
     return { paymentId, voidedInvoiceIds: invoiceIds };
   });

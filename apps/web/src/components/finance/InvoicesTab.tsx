@@ -32,7 +32,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SupplierPicker, type SupplierPickerValue } from "@/components/procurement/SupplierPicker";
-import { fmtDate, fmtVND } from "@/components/finance/_format";
+import { ConfirmActionDialog } from "@/components/finance/ConfirmActionDialog";
+import { fmtDate, fmtVND, todayInputValue } from "@/components/finance/_format";
 import { InvoiceDetailSheet } from "@/components/finance/InvoiceDetailSheet";
 import {
   useCancelFinInvoice,
@@ -40,12 +41,15 @@ import {
   useFinInvoicesList,
   type FinInvoiceRow,
 } from "@/hooks/useFinance";
-import { useSuppliersList } from "@/hooks/useSuppliers";
 import { useSession } from "@/hooks/useSession";
 import type { FinInvoiceFilter } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 
-/** Tab "Hoá đơn" — bảng `fin_invoice` (hoá đơn vào/ra) + tạo mới + huỷ. */
+/**
+ * Tab "Hoá đơn" — bảng `fin_invoice` (hoá đơn vào/ra) + tạo mới + huỷ.
+ * V4.1 Đợt 3: tên đối tác từ API (TC-03 — hết cột "—"), cột "Còn nợ" + dòng
+ * tổng + header dính (UI), xác nhận trước khi huỷ + báo lỗi trùng số HĐ (TC-08).
+ */
 
 const STATUS_LABEL: Record<FinInvoiceStatus, string> = {
   DRAFT: "Nháp",
@@ -92,14 +96,23 @@ export function InvoicesTab() {
   );
 
   const query = useFinInvoicesList(filter);
-  const suppliersQuery = useSuppliersList({ pageSize: 200, isActive: true });
-  const supplierMap = new Map((suppliersQuery.data?.data ?? []).map((s) => [s.id, s]));
   const cancelMut = useCancelFinInvoice();
+  const [cancelTarget, setCancelTarget] = React.useState<FinInvoiceRow | null>(null);
 
   const total = query.data?.meta.total ?? 0;
   const rows = query.data?.data ?? [];
   const pageCount = Math.max(1, Math.ceil(total / urlState.pageSize));
-  const isEmpty = !query.isLoading && rows.length === 0;
+  const isEmpty = !query.isLoading && !query.isError && rows.length === 0;
+  // Dòng tổng trang — không tính HĐ đã huỷ.
+  const pageTotals = rows.reduce(
+    (acc, inv) => {
+      if (inv.status === "CANCELLED") return acc;
+      acc.total += Number(inv.totalAmount);
+      acc.paid += Number(inv.paidAmount);
+      return acc;
+    },
+    { total: 0, paid: 0 },
+  );
   const hasFilter = urlState.direction !== "all" || urlState.status !== "all";
 
   const [createOpen, setCreateOpen] = React.useState(false);
@@ -176,6 +189,13 @@ export function InvoicesTab() {
       <div className="flex-1 overflow-auto p-4 md:p-6">
         {query.isLoading ? (
           <div className="space-y-2">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-14 rounded-lg" />)}</div>
+        ) : query.isError ? (
+          <EmptyState
+            preset="error"
+            title="Không tải được danh sách hoá đơn"
+            description={query.error instanceof Error ? query.error.message : "Vui lòng thử lại."}
+            actions={<Button size="sm" variant="outline" onClick={() => void query.refetch()}>Thử lại</Button>}
+          />
         ) : isEmpty ? (
           hasFilter ? (
             <EmptyState preset="no-filter-match" title="Không có hoá đơn khớp bộ lọc" />
@@ -184,9 +204,9 @@ export function InvoicesTab() {
           )
         ) : (
           <>
-            <div className="hidden overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900 md:block">
+            <div className="hidden overflow-clip rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900 md:block">
               <table className="w-full text-sm">
-                <thead className="border-b border-zinc-100 bg-zinc-50 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
+                <thead className="sticky top-0 z-10 border-b border-zinc-100 bg-zinc-50 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
                   <tr>
                     <th className="px-4 py-2.5 text-left">Số HĐ</th>
                     <th className="px-4 py-2.5 text-left">Chiều</th>
@@ -195,6 +215,7 @@ export function InvoicesTab() {
                     <th className="px-4 py-2.5 text-left">Hạn thanh toán</th>
                     <th className="px-4 py-2.5 text-right">Tổng tiền</th>
                     <th className="px-4 py-2.5 text-right">Đã trả</th>
+                    <th className="px-4 py-2.5 text-right">Còn nợ</th>
                     <th className="px-4 py-2.5 text-center">Trạng thái</th>
                     <th className="px-4 py-2.5" />
                   </tr>
@@ -210,15 +231,18 @@ export function InvoicesTab() {
                       >
                         <td className="px-4 py-2.5 font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-50">{inv.invoiceNo}</td>
                         <td className="px-4 py-2.5 text-zinc-600 dark:text-zinc-400">{inv.direction === "IN" ? "Đầu vào" : "Đầu ra"}</td>
-                        <td className="px-4 py-2.5 text-zinc-700 dark:text-zinc-300">{inv.supplierId ? (supplierMap.get(inv.supplierId)?.name ?? "—") : "—"}</td>
+                        <td className="px-4 py-2.5 text-zinc-700 dark:text-zinc-300">{inv.supplierName ?? "—"}</td>
                         <td className="px-4 py-2.5 text-zinc-600 dark:text-zinc-400">{fmtDate(inv.issueDate)}</td>
                         <td className="px-4 py-2.5">
                           <span className={cn(isOverdue && "font-semibold text-red-600 dark:text-red-400")}>
                             {fmtDate(inv.dueDate)}{isOverdue && " ⚠"}
                           </span>
                         </td>
-                        <td className="px-4 py-2.5 text-right font-mono font-semibold text-zinc-900 dark:text-zinc-50">{fmtVND(inv.totalAmount)}</td>
-                        <td className="px-4 py-2.5 text-right font-mono text-emerald-700 dark:text-emerald-400">{fmtVND(inv.paidAmount)}</td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-right font-mono font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">{fmtVND(inv.totalAmount)}</td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-right font-mono tabular-nums text-emerald-700 dark:text-emerald-400">{fmtVND(inv.paidAmount)}</td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-right font-mono font-semibold tabular-nums text-rose-600 dark:text-rose-400">
+                          {inv.status === "CANCELLED" ? "—" : fmtVND(Number(inv.totalAmount) - Number(inv.paidAmount))}
+                        </td>
                         <td className="px-4 py-2.5 text-center">
                           <span className={cn("inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold", STATUS_CHIP[inv.status])}>
                             {STATUS_LABEL[inv.status]}
@@ -229,8 +253,8 @@ export function InvoicesTab() {
                             <Button
                               size="icon-sm"
                               variant="ghost"
-                              onClick={(e) => { e.stopPropagation(); void cancelMut.mutateAsync(inv.id); }}
-                              aria-label="Huỷ hoá đơn"
+                              onClick={(e) => { e.stopPropagation(); setCancelTarget(inv); }}
+                              aria-label={`Huỷ hoá đơn ${inv.invoiceNo}`}
                               title="Huỷ hoá đơn"
                             >
                               <Ban className="h-3.5 w-3.5 text-rose-500" aria-hidden="true" />
@@ -241,6 +265,17 @@ export function InvoicesTab() {
                     );
                   })}
                 </tbody>
+                <tfoot className="border-t-2 border-zinc-200 bg-zinc-50 text-sm dark:border-zinc-700 dark:bg-zinc-800/60">
+                  <tr>
+                    <td colSpan={5} className="px-4 py-2.5 font-semibold text-zinc-700 dark:text-zinc-300">
+                      Cộng trang này ({rows.length} hoá đơn, không tính HĐ đã huỷ)
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-right font-mono font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">{fmtVND(pageTotals.total)}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-right font-mono font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">{fmtVND(pageTotals.paid)}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-right font-mono font-semibold tabular-nums text-rose-600 dark:text-rose-400">{fmtVND(pageTotals.total - pageTotals.paid)}</td>
+                    <td colSpan={2} />
+                  </tr>
+                </tfoot>
               </table>
             </div>
 
@@ -261,7 +296,7 @@ export function InvoicesTab() {
                       <div className="min-w-0">
                         <p className="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-50">{inv.invoiceNo}</p>
                         <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
-                          {inv.supplierId ? (supplierMap.get(inv.supplierId)?.name ?? "—") : "—"} · {inv.direction === "IN" ? "Đầu vào" : "Đầu ra"}
+                          {inv.supplierName ?? "—"} · {inv.direction === "IN" ? "Đầu vào" : "Đầu ra"}
                         </p>
                       </div>
                       <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold", STATUS_CHIP[inv.status])}>
@@ -272,6 +307,9 @@ export function InvoicesTab() {
                       <div className="text-xs text-zinc-500 dark:text-zinc-400">
                         <p>Hạn: {fmtDate(inv.dueDate)}{isOverdue && " ⚠"}</p>
                         <p>Đã trả: <span className="font-mono text-emerald-700 dark:text-emerald-400">{fmtVND(inv.paidAmount)}</span></p>
+                        {inv.status !== "CANCELLED" && (
+                          <p>Còn nợ: <span className="font-mono text-rose-600 dark:text-rose-400">{fmtVND(Number(inv.totalAmount) - Number(inv.paidAmount))}</span></p>
+                        )}
                       </div>
                       <p className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-50">{fmtVND(inv.totalAmount)}</p>
                     </div>
@@ -296,6 +334,27 @@ export function InvoicesTab() {
       )}
 
       <InvoiceFormDialog open={createOpen} onOpenChange={setCreateOpen} direction={createDirection} />
+      <ConfirmActionDialog
+        open={!!cancelTarget}
+        onOpenChange={(open) => { if (!open) setCancelTarget(null); }}
+        title="Huỷ hoá đơn?"
+        description={
+          cancelTarget
+            ? `Huỷ hoá đơn ${cancelTarget.invoiceNo} (${fmtVND(cancelTarget.totalAmount)}). Hoá đơn đã huỷ không tính vào công nợ và không thể thanh toán nữa.`
+            : ""
+        }
+        confirmLabel="Huỷ hoá đơn"
+        loading={cancelMut.isPending}
+        onConfirm={async () => {
+          if (!cancelTarget) return;
+          try {
+            await cancelMut.mutateAsync(cancelTarget.id);
+            setCancelTarget(null);
+          } catch {
+            /* toast lỗi đã hiện ở hook */
+          }
+        }}
+      />
       {selectedInvoiceId && (
         <InvoiceDetailSheet
           invoiceId={selectedInvoiceId}
@@ -331,7 +390,8 @@ function InvoiceFormDialog({
       invoiceNo: "",
       direction,
       supplierId: null,
-      issueDate: new Date(),
+      // V4.1 TC-13 — chuỗi ngày VN, không phải `new Date()` (UTC).
+      issueDate: todayInputValue() as unknown as Date,
       dueDate: null,
       subtotalAmount: 0,
       vatRate: 8,
@@ -347,7 +407,7 @@ function InvoiceFormDialog({
         invoiceNo: "",
         direction,
         supplierId: null,
-        issueDate: new Date(),
+        issueDate: todayInputValue() as unknown as Date,
         dueDate: null,
         subtotalAmount: 0,
         vatRate: 8,
@@ -369,8 +429,12 @@ function InvoiceFormDialog({
   }, [subtotal, vatRate]);
 
   const onSubmit = async (data: FinInvoiceCreate) => {
-    await createMut.mutateAsync({ ...data, supplierId: supplier?.id ?? null });
-    onOpenChange(false);
+    try {
+      await createMut.mutateAsync({ ...data, supplierId: supplier?.id ?? null });
+      onOpenChange(false);
+    } catch {
+      /* toast lỗi (VD trùng số hoá đơn) đã hiện ở hook — giữ form để sửa */
+    }
   };
 
   return (

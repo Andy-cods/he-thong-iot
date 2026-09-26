@@ -1,8 +1,10 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import type {
   FinAccountCreate,
+  FinAccountType,
   FinAccountUpdate,
   FinCategoryCreate,
   FinCategoryUpdate,
@@ -11,6 +13,7 @@ import type {
   FinPaymentCreate,
   FinTransactionCreate,
   FinTransactionUpdate,
+  FinTransferCreate,
 } from "@iot/shared";
 import {
   qk,
@@ -33,7 +36,7 @@ export interface FinAccountRow {
   id: string;
   code: string;
   name: string;
-  type: "BANK" | "CASH";
+  type: FinAccountType;
   bankName: string | null;
   accountNumber: string | null;
   openingBalance: string;
@@ -74,7 +77,11 @@ export interface FinTransactionRow {
   paymentId: string | null;
   attachmentUrl: string | null;
   externalRef: string | null;
+  /** V4.1 Đợt 3 (Q7) — khác null = chân chuyển quỹ nội bộ (không tính thu/chi). */
+  transferGroupId: string | null;
   status: FinTransactionStatus;
+  /** V4.1 TC-03 — tên đối tác (LEFT JOIN phía server; không có ở response PATCH). */
+  supplierName?: string | null;
   createdAt: string;
   updatedAt: string;
   createdBy: string | null;
@@ -102,6 +109,8 @@ export interface FinInvoiceRow {
   createdAt: string;
   updatedAt: string;
   createdBy: string | null;
+  /** V4.1 TC-03 — tên đối tác (LEFT JOIN phía server). */
+  supplierName?: string | null;
 }
 
 export interface FinPaymentAllocationRow {
@@ -123,8 +132,13 @@ export interface FinPaymentRow {
   method: "BANK_TRANSFER" | "CASH" | "CHECK" | "OTHER";
   referenceNo: string | null;
   notes: string | null;
+  /** V4.1 TC-06 — POSTED | VOID. */
+  status: "POSTED" | "VOID";
+  voidedAt: string | null;
   createdAt: string;
   createdBy: string | null;
+  /** V4.1 TC-03 — tên đối tác (LEFT JOIN phía server). */
+  supplierName?: string | null;
 }
 
 interface ListMeta {
@@ -138,22 +152,56 @@ interface RequestError extends Error {
   code?: string;
 }
 
+/**
+ * V4.1 TC-08 — Câu lỗi tiếng Việt cho người dùng: ưu tiên `error.message` của
+ * API; lỗi validate (422) nối thêm lý do trường đầu tiên; mất mạng / 5xx không
+ * có body → câu chung tiếng Việt (không còn "HTTP 500").
+ */
+function errorMessageFrom(
+  status: number,
+  body: { error?: { message?: string; fields?: Record<string, string> } },
+): string {
+  const base = body.error?.message;
+  const firstField = body.error?.fields ? Object.values(body.error.fields)[0] : undefined;
+  if (base && firstField) return `${base} ${firstField}`;
+  if (base) return base;
+  if (status === 401) return "Phiên đăng nhập đã hết, hãy đăng nhập lại.";
+  if (status === 403) return "Bạn không có quyền thực hiện thao tác này.";
+  if (status >= 500) return "Máy chủ gặp lỗi, vui lòng thử lại sau.";
+  return `Yêu cầu không thành công (mã ${status}).`;
+}
+
 async function request<T>(input: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(input, {
-    credentials: "include",
-    headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
-    ...init,
-  });
+  let res: Response;
+  try {
+    res = await fetch(input, {
+      credentials: "include",
+      headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
+      ...init,
+    });
+  } catch {
+    throw new Error("Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.");
+  }
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as {
-      error?: { message?: string; code?: string };
+      error?: { message?: string; code?: string; fields?: Record<string, string> };
     };
-    const err = new Error(body.error?.message ?? `HTTP ${res.status}`) as RequestError;
+    const err = new Error(errorMessageFrom(res.status, body)) as RequestError;
     err.status = res.status;
     err.code = body.error?.code;
     throw err;
   }
   return (await res.json()) as T;
+}
+
+/** V4.1 TC-08 — mọi mutation tài chính báo lỗi bằng toast (trước đây im lặng). */
+function toastError(err: unknown) {
+  toast.error(err instanceof Error ? err.message : "Thao tác không thành công.");
+}
+
+/** Mã lỗi API (VD FIN_INSUFFICIENT_BALANCE) — để UI hiện lựa chọn phù hợp. */
+export function finErrorCode(err: unknown): string | undefined {
+  return (err as RequestError | null)?.code;
 }
 
 function toParams(obj: object): URLSearchParams {
@@ -186,6 +234,7 @@ export function useFinAccountsList(filter: FinAccountFilter = {}) {
 export function useCreateFinAccount() {
   const qc = useQueryClient();
   return useMutation({
+    onError: toastError,
     mutationFn: (data: FinAccountCreate) =>
       request<{ data: FinAccountRow }>("/api/finance/accounts", {
         method: "POST",
@@ -201,6 +250,7 @@ export function useCreateFinAccount() {
 export function useUpdateFinAccount(id: string) {
   const qc = useQueryClient();
   return useMutation({
+    onError: toastError,
     mutationFn: (data: FinAccountUpdate) =>
       request<{ data: FinAccountRow }>(`/api/finance/accounts/${id}`, {
         method: "PATCH",
@@ -215,6 +265,7 @@ export function useUpdateFinAccount(id: string) {
 export function useDeactivateFinAccount() {
   const qc = useQueryClient();
   return useMutation({
+    onError: toastError,
     mutationFn: (id: string) =>
       request<{ data: { id: string; isActive: boolean } }>(`/api/finance/accounts/${id}`, {
         method: "DELETE",
@@ -241,6 +292,7 @@ export function useFinCategoriesList(filter: FinCategoryFilter = {}) {
 export function useCreateFinCategory() {
   const qc = useQueryClient();
   return useMutation({
+    onError: toastError,
     mutationFn: (data: FinCategoryCreate) =>
       request<{ data: FinCategoryRow }>("/api/finance/categories", {
         method: "POST",
@@ -253,6 +305,7 @@ export function useCreateFinCategory() {
 export function useUpdateFinCategory(id: string) {
   const qc = useQueryClient();
   return useMutation({
+    onError: toastError,
     mutationFn: (data: FinCategoryUpdate) =>
       request<{ data: FinCategoryRow }>(`/api/finance/categories/${id}`, {
         method: "PATCH",
@@ -299,6 +352,7 @@ export function useFinTransactionStats(
 export function useCreateFinTransaction() {
   const qc = useQueryClient();
   return useMutation({
+    onError: toastError,
     mutationFn: (data: FinTransactionCreate) =>
       request<{ data: FinTransactionRow }>("/api/finance/transactions", {
         method: "POST",
@@ -316,6 +370,7 @@ export function useCreateFinTransaction() {
 export function useUpdateFinTransaction(id: string) {
   const qc = useQueryClient();
   return useMutation({
+    onError: toastError,
     mutationFn: (data: FinTransactionUpdate) =>
       request<{ data: FinTransactionRow }>(`/api/finance/transactions/${id}`, {
         method: "PATCH",
@@ -328,14 +383,30 @@ export function useUpdateFinTransaction(id: string) {
 export function useVoidFinTransaction() {
   const qc = useQueryClient();
   return useMutation({
+    onError: toastError,
     mutationFn: (id: string) =>
       request<{ data: FinTransactionRow }>(`/api/finance/transactions/${id}/void`, {
         method: "POST",
       }),
+    // V4.1 TC-02 — huỷ giao dịch của 1 đợt thanh toán sẽ huỷ cả đợt → làm mới
+    // luôn thanh toán/hoá đơn/công nợ (qk.finance.all bao trùm mọi key tài chính).
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.finance.transactions.all });
-      qc.invalidateQueries({ queryKey: qk.finance.accounts.all });
-      qc.invalidateQueries({ queryKey: qk.finance.dashboardSummary });
+      qc.invalidateQueries({ queryKey: qk.finance.all });
+    },
+  });
+}
+
+/** V4.1 Đợt 3 (Q7) — chuyển quỹ nội bộ giữa 2 nguồn. */
+export function useCreateFinTransfer() {
+  const qc = useQueryClient();
+  return useMutation({
+    onError: toastError,
+    mutationFn: (data: FinTransferCreate) =>
+      request<{ data: { transferGroupId: string; code: string; legs: FinTransactionRow[] } }>(
+        "/api/finance/transfers",
+        { method: "POST", body: JSON.stringify(data) },
+      ),
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.finance.all });
     },
   });
@@ -371,6 +442,7 @@ export function useFinInvoiceDetail(id: string | null) {
 export function useCreateFinInvoice() {
   const qc = useQueryClient();
   return useMutation({
+    onError: toastError,
     mutationFn: (data: FinInvoiceCreate) =>
       request<{ data: FinInvoiceRow }>("/api/finance/invoices", {
         method: "POST",
@@ -388,14 +460,15 @@ export function useCreateFinInvoice() {
 export function useUpdateFinInvoice(id: string) {
   const qc = useQueryClient();
   return useMutation({
+    onError: toastError,
     mutationFn: (data: FinInvoiceUpdate) =>
       request<{ data: FinInvoiceRow }>(`/api/finance/invoices/${id}`, {
         method: "PATCH",
         body: JSON.stringify(data),
       }),
+    // V4.1 TC-11 — gia hạn có thể đổi trạng thái quá hạn → làm mới cả công nợ/tổng quan.
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.finance.invoices.all });
-      qc.invalidateQueries({ queryKey: qk.finance.invoices.detail(id) });
+      qc.invalidateQueries({ queryKey: qk.finance.all });
     },
   });
 }
@@ -403,6 +476,7 @@ export function useUpdateFinInvoice(id: string) {
 export function useCancelFinInvoice() {
   const qc = useQueryClient();
   return useMutation({
+    onError: toastError,
     mutationFn: (id: string) =>
       request<{ data: FinInvoiceRow }>(`/api/finance/invoices/${id}/cancel`, {
         method: "POST",
@@ -447,6 +521,7 @@ export function useFinPaymentDetail(id: string | null) {
 export function useCreateFinPayment() {
   const qc = useQueryClient();
   return useMutation({
+    onError: toastError,
     mutationFn: (data: FinPaymentCreate) =>
       request<{ data: { payment: FinPaymentRow; allocations: FinPaymentAllocationRow[] } }>(
         "/api/finance/payments",
@@ -467,6 +542,7 @@ export function useCreateFinPayment() {
 export function useVoidFinPayment() {
   const qc = useQueryClient();
   return useMutation({
+    onError: toastError,
     mutationFn: (id: string) =>
       request<{ data: { paymentId: string; voidedInvoiceIds: string[] } }>(
         `/api/finance/payments/${id}`,
@@ -609,7 +685,7 @@ export function useUploadFinAttachment() {
         const body = (await res.json().catch(() => ({}))) as {
           error?: { message?: string; code?: string };
         };
-        const err = new Error(body.error?.message ?? `HTTP ${res.status}`) as RequestError;
+        const err = new Error(body.error?.message ?? `Tải file thất bại (mã ${res.status}).`) as RequestError;
         err.status = res.status;
         err.code = body.error?.code;
         throw err;
@@ -669,7 +745,7 @@ export function useUploadFinanceImport() {
         const body = (await res.json().catch(() => ({}))) as {
           error?: { message?: string };
         };
-        throw new Error(body.error?.message ?? `HTTP ${res.status}`);
+        throw new Error(body.error?.message ?? `Tải file thất bại (mã ${res.status}).`);
       }
       const json = (await res.json()) as { data: FinanceImportUploadResult };
       return json.data;

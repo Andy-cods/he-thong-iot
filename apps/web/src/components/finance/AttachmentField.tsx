@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { FileText, Paperclip, Upload, X, ZoomIn } from "lucide-react";
+import { FIN_ATTACHMENT_URL_RE } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useUploadFinAttachment } from "@/hooks/useFinance";
@@ -84,11 +85,18 @@ export function AttachmentField({
     );
   }
 
-  const isImage = isImageUrl(attachmentUrl);
+  // V4.1 TC-19 — chỉ render link chứng từ do hệ thống lưu; dữ liệu cũ có URL lạ
+  // (VD `javascript:`) KHÔNG được đưa vào href/src.
+  const isSafe = FIN_ATTACHMENT_URL_RE.test(attachmentUrl);
+  const isImage = isSafe && isImageUrl(attachmentUrl);
 
   return (
     <div>
-      {isImage ? (
+      {!isSafe ? (
+        <p className="text-xs text-red-600 dark:text-red-400">
+          Link chứng từ không hợp lệ — hãy tải lại file chứng từ.
+        </p>
+      ) : isImage ? (
         <button
           type="button"
           onClick={() => setZoomOpen(true)}

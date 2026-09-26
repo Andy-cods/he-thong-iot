@@ -133,7 +133,7 @@ export async function processFinanceTransactionImportCommit(
 
   for (let i = 0; i < allRows.length; i += CHUNK_SIZE) {
     const chunk = allRows.slice(i, i + CHUNK_SIZE);
-    const result = await processChunk(chunk, actorId);
+    const result = await processChunk(chunk, actorId, batchId);
     totalSuccess += result.success;
     totalFail += result.fail;
     totalDuplicate += result.duplicate;
@@ -174,6 +174,7 @@ export async function processFinanceTransactionImportCommit(
 async function processChunk(
   chunk: StoredRow[],
   actorId: string,
+  batchId: string,
 ): Promise<{
   success: number;
   fail: number;
@@ -191,7 +192,7 @@ async function processChunk(
         // SAVEPOINT per-row (giống itemImport.ts) — lỗi 1 dòng không rollback
         // cả chunk 500 dòng.
         await tx.transaction(async (sp) => {
-          const inserted = await insertOneTransaction(sp, row, actorId);
+          const inserted = await insertOneTransaction(sp, row, actorId, batchId);
           if (inserted) {
             success++;
           } else {
@@ -225,6 +226,7 @@ async function insertOneTransaction(
   tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
   row: StoredRow,
   actorId: string,
+  batchId: string,
 ): Promise<boolean> {
   const d = row.data;
 
@@ -243,11 +245,13 @@ async function insertOneTransaction(
     INSERT INTO app.fin_transaction (
       code, direction, account_id, category_id, amount, transaction_date,
       description, counterparty_type, supplier_id, invoice_id, payment_id,
-      external_ref, dedupe_hash, status, created_by
+      external_ref, dedupe_hash, status, created_by, import_batch_id
     ) VALUES (
       ${code}, ${d.direction}, ${d.accountId}, ${d.categoryId}, ${d.amount},
       ${d.transactionDate}, ${d.description}, ${d.supplierId ? "SUPPLIER" : null},
-      ${d.supplierId}, NULL, NULL, ${d.externalRef}, ${d.dedupeHash}, 'POSTED', ${actorId}
+      ${d.supplierId}, NULL, NULL, ${d.externalRef}, ${d.dedupeHash}, 'POSTED', ${actorId},
+      -- V4.1 TC-17 — ghi lô import để truy vết/huỷ theo lô (trước đây bỏ trống).
+      ${batchId}
     )
     ON CONFLICT (dedupe_hash) DO NOTHING
     RETURNING id

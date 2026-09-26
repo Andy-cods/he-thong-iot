@@ -29,7 +29,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SupplierPicker, type SupplierPickerValue } from "@/components/procurement/SupplierPicker";
-import { fmtDate, fmtVND } from "@/components/finance/_format";
+import { AccountSourceSelect, BalanceAfterHint, selectClassName } from "@/components/finance/AccountSourceSelect";
+import { ConfirmActionDialog } from "@/components/finance/ConfirmActionDialog";
+import { fmtDate, fmtVND, todayInputValue } from "@/components/finance/_format";
 import {
   useCreateFinPayment,
   useFinAccountsList,
@@ -39,7 +41,6 @@ import {
   useVoidFinPayment,
   type FinPaymentRow,
 } from "@/hooks/useFinance";
-import { useSuppliersList } from "@/hooks/useSuppliers";
 import { useSession } from "@/hooks/useSession";
 import type { FinPaymentFilter } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
@@ -51,7 +52,12 @@ const METHOD_LABEL: Record<string, string> = {
   OTHER: "Khác",
 };
 
-/** Tab "Thanh toán" — lịch sử `fin_payment` + xem phân bổ + tạo mới (multi-invoice). */
+/**
+ * Tab "Thanh toán" — lịch sử `fin_payment` + xem phân bổ + tạo mới (multi-invoice).
+ * V4.1 Đợt 3: trạng thái "Đã huỷ" (TC-06), tên đối tác từ API (TC-03), xác nhận
+ * trước khi huỷ (TC-08), không chọn trùng HĐ (TC-09), "Nguồn chi/thu" có số dư
+ * + chặn chi vượt số dư (Q7), tiền đủ số + dòng tổng (UI).
+ */
 
 export function PaymentsTab() {
   const { data: session } = useSession();
@@ -78,19 +84,28 @@ export function PaymentsTab() {
   );
 
   const query = useFinPaymentsList(filter);
-  const suppliersQuery = useSuppliersList({ pageSize: 200, isActive: true });
-  const accountsQuery = useFinAccountsList({ isActive: true });
-  const supplierMap = new Map((suppliersQuery.data?.data ?? []).map((s) => [s.id, s]));
+  // Tất cả nguồn (kể cả đã ngưng) để hiện tên cho thanh toán cũ.
+  const accountsQuery = useFinAccountsList({});
   const accountMap = new Map((accountsQuery.data?.data ?? []).map((a) => [a.id, a]));
   const voidMut = useVoidFinPayment();
 
   const total = query.data?.meta.total ?? 0;
   const rows = query.data?.data ?? [];
   const pageCount = Math.max(1, Math.ceil(total / urlState.pageSize));
-  const isEmpty = !query.isLoading && rows.length === 0;
+  const isEmpty = !query.isLoading && !query.isError && rows.length === 0;
+  const pageTotals = rows.reduce(
+    (acc, p) => {
+      if (p.status === "VOID") return acc;
+      if (p.direction === "IN") acc.in += Number(p.totalAmount);
+      else acc.out += Number(p.totalAmount);
+      return acc;
+    },
+    { in: 0, out: 0 },
+  );
 
   const [createOpen, setCreateOpen] = React.useState(false);
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
+  const [voidTarget, setVoidTarget] = React.useState<FinPaymentRow | null>(null);
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-zinc-50/30 dark:bg-zinc-950/30">
@@ -138,6 +153,13 @@ export function PaymentsTab() {
       <div className="flex-1 overflow-auto p-4 md:p-6">
         {query.isLoading ? (
           <div className="space-y-2">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-14 rounded-lg" />)}</div>
+        ) : query.isError ? (
+          <EmptyState
+            preset="error"
+            title="Không tải được lịch sử thanh toán"
+            description={query.error instanceof Error ? query.error.message : "Vui lòng thử lại."}
+            actions={<Button size="sm" variant="outline" onClick={() => void query.refetch()}>Thử lại</Button>}
+          />
         ) : isEmpty ? (
           <EmptyState preset="no-data" title="Chưa có thanh toán nào" description="Ghi nhận thanh toán cho hoá đơn để theo dõi công nợ." actions={canWrite ? <Button size="sm" onClick={() => setCreateOpen(true)}>Ghi nhận thanh toán</Button> : undefined} />
         ) : (
@@ -146,14 +168,24 @@ export function PaymentsTab() {
               <PaymentCard
                 key={p.id}
                 row={p}
-                supplierName={p.supplierId ? supplierMap.get(p.supplierId)?.name : undefined}
+                supplierName={p.supplierName ?? undefined}
                 accountName={accountMap.get(p.accountId)?.name}
                 expanded={expandedId === p.id}
                 onToggle={() => setExpandedId(expandedId === p.id ? null : p.id)}
-                canVoid={canVoid}
-                onVoid={() => void voidMut.mutateAsync(p.id)}
+                canVoid={canVoid && p.status !== "VOID"}
+                onVoid={() => setVoidTarget(p)}
               />
             ))}
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm dark:border-zinc-700 dark:bg-zinc-800/60">
+              <span className="font-semibold text-zinc-700 dark:text-zinc-300">
+                Cộng trang này (không tính đợt đã huỷ)
+              </span>
+              <span className="font-mono tabular-nums">
+                <span className="font-semibold text-rose-600 dark:text-rose-400">Chi −{fmtVND(pageTotals.out)}</span>
+                <span className="mx-2 text-zinc-400">·</span>
+                <span className="font-semibold text-emerald-700 dark:text-emerald-400">Thu +{fmtVND(pageTotals.in)}</span>
+              </span>
+            </div>
           </div>
         )}
       </div>
@@ -170,7 +202,28 @@ export function PaymentsTab() {
         </footer>
       )}
 
-      <PaymentFormDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <PaymentFormDialog open={createOpen} onOpenChange={setCreateOpen} isAdmin={roles.includes("admin")} />
+      <ConfirmActionDialog
+        open={!!voidTarget}
+        onOpenChange={(open) => { if (!open) setVoidTarget(null); }}
+        title="Huỷ đợt thanh toán?"
+        description={
+          voidTarget
+            ? `Huỷ đợt ${voidTarget.code} (${fmtVND(voidTarget.totalAmount)}): mọi giao dịch của đợt bị huỷ, số dư nguồn được hoàn lại và các hoá đơn được phân bổ quay về trạng thái chưa trả. Đợt vẫn được giữ với trạng thái "Đã huỷ".`
+            : ""
+        }
+        confirmLabel="Huỷ đợt thanh toán"
+        loading={voidMut.isPending}
+        onConfirm={async () => {
+          if (!voidTarget) return;
+          try {
+            await voidMut.mutateAsync(voidTarget.id);
+            setVoidTarget(null);
+          } catch {
+            /* toast lỗi đã hiện ở hook */
+          }
+        }}
+      />
     </div>
   );
 }
@@ -194,9 +247,10 @@ function PaymentCard({
 }) {
   const detailQuery = useFinPaymentDetail(expanded ? row.id : null);
   const allocations = detailQuery.data?.data.allocations ?? [];
+  const isVoid = row.status === "VOID";
 
   return (
-    <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+    <div className={cn("overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900", isVoid && "opacity-70")}>
       <button
         type="button"
         onClick={onToggle}
@@ -205,15 +259,27 @@ function PaymentCard({
         <div className="flex min-w-0 items-center gap-3">
           {expanded ? <ChevronDown className="h-4 w-4 shrink-0 text-zinc-400" /> : <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" />}
           <div className="min-w-0">
-            <p className="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-50">{row.code}</p>
+            <p className="flex items-center gap-2 font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+              {row.code}
+              <span
+                className={cn(
+                  "rounded-full px-2 py-0.5 font-sans text-[11px] font-semibold",
+                  isVoid
+                    ? "bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400"
+                    : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
+                )}
+              >
+                {isVoid ? "Đã huỷ" : "Đã ghi sổ"}
+              </span>
+            </p>
             <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
               {fmtDate(row.paymentDate)} · {accountName ?? "—"}{supplierName ? ` · ${supplierName}` : ""} · {METHOD_LABEL[row.method]}
             </p>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-3">
-          <p className={cn("font-mono text-sm font-bold tabular-nums", row.direction === "IN" ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
-            {row.direction === "IN" ? "+" : "-"}{fmtVND(row.totalAmount)}
+          <p className={cn("whitespace-nowrap font-mono text-sm font-bold tabular-nums", row.direction === "IN" ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400", isVoid && "line-through")}>
+            {row.direction === "IN" ? "+" : "−"}{fmtVND(row.totalAmount)}
           </p>
           {canVoid && (
             <span
@@ -222,7 +288,8 @@ function PaymentCard({
               onClick={(e) => { e.stopPropagation(); void onVoid(); }}
               onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); void onVoid(); } }}
               className="inline-flex h-7 w-7 items-center justify-center rounded-md text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40"
-              aria-label="Huỷ thanh toán"
+              aria-label={`Huỷ đợt thanh toán ${row.code}`}
+              title="Huỷ đợt thanh toán"
             >
               <Ban className="h-3.5 w-3.5" aria-hidden="true" />
             </span>
@@ -260,11 +327,14 @@ interface AllocationField {
 function PaymentFormDialog({
   open,
   onOpenChange,
+  isAdmin,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  isAdmin: boolean;
 }) {
   const createMut = useCreateFinPayment();
+  const [allowOverdraft, setAllowOverdraft] = React.useState(false);
   const [direction, setDirection] = React.useState<FinDirection>("OUT");
   const [supplier, setSupplier] = React.useState<SupplierPickerValue | null>(null);
   const accountsQuery = useFinAccountsList({ isActive: true });
@@ -298,7 +368,8 @@ function PaymentFormDialog({
       direction,
       accountId: "",
       supplierId: null,
-      paymentDate: new Date(),
+      // V4.1 TC-13 — chuỗi ngày VN, không phải `new Date()` (UTC).
+      paymentDate: todayInputValue() as unknown as Date,
       totalAmount: 0,
       method: "BANK_TRANSFER",
       allocations: [],
@@ -311,11 +382,12 @@ function PaymentFormDialog({
     if (open) {
       setSupplier(null);
       setDirection("OUT");
+      setAllowOverdraft(false);
       reset({
         direction: "OUT",
-        accountId: accounts[0]?.id ?? "",
+        accountId: "",
         supplierId: null,
-        paymentDate: new Date(),
+        paymentDate: todayInputValue() as unknown as Date,
         totalAmount: 0,
         method: "BANK_TRANSFER",
         allocations: [],
@@ -334,9 +406,24 @@ function PaymentFormDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allocationSum]);
 
+  const accountId = watch("accountId");
+  const account = accounts.find((a) => a.id === accountId);
+  const wouldOverdraw =
+    direction === "OUT" && !!account && Number(account.currentBalance) - allocationSum < 0;
+  const sourceLabel = direction === "OUT" ? "Nguồn chi" : "Nguồn thu";
+
   const onSubmit = async (data: FinPaymentCreate) => {
-    await createMut.mutateAsync({ ...data, direction, supplierId: supplier?.id ?? null });
-    onOpenChange(false);
+    try {
+      await createMut.mutateAsync({
+        ...data,
+        direction,
+        supplierId: supplier?.id ?? null,
+        allowOverdraft: isAdmin && allowOverdraft,
+      });
+      onOpenChange(false);
+    } catch {
+      /* toast lỗi (vượt nợ HĐ, vượt số dư nguồn…) đã hiện ở hook — giữ form */
+    }
   };
 
   return (
@@ -369,18 +456,15 @@ function PaymentFormDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label htmlFor="pay-account" required>Tài khoản</Label>
-              <select
+              <Label htmlFor="pay-account" required>{sourceLabel}</Label>
+              <AccountSourceSelect
                 id="pay-account"
+                accounts={accounts}
+                placeholder={`— Chọn ${sourceLabel.toLowerCase()} —`}
                 {...register("accountId")}
-                className="mt-1 h-9 w-full rounded-md border border-zinc-300 bg-white px-2 text-base text-zinc-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-              >
-                <option value="">— Chọn tài khoản —</option>
-                {accounts.map((a) => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
-                ))}
-              </select>
-              {errors.accountId && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.accountId.message}</p>}
+              />
+              <BalanceAfterHint account={account} direction={direction} amount={allocationSum} />
+              {errors.accountId && <p className="mt-1 text-xs text-red-600 dark:text-red-400">Chọn {sourceLabel.toLowerCase()}.</p>}
             </div>
             <div>
               <Label htmlFor="pay-supplier" required>{direction === "OUT" ? "Nhà cung cấp" : "Khách hàng"}</Label>
@@ -395,11 +479,7 @@ function PaymentFormDialog({
             </div>
             <div>
               <Label htmlFor="pay-method">Phương thức</Label>
-              <select
-                id="pay-method"
-                {...register("method")}
-                className="mt-1 h-9 w-full rounded-md border border-zinc-300 bg-white px-2 text-base text-zinc-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-              >
+              <select id="pay-method" {...register("method")} className={selectClassName}>
                 {Object.entries(METHOD_LABEL).map(([k, v]) => (
                   <option key={k} value={k}>{v}</option>
                 ))}
@@ -434,16 +514,24 @@ function PaymentFormDialog({
                 fields.map((f, idx) => {
                   const selectedInvoiceId = allocations?.[idx]?.invoiceId;
                   const inv = selectedInvoiceId ? invoiceMap.get(selectedInvoiceId) : undefined;
+                  // V4.1 TC-09 — HĐ đã chọn ở dòng khác không hiện lại.
+                  const takenElsewhere = new Set(
+                    (allocations ?? [])
+                      .filter((_, j) => j !== idx)
+                      .map((a) => a.invoiceId)
+                      .filter(Boolean),
+                  );
                   const remaining = inv ? Number(inv.totalAmount) - Number(inv.paidAmount) : undefined;
                   return (
                     <div key={f.id} className="grid grid-cols-[1fr_140px_auto] items-start gap-2">
                       <div>
                         <select
                           {...register(`allocations.${idx}.invoiceId` as const)}
-                          className="h-9 w-full rounded-md border border-zinc-300 bg-white px-2 text-base text-zinc-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                          aria-label={`Hoá đơn dòng ${idx + 1}`}
+                          className={cn(selectClassName, "mt-0")}
                         >
                           <option value="">— Chọn hoá đơn —</option>
-                          {openInvoices.map((i) => (
+                          {openInvoices.filter((i) => !takenElsewhere.has(i.id)).map((i) => (
                             <option key={i.id} value={i.id}>
                               {i.invoiceNo} — còn nợ {fmtVND(Number(i.totalAmount) - Number(i.paidAmount))}
                             </option>
@@ -490,9 +578,34 @@ function PaymentFormDialog({
             <Input id="pay-notes" {...register("notes")} className="mt-1" placeholder="Tuỳ chọn" />
           </div>
 
+          {wouldOverdraw && isAdmin && (
+            <label className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={allowOverdraft}
+                onChange={(e) => setAllowOverdraft(e.target.checked)}
+              />
+              <span>Cho phép chi vượt số dư nguồn (chỉ Giám đốc). Số dư nguồn sẽ bị âm.</span>
+            </label>
+          )}
+          {wouldOverdraw && !isAdmin && (
+            <p className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+              Nguồn chi không đủ số dư — chọn nguồn khác hoặc chuyển quỹ vào nguồn này trước.
+            </p>
+          )}
+
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Huỷ</Button>
-            <Button type="submit" disabled={createMut.isPending || fields.length === 0 || mismatch}>
+            <Button
+              type="submit"
+              disabled={
+                createMut.isPending ||
+                fields.length === 0 ||
+                mismatch ||
+                (wouldOverdraw && !(isAdmin && allowOverdraft))
+              }
+            >
               {createMut.isPending ? "Đang lưu…" : "Ghi nhận thanh toán"}
             </Button>
           </DialogFooter>

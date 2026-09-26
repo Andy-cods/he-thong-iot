@@ -36,7 +36,11 @@ type Direction = "payable" | "receivable";
 
 export function ReceivablesTab() {
   const [direction, setDirection] = React.useState<Direction>("payable");
-  const [selectedSupplier, setSelectedSupplier] = React.useState<{ id: string; name: string } | null>(null);
+  const [selectedSupplier, setSelectedSupplier] = React.useState<{
+    id: string;
+    name: string;
+    direction: "IN" | "OUT";
+  } | null>(null);
 
   const receivablesQuery = useReceivablesAging();
   const receivablePartnersQuery = useReceivablesByCustomer();
@@ -45,9 +49,11 @@ export function ReceivablesTab() {
 
   const isPayable = direction === "payable";
 
+  // V4.1 TC-07 — phải thu nay cũng nhóm theo đối tác (supplier_id) → mở được
+  // danh sách HĐ của khách. Nhóm "(Chưa chọn khách hàng)" (HĐ cũ) không có id.
   const handlePartnerClick = (p: PartnerAging) => {
-    if (!isPayable || !p.partnerId) return; // Phải thu (OUT) không có FK — không mở được gì chính xác.
-    setSelectedSupplier({ id: p.partnerId, name: p.partnerName });
+    if (!p.partnerId) return;
+    setSelectedSupplier({ id: p.partnerId, name: p.partnerName, direction: isPayable ? "IN" : "OUT" });
   };
 
   return (
@@ -114,7 +120,8 @@ export function ReceivablesTab() {
             emptyTitle="Không có công nợ phải thu"
             emptyDescription="Tất cả hoá đơn đầu ra đã được thanh toán đầy đủ."
             kpiLabel="Tổng phải thu"
-            partnerColumnLabel="Khách hàng (theo ghi chú hoá đơn)"
+            partnerColumnLabel="Khách hàng"
+            onPartnerClick={handlePartnerClick}
           />
         )}
       </div>
@@ -123,6 +130,7 @@ export function ReceivablesTab() {
         <PartnerInvoicesDialog
           supplierId={selectedSupplier.id}
           supplierName={selectedSupplier.name}
+          direction={selectedSupplier.direction}
           onOpenChange={(open) => { if (!open) setSelectedSupplier(null); }}
         />
       )}

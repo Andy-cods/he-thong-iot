@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import {
@@ -16,7 +17,7 @@ import {
 } from "lucide-react";
 import { LIMITS } from "@iot/shared";
 import { Button } from "@/components/ui/button";
-import { fmtVND } from "@/components/finance/_format";
+import { fmtDate, fmtVND } from "@/components/finance/_format";
 import {
   financeImportErrorsUrl,
   financeImportTemplateUrl,
@@ -24,6 +25,7 @@ import {
   useFinanceImportBatch,
   useUploadFinanceImport,
 } from "@/hooks/useFinance";
+import { qk } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 
 /**
@@ -39,6 +41,13 @@ import { cn } from "@/lib/utils";
  */
 
 type Step = "upload" | "preview" | "result";
+
+const IMPORT_STATUS_LABEL: Record<string, string> = {
+  preview_ready: "Chờ xác nhận",
+  committing: "Đang ghi",
+  done: "Hoàn tất",
+  failed: "Thất bại",
+};
 const STEP_ORDER: Step[] = ["upload", "preview", "result"];
 const STEP_LABELS: Record<Step, string> = {
   upload: "Tải file",
@@ -59,6 +68,19 @@ export function ImportTransactionsWizard({ onClose }: ImportTransactionsWizardPr
   const commit = useCommitFinanceImport();
   const batchQuery = useFinanceImportBatch(batchId);
   const uploadData = upload.data;
+  const qc = useQueryClient();
+
+  // V4.1 TC-21 — worker ghi xong (status `done`) mới làm mới sổ thu chi/số dư;
+  // trước đây chỉ làm mới lúc bấm commit (khi worker CHƯA ghi dòng nào).
+  const refreshedFor = useRef<string | null>(null);
+  const batchStatus = batchQuery.data?.status;
+  useEffect(() => {
+    if (!batchId || refreshedFor.current === batchId) return;
+    if (batchStatus === "done" || batchStatus === "failed") {
+      refreshedFor.current = batchId;
+      void qc.invalidateQueries({ queryKey: qk.finance.all });
+    }
+  }, [batchId, batchStatus, qc]);
 
   const onDrop = useCallback((files: File[]) => {
     const f = files[0];
@@ -84,15 +106,11 @@ export function ImportTransactionsWizard({ onClose }: ImportTransactionsWizardPr
       const res = await upload.mutateAsync(file);
       setBatchId(res.batchId);
       setStep("preview");
-      if (res.reused) {
-        toast.info("File này đã upload trong 1 giờ qua — dùng lại phiên cũ.");
-      } else {
-        toast.success(
-          `Đọc xong: ${res.rowSuccess} dòng mới, ${res.duplicateCount ?? 0} dòng trùng, ${res.rowFail} dòng lỗi.`,
-        );
-      }
+      toast.success(
+        `Đọc xong: ${res.rowSuccess} dòng mới, ${res.duplicateCount ?? 0} dòng trùng, ${res.rowFail} dòng lỗi.`,
+      );
     } catch (err) {
-      toast.error(`Upload thất bại: ${(err as Error).message}`);
+      toast.error(`Tải file thất bại: ${(err as Error).message}`);
     }
   };
 
@@ -103,7 +121,7 @@ export function ImportTransactionsWizard({ onClose }: ImportTransactionsWizardPr
       setStep("result");
       toast.info("Đang import nền — bạn có thể theo dõi tiến độ ở đây.");
     } catch (err) {
-      toast.error(`Commit thất bại: ${(err as Error).message}`);
+      toast.error(`Ghi dữ liệu thất bại: ${(err as Error).message}`);
     }
   };
 
@@ -161,7 +179,7 @@ export function ImportTransactionsWizard({ onClose }: ImportTransactionsWizardPr
             className="inline-flex h-9 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
           >
             <Download className="h-3.5 w-3.5" aria-hidden="true" />
-            Tải template Excel mẫu
+            Tải file Excel mẫu
           </a>
 
           <div className="flex justify-end border-t border-zinc-200 pt-4 dark:border-zinc-800">
@@ -194,7 +212,7 @@ export function ImportTransactionsWizard({ onClose }: ImportTransactionsWizardPr
           {uploadData.previewRows && uploadData.previewRows.length > 0 && (
             <div className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
               <div className="flex items-center justify-between border-b border-zinc-200 bg-zinc-50 px-3 h-8 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-400">
-                <span>Preview {uploadData.previewRows.length} dòng đầu</span>
+                <span>Xem trước {uploadData.previewRows.length} dòng đầu</span>
                 <span className="normal-case tracking-normal text-zinc-500 dark:text-zinc-400">
                   Dòng trùng tô nền vàng
                 </span>
@@ -204,7 +222,7 @@ export function ImportTransactionsWizard({ onClose }: ImportTransactionsWizardPr
                   <thead className="sticky top-0 z-sticky bg-zinc-50 dark:bg-zinc-800/60">
                     <tr className="text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                       <th className="h-8 w-12 px-3">#</th>
-                      {["Ngày", "Loại", "Tài khoản", "Số tiền", "Diễn giải"].map((h) => (
+                      {["Ngày", "Loại", "Nguồn", "Số tiền", "Diễn giải"].map((h) => (
                         <th key={h} className="h-8 px-3">{h}</th>
                       ))}
                     </tr>
@@ -219,7 +237,7 @@ export function ImportTransactionsWizard({ onClose }: ImportTransactionsWizardPr
                         )}
                       >
                         <td className="px-3 text-xs text-zinc-500 tabular-nums dark:text-zinc-400">{i + 1}</td>
-                        <td className="px-3 text-zinc-800 dark:text-zinc-200">{r.transactionDate}</td>
+                        <td className="px-3 text-zinc-800 dark:text-zinc-200">{fmtDate(r.transactionDate)}</td>
                         <td className="px-3">
                           <span className={r.direction === "IN" ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
                             {r.direction === "IN" ? "Thu" : "Chi"}
@@ -246,8 +264,16 @@ export function ImportTransactionsWizard({ onClose }: ImportTransactionsWizardPr
           )}
 
           {uploadData.warnings && uploadData.warnings.length > 0 && (
-            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-400">
-              {uploadData.warnings.length} cảnh báo (không chặn dòng) — VD: không khớp danh mục/NCC, đã để trống.
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+              <p className="font-semibold">
+                {uploadData.warnings.length} cảnh báo (không chặn dòng — vẫn nhập):
+              </p>
+              <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                {uploadData.warnings.slice(0, 8).map((w, i) => (
+                  <li key={i}>Dòng {w.rowNumber}: {w.reason}</li>
+                ))}
+              </ul>
+              {uploadData.warnings.length > 8 && <p className="mt-1">… và {uploadData.warnings.length - 8} cảnh báo khác.</p>}
             </div>
           )}
 
@@ -375,7 +401,7 @@ function ResultPanel({
             {isDone ? "Hoàn tất import" : isFailed ? "Import thất bại" : "Đang import nền…"}
           </div>
           <div className="text-xs text-zinc-500 dark:text-zinc-400">
-            Trạng thái: <span className="font-mono">{status}</span>
+            Trạng thái: {IMPORT_STATUS_LABEL[status] ?? status}
           </div>
         </div>
       </div>

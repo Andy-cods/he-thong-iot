@@ -164,6 +164,8 @@ describe("can() — assert 48+ cell từ matrix (§4 brainstorm)", () => {
     ["accountant", "delete", "finance", false], // huỷ chứng từ bằng VOID
     ["accountant", "approve", "finance", false], // duyệt chi là của Giám đốc
     ["accountant", "read", "po", true],
+    ["accountant", "read", "supplier", true], // V4.1 Đợt 3 — chọn NCC khi ghi HĐ/thanh toán
+    ["accountant", "update", "supplier", false],
     ["accountant", "read", "deliveryNote", true],
     // V4.0 — Shareholder (Cổ đông): CHỈ đọc Tài chính + tiến độ sản xuất.
     ["shareholder", "read", "finance", true],

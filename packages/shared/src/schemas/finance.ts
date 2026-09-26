@@ -40,8 +40,60 @@ const optionalTrim = (max: number) =>
     .nullable()
     .transform((v) => (v === "" ? null : (v ?? null)));
 
-export const FIN_ACCOUNT_TYPES = ["BANK", "CASH"] as const;
+/**
+ * V4.1 TC-05 — bản dành cho PATCH: GIỮ `undefined` (= "không đổi trường này").
+ * `optionalTrim` ép `undefined → null` nên PATCH chỉ gửi 1 trường sẽ XOÁ các
+ * trường còn lại → UI phải gửi lại cả bộ bằng dữ liệu cũ → ghi đè mất danh mục
+ * vừa đổi. Chuỗi rỗng vẫn = null (xoá có chủ đích).
+ */
+const patchTrim = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .nullable()
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v === "" ? null : v));
+
+/**
+ * V4.1 TC-19 — link chứng từ CHỈ được là file do chính hệ thống lưu
+ * (`/api/finance/attachments/<uuid>.<đuôi>`). Trước đây là chuỗi tự do →
+ * `javascript:…` lọt vào `href` (XSS). Khớp `SAFE_FILENAME_RE` phía server.
+ */
+export const FIN_ATTACHMENT_URL_RE =
+  /^\/api\/finance\/attachments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp|heic|pdf)$/;
+const attachmentUrlCreate = optionalTrim(2000).refine(
+  (v) => v === null || FIN_ATTACHMENT_URL_RE.test(v),
+  "Chứng từ đính kèm không hợp lệ — hãy tải file lên lại.",
+);
+const attachmentUrlPatch = patchTrim(2000).refine(
+  (v) => v === undefined || v === null || FIN_ATTACHMENT_URL_RE.test(v),
+  "Chứng từ đính kèm không hợp lệ — hãy tải file lên lại.",
+);
+
+/**
+ * V4.1 TC-24 — boolean trên query string. `z.coerce.boolean()` biến chuỗi
+ * "false" thành `true` (chuỗi khác rỗng) → `?overdue=false` lọc như `true`.
+ */
+const queryBoolean = z
+  .union([z.enum(["true", "false", "1", "0"]), z.boolean()])
+  .optional()
+  .transform((v) => {
+    if (v === undefined) return undefined;
+    if (typeof v === "boolean") return v;
+    return v === "true" || v === "1";
+  });
+
+// V4.1 Đợt 3 (Q7) — EXPENSE = "Tài khoản chi tiêu". D9: KHÔNG có loại "Khác".
+export const FIN_ACCOUNT_TYPES = ["BANK", "CASH", "EXPENSE"] as const;
 export type FinAccountType = (typeof FIN_ACCOUNT_TYPES)[number];
+
+/** Nhãn loại nguồn tiền — dùng chung UI (dropdown nhóm theo loại). */
+export const FIN_ACCOUNT_TYPE_LABELS: Record<FinAccountType, string> = {
+  CASH: "Quỹ tiền mặt",
+  BANK: "Ngân hàng",
+  EXPENSE: "TK chi tiêu",
+};
 
 export const FIN_DIRECTIONS = ["IN", "OUT"] as const;
 export type FinDirection = (typeof FIN_DIRECTIONS)[number];
@@ -154,20 +206,21 @@ export const finInvoiceCreateSchema = z
     vatAmount: nonNegativeAmount,
     totalAmount: nonNegativeAmount,
     notes: optionalTrim(2000),
-    attachmentUrl: optionalTrim(2000),
+    attachmentUrl: attachmentUrlCreate,
   })
   .refine(
     (v) => Math.abs(v.subtotalAmount + v.vatAmount - v.totalAmount) <= 1,
     {
-      message: "totalAmount phải bằng subtotalAmount + vatAmount (sai số cho phép ±1đ)",
+      message: "Tổng tiền phải bằng Tiền hàng + Tiền VAT (sai số cho phép ±1 ₫)",
       path: ["totalAmount"],
     },
   );
 
+// V4.1 TC-05 — PATCH: trường không gửi = giữ nguyên (không ép null).
 export const finInvoiceUpdateSchema = z.object({
   dueDate: dateStringOrDate.optional().nullable(),
-  notes: optionalTrim(2000),
-  attachmentUrl: optionalTrim(2000),
+  notes: patchTrim(2000),
+  attachmentUrl: attachmentUrlPatch,
 });
 
 export const finInvoiceListQuerySchema = z.object({
@@ -177,7 +230,8 @@ export const finInvoiceListQuerySchema = z.object({
     .optional()
     .transform((v) => (v === undefined ? undefined : Array.isArray(v) ? v : [v])),
   supplierId: uuid.optional(),
-  overdue: z.coerce.boolean().optional(),
+  // V4.1 TC-24 — "false" phải là false.
+  overdue: queryBoolean,
   q: z.string().trim().max(120).optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(200).default(50),
@@ -198,18 +252,41 @@ export const finTransactionCreateSchema = z.object({
   salesOrderId: uuid.optional().nullable(),
   // invoiceId LUÔN optional — hỗ trợ khoản chi/thu KHÔNG có hoá đơn.
   invoiceId: uuid.optional().nullable(),
-  attachmentUrl: optionalTrim(2000),
+  attachmentUrl: attachmentUrlCreate,
   externalRef: optionalTrim(128),
+  // V4.1 Đợt 3 (Q7) — phiếu chi vượt số dư nguồn bị chặn 409; chỉ admin được
+  // chủ động vượt (route tự bỏ qua cờ này nếu người gửi không phải admin).
+  allowOverdraft: z.boolean().optional(),
   // paymentId KHÔNG cho phép set thủ công qua schema này — chỉ
   // `createPaymentWithAllocations` (Phase B repo) mới được gán, để tránh
   // double-count "tổng đã chi" (xem wave-2-finance.md §C.2 ràng buộc #2).
 });
 
+// V4.1 TC-05 — PATCH: trường không gửi = giữ nguyên (không ép null).
 export const finTransactionUpdateSchema = z.object({
-  description: optionalTrim(2000),
-  attachmentUrl: optionalTrim(2000),
+  description: patchTrim(2000),
+  attachmentUrl: attachmentUrlPatch,
   categoryId: uuid.optional().nullable(),
 });
+
+/**
+ * V4.1 Đợt 3 (Q7) — Chuyển quỹ nội bộ giữa 2 nguồn (VD rút quỹ tiền mặt nạp
+ * TK chi tiêu). Sinh 1 dòng OUT + 1 dòng IN cùng `transfer_group_id`, KHÔNG
+ * tính vào báo cáo thu/chi.
+ */
+export const finTransferCreateSchema = z
+  .object({
+    fromAccountId: uuid,
+    toAccountId: uuid,
+    amount: positiveAmount,
+    transactionDate: dateStringOrDate,
+    description: optionalTrim(2000),
+    allowOverdraft: z.boolean().optional(),
+  })
+  .refine((v) => v.fromAccountId !== v.toAccountId, {
+    message: "Nguồn chuyển và nguồn nhận phải khác nhau",
+    path: ["toAccountId"],
+  });
 
 export const finTransactionListQuerySchema = z.object({
   direction: z.enum(FIN_DIRECTIONS).optional(),
@@ -217,7 +294,8 @@ export const finTransactionListQuerySchema = z.object({
   categoryId: uuid.optional(),
   supplierId: uuid.optional(),
   status: z.enum(FIN_TRANSACTION_STATUSES).optional(),
-  hasInvoice: z.coerce.boolean().optional(),
+  // V4.1 TC-24 — "false" phải là false.
+  hasInvoice: queryBoolean,
   dateFrom: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -249,6 +327,8 @@ export const finPaymentCreateSchema = z
     referenceNo: optionalTrim(128),
     notes: optionalTrim(2000),
     allocations: z.array(finPaymentAllocationInputSchema).min(1, "Cần ít nhất 1 phân bổ hoá đơn"),
+    // V4.1 Đợt 3 (Q7) — xem finTransactionCreateSchema.allowOverdraft.
+    allowOverdraft: z.boolean().optional(),
   })
   .refine(
     (v) => {
@@ -258,7 +338,7 @@ export const finPaymentCreateSchema = z
     {
       // V1 KISS: bắt buộc SUM(allocations) === totalAmount (không cho phép
       // overpay/tạm ứng dư — muốn allocate ít hơn thì tạo payment nhỏ hơn).
-      message: "Tổng các khoản phân bổ (allocations) phải bằng totalAmount",
+      message: "Tổng các khoản phân bổ phải bằng tổng tiền thanh toán",
       path: ["allocations"],
     },
   );
@@ -293,6 +373,7 @@ export type FinInvoiceListQuery = z.infer<typeof finInvoiceListQuerySchema>;
 
 export type FinTransactionCreate = z.infer<typeof finTransactionCreateSchema>;
 export type FinTransactionUpdate = z.infer<typeof finTransactionUpdateSchema>;
+export type FinTransferCreate = z.infer<typeof finTransferCreateSchema>;
 /**
  * Bộ lọc cho endpoint thống kê tổng thu/chi — GIỐNG list nhưng KHÔNG có
  * page/pageSize (tổng tính trên toàn bộ kết quả khớp lọc, không phân trang).

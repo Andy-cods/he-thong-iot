@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { getCashflowSeries, getCashflowTotals } from "@/server/repos/finInvoices";
+import { addDaysIso, vnToday } from "@/lib/finance";
 import { parseSearchParams } from "@/server/http";
 import { requireCan } from "@/server/session";
 
@@ -29,10 +30,9 @@ export async function GET(req: NextRequest) {
   const q = parseSearchParams(req, cashflowQuerySchema);
   if ("response" in q) return q.response;
 
-  const today = new Date();
-  const to = q.data.to ?? toDateStr(today);
-  const from =
-    q.data.from ?? toDateStr(new Date(today.getTime() - 29 * 24 * 60 * 60 * 1000));
+  // V4.1 TC-13 — mặc định theo ngày VN.
+  const to = q.data.to ?? vnToday();
+  const from = q.data.from ?? addDaysIso(to, -29);
 
   const [series, totals] = await Promise.all([
     getCashflowSeries(from, to),

@@ -53,6 +53,10 @@ const DUE_SOON_EVENT = "FIN_INVOICE_DUE_SOON";
 const OVERDUE_EVENT = "FIN_INVOICE_OVERDUE";
 const RECEIVABLE_OVERDUE_EVENT = "FIN_RECEIVABLE_OVERDUE";
 const DEDUPE_WINDOW_MS = 20 * 60 * 60 * 1000; // ~20h — đủ để job chạy 1 lần/ngày không trùng dù giờ chạy trôi nhẹ.
+// V4.1 TC-12 — HĐ đã quá hạn được nhắc LẠI mỗi 7 ngày (trước đây chỉ nhắc đúng
+// 1 lần: lần quét đầu đổi status sang OVERDUE, các lần sau lọc UNPAID/PARTIAL
+// nên không bao giờ thấy lại). 7 ngày để không spam chuông hằng ngày.
+const OVERDUE_REPEAT_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** Copy y nguyên logic fan-out theo role từ prReminderScan.ts. */
 async function getActiveUserIdsByRoles(roles: Role[]): Promise<string[]> {
@@ -66,8 +70,12 @@ async function getActiveUserIdsByRoles(roles: Role[]): Promise<string[]> {
   return [...new Set(rows.map((r) => r.id))];
 }
 
-async function alreadyRemindedToday(eventType: string, invoiceId: string): Promise<boolean> {
-  const threshold = new Date(Date.now() - DEDUPE_WINDOW_MS);
+async function alreadyRemindedToday(
+  eventType: string,
+  invoiceId: string,
+  windowMs: number = DEDUPE_WINDOW_MS,
+): Promise<boolean> {
+  const threshold = new Date(Date.now() - windowMs);
   const [row] = await db
     .select({ id: notification.id })
     .from(notification)
@@ -129,7 +137,8 @@ export async function processFinInvoiceReminderScan(
     .where(
       and(
         eq(finInvoice.direction, "IN"),
-        inArray(finInvoice.status, ["UNPAID", "PARTIAL"]),
+        // V4.1 TC-12 — gồm cả OVERDUE để nhắc lại định kỳ.
+        inArray(finInvoice.status, ["UNPAID", "PARTIAL", "OVERDUE"]),
         sql`${finInvoice.dueDate} IS NOT NULL AND ${finInvoice.dueDate} < CURRENT_DATE`,
       ),
     );
@@ -147,7 +156,8 @@ export async function processFinInvoiceReminderScan(
     .where(
       and(
         eq(finInvoice.direction, "OUT"),
-        inArray(finInvoice.status, ["UNPAID", "PARTIAL"]),
+        // V4.1 TC-12 — gồm cả OVERDUE để nhắc lại định kỳ.
+        inArray(finInvoice.status, ["UNPAID", "PARTIAL", "OVERDUE"]),
         sql`${finInvoice.dueDate} IS NOT NULL AND ${finInvoice.dueDate} < CURRENT_DATE`,
       ),
     );
@@ -206,7 +216,7 @@ export async function processFinInvoiceReminderScan(
   }
 
   for (const inv of overdueInRows) {
-    if (!(await alreadyRemindedToday(OVERDUE_EVENT, inv.id))) {
+    if (!(await alreadyRemindedToday(OVERDUE_EVENT, inv.id, OVERDUE_REPEAT_MS))) {
       const outstanding = Number(inv.totalAmount) - Number(inv.paidAmount);
       const supplierName = inv.supplierId ? supplierNameMap.get(inv.supplierId) : null;
       const title = `Hoá đơn ${inv.invoiceNo} đã QUÁ HẠN thanh toán`;
@@ -238,7 +248,7 @@ export async function processFinInvoiceReminderScan(
   }
 
   for (const inv of overdueOutRows) {
-    if (await alreadyRemindedToday(RECEIVABLE_OVERDUE_EVENT, inv.id)) {
+    if (await alreadyRemindedToday(RECEIVABLE_OVERDUE_EVENT, inv.id, OVERDUE_REPEAT_MS)) {
       skipped++;
     } else {
       const outstanding = Number(inv.totalAmount) - Number(inv.paidAmount);

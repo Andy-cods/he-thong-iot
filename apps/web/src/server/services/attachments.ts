@@ -43,6 +43,28 @@ function uploadRoot(): string {
   return path.resolve(process.cwd(), env.UPLOAD_DIR, "finance");
 }
 
+/**
+ * V4.1 TC-27 — Nhận diện loại file bằng "magic bytes" (không tin `file.type`
+ * trình duyệt gửi lên — đổi đuôi .html thành .png là qua). Trả MIME thật hoặc
+ * null nếu không phải ảnh/PDF được phép.
+ */
+export function sniffAttachmentMime(buf: Uint8Array): string | null {
+  const b = (i: number) => buf[i] ?? -1;
+  const ascii = (from: number, len: number) =>
+    String.fromCharCode(...Array.from(buf.subarray(from, from + len)));
+  if (b(0) === 0xff && b(1) === 0xd8 && b(2) === 0xff) return "image/jpeg";
+  if (b(0) === 0x89 && ascii(1, 3) === "PNG" && b(4) === 0x0d && b(5) === 0x0a) return "image/png";
+  if (ascii(0, 4) === "RIFF" && ascii(8, 4) === "WEBP") return "image/webp";
+  if (ascii(0, 5) === "%PDF-") return "application/pdf";
+  if (ascii(4, 4) === "ftyp") {
+    const brand = ascii(8, 4);
+    if (["heic", "heix", "hevc", "hevx", "mif1", "msf1", "heim", "heis"].includes(brand)) {
+      return "image/heic";
+    }
+  }
+  return null;
+}
+
 /** Validate MIME + size. Ném `AttachmentValidationError` nếu không hợp lệ. */
 export function assertAttachmentFile(file: File): void {
   if (!(file.type in ALLOWED_MIME)) {
@@ -77,13 +99,21 @@ export function assertAttachmentFile(file: File): void {
 export async function saveFinanceAttachment(file: File): Promise<{ url: string; filename: string }> {
   assertAttachmentFile(file);
 
-  const ext = ALLOWED_MIME[file.type]!;
+  const buffer = Buffer.from(await file.arrayBuffer());
+  // V4.1 TC-27 — loại file theo NỘI DUNG thật, đuôi lưu theo loại thật.
+  const realMime = sniffAttachmentMime(buffer);
+  if (!realMime || !(realMime in ALLOWED_MIME)) {
+    throw new AttachmentValidationError(
+      "Nội dung file không phải ảnh (JPEG/PNG/WEBP/HEIC) hoặc PDF hợp lệ.",
+      "INVALID_FILE_CONTENT",
+    );
+  }
+  const ext = ALLOWED_MIME[realMime]!;
   const filename = `${randomUUID()}.${ext}`;
   const dir = uploadRoot();
   await mkdir(dir, { recursive: true });
   const destPath = path.join(dir, filename);
 
-  const buffer = Buffer.from(await file.arrayBuffer());
   await writeFile(destPath, buffer);
   return { url: `/api/finance/attachments/${filename}`, filename };
 }

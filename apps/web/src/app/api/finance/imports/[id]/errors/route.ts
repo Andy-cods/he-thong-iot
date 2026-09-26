@@ -5,6 +5,7 @@ import {
   buildFinanceErrorWorkbook,
   type FinanceImportRowError,
 } from "@/server/services/financeImport";
+import { contentDispositionAttachment } from "@/lib/finance";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -35,7 +36,8 @@ export async function GET(
     headers: {
       "Content-Type":
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="${safeName}-errors.xlsx"`,
+      // V4.1 TC-26 — tên file tiếng Việt trong header thô → lỗi ByteString → 500.
+      "Content-Disposition": contentDispositionAttachment(`${safeName}-errors.xlsx`),
       "Cache-Control": "no-store",
     },
   });

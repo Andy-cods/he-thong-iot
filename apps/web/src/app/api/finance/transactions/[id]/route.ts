@@ -38,6 +38,14 @@ export async function PATCH(
   if (before.status === "VOID") {
     return jsonError("FIN_TRANSACTION_VOIDED", "Giao dịch đã huỷ, không thể sửa.", 409);
   }
+  // V4.1 Đợt 3 (Q7) — chân chuyển quỹ không có danh mục thu/chi.
+  if (before.transferGroupId && body.data.categoryId) {
+    return jsonError(
+      "FIN_TRANSFER_NO_CATEGORY",
+      "Phiếu chuyển quỹ nội bộ không gắn danh mục thu/chi.",
+      409,
+    );
+  }
   try {
     const after = await updateTransaction(params.id, body.data);
     if (!after) return jsonError("NOT_FOUND", "Không tìm thấy giao dịch.", 404);

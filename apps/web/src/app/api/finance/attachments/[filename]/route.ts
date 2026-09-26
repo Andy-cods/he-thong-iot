@@ -40,6 +40,8 @@ export async function GET(
       // private — chứng từ tài chính không cache ở CDN/proxy trung gian.
       "cache-control": "private, max-age=3600",
       "content-disposition": `inline; filename="${params.filename}"`,
+      // V4.1 TC-27 — không cho trình duyệt tự đoán kiểu nội dung.
+      "x-content-type-options": "nosniff",
     },
   });
 }

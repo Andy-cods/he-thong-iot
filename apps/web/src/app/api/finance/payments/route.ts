@@ -4,6 +4,7 @@ import { logger } from "@/lib/logger";
 import { createPaymentWithAllocations, listFinPayments } from "@/server/repos/finPayments";
 import { extractRequestMeta, jsonError, parseJson, parseSearchParams } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
+import { finSourceErrorResponse, resolveOverdraft } from "@/server/services/financeHttp";
 import { notifyPaymentRecorded } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 
@@ -34,7 +35,11 @@ export async function POST(req: NextRequest) {
   if ("response" in body) return body.response;
 
   try {
-    const result = await createPaymentWithAllocations(body.data, guard.session.userId);
+    // V4.1 Đợt 3 (Q7) — phiếu chi vượt số dư nguồn → 409; chỉ admin được vượt.
+    const result = await createPaymentWithAllocations(
+      { ...body.data, allowOverdraft: resolveOverdraft(guard.session, body.data.allowOverdraft) },
+      guard.session.userId,
+    );
     const meta = extractRequestMeta(req);
     await writeAudit({
       actor: guard.session,
@@ -57,6 +62,8 @@ export async function POST(req: NextRequest) {
     }).catch((err) => logger.warn({ err }, "notifyPaymentRecorded failed"));
     return NextResponse.json({ data: result }, { status: 201 });
   } catch (err) {
+    const sourceErr = finSourceErrorResponse(err);
+    if (sourceErr) return sourceErr;
     const message = err instanceof Error ? err.message : String(err);
     if (message.startsWith("FIN_INVOICE_NOT_FOUND")) {
       return jsonError("FIN_INVOICE_NOT_FOUND", "Hoá đơn không tồn tại.", 404);
@@ -81,7 +88,7 @@ export async function POST(req: NextRequest) {
     if (message === "FIN_PAYMENT_ALLOCATION_SUM_MISMATCH") {
       return jsonError(
         "FIN_PAYMENT_ALLOCATION_SUM_MISMATCH",
-        "Tổng các khoản phân bổ phải bằng totalAmount.",
+        "Tổng các khoản phân bổ phải bằng tổng tiền thanh toán.",
         422,
       );
     }

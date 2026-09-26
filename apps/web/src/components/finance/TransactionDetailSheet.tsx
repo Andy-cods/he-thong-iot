@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Ban, ExternalLink, Pencil, Receipt, User } from "lucide-react";
+import { ArrowLeftRight, Ban, ExternalLink, Pencil, Receipt, User } from "lucide-react";
 import { z } from "zod";
 import { can } from "@iot/shared";
 import { Button } from "@/components/ui/button";
@@ -19,26 +19,31 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AttachmentField } from "@/components/finance/AttachmentField";
+import { ConfirmActionDialog } from "@/components/finance/ConfirmActionDialog";
+import { voidConfirmText } from "@/components/finance/_confirmText";
 import { fmtDate, fmtVND } from "@/components/finance/_format";
 import {
   useFinAccountsList,
   useFinCategoriesList,
-  useFinInvoicesList,
+  useFinInvoiceDetail,
   useUpdateFinTransaction,
   useVoidFinTransaction,
   type FinTransactionRow,
 } from "@/hooks/useFinance";
-import { useSuppliersList } from "@/hooks/useSuppliers";
 import { useSession } from "@/hooks/useSession";
 import { cn } from "@/lib/utils";
 
 /**
  * TASK-20260922 — Drawer chi tiết 1 khoản thu chi (click 1 dòng trong
- * `CashbookTab`). Yêu cầu user: "khi click vào 1 khoản thu chi bất kì nó sẽ
- * hiển thị thông tin chi tiết, file hoá đơn kèm ảnh nếu có đính kèm".
+ * `CashbookTab`).
  *
- * PATCH chỉ cho phép description/attachmentUrl/categoryId (khớp
- * `finTransactionUpdateSchema` — route đã có sẵn, KHÔNG sửa).
+ * V4.1 Đợt 3:
+ *  - TC-05: PATCH CHỈ gửi đúng trường vừa đổi (schema PATCH giữ `undefined` =
+ *    không đổi) + giữ bản mới nhất từ response → sửa lần 2 không còn ghi đè
+ *    danh mục vừa đổi bằng dữ liệu cũ.
+ *  - TC-16: hoá đơn liên quan lấy theo id (`useFinInvoiceDetail`) — trước đây
+ *    tìm trong 200 HĐ CÙNG chiều giao dịch, sai chiều sau TC-01 → "—".
+ *  - TC-08: xác nhận trước khi huỷ.
  */
 
 const STATUS_LABEL: Record<string, string> = {
@@ -49,12 +54,11 @@ const STATUS_LABEL: Record<string, string> = {
 
 const editSchema = z.object({
   description: z.string().trim().max(2000).optional().nullable(),
-  categoryId: z.string().uuid().optional().nullable(),
 });
 type EditForm = z.infer<typeof editSchema>;
 
 export function TransactionDetailSheet({
-  row,
+  row: initialRow,
   onOpenChange,
 }: {
   row: FinTransactionRow | null;
@@ -63,21 +67,27 @@ export function TransactionDetailSheet({
   const { data: session } = useSession();
   const roles = session?.roles ?? [];
   const canEdit = can(roles, "update", "finance");
+  const canSeeSupplier = can(roles, "read", "supplier");
 
-  const accountsQuery = useFinAccountsList({ isActive: true });
+  // Bản mới nhất của giao dịch (cập nhật từ response PATCH) — TC-05.
+  const [row, setRow] = React.useState<FinTransactionRow | null>(initialRow);
+  React.useEffect(() => {
+    setRow(initialRow);
+  }, [initialRow]);
+
+  const accountsQuery = useFinAccountsList({});
   const categoriesQuery = useFinCategoriesList(row ? { direction: row.direction } : {});
-  const suppliersQuery = useSuppliersList({ pageSize: 200, isActive: true });
-  const invoicesQuery = useFinInvoicesList(
-    row?.invoiceId ? { direction: row.direction, pageSize: 200 } : { pageSize: 1 },
-  );
+  const invoiceQuery = useFinInvoiceDetail(row?.invoiceId ?? null);
 
   const account = accountsQuery.data?.data.find((a) => a.id === row?.accountId);
   const category = categoriesQuery.data?.data.find((c) => c.id === row?.categoryId);
-  const supplier = suppliersQuery.data?.data.find((s) => s.id === row?.supplierId);
-  const invoice = invoicesQuery.data?.data.find((i) => i.id === row?.invoiceId);
+  const invoice = invoiceQuery.data?.data;
+  const supplierName = row?.supplierName ?? invoice?.supplierName ?? null;
+  const supplierId = row?.supplierId ?? invoice?.supplierId ?? null;
 
   const updateMut = useUpdateFinTransaction(row?.id ?? "__none__");
   const voidMut = useVoidFinTransaction();
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
 
   const [editingDesc, setEditingDesc] = React.useState(false);
   const { register, handleSubmit, reset } = useForm<EditForm>({
@@ -92,22 +102,22 @@ export function TransactionDetailSheet({
 
   if (!row) return null;
 
-  const onSaveDesc = async (data: EditForm) => {
-    await updateMut.mutateAsync({
-      description: data.description ?? null,
-      attachmentUrl: row.attachmentUrl,
-      categoryId: row.categoryId,
-    });
-    setEditingDesc(false);
+  // Chỉ gửi trường thay đổi; ghép response vào state (giữ supplierName từ list).
+  const patch = async (data: { description?: string | null; categoryId?: string | null; attachmentUrl?: string | null }) => {
+    try {
+      const res = await updateMut.mutateAsync(data);
+      setRow((prev) => (prev ? { ...prev, ...res.data, supplierName: prev.supplierName } : prev));
+      return true;
+    } catch {
+      return false; // toast lỗi đã hiện ở hook
+    }
   };
 
-  const onChangeCategory = async (categoryId: string) => {
-    await updateMut.mutateAsync({
-      description: row.description,
-      attachmentUrl: row.attachmentUrl,
-      categoryId: categoryId || null,
-    });
+  const onSaveDesc = async (data: EditForm) => {
+    if (await patch({ description: data.description ?? null })) setEditingDesc(false);
   };
+
+  const isTransfer = !!row.transferGroupId;
 
   return (
     <Sheet open onOpenChange={onOpenChange}>
@@ -121,17 +131,17 @@ export function TransactionDetailSheet({
         <SheetBody className="space-y-5">
           {/* Mã + số tiền lớn */}
           <div>
-            <p className="font-mono text-xs text-zinc-400 dark:text-zinc-500">{row.code}</p>
+            <p className="font-mono text-xs text-zinc-500 dark:text-zinc-400">{row.code}</p>
             <p
               className={cn(
                 "mt-1 font-mono text-3xl font-bold tabular-nums",
                 row.direction === "IN" ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400",
               )}
             >
-              {row.direction === "IN" ? "+" : "-"}
+              {row.direction === "IN" ? "+" : "−"}
               {fmtVND(row.amount)}
             </p>
-            <div className="mt-1.5 flex items-center gap-2">
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
               <span
                 className={cn(
                   "inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold",
@@ -142,34 +152,46 @@ export function TransactionDetailSheet({
               >
                 {STATUS_LABEL[row.status]}
               </span>
+              {isTransfer && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
+                  <ArrowLeftRight className="h-3 w-3" aria-hidden="true" /> Chuyển quỹ nội bộ
+                </span>
+              )}
               <span className="text-xs text-zinc-500 dark:text-zinc-400">{fmtDate(row.transactionDate)}</span>
             </div>
           </div>
 
           {/* Thông tin cơ bản */}
           <dl className="grid grid-cols-2 gap-x-3 gap-y-2.5 text-sm">
-            <InfoRow label="Tài khoản" value={account?.name ?? "—"} />
             <InfoRow
-              label="Danh mục"
-              value={
-                canEdit ? (
-                  <select
-                    value={row.categoryId ?? ""}
-                    onChange={(e) => void onChangeCategory(e.target.value)}
-                    disabled={row.status === "VOID" || updateMut.isPending}
-                    className="h-7 w-full rounded-md border border-zinc-200 bg-white px-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-                  >
-                    <option value="">— Không chọn —</option>
-                    {(categoriesQuery.data?.data ?? []).map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                ) : (
-                  category?.name ?? "—"
-                )
-              }
+              label={row.direction === "IN" ? "Nguồn thu" : "Nguồn chi"}
+              value={account ? `${account.name} · số dư ${fmtVND(account.currentBalance)}` : "—"}
               full
             />
+            {!isTransfer && (
+              <InfoRow
+                label="Danh mục"
+                value={
+                  canEdit ? (
+                    <select
+                      value={row.categoryId ?? ""}
+                      onChange={(e) => void patch({ categoryId: e.target.value || null })}
+                      disabled={row.status === "VOID" || updateMut.isPending}
+                      aria-label="Danh mục"
+                      className="h-8 w-full rounded-md border border-zinc-200 bg-white px-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                    >
+                      <option value="">— Không chọn —</option>
+                      {(categoriesQuery.data?.data ?? []).map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    category?.name ?? "—"
+                  )
+                }
+                full
+              />
+            )}
           </dl>
 
           {/* Diễn giải — inline edit */}
@@ -194,23 +216,29 @@ export function TransactionDetailSheet({
           </div>
 
           {/* Đối tác / PO liên quan */}
-          {(supplier || row.purchaseOrderId) && (
+          {(supplierName || row.purchaseOrderId) && (
             <div>
               <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                Nhà cung cấp / Đơn mua
+                Đối tác / Đơn mua
               </p>
               <div className="space-y-1">
-                {supplier && (
-                  <Link
-                    href={`/suppliers/${supplier.id}`}
-                    className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-700 hover:underline dark:text-indigo-400"
-                  >
-                    <User className="h-3.5 w-3.5" aria-hidden="true" />
-                    {supplier.name}
-                    <ExternalLink className="h-3 w-3" aria-hidden="true" />
-                  </Link>
-                )}
-                {row.purchaseOrderId && (
+                {supplierName &&
+                  (canSeeSupplier && supplierId ? (
+                    <Link
+                      href={`/suppliers/${supplierId}`}
+                      className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-700 hover:underline dark:text-indigo-400"
+                    >
+                      <User className="h-3.5 w-3.5" aria-hidden="true" />
+                      {supplierName}
+                      <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                    </Link>
+                  ) : (
+                    <p className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                      <User className="h-3.5 w-3.5" aria-hidden="true" />
+                      {supplierName}
+                    </p>
+                  ))}
+                {row.purchaseOrderId && can(roles, "read", "po") && (
                   <div>
                     <Link
                       href={`/procurement/purchase-orders/${row.purchaseOrderId}`}
@@ -231,19 +259,18 @@ export function TransactionDetailSheet({
               <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                 Hoá đơn liên quan
               </p>
-              {invoicesQuery.isLoading ? (
+              {invoiceQuery.isLoading ? (
                 <Skeleton className="h-10 rounded-lg" />
               ) : invoice ? (
-                <div className="flex items-center justify-between rounded-lg border border-zinc-200 px-3 py-2 dark:border-zinc-700">
-                  <div>
-                    <p className="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-50">{invoice.invoiceNo}</p>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                      Đã trả {fmtVND(invoice.paidAmount)} / {fmtVND(invoice.totalAmount)}
-                    </p>
-                  </div>
+                <div className="rounded-lg border border-zinc-200 px-3 py-2 dark:border-zinc-700">
+                  <p className="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-50">{invoice.invoiceNo}</p>
+                  <p className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
+                    Đã trả {fmtVND(invoice.paidAmount)} / {fmtVND(invoice.totalAmount)} · Còn nợ{" "}
+                    {fmtVND(Number(invoice.totalAmount) - Number(invoice.paidAmount))}
+                  </p>
                 </div>
               ) : (
-                <p className="text-xs text-zinc-400 dark:text-zinc-500">—</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">Không tải được hoá đơn.</p>
               )}
             </div>
           )}
@@ -257,35 +284,47 @@ export function TransactionDetailSheet({
               attachmentUrl={row.attachmentUrl}
               canEdit={canEdit && row.status !== "VOID"}
               onUploaded={async (url) => {
-                await updateMut.mutateAsync({
-                  description: row.description,
-                  categoryId: row.categoryId,
-                  attachmentUrl: url,
-                });
+                await patch({ attachmentUrl: url });
               }}
               uploading={updateMut.isPending}
             />
           </div>
 
-          {/* Người tạo */}
-          <div className="border-t border-zinc-100 pt-3 text-xs text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
-            Tạo lúc {new Date(row.createdAt).toLocaleString("vi-VN")}
+          <div className="border-t border-zinc-100 pt-3 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+            Tạo lúc {new Date(row.createdAt).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}
           </div>
         </SheetBody>
-        {can(roles, "update", "finance") && row.status !== "VOID" && (
+        {canEdit && row.status !== "VOID" && (
           <SheetFooter>
             <Button
               variant="ghost"
               className="text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"
               disabled={voidMut.isPending}
-              onClick={() => void voidMut.mutateAsync(row.id).then(() => onOpenChange(false))}
+              onClick={() => setConfirmOpen(true)}
             >
               <Ban className="h-3.5 w-3.5" aria-hidden="true" />
-              {voidMut.isPending ? "Đang huỷ…" : "Huỷ giao dịch"}
+              {row.paymentId ? "Huỷ cả đợt thanh toán" : "Huỷ giao dịch"}
             </Button>
           </SheetFooter>
         )}
       </SheetContent>
+      <ConfirmActionDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={row.paymentId ? "Huỷ cả đợt thanh toán?" : isTransfer ? "Huỷ phiếu chuyển quỹ?" : "Huỷ giao dịch?"}
+        description={voidConfirmText(row)}
+        confirmLabel={row.paymentId ? "Huỷ cả đợt thanh toán" : "Huỷ giao dịch"}
+        loading={voidMut.isPending}
+        onConfirm={async () => {
+          try {
+            await voidMut.mutateAsync(row.id);
+            setConfirmOpen(false);
+            onOpenChange(false);
+          } catch {
+            /* toast lỗi đã hiện ở hook */
+          }
+        }}
+      />
     </Sheet>
   );
 }
@@ -301,7 +340,7 @@ function InfoRow({
 }) {
   return (
     <div className={cn(full && "col-span-2")}>
-      <dt className="text-xs text-zinc-400 dark:text-zinc-500">{label}</dt>
+      <dt className="text-xs text-zinc-500 dark:text-zinc-400">{label}</dt>
       <dd className="mt-0.5 font-medium text-zinc-800 dark:text-zinc-200">{value}</dd>
     </div>
   );

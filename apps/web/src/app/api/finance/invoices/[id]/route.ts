@@ -3,6 +3,7 @@ import { finInvoiceUpdateSchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import {
   getFinInvoiceById,
+  getFinInvoiceWithPartner,
   getInvoiceAllocations,
   updateFinInvoice,
 } from "@/server/repos/finInvoices";
@@ -21,7 +22,8 @@ export async function GET(
 ) {
   const guard = await requireCan(req, "read", "finance");
   if ("response" in guard) return guard.response;
-  const row = await getFinInvoiceById(params.id);
+  // V4.1 TC-03 — kèm `supplierName` để UI không tra danh sách NCC.
+  const row = await getFinInvoiceWithPartner(params.id);
   if (!row) return jsonError("NOT_FOUND", "Không tìm thấy hoá đơn.", 404);
 
   const allocations = await getInvoiceAllocations(params.id);

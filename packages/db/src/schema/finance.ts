@@ -31,7 +31,9 @@ import { importBatch } from "./import";
  * ADD VALUE 'finance_transaction' (làm ở migration 0055_finance_core.sql).
  */
 
-export const finAccountTypeEnum = pgEnum("fin_account_type", ["BANK", "CASH"]);
+// V4.1 Đợt 3 (Q7) — thêm EXPENSE = "Tài khoản chi tiêu" (migration 0063, ALTER
+// TYPE chạy ngoài transaction). D9: KHÔNG có loại "Khác".
+export const finAccountTypeEnum = pgEnum("fin_account_type", ["BANK", "CASH", "EXPENSE"]);
 export const finDirectionEnum = pgEnum("fin_direction", ["IN", "OUT"]);
 export const finCounterpartyTypeEnum = pgEnum("fin_counterparty_type", [
   "SUPPLIER",
@@ -206,6 +208,10 @@ export const finPayment = appSchema.table(
     method: finPaymentMethodEnum("method").notNull().default("BANK_TRANSFER"),
     referenceNo: varchar("reference_no", { length: 128 }),
     notes: text("notes"),
+    // V4.1 TC-06 (migration 0064) — POSTED | VOID (CHECK ở DB). Trước đây
+    // không có cột này → thanh toán đã huỷ vẫn hiện như bình thường.
+    status: varchar("status", { length: 16 }).notNull().default("POSTED"),
+    voidedAt: timestamp("voided_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -280,6 +286,9 @@ export const finTransaction = appSchema.table(
     importBatchId: uuid("import_batch_id").references(() => importBatch.id),
     externalRef: varchar("external_ref", { length: 128 }),
     dedupeHash: varchar("dedupe_hash", { length: 64 }),
+    // V4.1 Đợt 3 (Q7, migration 0064) — chuyển quỹ nội bộ: 1 OUT + 1 IN cùng
+    // nhóm. NULL = thu/chi thật. Báo cáo thu/chi lọc `transfer_group_id IS NULL`.
+    transferGroupId: uuid("transfer_group_id"),
     status: finTransactionStatusEnum("status").notNull().default("POSTED"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

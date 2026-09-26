@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CashflowChart } from "@/components/finance/CashflowChart";
-import { fmtVND, toDateInputValue } from "@/components/finance/_format";
+import { fmtVND, fmtVNDShort, toDateInputValue } from "@/components/finance/_format";
 import { useFinCashflow, useFinSummary } from "@/hooks/useFinance";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +39,7 @@ export function OverviewTab() {
 
   const { from, to } = React.useMemo(() => {
     if (customFrom && customTo) return { from: customFrom, to: customTo };
+    // V4.1 TC-13 — mốc ngày theo giờ VN.
     const today = new Date();
     const start = new Date(today.getTime() - (rangeDays - 1) * 24 * 60 * 60 * 1000);
     return { from: toDateInputValue(start), to: toDateInputValue(today) };
@@ -127,14 +128,14 @@ export function OverviewTab() {
               <KpiCard
                 icon={TrendingUp}
                 label="Tổng thu"
-                value={fmtVND(cashflow?.summary.totalIn ?? 0)}
+                amount={cashflow?.summary.totalIn ?? 0}
                 growth={cashflow?.growth?.inPct}
                 accent="emerald"
               />
               <KpiCard
                 icon={TrendingDown}
                 label="Tổng chi"
-                value={fmtVND(cashflow?.summary.totalOut ?? 0)}
+                amount={cashflow?.summary.totalOut ?? 0}
                 growth={cashflow?.growth?.outPct}
                 growthInverse
                 accent="rose"
@@ -142,25 +143,25 @@ export function OverviewTab() {
               <KpiCard
                 icon={BarChart3}
                 label="Chênh lệch"
-                value={fmtVND(cashflow?.summary.netCashflow ?? 0)}
+                amount={cashflow?.summary.netCashflow ?? 0}
                 accent={(cashflow?.summary.netCashflow ?? 0) >= 0 ? "indigo" : "rose"}
               />
               <KpiCard
                 icon={ReceiptText}
                 label="Công nợ phải thu"
-                value={fmtVND(totalReceivable)}
+                amount={totalReceivable}
                 accent="amber"
               />
               <KpiCard
                 icon={ReceiptText}
                 label="Công nợ phải trả"
-                value={fmtVND(totalPayable)}
+                amount={totalPayable}
                 accent="rose"
               />
               <KpiCard
                 icon={Landmark}
                 label="Số dư tài khoản"
-                value={fmtVND(summary?.totalBalance ?? 0)}
+                amount={summary?.totalBalance ?? 0}
                 accent="zinc"
               />
             </div>
@@ -198,14 +199,15 @@ export function OverviewTab() {
 function KpiCard({
   icon: Icon,
   label,
-  value,
+  amount,
   growth,
   growthInverse,
   accent,
 }: {
   icon: React.ElementType;
   label: string;
-  value: string;
+  /** V4.1 (UI) — thẻ KPI hiện số rút gọn (dấu phẩy) + số đủ ngay bên dưới. */
+  amount: number;
   growth?: number;
   growthInverse?: boolean;
   accent: "emerald" | "rose" | "indigo" | "amber" | "zinc";
@@ -241,7 +243,10 @@ function KpiCard({
         )}
       </div>
       <p className="mt-2 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</p>
-      <p className={cn("mt-0.5 font-mono text-xl font-bold tabular-nums", s.value)}>{value}</p>
+      <p className={cn("mt-0.5 font-mono text-xl font-bold tabular-nums", s.value)} title={fmtVND(amount)}>
+        {fmtVNDShort(amount)}
+      </p>
+      <p className="truncate text-[11px] tabular-nums text-zinc-500 dark:text-zinc-400">{fmtVND(amount)}</p>
     </div>
   );
 }

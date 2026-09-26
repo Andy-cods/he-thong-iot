@@ -39,6 +39,10 @@ export async function DELETE(
 
   const before = await getFinPaymentById(params.id);
   if (!before) return jsonError("NOT_FOUND", "Không tìm thấy thanh toán.", 404);
+  // V4.1 TC-06 — đợt thanh toán đã huỷ.
+  if (before.status === "VOID") {
+    return jsonError("FIN_PAYMENT_ALREADY_VOID", "Đợt thanh toán này đã huỷ trước đó.", 409);
+  }
 
   try {
     const result = await voidPaymentWithAllocations(params.id);
@@ -55,6 +59,9 @@ export async function DELETE(
     });
     return NextResponse.json({ data: result });
   } catch (err) {
+    if (err instanceof Error && err.message === "FIN_PAYMENT_ALREADY_VOID") {
+      return jsonError("FIN_PAYMENT_ALREADY_VOID", "Đợt thanh toán này đã huỷ trước đó.", 409);
+    }
     logger.error({ err }, "void fin payment failed");
     return jsonError("INTERNAL", "Không huỷ được thanh toán.", 500);
   }

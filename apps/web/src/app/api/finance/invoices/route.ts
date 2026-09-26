@@ -1,7 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { finInvoiceCreateSchema, finInvoiceListQuerySchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
-import { createFinInvoice, listFinInvoices } from "@/server/repos/finInvoices";
+import {
+  createFinInvoice,
+  FinInvoiceDuplicateError,
+  listFinInvoices,
+} from "@/server/repos/finInvoices";
 import { extractRequestMeta, jsonError, parseJson, parseSearchParams } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { requireCan } from "@/server/session";
@@ -41,13 +45,21 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({ data: row }, { status: 201 });
   } catch (err) {
+    // V4.1 TC-10 — trùng số HĐ (kể cả HĐ không chọn đối tác).
+    if (err instanceof FinInvoiceDuplicateError) {
+      return jsonError(
+        "FIN_INVOICE_DUPLICATE",
+        `Số hoá đơn "${err.invoiceNo}" đã tồn tại cho đối tác này.`,
+        409,
+      );
+    }
     const pgCode =
       (err as { code?: string; cause?: { code?: string } }).code ??
       (err as { cause?: { code?: string } }).cause?.code;
     if (pgCode === "23505") {
       return jsonError(
         "FIN_INVOICE_DUPLICATE",
-        "Hoá đơn đã tồn tại (trùng direction + số hoá đơn + NCC).",
+        "Số hoá đơn đã tồn tại cho đối tác này.",
         409,
       );
     }

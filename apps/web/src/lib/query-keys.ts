@@ -211,7 +211,7 @@ export const qk = {
 } as const;
 
 export interface FinAccountFilter {
-  type?: "BANK" | "CASH";
+  type?: "BANK" | "CASH" | "EXPENSE";
   isActive?: boolean;
   q?: string;
   page?: number;

@@ -1,8 +1,22 @@
-import { and, desc, eq, gte, isNotNull, isNull, lte, sql, type SQL } from "drizzle-orm";
-import { finTransaction } from "@iot/db/schema";
-import type { FinTransactionCreate, FinTransactionUpdate } from "@iot/shared";
+import { randomUUID } from "node:crypto";
+import {
+  and,
+  desc,
+  eq,
+  getTableColumns,
+  gte,
+  isNotNull,
+  isNull,
+  lte,
+  sql,
+  type SQL,
+} from "drizzle-orm";
+import { finTransaction, supplier } from "@iot/db/schema";
+import type { FinTransactionCreate, FinTransactionUpdate, FinTransferCreate } from "@iot/shared";
 import { db } from "@/lib/db";
+import { buildTransferLegs, isoDateVN } from "@/lib/finance";
 import { currentYymm, genDocNo } from "./_docNumber";
+import { lockReceiveSource, lockSpendSource } from "./finAccounts";
 
 /**
  * Repo `fin_transaction` — Giao dịch thu/chi hàng ngày, bảng TRUNG TÂM + NGUỒN
@@ -72,6 +86,10 @@ export async function getFinTransactionStats(opts: FinTransactionFilterOpts) {
     opts.status === undefined
       ? sql`AND status <> 'VOID'`
       : sql``;
+  // V4.1 Đợt 3 (Q7) — chuyển quỹ nội bộ KHÔNG phải thu/chi thật (tiền không ra
+  // khỏi công ty) → loại khỏi tổng. Điểm tổng hợp 1/3 (2 điểm còn lại:
+  // getCashflowSeries + getCashflowTotals ở finInvoices.ts).
+  const transferFilter = sql`AND transfer_group_id IS NULL`;
 
   const [row] = (await db.execute(sql`
     SELECT
@@ -79,7 +97,7 @@ export async function getFinTransactionStats(opts: FinTransactionFilterOpts) {
       COALESCE(SUM(CASE WHEN direction = 'OUT' THEN amount ELSE 0 END), 0) AS total_out,
       COUNT(*)::int AS txn_count
     FROM app.fin_transaction
-    WHERE ${whereExpr ?? sql`TRUE`} ${voidFilter}
+    WHERE ${whereExpr ?? sql`TRUE`} ${voidFilter} ${transferFilter}
   `)) as unknown as Array<{
     total_in: string;
     total_out: string;
@@ -104,9 +122,11 @@ export async function listFinTransactions(
       .select({ count: sql<number>`count(*)::int` })
       .from(finTransaction)
       .where(whereExpr ?? sql`true`),
+    // V4.1 TC-03 — kèm tên đối tác (UI không phải tải danh sách NCC riêng).
     db
-      .select()
+      .select({ ...getTableColumns(finTransaction), supplierName: supplier.name })
       .from(finTransaction)
+      .leftJoin(supplier, eq(supplier.id, finTransaction.supplierId))
       .where(whereExpr ?? sql`true`)
       .orderBy(desc(finTransaction.transactionDate), desc(finTransaction.createdAt))
       .limit(opts.pageSize)
@@ -132,8 +152,15 @@ export async function getFinTransactionById(id: string) {
 export async function createTransaction(
   input: FinTransactionCreate,
   actorId: string | null,
+  opts: { allowOverdraft?: boolean } = {},
 ) {
   return db.transaction(async (tx) => {
+    // V4.1 Đợt 3 (Q7) — khoá nguồn + chặn chi vượt số dư / nguồn ngưng dùng.
+    if (input.direction === "OUT") {
+      await lockSpendSource(tx, input.accountId, input.amount, opts);
+    } else {
+      await lockReceiveSource(tx, input.accountId);
+    }
     const prefix = `${input.direction === "IN" ? "PT" : "PC"}-${currentYymm()}`;
     const code = await genDocNo(tx, {
       table: "app.fin_transaction",
@@ -154,7 +181,9 @@ export async function createTransaction(
         accountId: input.accountId,
         categoryId: input.categoryId ?? null,
         amount: String(input.amount),
-        transactionDate: input.transactionDate.toISOString().slice(0, 10),
+        // V4.1 TC-13 — ngày theo giờ VN (form gửi `new Date()` trước 7h sáng
+        // từng bị lùi 1 ngày khi cắt chuỗi UTC).
+        transactionDate: isoDateVN(input.transactionDate),
         description: input.description ?? null,
         counterpartyType: input.counterpartyType ?? null,
         supplierId: input.supplierId ?? null,
@@ -206,4 +235,83 @@ export async function voidTransaction(id: string) {
     .where(eq(finTransaction.id, id))
     .returning();
   return row ?? null;
+}
+
+/**
+ * V4.1 Đợt 3 (Q7) — Huỷ CẢ NHÓM chuyển quỹ (2 chân OUT + IN) trong 1 lệnh →
+ * trigger hoàn số dư cả 2 nguồn. Trả các dòng đã đổi.
+ */
+export async function voidTransferGroup(transferGroupId: string) {
+  return db
+    .update(finTransaction)
+    .set({ status: "VOID", updatedAt: new Date() })
+    .where(eq(finTransaction.transferGroupId, transferGroupId))
+    .returning();
+}
+
+/**
+ * V4.1 Đợt 3 (Q7) — Chuyển quỹ nội bộ. 1 transaction DB:
+ *   1. Khoá 2 nguồn theo thứ tự id (tránh deadlock khi 2 lệnh chuyển ngược
+ *      chiều nhau chạy cùng lúc), kiểm nguồn đi đủ số dư (trừ admin override).
+ *   2. Mã `CQ-YYMM-NNNN` (genDocNo, an toàn concurrency). Chân OUT mang mã gốc,
+ *      chân IN mang `…-N` (vẫn unique, không lọt regex seq của genDocNo).
+ *   3. Insert 2 dòng POSTED cùng `transfer_group_id` — trigger 0055 tự trừ nguồn
+ *      đi, cộng nguồn nhận.
+ */
+export async function createTransfer(
+  input: FinTransferCreate,
+  actorId: string | null,
+  opts: { allowOverdraft?: boolean } = {},
+) {
+  return db.transaction(async (tx) => {
+    const lockOrder = [input.fromAccountId, input.toAccountId].sort();
+    let fromName = "";
+    let toName = "";
+    for (const accountId of lockOrder) {
+      if (accountId === input.fromAccountId) {
+        fromName = (await lockSpendSource(tx, accountId, input.amount, opts)).name;
+      } else {
+        toName = (await lockReceiveSource(tx, accountId)).name;
+      }
+    }
+
+    const code = await genDocNo(tx, {
+      table: "app.fin_transaction",
+      column: "code",
+      prefix: `CQ-${currentYymm()}`,
+      seqPart: 3,
+      pad: 4,
+    });
+    const transferGroupId = randomUUID();
+    const legs = buildTransferLegs(
+      {
+        fromAccountId: input.fromAccountId,
+        toAccountId: input.toAccountId,
+        fromAccountName: fromName,
+        toAccountName: toName,
+        amount: input.amount,
+        transactionDate: isoDateVN(input.transactionDate),
+        description: input.description,
+      },
+      code,
+      transferGroupId,
+    );
+
+    const rows = await tx
+      .insert(finTransaction)
+      .values(
+        legs.map((leg) => ({
+          ...leg,
+          categoryId: null,
+          counterpartyType: null,
+          invoiceId: null,
+          paymentId: null,
+          status: "POSTED" as const,
+          createdBy: actorId,
+        })),
+      )
+      .returning();
+    if (rows.length !== 2) throw new Error("FIN_TRANSFER_INSERT_FAILED");
+    return { transferGroupId, code, legs: rows };
+  });
 }

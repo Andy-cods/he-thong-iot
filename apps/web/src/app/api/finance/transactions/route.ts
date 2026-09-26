@@ -4,6 +4,7 @@ import { logger } from "@/lib/logger";
 import { createTransaction, listFinTransactions } from "@/server/repos/finTransactions";
 import { extractRequestMeta, jsonError, parseJson, parseSearchParams } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
+import { finSourceErrorResponse, resolveOverdraft } from "@/server/services/financeHttp";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -55,7 +56,10 @@ export async function POST(req: NextRequest) {
   if ("response" in body) return body.response;
 
   try {
-    const row = await createTransaction(body.data, guard.session.userId);
+    // V4.1 Đợt 3 (Q7) — chi vượt số dư nguồn → 409; chỉ admin được vượt.
+    const row = await createTransaction(body.data, guard.session.userId, {
+      allowOverdraft: resolveOverdraft(guard.session, body.data.allowOverdraft),
+    });
     const meta = extractRequestMeta(req);
     await writeAudit({
       actor: guard.session,
@@ -67,6 +71,8 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({ data: row }, { status: 201 });
   } catch (err) {
+    const sourceErr = finSourceErrorResponse(err);
+    if (sourceErr) return sourceErr;
     logger.error({ err }, "create fin transaction failed");
     return jsonError("INTERNAL", "Không tạo được giao dịch.", 500);
   }

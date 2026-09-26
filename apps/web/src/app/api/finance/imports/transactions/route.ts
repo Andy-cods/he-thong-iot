@@ -3,11 +3,7 @@ import { LIMITS } from "@iot/shared";
 import { jsonError, extractRequestMeta } from "@/server/http";
 import { requireCan } from "@/server/session";
 import { logger } from "@/lib/logger";
-import {
-  createImportBatch,
-  findRecentByHash,
-  updateImportBatch,
-} from "@/server/repos/importBatch";
+import { createImportBatch, updateImportBatch } from "@/server/repos/importBatch";
 import { parseFinanceTransactionImport } from "@/server/services/financeImport";
 import { writeAudit } from "@/server/services/audit";
 
@@ -65,24 +61,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Dedup theo fileHash trong 60 phút (idempotency cho user retry mạng) —
-  // giống hệt cơ chế item import.
-  const existing = await findRecentByHash(parsed.fileHash, "finance_transaction", 60);
-  if (existing && existing.status !== "failed") {
-    return NextResponse.json(
-      {
-        data: {
-          batchId: existing.id,
-          reused: true,
-          status: existing.status,
-          rowTotal: existing.rowTotal,
-          rowSuccess: existing.rowSuccess,
-          rowFail: existing.rowFail,
-        },
-      },
-      { status: 200 },
-    );
-  }
+  // V4.1 TC-20 — KHÔNG tái dùng lô cũ theo fileHash nữa: lô đã `done` bị trả
+  // lại khiến wizard không có preview và không commit được (file vừa sửa danh
+  // mục/nguồn rồi up lại trong 60' cũng bị kẹt). Mỗi lần tải lên = 1 lô mới;
+  // chống ghi trùng đã có dedupe_hash (ON CONFLICT DO NOTHING) ở worker.
 
   const duplicateRows = parsed.validRows.filter((r) => r.duplicate);
   const freshRows = parsed.validRows.filter((r) => !r.duplicate);

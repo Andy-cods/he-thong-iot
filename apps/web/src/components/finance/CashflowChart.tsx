@@ -12,7 +12,7 @@ import {
   YAxis,
 } from "recharts";
 import { useTheme } from "@/components/providers/ThemeProvider";
-import { fmtVNDFull } from "@/components/finance/_format";
+import { fmtCompactVN, fmtVNDFull } from "@/components/finance/_format";
 import type { CashflowPoint } from "@/hooks/useFinance";
 
 /**
@@ -47,16 +47,20 @@ const COLORS = {
 } as const;
 
 function fmtAxisDate(d: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d);
+  if (m) return `${m[3]}/${m[2]}`;
   const date = new Date(d);
   if (Number.isNaN(date.getTime())) return d;
   return date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" });
 }
 
+/**
+ * V4.1 (UI) — trục tiền: "1,5 tr" / "2,3 tỷ" / "850 N" (dấu phẩy thập phân kiểu
+ * Việt). Trước đây `toFixed(0)` làm 1,5 tr thành "2tr", dưới 1 triệu hiện số thô.
+ */
 function fmtAxisVND(v: number): string {
   if (v === 0) return "0";
-  if (Math.abs(v) >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(1)}B`;
-  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(0)}tr`;
-  return String(v);
+  return fmtCompactVN(v);
 }
 
 export function CashflowChart({ data }: { data: CashflowPoint[] }) {
@@ -90,7 +94,7 @@ export function CashflowChart({ data }: { data: CashflowPoint[] }) {
             tick={{ fill: c.axis, fontSize: 11 }}
             axisLine={false}
             tickLine={false}
-            width={48}
+            width={60}
           />
           <Tooltip
             contentStyle={{
