@@ -5,7 +5,6 @@ import { Download, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import {
   PO_STATUSES,
-  PO_STATUS_LABELS,
   type POStatus,
 } from "@iot/shared";
 import { Button } from "@/components/ui/button";
@@ -18,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { statusLabel } from "@/lib/status";
 import { Label } from "@/components/ui/label";
 import { useExportPOExcel } from "@/hooks/usePurchaseOrders";
 import { cn } from "@/lib/utils";
@@ -101,7 +101,7 @@ export function PoExportDialog({ trigger }: PoExportDialogProps) {
                         : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700",
                     )}
                   >
-                    {PO_STATUS_LABELS[s]}
+                    {statusLabel("po", s)}
                   </button>
                 );
               })}

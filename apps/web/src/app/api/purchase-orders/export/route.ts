@@ -16,7 +16,9 @@
 import ExcelJS from "exceljs";
 import { NextResponse, type NextRequest } from "next/server";
 import { poExportQuerySchema } from "@iot/shared";
+import { formatDate } from "@/lib/format";
 import { logger } from "@/lib/logger";
+import { statusLabel } from "@/lib/status";
 import { listPOsForExport } from "@/server/repos/purchaseOrders";
 import { jsonError, parseSearchParams } from "@/server/http";
 import { requireCan } from "@/server/session";
@@ -24,14 +26,13 @@ import { requireCan } from "@/server/session";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/**
+ * V4.1 UI-15: ngày theo giờ VN (server Node chạy UTC → trước đây PO tạo trước
+ * 7h sáng bị lùi 1 ngày). Ô trống giữ "" như cũ.
+ */
 function fmtDate(d: string | Date | null | undefined): string {
-  if (!d) return "";
-  const dt = typeof d === "string" ? new Date(d) : d;
-  if (Number.isNaN(dt.getTime())) return "";
-  const dd = String(dt.getDate()).padStart(2, "0");
-  const mm = String(dt.getMonth() + 1).padStart(2, "0");
-  const yyyy = dt.getFullYear();
-  return `${dd}/${mm}/${yyyy}`;
+  const out = formatDate(d, "dd/MM/yyyy");
+  return out === "—" ? "" : out;
 }
 
 /**
@@ -43,15 +44,6 @@ function money(n: number | string | null | undefined): number {
   const num = typeof n === "string" ? Number(n) : n;
   return Number.isFinite(num) ? Math.round(num) : 0;
 }
-
-const STATUS_LABEL: Record<string, string> = {
-  DRAFT: "Nháp",
-  SENT: "Đã gửi",
-  PARTIAL: "Nhận 1 phần",
-  RECEIVED: "Đã nhận đủ",
-  CANCELLED: "Đã huỷ",
-  CLOSED: "Đã đóng",
-};
 
 export async function GET(req: NextRequest) {
   const guard = await requireCan(req, "read", "po");
@@ -129,7 +121,8 @@ export async function GET(req: NextRequest) {
         lineTotal: money(lineTotal),
         expectedEta: fmtDate(r.expectedEta ?? null),
         actualDelivery: fmtDate(r.actualDeliveryDate ?? null),
-        status: STATUS_LABEL[r.status] ?? r.status,
+        // V4.1 UI-07: nhãn trạng thái từ lib/status (cùng chữ với màn hình).
+        status: statusLabel("po", r.status),
         prCode: r.prCode ?? "",
       });
     }

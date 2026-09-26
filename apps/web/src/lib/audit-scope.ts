@@ -1,3 +1,4 @@
+import { actionLabel } from "@/lib/status";
 import type { RbacEntity } from "@iot/shared";
 
 /**
@@ -95,31 +96,32 @@ export function scopedAuditEntity(q: {
 }
 
 /** Các action có trong enum `audit_action` kèm nhãn tiếng Việt cho bộ lọc. */
+/** V4.1 UI-27 (Đợt 6B): nhãn lấy từ `ACTION_LABELS` (lib/status) — 1 nguồn cho Nhật ký/hoạt động. */
 export const AUDIT_ACTION_OPTIONS: Array<{ code: string; label: string }> = [
-  { code: "CREATE", label: "Tạo" },
-  { code: "UPDATE", label: "Sửa" },
-  { code: "DELETE", label: "Xoá" },
-  { code: "LOGIN", label: "Đăng nhập" },
-  { code: "LOGOUT", label: "Đăng xuất" },
-  { code: "APPROVE", label: "Duyệt" },
-  { code: "TRANSITION", label: "Đổi trạng thái" },
-  { code: "CANCEL", label: "Huỷ" },
-  { code: "RECEIVE", label: "Nhận hàng" },
-  { code: "ISSUE", label: "Xuất" },
-  { code: "RESERVE", label: "Giữ hàng" },
-  { code: "CONVERT", label: "Chuyển đổi" },
-  { code: "RELEASE", label: "Phát hành" },
-  { code: "POST", label: "Ghi sổ" },
-  { code: "UPLOAD", label: "Tải lên" },
-  { code: "COMMIT", label: "Chốt nhập" },
-  { code: "SNAPSHOT", label: "Snapshot" },
-  { code: "WO_START", label: "Bắt đầu SX" },
-  { code: "WO_PAUSE", label: "Tạm dừng SX" },
-  { code: "WO_RESUME", label: "Tiếp tục SX" },
-  { code: "WO_COMPLETE", label: "Hoàn tất SX" },
-  { code: "QC_CHECK", label: "Kiểm QC" },
-  { code: "ECO_SUBMIT", label: "Gửi ECO" },
-  { code: "ECO_APPROVE", label: "Duyệt ECO" },
-  { code: "ECO_APPLY", label: "Áp dụng ECO" },
-  { code: "ECO_REJECT", label: "Từ chối ECO" },
-];
+  "CREATE",
+  "UPDATE",
+  "DELETE",
+  "LOGIN",
+  "LOGOUT",
+  "APPROVE",
+  "TRANSITION",
+  "CANCEL",
+  "RECEIVE",
+  "ISSUE",
+  "RESERVE",
+  "CONVERT",
+  "RELEASE",
+  "POST",
+  "UPLOAD",
+  "COMMIT",
+  "SNAPSHOT",
+  "WO_START",
+  "WO_PAUSE",
+  "WO_RESUME",
+  "WO_COMPLETE",
+  "QC_CHECK",
+  "ECO_SUBMIT",
+  "ECO_APPROVE",
+  "ECO_APPLY",
+  "ECO_REJECT",
+].map((code) => ({ code, label: actionLabel(code) }));

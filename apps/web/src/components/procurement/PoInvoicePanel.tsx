@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { QueryError } from "@/components/ui/query-error";
+import { StatusPill } from "@/components/ui/status-badge";
+import { formatMoney } from "@/lib/format";
 
 /**
  * V4.1 D7 (TM-18) — Hoá đơn mua của PO (trên trang chi tiết PO).
@@ -85,6 +87,8 @@ async function call<T>(url: string, init?: RequestInit): Promise<T> {
   return body.data as T;
 }
 
+// V4.1 UI-07/08: GIỮ nhãn mô tả dài (cố ý chi tiết hơn nhãn chung ở chi tiết PO);
+// tông màu lấy từ lib/status (domain "invoice") qua StatusPill.
 const STATUS_LABEL: Record<string, string> = {
   DRAFT: "Nháp — chờ Kế toán xác nhận",
   UNPAID: "Đã ghi công nợ — chưa trả",
@@ -94,9 +98,9 @@ const STATUS_LABEL: Record<string, string> = {
   CANCELLED: "Đã huỷ",
 };
 
+// V4.1 UI-13: dùng formatMoney chung (null → "0 ₫" như cũ).
 function money(n: number | string | null | undefined): string {
-  const v = typeof n === "string" ? Number(n) : (n ?? 0);
-  return `${Math.round(Number.isFinite(v) ? v : 0).toLocaleString("vi-VN")} ₫`;
+  return formatMoney(n);
 }
 
 export function PoInvoicePanel({ poId }: { poId: string }) {
@@ -322,7 +326,7 @@ export function PoInvoicePanel({ poId }: { poId: string }) {
                   />
                 </Field>
                 <Field label="Tổng (tự tính)">
-                  <p className="pt-2 font-mono text-sm font-semibold tabular-nums">
+                  <p className="pt-2 text-sm font-semibold tabular-nums">
                     {money(subtotalNum + vatPreview)}
                   </p>
                 </Field>
@@ -382,23 +386,42 @@ export function PoInvoicePanel({ poId }: { poId: string }) {
 function InvoiceSummary({ inv }: { inv: InvoiceRow }) {
   return (
     <div className="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
-      <Stat label="Số hoá đơn" value={inv.invoiceNo} />
-      <Stat label="Trạng thái" value={STATUS_LABEL[inv.status] ?? inv.status} />
+      <Stat label="Số hoá đơn" value={inv.invoiceNo} mono />
+      <div className="rounded-lg border border-zinc-100 bg-zinc-50/60 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-800/40">
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">Trạng thái</p>
+        <StatusPill
+          domain="invoice"
+          code={inv.status}
+          label={STATUS_LABEL[inv.status] ?? inv.status}
+          className="mt-1"
+        />
+      </div>
       <Stat label="Tổng cộng" value={money(inv.totalAmount)} strong />
       <Stat label="Đã trả" value={money(inv.paidAmount)} />
     </div>
   );
 }
 
-function Stat({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+function Stat({
+  label,
+  value,
+  strong,
+  mono,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+  /** Mã chứng từ giữ font-mono; số tiền dùng font thường + tabular-nums (V4.1 UI-13). */
+  mono?: boolean;
+}) {
   return (
     <div className="rounded-lg border border-zinc-100 bg-zinc-50/60 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-800/40">
       <p className="text-xs text-zinc-500 dark:text-zinc-400">{label}</p>
       <p
         className={
           strong
-            ? "font-mono text-base font-bold tabular-nums text-zinc-900 dark:text-zinc-50"
-            : "font-mono text-sm tabular-nums text-zinc-800 dark:text-zinc-200"
+            ? `${mono ? "font-mono " : ""}text-base font-bold tabular-nums text-zinc-900 dark:text-zinc-50`
+            : `${mono ? "font-mono " : ""}text-sm tabular-nums text-zinc-800 dark:text-zinc-200`
         }
       >
         {value}

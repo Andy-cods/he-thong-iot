@@ -2,8 +2,10 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Menu, Search } from "lucide-react";
-import { Breadcrumb, useBreadcrumb } from "@/components/ui/breadcrumb";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { buildBreadcrumbItems } from "@/lib/breadcrumb-items";
 import { UserMenu, type UserMenuUser } from "@/components/layout/UserMenu";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { ThemeQuickToggle } from "@/components/theme/ThemeToggle";
@@ -48,6 +50,44 @@ function matchActive(pathname: string, href: string, allHrefs: string[] = []): b
   return true;
 }
 
+/**
+ * V4.1 X6: breadcrumb đọc `?tab=` của trang hub để thêm nhãn tab làm crumb cuối.
+ * Tách component riêng vì `useSearchParams` cần nằm trong <Suspense> (Next 14
+ * app router) — fallback là breadcrumb không có tab.
+ */
+function TopBarBreadcrumbWithTab({
+  pathname,
+  segmentLabels,
+}: {
+  pathname: string;
+  segmentLabels?: Record<string, string | undefined>;
+}) {
+  const tab = useSearchParams()?.get("tab") ?? null;
+  const items = React.useMemo(
+    () => buildBreadcrumbItems(pathname, segmentLabels, tab),
+    [pathname, segmentLabels, tab],
+  );
+  return <Breadcrumb items={items} />;
+}
+
+function TopBarBreadcrumb({
+  pathname,
+  segmentLabels,
+}: {
+  pathname: string;
+  segmentLabels?: Record<string, string | undefined>;
+}) {
+  const fallbackItems = React.useMemo(
+    () => buildBreadcrumbItems(pathname, segmentLabels),
+    [pathname, segmentLabels],
+  );
+  return (
+    <React.Suspense fallback={<Breadcrumb items={fallbackItems} />}>
+      <TopBarBreadcrumbWithTab pathname={pathname} segmentLabels={segmentLabels} />
+    </React.Suspense>
+  );
+}
+
 export function TopBar({
   user,
   onLogout,
@@ -71,7 +111,6 @@ export function TopBar({
     () => (bomId && bomCode ? { [bomId]: bomCode } : undefined),
     [bomId, bomCode],
   );
-  const breadcrumbs = useBreadcrumb(pathname, segmentLabels);
   const shortcutLabel = formatShortcut("Mod+K");
 
   return (
@@ -111,7 +150,7 @@ export function TopBar({
 
           {/* Breadcrumb */}
           <div className="hidden min-w-0 md:block">
-            <Breadcrumb items={breadcrumbs} />
+            <TopBarBreadcrumb pathname={pathname} segmentLabels={segmentLabels} />
           </div>
         </div>
 

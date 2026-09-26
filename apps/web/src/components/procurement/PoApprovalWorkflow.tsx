@@ -19,6 +19,7 @@ import {
   useSubmitPOApproval,
 } from "@/hooks/usePurchaseOrders";
 import { formatDate } from "@/lib/format";
+import { statusLabel } from "@/lib/status";
 
 interface TimelineStep {
   key: string;
@@ -146,7 +147,8 @@ export function PoApprovalWorkflow({
   if (cancelledAt) {
     steps.push({
       key: "cancelled",
-      label: "Đã huỷ",
+      // V4.1 UI-07: cùng nhãn "Đã huỷ" với badge trạng thái PO.
+      label: statusLabel("po", "CANCELLED"),
       at: cancelledAt,
       icon: XCircle,
       tone: "muted",
@@ -232,7 +234,8 @@ export function PoApprovalWorkflow({
         )}
         {status !== "DRAFT" && (
           <span className="text-xs text-zinc-500 dark:text-zinc-400">
-            PO đã {status} — không còn action approval.
+            {/* V4.1 UI-27/28: trước "PO đã RECEIVED — không còn action approval". */}
+            PO đang ở trạng thái “{statusLabel("po", status)}” — không còn thao tác duyệt.
           </span>
         )}
       </div>

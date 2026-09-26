@@ -3,57 +3,21 @@
 import * as React from "react";
 import Link from "next/link";
 import { ExternalLink, Package } from "lucide-react";
-import {
-  PR_STATUS_LABELS,
-  PO_STATUS_LABELS,
-  type PRStatus,
-  type POStatus,
-} from "@iot/shared";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryError } from "@/components/ui/query-error";
-import {
-  StatusBadge,
-  type BadgeStatus,
-} from "@/components/domain/StatusBadge";
+import { StatusPill } from "@/components/ui/status-badge";
 import { usePurchaseRequestsList } from "@/hooks/usePurchaseRequests";
 import { usePurchaseOrdersList } from "@/hooks/usePurchaseOrders";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-function prStatusToBadge(s: PRStatus): BadgeStatus {
-  switch (s) {
-    case "DRAFT":
-      return "draft";
-    case "SUBMITTED":
-      return "info";
-    case "APPROVED":
-      return "warning";
-    case "CONVERTED":
-      return "success";
-    case "REJECTED":
-      return "danger";
-    default:
-      return "info";
-  }
-}
-
-function poStatusToBadge(s: POStatus): BadgeStatus {
-  switch (s) {
-    case "DRAFT":
-      return "draft";
-    case "SENT":
-      return "info";
-    case "PARTIAL":
-      return "warning";
-    case "RECEIVED":
-    case "CLOSED":
-      return "success";
-    case "CANCELLED":
-      return "danger";
-    default:
-      return "info";
-  }
-}
+// V4.1 UI-07: bỏ prStatusToBadge/poStatusToBadge cục bộ ("Đã duyệt" vàng, "Đã huỷ"
+// đỏ) — nhãn + tông lấy từ lib/status.ts (domain "pr" / "po").
+// V4.1 UI-27: nguồn PR hiển thị tiếng Việt (giá trị API giữ nguyên).
+const PR_SOURCE_LABEL: Record<string, string> = {
+  MANUAL: "Thủ công",
+  SHORTAGE: "Thiếu vật tư",
+};
 
 type SubTab = "pr" | "po";
 
@@ -89,7 +53,7 @@ export function ProcurementPanel({
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-zinc-200 bg-zinc-50/60 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-800/60">
         <div
           role="tablist"
-          aria-label="PR/PO sub-tabs"
+          aria-label="Chọn PR / PO"
           className="inline-flex items-center rounded-md border border-zinc-200 bg-white p-0.5 dark:border-zinc-700 dark:bg-zinc-900"
         >
           {(["pr", "po"] as const).map((k) => (
@@ -182,7 +146,7 @@ export function ProcurementPanel({
       return (
         <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-xs text-zinc-500 dark:text-zinc-400">
           <Package className="h-5 w-5 text-zinc-300 dark:text-zinc-600" aria-hidden />
-          <span>Chưa có Purchase Request gắn với BOM này.</span>
+          <span>Chưa có đề xuất vật tư (PR) gắn với BOM này.</span>
         </div>
       );
     }
@@ -207,15 +171,11 @@ export function ProcurementPanel({
               <td className="px-3 text-zinc-700 dark:text-zinc-300">
                 {row.title ?? <span className="text-zinc-400 dark:text-zinc-500">—</span>}
               </td>
-              <td className="px-3 text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                {row.source}
+              <td className="px-3 text-xs text-zinc-500 dark:text-zinc-400">
+                {PR_SOURCE_LABEL[row.source] ?? row.source}
               </td>
               <td className="px-3">
-                <StatusBadge
-                  status={prStatusToBadge(row.status)}
-                  size="sm"
-                  label={PR_STATUS_LABELS[row.status]}
-                />
+                <StatusPill domain="pr" code={row.status} dot />
               </td>
               <td className="px-3 text-zinc-500 dark:text-zinc-400">
                 {formatDate(row.createdAt, "dd/MM/yyyy")}
@@ -256,7 +216,7 @@ export function ProcurementPanel({
       return (
         <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-xs text-zinc-500 dark:text-zinc-400">
           <Package className="h-5 w-5 text-zinc-300 dark:text-zinc-600" aria-hidden />
-          <span>Chưa có Purchase Order gắn với BOM này.</span>
+          <span>Chưa có đơn đặt hàng (PO) gắn với BOM này.</span>
           <span className="text-xs text-zinc-400 dark:text-zinc-500">
             PO thường được sinh từ PR đã APPROVED → CONVERT.
           </span>
@@ -270,7 +230,7 @@ export function ProcurementPanel({
             <th className="px-3 py-1.5 text-left font-medium">Mã PO</th>
             <th className="px-3 py-1.5 text-left font-medium">NCC</th>
             <th className="px-3 py-1.5 text-left font-medium">Trạng thái</th>
-            <th className="px-3 py-1.5 text-left font-medium">ETA</th>
+            <th className="px-3 py-1.5 text-left font-medium">Ngày dự kiến</th>
             <th className="px-3 py-1.5 text-right font-medium">Giá trị</th>
             <th className="px-3 py-1.5 w-8" />
           </tr>
@@ -287,19 +247,16 @@ export function ProcurementPanel({
                 )}
               </td>
               <td className="px-3">
-                <StatusBadge
-                  status={poStatusToBadge(row.status)}
-                  size="sm"
-                  label={PO_STATUS_LABELS[row.status]}
-                />
+                <StatusPill domain="po" code={row.status} dot />
               </td>
               <td className="px-3 text-zinc-500 dark:text-zinc-400">
                 {row.expectedEta
                   ? formatDate(row.expectedEta, "dd/MM/yyyy")
                   : "—"}
               </td>
-              <td className="px-3 text-right font-mono tabular-nums text-zinc-700 dark:text-zinc-300">
-                {Number(row.totalAmount ?? 0).toLocaleString("vi-VN")}{" "}
+              {/* V4.1 UI-15: số tiền font thường + tabular-nums (bỏ font-mono). */}
+              <td className="px-3 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
+                {formatMoney(row.totalAmount, { unit: "none" })}{" "}
                 <span className="text-xs text-zinc-400 dark:text-zinc-500">
                   {row.currency}
                 </span>

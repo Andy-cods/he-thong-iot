@@ -31,6 +31,8 @@ import {
   type FinTransactionRow,
 } from "@/hooks/useFinance";
 import { useSession } from "@/hooks/useSession";
+import { StatusPill } from "@/components/ui/status-badge";
+import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
@@ -45,12 +47,6 @@ import { cn } from "@/lib/utils";
  *    tìm trong 200 HĐ CÙNG chiều giao dịch, sai chiều sau TC-01 → "—".
  *  - TC-08: xác nhận trước khi huỷ.
  */
-
-const STATUS_LABEL: Record<string, string> = {
-  DRAFT: "Nháp",
-  POSTED: "Đã ghi sổ",
-  VOID: "Đã huỷ",
-};
 
 const editSchema = z.object({
   description: z.string().trim().max(2000).optional().nullable(),
@@ -134,7 +130,7 @@ export function TransactionDetailSheet({
             <p className="font-mono text-xs text-zinc-500 dark:text-zinc-400">{row.code}</p>
             <p
               className={cn(
-                "mt-1 font-mono text-3xl font-bold tabular-nums",
+                "mt-1 text-3xl font-bold tabular-nums",
                 row.direction === "IN" ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400",
               )}
             >
@@ -142,16 +138,8 @@ export function TransactionDetailSheet({
               {fmtVND(row.amount)}
             </p>
             <div className="mt-1.5 flex flex-wrap items-center gap-2">
-              <span
-                className={cn(
-                  "inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold",
-                  row.status === "VOID"
-                    ? "bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400"
-                    : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
-                )}
-              >
-                {STATUS_LABEL[row.status]}
-              </span>
+              {/* V4.1 UI-07/08: "Đã huỷ" xám (không đỏ) — nguồn lib/status. */}
+              <StatusPill domain="finTxn" code={row.status} />
               {isTransfer && (
                 <span className="inline-flex whitespace-nowrap items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
                   <ArrowLeftRight className="h-3 w-3" aria-hidden="true" /> Chuyển quỹ nội bộ
@@ -291,7 +279,7 @@ export function TransactionDetailSheet({
           </div>
 
           <div className="border-t border-zinc-100 pt-3 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-            Tạo lúc {new Date(row.createdAt).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}
+            Tạo lúc {formatDateTime(row.createdAt, { seconds: true })}
           </div>
         </SheetBody>
         {canEdit && row.status !== "VOID" && (

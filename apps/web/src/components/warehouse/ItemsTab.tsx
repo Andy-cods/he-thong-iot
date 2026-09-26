@@ -238,7 +238,7 @@ export function ItemsTab() {
             Danh mục vật tư
           </h2>
           <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-            {query.isError ? "—" : total.toLocaleString("vi-VN")} vật tư · cập nhật realtime
+            {query.isError ? "—" : total.toLocaleString("vi-VN")} vật tư · cập nhật tức thời
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

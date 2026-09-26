@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { type BomStatus } from "@iot/shared";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatusPill } from "@/components/ui/status-badge";
 import {
   Tooltip,
   TooltipContent,
@@ -68,57 +69,8 @@ export interface BomListTableProps {
   onSortChange?: (field: BomSortField) => void;
 }
 
-interface StatusDotMeta {
-  label: string;
-  dot: string;
-  bg: string;
-  text: string;
-  border: string;
-}
-
-const STATUS_DOT: Record<BomStatus, StatusDotMeta> = {
-  DRAFT: {
-    label: "Nháp",
-    dot: "bg-amber-500",
-    bg: "bg-amber-50 dark:bg-amber-950/40",
-    text: "text-amber-700 dark:text-amber-300",
-    border: "border-amber-200 dark:border-amber-800/60",
-  },
-  ACTIVE: {
-    label: "Hoạt động",
-    dot: "bg-emerald-500",
-    bg: "bg-emerald-50 dark:bg-emerald-950/40",
-    text: "text-emerald-700 dark:text-emerald-300",
-    border: "border-emerald-200 dark:border-emerald-800/60",
-  },
-  OBSOLETE: {
-    label: "Ngừng",
-    dot: "bg-zinc-400",
-    bg: "bg-zinc-50 dark:bg-zinc-800",
-    text: "text-zinc-600 dark:text-zinc-400",
-    border: "border-zinc-200 dark:border-zinc-700",
-  },
-};
-
-function StatusDotPill({ status }: { status: BomStatus }) {
-  const meta = STATUS_DOT[status];
-  return (
-    <span
-      className={cn(
-        "inline-flex whitespace-nowrap items-center gap-1.5 rounded-full border px-2 py-0.5 text-sm font-medium",
-        meta.bg,
-        meta.text,
-        meta.border,
-      )}
-    >
-      <span
-        aria-hidden="true"
-        className={cn("h-1.5 w-1.5 rounded-full", meta.dot)}
-      />
-      {meta.label}
-    </span>
-  );
-}
+// V4.1 UI-07: bỏ map STATUS_DOT cục bộ ("Hoạt động"/"Ngừng") — nhãn + tông lấy từ
+// lib/status.ts (domain "bom": Nháp / Đang dùng / Ngừng dùng), khớp chip lọc.
 
 function SortHeader({
   field,
@@ -287,7 +239,7 @@ export function BomListTable({
   const copyCode = React.useCallback((code: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       void navigator.clipboard.writeText(code);
-      toast.success(`Đã copy ${code}`);
+      toast.success(`Đã sao chép ${code}`);
     }
   }, []);
 
@@ -343,7 +295,8 @@ export function BomListTable({
           />
         </div>
         <div role="columnheader" className="hidden md:block">
-          Parent item
+          {/* V4.1 UI-27: Parent item → Thành phẩm */}
+          Thành phẩm
         </div>
         <div role="columnheader" className="hidden text-right md:block">
           <SortHeader
@@ -356,7 +309,7 @@ export function BomListTable({
           />
         </div>
         <div role="columnheader" className="hidden text-right md:block">
-          Target Qty
+          SL mục tiêu
         </div>
         <div role="columnheader">Trạng thái</div>
         <div role="columnheader" className="hidden md:block">
@@ -488,7 +441,7 @@ export function BomListTable({
               </div>
 
               <div>
-                <StatusDotPill status={row.status} />
+                <StatusPill domain="bom" code={row.status} dot />
               </div>
 
               <div className="hidden truncate text-xs text-zinc-500 md:block dark:text-zinc-400">
@@ -509,8 +462,8 @@ export function BomListTable({
                 <Link
                   href={`/bom/${row.id}/grid`}
                   className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-emerald-600 transition-colors hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-500 dark:text-emerald-400 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300"
-                  aria-label={`Grid Editor ${row.code}`}
-                  title="Mở Grid Editor"
+                  aria-label={`Mở bảng BOM ${row.code}`}
+                  title="Mở bảng BOM"
                 >
                   <LayoutGrid className="h-3.5 w-3.5" aria-hidden="true" />
                 </Link>
@@ -526,7 +479,7 @@ export function BomListTable({
                   type="button"
                   onClick={() => copyCode(row.code)}
                   className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
-                  aria-label={`Copy mã ${row.code}`}
+                  aria-label={`Sao chép mã ${row.code}`}
                 >
                   <Copy className="h-3.5 w-3.5" aria-hidden="true" />
                 </button>
@@ -535,7 +488,7 @@ export function BomListTable({
                     type="button"
                     onClick={() => onClone(row)}
                     className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
-                    aria-label={`Clone ${row.code}`}
+                    aria-label={`Nhân bản ${row.code}`}
                   >
                     <GitBranch className="h-3.5 w-3.5" aria-hidden="true" />
                   </button>
@@ -571,7 +524,7 @@ export function BomListTable({
                   <div className="grid grid-cols-2 gap-2 border-t border-zinc-100 pt-2 text-xs dark:border-zinc-800">
                     <div>
                       <div className="text-xs uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
-                        Parent SKU
+                        Mã thành phẩm
                       </div>
                       <div className="font-mono text-zinc-700 dark:text-zinc-300">
                         {row.parentItemSku ?? "—"}

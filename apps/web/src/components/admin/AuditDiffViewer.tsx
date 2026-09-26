@@ -43,7 +43,7 @@ export function AuditDiffViewer({
     return (
       <div className="overflow-hidden rounded-md border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40">
         <div className="border-b border-emerald-200 bg-emerald-100 px-3 py-1.5 text-xs font-semibold uppercase tracking-normal text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400">
-          Bản ghi mới (CREATE)
+          Bản ghi mới
         </div>
         <pre className="overflow-x-auto p-3 font-mono text-[11px] leading-relaxed text-emerald-900 dark:text-emerald-300">
           {after}
@@ -57,7 +57,7 @@ export function AuditDiffViewer({
     return (
       <div className="overflow-hidden rounded-md border border-rose-200 bg-rose-50 dark:border-rose-800 dark:bg-rose-950/40">
         <div className="border-b border-rose-200 bg-rose-100 px-3 py-1.5 text-xs font-semibold uppercase tracking-normal text-rose-700 dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-400">
-          Bản ghi bị xoá (DELETE)
+          Bản ghi bị xoá
         </div>
         <pre className="overflow-x-auto p-3 font-mono text-[11px] leading-relaxed text-rose-900 dark:text-rose-300">
           {before}
@@ -70,7 +70,7 @@ export function AuditDiffViewer({
   if (!beforeJson && !afterJson) {
     return (
       <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
-        Không có dữ liệu diff.
+        Không có dữ liệu thay đổi.
       </div>
     );
   }

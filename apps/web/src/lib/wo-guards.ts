@@ -5,6 +5,8 @@
  * (ẩn nút). Mọi thông báo lỗi tiếng Việt, hiển thị thẳng cho người dùng.
  */
 
+import { statusLabel } from "@/lib/status";
+
 export type WoStatus =
   | "DRAFT"
   | "QUEUED"
@@ -31,14 +33,15 @@ export const WO_ALLOWED_TRANSITIONS: Record<WoStatus, WoStatus[]> = {
   CANCELLED: [],
 };
 
+/** V4.1 UI-07 (Đợt 6B): nhãn lấy từ nguồn chung `lib/status` (domain "wo"). */
 export const WO_STATUS_LABEL_VI: Record<WoStatus, string> = {
-  DRAFT: "Chờ duyệt",
-  QUEUED: "Hàng đợi",
-  RELEASED: "Đã duyệt",
-  IN_PROGRESS: "Đang sản xuất",
-  PAUSED: "Tạm dừng",
-  COMPLETED: "Hoàn thành",
-  CANCELLED: "Đã huỷ",
+  DRAFT: statusLabel("wo", "DRAFT"),
+  QUEUED: statusLabel("wo", "QUEUED"),
+  RELEASED: statusLabel("wo", "RELEASED"),
+  IN_PROGRESS: statusLabel("wo", "IN_PROGRESS"),
+  PAUSED: statusLabel("wo", "PAUSED"),
+  COMPLETED: statusLabel("wo", "COMPLETED"),
+  CANCELLED: statusLabel("wo", "CANCELLED"),
 };
 
 export function isWoTransitionAllowed(from: WoStatus, to: WoStatus): boolean {

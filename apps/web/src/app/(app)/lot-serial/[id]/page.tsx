@@ -7,8 +7,10 @@ import {
   Package,
   RotateCcw,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { StatusPill } from "@/components/ui/status-badge";
+import { formatDate, formatDateTime, formatQty } from "@/lib/format";
+import { entityLabel } from "@/lib/status";
 import {
   getLotHistory,
   type LotTimelineEvent,
@@ -16,30 +18,11 @@ import {
 
 export const dynamic = "force-dynamic";
 
-function statusVariant(
-  s: string,
-):
-  | "default"
-  | "outline"
-  | "neutral"
-  | "info"
-  | "warning"
-  | "success"
-  | "danger" {
-  switch (s) {
-    case "AVAILABLE":
-      return "success";
-    case "RESERVED":
-      return "info";
-    case "HOLD":
-      return "warning";
-    case "CONSUMED":
-      return "neutral";
-    case "EXPIRED":
-      return "danger";
-    default:
-      return "outline";
-  }
+// V4.1 UI-07/08: trạng thái lô từ lib/status.ts (domain "lot") — bỏ statusVariant cục bộ.
+// "RESERVED" chưa có trong domain lot → hiển thị riêng "Đang giữ" (tông info).
+function LotStatus({ status }: { status: string }) {
+  if (status === "RESERVED") return <StatusPill tone="info" label="Đang giữ" />;
+  return <StatusPill domain="lot" code={status} />;
 }
 
 function eventIcon(kind: LotTimelineEvent["kind"], txType: string | null) {
@@ -59,19 +42,19 @@ function eventLabel(kind: LotTimelineEvent["kind"], txType: string | null) {
   if (kind === "TXN") {
     switch (txType) {
       case "IN_RECEIPT":
-        return "Nhận hàng (IN_RECEIPT)";
+        return "Nhận hàng";
       case "OUT_ISSUE":
-        return "Xuất kho (OUT_ISSUE)";
+        return "Xuất kho";
       case "ASSEMBLY_CONSUME":
-        return "Lắp ráp tiêu thụ (ASSEMBLY_CONSUME)";
+        return "Lắp ráp tiêu hao";
       case "ADJUST_PLUS":
         return "Điều chỉnh cộng";
       case "ADJUST_MINUS":
         return "Điều chỉnh trừ";
       case "RESERVE":
-        return "Reserve";
+        return "Giữ hàng";
       case "UNRESERVE":
-        return "Unreserve";
+        return "Bỏ giữ hàng";
       case "PROD_IN":
         return "Nhập sản xuất";
       case "PROD_OUT":
@@ -80,15 +63,14 @@ function eventLabel(kind: LotTimelineEvent["kind"], txType: string | null) {
         return txType ?? "Giao dịch";
     }
   }
-  if (kind === "RESERVE") return "Reserved cho đơn hàng";
-  if (kind === "RELEASE") return "Giải phóng reservation";
-  if (kind === "SCAN") return "Assembly scan (CONSUME)";
+  if (kind === "RESERVE") return "Giữ hàng cho đơn hàng";
+  if (kind === "RELEASE") return "Bỏ giữ hàng";
+  if (kind === "SCAN") return "Quét lắp ráp (tiêu hao)";
   return kind;
 }
 
-function fmtQty(n: number) {
-  return n.toLocaleString("vi-VN", { maximumFractionDigits: 4 });
-}
+// V4.1 UI-14: số lượng qua formatQty chung.
+const fmtQty = (n: number) => formatQty(n);
 
 export default async function LotSerialDetailPage({
   params,
@@ -117,9 +99,9 @@ export default async function LotSerialDetailPage({
             {lot.lotCode ?? lot.serialCode ?? lot.id.slice(0, 8)}
           </h1>
           <div className="mt-0.5 flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-            <Badge variant={statusVariant(lot.status)}>{lot.status}</Badge>
+            <LotStatus status={lot.status} />
             <span>·</span>
-            <span>SKU: {lot.itemSku ?? "—"}</span>
+            <span>Mã vật tư: {lot.itemSku ?? "—"}</span>
             <span>·</span>
             <span className="truncate max-w-[320px]">
               {lot.itemName ?? "—"}
@@ -131,8 +113,8 @@ export default async function LotSerialDetailPage({
       <div className="flex-1 overflow-auto p-6">
         <div className="mx-auto max-w-4xl space-y-6">
           <section className="grid grid-cols-1 gap-3 md:grid-cols-4">
-            <KpiCard label="On-hand" value={fmtQty(onHandQty)} tone="primary" />
-            <KpiCard label="Reserved" value={fmtQty(reservedQty)} tone="info" />
+            <KpiCard label="Tồn thực tế" value={fmtQty(onHandQty)} tone="primary" />
+            <KpiCard label="Đang giữ" value={fmtQty(reservedQty)} tone="info" />
             <KpiCard
               label="Khả dụng"
               value={fmtQty(Math.max(0, onHandQty - reservedQty))}
@@ -140,21 +122,21 @@ export default async function LotSerialDetailPage({
             />
             <KpiCard
               label="Tạo"
-              value={new Date(lot.createdAt).toLocaleDateString("vi-VN")}
+              value={formatDate(lot.createdAt)}
               tone="neutral"
             />
           </section>
 
           <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <InfoRow label="Lot code" value={lot.lotCode ?? "—"} />
-            <InfoRow label="Serial code" value={lot.serialCode ?? "—"} />
+            <InfoRow label="Mã lô" value={lot.lotCode ?? "—"} />
+            <InfoRow label="Mã serial" value={lot.serialCode ?? "—"} />
             <InfoRow
               label="NSX / HSD"
-              value={`${lot.mfgDate ?? "—"} / ${lot.expDate ?? "—"}`}
+              value={`${formatDate(lot.mfgDate)} / ${formatDate(lot.expDate)}`}
             />
             {lot.holdReason ? (
               <div className="md:col-span-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400">
-                <strong>HOLD reason: </strong>
+                <strong>Lý do giữ lô: </strong>
                 {lot.holdReason}
               </div>
             ) : null}
@@ -162,11 +144,11 @@ export default async function LotSerialDetailPage({
 
           <section className="space-y-3">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-              Lifecycle timeline ({timeline.length} event)
+              Lịch sử lô ({timeline.length} sự kiện)
             </h2>
             {timeline.length === 0 ? (
               <p className="rounded-md border border-dashed border-zinc-300 bg-zinc-50 px-3 py-8 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
-                Chưa có event nào cho lot này.
+                Chưa có sự kiện nào cho lô này.
               </p>
             ) : (
               <div className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
@@ -210,9 +192,9 @@ export default async function LotSerialDetailPage({
                             {eventLabel(ev.kind, ev.txType ?? null)}
                           </div>
                           <div className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-                            {new Date(ev.eventAt).toLocaleString("vi-VN")}
+                            {formatDateTime(ev.eventAt)}
                             {ev.actorUsername ? ` · ${ev.actorUsername}` : ""}
-                            {ev.refTable ? ` · ${ev.refTable}` : ""}
+                            {ev.refTable ? ` · ${entityLabel(ev.refTable)}` : ""}
                           </div>
                           {ev.note ? (
                             <div className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">

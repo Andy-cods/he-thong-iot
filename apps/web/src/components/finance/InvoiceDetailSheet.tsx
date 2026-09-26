@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { Ban, ExternalLink, User } from "lucide-react";
-import { can, type FinInvoiceStatus } from "@iot/shared";
+import { can } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -24,7 +24,8 @@ import {
   useUpdateFinInvoice,
 } from "@/hooks/useFinance";
 import { useSession } from "@/hooks/useSession";
-import { cn } from "@/lib/utils";
+import { StatusPill } from "@/components/ui/status-badge";
+import { formatDateTime } from "@/lib/format";
 
 /**
  * TASK-20260922 — Drawer chi tiết 1 hoá đơn (click 1 dòng trong
@@ -34,24 +35,6 @@ import { cn } from "@/lib/utils";
  * PATCH chỉ cho dueDate/notes/attachmentUrl (khớp `finInvoiceUpdateSchema`
  * — route đã có sẵn, KHÔNG sửa).
  */
-
-const STATUS_LABEL: Record<FinInvoiceStatus, string> = {
-  DRAFT: "Nháp",
-  UNPAID: "Chưa trả",
-  PARTIAL: "Trả một phần",
-  PAID: "Đã trả",
-  OVERDUE: "Quá hạn",
-  CANCELLED: "Đã huỷ",
-};
-
-const STATUS_CHIP: Record<FinInvoiceStatus, string> = {
-  DRAFT: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
-  UNPAID: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
-  PARTIAL: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400",
-  PAID: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
-  OVERDUE: "bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400",
-  CANCELLED: "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500",
-};
 
 export function InvoiceDetailSheet({
   invoiceId,
@@ -101,18 +84,17 @@ export function InvoiceDetailSheet({
                 </p>
                 <p className="mt-1 font-mono text-2xl font-bold text-zinc-900 dark:text-zinc-50">{inv.invoiceNo}</p>
                 <div className="mt-1.5 flex items-center gap-2">
-                  <span className={cn("inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold", STATUS_CHIP[inv.status])}>
-                    {STATUS_LABEL[inv.status]}
-                  </span>
+                  {/* V4.1 UI-07/08: trạng thái HĐ từ lib/status. */}
+                  <StatusPill domain="invoice" code={inv.status} />
                   <span className="text-xs text-zinc-500 dark:text-zinc-400">Phát hành {fmtDate(inv.issueDate)}</span>
                 </div>
               </div>
 
               <dl className="grid grid-cols-2 gap-x-3 gap-y-2.5 text-sm">
                 <InfoRow label="Hạn thanh toán" value={fmtDate(inv.dueDate)} />
-                <InfoRow label="Tổng tiền" value={<span className="font-mono font-semibold">{fmtVND(inv.totalAmount)}</span>} />
-                <InfoRow label="Đã trả" value={<span className="font-mono font-semibold text-emerald-700 dark:text-emerald-400">{fmtVND(inv.paidAmount)}</span>} />
-                <InfoRow label="Còn nợ" value={<span className="font-mono font-semibold text-rose-600 dark:text-rose-400">{fmtVND(Number(inv.totalAmount) - Number(inv.paidAmount))}</span>} />
+                <InfoRow label="Tổng tiền" value={<span className="font-semibold">{fmtVND(inv.totalAmount)}</span>} />
+                <InfoRow label="Đã trả" value={<span className="font-semibold text-emerald-700 dark:text-emerald-400">{fmtVND(inv.paidAmount)}</span>} />
+                <InfoRow label="Còn nợ" value={<span className="font-semibold text-rose-600 dark:text-rose-400">{fmtVND(Number(inv.totalAmount) - Number(inv.paidAmount))}</span>} />
               </dl>
 
               {canEdit && !["CANCELLED", "PAID"].includes(inv.status) && (
@@ -192,7 +174,7 @@ export function InvoiceDetailSheet({
                           {a.payment ? fmtDate(a.payment.paymentDate) : "—"}
                           {a.payment?.code ? ` · ${a.payment.code}` : ""}
                         </span>
-                        <span className="font-mono font-semibold text-emerald-700 dark:text-emerald-400">{fmtVND(a.amount)}</span>
+                        <span className="font-semibold text-emerald-700 dark:text-emerald-400">{fmtVND(a.amount)}</span>
                       </li>
                     ))}
                   </ul>
@@ -223,7 +205,7 @@ export function InvoiceDetailSheet({
               </div>
 
               <div className="border-t border-zinc-100 pt-3 text-xs text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
-                Tạo lúc {new Date(inv.createdAt).toLocaleString("vi-VN")}
+                Tạo lúc {formatDateTime(inv.createdAt)}
               </div>
             </>
           )}

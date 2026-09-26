@@ -10,7 +10,7 @@ import {
   Sliders,
   X,
 } from "lucide-react";
-import { BOM_STATUS_LABELS, type BomStatus } from "@iot/shared";
+import { type BomStatus } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -19,6 +19,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { TONE_CLASSES, statusOptions } from "@/lib/status";
 
 /**
  * V2.1 BomFilterBarPlus — TASK-20260427-029.
@@ -70,11 +71,11 @@ export interface BomFilterBarPlusProps {
   onSortChange: (s: BomSortKey) => void;
 }
 
-const STATUS_CHIPS: Array<{ v: BomStatus; label: string; dot: string }> = [
-  { v: "DRAFT", label: BOM_STATUS_LABELS.DRAFT, dot: "bg-amber-500" },
-  { v: "ACTIVE", label: BOM_STATUS_LABELS.ACTIVE, dot: "bg-emerald-500" },
-  { v: "OBSOLETE", label: BOM_STATUS_LABELS.OBSOLETE, dot: "bg-zinc-400" },
-];
+// V4.1 UI-07: chip lọc lấy nhãn + chấm màu từ lib/status.ts → "Nháp / Đang dùng /
+// Ngừng dùng", khớp đúng badge trong danh sách và thẻ.
+const STATUS_CHIPS: Array<{ v: BomStatus; label: string; dot: string }> = statusOptions("bom").map(
+  (o) => ({ v: o.code, label: o.label, dot: TONE_CLASSES[o.tone].dot }),
+);
 
 const SORT_OPTIONS: Array<{ v: BomSortKey; label: string }> = [
   { v: "updatedAt:desc", label: "Mới nhất" },

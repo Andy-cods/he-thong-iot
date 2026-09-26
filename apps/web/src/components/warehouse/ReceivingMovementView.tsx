@@ -47,6 +47,9 @@ import {
   useRejectReceiving,
 } from "@/hooks/useReceivingApprove";
 import { cn } from "@/lib/utils";
+import { StatusPill } from "@/components/ui/status-badge";
+import { formatMoney } from "@/lib/format";
+import { TONE_CLASSES, getStatus, statusLabel } from "@/lib/status";
 import { ReceivingHistoryDrawer } from "./ReceivingHistoryDrawer";
 
 /**
@@ -73,12 +76,7 @@ function daysUntil(dateStr: string | null | undefined): number | null {
   return Math.round((d - now.getTime()) / 86400000);
 }
 
-function fmtVND(n: number | string | null | undefined): string {
-  if (n === null || n === undefined || n === "") return "0";
-  const num = typeof n === "string" ? Number(n) : n;
-  if (!Number.isFinite(num)) return "0";
-  return Math.round(num).toLocaleString("vi-VN");
-}
+// V4.1 UI-13: bỏ fmtVND cục bộ → formatMoney (lib/format).
 
 /* ── KPI Card ────────────────────────────────────────────────────────────── */
 
@@ -129,11 +127,11 @@ function EtaBadge({ eta }: { eta: string | null | undefined }) {
         soon ? "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400" :
         "bg-zinc-50 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
       )}
-      title={eta ? `ETA ${eta}` : "Chưa có ETA"}
+      title={eta ? `Ngày dự kiến ${eta}` : "Chưa có ngày dự kiến"}
     >
       {overdue ? <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden /> : null}
       {eta ?? "—"}
-      {overdue ? ` (quá ${Math.abs(days!)}d)` : isToday ? " (hôm nay)" : ""}
+      {overdue ? ` (quá ${Math.abs(days!)} ngày)` : isToday ? " (hôm nay)" : ""}
     </span>
   );
 }
@@ -147,7 +145,7 @@ function ReceivingProgress({ po }: { po: PORow }) {
   // trực quan (không có số liệu chính xác % ở list API — tránh bịa số).
   const pct = po.status === "RECEIVED" || po.status === "CLOSED" ? 100 : isPartial ? 50 : 0;
   return (
-    <div className="flex items-center gap-2" title={`Trạng thái: ${po.status}`}>
+    <div className="flex items-center gap-2" title={`Trạng thái: ${statusLabel("po", po.status)}`}>
       <div className="h-1.5 w-16 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
         <div
           className={cn(
@@ -234,7 +232,7 @@ function ReceivingTable({
       >
         <div>Mã PO</div>
         <div>Nhà cung cấp</div>
-        <div>ETA</div>
+        <div>Ngày dự kiến</div>
         <div>Tiến độ</div>
         <div className="text-right">Giá trị</div>
         <div>Trạng thái</div>
@@ -268,18 +266,11 @@ function ReceivingTable({
               </span>
               <EtaBadge eta={po.expectedEta} />
               <ReceivingProgress po={po} />
-              <span className="text-right font-mono text-sm tabular-nums text-zinc-700 dark:text-zinc-300">
-                {po.totalAmount ? `${fmtVND(po.totalAmount)} ₫` : "—"}
+              <span className="text-right text-sm tabular-nums text-zinc-700 dark:text-zinc-300">
+                {po.totalAmount ? formatMoney(po.totalAmount) : "—"}
               </span>
-              <span className={cn(
-                "inline-flex whitespace-nowrap w-fit items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
-                isPartial
-                  ? "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800"
-                  : "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:ring-blue-800",
-              )}>
-                <span className={cn("h-1.5 w-1.5 rounded-full", isPartial ? "bg-amber-500 animate-pulse" : "bg-blue-500")} />
-                {isPartial ? "Đang nhận" : "Chờ xử lý"}
-              </span>
+              {/* V4.1 UI-07/08: pill trạng thái PO từ lib/status.ts */}
+              <StatusPill domain="po" code={po.status} dot pulse={isPartial} className="w-fit" />
               <div onClick={(e) => e.stopPropagation()}>
                 <RowActionsMenu
                   po={po}
@@ -335,15 +326,7 @@ function ReceivingCardList({
             </div>
             <p className="truncate text-sm text-zinc-700 dark:text-zinc-300">{supplierLabel(po)}</p>
             <div className="flex items-center justify-between gap-2">
-              <span className={cn(
-                "inline-flex whitespace-nowrap items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
-                isPartial
-                  ? "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800"
-                  : "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:ring-blue-800",
-              )}>
-                <span className={cn("h-1.5 w-1.5 rounded-full", isPartial ? "bg-amber-500 animate-pulse" : "bg-blue-500")} />
-                {isPartial ? "Đang nhận" : "Chờ xử lý"}
-              </span>
+              <StatusPill domain="po" code={po.status} dot pulse={isPartial} />
               <EtaBadge eta={po.expectedEta} />
             </div>
           </Link>
@@ -428,7 +411,7 @@ export function ReceivingMovementView() {
             Nhận hàng từ NCC
           </h2>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            Danh sách PO đang chờ giao. Bấm vào hàng để mở wizard nhận hàng.
+            Danh sách PO đang chờ giao. Bấm vào hàng để mở màn hình nhận hàng.
           </p>
         </div>
         <Button
@@ -445,10 +428,10 @@ export function ReceivingMovementView() {
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {/* V4.1 UI-05: danh sách lỗi → KPI hiện "—" thay vì 0. */}
-        <KpiCard icon={Clock}          label="Chờ xử lý"      value={stats?.sentCount ?? (isError ? "—" : sentCount)}       sub="PO status SENT"           accent="indigo" />
+        <KpiCard icon={Clock}          label="Chờ xử lý"      value={stats?.sentCount ?? (isError ? "—" : sentCount)}       sub="đã gửi NCC, chưa nhận"    accent="indigo" />
         <KpiCard icon={Package}        label="Đang nhận"      value={stats?.partialCount ?? (isError ? "—" : partialCount)} sub="đã nhận một phần"         accent="amber"  />
-        <KpiCard icon={AlertTriangle}  label="Quá hạn ETA"   value={isError ? "—" : overdueRows.length}                    sub="cần xử lý gấp"            accent={overdueRows.length > 0 ? "red" : "zinc"} />
-        <KpiCard icon={CheckCircle2}   label="Giao hôm nay"   value={isError ? "—" : todayRows.length}                      sub="theo ETA"                  accent="emerald" />
+        <KpiCard icon={AlertTriangle}  label="Quá hạn giao"   value={isError ? "—" : overdueRows.length}                    sub="cần xử lý gấp"            accent={overdueRows.length > 0 ? "red" : "zinc"} />
+        <KpiCard icon={CheckCircle2}   label="Giao hôm nay"   value={isError ? "—" : todayRows.length}                      sub="theo ngày dự kiến"                  accent="emerald" />
       </div>
 
       {/* Filter bar */}
@@ -466,8 +449,9 @@ export function ReceivingMovementView() {
         <div className="flex items-center gap-1.5">
           {[
             { v: "all" as const,     label: "Tất cả",     dot: "bg-zinc-400"   },
-            { v: "SENT" as const,    label: "Chờ xử lý",  dot: "bg-blue-500"   },
-            { v: "PARTIAL" as const, label: "Đang nhận",  dot: "bg-amber-500"  },
+            // V4.1 UI-07/08: chip lọc dùng nhãn + chấm màu từ lib/status.ts.
+            { v: "SENT" as const,    label: statusLabel("po", "SENT"),    dot: TONE_CLASSES[getStatus("po", "SENT").tone].dot },
+            { v: "PARTIAL" as const, label: statusLabel("po", "PARTIAL"), dot: TONE_CLASSES[getStatus("po", "PARTIAL").tone].dot },
           ].map((opt) => (
             <button
               key={opt.v}
@@ -516,7 +500,7 @@ export function ReceivingMovementView() {
         ) : (
           <EmptyState
             title="Không có PO đang chờ nhận"
-            description="Chỉ PO trạng thái SENT hoặc PARTIAL mới xuất hiện ở đây."
+            description={`Chỉ PO ở trạng thái “${statusLabel("po", "SENT")}” hoặc “${statusLabel("po", "PARTIAL")}” mới xuất hiện ở đây.`}
             actions={
               <Link
                 href="/sales?tab=po"
@@ -555,7 +539,7 @@ export function ReceivingMovementView() {
               Duyệt nhận đủ PO {approveTarget?.poNo}
             </DialogTitle>
             <DialogDescription>
-              PO sẽ chuyển sang <strong>RECEIVED</strong>. Yêu cầu tổng SL đã nhận đạt tối thiểu 95% so với ordered.
+              PO sẽ chuyển sang <strong>{statusLabel("po", "RECEIVED")}</strong>. Yêu cầu tổng SL đã nhận đạt tối thiểu 95% so với SL đặt.
               Nếu chưa đủ, hệ thống trả lỗi với chi tiết phần trăm.
             </DialogDescription>
           </DialogHeader>
@@ -604,8 +588,8 @@ export function ReceivingMovementView() {
               Từ chối nhận PO {rejectTarget?.poNo}
             </DialogTitle>
             <DialogDescription>
-              PO sẽ chuyển sang <strong>CANCELLED</strong>. Lý do từ chối sẽ được ghi vào audit log.
-              Hành động này không huỷ các receiving event đã ghi.
+              PO sẽ chuyển sang <strong>{statusLabel("po", "CANCELLED")}</strong>. Lý do từ chối sẽ được ghi vào nhật ký.
+              Hành động này không huỷ các lần nhận hàng đã ghi.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-2">

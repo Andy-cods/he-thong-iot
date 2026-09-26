@@ -33,7 +33,6 @@ import {
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { PO_STATUS_LABELS, type POStatus } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -57,7 +56,9 @@ import {
 import { canEditPoPrices } from "@/lib/procurement-policy";
 import { PoInvoicePanel } from "@/components/procurement/PoInvoicePanel";
 import { useReceivingAudit } from "@/hooks/useReceivingEvents";
-import { formatDate, formatNumber } from "@/lib/format";
+import { formatDate, formatDateTime, formatMoney, formatNumber } from "@/lib/format";
+import { statusLabel } from "@/lib/status";
+import { StatusPill } from "@/components/ui/status-badge";
 import { cn } from "@/lib/utils";
 import { downloadFromUrl } from "@/lib/download";
 import { PoQuickReceiveTable } from "@/components/procurement/PoQuickReceiveTable";
@@ -68,21 +69,14 @@ import { PoApprovalWorkflow } from "@/components/procurement/PoApprovalWorkflow"
  *
  * Layout:
  *   - Header sticky: avatar gradient + status pill + actions context-aware
- *   - 4 KPI inline (Tổng giá trị, Số dòng, Đã nhận %, ETA)
- *   - 5 tabs: Thông tin / Dòng hàng / Nhận nhanh / Lịch sử nhận / Audit
- *   - Edit mode inline (DRAFT: full edit, SENT: chỉ ETA + notes)
+ *   - 4 KPI inline (Tổng giá trị, Số dòng, Đã nhận %, Ngày dự kiến)
+ *   - 5 tabs: Thông tin / Dòng hàng / Nhận nhanh / Lịch sử nhận / Nhật ký
+ *   - Edit mode inline (DRAFT: full edit, SENT: chỉ ngày dự kiến + notes)
+ * V4.1 UI-07/08/13/27: trạng thái lấy từ lib/status (bỏ STATUS_PILL cục bộ),
+ *   tiền qua formatMoney (bỏ font-mono), nhãn tiếng Việt.
  */
 
 type Tab = "info" | "lines" | "receive" | "history" | "audit";
-
-const STATUS_PILL: Record<POStatus, { cls: string; dot: string; icon: React.ElementType }> = {
-  DRAFT:     { cls: "bg-zinc-100 text-zinc-700 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700",          dot: "bg-zinc-400",                  icon: Edit3        },
-  SENT:      { cls: "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:ring-blue-800",           dot: "bg-blue-500 animate-pulse",    icon: Send         },
-  PARTIAL:   { cls: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800",        dot: "bg-amber-500 animate-pulse",   icon: Package      },
-  RECEIVED:  { cls: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800",  dot: "bg-emerald-500",               icon: CheckCircle2 },
-  CANCELLED: { cls: "bg-red-50 text-red-700 ring-red-200 dark:bg-red-950/40 dark:text-red-400 dark:ring-red-800",              dot: "bg-red-500",                   icon: XCircle      },
-  CLOSED:    { cls: "bg-zinc-100 text-zinc-500 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",          dot: "bg-zinc-400",                  icon: CheckCircle2 },
-};
 
 interface ItemSearch {
   id: string;
@@ -113,11 +107,9 @@ function parseTaxRate(v: string): number {
   return v.trim() !== "" && Number.isFinite(n) ? n : 8;
 }
 
+/** V4.1 UI-13: tiền đầy đủ số "1.234.567 ₫" — dùng formatMoney chung. */
 function fmtVND(n: number | string | null | undefined): string {
-  if (n === null || n === undefined || n === "") return "0";
-  const num = typeof n === "string" ? Number(n) : n;
-  if (!Number.isFinite(num)) return "0";
-  return Math.round(num).toLocaleString("vi-VN");
+  return formatMoney(n);
 }
 
 export default function PurchaseOrderDetailPage() {
@@ -354,8 +346,6 @@ export default function PurchaseOrderDetailPage() {
     );
   }
 
-  const cfg = STATUS_PILL[po.status as POStatus];
-  const StatusIcon = cfg.icon;
   const isDraft = po.status === "DRAFT";
   const isSent = po.status === "SENT";
   const approvalStatus = po.metadata?.approvalStatus;
@@ -411,13 +401,12 @@ export default function PurchaseOrderDetailPage() {
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className={cn(
-                  "inline-flex whitespace-nowrap items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset",
-                  cfg.cls,
-                )}>
-                  <span className={cn("h-1.5 w-1.5 rounded-full", cfg.dot)} />
-                  {PO_STATUS_LABELS[po.status as POStatus]}
-                </span>
+                <StatusPill
+                  domain="po"
+                  code={po.status}
+                  dot
+                  pulse={po.status === "SENT" || po.status === "PARTIAL"}
+                />
                 {/* V3.7.43 — Badge phân loại PO type */}
                 {po.poType === "SUBCONTRACT" && (
                   <span className="inline-flex whitespace-nowrap items-center gap-1.5 rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold text-orange-700 ring-1 ring-inset ring-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:ring-orange-800">
@@ -512,7 +501,7 @@ export default function PurchaseOrderDetailPage() {
 
       {/* ── KPI strip ─────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 border-b border-zinc-200 bg-white px-6 py-3 lg:grid-cols-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <KpiInline icon={CreditCard} label="Tổng giá trị" value={`${fmtVND(displayTotal)} đ`} accent="indigo" />
+        <KpiInline icon={CreditCard} label="Tổng giá trị" value={fmtVND(displayTotal)} accent="indigo" />
         <KpiInline icon={Package} label="Số dòng" value={String(po.lines.length)} accent="zinc" />
         <KpiInline
           icon={Truck}
@@ -520,7 +509,7 @@ export default function PurchaseOrderDetailPage() {
           value={`${formatNumber(totalReceived)} / ${formatNumber(totalOrdered)} (${receivedPct}%)`}
           accent={receivedPct >= 100 ? "emerald" : receivedPct > 0 ? "amber" : "zinc"}
         />
-        <KpiInline icon={Calendar} label="ETA" value={po.expectedEta ? formatDate(po.expectedEta, "dd/MM/yyyy") : "—"} accent="blue" />
+        <KpiInline icon={Calendar} label="Ngày dự kiến" value={po.expectedEta ? formatDate(po.expectedEta, "dd/MM/yyyy") : "—"} accent="blue" />
       </div>
 
       {/* ── Tabs ──────────────────────────────────────────────── */}
@@ -530,7 +519,7 @@ export default function PurchaseOrderDetailPage() {
           { v: "lines" as const, label: `Dòng hàng (${po.lines.length})`, icon: Package },
           { v: "receive" as const, label: "Nhận nhanh", icon: Truck, hide: isDraft },
           { v: "history" as const, label: "Lịch sử nhận", icon: History, hide: isDraft },
-          { v: "audit" as const, label: "Audit", icon: ShoppingCart },
+          { v: "audit" as const, label: "Nhật ký", icon: ShoppingCart },
         ]).filter((t) => !t.hide).map((t) => {
           const Icon = t.icon;
           return (
@@ -582,7 +571,7 @@ export default function PurchaseOrderDetailPage() {
                 <InfoRow icon={Calendar} label="Ngày đặt" value={formatDate(po.orderDate, "dd/MM/yyyy")} />
                 <InfoRow
                   icon={Clock}
-                  label="ETA dự kiến"
+                  label="Ngày dự kiến"
                   value={editing ? (
                     <input
                       type="date"
@@ -626,15 +615,15 @@ export default function PurchaseOrderDetailPage() {
                 <div className="mt-3 space-y-1.5">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-zinc-600 dark:text-zinc-400">Tạm tính (chưa VAT)</span>
-                    <span className="font-mono font-semibold tabular-nums text-zinc-800 dark:text-zinc-200">{fmtVND(subtotal)} đ</span>
+                    <span className="font-semibold tabular-nums text-zinc-800 dark:text-zinc-200">{fmtVND(subtotal)}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-zinc-600 dark:text-zinc-400">Tổng VAT</span>
-                    <span className="font-mono font-semibold tabular-nums text-zinc-800 dark:text-zinc-200">{fmtVND(totalTax)} đ</span>
+                    <span className="font-semibold tabular-nums text-zinc-800 dark:text-zinc-200">{fmtVND(totalTax)}</span>
                   </div>
                   <div className="mt-2 border-t border-indigo-200 pt-2 flex items-center justify-between dark:border-indigo-800">
                     <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Tổng cộng</span>
-                    <span className="font-mono text-xl font-bold tabular-nums text-indigo-700 dark:text-indigo-400">{fmtVND(displayTotal)} đ</span>
+                    <span className="text-xl font-bold tabular-nums text-indigo-700 dark:text-indigo-400">{fmtVND(displayTotal)}</span>
                   </div>
                 </div>
               </div>
@@ -667,7 +656,7 @@ export default function PurchaseOrderDetailPage() {
                 <p className="flex items-center gap-2 font-semibold">
                   <AlertCircle className="h-4 w-4" /> Đã gửi NCC
                 </p>
-                <p className="mt-1 text-xs">PO đã ở trạng thái SENT. Chỉ sửa được ETA và Ghi chú. Để sửa Lines/Tổng giá trị, vui lòng huỷ PO và tạo mới.</p>
+                <p className="mt-1 text-xs">PO đã ở trạng thái “{statusLabel("po", "SENT")}”. Chỉ sửa được Ngày dự kiến và Ghi chú. Để sửa dòng hàng/tổng giá trị, vui lòng huỷ PO và tạo mới.</p>
               </div>
             )}
           </div>
@@ -750,7 +739,7 @@ export default function PurchaseOrderDetailPage() {
                     <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Đơn giá</th>
                     <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">VAT%</th>
                     <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Thành tiền</th>
-                    {!editing && <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">ETA</th>}
+                    {!editing && <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Ngày dự kiến</th>}
                     {editing && isDraft && <th className="w-12" />}
                   </tr>
                 </thead>
@@ -804,8 +793,8 @@ export default function PurchaseOrderDetailPage() {
                                 className="ml-auto read-only:bg-zinc-100 read-only:text-zinc-500 dark:read-only:bg-zinc-800 block h-9 w-16 rounded-md border border-zinc-200 bg-white px-2 text-right font-mono text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
                               />
                             </td>
-                            <td className="px-4 py-3 text-right font-mono text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-                              {fmtVND(lineTotal)}
+                            <td className="px-4 py-3 text-right text-sm font-semibold tabular-nums text-zinc-800 dark:text-zinc-200">
+                              {formatMoney(lineTotal, { unit: "none" })}
                             </td>
                             <td className="px-2 py-3">
                               <button
@@ -848,14 +837,14 @@ export default function PurchaseOrderDetailPage() {
                             )}>
                               {formatNumber(rem)}
                             </td>
-                            <td className="px-4 py-3.5 text-right font-mono text-sm text-zinc-700 dark:text-zinc-300">
-                              {fmtVND(l.unitPrice)}
+                            <td className="px-4 py-3.5 text-right text-sm tabular-nums text-zinc-700 dark:text-zinc-300">
+                              {formatMoney(l.unitPrice, { unit: "none" })}
                             </td>
                             <td className="px-4 py-3.5 text-right font-mono text-sm text-zinc-700 dark:text-zinc-300">
                               {l.taxRate ?? 0}%
                             </td>
-                            <td className="px-4 py-3.5 text-right font-mono text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-                              {fmtVND(lineTotal)}
+                            <td className="px-4 py-3.5 text-right text-sm font-semibold tabular-nums text-zinc-800 dark:text-zinc-200">
+                              {formatMoney(lineTotal, { unit: "none" })}
                             </td>
                             <td className="px-4 py-3.5 text-sm text-zinc-600 dark:text-zinc-400">
                               {l.expectedEta ? formatDate(l.expectedEta, "dd/MM/yyyy") : "—"}
@@ -965,7 +954,7 @@ export default function PurchaseOrderDetailPage() {
               <Send className="h-5 w-5 text-blue-600 dark:text-blue-400" /> Xác nhận đã gửi PO
             </DialogTitle>
             <DialogDescription>
-              Thao tác này chỉ đánh dấu PO đã gửi và chuyển sang <strong>SENT</strong>; hệ thống chưa tự động gửi email. Sau đó chỉ có thể sửa ETA và Ghi chú.
+              Thao tác này chỉ đánh dấu PO đã gửi và chuyển sang <strong>{statusLabel("po", "SENT")}</strong>; hệ thống chưa tự động gửi email. Sau đó chỉ có thể sửa Ngày dự kiến và Ghi chú.
               Bộ phận Kho sẽ nhận thông báo để chuẩn bị nhận hàng.
             </DialogDescription>
           </DialogHeader>
@@ -1067,18 +1056,12 @@ function ReceivingHistorySection({ poId }: { poId: string }) {
                 <div>
                   <p className="font-mono text-sm font-bold text-indigo-600 dark:text-indigo-400">{r.receiptNo}</p>
                   <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-                    {new Date(r.receivedAt).toLocaleString("vi-VN")}
+                    {formatDateTime(r.receivedAt)}
                     {r.qcNotes && ` · ${r.qcNotes}`}
                   </p>
                 </div>
-                <span className={cn(
-                  "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset",
-                  r.qcFlag === "OK" ? "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800" :
-                  r.qcFlag === "NG" ? "bg-red-50 text-red-700 ring-red-200 dark:bg-red-950/40 dark:text-red-400 dark:ring-red-800" :
-                  "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800",
-                )}>
-                  {r.qcFlag}
-                </span>
+                {/* V4.1 UI-07: QC nhận hàng — nhãn tiếng Việt thay mã thô OK/NG. */}
+                <StatusPill domain="receiptQc" code={r.qcFlag} />
               </li>
             ))}
           </ul>
@@ -1100,10 +1083,10 @@ function ReceivingHistorySection({ poId }: { poId: string }) {
           <table className="w-full">
             <thead>
               <tr className="border-b border-zinc-100 dark:border-zinc-800">
-                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">SKU</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Mã vật tư</th>
                 <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Tên</th>
                 <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">SL nhận</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Lot</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Lô</th>
               </tr>
             </thead>
             <tbody>

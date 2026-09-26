@@ -16,7 +16,6 @@ import {
   finInvoiceCreateSchema,
   type FinDirection,
   type FinInvoiceCreate,
-  type FinInvoiceStatus,
 } from "@iot/shared";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
@@ -44,31 +43,17 @@ import {
 } from "@/hooks/useFinance";
 import { useSession } from "@/hooks/useSession";
 import type { FinInvoiceFilter } from "@/lib/query-keys";
+import { StatusPill } from "@/components/ui/status-badge";
+import { statusLabel } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
 /**
  * Tab "Hoá đơn" — bảng `fin_invoice` (hoá đơn vào/ra) + tạo mới + huỷ.
  * V4.1 Đợt 3: tên đối tác từ API (TC-03 — hết cột "—"), cột "Còn nợ" + dòng
  * tổng + header dính (UI), xác nhận trước khi huỷ + báo lỗi trùng số HĐ (TC-08).
+ * V4.1 UI-07/08 (Đợt 6B): nhãn/màu trạng thái HĐ từ lib/status (domain invoice);
+ * số tiền bỏ font-mono (UI-13).
  */
-
-const STATUS_LABEL: Record<FinInvoiceStatus, string> = {
-  DRAFT: "Nháp",
-  UNPAID: "Chưa trả",
-  PARTIAL: "Trả một phần",
-  PAID: "Đã trả",
-  OVERDUE: "Quá hạn",
-  CANCELLED: "Đã huỷ",
-};
-
-const STATUS_CHIP: Record<FinInvoiceStatus, string> = {
-  DRAFT: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
-  UNPAID: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
-  PARTIAL: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400",
-  PAID: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
-  OVERDUE: "bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400",
-  CANCELLED: "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500",
-};
 
 export function InvoicesTab() {
   const { data: session } = useSession();
@@ -177,7 +162,7 @@ export function InvoicesTab() {
         >
           <option value="all">Tất cả trạng thái</option>
           {FIN_INVOICE_STATUSES.map((s) => (
-            <option key={s} value={s}>{STATUS_LABEL[s]}</option>
+            <option key={s} value={s}>{statusLabel("invoice", s)}</option>
           ))}
         </select>
         {hasFilter && (
@@ -240,15 +225,13 @@ export function InvoicesTab() {
                             {fmtDate(inv.dueDate)}{isOverdue && " ⚠"}
                           </span>
                         </td>
-                        <td className="whitespace-nowrap px-4 py-2.5 text-right font-mono font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">{fmtVND(inv.totalAmount)}</td>
-                        <td className="whitespace-nowrap px-4 py-2.5 text-right font-mono tabular-nums text-emerald-700 dark:text-emerald-400">{fmtVND(inv.paidAmount)}</td>
-                        <td className="whitespace-nowrap px-4 py-2.5 text-right font-mono font-semibold tabular-nums text-rose-600 dark:text-rose-400">
+                        <td className="whitespace-nowrap px-4 py-2.5 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">{fmtVND(inv.totalAmount)}</td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-emerald-700 dark:text-emerald-400">{fmtVND(inv.paidAmount)}</td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-right font-semibold tabular-nums text-rose-600 dark:text-rose-400">
                           {inv.status === "CANCELLED" ? "—" : fmtVND(Number(inv.totalAmount) - Number(inv.paidAmount))}
                         </td>
                         <td className="px-4 py-2.5 text-center">
-                          <span className={cn("inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold", STATUS_CHIP[inv.status])}>
-                            {STATUS_LABEL[inv.status]}
-                          </span>
+                          <StatusPill domain="invoice" code={inv.status} />
                         </td>
                         <td className="px-4 py-2.5 text-right">
                           {canCancel && inv.status !== "CANCELLED" && Number(inv.paidAmount) === 0 && (
@@ -272,9 +255,9 @@ export function InvoicesTab() {
                     <td colSpan={5} className="px-4 py-2.5 font-semibold text-zinc-700 dark:text-zinc-300">
                       Cộng trang này ({rows.length} hoá đơn, không tính HĐ đã huỷ)
                     </td>
-                    <td className="whitespace-nowrap px-4 py-2.5 text-right font-mono font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">{fmtVND(pageTotals.total)}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5 text-right font-mono font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">{fmtVND(pageTotals.paid)}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5 text-right font-mono font-semibold tabular-nums text-rose-600 dark:text-rose-400">{fmtVND(pageTotals.total - pageTotals.paid)}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">{fmtVND(pageTotals.total)}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-right font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">{fmtVND(pageTotals.paid)}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-right font-semibold tabular-nums text-rose-600 dark:text-rose-400">{fmtVND(pageTotals.total - pageTotals.paid)}</td>
                     <td colSpan={2} />
                   </tr>
                 </tfoot>
@@ -301,19 +284,17 @@ export function InvoicesTab() {
                           {inv.supplierName ?? "—"} · {inv.direction === "IN" ? "Đầu vào" : "Đầu ra"}
                         </p>
                       </div>
-                      <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold", STATUS_CHIP[inv.status])}>
-                        {STATUS_LABEL[inv.status]}
-                      </span>
+                      <StatusPill domain="invoice" code={inv.status} />
                     </div>
                     <div className="mt-2 flex items-end justify-between">
                       <div className="text-xs text-zinc-500 dark:text-zinc-400">
                         <p>Hạn: {fmtDate(inv.dueDate)}{isOverdue && " ⚠"}</p>
-                        <p>Đã trả: <span className="font-mono text-emerald-700 dark:text-emerald-400">{fmtVND(inv.paidAmount)}</span></p>
+                        <p>Đã trả: <span className="text-emerald-700 dark:text-emerald-400">{fmtVND(inv.paidAmount)}</span></p>
                         {inv.status !== "CANCELLED" && (
-                          <p>Còn nợ: <span className="font-mono text-rose-600 dark:text-rose-400">{fmtVND(Number(inv.totalAmount) - Number(inv.paidAmount))}</span></p>
+                          <p>Còn nợ: <span className="text-rose-600 dark:text-rose-400">{fmtVND(Number(inv.totalAmount) - Number(inv.paidAmount))}</span></p>
                         )}
                       </div>
-                      <p className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-50">{fmtVND(inv.totalAmount)}</p>
+                      <p className="text-sm font-bold text-zinc-900 dark:text-zinc-50">{fmtVND(inv.totalAmount)}</p>
                     </div>
                   </div>
                 );
@@ -477,22 +458,22 @@ function InvoiceFormDialog({
           <div className="grid grid-cols-3 gap-3">
             <div>
               <Label htmlFor="inv-subtotal" required>Tiền hàng</Label>
-              <Input id="inv-subtotal" type="number" step="1000" {...register("subtotalAmount")} error={!!errors.subtotalAmount} className="mt-1 font-mono tabular-nums" />
+              <Input id="inv-subtotal" type="number" step="1000" {...register("subtotalAmount")} error={!!errors.subtotalAmount} className="mt-1 tabular-nums" />
             </div>
             <div>
               <Label htmlFor="inv-vat-rate">VAT (%)</Label>
-              <Input id="inv-vat-rate" type="number" step="1" {...register("vatRate")} className="mt-1 font-mono tabular-nums" />
+              <Input id="inv-vat-rate" type="number" step="1" {...register("vatRate")} className="mt-1 tabular-nums" />
             </div>
             <div>
               <Label htmlFor="inv-vat-amt">Tiền VAT</Label>
-              <Input id="inv-vat-amt" type="number" {...register("vatAmount")} readOnly className="mt-1 bg-zinc-50 font-mono tabular-nums dark:bg-zinc-800" />
+              <Input id="inv-vat-amt" type="number" {...register("vatAmount")} readOnly className="mt-1 bg-zinc-50 tabular-nums dark:bg-zinc-800" />
             </div>
           </div>
 
           <div className="rounded-lg border border-indigo-200 bg-indigo-50/60 px-3 py-2 dark:border-indigo-800 dark:bg-indigo-950/40">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-indigo-900 dark:text-indigo-200">Tổng cộng</span>
-              <span className="font-mono text-lg font-bold text-indigo-900 dark:text-indigo-200">
+              <span className="text-lg font-bold text-indigo-900 dark:text-indigo-200">
                 {fmtVND(subtotal + Math.round((subtotal * vatRate) / 100))}
               </span>
             </div>

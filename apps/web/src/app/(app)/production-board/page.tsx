@@ -33,6 +33,8 @@ import {
   type BoardStatus,
 } from "@/hooks/useProductionBoard";
 import { cn } from "@/lib/utils";
+import { TONE_CLASSES, getStatus, type StatusTone } from "@/lib/status";
+import { formatDate, formatQty } from "@/lib/format";
 
 /**
  * V3.8 — /production-board — Trang quản lý Bảng sản xuất cho Tổ QC.
@@ -42,16 +44,16 @@ import { cn } from "@/lib/utils";
  * - Route guard (app)/layout chỉ cho admin + qc vào.
  */
 
-const STATUS_META: Record<
-  BoardStatus,
-  { label: string; chip: string }
-> = {
-  QUEUED: { label: "Sắp GC", chip: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300" },
-  IN_PROGRESS: { label: "Đang GC", chip: "bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300" },
-  QC: { label: "QC", chip: "bg-sky-100 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300" },
-  COMPLETED: { label: "Hoàn thành", chip: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300" },
-  DELIVERED: { label: "Đã giao", chip: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400" },
-};
+// V4.1 UI-07/08 (§2.8): bỏ STATUS_META cục bộ — nhãn + màu ô chọn trạng thái lấy
+// từ lib/status.ts domain "board" + TONE_CLASSES (trước đây cam/xanh/lục riêng,
+// lệch StatusBadge). Ô chật dùng nhãn ngắn "Sắp GC" / "Đang GC" / "QC".
+function boardLabel(s: BoardStatus): string {
+  const d = getStatus("board", s);
+  return s === "COMPLETED" ? d.label : (d.short ?? d.label);
+}
+function boardPillClass(s: BoardStatus): string {
+  return cn("ring-1 ring-inset", TONE_CLASSES[getStatus("board", s).tone].pill);
+}
 
 const STATUS_OPTIONS: BoardStatus[] = [
   "QUEUED",
@@ -98,7 +100,7 @@ export default function ProductionBoardAdminPage() {
   const quickStatus = async (it: BoardItem, status: BoardStatus) => {
     try {
       await updateMut.mutateAsync({ id: it.id, payload: { status } });
-      toast.success(`${shortCode(it.productCode)} → ${STATUS_META[status].label}`);
+      toast.success(`${shortCode(it.productCode)} → ${boardLabel(status)}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Lỗi cập nhật");
     }
@@ -108,10 +110,10 @@ export default function ProductionBoardAdminPage() {
     if (!delItem) return;
     try {
       await deleteMut.mutateAsync(delItem.id);
-      toast.success(`Đã xóa ${shortCode(delItem.productCode)}`);
+      toast.success(`Đã xoá ${shortCode(delItem.productCode)}`);
       setDelItem(null);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Lỗi xóa");
+      toast.error(err instanceof Error ? err.message : "Lỗi xoá");
     }
   };
 
@@ -154,11 +156,14 @@ export default function ProductionBoardAdminPage() {
       {/* Count strip */}
       {counts && (
         <div className="flex flex-wrap items-center gap-3 border-b border-zinc-200 bg-zinc-50 px-6 py-2.5 dark:border-zinc-800 dark:bg-zinc-900/40">
-          <CountPill label="Đang GC" n={counts.IN_PROGRESS} tone="orange" />
-          <CountPill label="QC" n={counts.QC} tone="sky" />
-          <CountPill label="Sắp GC" n={counts.QUEUED} tone="zinc" />
-          <CountPill label="Hoàn thành" n={counts.COMPLETED} tone="emerald" />
-          <CountPill label="Đã giao" n={counts.DELIVERED} tone="slate" />
+          {(["IN_PROGRESS", "QC", "QUEUED", "COMPLETED", "DELIVERED"] as const).map((s) => (
+            <CountPill
+              key={s}
+              label={boardLabel(s)}
+              n={counts[s]}
+              tone={getStatus("board", s).tone}
+            />
+          ))}
         </div>
       )}
 
@@ -198,7 +203,8 @@ export default function ProductionBoardAdminPage() {
                 <tr>
                   <th className="px-3 py-2.5 text-left">Mã hàng</th>
                   <th className="px-3 py-2.5 text-left">Sản phẩm</th>
-                  <th className="px-3 py-2.5 text-center">KH</th>
+                  {/* V4.1 UI-27: "KH" dễ nhầm với "kế hoạch" ở cột Đạt / KH → ghi rõ "Khách". */}
+                  <th className="px-3 py-2.5 text-center">Khách</th>
                   <th className="px-3 py-2.5 text-right">Đạt / KH</th>
                   <th className="px-3 py-2.5 text-center">Hạn</th>
                   <th className="px-3 py-2.5 text-left">Trạng thái</th>
@@ -244,12 +250,13 @@ export default function ProductionBoardAdminPage() {
                       <td className="px-3 py-2.5 text-center text-zinc-600 dark:text-zinc-300">
                         {it.customer ?? "—"}
                       </td>
-                      <td className="px-3 py-2.5 text-right font-mono tabular-nums">
+                      {/* V4.1 UI-14: SL + ĐVT viết HOA thống nhất (trước đây Pcs/SET/Set lẫn lộn). */}
+                      <td className="px-3 py-2.5 text-right tabular-nums">
                         <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                          {done.toLocaleString("vi-VN")}
+                          {formatQty(done)}
                         </span>
                         <span className="text-zinc-400 dark:text-zinc-500">
-                          /{planned.toLocaleString("vi-VN")} {it.uom}
+                          /{formatQty(planned, it.uom)}
                         </span>
                       </td>
                       <td
@@ -258,7 +265,7 @@ export default function ProductionBoardAdminPage() {
                           deadlineTone(it.deadline, it.status),
                         )}
                       >
-                        {fmtDeadline(it.deadline)}
+                        {formatDate(it.deadline, "dd/MM/yyyy")}
                       </td>
                       <td className="px-3 py-2.5">
                         <Select
@@ -271,7 +278,7 @@ export default function ProductionBoardAdminPage() {
                           <SelectTrigger
                             className={cn(
                               "h-7 w-32 border-0 text-sm font-semibold",
-                              STATUS_META[it.status].chip,
+                              boardPillClass(it.status),
                             )}
                           >
                             <SelectValue />
@@ -279,7 +286,7 @@ export default function ProductionBoardAdminPage() {
                           <SelectContent>
                             {STATUS_OPTIONS.map((s) => (
                               <SelectItem key={s} value={s} className="text-xs">
-                                {STATUS_META[s].label}
+                                {boardLabel(s)}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -305,7 +312,7 @@ export default function ProductionBoardAdminPage() {
                                 size="icon"
                                 className="h-7 w-7 text-red-500 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/40 dark:hover:text-red-300"
                                 onClick={() => setDelItem(it)}
-                                title="Xóa"
+                                title="Xoá"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
@@ -331,9 +338,9 @@ export default function ProductionBoardAdminPage() {
       <DialogConfirm
         open={!!delItem}
         onOpenChange={(v) => !v && setDelItem(null)}
-        title="Xóa mã hàng khỏi bảng?"
-        description={`Xóa "${delItem?.productCode ?? ""}" khỏi bảng sản xuất. Gõ XOA để xác nhận — không hoàn tác được.`}
-        actionLabel="Xóa khỏi bảng"
+        title="Xoá mã hàng khỏi bảng?"
+        description={`Xoá "${delItem?.productCode ?? ""}" khỏi bảng sản xuất. Gõ XOA để xác nhận — không hoàn tác được.`}
+        actionLabel="Xoá khỏi bảng"
         loading={deleteMut.isPending}
         onConfirm={confirmDelete}
       />
@@ -348,15 +355,9 @@ function CountPill({
 }: {
   label: string;
   n: number;
-  tone: "orange" | "sky" | "zinc" | "emerald" | "slate";
+  tone: StatusTone;
 }) {
-  const toneCls = {
-    orange: "text-orange-600 dark:text-orange-400",
-    sky: "text-sky-600 dark:text-sky-400",
-    zinc: "text-zinc-600 dark:text-zinc-300",
-    emerald: "text-emerald-600 dark:text-emerald-400",
-    slate: "text-slate-500 dark:text-slate-400",
-  }[tone];
+  const toneCls = TONE_CLASSES[tone].text;
   return (
     <div className="flex items-center gap-1.5">
       <span className={cn("font-mono text-lg font-bold tabular-nums", toneCls)}>
@@ -374,12 +375,7 @@ function shortCode(code: string): string {
 function firstLine(s: string): string {
   return s.split(/[\n,]/)[0]?.trim() || s;
 }
-function fmtDeadline(deadline: string | null): string {
-  if (!deadline) return "—";
-  const d = new Date(deadline);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
-}
+// V4.1 UI-13: bỏ fmtDeadline tự viết — dùng formatDate (giờ VN cố định).
 // V4.1 UI-07: dòng đã Hoàn thành/Đã giao KHÔNG tô đỏ/cam theo hạn — trước đây
 // cả bảng đỏ vì hàng đã giao quá ngày hạn, mất tín hiệu thật.
 function deadlineTone(deadline: string | null, status?: BoardStatus): string {

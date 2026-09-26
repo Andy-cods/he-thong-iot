@@ -11,15 +11,16 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryError } from "@/components/ui/query-error";
 import { useActivityLog } from "@/hooks/useBom";
+import { actionLabel } from "@/lib/status";
+import { formatDateTime } from "@/lib/format";
 
-const ACTION_LABELS: Record<string, string> = {
-  GRID_SAVE: "Lưu BOM Grid",
+// V4.1 UI-27: chỉ giữ các mã riêng của timeline BOM; mã chung (CREATE/UPDATE/
+// DELETE/RELEASE…) lấy từ ACTION_LABELS dùng chung trong lib/status.ts.
+const BOM_ACTION_LABELS: Record<string, string> = {
+  GRID_SAVE: "Lưu bảng BOM",
   WO_COMPLETED: "Lệnh SX hoàn thành",
   MATERIAL_RECEIVED: "Nhận vật tư",
-  CREATE: "Tạo mới",
-  UPDATE: "Cập nhật",
-  DELETE: "Xoá",
-  RELEASE: "Release revision",
+  RELEASE: "Phát hành bản BOM",
 };
 
 export interface HistoryDrawerProps {
@@ -74,10 +75,10 @@ export function HistoryDrawer({ bomId, open, onOpenChange }: HistoryDrawerProps)
                   <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-indigo-400 ring-2 ring-indigo-100 dark:ring-indigo-900/40" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-zinc-800 dark:text-zinc-200">
-                      {ACTION_LABELS[entry.action] ?? entry.action}
+                      {BOM_ACTION_LABELS[entry.action] ?? actionLabel(entry.action)}
                     </p>
                     <p className="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
-                      {new Date(entry.at).toLocaleString("vi-VN")}
+                      {formatDateTime(entry.at, { seconds: true })}
                     </p>
                   </div>
                 </li>

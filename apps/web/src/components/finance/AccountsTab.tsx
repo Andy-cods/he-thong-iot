@@ -88,7 +88,7 @@ export function AccountsTab() {
           </h1>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
             Tổng số dư:{" "}
-            <span className="font-mono font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
+            <span className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
               {query.isError && rows.length === 0 ? "—" : fmtVND(totalBalance)}
             </span>{" "}
             trên {rows.length} nguồn đang hoạt động. Phiếu thu cộng vào nguồn thu, phiếu chi
@@ -143,7 +143,7 @@ export function AccountsTab() {
               <section key={g.type}>
                 <h2 className="mb-2 flex items-baseline justify-between text-sm font-semibold text-zinc-700 dark:text-zinc-300">
                   <span>{g.label}</span>
-                  <span className="font-mono text-xs font-medium tabular-nums text-zinc-500 dark:text-zinc-400">
+                  <span className="text-xs font-medium tabular-nums text-zinc-500 dark:text-zinc-400">
                     {fmtVND(g.accounts.reduce((s, a) => s + Number(a.currentBalance), 0))}
                   </span>
                 </h2>
@@ -232,7 +232,7 @@ function AccountCard({
 
       <p
         className={cn(
-          "mt-4 font-mono text-xl font-bold tabular-nums",
+          "mt-4 text-xl font-bold tabular-nums",
           negative ? "text-red-600 dark:text-red-400" : "text-zinc-900 dark:text-zinc-50",
         )}
       >
@@ -384,7 +384,7 @@ function AccountFormDialog({
                 type="number"
                 step="1000"
                 {...register("openingBalance")}
-                className="mt-1 font-mono tabular-nums"
+                className="mt-1 tabular-nums"
                 placeholder="0"
               />
             </div>

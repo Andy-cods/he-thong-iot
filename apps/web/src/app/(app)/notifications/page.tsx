@@ -18,6 +18,8 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { QueryError } from "@/components/ui/query-error";
 import { cn } from "@/lib/utils";
+import { formatRelative } from "@/lib/format";
+import { notifTypeLabel } from "@/lib/status";
 
 /**
  * V3.3 — Trang `/notifications` full list với filter unread/all + role broadcast.
@@ -67,24 +69,8 @@ const EVENT_ICON: Record<string, React.ElementType> = {
   PO_INVOICE_DRAFT: FileText,
 };
 
-const EVENT_LABEL: Record<string, string> = {
-  PR_SUBMITTED: "Yêu cầu mua mới",
-  PR_APPROVED: "PR được duyệt",
-  PR_REJECTED: "PR bị từ chối",
-  PO_SENT: "PO đã gửi",
-  PO_RECEIVED_PARTIAL: "PO nhận một phần",
-  PO_RECEIVED_FULL: "PO nhận đủ",
-  WO_RELEASED: "WO mới",
-  WO_COMPLETED: "WO hoàn thành",
-  MATERIAL_REQUEST_NEW: "Yêu cầu xuất kho",
-  MATERIAL_REQUEST_PICKING: "Đang chuẩn bị",
-  MATERIAL_REQUEST_READY: "Đã chuẩn bị xong",
-  MATERIAL_REQUEST_DELIVERED: "Đã giao đủ",
-  MATERIAL_REQUEST_ISSUED: "Đã giao một phần",
-  PO_APPROVAL_REQUESTED: "PO chờ duyệt",
-  PO_CANCELLED: "PO bị huỷ",
-  PO_INVOICE_DRAFT: "HĐ mua chờ xác nhận",
-};
+// V4.1 UI-27: nhãn chip loại thông báo lấy từ lib/status.ts (notifTypeLabel) —
+// mã lạ hiện "Thông báo", KHÔNG BAO GIỜ lộ mã thô kiểu PR_PENDING_REMINDER.
 
 const SEVERITY_CLS: Record<string, string> = {
   info:    "bg-blue-50 text-blue-600 ring-blue-200",
@@ -148,7 +134,7 @@ export default function NotificationsPage() {
       <header className="border-b border-zinc-200 bg-white px-4 py-4 md:px-6 md:py-5 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <nav aria-label="Breadcrumb" className="text-xs text-zinc-500 dark:text-zinc-400">
+            <nav aria-label="Đường dẫn" className="text-xs text-zinc-500 dark:text-zinc-400">
               <Link href="/" className="hover:text-zinc-900 hover:underline dark:hover:text-zinc-50">Tổng quan</Link>
               <span className="mx-1.5 text-zinc-300 dark:text-zinc-600">›</span>
               <span className="font-medium text-zinc-900 dark:text-zinc-50">Thông báo</span>
@@ -174,10 +160,13 @@ export default function NotificationsPage() {
               onClick={() => markAllRead.mutate()}
               disabled={markAllRead.isPending}
               title="Đánh dấu tất cả đã đọc"
+              aria-label="Đánh dấu tất cả đã đọc"
+              className="shrink-0 whitespace-nowrap"
             >
               <CheckCheck className="h-3.5 w-3.5" aria-hidden />
-              <span className="hidden sm:inline">Đánh dấu tất cả đã đọc</span>
-              <span className="sm:hidden">Đã đọc hết</span>
+              {/* V4.1: nhãn ngắn trên phone để nút không gãy 2 dòng. */}
+              <span className="hidden sm:inline" aria-hidden>Đánh dấu tất cả đã đọc</span>
+              <span className="sm:hidden" aria-hidden>Đọc hết</span>
             </Button>
           )}
         </div>
@@ -274,7 +263,7 @@ export default function NotificationsPage() {
                     )}
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
                       <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                        {EVENT_LABEL[n.eventType] ?? n.eventType}
+                        {notifTypeLabel(n.eventType)}
                       </span>
                       <span>{relativeTime(n.createdAt)}</span>
                       {n.actorUsername && <span>· bởi {n.actorUsername}</span>}
@@ -307,14 +296,7 @@ export default function NotificationsPage() {
   );
 }
 
+// V4.1 UI-15: thời gian tương đối qua lib/format (≥ 7 ngày → dd/MM/yyyy giờ VN).
 function relativeTime(iso: string): string {
-  const then = new Date(iso).getTime();
-  if (!Number.isFinite(then)) return iso;
-  const now = Date.now();
-  const diff = Math.floor((now - then) / 1000);
-  if (diff < 60) return "Vừa xong";
-  if (diff < 3600) return `${Math.floor(diff / 60)} phút trước`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)} giờ trước`;
-  if (diff < 604800) return `${Math.floor(diff / 86400)} ngày trước`;
-  return new Date(iso).toLocaleDateString("vi-VN");
+  return formatRelative(iso, { justNow: "Vừa xong" });
 }

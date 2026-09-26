@@ -1,5 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { formatDate, formatDateTime, formatQty } from "@/lib/format";
 
 /**
  * V3.10 — Body trang chi tiết cho phiếu form_type='DNVT' (đọc-only). Khớp form
@@ -56,33 +57,16 @@ const CATEGORY_LABELS: Record<string, string> = {
   OTHER: "Khác",
 };
 
+// V4.1 UI-14/15: định dạng qua lib/format (giờ VN cố định, bỏ số 0 thừa).
+// Chỉ đổi hàm định dạng — bố cục biểu mẫu in giữ nguyên.
 function fmtDateVN(d: string | Date | null | undefined): string {
-  if (!d) return "—";
-  const dt = typeof d === "string" ? new Date(d) : d;
-  if (Number.isNaN(dt.getTime())) return "—";
-  return dt.toLocaleDateString("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+  return formatDate(d, "dd/MM/yyyy");
 }
 function fmtDateTimeVN(d: string | Date | null | undefined): string {
-  if (!d) return "—";
-  const dt = typeof d === "string" ? new Date(d) : d;
-  if (Number.isNaN(dt.getTime())) return "—";
-  return dt.toLocaleString("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatDateTime(d);
 }
 function fmtNum(n: number | string | null | undefined): string {
-  if (n === null || n === undefined || n === "") return "—";
-  const num = typeof n === "string" ? Number(n) : n;
-  if (!Number.isFinite(num)) return "—";
-  return num.toLocaleString("vi-VN");
+  return formatQty(n);
 }
 
 export function DnvtDetailBody({ pr }: { pr: DnvtDetailPr }) {

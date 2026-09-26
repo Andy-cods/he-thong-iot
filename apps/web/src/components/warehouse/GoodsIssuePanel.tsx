@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { invalidateStockQueries } from "@/lib/stock-cache";
 import { cn } from "@/lib/utils";
+import { formatQty } from "@/lib/format";
 
 /**
  * V4.1 Đợt 1b (Q3/KHO-04) — Panel "Lập phiếu xuất kho" trong chi tiết phiếu
@@ -50,9 +51,8 @@ interface PreviewLine {
   covered: number;
 }
 
-function fmt(n: number): string {
-  return Number(n.toFixed(4)).toLocaleString("vi-VN");
-}
+// V4.1 UI-14: số lượng qua formatQty chung (tối đa 4 số lẻ, bỏ 0 thừa).
+const fmt = (n: number) => formatQty(n);
 
 export function GoodsIssuePanel({
   requestId,

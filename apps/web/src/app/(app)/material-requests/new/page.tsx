@@ -8,6 +8,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { StatusPill } from "@/components/ui/status-badge";
 
 /**
  * V3.3 — Material Request creation form.
@@ -28,15 +29,7 @@ interface WoRef {
   status: string;
 }
 
-const WO_STATUS_LABEL: Record<string, string> = {
-  DRAFT: "Chờ duyệt",
-  QUEUED: "Hàng đợi",
-  RELEASED: "Đã phát hành",
-  IN_PROGRESS: "Đang SX",
-  PAUSED: "Tạm dừng",
-  COMPLETED: "Hoàn thành",
-  CANCELLED: "Đã huỷ",
-};
+// V4.1 UI-07: bỏ WO_STATUS_LABEL cục bộ — trạng thái lệnh SX lấy từ lib/status.ts.
 
 interface ItemSearch {
   id: string;
@@ -207,9 +200,7 @@ export default function NewMaterialRequestPage() {
             {wo ? (
               <div className="mt-3 flex items-center gap-3 rounded-lg border border-indigo-200 bg-indigo-50/50 px-3 py-2 dark:border-indigo-900 dark:bg-indigo-950/30">
                 <span className="font-mono text-sm font-semibold text-indigo-700 dark:text-indigo-300">{wo.woNo}</span>
-                <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                  {WO_STATUS_LABEL[wo.status] ?? wo.status}
-                </span>
+                <StatusPill domain="wo" code={wo.status} short />
                 <button
                   type="button"
                   onClick={() => {
@@ -230,7 +221,7 @@ export default function NewMaterialRequestPage() {
                     type="text"
                     value={woSearch}
                     onChange={(e) => setWoSearch(e.target.value)}
-                    placeholder={presetWoQuery.isLoading ? "Đang tải lệnh SX…" : "Tìm số lệnh sản xuất (WO/LSX)…"}
+                    placeholder={presetWoQuery.isLoading ? "Đang tải lệnh SX…" : "Tìm số lệnh sản xuất (LSX)…"}
                     className="h-10 w-full rounded-lg border border-zinc-200 bg-white pl-9 pr-3 text-sm placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500"
                   />
                 </div>
@@ -252,9 +243,7 @@ export default function NewMaterialRequestPage() {
                               className="flex w-full items-center gap-3 px-4 py-2 text-left hover:bg-white dark:hover:bg-zinc-800/60"
                             >
                               <span className="font-mono text-sm font-semibold text-indigo-600 dark:text-indigo-400">{o.woNo}</span>
-                              <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                                {WO_STATUS_LABEL[o.status] ?? o.status}
-                              </span>
+                              <StatusPill domain="wo" code={o.status} short />
                             </button>
                           </li>
                         ))}

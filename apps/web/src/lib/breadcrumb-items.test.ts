@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildBreadcrumbItems } from "./breadcrumb-items";
+import { buildBreadcrumbItems, hubTabLabel } from "./breadcrumb-items";
 
 const BOM_ID = "5e6de36a-1234-4abc-8def-0123456789ab";
 
@@ -9,7 +9,7 @@ describe("V4.1 UI-BOM — buildBreadcrumbItems", () => {
       [BOM_ID]: "BOM-0042",
     });
     expect(items).toEqual([
-      { label: "Trang chủ", href: "/" },
+      { label: "Tổng quan", href: "/" },
       { label: "BOM", href: "/bom" },
       { label: "BOM-0042", href: `/bom/${BOM_ID}` },
       { label: "Lưới vật tư" },
@@ -19,7 +19,7 @@ describe("V4.1 UI-BOM — buildBreadcrumbItems", () => {
   it("chưa tải được mã BOM → 'Chi tiết' thay vì UUID", () => {
     const items = buildBreadcrumbItems(`/bom/${BOM_ID}/grid`);
     expect(items.map((i) => i.label)).toEqual([
-      "Trang chủ",
+      "Tổng quan",
       "BOM",
       "Chi tiết",
       "Lưới vật tư",
@@ -29,7 +29,7 @@ describe("V4.1 UI-BOM — buildBreadcrumbItems", () => {
   it("giữ hành vi cũ cho segment thường", () => {
     const items = buildBreadcrumbItems("/items/ABC-001");
     expect(items).toEqual([
-      { label: "Trang chủ", href: "/" },
+      { label: "Tổng quan", href: "/" },
       { label: "Vật tư", href: "/items" },
       { label: "ABC-001" },
     ]);
@@ -37,22 +37,78 @@ describe("V4.1 UI-BOM — buildBreadcrumbItems", () => {
 
   it("V4.1 UI-09: route hub/thu mua/quản trị có nhãn tiếng Việt", () => {
     expect(buildBreadcrumbItems("/engineering").map((i) => i.label)).toEqual([
-      "Trang chủ",
+      "Tổng quan",
       "Bộ phận Thiết kế",
     ]);
     expect(
       buildBreadcrumbItems(`/procurement/purchase-requests/${BOM_ID}`).map(
         (i) => i.label,
       ),
-    ).toEqual(["Trang chủ", "Thu mua", "Đề xuất vật tư", "Chi tiết"]);
+    ).toEqual(["Tổng quan", "Thu mua", "Đề xuất vật tư", "Chi tiết"]);
     expect(buildBreadcrumbItems("/admin/users").map((i) => i.label)).toEqual([
-      "Trang chủ",
+      "Tổng quan",
       "Quản trị",
       "Người dùng",
     ]);
   });
 
   it("trang chủ", () => {
-    expect(buildBreadcrumbItems("/")).toEqual([{ label: "Trang chủ" }]);
+    expect(buildBreadcrumbItems("/")).toEqual([{ label: "Tổng quan" }]);
+  });
+
+  it("V4.1 UI-27: không bao giờ hiện 'Dashboard'; audit → 'Nhật ký'", () => {
+    const all = [
+      ...buildBreadcrumbItems("/dashboard"),
+      ...buildBreadcrumbItems("/Dashboard"),
+      ...buildBreadcrumbItems("/x", { x: "Dashboard" }),
+      ...buildBreadcrumbItems("/admin/audit"),
+    ].map((i) => i.label);
+    expect(all.some((l) => /dashboard/i.test(l))).toBe(false);
+    expect(buildBreadcrumbItems("/admin/audit").map((i) => i.label)).toEqual([
+      "Tổng quan",
+      "Quản trị",
+      "Nhật ký",
+    ]);
+  });
+});
+
+describe("V4.1 X6 — crumb theo ?tab= của trang hub", () => {
+  it("hub + tab hợp lệ → thêm nhãn tab, crumb hub thành link", () => {
+    expect(buildBreadcrumbItems("/warehouse", undefined, "report")).toEqual([
+      { label: "Tổng quan", href: "/" },
+      { label: "Bộ phận Kho", href: "/warehouse" },
+      { label: "Báo cáo kho" },
+    ]);
+    expect(
+      buildBreadcrumbItems("/engineering", undefined, "pr").map((i) => i.label),
+    ).toEqual(["Tổng quan", "Bộ phận Thiết kế", "Yêu cầu mua"]);
+    expect(
+      buildBreadcrumbItems("/sales", undefined, "fin-cashbook").map((i) => i.label),
+    ).toEqual(["Tổng quan", "Bộ phận Thu mua", "TC: Sổ quỹ"]);
+    expect(
+      buildBreadcrumbItems("/operations", undefined, "assembly").map((i) => i.label),
+    ).toEqual(["Tổng quan", "Bộ phận Gia công", "Quy trình lắp ráp"]);
+  });
+
+  it("khoá tab cũ được quy về tab hiện hành", () => {
+    expect(hubTabLabel("/warehouse", "picking")).toBe("Nhập / Xuất kho");
+    expect(hubTabLabel("/warehouse", "overview")).toBe("Sơ đồ kho");
+    expect(hubTabLabel("/sales", "fin-receivables")).toBe("TC: Công nợ & Thiết lập");
+  });
+
+  it("tab lạ / thiếu tab / route không phải hub → không thêm crumb", () => {
+    expect(buildBreadcrumbItems("/warehouse", undefined, "khong-co")).toEqual([
+      { label: "Tổng quan", href: "/" },
+      { label: "Bộ phận Kho" },
+    ]);
+    expect(buildBreadcrumbItems("/warehouse", undefined, null)).toEqual([
+      { label: "Tổng quan", href: "/" },
+      { label: "Bộ phận Kho" },
+    ]);
+    // Trang con của hub không nhận tab (tab chỉ thuộc trang hub).
+    expect(
+      buildBreadcrumbItems("/items/ABC-001", undefined, "report").map((i) => i.label),
+    ).toEqual(["Tổng quan", "Vật tư", "ABC-001"]);
+    expect(hubTabLabel("/admin", "users")).toBeNull();
   });
 });

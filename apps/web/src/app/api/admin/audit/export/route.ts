@@ -16,23 +16,19 @@ import { logger } from "@/lib/logger";
 import { listAudit } from "@/server/repos/auditEvents";
 import { jsonError, parseSearchParams } from "@/server/http";
 import { requireCan } from "@/server/session";
+import { formatDateTime } from "@/lib/format";
+import { actionLabel, entityLabel } from "@/lib/status";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_EXPORT_ROWS = 50_000;
 
+// V4.1 UI-15: giờ Việt Nam cố định — server Node chạy UTC nên toLocaleString lệch 7 tiếng.
 function fmtTime(d: Date | string): string {
   const dt = typeof d === "string" ? new Date(d) : d;
   if (Number.isNaN(dt.getTime())) return String(d);
-  return dt.toLocaleString("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
+  return formatDateTime(dt, { seconds: true });
 }
 
 function diffSummary(
@@ -40,8 +36,8 @@ function diffSummary(
   after: unknown,
 ): string {
   if (!before && !after) return "";
-  if (!before && after) return "CREATE (new record)";
-  if (before && !after) return "DELETE (record removed)";
+  if (!before && after) return "Bản ghi mới";
+  if (before && !after) return "Bản ghi bị xoá";
   const b = (before as Record<string, unknown>) ?? {};
   const a = (after as Record<string, unknown>) ?? {};
   const keys = new Set<string>([...Object.keys(b), ...Object.keys(a)]);
@@ -51,7 +47,7 @@ function diffSummary(
       changed.push(k);
     }
   }
-  return changed.length > 0 ? `${changed.length} field: ${changed.join(", ")}` : "";
+  return changed.length > 0 ? `${changed.length} trường: ${changed.join(", ")}` : "";
 }
 
 export async function GET(req: NextRequest) {
@@ -87,13 +83,14 @@ export async function GET(req: NextRequest) {
 
     const sheet = workbook.addWorksheet("Audit");
     sheet.columns = [
+      // V4.1 UI-27: tiêu đề cột tiếng Việt (key giữ nguyên).
       { header: "Thời gian", key: "occurredAt", width: 22 },
-      { header: "User", key: "actor", width: 22 },
-      { header: "Action", key: "action", width: 12 },
-      { header: "Entity", key: "entity", width: 20 },
-      { header: "Entity ID", key: "entityId", width: 38 },
-      { header: "Diff summary", key: "diff", width: 50 },
-      { header: "Notes", key: "notes", width: 40 },
+      { header: "Người dùng", key: "actor", width: 22 },
+      { header: "Hành động", key: "action", width: 16 },
+      { header: "Đối tượng", key: "entity", width: 22 },
+      { header: "Mã đối tượng", key: "entityId", width: 38 },
+      { header: "Tóm tắt thay đổi", key: "diff", width: 50 },
+      { header: "Ghi chú", key: "notes", width: 40 },
       { header: "IP", key: "ip", width: 18 },
     ];
 
@@ -114,9 +111,9 @@ export async function GET(req: NextRequest) {
           ? row.actorDisplayName
             ? `${row.actorUsername} (${row.actorDisplayName})`
             : row.actorUsername
-          : "system",
-        action: row.action,
-        entity: row.objectType,
+          : "hệ thống",
+        action: actionLabel(row.action),
+        entity: entityLabel(row.objectType),
         entityId: row.objectId ?? "",
         diff: diffSummary(row.beforeJson, row.afterJson),
         notes: row.notes ?? "",

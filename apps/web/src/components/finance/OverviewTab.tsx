@@ -255,7 +255,7 @@ function KpiCard({
         )}
       </div>
       <p className="mt-2 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</p>
-      <p className={cn("mt-0.5 font-mono text-xl font-bold tabular-nums", s.value)} title={amount === null ? undefined : fmtVND(amount)}>
+      <p className={cn("mt-0.5 text-xl font-bold tabular-nums", s.value)} title={amount === null ? undefined : fmtVND(amount)}>
         {amount === null ? "—" : fmtVNDShort(amount)}
       </p>
       <p className="truncate text-[11px] tabular-nums text-zinc-500 dark:text-zinc-400">{amount === null ? "Không tải được" : fmtVND(amount)}</p>

@@ -6,6 +6,7 @@ import { Copy, Eye, LayoutGrid, Layers, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { type BomStatus } from "@iot/shared";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatusPill } from "@/components/ui/status-badge";
 import { cn } from "@/lib/utils";
 import { formatDate, formatNumber } from "@/lib/format";
 
@@ -96,13 +97,12 @@ function BomCard({
 }) {
   const sheetCount =
     row.sheetCount ?? (row.componentCount > 0 ? 1 : 0);
-  const status = STATUS_DOT[row.status];
 
   const handleCopyCode = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       void navigator.clipboard.writeText(row.code);
-      toast.success(`Đã copy ${row.code}`);
+      toast.success(`Đã sao chép ${row.code}`);
     }
   };
 
@@ -140,7 +140,7 @@ function BomCard({
               type="button"
               onClick={handleCopyCode}
               className="opacity-0 transition-opacity hover:bg-zinc-100 group-hover:opacity-100 inline-flex h-5 w-5 items-center justify-center rounded text-zinc-400 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:text-zinc-500 dark:hover:text-zinc-200"
-              aria-label={`Copy mã ${row.code}`}
+              aria-label={`Sao chép mã ${row.code}`}
               tabIndex={-1}
             >
               <Copy className="h-3 w-3" aria-hidden="true" />
@@ -155,7 +155,7 @@ function BomCard({
             </div>
           )}
         </div>
-        <StatusDotBadge meta={status} />
+        <StatusPill domain="bom" code={row.status} dot />
       </div>
 
       {/* Middle: name + description */}
@@ -203,8 +203,8 @@ function BomCard({
         <Link
           href={`/bom/${row.id}/grid`}
           className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 shadow-sm transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-emerald-800 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300"
-          aria-label={`Mở Grid ${row.code}`}
-          title="Mở Grid Editor"
+          aria-label={`Mở bảng BOM ${row.code}`}
+          title="Mở bảng BOM"
           onClick={(e) => e.stopPropagation()}
         >
           <LayoutGrid className="h-3.5 w-3.5" aria-hidden="true" />
@@ -280,56 +280,8 @@ function Stat({
   );
 }
 
-interface StatusDotMeta {
-  label: string;
-  dot: string;
-  bg: string;
-  text: string;
-  border: string;
-}
-
-const STATUS_DOT: Record<BomStatus, StatusDotMeta> = {
-  DRAFT: {
-    label: "Nháp",
-    dot: "bg-amber-500",
-    bg: "bg-amber-50 dark:bg-amber-950/40",
-    text: "text-amber-700 dark:text-amber-300",
-    border: "border-amber-200 dark:border-amber-800/60",
-  },
-  ACTIVE: {
-    label: "Hoạt động",
-    dot: "bg-emerald-500",
-    bg: "bg-emerald-50 dark:bg-emerald-950/40",
-    text: "text-emerald-700 dark:text-emerald-300",
-    border: "border-emerald-200 dark:border-emerald-800/60",
-  },
-  OBSOLETE: {
-    label: "Ngừng",
-    dot: "bg-zinc-400",
-    bg: "bg-zinc-50 dark:bg-zinc-800",
-    text: "text-zinc-600 dark:text-zinc-400",
-    border: "border-zinc-200 dark:border-zinc-700",
-  },
-};
-
-function StatusDotBadge({ meta }: { meta: StatusDotMeta }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex whitespace-nowrap shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium",
-        meta.bg,
-        meta.text,
-        meta.border,
-      )}
-    >
-      <span
-        aria-hidden="true"
-        className={cn("h-1.5 w-1.5 rounded-full", meta.dot)}
-      />
-      {meta.label}
-    </span>
-  );
-}
+// V4.1 UI-07: bỏ map STATUS_DOT cục bộ — badge thẻ dùng StatusPill domain "bom"
+// (Nháp / Đang dùng / Ngừng dùng), cùng nhãn với danh sách + chip lọc.
 
 function CardSkeleton() {
   return (

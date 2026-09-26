@@ -3,6 +3,7 @@ import { logger } from "@/lib/logger";
 import { listMaterialRequestsInRange } from "@/server/repos/materialRequests";
 import { jsonError } from "@/server/http";
 import { requireCan } from "@/server/session";
+import { statusLabel } from "@/lib/status";
 import {
   buildSlipsWorkbook,
   formatVNDateTime,
@@ -15,14 +16,7 @@ export const dynamic = "force-dynamic";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-const MR_STATUS_LABELS: Record<string, string> = {
-  PENDING: "Chờ chuẩn bị",
-  PICKING: "Đang chuẩn bị",
-  READY: "Đã sẵn sàng",
-  PARTIAL: "Giao một phần",
-  DELIVERED: "Đã giao",
-  CANCELLED: "Đã huỷ",
-};
+// V4.1 UI-07: nhãn trạng thái lấy từ lib/status.ts (domain "mr") — bỏ MR_STATUS_LABELS cục bộ.
 
 /**
  * V3.14 — GET /api/material-requests/export-excel?from=YYYY-MM-DD&to=YYYY-MM-DD[&mine=1]
@@ -61,7 +55,7 @@ export async function GET(req: NextRequest) {
       rows: slipsData.map((s) => [
         s.requestNo,
         formatVNDateTime(new Date(s.createdAt)),
-        MR_STATUS_LABELS[s.status] ?? s.status,
+        statusLabel("mr", s.status),
         s.requestedByName || s.requestedByUsername || "—",
         s.lines.length,
       ]),
@@ -71,7 +65,7 @@ export async function GET(req: NextRequest) {
       sheetName: s.requestNo,
       title: `PHIẾU YÊU CẦU VẬT TƯ — ${s.requestNo}`,
       info: [
-        ["Trạng thái", MR_STATUS_LABELS[s.status] ?? s.status],
+        ["Trạng thái", statusLabel("mr", s.status)],
         ["Người yêu cầu", s.requestedByName || s.requestedByUsername || "—"],
         ["Ngày tạo", formatVNDateTime(new Date(s.createdAt))],
         ["Ghi chú", s.notes || "—"],

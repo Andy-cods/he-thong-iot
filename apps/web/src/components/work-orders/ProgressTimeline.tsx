@@ -13,6 +13,7 @@ import {
   User,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { formatDateTime, formatQty } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import {
   useWoProgressLog,
@@ -203,7 +204,8 @@ function TimelineEntry({
             </span>
           )}
           <span className="font-mono text-xs text-zinc-400 dark:text-zinc-500">
-            {new Date(row.createdAt).toLocaleString("vi-VN")}
+            {/* V4.1 UI-13: giờ VN cố định, định dạng dd/MM/yyyy HH:mm */}
+            {formatDateTime(row.createdAt)}
           </span>
         </div>
 
@@ -211,12 +213,12 @@ function TimelineEntry({
           <div className="mt-1 flex flex-wrap gap-2 text-xs">
             {qtyCompleted > 0 && (
               <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
-                +{qtyCompleted.toLocaleString("vi-VN")} đạt
+                +{formatQty(qtyCompleted)} đạt
               </span>
             )}
             {qtyScrap > 0 && (
               <span className="rounded bg-red-50 px-1.5 py-0.5 text-red-700 dark:bg-red-950/40 dark:text-red-400">
-                {qtyScrap.toLocaleString("vi-VN")} phế
+                {formatQty(qtyScrap)} phế
               </span>
             )}
             {row.durationMinutes && row.durationMinutes > 0 && (

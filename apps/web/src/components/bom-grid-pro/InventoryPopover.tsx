@@ -10,7 +10,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { formatNumber } from "@/lib/format";
+import { TONE_CLASSES, getStatus } from "@/lib/status";
+import { formatDate, formatNumber } from "@/lib/format";
 import { InventoryKpiCards } from "@/components/inventory/InventoryKpiCards";
 import { useSession } from "@/hooks/useSession";
 import { AdjustInventoryDialog } from "./AdjustInventoryDialog";
@@ -54,19 +55,8 @@ interface InventorySummaryResponse {
   };
 }
 
-const LOT_STATUS_CLASS: Record<string, string> = {
-  AVAILABLE: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800",
-  HOLD: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800",
-  CONSUMED: "bg-zinc-100 text-zinc-600 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",
-  EXPIRED: "bg-red-50 text-red-700 ring-red-200 dark:bg-red-950/40 dark:text-red-400 dark:ring-red-800",
-};
-
-const LOT_STATUS_LABEL: Record<string, string> = {
-  AVAILABLE: "Sẵn dùng",
-  HOLD: "Giữ QC",
-  CONSUMED: "Đã dùng",
-  EXPIRED: "Hết hạn",
-};
+// V4.1 UI-07: bỏ LOT_STATUS_CLASS / LOT_STATUS_LABEL cục bộ — nhãn + tông lô lấy
+// từ lib/status.ts domain "lot" (Sẵn dùng / Giữ QC / Đã dùng hết / Hết hạn).
 
 export function InventoryPopover({
   componentItemId,
@@ -123,7 +113,7 @@ export function InventoryPopover({
 
         <div className="px-3 py-2.5">
           {!componentItemId ? (
-            <EmptyState text="Thiếu mã item — chưa thể tra tồn." />
+            <EmptyState text="Thiếu mã vật tư — chưa thể tra tồn." />
           ) : query.isLoading ? (
             <div className="flex items-center gap-2 py-4 text-xs text-zinc-500 dark:text-zinc-400">
               <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
@@ -154,7 +144,7 @@ export function InventoryPopover({
                   </span>
                 </div>
                 {query.data.data.lots.length === 0 ? (
-                  <EmptyState text="Chưa có lot nào cho linh kiện này." />
+                  <EmptyState text="Chưa có lô nào cho linh kiện này." />
                 ) : (
                   <ul className="divide-y divide-zinc-100 rounded-md border border-zinc-100 dark:divide-zinc-800 dark:border-zinc-800">
                     {query.data.data.lots.map((lot) => (
@@ -170,14 +160,13 @@ export function InventoryPopover({
                             <span
                               className={cn(
                                 "inline-flex h-4 items-center rounded px-1.5 text-xs font-medium ring-1 ring-inset",
-                                LOT_STATUS_CLASS[lot.status] ??
-                                  "bg-zinc-50 text-zinc-600 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",
+                                TONE_CLASSES[getStatus("lot", lot.status).tone].pill,
                               )}
                             >
-                              {LOT_STATUS_LABEL[lot.status] ?? lot.status}
+                              {getStatus("lot", lot.status).label}
                             </span>
                             {lot.expDate ? (
-                              <span>· HSD {lot.expDate}</span>
+                              <span>· HSD {formatDate(lot.expDate, "dd/MM/yyyy")}</span>
                             ) : null}
                           </div>
                         </div>

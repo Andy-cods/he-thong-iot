@@ -16,6 +16,7 @@ import {
 } from "@/hooks/use-selection";
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/format";
+import { activeStatusCode, getStatus } from "@/lib/status";
 
 export interface ItemRow {
   id: string;
@@ -108,7 +109,7 @@ export function ItemListTable({
   const copySku = React.useCallback((sku: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       void navigator.clipboard.writeText(sku);
-      toast.success(`Đã copy ${sku}`);
+      toast.success(`Đã sao chép ${sku}`);
     }
   }, []);
 
@@ -149,13 +150,13 @@ export function ItemListTable({
             onCheckedChange={() => onTogglePage(visibleIds)}
           />
         </div>
-        <div role="columnheader">SKU</div>
+        <div role="columnheader">Mã vật tư</div>
         <div role="columnheader">Tên</div>
         <div role="columnheader" className="hidden md:block">
           Loại
         </div>
         <div role="columnheader" className="hidden md:block">
-          UoM
+          ĐVT
         </div>
         <div role="columnheader" className="hidden md:block">
           Danh mục
@@ -310,7 +311,7 @@ export function ItemListTable({
                           : "text-zinc-900 dark:text-zinc-100";
                     return (
                       <span
-                        title={`On-hand: ${formatNumber(sum.totalQty)} ${row.uom}\nReserved: ${formatNumber(sum.reservedQty)} ${row.uom}\nAvailable: ${formatNumber(sum.availableQty)} ${row.uom}${minStock > 0 ? `\nMin stock: ${formatNumber(minStock)}` : ""}`}
+                        title={`Tồn thực tế: ${formatNumber(sum.totalQty)} ${row.uom}\nĐang giữ: ${formatNumber(sum.reservedQty)} ${row.uom}\nKhả dụng: ${formatNumber(sum.availableQty)} ${row.uom}${minStock > 0 ? `\nTồn tối thiểu: ${formatNumber(minStock)}` : ""}`}
                         className="flex flex-col items-end"
                       >
                         <span
@@ -347,11 +348,11 @@ export function ItemListTable({
 
               {/* Status badge sm V2 */}
               <div>
-                <StatusBadge
-                  status={row.isActive ? "active" : "inactive"}
-                  size="sm"
-                  label={row.isActive ? "Active" : "Đã xoá"}
-                />
+                {/* V4.1 UI-07/08: "Đang dùng" / "Ngừng dùng" từ lib/status.ts (bỏ "Active"/"Đã xoá"). */}
+                {(() => {
+                  const s = getStatus("item", activeStatusCode(row.isActive));
+                  return <StatusBadge status={s.tone} size="sm" label={s.label} />;
+                })()}
               </div>
 
               {/* Actions — icon buttons h-7 w-7 ghost (ẩn < md) */}
@@ -378,7 +379,7 @@ export function ItemListTable({
                   type="button"
                   onClick={() => copySku(row.sku)}
                   className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-0 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
-                  aria-label={`Copy SKU ${row.sku}`}
+                  aria-label={`Sao chép mã ${row.sku}`}
                 >
                   <Copy className="h-3.5 w-3.5" aria-hidden="true" />
                 </button>

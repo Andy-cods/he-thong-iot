@@ -18,6 +18,9 @@ import { QueryError } from "@/components/ui/query-error";
 import { useUsersList } from "@/hooks/useAdmin";
 import { AdminPageShell } from "@/components/admin/AdminPageShell";
 import { cn } from "@/lib/utils";
+import { StatusPill } from "@/components/ui/status-badge";
+import { formatDate as formatDateVN } from "@/lib/format";
+import { activeStatusCode, statusLabel } from "@/lib/status";
 
 const ACTIVE_MODES = ["all", "active", "inactive"] as const;
 type ActiveMode = (typeof ACTIVE_MODES)[number];
@@ -48,15 +51,9 @@ const ROLE_BADGE: Record<Role, string> = {
   shareholder: "bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-200 dark:bg-fuchsia-950/40 dark:text-fuchsia-400 dark:ring-fuchsia-800",
 };
 
+// V4.1 UI-15: ngày theo giờ VN qua lib/format.
 function formatDate(iso: string | null): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+  return formatDateVN(iso, "dd/MM/yyyy");
 }
 
 export default function AdminUsersPage() {
@@ -112,7 +109,7 @@ export default function AdminUsersPage() {
   return (
     <AdminPageShell
       breadcrumb={[
-        { label: "Trang chủ", href: "/" },
+        { label: "Tổng quan", href: "/" },
         { label: "Quản trị", href: "/admin" },
         { label: "Người dùng" },
       ]}
@@ -188,8 +185,9 @@ export default function AdminUsersPage() {
             {(
               [
                 { m: "all", label: "Tất cả" },
-                { m: "active", label: "Hoạt động" },
-                { m: "inactive", label: "Vô hiệu" },
+                // V4.1 UI-07: nhãn chip = nhãn badge (lib/status.ts domain user).
+                { m: "active", label: statusLabel("user", "ACTIVE") },
+                { m: "inactive", label: statusLabel("user", "INACTIVE") },
               ] as const
             ).map((t) => (
               <button
@@ -225,7 +223,7 @@ export default function AdminUsersPage() {
         {/* Table */}
         <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div className="grid h-9 grid-cols-[1fr,1.2fr,100px] items-center gap-3 border-b border-zinc-200 bg-zinc-50/70 px-4 text-[11px] font-semibold uppercase tracking-normal text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-400 md:grid-cols-[1fr,1.2fr,1.3fr,1.4fr,100px,120px,90px]">
-            <span>Username</span>
+            <span>Tên đăng nhập</span>
             <span>Họ tên</span>
             <span className="hidden md:block">Email</span>
             <span className="hidden md:block">Vai trò</span>
@@ -312,23 +310,8 @@ export default function AdminUsersPage() {
                     )}
                   </div>
                   <span className="text-center">
-                    <span
-                      className={cn(
-                        "inline-flex h-5 items-center gap-1 rounded-full px-1.5 text-xs font-semibold uppercase ring-1 ring-inset",
-                        u.isActive
-                          ? "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800"
-                          : "bg-zinc-100 text-zinc-500 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "h-1.5 w-1.5 rounded-full",
-                          u.isActive ? "bg-emerald-500" : "bg-zinc-400",
-                        )}
-                        aria-hidden="true"
-                      />
-                      {u.isActive ? "Active" : "Disabled"}
-                    </span>
+                    {/* V4.1 UI-07/08: "Hoạt động" / "Vô hiệu hoá" (bỏ "Active/Disabled"). */}
+                    <StatusPill domain="user" code={activeStatusCode(u.isActive)} dot />
                   </span>
                   <span className="hidden truncate text-xs text-zinc-500 tabular-nums dark:text-zinc-400 md:block">
                     {formatDate(u.lastLoginAt)}

@@ -7,13 +7,11 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/ui/query-error";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { StatusBadge, type BadgeStatus } from "@/components/domain/StatusBadge";
+import { StatusBadge } from "@/components/domain/StatusBadge";
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/format";
-import {
-  useItemBomUsages,
-  type ItemBomUsageTemplate,
-} from "@/hooks/useItems";
+import { getStatus } from "@/lib/status";
+import { useItemBomUsages } from "@/hooks/useItems";
 
 /**
  * V1.8 Batch 3 — Tab "Dùng trong BOM" trong /items/[id].
@@ -27,29 +25,8 @@ export interface ItemBomUsagesPanelProps {
   itemId: string;
 }
 
-function mapStatusToBadge(
-  status: ItemBomUsageTemplate["templateStatus"],
-): BadgeStatus {
-  switch (status) {
-    case "ACTIVE":
-      return "active";
-    case "DRAFT":
-      return "draft";
-    case "OBSOLETE":
-      return "inactive";
-  }
-}
-
-function statusLabel(status: ItemBomUsageTemplate["templateStatus"]): string {
-  switch (status) {
-    case "ACTIVE":
-      return "Đang dùng";
-    case "DRAFT":
-      return "Nháp";
-    case "OBSOLETE":
-      return "Ngừng";
-  }
-}
+// V4.1 UI-07/08: nhãn + tông trạng thái BOM từ lib/status.ts (domain "bom") —
+// bỏ mapStatusToBadge/statusLabel cục bộ ("Ngừng" → "Ngừng dùng").
 
 export function ItemBomUsagesPanel({ itemId }: ItemBomUsagesPanelProps) {
   const query = useItemBomUsages(itemId);
@@ -132,12 +109,12 @@ export function ItemBomUsagesPanel({ itemId }: ItemBomUsagesPanelProps) {
             </span>
             ,{" "}
             <span className="font-semibold text-indigo-700 dark:text-indigo-400">
-              {data.totalUsages} lines
+              {data.totalUsages} dòng
             </span>{" "}
             tổng.
           </div>
           <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-            Click vào template để xem chi tiết từng vị trí sử dụng. Nút
+            Bấm vào BOM để xem chi tiết từng vị trí sử dụng. Nút
             &ldquo;Mở BOM&rdquo; sẽ tô sáng dòng trong lưới BOM.
           </p>
         </div>
@@ -176,12 +153,12 @@ export function ItemBomUsagesPanel({ itemId }: ItemBomUsagesPanelProps) {
                   {tpl.templateName}
                 </span>
                 <StatusBadge
-                  status={mapStatusToBadge(tpl.templateStatus)}
-                  label={statusLabel(tpl.templateStatus)}
+                  status={getStatus("bom", tpl.templateStatus).tone}
+                  label={getStatus("bom", tpl.templateStatus).label}
                   size="sm"
                 />
                 <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[11px] tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
-                  {tpl.usages.length} line{tpl.usages.length > 1 ? "s" : ""}
+                  {tpl.usages.length} dòng
                 </span>
                 <Button
                   asChild

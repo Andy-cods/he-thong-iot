@@ -121,7 +121,7 @@ export function DebtAgingPanel({
             <TrendingUp className="h-4 w-4" />
             <p className="text-xs font-semibold uppercase tracking-wider">{kpiLabel}</p>
           </div>
-          <p className="mt-1 font-mono text-2xl font-bold tabular-nums text-zinc-900 dark:text-zinc-50">{fmtVND(totalOutstanding)}</p>
+          <p className="mt-1 text-2xl font-bold tabular-nums text-zinc-900 dark:text-zinc-50">{fmtVND(totalOutstanding)}</p>
           <p className="text-xs text-zinc-400 dark:text-zinc-500">{totalInvoices} hoá đơn</p>
         </div>
         <div className="rounded-2xl border border-red-200 bg-red-50/60 p-4 dark:border-red-800 dark:bg-red-950/40">
@@ -129,7 +129,7 @@ export function DebtAgingPanel({
             <AlertCircle className="h-4 w-4" />
             <p className="text-xs font-semibold uppercase tracking-wider">Đã quá hạn</p>
           </div>
-          <p className="mt-1 font-mono text-2xl font-bold tabular-nums text-red-900 dark:text-red-200">{fmtVND(overdueAmount)}</p>
+          <p className="mt-1 text-2xl font-bold tabular-nums text-red-900 dark:text-red-200">{fmtVND(overdueAmount)}</p>
           <p className="text-xs text-red-500/80 dark:text-red-400/80">
             {totalOutstanding > 0 ? Math.round((overdueAmount / totalOutstanding) * 100) : 0}% tổng công nợ
           </p>
@@ -148,7 +148,7 @@ export function DebtAgingPanel({
                 <Icon className="h-4 w-4" />
               </div>
               <p className="mt-2 text-xs font-semibold text-zinc-600 dark:text-zinc-300">{def.label}</p>
-              <p className={cn("mt-1 font-mono text-lg font-bold tabular-nums", cls.value)}>
+              <p className={cn("mt-1 text-lg font-bold tabular-nums", cls.value)}>
                 {fmtVND(b?.outstandingAmount ?? 0)}
               </p>
               <p className="text-[11px] text-zinc-400 dark:text-zinc-500">{b?.invoiceCount ?? 0} hoá đơn</p>
@@ -228,7 +228,7 @@ export function DebtAgingPanel({
                   >
                     <td className="px-5 py-2.5 font-medium text-zinc-800 dark:text-zinc-200">{p.partnerName}</td>
                     <td className="px-5 py-2.5 text-right tabular-nums text-zinc-600 dark:text-zinc-400">{p.invoiceCount}</td>
-                    <td className="px-5 py-2.5 text-right font-mono font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
+                    <td className="px-5 py-2.5 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
                       {fmtVND(p.outstandingAmount)}
                     </td>
                     <td className="px-5 py-2.5 text-right tabular-nums">

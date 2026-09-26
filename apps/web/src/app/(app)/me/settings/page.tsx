@@ -20,6 +20,8 @@ import { ThemeSegmented } from "@/components/theme/ThemeToggle";
 import { useSession } from "@/hooks/useSession";
 import { useMySessions, useRevokeSession } from "@/hooks/useSessions";
 import { cn } from "@/lib/utils";
+import { useConfirm } from "@/components/ui/confirm-dialog";
+import { formatDateTime } from "@/lib/format";
 
 /**
  * V3.7.66 — Trang Cài đặt cá nhân (mọi role đã login).
@@ -198,6 +200,8 @@ function SessionsList() {
   const sessionsQuery = useMySessions();
   const revoke = useRevokeSession();
   const sessions = sessionsQuery.data?.data ?? [];
+  // V4.1 UX-01: hộp xác nhận dùng chung thay hộp thoại trình duyệt.
+  const askConfirm = useConfirm();
 
   if (sessionsQuery.isLoading) {
     return <Skeleton className="h-24 w-full" />;
@@ -205,7 +209,7 @@ function SessionsList() {
   if (sessions.length === 0) {
     return (
       <p className="text-xs italic text-zinc-500 dark:text-zinc-400">
-        Không có phiên active. Bạn đang dùng cookie session.
+        Không có phiên đăng nhập nào khác đang hoạt động.
       </p>
     );
   }
@@ -240,7 +244,7 @@ function SessionsList() {
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="font-medium text-zinc-800 dark:text-zinc-100">
-                  {isMobile ? "Mobile" : "Desktop"}
+                  {isMobile ? "Điện thoại" : "Máy tính"}
                 </span>
                 {isCurrent ? (
                   <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-bold uppercase tracking-normal text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
@@ -253,7 +257,7 @@ function SessionsList() {
                 {s.userAgent ? ` · ${s.userAgent.slice(0, 60)}` : ""}
               </div>
               <div className="text-xs text-zinc-400 dark:text-zinc-500">
-                Bắt đầu: {new Date(s.issuedAt).toLocaleString("vi-VN")}
+                Bắt đầu: {formatDateTime(s.issuedAt)}
               </div>
             </div>
             {!isCurrent ? (
@@ -261,11 +265,17 @@ function SessionsList() {
                 size="sm"
                 variant="ghost"
                 onClick={() => {
-                  if (window.confirm("Đăng xuất phiên này?")) {
-                    void revoke.mutateAsync(s.id).then(() => {
-                      toast.success("Đã đăng xuất phiên");
+                  void (async () => {
+                    const ok = await askConfirm({
+                      title: "Đăng xuất phiên này?",
+                      description: "Thiết bị đó sẽ phải đăng nhập lại.",
+                      tone: "danger",
+                      confirmLabel: "Đăng xuất",
                     });
-                  }
+                    if (!ok) return;
+                    await revoke.mutateAsync(s.id);
+                    toast.success("Đã đăng xuất phiên");
+                  })();
                 }}
                 disabled={revoke.isPending}
                 className="text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"

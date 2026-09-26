@@ -95,7 +95,7 @@ export default function ProfilePage() {
   return (
     <div className="flex h-full flex-col overflow-auto bg-zinc-50 dark:bg-zinc-950">
       <header className="border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <nav aria-label="Breadcrumb" className="text-xs text-zinc-500 dark:text-zinc-400">
+        <nav aria-label="Đường dẫn" className="text-xs text-zinc-500 dark:text-zinc-400">
           <Link href="/" className="hover:text-zinc-900 hover:underline dark:hover:text-zinc-50">
             Tổng quan
           </Link>
@@ -176,7 +176,7 @@ export default function ProfilePage() {
               </header>
 
               <form onSubmit={handleSave} className="space-y-4">
-                <Field label="Username" helper="Username không thể đổi">
+                <Field label="Tên đăng nhập" helper="Tên đăng nhập không thể đổi">
                   <Input
                     value={u.username}
                     disabled

@@ -26,6 +26,7 @@ import {
   useUploadFinanceImport,
 } from "@/hooks/useFinance";
 import { qk } from "@/lib/query-keys";
+import { statusLabel } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
 /**
@@ -42,12 +43,6 @@ import { cn } from "@/lib/utils";
 
 type Step = "upload" | "preview" | "result";
 
-const IMPORT_STATUS_LABEL: Record<string, string> = {
-  preview_ready: "Chờ xác nhận",
-  committing: "Đang ghi",
-  done: "Hoàn tất",
-  failed: "Thất bại",
-};
 const STEP_ORDER: Step[] = ["upload", "preview", "result"];
 const STEP_LABELS: Record<Step, string> = {
   upload: "Tải file",
@@ -244,7 +239,7 @@ export function ImportTransactionsWizard({ onClose }: ImportTransactionsWizardPr
                           </span>
                         </td>
                         <td className="px-3 font-mono text-xs text-zinc-900 dark:text-zinc-50">{r.accountCode}</td>
-                        <td className="px-3 text-right font-mono tabular-nums text-zinc-900 dark:text-zinc-50">
+                        <td className="px-3 text-right tabular-nums text-zinc-900 dark:text-zinc-50">
                           {fmtVND(r.amount)}
                         </td>
                         <td className="max-w-[200px] truncate px-3 text-zinc-600 dark:text-zinc-400">
@@ -398,10 +393,10 @@ function ResultPanel({
         )}
         <div>
           <div className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-            {isDone ? "Hoàn tất import" : isFailed ? "Import thất bại" : "Đang import nền…"}
+            {isDone ? "Hoàn tất nhập" : isFailed ? "Nhập thất bại" : "Đang nhập nền…"}
           </div>
           <div className="text-xs text-zinc-500 dark:text-zinc-400">
-            Trạng thái: {IMPORT_STATUS_LABEL[status] ?? status}
+            Trạng thái: {statusLabel("importJob", status)}
           </div>
         </div>
       </div>

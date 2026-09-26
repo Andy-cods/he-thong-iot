@@ -4,37 +4,15 @@ import * as React from "react";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { PO_STATUS_LABELS, type POStatus } from "@iot/shared";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDate } from "@/lib/format";
+import { StatusPill } from "@/components/ui/status-badge";
+import { formatDate, formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { PORow } from "@/hooks/usePurchaseOrders";
 
 export interface POListTableProps {
   rows: PORow[];
   loading?: boolean;
-}
-
-const PO_STATUS_PILL: Record<POStatus, { cls: string; dot: string }> = {
-  DRAFT:     { cls: "bg-zinc-100 text-zinc-700 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700",      dot: "bg-zinc-400"   },
-  SENT:      { cls: "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:ring-blue-800",       dot: "bg-blue-500"   },
-  PARTIAL:   { cls: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800",    dot: "bg-amber-500 animate-pulse" },
-  RECEIVED:  { cls: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800", dot: "bg-emerald-500" },
-  CANCELLED: { cls: "bg-red-50 text-red-700 ring-red-200 dark:bg-red-950/40 dark:text-red-400 dark:ring-red-800",          dot: "bg-red-400"    },
-  CLOSED:    { cls: "bg-zinc-100 text-zinc-500 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",      dot: "bg-zinc-400"   },
-};
-
-const APPROVAL_PILL: Record<string, { label: string; cls: string }> = {
-  pending:  { label: "Chờ duyệt",   cls: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800" },
-  approved: { label: "Đã duyệt",    cls: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800" },
-  rejected: { label: "Từ chối",     cls: "bg-red-50 text-red-700 ring-red-200 dark:bg-red-950/40 dark:text-red-400 dark:ring-red-800" },
-};
-
-function fmtVND(n: number | string | null | undefined): string {
-  if (n === null || n === undefined || n === "") return "0";
-  const num = typeof n === "string" ? Number(n) : n;
-  if (!Number.isFinite(num)) return "0";
-  return Math.round(num).toLocaleString("vi-VN");
 }
 
 export function POListTable({ rows, loading }: POListTableProps) {
@@ -48,8 +26,9 @@ export function POListTable({ rows, loading }: POListTableProps) {
 
   // V3.12 (mobile) — <md collapse còn 3 cột [Số PO|NCC|Trạng thái];
   // Tổng/Duyệt/Ngày giao/Ngày tạo/mũi tên `hidden md:*` (pattern ItemListTable).
+  // V4.1 UI-07/08: thêm gap-x-4 giữa các cột — trước dính "TỔNG (VND)DUYỆT" / "0Đã duyệt".
   const gridCols =
-    "grid-cols-[110px_minmax(0,1fr)_112px] md:grid-cols-[150px_minmax(0,1fr)_140px_120px_120px_140px_120px_60px]";
+    "gap-x-4 grid-cols-[110px_minmax(0,1fr)_112px] md:grid-cols-[150px_minmax(0,1fr)_140px_120px_120px_140px_120px_60px]";
 
   return (
     <div
@@ -107,9 +86,7 @@ export function POListTable({ rows, loading }: POListTableProps) {
         {virt.getVirtualItems().map((v) => {
           const row = rows[v.index];
           if (!row) return null;
-          const statusCfg = PO_STATUS_PILL[row.status];
           const approval = row.metadata?.approvalStatus;
-          const approvalCfg = approval ? APPROVAL_PILL[approval] : null;
 
           return (
             <Link
@@ -130,17 +107,12 @@ export function POListTable({ rows, loading }: POListTableProps) {
               <span className="truncate pr-3 text-sm text-zinc-800 dark:text-zinc-200">
                 {row.supplierName ?? row.supplierCode ?? `${row.supplierId.slice(0, 8)}…`}
               </span>
-              <span className="hidden text-right font-mono text-sm font-semibold tabular-nums text-zinc-900 dark:text-zinc-50 md:block">
-                {fmtVND(row.totalAmount)}
+              <span className="hidden text-right text-sm font-semibold tabular-nums text-zinc-900 dark:text-zinc-50 md:block">
+                {formatMoney(row.totalAmount, { unit: "none" })}
               </span>
               <span className="hidden md:block">
-                {approvalCfg ? (
-                  <span className={cn(
-                    "inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset",
-                    approvalCfg.cls,
-                  )}>
-                    {approvalCfg.label}
-                  </span>
+                {approval ? (
+                  <StatusPill domain="poApproval" code={approval} />
                 ) : (
                   <span className="text-xs text-zinc-400 dark:text-zinc-500">—</span>
                 )}
@@ -148,13 +120,13 @@ export function POListTable({ rows, loading }: POListTableProps) {
               <span className="hidden text-sm text-zinc-600 tabular-nums dark:text-zinc-400 md:block">
                 {row.expectedEta ? formatDate(row.expectedEta, "dd/MM/yyyy") : "—"}
               </span>
-              <span className={cn(
-                "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset w-fit",
-                statusCfg.cls,
-              )}>
-                <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", statusCfg.dot)} aria-hidden />
-                {PO_STATUS_LABELS[row.status]}
-              </span>
+              <StatusPill
+                domain="po"
+                code={row.status}
+                dot
+                pulse={row.status === "PARTIAL"}
+                className="w-fit"
+              />
               <span className="hidden text-sm text-zinc-600 tabular-nums dark:text-zinc-400 md:block">
                 {formatDate(row.createdAt, "dd/MM/yyyy")}
               </span>

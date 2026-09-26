@@ -22,6 +22,8 @@ import {
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryError } from "@/components/ui/query-error";
+import { formatRelative as formatRelativeVN } from "@/lib/format";
+import { entityLabel as entityLabelVN } from "@/lib/status";
 
 /**
  * V3.2 RecentActivityCard — vertical timeline 10 audit_event gần đây
@@ -53,58 +55,65 @@ interface ActivityPayload {
 }
 
 const POLL_MS = 60_000;
+/** Số dòng hiển thị trên thẻ. */
+const SHOW_LIMIT = 10;
+/**
+ * V4.1 (Đợt 6B): lấy dư rồi lọc bỏ đăng nhập/đăng xuất ở client — trước đây
+ * LOGIN/LOGOUT chiếm hết 10 dòng. Nếu còn quá ít sự kiện nghiệp vụ (< 3) thì
+ * giữ nguyên danh sách gốc để thẻ không trống trơn.
+ */
+const FETCH_LIMIT = 50;
+const MIN_BUSINESS_ITEMS = 3;
+const SESSION_ACTIONS = new Set(["LOGIN", "LOGOUT"]);
 
+function pickFeedItems(items: ActivityItem[]): ActivityItem[] {
+  const business = items.filter((it) => !SESSION_ACTIONS.has(it.action));
+  return (business.length >= MIN_BUSINESS_ITEMS ? business : items).slice(0, SHOW_LIMIT);
+}
+
+// V4.1 UI-15: thời gian tương đối qua lib/format (giờ VN).
 function formatRelative(iso: string): string {
-  try {
-    const t = new Date(iso).getTime();
-    if (!Number.isFinite(t)) return "—";
-    const diffSec = Math.floor((Date.now() - t) / 1000);
-    if (diffSec < 0) return "vừa xong";
-    if (diffSec < 60) return "vừa xong";
-    if (diffSec < 3600) return `${Math.floor(diffSec / 60)} phút trước`;
-    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} giờ trước`;
-    if (diffSec < 86400 * 7) return `${Math.floor(diffSec / 86400)} ngày trước`;
-    return new Date(iso).toLocaleDateString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-    });
-  } catch {
-    return "—";
-  }
+  const t = new Date(iso).getTime();
+  // Đồng hồ máy lệch (sự kiện "tương lai") → coi như vừa xong.
+  if (Number.isFinite(t) && t > Date.now()) return "vừa xong";
+  return formatRelativeVN(iso);
 }
 
 interface ActionMeta {
+  /** Động từ — KHÔNG lặp danh từ đối tượng ("hoàn tất" + "lệnh sản xuất"). */
   label: string;
   icon: typeof Activity;
   tone: string;
+  /** true → không nối tên đối tượng (VD "đăng nhập", không "đăng nhập session"). */
+  noEntity?: boolean;
 }
 
 const ACTION_META: Record<string, ActionMeta> = {
   CREATE: { label: "tạo mới", icon: CirclePlus, tone: "emerald" },
   UPDATE: { label: "cập nhật", icon: FileEdit, tone: "blue" },
   DELETE: { label: "xoá", icon: Trash2, tone: "rose" },
-  LOGIN: { label: "đăng nhập", icon: LogIn, tone: "zinc" },
-  LOGOUT: { label: "đăng xuất", icon: LogOut, tone: "zinc" },
+  LOGIN: { label: "đăng nhập", icon: LogIn, tone: "zinc", noEntity: true },
+  LOGOUT: { label: "đăng xuất", icon: LogOut, tone: "zinc", noEntity: true },
   RELEASE: { label: "phát hành", icon: Rocket, tone: "violet" },
-  SNAPSHOT: { label: "snapshot", icon: FileText, tone: "indigo" },
-  POST: { label: "đăng ghi", icon: PackageCheck, tone: "indigo" },
+  SNAPSHOT: { label: "chốt BOM cho", icon: FileText, tone: "indigo" },
+  POST: { label: "ghi sổ", icon: PackageCheck, tone: "indigo" },
   CANCEL: { label: "huỷ", icon: CircleX, tone: "rose" },
   UPLOAD: { label: "tải lên", icon: Upload, tone: "blue" },
-  COMMIT: { label: "commit", icon: CheckCircle2, tone: "emerald" },
+  COMMIT: { label: "chốt nhập", icon: CheckCircle2, tone: "emerald" },
   TRANSITION: { label: "chuyển trạng thái", icon: Activity, tone: "indigo" },
   RESERVE: { label: "giữ chỗ", icon: Inbox, tone: "amber" },
   ISSUE: { label: "xuất kho", icon: PackageCheck, tone: "violet" },
   RECEIVE: { label: "nhận hàng", icon: Truck, tone: "emerald" },
   APPROVE: { label: "phê duyệt", icon: CheckCircle2, tone: "emerald" },
   CONVERT: { label: "chuyển đổi", icon: FileEdit, tone: "blue" },
-  WO_START: { label: "bắt đầu lệnh", icon: PlayCircle, tone: "emerald" },
-  WO_PAUSE: { label: "tạm dừng lệnh", icon: PauseCircle, tone: "amber" },
-  WO_RESUME: { label: "tiếp tục lệnh", icon: PlayCircle, tone: "blue" },
-  WO_COMPLETE: { label: "hoàn tất lệnh", icon: CheckCircle2, tone: "emerald" },
-  ECO_SUBMIT: { label: "ECO submit", icon: FileText, tone: "violet" },
-  ECO_APPROVE: { label: "ECO duyệt", icon: CheckCircle2, tone: "emerald" },
-  ECO_APPLY: { label: "ECO áp dụng", icon: Rocket, tone: "indigo" },
-  ECO_REJECT: { label: "ECO từ chối", icon: CircleX, tone: "rose" },
+  WO_START: { label: "bắt đầu", icon: PlayCircle, tone: "emerald" },
+  WO_PAUSE: { label: "tạm dừng", icon: PauseCircle, tone: "amber" },
+  WO_RESUME: { label: "tiếp tục", icon: PlayCircle, tone: "blue" },
+  WO_COMPLETE: { label: "hoàn tất", icon: CheckCircle2, tone: "emerald" },
+  ECO_SUBMIT: { label: "gửi duyệt", icon: FileText, tone: "violet" },
+  ECO_APPROVE: { label: "duyệt", icon: CheckCircle2, tone: "emerald" },
+  ECO_APPLY: { label: "áp dụng", icon: Rocket, tone: "indigo" },
+  ECO_REJECT: { label: "từ chối", icon: CircleX, tone: "rose" },
   QC_CHECK: { label: "kiểm tra QC", icon: CheckCircle2, tone: "indigo" },
 };
 
@@ -128,30 +137,35 @@ const TONE_ICON_BG: Record<string, string> = {
   zinc: "bg-zinc-100 text-zinc-600 ring-zinc-200/60 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700",
 };
 
-const ENTITY_LABEL: Record<string, string> = {
-  bom: "BOM",
-  bom_revision: "BOM revision",
-  bom_snapshot: "snapshot BOM",
-  bom_snapshot_line: "dòng BOM",
-  work_order: "lệnh sản xuất",
-  work_order_line: "dòng WO",
-  purchase_order: "đơn mua",
-  purchase_request: "yêu cầu mua",
-  inbound_receipt: "phiếu nhập",
-  assembly_work_order: "lệnh lắp ráp",
-  item: "vật tư",
-  user_account: "người dùng",
-  reservation: "giữ chỗ",
-  inventory_lot_serial: "lot",
-  inventory_txn: "giao dịch kho",
-  qc_check: "kiểm tra QC",
-  eco_change: "ECO",
-  sales_order: "đơn bán",
-  supplier: "nhà cung cấp",
+// V4.1 UI-27: nhãn đối tượng từ lib/status.ts (ENTITY_LABELS) — bỏ map cục bộ.
+// Bổ sung vài loại chỉ xuất hiện ở feed này (chưa có trong lib/status.ts).
+const EXTRA_ENTITY_LABEL: Record<string, string> = {
+  import_batch: "lô nhập Excel",
 };
 
 function entityLabel(t: string): string {
-  return ENTITY_LABEL[t] ?? t.replace(/_/g, " ");
+  return EXTRA_ENTITY_LABEL[t] ?? entityLabelVN(t);
+}
+
+/** Động từ theo ngữ cảnh: POST trên PO = đánh dấu đã gửi NCC. */
+function verbFor(action: string, objectType: string, fallback: string): string {
+  if (action === "POST" && objectType === "purchase_order") return "gửi";
+  return fallback;
+}
+
+/**
+ * V4.1: ghi chú kỹ thuật (tiếng Anh / key=value như "created (orderType=NEW)",
+ * "Progress log: PROGRESS_REPORT") KHÔNG hiện cho người dùng. Chỉ giữ ghi chú
+ * viết tiếng Việt có dấu, không chứa cặp key=value.
+ */
+function humanNote(notes: string | null): string | null {
+  if (!notes) return null;
+  const n = notes.trim();
+  if (!n) return null;
+  if (/\w=\w/.test(n)) return null;
+  if (/^progress log/i.test(n)) return null;
+  if (!/[à-ỹđ]/i.test(n)) return null;
+  return n;
 }
 
 interface RecentActivityCardProps {
@@ -168,14 +182,14 @@ export function RecentActivityCard({ className }: RecentActivityCardProps) {
 
   const fetchData = React.useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await fetch("/api/dashboard/activity?limit=10", {
+      const res = await fetch(`/api/dashboard/activity?limit=${FETCH_LIMIT}`, {
         signal,
         credentials: "same-origin",
         headers: { Accept: "application/json" },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const payload = (await res.json()) as ActivityPayload;
-      setData(payload);
+      setData({ ...payload, items: pickFeedItems(payload.items ?? []) });
       setError(null);
     } catch (e) {
       if ((e as Error).name === "AbortError") return;
@@ -254,13 +268,15 @@ export function RecentActivityCard({ className }: RecentActivityCardProps) {
             className="absolute left-[15px] top-2 bottom-2 w-px bg-gradient-to-b from-zinc-200 via-zinc-200/70 to-transparent dark:from-zinc-700 dark:via-zinc-700/70"
           />
           {data.items.map((it) => {
-            const meta =
+            const meta: ActionMeta =
               ACTION_META[it.action] ?? {
-                label: it.action.toLowerCase(),
+                // Mã hành động lạ → động từ trung tính, không lộ mã thô.
+                label: "thao tác trên",
                 icon: Activity,
                 tone: "zinc",
               };
             const Icon = meta.icon;
+            const note = humanNote(it.notes);
             return (
               <li
                 key={it.id}
@@ -280,10 +296,15 @@ export function RecentActivityCard({ className }: RecentActivityCardProps) {
                     <span className="font-semibold text-zinc-900 dark:text-zinc-50">
                       {it.actorDisplay ?? it.actor ?? "Hệ thống"}
                     </span>{" "}
-                    {meta.label}{" "}
-                    <span className="text-zinc-600 dark:text-zinc-400">
-                      {entityLabel(it.objectType)}
-                    </span>
+                    {verbFor(it.action, it.objectType, meta.label)}
+                    {meta.noEntity || it.objectType === "session" ? null : (
+                      <>
+                        {" "}
+                        <span className="text-zinc-600 dark:text-zinc-400">
+                          {entityLabel(it.objectType)}
+                        </span>
+                      </>
+                    )}
                   </p>
                   <p className="mt-0.5 flex items-center gap-1.5 text-[11.5px] text-zinc-500 dark:text-zinc-400">
                     <span
@@ -294,10 +315,10 @@ export function RecentActivityCard({ className }: RecentActivityCardProps) {
                       )}
                     />
                     {formatRelative(it.occurredAt)}
-                    {it.notes ? (
+                    {note ? (
                       <>
                         <span className="text-zinc-300 dark:text-zinc-600">•</span>
-                        <span className="truncate">{it.notes}</span>
+                        <span className="truncate">{note}</span>
                       </>
                     ) : null}
                   </p>

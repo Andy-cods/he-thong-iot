@@ -5,6 +5,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ItemPicker, type ItemPickerValue } from "@/components/bom/ItemPicker";
+import { formatMoney } from "@/lib/format";
 
 export interface PoLineDraft {
   localId: string;
@@ -25,9 +26,9 @@ export interface PoLineEditorProps {
   disabled?: boolean;
 }
 
+// V4.1 UI-13: tiền chỉ số (cột đã ghi VND) — dùng formatMoney chung.
 function fmtVND(n: number): string {
-  if (!Number.isFinite(n)) return "0";
-  return Math.round(n).toLocaleString("vi-VN");
+  return formatMoney(n, { unit: "none" });
 }
 
 function computeLineTotal(line: PoLineDraft): number {

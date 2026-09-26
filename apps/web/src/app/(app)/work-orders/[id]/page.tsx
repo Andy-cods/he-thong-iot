@@ -8,7 +8,6 @@ import {
   ArrowLeft,
   CalendarClock,
   CheckCircle2,
-  Circle,
   ClipboardList,
   Factory,
   History as HistoryIcon,
@@ -25,6 +24,8 @@ import { WorkOrderActions } from "@/components/work-orders/WorkOrderActions";
 import { normalizeRoutingPlan } from "@/lib/wo-routing";
 import { useSession } from "@/hooks/useSession";
 import { formatDate } from "@/lib/format";
+import { StatusPill } from "@/components/ui/status-badge";
+import { actionLabel, statusLabel } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import {
   useWorkOrderDetail,
@@ -43,25 +44,8 @@ import {
  * (theo yêu cầu user — không match form Excel LSX GTAM).
  */
 
-const STATUS_LABEL: Record<WorkOrderStatus, string> = {
-  DRAFT: "Chờ Gia công duyệt",
-  QUEUED: "Hàng đợi",
-  RELEASED: "Đã phát hành",
-  IN_PROGRESS: "Đang sản xuất",
-  PAUSED: "Tạm dừng",
-  COMPLETED: "Hoàn thành",
-  CANCELLED: "Đã hủy",
-};
-
-const STATUS_PILL: Record<WorkOrderStatus, string> = {
-  DRAFT: "bg-zinc-100 text-zinc-700 ring-zinc-200",
-  QUEUED: "bg-amber-50 text-amber-700 ring-amber-200",
-  RELEASED: "bg-sky-50 text-sky-700 ring-sky-200",
-  IN_PROGRESS: "bg-orange-50 text-orange-700 ring-orange-200",
-  PAUSED: "bg-amber-50 text-amber-700 ring-amber-200",
-  COMPLETED: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  CANCELLED: "bg-red-50 text-red-700 ring-red-200",
-};
+// V4.1 UI-07: bỏ STATUS_LABEL / STATUS_PILL cục bộ ("Đã hủy" đỏ, Đang SX cam) —
+// badge trạng thái lệnh lấy từ lib/status.ts domain "wo".
 
 const ORDER_TYPE_LABEL: Record<string, string> = {
   NEW: "Sản xuất mới",
@@ -226,15 +210,7 @@ export default function WorkOrderDetailPage() {
             <span className="font-mono text-base font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
               {wo.woNo}
             </span>
-            <span
-              className={cn(
-                "inline-flex whitespace-nowrap items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset",
-                STATUS_PILL[status],
-              )}
-            >
-              <Circle className="h-1.5 w-1.5 fill-current" aria-hidden />
-              {STATUS_LABEL[status]}
-            </span>
+            <StatusPill domain="wo" code={status} dot pulse={status === "IN_PROGRESS"} />
             <span className="hidden text-xs text-zinc-400 sm:inline dark:text-zinc-500">
               · {orderTypeLabel} · {priorityLabel}
             </span>
@@ -681,8 +657,8 @@ export default function WorkOrderDetailPage() {
                 </tbody>
               </table>
               <p className="mt-2 text-xs italic text-zinc-500 print:hidden dark:text-zinc-400">
-                Workflow phê duyệt 4 chữ ký + xác nhận liên bộ phận sẽ làm ở phase
-                sau. Hiện tại {STATUS_LABEL[status]} —{" "}
+                Quy trình phê duyệt 4 chữ ký + xác nhận liên bộ phận sẽ làm ở giai đoạn
+                sau. Hiện tại: {statusLabel("wo", status)} —{" "}
                 {status === "DRAFT" ? "chờ Gia công duyệt YCSX." : ""}
               </p>
             </section>
@@ -704,7 +680,7 @@ export default function WorkOrderDetailPage() {
             />
             <KpiCard label="Phế" value={fmtNum(wo.scrapQty)} icon={Wrench} tone="rose" />
             <KpiCard
-              label="Routing tổng"
+              label="Tổng thời gian công đoạn"
               value={`${totalRoutingMin} phút`}
               icon={CalendarClock}
               tone="indigo"
@@ -798,7 +774,7 @@ export default function WorkOrderDetailPage() {
           <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
             <div className="border-b border-zinc-100 bg-zinc-50 px-5 py-3 dark:border-zinc-800 dark:bg-zinc-800/40">
               <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-                Audit log work order
+                Nhật ký lệnh sản xuất
               </p>
             </div>
             {auditQuery.isLoading ? (
@@ -822,7 +798,7 @@ export default function WorkOrderDetailPage() {
                         {a.actorDisplay ?? a.actor ?? "Hệ thống"}
                       </span>
                       <span className="ml-1 text-zinc-500 dark:text-zinc-400">
-                        — {a.action}
+                        — {actionLabel(a.action)}
                       </span>
                       {a.notes ? (
                         <p className="mt-0.5 text-[11px] text-zinc-600 dark:text-zinc-400">

@@ -17,7 +17,7 @@ import {
   parseAsStringEnum,
   useQueryStates,
 } from "nuqs";
-import { PO_STATUSES, PO_STATUS_LABELS, type POStatus } from "@iot/shared";
+import { PO_STATUSES } from "@iot/shared";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -26,29 +26,21 @@ import { POListTable } from "@/components/procurement/POListTable";
 import { PoExportDialog } from "@/components/procurement/PoExportDialog";
 import { usePurchaseOrdersList, usePurchaseOrdersStats } from "@/hooks/usePurchaseOrders";
 import type { POFilter } from "@/lib/query-keys";
+import { formatMoneyShort } from "@/lib/format";
+import { TONE_CLASSES, statusOptions } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
 
-function fmtVND(n: number | string): string {
-  const v = typeof n === "string" ? Number(n) : n;
-  if (!Number.isFinite(v) || v === 0) return "0 ₫";
-  if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(1)} tỷ ₫`;
-  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)} tr ₫`;
-  return `${Math.round(v).toLocaleString("vi-VN")} ₫`;
-}
+// V4.1 UI-13: KPI dùng tiền rút gọn chung "1,5 tr ₫" (dấu PHẨY — trước là "1.5 tr ₫").
+const fmtVND = formatMoneyShort;
 
-/* ── Status pill config ──────────────────────────────────────────────────── */
+/* ── Status chips ────────────────────────────────────────────────────────── */
 
-const PO_STATUS_PILL: Record<POStatus | "all", { cls: string; dot: string }> = {
-  all:       { cls: "bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 dark:border-zinc-100",                                            dot: "bg-white dark:bg-zinc-900" },
-  DRAFT:     { cls: "bg-zinc-100 text-zinc-700 border-zinc-200 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700 dark:ring-zinc-700",                           dot: "bg-zinc-400" },
-  SENT:      { cls: "bg-blue-50 text-blue-700 border-blue-200 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800 dark:ring-blue-800",                            dot: "bg-blue-500" },
-  PARTIAL:   { cls: "bg-amber-50 text-amber-700 border-amber-200 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800 dark:ring-amber-800",                        dot: "bg-amber-500 animate-pulse" },
-  RECEIVED:  { cls: "bg-emerald-50 text-emerald-700 border-emerald-200 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800 dark:ring-emerald-800",                dot: "bg-emerald-500" },
-  CANCELLED: { cls: "bg-red-50 text-red-700 border-red-200 ring-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800 dark:ring-red-800",                                dot: "bg-red-400" },
-  CLOSED:    { cls: "bg-zinc-100 text-zinc-500 border-zinc-200 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700 dark:ring-zinc-700",                           dot: "bg-zinc-400" },
-};
+// V4.1 UI-07/08: nhãn + tông chip lọc lấy từ lib/status (bỏ PO_STATUS_PILL cục bộ).
+const PO_STATUS_CHIPS = statusOptions("po");
+const CHIP_ALL_ACTIVE =
+  "bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 dark:border-zinc-100";
 
 /* ── KPI Card ────────────────────────────────────────────────────────────── */
 
@@ -75,7 +67,7 @@ function KpiCard({ icon: Icon, label, value, sub, accent }: {
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</p>
-          <p className={cn("mt-1 font-mono text-xl font-bold leading-tight tabular-nums", s.value)}>{value}</p>
+          <p className={cn("mt-1 text-xl font-bold leading-tight tabular-nums", s.value)}>{value}</p>
           {sub && <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{sub}</p>}
         </div>
       </div>
@@ -212,7 +204,7 @@ export function POTab() {
           icon={(stats?.overdueCount ?? 0) > 0 ? AlertTriangle : Users}
           label={(stats?.overdueCount ?? 0) > 0 ? "Quá hạn" : "Số NCC"}
           value={kpi(String((stats?.overdueCount ?? 0) > 0 ? stats?.overdueCount : (stats?.supplierCount ?? 0)))}
-          sub={(stats?.overdueCount ?? 0) > 0 ? "PO quá ETA chưa nhận đủ" : "nhà cung cấp"}
+          sub={(stats?.overdueCount ?? 0) > 0 ? "PO quá ngày dự kiến chưa nhận đủ" : "nhà cung cấp"}
           accent={(stats?.overdueCount ?? 0) > 0 ? "red" : "zinc"}
         />
       </div>
@@ -235,7 +227,8 @@ export function POTab() {
         <div className="flex w-full min-w-0 items-center gap-1.5 overflow-x-auto [scrollbar-width:none] sm:w-auto sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
           {(["all", ...PO_STATUSES] as const).map((s) => {
             const active = urlState.status === s;
-            const cfg = PO_STATUS_PILL[s];
+            const opt = s === "all" ? null : PO_STATUS_CHIPS.find((o) => o.code === s);
+            const tone = opt ? TONE_CLASSES[opt.tone] : null;
             const count =
               s === "all" ? (stats?.total ?? 0) :
               s === "DRAFT" ? (stats?.total ?? 0) - (stats?.openCount ?? 0) - (stats?.receivedCount ?? 0) - (stats?.cancelledCount ?? 0) :
@@ -252,14 +245,22 @@ export function POTab() {
                 className={cn(
                   "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors",
                   active
-                    ? cn(cfg.cls, "ring-1 ring-inset shadow-sm")
+                    ? tone
+                      ? cn(tone.pill, "border-transparent ring-1 ring-inset shadow-sm")
+                      : cn(CHIP_ALL_ACTIVE, "shadow-sm")
                     : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-zinc-600 dark:hover:bg-zinc-800/60",
                 )}
               >
-                <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", active ? cfg.dot : "bg-zinc-300 dark:bg-zinc-600")} aria-hidden />
-                {s === "all" ? "Tất cả" : PO_STATUS_LABELS[s as POStatus]}
+                <span
+                  className={cn(
+                    "h-1.5 w-1.5 rounded-full shrink-0",
+                    active ? (tone ? tone.dot : "bg-white dark:bg-zinc-900") : "bg-zinc-300 dark:bg-zinc-600",
+                  )}
+                  aria-hidden
+                />
+                {opt ? opt.label : "Tất cả"}
                 {s !== "DRAFT" && (
-                  <span className={cn("font-mono text-xs tabular-nums", active ? "opacity-80" : "text-zinc-400 dark:text-zinc-500")}>
+                  <span className={cn("text-xs tabular-nums", active ? "opacity-80" : "text-zinc-400 dark:text-zinc-500")}>
                     {count}
                   </span>
                 )}
@@ -274,15 +275,16 @@ export function POTab() {
           onClick={() => void setUrlState({ overdue: overdueOnly ? "" : "1", page: 1 })}
           className={cn(
             "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors",
+            // V4.1 UI-07: "Quá hạn" = tông warning (không đỏ).
             overdueOnly
-              ? "border-red-200 bg-red-50 text-red-700 ring-1 ring-inset ring-red-200 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400 dark:ring-red-800"
+              ? cn(TONE_CLASSES.warning.pill, "border-transparent ring-1 ring-inset")
               : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60",
           )}
           aria-pressed={overdueOnly}
         >
           <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
-          Quá hạn ETA
-          <span className="font-mono text-xs tabular-nums opacity-80">{stats?.overdueCount ?? 0}</span>
+          Quá hạn giao
+          <span className="text-xs tabular-nums opacity-80">{stats?.overdueCount ?? 0}</span>
         </button>
 
         {/* Date range */}

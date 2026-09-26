@@ -5,29 +5,16 @@ import Link from "next/link";
 import { ArrowUpRight, Wrench } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryError } from "@/components/ui/query-error";
+import { StatusPill } from "@/components/ui/status-badge";
+import { statusLabel } from "@/lib/status";
 import { useWorkOrdersList, type WorkOrderStatus } from "@/hooks/useWorkOrders";
 import { formatDate, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /* ── Status badge ─────────────────────────────────────────────────────────── */
-const WO_STATUS: Record<WorkOrderStatus, { label: string; cls: string; dot: string }> = {
-  DRAFT:       { label: "Nháp",       cls: "bg-zinc-100 text-zinc-600 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",      dot: "bg-zinc-400"   },
-  QUEUED:      { label: "Chờ",        cls: "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:ring-blue-800",       dot: "bg-blue-400"   },
-  RELEASED:    { label: "Đã phát",    cls: "bg-indigo-50 text-indigo-700 ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-800", dot: "bg-indigo-500" },
-  IN_PROGRESS: { label: "Đang SX",    cls: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800",    dot: "bg-amber-500 animate-pulse" },
-  PAUSED:      { label: "Tạm dừng",   cls: "bg-orange-50 text-orange-700 ring-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:ring-orange-800", dot: "bg-orange-400" },
-  COMPLETED:   { label: "Hoàn thành", cls: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800", dot: "bg-emerald-500" },
-  CANCELLED:   { label: "Đã huỷ",     cls: "bg-red-50 text-red-600 ring-red-200 dark:bg-red-950/40 dark:text-red-400 dark:ring-red-800",          dot: "bg-red-400"    },
-};
-
+// V4.1 UI-07: bỏ map WO_STATUS cục bộ ("Đã huỷ" đỏ) — dùng lib/status.ts domain "wo".
 function WoStatusBadge({ status }: { status: WorkOrderStatus }) {
-  const s = WO_STATUS[status];
-  return (
-    <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset", s.cls)}>
-      <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", s.dot)} aria-hidden />
-      {s.label}
-    </span>
-  );
+  return <StatusPill domain="wo" code={status} dot pulse={status === "IN_PROGRESS"} />;
 }
 
 function ProgressBar({ pct }: { pct: number }) {
@@ -83,8 +70,8 @@ export function AssemblyPanel({ bomId }: { bomId: string }) {
         </div>
         <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Chưa có lệnh SX đang lắp ráp</p>
         <p className="max-w-xs text-xs text-zinc-500 dark:text-zinc-400">
-          Lắp ráp xuất hiện khi có WO ở trạng thái IN_PROGRESS / PAUSED / COMPLETED.
-          Xem tab Lệnh SX để tạo WO.
+          Lắp ráp xuất hiện khi có lệnh SX ở trạng thái {statusLabel("wo", "IN_PROGRESS")} /{" "}
+          {statusLabel("wo", "PAUSED")} / {statusLabel("wo", "COMPLETED")}. Xem tab Lệnh SX để tạo lệnh.
         </p>
       </div>
     );
@@ -122,7 +109,7 @@ export function AssemblyPanel({ bomId }: { bomId: string }) {
         </div>
         <Link href={`/work-orders?bomTemplateId=${bomId}`}
           className="ml-auto text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline">
-          Xem tất cả WO →
+          Xem tất cả lệnh SX →
         </Link>
       </div>
 
@@ -131,7 +118,7 @@ export function AssemblyPanel({ bomId }: { bomId: string }) {
         <table className="w-full border-collapse">
           <thead className="sticky top-0 z-10 bg-white dark:bg-zinc-900">
             <tr className="border-b-2 border-zinc-100 dark:border-zinc-800">
-              <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Mã WO</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Mã lệnh SX</th>
               <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Đơn hàng</th>
               <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">KH</th>
               <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Đã SX</th>
@@ -170,7 +157,7 @@ export function AssemblyPanel({ bomId }: { bomId: string }) {
                   <td className="px-3 py-3.5">
                     <Link href={`/work-orders/${row.id}`}
                       className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 opacity-0 transition-all hover:bg-indigo-50 hover:text-indigo-600 group-hover:opacity-100 dark:text-zinc-500 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-400"
-                      title="Mở chi tiết WO">
+                      title="Mở chi tiết lệnh SX">
                       <ArrowUpRight className="h-4 w-4" aria-hidden />
                     </Link>
                   </td>

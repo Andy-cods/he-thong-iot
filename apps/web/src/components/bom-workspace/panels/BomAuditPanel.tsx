@@ -7,47 +7,15 @@ import { QueryError } from "@/components/ui/query-error";
 import { useBomAuditLog } from "@/hooks/useBom";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { actionLabel, entityLabel } from "@/lib/status";
 
-const ACTION_LABELS: Record<string, string> = {
-  CREATE: "Tạo",
-  UPDATE: "Cập nhật",
-  DELETE: "Xoá",
-  LOGIN: "Đăng nhập",
-  LOGOUT: "Đăng xuất",
-  RELEASE: "Phát hành",
-  SNAPSHOT: "Snapshot",
-  POST: "Đăng",
-  CANCEL: "Huỷ",
-  UPLOAD: "Tải lên",
-  COMMIT: "Commit",
-  TRANSITION: "Chuyển trạng thái",
-  RESERVE: "Reserve",
-  ISSUE: "Xuất kho",
-  RECEIVE: "Nhập kho",
-  APPROVE: "Duyệt",
-  CONVERT: "Chuyển đổi",
-  WO_START: "Bắt đầu WO",
-  WO_PAUSE: "Tạm dừng WO",
-  WO_RESUME: "Tiếp tục WO",
-  WO_COMPLETE: "Hoàn thành WO",
-  ECO_SUBMIT: "Gửi ECO",
-  ECO_APPROVE: "Duyệt ECO",
-  ECO_APPLY: "Áp dụng ECO",
-  ECO_REJECT: "Từ chối ECO",
-  QC_CHECK: "QC kiểm tra",
-};
-
-const OBJECT_TYPE_LABELS: Record<string, string> = {
-  bom_template: "BOM",
-  bom_revision: "BOM revision",
-  bom_snapshot_line: "Snapshot line",
-  sales_order: "Đơn hàng",
-  work_order: "Lệnh SX",
-  purchase_request: "Yêu cầu mua",
-  purchase_order: "Đơn mua",
-  item: "Vật tư",
-  user: "User",
-};
+// V4.1 UI-27: bỏ ACTION_LABELS / OBJECT_TYPE_LABELS cục bộ ("Snapshot", "Commit",
+// "Reserve", "BOM revision", "User"…) — dùng actionLabel / entityLabel chung
+// trong lib/status.ts. Tên đối tượng viết hoa chữ đầu khi đứng đầu ô / chip.
+function objectTypeLabel(code: string): string {
+  const v = entityLabel(code);
+  return v.charAt(0).toUpperCase() + v.slice(1);
+}
 
 const FILTER_OBJECT_TYPES = [
   "bom_template",
@@ -170,7 +138,7 @@ export function BomAuditPanel({ bomId }: { bomId: string }) {
                 )}
                 aria-pressed={active}
               >
-                {OBJECT_TYPE_LABELS[t] ?? t}
+                {objectTypeLabel(t)}
               </button>
             );
           })}
@@ -196,7 +164,7 @@ export function BomAuditPanel({ bomId }: { bomId: string }) {
       <div className="flex-1 overflow-auto">
         {filtered.length === 0 ? (
           <div className="flex h-full items-center justify-center p-6 text-xs text-zinc-500 dark:text-zinc-400">
-            Không có sự kiện nào match filter hiện tại.
+            Không có sự kiện nào khớp bộ lọc hiện tại.
           </div>
         ) : (
           <table className="w-full text-xs">
@@ -217,12 +185,11 @@ export function BomAuditPanel({ bomId }: { bomId: string }) {
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {filtered.map((r) => {
-                const actionLabel = ACTION_LABELS[r.action] ?? r.action;
+                const actionText = actionLabel(r.action);
                 const actionTone =
                   ACTION_TONE[r.action] ??
                   "border-zinc-200 bg-zinc-100 text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300";
-                const objectLabel =
-                  OBJECT_TYPE_LABELS[r.objectType] ?? r.objectType;
+                const objectLabel = objectTypeLabel(r.objectType);
                 return (
                   <tr key={r.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/60">
                     <td className="px-3 py-1.5 align-top font-mono text-xs tabular-nums text-zinc-500 whitespace-nowrap dark:text-zinc-400">
@@ -241,7 +208,7 @@ export function BomAuditPanel({ bomId }: { bomId: string }) {
                           actionTone,
                         )}
                       >
-                        {actionLabel}
+                        {actionText}
                       </span>
                     </td>
                     <td className="px-3 py-1.5 align-top text-[11px] text-zinc-700 dark:text-zinc-300">

@@ -6,6 +6,15 @@ import {
   type BoardItem,
   type BoardStatus,
 } from "@/hooks/useProductionBoard";
+import { getStatus, statusLabel } from "@/lib/status";
+
+// V4.1 UI-07: chữ trạng thái màn TV lấy từ lib/status.ts (viết HOA) — giữ nguyên
+// màu phát sáng riêng của giao diện TV nền tối.
+const tvLabel = (s: BoardStatus) => statusLabel("board", s).toLocaleUpperCase("vi-VN");
+const tvShort = (s: BoardStatus) => {
+  const d = getStatus("board", s);
+  return d.short ?? d.label;
+};
 
 /**
  * V3.8.1 — /board — Bảng thông báo sản xuất phong cách "departure board" sân bay.
@@ -25,32 +34,32 @@ const STATUS_META: Record<
   { label: string; dot: string; chip: string; bar: string; boarding?: boolean }
 > = {
   IN_PROGRESS: {
-    label: "ĐANG GIA CÔNG",
+    label: tvLabel("IN_PROGRESS"),
     dot: "bg-amber-400 shadow-[0_0_10px_2px_rgba(251,191,36,0.6)]",
     chip: "bg-amber-400/15 text-amber-300 ring-amber-400/40",
     bar: "from-amber-500 to-amber-300",
     boarding: true,
   },
   QC: {
-    label: "KIỂM TRA QC",
+    label: tvLabel("QC"),
     dot: "bg-cyan-400 shadow-[0_0_10px_2px_rgba(34,211,238,0.5)]",
     chip: "bg-cyan-400/15 text-cyan-300 ring-cyan-400/40",
     bar: "from-cyan-500 to-cyan-300",
   },
   QUEUED: {
-    label: "CHỜ SẢN XUẤT",
+    label: tvLabel("QUEUED"),
     dot: "bg-slate-400",
     chip: "bg-slate-400/10 text-slate-300 ring-slate-400/30",
     bar: "from-slate-500 to-slate-400",
   },
   COMPLETED: {
-    label: "HOÀN THÀNH",
+    label: tvLabel("COMPLETED"),
     dot: "bg-emerald-400",
     chip: "bg-emerald-400/15 text-emerald-300 ring-emerald-400/40",
     bar: "from-emerald-500 to-emerald-300",
   },
   DELIVERED: {
-    label: "ĐÃ GIAO",
+    label: tvLabel("DELIVERED"),
     dot: "bg-slate-500",
     chip: "bg-slate-500/10 text-slate-400 ring-slate-500/30",
     bar: "from-slate-600 to-slate-500",
@@ -169,9 +178,9 @@ export default function BoardPage() {
         <div className="flex items-center gap-8">
           {counts && (
             <div className="flex items-center gap-6">
-              <HeaderStat n={counts.IN_PROGRESS} label="Đang GC" tone="text-amber-300" />
-              <HeaderStat n={counts.QC} label="QC" tone="text-cyan-300" />
-              <HeaderStat n={counts.QUEUED} label="Chờ SX" tone="text-slate-300" />
+              <HeaderStat n={counts.IN_PROGRESS} label={tvShort("IN_PROGRESS")} tone="text-amber-300" />
+              <HeaderStat n={counts.QC} label={tvShort("QC")} tone="text-cyan-300" />
+              <HeaderStat n={counts.QUEUED} label={tvShort("QUEUED")} tone="text-slate-300" />
             </div>
           )}
           <div className="h-12 w-px bg-amber-400/20" />

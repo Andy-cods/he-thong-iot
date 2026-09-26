@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { actionLabel, entityLabel } from "@/lib/status";
 import {
   useOrderActivityLog,
   useUpdateProductionNotes,
@@ -26,32 +27,12 @@ interface OrderNotesSectionProps {
   readOnly?: boolean;
 }
 
-const ACTION_LABELS: Record<string, string> = {
-  CREATE: "Tạo",
-  UPDATE: "Cập nhật",
-  DELETE: "Xóa",
-  TRANSITION: "Chuyển trạng thái",
-  RESERVE: "Cấp phát",
-  ISSUE: "Xuất kho",
-  RECEIVE: "Nhận hàng",
-  APPROVE: "Phê duyệt",
-  CONVERT: "Chuyển đổi",
-  WO_START: "Bắt đầu WO",
-  WO_PAUSE: "Tạm dừng WO",
-  WO_RESUME: "Tiếp tục WO",
-  WO_COMPLETE: "Hoàn thành WO",
-  SNAPSHOT: "Snapshot",
-  RELEASE: "Release",
-  POST: "Post",
-  CANCEL: "Huỷ",
-};
-
-const OBJECT_TYPE_LABELS: Record<string, string> = {
-  sales_order: "Đơn hàng",
-  bom_snapshot_line: "Snapshot line",
-  work_order: "Work Order",
-  purchase_order: "PO",
-};
+// V4.1 UI-27: bỏ ACTION_LABELS / OBJECT_TYPE_LABELS cục bộ ("Snapshot", "Release",
+// "Post", "Work Order"…) — dùng actionLabel / entityLabel chung (lib/status.ts).
+function objectTypeLabel(code: string): string {
+  const v = entityLabel(code);
+  return v.charAt(0).toUpperCase() + v.slice(1);
+}
 
 export function OrderNotesSection({
   order,
@@ -188,9 +169,8 @@ export function OrderNotesSection({
           ) : (
             <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {activity.data.data.map((ev) => {
-                const actionLabel = ACTION_LABELS[ev.action] ?? ev.action;
-                const typeLabel =
-                  OBJECT_TYPE_LABELS[ev.objectType] ?? ev.objectType;
+                const actionText = actionLabel(ev.action);
+                const typeLabel = objectTypeLabel(ev.objectType);
                 return (
                   <li key={ev.id} className="px-4 py-2.5">
                     <div className="flex items-start gap-2">
@@ -210,7 +190,7 @@ export function OrderNotesSection({
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-1.5 text-[12px]">
                           <span className="font-medium text-zinc-900 dark:text-zinc-50">
-                            {actionLabel}
+                            {actionText}
                           </span>
                           <span className="text-zinc-400 dark:text-zinc-500">·</span>
                           <span className="text-zinc-600 dark:text-zinc-400">{typeLabel}</span>

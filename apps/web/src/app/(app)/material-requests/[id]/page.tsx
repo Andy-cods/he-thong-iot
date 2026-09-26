@@ -31,6 +31,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { GoodsIssuePanel } from "@/components/warehouse/GoodsIssuePanel";
 import { useSession } from "@/hooks/useSession";
 import { cn } from "@/lib/utils";
+import { StatusPill } from "@/components/ui/status-badge";
+import { useConfirm } from "@/components/ui/confirm-dialog";
+import { formatDateTime, formatQty } from "@/lib/format";
+import { statusLabel } from "@/lib/status";
 
 /**
  * V3.3 — Chi tiết phiếu yêu cầu vật tư.
@@ -95,23 +99,20 @@ interface DetailResp {
   };
 }
 
-const STATUS_PILL: Record<Status, { label: string; cls: string; dot: string; icon: React.ElementType }> = {
-  PENDING:   { label: "Chờ chuẩn bị",   cls: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800",    dot: "bg-amber-500 animate-pulse",  icon: Clock        },
-  PICKING:   { label: "Đang chuẩn bị",  cls: "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:ring-blue-800",        dot: "bg-blue-500 animate-pulse",   icon: Package      },
-  READY:     { label: "Đã sẵn sàng",    cls: "bg-violet-50 text-violet-700 ring-violet-200 dark:bg-violet-950/40 dark:text-violet-400 dark:ring-violet-800",  dot: "bg-violet-500",               icon: CheckCircle2 },
-  PARTIAL:   { label: "Giao một phần",  cls: "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:ring-sky-800",                  dot: "bg-sky-500",                  icon: PackageCheck },
-  DELIVERED: { label: "Đã giao",        cls: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800", dot: "bg-emerald-500",            icon: Truck        },
-  CANCELLED: { label: "Đã huỷ",         cls: "bg-zinc-100 text-zinc-500 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",       dot: "bg-zinc-400",                 icon: XCircle      },
+// V4.1 UI-07/08: nhãn + màu trạng thái từ lib/status.ts (domain "mr"); chỉ giữ icon riêng.
+const STATUS_ICON: Record<Status, React.ElementType> = {
+  PENDING: Clock,
+  PICKING: Package,
+  READY: CheckCircle2,
+  PARTIAL: PackageCheck,
+  DELIVERED: Truck,
+  CANCELLED: XCircle,
 };
 
 const ISSUABLE_STATUSES: Status[] = ["PENDING", "PICKING", "READY", "PARTIAL"];
 
-function fmtDateTime(at: string): string {
-  return new Date(at).toLocaleString("vi-VN", {
-    day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
-}
+// V4.1 UI-15: ngày giờ theo giờ VN qua lib/format.
+const fmtDateTime = (at: string) => formatDateTime(at);
 
 type TransitionInput = Status | { to: Status; warehouseNotes?: string | null };
 
@@ -128,6 +129,8 @@ export default function MaterialRequestDetailPage() {
   const canOpenWarehouse = roles.includes("admin") || roles.includes("warehouse");
   const [closeOpen, setCloseOpen] = React.useState(false);
   const [closeNote, setCloseNote] = React.useState("");
+  // V4.1 UX-01: hộp xác nhận dùng chung thay hộp thoại trình duyệt.
+  const askConfirm = useConfirm();
 
   const query = useQuery<DetailResp>({
     queryKey: ["material-request", id],
@@ -155,7 +158,7 @@ export default function MaterialRequestDetailPage() {
     },
     onSuccess: (_, input) => {
       const to = typeof input === "string" ? input : input.to;
-      toast.success(`Đã chuyển sang ${STATUS_PILL[to].label}`);
+      toast.success(`Đã chuyển sang ${statusLabel("mr", to)}`);
       setCloseOpen(false);
       qc.invalidateQueries({ queryKey: ["material-request", id] });
       qc.invalidateQueries({ queryKey: ["material-requests"] });
@@ -192,10 +195,7 @@ export default function MaterialRequestDetailPage() {
   const r = query.data.data;
   const deliveredAny = r.lines.some((l) => Number(l.deliveredQty) > 0);
   // Phiếu huỷ khi đã giao dở = "đóng phiếu" → nhãn rõ nghĩa hơn "Đã huỷ".
-  const cfg =
-    r.status === "CANCELLED" && deliveredAny
-      ? { ...STATUS_PILL.CANCELLED, label: "Đã đóng (giao một phần)" }
-      : STATUS_PILL[r.status] ?? STATUS_PILL.PENDING;
+  const closedPartial = r.status === "CANCELLED" && deliveredAny;
   const isRequester = session?.id === r.requestedBy;
   const issuable = ISSUABLE_STATUSES.includes(r.status);
   const canCancel =
@@ -241,13 +241,16 @@ export default function MaterialRequestDetailPage() {
               </p>
             </div>
           </div>
-          <span className={cn(
-            "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium ring-1 ring-inset",
-            cfg.cls,
-          )}>
-            <span className={cn("h-2 w-2 rounded-full", cfg.dot)} />
-            {cfg.label}
-          </span>
+          {closedPartial ? (
+            <StatusPill tone="neutral" label="Đã đóng (giao một phần)" icon={XCircle} size="md" />
+          ) : (
+            <StatusPill
+              domain="mr"
+              code={r.status}
+              icon={STATUS_ICON[r.status] ?? Clock}
+              size="md"
+            />
+          )}
         </div>
       </header>
 
@@ -280,7 +283,7 @@ export default function MaterialRequestDetailPage() {
                 <thead>
                   <tr className="border-b border-zinc-100 dark:border-zinc-800">
                     <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 w-12 dark:text-zinc-500">#</th>
-                    <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">SKU</th>
+                    <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Mã vật tư</th>
                     <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Tên</th>
                     <th className="px-5 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Yêu cầu</th>
                     <th className="px-5 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Đã giao</th>
@@ -304,14 +307,14 @@ export default function MaterialRequestDetailPage() {
                       </td>
                       <td className="px-5 py-3 text-sm text-zinc-700 dark:text-zinc-300">{l.itemName ?? "—"}</td>
                       <td className="px-5 py-3 text-right font-mono text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-                        {Number(l.requestedQty).toLocaleString("vi-VN")}
+                        {formatQty(l.requestedQty)}
                         {l.itemUom && <span className="ml-1 text-xs font-normal text-zinc-500 dark:text-zinc-400">{l.itemUom}</span>}
                       </td>
                       <td className="px-5 py-3 text-right font-mono text-sm text-emerald-700 dark:text-emerald-400">
-                        {Number(l.deliveredQty).toLocaleString("vi-VN")}
+                        {formatQty(l.deliveredQty)}
                       </td>
                       <td className="px-5 py-3 text-right font-mono text-sm text-zinc-700 dark:text-zinc-300">
-                        {Number(l.remainingQty).toLocaleString("vi-VN")}
+                        {formatQty(l.remainingQty)}
                       </td>
                       {issuable && (
                         <td
@@ -322,7 +325,7 @@ export default function MaterialRequestDetailPage() {
                               : "text-zinc-500 dark:text-zinc-400",
                           )}
                         >
-                          {Number(l.issuableQty).toLocaleString("vi-VN")}
+                          {formatQty(l.issuableQty)}
                         </td>
                       )}
                     </tr>
@@ -365,14 +368,14 @@ export default function MaterialRequestDetailPage() {
                         {gi.issuedByName ? ` · ${gi.issuedByName}` : ""}
                       </span>
                       <span className="ml-auto font-mono text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-                        {Number(gi.totalQty).toLocaleString("vi-VN")}
+                        {formatQty(gi.totalQty)}
                       </span>
                     </div>
                     <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
                       {gi.lines
                         .map(
                           (gl) =>
-                            `${gl.sku ?? "—"} · lô ${gl.lotCode ?? "—"} @ ${gl.binCode ?? "—"}: ${Number(gl.qty).toLocaleString("vi-VN")}`,
+                            `${gl.sku ?? "—"} · lô ${gl.lotCode ?? "—"} @ ${gl.binCode ?? "—"}: ${formatQty(gl.qty)}`,
                         )
                         .join("  |  ")}
                     </p>
@@ -441,9 +444,16 @@ export default function MaterialRequestDetailPage() {
                   variant="outline"
                   className="border-red-200 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/40"
                   onClick={() => {
-                    if (window.confirm(`Huỷ phiếu yêu cầu ${r.requestNo}?`)) {
-                      transition.mutate("CANCELLED");
-                    }
+                    void (async () => {
+                      const ok = await askConfirm({
+                        title: `Huỷ phiếu yêu cầu ${r.requestNo}?`,
+                        description: "Kho sẽ không chuẩn bị/giao phiếu này nữa.",
+                        tone: "danger",
+                        confirmLabel: "Huỷ phiếu",
+                        cancelLabel: "Không",
+                      });
+                      if (ok) transition.mutate("CANCELLED");
+                    })();
                   }}
                   disabled={transition.isPending}
                 >

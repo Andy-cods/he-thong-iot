@@ -541,7 +541,7 @@ export function BomLineSheet({
             <Section title="Thông tin chung">
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2 space-y-1">
-                  <Label>SKU</Label>
+                  <Label>Mã vật tư</Label>
                   <div className="flex h-9 items-center rounded-md border border-zinc-100 bg-zinc-50 px-3 font-mono text-[13px] text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
                     {sku}
                   </div>

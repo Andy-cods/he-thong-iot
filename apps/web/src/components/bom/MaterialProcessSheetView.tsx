@@ -3,11 +3,7 @@
 import * as React from "react";
 import { Plus, Trash2, Loader2, Beaker, Layers } from "lucide-react";
 import { toast } from "sonner";
-import {
-  MATERIAL_ROW_STATUSES,
-  MATERIAL_ROW_STATUS_LABELS,
-  type MaterialRowStatus,
-} from "@iot/shared";
+import { MATERIAL_ROW_STATUSES, type MaterialRowStatus } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -19,6 +15,8 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { TONE_CLASSES, getStatus, statusLabel } from "@/lib/status";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   useCreateMaterialRow,
   useCreateProcessRow,
@@ -52,13 +50,8 @@ interface MaterialProcessSheetViewProps {
   readOnly?: boolean;
 }
 
-const STATUS_BADGE_CLASS: Record<MaterialRowStatus, string> = {
-  PLANNED: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
-  ORDERED: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
-  DELIVERED: "bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300",
-  QC_PASS: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300",
-  CANCELLED: "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300",
-};
+// V4.1 UI-07: bỏ STATUS_BADGE_CLASS cục bộ ("Đã hủy" đỏ) — nhãn + màu ô chọn trạng
+// thái dòng vật liệu lấy từ lib/status.ts domain "materialRow" (Đã huỷ = xám).
 
 const PRICING_UNIT_LABEL: Record<string, string> = {
   HOUR: "đ/giờ",
@@ -93,6 +86,8 @@ function MaterialPanel({
   const create = useCreateMaterialRow(sheetId);
   const update = useUpdateMaterialRow(sheetId);
   const remove = useDeleteMaterialRow(sheetId);
+  // V4.1 UX-01: hộp xác nhận của hệ thống thay hộp thoại trình duyệt.
+  const askConfirm = useConfirm();
 
   const rows = list.data?.data ?? [];
 
@@ -125,12 +120,12 @@ function MaterialPanel({
   };
 
   const handleDelete = async (row: MaterialRowRecord) => {
-    if (
-      !confirm(
-        `Xoá dòng vật liệu "${row.materialCode ?? row.nameOverride ?? "(chưa đặt)"}"?`,
-      )
-    )
-      return;
+    const ok = await askConfirm({
+      title: `Xoá dòng vật liệu “${row.materialCode ?? row.nameOverride ?? "(chưa đặt)"}”?`,
+      tone: "danger",
+      confirmLabel: "Xoá",
+    });
+    if (!ok) return;
     try {
       await remove.mutateAsync(row.id);
     } catch (err) {
@@ -183,14 +178,14 @@ function MaterialPanel({
           <table className="w-full text-xs">
             <thead className="sticky top-0 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-800/60 dark:text-zinc-400">
               <tr>
-                <th className="px-2 py-1 text-left">Code</th>
+                <th className="px-2 py-1 text-left">Mã</th>
                 <th className="px-2 py-1 text-left">Tên / Mô tả</th>
                 <th className="px-2 py-1 text-left">Kích thước</th>
                 <th className="px-2 py-1 text-left">NCC</th>
                 <th className="px-2 py-1 text-right">Giá/kg</th>
                 <th className="px-2 py-1 text-right">Hao hụt %</th>
                 <th className="px-2 py-1 text-left">Ghi chú</th>
-                <th className="px-2 py-1 text-left">Status</th>
+                <th className="px-2 py-1 text-left">Trạng thái</th>
                 {!readOnly ? <th className="w-8 px-1 py-1" /> : null}
               </tr>
             </thead>
@@ -333,7 +328,8 @@ function MaterialPanel({
                         <SelectTrigger
                           className={cn(
                             "h-6 w-28 text-[11px]",
-                            STATUS_BADGE_CLASS[row.status],
+                            TONE_CLASSES[getStatus("materialRow", row.status).tone].pill,
+                            "ring-1 ring-inset",
                           )}
                         >
                           <SelectValue />
@@ -341,7 +337,7 @@ function MaterialPanel({
                         <SelectContent>
                           {MATERIAL_ROW_STATUSES.map((s) => (
                             <SelectItem key={s} value={s}>
-                              {MATERIAL_ROW_STATUS_LABELS[s]}
+                              {statusLabel("materialRow", s)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -383,6 +379,8 @@ function ProcessPanel({
   const create = useCreateProcessRow(sheetId);
   const update = useUpdateProcessRow(sheetId);
   const remove = useDeleteProcessRow(sheetId);
+  // V4.1 UX-01: hộp xác nhận của hệ thống thay hộp thoại trình duyệt.
+  const askConfirm = useConfirm();
 
   const rows = list.data?.data ?? [];
 
@@ -414,12 +412,12 @@ function ProcessPanel({
   };
 
   const handleDelete = async (row: ProcessRowRecord) => {
-    if (
-      !confirm(
-        `Xoá dòng quy trình "${row.processCode ?? row.nameOverride ?? "(chưa đặt)"}"?`,
-      )
-    )
-      return;
+    const ok = await askConfirm({
+      title: `Xoá dòng quy trình “${row.processCode ?? row.nameOverride ?? "(chưa đặt)"}”?`,
+      tone: "danger",
+      confirmLabel: "Xoá",
+    });
+    if (!ok) return;
     try {
       await remove.mutateAsync(row.id);
     } catch (err) {
@@ -472,7 +470,7 @@ function ProcessPanel({
           <table className="w-full text-xs">
             <thead className="sticky top-0 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-800/60 dark:text-zinc-400">
               <tr>
-                <th className="px-2 py-1 text-left">Code</th>
+                <th className="px-2 py-1 text-left">Mã</th>
                 <th className="px-2 py-1 text-left">Tên / Công đoạn</th>
                 <th className="px-2 py-1 text-left">Trạm / Máy</th>
                 <th className="px-2 py-1 text-right">Thời gian (phút)</th>

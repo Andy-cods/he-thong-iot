@@ -35,6 +35,7 @@ export type BadgeStatus =
   // V2 semantic variants
   | "neutral"
   | "info"
+  | "progress"
   | "success"
   | "warning"
   | "danger"
@@ -83,10 +84,16 @@ const STATUS_MAP: Record<BadgeStatus, StatusMeta> = {
     icon: Circle,
     color: "bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700",
   },
+  // V4.1 UI-07: info = sky (tách bạch với progress = indigo thương hiệu), khớp lib/status TONE_CLASSES.
   info: {
     defaultLabel: "Thông tin",
     icon: CircleDot,
-    color: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800",
+    color: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-800",
+  },
+  progress: {
+    defaultLabel: "Đang xử lý",
+    icon: Clock,
+    color: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800",
   },
   success: {
     defaultLabel: "Thành công",
@@ -161,12 +168,12 @@ const STATUS_MAP: Record<BadgeStatus, StatusMeta> = {
   },
   // V1 legacy aliases → map sang V2 semantic
   active: {
-    defaultLabel: "Hoạt động",
+    defaultLabel: "Đang dùng", // V4.1 UI-08: thống nhất với lib/status
     icon: CircleDot,
     color: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800",
   },
   inactive: {
-    defaultLabel: "Ngưng",
+    defaultLabel: "Ngừng dùng",
     icon: CircleOff,
     color: "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700",
   },
@@ -201,12 +208,12 @@ const STATUS_MAP: Record<BadgeStatus, StatusMeta> = {
     color: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800",
   },
   pass: {
-    defaultLabel: "PASS",
+    defaultLabel: "Đạt",
     icon: CheckCircle2,
     color: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800",
   },
   fail: {
-    defaultLabel: "FAIL",
+    defaultLabel: "Không đạt",
     icon: XCircle,
     color: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800",
   },

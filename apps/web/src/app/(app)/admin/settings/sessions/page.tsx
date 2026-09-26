@@ -23,30 +23,15 @@ import {
 } from "@/hooks/useSessions";
 import { parseUserAgent } from "@/lib/user-agent";
 import { cn } from "@/lib/utils";
+import { formatDateTime, formatRelative } from "@/lib/format";
 
+// V4.1 UI-15: thời gian tương đối + tuyệt đối qua lib/format (giờ VN).
 function fmtRelative(iso: string | null): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  const diff = Date.now() - d.getTime();
-  if (Number.isNaN(diff)) return iso;
-  const min = Math.floor(diff / 60_000);
-  if (min < 1) return "vài giây trước";
-  if (min < 60) return `${min} phút trước`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr} giờ trước`;
-  const day = Math.floor(hr / 24);
-  if (day < 7) return `${day} ngày trước`;
-  return d.toLocaleDateString("vi-VN");
+  return formatRelative(iso, { justNow: "vài giây trước" });
 }
 
 function fmtAbs(iso: string): string {
-  return new Date(iso).toLocaleString("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatDateTime(iso);
 }
 
 export default function SessionsPage() {
@@ -96,7 +81,7 @@ export default function SessionsPage() {
   return (
     <AdminPageShell
       breadcrumb={[
-        { label: "Trang chủ", href: "/" },
+        { label: "Tổng quan", href: "/" },
         { label: "Quản trị", href: "/admin" },
         { label: "Cài đặt", href: "/admin/settings" },
         { label: "Phiên đăng nhập" },

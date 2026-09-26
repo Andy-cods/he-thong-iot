@@ -30,6 +30,9 @@ import {
 import { useSession } from "@/hooks/useSession";
 import { isSelfAdminDemotion } from "@/lib/admin-guards";
 import { cn } from "@/lib/utils";
+import { StatusPill } from "@/components/ui/status-badge";
+import { formatDateTime } from "@/lib/format";
+import { actionLabel, activeStatusCode, entityLabel, statusLabel } from "@/lib/status";
 
 const ROLE_BADGE: Record<Role, string> = {
   admin: "bg-violet-50 text-violet-700 ring-violet-200 dark:bg-violet-950/40 dark:text-violet-400 dark:ring-violet-800",
@@ -52,16 +55,9 @@ const ACTION_COLORS: Record<string, string> = {
   LOGOUT: "bg-zinc-100 text-zinc-600 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",
 };
 
+// V4.1 UI-15: giờ VN qua lib/format.
 function fmtTime(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatDateTime(iso);
 }
 
 export default function AdminUserDetailPage({
@@ -102,7 +98,7 @@ export default function AdminUserDetailPage({
     return (
       <AdminPageShell
         breadcrumb={[
-          { label: "Trang chủ", href: "/" },
+          { label: "Tổng quan", href: "/" },
           { label: "Quản trị", href: "/admin" },
           { label: "Người dùng", href: "/admin/users" },
           { label: "Đang tải…" },
@@ -120,7 +116,7 @@ export default function AdminUserDetailPage({
     return (
       <AdminPageShell
         breadcrumb={[
-          { label: "Trang chủ", href: "/" },
+          { label: "Tổng quan", href: "/" },
           { label: "Quản trị", href: "/admin" },
           { label: "Người dùng", href: "/admin/users" },
           { label: "Lỗi" },
@@ -202,7 +198,7 @@ export default function AdminUserDetailPage({
   return (
     <AdminPageShell
       breadcrumb={[
-        { label: "Trang chủ", href: "/" },
+        { label: "Tổng quan", href: "/" },
         { label: "Quản trị", href: "/admin" },
         { label: "Người dùng", href: "/admin/users" },
         { label: user.fullName },
@@ -213,23 +209,8 @@ export default function AdminUserDetailPage({
           <code className="font-mono text-xs text-zinc-700 dark:text-zinc-300">
             {user.username}
           </code>
-          <span
-            className={cn(
-              "inline-flex h-5 items-center gap-1 rounded-full px-1.5 text-xs font-semibold uppercase ring-1 ring-inset",
-              user.isActive
-                ? "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800"
-                : "bg-zinc-100 text-zinc-500 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",
-            )}
-          >
-            <span
-              className={cn(
-                "h-1.5 w-1.5 rounded-full",
-                user.isActive ? "bg-emerald-500" : "bg-zinc-400",
-              )}
-              aria-hidden="true"
-            />
-            {user.isActive ? "Active" : "Disabled"}
-          </span>
+          {/* V4.1 UI-07/08: "Hoạt động" / "Vô hiệu hoá" từ lib/status.ts. */}
+          <StatusPill domain="user" code={activeStatusCode(user.isActive)} dot />
           {user.roles.map((r) => (
             <span
               key={r}
@@ -257,7 +238,7 @@ export default function AdminUserDetailPage({
               onSelect={() => setResetPwOpen(true)}
             >
               <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
-              Reset mật khẩu
+              Đặt lại mật khẩu
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
@@ -306,7 +287,7 @@ export default function AdminUserDetailPage({
                 <div className="flex items-center justify-between">
                   <dt className="text-zinc-500 dark:text-zinc-400">Vai trò</dt>
                   <dd className="font-medium text-zinc-700 dark:text-zinc-300">
-                    {user.roles.length} role
+                    {user.roles.length} vai trò
                   </dd>
                 </div>
                 <div className="flex items-center justify-between">
@@ -317,7 +298,7 @@ export default function AdminUserDetailPage({
                       user.isActive ? "text-emerald-700 dark:text-emerald-400" : "text-zinc-500 dark:text-zinc-400",
                     )}
                   >
-                    {user.isActive ? "Đang hoạt động" : "Vô hiệu hoá"}
+                    {statusLabel("user", activeStatusCode(user.isActive))}
                   </dd>
                 </div>
               </dl>
@@ -352,7 +333,7 @@ export default function AdminUserDetailPage({
                       Tài khoản đang hoạt động
                     </span>
                     <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                      Bỏ tick sẽ chặn user đăng nhập — tương đương &quot;Vô hiệu
+                      Bỏ tick sẽ chặn người dùng đăng nhập — tương đương &quot;Vô hiệu
                       hoá&quot;.
                     </p>
                   </div>
@@ -413,21 +394,22 @@ export default function AdminUserDetailPage({
                 {auditQuery.data!.data.map((ev) => (
                   <li
                     key={ev.id}
-                    className="grid min-h-[40px] grid-cols-[170px,90px,1fr,1fr] items-center gap-3 px-4 py-2 text-xs transition-colors hover:bg-zinc-50/70 dark:hover:bg-zinc-800/60"
+                    className="grid min-h-[40px] grid-cols-[130px,110px,1fr,1fr] items-center gap-3 px-4 py-2 text-xs transition-colors hover:bg-zinc-50/70 dark:hover:bg-zinc-800/60"
                   >
-                    <span className="font-mono text-[11px] text-zinc-500 tabular-nums dark:text-zinc-400">
+                    <span className="text-[11px] text-zinc-500 tabular-nums dark:text-zinc-400">
                       {fmtTime(ev.occurredAt)}
                     </span>
                     <span
                       className={cn(
-                        "inline-flex h-5 w-fit items-center justify-center rounded-full px-1.5 font-mono text-xs font-semibold uppercase ring-1 ring-inset",
+                        "inline-flex h-5 w-fit max-w-full items-center justify-center truncate whitespace-nowrap rounded-full px-1.5 text-xs font-semibold ring-1 ring-inset",
                         ACTION_COLORS[ev.action] ?? ACTION_COLORS.UPDATE,
                       )}
+                      title={ev.action}
                     >
-                      {ev.action}
+                      {actionLabel(ev.action)}
                     </span>
                     <span className="truncate text-zinc-700 dark:text-zinc-300">
-                      {ev.objectType}
+                      {entityLabel(ev.objectType)}
                       {ev.objectId ? (
                         <code className="ml-1 font-mono text-xs text-zinc-400 dark:text-zinc-500">
                           #{ev.objectId.slice(0, 8)}

@@ -15,7 +15,9 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
+import { formatDateTime, formatQty } from "@/lib/format";
 
 /**
  * V4.1 Đợt 1b (Q3) — Tab Kho › "Phiếu xuất kho".
@@ -88,19 +90,9 @@ interface ListResp {
 
 const PAGE_SIZE = 30;
 
-function fmtDateTime(at: string): string {
-  return new Date(at).toLocaleString("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function fmtQty(v: string | number): string {
-  return Number(v).toLocaleString("vi-VN");
-}
+// V4.1 UI-14/15: bỏ fmtDateTime/fmtQty cục bộ → formatDateTime (giờ VN) / formatQty.
+const fmtDateTime = (at: string) => formatDateTime(at);
+const fmtQty = (v: string | number) => formatQty(v);
 
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url, { credentials: "include" });
@@ -292,9 +284,12 @@ export function GoodsIssuesTab() {
           </Button>
         </div>
       ) : rows.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-zinc-300 p-8 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-          {hasFilter ? "Không có phiếu xuất khớp bộ lọc." : "Chưa có phiếu xuất kho nào."}
-        </div>
+        // V4.1: empty-state chuẩn (thay khung viền đứt riêng của trang).
+        <EmptyState
+          preset={hasFilter ? "no-filter-match" : "no-data"}
+          title={hasFilter ? "Không có phiếu xuất khớp bộ lọc" : "Chưa có phiếu xuất kho nào"}
+          className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+        />
       ) : (
         <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
           <table className="w-full min-w-[820px] text-sm">

@@ -5,20 +5,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import type { AuditRow } from "@/hooks/useAdmin";
 import { QueryError } from "@/components/ui/query-error";
-import { AUDIT_ACTION_OPTIONS } from "@/lib/audit-scope";
+import { formatDateTime } from "@/lib/format";
+import { actionLabel } from "@/lib/status";
 
-const ACTION_LABEL = new Map(AUDIT_ACTION_OPTIONS.map((a) => [a.code, a.label]));
-
+// V4.1 UI-15/27: giờ VN + nhãn hành động từ lib/status.ts (ACTION_LABELS).
 function fmt(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatDateTime(iso);
 }
 
 /**
@@ -80,14 +72,14 @@ export function ObjectAuditList({
     <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
       {rows.map((a) => (
         <li key={a.id} className="flex flex-wrap items-start gap-x-3 gap-y-0.5 px-5 py-3 text-sm">
-          <span className="whitespace-nowrap font-mono text-xs text-zinc-500 dark:text-zinc-400">
+          <span className="whitespace-nowrap text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
             {fmt(a.occurredAt)}
           </span>
           <span className="font-medium text-zinc-900 dark:text-zinc-50">
             {a.actorUsername ?? "hệ thống"}
           </span>
           <span className="text-zinc-700 dark:text-zinc-300">
-            {ACTION_LABEL.get(a.action) ?? a.action}
+            {actionLabel(a.action)}
           </span>
           {a.notes ? (
             <span className="w-full text-xs text-zinc-500 dark:text-zinc-400">{a.notes}</span>

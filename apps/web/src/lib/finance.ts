@@ -7,15 +7,16 @@
  * - Ngày theo giờ Việt Nam (TC-13) + định dạng tiền đủ số.
  */
 
+import { formatMoney } from "@/lib/format";
+
 export type FinDir = "IN" | "OUT";
 
-/** Tiền đủ số, không rút gọn: 12.500.000 ₫ (âm giữ dấu −). */
+/**
+ * Tiền đủ số, không rút gọn: 12.500.000 ₫ (âm giữ dấu −).
+ * V4.1 UI-13 (Đợt 6B): gộp về `formatMoney` (lib/format) — cùng kết quả.
+ */
 export function formatVndFull(n: number | string | null | undefined): string {
-  const v = typeof n === "string" ? Number(n) : (n ?? 0);
-  if (!Number.isFinite(v)) return "0 ₫";
-  const rounded = Math.round(v);
-  const abs = Math.abs(rounded).toLocaleString("vi-VN");
-  return `${rounded < 0 ? "−" : ""}${abs} ₫`;
+  return formatMoney(n);
 }
 
 /** Số dư nguồn sau khi ghi 1 phiếu: thu cộng, chi trừ. */

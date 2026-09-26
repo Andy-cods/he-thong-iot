@@ -4,38 +4,23 @@ import * as React from "react";
 import Link from "next/link";
 import { ArrowUpRight, Plus } from "lucide-react";
 import {
-  SALES_ORDER_STATUS_LABELS,
   can,
   type SalesOrderStatus,
 } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatusPill } from "@/components/ui/status-badge";
 import { QueryError } from "@/components/ui/query-error";
 import { useOrdersList } from "@/hooks/useOrders";
 import { formatDate, formatNumber } from "@/lib/format";
-import { cn } from "@/lib/utils";
 import { CreateOrderDialog } from "../CreateOrderDialog";
 import { useSession } from "@/hooks/useSession";
 
 /* ── Status badge ─────────────────────────────────────────────────────────── */
-const ORDER_STATUS_STYLE: Record<SalesOrderStatus, { label: string; cls: string }> = {
-  DRAFT:        { label: "Nháp",        cls: "bg-zinc-100 text-zinc-600 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700" },
-  CONFIRMED:    { label: "Xác nhận",    cls: "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:ring-blue-800" },
-  SNAPSHOTTED:  { label: "Đã snapshot", cls: "bg-violet-50 text-violet-700 ring-violet-200 dark:bg-violet-950/40 dark:text-violet-400 dark:ring-violet-800" },
-  IN_PROGRESS:  { label: "Đang SX",     cls: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800" },
-  FULFILLED:    { label: "Hoàn thành",  cls: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800" },
-  CLOSED:       { label: "Đóng",        cls: "bg-zinc-100 text-zinc-500 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-500 dark:ring-zinc-700" },
-  CANCELLED:    { label: "Huỷ",         cls: "bg-red-50 text-red-600 ring-red-200 dark:bg-red-950/40 dark:text-red-400 dark:ring-red-800" },
-};
-
+// V4.1 UI-07: bỏ ORDER_STATUS_STYLE cục bộ ("Huỷ" đỏ, "Đã snapshot") — nhãn + tông
+// lấy từ lib/status.ts domain "salesOrder".
 function OrderStatusBadge({ status }: { status: SalesOrderStatus }) {
-  const s = ORDER_STATUS_STYLE[status] ?? { label: status, cls: "bg-zinc-100 text-zinc-600 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700" };
-  return (
-    <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset", s.cls)}>
-      <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" aria-hidden />
-      {s.label}
-    </span>
-  );
+  return <StatusPill domain="salesOrder" code={status} dot />;
 }
 
 /* ── Component ────────────────────────────────────────────────────────────── */

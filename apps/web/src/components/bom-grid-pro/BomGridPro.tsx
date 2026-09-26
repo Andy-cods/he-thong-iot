@@ -1358,7 +1358,7 @@ export function BomGridPro({
         title={`Xoá "${deleteTarget?.node.componentSku ?? ""}"?`}
         description={
           deleteTarget?.childCount
-            ? `Dòng này có ${deleteTarget.childCount} linh kiện con. Tất cả sẽ bị xoá cascade. Gõ "XOA" để xác nhận.`
+            ? `Dòng này có ${deleteTarget.childCount} linh kiện con. Các linh kiện con cũng bị xoá theo. Gõ "XOA" để xác nhận.`
             : `Xoá dòng linh kiện này? Gõ "XOA" để xác nhận.`
         }
         confirmText="XOA"

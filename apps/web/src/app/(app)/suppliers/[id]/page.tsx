@@ -34,6 +34,9 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/domain/StatusBadge";
+import { StatusPill } from "@/components/ui/status-badge";
+import { formatDate as fmtDateVN, formatMoney } from "@/lib/format";
+import { activeStatusCode, getStatus, statusLabel } from "@/lib/status";
 import { SupplierForm } from "@/components/suppliers/SupplierForm";
 import {
   useDeleteSupplier,
@@ -48,23 +51,13 @@ import {
 
 type TabKey = "info" | "items" | "stats";
 
+// V4.1 UI-13/15: định dạng qua lib/format (tiền "1.234 ₫", ngày dd/MM/yyyy giờ VN).
 function formatVnd(n: number | string | null | undefined): string {
-  const v = typeof n === "string" ? Number(n) : (n ?? 0);
-  if (!Number.isFinite(v)) return "0 ₫";
-  return new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-    maximumFractionDigits: 0,
-  }).format(v);
+  return formatMoney(n);
 }
 
 function formatDate(s: string | null | undefined): string {
-  if (!s) return "—";
-  try {
-    return new Date(s).toLocaleDateString("vi-VN");
-  } catch {
-    return s;
-  }
+  return fmtDateVN(s, "dd/MM/yyyy");
 }
 
 export default function SupplierDetailPage() {
@@ -150,10 +143,11 @@ export default function SupplierDetailPage() {
             <h1 className="min-w-0 break-words text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
               {supplier.name}
             </h1>
-            <StatusBadge
-              status={supplier.isActive ? "active" : "inactive"}
-              size="sm"
-            />
+            {/* V4.1 UI-07/08: "Đang dùng" / "Ngừng dùng" từ lib/status. */}
+            {(() => {
+              const st = getStatus("supplier", activeStatusCode(supplier.isActive));
+              return <StatusBadge status={st.tone} label={st.label} size="sm" />;
+            })()}
             {supplier.region ? (
               <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400">
                 <MapPin className="h-3 w-3" aria-hidden="true" />
@@ -186,7 +180,7 @@ export default function SupplierDetailPage() {
               disabled={!supplier.isActive}
             >
               <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-              {supplier.isActive ? "Ngưng hoạt động" : "Đã ngưng"}
+              {supplier.isActive ? "Ngừng dùng" : statusLabel("supplier", "INACTIVE")}
             </Button>
           ) : null}
         </div>
@@ -307,14 +301,14 @@ export default function SupplierDetailPage() {
       <DialogConfirm
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        title={`Ngưng hoạt động NCC "${supplier.code}"?`}
+        title={`Ngừng dùng NCC "${supplier.code}"?`}
         description="NCC sẽ bị ẩn khỏi danh sách mặc định."
-        actionLabel="Ngưng hoạt động"
+        actionLabel="Ngừng dùng"
         loading={del.isPending}
         onConfirm={async () => {
           try {
             await del.mutateAsync(supplier.id);
-            toast.success(`Đã ngưng NCC ${supplier.code}.`);
+            toast.success(`Đã ngừng dùng NCC ${supplier.code}.`);
             setDeleteOpen(false);
             router.push("/suppliers");
           } catch (err) {
@@ -570,7 +564,7 @@ function ItemsTab({
       {/* KPI mini */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <MiniKpi
-          label="Tổng items cung cấp"
+          label="Tổng vật tư cung cấp"
           value={total.toLocaleString("vi-VN")}
           icon={<Package className="h-4 w-4" />}
         />
@@ -585,7 +579,7 @@ function ItemsTab({
       <div className="flex flex-wrap items-center gap-2">
         <Input
           size="sm"
-          placeholder="Tìm SKU / tên vật tư"
+          placeholder="Tìm mã / tên vật tư"
           value={search}
           onChange={(e) => onSearch(e.target.value)}
           className="w-[280px]"
@@ -628,10 +622,10 @@ function ItemsTab({
           <table className="min-w-full border-collapse text-base">
             <thead className="bg-zinc-50 dark:bg-zinc-800/60">
               <tr className="text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                <th className="h-8 px-3 w-[140px]">SKU</th>
+                <th className="h-8 px-3 w-[140px]">Mã vật tư</th>
                 <th className="h-8 px-3">Tên</th>
                 <th className="h-8 px-3 w-[120px]">Nhóm</th>
-                <th className="h-8 px-3 w-[100px]">Lead time</th>
+                <th className="h-8 px-3 w-[100px]">Thời gian giao</th>
                 <th className="h-8 px-3 w-[140px] text-right">Giá tham khảo</th>
                 <th className="h-8 px-3 w-[60px]" />
               </tr>
@@ -720,12 +714,12 @@ function StatsTab({ supplierId }: { supplierId: string }) {
           icon={<TrendingUp className="h-4 w-4" />}
         />
         <MiniKpi
-          label="Chi tiêu YTD"
+          label="Chi tiêu từ đầu năm"
           value={formatVnd(d.ytdSpend)}
           sublabel={`${d.ytdPoCount} PO năm nay`}
         />
         <MiniKpi
-          label="Lead time trung bình"
+          label="Thời gian giao TB"
           value={`${d.avgLeadTimeDays.toFixed(1)} ngày`}
         />
         <MiniKpi
@@ -758,7 +752,7 @@ function StatsTab({ supplierId }: { supplierId: string }) {
             <table className="min-w-full border-collapse text-base">
               <thead className="bg-zinc-50 dark:bg-zinc-800/60">
                 <tr className="text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                  <th className="h-8 px-3 w-[140px]">SKU</th>
+                  <th className="h-8 px-3 w-[140px]">Mã vật tư</th>
                   <th className="h-8 px-3">Tên</th>
                   <th className="h-8 px-3 w-[80px] text-right">PO</th>
                   <th className="h-8 px-3 w-[120px] text-right">Tổng SL</th>
@@ -816,10 +810,10 @@ function StatsTab({ supplierId }: { supplierId: string }) {
             <table className="min-w-full border-collapse text-base">
               <thead className="bg-zinc-50 dark:bg-zinc-800/60">
                 <tr className="text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                  <th className="h-8 px-3 w-[160px]">PO No</th>
+                  <th className="h-8 px-3 w-[160px]">Số PO</th>
                   <th className="h-8 px-3 w-[120px]">Trạng thái</th>
                   <th className="h-8 px-3 w-[120px]">Ngày đặt</th>
-                  <th className="h-8 px-3 w-[120px]">ETA</th>
+                  <th className="h-8 px-3 w-[120px]">Ngày dự kiến</th>
                   <th className="h-8 px-3 w-[160px] text-right">Giá trị</th>
                 </tr>
               </thead>
@@ -836,9 +830,8 @@ function StatsTab({ supplierId }: { supplierId: string }) {
                       {po.poNo}
                     </td>
                     <td className="px-3">
-                      <span className="inline-flex whitespace-nowrap items-center rounded bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                        {po.status}
-                      </span>
+                      {/* V4.1 UI-07: trước hiện mã thô "SENT"/"RECEIVED". */}
+                      <StatusPill domain="po" code={po.status} />
                     </td>
                     <td className="px-3 text-zinc-600 dark:text-zinc-400">
                       {formatDate(po.orderDate)}

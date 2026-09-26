@@ -486,7 +486,7 @@ export default function NewLsxPage() {
                   rows={2}
                   value={technicalRequirements}
                   onChange={(e) => setTechnicalRequirements(e.target.value)}
-                  placeholder="Tolerance, độ bóng, vật liệu..."
+                  placeholder="Dung sai, độ bóng, vật liệu..."
                 />
               </div>
             </div>

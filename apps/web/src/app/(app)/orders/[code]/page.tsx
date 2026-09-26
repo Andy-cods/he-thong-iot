@@ -16,10 +16,8 @@ import {
   BOM_SNAPSHOT_STATES,
   BOM_SNAPSHOT_STATE_LABELS,
   BOM_SNAPSHOT_STATE_TONES,
-  SALES_ORDER_STATUS_LABELS,
   type BomSnapshotState,
   type OrderCreate,
-  type SalesOrderStatus,
 } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
@@ -31,7 +29,6 @@ import {
 } from "@/components/ui/tabs";
 import {
   StatusBadge,
-  type BadgeStatus,
 } from "@/components/domain/StatusBadge";
 import {
   Dialog,
@@ -74,31 +71,13 @@ import {
   useUpdateOrder,
 } from "@/hooks/useOrders";
 import { cn } from "@/lib/utils";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatQty } from "@/lib/format";
+import { getStatus } from "@/lib/status";
 
 export const dynamic = "force-dynamic";
 
-function statusToBadge(status: SalesOrderStatus): {
-  badgeStatus: BadgeStatus;
-  label: string;
-} {
-  const label = SALES_ORDER_STATUS_LABELS[status];
-  switch (status) {
-    case "DRAFT":
-      return { badgeStatus: "draft", label };
-    case "CONFIRMED":
-    case "SNAPSHOTTED":
-      return { badgeStatus: "info", label };
-    case "IN_PROGRESS":
-      return { badgeStatus: "pending", label };
-    case "FULFILLED":
-      return { badgeStatus: "success", label };
-    case "CLOSED":
-      return { badgeStatus: "inactive", label };
-    case "CANCELLED":
-      return { badgeStatus: "danger", label };
-  }
-}
+// V4.1 UI-07: bỏ statusToBadge cục bộ ("Đã huỷ" đỏ) — badge đơn hàng lấy từ
+// lib/status.ts domain "salesOrder" (Đã huỷ = xám).
 
 /**
  * V1.2 `/orders/[code]` detail — replace V1.1-alpha stub mock.
@@ -204,7 +183,7 @@ export default function OrderDetailPage({
   }
 
   const order = query.data.data;
-  const badge = statusToBadge(order.status);
+  const badge = getStatus("salesOrder", order.status);
   const canEdit = order.status === "DRAFT";
   const canClose = order.status === "FULFILLED";
   const canReopen = order.status === "CLOSED";
@@ -271,7 +250,7 @@ export default function OrderDetailPage({
               />
               <span className="font-mono">{order.orderNo}</span>
               <StatusBadge
-                status={badge.badgeStatus}
+                status={badge.tone}
                 size="sm"
                 label={badge.label}
               />
@@ -281,12 +260,12 @@ export default function OrderDetailPage({
               {" · "}
               SL:{" "}
               <span className="tabular-nums text-zinc-900 dark:text-zinc-50">
-                {Number(order.orderQty).toLocaleString("vi-VN")}
+                {formatQty(order.orderQty)}
               </span>
               {order.dueDate && (
                 <>
                   {" · "}
-                  Deadline:{" "}
+                  Hạn giao:{" "}
                   <span className="tabular-nums text-zinc-900 dark:text-zinc-50">
                     {formatDate(order.dueDate, "dd/MM/yyyy")}
                   </span>
@@ -341,7 +320,7 @@ export default function OrderDetailPage({
         >
           <TabsList>
             <TabsTrigger value="info">Thông tin</TabsTrigger>
-            <TabsTrigger value="snapshot">Snapshot Board</TabsTrigger>
+            <TabsTrigger value="snapshot">Bản chốt BOM</TabsTrigger>
             <TabsTrigger value="production">Sản xuất</TabsTrigger>
             <TabsTrigger value="shortage">Thiếu vật tư</TabsTrigger>
             <TabsTrigger value="audit">Lịch sử</TabsTrigger>
@@ -398,12 +377,12 @@ export default function OrderDetailPage({
             {snapshotTotal === 0 && !snapshotSummaryQuery.isLoading ? (
               <EmptyState
                 preset="no-data"
-                title="Chưa có snapshot"
-                description="Explode từ một BOM revision để sinh snapshot lines cho đơn hàng này."
+                title="Chưa chốt BOM"
+                description="Chốt BOM từ một bản phát hành để sinh các dòng vật tư cho đơn hàng này."
                 actions={
                   <Button size="sm" onClick={() => setExplodeOpen(true)}>
                     <Zap className="h-3.5 w-3.5" aria-hidden="true" />
-                    Explode snapshot
+                    Chốt BOM
                   </Button>
                 }
               />
@@ -622,7 +601,7 @@ function SnapshotSummaryHeader({
                 active && "ring-2 ring-blue-500 ring-offset-1",
               )}
               aria-pressed={active}
-              title={`Filter ${BOM_SNAPSHOT_STATE_LABELS[s]}`}
+              title={`Lọc: ${BOM_SNAPSHOT_STATE_LABELS[s]}`}
             >
               <span>{BOM_SNAPSHOT_STATE_LABELS[s]}</span>
               <span className="tabular-nums">{count}</span>
@@ -635,10 +614,10 @@ function SnapshotSummaryHeader({
         size="sm"
         onClick={onRefresh}
         className="ml-auto text-xs"
-        title="Explode lại (nếu cần refresh)"
+        title="Chốt BOM lại (khi cần làm mới)"
       >
         <Zap className="h-3.5 w-3.5" aria-hidden="true" />
-        Explode...
+        Chốt lại…
       </Button>
     </div>
   );

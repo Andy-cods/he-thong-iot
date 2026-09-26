@@ -23,6 +23,9 @@ import {
   type QcPendingRow,
 } from "@/hooks/useInboundQc";
 import { cn } from "@/lib/utils";
+import { StatusPill } from "@/components/ui/status-badge";
+import { formatDateTime, formatQty } from "@/lib/format";
+import { statusLabel } from "@/lib/status";
 
 /**
  * V4.1 Đợt 1a — `<QcPendingView>` màn "Chờ QC nhập kho".
@@ -33,24 +36,16 @@ import { cn } from "@/lib/utils";
  * Kho (chỉ `read`) xem được để biết hàng nào đang bị giữ.
  */
 
+// V4.1 UI-07/08: nhãn QC lấy từ lib/status.ts (domain "receiptQc"; API trả FAIL = NG).
 const FILTERS: Array<{ value: QcFilter; label: string }> = [
-  { value: "PENDING", label: "Chờ kiểm" },
-  { value: "FAIL", label: "Không đạt" },
+  { value: "PENDING", label: statusLabel("receiptQc", "PENDING") },
+  { value: "FAIL", label: statusLabel("receiptQc", "NG") },
   { value: "ALL", label: "Tất cả" },
 ];
 
+// V4.1 UI-15: ngày giờ qua formatDateTime chung (giờ VN).
 function fmtDate(iso: string | null): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString("vi-VN", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatDateTime(iso);
 }
 
 export function QcPendingView({ className }: { className?: string }) {
@@ -215,7 +210,7 @@ export function QcPendingView({ className }: { className?: string }) {
                       </div>
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums">
-                      {r.receivedQty.toLocaleString("vi-VN")}{" "}
+                      {formatQty(r.receivedQty)}{" "}
                       <span className="text-[11px] text-zinc-500">{r.uom}</span>
                     </td>
                     <td className="px-3 py-2 text-xs">
@@ -233,10 +228,7 @@ export function QcPendingView({ className }: { className?: string }) {
                     <td className="px-3 py-2 text-xs">
                       {r.qcStatus === "FAIL" ? (
                         <>
-                          <span className="inline-flex whitespace-nowrap items-center gap-1 rounded bg-red-100 px-1.5 py-0.5 font-medium text-red-700 dark:bg-red-950/40 dark:text-red-400">
-                            <XCircle className="h-3 w-3" aria-hidden />
-                            Không đạt
-                          </span>
+                          <StatusPill domain="receiptQc" code="NG" icon={XCircle} />
                           {r.qcNotes ? (
                             <div className="mt-1 max-w-[14rem] text-[11px] text-zinc-600 dark:text-zinc-400">
                               {r.qcNotes}
@@ -249,9 +241,7 @@ export function QcPendingView({ className }: { className?: string }) {
                           ) : null}
                         </>
                       ) : (
-                        <span className="inline-flex whitespace-nowrap items-center rounded bg-amber-100 px-1.5 py-0.5 font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
-                          Chờ kiểm
-                        </span>
+                        <StatusPill domain="receiptQc" code="PENDING" />
                       )}
                     </td>
                     <td className="px-3 py-2 text-right">
@@ -301,7 +291,7 @@ export function QcPendingView({ className }: { className?: string }) {
               {dialog ? (
                 <>
                   <code className="font-mono">{dialog.row.sku}</code> · SL{" "}
-                  {dialog.row.receivedQty.toLocaleString("vi-VN")} {dialog.row.uom}
+                  {formatQty(dialog.row.receivedQty, dialog.row.uom)}
                   {dialog.row.lotCode ? ` · lô ${dialog.row.lotCode}` : ""} ·{" "}
                   {dialog.row.receiptNo}
                 </>

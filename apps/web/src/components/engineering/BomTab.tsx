@@ -40,6 +40,10 @@ import {
 } from "@/hooks/use-selection";
 import type { BomFilter, ItemFilter } from "@/lib/query-keys";
 import { useHotkey } from "@/lib/shortcuts";
+import { statusLabel } from "@/lib/status";
+
+// V4.1 UI-27: câu xác nhận dùng nhãn tiếng Việt thay mã thô OBSOLETE.
+const OBSOLETE_LABEL = statusLabel("bom", "OBSOLETE");
 
 const VIEW_MODES = ["table", "card"] as const;
 const SORT_KEYS = [
@@ -559,7 +563,7 @@ export function BomTab() {
         open={bulkDeleteOpen}
         onOpenChange={setBulkDeleteOpen}
         title={`Xoá ${selCount} BOM?`}
-        description={`BOM sẽ chuyển sang trạng thái OBSOLETE (soft-delete). Gõ "XOA" để xác nhận.`}
+        description={`BOM sẽ chuyển sang trạng thái “${OBSOLETE_LABEL}” (không xoá hẳn dữ liệu). Gõ "XOA" để xác nhận.`}
         confirmText="XOA"
         actionLabel="Xoá tất cả"
         loading={deleteBom.isPending}
@@ -576,7 +580,7 @@ export function BomTab() {
             ? `Xoá BOM ${singleDeleteRow.code}?`
             : "Xoá BOM"
         }
-        description={`BOM sẽ chuyển sang trạng thái OBSOLETE (soft-delete) và không hiện trong danh sách. Gõ "XOA" để xác nhận.`}
+        description={`BOM sẽ chuyển sang trạng thái “${OBSOLETE_LABEL}” (không xoá hẳn dữ liệu) và không hiện trong danh sách. Gõ "XOA" để xác nhận.`}
         confirmText="XOA"
         actionLabel="Xoá BOM"
         loading={deleteBom.isPending}

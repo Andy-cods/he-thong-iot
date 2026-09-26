@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, Download, Loader2, RefreshCw, Scale } from "lucide-react";
 import { downloadCsv, toCsv } from "@/lib/csv";
+import { formatDate, formatDateTime, formatQty } from "@/lib/format";
 
 /**
  * V4.1 Đợt 1c (D4) — Báo cáo kho › "Đối soát trước kiểm kê".
@@ -79,14 +80,12 @@ const TX_LABEL: Record<string, string> = {
   ADJUST_MINUS: "Rút hàng / điều chỉnh giảm",
 };
 
-function fmt(n: number): string {
-  return Number(n.toFixed(4)).toLocaleString("vi-VN");
-}
+// V4.1 UI-14/15: số lượng + ngày qua lib/format (ngày theo giờ VN).
+const fmt = (n: number) => formatQty(n);
 
 function fmtDate(at: string | null): string {
   if (!at) return "";
-  const d = new Date(at);
-  return Number.isNaN(d.getTime()) ? at : d.toLocaleDateString("vi-VN");
+  return formatDate(at, "dd/MM/yyyy");
 }
 
 function stamp(): string {
@@ -191,7 +190,7 @@ export function ReconciliationSection() {
         "Mã giao dịch",
       ],
       d.outboundWithoutBin.rows.map((r) => [
-        new Date(r.occurredAt).toLocaleString("vi-VN"),
+        formatDateTime(r.occurredAt, { seconds: true }),
         TX_LABEL[r.txType] ?? r.txType,
         r.sku,
         r.itemName,

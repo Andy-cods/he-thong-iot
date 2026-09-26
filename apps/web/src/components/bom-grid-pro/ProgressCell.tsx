@@ -61,8 +61,10 @@ const STATUS_META: Record<MaterialStatus, StatusMeta> = {
   PLANNED: {
     label: "Chưa mua",
     icon: Clock,
+    // V4.1 UI-24: 0% dùng rãnh xám (trước đây rãnh vàng nhạt = màu cảnh báo cho
+    // trạng thái trung tính); nhãn vẫn tông amber để gợi việc cần mua.
     bar: "bg-amber-400",
-    barBg: "bg-amber-100 dark:bg-amber-950/40",
+    barBg: "bg-zinc-100 dark:bg-zinc-800",
     text: "text-amber-700 dark:text-amber-400",
     badgeBg: "bg-amber-50 dark:bg-amber-950/40",
     defaultPct: 0,
@@ -154,7 +156,8 @@ const FAB_META: Record<FabStatus, StatusMeta> = {
     defaultPct: 100,
   },
   CANCELLED: {
-    label: "Đã hủy",
+    // V4.1 UI-07: chính tả thống nhất "Đã huỷ" + tông trung tính (xám), khớp lib/status.ts.
+    label: "Đã huỷ",
     icon: Ban,
     bar: "bg-zinc-400",
     barBg: "bg-zinc-100 dark:bg-zinc-800",

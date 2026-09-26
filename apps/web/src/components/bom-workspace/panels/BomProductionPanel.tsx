@@ -5,30 +5,17 @@ import Link from "next/link";
 import { ArrowUpRight, Factory } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryError } from "@/components/ui/query-error";
+import { StatusPill } from "@/components/ui/status-badge";
 import { cn } from "@/lib/utils";
 import { useBomProductionSummary } from "@/hooks/useBom";
 import { formatDate, formatNumber } from "@/lib/format";
 import { HIDDEN_FEATURES } from "@/lib/hidden-features";
 
 /* ── Status badge ─────────────────────────────────────────────────────────── */
-const WO_STATUS_BADGE: Record<string, { label: string; cls: string; dot: string }> = {
-  DRAFT:       { label: "Nháp",        cls: "bg-zinc-100 text-zinc-600 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",      dot: "bg-zinc-400"   },
-  QUEUED:      { label: "Đợi",         cls: "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:ring-blue-800",       dot: "bg-blue-400"   },
-  RELEASED:    { label: "Phát lệnh",   cls: "bg-indigo-50 text-indigo-700 ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-800", dot: "bg-indigo-500" },
-  IN_PROGRESS: { label: "Đang chạy",   cls: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800",    dot: "bg-amber-500 animate-pulse" },
-  PAUSED:      { label: "Tạm dừng",    cls: "bg-orange-50 text-orange-700 ring-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:ring-orange-800", dot: "bg-orange-400" },
-  COMPLETED:   { label: "Hoàn thành",  cls: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800", dot: "bg-emerald-500" },
-  CANCELLED:   { label: "Huỷ",         cls: "bg-red-50 text-red-600 ring-red-200 dark:bg-red-950/40 dark:text-red-400 dark:ring-red-800",          dot: "bg-red-400"    },
-};
-
+// V4.1 UI-07: bỏ map WO_STATUS_BADGE cục bộ ("Huỷ" đỏ, "Phát lệnh", "Đợi") — nhãn +
+// tông lấy từ lib/status.ts domain "wo" (Đã huỷ = xám). Đang SX giữ chấm nhấp nháy.
 function WoStatusBadge({ status }: { status: string }) {
-  const s = WO_STATUS_BADGE[status] ?? { label: status, cls: "bg-zinc-100 text-zinc-600 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700", dot: "bg-zinc-400" };
-  return (
-    <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset", s.cls)}>
-      <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", s.dot)} aria-hidden />
-      {s.label}
-    </span>
-  );
+  return <StatusPill domain="wo" code={status} dot pulse={status === "IN_PROGRESS"} />;
 }
 
 function ProgressBar({ pct }: { pct: number }) {
@@ -136,7 +123,7 @@ export function BomProductionPanel({ bomId }: { bomId: string }) {
 
         {/* KPI cards */}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <KpiCard label="Tổng WO"          value={data.totalWorkOrders}                                              tone="zinc"    />
+          <KpiCard label="Tổng lệnh"        value={data.totalWorkOrders}                                              tone="zinc"    />
           <KpiCard label="Đã hoàn thành"    value={data.doneWorkOrders}      subtitle={`${data.donePct}%`}           tone="emerald" />
           <KpiCard label="Đang chạy"        value={data.inProgressWorkOrders}                                         tone="indigo"  />
           <KpiCard label="SL Đã / Kế hoạch" value={formatNumber(data.totalGoodQty)} subtitle={`/${formatNumber(data.totalPlannedQty)} (${data.qtyDonePct}%)`} tone="blue" />
@@ -152,11 +139,11 @@ export function BomProductionPanel({ bomId }: { bomId: string }) {
               <span className="font-mono text-sm tabular-nums text-zinc-600 dark:text-zinc-400">
                 {data.snapshotSummary.materialReadyPct}% sẵn sàng ·{" "}
                 {data.snapshotSummary.shortageLines > 0 ? (
-                  <span className="text-red-600 dark:text-red-400">{data.snapshotSummary.shortageLines} line thiếu</span>
+                  <span className="text-red-600 dark:text-red-400">{data.snapshotSummary.shortageLines} dòng thiếu</span>
                 ) : (
                   <span className="text-emerald-600 dark:text-emerald-400">Đủ</span>
                 )}{" "}
-                · <span className="tabular-nums">{data.snapshotSummary.totalLines}</span> line
+                · <span className="tabular-nums">{data.snapshotSummary.totalLines}</span> dòng
               </span>
             </div>
             <div className="mt-3 h-2.5 w-full rounded-full bg-zinc-100 dark:bg-zinc-800">
@@ -170,10 +157,10 @@ export function BomProductionPanel({ bomId }: { bomId: string }) {
         <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden dark:border-zinc-800 dark:bg-zinc-900">
           <div className="flex items-center gap-2.5 border-b border-zinc-100 px-5 py-3.5 dark:border-zinc-800">
             <Factory className="h-4 w-4 text-zinc-500 dark:text-zinc-400" aria-hidden />
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Work Orders gần đây</h3>
+            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Lệnh sản xuất gần đây</h3>
             {filteredWOs.length > 0 && (
               <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 tabular-nums dark:bg-zinc-800 dark:text-zinc-400">
-                {filteredWOs.length} / {data.recentWorkOrders.length} WO
+                {filteredWOs.length} / {data.recentWorkOrders.length} lệnh
               </span>
             )}
           </div>
@@ -181,14 +168,14 @@ export function BomProductionPanel({ bomId }: { bomId: string }) {
           {filteredWOs.length === 0 ? (
             <div className="px-5 py-10 text-center text-sm text-zinc-500 dark:text-zinc-400">
               {data.recentWorkOrders.length === 0
-                ? "Chưa có Work Order nào cho BOM này."
-                : "Không có WO nào trong khoảng ngày đã chọn."}
+                ? "Chưa có lệnh sản xuất nào cho BOM này."
+                : "Không có lệnh sản xuất nào trong khoảng ngày đã chọn."}
             </div>
           ) : (
             <table className="w-full border-collapse">
               <thead className="bg-zinc-50/80 dark:bg-zinc-800/60">
                 <tr className="border-b border-zinc-100 dark:border-zinc-800">
-                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Mã WO</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Mã lệnh SX</th>
                   <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Trạng thái</th>
                   <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">SL Đạt / KH</th>
                   <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Tiến độ</th>

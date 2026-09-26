@@ -588,7 +588,7 @@ function StepCheck({
             <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
               <tr>
                 <th className="px-3 py-2 text-left">#</th>
-                <th className="px-3 py-2 text-left">SKU</th>
+                <th className="px-3 py-2 text-left">Mã vật tư</th>
                 <th className="px-3 py-2 text-left">Tên</th>
                 <th className="px-3 py-2 text-right">Đặt</th>
                 <th className="px-3 py-2 text-right">Đã nhận</th>

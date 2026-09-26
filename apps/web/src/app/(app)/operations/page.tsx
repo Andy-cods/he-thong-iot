@@ -66,7 +66,9 @@ export default function OperationsPage({ searchParams }: OperationsPageProps) {
           Gia công
         </h1>
         <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-          Duyệt yêu cầu sản xuất từ Thiết kế · Theo dõi lệnh sản xuất.
+          {/* V4.1 UI-08 (§2.2): mô tả đúng nội dung — tab mặc định lọc “Chờ duyệt”;
+              danh sách lệnh đầy đủ nằm ở Bộ phận Thiết kế › Yêu cầu SX (chọn “Tất cả”). */}
+          Duyệt yêu cầu sản xuất từ Bộ phận Thiết kế — mặc định chỉ hiện yêu cầu chờ duyệt.
         </p>
       </div>
 
@@ -74,7 +76,7 @@ export default function OperationsPage({ searchParams }: OperationsPageProps) {
         basePath="/operations"
         tabs={OPERATIONS_TABS}
         active={active}
-        ariaLabel="Operations sections"
+        ariaLabel="Các mục Bộ phận Gia công"
       />
 
       <div className="flex-1 md:min-h-0 md:overflow-hidden">

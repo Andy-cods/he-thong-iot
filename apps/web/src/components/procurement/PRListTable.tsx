@@ -4,10 +4,10 @@ import * as React from "react";
 import Link from "next/link";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { PR_STATUS_LABELS, type PRStatus } from "@iot/shared";
-import { StatusBadge, type BadgeStatus } from "@/components/domain/StatusBadge";
+import { StatusBadge } from "@/components/domain/StatusBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate } from "@/lib/format";
+import { getStatus } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { NO_LINE_LABEL } from "@/lib/pr-display-label";
 import type { PRRow } from "@/hooks/usePurchaseRequests";
@@ -19,22 +19,6 @@ export interface PRListTableProps {
   sortDir?: "asc" | "desc";
   /** Bấm header "Ngày tạo" để đổi chiều sort. Omit → header là text tĩnh. */
   onSortDateClick?: () => void;
-}
-
-function statusToBadge(s: PRStatus): { v: BadgeStatus; label: string } {
-  const label = PR_STATUS_LABELS[s];
-  switch (s) {
-    case "DRAFT":
-      return { v: "draft", label };
-    case "SUBMITTED":
-      return { v: "info", label };
-    case "APPROVED":
-      return { v: "success", label };
-    case "CONVERTED":
-      return { v: "info", label };
-    case "REJECTED":
-      return { v: "danger", label };
-  }
 }
 
 /**
@@ -127,7 +111,8 @@ export function PRListTable({
         {virt.getVirtualItems().map((v) => {
           const row = rows[v.index];
           if (!row) return null;
-          const badge = statusToBadge(row.status);
+          // V4.1 UI-07/08: nhãn + tông lấy từ lib/status (bỏ map cục bộ).
+          const badge = getStatus("pr", row.status);
           return (
             <div
               key={row.id}
@@ -168,10 +153,11 @@ export function PRListTable({
                 );
               })()}
               <div className="hidden text-xs text-zinc-600 dark:text-zinc-400 md:block">
-                {row.source === "SHORTAGE" ? "Shortage" : "Thủ công"}
+                {/* V4.1 UI-27: "Shortage" → tiếng Việt. */}
+                {row.source === "SHORTAGE" ? "Thiếu hàng" : "Thủ công"}
               </div>
               <div>
-                <StatusBadge status={badge.v} size="sm" label={badge.label} />
+                <StatusBadge status={badge.tone} size="sm" label={badge.label} />
               </div>
               <div className="hidden text-sm text-zinc-600 tabular-nums dark:text-zinc-400 md:block">
                 {formatDate(row.createdAt, "dd/MM/yyyy")}

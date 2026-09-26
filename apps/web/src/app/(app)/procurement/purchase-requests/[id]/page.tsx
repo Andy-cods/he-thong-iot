@@ -9,12 +9,14 @@ import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
+  ChevronDown,
   Circle,
   Download,
   FileSpreadsheet,
   FileText,
   Flag,
   Loader2,
+  MoreHorizontal,
   PackageCheck,
   Printer,
   Trash2,
@@ -26,6 +28,14 @@ import { toast } from "sonner";
 import { downloadFromUrl } from "@/lib/download";
 import type { PRStatus } from "@iot/shared";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { StatusPill } from "@/components/ui/status-badge";
 import {
   Dialog,
   DialogContent,
@@ -51,7 +61,8 @@ import {
 } from "@/hooks/usePurchaseRequests";
 import { isSelfApprovalBlocked } from "@/lib/procurement-policy";
 import { useConvertPRToPOs } from "@/hooks/usePurchaseOrders";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatMoney, formatQty } from "@/lib/format";
+import type { StatusTone } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { ConvertPRToPODialog } from "@/components/procurement/ConvertPRToPODialog";
 import {
@@ -102,19 +113,17 @@ const STEP_LABEL: Record<ApprovalStep, string> = {
   REJECTED: "Từ chối",
 };
 
-const STEP_PILL: Record<ApprovalStep, string> = {
-  DRAFT: "bg-zinc-100 text-zinc-700 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700",
-  SUBMITTED:
-    "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-800",
-  DEPT_APPROVED:
-    "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:ring-sky-800",
-  DIRECTOR_APPROVED:
-    "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-800",
-  CONVERTED:
-    "bg-indigo-50 text-indigo-700 ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:ring-indigo-800",
-  DONE: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-800",
-  REJECTED:
-    "bg-red-50 text-red-700 ring-red-200 dark:bg-red-950/40 dark:text-red-300 dark:ring-red-800",
+// V4.1 UI-07/08: bước duyệt YCVT (approvalStep) không phải trạng thái chung
+// trong lib/status → giữ nhãn riêng ở trên, nhưng tông màu theo 6 tông chuẩn
+// (StatusPill), bỏ lớp Tailwind tự khai báo.
+const STEP_TONE: Record<ApprovalStep, StatusTone> = {
+  DRAFT: "neutral",
+  SUBMITTED: "info",
+  DEPT_APPROVED: "info",
+  DIRECTOR_APPROVED: "success",
+  CONVERTED: "success",
+  DONE: "success",
+  REJECTED: "danger",
 };
 
 const PRIORITY_LABELS: Record<string, string> = {
@@ -137,11 +146,13 @@ function fmtDateTimeVN(d: string | Date | null | undefined): string {
   if (!d) return "—";
   return formatDate(d, "dd/MM/yyyy HH:mm");
 }
+// V4.1 UI-14: số trong biểu mẫu qua formatQty chung (bỏ 0 thừa).
 function fmtNum(n: number | string | null | undefined): string {
-  if (n === null || n === undefined || n === "") return "—";
-  const num = typeof n === "string" ? Number(n) : n;
-  if (!Number.isFinite(num)) return "—";
-  return num.toLocaleString("vi-VN");
+  return formatQty(n);
+}
+/** V4.1 UI-13: tiền (đơn giá / thành tiền dự kiến) — làm tròn đồng, thiếu → "—". */
+function fmtMoney(n: number | string | null | undefined): string {
+  return formatMoney(n, { unit: "none", empty: "—" });
 }
 
 export default function PurchaseRequestDetailPage() {
@@ -166,6 +177,8 @@ export default function PurchaseRequestDetailPage() {
   const submitPr = useSubmitPR(id);
   const deletePR = useDeletePR(id);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
+  // V4.1 UX-01: hộp xác nhận chung thay hộp thoại gốc của trình duyệt.
+  const askConfirm = useConfirm();
   const [deleteConfirmText, setDeleteConfirmText] = React.useState("");
 
   const [rejectOpen, setRejectOpen] = React.useState(false);
@@ -338,7 +351,8 @@ export default function PurchaseRequestDetailPage() {
           className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-300"
         >
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-          Yêu cầu mua hàng
+          {/* V4.1 UI-28: thống nhất tên với menu. */}
+          Đề xuất vật tư
         </Link>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
@@ -352,15 +366,7 @@ export default function PurchaseRequestDetailPage() {
                     {paperFormNo}
                   </span>
                 ) : null}
-                <span
-                  className={cn(
-                    "inline-flex whitespace-nowrap items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset",
-                    STEP_PILL[step],
-                  )}
-                >
-                  <Circle className="h-1.5 w-1.5 fill-current" aria-hidden />
-                  {STEP_LABEL[step]}
-                </span>
+                <StatusPill tone={STEP_TONE[step]} label={STEP_LABEL[step]} dot />
               </div>
               <h1 className="mt-1 truncate text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
                 {pr.title || "Phiếu YCVT"}
@@ -369,36 +375,40 @@ export default function PurchaseRequestDetailPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={handlePrint}>
-              <Printer className="h-3.5 w-3.5" aria-hidden />
-              In
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => void handleExportExcel()}
-              disabled={exporting !== null}
-            >
-              {exporting === "excel" ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-              ) : (
-                <FileSpreadsheet className="h-3.5 w-3.5" aria-hidden />
-              )}
-              Excel
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => void handleExportPdf()}
-              disabled={exporting !== null}
-            >
-              {exporting === "pdf" ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-              ) : (
-                <Download className="h-3.5 w-3.5" aria-hidden />
-              )}
-              PDF
-            </Button>
+            {/* V4.1 (§2.4): gộp In / Excel / PDF vào 1 nút "Xuất ▾" — bớt nút trên hàng. */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" disabled={exporting !== null}>
+                  {exporting !== null ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <Download className="h-3.5 w-3.5" aria-hidden />
+                  )}
+                  Xuất
+                  <ChevronDown className="h-3.5 w-3.5" aria-hidden />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[11rem]">
+                <DropdownMenuItem onSelect={handlePrint}>
+                  <Printer className="h-3.5 w-3.5" aria-hidden />
+                  In phiếu
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={exporting !== null}
+                  onSelect={() => void handleExportExcel()}
+                >
+                  <FileSpreadsheet className="h-3.5 w-3.5" aria-hidden />
+                  Excel
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={exporting !== null}
+                  onSelect={() => void handleExportPdf()}
+                >
+                  <FileText className="h-3.5 w-3.5" aria-hidden />
+                  PDF
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {canSubmit && (
               <Button
@@ -512,15 +522,21 @@ export default function PurchaseRequestDetailPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  if (window.confirm("Xác nhận vật tư đã xuất kho cho bộ phận yêu cầu?")) {
+                onClick={() =>
+                  void (async () => {
+                    const ok = await askConfirm({
+                      title: "Xác nhận đã xuất kho?",
+                      description: "Xác nhận vật tư đã xuất kho cho bộ phận yêu cầu.",
+                      confirmLabel: "Đã xuất kho",
+                    });
+                    if (!ok) return;
                     markIssued.mutate(undefined, {
                       onSuccess: () => toast.success("Đã ghi nhận xuất kho"),
                       onError: (e) =>
                         toast.error(`Lỗi: ${(e as Error).message}`),
                     });
-                  }
-                }}
+                  })()
+                }
                 disabled={markIssued.isPending}
                 className="border-violet-300 text-violet-700 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-300 dark:hover:bg-violet-950/40"
               >
@@ -535,15 +551,21 @@ export default function PurchaseRequestDetailPage() {
             {canMarkCompleted && (
               <Button
                 size="sm"
-                onClick={() => {
-                  if (window.confirm("Đóng phiếu YCVT này? Sau khi đóng không sửa được.")) {
+                onClick={() =>
+                  void (async () => {
+                    const ok = await askConfirm({
+                      title: "Đóng phiếu YCVT này?",
+                      description: "Sau khi đóng không sửa được.",
+                      confirmLabel: "Hoàn tất",
+                    });
+                    if (!ok) return;
                     markCompleted.mutate(undefined, {
                       onSuccess: () => toast.success("Phiếu đã hoàn tất"),
                       onError: (e) =>
                         toast.error(`Lỗi: ${(e as Error).message}`),
                     });
-                  }
-                }}
+                  })()
+                }
                 disabled={markCompleted.isPending}
                 className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
               >
@@ -556,20 +578,33 @@ export default function PurchaseRequestDetailPage() {
               </Button>
             )}
 
+            {/* V4.1 (§2.4): "Xoá phiếu" vào menu "⋯" — không đứng cạnh nút Duyệt. */}
             {canDelete && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  setDeleteConfirmText("");
-                  setDeleteOpen(true);
-                }}
-                disabled={deletePR.isPending}
-                className="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950/40"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                Xoá phiếu
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label="Thao tác khác"
+                    title="Thao tác khác"
+                  >
+                    <MoreHorizontal className="h-4 w-4" aria-hidden />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-[11rem]">
+                  <DropdownMenuItem
+                    variant="danger"
+                    disabled={deletePR.isPending}
+                    onSelect={() => {
+                      setDeleteConfirmText("");
+                      setDeleteOpen(true);
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                    Xoá phiếu
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
         </div>
@@ -748,13 +783,13 @@ export default function PurchaseRequestDetailPage() {
                         <Td>{PRIORITY_LABELS[l.priority ?? "NORMAL"] ?? "—"}</Td>
                         <Td>{CATEGORY_LABELS[l.category ?? "OTHER"] ?? "—"}</Td>
                         <Td align="right">
-                          <span className="font-mono">
-                            {fmtNum(l.estimatedUnitPrice)}
+                          <span className="tabular-nums">
+                            {fmtMoney(l.estimatedUnitPrice)}
                           </span>
                         </Td>
                         <Td align="right">
-                          <span className="font-mono font-semibold">
-                            {lineTotal > 0 ? fmtNum(lineTotal) : "—"}
+                          <span className="font-semibold tabular-nums">
+                            {lineTotal > 0 ? fmtMoney(lineTotal) : "—"}
                           </span>
                         </Td>
                         <Td>{l.referenceCode ?? "—"}</Td>
@@ -777,8 +812,8 @@ export default function PurchaseRequestDetailPage() {
                     <td colSpan={13} className="px-2 py-2 text-right text-[11px]">
                       Tổng tiền dự kiến (VNĐ):
                     </td>
-                    <td className="px-2 py-2 text-right font-mono text-[12px] text-[#005D9F] tabular-nums">
-                      {fmtNum(pr.totalEstimatedAmount)}
+                    <td className="px-2 py-2 text-right text-[12px] text-[#005D9F] tabular-nums">
+                      {fmtMoney(pr.totalEstimatedAmount)}
                     </td>
                     <td colSpan={2} />
                   </tr>
@@ -796,8 +831,8 @@ export default function PurchaseRequestDetailPage() {
                 <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-100">
                   Tổng tiền dự kiến
                 </span>
-                <span className="font-mono text-[15px] font-bold tabular-nums text-[#005D9F] dark:text-sky-300">
-                  {fmtNum(pr.totalEstimatedAmount)} ₫
+                <span className="text-[15px] font-bold tabular-nums text-[#005D9F] dark:text-sky-300">
+                  {formatMoney(pr.totalEstimatedAmount)}
                 </span>
               </div>
             </div>
@@ -1215,11 +1250,15 @@ function LineItemCard({ line: l, idx }: { line: PRLineEnriched; idx: number }) {
       </div>
       {/* Cấp 2b — tiền */}
       <div className="mt-2 grid grid-cols-2 gap-2">
-        <Metric label="Đơn giá DK" value={fmtNum(l.estimatedUnitPrice)} />
+        <Metric
+          label="Đơn giá DK"
+          value={fmtMoney(l.estimatedUnitPrice)}
+          className="font-sans"
+        />
         <Metric
           label="Tổng tiền"
-          value={lineTotal > 0 ? fmtNum(lineTotal) : "—"}
-          className="font-semibold text-[#005D9F] dark:text-sky-300"
+          value={lineTotal > 0 ? fmtMoney(lineTotal) : "—"}
+          className="font-sans font-semibold text-[#005D9F] dark:text-sky-300"
         />
       </div>
       {/* Cấp 3 — phụ (ẩn field rỗng) */}

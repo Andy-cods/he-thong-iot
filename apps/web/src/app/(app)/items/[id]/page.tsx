@@ -20,6 +20,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/ui/query-error";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/domain/StatusBadge";
+import { activeStatusCode, getStatus } from "@/lib/status";
 import {
   Tabs,
   TabsContent,
@@ -169,7 +170,7 @@ export default function ItemDetailPage() {
   const handleCopySku = () => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       void navigator.clipboard.writeText(itemData.sku);
-      toast.success(`Đã copy ${itemData.sku}`);
+      toast.success(`Đã sao chép ${itemData.sku}`);
     }
   };
 
@@ -184,10 +185,12 @@ export default function ItemDetailPage() {
             <h1 className="min-w-0 break-words text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
               {itemData.name}
             </h1>
+            {/* V4.1 UI-07/08: "Đang dùng" / "Ngừng dùng" từ lib/status.ts; nowrap chống gãy. */}
             <StatusBadge
-              status={itemData.isActive ? "active" : "inactive"}
+              status={getStatus("item", activeStatusCode(itemData.isActive)).tone}
               size="sm"
-              label={itemData.isActive ? "Đang dùng" : "Đã xoá"}
+              label={getStatus("item", activeStatusCode(itemData.isActive)).label}
+              className="whitespace-nowrap"
             />
           </div>
           <div className="mt-1 flex min-w-0 items-center gap-1.5 text-base text-zinc-500 dark:text-zinc-400">
@@ -197,7 +200,7 @@ export default function ItemDetailPage() {
             <button
               type="button"
               onClick={handleCopySku}
-              aria-label="Copy SKU"
+              aria-label="Sao chép mã vật tư"
               className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-sm text-zinc-400 md:h-5 md:w-5 transition-colors hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-0 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
             >
               <Copy className="h-3.5 w-3.5" aria-hidden="true" />

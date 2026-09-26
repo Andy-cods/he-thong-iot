@@ -48,6 +48,8 @@ import {
 } from "@/hooks/useWorkOrders";
 import { uuidv7 } from "@/lib/uuid-v7";
 import { cn } from "@/lib/utils";
+import { usePrompt } from "@/components/ui/confirm-dialog";
+import { statusLabel } from "@/lib/status";
 
 export const dynamic = "force-dynamic";
 
@@ -156,6 +158,8 @@ export default function AssemblyWorkspacePage() {
   const scanMut = useAssemblyScan(woId);
   const completeMut = useCompleteWoViaAssembly(woId);
   const pauseMut = usePauseWorkOrder(woId);
+  // V4.1 UX-01: hộp nhập lý do dùng chung thay hộp thoại trình duyệt.
+  const askReason = usePrompt();
 
   const addLog = React.useCallback((entry: Omit<ScanLog, "id" | "at">) => {
     setLog((prev) =>
@@ -230,17 +234,20 @@ export default function AssemblyWorkspacePage() {
   const handlePause = async () => {
     if (!wo) return;
     if (wo.status !== "IN_PROGRESS") {
-      toast.info("WO này không ở trạng thái IN_PROGRESS để tạm dừng.");
+      toast.info(`Lệnh SX này không ở trạng thái “${statusLabel("wo", "IN_PROGRESS")}” để tạm dừng.`);
       return;
     }
-    const reason = window.prompt(
-      "Lý do tạm dừng WO?",
-      "Tạm dừng từ trang lắp ráp",
-    );
+    const reason = await askReason({
+      title: "Tạm dừng lệnh SX",
+      label: "Lý do tạm dừng",
+      defaultValue: "Tạm dừng từ trang lắp ráp",
+      required: true,
+      confirmLabel: "Tạm dừng",
+    });
     if (!reason) return;
     try {
       await pauseMut.mutateAsync({ mode: "pause", reason });
-      toast.success("Đã tạm dừng WO");
+      toast.success("Đã tạm dừng lệnh SX");
       router.push("/assembly");
     } catch (err) {
       toast.error((err as Error).message);

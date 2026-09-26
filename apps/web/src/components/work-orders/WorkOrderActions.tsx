@@ -25,6 +25,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { useConfirm, usePrompt } from "@/components/ui/confirm-dialog";
 import {
   useCancelWorkOrder,
   useCompleteWorkOrder,
@@ -35,6 +36,7 @@ import {
 } from "@/hooks/useWorkOrders";
 import { qk } from "@/lib/query-keys";
 import { isWoDeletable } from "@/lib/wo-guards";
+import { statusLabel } from "@/lib/status";
 
 /**
  * V1.9-P4 — action buttons pause / resume / complete / cancel.
@@ -67,6 +69,9 @@ export function WorkOrderActions({
   size?: "sm" | "md";
 }) {
   const router = useRouter();
+  // V4.1 UX-01: hộp xác nhận/nhập lý do dùng chung thay hộp thoại gốc trình duyệt.
+  const askConfirm = useConfirm();
+  const askText = usePrompt();
   const startMut = useStartWorkOrder(woId);
   const pauseMut = usePauseWorkOrder(woId);
   const completeMut = useCompleteWorkOrder(woId);
@@ -121,7 +126,12 @@ export function WorkOrderActions({
   });
 
   const onApprove = async () => {
-    const notes = prompt("Ghi chú khi duyệt (tuỳ chọn):") ?? "";
+    const notes = await askText({
+      title: "Duyệt yêu cầu sản xuất",
+      label: "Ghi chú khi duyệt (tuỳ chọn)",
+      confirmLabel: "Duyệt",
+    });
+    if (notes === null) return;
     try {
       await approveMut.mutateAsync(notes || undefined);
       toast.success("Đã duyệt yêu cầu — chuyển thành Lệnh sản xuất chính thức.");
@@ -131,11 +141,14 @@ export function WorkOrderActions({
   };
 
   const onReject = async () => {
-    const reason = prompt("Lý do từ chối (bắt buộc, tối thiểu 5 ký tự):") ?? "";
-    if (reason.trim().length < 5) {
-      toast.error("Lý do tối thiểu 5 ký tự.");
-      return;
-    }
+    const reason = await askText({
+      title: "Từ chối yêu cầu sản xuất",
+      label: "Lý do từ chối",
+      minLength: 5,
+      tone: "danger",
+      confirmLabel: "Từ chối",
+    });
+    if (reason === null) return;
     try {
       await rejectMut.mutateAsync(reason.trim());
       toast.success("Đã từ chối yêu cầu sản xuất.");
@@ -147,14 +160,19 @@ export function WorkOrderActions({
   const onStart = async () => {
     try {
       await startMut.mutateAsync(versionLock);
-      toast.success("WO đã bắt đầu chạy.");
+      toast.success("Lệnh SX đã bắt đầu chạy.");
     } catch (e) {
       toast.error((e as Error).message);
     }
   };
 
   const onPause = async () => {
-    const reason = prompt("Lý do tạm dừng (tùy chọn):") ?? "";
+    const reason = await askText({
+      title: "Tạm dừng lệnh sản xuất",
+      label: "Lý do tạm dừng (tuỳ chọn)",
+      confirmLabel: "Tạm dừng",
+    });
+    if (reason === null) return;
     try {
       await pauseMut.mutateAsync({ mode: "pause", reason, versionLock });
       toast.success("Đã tạm dừng.");
@@ -175,26 +193,33 @@ export function WorkOrderActions({
   const onComplete = async () => {
     // TODO V4.1 Q2: bước "Nhập kho thành phẩm" (SL đạt → PROD_IN) đang TẠM ẨN
     // theo quyết định anh Thang — hoàn thành hiện chỉ chuyển trạng thái.
-    if (
-      !confirm(
-        "Xác nhận hoàn thành lệnh? Cần đã báo sản lượng đạt > 0 (và đủ các dòng linh kiện nếu có).",
-      )
-    )
-      return;
+    const ok = await askConfirm({
+      title: "Hoàn thành lệnh sản xuất?",
+      description: "Cần đã báo sản lượng đạt > 0 (và đủ các dòng linh kiện nếu có).",
+      confirmLabel: "Hoàn thành",
+    });
+    if (!ok) return;
     try {
       await completeMut.mutateAsync(versionLock);
-      toast.success("WO đã hoàn thành.");
+      toast.success("Lệnh SX đã hoàn thành.");
     } catch (e) {
       toast.error((e as Error).message);
     }
   };
 
   const onCancel = async () => {
-    const reason = prompt("Nhập lý do hủy:") ?? "";
+    const reason = await askText({
+      title: "Huỷ lệnh sản xuất",
+      label: "Lý do huỷ",
+      required: true,
+      tone: "danger",
+      confirmLabel: "Huỷ lệnh",
+      cancelLabel: "Đóng",
+    });
     if (!reason) return;
     try {
       await cancelMut.mutateAsync({ reason, versionLock });
-      toast.success("WO đã bị hủy.");
+      toast.success("Lệnh SX đã bị huỷ.");
     } catch (e) {
       toast.error((e as Error).message);
     }
@@ -276,7 +301,7 @@ export function WorkOrderActions({
           disabled={cancelMut.isPending}
         >
           <XCircle className="h-3.5 w-3.5" />
-          Hủy
+          Huỷ lệnh
         </Button>
       )}
       {/* V3.7.71 — Xoá vĩnh viễn (admin only).
@@ -305,11 +330,12 @@ export function WorkOrderActions({
             <DialogDescription>
               Hành động này xoá vĩnh viễn lệnh{" "}
               <strong className="font-mono">{woNo ?? woId.slice(0, 8)}</strong>{" "}
-              + toàn bộ routing/material/tool/QC lines. Giữ chỗ vật tư còn lại
+              cùng toàn bộ các dòng quy trình / vật tư / dao cụ / QC. Giữ chỗ vật tư còn lại
               (nếu có) sẽ được nhả trước khi xoá.
               <br />
               <span className="mt-2 block text-red-700 dark:text-red-400">
-                Chỉ xoá được lệnh Nháp / Đã huỷ. Cân nhắc dùng "Huỷ" thay vì
+                {/* V4.1 UI-27: nhãn trạng thái từ lib/status.ts (DRAFT = "Chờ duyệt"). */}
+                Chỉ xoá được lệnh {statusLabel("wo", "DRAFT")} / {statusLabel("wo", "CANCELLED")}. Cân nhắc dùng "Huỷ" thay vì
                 "Xoá" để giữ vết.
               </span>
             </DialogDescription>

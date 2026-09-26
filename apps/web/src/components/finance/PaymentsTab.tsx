@@ -44,6 +44,7 @@ import {
 } from "@/hooks/useFinance";
 import { useSession } from "@/hooks/useSession";
 import type { FinPaymentFilter } from "@/lib/query-keys";
+import { StatusPill } from "@/components/ui/status-badge";
 import { cn } from "@/lib/utils";
 
 const METHOD_LABEL: Record<string, string> = {
@@ -182,7 +183,7 @@ export function PaymentsTab() {
               <span className="font-semibold text-zinc-700 dark:text-zinc-300">
                 Cộng trang này (không tính đợt đã huỷ)
               </span>
-              <span className="font-mono tabular-nums">
+              <span className="tabular-nums">
                 <span className="font-semibold text-rose-600 dark:text-rose-400">Chi −{fmtVND(pageTotals.out)}</span>
                 <span className="mx-2 text-zinc-400">·</span>
                 <span className="font-semibold text-emerald-700 dark:text-emerald-400">Thu +{fmtVND(pageTotals.in)}</span>
@@ -263,16 +264,14 @@ function PaymentCard({
           <div className="min-w-0">
             <p className="flex items-center gap-2 font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-50">
               {row.code}
-              <span
-                className={cn(
-                  "rounded-full px-2 py-0.5 font-sans text-[11px] font-semibold",
-                  isVoid
-                    ? "bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400"
-                    : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
-                )}
-              >
-                {isVoid ? "Đã huỷ" : "Đã ghi sổ"}
-              </span>
+              {/* V4.1 UI-07/08: nhãn giữ "Đã ghi sổ" (khớp phiếu thu chi), tông từ lib/status;
+                  "Đã huỷ" xám + gạch ngang. */}
+              <StatusPill
+                domain="payment"
+                code={isVoid ? "VOID" : "ACTIVE"}
+                label={isVoid ? undefined : "Đã ghi sổ"}
+                className="font-sans"
+              />
             </p>
             <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
               {fmtDate(row.paymentDate)} · {accountName ?? "—"}{supplierName ? ` · ${supplierName}` : ""} · {METHOD_LABEL[row.method]}
@@ -280,7 +279,7 @@ function PaymentCard({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-3">
-          <p className={cn("whitespace-nowrap font-mono text-sm font-bold tabular-nums", row.direction === "IN" ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400", isVoid && "line-through")}>
+          <p className={cn("whitespace-nowrap text-sm font-bold tabular-nums", row.direction === "IN" ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400", isVoid && "line-through")}>
             {row.direction === "IN" ? "+" : "−"}{fmtVND(row.totalAmount)}
           </p>
           {canVoid && (
@@ -317,7 +316,7 @@ function PaymentCard({
               {allocations.map((a) => (
                 <li key={a.id} className="flex items-center justify-between text-xs">
                   <span className="text-zinc-500 dark:text-zinc-400">Phân bổ cho hoá đơn</span>
-                  <span className="font-mono font-semibold text-zinc-800 dark:text-zinc-200">{fmtVND(a.amount)}</span>
+                  <span className="font-semibold text-zinc-800 dark:text-zinc-200">{fmtVND(a.amount)}</span>
                 </li>
               ))}
             </ul>
@@ -556,7 +555,7 @@ function PaymentFormDialog({
                         step="1000"
                         {...register(`allocations.${idx}.amount` as const)}
                         placeholder="Số tiền"
-                        className="font-mono tabular-nums"
+                        className="tabular-nums"
                       />
                       <Button type="button" size="icon-sm" variant="ghost" onClick={() => remove(idx)} aria-label="Xoá dòng">
                         <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -575,7 +574,7 @@ function PaymentFormDialog({
               : "border-indigo-200 bg-indigo-50/60 dark:border-indigo-800 dark:bg-indigo-950/40",
           )}>
             <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">Tổng phân bổ</span>
-            <span className="font-mono text-lg font-bold text-zinc-900 dark:text-zinc-50">{fmtVND(allocationSum)}</span>
+            <span className="text-lg font-bold text-zinc-900 dark:text-zinc-50">{fmtVND(allocationSum)}</span>
           </div>
           {errors.allocations && (
             <p className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400">

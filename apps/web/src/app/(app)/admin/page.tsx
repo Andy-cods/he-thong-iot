@@ -23,6 +23,8 @@ import { QueryError } from "@/components/ui/query-error";
 import { useAdminStats, type AdminStatsPayload } from "@/hooks/useAdmin";
 import { cn } from "@/lib/utils";
 import { AdminPageShell } from "@/components/admin/AdminPageShell";
+import { formatRelative } from "@/lib/format";
+import { actionLabel, entityLabel } from "@/lib/status";
 
 /**
  * /admin — Dashboard quản trị.
@@ -58,7 +60,7 @@ export default function AdminIndexPage() {
   return (
     <AdminPageShell
       breadcrumb={[
-        { label: "Trang chủ", href: "/" },
+        { label: "Tổng quan", href: "/" },
         { label: "Quản trị" },
       ]}
       title="Trang quản trị"
@@ -117,7 +119,8 @@ export default function AdminIndexPage() {
           />
           <KpiCard
             icon={<FileText className="h-4 w-4" aria-hidden="true" />}
-            label="Audit events 24h"
+            // V4.1 UI-27: tiếng Việt hoá nhãn KPI + mã hành động.
+            label="Sự kiện nhật ký 24h"
             loading={statsQuery.isLoading}
             value={
               stats
@@ -126,7 +129,7 @@ export default function AdminIndexPage() {
             }
             sub={
               stats && stats.audit.byAction.length > 0
-                ? `${stats.audit.byAction.length} loại action`
+                ? `${stats.audit.byAction.length} loại hành động`
                 : stats
                   ? "Không có hoạt động"
                   : undefined
@@ -140,14 +143,14 @@ export default function AdminIndexPage() {
           </KpiCard>
           <KpiCard
             icon={<AlertTriangle className="h-4 w-4" aria-hidden="true" />}
-            label="Rate-limit hits 24h"
+            label="Lượt bị giới hạn tốc độ 24h"
             loading={statsQuery.isLoading}
             value={
               stats
                 ? stats.rateLimits.hits24h.toLocaleString("vi-VN")
                 : undefined
             }
-            sub="Ước lượng từ Redis SortedSet"
+            sub="Ước lượng từ bộ đếm Redis"
             trendLabel={
               stats && stats.rateLimits.hits24h > 50
                 ? "cần chú ý"
@@ -161,7 +164,7 @@ export default function AdminIndexPage() {
 
         {/* 2) Health + Quick actions */}
         <section
-          aria-label="Health & Actions"
+          aria-label="Sức khoẻ hệ thống và tác vụ nhanh"
           className="grid grid-cols-1 gap-4 lg:grid-cols-3"
         >
           {/* Health monitor — 2/3 width */}
@@ -210,16 +213,16 @@ export default function AdminIndexPage() {
                   detail={
                     stats.systemHealth.redis === "down"
                       ? "PING thất bại"
-                      : "Cache + rate-limit OK"
+                      : "Bộ nhớ đệm + giới hạn tốc độ ổn định"
                   }
                 />
                 <HealthCard
                   icon={<Activity className="h-4 w-4" aria-hidden="true" />}
-                  label="BullMQ queue"
+                  label="Hàng đợi BullMQ"
                   status={
                     stats.systemHealth.queueDepth > 20 ? "slow" : "ok"
                   }
-                  detail={`${stats.systemHealth.queueDepth.toLocaleString("vi-VN")} job trong hàng đợi`}
+                  detail={`${stats.systemHealth.queueDepth.toLocaleString("vi-VN")} việc trong hàng đợi`}
                 />
                 <HealthCard
                   icon={<Globe className="h-4 w-4" aria-hidden="true" />}
@@ -271,8 +274,8 @@ export default function AdminIndexPage() {
               <QuickLink
                 href="/admin/audit"
                 icon={<FileText className="h-4 w-4" aria-hidden="true" />}
-                title="Audit log"
-                description="Nhật ký hệ thống"
+                title="Nhật ký"
+                description="Nhật ký thao tác hệ thống"
                 accent="amber"
               />
               <QuickLink
@@ -290,12 +293,12 @@ export default function AdminIndexPage() {
 
         {/* 3) Activity & Sessions */}
         <section
-          aria-label="Activity"
+          aria-label="Hoạt động và phiên"
           className="grid grid-cols-1 gap-4 lg:grid-cols-2"
         >
           <Card
             title="Hoạt động gần đây"
-            subtitle="10 audit event mới nhất"
+            subtitle="10 sự kiện nhật ký mới nhất"
             icon={
               <FileText
                 className="h-4 w-4 text-zinc-500 dark:text-zinc-400"
@@ -336,11 +339,11 @@ export default function AdminIndexPage() {
                     <div className="min-w-0">
                       <p className="truncate text-sm leading-snug text-zinc-900 dark:text-zinc-50">
                         <span className="font-medium">
-                          {ev.actorUsername ?? "system"}
+                          {ev.actorUsername ?? "hệ thống"}
                         </span>{" "}
                         <span className="text-zinc-500 dark:text-zinc-400">trên</span>{" "}
-                        <span className="font-mono text-xs text-zinc-700 dark:text-zinc-300">
-                          {ev.entity}
+                        <span className="text-xs text-zinc-700 dark:text-zinc-300">
+                          {entityLabel(ev.entity)}
                         </span>
                       </p>
                       <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
@@ -545,8 +548,8 @@ function ActionBar({
             key={r.action}
             className="flex items-center gap-2 text-[11px] text-zinc-600 dark:text-zinc-400"
           >
-            <span className="w-16 shrink-0 truncate font-mono uppercase tracking-normal">
-              {r.action}
+            <span className="w-24 shrink-0 truncate" title={r.action}>
+              {actionLabel(r.action)}
             </span>
             <div className="relative h-1 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
               <div
@@ -651,11 +654,12 @@ function ActionBadge({ action }: { action: string }) {
   return (
     <span
       className={cn(
-        "inline-flex h-4 items-center rounded px-1.5 font-mono text-xs font-semibold uppercase tracking-normal ring-1 ring-inset",
+        "inline-flex h-4 items-center whitespace-nowrap rounded px-1.5 text-xs font-semibold ring-1 ring-inset",
         cls,
       )}
+      title={action}
     >
-      {action}
+      {actionLabel(action)}
     </span>
   );
 }
@@ -729,7 +733,8 @@ function HealthCard({
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <p className="truncate text-sm font-medium tracking-tight text-zinc-900 dark:text-zinc-50">
+          {/* V4.1: tên dịch vụ đầy đủ, không cắt "Cơ sở…"/"Backu…" trên phone. */}
+          <p className="min-w-0 text-sm font-medium leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">
             {label}
           </p>
           <span
@@ -799,22 +804,9 @@ function QuickLink({
 
 /* --------------------------------- Utils --------------------------------- */
 
+// V4.1 UI-15: thời gian tương đối qua lib/format (≥ 7 ngày → dd/MM/yyyy giờ VN).
 function formatShortTime(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  const now = Date.now();
-  const diffMs = now - d.getTime();
-  const diffMin = Math.round(diffMs / 60_000);
-  if (diffMin < 1) return "vừa xong";
-  if (diffMin < 60) return `${diffMin} phút trước`;
-  const diffHr = Math.round(diffMin / 60);
-  if (diffHr < 24) return `${diffHr} giờ trước`;
-  const diffDay = Math.round(diffHr / 24);
-  if (diffDay < 7) return `${diffDay} ngày trước`;
-  return d.toLocaleDateString("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-  });
+  return formatRelative(iso);
 }
 
 // Type re-exports để tránh "unused import" lint warning

@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import type { AuditRow as AuditRowData } from "@/hooks/useAdmin";
 import { cn } from "@/lib/utils";
 import { auditObjectLabel } from "@/lib/audit-scope";
+import { formatDateTime } from "@/lib/format";
+import { actionLabel } from "@/lib/status";
 
 // Lazy-load diff viewer (heavy lib) + rollback dialog — chỉ load khi user mở row
 const AuditDiffViewer = dynamic(
@@ -15,7 +17,7 @@ const AuditDiffViewer = dynamic(
     ssr: false,
     loading: () => (
       <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
-        Đang tải diff viewer…
+        Đang tải phần so sánh…
       </div>
     ),
   },
@@ -36,17 +38,9 @@ const ACTION_PILL: Record<string, string> = {
 
 const ROLLBACKABLE = new Set(["CREATE", "UPDATE", "DELETE"]);
 
+// V4.1 UI-15: giờ VN (trước đây toLocaleString trên máy UTC → lệch 7 tiếng).
 function fmtTime(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
+  return formatDateTime(iso, { seconds: true });
 }
 
 function diffSummary(
@@ -89,21 +83,22 @@ export function AuditRow({ row, style, gridCols }: AuditRowProps) {
           gridCols,
         )}
       >
-        <span className="truncate font-mono text-[11px] text-zinc-500 tabular-nums dark:text-zinc-400">
+        <span className="break-words text-[11px] leading-tight text-zinc-500 tabular-nums md:whitespace-nowrap dark:text-zinc-400">
           {fmtTime(row.occurredAt)}
         </span>
         <span className="truncate text-zinc-700 dark:text-zinc-300">
           {row.actorUsername ?? (
-            <span className="italic text-zinc-400 dark:text-zinc-500">system</span>
+            <span className="italic text-zinc-400 dark:text-zinc-500">hệ thống</span>
           )}
         </span>
         <span
           className={cn(
-            "inline-flex h-5 w-fit items-center justify-center rounded-full px-1.5 font-mono text-xs font-semibold uppercase ring-1 ring-inset",
+            "inline-flex h-5 w-fit max-w-full items-center justify-center truncate whitespace-nowrap rounded-full px-1.5 text-xs font-semibold ring-1 ring-inset",
             ACTION_PILL[row.action] ?? ACTION_PILL.UPDATE,
           )}
+          title={row.action}
         >
-          {row.action}
+          {actionLabel(row.action)}
         </span>
         <span className="truncate text-zinc-700 dark:text-zinc-300" title={row.objectType}>
           {auditObjectLabel(row.objectType)}
@@ -118,14 +113,14 @@ export function AuditRow({ row, style, gridCols }: AuditRowProps) {
               onClick={() => setExpanded((v) => !v)}
               className="inline-flex whitespace-nowrap items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-xs font-medium text-zinc-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50/50 hover:text-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-400"
               aria-expanded={expanded}
-              aria-label={expanded ? "Thu gọn diff" : "Mở rộng diff"}
+              aria-label={expanded ? "Thu gọn thay đổi" : "Xem thay đổi"}
             >
               {expanded ? (
                 <ChevronDown className="h-3 w-3" aria-hidden="true" />
               ) : (
                 <ChevronRight className="h-3 w-3" aria-hidden="true" />
               )}
-              {diff.count > 0 ? `${diff.count} thay đổi` : "Xem diff"}
+              {diff.count > 0 ? `${diff.count} thay đổi` : "Xem thay đổi"}
             </button>
           ) : row.notes ? (
             <span className="truncate text-zinc-500 dark:text-zinc-400">{row.notes}</span>
@@ -155,7 +150,7 @@ export function AuditRow({ row, style, gridCols }: AuditRowProps) {
                 onClick={() => setRollbackOpen(true)}
               >
                 <History className="h-3.5 w-3.5" aria-hidden="true" />
-                Xem SQL rollback
+                Xem SQL hoàn tác
               </Button>
             </div>
           ) : null}

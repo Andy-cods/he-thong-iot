@@ -349,7 +349,7 @@ export function WarehouseLayoutTab() {
               <Row label="Số tầng" value={String(rackStats.levelCount)} />
               <Row label="Số ô / tầng (tối đa)" value={String(rackStats.maxPerLevel)} />
               <Row label="Tổng ô" value={String(currentRack?.total ?? 0)} bold />
-              <Row label="Tổng SKU" value={String(rackStats.totalSKU)} />
+              <Row label="Tổng mã vật tư" value={String(rackStats.totalSKU)} />
               <div className="pt-2">
                 <div className="flex items-center justify-between text-sm mb-1">
                   <span className="text-zinc-500 dark:text-zinc-400">Đã sử dụng</span>
@@ -392,7 +392,7 @@ export function WarehouseLayoutTab() {
                 total={currentRack?.total ?? 0}
               />
               <div className="pt-2 mt-2 border-t border-zinc-100 flex items-center justify-between dark:border-zinc-800">
-                <span className="text-sm text-zinc-600 dark:text-zinc-400">Tổng SKU</span>
+                <span className="text-sm text-zinc-600 dark:text-zinc-400">Tổng mã vật tư</span>
                 <span className="font-bold text-zinc-900 text-base dark:text-zinc-50">{rackStats.totalSKU}</span>
               </div>
             </div>
@@ -534,7 +534,7 @@ export function WarehouseLayoutTab() {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
                       Tìm thấy{" "}
-                      <span className="text-indigo-700 dark:text-indigo-400">{lookupQuery.data.data.matchedItems.length}</span> SKU ·{" "}
+                      <span className="text-indigo-700 dark:text-indigo-400">{lookupQuery.data.data.matchedItems.length}</span> mã ·{" "}
                       <span className="text-indigo-700 dark:text-indigo-400">{lookupQuery.data.data.locations.length}</span> vị trí
                     </p>
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -573,7 +573,7 @@ export function WarehouseLayoutTab() {
             ) : binsWithSku.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
                 <Warehouse className="h-12 w-12 text-zinc-300 dark:text-zinc-700" />
-                <p className="text-base font-semibold text-zinc-700 dark:text-zinc-300">Chưa có bins nào</p>
+                <p className="text-base font-semibold text-zinc-700 dark:text-zinc-300">Chưa có ô kệ nào</p>
                 <p className="text-sm text-zinc-500 dark:text-zinc-400">Migration 0034 cần được apply.</p>
               </div>
             ) : subTab === "layout" ? (
@@ -747,7 +747,7 @@ export function WarehouseLayoutTab() {
 
             <div className="grid grid-cols-2 gap-3">
               <DetailStat label="Tổng SL" value={selectedBin.totalQty.toLocaleString("vi-VN")} />
-              <DetailStat label="Số SKU" value={String(selectedBin.skuCount)} />
+              <DetailStat label="Số mã vật tư" value={String(selectedBin.skuCount)} />
               <DetailStat label="Số lot" value={String(selectedBin.lotCount)} />
               <DetailStat
                 label="Sức chứa"
@@ -797,7 +797,7 @@ export function WarehouseLayoutTab() {
                       <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
                         {c.lotCode && (
                           <span className="rounded bg-indigo-50 px-1.5 py-0.5 font-mono text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400">
-                            Lot: {c.lotCode}
+                            Lô: {c.lotCode}
                           </span>
                         )}
                         {c.expDate && <span>HSD: {c.expDate}</span>}
@@ -934,8 +934,8 @@ function BinListView({ bins, onSelect }: { bins: BinNode[]; onSelect: (id: strin
             <th className="px-3 py-2.5 text-right">Tồn</th>
             <th className="px-3 py-2.5 text-right">Sức chứa</th>
             <th className="px-3 py-2.5 text-right">% đầy</th>
-            <th className="px-3 py-2.5 text-left">SKU</th>
-            <th className="px-3 py-2.5 text-left">Lot</th>
+            <th className="px-3 py-2.5 text-left">Mã vật tư</th>
+            <th className="px-3 py-2.5 text-left">Lô</th>
             <th className="px-3 py-2.5 text-left">Trạng thái</th>
             <th className="w-12" />
           </tr>

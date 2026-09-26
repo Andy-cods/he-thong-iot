@@ -65,6 +65,7 @@ import {
 } from "@/hooks/useFinance";
 import { useSession } from "@/hooks/useSession";
 import type { FinTransactionFilter } from "@/lib/query-keys";
+import { StatusPill } from "@/components/ui/status-badge";
 import { cn } from "@/lib/utils";
 
 /**
@@ -75,19 +76,11 @@ import { cn } from "@/lib/utils";
  * vượt số dư (server 409, admin được vượt), xác nhận trước khi huỷ (TC-08),
  * huỷ giao dịch của đợt thanh toán = huỷ cả đợt (TC-02), tiền đủ số + dòng tổng
  * + header dính (UI).
+ *
+ * V4.1 UI-07/08 (Đợt 6B): nhãn + màu trạng thái phiếu lấy từ lib/status
+ * (domain finTxn) — "Đã huỷ" nay xám + gạch ngang (trước đỏ). Số tiền bỏ
+ * font-mono (UI-13), giữ tabular-nums + canh phải.
  */
-
-const STATUS_LABEL: Record<string, string> = {
-  DRAFT: "Nháp",
-  POSTED: "Đã ghi sổ",
-  VOID: "Đã huỷ",
-};
-
-const STATUS_CHIP: Record<string, string> = {
-  DRAFT: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
-  POSTED: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
-  VOID: "bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400",
-};
 
 export function CashbookTab() {
   const { data: session } = useSession();
@@ -249,7 +242,7 @@ export function CashbookTab() {
             <TrendingUp className="h-4 w-4" />
             <p className="text-xs font-semibold uppercase tracking-wider">Tổng đã thu</p>
           </div>
-          <p className="mt-1 font-mono text-xl font-bold tabular-nums text-emerald-900 dark:text-emerald-200">
+          <p className="mt-1 text-xl font-bold tabular-nums text-emerald-900 dark:text-emerald-200">
             {kpiFailed ? "—" : fmtVNDShort(totalIn)}
           </p>
           <p className="text-xs tabular-nums text-emerald-800/80 dark:text-emerald-300/80">{kpiFailed ? "Không tải được" : fmtVND(totalIn)}</p>
@@ -259,7 +252,7 @@ export function CashbookTab() {
             <TrendingDown className="h-4 w-4" />
             <p className="text-xs font-semibold uppercase tracking-wider">Tổng đã chi</p>
           </div>
-          <p className="mt-1 font-mono text-xl font-bold tabular-nums text-rose-900 dark:text-rose-200">
+          <p className="mt-1 text-xl font-bold tabular-nums text-rose-900 dark:text-rose-200">
             {kpiFailed ? "—" : fmtVNDShort(totalOut)}
           </p>
           <p className="text-xs tabular-nums text-rose-800/80 dark:text-rose-300/80">{kpiFailed ? "Không tải được" : fmtVND(totalOut)}</p>
@@ -388,7 +381,7 @@ export function CashbookTab() {
                     <td colSpan={6} className="px-4 py-2.5 font-semibold text-zinc-700 dark:text-zinc-300">
                       Cộng trang này ({rows.length} dòng, không tính phiếu huỷ và chuyển quỹ)
                     </td>
-                    <td className="px-4 py-2.5 text-right font-mono tabular-nums">
+                    <td className="px-4 py-2.5 text-right tabular-nums">
                       <div className="font-semibold text-emerald-700 dark:text-emerald-400">+{fmtVND(pageTotals.in)}</div>
                       <div className="font-semibold text-rose-600 dark:text-rose-400">−{fmtVND(pageTotals.out)}</div>
                     </td>
@@ -417,12 +410,10 @@ export function CashbookTab() {
                       {r.transferGroupId && <TransferBadge />}
                     </div>
                     <div className="shrink-0 text-right">
-                      <p className={cn("font-mono text-sm font-bold tabular-nums", r.direction === "IN" ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+                      <p className={cn("text-sm font-bold tabular-nums", r.direction === "IN" ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
                         {r.direction === "IN" ? "+" : "−"}{fmtVND(r.amount)}
                       </p>
-                      <span className={cn("mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold", STATUS_CHIP[r.status])}>
-                        {STATUS_LABEL[r.status]}
-                      </span>
+                      <StatusPill domain="finTxn" code={r.status} className="mt-1" />
                     </div>
                   </div>
                   {canVoid && r.status === "POSTED" && (
@@ -441,8 +432,8 @@ export function CashbookTab() {
               ))}
               <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm dark:border-zinc-700 dark:bg-zinc-800/60">
                 <p className="font-semibold text-zinc-700 dark:text-zinc-300">Cộng trang này</p>
-                <p className="font-mono tabular-nums text-emerald-700 dark:text-emerald-400">Thu +{fmtVND(pageTotals.in)}</p>
-                <p className="font-mono tabular-nums text-rose-600 dark:text-rose-400">Chi −{fmtVND(pageTotals.out)}</p>
+                <p className="tabular-nums text-emerald-700 dark:text-emerald-400">Thu +{fmtVND(pageTotals.in)}</p>
+                <p className="tabular-nums text-rose-600 dark:text-rose-400">Chi −{fmtVND(pageTotals.out)}</p>
               </div>
             </div>
           </>
@@ -538,13 +529,11 @@ function TransactionRow({
           <span className="text-zinc-300 dark:text-zinc-600">—</span>
         )}
       </td>
-      <td className={cn("whitespace-nowrap px-4 py-2.5 text-right font-mono font-semibold tabular-nums", row.direction === "IN" ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400", row.status === "VOID" && "line-through")}>
+      <td className={cn("whitespace-nowrap px-4 py-2.5 text-right font-semibold tabular-nums", row.direction === "IN" ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400", row.status === "VOID" && "line-through")}>
         {row.direction === "IN" ? "+" : "−"}{fmtVND(row.amount)}
       </td>
       <td className="px-4 py-2.5 text-center">
-        <span className={cn("inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold", STATUS_CHIP[row.status])}>
-          {STATUS_LABEL[row.status]}
-        </span>
+        <StatusPill domain="finTxn" code={row.status} />
       </td>
       <td className="px-4 py-2.5 text-right">
         {canVoid && row.status === "POSTED" && (
@@ -688,7 +677,7 @@ function TransactionFormDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label htmlFor="tx-amount" required>Số tiền</Label>
-              <Input id="tx-amount" type="number" step="1000" min="0" {...register("amount")} error={!!errors.amount} className="mt-1 font-mono tabular-nums" placeholder="0" />
+              <Input id="tx-amount" type="number" step="1000" min="0" {...register("amount")} error={!!errors.amount} className="mt-1 tabular-nums" placeholder="0" />
               {errors.amount && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.amount.message}</p>}
             </div>
             <div>
@@ -823,7 +812,7 @@ function TransferFormDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label htmlFor="tf-amount" required>Số tiền</Label>
-              <Input id="tf-amount" type="number" step="1000" min="0" {...register("amount")} error={!!errors.amount} className="mt-1 font-mono tabular-nums" />
+              <Input id="tf-amount" type="number" step="1000" min="0" {...register("amount")} error={!!errors.amount} className="mt-1 tabular-nums" />
               {errors.amount && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.amount.message}</p>}
             </div>
             <div>

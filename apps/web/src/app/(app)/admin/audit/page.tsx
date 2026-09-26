@@ -24,8 +24,9 @@ import {
   auditObjectLabel,
 } from "@/lib/audit-scope";
 
+// V4.1 UI-15/27: cột thời điểm đủ "dd/MM/yyyy HH:mm:ss" (giờ VN), cột hành động đủ nhãn tiếng Việt.
 const GRID_COLS =
-  "grid-cols-[120px,100px,70px,minmax(0,1fr)] md:grid-cols-[170px,130px,80px,140px,90px,minmax(0,1fr)]";
+  "grid-cols-[92px,84px,92px,minmax(0,1fr)] md:grid-cols-[150px,130px,110px,140px,100px,minmax(0,1fr)]";
 
 export default function AdminAuditPage() {
   const [urlState, setUrlState] = useQueryStates(
@@ -138,11 +139,11 @@ export default function AdminAuditPage() {
           `Kết quả quá lớn, đã cắt còn ${truncated} dòng. Thu hẹp bộ lọc để xuất đủ.`,
         );
       } else {
-        toast.success("Đã xuất Excel audit log.");
+        toast.success("Đã xuất Excel nhật ký.");
       }
     } catch (err) {
       toast.error(
-        `Lỗi xuất Excel: ${err instanceof Error ? err.message : "unknown"}`,
+        `Lỗi xuất Excel: ${err instanceof Error ? err.message : "không rõ nguyên nhân"}`,
       );
     } finally {
       setExporting(false);
@@ -152,15 +153,15 @@ export default function AdminAuditPage() {
   return (
     <AdminPageShell
       breadcrumb={[
-        { label: "Trang chủ", href: "/" },
+        { label: "Tổng quan", href: "/" },
         { label: "Quản trị", href: "/admin" },
-        { label: "Audit log" },
+        { label: "Nhật ký" },
       ]}
       title="Nhật ký hệ thống"
       description={
         <>
-          Theo dõi toàn bộ thao tác ghi (CREATE / UPDATE / DELETE) và sự kiện
-          phiên đăng nhập.{" "}
+          Theo dõi toàn bộ thao tác ghi (tạo / sửa / xoá) và sự kiện
+          đăng nhập, đăng xuất.{" "}
           <span className="font-medium text-zinc-700 dark:text-zinc-300">
             {totalLabel} bản ghi
           </span>
@@ -195,19 +196,19 @@ export default function AdminAuditPage() {
                   onChange={(e) =>
                     void setUrlState({ q: e.target.value, page: 1 })
                   }
-                  placeholder="Entity / notes…"
+                  placeholder="Đối tượng / ghi chú…"
                   className="h-9 pl-8"
                 />
               </div>
             </div>
             <div className="min-w-[150px]">
-              <FilterLabel>Username</FilterLabel>
+              <FilterLabel>Tên đăng nhập</FilterLabel>
               <Input
                 value={urlState.userQ}
                 onChange={(e) =>
                   void setUrlState({ userQ: e.target.value, page: 1 })
                 }
-                placeholder="username"
+                placeholder="tên đăng nhập"
                 className="mt-1 h-9"
               />
             </div>
@@ -284,7 +285,7 @@ export default function AdminAuditPage() {
                 <option value="">Tất cả</option>
                 {AUDIT_ACTION_OPTIONS.map((o) => (
                   <option key={o.code} value={o.code}>
-                    {o.label} ({o.code})
+                    {o.label}
                   </option>
                 ))}
               </select>
@@ -315,10 +316,10 @@ export default function AdminAuditPage() {
             )}
           >
             <span>Thời điểm</span>
-            <span>User</span>
-            <span>Action</span>
-            <span>Entity</span>
-            <span className="hidden md:block">Entity ID</span>
+            <span>Người dùng</span>
+            <span>Hành động</span>
+            <span>Đối tượng</span>
+            <span className="hidden md:block">Mã đối tượng</span>
             <span className="hidden md:block">Thay đổi</span>
           </div>
 
@@ -347,7 +348,7 @@ export default function AdminAuditPage() {
                 description={
                   hasFilter
                     ? "Thử mở rộng khoảng thời gian hoặc xoá bộ lọc."
-                    : "Nhật ký sẽ hiển thị khi user thực hiện các thao tác."
+                    : "Nhật ký sẽ hiển thị khi người dùng thực hiện các thao tác."
                 }
                 actions={
                   hasFilter ? (

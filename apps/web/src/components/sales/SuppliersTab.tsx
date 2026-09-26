@@ -19,14 +19,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/domain/StatusBadge";
 import { useSuppliersList, type SupplierRow } from "@/hooks/useSuppliers";
 import { useHotkey } from "@/lib/shortcuts";
+import { activeStatusCode, getStatus, statusLabel } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
 type ActiveMode = "all" | "active" | "inactive";
 
+// V4.1 UI-07/08: NCC "Đang dùng" / "Ngừng dùng" — cùng nguồn lib/status với badge.
 const ACTIVE_MODES: { value: ActiveMode; label: string }[] = [
   { value: "all", label: "Tất cả" },
-  { value: "active", label: "Đang dùng" },
-  { value: "inactive", label: "Ngưng" },
+  { value: "active", label: statusLabel("supplier", "ACTIVE") },
+  { value: "inactive", label: statusLabel("supplier", "INACTIVE") },
 ];
 
 /**
@@ -285,10 +287,10 @@ export function SuppliersTab() {
                       {r.email ?? "—"}
                     </td>
                     <td className="px-3">
-                      <StatusBadge
-                        status={r.isActive ? "active" : "inactive"}
-                        size="sm"
-                      />
+                      {(() => {
+                        const st = getStatus("supplier", activeStatusCode(r.isActive));
+                        return <StatusBadge status={st.tone} label={st.label} size="sm" />;
+                      })()}
                     </td>
                     <td className="px-3 text-right">
                       <div className="inline-flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">

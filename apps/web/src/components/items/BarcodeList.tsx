@@ -26,6 +26,7 @@ import {
   useDeleteBarcode,
   useSetPrimaryBarcode,
 } from "@/hooks/useBarcodes";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 interface BarcodeRow {
   id: string;
@@ -40,6 +41,8 @@ export function BarcodeList({ itemId }: { itemId: string }) {
   const create = useCreateBarcode(itemId);
   const remove = useDeleteBarcode(itemId);
   const setPrimary = useSetPrimaryBarcode(itemId);
+  // V4.1 UX-01: hộp xác nhận dùng chung thay hộp thoại trình duyệt.
+  const askConfirm = useConfirm();
 
   const [form, setForm] = React.useState<BarcodeCreate>({
     barcode: "",
@@ -116,7 +119,7 @@ export function BarcodeList({ itemId }: { itemId: string }) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="internal">Nội bộ</SelectItem>
-                <SelectItem value="vendor">Vendor</SelectItem>
+                <SelectItem value="vendor">Nhà cung cấp</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -189,7 +192,7 @@ export function BarcodeList({ itemId }: { itemId: string }) {
                 <Badge variant="outline">{b.barcodeType}</Badge>
               </td>
               <td className="py-2 pr-2 text-zinc-600 dark:text-zinc-400">
-                {b.source === "vendor" ? "Vendor" : "Nội bộ"}
+                {b.source === "vendor" ? "Nhà cung cấp" : "Nội bộ"}
               </td>
               <td className="py-2 pr-2">
                 {b.isPrimary ? (
@@ -211,9 +214,14 @@ export function BarcodeList({ itemId }: { itemId: string }) {
                   aria-label="Xoá barcode"
                   className="text-zinc-400 hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-400"
                   onClick={() => {
-                    if (confirm(`Xoá barcode "${b.barcode}"?`)) {
-                      remove.mutate(b.id);
-                    }
+                    void (async () => {
+                      const ok = await askConfirm({
+                        title: `Xoá barcode “${b.barcode}”?`,
+                        tone: "danger",
+                        confirmLabel: "Xoá",
+                      });
+                      if (ok) remove.mutate(b.id);
+                    })();
                   }}
                 >
                   <Trash2 className="h-4 w-4" />

@@ -5,8 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { cn } from "@/lib/utils";
-import { formatNumber } from "@/lib/format";
+import { StatusPill } from "@/components/ui/status-badge";
+import { formatDate, formatNumber } from "@/lib/format";
 import {
   InventoryKpiCards,
   type InventoryKpiSummary,
@@ -39,19 +39,8 @@ interface InventorySummaryResponse {
   };
 }
 
-const LOT_STATUS_CLASS: Record<string, string> = {
-  AVAILABLE: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  HOLD: "bg-amber-50 text-amber-700 ring-amber-200",
-  CONSUMED: "bg-zinc-100 text-zinc-600 ring-zinc-200",
-  EXPIRED: "bg-red-50 text-red-700 ring-red-200",
-};
-
-const LOT_STATUS_LABEL: Record<string, string> = {
-  AVAILABLE: "Sẵn dùng",
-  HOLD: "Giữ QC",
-  CONSUMED: "Đã dùng",
-  EXPIRED: "Hết hạn",
-};
+// V4.1 UI-07/08: nhãn + màu trạng thái lô từ lib/status.ts (domain "lot") —
+// bỏ LOT_STATUS_CLASS/LOT_STATUS_LABEL cục bộ.
 
 export interface ItemInventoryPanelProps {
   itemId: string;
@@ -159,7 +148,7 @@ export function ItemInventoryPanel({
               <table className="w-full text-[13px]">
                 <thead className="bg-zinc-50/50 text-[11px] uppercase tracking-wide text-zinc-500">
                   <tr>
-                    <th className="px-3 py-2 text-left">Mã lot / serial</th>
+                    <th className="px-3 py-2 text-left">Mã lô / serial</th>
                     <th className="px-3 py-2 text-left">Trạng thái</th>
                     <th className="px-3 py-2 text-right">Tồn</th>
                     <th className="px-3 py-2 text-left">HSD</th>
@@ -173,24 +162,16 @@ export function ItemInventoryPanel({
                         {lot.lotCode ?? lot.serialCode ?? "—"}
                       </td>
                       <td className="px-3 py-2">
-                        <span
-                          className={cn(
-                            "inline-flex whitespace-nowrap items-center rounded px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset",
-                            LOT_STATUS_CLASS[lot.status] ??
-                              "bg-zinc-50 text-zinc-600 ring-zinc-200",
-                          )}
-                        >
-                          {LOT_STATUS_LABEL[lot.status] ?? lot.status}
-                        </span>
+                        <StatusPill domain="lot" code={lot.status} />
                       </td>
                       <td className="px-3 py-2 text-right font-mono tabular-nums text-zinc-800">
                         {formatNumber(lot.onHandQty)}
                       </td>
                       <td className="px-3 py-2 text-[12px] text-zinc-600">
-                        {lot.expDate ?? "—"}
+                        {formatDate(lot.expDate)}
                       </td>
                       <td className="px-3 py-2 text-[12px] text-zinc-500">
-                        {formatDate(lot.createdAt)}
+                        {formatDate(lot.createdAt, "dd/MM/yyyy")}
                       </td>
                     </tr>
                   ))}
@@ -228,16 +209,4 @@ function MinStockAlert({
   );
 }
 
-function formatDate(iso: string): string {
-  try {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return iso;
-    return d.toLocaleDateString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  } catch {
-    return iso;
-  }
-}
+// V4.1 UI-15: formatDate cục bộ → lib/format (giờ VN).

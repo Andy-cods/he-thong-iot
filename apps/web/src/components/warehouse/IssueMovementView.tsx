@@ -25,6 +25,10 @@ import { cn } from "@/lib/utils";
 import { useSession } from "@/hooks/useSession";
 import { can } from "@iot/shared";
 import { invalidateStockQueries } from "@/lib/stock-cache";
+import { StatusPill } from "@/components/ui/status-badge";
+import { useConfirm, usePrompt } from "@/components/ui/confirm-dialog";
+import { formatDateTime, formatQty } from "@/lib/format";
+import { statusLabel } from "@/lib/status";
 
 /**
  * Wave 5 Phase A/B — `<IssueMovementView>` (trước đây `IssueTab`).
@@ -90,6 +94,8 @@ export function IssueMovementView() {
   const [reference, setReference] = React.useState("");
   const [notes, setNotes] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
+  // V4.1 UX-01: hộp xác nhận dùng chung thay hộp thoại trình duyệt.
+  const askConfirm = useConfirm();
 
   const validLines = lines.filter((l) => l.item && Number(l.qty) > 0);
   const totalLines = validLines.length;
@@ -111,13 +117,16 @@ export function IssueMovementView() {
 
   const handleSubmit = async () => {
     if (validLines.length === 0) {
-      toast.error("Cần ít nhất 1 dòng SKU + qty.");
+      toast.error("Cần ít nhất 1 dòng mã vật tư + số lượng.");
       return;
     }
     if (totalShortage > 0) {
-      const ok = window.confirm(
-        `⚠ Thiếu tồn ${totalShortage} đơn vị. Vẫn xuất phần có sẵn?`,
-      );
+      const ok = await askConfirm({
+        title: "Thiếu tồn kho",
+        description: `Thiếu ${formatQty(totalShortage)} đơn vị. Vẫn xuất phần có sẵn?`,
+        tone: "danger",
+        confirmLabel: "Vẫn xuất",
+      });
       if (!ok) return;
     }
     setSubmitting(true);
@@ -143,11 +152,11 @@ export function IssueMovementView() {
           };
         };
         if (!fifoRes.ok || !fifoJson.data) {
-          toast.error(`Không pick FIFO được cho ${l.item!.sku}`);
+          toast.error(`Không lấy được lô FIFO cho ${l.item!.sku}`);
           return;
         }
         if (fifoJson.data.picks.length === 0) {
-          toast.error(`SKU ${l.item!.sku} không có tồn AVAILABLE.`);
+          toast.error(`Mã ${l.item!.sku} không có tồn sẵn dùng.`);
           return;
         }
         allLines.push({
@@ -185,7 +194,7 @@ export function IssueMovementView() {
         return;
       }
       toast.success(
-        `${json.data.issueNo ? `Phiếu xuất ${json.data.issueNo}: ` : ""}Đã xuất ${json.data.totalQty} qty từ ${json.data.txnIds.length} bin · ${totalLines} SKU.`,
+        `${json.data.issueNo ? `Phiếu xuất ${json.data.issueNo}: ` : ""}Đã xuất ${formatQty(json.data.totalQty)} đơn vị từ ${json.data.txnIds.length} ô kệ · ${totalLines} mã vật tư.`,
       );
       // V4.1 Đợt 1b (KHO-24) — làm mới mọi màn đọc tồn + tab Phiếu xuất kho.
       invalidateStockQueries(qc);
@@ -207,12 +216,12 @@ export function IssueMovementView() {
             Xuất hàng cho SX/bán hàng
           </h2>
           <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-            Kho xuất ngay (auto FIFO) · duyệt yêu cầu từ Gia công
+            Kho xuất ngay (tự động FIFO) · duyệt yêu cầu từ Gia công
           </p>
         </div>
         {totalLines > 0 && (
           <div className="hidden items-center gap-2 lg:flex">
-            <Stat label="Số SKU" value={String(totalLines)} />
+            <Stat label="Số mã vật tư" value={String(totalLines)} />
             <Stat
               label="Tổng SL"
               value={totalQty.toLocaleString("vi-VN")}
@@ -241,7 +250,7 @@ export function IssueMovementView() {
           <Package className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
           <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-50">Xuất nhanh</h3>
           <span className="text-xs text-zinc-500 dark:text-zinc-400">
-            · Hệ thống tự pick FIFO (lô cũ trước)
+            · Hệ thống tự lấy theo FIFO (lô cũ trước)
           </span>
         </header>
 
@@ -327,7 +336,7 @@ export function IssueMovementView() {
                 </span>
               ) : (
                 <span className="text-emerald-700 dark:text-emerald-400">
-                  ✓ Đủ khả dụng cho {totalLines} SKU · tổng {totalQty.toLocaleString("vi-VN")} qty.
+                  ✓ Đủ khả dụng cho {totalLines} mã vật tư · tổng {formatQty(totalQty)} đơn vị.
                 </span>
               )}
             </div>
@@ -539,7 +548,7 @@ function CreateIssueRequestPanel() {
 
   const handleSubmit = async () => {
     if (validLines.length === 0) {
-      toast.error("Cần ít nhất 1 dòng SKU + số lượng.");
+      toast.error("Cần ít nhất 1 dòng mã vật tư + số lượng.");
       return;
     }
     if (totalShortage > 0) {
@@ -582,12 +591,12 @@ function CreateIssueRequestPanel() {
         };
         if (!fifoRes.ok || !fifoJson.data) {
           toast.error(
-            fifoJson.error?.message ?? `Không pick FIFO được cho ${l.item!.sku}`,
+            fifoJson.error?.message ?? `Không lấy được lô FIFO cho ${l.item!.sku}`,
           );
           return;
         }
         if (fifoJson.data.picks.length === 0) {
-          toast.error(`SKU ${l.item!.sku} không có tồn AVAILABLE.`);
+          toast.error(`Mã ${l.item!.sku} không có tồn sẵn dùng.`);
           return;
         }
         requestLines.push({
@@ -776,7 +785,7 @@ function CreateIssueRequestPanel() {
               </span>
             ) : (
               <span className="text-emerald-700 dark:text-emerald-400">
-                ✓ Đủ khả dụng cho {totalLines} SKU · tổng {totalQty.toLocaleString("vi-VN")} qty.
+                ✓ Đủ khả dụng cho {totalLines} mã vật tư · tổng {formatQty(totalQty)} đơn vị.
               </span>
             )}
           </div>
@@ -891,7 +900,7 @@ function ItemPicker({
       <Input
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
-        placeholder="Tìm SKU hoặc tên (≥ 2 ký tự)…"
+        placeholder="Tìm mã vật tư hoặc tên (≥ 2 ký tự)…"
         className="h-10 pl-9"
         disabled={disabled}
       />
@@ -966,29 +975,16 @@ interface IssueRequestRow {
   createdAt: string;
 }
 
+// V4.1 UI-07/08: nhãn + màu trạng thái yêu cầu xuất kho lấy từ lib/status.ts
+// (domain "issueRequest") — bỏ map ISR_STATUS_BADGE/ISR_STATUS_LABEL cục bộ.
 const STATUS_FILTERS = [
-  { value: "PENDING", label: "Chờ duyệt" },
-  { value: "COMPLETED", label: "Hoàn tất" },
-  { value: "REJECTED", label: "Bị từ chối" },
+  { value: "PENDING", label: statusLabel("issueRequest", "PENDING") },
+  { value: "COMPLETED", label: statusLabel("issueRequest", "COMPLETED") },
+  { value: "REJECTED", label: statusLabel("issueRequest", "REJECTED") },
   { value: "ALL", label: "Tất cả" },
 ] as const;
 
 type StatusFilter = (typeof STATUS_FILTERS)[number]["value"];
-
-const ISR_STATUS_BADGE: Record<string, string> = {
-  PENDING: "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
-  APPROVED: "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400",
-  COMPLETED:
-    "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
-  REJECTED: "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400",
-};
-
-const ISR_STATUS_LABEL: Record<string, string> = {
-  PENDING: "Chờ duyệt",
-  APPROVED: "Đã duyệt",
-  COMPLETED: "Hoàn tất",
-  REJECTED: "Bị từ chối",
-};
 
 function PendingRequestsPanel() {
   const qc = useQueryClient();
@@ -1017,9 +1013,19 @@ function PendingRequestsPanel() {
 
   const [acting, setActing] = React.useState<string | null>(null);
   const [collapsed, setCollapsed] = React.useState(false);
+  // V4.1 UX-01: hộp xác nhận / nhập lý do dùng chung.
+  const askConfirm = useConfirm();
+  const askReason = usePrompt();
 
   const handleApprove = async (id: string, reqNo: string) => {
-    if (!window.confirm(`Duyệt + xuất kho yêu cầu ${reqNo}?`)) return;
+    if (
+      !(await askConfirm({
+        title: `Duyệt + xuất kho yêu cầu ${reqNo}?`,
+        description: "Hệ thống sẽ trừ tồn theo các lô đã chọn và tạo phiếu xuất kho.",
+        confirmLabel: "Duyệt + xuất",
+      }))
+    )
+      return;
     setActing(id);
     try {
       const res = await fetch(`/api/warehouse/issue-request/${id}/approve`, {
@@ -1034,7 +1040,7 @@ function PendingRequestsPanel() {
         return;
       }
       toast.success(
-        `Duyệt + xuất ${reqNo}${json.data.issueNo ? ` → phiếu xuất ${json.data.issueNo}` : ""} · ${json.data.totalQty} qty · ${json.data.txnIds.length} pick.`,
+        `Duyệt + xuất ${reqNo}${json.data.issueNo ? ` → phiếu xuất ${json.data.issueNo}` : ""} · ${formatQty(json.data.totalQty)} đơn vị · ${json.data.txnIds.length} lần lấy.`,
       );
       // V4.1 Đợt 1b (KHO-24) — làm mới mọi màn đọc tồn.
       invalidateStockQueries(qc);
@@ -1045,8 +1051,14 @@ function PendingRequestsPanel() {
   };
 
   const handleReject = async (id: string, reqNo: string) => {
-    const reason = window.prompt(`Lý do từ chối yêu cầu ${reqNo}?`);
-    if (!reason || !reason.trim()) return;
+    const reason = await askReason({
+      title: `Từ chối yêu cầu ${reqNo}`,
+      label: "Lý do từ chối",
+      required: true,
+      tone: "danger",
+      confirmLabel: "Từ chối",
+    });
+    if (reason === null || !reason.trim()) return;
     setActing(id);
     try {
       const res = await fetch(`/api/warehouse/issue-request/${id}/reject`, {
@@ -1149,14 +1161,7 @@ function PendingRequestsPanel() {
                           <code className="font-mono text-sm font-bold text-indigo-900 dark:text-indigo-300">
                             {r.requestNo}
                           </code>
-                          <span
-                            className={cn(
-                              "rounded px-1.5 py-0.5 text-xs font-medium",
-                              ISR_STATUS_BADGE[r.status] ?? ISR_STATUS_BADGE.PENDING,
-                            )}
-                          >
-                            {ISR_STATUS_LABEL[r.status] ?? r.status}
-                          </span>
+                          <StatusPill domain="issueRequest" code={r.status} />
                           <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                             {REQUEST_REASONS.find((x) => x.value === r.reason)
                               ?.label ?? r.reason}
@@ -1172,7 +1177,7 @@ function PendingRequestsPanel() {
                             </span>
                           )}
                           <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                            {new Date(r.createdAt).toLocaleString("vi-VN")}
+                            {formatDateTime(r.createdAt)}
                           </span>
                         </div>
                         <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
@@ -1182,7 +1187,7 @@ function PendingRequestsPanel() {
                           </span>{" "}
                           ·{" "}
                           <span className="tabular-nums">
-                            {totalLines} SKU / {totalPicks} pick / tổng{" "}
+                            {totalLines} mã / {totalPicks} lần lấy / tổng{" "}
                             <span className="font-semibold text-emerald-700 dark:text-emerald-400">
                               {Number(r.totalQty).toLocaleString("vi-VN")}
                             </span>
@@ -1200,7 +1205,7 @@ function PendingRequestsPanel() {
                         )}
                         <details className="mt-1.5">
                           <summary className="cursor-pointer text-[11px] font-medium text-indigo-600 hover:underline dark:text-indigo-400">
-                            Chi tiết picks ({totalPicks})
+                            Chi tiết lô lấy ({totalPicks})
                           </summary>
                           <div className="mt-1 max-h-40 overflow-auto rounded border border-zinc-100 bg-zinc-50 p-2 text-[11px] dark:border-zinc-800 dark:bg-zinc-800">
                             {r.picksJson.map((line, li) => (
@@ -1218,7 +1223,7 @@ function PendingRequestsPanel() {
                                         {p.binCode ?? p.binId.slice(0, 8)}
                                       </span>
                                       <span className="font-mono">
-                                        {p.lotCode ?? "anon"}
+                                        {p.lotCode ?? "không lô"}
                                       </span>
                                       <span className="ml-auto font-semibold tabular-nums">
                                         {p.qty}
@@ -1243,7 +1248,7 @@ function PendingRequestsPanel() {
                               <Button
                                 size="sm"
                                 disabled={acting === r.id}
-                                onClick={() => handleApprove(r.id, r.requestNo)}
+                                onClick={() => void handleApprove(r.id, r.requestNo)}
                                 className="bg-emerald-600 hover:bg-emerald-700"
                               >
                                 <CheckCircle2 className="h-3.5 w-3.5" />
@@ -1253,7 +1258,7 @@ function PendingRequestsPanel() {
                                 size="sm"
                                 variant="outline"
                                 disabled={acting === r.id}
-                                onClick={() => handleReject(r.id, r.requestNo)}
+                                onClick={() => void handleReject(r.id, r.requestNo)}
                                 className="border-indigo-300 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
                               >
                                 <X className="h-3.5 w-3.5" />

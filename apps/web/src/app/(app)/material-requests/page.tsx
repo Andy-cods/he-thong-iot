@@ -29,6 +29,8 @@ import { Button } from "@/components/ui/button";
 import { useSession } from "@/hooks/useSession";
 import { ExportExcelDialog } from "@/components/archive/ExportExcelDialog";
 import { formatDate } from "@/lib/format";
+import { StatusPill } from "@/components/ui/status-badge";
+import { statusLabel } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
 /**
@@ -62,13 +64,15 @@ interface MaterialRequestRow {
   lineCount: number;
 }
 
-const STATUS_PILL: Record<Status, { label: string; short: string; cls: string; dot: string; icon: React.ElementType }> = {
-  PENDING:   { label: "Chờ chuẩn bị", short: "Chờ",      cls: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800",    dot: "bg-amber-500", icon: Clock        },
-  PICKING:   { label: "Đang chuẩn bị", short: "Chuẩn bị", cls: "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:ring-blue-800",       dot: "bg-blue-500",  icon: Package      },
-  READY:     { label: "Đã sẵn sàng",   short: "Sẵn sàng", cls: "bg-violet-50 text-violet-700 ring-violet-200 dark:bg-violet-950/40 dark:text-violet-400 dark:ring-violet-800", dot: "bg-violet-500", icon: CheckCircle2 },
-  PARTIAL:   { label: "Giao một phần", short: "Một phần", cls: "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:ring-sky-800",             dot: "bg-sky-500",    icon: PackageCheck },
-  DELIVERED: { label: "Đã giao",       short: "Đã giao",  cls: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800", dot: "bg-emerald-500", icon: Truck  },
-  CANCELLED: { label: "Đã huỷ",        short: "Huỷ",      cls: "bg-zinc-100 text-zinc-500 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700",      dot: "bg-zinc-400",  icon: XCircle      },
+// V4.1 UI-07/08: nhãn + màu trạng thái phiếu yêu cầu vật tư từ lib/status.ts
+// (domain "mr"). Chỉ giữ icon riêng từng trạng thái.
+const STATUS_ICON: Record<Status, React.ElementType> = {
+  PENDING: Clock,
+  PICKING: Package,
+  READY: CheckCircle2,
+  PARTIAL: PackageCheck,
+  DELIVERED: Truck,
+  CANCELLED: XCircle,
 };
 
 interface ListResponse {
@@ -158,7 +162,7 @@ export default function MaterialRequestsArchivePage() {
       return body;
     },
     onSuccess: (_, { to }) => {
-      toast.success(`Đã chuyển sang ${STATUS_PILL[to].label}`);
+      toast.success(`Đã chuyển sang ${statusLabel("mr", to)}`);
       qc.invalidateQueries({ queryKey: ["material-requests"] });
       qc.invalidateQueries({ queryKey: ["notifications"] });
     },
@@ -243,9 +247,9 @@ export default function MaterialRequestsArchivePage() {
         >
           <option value="">Mọi trạng thái</option>
           <option value="open">Còn phải giao</option>
-          {(Object.keys(STATUS_PILL) as Status[]).map((st) => (
+          {(Object.keys(STATUS_ICON) as Status[]).map((st) => (
             <option key={st} value={st}>
-              {STATUS_PILL[st].label}
+              {statusLabel("mr", st)}
             </option>
           ))}
         </select>
@@ -456,7 +460,6 @@ function SlipList({
 
         <div>
           {rows.map((r) => {
-            const cfg = STATUS_PILL[r.status];
             // V4.1 Đợt 1b — READY/PARTIAL: giao bằng phiếu xuất ở trang chi tiết.
             const canAct =
               canTransition && (r.status === "PENDING" || r.status === "PICKING");
@@ -485,15 +488,7 @@ function SlipList({
                   {r.lineCount}
                 </div>
                 <div>
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset",
-                      cfg.cls,
-                    )}
-                  >
-                    <span className={cn("h-1.5 w-1.5 rounded-full", cfg.dot)} />
-                    {cfg.label}
-                  </span>
+                  <StatusPill domain="mr" code={r.status} icon={STATUS_ICON[r.status]} />
                 </div>
                 <div className="text-sm text-zinc-600 tabular-nums dark:text-zinc-400">
                   {formatDate(r.createdAt, "dd/MM/yyyy HH:mm")}

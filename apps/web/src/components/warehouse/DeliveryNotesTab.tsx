@@ -10,6 +10,10 @@ import { Input } from "@/components/ui/input";
 import { QueryError } from "@/components/ui/query-error";
 import { cn } from "@/lib/utils";
 import { useSession } from "@/hooks/useSession";
+import { StatusPill } from "@/components/ui/status-badge";
+import { useConfirm, usePrompt } from "@/components/ui/confirm-dialog";
+import { formatDateTime } from "@/lib/format";
+import { statusLabel } from "@/lib/status";
 
 /**
  * V4.0 Wave 3 Phase D — Tab "Phiếu giao hàng" (BBGH) trong hub Kho.
@@ -20,20 +24,12 @@ import { useSession } from "@/hooks/useSession";
  * (reason=production/manual/...) KHÔNG cần BBGH, không hiện ở đây.
  */
 
-const STATUS_LABEL: Record<string, string> = {
-  DRAFT: "Nháp",
-  PENDING_APPROVAL: "Chờ Giám đốc duyệt",
-  CONFIRMED: "BBGH đã duyệt",
-  REJECTED: "Bị từ chối",
-};
+// V4.1 UI-07/08: nhãn + màu trạng thái BBGH lấy từ lib/status.ts (domain "deliveryNote").
 
-const STATUS_BADGE: Record<string, string> = {
-  DRAFT: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
-  PENDING_APPROVAL:
-    "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
-  CONFIRMED:
-    "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
-  REJECTED: "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400",
+// V4.1 UI-27: lý do xuất (mã API) → tiếng Việt cho ô chọn.
+const ISSUE_REASON_LABEL: Record<string, string> = {
+  sales: "Xuất bán",
+  return: "Trả NCC",
 };
 
 interface DeliveryNoteRow {
@@ -170,6 +166,9 @@ function DeliveryNoteRowItem({
   onChanged: () => void;
 }) {
   const [acting, setActing] = React.useState(false);
+  // V4.1 UX-01: hộp xác nhận/nhập lý do dùng chung thay hộp thoại trình duyệt.
+  const askConfirm = useConfirm();
+  const askReason = usePrompt();
 
   const handleSubmit = async () => {
     setActing(true);
@@ -193,7 +192,14 @@ function DeliveryNoteRowItem({
   };
 
   const handleApprove = async () => {
-    if (!window.confirm(`Duyệt BBGH ${row.noteNo}?`)) return;
+    if (
+      !(await askConfirm({
+        title: `Duyệt BBGH ${row.noteNo}?`,
+        description: "Phiếu sẽ thành biên bản giao hàng chính thức.",
+        confirmLabel: "Duyệt",
+      }))
+    )
+      return;
     setActing(true);
     try {
       const res = await fetch(
@@ -215,8 +221,14 @@ function DeliveryNoteRowItem({
   };
 
   const handleReject = async () => {
-    const reason = window.prompt(`Lý do từ chối ${row.noteNo}?`);
-    if (!reason || !reason.trim()) return;
+    const reason = await askReason({
+      title: `Từ chối BBGH ${row.noteNo}`,
+      label: "Lý do từ chối",
+      required: true,
+      tone: "danger",
+      confirmLabel: "Từ chối",
+    });
+    if (reason === null || !reason.trim()) return;
     setActing(true);
     try {
       const res = await fetch(
@@ -255,21 +267,14 @@ function DeliveryNoteRowItem({
             <code className="font-mono text-sm font-bold text-indigo-900 dark:text-indigo-300">
               {row.noteNo}
             </code>
-            <span
-              className={cn(
-                "rounded px-1.5 py-0.5 text-xs font-medium",
-                STATUS_BADGE[row.status] ?? STATUS_BADGE.DRAFT,
-              )}
-            >
-              {STATUS_LABEL[row.status] ?? row.status}
-            </span>
+            <StatusPill domain="deliveryNote" code={row.status} />
             {row.issueRequestNo ? (
               <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-xs text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                 {row.issueRequestNo}
               </span>
             ) : null}
             <span className="text-xs text-zinc-500 dark:text-zinc-400">
-              {new Date(row.createdAt).toLocaleString("vi-VN")}
+              {formatDateTime(row.createdAt)}
             </span>
           </div>
           <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
@@ -288,16 +293,16 @@ function DeliveryNoteRowItem({
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-1.5">
           {row.status === "DRAFT" ? (
-            <Button size="sm" variant="outline" disabled={acting} onClick={handleSubmit}>
+            <Button size="sm" variant="outline" disabled={acting} onClick={() => void handleSubmit()}>
               Gửi duyệt
             </Button>
           ) : null}
           {row.status === "PENDING_APPROVAL" && isAdmin ? (
             <>
-              <Button size="sm" disabled={acting} onClick={handleApprove}>
+              <Button size="sm" disabled={acting} onClick={() => void handleApprove()}>
                 Duyệt
               </Button>
-              <Button size="sm" variant="destructive" disabled={acting} onClick={handleReject}>
+              <Button size="sm" variant="destructive" disabled={acting} onClick={() => void handleReject()}>
                 Từ chối
               </Button>
             </>
@@ -402,7 +407,7 @@ function CreateDeliveryNoteDialog({
           <Truck className="h-4 w-4" /> Tạo phiếu giao hàng
         </h3>
         <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-          Chỉ áp dụng cho yêu cầu xuất kho đã hoàn tất (COMPLETED) với lý do
+          Chỉ áp dụng cho yêu cầu xuất kho {statusLabel("issueRequest", "COMPLETED").toLowerCase()} với lý do
           xuất bán / trả hàng NCC.
         </p>
 
@@ -423,8 +428,8 @@ function CreateDeliveryNoteDialog({
               />
             ) : eligible.length === 0 ? (
               <p className="text-xs italic text-zinc-500 dark:text-zinc-400">
-                Không có yêu cầu xuất kho nào đủ điều kiện (COMPLETED +
-                reason=sales/return, chưa có phiếu giao hàng).
+                Không có yêu cầu xuất kho nào đủ điều kiện (đã xuất kho, lý do
+                xuất bán / trả NCC, chưa có phiếu giao hàng).
               </p>
             ) : (
               <select
@@ -435,7 +440,7 @@ function CreateDeliveryNoteDialog({
                 <option value="">— Chọn —</option>
                 {eligible.map((r) => (
                   <option key={r.id} value={r.id}>
-                    {r.requestNo} · {r.reason} · SL {Number(r.totalQty).toLocaleString("vi-VN")}
+                    {r.requestNo} · {ISSUE_REASON_LABEL[r.reason] ?? r.reason} · SL {Number(r.totalQty).toLocaleString("vi-VN")}
                   </option>
                 ))}
               </select>

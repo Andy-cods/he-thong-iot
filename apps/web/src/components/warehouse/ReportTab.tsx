@@ -5,6 +5,7 @@ import { Loader2, Package, AlertTriangle, Box, RefreshCw, Printer, TrendingUp } 
 import { cn } from "@/lib/utils";
 import { QueryError } from "@/components/ui/query-error";
 import { ReconciliationSection } from "./ReconciliationSection";
+import { formatQty } from "@/lib/format";
 
 /**
  * V3.7 — Tab "Báo cáo kho".
@@ -179,7 +180,8 @@ export function ReportTab() {
             Báo cáo kho
           </h2>
           <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
-            Tổng quan utilization, bins thấp tồn, top SKU và SKU chưa gán vị trí.
+            {/* V4.1 UI-27: tiếng Việt hoá thuật ngữ kho (utilization/bins/fill ratio/putaway). */}
+            Tỷ lệ sử dụng kệ, ô thấp tồn, mã tồn nhiều nhất và mã chưa gán vị trí.
           </p>
         </div>
         <div className="flex items-center gap-2 print:hidden">
@@ -206,7 +208,7 @@ export function ReportTab() {
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <KpiCard
           icon={<Box className="h-4 w-4" />}
-          label="Tổng bins"
+          label="Tổng số ô"
           value={stats.totalBins}
           tone="zinc"
         />
@@ -236,7 +238,7 @@ export function ReportTab() {
       {/* Distribution by fill level */}
       <section className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
         <h3 className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-          Phân bố theo mức tồn (fill ratio)
+          Phân bố theo mức lấp đầy
         </h3>
         <div className="space-y-2">
           <DistRow
@@ -275,7 +277,7 @@ export function ReportTab() {
       {/* Capacity utilization theo kệ */}
       <section className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
         <h3 className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-          Utilization theo kệ
+          Tỷ lệ sử dụng theo kệ
         </h3>
         {rackList.length === 0 ? (
           <p className="py-4 text-center text-sm text-zinc-500 dark:text-zinc-400">
@@ -288,10 +290,13 @@ export function ReportTab() {
               const pct = Math.min(100, Math.round(ratio * 100));
               return (
                 <div key={r.rack} className="flex items-center gap-3">
-                  <span className="w-16 font-mono text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                  <span
+                    className="w-24 shrink-0 truncate whitespace-nowrap font-mono text-xs font-semibold text-zinc-700 dark:text-zinc-300"
+                    title={r.rack}
+                  >
                     {r.rack}
                   </span>
-                  <div className="relative flex-1 overflow-hidden rounded bg-zinc-100 dark:bg-zinc-800">
+                  <div className="relative min-w-0 flex-1 overflow-hidden rounded bg-zinc-100 dark:bg-zinc-800">
                     <div
                       className={cn(
                         "h-5 transition-all",
@@ -307,13 +312,22 @@ export function ReportTab() {
                       )}
                       style={{ width: `${pct}%` }}
                     />
-                    <span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-zinc-900 mix-blend-difference dark:text-zinc-50">
-                      {pct}% · {r.totalQty.toLocaleString("vi-VN")} /{" "}
-                      {r.totalCap.toLocaleString("vi-VN")}
-                    </span>
                   </div>
-                  <span className="w-20 text-right text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
-                    {r.bins.length} bins
+                  {/* V4.1: nhãn % nằm NGOÀI thanh (trước đây chữ trong thanh gần như vô hình). */}
+                  <span className="w-32 shrink-0 whitespace-nowrap text-right sm:w-44 text-xs tabular-nums text-zinc-700 dark:text-zinc-300">
+                    {r.totalCap > 0 ? (
+                      <>
+                        <span className="font-semibold">{pct}%</span> · {formatQty(r.totalQty)} /{" "}
+                        {formatQty(r.totalCap)}
+                      </>
+                    ) : (
+                      <span className="text-zinc-500 dark:text-zinc-400">
+                        {formatQty(r.totalQty)} · chưa có sức chứa
+                      </span>
+                    )}
+                  </span>
+                  <span className="hidden w-12 shrink-0 whitespace-nowrap text-right text-xs sm:inline-block tabular-nums text-zinc-500 dark:text-zinc-400">
+                    {r.bins.length} ô
                   </span>
                 </div>
               );
@@ -327,21 +341,21 @@ export function ReportTab() {
         <header className="border-b border-zinc-200 p-4 dark:border-zinc-800">
           <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
             <TrendingUp className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-            Top SKU theo tồn kho ({topItems.length})
+            Mã tồn nhiều nhất ({topItems.length})
           </h3>
         </header>
         {topItems.length === 0 ? (
           <p className="px-4 py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
-            Chưa có SKU nào có tồn.
+            Chưa có mã vật tư nào có tồn.
           </p>
         ) : (
           <table className="w-full text-sm">
             <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
               <tr>
                 <th className="w-10 px-3 py-2 text-left">#</th>
-                <th className="px-3 py-2 text-left">SKU</th>
+                <th className="px-3 py-2 text-left">Mã vật tư</th>
                 <th className="px-3 py-2 text-left">Tên</th>
-                <th className="px-3 py-2 text-left">Bin</th>
+                <th className="px-3 py-2 text-left">Ô mặc định</th>
                 <th className="px-3 py-2 text-right">Tồn</th>
               </tr>
             </thead>
@@ -369,9 +383,7 @@ export function ReportTab() {
                     )}
                   </td>
                   <td className="px-3 py-2 text-right text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
-                    {(it.inventorySummary?.totalQty ?? 0).toLocaleString(
-                      "vi-VN",
-                    )}
+                    {formatQty(it.inventorySummary?.totalQty ?? 0)}
                   </td>
                 </tr>
               ))}
@@ -384,25 +396,25 @@ export function ReportTab() {
       <section className="rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <header className="border-b border-zinc-200 p-4 dark:border-zinc-800">
           <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-            Bins thấp tồn ({lowBins.length})
+            Ô thấp tồn ({lowBins.length})
           </h3>
           <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-            Các bin có số lượng dưới ngưỡng cảnh báo (low_threshold).
+            Các ô kệ có số lượng dưới ngưỡng cảnh báo tồn thấp đã cài cho ô.
           </p>
         </header>
         {lowBins.length === 0 ? (
           <p className="px-4 py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
-            Không có bin nào dưới ngưỡng.
+            Không có ô nào dưới ngưỡng.
           </p>
         ) : (
           <table className="w-full text-sm">
             <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
               <tr>
-                <th className="px-3 py-2 text-left">Bin</th>
+                <th className="px-3 py-2 text-left">Ô kệ</th>
                 <th className="px-3 py-2 text-right">Tồn</th>
                 <th className="px-3 py-2 text-right">Ngưỡng thấp</th>
-                <th className="px-3 py-2 text-right">Cap</th>
-                <th className="px-3 py-2 text-right">SKUs</th>
+                <th className="px-3 py-2 text-right">Sức chứa</th>
+                <th className="px-3 py-2 text-right">Số mã</th>
               </tr>
             </thead>
             <tbody>
@@ -414,13 +426,13 @@ export function ReportTab() {
                     </span>
                   </td>
                   <td className="px-3 py-2 text-right text-sm tabular-nums text-zinc-900 dark:text-zinc-50">
-                    {b.totalQty.toLocaleString("vi-VN")}
+                    {formatQty(b.totalQty)}
                   </td>
                   <td className="px-3 py-2 text-right text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
-                    {Number(b.lowThreshold ?? 0).toLocaleString("vi-VN")}
+                    {formatQty(b.lowThreshold ?? 0)}
                   </td>
                   <td className="px-3 py-2 text-right text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
-                    {Number(b.capacity ?? 0).toLocaleString("vi-VN")}
+                    {formatQty(b.capacity ?? 0)}
                   </td>
                   <td className="px-3 py-2 text-right text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
                     {b.skuCount}
@@ -436,16 +448,16 @@ export function ReportTab() {
       <section className="rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <header className="border-b border-zinc-200 p-4 dark:border-zinc-800">
           <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-            SKU chưa gán vị trí kho ({unslotted.length})
+            Mã chưa gán vị trí kho ({unslotted.length})
           </h3>
           <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-            Các SKU chưa có default_bin_id — khi nhận hàng sẽ không tự putaway.
-            Vào tab Vật tư → edit → gán bin.
+            Các mã vật tư chưa có ô kệ mặc định — khi nhận hàng hệ thống sẽ không
+            tự xếp kệ. Vào tab Vật tư → Sửa → gán ô kệ mặc định.
           </p>
         </header>
         {unslotted.length === 0 ? (
           <p className="px-4 py-6 text-center text-sm text-emerald-600 dark:text-emerald-400">
-            ✓ Tất cả SKU đã được gán vị trí.
+            ✓ Tất cả mã vật tư đã được gán vị trí.
           </p>
         ) : (
           <ul className="max-h-72 divide-y divide-zinc-100 overflow-auto dark:divide-zinc-800">
@@ -462,7 +474,7 @@ export function ReportTab() {
                 </div>
                 {it.inventorySummary && it.inventorySummary.totalQty > 0 && (
                   <span className="shrink-0 rounded bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
-                    Có tồn: {it.inventorySummary.totalQty}
+                    Có tồn: {formatQty(it.inventorySummary.totalQty)}
                   </span>
                 )}
               </li>
@@ -542,8 +554,8 @@ function DistRow({
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="w-20 text-right text-xs tabular-nums text-zinc-600 dark:text-zinc-400">
-        {count} ({pct}%)
+      <span className="w-24 whitespace-nowrap text-right text-xs tabular-nums text-zinc-600 dark:text-zinc-400">
+        {count} ô ({pct}%)
       </span>
     </div>
   );

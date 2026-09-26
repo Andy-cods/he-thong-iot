@@ -11,7 +11,6 @@ import {
 } from "nuqs";
 import {
   PR_STATUSES,
-  PR_STATUS_LABELS,
   can,
   type PRStatus,
 } from "@iot/shared";
@@ -24,6 +23,7 @@ import { ExportExcelDialog } from "@/components/archive/ExportExcelDialog";
 import { usePurchaseRequestsList } from "@/hooks/usePurchaseRequests";
 import { useSession } from "@/hooks/useSession";
 import type { PRFilter } from "@/lib/query-keys";
+import { statusLabel } from "@/lib/status";
 
 /**
  * V3.16 — Đề xuất mua vật tư (YCVT/MRF) dạng BẢNG PHẲNG.
@@ -136,7 +136,8 @@ export function PRTab() {
             ]}
           />
           <h1 className="mt-1 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-            Đề xuất mua vật tư (YCVT/MRF)
+            {/* V4.1 UI-28: thống nhất 1 tên "Đề xuất vật tư" (menu, tab, tiêu đề). */}
+            Đề xuất vật tư
           </h1>
           <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
             {query.isError ? "—" : total.toLocaleString("vi-VN")} phiếu
@@ -166,7 +167,8 @@ export function PRTab() {
                   : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
               }`}
             >
-              {s === "all" ? "Tất cả" : PR_STATUS_LABELS[s as PRStatus]}
+              {/* V4.1 UI-07: nhãn chip lọc từ lib/status.ts (khớp badge danh sách). */}
+              {s === "all" ? "Tất cả" : statusLabel("pr", s)}
             </button>
           ))}
         </div>

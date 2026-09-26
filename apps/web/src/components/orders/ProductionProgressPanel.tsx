@@ -15,7 +15,8 @@ import {
   BOM_SNAPSHOT_STATE_TONES,
 } from "@iot/shared";
 import { cn } from "@/lib/utils";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatQty } from "@/lib/format";
+import { StatusPill } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import type { OrderProductionSummary, WorkOrderSummaryItem } from "@/app/api/orders/[code]/production-summary/route";
 import { ProductionOverviewCards } from "@/components/orders/ProductionOverviewCards";
@@ -34,17 +35,14 @@ import type { SalesOrderRow } from "@/hooks/useOrders";
  *   4. Ghi chú + Activity log (OrderNotesSection).
  */
 
-const WO_STATUS_BADGE: Record<
-  string,
-  { label: string; className: string }
-> = {
-  DRAFT: { label: "Nháp", className: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400" },
-  QUEUED: { label: "Đợi", className: "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300" },
-  RELEASED: { label: "Phát lệnh", className: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400" },
-  IN_PROGRESS: { label: "Đang chạy", className: "bg-indigo-100 text-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-400" },
-  PAUSED: { label: "Tạm dừng", className: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400" },
-  COMPLETED: { label: "Hoàn thành", className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400" },
-  CANCELLED: { label: "Huỷ", className: "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400" },
+// V4.1 UI-07: bỏ WO_STATUS_BADGE cục bộ ("Huỷ" đỏ, "Phát lệnh") — badge lệnh SX lấy
+// từ lib/status.ts domain "wo".
+// V4.1 UI-27: mức ưu tiên hiển thị tiếng Việt (trước đây in mã thô NORMAL/HIGH).
+const PRIORITY_LABEL: Record<string, string> = {
+  LOW: "Thấp",
+  NORMAL: "Bình thường",
+  HIGH: "Cao",
+  URGENT: "Khẩn",
 };
 
 interface ProductionProgressPanelProps {
@@ -112,11 +110,11 @@ export function ProductionProgressPanel({
         <div className="flex items-center gap-2 border-b border-zinc-100 px-4 py-2.5 dark:border-zinc-800">
           <Package className="h-4 w-4 text-zinc-500 dark:text-zinc-400" aria-hidden="true" />
           <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
-            Vật liệu (snapshot)
+            Vật liệu (bản chốt BOM)
           </h3>
           {snapshotRows.length > 0 && (
             <span className="ml-auto text-xs text-zinc-500 dark:text-zinc-400">
-              {snapshotRows.length} line{" "}
+              {snapshotRows.length} dòng{" "}
               {!canEdit && (
                 <span className="text-[11px] text-amber-600 dark:text-amber-400">
                   (chỉ đọc — không có quyền sửa)
@@ -135,7 +133,7 @@ export function ProductionProgressPanel({
           </div>
         ) : snapshotRows.length === 0 ? (
           <div className="px-4 py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
-            Chưa có snapshot lines — hãy explode BOM ở tab Snapshot Board.
+            Chưa có dòng vật liệu — hãy chốt BOM ở tab “Bản chốt BOM”.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -143,22 +141,22 @@ export function ProductionProgressPanel({
               <thead>
                 <tr className="border-b border-zinc-100 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
                   <th scope="col" className="px-4 py-2 text-left">
-                    SKU
+                    Mã vật tư
                   </th>
                   <th scope="col" className="px-4 py-2 text-left">
                     Tên
                   </th>
                   <th scope="col" className="px-4 py-2 text-right">
-                    Required
+                    Cần
                   </th>
                   <th scope="col" className="px-4 py-2 text-right">
-                    Available
+                    Sẵn có (QC đạt)
                   </th>
                   <th scope="col" className="px-4 py-2 text-right">
-                    Issued
+                    Đã xuất
                   </th>
                   <th scope="col" className="px-4 py-2 text-right">
-                    Shortage
+                    Thiếu
                   </th>
                   <th scope="col" className="px-4 py-2 text-left">
                     Trạng thái
@@ -241,13 +239,13 @@ function SnapshotRow({
         <span className="line-clamp-1 max-w-[280px]">{row.componentName}</span>
       </td>
       <td className="px-4 py-2 text-right font-mono text-xs tabular-nums text-zinc-800 dark:text-zinc-200">
-        {Number(row.requiredQty).toLocaleString("vi-VN")}
+        {formatQty(row.requiredQty)}
       </td>
       <td className="px-4 py-2 text-right font-mono text-xs tabular-nums text-emerald-700 dark:text-emerald-400">
-        {Number(row.qcPassQty).toLocaleString("vi-VN")}
+        {formatQty(row.qcPassQty)}
       </td>
       <td className="px-4 py-2 text-right font-mono text-xs tabular-nums text-zinc-600 dark:text-zinc-400">
-        {Number(row.issuedQty).toLocaleString("vi-VN")}
+        {formatQty(row.issuedQty)}
       </td>
       <td
         className={cn(
@@ -255,7 +253,7 @@ function SnapshotRow({
           shortage > 0 ? "text-red-600 font-medium dark:text-red-400" : "text-zinc-400 dark:text-zinc-500",
         )}
       >
-        {shortage > 0 ? shortage.toLocaleString("vi-VN") : "—"}
+        {shortage > 0 ? formatQty(shortage) : "—"}
       </td>
       <td className="px-4 py-2">
         <span
@@ -297,10 +295,10 @@ function WorkOrdersSection({
     <section className="rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
       <div className="flex items-center gap-2 border-b border-zinc-100 px-4 py-2.5 dark:border-zinc-800">
         <Factory className="h-4 w-4 text-zinc-500 dark:text-zinc-400" aria-hidden="true" />
-        <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-50">Work Orders</h3>
+        <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-50">Lệnh sản xuất</h3>
         {hasWOs && (
           <span className="text-xs text-zinc-400 dark:text-zinc-500">
-            {summary!.workOrders.length} WO
+            {summary!.workOrders.length} lệnh
           </span>
         )}
         <Link
@@ -309,13 +307,13 @@ function WorkOrdersSection({
         >
           <Button variant="ghost" size="sm" className="h-7 text-xs">
             <Plus className="h-3 w-3" aria-hidden="true" />
-            Tạo WO
+            Tạo lệnh SX
           </Button>
         </Link>
       </div>
       {!hasWOs ? (
         <div className="px-4 py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
-          Chưa có Work Order nào cho đơn hàng này.
+          Chưa có lệnh sản xuất nào cho đơn hàng này.
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -323,7 +321,7 @@ function WorkOrdersSection({
             <thead>
               <tr className="border-b border-zinc-100 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
                 <th scope="col" className="px-4 py-2 text-left">
-                  Mã WO
+                  Mã lệnh SX
                 </th>
                 <th scope="col" className="px-4 py-2 text-left">
                   Trạng thái
@@ -361,11 +359,6 @@ function WorkOrdersSection({
 }
 
 function WoRow({ wo }: { wo: WorkOrderSummaryItem }) {
-  const badge = WO_STATUS_BADGE[wo.status] ?? {
-    label: wo.status,
-    className: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
-  };
-
   return (
     <tr className="border-b border-zinc-100 last:border-b-0 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/60">
       <td className="px-4 py-2 font-mono text-xs font-medium text-indigo-700 dark:text-indigo-400">
@@ -377,16 +370,9 @@ function WoRow({ wo }: { wo: WorkOrderSummaryItem }) {
         </Link>
       </td>
       <td className="px-4 py-2">
-        <span
-          className={cn(
-            "inline-flex whitespace-nowrap items-center rounded-sm px-1.5 py-0.5 text-[11px] font-medium",
-            badge.className,
-          )}
-        >
-          {badge.label}
-        </span>
+        <StatusPill domain="wo" code={wo.status} short />
       </td>
-      <td className="px-4 py-2 text-xs text-zinc-600 dark:text-zinc-400">{wo.priority}</td>
+      <td className="px-4 py-2 text-xs text-zinc-600 dark:text-zinc-400">{PRIORITY_LABEL[wo.priority] ?? wo.priority}</td>
       <td className="px-4 py-2 font-mono text-xs text-zinc-600 dark:text-zinc-400">
         {wo.plannedStartDate
           ? formatDate(wo.plannedStartDate, "dd/MM/yyyy")

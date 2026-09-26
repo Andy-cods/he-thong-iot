@@ -1,11 +1,11 @@
 import { type NextRequest } from "next/server";
-import { PR_STATUS_LABELS, type PRStatus } from "@iot/shared";
+import { formatDateTime } from "@/lib/format";
 import { logger } from "@/lib/logger";
+import { statusLabel } from "@/lib/status";
 import { listPRsInRange, type PRSlip } from "@/server/repos/purchaseRequests";
 import { jsonError } from "@/server/http";
 import { canViewAllPRs } from "@/server/services/prAccess";
 import { requireCan } from "@/server/session";
-import { formatVNDateTime } from "@/server/services/batchSlipsExcel";
 import { deriveDisplayLabel, NO_LINE_LABEL } from "@/lib/pr-display-label";
 import {
   buildPrTemplateWorkbook,
@@ -132,9 +132,10 @@ export async function GET(req: NextRequest) {
       ],
       rows: slipsData.map((s) => [
         s.paperFormNo ?? s.code,
-        formatVNDateTime(new Date(s.createdAt)),
+        // V4.1 UI-15/UI-07: ngày giờ VN + nhãn trạng thái từ lib dùng chung.
+        formatDateTime(s.createdAt),
         s.formType ?? "MRF",
-        PR_STATUS_LABELS[s.status as PRStatus] ?? s.status,
+        statusLabel("pr", s.status),
         s.requestedByName || "—",
         s.lines.length,
       ]),

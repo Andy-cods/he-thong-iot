@@ -15,6 +15,7 @@ import {
   type ReportTargetRow,
 } from "@/hooks/useReports";
 import { cn } from "@/lib/utils";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 /**
  * V3.7.62 — Admin CRUD KPI Targets.
@@ -77,10 +78,10 @@ export default function ReportTargetsPage() {
   return (
     <AdminPageShell
       breadcrumb={[
-        { label: "Trang chủ", href: "/" },
+        { label: "Tổng quan", href: "/" },
         { label: "Quản trị", href: "/admin" },
         { label: "Báo cáo", href: "/admin/reports/employee-productivity" },
-        { label: "KPI Targets" },
+        { label: "Mục tiêu KPI" },
       ]}
       title="KPI Baselines / Mục tiêu năng suất"
       description={
@@ -349,6 +350,8 @@ function TargetRow({ target }: { target: ReportTargetRow }) {
   const [editing, setEditing] = React.useState(false);
   const [val, setVal] = React.useState(target.targetValue);
   const [notes, setNotes] = React.useState(target.notes ?? "");
+  // V4.1 UX-01: hộp xác nhận dùng chung thay hộp thoại trình duyệt.
+  const askConfirm = useConfirm();
 
   const metricLabel =
     Object.values(METRIC_OPTIONS)
@@ -369,10 +372,17 @@ function TargetRow({ target }: { target: ReportTargetRow }) {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm(`Xoá target ${metricLabel}?`)) return;
+    if (
+      !(await askConfirm({
+        title: `Xoá mục tiêu “${metricLabel}”?`,
+        tone: "danger",
+        confirmLabel: "Xoá",
+      }))
+    )
+      return;
     try {
       await del.mutateAsync(target.id);
-      toast.success("Đã xoá target");
+      toast.success("Đã xoá mục tiêu");
     } catch (err) {
       toast.error((err as Error).message);
     }

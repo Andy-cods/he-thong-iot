@@ -25,18 +25,14 @@ import { useWorkOrdersList, type WorkOrderStatus, type WorkOrderRow } from "@/ho
 import type { WorkOrderFilter } from "@/lib/query-keys";
 import { BomFilterChip } from "@/components/bom/BomFilterChip";
 import { cn } from "@/lib/utils";
+import { StatusPill } from "@/components/ui/status-badge";
+import { TONE_CLASSES, getStatus, statusLabel } from "@/lib/status";
+import { formatDate } from "@/lib/format";
 
 /* ─── Status / Priority config ─────────────────────────────────────────── */
 
-const STATUS_CONFIG: Record<WorkOrderStatus, { label: string; color: string; bg: string; border: string; dot: string }> = {
-  DRAFT:       { label: "Nháp",          color: "text-zinc-600 dark:text-zinc-400",   bg: "bg-zinc-50 dark:bg-zinc-800",   border: "border-zinc-200 dark:border-zinc-700",   dot: "bg-zinc-400"   },
-  QUEUED:      { label: "Hàng đợi",      color: "text-blue-700 dark:text-blue-400",   bg: "bg-blue-50 dark:bg-blue-950/40",   border: "border-blue-200 dark:border-blue-800",   dot: "bg-blue-400"   },
-  RELEASED:    { label: "Đã phát hành",  color: "text-indigo-700 dark:text-indigo-400", bg: "bg-indigo-50 dark:bg-indigo-950/40", border: "border-indigo-200 dark:border-indigo-800", dot: "bg-indigo-500" },
-  IN_PROGRESS: { label: "Đang sản xuất", color: "text-orange-700 dark:text-orange-400", bg: "bg-orange-50 dark:bg-orange-950/40", border: "border-orange-200 dark:border-orange-800", dot: "bg-orange-500" },
-  PAUSED:      { label: "Tạm dừng",      color: "text-amber-700 dark:text-amber-400",  bg: "bg-amber-50 dark:bg-amber-950/40",  border: "border-amber-200 dark:border-amber-800",  dot: "bg-amber-500"  },
-  COMPLETED:   { label: "Hoàn thành",    color: "text-emerald-700 dark:text-emerald-400",bg: "bg-emerald-50 dark:bg-emerald-950/40",border: "border-emerald-200 dark:border-emerald-800",dot: "bg-emerald-500"},
-  CANCELLED:   { label: "Đã hủy",        color: "text-red-700 dark:text-red-400",    bg: "bg-red-50 dark:bg-red-950/40",    border: "border-red-200 dark:border-red-800",    dot: "bg-red-400"    },
-};
+// V4.1 UI-07: bỏ STATUS_CONFIG cục bộ ("Nháp" cho DRAFT, "Đã hủy" đỏ, Đang SX cam) —
+// nhãn + tông lấy từ lib/status.ts domain "wo" (DRAFT = "Chờ duyệt", Đã huỷ = xám).
 
 const PRIORITY_CONFIG: Record<string, { label: string; color: string }> = {
   LOW:    { label: "Thấp",       color: "text-zinc-500 dark:text-zinc-400"   },
@@ -77,7 +73,6 @@ function WoCard({ wo }: { wo: WorkOrderRow }) {
   const remaining = Math.max(0, planned - good);
   const isPaused = wo.status === "PAUSED";
   const isDone = pct >= 100;
-  const cfg = STATUS_CONFIG[wo.status];
   const pri = PRIORITY_CONFIG[wo.priority] ?? PRIORITY_CONFIG.NORMAL!;
 
   return (
@@ -96,10 +91,7 @@ function WoCard({ wo }: { wo: WorkOrderRow }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <code className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-50">{wo.woNo}</code>
-            <span className={cn("inline-flex whitespace-nowrap items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium", cfg.bg, cfg.color, cfg.border)}>
-              <span className={cn("h-1.5 w-1.5 rounded-full", cfg.dot)} aria-hidden />
-              {cfg.label}
-            </span>
+            <StatusPill domain="wo" code={wo.status} dot />
           </div>
           {/* V4.1 SX-33/Q4 — hiện Sản phẩm thay "Đơn hàng" (đơn hàng bán đang ẩn). */}
           <p className="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400" title={wo.productName ?? undefined}>
@@ -218,6 +210,7 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
       inProgress: n("IN_PROGRESS"),
       queued: n("QUEUED") + n("RELEASED"),
       completed: n("COMPLETED"),
+      draft: n("DRAFT"),
     };
   }, [statusCounts]);
 
@@ -230,16 +223,23 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
     done:    rows.filter((r) => r.status === "COMPLETED"),
   }), [rows]);
 
-  const STATUS_CHIPS = [
-    { value: "active",      label: "Đang hoạt động" },
-    { value: "all",         label: "Tất cả" },
-    { value: "IN_PROGRESS", label: "Đang SX" },
-    { value: "QUEUED",      label: "Hàng đợi" },
-    { value: "RELEASED",    label: "Phát hành" },
-    { value: "PAUSED",      label: "Tạm dừng" },
-    { value: "COMPLETED",   label: "Hoàn thành" },
-    { value: "DRAFT",       label: "Nháp" },
-  ] as const;
+  // V4.1 UI-07/08: chip lọc lấy nhãn từ lib/status.ts (khớp badge trong bảng).
+  // Biến thể "yêu cầu" (Thiết kế + Gia công) đặt "Chờ duyệt" (DRAFT) lên đầu và
+  // "Tất cả" ngay sau để xem mọi trạng thái.
+  const isRequestVariant = variant !== "operations-orders";
+  const chipCodes = isRequestVariant
+    ? (["DRAFT", "all", "active", "IN_PROGRESS", "QUEUED", "RELEASED", "PAUSED", "COMPLETED"] as const)
+    : (["active", "all", "IN_PROGRESS", "QUEUED", "RELEASED", "PAUSED", "COMPLETED", "DRAFT"] as const);
+  const STATUS_CHIPS = chipCodes.map((value) => ({
+    value,
+    label:
+      value === "active" ? "Đang hoạt động" : value === "all" ? "Tất cả" : statusLabel("wo", value),
+  }));
+  const currentFilterLabel =
+    STATUS_CHIPS.find((c) => c.value === urlState.status)?.label ?? urlState.status;
+  // V4.1 UI-08 (§2.2): tiêu đề đúng với bộ lọc đang áp dụng (trước đây luôn ghi
+  // "chờ duyệt" kể cả khi đang xem mọi trạng thái).
+  const showingPendingOnly = urlState.status === "DRAFT";
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -255,7 +255,7 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
               <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
                 {variant === "operations-orders"
                   ? "Lệnh sản xuất"
-                  : variant === "operations-requests"
+                  : variant === "operations-requests" && showingPendingOnly
                     ? "Yêu cầu sản xuất chờ duyệt"
                     : "Yêu cầu sản xuất"}
               </h1>
@@ -263,14 +263,18 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
                 {variant === "operations-orders"
                   ? "Lệnh đã được duyệt — đang/đã sản xuất"
                   : variant === "operations-requests"
-                    ? "Yêu cầu từ Bộ phận Thiết kế chờ Gia công xem xét"
-                    : "Yêu cầu Thiết kế gửi sang Gia công để duyệt"}
+                    ? showingPendingOnly
+                      ? "Yêu cầu từ Bộ phận Thiết kế đang chờ Gia công duyệt · chọn “Tất cả” để xem mọi trạng thái"
+                      : `Yêu cầu từ Bộ phận Thiết kế · đang xem: ${currentFilterLabel}`
+                    : showingPendingOnly
+                      ? "Yêu cầu Thiết kế gửi sang Gia công, đang chờ duyệt"
+                      : `Yêu cầu Thiết kế gửi sang Gia công · đang xem: ${currentFilterLabel}`}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {/* V3.7.73 — Đã bỏ "Tạo nhanh" demo. Mọi LSX dùng form chính thức GTAM. */}
-            <Button asChild size="sm" title="Phiếu LSX GTAM — form chuẩn đầy đủ Routing + NVL + Dao cụ + Print A4">
+            <Button asChild size="sm" title="Phiếu LSX GTAM — biểu mẫu chuẩn đủ quy trình + NVL + dao cụ + in A4">
               <Link href="/work-orders/new-lsx">
                 <Plus className="h-3.5 w-3.5" aria-hidden />
                 Phiếu LSX GTAM
@@ -282,9 +286,11 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
         {/* Stats */}
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {[
-            { icon: TrendingUp,   label: "Tổng WO",          value: stats.total,      color: "text-zinc-600 dark:text-zinc-400",   bg: "bg-zinc-50 dark:bg-zinc-800"   },
+            isRequestVariant
+              ? { icon: Clock,      label: statusLabel("wo", "DRAFT"), value: stats.draft,   color: "text-sky-700 dark:text-sky-400",    bg: "bg-sky-50 dark:bg-sky-950/40" }
+              : { icon: TrendingUp, label: "Tổng lệnh",       value: stats.total,      color: "text-zinc-600 dark:text-zinc-400",   bg: "bg-zinc-50 dark:bg-zinc-800"   },
             { icon: Activity,     label: "Đang sản xuất",    value: stats.inProgress, color: "text-orange-600 dark:text-orange-400", bg: "bg-orange-50 dark:bg-orange-950/40" },
-            { icon: Clock,        label: "Chờ / Phát hành",  value: stats.queued,     color: "text-indigo-600 dark:text-indigo-400", bg: "bg-indigo-50 dark:bg-indigo-950/40" },
+            { icon: Clock,        label: "Hàng đợi / Đã duyệt", value: stats.queued,     color: "text-indigo-600 dark:text-indigo-400", bg: "bg-indigo-50 dark:bg-indigo-950/40" },
             { icon: CheckCircle2, label: "Hoàn thành",       value: stats.completed,  color: "text-emerald-600 dark:text-emerald-400",bg: "bg-emerald-50 dark:bg-emerald-950/40"},
           ].map((s) => (
             <div key={s.label} className={cn("flex items-center gap-2.5 rounded-xl px-3 py-2.5", s.bg)}>
@@ -314,7 +320,7 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
       {/* ── Filter bar ── */}
       <div className="flex flex-wrap items-center gap-2 border-b border-zinc-200 bg-zinc-50/80 px-4 py-2.5 dark:border-zinc-800 dark:bg-zinc-800/60">
         <Input
-          placeholder="Tìm WO số, ghi chú…"
+          placeholder="Tìm số lệnh, ghi chú…"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           className="h-8 max-w-[200px]"
@@ -323,7 +329,8 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
         {/* Status chips */}
         <div className="flex flex-wrap items-center gap-1">
           {STATUS_CHIPS.map((opt) => {
-            const cfg = STATUS_CONFIG[opt.value as WorkOrderStatus];
+            const isStatusCode = opt.value !== "active" && opt.value !== "all";
+            const tone = isStatusCode ? TONE_CLASSES[getStatus("wo", opt.value).tone] : null;
             const isActive = urlState.status === opt.value;
             return (
               <button
@@ -333,13 +340,13 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
                 className={cn(
                   "rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors",
                   isActive
-                    ? cfg
-                      ? cn(cfg.bg, cfg.color, cfg.border)
+                    ? tone
+                      ? cn("border-transparent ring-1 ring-inset", tone.pill)
                       : "border-zinc-800 bg-zinc-900 text-white dark:border-zinc-200 dark:bg-zinc-100 dark:text-zinc-900"
                     : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-zinc-500",
                 )}
               >
-                {cfg && <span className={cn("mr-1 inline-block h-1.5 w-1.5 rounded-full", cfg.dot)} aria-hidden />}
+                {tone && <span className={cn("mr-1 inline-block h-1.5 w-1.5 rounded-full", tone.dot)} aria-hidden />}
                 {opt.label}
               </button>
             );
@@ -360,7 +367,7 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
             type="button"
             onClick={() => void setUrlState({ view: "card" })}
             className={cn("rounded-md p-1.5 transition-colors", urlState.view === "card" ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900" : "text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800")}
-            title="Dạng card"
+            title="Dạng thẻ"
           >
             <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
           </button>
@@ -398,10 +405,7 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
               preset="no-filter-match"
               title={
                 urlState.status !== "all"
-                  ? `Không có lệnh ở trạng thái "${
-                      STATUS_CHIPS.find((c) => c.value === urlState.status)?.label ??
-                      urlState.status
-                    }"`
+                  ? `Không có lệnh ở trạng thái "${currentFilterLabel}"`
                   : "Không có lệnh khớp bộ lọc"
               }
               description={
@@ -445,8 +449,8 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
             {grouped.inProg.length > 0 && (
               <section>
                 <CardSectionHeader
-                  icon={<span className="h-2 w-2 animate-pulse rounded-full bg-orange-500" />}
-                  title="Đang sản xuất" count={grouped.inProg.length} color="text-orange-700 dark:text-orange-400"
+                  icon={<span className={cn("h-2 w-2 animate-pulse rounded-full", TONE_CLASSES.progress.dot)} />}
+                  title={statusLabel("wo", "IN_PROGRESS")} count={grouped.inProg.length} color={TONE_CLASSES.progress.text}
                 />
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {grouped.inProg.map((wo) => <WoCard key={wo.id} wo={wo} />)}
@@ -457,7 +461,7 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
               <section>
                 <CardSectionHeader
                   icon={<Pause className="h-3.5 w-3.5 text-amber-500" aria-hidden />}
-                  title="Tạm dừng" count={grouped.paused.length} color="text-amber-700 dark:text-amber-400"
+                  title={statusLabel("wo", "PAUSED")} count={grouped.paused.length} color="text-amber-700 dark:text-amber-400"
                 />
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {grouped.paused.map((wo) => <WoCard key={wo.id} wo={wo} />)}
@@ -468,7 +472,7 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
               <section>
                 <CardSectionHeader
                   icon={<span className="h-2 w-2 rounded-full bg-indigo-400" />}
-                  title="Chờ / Sẵn sàng" count={grouped.waiting.length} color="text-indigo-700 dark:text-indigo-400"
+                  title="Hàng đợi / Đã duyệt" count={grouped.waiting.length} color="text-indigo-700 dark:text-indigo-400"
                 />
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {grouped.waiting.map((wo) => <WoCard key={wo.id} wo={wo} />)}
@@ -478,8 +482,8 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
             {grouped.draft.length > 0 && (
               <section>
                 <CardSectionHeader
-                  icon={<span className="h-2 w-2 rounded-full bg-zinc-300" />}
-                  title="Nháp" count={grouped.draft.length} color="text-zinc-600 dark:text-zinc-400"
+                  icon={<span className={cn("h-2 w-2 rounded-full", TONE_CLASSES.info.dot)} />}
+                  title={statusLabel("wo", "DRAFT")} count={grouped.draft.length} color={TONE_CLASSES.info.text}
                 />
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {grouped.draft.map((wo) => <WoCard key={wo.id} wo={wo} />)}
@@ -490,7 +494,7 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
               <section>
                 <CardSectionHeader
                   icon={<CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" aria-hidden />}
-                  title="Hoàn thành" count={grouped.done.length} color="text-emerald-700 dark:text-emerald-400"
+                  title={statusLabel("wo", "COMPLETED")} count={grouped.done.length} color="text-emerald-700 dark:text-emerald-400"
                 />
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {grouped.done.map((wo) => <WoCard key={wo.id} wo={wo} />)}
@@ -500,7 +504,7 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
             {rows.length === 0 && (
               <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-200 bg-zinc-50/50 py-16 text-center dark:border-zinc-700 dark:bg-zinc-800/60">
                 <Factory className="h-8 w-8 text-zinc-300 dark:text-zinc-600" aria-hidden />
-                <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Không có WO nào</p>
+                <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Không có lệnh sản xuất nào</p>
               </div>
             )}
           </div>
@@ -509,7 +513,7 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-10 border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
               <tr className="text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                <th className="px-4 py-2.5 text-left font-medium">Số WO</th>
+                <th className="px-4 py-2.5 text-left font-medium">Số lệnh</th>
                 <th className="px-4 py-2.5 text-left font-medium">Sản phẩm</th>
                 <th className="px-4 py-2.5 text-left font-medium">Ưu tiên</th>
                 <th className="px-4 py-2.5 text-right font-medium">KH / Đạt</th>
@@ -524,7 +528,6 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
                 const planned = Number(r.plannedQty);
                 const good = Number(r.goodQty);
                 const pct = planned > 0 ? Math.min(100, Math.round((good / planned) * 100)) : 0;
-                const cfg = STATUS_CONFIG[r.status];
                 const pri = PRIORITY_CONFIG[r.priority] ?? PRIORITY_CONFIG.NORMAL!;
                 return (
                   <tr
@@ -541,7 +544,7 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
                         {r.woNo}
                       </Link>
                       <p className="mt-0.5 text-[11px] text-zinc-400 dark:text-zinc-500">
-                        {r.createdAt ? new Date(r.createdAt).toLocaleDateString("vi-VN") : ""}
+                        {r.createdAt ? formatDate(r.createdAt, "dd/MM/yyyy") : ""}
                       </p>
                     </td>
                     {/* V4.1 SX-33 — cột Sản phẩm thay "Đơn hàng" (Q4). */}
@@ -575,10 +578,7 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={cn("inline-flex whitespace-nowrap items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium", cfg.bg, cfg.color, cfg.border)}>
-                        <span className={cn("h-1.5 w-1.5 rounded-full", cfg.dot)} aria-hidden />
-                        {cfg.label}
-                      </span>
+                      <StatusPill domain="wo" code={r.status} dot pulse={r.status === "IN_PROGRESS"} />
                     </td>
                     <td className="max-w-[180px] px-4 py-3 text-xs text-zinc-500 dark:text-zinc-400">
                       <span className="line-clamp-1">{r.notes ?? "—"}</span>
@@ -609,7 +609,7 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
       {urlState.view === "table" && (
         <footer className="flex h-10 items-center justify-between border-t border-zinc-200 bg-white px-4 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
           <span>
-            Trang <span className="tabular-nums">{urlState.page}/{pageCount}</span> · {total.toLocaleString("vi-VN")} WO
+            Trang <span className="tabular-nums">{urlState.page}/{pageCount}</span> · {total.toLocaleString("vi-VN")} lệnh
           </span>
           <div className="flex items-center gap-1">
             <Button size="sm" variant="ghost" disabled={urlState.page <= 1}

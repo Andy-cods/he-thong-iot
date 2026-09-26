@@ -79,7 +79,7 @@ export function PartnerInvoicesDialog({
                         Hạn {fmtDate(inv.dueDate)}{isOverdue && " · Quá hạn"}
                       </p>
                     </div>
-                    <p className="font-mono font-semibold text-rose-600 dark:text-rose-400">
+                    <p className="font-semibold text-rose-600 dark:text-rose-400">
                       {fmtVND(Number(inv.totalAmount) - Number(inv.paidAmount))}
                     </p>
                   </button>

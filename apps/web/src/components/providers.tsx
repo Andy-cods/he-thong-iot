@@ -5,6 +5,11 @@ import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { QueryProvider } from "./providers/QueryProvider";
 import { SonnerProvider } from "./providers/SonnerProvider";
 import { ThemeProvider } from "./providers/ThemeProvider";
+import { ConfirmProvider } from "./ui/confirm-dialog";
+import { installZodVi } from "@/lib/zod-vi";
+
+// V4.1 UI-28: lỗi zod mặc định tiếng Việt cho mọi form phía client.
+installZodVi();
 
 /**
  * Direction B — root provider tree.
@@ -19,8 +24,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <ThemeProvider>
       <NuqsAdapter>
         <QueryProvider>
-          {children}
-          <SonnerProvider />
+          {/* V4.1 UX-01: hộp xác nhận/nhập lý do dạng Promise (useConfirm/usePrompt). */}
+          <ConfirmProvider>
+            {children}
+            <SonnerProvider />
+          </ConfirmProvider>
         </QueryProvider>
       </NuqsAdapter>
     </ThemeProvider>

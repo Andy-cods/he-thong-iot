@@ -77,6 +77,18 @@ const KIND_ICON: Record<BomSheetKind, React.ElementType> = {
   CUSTOM: FileEdit,
 };
 
+/**
+ * V4.1 UI-27: tên sheet mặc định do hệ thống tạo ("Material & Process") hiển thị
+ * tiếng Việt trên tab. Chỉ đổi phần HIỂN THỊ — tên lưu trong DB giữ nguyên
+ * (sheet do người dùng tự đặt tên thì hiện đúng tên đó).
+ */
+const DEFAULT_SHEET_NAME_VI: Record<string, string> = {
+  "Material & Process": "Vật tư & Quy trình",
+};
+function displaySheetName(name: string): string {
+  return DEFAULT_SHEET_NAME_VI[name.trim()] ?? name;
+}
+
 const KIND_COLOR: Record<BomSheetKind, string> = {
   PROJECT: "text-indigo-600",
   MATERIAL: "text-emerald-600",
@@ -172,7 +184,7 @@ export function BomSheetTabs({
                     ? "text-zinc-900 dark:text-zinc-50"
                     : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-200",
                 )}
-                title={`${sheet.name} · ${BOM_SHEET_KIND_LABELS[sheet.kind]}${
+                title={`${displaySheetName(sheet.name)} · ${BOM_SHEET_KIND_LABELS[sheet.kind]}${
                   sheet.kind === "PROJECT" ? ` · ${sheet.lineCount} dòng` : ""
                 }`}
               >
@@ -185,7 +197,7 @@ export function BomSheetTabs({
                   )}
                   aria-hidden="true"
                 />
-                <span className="max-w-[200px] truncate">{sheet.name}</span>
+                <span className="max-w-[200px] truncate">{displaySheetName(sheet.name)}</span>
                 {sheet.kind === "PROJECT" && sheet.lineCount > 0 ? (
                   <span
                     className={cn(
@@ -217,7 +229,7 @@ export function BomSheetTabs({
                         "opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 [@media(hover:none)]:opacity-100", // V4.1 UI-X7: màn cảm ứng không có hover → luôn hiện
                         isActive && "opacity-100",
                       )}
-                      aria-label={`Tuỳ chọn sheet ${sheet.name}`}
+                      aria-label={`Tuỳ chọn sheet ${displaySheetName(sheet.name)}`}
                       onClick={(e) => e.stopPropagation()}
                     >
                       <MoreVertical className="h-3.5 w-3.5" aria-hidden="true" />

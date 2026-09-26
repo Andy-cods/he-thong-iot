@@ -18,6 +18,7 @@ import {
   usePurchaseRequestsList,
   usePurchaseRequestDetail,
 } from "@/hooks/usePurchaseRequests";
+import { formatQty } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { prLineToPoLine } from "@/lib/procurement-policy";
 import {
@@ -338,13 +339,13 @@ export function PoCreateWizard() {
               {prDetail.data && (
                 <div className="mt-2 rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
                   <div className="font-medium text-zinc-700 dark:text-zinc-300">
-                    Preview {prDetail.data.data.lines.length} dòng:
+                    Xem trước {prDetail.data.data.lines.length} dòng:
                   </div>
                   <ul className="mt-1 list-inside list-disc space-y-0.5">
                     {prDetail.data.data.lines.slice(0, 5).map((l) => (
                       <li key={l.id}>
                         <span className="font-mono">{l.sku}</span> — {l.name} ×{" "}
-                        {l.qty}
+                        {formatQty(l.qty)}
                       </li>
                     ))}
                     {prDetail.data.data.lines.length > 5 && (

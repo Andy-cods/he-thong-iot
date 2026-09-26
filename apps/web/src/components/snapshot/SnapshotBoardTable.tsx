@@ -87,7 +87,7 @@ export function SnapshotBoardTable({
         <div role="columnheader" className="text-center">
           L
         </div>
-        <div role="columnheader">SKU</div>
+        <div role="columnheader">Mã vật tư</div>
         <div role="columnheader">Tên linh kiện</div>
         <div role="columnheader" className="hidden text-right md:block">
           Gross

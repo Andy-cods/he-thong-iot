@@ -97,7 +97,7 @@ export function FilterBar({
             ref={searchInputRef}
             type="search"
             size="sm"
-            placeholder="Tìm SKU, tên..."
+            placeholder="Tìm mã vật tư, tên..."
             className="h-8 w-full pl-7 md:w-[280px]"
             aria-label="Tìm kiếm vật tư"
             value={state.q}
@@ -180,7 +180,8 @@ export function FilterBar({
             [
               { v: "all", label: "Tất cả", val: null },
               { v: "active", label: "Đang dùng", val: true },
-              { v: "inactive", label: "Ngừng", val: false },
+              // V4.1 UI-07: thống nhất "Ngừng dùng" (lib/status.ts domain item).
+              { v: "inactive", label: "Ngừng dùng", val: false },
             ] as const
           ).map((opt) => {
             const isActive = activeMode === opt.v;
@@ -367,11 +368,11 @@ export function FilterBar({
                   onCheckedChange={(v) =>
                     onChange({ minStockViolation: v === true })
                   }
-                  aria-label="Chỉ vật tư dưới min-stock"
+                  aria-label="Chỉ vật tư dưới tồn tối thiểu"
                   className="mt-0.5"
                 />
                 <span className="text-base text-zinc-700 dark:text-zinc-300">
-                  Chỉ vật tư dưới min-stock
+                  Chỉ vật tư dưới tồn tối thiểu
                 </span>
               </label>
             </div>
@@ -469,7 +470,7 @@ function buildFilterChips(state: FilterBarState): FilterChip[] {
           : "Không theo dõi";
     chips.push({
       key: "tracking",
-      label: `Tracking: ${label}`,
+      label: `Truy vết: ${label}`,
       onRemove: (onChange) => onChange({ tracking: null }),
     });
   }
@@ -490,7 +491,7 @@ function buildFilterChips(state: FilterBarState): FilterChip[] {
   if (state.minStockViolation) {
     chips.push({
       key: "minstock",
-      label: "Dưới min-stock",
+      label: "Dưới tồn tối thiểu",
       onRemove: (onChange) => onChange({ minStockViolation: false }),
     });
   }

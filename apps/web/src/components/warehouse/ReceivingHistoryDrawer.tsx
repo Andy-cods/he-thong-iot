@@ -10,8 +10,9 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { useReceivingAudit } from "@/hooks/useReceivingEvents";
-import { cn } from "@/lib/utils";
 import { QueryError } from "@/components/ui/query-error";
+import { StatusPill } from "@/components/ui/status-badge";
+import { formatDateTime, formatQty } from "@/lib/format";
 import type { PORow } from "@/hooks/usePurchaseOrders";
 
 /**
@@ -27,21 +28,12 @@ export interface ReceivingHistoryDrawerProps {
   onClose: () => void;
 }
 
-const QC_BADGE: Record<string, { label: string; cls: string }> = {
-  OK:      { label: "OK",      cls: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800" },
-  NG:      { label: "NG",      cls: "bg-red-50 text-red-700 ring-red-200 dark:bg-red-950/40 dark:text-red-400 dark:ring-red-800" },
-  PENDING: { label: "Chờ KCS", cls: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800" },
-};
-
-function formatDateTime(s: string | null | undefined): string {
-  if (!s) return "—";
-  const d = new Date(s);
-  if (!Number.isFinite(d.getTime())) return s;
-  return d.toLocaleString("vi-VN", {
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit",
-  });
+// V4.1 UI-07/08: nhãn + màu QC từ lib/status.ts (domain "receiptQc") — bỏ QC_BADGE
+// cục bộ ("OK"/"NG"/"Chờ KCS" → "Đạt"/"Không đạt"/"Chờ kiểm"). Mã lạ coi như chờ kiểm.
+function qcCode(flag: string | null | undefined): "OK" | "NG" | "PENDING" {
+  return flag === "OK" || flag === "NG" ? flag : "PENDING";
 }
+// V4.1 UI-15: formatDateTime chung (giờ VN) thay hàm cục bộ.
 
 export function ReceivingHistoryDrawer({ po, onClose }: ReceivingHistoryDrawerProps) {
   const open = po !== null;
@@ -110,12 +102,7 @@ export function ReceivingHistoryDrawer({ po, onClose }: ReceivingHistoryDrawerPr
                       <li key={r.id} className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
                         <div className="flex items-center justify-between">
                           <span className="font-mono text-sm font-bold text-indigo-700 dark:text-indigo-400">{r.receiptNo}</span>
-                          <span className={cn(
-                            "inline-flex whitespace-nowrap items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
-                            (QC_BADGE[r.qcFlag] ?? QC_BADGE.PENDING)!.cls,
-                          )}>
-                            {(QC_BADGE[r.qcFlag] ?? QC_BADGE.PENDING)!.label}
-                          </span>
+                          <StatusPill domain="receiptQc" code={qcCode(r.qcFlag)} />
                         </div>
                         <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                           {formatDateTime(r.receivedAt)}
@@ -145,10 +132,10 @@ export function ReceivingHistoryDrawer({ po, onClose }: ReceivingHistoryDrawerPr
                     <table className="w-full text-sm">
                       <thead className="bg-zinc-50 dark:bg-zinc-800">
                         <tr className="text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                          <th className="px-3 py-2.5 text-left">SKU</th>
+                          <th className="px-3 py-2.5 text-left">Mã vật tư</th>
                           <th className="px-3 py-2.5 text-left">Tên</th>
                           <th className="px-3 py-2.5 text-right">SL</th>
-                          <th className="px-3 py-2.5 text-left">Lot/Serial</th>
+                          <th className="px-3 py-2.5 text-left">Lô / Serial</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -157,8 +144,8 @@ export function ReceivingHistoryDrawer({ po, onClose }: ReceivingHistoryDrawerPr
                             <td className="px-3 py-2.5 font-mono text-xs font-semibold text-zinc-800 dark:text-zinc-200">{ln.itemSku ?? "—"}</td>
                             <td className="px-3 py-2.5 text-sm text-zinc-700 dark:text-zinc-300">{ln.itemName ?? "—"}</td>
                             <td className="px-3 py-2.5 text-right font-mono text-sm font-semibold tabular-nums text-zinc-800 dark:text-zinc-200">
-                              {Number(ln.receivedQty).toLocaleString("vi-VN")}
-                              {ln.itemUom && <span className="ml-1 text-xs font-normal text-zinc-500 dark:text-zinc-400">{ln.itemUom}</span>}
+                              {formatQty(ln.receivedQty)}
+                              {ln.itemUom && <span className="ml-1 text-xs font-normal text-zinc-500 dark:text-zinc-400">{ln.itemUom.toUpperCase()}</span>}
                             </td>
                             <td className="px-3 py-2.5 font-mono text-xs text-zinc-600 dark:text-zinc-400">
                               {ln.lotCode ?? ln.serialCode ?? "—"}
@@ -182,23 +169,17 @@ export function ReceivingHistoryDrawer({ po, onClose }: ReceivingHistoryDrawerPr
                 </h3>
                 {data.scanEvents.length === 0 ? (
                   <p className="rounded-xl border border-dashed border-zinc-200 bg-white p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
-                    Chưa có scan event nào.
+                    Chưa có lượt quét nào.
                   </p>
                 ) : (
                   <ul className="space-y-1.5">
                     {data.scanEvents.slice(0, 50).map((ev) => {
-                      const qc = QC_BADGE[ev.qcStatus] ?? QC_BADGE.PENDING!;
                       return (
                         <li key={ev.id} className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900">
-                          <span className={cn(
-                            "inline-flex whitespace-nowrap shrink-0 items-center rounded px-1.5 py-0.5 text-xs font-medium ring-1 ring-inset",
-                            qc.cls,
-                          )}>
-                            {qc.label}
-                          </span>
+                          <StatusPill domain="receiptQc" code={qcCode(ev.qcStatus)} />
                           <span className="font-mono text-xs font-semibold text-zinc-800 dark:text-zinc-200">{ev.sku}</span>
-                          <span className="font-mono text-xs tabular-nums text-zinc-600 dark:text-zinc-400">×{Number(ev.qty).toLocaleString("vi-VN")}</span>
-                          {ev.lotNo && <span className="text-xs text-zinc-500 dark:text-zinc-400">lot {ev.lotNo}</span>}
+                          <span className="font-mono text-xs tabular-nums text-zinc-600 dark:text-zinc-400">×{formatQty(ev.qty)}</span>
+                          {ev.lotNo && <span className="text-xs text-zinc-500 dark:text-zinc-400">lô {ev.lotNo}</span>}
                           <span className="ml-auto text-xs tabular-nums text-zinc-400 dark:text-zinc-500">
                             {formatDateTime(ev.scannedAt)}
                           </span>

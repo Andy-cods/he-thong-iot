@@ -27,6 +27,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ItemForm } from "@/components/items/ItemForm";
 import { useItem, useUpdateItem, type RequestError } from "@/hooks/useItems";
 import { cn } from "@/lib/utils";
+import { StatusPill } from "@/components/ui/status-badge";
+import { usePrompt } from "@/components/ui/confirm-dialog";
+import { formatDate, formatQty } from "@/lib/format";
+import { statusLabel } from "@/lib/status";
 
 type ItemDetail = {
   id: string;
@@ -382,11 +386,11 @@ function SlottingPanel({
         const err = (await res.json().catch(() => null)) as
           | { message?: string }
           | null;
-        throw new Error(err?.message ?? "Lỗi cập nhật bin.");
+        throw new Error(err?.message ?? "Lỗi cập nhật ô kệ.");
       }
       const newCode = bins.find((b) => b.id === selected)?.fullCode ?? null;
       toast.success(
-        newCode ? `Đã gán bin ${newCode}.` : "Đã bỏ gán bin mặc định.",
+        newCode ? `Đã gán ô kệ ${newCode}.` : "Đã bỏ gán ô kệ mặc định.",
       );
       onSaved();
     } catch (err) {
@@ -405,7 +409,7 @@ function SlottingPanel({
           Vị trí kho mặc định
         </span>
         <span className="text-xs text-zinc-500 dark:text-zinc-400">
-          (auto-putaway khi nhận hàng)
+          (tự xếp kệ khi nhận hàng)
         </span>
       </div>
       <div className="flex items-center gap-2">
@@ -431,7 +435,7 @@ function SlottingPanel({
         </Button>
       </div>
       {loading && (
-        <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">Đang tải danh sách bin…</p>
+        <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">Đang tải danh sách ô kệ…</p>
       )}
     </div>
   );
@@ -455,28 +459,34 @@ function LotsPanel({ itemId }: { itemId: string }) {
   const holdMut = useHoldLot();
   const releaseMut = useReleaseLot();
   const rows = data?.data ?? [];
+  // V4.1 UX-01: hộp nhập lý do dùng chung thay hộp thoại trình duyệt.
+  const askReason = usePrompt();
 
   const handleHold = async (lotId: string, lotCode: string | null) => {
-    const reason = window.prompt(
-      `Lý do hold lot ${lotCode ?? lotId.slice(0, 8)}?`,
-    );
-    if (!reason || !reason.trim()) return;
+    const reason = await askReason({
+      title: `Giữ lô ${lotCode ?? lotId.slice(0, 8)}`,
+      description: "Lô bị giữ sẽ không được lấy khi xuất kho cho tới khi mở giữ.",
+      label: "Lý do giữ lô",
+      required: true,
+      confirmLabel: "Giữ lô",
+    });
+    if (reason === null || !reason.trim()) return;
     try {
       await holdMut.mutateAsync({ id: lotId, reason: reason.trim() });
-      toast.success("Đã HOLD lot.");
+      toast.success("Đã giữ lô.");
       void refetch();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Lỗi hold");
+      toast.error(err instanceof Error ? err.message : "Lỗi giữ lô");
     }
   };
 
   const handleRelease = async (lotId: string) => {
     try {
       await releaseMut.mutateAsync({ id: lotId });
-      toast.success("Đã release lot → AVAILABLE.");
+      toast.success(`Đã mở giữ lô → ${statusLabel("lot", "AVAILABLE")}.`);
       void refetch();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Lỗi release");
+      toast.error(err instanceof Error ? err.message : "Lỗi mở giữ lô");
     }
   };
 
@@ -486,7 +496,7 @@ function LotsPanel({ itemId }: { itemId: string }) {
         <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
           Lô &amp; Serial ({rows.length})
         </span>
-        <span className="text-xs text-zinc-500 dark:text-zinc-400">Hold / Release inline</span>
+        <span className="text-xs text-zinc-500 dark:text-zinc-400">Giữ / mở giữ lô ngay tại đây</span>
       </div>
 
       {isLoading ? (
@@ -495,7 +505,7 @@ function LotsPanel({ itemId }: { itemId: string }) {
         </p>
       ) : rows.length === 0 ? (
         <p className="rounded-md border border-dashed border-zinc-200 bg-zinc-50 px-3 py-3 text-center text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
-          SKU này chưa có lot nào.
+          Mã vật tư này chưa có lô nào.
         </p>
       ) : (
         <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-800">
@@ -517,27 +527,16 @@ function LotsPanel({ itemId }: { itemId: string }) {
                     </code>
                     {r.expDate && (
                       <span className="ml-1 text-xs text-zinc-500 dark:text-zinc-400">
-                        HSD {new Date(r.expDate).toLocaleDateString("vi-VN")}
+                        HSD {formatDate(r.expDate)}
                       </span>
                     )}
                   </td>
                   <td className="px-2 py-1.5 text-right tabular-nums font-semibold text-emerald-700 dark:text-emerald-400">
-                    {r.onHandQty.toLocaleString("vi-VN")}
+                    {formatQty(r.onHandQty)}
                   </td>
                   <td className="px-2 py-1.5">
-                    <span
-                      className={
-                        r.status === "AVAILABLE"
-                          ? "rounded bg-emerald-50 px-1.5 py-0.5 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
-                          : r.status === "HOLD"
-                            ? "rounded bg-amber-50 px-1.5 py-0.5 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
-                            : r.status === "CONSUMED"
-                              ? "rounded bg-zinc-100 px-1.5 py-0.5 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
-                              : "rounded bg-rose-50 px-1.5 py-0.5 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400"
-                      }
-                    >
-                      {r.status}
-                    </span>
+                    {/* V4.1 UI-07/08: trạng thái lô từ lib/status.ts (trước hiện mã thô AVAILABLE/HOLD). */}
+                    <StatusPill domain="lot" code={r.status} />
                     {r.holdReason && (
                       <span
                         className="ml-1 cursor-help text-xs text-amber-600 dark:text-amber-400"
@@ -551,22 +550,22 @@ function LotsPanel({ itemId }: { itemId: string }) {
                     {r.status === "AVAILABLE" ? (
                       <button
                         type="button"
-                        onClick={() => handleHold(r.id, r.lotCode)}
+                        onClick={() => void handleHold(r.id, r.lotCode)}
                         disabled={holdMut.isPending}
                         className="inline-flex h-6 items-center gap-0.5 rounded bg-amber-50 px-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50 dark:bg-amber-950/40 dark:text-amber-400 dark:hover:bg-amber-900/40"
-                        title="Hold (giữ lại — không pick)"
+                        title="Giữ lô (không lấy khi xuất kho)"
                       >
-                        <Lock className="h-3 w-3" /> Hold
+                        <Lock className="h-3 w-3" /> Giữ
                       </button>
                     ) : r.status === "HOLD" ? (
                       <button
                         type="button"
-                        onClick={() => handleRelease(r.id)}
+                        onClick={() => void handleRelease(r.id)}
                         disabled={releaseMut.isPending}
                         className="inline-flex h-6 items-center gap-0.5 rounded bg-emerald-50 px-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-900/40"
-                        title="Release → AVAILABLE"
+                        title={`Mở giữ → ${statusLabel("lot", "AVAILABLE")}`}
                       >
-                        <Unlock className="h-3 w-3" /> Release
+                        <Unlock className="h-3 w-3" /> Mở giữ
                       </button>
                     ) : (
                       <span className="text-xs text-zinc-400 dark:text-zinc-500">—</span>

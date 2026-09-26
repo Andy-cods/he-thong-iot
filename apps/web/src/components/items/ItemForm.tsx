@@ -8,7 +8,6 @@ import {
   ITEM_TYPES,
   ITEM_TYPE_LABELS,
   ITEM_STATUSES,
-  ITEM_STATUS_LABELS,
   UOMS,
   UOM_LABELS,
   itemCreateSchema,
@@ -29,6 +28,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useCheckSku } from "@/hooks/useItems";
 import { cn } from "@/lib/utils";
+import { statusLabel } from "@/lib/status";
 
 type Mode = "create" | "edit";
 
@@ -131,7 +131,7 @@ export function ItemForm({
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Field>
             <Label htmlFor="sku" uppercase required>
-              Mã SKU
+              Mã vật tư
             </Label>
             <div className="relative">
               <Input
@@ -270,7 +270,8 @@ export function ItemForm({
               <SelectContent>
                 {ITEM_STATUSES.map((s) => (
                   <SelectItem key={s} value={s}>
-                    {ITEM_STATUS_LABELS[s]}
+                    {/* V4.1 UI-07: nhãn trạng thái vật tư từ lib/status.ts. */}
+                    {statusLabel("item", s)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -340,7 +341,7 @@ export function ItemForm({
         </div>
       </Section>
 
-      <Section title="Tracking">
+      <Section title="Truy vết">
         <div className="space-y-3">
           <label className="flex cursor-pointer items-start gap-2.5 rounded-sm p-2 hover:bg-zinc-50 dark:hover:bg-zinc-800/60">
             <Checkbox

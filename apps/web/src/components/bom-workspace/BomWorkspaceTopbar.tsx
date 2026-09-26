@@ -16,8 +16,10 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { BOM_STATUS_LABELS, type BomStatus } from "@iot/shared";
 import { Button } from "@/components/ui/button";
+import { StatusPill } from "@/components/ui/status-badge";
+import { useConfirm, usePrompt } from "@/components/ui/confirm-dialog";
+import { statusLabel } from "@/lib/status";
 import { DialogConfirm } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -26,10 +28,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  StatusBadge,
-  type BadgeStatus,
-} from "@/components/domain/StatusBadge";
+
 import {
   useBomWorkspaceSummary,
   useCloneBomTemplate,
@@ -44,19 +43,9 @@ import { cn } from "@/lib/utils";
 import { HIDDEN_FEATURES } from "@/lib/hidden-features";
 import { TOP_TAB_LABELS, type TopTabKey } from "./useTopTabState";
 
-function bomStatusToBadge(status: BomStatus): {
-  badgeStatus: BadgeStatus;
-  label: string;
-} {
-  switch (status) {
-    case "ACTIVE":
-      return { badgeStatus: "success", label: BOM_STATUS_LABELS.ACTIVE };
-    case "DRAFT":
-      return { badgeStatus: "draft", label: BOM_STATUS_LABELS.DRAFT };
-    case "OBSOLETE":
-      return { badgeStatus: "inactive", label: BOM_STATUS_LABELS.OBSOLETE };
-  }
-}
+// V4.1 UI-07: bỏ bomStatusToBadge cục bộ — badge trạng thái BOM lấy từ lib/status.ts
+// (domain "bom": Nháp / Đang dùng / Ngừng dùng).
+const DRAFT_LABEL = statusLabel("bom", "DRAFT");
 
 export interface BomWorkspaceTopbarProps {
   template: BomTemplateDetail;
@@ -105,7 +94,6 @@ export function BomWorkspaceTopbar({
     return `R${(max + 1).toString().padStart(2, "0")}`;
   }, [existingRevisions]);
 
-  const badge = bomStatusToBadge(template.status);
   const [releaseOpen, setReleaseOpen] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
 
@@ -118,9 +106,20 @@ export function BomWorkspaceTopbar({
   const cloneBom = useCloneBomTemplate();
   const deleteBom = useDeleteBomTemplate();
   const updateBom = useUpdateBomTemplate(template.id);
+  // V4.1 UX-01: hộp nhập/xác nhận của hệ thống thay hộp thoại trình duyệt.
+  const askConfirm = useConfirm();
+  const askText = usePrompt();
 
   const handleRename = async () => {
-    const next = prompt("Đổi tên BOM:", template.name);
+    const next = await askText({
+      title: "Đổi tên BOM",
+      label: "Tên BOM",
+      defaultValue: template.name,
+      multiline: false,
+      required: true,
+      maxLength: 250,
+      confirmLabel: "Đổi tên",
+    });
     if (next === null) return;
     const trimmed = next.trim();
     if (!trimmed) {
@@ -137,7 +136,14 @@ export function BomWorkspaceTopbar({
   };
 
   const handleClone = async () => {
-    const suggested = prompt("Nhập mã BOM mới:", `${template.code}_COPY`);
+    const suggested = await askText({
+      title: "Nhân bản BOM",
+      label: "Mã BOM mới",
+      defaultValue: `${template.code}_COPY`,
+      multiline: false,
+      required: true,
+      confirmLabel: "Nhân bản",
+    });
     if (!suggested) return;
     try {
       const res = await cloneBom.mutateAsync({
@@ -145,7 +151,7 @@ export function BomWorkspaceTopbar({
         data: { newCode: suggested.toUpperCase() },
       });
       toast.success(
-        `Đã clone "${res.data.template.code}" với ${res.data.lineCount} lines.`,
+        `Đã nhân bản "${res.data.template.code}" với ${res.data.lineCount} dòng.`,
       );
       router.push(`/bom/${res.data.template.id}`);
     } catch (err) {
@@ -163,12 +169,17 @@ export function BomWorkspaceTopbar({
     }
   };
 
-  // V3.7.35 — Khôi phục BOM OBSOLETE → DRAFT.
+  // V3.7.35 — Khôi phục BOM Ngừng dùng → Nháp.
   const handleRestore = async () => {
-    if (!confirm(`Khôi phục BOM "${template.code}" về trạng thái DRAFT?`)) return;
+    const ok = await askConfirm({
+      title: `Khôi phục BOM “${template.code}”?`,
+      description: `BOM sẽ quay về trạng thái “${DRAFT_LABEL}” để chỉnh sửa tiếp.`,
+      confirmLabel: "Khôi phục",
+    });
+    if (!ok) return;
     try {
       await updateBom.mutateAsync({ status: "DRAFT" });
-      toast.success(`Đã khôi phục BOM "${template.code}" về DRAFT.`);
+      toast.success(`Đã khôi phục BOM "${template.code}" về ${DRAFT_LABEL}.`);
     } catch (err) {
       toast.error((err as Error).message ?? "Không khôi phục được BOM.");
     }
@@ -217,16 +228,8 @@ export function BomWorkspaceTopbar({
           </>
         )}
         {nameDupCode && <h1 className="sr-only">{template.name}</h1>}
-        <StatusBadge
-          status={badge.badgeStatus}
-          size="sm"
-          label={badge.label}
-        />
-        {isObsolete && (
-          <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded bg-red-50 px-1.5 py-0.5 text-xs font-medium text-red-700 ring-1 ring-red-200 dark:bg-red-950/40 dark:text-red-400 dark:ring-red-800">
-            Ngừng dùng
-          </span>
-        )}
+        {/* V4.1 UI-07: 1 badge duy nhất (trước đây OBSOLETE hiện thêm chip đỏ "Ngừng dùng" trùng). */}
+        <StatusPill domain="bom" code={template.status} dot />
       </div>
 
       {/* KPI chips */}
@@ -270,7 +273,7 @@ export function BomWorkspaceTopbar({
         <Button
           size="sm"
           onClick={() => setReleaseOpen(true)}
-          title="Kích hoạt BOM (chuyển từ Nháp → Hoạt động)"
+          title="Kích hoạt BOM (chuyển từ Nháp → Đang dùng)"
           aria-label="Kích hoạt BOM"
           className={cn("shrink-0", tapBtn)}
         >
@@ -328,7 +331,7 @@ export function BomWorkspaceTopbar({
               {isObsolete && (
                 <DropdownMenuItem onClick={() => void handleRestore()}>
                   <RefreshCw className="h-3.5 w-3.5" aria-hidden />
-                  Khôi phục về DRAFT
+                  Khôi phục về {DRAFT_LABEL}
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem onClick={() => void handleClone()}>
@@ -360,7 +363,7 @@ export function BomWorkspaceTopbar({
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title={`Ngừng dùng BOM "${template.code}"?`}
-        description={`BOM sẽ chuyển sang OBSOLETE. Các Work Order đang dùng vẫn giữ snapshot. Gõ "XOA" để xác nhận.`}
+        description={`BOM sẽ chuyển sang trạng thái “${statusLabel("bom", "OBSOLETE")}”. Các lệnh sản xuất đang dùng vẫn giữ bản chốt BOM. Gõ "XOA" để xác nhận.`}
         confirmText="XOA"
         actionLabel="Ngừng dùng"
         loading={deleteBom.isPending}

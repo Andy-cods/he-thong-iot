@@ -4,6 +4,7 @@ import Link from "next/link";
 import { MonitorPlay, Tv } from "lucide-react";
 import { useProductionBoard, type BoardStatus } from "@/hooks/useProductionBoard";
 import { cn } from "@/lib/utils";
+import { TONE_CLASSES, getStatus } from "@/lib/status";
 
 /**
  * V3.8 — Widget tóm tắt Bảng sản xuất trên homepage.
@@ -12,13 +13,13 @@ import { cn } from "@/lib/utils";
  * Mọi role đã đăng nhập đều xem (read). Auto-refresh 30s.
  */
 
-const STATUS_META: Record<BoardStatus, { label: string; dot: string; text: string }> = {
-  IN_PROGRESS: { label: "Đang GC", dot: "bg-orange-400", text: "text-orange-600 dark:text-orange-400" },
-  QC: { label: "QC", dot: "bg-sky-400", text: "text-sky-600 dark:text-sky-400" },
-  QUEUED: { label: "Sắp GC", dot: "bg-zinc-400", text: "text-zinc-600 dark:text-zinc-300" },
-  COMPLETED: { label: "Xong", dot: "bg-emerald-400", text: "text-emerald-600 dark:text-emerald-400" },
-  DELIVERED: { label: "Đã giao", dot: "bg-slate-400", text: "text-slate-500" },
-};
+// V4.1 UI-07: bỏ STATUS_META cục bộ — nhãn ngắn + màu lấy từ lib/status.ts
+// domain "board" (Đang GC = indigo "đang xử lý", không còn cam riêng).
+function boardMeta(s: BoardStatus) {
+  const d = getStatus("board", s);
+  const tone = TONE_CLASSES[d.tone];
+  return { label: d.short ?? d.label, dot: tone.dot, text: tone.text };
+}
 
 export function ProductionBoardWidget() {
   const { data, isLoading } = useProductionBoard({
@@ -70,14 +71,14 @@ export function ProductionBoardWidget() {
               <p
                 className={cn(
                   "font-mono text-2xl font-bold tabular-nums",
-                  STATUS_META[s].text,
+                  boardMeta(s).text,
                 )}
               >
                 {counts?.[s] ?? 0}
               </p>
               <p className="mt-0.5 flex items-center justify-center gap-1 text-[11px] text-zinc-500 dark:text-zinc-400">
-                <span className={cn("h-1.5 w-1.5 rounded-full", STATUS_META[s].dot)} />
-                {STATUS_META[s].label}
+                <span className={cn("h-1.5 w-1.5 rounded-full", boardMeta(s).dot)} />
+                {boardMeta(s).label}
               </p>
             </div>
           ))}
@@ -99,7 +100,7 @@ export function ProductionBoardWidget() {
                   <span
                     className={cn(
                       "h-2 w-2 shrink-0 rounded-full",
-                      STATUS_META[it.status].dot,
+                      boardMeta(it.status).dot,
                     )}
                   />
                   <span className="font-mono text-xs font-semibold text-zinc-700 dark:text-zinc-200">
