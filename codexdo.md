@@ -127,6 +127,11 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 - **Trạng thái:** IN_PROGRESS · **Bắt đầu:** 2026-09-26 (+07) · **Tạo:** 2026-09-26 (+07) · **Ưu tiên:** P0
 - **Nguồn:** `plans/v4.1-audit-hoan-thien/AUDIT.md` mục 2 + `DOT1_PLAN.md`. Quyết định: D2 bảng `goods_issue`,
   D3 lô cũ coi là đạt, D4 kiểm kê rồi điều chỉnh (không tự trừ), D5 tách lô khi nhận trùng mã, D6 menu Yêu cầu vật tư.
+- **1a DEPLOYED 2026-09-27 00:45 (+07)** commit fdaa1bc: backup `/opt/hethong-iot/backups/pre-v41-dot1a-20260927-0036.dump`
+  → apply `0059_qc_hold.sql` (hethong_app, không lỗi) → smoke `sql/dot1_smoke.sql` 9/9 (ROLLBACK) → push main.
+  E2E admin: /qc-inbound, tab Chờ QC, qc-pending API 200; tồn 1 mã khớp DB/list/summary/FIFO (820); view toàn bộ 13ms; log 0 lỗi.
+  Prod lúc deploy: 486 lô AVAILABLE, 0 HOLD, 0 ISR chờ, 1 user qc active. CHƯA test luồng nhận→QC→xuất (cần PO test).
+- **CÒN:** 1b (goods_issue, 0060 — apply sau khi 1a chạy) + 1c (menu, báo cáo đối soát D4).
 
 ### TASK-20260926-001 — V4.1 Đợt 0 "Chặn cháy" (8 lỗi P0 + phiên 4h + UI nhanh)
 - **Trạng thái:** DONE · **Hoàn thành:** 2026-09-26 18:25 (+07) · **Bắt đầu:** 2026-09-26 (+07) · **Tạo:** 2026-09-26 (+07) · **Ưu tiên:** P0
