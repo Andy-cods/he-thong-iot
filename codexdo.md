@@ -151,6 +151,11 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
   chữ ≥11-12px, chạm 36px) · 6B 9432fc0 (lib/status.ts 22 miền, lib/format.ts giờ VN, useConfirm thay 22 confirm/prompt,
   ~195 chuỗi tiếng Việt) · 6C 37f956f (ui/data-table + thẻ trên phone, bỏ gradient/cầu vồng, bỏ breadcrumb trùng, 16px input iOS).
   Chụp lại prod sau mỗi bước: 41 trang phone không tràn ngang (trước 4 trang), desktop tải đủ, 0 chữ lỗi.
+- **Trang PO + điều chỉnh giá** 8f45829: PATCH /api/purchase-orders/[id]/prices (purchaser/admin, mọi trạng thái trừ CANCELLED, chặn khi HĐ mua đã ghi
+  công nợ, HĐ nháp tự tính lại, audit). E2E prod 12/12, giá trả về 0 như cũ.
+- **Thông báo** 08ec3d7 + b4ac169: sửa 23 lỗi (link theo quyền người nhận, dedupe người nhiều vai trò, Giám đốc dự phòng, 7 sự kiện mới,
+  PO nhận đủ chỉ báo 1 lần). E2E prod 34/34 bước, 47/47 link mở được; đo người nhận thật 28 loại; đã xoá 98 thông báo + dữ liệu test.
+  Email chưa hoạt động (thiếu Resend/SMTP + email thật). Sơ đồ: https://claude.ai/artifact/3no4nyhLWxGebUzvFX7ZQw
 - **V4.1 hoàn tất 2026-09-27 (+07).** Còn để sau (không chặn): ~194 text-[11px] trong mẫu in; delivery-notes/goods-issues/admin
   users chưa dùng DataTable; nhãn vai trò UserForm tiếng Anh; lỗi zod phía server tiếng Anh; ô ngày theo locale trình duyệt.
 
