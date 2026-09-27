@@ -74,7 +74,13 @@ export interface POListResponse {
 
 export interface PODetailResponse {
   /** V4.1 UI-28: actorNames = id người dùng → họ tên (timeline phê duyệt). */
-  data: PORow & { lines: POLineRow[]; actorNames?: Record<string, string> };
+  data: PORow & {
+    lines: POLineRow[];
+    actorNames?: Record<string, string>;
+    /** V4.1 PO-UI: liên hệ NCC + mã PR nguồn. */
+    supplierContact?: { name: string | null; phone: string | null; email: string | null } | null;
+    prCode?: string | null;
+  };
 }
 
 interface RequestError extends Error {
@@ -267,6 +273,39 @@ export function useSendPurchaseOrder(id: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.procurement.orders.all });
       qc.invalidateQueries({ queryKey: qk.procurement.orders.detail(id) });
+    },
+  });
+}
+
+/**
+ * V4.1 PO-UI: điều chỉnh đơn giá + VAT dòng PO (mọi trạng thái trừ Đã huỷ).
+ * Làm mới chi tiết PO, danh sách/KPI, HĐ mua (nằm dưới orders.all) + nhật ký.
+ */
+export interface POPriceUpdateResult {
+  changedLines: number;
+  totalAmount: string;
+  invoiceRefreshed: {
+    invoiceId: string;
+    invoiceNo: string;
+    totalBefore: string;
+    totalAfter: string;
+  } | null;
+}
+
+export function useUpdatePOPrices(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      lines: Array<{ lineId: string; unitPrice: number; taxRate: number }>;
+    }) =>
+      request<{ data: POPriceUpdateResult }>(`/api/purchase-orders/${id}/prices`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.procurement.orders.all });
+      qc.invalidateQueries({ queryKey: ["object-audit", "purchase_order", id] });
+      qc.invalidateQueries({ queryKey: qk.finance.all });
     },
   });
 }

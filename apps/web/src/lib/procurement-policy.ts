@@ -281,3 +281,171 @@ export function parseDateParam(raw: string | null | undefined): Date | null | "i
   const d = new Date(raw.trim());
   return Number.isNaN(d.getTime()) ? "invalid" : d;
 }
+
+/* ── V4.1 PO-UI: điều chỉnh giá PO sau khi rời DRAFT ─────────────────────── */
+
+/**
+ * V4.1 PO-UI: thuế suất VAT được chọn khi điều chỉnh giá (VN: 0/5/8/10 %).
+ * Dòng cũ có thuế suất khác vẫn giữ được nếu KHÔNG đổi VAT.
+ */
+export const PO_VAT_RATES = [0, 5, 8, 10] as const;
+
+/** Giới hạn đơn giá theo cột numeric(18,4) → ≤ 14 chữ số phần nguyên. */
+export const PO_MAX_UNIT_PRICE = 1e13;
+
+/**
+ * V4.1 PO-UI: Thu mua / Giám đốc điều chỉnh đơn giá + VAT ở MỌI trạng thái trừ
+ * Đã huỷ — giá chốt thường về sau khi nhận hàng / có hoá đơn NCC.
+ */
+export function isPoPriceEditableStatus(status: string | null | undefined): boolean {
+  return !!status && status !== "CANCELLED";
+}
+
+/**
+ * V4.1 PO-UI: HĐ mua của PO đã ghi công nợ (khác Nháp / Đã huỷ) → khoá giá PO,
+ * điều chỉnh trên hoá đơn ở màn Tài chính.
+ */
+export function isPoInvoiceLockingPrices(invoiceStatus: string | null | undefined): boolean {
+  return !!invoiceStatus && invoiceStatus !== "DRAFT" && invoiceStatus !== "CANCELLED";
+}
+
+export interface PoPriceLineState {
+  id: string;
+  lineNo: number;
+  orderedQty: number | string;
+  unitPrice: number | string | null | undefined;
+  taxRate: number | string | null | undefined;
+}
+
+export interface PoPriceEdit {
+  lineId: string;
+  unitPrice: number;
+  taxRate: number;
+}
+
+export interface PoPriceValues {
+  unitPrice: number;
+  taxRate: number;
+  lineTotal: number;
+}
+
+export interface PoPriceChange {
+  lineId: string;
+  lineNo: number;
+  before: PoPriceValues;
+  after: PoPriceValues;
+}
+
+export type PoPricePlan =
+  | {
+      ok: true;
+      changes: PoPriceChange[];
+      totalBefore: number;
+      totalAfter: number;
+    }
+  | {
+      ok: false;
+      code: "DUPLICATE_LINE" | "LINE_NOT_FOUND" | "INVALID_PRICE" | "INVALID_VAT";
+      message: string;
+      lineNo?: number;
+    };
+
+/** Làm tròn đơn giá theo scale 4 của cột unit_price. */
+const round4 = (n: number) => Math.round(n * 10_000) / 10_000;
+
+/**
+ * V4.1 PO-UI: kiểm tra + tính chênh lệch khi điều chỉnh giá dòng PO (THUẦN —
+ * route + vitest dùng chung). Chỉ dòng thực sự đổi đơn giá/VAT nằm trong
+ * `changes`; tổng PO tính lại từ MỌI dòng sau điều chỉnh.
+ *  - lineId trùng → DUPLICATE_LINE; không thuộc PO → LINE_NOT_FOUND
+ *  - đơn giá âm / không hữu hạn / quá lớn → INVALID_PRICE
+ *  - VAT ngoài {0,5,8,10} → INVALID_VAT (trừ khi giữ nguyên VAT cũ của dòng)
+ */
+export function planPoPriceEdit(
+  current: readonly PoPriceLineState[],
+  edits: readonly PoPriceEdit[],
+  allowedVat: readonly number[] = PO_VAT_RATES,
+): PoPricePlan {
+  const byId = new Map(current.map((l) => [l.id, l]));
+  const seen = new Set<string>();
+  const nextById = new Map<string, { unitPrice: number; taxRate: number }>();
+
+  for (const e of edits) {
+    if (seen.has(e.lineId)) {
+      return { ok: false, code: "DUPLICATE_LINE", message: "Một dòng PO xuất hiện 2 lần trong yêu cầu." };
+    }
+    seen.add(e.lineId);
+    const line = byId.get(e.lineId);
+    if (!line) {
+      return { ok: false, code: "LINE_NOT_FOUND", message: "Dòng PO không thuộc đơn này (có thể đã bị sửa) — tải lại trang." };
+    }
+    if (!Number.isFinite(e.unitPrice) || e.unitPrice < 0 || e.unitPrice > PO_MAX_UNIT_PRICE) {
+      return {
+        ok: false,
+        code: "INVALID_PRICE",
+        message: `Dòng ${line.lineNo}: đơn giá không hợp lệ (phải ≥ 0).`,
+        lineNo: line.lineNo,
+      };
+    }
+    const oldTax = num(line.taxRate, 8);
+    const taxUnchanged = Math.abs(oldTax - e.taxRate) < 1e-9;
+    if (!Number.isFinite(e.taxRate) || (!taxUnchanged && !allowedVat.includes(e.taxRate))) {
+      return {
+        ok: false,
+        code: "INVALID_VAT",
+        message: `Dòng ${line.lineNo}: thuế suất VAT phải là ${allowedVat.join("/")} %.`,
+        lineNo: line.lineNo,
+      };
+    }
+    nextById.set(e.lineId, { unitPrice: round4(e.unitPrice), taxRate: e.taxRate });
+  }
+
+  const changes: PoPriceChange[] = [];
+  let totalBefore = 0;
+  let totalAfter = 0;
+  for (const l of current) {
+    const qty = num(l.orderedQty);
+    const beforePrice = num(l.unitPrice);
+    const beforeTax = num(l.taxRate, 8);
+    const before: PoPriceValues = {
+      unitPrice: beforePrice,
+      taxRate: beforeTax,
+      lineTotal: computePoLineTotal(qty, beforePrice, beforeTax),
+    };
+    const next = nextById.get(l.id);
+    const after: PoPriceValues = next
+      ? { ...next, lineTotal: computePoLineTotal(qty, next.unitPrice, next.taxRate) }
+      : before;
+    totalBefore += before.lineTotal;
+    totalAfter += after.lineTotal;
+    if (
+      next &&
+      (Math.abs(before.unitPrice - after.unitPrice) > 1e-9 ||
+        Math.abs(before.taxRate - after.taxRate) > 1e-9)
+    ) {
+      changes.push({ lineId: l.id, lineNo: l.lineNo, before, after });
+    }
+  }
+  return {
+    ok: true,
+    changes,
+    totalBefore: round2(totalBefore),
+    totalAfter: round2(totalAfter),
+  };
+}
+
+/** V4.1 PO-UI: tổng tiền PO (tạm tính / VAT / tổng) từ các dòng — dùng cho UI. */
+export function summarizePoLines(
+  lines: ReadonlyArray<{ orderedQty: number | string; unitPrice: number | string | null | undefined; taxRate?: number | string | null }>,
+): { subtotal: number; vat: number; total: number; unpriced: number } {
+  let subtotal = 0;
+  let vat = 0;
+  let unpriced = 0;
+  for (const l of lines) {
+    const pre = num(l.orderedQty) * num(l.unitPrice);
+    subtotal += pre;
+    vat += (pre * num(l.taxRate, 0)) / 100;
+    if (num(l.unitPrice) <= 0) unpriced += 1;
+  }
+  return { subtotal: round2(subtotal), vat: round2(vat), total: round2(subtotal + vat), unpriced };
+}

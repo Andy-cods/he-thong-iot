@@ -313,6 +313,35 @@ export const poUpdateSchema = z.object({
     .optional(),
 }).strict();
 
+/**
+ * V4.1 PO-UI: điều chỉnh đơn giá + VAT dòng PO (Thu mua / Giám đốc) ở mọi
+ * trạng thái trừ Đã huỷ. Tập thuế suất hợp lệ kiểm ở server (cho phép giữ
+ * nguyên VAT cũ của dòng).
+ */
+export const poPriceUpdateSchema = z
+  .object({
+    lines: z
+      .array(
+        z
+          .object({
+            lineId: uuid,
+            unitPrice: z.coerce
+              .number()
+              .nonnegative("Đơn giá không được âm")
+              .max(1e13, "Đơn giá quá lớn"),
+            taxRate: z.coerce.number().min(0, "VAT không được âm").max(100),
+          })
+          .strict(),
+      )
+      .min(1, "Cần ít nhất 1 dòng")
+      .max(500)
+      .refine(
+        (ls) => new Set(ls.map((l) => l.lineId)).size === ls.length,
+        "Một dòng PO xuất hiện 2 lần",
+      ),
+  })
+  .strict();
+
 export const poListQuerySchema = z.object({
   status: z
     .union([z.enum(PO_STATUSES), z.array(z.enum(PO_STATUSES))])
@@ -345,6 +374,7 @@ export type PRRejectInput = z.infer<typeof prRejectSchema>;
 export type PRListQuery = z.infer<typeof prListQuerySchema>;
 
 export type POLineInput = z.infer<typeof poLineInputSchema>;
+export type POPriceUpdateInput = z.infer<typeof poPriceUpdateSchema>;
 export type POCreateInput = z.infer<typeof poCreateSchema>;
 export type POCreateFromPRInput = z.infer<typeof poCreateFromPRSchema>;
 export type POUpdateInput = z.infer<typeof poUpdateSchema>;

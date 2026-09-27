@@ -253,8 +253,9 @@ export function PoQuickReceiveTable({
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-        <table className="w-full text-sm">
+      {/* V4.1 PO-UI: cuộn ngang TRONG khung trên điện thoại, không tràn trang. */}
+      <div className="overflow-x-auto rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+        <table className="w-full min-w-[560px] text-sm">
           <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-800/60 dark:text-zinc-400">
             <tr>
               <th className="w-12 px-3 py-2 text-left">#</th>

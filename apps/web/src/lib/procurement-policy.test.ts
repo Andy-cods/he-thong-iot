@@ -7,11 +7,15 @@ import {
   detectPoPriceChanges,
   evaluatePoReceipt,
   findUnpricedPoLines,
+  isPoInvoiceLockingPrices,
+  isPoPriceEditableStatus,
   isSelfApprovalBlocked,
   nextPoStatusAfterReceipt,
   parseDateParam,
   parsePaymentTermDays,
+  planPoPriceEdit,
   prLineToPoLine,
+  summarizePoLines,
   vnToday,
 } from "./procurement-policy";
 
@@ -194,5 +198,80 @@ describe("V4.1 TM-24/25 — ngày", () => {
     expect(parseDateParam(null)).toBeNull();
     const d = parseDateParam("2026-09-01");
     expect(d instanceof Date && d.toISOString().slice(0, 10)).toBe("2026-09-01");
+  });
+});
+
+describe("V4.1 PO-UI — điều chỉnh giá PO sau DRAFT", () => {
+  const lines = [
+    { id: "a", lineNo: 1, orderedQty: "10", unitPrice: "0", taxRate: "8" },
+    { id: "b", lineNo: 2, orderedQty: "2", unitPrice: "1000", taxRate: "7" },
+  ];
+
+  it("mọi trạng thái trừ Đã huỷ được điều chỉnh giá", () => {
+    for (const s of ["DRAFT", "SENT", "PARTIAL", "RECEIVED", "CLOSED"]) {
+      expect(isPoPriceEditableStatus(s)).toBe(true);
+    }
+    expect(isPoPriceEditableStatus("CANCELLED")).toBe(false);
+    expect(isPoPriceEditableStatus(null)).toBe(false);
+  });
+
+  it("HĐ mua đã ghi công nợ khoá giá; Nháp/Đã huỷ/chưa có thì không", () => {
+    expect(isPoInvoiceLockingPrices(null)).toBe(false);
+    expect(isPoInvoiceLockingPrices("DRAFT")).toBe(false);
+    expect(isPoInvoiceLockingPrices("CANCELLED")).toBe(false);
+    for (const s of ["UNPAID", "PARTIAL", "PAID", "OVERDUE"]) {
+      expect(isPoInvoiceLockingPrices(s)).toBe(true);
+    }
+  });
+
+  it("tính before/after từng dòng + tổng PO mới", () => {
+    const plan = planPoPriceEdit(lines, [{ lineId: "a", unitPrice: 1500, taxRate: 10 }]);
+    expect(plan.ok).toBe(true);
+    if (!plan.ok) return;
+    expect(plan.changes).toEqual([
+      {
+        lineId: "a",
+        lineNo: 1,
+        before: { unitPrice: 0, taxRate: 8, lineTotal: 0 },
+        after: { unitPrice: 1500, taxRate: 10, lineTotal: 16500 },
+      },
+    ]);
+    expect(plan.totalBefore).toBe(2140);
+    expect(plan.totalAfter).toBe(16500 + 2140);
+  });
+
+  it("dòng gửi lên không đổi giá → không nằm trong changes", () => {
+    const plan = planPoPriceEdit(lines, [{ lineId: "b", unitPrice: 1000, taxRate: 7 }]);
+    expect(plan.ok && plan.changes.length).toBe(0);
+  });
+
+  it("VAT 0 hợp lệ; VAT lạ bị chặn trừ khi giữ nguyên VAT cũ của dòng", () => {
+    expect(planPoPriceEdit(lines, [{ lineId: "a", unitPrice: 1, taxRate: 0 }]).ok).toBe(true);
+    const bad = planPoPriceEdit(lines, [{ lineId: "a", unitPrice: 1, taxRate: 7 }]);
+    expect(bad.ok).toBe(false);
+    if (!bad.ok) expect(bad.code).toBe("INVALID_VAT");
+    // dòng b đang 7% → chỉ đổi giá, giữ 7% vẫn được
+    expect(planPoPriceEdit(lines, [{ lineId: "b", unitPrice: 1200, taxRate: 7 }]).ok).toBe(true);
+  });
+
+  it("chặn đơn giá âm, dòng lạ, dòng trùng", () => {
+    const neg = planPoPriceEdit(lines, [{ lineId: "a", unitPrice: -1, taxRate: 8 }]);
+    expect(!neg.ok && neg.code).toBe("INVALID_PRICE");
+    const unknown = planPoPriceEdit(lines, [{ lineId: "zzz", unitPrice: 1, taxRate: 8 }]);
+    expect(!unknown.ok && unknown.code).toBe("LINE_NOT_FOUND");
+    const dup = planPoPriceEdit(lines, [
+      { lineId: "a", unitPrice: 1, taxRate: 8 },
+      { lineId: "a", unitPrice: 2, taxRate: 8 },
+    ]);
+    expect(!dup.ok && dup.code).toBe("DUPLICATE_LINE");
+  });
+
+  it("đơn giá làm tròn 4 số lẻ theo cột unit_price", () => {
+    const plan = planPoPriceEdit(lines, [{ lineId: "a", unitPrice: 1.234567, taxRate: 8 }]);
+    expect(plan.ok && plan.changes[0]?.after.unitPrice).toBe(1.2346);
+  });
+
+  it("tổng hợp tiền + đếm dòng chưa có giá", () => {
+    expect(summarizePoLines(lines)).toEqual({ subtotal: 2000, vat: 140, total: 2140, unpriced: 1 });
   });
 });

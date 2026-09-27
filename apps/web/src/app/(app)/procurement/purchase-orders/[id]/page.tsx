@@ -3,182 +3,80 @@
 import * as React from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import {
-  AlertCircle,
-  ArrowLeft,
-  Building2,
-  Calendar,
-  Check,
-  CheckCircle2,
-  ChevronRight,
-  Clock,
-  CreditCard,
-  Download,
-  Edit3,
-  FileText,
-  History,
-  Loader2,
-  MapPin,
-  Package,
-  Plus,
-  Receipt,
-  Save,
-  Search,
-  Send,
-  ShoppingCart,
-  Trash2,
-  Truck,
-  X,
-  XCircle,
-} from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { AlertCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { QueryError } from "@/components/ui/query-error";
 import { useSession } from "@/hooks/useSession";
-import { ObjectAuditList } from "@/components/admin/ObjectAuditList";
+import { usePurchaseOrderDetail, useUpdatePurchaseOrder } from "@/hooks/usePurchaseOrders";
+import { PoInvoicePanel, usePoInvoiceContext } from "@/components/procurement/PoInvoicePanel";
+import { PoDetailHeader } from "@/components/procurement/po-detail/PoDetailHeader";
+import { PoLinesTable } from "@/components/procurement/po-detail/PoLinesTable";
+import { PoDraftLinesEditor } from "@/components/procurement/po-detail/PoDraftLinesEditor";
+import { PoInfoCard } from "@/components/procurement/po-detail/PoInfoCard";
+import { PoProgressStepper } from "@/components/procurement/po-detail/PoProgressStepper";
 import {
-  usePOTransition,
-  usePurchaseOrderDetail,
-  useUpdatePurchaseOrder,
-  useSendPurchaseOrder,
-} from "@/hooks/usePurchaseOrders";
-import { canEditPoPrices } from "@/lib/procurement-policy";
-import { PoInvoicePanel } from "@/components/procurement/PoInvoicePanel";
-import { useReceivingAudit } from "@/hooks/useReceivingEvents";
-import { formatDate, formatDateTime, formatMoney, formatNumber } from "@/lib/format";
+  PoSecondaryTabs,
+  type PoSecondaryTab,
+} from "@/components/procurement/po-detail/PoSecondaryTabs";
+import {
+  parseTaxRate,
+  type EditableLine,
+  type PoHeaderForm,
+} from "@/components/procurement/po-detail/types";
+import { derivePoFlags } from "@/lib/po-detail";
+import { canEditPoPrices, summarizePoLines } from "@/lib/procurement-policy";
 import { statusLabel } from "@/lib/status";
-import { StatusPill } from "@/components/ui/status-badge";
-import { cn } from "@/lib/utils";
-import { downloadFromUrl } from "@/lib/download";
-import { PoQuickReceiveTable } from "@/components/procurement/PoQuickReceiveTable";
-import { PoApprovalWorkflow } from "@/components/procurement/PoApprovalWorkflow";
 
 /**
- * V3.4 — Purchase Order detail redesign hoàn toàn.
+ * V4.1 PO-UI: chi tiết Đơn đặt hàng — thiết kế lại gọn, chuyên nghiệp.
  *
- * Layout:
- *   - Header sticky: avatar gradient + status pill + actions context-aware
- *   - 4 KPI inline (Tổng giá trị, Số dòng, Đã nhận %, Ngày dự kiến)
- *   - 5 tabs: Thông tin / Dòng hàng / Nhận nhanh / Lịch sử nhận / Nhật ký
- *   - Edit mode inline (DRAFT: full edit, SENT: chỉ ngày dự kiến + notes)
- * V4.1 UI-07/08/13/27: trạng thái lấy từ lib/status (bỏ STATUS_PILL cục bộ),
- *   tiền qua formatMoney (bỏ font-mono), nhãn tiếng Việt.
+ *  ┌ Đầu trang dính: ← / Số PO · trạng thái · loại · NCC ······ thao tác  ┐
+ *  │ dải tóm tắt: Tổng cộng · số dòng · đã nhận · ngày dự kiến             │
+ *  ├──────────────────────────────── (≥lg: 2 cột) ─────────────────────────┤
+ *  │ CHÍNH: Dòng hàng (bảng + tổng, Điều chỉnh giá)  │ PHỤ: Thông tin       │
+ *  │        Nhận nhanh / Lịch sử nhận / Nhật ký       │      Tiến trình      │
+ *  │                                                  │      Hoá đơn mua     │
+ *  └─────────────────────────────────────────────────────────────────────────┘
+ * Điện thoại: 1 cột (dòng hàng → thông tin → tiến trình → HĐ → tab).
+ * Các khối nằm ở components/procurement/po-detail/.
  */
 
-type Tab = "info" | "lines" | "receive" | "history" | "audit";
-
-interface ItemSearch {
-  id: string;
-  sku: string;
-  name: string;
-  uom?: string;
-}
-
-interface EditableLine {
-  id?: string;
-  itemId: string;
-  sku: string;
-  itemName: string;
-  uom?: string;
-  orderedQty: string;
-  unitPrice: string;
-  taxRate: string;
-  notes: string;
-  /** V4.1 TM-03 — giữ liên kết snapshot + quy cách DNVT + ETA dòng khi sửa. */
-  snapshotLineId: string | null;
-  spec: string | null;
-  expectedEta: string | null;
-}
-
-/** V4.1 TM-04 — VAT 0% hợp lệ (trước đây `|| 8` biến 0 thành 8). */
-function parseTaxRate(v: string): number {
-  const n = Number(v);
-  return v.trim() !== "" && Number.isFinite(n) ? n : 8;
-}
-
-/** V4.1 UI-13: tiền đầy đủ số "1.234.567 ₫" — dùng formatMoney chung. */
-function fmtVND(n: number | string | null | undefined): string {
-  return formatMoney(n);
-}
+const EMPTY_FORM: PoHeaderForm = { expectedEta: "", paymentTerms: "", deliveryAddress: "", notes: "" };
 
 export default function PurchaseOrderDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
   const session = useSession();
   const roles = session.data?.roles ?? [];
-  const canManage =
-    roles.includes("admin") ||
-    roles.includes("planner") ||
-    roles.includes("purchaser");
-  const canMarkSent = roles.includes("admin") || roles.includes("purchaser");
-  // V4.1 D8 — chỉ Thu mua / Giám đốc sửa đơn giá, VAT.
   const canPrice = canEditPoPrices(roles);
-  // V4.1 D7 — khung HĐ mua cho Thu mua / Kế toán / Giám đốc.
-  const canSeeInvoice =
-    roles.includes("admin") ||
-    roles.includes("accountant") ||
-    roles.includes("purchaser");
-  const qc = useQueryClient();
+  const canSeeInvoiceRole =
+    roles.includes("admin") || roles.includes("accountant") || roles.includes("purchaser");
 
   const detail = usePurchaseOrderDetail(id);
   const update = useUpdatePurchaseOrder(id);
-  const send = useSendPurchaseOrder(id);
-
-  const [tab, setTab] = React.useState<Tab>("info");
-  const [editing, setEditing] = React.useState(false);
-  const [editEta, setEditEta] = React.useState("");
-  const [editPaymentTerms, setEditPaymentTerms] = React.useState("");
-  const [editAddress, setEditAddress] = React.useState("");
-  const [editNotes, setEditNotes] = React.useState("");
-  const [editLines, setEditLines] = React.useState<EditableLine[]>([]);
-  const [searchOpen, setSearchOpen] = React.useState(false);
-  const [search, setSearch] = React.useState("");
-  const [debouncedQ, setDebouncedQ] = React.useState("");
-  const [sendConfirmOpen, setSendConfirmOpen] = React.useState(false);
-  // V4.1 TM-17 — huỷ / đóng PO.
-  const [transitionOpen, setTransitionOpen] = React.useState<null | "cancel" | "close">(null);
-  const [transitionReason, setTransitionReason] = React.useState("");
-  const cancelPo = usePOTransition(id, "cancel");
-  const closePo = usePOTransition(id, "close");
-
-  React.useEffect(() => {
-    const t = setTimeout(() => setDebouncedQ(search), 300);
-    return () => clearTimeout(t);
-  }, [search]);
-
-  const itemsQuery = useQuery({
-    queryKey: ["items-search", debouncedQ],
-    queryFn: async () => {
-      const res = await fetch(`/api/items?q=${encodeURIComponent(debouncedQ)}&pageSize=15`, { credentials: "include" });
-      // V4.1 UI-05: kèm mã HTTP để khối lỗi báo đúng.
-      if (!res.ok) {
-        throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status });
-      }
-      return res.json() as Promise<{ data: ItemSearch[] }>;
-    },
-    enabled: searchOpen && debouncedQ.length >= 1,
-    staleTime: 30_000,
-  });
-
   const po = detail.data?.data;
+
+  const invoiceable =
+    po?.status === "PARTIAL" || po?.status === "RECEIVED" || po?.status === "CLOSED";
+  const invoiceCtx = usePoInvoiceContext(id, !!po && invoiceable && canSeeInvoiceRole);
+  const invoiceStatus = invoiceCtx.data?.invoice?.status ?? null;
+
+  const [editing, setEditing] = React.useState(false);
+  const [form, setForm] = React.useState<PoHeaderForm>(EMPTY_FORM);
+  const [editLines, setEditLines] = React.useState<EditableLine[]>([]);
+  const [tab, setTab] = React.useState<PoSecondaryTab | null>(null);
+  const tabsRef = React.useRef<HTMLElement>(null);
+  const invoiceRef = React.useRef<HTMLDivElement>(null);
 
   const startEdit = () => {
     if (!po) return;
-    setEditEta(po.expectedEta ?? "");
-    setEditPaymentTerms(po.paymentTerms ?? "");
-    setEditAddress(po.deliveryAddress ?? "");
-    setEditNotes(po.notes ?? "");
+    setForm({
+      expectedEta: po.expectedEta ?? "",
+      paymentTerms: po.paymentTerms ?? "",
+      deliveryAddress: po.deliveryAddress ?? "",
+      notes: po.notes ?? "",
+    });
     setEditLines(
       po.lines.map((l) => ({
         id: l.id,
@@ -186,9 +84,9 @@ export default function PurchaseOrderDetailPage() {
         sku: l.itemSku ?? "",
         itemName: l.itemName ?? "",
         uom: l.itemUom ?? undefined,
-        orderedQty: String(l.orderedQty),
-        unitPrice: String(l.unitPrice ?? 0),
-        taxRate: String(l.taxRate ?? 8),
+        orderedQty: String(Number(l.orderedQty)),
+        unitPrice: String(Number(l.unitPrice ?? 0)),
+        taxRate: String(Number(l.taxRate ?? 8)),
         notes: l.notes ?? "",
         snapshotLineId: l.snapshotLineId ?? null,
         spec: l.spec ?? null,
@@ -197,41 +95,6 @@ export default function PurchaseOrderDetailPage() {
     );
     setEditing(true);
   };
-
-  const cancelEdit = () => {
-    setEditing(false);
-    setSearchOpen(false);
-    setSearch("");
-  };
-
-  const addItem = (it: ItemSearch) => {
-    if (editLines.find((l) => l.itemId === it.id)) {
-      toast.info("Linh kiện này đã có");
-      return;
-    }
-    setEditLines((prev) => [
-      ...prev,
-      {
-        itemId: it.id,
-        sku: it.sku,
-        itemName: it.name,
-        uom: it.uom,
-        orderedQty: "1",
-        unitPrice: "0",
-        taxRate: "8",
-        notes: "",
-        snapshotLineId: null,
-        spec: null,
-        expectedEta: null,
-      },
-    ]);
-    setSearch("");
-    setSearchOpen(false);
-  };
-
-  const removeLine = (idx: number) => setEditLines((prev) => prev.filter((_, i) => i !== idx));
-  const updateLine = (idx: number, patch: Partial<EditableLine>) =>
-    setEditLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
 
   const handleSaveEdit = async () => {
     if (!po) return;
@@ -246,19 +109,19 @@ export default function PurchaseOrderDetailPage() {
     }
     try {
       const payload: Record<string, unknown> = {
-        expectedEta: editEta ? new Date(editEta) : null,
-        notes: editNotes.trim() || null,
+        expectedEta: form.expectedEta ? new Date(form.expectedEta) : null,
+        notes: form.notes.trim() || null,
       };
       if (isDraft) {
-        payload.paymentTerms = editPaymentTerms.trim() || null;
-        payload.deliveryAddress = editAddress.trim() || null;
+        payload.paymentTerms = form.paymentTerms.trim() || null;
+        payload.deliveryAddress = form.deliveryAddress.trim() || null;
         payload.lines = editLines.map((l) => ({
           itemId: l.itemId,
           orderedQty: Number(l.orderedQty),
           unitPrice: Number(l.unitPrice) || 0,
           taxRate: parseTaxRate(l.taxRate),
           notes: l.notes.trim() || null,
-          // V4.1 TM-03 — trước đây không gửi → mất snapshot/quy cách trên PDF.
+          // V4.1 TM-03 — giữ snapshot/quy cách trên PDF.
           snapshotLineId: l.snapshotLineId,
           spec: l.spec,
           expectedEta: l.expectedEta,
@@ -272,53 +135,9 @@ export default function PurchaseOrderDetailPage() {
     }
   };
 
-  const handleTransition = async () => {
-    if (!transitionOpen) return;
-    const reason = transitionReason.trim();
-    if (reason.length < 3) {
-      toast.error("Lý do tối thiểu 3 ký tự");
-      return;
-    }
-    try {
-      await (transitionOpen === "cancel" ? cancelPo : closePo).mutateAsync({ reason });
-      toast.success(transitionOpen === "cancel" ? "Đã huỷ PO" : "Đã đóng PO");
-      setTransitionOpen(null);
-      setTransitionReason("");
-    } catch (err) {
-      toast.error((err as Error).message);
-    }
-  };
-
-  const handleSend = async () => {
-    try {
-      await send.mutateAsync();
-      toast.success("Đã đánh dấu PO là đã gửi");
-      setSendConfirmOpen(false);
-    } catch (err) {
-      toast.error(`Gửi PO thất bại: ${(err as Error).message}`);
-    }
-  };
-
-  // V3.11.1 — Xuất PDF: fetch→blob→download (ổn định, đọc được lỗi 4xx/5xx).
-  const [exportingPdf, setExportingPdf] = React.useState(false);
-  const handleExportPdf = async () => {
-    if (!po) return;
-    setExportingPdf(true);
-    try {
-      await downloadFromUrl(
-        `/api/purchase-orders/${po.id}/pdf`,
-        `${po.poNo}.pdf`,
-      );
-    } catch (e) {
-      toast.error(`Không xuất được PDF: ${(e as Error).message}`);
-    } finally {
-      setExportingPdf(false);
-    }
-  };
-
   if (detail.isLoading) {
     return (
-      <div className="flex h-full items-center justify-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+      <div className="flex min-h-[40vh] items-center justify-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
         <Loader2 className="h-4 w-4 animate-spin" /> Đang tải PO…
       </div>
     );
@@ -336,9 +155,9 @@ export default function PurchaseOrderDetailPage() {
   }
   if (!po) {
     return (
-      <div className="m-6 rounded-xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-800 dark:bg-red-950/40">
-        <AlertCircle className="mx-auto h-8 w-8 text-red-400 dark:text-red-500" />
-        <p className="mt-2 text-sm font-semibold text-red-700 dark:text-red-400">Không tìm thấy PO</p>
+      <div className="mx-auto mt-6 max-w-md rounded-lg border border-zinc-200 bg-white p-6 text-center dark:border-zinc-800 dark:bg-zinc-900">
+        <AlertCircle className="mx-auto h-6 w-6 text-zinc-400" />
+        <p className="mt-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">Không tìm thấy PO</p>
         <Button asChild variant="outline" size="sm" className="mt-3">
           <Link href="/sales?tab=po">Về danh sách</Link>
         </Button>
@@ -346,768 +165,119 @@ export default function PurchaseOrderDetailPage() {
     );
   }
 
+  const flags = derivePoFlags({
+    status: po.status,
+    approvalStatus: po.metadata?.approvalStatus ?? null,
+    roles,
+    lines: po.lines,
+    invoiceStatus,
+  });
   const isDraft = po.status === "DRAFT";
-  const isSent = po.status === "SENT";
-  const approvalStatus = po.metadata?.approvalStatus;
-  const draftIsEditable =
-    !approvalStatus || approvalStatus === "rejected";
-  const isEditable =
-    canManage && ((isDraft && draftIsEditable) || isSent);
-  const canSend =
-    canMarkSent && isDraft && approvalStatus === "approved";
-  // V4.1 TM-17 — huỷ khi chưa nhận gì; đóng khi đã nhận một phần/đủ.
-  const hasReceipts = po.lines.some((l) => Number(l.receivedQty) > 0);
-  const canCancelPo =
-    canMarkSent && (isDraft || isSent) && !hasReceipts && approvalStatus !== "pending";
-  const canClosePo =
-    canMarkSent && (po.status === "PARTIAL" || po.status === "RECEIVED");
-  const invoiceable =
-    po.status === "PARTIAL" || po.status === "RECEIVED" || po.status === "CLOSED";
 
-  // Compute totals from lines (current data)
-  let subtotal = 0;
-  let totalTax = 0;
-  for (const l of po.lines) {
-    const qty = Number(l.orderedQty) || 0;
-    const price = Number(l.unitPrice) || 0;
-    const tax = Number(l.taxRate ?? 0) || 0;
-    const pre = qty * price;
-    subtotal += pre;
-    totalTax += pre * (tax / 100);
-  }
-  const grandTotal = subtotal + totalTax;
-  const displayTotal = Number(po.totalAmount) || grandTotal;
-
-  // Receiving progress
-  const totalOrdered = po.lines.reduce((s, l) => s + Number(l.orderedQty), 0);
-  const totalReceived = po.lines.reduce((s, l) => s + Number(l.receivedQty), 0);
+  const sums = summarizePoLines(po.lines);
+  const storedTotal = Number(po.totalAmount);
+  const totalOrdered = po.lines.reduce((s, l) => s + (Number(l.orderedQty) || 0), 0);
+  const totalReceived = po.lines.reduce((s, l) => s + (Number(l.receivedQty) || 0), 0);
   const receivedPct = totalOrdered > 0 ? Math.round((totalReceived / totalOrdered) * 100) : 0;
 
+  const defaultTab: PoSecondaryTab =
+    po.status === "SENT" || po.status === "PARTIAL"
+      ? "receive"
+      : po.status === "RECEIVED" || po.status === "CLOSED"
+        ? "history"
+        : "audit";
+  const activeTab = tab ?? defaultTab;
+
+  const inv = invoiceCtx.data;
+  const showCreateInvoice =
+    flags.canSeeInvoice &&
+    flags.invoiceable &&
+    !!inv &&
+    !inv.invoice &&
+    inv.canCreate &&
+    inv.draft.subtotalAmount > 0;
+
   return (
-    <div className="flex h-full flex-col bg-zinc-50/30 dark:bg-zinc-950">
-
-      {/* ── Header ────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <Link
-          href="/sales?tab=po"
-          className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-indigo-600 transition-colors dark:text-zinc-400 dark:hover:text-indigo-400"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" /> Đơn đặt hàng
-        </Link>
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-indigo-600">
-              <Receipt className="h-6 w-6 text-white" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <StatusPill
-                  domain="po"
-                  code={po.status}
-                  dot
-                  pulse={po.status === "SENT" || po.status === "PARTIAL"}
-                />
-                {/* V3.7.43 — Badge phân loại PO type */}
-                {po.poType === "SUBCONTRACT" && (
-                  <span className="inline-flex whitespace-nowrap items-center gap-1.5 rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold text-orange-700 ring-1 ring-inset ring-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:ring-orange-800">
-                    Gia công ngoài
-                  </span>
-                )}
-                {(!po.poType || po.poType === "COMMERCIAL") && (
-                  <span className="inline-flex whitespace-nowrap items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:ring-blue-800">
-                    Thương mại
-                  </span>
-                )}
-              </div>
-              <h1 className="mt-1 truncate text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-                {po.poNo}
-              </h1>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {!editing && isEditable && (
-              <Button variant="outline" size="sm" onClick={startEdit}>
-                <Edit3 className="h-3.5 w-3.5" /> Chỉnh sửa
-              </Button>
-            )}
-            {editing && (
-              <>
-                <Button variant="ghost" size="sm" onClick={cancelEdit} disabled={update.isPending}>
-                  <X className="h-3.5 w-3.5" /> Huỷ
-                </Button>
-                <Button size="sm" onClick={() => void handleSaveEdit()} disabled={update.isPending}>
-                  {update.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                  Lưu thay đổi
-                </Button>
-              </>
-            )}
-            {!editing && canSend && (
-              <Button
-                size="sm"
-                onClick={() => setSendConfirmOpen(true)}
-                disabled={send.isPending}
-                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-              >
-                {send.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                Đánh dấu đã gửi
-              </Button>
-            )}
-            {!editing && canClosePo && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setTransitionReason("");
-                  setTransitionOpen("close");
-                }}
-                title="NCC không giao nốt / chốt hồ sơ — không nhận thêm hàng"
-              >
-                <CheckCircle2 className="h-3.5 w-3.5" /> Đóng PO
-              </Button>
-            )}
-            {!editing && canCancelPo && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setTransitionReason("");
-                  setTransitionOpen("cancel");
-                }}
-                className="border-red-200 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/40"
-              >
-                <XCircle className="h-3.5 w-3.5" /> Huỷ PO
-              </Button>
-            )}
-            {/* V3.11 — Xuất PDF cho MỌI PO (độc lập gửi NCC, không đổi trạng thái). */}
-            {!editing && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void handleExportPdf()}
-                disabled={exportingPdf}
-                title="Xuất Đơn đặt hàng ra PDF để in / lưu hồ sơ"
-              >
-                {exportingPdf ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Download className="h-3.5 w-3.5" />
-                )}
-                Xuất PDF
-              </Button>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* ── KPI strip ─────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3 border-b border-zinc-200 bg-white px-6 py-3 lg:grid-cols-4 dark:border-zinc-800 dark:bg-zinc-900">
-        <KpiInline icon={CreditCard} label="Tổng giá trị" value={fmtVND(displayTotal)} accent="indigo" />
-        <KpiInline icon={Package} label="Số dòng" value={String(po.lines.length)} accent="zinc" />
-        <KpiInline
-          icon={Truck}
-          label="Đã nhận"
-          value={`${formatNumber(totalReceived)} / ${formatNumber(totalOrdered)} (${receivedPct}%)`}
-          accent={receivedPct >= 100 ? "emerald" : receivedPct > 0 ? "amber" : "zinc"}
-        />
-        <KpiInline icon={Calendar} label="Ngày dự kiến" value={po.expectedEta ? formatDate(po.expectedEta, "dd/MM/yyyy") : "—"} accent="blue" />
-      </div>
-
-      {/* ── Tabs ──────────────────────────────────────────────── */}
-      <div className="flex items-center gap-1 overflow-x-auto border-b border-zinc-200 bg-white px-6 dark:border-zinc-800 dark:bg-zinc-900">
-        {([
-          { v: "info" as const, label: "Thông tin", icon: FileText },
-          { v: "lines" as const, label: `Dòng hàng (${po.lines.length})`, icon: Package },
-          { v: "receive" as const, label: "Nhận nhanh", icon: Truck, hide: isDraft },
-          { v: "history" as const, label: "Lịch sử nhận", icon: History, hide: isDraft },
-          { v: "audit" as const, label: "Nhật ký", icon: ShoppingCart },
-        ]).filter((t) => !t.hide).map((t) => {
-          const Icon = t.icon;
-          return (
-            <button
-              key={t.v}
-              type="button"
-              onClick={() => setTab(t.v)}
-              className={cn(
-                "relative flex items-center gap-2 px-4 py-3 text-sm font-semibold transition-colors whitespace-nowrap",
-                "after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:rounded-t-full after:transition-all",
-                tab === t.v
-                  ? "text-indigo-700 after:bg-indigo-600 dark:text-indigo-400 dark:after:bg-indigo-500"
-                  : "text-zinc-500 hover:text-zinc-800 after:bg-transparent dark:text-zinc-400 dark:hover:text-zinc-200",
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {t.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ── Content ───────────────────────────────────────────── */}
-      <div className="flex-1 overflow-auto p-6">
-        {tab === "info" && (
-          <div className="mx-auto max-w-5xl space-y-5">
-            <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-              <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-                <CheckCircle2 className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
-                Phê duyệt PO
-              </h2>
-              <PoApprovalWorkflow
-                poId={po.id}
-                status={po.status}
-                metadata={po.metadata}
-                createdAt={po.createdAt}
-                sentAt={po.sentAt}
-                cancelledAt={po.cancelledAt}
-                actorNames={po.actorNames}
-              />
-            </section>
-            {/* Info card */}
-            <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-              <h2 className="mb-5 flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-                <FileText className="h-4 w-4 text-zinc-400 dark:text-zinc-500" /> Thông tin đơn hàng
-              </h2>
-              <div className="grid gap-5 md:grid-cols-2">
-                <InfoRow icon={Receipt} label="Số PO" value={<span className="font-mono font-semibold text-indigo-600 dark:text-indigo-400">{po.poNo}</span>} />
-                <InfoRow icon={Building2} label="Nhà cung cấp" value={po.supplierName ?? po.supplierCode ?? "—"} />
-                <InfoRow icon={Calendar} label="Ngày đặt" value={formatDate(po.orderDate, "dd/MM/yyyy")} />
-                <InfoRow
-                  icon={Clock}
-                  label="Ngày dự kiến"
-                  value={editing ? (
-                    <input
-                      type="date"
-                      value={editEta}
-                      onChange={(e) => setEditEta(e.target.value)}
-                      className="h-9 w-44 rounded-md border border-zinc-200 bg-white px-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-                    />
-                  ) : (po.expectedEta ? formatDate(po.expectedEta, "dd/MM/yyyy") : "—")}
-                />
-                <InfoRow
-                  icon={CreditCard}
-                  label="Điều khoản TT"
-                  value={editing && isDraft ? (
-                    <input
-                      type="text"
-                      value={editPaymentTerms}
-                      onChange={(e) => setEditPaymentTerms(e.target.value)}
-                      placeholder="Net 30"
-                      className="h-9 w-44 rounded-md border border-zinc-200 bg-white px-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-                    />
-                  ) : (po.paymentTerms ?? "—")}
-                />
-                <InfoRow
-                  icon={MapPin}
-                  label="Địa chỉ giao"
-                  value={editing && isDraft ? (
-                    <input
-                      type="text"
-                      value={editAddress}
-                      onChange={(e) => setEditAddress(e.target.value)}
-                      placeholder="Địa chỉ giao hàng"
-                      className="h-9 w-full max-w-md rounded-md border border-zinc-200 bg-white px-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-                    />
-                  ) : (po.deliveryAddress ?? "—")}
-                />
-              </div>
-
-              {/* Total breakdown */}
-              <div className="mt-6 rounded-lg bg-zinc-50 p-5 ring-1 ring-zinc-200 dark:bg-zinc-800/40 dark:ring-zinc-700">
-                <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Tổng giá trị</p>
-                <div className="mt-3 space-y-1.5">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-zinc-600 dark:text-zinc-400">Tạm tính (chưa VAT)</span>
-                    <span className="font-semibold tabular-nums text-zinc-800 dark:text-zinc-200">{fmtVND(subtotal)}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-zinc-600 dark:text-zinc-400">Tổng VAT</span>
-                    <span className="font-semibold tabular-nums text-zinc-800 dark:text-zinc-200">{fmtVND(totalTax)}</span>
-                  </div>
-                  <div className="mt-2 border-t border-indigo-200 pt-2 flex items-center justify-between dark:border-indigo-800">
-                    <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Tổng cộng</span>
-                    <span className="text-xl font-bold tabular-nums text-indigo-700 dark:text-indigo-400">{fmtVND(displayTotal)}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-5">
-                <Label htmlFor="po-notes" className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                  Ghi chú
-                </Label>
-                {editing ? (
-                  <Textarea
-                    id="po-notes"
-                    value={editNotes}
-                    onChange={(e) => setEditNotes(e.target.value)}
-                    rows={3}
-                    className="mt-1.5"
-                    placeholder="Ghi chú cho NCC..."
-                  />
-                ) : (
-                  <p className="mt-1.5 whitespace-pre-line text-sm text-zinc-700 dark:text-zinc-300">
-                    {po.notes || <span className="italic text-zinc-400 dark:text-zinc-500">Không có ghi chú</span>}
-                  </p>
-                )}
-              </div>
-            </section>
-
-            {canSeeInvoice && invoiceable && <PoInvoicePanel poId={po.id} />}
-
-            {isSent && editing && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400">
-                <p className="flex items-center gap-2 font-semibold">
-                  <AlertCircle className="h-4 w-4" /> Đã gửi NCC
-                </p>
-                <p className="mt-1 text-xs">PO đã ở trạng thái “{statusLabel("po", "SENT")}”. Chỉ sửa được Ngày dự kiến và Ghi chú. Để sửa dòng hàng/tổng giá trị, vui lòng huỷ PO và tạo mới.</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {tab === "lines" && (
-          <div className="mx-auto max-w-6xl space-y-4">
-            {editing && isDraft && (
-              <section className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-4 dark:border-indigo-800 dark:bg-indigo-950/30">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-300">Đang chỉnh sửa lines</p>
-                    <p className="text-xs text-indigo-700 dark:text-indigo-400">Tổng giá trị tự động tính lại khi lưu</p>
-                  </div>
-                  <Button size="sm" variant="outline" onClick={() => setSearchOpen(true)}>
-                    <Plus className="h-3.5 w-3.5" /> Thêm dòng
-                  </Button>
-                </div>
-                {searchOpen && (
-                  <div className="mt-3 rounded-xl border border-indigo-200 bg-white p-3 dark:border-indigo-800 dark:bg-zinc-900">
-                    <div className="relative">
-                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" />
-                      <input
-                        type="text"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Tìm SKU hoặc tên..."
-                        autoFocus
-                        className="h-10 w-full rounded-lg border border-zinc-200 bg-white pl-9 pr-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-                      />
-                    </div>
-                    {debouncedQ && (
-                      <div className="mt-2 max-h-60 overflow-y-auto rounded-lg border border-zinc-100 bg-zinc-50/40 dark:border-zinc-800 dark:bg-zinc-800/60">
-                        {itemsQuery.isLoading ? (
-                          <p className="px-4 py-4 text-center text-xs text-zinc-500 dark:text-zinc-400">Đang tìm…</p>
-                        ) : itemsQuery.isError && !itemsQuery.data ? (
-                          <QueryError
-                            compact
-                            className="m-2"
-                            error={itemsQuery.error}
-                            onRetry={() => void itemsQuery.refetch()}
-                            retrying={itemsQuery.isFetching}
-                            title="Không tìm được vật tư"
-                          />
-                        ) : (itemsQuery.data?.data ?? []).length === 0 ? (
-                          <p className="px-4 py-4 text-center text-xs text-zinc-500 dark:text-zinc-400">Không tìm thấy</p>
-                        ) : (
-                          <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                            {(itemsQuery.data?.data ?? []).map((it) => (
-                              <li key={it.id}>
-                                <button
-                                  type="button"
-                                  onClick={() => addItem(it)}
-                                  className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-white dark:hover:bg-zinc-800/60"
-                                >
-                                  <span className="font-mono text-xs font-semibold text-indigo-600 dark:text-indigo-400">{it.sku}</span>
-                                  <span className="flex-1 truncate text-sm text-zinc-700 dark:text-zinc-300">{it.name}</span>
-                                  <Plus className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </section>
-            )}
-
-            <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-              <table className="w-full border-collapse text-sm">
-                <thead>
-                  <tr className="border-b border-zinc-100 bg-zinc-50/60 dark:border-zinc-800 dark:bg-zinc-800/60">
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 w-12 dark:text-zinc-500">#</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Vật tư</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">SL đặt</th>
-                    {!editing && <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Đã nhận</th>}
-                    {!editing && <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Còn lại</th>}
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Đơn giá</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">VAT%</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Thành tiền</th>
-                    {!editing && <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Ngày dự kiến</th>}
-                    {editing && isDraft && <th className="w-12" />}
-                  </tr>
-                </thead>
-                <tbody>
-                  {editing && isDraft
-                    ? editLines.map((l, i) => {
-                        const qty = Number(l.orderedQty) || 0;
-                        const price = Number(l.unitPrice) || 0;
-                        const tax = parseTaxRate(l.taxRate);
-                        const lineTotal = qty * price * (1 + tax / 100);
-                        return (
-                          <tr key={l.itemId} className="border-b border-zinc-50 dark:border-zinc-800">
-                            <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">{i + 1}</td>
-                            <td className="px-4 py-3">
-                              <div className="flex flex-col">
-                                <span className="font-mono text-sm font-semibold text-indigo-600 dark:text-indigo-400">{l.sku}</span>
-                                <span className="text-xs text-zinc-500 truncate max-w-xs dark:text-zinc-400">{l.itemName}</span>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <input
-                                type="number"
-                                min="0.01"
-                                step="any"
-                                value={l.orderedQty}
-                                onChange={(e) => updateLine(i, { orderedQty: e.target.value })}
-                                className="ml-auto block h-9 w-24 rounded-md border border-zinc-200 bg-white px-2 text-right font-mono text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-                              />
-                            </td>
-                            <td className="px-4 py-3">
-                              <input
-                                type="number"
-                                min="0"
-                                step="any"
-                                value={l.unitPrice}
-                                onChange={(e) => updateLine(i, { unitPrice: e.target.value })}
-                                readOnly={!canPrice}
-                                title={canPrice ? undefined : "Chỉ Thu mua / Giám đốc sửa đơn giá"}
-                                className="ml-auto read-only:bg-zinc-100 read-only:text-zinc-500 dark:read-only:bg-zinc-800 block h-9 w-32 rounded-md border border-zinc-200 bg-white px-2 text-right font-mono text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-                              />
-                            </td>
-                            <td className="px-4 py-3">
-                              <input
-                                type="number"
-                                min="0"
-                                max="100"
-                                step="0.5"
-                                value={l.taxRate}
-                                onChange={(e) => updateLine(i, { taxRate: e.target.value })}
-                                readOnly={!canPrice}
-                                className="ml-auto read-only:bg-zinc-100 read-only:text-zinc-500 dark:read-only:bg-zinc-800 block h-9 w-16 rounded-md border border-zinc-200 bg-white px-2 text-right font-mono text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-                              />
-                            </td>
-                            <td className="px-4 py-3 text-right text-sm font-semibold tabular-nums text-zinc-800 dark:text-zinc-200">
-                              {formatMoney(lineTotal, { unit: "none" })}
-                            </td>
-                            <td className="px-2 py-3">
-                              <button
-                                type="button"
-                                onClick={() => removeLine(i)}
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-400 hover:bg-red-50 hover:text-red-600 transition-colors dark:text-zinc-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    : po.lines.map((l) => {
-                        const qty = Number(l.orderedQty);
-                        const recv = Number(l.receivedQty);
-                        const rem = Math.max(0, qty - recv);
-                        const lineTotal = qty * Number(l.unitPrice) * (1 + Number(l.taxRate ?? 0) / 100);
-                        return (
-                          <tr key={l.id} className="border-b border-zinc-50 hover:bg-zinc-50/50 transition-colors dark:border-zinc-800 dark:hover:bg-zinc-800/60">
-                            <td className="px-4 py-3.5 text-sm text-zinc-500 dark:text-zinc-400">{l.lineNo}</td>
-                            <td className="px-4 py-3.5">
-                              <div className="flex flex-col">
-                                <span className="font-mono text-sm font-semibold text-indigo-600 dark:text-indigo-400">{l.itemSku ?? "—"}</span>
-                                <span className="text-xs text-zinc-500 truncate max-w-xs dark:text-zinc-400">{l.itemName ?? "—"}{l.itemUom && ` (${l.itemUom})`}</span>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3.5 text-right font-mono text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-                              {formatNumber(qty)}
-                            </td>
-                            <td className={cn(
-                              "px-4 py-3.5 text-right font-mono text-sm font-semibold",
-                              recv >= qty ? "text-emerald-700 dark:text-emerald-400" : recv > 0 ? "text-amber-700 dark:text-amber-400" : "text-zinc-400 dark:text-zinc-500",
-                            )}>
-                              {formatNumber(recv)}
-                            </td>
-                            <td className={cn(
-                              "px-4 py-3.5 text-right font-mono text-sm",
-                              rem > 0 ? "text-orange-700 font-semibold dark:text-orange-400" : "text-zinc-400 dark:text-zinc-500",
-                            )}>
-                              {formatNumber(rem)}
-                            </td>
-                            <td className="px-4 py-3.5 text-right text-sm tabular-nums text-zinc-700 dark:text-zinc-300">
-                              {formatMoney(l.unitPrice, { unit: "none" })}
-                            </td>
-                            <td className="px-4 py-3.5 text-right font-mono text-sm text-zinc-700 dark:text-zinc-300">
-                              {l.taxRate ?? 0}%
-                            </td>
-                            <td className="px-4 py-3.5 text-right text-sm font-semibold tabular-nums text-zinc-800 dark:text-zinc-200">
-                              {formatMoney(lineTotal, { unit: "none" })}
-                            </td>
-                            <td className="px-4 py-3.5 text-sm text-zinc-600 dark:text-zinc-400">
-                              {l.expectedEta ? formatDate(l.expectedEta, "dd/MM/yyyy") : "—"}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                </tbody>
-              </table>
-            </section>
-          </div>
-        )}
-
-        {tab === "receive" && !isDraft && (
-          <div className="mx-auto max-w-6xl">
-            <PoQuickReceiveTable poId={id} readOnly={po.status === "RECEIVED" || po.status === "CLOSED" || po.status === "CANCELLED"} />
-          </div>
-        )}
-
-        {tab === "history" && !isDraft && (
-          <div className="mx-auto max-w-5xl">
-            <ReceivingHistorySection poId={id} />
-          </div>
-        )}
-
-        {tab === "audit" && (
-          <div className="mx-auto max-w-3xl">
-            {/* V4.1 AD-10 — lịch sử của CHÍNH PO này, xem ngay tại đây. Nút cũ
-                "Mở trang audit" truyền sai tham số (objectType) nên trang Nhật
-                ký không lọc, và người không phải admin bị chặn khỏi /admin. */}
-            <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-              <div className="flex items-center justify-between gap-2 border-b border-zinc-100 px-5 py-3 dark:border-zinc-800">
-                <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-                  <History className="h-4 w-4 text-zinc-500" aria-hidden="true" />
-                  Lịch sử thay đổi
-                </h3>
-                {roles.includes("admin") ? (
-                  <Button asChild variant="ghost" size="sm">
-                    <Link href={`/admin/audit?entity=purchase_order&objectId=${po.id}`}>
-                      Mở trong Nhật ký hệ thống
-                      <ChevronRight className="h-3.5 w-3.5" />
-                    </Link>
-                  </Button>
-                ) : null}
-              </div>
-              <ObjectAuditList objectType="purchase_order" objectId={po.id} />
-            </section>
-          </div>
-        )}
-      </div>
-
-      {/* ── V4.1 TM-17 — Huỷ / Đóng PO ───────────────────────────── */}
-      <Dialog
-        open={transitionOpen !== null}
-        onOpenChange={(o) => {
-          if (!o) setTransitionOpen(null);
+    <div className="min-w-0">
+      <PoDetailHeader
+        po={po}
+        flags={flags}
+        totals={{
+          total: Number.isFinite(storedTotal) && storedTotal > 0 ? storedTotal : sums.total,
+          ordered: totalOrdered,
+          received: totalReceived,
+          pct: receivedPct,
         }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {transitionOpen === "cancel" ? "Huỷ PO" : "Đóng PO"} {po.poNo}
-            </DialogTitle>
-            <DialogDescription>
-              {transitionOpen === "cancel"
-                ? "PO chưa nhận hàng sẽ chuyển sang Đã huỷ. Kho sẽ được báo nếu PO đã gửi NCC."
-                : "PO chuyển sang Đã đóng — không nhận thêm hàng. Dùng khi NCC không giao nốt phần còn lại hoặc để chốt hồ sơ."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-1.5">
-            <Label htmlFor="po-transition-reason">Lý do</Label>
-            <Textarea
-              id="po-transition-reason"
-              rows={3}
-              value={transitionReason}
-              onChange={(e) => setTransitionReason(e.target.value)}
-              placeholder="Tối thiểu 3 ký tự"
+        editing={editing}
+        saving={update.isPending}
+        onEdit={startEdit}
+        onCancelEdit={() => setEditing(false)}
+        onSaveEdit={() => void handleSaveEdit()}
+        onReceive={() => {
+          setTab("receive");
+          requestAnimationFrame(() =>
+            tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+          );
+        }}
+        showCreateInvoice={showCreateInvoice}
+        onInvoice={() => invoiceRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+      />
+
+      {editing && !isDraft && (
+        <p className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+          PO đang “{statusLabel("po", po.status)}” — chỉ sửa Ngày dự kiến và Ghi chú (khung Thông tin). Đơn giá / VAT
+          sửa bằng nút “Điều chỉnh giá” ở bảng dòng hàng.
+        </p>
+      )}
+
+      <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start xl:grid-cols-[minmax(0,1fr)_340px]">
+        {/* Cột chính — điện thoại: `contents` để xen khung phụ giữa bảng và tab. */}
+        <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-4">
+          <div className="order-1 min-w-0">
+            {editing && isDraft ? (
+              <PoDraftLinesEditor lines={editLines} onChange={setEditLines} canPrice={canPrice} />
+            ) : (
+              <PoLinesTable
+                po={po}
+                canPriceRole={flags.canPriceRole}
+                priceLockReason={flags.priceLockReason}
+                invoiceStatus={invoiceStatus}
+              />
+            )}
+          </div>
+          <div className="order-3 min-w-0">
+            <PoSecondaryTabs
+              ref={tabsRef}
+              poId={po.id}
+              status={po.status}
+              tab={activeTab}
+              onTabChange={setTab}
+              isAdmin={flags.isAdmin}
             />
           </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setTransitionOpen(null)}>
-              Thôi
-            </Button>
-            <Button
-              onClick={() => void handleTransition()}
-              disabled={cancelPo.isPending || closePo.isPending}
-              className={
-                transitionOpen === "cancel"
-                  ? "bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600"
-                  : undefined
-              }
-            >
-              {(cancelPo.isPending || closePo.isPending) && (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              )}
-              {transitionOpen === "cancel" ? "Huỷ PO" : "Đóng PO"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Send confirm dialog ───────────────────────────────── */}
-      <Dialog open={sendConfirmOpen} onOpenChange={setSendConfirmOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Send className="h-5 w-5 text-blue-600 dark:text-blue-400" /> Xác nhận đã gửi PO
-            </DialogTitle>
-            <DialogDescription>
-              Thao tác này chỉ đánh dấu PO đã gửi và chuyển sang <strong>{statusLabel("po", "SENT")}</strong>; hệ thống chưa tự động gửi email. Sau đó chỉ có thể sửa Ngày dự kiến và Ghi chú.
-              Bộ phận Kho sẽ nhận thông báo để chuẩn bị nhận hàng.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setSendConfirmOpen(false)}>Huỷ</Button>
-            <Button onClick={() => void handleSend()} disabled={send.isPending} className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600">
-              {send.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-              Đánh dấu đã gửi
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-/* ── Helpers ─────────────────────────────────────────────────── */
-
-function InfoRow({ icon: Icon, label, value }: {
-  icon: React.ElementType;
-  label: string;
-  value: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-start gap-2.5">
-      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
-      <div className="min-w-0 flex-1">
-        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</p>
-        <div className="mt-0.5 text-sm text-zinc-800 dark:text-zinc-200">{value}</div>
-      </div>
-    </div>
-  );
-}
-
-function KpiInline({ icon: Icon, label, value, accent }: {
-  icon: React.ElementType;
-  label: string;
-  value: string;
-  accent: "indigo" | "zinc" | "emerald" | "amber" | "blue";
-}) {
-  const map = {
-    indigo:  "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400",
-    zinc:    "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
-    emerald: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400",
-    amber:   "bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400",
-    blue:    "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400",
-  };
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-zinc-100 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
-      <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg", map[accent])}>
-        <Icon className="h-4 w-4" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</p>
-        <p className="text-sm font-bold text-zinc-900 truncate dark:text-zinc-50">{value}</p>
-      </div>
-    </div>
-  );
-}
-
-function ReceivingHistorySection({ poId }: { poId: string }) {
-  const audit = useReceivingAudit(poId);
-  if (audit.isLoading) {
-    return (
-      <div className="flex items-center justify-center gap-2 py-12 text-sm text-zinc-500 dark:text-zinc-400">
-        <Loader2 className="h-4 w-4 animate-spin" /> Đang tải lịch sử nhận hàng…
-      </div>
-    );
-  }
-  if (audit.isError || !audit.data?.data) {
-    return (
-      // V4.1 UI-05: khối lỗi chung + nút "Thử lại".
-      <QueryError
-        error={audit.error}
-        onRetry={() => void audit.refetch()}
-        retrying={audit.isFetching}
-        title="Không tải được lịch sử nhận hàng"
-      />
-    );
-  }
-  const data = audit.data.data;
-  return (
-    <div className="space-y-5">
-      {/* Receipts */}
-      <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="border-b border-zinc-100 bg-zinc-50/60 px-5 py-3 flex items-center gap-2 dark:border-zinc-800 dark:bg-zinc-800/60">
-          <Receipt className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Phiếu nhập kho</h3>
-          <span className="ml-2 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
-            {data.receipts.length}
-          </span>
         </div>
-        {data.receipts.length === 0 ? (
-          <p className="px-5 py-12 text-center text-sm text-zinc-500 dark:text-zinc-400">Chưa có phiếu nhập nào.</p>
-        ) : (
-          <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
-            {data.receipts.map((r) => (
-              <li key={r.id} className="flex items-center justify-between px-5 py-3">
-                <div>
-                  <p className="font-mono text-sm font-bold text-indigo-600 dark:text-indigo-400">{r.receiptNo}</p>
-                  <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-                    {formatDateTime(r.receivedAt)}
-                    {r.qcNotes && ` · ${r.qcNotes}`}
-                  </p>
-                </div>
-                {/* V4.1 UI-07: QC nhận hàng — nhãn tiếng Việt thay mã thô OK/NG. */}
-                <StatusPill domain="receiptQc" code={r.qcFlag} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
 
-      {/* Lines */}
-      <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="border-b border-zinc-100 bg-zinc-50/60 px-5 py-3 flex items-center gap-2 dark:border-zinc-800 dark:bg-zinc-800/60">
-          <Package className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Chi tiết vật tư đã nhận</h3>
-          <span className="ml-2 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
-            {data.receiptLines.length}
-          </span>
-        </div>
-        {data.receiptLines.length === 0 ? (
-          <p className="px-5 py-12 text-center text-sm text-zinc-500 dark:text-zinc-400">Chưa có dòng nhận nào.</p>
-        ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-zinc-100 dark:border-zinc-800">
-                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Mã vật tư</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Tên</th>
-                <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">SL nhận</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Lô</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.receiptLines.map((l) => (
-                <tr key={l.id} className="border-b border-zinc-50 dark:border-zinc-800">
-                  <td className="px-4 py-3 font-mono text-sm font-semibold text-zinc-800 dark:text-zinc-200">{l.itemSku ?? "—"}</td>
-                  <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300">{l.itemName ?? "—"}</td>
-                  <td className="px-4 py-3 text-right font-mono text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-                    {formatNumber(Number(l.receivedQty))}
-                    {l.itemUom && <span className="ml-1 text-xs font-normal text-zinc-500 dark:text-zinc-400">{l.itemUom}</span>}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs text-zinc-600 dark:text-zinc-400">
-                    {l.lotCode ?? l.serialCode ?? "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+        <aside className="order-2 flex min-w-0 flex-col gap-4" aria-label="Thông tin PO">
+          <PoInfoCard po={po} editing={editing} form={form} setForm={setForm} />
+          <PoProgressStepper
+            input={{
+              status: po.status,
+              createdAt: po.createdAt,
+              sentAt: po.sentAt,
+              cancelledAt: po.cancelledAt,
+              actualDeliveryDate: po.actualDeliveryDate ?? null,
+              metadata: (po.metadata ?? null) as unknown as Record<string, unknown> | null,
+              receivedPct,
+            }}
+            actorNames={po.actorNames}
+          />
+          {flags.canSeeInvoice && flags.invoiceable && (
+            <div ref={invoiceRef} className="scroll-mt-40">
+              <PoInvoicePanel poId={po.id} compact />
+            </div>
+          )}
+        </aside>
+      </div>
     </div>
   );
 }

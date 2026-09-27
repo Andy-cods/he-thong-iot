@@ -77,7 +77,7 @@ async function loadInvoiceLines(
   }));
 }
 
-async function findActiveInvoiceForPo(
+export async function findActiveInvoiceForPo(
   exec: Tx | typeof db,
   poId: string,
 ): Promise<PoInvoiceRow | null> {
@@ -319,4 +319,39 @@ export async function updatePoInvoiceDraft(
     }
     throw err;
   }
+}
+
+/**
+ * V4.1 PO-UI: sau khi điều chỉnh giá PO, tính lại tiền của HĐ mua NHÁP theo
+ * cùng công thức lúc tạo (SL nhận đạt × đơn giá mới). Giữ nguyên số HĐ, ngày,
+ * hạn TT, ghi chú. Chỉ chạy trong transaction đã khoá PO; HĐ khác Nháp → null.
+ */
+export async function refreshDraftInvoiceAmounts(
+  tx: Tx,
+  poId: string,
+  invoiceId: string,
+): Promise<{ before: PoInvoiceRow; after: PoInvoiceRow } | null> {
+  const [inv] = await tx
+    .select()
+    .from(finInvoice)
+    .where(eq(finInvoice.id, invoiceId))
+    .limit(1)
+    .for("update");
+  if (!inv || inv.status !== "DRAFT") return null;
+  const draft = buildPoInvoiceDraft({
+    lines: await loadInvoiceLines(poId, tx),
+    today: inv.issueDate,
+  });
+  const [after] = await tx
+    .update(finInvoice)
+    .set({
+      subtotalAmount: draft.subtotalAmount.toFixed(2),
+      vatRate: draft.vatRate.toFixed(2),
+      vatAmount: draft.vatAmount.toFixed(2),
+      totalAmount: draft.totalAmount.toFixed(2),
+      updatedAt: new Date(),
+    })
+    .where(and(eq(finInvoice.id, inv.id), eq(finInvoice.status, "DRAFT")))
+    .returning();
+  return after ? { before: inv, after } : null;
 }

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { poUpdateSchema } from "@iot/shared";
 import { eq, inArray } from "drizzle-orm";
-import { supplier, userAccount } from "@iot/db/schema";
+import { purchaseRequest, supplier, userAccount } from "@iot/db/schema";
 import { logger } from "@/lib/logger";
 import {
   getPO,
@@ -28,6 +28,7 @@ export const dynamic = "force-dynamic";
  *   - DRAFT → edit tất cả (header + lines)
  *   - SENT  → chỉ ETA + notes (đã gửi NCC nhưng còn thay đổi ngày được)
  *   - PARTIAL/RECEIVED/CLOSED/CANCELLED → 409 NOT_EDITABLE
+ *   (V4.1 PO-UI: đơn giá / VAT sau DRAFT → PATCH /api/purchase-orders/[id]/prices)
  */
 export async function GET(
   req: NextRequest,
@@ -45,21 +46,42 @@ export async function GET(
   // hết hiện "—" ở ô Nhà cung cấp.
   let supplierName: string | null = null;
   let supplierCode: string | null = null;
+  // V4.1 PO-UI: liên hệ NCC + mã PR nguồn cho khung "Thông tin" gọn.
+  let supplierContact: { name: string | null; phone: string | null; email: string | null } | null = null;
   if (row.supplierId) {
     const [sup] = await db
-      .select({ name: supplier.name, code: supplier.code })
+      .select({
+        name: supplier.name,
+        code: supplier.code,
+        contactName: supplier.contactName,
+        phone: supplier.phone,
+        email: supplier.email,
+      })
       .from(supplier)
       .where(eq(supplier.id, row.supplierId))
       .limit(1);
     supplierName = sup?.name ?? null;
     supplierCode = sup?.code ?? null;
+    if (sup && (sup.contactName || sup.phone || sup.email)) {
+      supplierContact = { name: sup.contactName, phone: sup.phone, email: sup.email };
+    }
+  }
+  let prCode: string | null = null;
+  if (row.prId) {
+    const [pr] = await db
+      .select({ code: purchaseRequest.code })
+      .from(purchaseRequest)
+      .where(eq(purchaseRequest.id, row.prId))
+      .limit(1);
+    prCode = pr?.code ?? null;
   }
   // V4.1 UI-28 (Đợt 6C): tên người gửi duyệt / duyệt / từ chối — timeline phê
   // duyệt từng hiện UUID "af584041…". 1 truy vấn nhỏ theo ≤3 id trong metadata.
   const meta = (row.metadata ?? {}) as Record<string, unknown>;
   const actorIds = Array.from(
     new Set(
-      [meta.submittedBy, meta.approvedBy, meta.rejectedBy].filter(
+      // V4.1 PO-UI: + người đóng / huỷ cho khung Tiến trình.
+      [meta.submittedBy, meta.approvedBy, meta.rejectedBy, meta.closedBy, meta.cancelledBy].filter(
         (v): v is string => typeof v === "string" && v.length > 0,
       ),
     ),
@@ -78,7 +100,7 @@ export async function GET(
     }
   }
   return NextResponse.json({
-    data: { ...row, supplierName, supplierCode, lines, actorNames },
+    data: { ...row, supplierName, supplierCode, supplierContact, prCode, lines, actorNames },
   });
 }
 

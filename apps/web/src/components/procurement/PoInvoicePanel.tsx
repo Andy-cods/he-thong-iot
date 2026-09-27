@@ -103,17 +103,37 @@ function money(n: number | string | null | undefined): string {
   return formatMoney(n);
 }
 
-export function PoInvoicePanel({ poId }: { poId: string }) {
-  const qc = useQueryClient();
-  const key = ["procurement", "orders", "invoice", poId] as const;
-  const panelRef = React.useRef<HTMLElement>(null);
+/**
+ * V4.1 PO-UI: HĐ mua của PO — dùng chung khung HĐ + trang chi tiết (khoá nút
+ * "Điều chỉnh giá" khi HĐ đã ghi công nợ, nút "Tạo HĐ mua" ở đầu trang).
+ */
+export function poInvoiceQueryKey(poId: string) {
+  return ["procurement", "orders", "invoice", poId] as const;
+}
 
-  const ctx = useQuery({
-    queryKey: key,
+export function usePoInvoiceContext(poId: string, enabled = true) {
+  return useQuery({
+    queryKey: poInvoiceQueryKey(poId),
     queryFn: () => call<InvoiceContext>(`/api/purchase-orders/${poId}/invoice`),
     retry: false,
     staleTime: 15_000,
+    enabled,
   });
+}
+
+export function PoInvoicePanel({
+  poId,
+  compact = false,
+}: {
+  poId: string;
+  /** V4.1 PO-UI: khung hẹp (cột phải trang PO) — lưới 1–2 cột, đệm nhỏ. */
+  compact?: boolean;
+}) {
+  const qc = useQueryClient();
+  const key = poInvoiceQueryKey(poId);
+  const panelRef = React.useRef<HTMLElement>(null);
+
+  const ctx = usePoInvoiceContext(poId);
 
   const [form, setForm] = React.useState({
     invoiceNo: "",
@@ -232,9 +252,13 @@ export function PoInvoicePanel({ poId }: { poId: string }) {
     <section
       id="hoa-don-mua"
       ref={panelRef}
-      className="scroll-mt-24 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+      className={
+        compact
+          ? "scroll-mt-40 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
+          : "scroll-mt-24 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+      }
     >
-      <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+      <h2 className={`${compact ? "mb-3" : "mb-4"} flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50`}>
         <FileText className="h-4 w-4 text-zinc-400 dark:text-zinc-500" /> Hoá đơn mua (công nợ NCC)
       </h2>
 
@@ -246,7 +270,7 @@ export function PoInvoicePanel({ poId }: { poId: string }) {
             </p>
           ) : (
             <>
-              <div className="grid gap-2 text-sm sm:grid-cols-3">
+              <div className={compact ? "grid gap-2 text-sm" : "grid gap-2 text-sm sm:grid-cols-3"}>
                 <Stat label="Tạm tính (SL nhận đạt × đơn giá)" value={money(d.draft.subtotalAmount)} />
                 <Stat
                   label={`VAT${d.draft.mixedVat ? " (nhiều thuế suất)" : ` ${d.draft.vatRate}%`}`}
@@ -284,7 +308,7 @@ export function PoInvoicePanel({ poId }: { poId: string }) {
           </p>
           {d.canConfirm ? (
             <>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className={compact ? "grid grid-cols-2 gap-2" : "grid gap-3 sm:grid-cols-2 lg:grid-cols-3"}>
                 <Field label="Số hoá đơn NCC">
                   <Input
                     value={form.invoiceNo}
@@ -362,14 +386,14 @@ export function PoInvoicePanel({ poId }: { poId: string }) {
               </div>
             </>
           ) : (
-            <InvoiceSummary inv={inv} />
+            <InvoiceSummary inv={inv} compact={compact} />
           )}
         </div>
       )}
 
       {inv && inv.status !== "DRAFT" && (
         <div className="space-y-3">
-          <InvoiceSummary inv={inv} />
+          <InvoiceSummary inv={inv} compact={compact} />
           {d.canConfirm && d.link && (
             <Button asChild variant="outline" size="sm">
               <Link href={d.link}>
@@ -383,9 +407,9 @@ export function PoInvoicePanel({ poId }: { poId: string }) {
   );
 }
 
-function InvoiceSummary({ inv }: { inv: InvoiceRow }) {
+function InvoiceSummary({ inv, compact = false }: { inv: InvoiceRow; compact?: boolean }) {
   return (
-    <div className="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+    <div className={compact ? "grid grid-cols-2 gap-2 text-sm" : "grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4"}>
       <Stat label="Số hoá đơn" value={inv.invoiceNo} mono />
       <div className="rounded-lg border border-zinc-100 bg-zinc-50/60 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-800/40">
         <p className="text-xs text-zinc-500 dark:text-zinc-400">Trạng thái</p>
