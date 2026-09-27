@@ -212,6 +212,32 @@ export async function dispatchNotification(plan: NotifyPlan): Promise<number> {
 
 const run = (plan: NotifyPlan) => dispatchNotification(plan).then(() => undefined);
 
+/**
+ * Chỉ gửi nếu CHƯA từng có thông báo cùng loại cho cùng chứng từ. Dùng cho sự
+ * kiện "một lần" như PO nhận đủ: QC đổi Không đạt → Đạt làm PO chuyển
+ * RECEIVED → PARTIAL → RECEIVED, không được báo "nhận đủ" lần 2.
+ */
+const runOnce = async (plan: NotifyPlan) => {
+  try {
+    if (plan.entityId) {
+      const [hit] = await db
+        .select({ id: notification.id })
+        .from(notification)
+        .where(
+          and(
+            eq(notification.eventType, plan.eventType),
+            eq(notification.entityId, plan.entityId),
+          ),
+        )
+        .limit(1);
+      if (hit) return;
+    }
+  } catch (err) {
+    logger.warn({ err, eventType: plan.eventType }, "runOnce check failed");
+  }
+  await run(plan);
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Arg<F extends (ctx: any) => NotifyPlan> = Parameters<F>[0];
 
@@ -243,7 +269,7 @@ export const notifyPOPriceUpdated = (ctx: Arg<typeof planPOPriceUpdated>) =>
 export const notifyPOReceivedPartial = (ctx: Arg<typeof planPOReceivedPartial>) =>
   run(planPOReceivedPartial(ctx));
 export const notifyPOReceivedFull = (ctx: Arg<typeof planPOReceivedFull>) =>
-  run(planPOReceivedFull(ctx));
+  runOnce(planPOReceivedFull(ctx));
 export const notifyPOCancelled = (ctx: Arg<typeof planPOCancelled>) => run(planPOCancelled(ctx));
 export const notifyPOClosed = (ctx: Arg<typeof planPOClosed>) => run(planPOClosed(ctx));
 export const notifyPoInvoiceDraftCreated = (ctx: Arg<typeof planPOInvoiceDraft>) =>
