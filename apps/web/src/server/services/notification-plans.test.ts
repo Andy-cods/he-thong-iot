@@ -1,0 +1,254 @@
+import { describe, expect, it } from "vitest";
+import type { Role } from "@iot/shared";
+import { isRouteAllowed } from "@/lib/route-guard";
+import { NOTIF_TYPE_LABELS } from "@/lib/status";
+import { NOTIFICATION_EVENT_ICON } from "@/components/layout/notification-icons";
+import {
+  EMAIL_EVENTS,
+  NOTIFICATION_EVENT_TYPES,
+  assignRecipients,
+  planDeliveryNoteConfirmed,
+  planDeliveryNoteCreated,
+  planDeliveryNoteRejected,
+  planIssueRequestApproved,
+  planIssueRequestNew,
+  planIssueRequestRejected,
+  planMaterialRequestCancelled,
+  planMaterialRequestIssued,
+  planMaterialRequestNew,
+  planMaterialRequestPicking,
+  planMaterialRequestReady,
+  planPaymentRecorded,
+  planPOApprovalRejected,
+  planPOApprovalRequested,
+  planPOApproved,
+  planPOCancelled,
+  planPOClosed,
+  planPOCreatedFromPR,
+  planPOInvoiceConfirmed,
+  planPOInvoiceDraft,
+  planPOPriceUpdated,
+  planPOReceivedFull,
+  planPOReceivedPartial,
+  planPOSent,
+  planPOSubcontractDraft,
+  planPRApproved,
+  planPRDeptApproved,
+  planPRProgress,
+  planPRRejected,
+  planPRSubmitted,
+  planReceiptQcFailed,
+  planReceiptQcPassed,
+  planReceiptQcPending,
+  planWOApproved,
+  planWOCancelled,
+  planWOCompleted,
+  planWORejected,
+  planWOReleased,
+  planWORequestSubmitted,
+  planWOStarted,
+  resolveLink,
+  type CandidateUser,
+  type NotifyPlan,
+} from "./notification-plans";
+
+const ACTOR = "00000000-0000-0000-0000-00000000000a";
+const A = { actorUserId: ACTOR, actorUsername: "actor" };
+const U = (n: number) => `00000000-0000-0000-0000-${String(n).padStart(12, "0")}`;
+const PR = { prId: "pr-1", prNo: "YCVT-01", title: "Ốc vít", creatorUserId: U(1), ...A };
+const PO = { poId: "po-1", poNo: "PO-01", ...A };
+const POA = { ...PO, creatorUserId: U(2), submitterUserId: U(3), prId: "pr-1", prRequesterUserId: U(1) };
+const WO = { woId: "wo-1", woNo: "WO-01", productName: "Trục", plannedQty: 5, creatorUserId: U(4), ...A };
+const MR = { requestId: "mr-1", requestNo: "MR-01", requesterUserId: U(5), ...A };
+const ISR = { requestId: "isr-1", requestNo: "ISR-01", requesterUserId: U(6), totalQty: 3, ...A };
+const QC = {
+  receiptId: "rc-1", receiptNo: "PN-01", poId: "po-1", poNo: "PO-01",
+  poCreatorUserId: U(2), sku: "SKU-1", lotCode: "L1", qty: 2, ...A,
+};
+const DN = { deliveryNoteId: "dn-1", noteNo: "GH-01", ...A };
+
+/** Mọi plan builder × các biến thể nhánh. */
+const PLANS: Array<[string, NotifyPlan]> = [
+  ["PR submitted", planPRSubmitted(PR)],
+  ["PR dept approved", planPRDeptApproved(PR)],
+  ["PR approved", planPRApproved(PR)],
+  ["PR rejected", planPRRejected({ ...PR, reason: "thiếu" })],
+  ["PR issued", planPRProgress({ ...PR, stage: "issued" })],
+  ["PR completed", planPRProgress({ ...PR, stage: "completed" })],
+  ["PO from PR", planPOCreatedFromPR({ ...A, prId: "pr-1", prNo: "YCVT-01", prCreatorUserId: U(1), poCount: 2, firstPoId: "po-1" })],
+  ["PO subcontract", planPOSubcontractDraft({ ...PO, sku: "S", qty: 1 })],
+  ["PO approval requested", planPOApprovalRequested({ ...PO, totalAmount: 1000 })],
+  ["PO approved", planPOApproved(POA)],
+  ["PO approved (no PR)", planPOApproved({ ...POA, prId: null })],
+  ["PO rejected", planPOApprovalRejected({ ...POA, reason: "đắt" })],
+  ["PO sent", planPOSent(PO)],
+  ["PO price draft", planPOPriceUpdated({ ...PO, changedLineCount: 1, afterApproval: false })],
+  ["PO price after approval", planPOPriceUpdated({ ...PO, changedLineCount: 1, afterApproval: true, totalAfter: 5, invoiceRefreshedNo: "HD-1" })],
+  ["PO received partial", planPOReceivedPartial(PO)],
+  ["PO received full", planPOReceivedFull({ ...PO, prId: "pr-1", prCreatorUserId: U(1) })],
+  ["PO received full (no PR)", planPOReceivedFull({ ...PO, prCreatorUserId: U(1) })],
+  ["PO cancelled draft", planPOCancelled({ ...POA, reason: "x", wasSent: false, wasApproved: false })],
+  ["PO cancelled sent", planPOCancelled({ ...POA, reason: "x", wasSent: true, wasApproved: true })],
+  ["PO closed", planPOClosed({ ...POA, reason: "x", fromStatus: "PARTIAL", invoiceNo: null })],
+  ["PO invoice draft", planPOInvoiceDraft({ ...PO, invoiceId: "i", invoiceNo: "HD-1", totalAmount: 1 })],
+  ["PO invoice confirmed", planPOInvoiceConfirmed({ ...PO, invoiceId: "i", invoiceNo: "HD-1", totalAmount: 1 })],
+  ["QC pending", planReceiptQcPending({ ...QC, lineCount: 2 })],
+  ["QC passed", planReceiptQcPassed(QC)],
+  ["QC passed (no PO)", planReceiptQcPassed({ ...QC, poId: null, poNo: null })],
+  ["QC failed", planReceiptQcFailed({ ...QC, notes: "móp" })],
+  ["QC failed (no PO)", planReceiptQcFailed({ ...QC, poId: null, notes: null })],
+  ["WO request", planWORequestSubmitted(WO)],
+  ["WO approved", planWOApproved(WO)],
+  ["WO released", planWOReleased(WO)],
+  ["WO rejected", planWORejected({ ...WO, reason: "x" })],
+  ["WO started", planWOStarted(WO)],
+  ["WO cancelled", planWOCancelled({ ...WO, reason: null })],
+  ["WO completed", planWOCompleted({ ...WO, goodQty: 5 })],
+  ["MR new", planMaterialRequestNew(MR)],
+  ["MR picking", planMaterialRequestPicking(MR)],
+  ["MR ready", planMaterialRequestReady(MR)],
+  ["MR issued", planMaterialRequestIssued({ ...MR, issueNo: "PX-1", totalQty: 1, full: false })],
+  ["MR delivered", planMaterialRequestIssued({ ...MR, issueNo: "PX-1", full: true })],
+  ["MR cancelled by requester", planMaterialRequestCancelled({ ...MR, byRequester: true, partial: false })],
+  ["MR cancelled by warehouse", planMaterialRequestCancelled({ ...MR, byRequester: false, partial: true })],
+  ["ISR new (production)", planIssueRequestNew({ ...ISR, reason: "production" })],
+  ["ISR new (sales)", planIssueRequestNew({ ...ISR, reason: "sales" })],
+  ["ISR approved", planIssueRequestApproved(ISR)],
+  ["ISR rejected", planIssueRequestRejected({ ...ISR, rejectReason: "hết" })],
+  ["DN created", planDeliveryNoteCreated(DN)],
+  ["DN confirmed", planDeliveryNoteConfirmed({ ...DN, poId: "po-1" })],
+  ["DN confirmed (no PO)", planDeliveryNoteConfirmed(DN)],
+  ["DN rejected", planDeliveryNoteRejected({ ...DN, deliveredByUserId: U(7), reason: "x" })],
+  ["payment recorded", planPaymentRecorded({ ...A, paymentId: "p", paymentCode: "PT-1", totalAmount: 10, direction: "OUT" })],
+];
+
+describe("TASK-20260927 — link thông báo mở được theo vai trò người nhận", () => {
+  const rows: Array<[string, string, Role, readonly string[]]> = [];
+  for (const [name, plan] of PLANS) {
+    plan.targets.forEach((t, i) => {
+      // Target user rỗng (vd PO không gắn PR) không bao giờ được gửi.
+      if (t.kind === "user" && !t.userId) return;
+      const roles = t.kind === "role" ? [t.role] : t.possibleRoles;
+      for (const r of roles) rows.push([name, `${plan.eventType}#${i}`, r, t.links]);
+    });
+    if (plan.adminFallback) {
+      rows.push([name, `${plan.eventType}#adminFallback`, "admin", plan.adminFallback.links]);
+    }
+  }
+
+  it.each(rows)("%s · %s · vai trò %s", (_n, _t, r, links) => {
+    const link = resolveLink(links, [r]);
+    expect(link, `không link nào mở được: ${links.join(" | ")}`).not.toBeNull();
+    expect(isRouteAllowed(link!, [r])).toBe(true);
+  });
+});
+
+describe("TASK-20260927 — nhãn + icon + email", () => {
+  it("mọi event type có nhãn tiếng Việt và icon riêng", () => {
+    for (const t of NOTIFICATION_EVENT_TYPES) {
+      expect(NOTIF_TYPE_LABELS[t], t).toBeTruthy();
+      expect(NOTIFICATION_EVENT_ICON[t], t).toBeTruthy();
+    }
+    for (const [, plan] of PLANS) {
+      expect(NOTIFICATION_EVENT_TYPES).toContain(plan.eventType);
+    }
+  });
+
+  it("EMAIL_EVENTS chỉ gồm việc cần duyệt (không FIN_*)", () => {
+    for (const e of EMAIL_EVENTS) expect(e.startsWith("FIN_")).toBe(false);
+  });
+
+  it("PR_DEPT_APPROVED: người duyệt có email, người lập không", () => {
+    const plan = planPRDeptApproved(PR);
+    const creator = plan.targets.find((t) => t.kind === "user");
+    expect(creator?.email).toBe(false);
+    expect(plan.targets.filter((t) => t.kind === "role").every((t) => t.email)).toBe(true);
+  });
+});
+
+describe("TASK-20260927 — assignRecipients", () => {
+  const users: CandidateUser[] = [
+    { id: ACTOR, roles: ["accountant"] },
+    { id: U(10), roles: ["admin"] },
+    { id: U(11), roles: ["purchaser", "accountant"] }, // muahang
+    { id: U(12), roles: ["warehouse", "qc"] }, // KHO-HOA
+    { id: U(13), roles: ["purchaser"] },
+    { id: U(14), roles: ["operator"] },
+    { id: U(4), roles: ["planner"] },
+  ];
+
+  it("user nhiều vai trò chỉ nhận 1 dòng, nội dung của target đầu tiên", () => {
+    const d = assignRecipients(planPRApproved({ ...PR, creatorUserId: null }), users);
+    const ids = d.map((x) => x.userId);
+    expect(new Set(ids).size).toBe(ids.length);
+    const muahang = d.filter((x) => x.userId === U(11));
+    expect(muahang).toHaveLength(1);
+    expect(muahang[0]!.content.title).toMatch(/^Cần tạo PO/);
+  });
+
+  it("loại actor; không còn ai → báo Giám đốc (FIN_PAYMENT_RECORDED, 1 kế toán)", () => {
+    const solo: CandidateUser[] = [
+      { id: ACTOR, roles: ["accountant"] },
+      { id: U(10), roles: ["admin"] },
+    ];
+    const d = assignRecipients(
+      planPaymentRecorded({ ...A, paymentId: "p", paymentCode: "PT-1", totalAmount: 1, direction: "IN" }),
+      solo,
+    );
+    expect(d.map((x) => x.userId)).toEqual([U(10)]);
+  });
+
+  it("có kế toán khác → không fallback Giám đốc", () => {
+    const d = assignRecipients(
+      planPaymentRecorded({ ...A, paymentId: "p", paymentCode: "PT-1", totalAmount: 1, direction: "IN" }),
+      users,
+    );
+    expect(d.map((x) => x.userId)).toEqual([U(11)]);
+  });
+
+  it("DELIVERY_NOTE_CONFIRMED: Thu mua nhận link PO, Kho nhận link /warehouse", () => {
+    const d = assignRecipients(planDeliveryNoteConfirmed({ ...DN, poId: "po-9" }), users);
+    expect(d.find((x) => x.userId === U(13))?.link).toBe("/procurement/purchase-orders/po-9");
+    expect(d.find((x) => x.userId === U(12))?.link).toBe("/warehouse?tab=delivery-notes&id=dn-1");
+  });
+
+  it("ISSUE_REQUEST_*: người lập là Kho → /warehouse, là Gia công → /operations", () => {
+    const wh = assignRecipients(planIssueRequestApproved({ ...ISR, requesterUserId: U(12) }), users);
+    expect(wh[0]?.link).toBe("/warehouse?tab=movement&mode=out");
+    const op = assignRecipients(planIssueRequestRejected({ ...ISR, requesterUserId: U(14) }), users);
+    expect(op[0]?.link).toBe("/operations");
+  });
+
+  it("ISR xuất bán → Giám đốc được báo", () => {
+    const d = assignRecipients(planIssueRequestNew({ ...ISR, reason: "sales" }), users);
+    expect(d.some((x) => x.userId === U(10))).toBe(true);
+  });
+
+  it("WO_COMPLETED: Kho nhận link /warehouse (không phải /work-orders)", () => {
+    const d = assignRecipients(planWOCompleted({ ...WO, goodQty: 1 }), users);
+    expect(d.find((x) => x.userId === U(12))?.link).toBe("/warehouse?tab=movement&mode=in");
+    expect(d.find((x) => x.userId === U(4))?.link).toBe("/work-orders/wo-1");
+  });
+
+  it("WO_RELEASED loại người lập khỏi fan-out Gia công", () => {
+    const d = assignRecipients(planWORelease4(), [...users, { id: U(20), roles: ["operator"] }]);
+    expect(d.map((x) => x.userId).sort()).toEqual([U(14)]);
+  });
+
+  it("người đề xuất vai trò QC nhận link PR (không vào được trang PO)", () => {
+    const d = assignRecipients(planPOApproved({ ...POA, prRequesterUserId: U(30) }), [
+      { id: U(30), roles: ["qc"] },
+    ]);
+    expect(d[0]?.link).toBe("/procurement/purchase-requests/pr-1");
+  });
+
+  it("user không active (không có trong danh sách) bị bỏ qua", () => {
+    const d = assignRecipients(planPRRejected({ ...PR, creatorUserId: U(99) }), users);
+    expect(d).toHaveLength(0);
+  });
+});
+
+/** WO_RELEASED với người lập là operator U(20) (bị loại) và actor là operator khác. */
+function planWORelease4(): NotifyPlan {
+  return planWOReleased({ ...WO, creatorUserId: U(20) });
+}

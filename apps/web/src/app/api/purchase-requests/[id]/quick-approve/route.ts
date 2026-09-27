@@ -6,8 +6,6 @@ import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import {
   notifyPRApproved,
-  notifyPRApprovedToAccounting,
-  notifyPRApprovedToPurchasing,
 } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 
@@ -74,7 +72,8 @@ export async function POST(
       ...meta,
     });
 
-    // Notify creator + Bộ phận Kế toán (kèm link tải PDF/Excel).
+    // TASK-20260927 — 1 lần gửi: Thu mua (tạo PO) + người lập + Kế toán (PDF),
+    // người giữ nhiều vai trò chỉ nhận 1 thông báo.
     void notifyPRApproved({
       prId: params.id,
       prNo: before.paperFormNo ?? before.code,
@@ -82,21 +81,6 @@ export async function POST(
       actorUserId: guard.session.userId,
       actorUsername: guard.session.username,
       creatorUserId: before.requestedBy,
-    });
-    // V4.1 TM-05 — báo Thu mua tạo PO.
-    void notifyPRApprovedToPurchasing({
-      prId: params.id,
-      prNo: before.paperFormNo ?? before.code,
-      title: before.title ?? null,
-      actorUserId: guard.session.userId,
-      actorUsername: guard.session.username,
-    });
-    void notifyPRApprovedToAccounting({
-      prId: params.id,
-      prNo: before.paperFormNo ?? before.code,
-      title: before.title ?? null,
-      actorUserId: guard.session.userId,
-      actorUsername: guard.session.username,
     });
 
     return NextResponse.json({ data: row });

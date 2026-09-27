@@ -23,7 +23,7 @@ import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
 import { getLineById } from "@/server/repos/bomLines";
 import { createPO } from "@/server/repos/purchaseOrders";
 import { writeAudit } from "@/server/services/audit";
-import { emitToUsersWithRole } from "@/server/services/notifications";
+import { notifyPOSubcontractDraft } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -137,19 +137,13 @@ export async function POST(
     // Notify TM-A (purchaser) về PO subcontract DRAFT cần chốt giá + duyệt.
     // V3.16 (fix badge) — đổi broadcast recipientRole → fan-out direct (đếm
     // badge chuông, đồng nhất với các event "cần duyệt/xử lý" khác).
-    await emitToUsersWithRole("purchaser", {
+    await notifyPOSubcontractDraft({
+      poId: po.id,
+      poNo: po.poNo,
+      sku: it.sku,
+      qty: defaultQty,
       actorUserId: guard.session.userId,
       actorUsername: guard.session.username,
-      eventType: "PO_SUBCONTRACT_DRAFT",
-      entityType: "purchase_order",
-      entityId: po.id,
-      entityCode: po.poNo,
-      title: `Đơn gia công ngoài: ${po.poNo}`,
-      message: `Linh kiện ${it.sku} qty=${defaultQty}. Cần chốt đơn giá + duyệt.`,
-      link: `/procurement/purchase-orders/${po.id}`,
-      severity: "info",
-    }).catch((err) => {
-      logger.warn({ err, poId: po.id }, "notify subcontract PO failed");
     });
 
     return NextResponse.json({ data: po }, { status: 201 });

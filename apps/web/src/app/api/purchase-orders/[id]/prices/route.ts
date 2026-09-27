@@ -89,12 +89,19 @@ export async function PATCH(
         notes: priceAuditNote(result.changes),
         ...extractRequestMeta(req),
       });
-      // Kho đối chiếu giá trị nhận hàng → báo khi PO đã gửi NCC trở đi.
-      if (result.status !== "DRAFT") {
+      // Giá đổi SAU khi Giám đốc đã duyệt (DRAFT đã duyệt) hoặc đã gửi NCC trở
+      // đi → Kho (đối chiếu nhận hàng) + Giám đốc + Kế toán (HĐ mua nháp tự
+      // tính lại). PO nháp chưa duyệt: không báo (chưa ai phụ thuộc giá này).
+      const afterApproval =
+        result.status !== "DRAFT" || result.approvalStatus === "approved";
+      if (afterApproval) {
         void notifyPOPriceUpdated({
           poId: result.poId,
           poNo: result.poNo,
           changedLineCount: result.changes.length,
+          afterApproval,
+          totalAfter: result.totalAfter,
+          invoiceRefreshedNo: result.invoiceRefreshed?.invoiceNo ?? null,
           actorUserId: guard.session.userId,
           actorUsername: guard.session.username,
         });

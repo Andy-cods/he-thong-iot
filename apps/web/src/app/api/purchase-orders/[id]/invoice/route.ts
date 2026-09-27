@@ -11,7 +11,11 @@ import {
 } from "@/server/repos/poInvoice";
 import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
-import { notifyPoInvoiceDraftCreated } from "@/server/services/notifications";
+import {
+  notifyPoInvoiceConfirmed,
+  notifyPoInvoiceDraftCreated,
+} from "@/server/services/notifications";
+import { getPO } from "@/server/repos/purchaseOrders";
 import { forbidden, requireCan, type Session } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -168,6 +172,19 @@ export async function PATCH(
         : `Sửa HĐ mua nháp ${after.invoiceNo}`,
       ...extractRequestMeta(req),
     });
+    // TASK-20260927 — Kế toán xác nhận (DRAFT → ghi công nợ) → Thu mua + Giám đốc.
+    if (body.data.confirm && before.status === "DRAFT" && after.status !== "DRAFT") {
+      const po = await getPO(params.id).catch(() => null);
+      void notifyPoInvoiceConfirmed({
+        poId: params.id,
+        poNo: po?.poNo ?? after.invoiceNo,
+        invoiceId: after.id,
+        invoiceNo: after.invoiceNo,
+        totalAmount: after.totalAmount,
+        actorUserId: guard.session.userId,
+        actorUsername: guard.session.username,
+      });
+    }
     return NextResponse.json({
       data: { invoice: after, link: financeInvoiceLink(after.id) },
     });

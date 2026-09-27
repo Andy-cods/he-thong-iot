@@ -3,6 +3,7 @@ import { logger } from "@/lib/logger";
 import { getPR, markPRGoodsIssued } from "@/server/repos/purchaseRequests";
 import { extractRequestMeta, jsonError } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
+import { notifyPRProgress } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -60,6 +61,17 @@ export async function POST(
       after: { goodsIssuedAt: row.goodsIssuedAt },
       notes: "YCVT timeline IV → Đã xuất kho",
       ...meta,
+    });
+
+    // TASK-20260927 — báo người lập phiếu mốc tiến độ mới.
+    void notifyPRProgress({
+      stage: "issued",
+      prId: params.id,
+      prNo: before.paperFormNo ?? before.code,
+      title: before.title ?? null,
+      creatorUserId: before.requestedBy,
+      actorUserId: guard.session.userId,
+      actorUsername: guard.session.username,
     });
 
     return NextResponse.json({ data: row });

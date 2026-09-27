@@ -28,14 +28,11 @@ import { db } from "../db.js";
  * Chống spam: tối đa 1 nhắc/hoá đơn/loại event/24h — check bảng notification
  * y hệt cơ chế `already` của prReminderScan.ts.
  *
- * Email: đã nối qua whitelist EMAIL_EVENTS phía apps/web (maybeEmail đọc
- * event_type từ mọi notification insert — kể cả insert trực tiếp từ worker,
- * VÌ maybeEmail chỉ chạy trong `emitNotification` của apps/web, KHÔNG chạy
- * khi worker insert thẳng bảng `notification`). Do đó nhắc hạn từ worker này
- * CHỈ tạo in-app notification, KHÔNG tự gửi email — nếu cần email cho
- * FIN_INVOICE_OVERDUE/FIN_RECEIVABLE_OVERDUE thì phải bổ sung enqueueEmailSend
- * trực tiếp ở đây (đánh dấu TODO, chưa làm ở V1 vì risk thấp — nhắc hạn xem
- * qua badge chuông hàng ngày là đủ, tránh phụ thuộc SMTP config ở worker).
+ * Email: KHÔNG gửi. Nhắc hạn chỉ là thông báo in-app (chuông). Các event
+ * FIN_* đã được gỡ khỏi EMAIL_EVENTS phía apps/web (email chỉ dành cho việc
+ * CẦN DUYỆT) — worker insert thẳng bảng `notification` nên cũng không qua
+ * maybeEmail. Đây là nguồn DUY NHẤT phát FIN_INVOICE_DUE_SOON/
+ * FIN_INVOICE_OVERDUE/FIN_RECEIVABLE_OVERDUE (bản sao notify* phía web đã xoá).
  */
 
 export interface FinInvoiceReminderScanJob {
@@ -103,6 +100,12 @@ export async function processFinInvoiceReminderScan(
   const accountantIds = await getActiveUserIdsByRoles(["accountant"]);
   const adminIds = await getActiveUserIdsByRoles(["admin"]);
   const shareholderIds = await getActiveUserIdsByRoles(["shareholder"]);
+  // Người giữ nhiều role (vd muahang = purchaser + accountant, admin kiêm kế
+  // toán) chỉ nhận 1 dòng / hoá đơn / loại nhắc → gộp Set trước khi fan-out.
+  const payableRecipients = [...new Set([...accountantIds, ...adminIds])];
+  const receivableRecipients = [
+    ...new Set([...accountantIds, ...adminIds, ...shareholderIds]),
+  ];
 
   // ── Nhánh 1: sắp đến hạn trong 3 ngày (direction=IN, chưa trả đủ) ────────
   const dueSoonRows = await db
@@ -200,7 +203,7 @@ export async function processFinInvoiceReminderScan(
     const message = supplierName
       ? `Nhà cung cấp: ${supplierName} — còn ${outstanding.toLocaleString("vi-VN")}đ`
       : `Còn ${outstanding.toLocaleString("vi-VN")}đ`;
-    for (const userId of [...accountantIds, ...adminIds]) {
+    for (const userId of payableRecipients) {
       notifyRows.push({
         recipientUser: userId,
         eventType: DUE_SOON_EVENT,
@@ -223,7 +226,7 @@ export async function processFinInvoiceReminderScan(
       const message = supplierName
         ? `Nhà cung cấp: ${supplierName} — còn ${outstanding.toLocaleString("vi-VN")}đ`
         : `Còn ${outstanding.toLocaleString("vi-VN")}đ`;
-      for (const userId of [...accountantIds, ...adminIds]) {
+      for (const userId of payableRecipients) {
         notifyRows.push({
           recipientUser: userId,
           eventType: OVERDUE_EVENT,
@@ -257,7 +260,7 @@ export async function processFinInvoiceReminderScan(
       const message = supplierName
         ? `Khách hàng: ${supplierName} — còn ${outstanding.toLocaleString("vi-VN")}đ`
         : `Còn ${outstanding.toLocaleString("vi-VN")}đ`;
-      for (const userId of [...accountantIds, ...adminIds, ...shareholderIds]) {
+      for (const userId of receivableRecipients) {
         notifyRows.push({
           recipientUser: userId,
           eventType: RECEIVABLE_OVERDUE_EVENT,

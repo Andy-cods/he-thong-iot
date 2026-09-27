@@ -59,7 +59,7 @@ export async function POST(
 
     void notifyPRRejected({
       prId: params.id,
-      prNo: before.code,
+      prNo: before.paperFormNo ?? before.code,
       title: before.title ?? null,
       actorUserId: guard.session.userId,
       actorUsername: guard.session.username,

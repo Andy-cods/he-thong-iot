@@ -263,7 +263,7 @@ export async function POST(req: NextRequest) {
         void notifyPOReceivedFull({
           poId: po.id,
           poNo: po.poNo,
-          supplierName: null,
+          prId: po.prId ?? null,
           actorUserId: guard.session.userId,
           actorUsername: guard.session.username,
           prCreatorUserId,
@@ -276,7 +276,6 @@ export async function POST(req: NextRequest) {
         void notifyPOReceivedPartial({
           poId: po.id,
           poNo: po.poNo,
-          supplierName: null,
           actorUserId: guard.session.userId,
           actorUsername: guard.session.username,
         });

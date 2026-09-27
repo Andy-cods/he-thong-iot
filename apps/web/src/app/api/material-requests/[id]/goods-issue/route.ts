@@ -11,7 +11,6 @@ import { requireCan } from "@/server/session";
 import { writeAudit } from "@/server/services/audit";
 import {
   lookupUsername,
-  notifyMaterialRequestDelivered,
   notifyMaterialRequestIssued,
 } from "@/server/services/notifications";
 
@@ -99,11 +98,12 @@ export async function POST(
       requesterUserId: result.requestedBy,
       issueNo: result.goodsIssue.issueNo,
     };
-    if (result.status === "DELIVERED") {
-      void notifyMaterialRequestDelivered(ctx);
-    } else {
-      void notifyMaterialRequestIssued({ ...ctx, totalQty: result.goodsIssue.totalQty });
-    }
+    // Giao đủ → MATERIAL_REQUEST_DELIVERED; giao một phần → MATERIAL_REQUEST_ISSUED.
+    void notifyMaterialRequestIssued({
+      ...ctx,
+      totalQty: result.goodsIssue.totalQty,
+      full: result.status === "DELIVERED",
+    });
 
     return NextResponse.json({
       data: {

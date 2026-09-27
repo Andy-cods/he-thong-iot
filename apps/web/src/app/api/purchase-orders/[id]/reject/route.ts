@@ -49,11 +49,17 @@ export async function POST(
     // V4.0 Wave 3 Phase C — bổ sung notify còn thiếu (trước đây route này
     // không bắn notify gì): purchaser + người đề xuất PR gốc.
     const pr = row.prId ? await getPR(row.prId) : null;
+    const submittedBy = (row.metadata as { submittedBy?: string } | null)
+      ?.submittedBy;
     void notifyPOApprovalRejected({
       poId: row.id,
       poNo: row.poNo,
       actorUserId: guard.session.userId,
       actorUsername: guard.session.username,
+      // TASK-20260927 — người lập + người gửi duyệt (có thể là Thiết kế) nhận kết quả.
+      creatorUserId: row.createdBy,
+      submitterUserId: submittedBy ?? null,
+      prId: row.prId,
       prRequesterUserId: pr?.requestedBy ?? null,
       reason: body.data.reason,
     });

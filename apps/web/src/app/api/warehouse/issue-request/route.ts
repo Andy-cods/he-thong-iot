@@ -166,8 +166,10 @@ export async function POST(req: NextRequest) {
       notes: `Tạo yêu cầu xuất kho ${requestNo} · ${lines.length} SKU · ${totalQty} qty`,
     });
 
-    // V3.7.17 — Notify warehouse role khi có ISR mới
+    // V3.7.17 — Notify Kho khi có ISR mới; TASK-20260927: xuất bán/trả NCC
+    // (chỉ Giám đốc duyệt) → báo thêm Giám đốc.
     void notifyIssueRequestNew({
+      reason,
       requestId: created!.id,
       requestNo: created!.requestNo,
       actorUserId: guard.session.userId,

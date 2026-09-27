@@ -5,16 +5,10 @@ import Link from "next/link";
 import {
   Bell,
   CheckCheck,
-  CheckCircle2,
-  Clock,
-  Factory,
-  FileText,
   Loader2,
-  Package,
-  ShoppingCart,
-  XCircle,
 } from "lucide-react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { notificationIcon } from "@/components/layout/notification-icons";
 import { Button } from "@/components/ui/button";
 import { QueryError } from "@/components/ui/query-error";
 import { cn } from "@/lib/utils";
@@ -48,26 +42,6 @@ interface NotificationsResponse {
   meta: { hasMore: boolean; nextCursor: string | null; unreadCount: number };
 }
 
-const EVENT_ICON: Record<string, React.ElementType> = {
-  PR_SUBMITTED: ShoppingCart,
-  PR_APPROVED: CheckCircle2,
-  PR_REJECTED: XCircle,
-  PO_SENT: Package,
-  PO_RECEIVED_PARTIAL: Package,
-  PO_RECEIVED_FULL: CheckCircle2,
-  WO_RELEASED: Factory,
-  WO_COMPLETED: CheckCircle2,
-  MATERIAL_REQUEST_NEW: FileText,
-  MATERIAL_REQUEST_PICKING: Clock,
-  MATERIAL_REQUEST_READY: CheckCircle2,
-  MATERIAL_REQUEST_DELIVERED: CheckCheck,
-  // V4.1 Đợt 1b — giao một phần qua phiếu xuất kho.
-  MATERIAL_REQUEST_ISSUED: Package,
-  // V4.1 Đợt 2 — Thu mua.
-  PO_APPROVAL_REQUESTED: Clock,
-  PO_CANCELLED: XCircle,
-  PO_INVOICE_DRAFT: FileText,
-};
 
 // V4.1 UI-27: nhãn chip loại thông báo lấy từ lib/status.ts (notifTypeLabel) —
 // mã lạ hiện "Thông báo", KHÔNG BAO GIỜ lộ mã thô kiểu PR_PENDING_REMINDER.
@@ -226,7 +200,7 @@ export default function NotificationsPage() {
         ) : (
           <div className="mx-auto max-w-3xl space-y-2">
             {items.map((n) => {
-              const Icon = EVENT_ICON[n.eventType] ?? Bell;
+              const Icon = notificationIcon(n.eventType);
               const sevCls = SEVERITY_CLS[n.severity] ?? SEVERITY_CLS.info!;
               const isUnread = n.isDirect && !n.readAt;
               const card = (

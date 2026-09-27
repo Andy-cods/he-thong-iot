@@ -1,0 +1,82 @@
+import type * as React from "react";
+import {
+  AlarmClock,
+  Ban,
+  Banknote,
+  Bell,
+  CheckCheck,
+  CheckCircle2,
+  ClipboardCheck,
+  ClipboardList,
+  Clock,
+  Factory,
+  FileText,
+  Lock,
+  Package,
+  PackageCheck,
+  Play,
+  ShieldAlert,
+  ShieldCheck,
+  ShoppingCart,
+  Tag,
+  Truck,
+  XCircle,
+} from "lucide-react";
+
+/**
+ * TASK-20260927 — icon theo loại thông báo, DÙNG CHUNG cho chuông
+ * (NotificationBell) và trang /notifications. Phủ đủ mọi event type phát ra
+ * (test: notification-plans.test.ts). Loại lạ → Bell.
+ */
+export const NOTIFICATION_EVENT_ICON: Record<string, React.ElementType> = {
+  PR_SUBMITTED: ShoppingCart,
+  PR_DEPT_APPROVED: ClipboardCheck,
+  PR_APPROVED: CheckCircle2,
+  PR_REJECTED: XCircle,
+  PR_PENDING_REMINDER: AlarmClock,
+  PR_GOODS_ISSUED: PackageCheck,
+  PR_COMPLETED: CheckCheck,
+  PO_CREATED_FROM_PR: FileText,
+  PO_SUBCONTRACT_DRAFT: Factory,
+  PO_APPROVAL_REQUESTED: Clock,
+  PO_APPROVED: CheckCircle2,
+  PO_APPROVAL_REJECTED: XCircle,
+  PO_SENT: Package,
+  PO_PRICE_UPDATED: Tag,
+  PO_RECEIVED_PARTIAL: Package,
+  PO_RECEIVED_FULL: PackageCheck,
+  PO_CANCELLED: Ban,
+  PO_CLOSED: Lock,
+  PO_INVOICE_DRAFT: FileText,
+  PO_INVOICE_CONFIRMED: Banknote,
+  QC_RECEIPT_PENDING: Clock,
+  QC_RECEIPT_PASSED: ShieldCheck,
+  QC_RECEIPT_FAILED: ShieldAlert,
+  WO_REQUEST_SUBMITTED: ClipboardList,
+  WO_APPROVED: CheckCircle2,
+  WO_REJECTED: XCircle,
+  WO_RELEASED: Factory,
+  WO_STARTED: Play,
+  WO_CANCELLED: Ban,
+  WO_COMPLETED: CheckCircle2,
+  MATERIAL_REQUEST_NEW: FileText,
+  MATERIAL_REQUEST_PICKING: Clock,
+  MATERIAL_REQUEST_READY: CheckCircle2,
+  MATERIAL_REQUEST_ISSUED: Package,
+  MATERIAL_REQUEST_DELIVERED: CheckCheck,
+  MATERIAL_REQUEST_CANCELLED: Ban,
+  ISSUE_REQUEST_NEW: ClipboardList,
+  ISSUE_REQUEST_APPROVED: PackageCheck,
+  ISSUE_REQUEST_REJECTED: XCircle,
+  DELIVERY_NOTE_CREATED: Truck,
+  DELIVERY_NOTE_CONFIRMED: Truck,
+  DELIVERY_NOTE_REJECTED: XCircle,
+  FIN_INVOICE_DUE_SOON: AlarmClock,
+  FIN_INVOICE_OVERDUE: ShieldAlert,
+  FIN_RECEIVABLE_OVERDUE: ShieldAlert,
+  FIN_PAYMENT_RECORDED: Banknote,
+};
+
+export function notificationIcon(eventType: string): React.ElementType {
+  return NOTIFICATION_EVENT_ICON[eventType] ?? Bell;
+}

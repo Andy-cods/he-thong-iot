@@ -3,6 +3,7 @@ import { logger } from "@/lib/logger";
 import { getPR, markPRCompleted } from "@/server/repos/purchaseRequests";
 import { extractRequestMeta, jsonError } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
+import { notifyPRProgress } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -74,6 +75,17 @@ export async function POST(
       },
       notes: "YCVT timeline IV → Hoàn tất",
       ...meta,
+    });
+
+    // TASK-20260927 — báo người lập phiếu mốc tiến độ mới.
+    void notifyPRProgress({
+      stage: "completed",
+      prId: params.id,
+      prNo: before.paperFormNo ?? before.code,
+      title: before.title ?? null,
+      creatorUserId: before.requestedBy,
+      actorUserId: guard.session.userId,
+      actorUsername: guard.session.username,
     });
 
     return NextResponse.json({ data: row });

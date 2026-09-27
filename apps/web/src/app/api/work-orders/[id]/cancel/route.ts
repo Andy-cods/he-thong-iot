@@ -13,6 +13,7 @@ import {
   parseJson,
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
+import { notifyWOCancelled } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -49,6 +50,15 @@ export async function POST(
       after: { status: wo.status, releasedReservations: wo.releasedReservations },
       notes: body.data.reason ?? null,
       ...meta,
+    });
+    // TASK-20260927 — báo người lập lệnh (Thiết kế) lệnh đã bị huỷ.
+    void notifyWOCancelled({
+      woId: wo.id,
+      woNo: wo.woNo,
+      creatorUserId: wo.createdBy,
+      reason: body.data.reason ?? null,
+      actorUserId: guard.session.userId,
+      actorUsername: guard.session.username,
     });
     return NextResponse.json({ data: wo });
   } catch (err) {

@@ -5,15 +5,9 @@ import Link from "next/link";
 import {
   Bell,
   CheckCheck,
-  CheckCircle2,
-  Clock,
-  Factory,
-  FileText,
-  Package,
-  ShoppingCart,
-  XCircle,
 } from "lucide-react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { notificationIcon } from "@/components/layout/notification-icons";
 import { cn } from "@/lib/utils";
 import { QueryError } from "@/components/ui/query-error";
 
@@ -48,26 +42,6 @@ interface NotificationsResponse {
   meta: { hasMore: boolean; nextCursor: string | null; unreadCount: number };
 }
 
-const EVENT_ICON: Record<string, React.ElementType> = {
-  PR_SUBMITTED: ShoppingCart,
-  PR_APPROVED: CheckCircle2,
-  PR_REJECTED: XCircle,
-  PO_SENT: Package,
-  PO_RECEIVED_PARTIAL: Package,
-  PO_RECEIVED_FULL: CheckCircle2,
-  WO_RELEASED: Factory,
-  WO_COMPLETED: CheckCircle2,
-  MATERIAL_REQUEST_NEW: FileText,
-  MATERIAL_REQUEST_PICKING: Clock,
-  MATERIAL_REQUEST_READY: CheckCircle2,
-  MATERIAL_REQUEST_DELIVERED: CheckCheck,
-  // V4.1 Đợt 1b — giao một phần qua phiếu xuất kho.
-  MATERIAL_REQUEST_ISSUED: Package,
-  // V4.1 Đợt 2 — Thu mua.
-  PO_APPROVAL_REQUESTED: Clock,
-  PO_CANCELLED: XCircle,
-  PO_INVOICE_DRAFT: FileText,
-};
 
 const SEVERITY_CLS: Record<string, string> = {
   info:    "bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400",
@@ -252,7 +226,7 @@ function NotificationItemRow({
   onRead: (id: string) => void;
   onClick: () => void;
 }) {
-  const Icon = EVENT_ICON[item.eventType] ?? Bell;
+  const Icon = notificationIcon(item.eventType);
   const sevCls = SEVERITY_CLS[item.severity] ?? SEVERITY_CLS.info!;
   const isUnread = item.isDirect && !item.readAt;
 

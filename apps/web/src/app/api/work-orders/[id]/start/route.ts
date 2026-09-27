@@ -13,6 +13,7 @@ import {
   parseJson,
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
+import { notifyWOStarted } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -43,6 +44,14 @@ export async function POST(
       objectId: wo.id,
       after: { status: wo.status, startedAt: wo.startedAt },
       ...meta,
+    });
+    // TASK-20260927 — báo người lập lệnh (Thiết kế) lệnh đã bắt đầu.
+    void notifyWOStarted({
+      woId: wo.id,
+      woNo: wo.woNo,
+      creatorUserId: wo.createdBy,
+      actorUserId: guard.session.userId,
+      actorUsername: guard.session.username,
     });
     return NextResponse.json({ data: wo });
   } catch (err) {

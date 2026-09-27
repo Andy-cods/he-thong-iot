@@ -4,9 +4,14 @@ import { logger } from "@/lib/logger";
 import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
 import { QcDecisionError, decideReceiptLineQc } from "@/server/repos/inboundQc";
 import { mapDbGuardError } from "@/server/repos/stockGuard";
-import { recomputePoReceiptStatus } from "@/server/repos/purchaseOrders";
+import { getPO, recomputePoReceiptStatus } from "@/server/repos/purchaseOrders";
+import { getPR } from "@/server/repos/purchaseRequests";
 import { writeAudit } from "@/server/services/audit";
-import { notifyReceiptQcFailed } from "@/server/services/notifications";
+import {
+  notifyPOReceivedFull,
+  notifyReceiptQcFailed,
+  notifyReceiptQcPassed,
+} from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -17,8 +22,9 @@ export const dynamic = "force-dynamic";
  *
  * Kết luận QC nhập kho cho 1 dòng phiếu nhập (↔ 1 lô).
  * Body: `{ result: "PASS" | "FAIL", notes?: string }` — FAIL bắt buộc lý do.
- *   - PASS: lô HOLD(QC_*) → AVAILABLE (xuất được).
+ *   - PASS: lô HOLD(QC_*) → AVAILABLE (xuất được) + notify Kho + người lập PO.
  *   - FAIL: lô HOLD/QC_FAIL + nhả giữ chỗ trên lô + notify Kho + Thu mua.
+ *   - PO lên RECEIVED do QC muộn → PO_RECEIVED_FULL (Thu mua, người đề xuất, Kế toán).
  *   - Cho FAIL → PASS (kiểm lại); KHÔNG cho PASS → FAIL.
  *
  * RBAC: `approve:qcInspection` (Tổ QC + Giám đốc). Audit `QC_CHECK`.
@@ -80,6 +86,7 @@ export async function POST(
     // V4.1 TM-16 — QC kết luận muộn đổi SL "đạt" của dòng PO → tính lại trạng
     // thái PO (RECEIVED ⇄ PARTIAL). Transaction riêng SAU khi QC đã commit để
     // không đảo thứ tự khoá (nhận hàng khoá PO → phiếu nhập; QC khoá ngược lại).
+    const po = r.poId ? await getPO(r.poId).catch(() => null) : null;
     if (r.poId) {
       try {
         const changed = await recomputePoReceiptStatus(r.poId);
@@ -94,25 +101,39 @@ export async function POST(
             notes: `Tính lại trạng thái PO sau QC ${r.result === "PASS" ? "Đạt" : "Không đạt"} (${r.receiptNo})`,
             ...extractRequestMeta(req),
           });
+          if (changed.to === "RECEIVED" && po) {
+            const pr = po.prId ? await getPR(po.prId).catch(() => null) : null;
+            void notifyPOReceivedFull({
+              poId: po.id,
+              poNo: po.poNo,
+              prId: po.prId ?? null,
+              prCreatorUserId: pr?.requestedBy ?? null,
+              actorUserId: guard.session.userId,
+              actorUsername: guard.session.username,
+            });
+          }
         }
       } catch (e) {
         logger.warn({ err: e, poId: r.poId }, "recompute PO status after QC failed");
       }
     }
 
+    const qcCtx = {
+      receiptId: r.receiptId,
+      receiptNo: r.receiptNo,
+      poId: r.poId,
+      poNo: r.poNo,
+      poCreatorUserId: po?.createdBy ?? null,
+      sku: r.sku,
+      lotCode: r.lotCode,
+      qty: r.qty,
+      actorUserId: guard.session.userId,
+      actorUsername: guard.session.username,
+    };
     if (r.result === "FAIL") {
-      void notifyReceiptQcFailed({
-        receiptId: r.receiptId,
-        receiptNo: r.receiptNo,
-        poId: r.poId,
-        poNo: r.poNo,
-        sku: r.sku,
-        lotCode: r.lotCode,
-        qty: r.qty,
-        notes,
-        actorUserId: guard.session.userId,
-        actorUsername: guard.session.username,
-      });
+      void notifyReceiptQcFailed({ ...qcCtx, notes });
+    } else {
+      void notifyReceiptQcPassed(qcCtx);
     }
 
     return NextResponse.json({ data: r });

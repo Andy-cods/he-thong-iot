@@ -37,6 +37,8 @@ export interface PoPriceUpdateResult {
   poId: string;
   poNo: string;
   status: string;
+  /** metadata.approvalStatus (pending/approved/rejected) — null nếu chưa gửi duyệt. */
+  approvalStatus: string | null;
   changes: PoPriceChange[];
   totalBefore: string;
   totalAfter: string;
@@ -110,6 +112,8 @@ export async function updatePoLinePrices(
       poId,
       poNo: po.poNo,
       status: po.status,
+      approvalStatus:
+        (po.metadata as { approvalStatus?: string } | null)?.approvalStatus ?? null,
       changes: plan.changes,
       totalBefore: po.totalAmount,
     };

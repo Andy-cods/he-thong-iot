@@ -69,6 +69,8 @@ export async function POST(
   void notifyDeliveryNoteConfirmed({
     deliveryNoteId: row.id,
     noteNo: row.noteNo,
+    // Thu mua không vào được /warehouse → link PO gốc (nếu phiếu gắn PO).
+    poId: row.poId ?? null,
     actorUserId: guard.session.userId,
     actorUsername: guard.session.username,
   });

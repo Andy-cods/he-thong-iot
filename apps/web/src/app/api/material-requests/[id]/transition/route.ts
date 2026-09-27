@@ -13,6 +13,8 @@ import { canForUser } from "@/server/services/rbac";
 import { writeAudit } from "@/server/services/audit";
 import {
   lookupUsername,
+  notifyMaterialRequestCancelled,
+  notifyMaterialRequestPicking,
   notifyMaterialRequestReady,
 } from "@/server/services/notifications";
 
@@ -141,13 +143,24 @@ export async function POST(
       (await lookupUsername(guard.session.userId)) ??
       "system";
 
+    const notifyCtx = {
+      requestId: id,
+      requestNo: current.requestNo,
+      actorUserId: guard.session.userId,
+      actorUsername,
+      requesterUserId: current.requestedBy,
+    };
     if (toStatus === "READY") {
-      void notifyMaterialRequestReady({
-        requestId: id,
-        requestNo: current.requestNo,
-        actorUserId: guard.session.userId,
-        actorUsername,
-        requesterUserId: current.requestedBy,
+      void notifyMaterialRequestReady(notifyCtx);
+    } else if (toStatus === "PICKING") {
+      void notifyMaterialRequestPicking(notifyCtx);
+    } else if (toStatus === "CANCELLED") {
+      // Người lập tự huỷ → báo Kho; Kho huỷ / đóng phiếu giao dở → báo người lập.
+      void notifyMaterialRequestCancelled({
+        ...notifyCtx,
+        byRequester: isRequester,
+        partial: fromStatus === "PARTIAL",
+        notes: body.data.warehouseNotes ?? null,
       });
     }
 

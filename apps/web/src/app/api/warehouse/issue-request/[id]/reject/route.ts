@@ -87,7 +87,8 @@ export async function POST(
     actorUserId: guard.session.userId,
     actorUsername: guard.session.username,
     requesterUserId: current.requestedBy,
-    reason: body.data.reason,
+    reason: current.reason,
+    rejectReason: body.data.reason,
   });
 
   await writeAudit({

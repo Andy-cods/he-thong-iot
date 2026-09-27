@@ -146,7 +146,7 @@ export async function POST(
     void notifyPOReceivedFull({
       poId: params.poId,
       poNo: before.poNo,
-      supplierName: null,
+      prId: before.prId ?? null,
       actorUserId: guard.session.userId,
       actorUsername: guard.session.username,
       prCreatorUserId,

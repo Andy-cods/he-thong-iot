@@ -277,6 +277,9 @@ export async function PATCH(
           poId: params.id,
           poNo: after.poNo,
           changedLineCount,
+          // PATCH chỉ sửa được PO nháp CHƯA gửi duyệt/bị từ chối → chỉ báo Kho
+          // (giá sau duyệt đi đường /prices, báo thêm Giám đốc + Kế toán).
+          afterApproval: false,
           actorUserId: guard.session.userId,
           actorUsername: guard.session.username,
         });
