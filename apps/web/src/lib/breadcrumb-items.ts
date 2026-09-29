@@ -90,9 +90,9 @@ export const HUB_TAB_LABELS: Record<string, Record<string, string>> = {
   "/sales": {
     po: "Đặt hàng (PO)",
     suppliers: "Nhà cung cấp",
-    "fin-overview": "TC: Tổng quan",
-    "fin-cashbook": "TC: Sổ quỹ",
-    "fin-settle": "TC: Công nợ & Thiết lập",
+    "fin-overview": "Tài chính · Tổng quan",
+    "fin-cashbook": "Tài chính · Sổ quỹ",
+    "fin-settle": "Tài chính · Công nợ & Thiết lập",
   },
   "/warehouse": {
     layout: "Sơ đồ kho",

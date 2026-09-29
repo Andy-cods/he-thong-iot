@@ -84,7 +84,7 @@ describe("V4.1 X6 — crumb theo ?tab= của trang hub", () => {
     ).toEqual(["Tổng quan", "Bộ phận Thiết kế", "Yêu cầu mua"]);
     expect(
       buildBreadcrumbItems("/sales", undefined, "fin-cashbook").map((i) => i.label),
-    ).toEqual(["Tổng quan", "Bộ phận Thu mua", "TC: Sổ quỹ"]);
+    ).toEqual(["Tổng quan", "Bộ phận Thu mua", "Tài chính · Sổ quỹ"]);
     expect(
       buildBreadcrumbItems("/operations", undefined, "assembly").map((i) => i.label),
     ).toEqual(["Tổng quan", "Bộ phận Gia công", "Quy trình lắp ráp"]);
@@ -93,7 +93,7 @@ describe("V4.1 X6 — crumb theo ?tab= của trang hub", () => {
   it("khoá tab cũ được quy về tab hiện hành", () => {
     expect(hubTabLabel("/warehouse", "picking")).toBe("Nhập / Xuất kho");
     expect(hubTabLabel("/warehouse", "overview")).toBe("Sơ đồ kho");
-    expect(hubTabLabel("/sales", "fin-receivables")).toBe("TC: Công nợ & Thiết lập");
+    expect(hubTabLabel("/sales", "fin-receivables")).toBe("Tài chính · Công nợ & Thiết lập");
   });
 
   it("tab lạ / thiếu tab / route không phải hub → không thêm crumb", () => {

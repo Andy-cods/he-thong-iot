@@ -130,7 +130,6 @@ export function OverviewTab() {
             <HeroKpi
               label="Chênh lệch thu–chi kỳ này"
               amount={cashflowFailed ? null : (cashflow?.summary.netCashflow ?? 0)}
-              vsLabel={cashflow?.growth?.vsLabel}
               series={cashflow?.series}
             />
 
@@ -217,12 +216,10 @@ export function OverviewTab() {
 function HeroKpi({
   label,
   amount,
-  vsLabel,
   series,
 }: {
   label: string;
   amount: number | null;
-  vsLabel?: string;
   series?: CashflowPoint[];
 }) {
   const isPositive = (amount ?? 0) >= 0;
@@ -248,14 +245,15 @@ function HeroKpi({
               "mt-1.5 text-3xl font-bold tabular-nums",
               amount === null
                 ? "text-zinc-400 dark:text-zinc-500"
-                : isPositive
+                : amount === 0
+                  ? "text-zinc-900 dark:text-zinc-100"
+                  : isPositive
                   ? "text-emerald-700 dark:text-emerald-400"
                   : "text-rose-600 dark:text-rose-400",
             )}
           >
             {amount === null ? "—" : fmtVND(amount)}
           </p>
-          {vsLabel && <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{vsLabel}</p>}
         </div>
         {sparkData.length > 1 && (
           <div className="h-14 w-full shrink-0 sm:w-32">
