@@ -12,6 +12,7 @@ import type {
   PRStatus,
 } from "@iot/shared";
 import { qk, type PRFilter } from "@/lib/query-keys";
+import { invalidateStockQueries } from "@/lib/stock-cache";
 
 /**
  * Purchase Requests hooks — V1.2 Phase B4.3.
@@ -107,8 +108,31 @@ export interface PRListResponse {
   meta: { page: number; pageSize: number; total: number };
 }
 
+/** V4.2 (TASK "Trừ tồn luôn") — phiếu xuất kho sinh ra khi PR "Đã xuất kho". */
+export interface PRGoodsIssueRow {
+  id: string;
+  issueNo: string;
+  totalQty: string;
+  notes: string | null;
+  issuedAt: string;
+  issuedByName: string | null;
+  lines: Array<{
+    id: string;
+    lineNo: number;
+    itemId: string;
+    sku: string | null;
+    itemName: string | null;
+    uom: string | null;
+    lotSerialId: string;
+    lotCode: string | null;
+    binId: string;
+    binCode: string | null;
+    qty: string;
+  }>;
+}
+
 export interface PRDetailResponse {
-  data: PRRow & { lines: PRLineEnriched[] };
+  data: PRRow & { lines: PRLineEnriched[]; goodsIssues?: PRGoodsIssueRow[] };
 }
 
 interface RequestError extends Error {
@@ -358,17 +382,47 @@ export function useDirectorApprovePR(id: string) {
   });
 }
 
-/** V3.7.70 YCVT — Timeline IV.4: Đánh dấu "Đã xuất kho". */
+/** V4.2 (TASK "Trừ tồn luôn") — pick 1 dòng PR để xuất kho + trừ tồn thật. */
+export interface MarkPRIssuedPick {
+  prLineId: string;
+  lotSerialId: string;
+  binId: string;
+  qty: number;
+}
+
+export interface MarkPRIssuedInput {
+  picks?: MarkPRIssuedPick[];
+  /** Ghi nhận đã xuất KHÔNG trừ tồn (vật tư mua ngoài giao thẳng). */
+  noStockConfirm?: boolean;
+  noStockReason?: string | null;
+  notes?: string | null;
+}
+
+export interface MarkPRIssuedResponse {
+  data: PRRow;
+  meta?: {
+    goodsIssue?: { id: string; issueNo: string; totalQty: number } | null;
+  };
+}
+
+/**
+ * V3.7.70 YCVT — Timeline IV.4: Đánh dấu "Đã xuất kho".
+ * V4.2 — nay nhận `picks` (dòng PR + lô/bin) để trừ tồn thật cùng lúc, sinh
+ * phiếu xuất PX. Invalidate thêm tồn kho (item/lot/warehouse) vì thao tác này
+ * làm đổi tồn thật, không chỉ đổi mốc thời gian trên PR.
+ */
 export function useMarkPRIssued(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () =>
-      request<{ data: PRRow }>(
+    mutationFn: (data: MarkPRIssuedInput = {}) =>
+      request<MarkPRIssuedResponse>(
         `/api/purchase-requests/${id}/mark-issued`,
-        { method: "POST", body: "{}" },
+        { method: "POST", body: JSON.stringify(data) },
       ),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.procurement.requests.all });
       qc.invalidateQueries({ queryKey: qk.procurement.requests.detail(id) });
+      invalidateStockQueries(qc);
     },
   });
 }

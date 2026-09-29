@@ -4,12 +4,15 @@ import * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import {
+  ArrowDownRight,
   ArrowDownToLine,
   ArrowLeftRight,
   ArrowUpFromLine,
+  ArrowUpRight,
   Ban,
   FileSpreadsheet,
   FileText,
+  Info,
   Receipt,
   TrendingDown,
   TrendingUp,
@@ -30,12 +33,13 @@ import {
 } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/ui/query-error";
 import { Input } from "@/components/ui/input";
@@ -198,9 +202,13 @@ export function CashbookTab() {
               <ArrowLeftRight className="h-4 w-4" aria-hidden="true" />
               Chuyển quỹ
             </Button>
+            {/* Phiếu thu/chi — 2 hành động chính TƯƠNG ĐƯƠNG, cùng cấp về màu
+                (trước đây chỉ "Phiếu chi" variant=default nổi bật hơn hẳn) —
+                phân biệt bằng icon +/màu semantic nhạt thay vì fill/outline. */}
             <Button
               size="sm"
               variant="outline"
+              className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
               onClick={() => {
                 setCreateDirection("IN");
                 setCreateOpen(true);
@@ -211,6 +219,8 @@ export function CashbookTab() {
             </Button>
             <Button
               size="sm"
+              variant="outline"
+              className="border-rose-200 text-rose-700 hover:bg-rose-50 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-950/40"
               onClick={() => {
                 setCreateDirection("OUT");
                 setCreateOpen(true);
@@ -337,7 +347,7 @@ export function CashbookTab() {
         ) : (
           <>
             {/* Desktop table — overflow-clip để header `sticky` bám theo vùng cuộn cha */}
-            <div className="hidden overflow-clip rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900 md:block">
+            <div className="hidden overflow-clip rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900 md:block">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10 border-b border-zinc-100 bg-zinc-50 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
                   <tr>
@@ -406,8 +416,9 @@ export function CashbookTab() {
                       />
                     )}
                     <div className="ml-auto shrink-0 text-right">
-                      <p className={cn("text-sm font-bold tabular-nums", r.direction === "IN" ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
-                        {r.direction === "IN" ? "+" : "−"}{fmtVND(r.amount)}
+                      <p className={cn("inline-flex items-center gap-0.5 text-sm font-bold tabular-nums", r.direction === "IN" ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+                        {r.direction === "IN" ? <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" /> : <ArrowDownRight className="h-3.5 w-3.5" aria-hidden="true" />}
+                        {fmtVND(r.amount)}
                       </p>
                       <StatusPill domain="finTxn" code={r.status} className="mt-1" />
                     </div>
@@ -514,7 +525,10 @@ function TransactionRow({
         )}
       </td>
       <td className={cn("whitespace-nowrap px-4 py-2.5 text-right font-semibold tabular-nums", row.direction === "IN" ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400", row.status === "VOID" && "line-through")}>
-        {row.direction === "IN" ? "+" : "−"}{fmtVND(row.amount)}
+        <span className="inline-flex items-center gap-0.5">
+          {row.direction === "IN" ? <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" /> : <ArrowDownRight className="h-3.5 w-3.5" aria-hidden="true" />}
+          {fmtVND(row.amount)}
+        </span>
       </td>
       <td className="px-4 py-2.5 text-center">
         <StatusPill domain="finTxn" code={row.status} />
@@ -622,87 +636,91 @@ function TransactionFormDialog({
   };
 
   const sourceLabel = direction === "IN" ? "Nguồn thu" : "Nguồn chi";
+  const formId = "tx-form";
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="sm">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" size="md" className="flex flex-col">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2 text-base">
             <Receipt className="h-4 w-4" aria-hidden="true" />
             {direction === "IN" ? "Tạo phiếu thu" : "Tạo phiếu chi"}
-          </DialogTitle>
-        </DialogHeader>
-        <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-3" noValidate>
-          <input type="hidden" {...register("direction")} value={direction} />
+          </SheetTitle>
+        </SheetHeader>
+        <SheetBody>
+          <form id={formId} onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-3" noValidate>
+            <input type="hidden" {...register("direction")} value={direction} />
 
-          <div>
-            <Label htmlFor="tx-account" required>{sourceLabel}</Label>
-            <AccountSourceSelect
-              id="tx-account"
-              accounts={accounts}
-              placeholder={`— Chọn ${sourceLabel.toLowerCase()} —`}
-              {...register("accountId")}
-            />
-            <BalanceAfterHint account={account} direction={direction} amount={amount} />
-            {errors.accountId && <p className="mt-1 text-xs text-red-600 dark:text-red-400">Chọn {sourceLabel.toLowerCase()}.</p>}
-          </div>
-
-          <div>
-            <Label htmlFor="tx-category">Danh mục</Label>
-            <select id="tx-category" {...register("categoryId")} className={selectClassName}>
-              <option value="">— Không chọn —</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label htmlFor="tx-amount" required>Số tiền</Label>
-              <Input id="tx-amount" type="number" step="1000" min="0" {...register("amount")} error={!!errors.amount} className="mt-1 tabular-nums" placeholder="0" />
-              {errors.amount && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.amount.message}</p>}
+              <Label htmlFor="tx-account" required>{sourceLabel}</Label>
+              <AccountSourceSelect
+                id="tx-account"
+                accounts={accounts}
+                placeholder={`— Chọn ${sourceLabel.toLowerCase()} —`}
+                {...register("accountId")}
+              />
+              <BalanceAfterHint account={account} direction={direction} amount={amount} />
+              {errors.accountId && <p className="mt-1 text-xs text-red-600 dark:text-red-400">Chọn {sourceLabel.toLowerCase()}.</p>}
             </div>
+
             <div>
-              <Label htmlFor="tx-date" required>Ngày giao dịch</Label>
-              <Input id="tx-date" type="date" {...register("transactionDate")} className="mt-1" />
+              <Label htmlFor="tx-category">Danh mục</Label>
+              <select id="tx-category" {...register("categoryId")} className={selectClassName}>
+                <option value="">— Không chọn —</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
             </div>
-          </div>
 
-          <div>
-            <Label htmlFor="tx-desc">Diễn giải</Label>
-            <Input id="tx-desc" {...register("description")} placeholder="VD: Mua văn phòng phẩm" className="mt-1" />
-          </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="tx-amount" required>Số tiền</Label>
+                <Input id="tx-amount" type="number" step="1000" min="0" {...register("amount")} error={!!errors.amount} className="mt-1 tabular-nums" placeholder="0" />
+                {errors.amount && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.amount.message}</p>}
+              </div>
+              <div>
+                <Label htmlFor="tx-date" required>Ngày giao dịch</Label>
+                <Input id="tx-date" type="date" {...register("transactionDate")} className="mt-1" />
+              </div>
+            </div>
 
-          {wouldOverdraw && isAdmin && (
-            <OverdraftCheckbox
-              checked={allowOverdraft}
-              onChange={(v) => setValue("allowOverdraft", v)}
-            />
-          )}
-          {wouldOverdraw && !isAdmin && (
-            <p className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
-              Nguồn chi không đủ số dư — hãy chọn nguồn khác, chuyển quỹ vào nguồn này trước, hoặc
-              nhờ Giám đốc duyệt chi vượt.
-            </p>
-          )}
+            <div>
+              <Label htmlFor="tx-desc">Diễn giải</Label>
+              <Input id="tx-desc" {...register("description")} placeholder="VD: Mua văn phòng phẩm" className="mt-1" />
+            </div>
 
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            Giao dịch này KHÔNG gắn hoá đơn. Nếu cần ghi nhận thanh toán cho hoá đơn, dùng tab &quot;Thanh toán&quot;.
-          </p>
+            {wouldOverdraw && isAdmin && (
+              <OverdraftCheckbox
+                checked={allowOverdraft}
+                onChange={(v) => setValue("allowOverdraft", v)}
+              />
+            )}
+            {wouldOverdraw && !isAdmin && (
+              <p className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+                Nguồn chi không đủ số dư — hãy chọn nguồn khác, chuyển quỹ vào nguồn này trước, hoặc
+                nhờ Giám đốc duyệt chi vượt.
+              </p>
+            )}
 
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Huỷ</Button>
-            <Button
-              type="submit"
-              disabled={createMut.isPending || (wouldOverdraw && !(isAdmin && allowOverdraft))}
-            >
-              {createMut.isPending ? "Đang lưu…" : "Tạo giao dịch"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+            <div className="flex gap-2 rounded-lg bg-blue-50 p-2.5 text-xs text-blue-700 dark:bg-blue-950/30 dark:text-blue-300">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <p>Giao dịch này KHÔNG gắn hoá đơn. Nếu cần ghi nhận thanh toán cho hoá đơn, dùng tab &quot;Thanh toán&quot;.</p>
+            </div>
+          </form>
+        </SheetBody>
+        <SheetFooter>
+          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Huỷ</Button>
+          <Button
+            type="submit"
+            form={formId}
+            disabled={createMut.isPending || (wouldOverdraw && !(isAdmin && allowOverdraft))}
+          >
+            {createMut.isPending ? "Đang lưu…" : "Tạo giao dịch"}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -766,62 +784,69 @@ function TransferFormDialog({
     }
   };
 
+  const formId = "tf-form";
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="sm">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" size="md" className="flex flex-col">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2 text-base">
             <ArrowLeftRight className="h-4 w-4" aria-hidden="true" />
             Chuyển quỹ nội bộ
-          </DialogTitle>
-        </DialogHeader>
-        <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-3" noValidate>
-          <div>
-            <Label htmlFor="tf-from" required>Từ nguồn (chi ra)</Label>
-            <AccountSourceSelect id="tf-from" accounts={accounts} excludeId={toId} {...register("fromAccountId")} />
-            <BalanceAfterHint account={from} direction="OUT" amount={amount} />
-            {errors.fromAccountId && <p className="mt-1 text-xs text-red-600 dark:text-red-400">Chọn nguồn chuyển đi.</p>}
-          </div>
-          <div>
-            <Label htmlFor="tf-to" required>Sang nguồn (nhận vào)</Label>
-            <AccountSourceSelect id="tf-to" accounts={accounts} excludeId={fromId} {...register("toAccountId")} />
-            <BalanceAfterHint account={to} direction="IN" amount={amount} />
-            {errors.toAccountId && (
-              <p className="mt-1 text-xs text-red-600 dark:text-red-400">
-                {errors.toAccountId.message?.includes("khác") ? errors.toAccountId.message : "Chọn nguồn nhận."}
-              </p>
+          </SheetTitle>
+        </SheetHeader>
+        <SheetBody>
+          <form id={formId} onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-3" noValidate>
+            <div>
+              <Label htmlFor="tf-from" required>Từ nguồn (chi ra)</Label>
+              <AccountSourceSelect id="tf-from" accounts={accounts} excludeId={toId} {...register("fromAccountId")} />
+              <BalanceAfterHint account={from} direction="OUT" amount={amount} />
+              {errors.fromAccountId && <p className="mt-1 text-xs text-red-600 dark:text-red-400">Chọn nguồn chuyển đi.</p>}
+            </div>
+            <div>
+              <Label htmlFor="tf-to" required>Sang nguồn (nhận vào)</Label>
+              <AccountSourceSelect id="tf-to" accounts={accounts} excludeId={fromId} {...register("toAccountId")} />
+              <BalanceAfterHint account={to} direction="IN" amount={amount} />
+              {errors.toAccountId && (
+                <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                  {errors.toAccountId.message?.includes("khác") ? errors.toAccountId.message : "Chọn nguồn nhận."}
+                </p>
+              )}
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="tf-amount" required>Số tiền</Label>
+                <Input id="tf-amount" type="number" step="1000" min="0" {...register("amount")} error={!!errors.amount} className="mt-1 tabular-nums" />
+                {errors.amount && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.amount.message}</p>}
+              </div>
+              <div>
+                <Label htmlFor="tf-date" required>Ngày chuyển</Label>
+                <Input id="tf-date" type="date" {...register("transactionDate")} className="mt-1" />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="tf-desc">Ghi chú</Label>
+              <Input id="tf-desc" {...register("description")} placeholder="VD: Nạp quỹ chi tiêu tuần 40" className="mt-1" />
+            </div>
+            {wouldOverdraw && isAdmin && (
+              <OverdraftCheckbox checked={allowOverdraft} onChange={(v) => setValue("allowOverdraft", v)} />
             )}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="tf-amount" required>Số tiền</Label>
-              <Input id="tf-amount" type="number" step="1000" min="0" {...register("amount")} error={!!errors.amount} className="mt-1 tabular-nums" />
-              {errors.amount && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.amount.message}</p>}
+            <div className="flex gap-2 rounded-lg bg-blue-50 p-2.5 text-xs text-blue-700 dark:bg-blue-950/30 dark:text-blue-300">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <p>
+                Chuyển quỹ tạo phiếu <span className="font-mono">CQ-…</span> gồm 1 dòng chi ở nguồn đi và 1 dòng thu ở
+                nguồn nhận; KHÔNG tính vào tổng thu/chi. Huỷ 1 dòng sẽ huỷ cả 2.
+              </p>
             </div>
-            <div>
-              <Label htmlFor="tf-date" required>Ngày chuyển</Label>
-              <Input id="tf-date" type="date" {...register("transactionDate")} className="mt-1" />
-            </div>
-          </div>
-          <div>
-            <Label htmlFor="tf-desc">Ghi chú</Label>
-            <Input id="tf-desc" {...register("description")} placeholder="VD: Nạp quỹ chi tiêu tuần 40" className="mt-1" />
-          </div>
-          {wouldOverdraw && isAdmin && (
-            <OverdraftCheckbox checked={allowOverdraft} onChange={(v) => setValue("allowOverdraft", v)} />
-          )}
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            Chuyển quỹ tạo phiếu <span className="font-mono">CQ-…</span> gồm 1 dòng chi ở nguồn đi và 1 dòng thu ở nguồn nhận;
-            KHÔNG tính vào tổng thu/chi. Huỷ 1 dòng sẽ huỷ cả 2.
-          </p>
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Huỷ</Button>
-            <Button type="submit" disabled={transferMut.isPending || (wouldOverdraw && !(isAdmin && allowOverdraft))}>
-              {transferMut.isPending ? "Đang lưu…" : "Chuyển quỹ"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+          </form>
+        </SheetBody>
+        <SheetFooter>
+          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Huỷ</Button>
+          <Button type="submit" form={formId} disabled={transferMut.isPending || (wouldOverdraw && !(isAdmin && allowOverdraft))}>
+            {transferMut.isPending ? "Đang lưu…" : "Chuyển quỹ"}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

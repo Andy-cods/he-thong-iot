@@ -11,7 +11,6 @@ import {
 } from "@iot/db/schema";
 import type {
   PurchaseOrder,
-  PurchaseOrderLine,
 } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import {
@@ -1177,49 +1176,6 @@ export async function markPOReceived(
     .set({
       status: "RECEIVED",
       actualDeliveryDate: sql`CURRENT_DATE`,
-      metadata,
-    })
-    .where(
-      and(
-        eq(purchaseOrder.id, id),
-        inArray(purchaseOrder.status, ["SENT", "PARTIAL"]),
-      ),
-    )
-    .returning();
-  return row ?? null;
-}
-
-/**
- * V3 (TASK-20260427-014) — Reject PO sau khi nhận hàng (hư hỏng, sai item, …).
- *
- * SENT/PARTIAL → CANCELLED + metadata.rejectedReason. KHÔNG có enum REJECTED
- * cho PO trong V1, dùng CANCELLED + metadata để đánh dấu bị từ chối.
- */
-export async function rejectReceivingPO(
-  id: string,
-  userId: string | null,
-  reason: string,
-): Promise<PurchaseOrder | null> {
-  const [before] = await db
-    .select()
-    .from(purchaseOrder)
-    .where(eq(purchaseOrder.id, id))
-    .limit(1);
-  if (!before) return null;
-
-  const metadata = {
-    ...((before.metadata as Record<string, unknown>) ?? {}),
-    rejectedBy: userId ?? undefined,
-    rejectedAt: new Date().toISOString(),
-    rejectedReason: reason,
-    rejectedStage: "RECEIVING",
-  };
-
-  const [row] = await db
-    .update(purchaseOrder)
-    .set({
-      status: "CANCELLED",
-      cancelledAt: new Date(),
       metadata,
     })
     .where(

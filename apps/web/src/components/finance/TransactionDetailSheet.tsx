@@ -227,15 +227,14 @@ export function TransactionDetailSheet({
                     </p>
                   ))}
                 {row.purchaseOrderId && can(roles, "read", "po") && (
-                  <div>
-                    <Link
-                      href={`/procurement/purchase-orders/${row.purchaseOrderId}`}
-                      className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-700 hover:underline dark:text-indigo-400"
-                    >
+                  // Nâng từ link text sang button outline full-width (§3.7,
+                  // đồng bộ InvoiceDetailSheet) — dễ tìm thấy hơn link chìm.
+                  <Button asChild variant="outline" size="sm" className="w-full">
+                    <Link href={`/procurement/purchase-orders/${row.purchaseOrderId}`}>
+                      <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                       Xem đơn mua liên quan
-                      <ExternalLink className="h-3 w-3" aria-hidden="true" />
                     </Link>
-                  </div>
+                  </Button>
                 )}
               </div>
             </div>

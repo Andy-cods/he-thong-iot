@@ -24,6 +24,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import ExcelJS from "exceljs";
+import { sanitizeExcelCellValue as safe } from "./excelSafety";
 
 const PRIORITY_LABEL: Record<string, string> = {
   URGENT: "Khẩn",
@@ -155,10 +156,10 @@ export function fillDnvtCells(ws: ExcelJS.Worksheet, data: DnvtExportData): void
   ws.getCell("L3").value = data.createdAt; // ExcelJS Date → numeric (fmt dd/mm/yyyy)
 
   // Section I
-  ws.getCell("C7").value = data.targetDepartment ?? "";
-  ws.getCell("C8").value = data.proposingDepartment ?? "";
-  ws.getCell("C9").value = data.requestedByName ?? "";
-  ws.getCell("C10").value = data.requestReason ?? "";
+  ws.getCell("C7").value = safe(data.targetDepartment ?? "");
+  ws.getCell("C8").value = safe(data.proposingDepartment ?? "");
+  ws.getCell("C9").value = safe(data.requestedByName ?? "");
+  ws.getCell("C10").value = safe(data.requestReason ?? "");
 
   // Section II — lines (rows 14..33, max 20)
   const LINE_START_ROW = 14;
@@ -166,31 +167,31 @@ export function fillDnvtCells(ws: ExcelJS.Worksheet, data: DnvtExportData): void
   for (let i = 0; i < Math.min(data.lines.length, MAX_LINES); i++) {
     const r = LINE_START_ROW + i;
     const l = data.lines[i]!;
-    ws.getCell(`B${r}`).value = l.name ?? "";
-    ws.getCell(`C${r}`).value = l.specification ?? "";
-    ws.getCell(`D${r}`).value = l.uom ?? "";
+    ws.getCell(`B${r}`).value = safe(l.name ?? "");
+    ws.getCell(`C${r}`).value = safe(l.specification ?? "");
+    ws.getCell(`D${r}`).value = safe(l.uom ?? "");
     ws.getCell(`E${r}`).value = l.qty;
     if (l.onHandSnapshot != null) ws.getCell(`F${r}`).value = l.onHandSnapshot;
     if (l.approvedQty != null) ws.getCell(`G${r}`).value = l.approvedQty;
     if (l.neededBy) ws.getCell(`H${r}`).value = fmtDateVN(l.neededBy);
     ws.getCell(`I${r}`).value = PRIORITY_LABEL[l.priority ?? "NORMAL"] ?? "";
     ws.getCell(`J${r}`).value = CATEGORY_LABEL[l.category ?? "OTHER"] ?? "";
-    ws.getCell(`K${r}`).value = l.referenceCode ?? "";
-    ws.getCell(`L${r}`).value = l.referenceNote ?? "";
-    ws.getCell(`M${r}`).value = l.notes ?? "";
+    ws.getCell(`K${r}`).value = safe(l.referenceCode ?? "");
+    ws.getCell(`L${r}`).value = safe(l.referenceNote ?? "");
+    ws.getCell(`M${r}`).value = safe(l.notes ?? "");
     if (l.deliveryDate) ws.getCell(`N${r}`).value = fmtDateVN(l.deliveryDate);
   }
 
   // Section III — phê duyệt (rows 37..41; C=Họ tên, I=Ký tên/Ngày)
-  ws.getCell("C37").value = data.requestedByName ?? "";
+  ws.getCell("C37").value = safe(data.requestedByName ?? "");
   if (data.createdAt) ws.getCell("I37").value = fmtDateVN(data.createdAt);
   // 38 Kiểm tra tồn kho + 39 Kiểm tra kỹ thuật: để trống (ký tay offline).
   if (data.deptApprovedByName) {
-    ws.getCell("C40").value = data.deptApprovedByName;
+    ws.getCell("C40").value = safe(data.deptApprovedByName);
     ws.getCell("I40").value = fmtDateVN(data.deptApprovedAt);
   }
   if (data.directorApprovedByName) {
-    ws.getCell("C41").value = data.directorApprovedByName;
+    ws.getCell("C41").value = safe(data.directorApprovedByName);
     ws.getCell("I41").value = fmtDateVN(data.directorApprovedAt);
   }
 }

@@ -4,8 +4,9 @@ import { and, desc, eq } from "drizzle-orm";
 import { reportTarget } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import { jsonError, parseJson, parseSearchParams } from "@/server/http";
+import { extractRequestMeta, jsonError, parseJson, parseSearchParams } from "@/server/http";
 import { requireCan } from "@/server/session";
+import { writeAudit } from "@/server/services/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -97,6 +98,18 @@ export async function POST(req: NextRequest) {
         updatedBy: guard.session.userId,
       })
       .returning();
+
+    // V4.2 audit S13 — ghi log thay đổi ngưỡng KPI target.
+    const meta = extractRequestMeta(req);
+    await writeAudit({
+      actor: guard.session,
+      action: "CREATE",
+      objectType: "report_target",
+      objectId: row?.id ?? null,
+      after: row,
+      notes: `Tạo KPI target: ${body.data.metricId}`,
+      ...meta,
+    });
 
     return NextResponse.json({ data: row }, { status: 201 });
   } catch (err) {

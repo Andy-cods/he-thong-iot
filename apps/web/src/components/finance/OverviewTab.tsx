@@ -11,13 +11,13 @@ import {
   TrendingUp,
   Wallet,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Line, LineChart, ResponsiveContainer } from "recharts";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/ui/query-error";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CashflowChart } from "@/components/finance/CashflowChart";
 import { fmtVND, fmtVNDShort, toDateInputValue } from "@/components/finance/_format";
-import { useFinCashflow, useFinSummary } from "@/hooks/useFinance";
+import { useFinCashflow, useFinSummary, type CashflowPoint } from "@/hooks/useFinance";
 import { cn } from "@/lib/utils";
 
 /**
@@ -71,22 +71,27 @@ export function OverviewTab() {
           </h1>
         </div>
 
-        {/* Date range picker */}
+        {/* Date range picker — segmented control kiểu iOS Settings (§2.3) */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1">
+          <div className="inline-flex items-center gap-0.5 rounded-lg bg-zinc-100 p-0.5 dark:bg-zinc-800">
             {RANGE_PRESETS.map((p) => (
-              <Button
+              <button
                 key={p.key}
-                size="sm"
-                variant={!customFrom && rangeDays === p.days ? "default" : "outline"}
+                type="button"
                 onClick={() => {
                   setRangeDays(p.days);
                   setCustomFrom("");
                   setCustomTo("");
                 }}
+                className={cn(
+                  "h-7 shrink-0 rounded-md px-3 text-sm font-medium transition-colors",
+                  !customFrom && rangeDays === p.days
+                    ? "bg-white text-zinc-900 shadow-xs dark:bg-zinc-700 dark:text-zinc-50"
+                    : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200",
+                )}
               >
                 {p.label}
-              </Button>
+              </button>
             ))}
           </div>
           <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
@@ -113,15 +118,25 @@ export function OverviewTab() {
       <div className="flex-1 p-4 md:p-6">
         {isLoading ? (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
+            <Skeleton className="h-28 rounded-xl" />
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
             </div>
-            <Skeleton className="h-80 rounded-2xl" />
+            <Skeleton className="h-80 rounded-xl" />
           </div>
         ) : (
           <div className="space-y-6">
-            {/* KPI strip */}
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+            {/* Hero KPI — số quan trọng nhất nổi bật (§3.1) */}
+            <HeroKpi
+              label="Chênh lệch thu–chi kỳ này"
+              amount={cashflowFailed ? null : (cashflow?.summary.netCashflow ?? 0)}
+              vsLabel={cashflow?.growth?.vsLabel}
+              series={cashflow?.series}
+            />
+
+            {/* 5 KPI phụ — grid responsive để nhãn dài ("Công nợ phải thu/trả")
+                không bị cắt trên mobile (§1.1 P0). */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               <KpiCard
                 icon={TrendingUp}
                 label="Tổng thu"
@@ -136,12 +151,6 @@ export function OverviewTab() {
                 growth={cashflow?.growth?.outPct}
                 growthInverse
                 accent="rose"
-              />
-              <KpiCard
-                icon={BarChart3}
-                label="Chênh lệch"
-                amount={cashflowFailed ? null : (cashflow?.summary.netCashflow ?? 0)}
-                accent={(cashflow?.summary.netCashflow ?? 0) >= 0 ? "indigo" : "rose"}
               />
               <KpiCard
                 icon={ReceiptText}
@@ -164,7 +173,7 @@ export function OverviewTab() {
             </div>
 
             {/* Chart */}
-            <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
               <div className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Wallet className="h-4 w-4 text-zinc-400 dark:text-zinc-500" aria-hidden="true" />
@@ -193,6 +202,75 @@ export function OverviewTab() {
                 <CashflowChart data={cashflow!.series} />
               )}
             </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Hero KPI — số quan trọng nhất trang (chênh lệch thu–chi), to nổi bật hơn
+ * hẳn 5 thẻ phụ (§2.1: text-3xl vs text-xl) + sparkline mini tái dùng cùng
+ * dữ liệu `cashflow.series` (§3.1) — không trục/tooltip, chỉ đường xu hướng.
+ */
+function HeroKpi({
+  label,
+  amount,
+  vsLabel,
+  series,
+}: {
+  label: string;
+  amount: number | null;
+  vsLabel?: string;
+  series?: CashflowPoint[];
+}) {
+  const isPositive = (amount ?? 0) >= 0;
+  const sparkData = React.useMemo(() => {
+    if (!series || series.length === 0) return [];
+    let cumulative = 0;
+    return series.map((p) => {
+      cumulative += p.net;
+      return { v: cumulative };
+    });
+  }, [series]);
+
+  return (
+    <div className="min-w-0 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 shrink-0 text-zinc-400 dark:text-zinc-500" aria-hidden="true" />
+            <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">{label}</p>
+          </div>
+          <p
+            className={cn(
+              "mt-1.5 text-3xl font-bold tabular-nums",
+              amount === null
+                ? "text-zinc-400 dark:text-zinc-500"
+                : isPositive
+                  ? "text-emerald-700 dark:text-emerald-400"
+                  : "text-rose-600 dark:text-rose-400",
+            )}
+          >
+            {amount === null ? "—" : fmtVND(amount)}
+          </p>
+          {vsLabel && <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{vsLabel}</p>}
+        </div>
+        {sparkData.length > 1 && (
+          <div className="h-14 w-full shrink-0 sm:w-32">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={sparkData} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
+                <Line
+                  type="monotone"
+                  dataKey="v"
+                  stroke={isPositive ? "#059669" : "#e11d48"}
+                  strokeWidth={2}
+                  dot={false}
+                  isAnimationActive={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         )}
       </div>
@@ -230,12 +308,14 @@ function KpiCard({
   const isGood = growth !== undefined && (growthInverse ? growth <= 0 : growth >= 0);
 
   return (
-    <div className="min-w-0 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="min-w-0 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
       <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <Icon className="h-4 w-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
-          <p className="truncate text-xs font-medium text-zinc-500 dark:text-zinc-400">{label}</p>
-          {accentDot ? <span className={cn("h-2 w-2 shrink-0 rounded-full", accentDot)} aria-hidden /> : null}
+        {/* Nhãn KHÔNG truncate — trước đây cắt "Công nợ phải ..." trên mobile khiến
+            2 thẻ công nợ khác chiều hiện giống hệt nhau (§1.1 P0). Cho wrap 2 dòng. */}
+        <div className="flex min-w-0 items-start gap-1.5">
+          <Icon className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
+          <p className="text-xs font-medium leading-snug text-zinc-500 dark:text-zinc-400">{label}</p>
+          {accentDot ? <span className={cn("mt-1 h-2 w-2 shrink-0 rounded-full", accentDot)} aria-hidden /> : null}
         </div>
         {growth !== undefined && (
           <span

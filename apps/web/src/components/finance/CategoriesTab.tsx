@@ -12,12 +12,13 @@ import {
 } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/ui/query-error";
 import { Input } from "@/components/ui/input";
@@ -80,8 +81,8 @@ export function CategoriesTab() {
       <div className="flex-1 p-4 md:p-6">
         {isLoading ? (
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Skeleton className="h-64 rounded-2xl" />
-            <Skeleton className="h-64 rounded-2xl" />
+            <Skeleton className="h-64 rounded-xl" />
+            <Skeleton className="h-64 rounded-xl" />
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -170,7 +171,7 @@ function CategoryColumn({
       : "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400";
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
       <header className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50/50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800/60">
         <div className="flex items-center gap-2">
           <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg", accentCls)}>
@@ -277,38 +278,42 @@ function CategoryFormDialog({
     onOpenChange(false);
   };
 
+  const formId = "cat-form";
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="sm">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" size="md" className="flex flex-col">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2 text-base">
             <FolderTree className="h-4 w-4" aria-hidden="true" />
             {isEdit ? "Sửa danh mục" : "Thêm danh mục"}
-          </DialogTitle>
-        </DialogHeader>
-        <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-3" noValidate>
-          {!isEdit && (
+          </SheetTitle>
+        </SheetHeader>
+        <SheetBody>
+          <form id={formId} onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-3" noValidate>
+            {!isEdit && (
+              <div>
+                <Label htmlFor="cat-code" required>Mã danh mục</Label>
+                <Input id="cat-code" {...register("code")} error={!!errors.code} placeholder="VD: CHI_KHAC" className="mt-1 font-mono" />
+                {errors.code && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.code.message}</p>}
+              </div>
+            )}
             <div>
-              <Label htmlFor="cat-code" required>Mã danh mục</Label>
-              <Input id="cat-code" {...register("code")} error={!!errors.code} placeholder="VD: CHI_KHAC" className="mt-1 font-mono" />
-              {errors.code && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.code.message}</p>}
+              <Label htmlFor="cat-name" required>Tên danh mục</Label>
+              <Input id="cat-name" {...register("name")} error={!!errors.name} placeholder="VD: Chi phí vận chuyển" className="mt-1" />
+              {errors.name && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.name.message}</p>}
             </div>
-          )}
-          <div>
-            <Label htmlFor="cat-name" required>Tên danh mục</Label>
-            <Input id="cat-name" {...register("name")} error={!!errors.name} placeholder="VD: Chi phí vận chuyển" className="mt-1" />
-            {errors.name && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.name.message}</p>}
-          </div>
-          <input type="hidden" {...register("direction")} />
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            Chiều: <span className="font-semibold">{defaultDirection === "IN" ? "Thu" : "Chi"}</span>
-          </p>
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Huỷ</Button>
-            <Button type="submit" disabled={submitting}>{submitting ? "Đang lưu…" : "Lưu"}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+            <input type="hidden" {...register("direction")} />
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Chiều: <span className="font-semibold">{defaultDirection === "IN" ? "Thu" : "Chi"}</span>
+            </p>
+          </form>
+        </SheetBody>
+        <SheetFooter>
+          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Huỷ</Button>
+          <Button type="submit" form={formId} disabled={submitting}>{submitting ? "Đang lưu…" : "Lưu"}</Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

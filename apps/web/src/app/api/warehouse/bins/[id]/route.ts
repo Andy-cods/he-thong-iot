@@ -1,17 +1,22 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getBinContent } from "@/server/repos/warehouseLocation";
 import { jsonError } from "@/server/http";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** GET /api/warehouse/bins/[id] — chi tiết content (lots + items) của 1 bin. */
+/**
+ * GET /api/warehouse/bins/[id] — chi tiết content (lots + items) của 1 bin.
+ *
+ * V4.2 audit S-guard — siết theo `read:inventory` (admin/warehouse), khớp
+ * các route ghi cùng thư mục (`adjust`/`transfer` đã dùng `update:inventory`).
+ */
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireSession(req);
+  const guard = await requireCan(req, "read", "inventory");
   if ("response" in guard) return guard.response;
 
   if (!/^[0-9a-f-]{36}$/i.test(params.id)) {

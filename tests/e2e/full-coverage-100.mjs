@@ -21,7 +21,17 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const BASE = process.env.BASE || "https://mes.songchau.vn";
+// V4.2 audit S11 — KHÔNG mặc định nhắm production nữa (dễ chạy nhầm bằng
+// tài khoản test lên hệ thống thật). Bắt buộc set BASE tường minh.
+const BASE = process.env.BASE;
+if (!BASE) {
+  console.error(
+    "[E2E] Thiếu biến môi trường BASE. Đặt tường minh trước khi chạy, ví dụ:\n" +
+      "  BASE=http://127.0.0.1:3001 node tests/e2e/full-coverage-100.mjs\n" +
+      "  BASE=https://mes.songchau.vn node tests/e2e/full-coverage-100.mjs  (cố ý nhắm prod)",
+  );
+  process.exit(1);
+}
 const PASSWORDS = ["Test@1234", "ChangeMe!234"];
 const TS = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
 const TAG = `[100COV-${TS.slice(-6)}]`;
@@ -597,10 +607,7 @@ async function main() {
     bomImportRoute.status === 405 || bomImportRoute.status === 200 ? "PASS" : "FAIL",
     bomImportRoute.status, "405 OK = POST-only");
 
-  // ===== U. ECO endpoint =====
-  header("U — ECO");
-  const eco = await call("TK-A", "GET", "/api/eco?pageSize=5");
-  record("U", "list ECO", eco.ok ? "PASS" : "FAIL", eco.status, "");
+  // ===== U. ECO endpoint — V4.2 đã xoá api/eco (tính năng ẩn, 0 caller, 0 dữ liệu) =====
 
   // ===== V. Purchase Orders list filters =====
   header("V — PO list / filters / stats");

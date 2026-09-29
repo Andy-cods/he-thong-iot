@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { jsonError } from "@/server/http";
+import { extractRequestMeta, jsonError } from "@/server/http";
 import { requireCan } from "@/server/session";
 import { AttachmentValidationError, saveFinanceAttachment } from "@/server/services/attachments";
+import { writeAudit } from "@/server/services/audit";
 import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
@@ -30,6 +31,19 @@ export async function POST(req: NextRequest) {
 
   try {
     const { url, filename } = await saveFinanceAttachment(file);
+
+    // V4.2 audit S13 — ghi ai upload chứng từ tài chính nào, khi nào.
+    const meta = extractRequestMeta(req);
+    await writeAudit({
+      actor: guard.session,
+      action: "UPLOAD",
+      objectType: "finance_attachment",
+      objectId: null,
+      after: { url, filename },
+      notes: `Upload chứng từ tài chính: ${filename}`,
+      ...meta,
+    });
+
     return NextResponse.json({ data: { url, filename } }, { status: 201 });
   } catch (err) {
     if (err instanceof AttachmentValidationError) {

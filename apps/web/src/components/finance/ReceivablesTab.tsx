@@ -59,8 +59,8 @@ export function ReceivablesTab() {
     <div className="flex h-full flex-col overflow-auto bg-zinc-50/30 dark:bg-zinc-950/30">
       <header className="border-b border-zinc-200 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
         {/* V4.1 UI-09 (X6): bỏ breadcrumb thân trang — topbar đã hiện cùng đường dẫn (+ nhãn tab). */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">Công nợ</h1>
             <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
               {isPayable
@@ -68,12 +68,12 @@ export function ReceivablesTab() {
                 : "Hoá đơn đầu ra (bán hàng) chưa thu hết tiền — ai đang nợ mình"}
             </p>
           </div>
-          <div className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white p-1 dark:border-zinc-700 dark:bg-zinc-900">
+          <div className="inline-flex items-center gap-1 self-stretch rounded-full border border-zinc-200 bg-white p-1 dark:border-zinc-700 dark:bg-zinc-900 sm:self-auto">
             <Button
               type="button"
               size="sm"
               variant={isPayable ? "default" : "ghost"}
-              className={cn("gap-1.5 rounded-full", !isPayable && "text-zinc-500 dark:text-zinc-400")}
+              className={cn("flex-1 gap-1.5 rounded-full sm:flex-none", !isPayable && "text-zinc-500 dark:text-zinc-400")}
               onClick={() => setDirection("payable")}
             >
               <ArrowUpCircle className="h-3.5 w-3.5" aria-hidden="true" />
@@ -83,7 +83,7 @@ export function ReceivablesTab() {
               type="button"
               size="sm"
               variant={!isPayable ? "default" : "ghost"}
-              className={cn("gap-1.5 rounded-full", isPayable && "text-zinc-500 dark:text-zinc-400")}
+              className={cn("flex-1 gap-1.5 rounded-full sm:flex-none", isPayable && "text-zinc-500 dark:text-zinc-400")}
               onClick={() => setDirection("receivable")}
             >
               <ArrowDownCircle className="h-3.5 w-3.5" aria-hidden="true" />

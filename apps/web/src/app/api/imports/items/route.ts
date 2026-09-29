@@ -9,6 +9,7 @@ import {
   updateImportBatch,
 } from "@/server/repos/importBatch";
 import { parseItemImport } from "@/server/services/excelImport";
+import { ImportTooManyRowsError } from "@/server/services/importLimits";
 import { writeAudit } from "@/server/services/audit";
 
 export const runtime = "nodejs";
@@ -53,6 +54,9 @@ export async function POST(req: NextRequest) {
   try {
     parsed = await parseItemImport(buffer);
   } catch (err) {
+    if (err instanceof ImportTooManyRowsError) {
+      return jsonError(err.code, err.message, 422);
+    }
     logger.error({ err }, "parseItemImport failed");
     return jsonError(
       "PARSE_FAILED",

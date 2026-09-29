@@ -10,6 +10,7 @@ import {
 import { writeAudit } from "@/server/services/audit";
 import { notifyPRRejected } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
+import { isSelfApprovalBlocked } from "@/lib/procurement-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,6 +36,22 @@ export async function POST(
       "INVALID_STATE",
       "Chỉ phiếu đang chờ phê duyệt mới có thể bị từ chối.",
       409,
+    );
+  }
+
+  // V4.1 D8 (P1-2 audit) — người lập phiếu không tự từ chối phiếu của mình,
+  // đồng bộ với dept-approve/director-approve (trừ admin).
+  if (
+    isSelfApprovalBlocked({
+      creatorId: before.requestedBy,
+      actorId: guard.session.userId,
+      actorRoles: guard.session.roles,
+    })
+  ) {
+    return jsonError(
+      "SELF_APPROVAL",
+      "Bạn là người lập phiếu này — cần người khác từ chối.",
+      403,
     );
   }
 

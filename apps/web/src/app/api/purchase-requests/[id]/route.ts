@@ -9,6 +9,7 @@ import {
   getPRLinesEnriched,
   replacePRLines,
 } from "@/server/repos/purchaseRequests";
+import { listGoodsIssuesForPurchaseRequest } from "@/server/repos/goodsIssues";
 import {
   extractRequestMeta,
   jsonError,
@@ -47,6 +48,11 @@ export async function GET(
   }
 
   const lines = await getPRLinesEnriched(params.id);
+  // V4.2 (TASK "Trừ tồn luôn") — hiển thị mã phiếu xuất đã sinh ở mục IV.
+  // Thiết kế 1 PR ↔ tối đa 1 phiếu xuất nên mảng này thường có 0 hoặc 1 phần tử.
+  const goodsIssues = row.goodsIssuedAt
+    ? await listGoodsIssuesForPurchaseRequest(params.id)
+    : [];
 
   // V3.7.73 — Resolve full names cho mục III/IV (Người đề xuất / Trưởng BP / Giám đốc / Rejected by)
   const ids = Array.from(
@@ -74,6 +80,7 @@ export async function GET(
     data: {
       ...row,
       lines,
+      goodsIssues,
       requestedByName: row.requestedBy ? nameMap.get(row.requestedBy) ?? null : null,
       deptApprovedByName: row.deptApprovedBy
         ? nameMap.get(row.deptApprovedBy) ?? null

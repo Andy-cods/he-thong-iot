@@ -90,9 +90,9 @@ export function DebtAgingPanel({
     return (
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
         </div>
-        <Skeleton className="h-48 rounded-2xl" />
+        <Skeleton className="h-48 rounded-xl" />
       </div>
     );
   }
@@ -116,7 +116,7 @@ export function DebtAgingPanel({
     <div className="space-y-6">
       {/* KPI tổng quan */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400">
             <TrendingUp className="h-4 w-4" />
             <p className="text-xs font-semibold uppercase tracking-wider">{kpiLabel}</p>
@@ -124,7 +124,7 @@ export function DebtAgingPanel({
           <p className="mt-1 text-2xl font-bold tabular-nums text-zinc-900 dark:text-zinc-50">{fmtVND(totalOutstanding)}</p>
           <p className="text-xs text-zinc-400 dark:text-zinc-500">{totalInvoices} hoá đơn</p>
         </div>
-        <div className="rounded-2xl border border-red-200 bg-red-50/60 p-4 dark:border-red-800 dark:bg-red-950/40">
+        <div className="rounded-xl border border-red-200 bg-red-50/60 p-4 dark:border-red-800 dark:bg-red-950/40">
           <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
             <AlertCircle className="h-4 w-4" />
             <p className="text-xs font-semibold uppercase tracking-wider">Đã quá hạn</p>
@@ -136,14 +136,14 @@ export function DebtAgingPanel({
         </div>
       </div>
 
-      {/* Bucket breakdown */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      {/* Bucket breakdown — desktop: 5 thẻ; mobile: thanh tỷ trọng + danh sách gọn (§1.9 P0) */}
+      <div className="hidden gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-5">
         {BUCKET_DEF.map((def) => {
           const b = bucketMap.get(def.key);
           const cls = ACCENT_CLS[def.accent]!;
           const Icon = def.icon;
           return (
-            <div key={def.key} className={cn("rounded-2xl border p-4", cls.card)}>
+            <div key={def.key} className={cn("rounded-xl border p-4", cls.card)}>
               <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg", cls.icon)}>
                 <Icon className="h-4 w-4" />
               </div>
@@ -157,8 +157,8 @@ export function DebtAgingPanel({
         })}
       </div>
 
-      {/* Bar tổng hợp trực quan */}
-      <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+      {/* Bar tổng hợp trực quan + danh sách bucket gọn (mobile thay 5 thẻ to) */}
+      <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-5">
         <p className="mb-3 text-sm font-semibold text-zinc-800 dark:text-zinc-200">Tỷ trọng theo tuổi nợ</p>
         <div className="flex h-6 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
           {BUCKET_DEF.map((def) => {
@@ -177,7 +177,7 @@ export function DebtAgingPanel({
             );
           })}
         </div>
-        <div className="mt-3 flex flex-wrap gap-3 text-xs text-zinc-500 dark:text-zinc-400">
+        <div className="mt-3 hidden flex-wrap gap-3 text-xs text-zinc-500 dark:text-zinc-400 sm:flex">
           {BUCKET_DEF.map((def) => (
             <span key={def.key} className="inline-flex items-center gap-1.5">
               <span className={cn(
@@ -188,11 +188,33 @@ export function DebtAgingPanel({
             </span>
           ))}
         </div>
+        {/* Mobile: danh sách hàng gọn thay 5 thẻ to xếp dọc (§1.9 P0) */}
+        <ul className="mt-3 divide-y divide-zinc-100 sm:hidden dark:divide-zinc-800">
+          {BUCKET_DEF.map((def) => {
+            const b = bucketMap.get(def.key);
+            const dotColor =
+              def.accent === "emerald" ? "bg-emerald-500" : def.accent === "amber" ? "bg-amber-500" : "bg-red-500";
+            return (
+              <li key={def.key} className="flex items-center justify-between gap-2 py-2">
+                <span className="flex min-w-0 items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300">
+                  <span className={cn("h-2 w-2 shrink-0 rounded-full", dotColor)} aria-hidden />
+                  <span className="truncate">{def.label}</span>
+                </span>
+                <span className="shrink-0 text-right text-xs">
+                  <span className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
+                    {fmtVND(b?.outstandingAmount ?? 0)}
+                  </span>
+                  <span className="ml-1.5 text-zinc-400 dark:text-zinc-500">({b?.invoiceCount ?? 0})</span>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
       </div>
 
       {/* Chi tiết theo đối tác — "nợ ai bao nhiêu" */}
-      <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="border-b border-zinc-100 px-5 py-3 dark:border-zinc-800">
+      <div className="rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="border-b border-zinc-100 px-4 py-3 dark:border-zinc-800 sm:px-5">
           <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Chi tiết theo {partnerColumnLabel.toLowerCase()}</p>
         </div>
         {partnersError && partners.length === 0 ? (
@@ -206,43 +228,94 @@ export function DebtAgingPanel({
         ) : partners.length === 0 ? (
           <p className="px-5 py-6 text-center text-sm text-zinc-400 dark:text-zinc-500">Chưa có dữ liệu.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-zinc-100 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-                  <th className="px-5 py-2.5">{partnerColumnLabel}</th>
-                  <th className="px-5 py-2.5 text-right">Số hoá đơn</th>
-                  <th className="px-5 py-2.5 text-right">Còn nợ</th>
-                  <th className="px-5 py-2.5 text-right">Quá hạn nhiều nhất</th>
-                </tr>
-              </thead>
-              <tbody>
-                {partners.map((p, i) => (
-                  <tr
-                    key={p.partnerId ?? `${p.partnerName}-${i}`}
+          <>
+            {/* Desktop: bảng — theo §12.4 design-guidelines, toggle ở div wrapper */}
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-100 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+                    <th className="px-5 py-2.5">{partnerColumnLabel}</th>
+                    <th className="px-5 py-2.5 text-right">Số hoá đơn</th>
+                    <th className="px-5 py-2.5 text-right">Còn nợ</th>
+                    <th className="px-5 py-2.5 text-right">Quá hạn nhiều nhất</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {partners.map((p, i) => (
+                    <tr
+                      key={p.partnerId ?? `${p.partnerName}-${i}`}
+                      onClick={onPartnerClick ? () => onPartnerClick(p) : undefined}
+                      className={cn(
+                        "border-b border-zinc-50 last:border-0 dark:border-zinc-800/60",
+                        onPartnerClick && "cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/40",
+                      )}
+                    >
+                      <td className="max-w-[20rem] truncate px-5 py-2.5 font-medium text-zinc-800 dark:text-zinc-200" title={p.partnerName}>{p.partnerName}</td>
+                      <td className="px-5 py-2.5 text-right tabular-nums text-zinc-600 dark:text-zinc-400">{p.invoiceCount}</td>
+                      <td className="px-5 py-2.5 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
+                        {fmtVND(p.outstandingAmount)}
+                      </td>
+                      <td className="px-5 py-2.5 text-right tabular-nums">
+                        {p.maxOverdueDays > 0 ? (
+                          <span className="text-red-600 dark:text-red-400">{p.maxOverdueDays} ngày</span>
+                        ) : (
+                          <span className="text-zinc-400 dark:text-zinc-500">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile: card-list (§12.4 bắt buộc — trước đây vỡ hoàn toàn trên 390px) */}
+            <ul className="space-y-2 p-3 md:hidden">
+              {partners.map((p, i) => (
+                <li key={p.partnerId ?? `${p.partnerName}-${i}`}>
+                  <div
+                    role={onPartnerClick ? "button" : undefined}
+                    tabIndex={onPartnerClick ? 0 : undefined}
                     onClick={onPartnerClick ? () => onPartnerClick(p) : undefined}
+                    onKeyDown={
+                      onPartnerClick
+                        ? (e) => { if (e.key === "Enter") onPartnerClick(p); }
+                        : undefined
+                    }
                     className={cn(
-                      "border-b border-zinc-50 last:border-0 dark:border-zinc-800/60",
-                      onPartnerClick && "cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/40",
+                      "rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900",
+                      // Hover nâng nhẹ kiểu class card hover dùng chung trong
+                      // globals.css — viết INLINE ở đây thay vì gọi lại class đó,
+                      // vì class gốc dùng 1 cú pháp easing tuỳ biến bị chính
+                      // Tailwind coi là mơ hồ (ambiguous) và chặn build cứng khi
+                      // class được dùng thật lần đầu (trước đây định nghĩa nhưng
+                      // không nơi nào gọi nên chưa lộ). Sửa tận gốc ở globals.css
+                      // ngoài phạm vi cho phép của task này — ghi nhận trong báo
+                      // cáo, không tự sửa file dùng chung.
+                      onPartnerClick &&
+                        "cursor-pointer transition-all duration-150 hover:-translate-y-px hover:border-zinc-300 hover:shadow-xs dark:hover:border-zinc-700",
                     )}
                   >
-                    <td className="px-5 py-2.5 font-medium text-zinc-800 dark:text-zinc-200">{p.partnerName}</td>
-                    <td className="px-5 py-2.5 text-right tabular-nums text-zinc-600 dark:text-zinc-400">{p.invoiceCount}</td>
-                    <td className="px-5 py-2.5 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
-                      {fmtVND(p.outstandingAmount)}
-                    </td>
-                    <td className="px-5 py-2.5 text-right tabular-nums">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-800 dark:text-zinc-200" title={p.partnerName}>
+                        {p.partnerName}
+                      </p>
+                      <p className="shrink-0 text-sm font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
+                        {fmtVND(p.outstandingAmount)}
+                      </p>
+                    </div>
+                    <div className="mt-1 flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
+                      <span>{p.invoiceCount} hoá đơn</span>
                       {p.maxOverdueDays > 0 ? (
-                        <span className="text-red-600 dark:text-red-400">{p.maxOverdueDays} ngày</span>
+                        <span className="font-medium text-red-600 dark:text-red-400">{p.maxOverdueDays} ngày quá hạn</span>
                       ) : (
-                        <span className="text-zinc-400 dark:text-zinc-500">—</span>
+                        <span className="text-zinc-400 dark:text-zinc-500">Chưa quá hạn</span>
                       )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </div>
     </div>

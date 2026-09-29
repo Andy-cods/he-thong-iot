@@ -4,8 +4,9 @@ import { eq } from "drizzle-orm";
 import { reportTarget } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import { jsonError, parseJson } from "@/server/http";
+import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
 import { requireCan } from "@/server/session";
+import { writeAudit } from "@/server/services/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,12 +42,29 @@ export async function PATCH(
   if (body.data.isActive !== undefined) patch.isActive = body.data.isActive;
 
   try {
+    const [before] = await db
+      .select()
+      .from(reportTarget)
+      .where(eq(reportTarget.id, params.id));
     const [row] = await db
       .update(reportTarget)
       .set(patch)
       .where(eq(reportTarget.id, params.id))
       .returning();
     if (!row) return jsonError("NOT_FOUND", "Target không tồn tại.", 404);
+
+    // V4.2 audit S13 — ghi log thay đổi ngưỡng KPI target.
+    const meta = extractRequestMeta(req);
+    await writeAudit({
+      actor: guard.session,
+      action: "UPDATE",
+      objectType: "report_target",
+      objectId: row.id,
+      before,
+      after: row,
+      ...meta,
+    });
+
     return NextResponse.json({ data: row });
   } catch (err) {
     logger.error({ err, id: params.id }, "update report target failed");
@@ -65,11 +83,27 @@ export async function DELETE(
     return jsonError("BAD_REQUEST", "id không hợp lệ.", 400);
   }
   try {
+    const [before] = await db
+      .select()
+      .from(reportTarget)
+      .where(eq(reportTarget.id, params.id));
     const [row] = await db
       .delete(reportTarget)
       .where(eq(reportTarget.id, params.id))
       .returning({ id: reportTarget.id });
     if (!row) return jsonError("NOT_FOUND", "Target không tồn tại.", 404);
+
+    // V4.2 audit S13 — ghi log xoá KPI target.
+    const meta = extractRequestMeta(req);
+    await writeAudit({
+      actor: guard.session,
+      action: "DELETE",
+      objectType: "report_target",
+      objectId: row.id,
+      before,
+      ...meta,
+    });
+
     return NextResponse.json({ data: { id: row.id, deleted: true } });
   } catch (err) {
     logger.error({ err, id: params.id }, "delete report target failed");

@@ -18,6 +18,7 @@ import { routingPlanForInsert } from "@/lib/wo-routing";
 import {
   WO_STATUS_LABEL_VI,
   checkWoCompletable,
+  getWoCompleteShortfall,
   isWoDeletable,
   isWoTransitionAllowed,
 } from "@/lib/wo-guards";
@@ -611,12 +612,21 @@ export async function updateWorkOrder(
 async function lockWo(
   tx: Tx,
   id: string,
-): Promise<{ status: WorkOrderStatus; versionLock: number; goodQty: string }> {
+): Promise<{
+  status: WorkOrderStatus;
+  versionLock: number;
+  goodQty: string;
+  /** V4.2 PROD-01 — cần để so sánh SL đạt/kế hoạch khi hoàn thành. */
+  plannedQty: string;
+  notes: string | null;
+}> {
   const [cur] = await tx
     .select({
       status: workOrder.status,
       versionLock: workOrder.versionLock,
       goodQty: workOrder.goodQty,
+      plannedQty: workOrder.plannedQty,
+      notes: workOrder.notes,
     })
     .from(workOrder)
     .where(eq(workOrder.id, id))
@@ -640,6 +650,8 @@ async function transitionStatusTx(
     pausedReason: string | null;
     /** V4.1 SX-06 — chỉ đặt nếu chưa có (không ghi đè giờ duyệt). */
     releasedAtIfNull: Date;
+    /** V4.2 PROD-01 — ghi lý do hoàn thành thiếu sản lượng vào `notes`. */
+    notes: string | null;
   }> = {},
   expectedVersionLock?: number,
 ): Promise<WorkOrder> {
@@ -663,6 +675,7 @@ async function transitionStatusTx(
   if (extra.releasedAtIfNull !== undefined) {
     values.releasedAt = sql`COALESCE(${workOrder.releasedAt}, ${extra.releasedAtIfNull.toISOString()}::timestamptz)`;
   }
+  if (extra.notes !== undefined) values.notes = extra.notes;
 
   const rows = await tx
     .update(workOrder)
@@ -725,11 +738,20 @@ export async function resumeWO(id: string, versionLock?: number): Promise<WorkOr
  * Complete WO — V4.1 SX-04/05: 1 transaction thật, khoá WO rồi kiểm
  * `checkWoCompletable` (đang chạy + SL đạt > 0 + mọi dòng linh kiện đủ).
  *
+ * V4.2 PROD-01: nếu SL đạt < kế hoạch, bắt buộc `completeReason` (≥3 ký tự,
+ * kiểm ở `checkWoCompletable` → 422 nếu thiếu). Lý do hợp lệ được LƯU vào
+ * `work_order.notes` (không thêm migration — cột text sẵn có) kèm số liệu
+ * đạt/kế hoạch/thiếu, để tra cứu lại sau này không cần xem riêng nhật ký.
+ *
  * TODO V4.1 Q2: điểm móc nhập kho thành phẩm — ghi `inventory_txn` PROD_IN
  * (SL đạt, lô FG) TRONG CÙNG transaction này khi anh Thang bật lại bước nhập
  * kho thành phẩm (`HIDDEN_FEATURES.fgReceipt`). Hiện chỉ chuyển trạng thái.
  */
-export async function completeWO(id: string, versionLock?: number): Promise<WorkOrder> {
+export async function completeWO(
+  id: string,
+  versionLock?: number,
+  completeReason?: string | null,
+): Promise<WorkOrder> {
   return db.transaction(async (tx) => {
     const cur = await lockWo(tx, id);
     const lines = await tx
@@ -742,14 +764,32 @@ export async function completeWO(id: string, versionLock?: number): Promise<Work
     const check = checkWoCompletable({
       status: cur.status,
       goodQty: cur.goodQty,
+      plannedQty: cur.plannedQty,
+      completeReason,
       lines,
     });
     if (!check.ok) throw new WoTransitionError(check.reason);
+
+    const shortfall = getWoCompleteShortfall({
+      goodQty: cur.goodQty,
+      plannedQty: cur.plannedQty,
+    });
+    const trimmedReason = completeReason?.trim() || null;
+    const notes =
+      shortfall && trimmedReason
+        ? [
+            cur.notes,
+            `[Hoàn thành thiếu SL — ${new Date().toISOString().slice(0, 10)}] Đạt ${shortfall.good}/${shortfall.planned} (thiếu ${shortfall.missing}). Lý do: ${trimmedReason}`,
+          ]
+            .filter(Boolean)
+            .join("\n")
+        : undefined;
+
     return transitionStatusTx(
       tx,
       id,
       "COMPLETED",
-      { completedAt: new Date() },
+      { completedAt: new Date(), ...(notes !== undefined ? { notes } : {}) },
       versionLock,
     );
   });

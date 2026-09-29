@@ -571,21 +571,38 @@ export async function cloneTemplate(
       .where(eq(bomLine.templateId, sourceId))
       .orderBy(asc(bomLine.level), asc(bomLine.position));
 
-    // Map oldLineId → newLineId (insert cha trước con)
-    const idMap = new Map<string, string>();
+    // V4.2 PERF_REDUNDANCY.md #5 — trước đây INSERT tuần tự từng dòng (N
+    // round-trip cho N dòng BOM, giữ transaction lâu khi clone BOM vài trăm
+    // dòng). Batch insert theo TỪNG LEVEL: `level = parent.level + 1` luôn
+    // đúng khi tạo dòng (`bomLines.ts` `resolveLevel`), nên duyệt level tăng
+    // dần đảm bảo `idMap` đã có id mới của mọi dòng cha trước khi insert dòng
+    // con — chỉ 1 câu INSERT...RETURNING cho mỗi level thay vì mỗi dòng.
+    // Postgres giữ đúng thứ tự hàng trả về của 1 câu multi-row
+    // INSERT...RETURNING theo đúng thứ tự VALUES đưa vào (không có sắp xếp lại
+    // ngầm), nên map lại theo index là an toàn.
+    const linesByLevel = new Map<number, typeof sourceLines>();
     for (const line of sourceLines) {
-      const newParentLineId = line.parentLineId
-        ? idMap.get(line.parentLineId) ?? null
-        : null;
-      const newSheetId = line.sheetId
-        ? sheetIdMap.get(line.sheetId)
-        : sheetIdMap.get("__fallback__") ?? Array.from(sheetIdMap.values())[0];
-      if (!newSheetId) {
-        throw new Error("Không resolve được sheet_id mới cho line clone");
-      }
-      const [inserted] = await tx
-        .insert(bomLine)
-        .values({
+      const arr = linesByLevel.get(line.level);
+      if (arr) arr.push(line);
+      else linesByLevel.set(line.level, [line]);
+    }
+    const levels = Array.from(linesByLevel.keys()).sort((a, b) => a - b);
+
+    // Map oldLineId → newLineId (insert cha trước con, theo lô mỗi level)
+    const idMap = new Map<string, string>();
+    for (const level of levels) {
+      const linesAtLevel = linesByLevel.get(level)!;
+      const values = linesAtLevel.map((line) => {
+        const newParentLineId = line.parentLineId
+          ? idMap.get(line.parentLineId) ?? null
+          : null;
+        const newSheetId = line.sheetId
+          ? sheetIdMap.get(line.sheetId)
+          : sheetIdMap.get("__fallback__") ?? Array.from(sheetIdMap.values())[0];
+        if (!newSheetId) {
+          throw new Error("Không resolve được sheet_id mới cho line clone");
+        }
+        return {
           templateId: cloned.id,
           sheetId: newSheetId,
           parentLineId: newParentLineId,
@@ -598,9 +615,17 @@ export async function cloneTemplate(
           description: line.description,
           supplierItemCode: line.supplierItemCode,
           metadata: line.metadata,
-        })
+        };
+      });
+      const inserted = await tx
+        .insert(bomLine)
+        .values(values)
         .returning({ id: bomLine.id });
-      if (inserted) idMap.set(line.id, inserted.id);
+      for (let i = 0; i < linesAtLevel.length; i++) {
+        const newId = inserted[i]?.id;
+        const oldLine = linesAtLevel[i];
+        if (newId && oldLine) idMap.set(oldLine.id, newId);
+      }
     }
 
     return { template: cloned, lineCount: sourceLines.length };

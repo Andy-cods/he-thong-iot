@@ -3,10 +3,9 @@
 import * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { AlertTriangle, Ban, Plus, Receipt } from "lucide-react";
+import { AlertTriangle, Ban, ChevronDown, Plus, Receipt } from "lucide-react";
 import {
   parseAsInteger,
-  parseAsString,
   parseAsStringEnum,
   useQueryStates,
 } from "nuqs";
@@ -19,12 +18,19 @@ import {
 } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/ui/query-error";
 import { RowActionsMenu } from "@/components/ui/data-table";
@@ -119,14 +125,24 @@ export function InvoicesTab() {
           </p>
         </div>
         {canWrite && (
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={() => { setCreateDirection("IN"); setCreateOpen(true); }}>
-              <Plus className="h-4 w-4" aria-hidden="true" /> HĐ đầu vào
-            </Button>
-            <Button size="sm" onClick={() => { setCreateDirection("OUT"); setCreateOpen(true); }}>
-              <Plus className="h-4 w-4" aria-hidden="true" /> HĐ đầu ra
-            </Button>
-          </div>
+          // V4.2 UI (§3.3) — gộp 2 nút "+ HĐ đầu vào"/"+ HĐ đầu ra" thành 1
+          // nút "+ Hoá đơn" mở menu chọn loại, giảm nhiễu thị giác header.
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm">
+                <Plus className="h-4 w-4" aria-hidden="true" /> Hoá đơn
+                <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => { setCreateDirection("IN"); setCreateOpen(true); }}>
+                HĐ đầu vào (mua)
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => { setCreateDirection("OUT"); setCreateOpen(true); }}>
+                HĐ đầu ra (bán)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </header>
 
@@ -185,7 +201,7 @@ export function InvoicesTab() {
           )
         ) : (
           <>
-            <div className="hidden overflow-clip rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900 md:block">
+            <div className="hidden overflow-clip rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900 md:block">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10 border-b border-zinc-100 bg-zinc-50 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
                   <tr>
@@ -279,15 +295,28 @@ export function InvoicesTab() {
                       </div>
                       <StatusPill domain="invoice" code={inv.status} />
                     </div>
-                    <div className="mt-2 flex items-end justify-between">
-                      <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                        <p>Hạn: {fmtDate(inv.dueDate)}{isOverdue && " ⚠"}</p>
-                        <p>Đã trả: <span className="text-emerald-700 dark:text-emerald-400">{fmtVND(inv.paidAmount)}</span></p>
+                    <div className="mt-2 flex items-end justify-between gap-2">
+                      {/* Label/value căn cột dọc (dl) để quét nhanh khi list dài (§1.4). */}
+                      <dl className="space-y-0.5 text-xs">
+                        <div className="flex items-center gap-1">
+                          <dt className="text-zinc-500 dark:text-zinc-400">Hạn:</dt>
+                          <dd className={cn("tabular-nums", isOverdue && "flex items-center gap-0.5 font-semibold text-red-600 dark:text-red-400")}>
+                            {isOverdue && <AlertTriangle className="h-3 w-3" aria-hidden="true" />}
+                            {fmtDate(inv.dueDate)}
+                          </dd>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <dt className="text-zinc-500 dark:text-zinc-400">Đã trả:</dt>
+                          <dd className="tabular-nums text-emerald-700 dark:text-emerald-400">{fmtVND(inv.paidAmount)}</dd>
+                        </div>
                         {inv.status !== "CANCELLED" && (
-                          <p>Còn nợ: <span className="text-rose-600 dark:text-rose-400">{fmtVND(Number(inv.totalAmount) - Number(inv.paidAmount))}</span></p>
+                          <div className="flex items-center gap-1">
+                            <dt className="text-zinc-500 dark:text-zinc-400">Còn nợ:</dt>
+                            <dd className="tabular-nums text-rose-600 dark:text-rose-400">{fmtVND(Number(inv.totalAmount) - Number(inv.paidAmount))}</dd>
+                          </div>
                         )}
-                      </div>
-                      <p className="text-sm font-bold text-zinc-900 dark:text-zinc-50">{fmtVND(inv.totalAmount)}</p>
+                      </dl>
+                      <p className="shrink-0 text-sm font-bold tabular-nums text-zinc-900 dark:text-zinc-50">{fmtVND(inv.totalAmount)}</p>
                     </div>
                   </div>
                 );
@@ -413,78 +442,85 @@ function InvoiceFormDialog({
     }
   };
 
+  const formId = "inv-form";
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" size="md" className="flex flex-col">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2 text-base">
             <Receipt className="h-4 w-4" aria-hidden="true" />
             {direction === "IN" ? "Tạo hoá đơn đầu vào" : "Tạo hoá đơn đầu ra"}
-          </DialogTitle>
-        </DialogHeader>
-        <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-3" noValidate>
-          <input type="hidden" {...register("direction")} value={direction} />
+          </SheetTitle>
+        </SheetHeader>
+        <SheetBody>
+          <form id={formId} onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-3" noValidate>
+            <input type="hidden" {...register("direction")} value={direction} />
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="inv-no" required>Số hoá đơn</Label>
-              <Input id="inv-no" {...register("invoiceNo")} error={!!errors.invoiceNo} placeholder="VD: HD-0001" className="mt-1 font-mono" />
-              {errors.invoiceNo && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.invoiceNo.message}</p>}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="inv-no" required>Số hoá đơn</Label>
+                <Input id="inv-no" {...register("invoiceNo")} error={!!errors.invoiceNo} placeholder="VD: HD-0001" className="mt-1 font-mono" />
+                {errors.invoiceNo && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.invoiceNo.message}</p>}
+              </div>
+              <div>
+                <Label htmlFor="inv-supplier">{direction === "IN" ? "Nhà cung cấp" : "Khách hàng"}</Label>
+                <SupplierPicker value={supplier} onChange={setSupplier} id="inv-supplier" placeholder="Chọn đối tác..." />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="inv-supplier">{direction === "IN" ? "Nhà cung cấp" : "Khách hàng"}</Label>
-              <SupplierPicker value={supplier} onChange={setSupplier} id="inv-supplier" placeholder="Chọn đối tác..." />
-            </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="inv-issue" required>Ngày phát hành</Label>
-              <Input id="inv-issue" type="date" {...register("issueDate")} className="mt-1" />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="inv-issue" required>Ngày phát hành</Label>
+                <Input id="inv-issue" type="date" {...register("issueDate")} className="mt-1" />
+              </div>
+              <div>
+                <Label htmlFor="inv-due">Hạn thanh toán</Label>
+                <Input id="inv-due" type="date" {...register("dueDate")} className="mt-1" />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="inv-due">Hạn thanh toán</Label>
-              <Input id="inv-due" type="date" {...register("dueDate")} className="mt-1" />
-            </div>
-          </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <Label htmlFor="inv-subtotal" required>Tiền hàng</Label>
-              <Input id="inv-subtotal" type="number" step="1000" {...register("subtotalAmount")} error={!!errors.subtotalAmount} className="mt-1 tabular-nums" />
+            {/* Grid 1 cột trên mobile, 3 cột từ sm — trước đây cố định 3 cột làm
+                ô VAT(%) bị bóp chật ở 390px (§1.5). */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div>
+                <Label htmlFor="inv-subtotal" required>Tiền hàng</Label>
+                <Input id="inv-subtotal" type="number" step="1000" {...register("subtotalAmount")} error={!!errors.subtotalAmount} className="mt-1 tabular-nums" />
+              </div>
+              <div>
+                <Label htmlFor="inv-vat-rate">VAT (%)</Label>
+                <Input id="inv-vat-rate" type="number" step="1" {...register("vatRate")} className="mt-1 tabular-nums" />
+              </div>
+              <div>
+                <Label htmlFor="inv-vat-amt">Tiền VAT</Label>
+                <Input id="inv-vat-amt" type="number" {...register("vatAmount")} readOnly className="mt-1 bg-zinc-50 tabular-nums dark:bg-zinc-800" />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="inv-vat-rate">VAT (%)</Label>
-              <Input id="inv-vat-rate" type="number" step="1" {...register("vatRate")} className="mt-1 tabular-nums" />
-            </div>
-            <div>
-              <Label htmlFor="inv-vat-amt">Tiền VAT</Label>
-              <Input id="inv-vat-amt" type="number" {...register("vatAmount")} readOnly className="mt-1 bg-zinc-50 tabular-nums dark:bg-zinc-800" />
-            </div>
-          </div>
 
-          <div className="rounded-lg border border-indigo-200 bg-indigo-50/60 px-3 py-2 dark:border-indigo-800 dark:bg-indigo-950/40">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-indigo-900 dark:text-indigo-200">Tổng cộng</span>
-              <span className="text-lg font-bold text-indigo-900 dark:text-indigo-200">
-                {fmtVND(subtotal + Math.round((subtotal * vatRate) / 100))}
-              </span>
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50/60 px-3 py-2 dark:border-indigo-800 dark:bg-indigo-950/40">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-indigo-900 dark:text-indigo-200">
+                  Tổng cộng <span className="font-normal text-indigo-700/70 dark:text-indigo-300/70">(Tiền hàng × (1 + VAT%))</span>
+                </span>
+                <span className="text-lg font-bold tabular-nums text-indigo-900 dark:text-indigo-200">
+                  {fmtVND(subtotal + Math.round((subtotal * vatRate) / 100))}
+                </span>
+              </div>
+              <input type="hidden" {...register("totalAmount")} />
             </div>
-            <input type="hidden" {...register("totalAmount")} />
-          </div>
 
-          {errors.totalAmount && (
-            <p className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
-              <AlertTriangle className="h-3 w-3" aria-hidden="true" /> {errors.totalAmount.message}
-            </p>
-          )}
-
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Huỷ</Button>
-            <Button type="submit" disabled={createMut.isPending}>{createMut.isPending ? "Đang lưu…" : "Tạo hoá đơn"}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+            {errors.totalAmount && (
+              <p className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
+                <AlertTriangle className="h-3 w-3" aria-hidden="true" /> {errors.totalAmount.message}
+              </p>
+            )}
+          </form>
+        </SheetBody>
+        <SheetFooter>
+          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Huỷ</Button>
+          <Button type="submit" form={formId} disabled={createMut.isPending}>{createMut.isPending ? "Đang lưu…" : "Tạo hoá đơn"}</Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

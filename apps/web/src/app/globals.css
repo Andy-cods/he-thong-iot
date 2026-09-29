@@ -505,7 +505,9 @@
 
   /* Card interactive hover */
   .card-interactive {
-    @apply border border-zinc-200 bg-white transition-all duration-150 ease-[cubic-bezier(0.25,1,0.5,1)] dark:border-zinc-800 dark:bg-zinc-900;
+    @apply border border-zinc-200 bg-white transition-all duration-150 dark:border-zinc-800 dark:bg-zinc-900;
+    /* CSS thuần: `ease-[cubic-bezier(...)]` trong @apply bị Tailwind coi là ambiguous → vỡ build khi class được dùng. */
+    transition-timing-function: cubic-bezier(0.25, 1, 0.5, 1);
   }
   .card-interactive:hover {
     @apply border-zinc-300 shadow-xs dark:border-zinc-700;

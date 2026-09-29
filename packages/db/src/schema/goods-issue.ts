@@ -16,6 +16,7 @@ import { inventoryLotSerial, inventoryTxn } from "./inventory";
 import { workOrder } from "./production";
 import { materialRequest, materialRequestLine } from "./material-request";
 import { warehouseIssueRequest } from "./warehouse-location";
+import { purchaseRequest, purchaseRequestLine } from "./procurement";
 
 /**
  * V4.1 Đợt 1b — Phiếu xuất kho (goods issue), số `PX-YYMM-NNNN`.
@@ -44,6 +45,14 @@ export const goodsIssue = appSchema.table(
     issueRequestId: uuid("issue_request_id").references(
       () => warehouseIssueRequest.id,
     ),
+    /**
+     * V4.2 (migration 0067) — nguồn PR khi Kho bấm "Đã xuất kho" trên phiếu
+     * Đề xuất vật tư và chọn lô/bin trừ tồn thật. 1 PR ↔ tối đa 1 phiếu xuất
+     * (không giao từng phần như material_request) — unique index ở 0067.
+     */
+    purchaseRequestId: uuid("purchase_request_id").references(
+      () => purchaseRequest.id,
+    ),
     woId: uuid("wo_id").references(() => workOrder.id),
     reference: varchar("reference", { length: 64 }),
     notes: text("notes"),
@@ -70,6 +79,10 @@ export const goodsIssue = appSchema.table(
     mrIdx: index("goods_issue_mr_idx").on(t.materialRequestId),
     issuedAtIdx: index("goods_issue_issued_at_idx").on(t.issuedAt),
     sourceIdx: index("goods_issue_source_idx").on(t.sourceType, t.issuedAt),
+    // Partial unique (WHERE purchase_request_id IS NOT NULL) — khai ở SQL 0067.
+    prUk: uniqueIndex("goods_issue_pr_uk")
+      .on(t.purchaseRequestId)
+      .where(sql`${t.purchaseRequestId} IS NOT NULL`),
   }),
 );
 
@@ -97,6 +110,10 @@ export const goodsIssueLine = appSchema.table(
     materialRequestLineId: uuid("material_request_line_id").references(
       () => materialRequestLine.id,
     ),
+    /** V4.2 (migration 0067) — dòng PR nguồn (khi goodsIssue.sourceType='PURCHASE_REQUEST'). */
+    purchaseRequestLineId: uuid("purchase_request_line_id").references(
+      () => purchaseRequestLine.id,
+    ),
     notes: text("notes"),
   },
   (t) => ({
@@ -104,6 +121,7 @@ export const goodsIssueLine = appSchema.table(
     txnUk: uniqueIndex("goods_issue_line_txn_uk").on(t.inventoryTxnId),
     itemIdx: index("goods_issue_line_item_idx").on(t.itemId),
     mrlIdx: index("goods_issue_line_mrl_idx").on(t.materialRequestLineId),
+    prlIdx: index("goods_issue_line_prl_idx").on(t.purchaseRequestLineId),
   }),
 );
 

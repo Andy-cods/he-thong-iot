@@ -48,6 +48,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import ExcelJS from "exceljs";
+import { sanitizeExcelCellValue as safe } from "./excelSafety";
 
 const PRIORITY_LABEL: Record<string, string> = {
   URGENT: "Khẩn",
@@ -202,10 +203,10 @@ export function fillYcvtCells(ws: ExcelJS.Worksheet, data: YcvtExportData): void
   ws.getCell("O3").value = data.createdAt; // ExcelJS handles Date → numeric
 
   // Section I
-  ws.getCell("D6").value = data.targetDepartment ?? "";
-  ws.getCell("D7").value = data.proposingDepartment ?? "";
-  ws.getCell("D8").value = data.requestedByName ?? "";
-  ws.getCell("D9").value = data.requestReason ?? "";
+  ws.getCell("D6").value = safe(data.targetDepartment ?? "");
+  ws.getCell("D7").value = safe(data.proposingDepartment ?? "");
+  ws.getCell("D8").value = safe(data.requestedByName ?? "");
+  ws.getCell("D9").value = safe(data.requestReason ?? "");
 
   // Section II — lines (rows 13..32, max 20)
   const LINE_START_ROW = 13;
@@ -213,10 +214,10 @@ export function fillYcvtCells(ws: ExcelJS.Worksheet, data: YcvtExportData): void
   for (let i = 0; i < Math.min(data.lines.length, MAX_LINES); i++) {
     const r = LINE_START_ROW + i;
     const l = data.lines[i]!;
-    ws.getCell(`B${r}`).value = l.name ?? "";
-    ws.getCell(`C${r}`).value = l.sku ?? "";
-    ws.getCell(`D${r}`).value = l.specification ?? "";
-    ws.getCell(`E${r}`).value = l.uom ?? "";
+    ws.getCell(`B${r}`).value = safe(l.name ?? "");
+    ws.getCell(`C${r}`).value = safe(l.sku ?? "");
+    ws.getCell(`D${r}`).value = safe(l.specification ?? "");
+    ws.getCell(`E${r}`).value = safe(l.uom ?? "");
     ws.getCell(`F${r}`).value = l.qty;
     if (l.onHandSnapshot != null) ws.getCell(`G${r}`).value = l.onHandSnapshot;
     if (l.approvedQty != null) ws.getCell(`H${r}`).value = l.approvedQty;
@@ -226,13 +227,13 @@ export function fillYcvtCells(ws: ExcelJS.Worksheet, data: YcvtExportData): void
     if (l.estimatedUnitPrice != null)
       ws.getCell(`L${r}`).value = l.estimatedUnitPrice;
     // M{r} giữ formula =IF(AND(ISNUMBER(Fx),ISNUMBER(Lx)),Fx*Lx,"") — Excel auto-tính
-    ws.getCell(`N${r}`).value = l.referenceCode ?? "";
-    ws.getCell(`O${r}`).value = l.notes ?? "";
+    ws.getCell(`N${r}`).value = safe(l.referenceCode ?? "");
+    ws.getCell(`O${r}`).value = safe(l.notes ?? "");
   }
 
   // Section III approval (rows 36-40 theo template)
   // Row 36 = Người đề xuất
-  ws.getCell("E36").value = data.requestedByName ?? "";
+  ws.getCell("E36").value = safe(data.requestedByName ?? "");
   if (data.createdAt) {
     ws.getCell("I36").value = fmtDateTimeVN(data.createdAt);
   }
@@ -240,16 +241,16 @@ export function fillYcvtCells(ws: ExcelJS.Worksheet, data: YcvtExportData): void
 
   // Row 39 = Trưởng bộ phận
   if (data.deptApprovedByName) {
-    ws.getCell("E39").value = data.deptApprovedByName;
+    ws.getCell("E39").value = safe(data.deptApprovedByName);
     ws.getCell("I39").value = fmtDateTimeVN(data.deptApprovedAt);
-    ws.getCell("M39").value = data.deptApprovalNote ?? "Đã duyệt";
+    ws.getCell("M39").value = safe(data.deptApprovalNote ?? "Đã duyệt");
   }
 
   // Row 40 = Giám đốc / Mua hàng
   if (data.directorApprovedByName) {
-    ws.getCell("E40").value = data.directorApprovedByName;
+    ws.getCell("E40").value = safe(data.directorApprovedByName);
     ws.getCell("I40").value = fmtDateTimeVN(data.directorApprovedAt);
-    ws.getCell("M40").value = data.directorApprovalNote ?? "Đã duyệt cuối";
+    ws.getCell("M40").value = safe(data.directorApprovalNote ?? "Đã duyệt cuối");
   }
 
   // Section IV tracking (rows 44-48)

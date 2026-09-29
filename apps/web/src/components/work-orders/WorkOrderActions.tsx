@@ -35,7 +35,11 @@ import {
   type WorkOrderStatus,
 } from "@/hooks/useWorkOrders";
 import { qk } from "@/lib/query-keys";
-import { isWoDeletable } from "@/lib/wo-guards";
+import {
+  WO_COMPLETE_REASON_MIN_LENGTH,
+  getWoCompleteShortfall,
+  isWoDeletable,
+} from "@/lib/wo-guards";
 import { statusLabel } from "@/lib/status";
 
 /**
@@ -55,6 +59,9 @@ export function WorkOrderActions({
   canApprove = false,
   /** V3.7.71 — Admin xoá vĩnh viễn LSX (DRAFT/CANCELLED only). */
   canDelete = false,
+  /** V4.2 PROD-01 — SL đạt/kế hoạch để phát hiện hoàn thành thiếu sản lượng. */
+  goodQty,
+  plannedQty,
   size = "sm",
 }: {
   woId: string;
@@ -66,6 +73,8 @@ export function WorkOrderActions({
   canCancel: boolean;
   canApprove?: boolean;
   canDelete?: boolean;
+  goodQty?: string | number | null;
+  plannedQty?: string | number | null;
   size?: "sm" | "md";
 }) {
   const router = useRouter();
@@ -193,14 +202,34 @@ export function WorkOrderActions({
   const onComplete = async () => {
     // TODO V4.1 Q2: bước "Nhập kho thành phẩm" (SL đạt → PROD_IN) đang TẠM ẨN
     // theo quyết định anh Thang — hoàn thành hiện chỉ chuyển trạng thái.
-    const ok = await askConfirm({
-      title: "Hoàn thành lệnh sản xuất?",
-      description: "Cần đã báo sản lượng đạt > 0 (và đủ các dòng linh kiện nếu có).",
-      confirmLabel: "Hoàn thành",
-    });
-    if (!ok) return;
+    //
+    // V4.2 PROD-01: nếu SL đạt < kế hoạch, không cho hoàn thành "êm" như cũ —
+    // hiện hộp xác nhận nêu rõ số liệu + bắt nhập lý do (≥3 ký tự, guard thật
+    // ở server `checkWoCompletable`, ô nhập ở đây chỉ là UX, không thay bảo
+    // mật). Đạt ≥ kế hoạch thì giữ nguyên hộp xác nhận đơn giản như trước.
+    const shortfall = getWoCompleteShortfall({ goodQty, plannedQty });
+    let completeReason: string | undefined;
+    if (shortfall) {
+      const reason = await askText({
+        title: "Hoàn thành thiếu sản lượng?",
+        description: `Đạt ${shortfall.good} / kế hoạch ${shortfall.planned} — hoàn thành thiếu ${shortfall.missing}. Nhập lý do để xác nhận hoàn thành sớm/thiếu.`,
+        label: "Lý do hoàn thành thiếu sản lượng",
+        minLength: WO_COMPLETE_REASON_MIN_LENGTH,
+        tone: "danger",
+        confirmLabel: "Hoàn thành (thiếu SL)",
+      });
+      if (reason === null) return;
+      completeReason = reason.trim();
+    } else {
+      const ok = await askConfirm({
+        title: "Hoàn thành lệnh sản xuất?",
+        description: "Cần đã báo sản lượng đạt > 0 (và đủ các dòng linh kiện nếu có).",
+        confirmLabel: "Hoàn thành",
+      });
+      if (!ok) return;
+    }
     try {
-      await completeMut.mutateAsync(versionLock);
+      await completeMut.mutateAsync({ versionLock, completeReason });
       toast.success("Lệnh SX đã hoàn thành.");
     } catch (e) {
       toast.error((e as Error).message);

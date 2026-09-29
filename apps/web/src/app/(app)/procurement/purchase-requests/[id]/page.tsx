@@ -53,7 +53,6 @@ import {
   useDirectorApprovePR,
   useMarkPRCompleted,
   useSubmitPR,
-  useMarkPRIssued,
   usePurchaseRequestDetail,
   useQuickApprovePR,
   useRejectPurchaseRequest,
@@ -65,6 +64,7 @@ import { formatDate, formatMoney, formatQty } from "@/lib/format";
 import type { StatusTone } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { ConvertPRToPODialog } from "@/components/procurement/ConvertPRToPODialog";
+import { MarkPrIssuedDialog } from "@/components/procurement/MarkPrIssuedDialog";
 import {
   DnvtDetailBody,
   type DnvtDetailPr,
@@ -172,7 +172,6 @@ export default function PurchaseRequestDetailPage() {
   const quickApprove = useQuickApprovePR(id);
   const reject = useRejectPurchaseRequest(id);
   const convert = useConvertPRToPOs();
-  const markIssued = useMarkPRIssued(id);
   const markCompleted = useMarkPRCompleted(id);
   const submitPr = useSubmitPR(id);
   const deletePR = useDeletePR(id);
@@ -188,6 +187,8 @@ export default function PurchaseRequestDetailPage() {
   >(null);
   const [approveNote, setApproveNote] = React.useState("");
   const [convertOpen, setConvertOpen] = React.useState(false);
+  // V4.2 (TASK "Trừ tồn luôn") — dialog chọn lô/bin xuất kho khi bấm "Đã xuất kho".
+  const [issueDialogOpen, setIssueDialogOpen] = React.useState(false);
   // Hooks phải luôn chạy trước mọi nhánh return. Nếu state này nằm sau
   // loading/not-found return, render có dữ liệu sẽ gọi thêm một Hook và React
   // ném lỗi #310 (Rendered more hooks than during the previous render).
@@ -522,29 +523,10 @@ export default function PurchaseRequestDetailPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() =>
-                  void (async () => {
-                    const ok = await askConfirm({
-                      title: "Xác nhận đã xuất kho?",
-                      description: "Xác nhận vật tư đã xuất kho cho bộ phận yêu cầu.",
-                      confirmLabel: "Đã xuất kho",
-                    });
-                    if (!ok) return;
-                    markIssued.mutate(undefined, {
-                      onSuccess: () => toast.success("Đã ghi nhận xuất kho"),
-                      onError: (e) =>
-                        toast.error(`Lỗi: ${(e as Error).message}`),
-                    });
-                  })()
-                }
-                disabled={markIssued.isPending}
+                onClick={() => setIssueDialogOpen(true)}
                 className="border-violet-300 text-violet-700 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-300 dark:hover:bg-violet-950/40"
               >
-                {markIssued.isPending ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Truck className="h-3.5 w-3.5" />
-                )}
+                <Truck className="h-3.5 w-3.5" />
                 Đã xuất kho
               </Button>
             )}
@@ -950,7 +932,13 @@ export default function PurchaseRequestDetailPage() {
                   label="Đã xuất kho"
                   date={pr.goodsIssuedAt ?? null}
                   who={null}
-                  note={pr.goodsIssuedAt ? "Đã xuất cho bộ phận yêu cầu" : "—"}
+                  note={
+                    pr.goodsIssues && pr.goodsIssues.length > 0
+                      ? `Phiếu xuất ${pr.goodsIssues.map((g) => g.issueNo).join(", ")}`
+                      : pr.goodsIssuedAt
+                        ? "Đã xuất (không trừ tồn)"
+                        : "—"
+                  }
                 />
                 <TrackingRow
                   label="Hoàn tất"
@@ -1168,6 +1156,25 @@ export default function PurchaseRequestDetailPage() {
           name: l.name ?? "",
           qty: l.qty,
           preferredSupplierId: l.preferredSupplierId ?? null,
+        }))}
+      />
+
+      {/* V4.2 (TASK "Trừ tồn luôn") — dialog chọn lô/bin xuất kho */}
+      <MarkPrIssuedDialog
+        open={issueDialogOpen}
+        onOpenChange={setIssueDialogOpen}
+        prId={id}
+        prLabel={paperFormNo !== "—" ? paperFormNo : pr.code}
+        lines={pr.lines.map((l) => ({
+          id: l.id,
+          lineNo: l.lineNo,
+          itemId: l.itemId,
+          sku: l.sku,
+          name: l.name,
+          uom: l.uom,
+          itemUom: l.itemUom,
+          qty: l.qty,
+          approvedQty: l.approvedQty,
         }))}
       />
 

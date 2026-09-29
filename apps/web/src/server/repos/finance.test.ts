@@ -100,6 +100,22 @@ function createFakeDb(
   function select(cols?: Record<string, unknown>) {
     let filterFn: ((row: FakeRow) => boolean) | null = null;
     let sourceTable: unknown;
+    let joinTable: unknown = null;
+
+    // V4.2 — innerJoin allocation ↔ payment (recalcInvoicePaidAmount lọc payment
+    // VOID). Gộp dòng payment vào dòng allocation (field allocation được ưu tiên)
+    // để predicate `ne(finPayment.status, ...)` đọc được `status` của payment.
+    function sourceRows(): FakeRow[] {
+      const base = tableArrayFor(sourceTable);
+      if (!joinTable) return base;
+      if (sourceTable !== namedTables.finPaymentAllocation || joinTable !== namedTables.finPayment) {
+        throw new Error("FakeDb: chỉ hỗ trợ innerJoin allocation ↔ payment");
+      }
+      return base.flatMap((a) => {
+        const p = tables.finPayment.find((x) => x.id === a.paymentId);
+        return p ? [{ ...p, ...a }] : [];
+      });
+    }
 
     function project(rows: FakeRow[]): FakeRow[] {
       if (!cols) return rows;
@@ -133,6 +149,10 @@ function createFakeDb(
         sourceTable = table;
         return builder;
       },
+      innerJoin(table: unknown, _on: unknown) {
+        joinTable = table;
+        return builder;
+      },
       where(fn: ((row: FakeRow) => boolean) | undefined) {
         filterFn = fn ?? null;
         return builder;
@@ -141,7 +161,7 @@ function createFakeDb(
         return builder;
       },
       limit(n: number) {
-        const rows = tableArrayFor(sourceTable).filter((r) => (filterFn ? filterFn(r) : true));
+        const rows = sourceRows().filter((r) => (filterFn ? filterFn(r) : true));
         return Promise.resolve(project(rows).slice(0, n));
       },
       orderBy() {
@@ -153,7 +173,7 @@ function createFakeDb(
       // Khi không gọi .limit(), builder tự resolve như 1 Promise (await trực
       // tiếp) — mô phỏng drizzle-orm cho phép await query builder.
       then(resolve: (rows: FakeRow[]) => void) {
-        const rows = tableArrayFor(sourceTable).filter((r) => (filterFn ? filterFn(r) : true));
+        const rows = sourceRows().filter((r) => (filterFn ? filterFn(r) : true));
         resolve(project(rows));
       },
     };
@@ -313,6 +333,7 @@ async function loadReposWithFreshDb() {
     return {
       ...actual,
       eq: (col: unknown, val: unknown) => (row: FakeRow) => row[keyFor(col)] === val,
+      ne: (col: unknown, val: unknown) => (row: FakeRow) => row[keyFor(col)] !== val,
       inArray: (col: unknown, vals: unknown[]) => (row: FakeRow) =>
         vals.includes(row[keyFor(col)]),
       and: (...preds: Array<(row: FakeRow) => boolean>) => (row: FakeRow) =>
@@ -632,6 +653,7 @@ describe("recalcInvoicePaidAmount — tính status theo quy tắc §A.3.2", () =
   it("0 < paid < total → PARTIAL (chưa quá hạn)", async () => {
     const { finInvoicesRepo, fakeTables: tables, fakeDb } = await loadReposWithFreshDb();
     const inv = seedInvoice(tables, { totalAmount: "500000", dueDate: "2099-01-01" });
+    tables.finPayment.push({ id: "p1", status: "POSTED" });
     tables.finPaymentAllocation.push({
       id: "a1",
       paymentId: "p1",
@@ -649,6 +671,7 @@ describe("recalcInvoicePaidAmount — tính status theo quy tắc §A.3.2", () =
   it("paid >= total → PAID dù đã quá hạn (trả đủ thì không còn overdue)", async () => {
     const { finInvoicesRepo, fakeTables: tables, fakeDb } = await loadReposWithFreshDb();
     const inv = seedInvoice(tables, { totalAmount: "500000", dueDate: "2020-01-01" });
+    tables.finPayment.push({ id: "p1", status: "POSTED" });
     tables.finPaymentAllocation.push({
       id: "a1",
       paymentId: "p1",
@@ -660,6 +683,23 @@ describe("recalcInvoicePaidAmount — tính status theo quy tắc §A.3.2", () =
       finInvoicesRepo.recalcInvoicePaidAmount(tx, inv.id as string),
     );
     expect(row?.status).toBe("PAID");
+  });
+
+  it("V4.2 — allocation mồ côi của payment VOID KHÔNG được tính (lỗi migration 0064 trên prod)", async () => {
+    const { finInvoicesRepo, fakeTables: tables, fakeDb } = await loadReposWithFreshDb();
+    const inv = seedInvoice(tables, { totalAmount: "500000", dueDate: "2099-01-01" });
+    // Đợt trả 1 đã huỷ nhưng allocation còn sót; đợt trả 2 còn hiệu lực.
+    tables.finPayment.push({ id: "p-void", status: "VOID" }, { id: "p-ok", status: "POSTED" });
+    tables.finPaymentAllocation.push(
+      { id: "a1", paymentId: "p-void", invoiceId: inv.id, amount: "500000", createdAt: new Date() },
+      { id: "a2", paymentId: "p-ok", invoiceId: inv.id, amount: "100000", createdAt: new Date() },
+    );
+    const row = await fakeDb.transaction((tx: any) =>
+      finInvoicesRepo.recalcInvoicePaidAmount(tx, inv.id as string),
+    );
+    // Trước bản sửa: paid = 600.000 → PAID. Đúng: chỉ 100.000 → PARTIAL.
+    expect(Number(row?.paidAmount)).toBe(100_000);
+    expect(row?.status).toBe("PARTIAL");
   });
 
   it("invoice đã CANCELLED → giữ nguyên, không tự đổi status", async () => {

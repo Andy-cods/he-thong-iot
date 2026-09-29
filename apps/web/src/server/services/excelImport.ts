@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import ExcelJS from "exceljs";
 import { itemImportRowSchema, type ItemImportRow } from "@iot/shared";
+import { assertImportRowLimit } from "./importLimits";
 
 /** Header cần có trong Excel template item. Case-insensitive. */
 export const ITEM_IMPORT_HEADER = [
@@ -67,6 +68,10 @@ export async function parseItemImport(
   // here and avoids rejecting valid supplier/item workbooks.
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(Uint8Array.from(buffer).buffer);
+
+  // V4.2 audit S15 — chặn xử lý tiếp nếu tổng số dòng (mọi sheet) quá lớn.
+  const totalRows = workbook.worksheets.reduce((acc, ws) => acc + ws.rowCount, 0);
+  assertImportRowLimit(totalRows);
 
   let headerMap: Record<string, number> | null = null;
   let rowTotal = 0;

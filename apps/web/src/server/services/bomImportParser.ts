@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import ExcelJS from "exceljs";
+import { assertImportRowLimit } from "./importLimits";
 
 /**
  * Parser BOM Excel multi-sheet (V1.1-alpha + fix smart header detect).
@@ -255,6 +256,10 @@ export async function parseBomImport(buffer: Buffer): Promise<BomParseResult> {
   const wb = new ExcelJS.Workbook();
   // ExcelJS types khác biệt Buffer vs Uint8Array → cast an toàn
   await wb.xlsx.load(buffer as unknown as ArrayBuffer);
+
+  // V4.2 audit S15 — chặn xử lý tiếp nếu tổng số dòng (mọi sheet) quá lớn.
+  const totalRows = wb.worksheets.reduce((acc, ws) => acc + ws.rowCount, 0);
+  assertImportRowLimit(totalRows);
 
   const sheets: BomSheetMeta[] = [];
   const allRowsBySheet: BomParseResult["allRowsBySheet"] = {};

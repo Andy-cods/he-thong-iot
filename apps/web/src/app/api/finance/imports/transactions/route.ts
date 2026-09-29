@@ -5,6 +5,7 @@ import { requireCan } from "@/server/session";
 import { logger } from "@/lib/logger";
 import { createImportBatch, updateImportBatch } from "@/server/repos/importBatch";
 import { parseFinanceTransactionImport } from "@/server/services/financeImport";
+import { ImportTooManyRowsError } from "@/server/services/importLimits";
 import { writeAudit } from "@/server/services/audit";
 
 export const runtime = "nodejs";
@@ -44,6 +45,9 @@ export async function POST(req: NextRequest) {
   try {
     parsed = await parseFinanceTransactionImport(buffer);
   } catch (err) {
+    if (err instanceof ImportTooManyRowsError) {
+      return jsonError(err.code, err.message, 422);
+    }
     logger.error({ err }, "parseFinanceTransactionImport failed");
     return jsonError(
       "PARSE_FAILED",

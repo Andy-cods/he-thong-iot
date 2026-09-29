@@ -14,7 +14,12 @@ import { QueryError } from "@/components/ui/query-error";
 /**
  * V3.3 — NotificationBell với dropdown panel.
  *
- * Polling /api/notifications mỗi 30s.
+ * Polling /api/notifications mỗi 60s (V4.2 PERF_REDUNDANCY.md #7 — trước đây
+ * 30s toàn cục, ước tính ~15.000 query/ngày, chiếm phần lớn tổng polling).
+ * `refetchIntervalInBackground: false` (mặc định của TanStack Query, khai báo
+ * tường minh) — dừng poll khi tab không hiển thị. Bù lại bật
+ * `refetchOnWindowFocus: "always"` riêng cho query này (ghi đè default tắt ở
+ * `QueryProvider`) để không làm chậm thông báo khi user quay lại tab.
  * Badge count = chỉ direct (recipient_user = me & unread).
  * Dropdown hiện 10 mới nhất + "Đánh dấu đã đọc tất cả" + link "Xem tất cả".
  */
@@ -65,8 +70,10 @@ export function NotificationBell() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.json();
     },
-    refetchInterval: 30_000,
-    staleTime: 25_000,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: "always",
+    staleTime: 55_000,
   });
 
   const markRead = useMutation({

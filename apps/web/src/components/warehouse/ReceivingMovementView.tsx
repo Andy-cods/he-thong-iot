@@ -106,26 +106,32 @@ function EtaBadge({ eta }: { eta: string | null | undefined }) {
 
 /* ── Progress mini bar ───────────────────────────────────────────────────── */
 
+/**
+ * V4.2 PERF_REDUNDANCY.md — trước đây bịa % (50% cố định cho mọi PO PARTIAL,
+ * bất kể đã nhận 5% hay 95%) + dòng code chết `{ordered > 0 ? null : null}`.
+ * `PORow` (API list `/api/purchase-orders`, `listPOs`) KHÔNG có SL nhận/đặt
+ * tổng hợp — chỉ `POLineRow` (chi tiết từng PO, fetch riêng theo PO) mới có
+ * `orderedQty`/`receivedQty`. Lấy số đó ở đây sẽ phải gọi API chi tiết cho
+ * TỪNG dòng trong danh sách (N+1) — không làm, vì đổi cả nguồn dữ liệu list
+ * ngoài phạm vi "chỉ sửa hàm này". Thay % bịa bằng nhãn trạng thái (có màu
+ * phân biệt nhanh Chưa nhận/Một phần/Đã đủ) — không hiển thị số nào cả.
+ */
 function ReceivingProgress({ po }: { po: PORow }) {
-  const ordered = Number(po.totalAmount ?? 0);
+  const isDone = po.status === "RECEIVED" || po.status === "CLOSED";
   const isPartial = po.status === "PARTIAL";
-  // PORow không expose received/ordered qty tổng hợp; dùng status làm proxy
-  // trực quan (không có số liệu chính xác % ở list API — tránh bịa số).
-  const pct = po.status === "RECEIVED" || po.status === "CLOSED" ? 100 : isPartial ? 50 : 0;
   return (
-    <div className="flex items-center gap-2" title={`Trạng thái: ${statusLabel("po", po.status)}`}>
-      <div className="h-1.5 w-16 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-        <div
-          className={cn(
-            "h-full rounded-full transition-all",
-            pct === 100 ? "bg-emerald-500" : pct > 0 ? "bg-amber-500" : "bg-zinc-300 dark:bg-zinc-600",
-          )}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      <span className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400">{pct}%</span>
-      {ordered > 0 ? null : null}
-    </div>
+    <span
+      className={cn(
+        "text-xs font-medium",
+        isDone
+          ? "text-emerald-600 dark:text-emerald-400"
+          : isPartial
+            ? "text-amber-600 dark:text-amber-400"
+            : "text-zinc-400 dark:text-zinc-500",
+      )}
+    >
+      {statusLabel("po", po.status)}
+    </span>
   );
 }
 
@@ -164,10 +170,13 @@ function RowActionsMenu({
           <Check className="h-3.5 w-3.5" aria-hidden />
           Duyệt nhận đủ
         </DropdownMenuItem>
-        <DropdownMenuItem variant="danger" onClick={onReject}>
-          <X className="h-3.5 w-3.5" aria-hidden />
-          Từ chối
-        </DropdownMenuItem>
+        {/* V4.2 — PO đã nhận một phần có hàng thật trong kho: không từ chối được, phải "Đóng PO". */}
+        {po.status !== "PARTIAL" && (
+          <DropdownMenuItem variant="danger" onClick={onReject}>
+            <X className="h-3.5 w-3.5" aria-hidden />
+            Từ chối
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

@@ -22,6 +22,13 @@ export const dynamic = "force-dynamic";
 
 const schema = z.object({
   versionLock: z.number().int().nonnegative().optional(),
+  /**
+   * V4.2 PROD-01 — bắt buộc (≥3 ký tự) khi SL đạt < kế hoạch. Guard thật nằm
+   * ở `checkWoCompletable` (server, không tin JS phía client) — zod ở đây chỉ
+   * validate KIỂU DỮ LIỆU, không validate độ dài (vì hợp lệ hay không phụ
+   * thuộc có thiếu SL hay không, guard mới biết).
+   */
+  completeReason: z.string().trim().max(2000).optional(),
 });
 
 /** POST /api/work-orders/[id]/complete — IN_PROGRESS → COMPLETED (admin/planner). */
@@ -36,14 +43,24 @@ export async function POST(
   if ("response" in body) return body.response;
 
   try {
-    const wo = await completeWO(params.id, body.data.versionLock);
+    const wo = await completeWO(
+      params.id,
+      body.data.versionLock,
+      body.data.completeReason,
+    );
     const meta = extractRequestMeta(req);
     await writeAudit({
       actor: guard.session,
       action: "WO_COMPLETE",
       objectType: "work_order",
       objectId: wo.id,
-      after: { status: wo.status, completedAt: wo.completedAt },
+      after: {
+        status: wo.status,
+        completedAt: wo.completedAt,
+        goodQty: wo.goodQty,
+        plannedQty: wo.plannedQty,
+        completeReason: body.data.completeReason || null,
+      },
       ...meta,
     });
 
@@ -53,7 +70,11 @@ export async function POST(
       entityType: "work_order",
       entityId: wo.id,
       action: "WO_COMPLETED",
-      diffJson: { status: wo.status, completedAt: wo.completedAt },
+      diffJson: {
+        status: wo.status,
+        completedAt: wo.completedAt,
+        completeReason: body.data.completeReason || null,
+      },
       ipAddress: meta.ipAddress ?? null,
       userAgent: meta.userAgent ?? null,
     });

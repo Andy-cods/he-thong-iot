@@ -8,6 +8,7 @@ import {
   updateImportBatch,
 } from "@/server/repos/importBatch";
 import { autoMapHeaders, parseBomImport } from "@/server/services/bomImportParser";
+import { ImportTooManyRowsError } from "@/server/services/importLimits";
 import { writeAudit } from "@/server/services/audit";
 import { requireCan } from "@/server/session";
 
@@ -53,6 +54,9 @@ export async function POST(req: NextRequest) {
   try {
     parsed = await parseBomImport(buffer);
   } catch (err) {
+    if (err instanceof ImportTooManyRowsError) {
+      return jsonError(err.code, err.message, 422);
+    }
     logger.error({ err }, "parseBomImport failed");
     return jsonError(
       "PARSE_FAILED",

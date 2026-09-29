@@ -26,6 +26,7 @@ import {
 import { useSession } from "@/hooks/useSession";
 import { StatusPill } from "@/components/ui/status-badge";
 import { formatDateTime } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 /**
  * TASK-20260922 — Drawer chi tiết 1 hoá đơn (click 1 dòng trong
@@ -90,11 +91,31 @@ export function InvoiceDetailSheet({
                 </div>
               </div>
 
+              {/* Thẻ tổng kết kiểu "receipt" (Apple Wallet pass) thay `dl` liệt
+                  kê 4 dòng viền/label uppercase — 2 số quan trọng nhất (Tổng
+                  tiền/Còn nợ) nổi bật trong thẻ, 2 số phụ ở dưới (§3.7). */}
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-800/50">
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Tổng tiền</p>
+                  <p className="mt-0.5 text-lg font-bold tabular-nums text-zinc-900 dark:text-zinc-50">{fmtVND(inv.totalAmount)}</p>
+                </div>
+                <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-800/50">
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Còn nợ</p>
+                  <p
+                    className={cn(
+                      "mt-0.5 text-lg font-bold tabular-nums",
+                      Number(inv.totalAmount) - Number(inv.paidAmount) > 0
+                        ? "text-rose-600 dark:text-rose-400"
+                        : "text-zinc-900 dark:text-zinc-50",
+                    )}
+                  >
+                    {fmtVND(Number(inv.totalAmount) - Number(inv.paidAmount))}
+                  </p>
+                </div>
+              </div>
               <dl className="grid grid-cols-2 gap-x-3 gap-y-2.5 text-sm">
                 <InfoRow label="Hạn thanh toán" value={fmtDate(inv.dueDate)} />
-                <InfoRow label="Tổng tiền" value={<span className="font-semibold">{fmtVND(inv.totalAmount)}</span>} />
                 <InfoRow label="Đã trả" value={<span className="font-semibold text-emerald-700 dark:text-emerald-400">{fmtVND(inv.paidAmount)}</span>} />
-                <InfoRow label="Còn nợ" value={<span className="font-semibold text-rose-600 dark:text-rose-400">{fmtVND(Number(inv.totalAmount) - Number(inv.paidAmount))}</span>} />
               </dl>
 
               {canEdit && !["CANCELLED", "PAID"].includes(inv.status) && (
@@ -150,15 +171,14 @@ export function InvoiceDetailSheet({
               )}
 
               {inv.purchaseOrderId && can(roles, "read", "po") && (
-                <div>
-                  <Link
-                    href={`/procurement/purchase-orders/${inv.purchaseOrderId}`}
-                    className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-700 hover:underline dark:text-indigo-400"
-                  >
+                // Nâng từ link text sang button outline full-width — điều
+                // hướng quan trọng (quay lại PO gốc) dễ tìm thấy hơn (§1.6/§3.7).
+                <Button asChild variant="outline" size="sm" className="w-full">
+                  <Link href={`/procurement/purchase-orders/${inv.purchaseOrderId}`}>
+                    <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                     Xem đơn mua liên quan
-                    <ExternalLink className="h-3 w-3" aria-hidden="true" />
                   </Link>
-                </div>
+                </Button>
               )}
 
               {/* Lịch sử thanh toán (allocation) */}

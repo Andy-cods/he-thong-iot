@@ -117,6 +117,10 @@ export const QUEUE_NAMES = {
   // V4.0 đợt 2 Phase F — repeatable job (1 lần/ngày) quét fin_invoice sắp/đã
   // quá hạn thanh toán, bắn notification + đồng bộ status OVERDUE.
   FIN_INVOICE_REMINDER_SCAN: "fin-invoice-reminder-scan",
+  // V4.2 PROCUREMENT_WAREHOUSE P1-1 — repeatable job (1 lần/ngày) quét PR đã
+  // duyệt cuối (APPROVED/DIRECTOR_APPROVED) quá 3 ngày chưa tạo PO, nhắc
+  // purchaser; nhắc lại tối đa mỗi 7 ngày (dedupe).
+  PR_APPROVED_NO_PO_SCAN: "pr-approved-no-po-scan",
 } as const;
 
 /**
@@ -134,4 +138,9 @@ export const LIMITS = {
   LOGIN_MAX_FAILURES_BEFORE_LOCK: 5,
   LOCK_DURATION_MS: 15 * 60 * 1000,
   REQUEST_ID_HEADER: "x-request-id",
+  // V4.2 audit S15 — chặn resource DoS khi import Excel: file .xlsx nén tốt
+  // có thể giải nén thành workbook rất lớn dù dung lượng file nhỏ. Giới hạn
+  // này áp dụng SAU khi ExcelJS.load() xong, chặn các bước validate/lưu DB
+  // tốn thêm tài nguyên với file có quá nhiều dòng dữ liệu thật.
+  IMPORT_MAX_ROWS: 20_000,
 } as const;

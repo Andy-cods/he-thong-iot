@@ -38,6 +38,10 @@ import {
   processFinInvoiceReminderScan,
   type FinInvoiceReminderScanJob,
 } from "./jobs/finInvoiceReminderScan.js";
+import {
+  processPrApprovedNoPoScan,
+  type PrApprovedNoPoScanJob,
+} from "./jobs/prApprovedNoPoScan.js";
 import { eq } from "drizzle-orm";
 import { importBatch } from "@iot/db/schema";
 import { db, pgClient } from "./db.js";
@@ -226,6 +230,24 @@ const finInvoiceReminderScanWorker = new Worker<FinInvoiceReminderScanJob>(
   },
 );
 
+// V4.2 PROCUREMENT_WAREHOUSE.md P1-1 — "Nhắc PR đã duyệt nhưng chưa lên PO":
+// quét 1 LẦN/NGÀY (giống fin-invoice-reminder-scan — ngưỡng NGÀY, không cần
+// tần suất cao như PR_REMINDER_SCAN mỗi 1h chuyên bắt ngưỡng GIỜ).
+const prApprovedNoPoScanWorker = new Worker<PrApprovedNoPoScanJob>(
+  QUEUE_NAMES.PR_APPROVED_NO_PO_SCAN,
+  async (job) => {
+    logger.info({ jobId: job.id }, "pr-approved-no-po-scan: start");
+    const res = await processPrApprovedNoPoScan(job);
+    logger.info({ jobId: job.id, res }, "pr-approved-no-po-scan: done");
+    return res;
+  },
+  {
+    connection,
+    prefix,
+    concurrency: 1,
+  },
+);
+
 for (const w of [
   itemImportCommitWorker,
   bomImportCommitWorker,
@@ -235,6 +257,7 @@ for (const w of [
   prReminderScanWorker,
   financeTransactionImportCommitWorker,
   finInvoiceReminderScanWorker,
+  prApprovedNoPoScanWorker,
 ]) {
   w.on("ready", () => logger.info({ queue: w.name }, "worker ready"));
   w.on("failed", (job, err) => {
@@ -312,6 +335,10 @@ const metricQueues = {
     QUEUE_NAMES.FIN_INVOICE_REMINDER_SCAN,
     { connection, prefix },
   ),
+  [QUEUE_NAMES.PR_APPROVED_NO_PO_SCAN]: new Queue(
+    QUEUE_NAMES.PR_APPROVED_NO_PO_SCAN,
+    { connection, prefix },
+  ),
 };
 registerQueueDepthGauge(metricQueues);
 
@@ -337,6 +364,15 @@ await metricQueues[QUEUE_NAMES.FIN_INVOICE_REMINDER_SCAN].upsertJobScheduler(
   { name: "scan" },
 );
 
+// V4.2 PROCUREMENT_WAREHOUSE.md P1-1 — Đăng ký lịch quét "PR duyệt xong
+// nhưng chưa lên PO" 1 LẦN/NGÀY, giờ lệch với fin-invoice-reminder-scan
+// (07:30 thay vì 07:00 VN) để 2 job daily không cùng đánh thức DB 1 lúc.
+await metricQueues[QUEUE_NAMES.PR_APPROVED_NO_PO_SCAN].upsertJobScheduler(
+  "pr-approved-no-po-scan-daily",
+  { pattern: "30 0 * * *" },
+  { name: "scan" },
+);
+
 let shuttingDown = false;
 const shutdown = async (signal: string) => {
   if (shuttingDown) return;
@@ -355,6 +391,7 @@ const shutdown = async (signal: string) => {
       prReminderScanWorker.close(),
       financeTransactionImportCommitWorker.close(),
       finInvoiceReminderScanWorker.close(),
+      prApprovedNoPoScanWorker.close(),
       ...Object.values(metricQueues).map((q) => q.close()),
     ]);
     await connection.quit();
@@ -381,6 +418,7 @@ logger.info(
       QUEUE_NAMES.PR_REMINDER_SCAN,
       QUEUE_NAMES.FINANCE_TRANSACTION_IMPORT_COMMIT,
       QUEUE_NAMES.FIN_INVOICE_REMINDER_SCAN,
+      QUEUE_NAMES.PR_APPROVED_NO_PO_SCAN,
     ],
     prefix,
   },

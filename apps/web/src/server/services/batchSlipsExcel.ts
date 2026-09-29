@@ -7,6 +7,7 @@
  * khối thông tin header + bảng dòng vật tư).
  */
 import ExcelJS from "exceljs";
+import { sanitizeExcelCellValue, sanitizeExcelRow } from "./excelSafety";
 
 export interface SlipSheet {
   /** Tên gợi ý cho sheet — sẽ được sanitize theo luật Excel + dedupe bên trong. */
@@ -106,7 +107,8 @@ export async function buildSlipsWorkbook(input: {
     styleHeaderRow(headerRow);
     summarySheet.views = [{ state: "frozen", ySplit: headerRow.number }];
     for (const rowData of input.summary.rows) {
-      styleDataRow(summarySheet.addRow(rowData));
+      // V4.2 audit S14 — chống formula injection cho cột free-text.
+      styleDataRow(summarySheet.addRow(sanitizeExcelRow(rowData)));
     }
   }
 
@@ -122,7 +124,8 @@ export async function buildSlipsWorkbook(input: {
     ws.mergeCells(1, 1, 1, slipColCount);
 
     for (const [label, value] of slip.info) {
-      const row = ws.addRow([label, value]);
+      // V4.2 audit S14 — value là free-text (vd lý do đề xuất, ghi chú).
+      const row = ws.addRow([label, sanitizeExcelCellValue(value)]);
       row.getCell(1).font = { bold: true };
     }
 
@@ -132,7 +135,7 @@ export async function buildSlipsWorkbook(input: {
     styleHeaderRow(headerRow);
 
     for (const rowData of slip.rows) {
-      styleDataRow(ws.addRow(rowData));
+      styleDataRow(ws.addRow(sanitizeExcelRow(rowData)));
     }
 
     slip.columns.forEach((c, idx) => {

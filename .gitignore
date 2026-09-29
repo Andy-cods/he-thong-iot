@@ -115,3 +115,7 @@ apps/web/inspect_target.xlsx
 # Claude agent local
 .claude/settings.json
 .claude/scheduled_tasks.lock
+
+# V4.2 audit S — không commit khoá/chứng chỉ private
+*.pem
+*.key

@@ -12,7 +12,7 @@ import { AUTH_COOKIE_NAME, verifyAccessToken } from "@/lib/auth";
 import { HubTabsNav, type HubTabDef } from "@/components/common/HubTabsNav";
 import { SuppliersTab } from "@/components/sales/SuppliersTab";
 import { POTab } from "@/components/sales/POTab";
-import { OverviewTab } from "@/components/finance/OverviewTab";
+import { OverviewTabLazy } from "@/components/sales/OverviewTabLazy";
 import { CashbookGroupTab } from "@/components/finance/CashbookGroupTab";
 import { SettlementsGroupTab } from "@/components/finance/SettlementsGroupTab";
 
@@ -57,12 +57,18 @@ export const dynamic = "force-dynamic";
  */
 const PURCHASING_ROLES: Role[] = ["admin", "purchaser"];
 
+// V4.2 UI (redesign Tài chính §1.9) — bỏ tiền tố "TC:" lặp lại ở 3 nhãn cuối:
+// icon riêng biệt (BarChart3/Wallet/Wallet2, khác hẳn ShoppingCart/Building2
+// của nhóm mua hàng) đã đủ phân nhóm trực quan, tiền tố chỉ tốn ký tự và là
+// nguyên nhân chính khiến nhãn dài bị cắt trên thanh tab 390px. `key` giữ
+// nguyên (`fin-overview`/`fin-cashbook`/`fin-settle`) nên link `?tab=` cũ
+// không gãy.
 const SALES_TABS = [
   { key: "po",           label: "Đặt hàng (PO)",       icon: ShoppingCart, group: "purchasing" as const },
   { key: "suppliers",    label: "Nhà cung cấp",        icon: Building2,    group: "purchasing" as const },
-  { key: "fin-overview", label: "TC: Tổng quan",       icon: BarChart3,    group: "finance" as const },
-  { key: "fin-cashbook", label: "TC: Sổ quỹ",          icon: Wallet,       group: "finance" as const },
-  { key: "fin-settle",   label: "TC: Công nợ & Thiết lập", icon: Wallet2,  group: "finance" as const },
+  { key: "fin-overview", label: "Tổng quan",           icon: BarChart3,    group: "finance" as const },
+  { key: "fin-cashbook", label: "Sổ quỹ",              icon: Wallet,       group: "finance" as const },
+  { key: "fin-settle",   label: "Công nợ & Thiết lập", icon: Wallet2,      group: "finance" as const },
 ] as const satisfies ReadonlyArray<HubTabDef & { group: "purchasing" | "finance" }>;
 
 type SalesTab = (typeof SALES_TABS)[number]["key"];
@@ -126,7 +132,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
       <div className="flex-1 md:min-h-0 md:overflow-hidden">
         {active === "po"           && <POTab />}
         {active === "suppliers"    && <SuppliersTab />}
-        {active === "fin-overview" && <OverviewTab />}
+        {active === "fin-overview" && <OverviewTabLazy />}
         {active === "fin-cashbook" && <CashbookGroupTab initialSub={effectiveSub} />}
         {active === "fin-settle"   && <SettlementsGroupTab initialSub={effectiveSub} />}
       </div>

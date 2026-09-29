@@ -1,7 +1,7 @@
 // LƯU Ý: numeric(18,2) trả về string qua Drizzle/pg driver — convert Number()
 // trước khi tính toán/serialize cho chart (xem wave-2-finance.md §C.4).
 import { and, desc, eq, getTableColumns, inArray, ne, sql, type SQL } from "drizzle-orm";
-import { finInvoice, finPaymentAllocation, supplier } from "@iot/db/schema";
+import { finInvoice, finPayment, finPaymentAllocation, supplier } from "@iot/db/schema";
 import type {
   FinInvoiceCreate,
   FinInvoiceStatus,
@@ -232,10 +232,14 @@ export async function recalcInvoicePaidAmount(tx: Tx, invoiceId: string) {
   if (!invoiceRow) return null;
   if (invoiceRow.status === "CANCELLED") return null;
 
+  // V4.2 — chỉ cộng phân bổ của đợt thanh toán CÒN HIỆU LỰC. Migration 0064
+  // từng đánh dấu payment VOID mà không xoá allocation → HĐ hiện "Đã trả" dù
+  // thực trả 0 ₫. Lọc ở đây để allocation mồ côi (nếu còn) không bao giờ tính.
   const [sumRow] = await tx
     .select({ paid: sql<string>`coalesce(sum(${finPaymentAllocation.amount}), 0)` })
     .from(finPaymentAllocation)
-    .where(eq(finPaymentAllocation.invoiceId, invoiceId));
+    .innerJoin(finPayment, eq(finPayment.id, finPaymentAllocation.paymentId))
+    .where(and(eq(finPaymentAllocation.invoiceId, invoiceId), ne(finPayment.status, "VOID")));
 
   const paid = Number(sumRow?.paid ?? 0);
   const total = Number(invoiceRow.totalAmount);

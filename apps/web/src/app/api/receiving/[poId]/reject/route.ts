@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
-import { getPO, rejectReceivingPO } from "@/server/repos/purchaseOrders";
+import { POTransitionError, cancelPO, getPO } from "@/server/repos/purchaseOrders";
 import {
   extractRequestMeta,
   jsonError,
@@ -18,7 +18,9 @@ export const dynamic = "force-dynamic";
  *
  * Từ chối nhận hàng (hư hỏng, sai item, sai số lượng nghiêm trọng).
  *
- * SENT/PARTIAL → CANCELLED. Lưu metadata.rejectedReason + rejectedStage='RECEIVING'.
+ * Chỉ SENT (chưa nhận gì) → CANCELLED. V4.2: PO PARTIAL đã có hàng thật trong
+ * kho KHÔNG được huỷ ở đây (trước đây được → mất đối soát) — phải "Đóng PO".
+ * Dùng chung `cancelPO` (transaction + FOR UPDATE + chặn HAS_RECEIPTS).
  *
  * Note: enum `purchase_order_status` không có 'REJECTED' — dùng CANCELLED +
  * metadata để đánh dấu (KISS, không alter enum).
@@ -49,10 +51,17 @@ export async function POST(
   if (before.status === "CANCELLED") {
     return jsonError("ALREADY_CANCELLED", "PO đã CANCELLED.", 409);
   }
-  if (before.status !== "SENT" && before.status !== "PARTIAL") {
+  if (before.status === "PARTIAL") {
+    return jsonError(
+      "HAS_RECEIPTS",
+      "PO đã nhận một phần hàng — không từ chối được. Dùng “Đóng PO” ở trang chi tiết PO.",
+      409,
+    );
+  }
+  if (before.status !== "SENT") {
     return jsonError(
       "INVALID_STATE",
-      `PO đang ${before.status} — chỉ từ chối được PO đang SENT/PARTIAL.`,
+      `PO đang ${before.status} — chỉ từ chối được PO đã gửi NCC, chưa nhận hàng.`,
       409,
     );
   }
@@ -61,14 +70,11 @@ export async function POST(
   if ("response" in body) return body.response;
 
   try {
-    const row = await rejectReceivingPO(
+    const row = await cancelPO(
       params.poId,
       guard.session.userId,
-      body.data.reason,
+      `Từ chối nhận hàng: ${body.data.reason}`,
     );
-    if (!row) {
-      return jsonError("CONFLICT", "PO vừa thay đổi trạng thái.", 409);
-    }
 
     const meta = extractRequestMeta(req);
     await writeAudit({
@@ -90,6 +96,9 @@ export async function POST(
       data: row,
     });
   } catch (err) {
+    if (err instanceof POTransitionError) {
+      return jsonError(err.code, err.message, err.status);
+    }
     logger.error({ err, poId: params.poId }, "receiving reject failed");
     return jsonError("INTERNAL", "Không từ chối được PO.", 500);
   }

@@ -230,6 +230,8 @@ export default function WorkOrderDetailPage() {
               canCancel={isAdmin}
               canApprove={canApprove}
               canDelete={isAdmin}
+              goodQty={wo.goodQty}
+              plannedQty={wo.plannedQty}
               size="sm"
             />
           </div>

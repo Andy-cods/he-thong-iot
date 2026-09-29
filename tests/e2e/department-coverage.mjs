@@ -10,7 +10,17 @@
 //   - V3.7.27 features (rename BOM, supplier auto-create)
 // =====================================================================
 
-const BASE = process.env.BASE || "https://mes.songchau.vn";
+// V4.2 audit S11 — KHÔNG mặc định nhắm production nữa (dễ chạy nhầm bằng
+// tài khoản test lên hệ thống thật). Bắt buộc set BASE tường minh.
+const BASE = process.env.BASE;
+if (!BASE) {
+  console.error(
+    "[E2E] Thiếu biến môi trường BASE. Đặt tường minh trước khi chạy, ví dụ:\n" +
+      "  BASE=http://127.0.0.1:3001 node tests/e2e/department-coverage.mjs\n" +
+      "  BASE=https://mes.songchau.vn node tests/e2e/department-coverage.mjs  (cố ý nhắm prod)",
+  );
+  process.exit(1);
+}
 const PASSWORDS = ["Test@1234", "ChangeMe!234"];
 const TS = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
 

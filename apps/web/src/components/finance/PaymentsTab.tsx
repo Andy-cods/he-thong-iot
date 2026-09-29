@@ -3,7 +3,18 @@
 import * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFieldArray, useForm } from "react-hook-form";
-import { AlertTriangle, Ban, ChevronDown, ChevronRight, CreditCard, Plus, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Ban,
+  ChevronDown,
+  ChevronRight,
+  CreditCard,
+  Inbox,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import {
   parseAsInteger,
   parseAsStringEnum,
@@ -17,12 +28,13 @@ import {
 } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/ui/query-error";
 import { RowActionsMenu } from "@/components/ui/data-table";
@@ -259,6 +271,19 @@ function PaymentCard({
       >
         <div className="flex min-w-0 items-center gap-3">
           {expanded ? <ChevronDown className="h-4 w-4 shrink-0 text-zinc-400" /> : <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" />}
+          {/* Avatar tròn chứa icon hướng — pattern "list row có leading icon"
+              chuẩn iOS Mail/Messages (§2.6), thay chevron đơn độc. */}
+          <div
+            className={cn(
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
+              row.direction === "IN"
+                ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
+                : "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400",
+            )}
+            aria-hidden="true"
+          >
+            {row.direction === "IN" ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
+          </div>
           <div className="min-w-0">
             <p className="flex items-center gap-2 font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-50">
               {row.code}
@@ -271,13 +296,13 @@ function PaymentCard({
                 className="font-sans"
               />
             </p>
-            <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="truncate text-xs text-zinc-500 dark:text-zinc-400" title={supplierName}>
               {fmtDate(row.paymentDate)} · {accountName ?? "—"}{supplierName ? ` · ${supplierName}` : ""} · {METHOD_LABEL[row.method]}
             </p>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-3">
-          <p className={cn("whitespace-nowrap text-sm font-bold tabular-nums", row.direction === "IN" ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400", isVoid && "line-through")}>
+          <p className={cn("inline-flex items-center gap-0.5 whitespace-nowrap text-sm font-bold tabular-nums", row.direction === "IN" ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400", isVoid && "line-through")}>
             {row.direction === "IN" ? "+" : "−"}{fmtVND(row.totalAmount)}
           </p>
         </div>
@@ -428,191 +453,207 @@ function PaymentFormDialog({
     }
   };
 
+  const formId = "pay-form";
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      {/* size="lg" (560px) — nội dung có thể mở rộng động (nhiều dòng phân bổ),
+          Dialog trung tâm cố định trước đây bóp chật ở 390px (§1.8/§3.4). */}
+      <SheetContent side="right" size="lg" className="flex flex-col">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2 text-base">
             <CreditCard className="h-4 w-4" aria-hidden="true" />
             Ghi nhận thanh toán
-          </DialogTitle>
-        </DialogHeader>
-        <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-3" noValidate>
-          <div className="flex items-center gap-1.5">
-            {(["OUT", "IN"] as const).map((d) => (
-              <button
-                key={d}
-                type="button"
-                onClick={() => { setDirection(d); setValue("allocations", []); }}
-                className={cn(
-                  "inline-flex h-8 items-center rounded-full border px-3 text-sm font-medium",
-                  direction === d
-                    ? "border-indigo-600 bg-indigo-600 text-white"
-                    : "border-zinc-200 bg-white text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400",
-                )}
-              >
-                {d === "OUT" ? "Chi cho NCC" : "Thu từ khách"}
-              </button>
-            ))}
-          </div>
+          </SheetTitle>
+        </SheetHeader>
+        <SheetBody>
+          <form id={formId} onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-3" noValidate>
+            <div className="flex items-center gap-1.5">
+              {(["OUT", "IN"] as const).map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => { setDirection(d); setValue("allocations", []); }}
+                  className={cn(
+                    "inline-flex h-8 items-center rounded-full border px-3 text-sm font-medium",
+                    direction === d
+                      ? "border-indigo-600 bg-indigo-600 text-white"
+                      : "border-zinc-200 bg-white text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400",
+                  )}
+                >
+                  {d === "OUT" ? "Chi cho NCC" : "Thu từ khách"}
+                </button>
+              ))}
+            </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="pay-account" required>{sourceLabel}</Label>
-              <AccountSourceSelect
-                id="pay-account"
-                accounts={accounts}
-                placeholder={`— Chọn ${sourceLabel.toLowerCase()} —`}
-                {...register("accountId")}
-              />
-              <BalanceAfterHint account={account} direction={direction} amount={allocationSum} />
-              {errors.accountId && <p className="mt-1 text-xs text-red-600 dark:text-red-400">Chọn {sourceLabel.toLowerCase()}.</p>}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="pay-account" required>{sourceLabel}</Label>
+                <AccountSourceSelect
+                  id="pay-account"
+                  accounts={accounts}
+                  placeholder={`— Chọn ${sourceLabel.toLowerCase()} —`}
+                  {...register("accountId")}
+                />
+                <BalanceAfterHint account={account} direction={direction} amount={allocationSum} />
+                {errors.accountId && <p className="mt-1 text-xs text-red-600 dark:text-red-400">Chọn {sourceLabel.toLowerCase()}.</p>}
+              </div>
+              <div>
+                <Label htmlFor="pay-supplier" required>{direction === "OUT" ? "Nhà cung cấp" : "Khách hàng"}</Label>
+                <SupplierPicker value={supplier} onChange={(v) => { setSupplier(v); setValue("allocations", []); }} id="pay-supplier" />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="pay-supplier" required>{direction === "OUT" ? "Nhà cung cấp" : "Khách hàng"}</Label>
-              <SupplierPicker value={supplier} onChange={(v) => { setSupplier(v); setValue("allocations", []); }} id="pay-supplier" />
-            </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="pay-date" required>Ngày thanh toán</Label>
-              <Input id="pay-date" type="date" {...register("paymentDate")} className="mt-1" />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="pay-date" required>Ngày thanh toán</Label>
+                <Input id="pay-date" type="date" {...register("paymentDate")} className="mt-1" />
+              </div>
+              <div>
+                <Label htmlFor="pay-method">Phương thức</Label>
+                <select id="pay-method" {...register("method")} className={selectClassName}>
+                  {Object.entries(METHOD_LABEL).map(([k, v]) => (
+                    <option key={k} value={k}>{v}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <div>
-              <Label htmlFor="pay-method">Phương thức</Label>
-              <select id="pay-method" {...register("method")} className={selectClassName}>
-                {Object.entries(METHOD_LABEL).map(([k, v]) => (
-                  <option key={k} value={k}>{v}</option>
-                ))}
-              </select>
-            </div>
-          </div>
 
-          {/* Phân bổ hoá đơn */}
-          <div className="rounded-lg border border-zinc-200 dark:border-zinc-800">
-            <div className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-800/60">
-              <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                Phân bổ cho hoá đơn ({fields.length})
-              </p>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                disabled={!supplier || openInvoices.length === 0}
-                onClick={() => append({ invoiceId: "", amount: 0 })}
-              >
-                <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Thêm dòng
-              </Button>
-            </div>
-            <div className="space-y-2 p-3">
-              {!supplier ? (
-                <p className="text-xs text-zinc-400 dark:text-zinc-500">Chọn đối tác để xem hoá đơn còn nợ.</p>
-              ) : fields.length === 0 ? (
-                <p className="text-xs text-zinc-400 dark:text-zinc-500">
-                  {openInvoices.length === 0 ? "Đối tác này không có hoá đơn còn nợ." : "Bấm \"Thêm dòng\" để chọn hoá đơn phân bổ."}
+            {/* Phân bổ hoá đơn */}
+            <div className="rounded-lg border border-zinc-200 dark:border-zinc-800">
+              <div className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-800/60">
+                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                  Phân bổ cho hoá đơn ({fields.length})
                 </p>
-              ) : (
-                fields.map((f, idx) => {
-                  const selectedInvoiceId = allocations?.[idx]?.invoiceId;
-                  const inv = selectedInvoiceId ? invoiceMap.get(selectedInvoiceId) : undefined;
-                  // V4.1 TC-09 — HĐ đã chọn ở dòng khác không hiện lại.
-                  const takenElsewhere = new Set(
-                    (allocations ?? [])
-                      .filter((_, j) => j !== idx)
-                      .map((a) => a.invoiceId)
-                      .filter(Boolean),
-                  );
-                  const remaining = inv ? Number(inv.totalAmount) - Number(inv.paidAmount) : undefined;
-                  return (
-                    <div key={f.id} className="grid grid-cols-[1fr_140px_auto] items-start gap-2">
-                      <div>
-                        <select
-                          {...register(`allocations.${idx}.invoiceId` as const)}
-                          aria-label={`Hoá đơn dòng ${idx + 1}`}
-                          className={cn(selectClassName, "mt-0")}
-                        >
-                          <option value="">— Chọn hoá đơn —</option>
-                          {openInvoices.filter((i) => !takenElsewhere.has(i.id)).map((i) => (
-                            <option key={i.id} value={i.id}>
-                              {i.invoiceNo} — còn nợ {fmtVND(Number(i.totalAmount) - Number(i.paidAmount))}
-                            </option>
-                          ))}
-                        </select>
-                        {remaining !== undefined && (
-                          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">Còn nợ: {fmtVND(remaining)}</p>
-                        )}
-                      </div>
-                      <Input
-                        type="number"
-                        step="1000"
-                        {...register(`allocations.${idx}.amount` as const)}
-                        placeholder="Số tiền"
-                        className="tabular-nums"
-                      />
-                      <Button type="button" size="icon-sm" variant="ghost" onClick={() => remove(idx)} aria-label="Xoá dòng">
-                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                      </Button>
-                    </div>
-                  );
-                })
-              )}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  disabled={!supplier || openInvoices.length === 0}
+                  onClick={() => append({ invoiceId: "", amount: 0 })}
+                >
+                  <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Thêm dòng
+                </Button>
+              </div>
+              <div className="p-3">
+                {!supplier ? (
+                  <div className="flex flex-col items-center gap-1.5 py-4 text-center">
+                    <Inbox className="h-8 w-8 text-zinc-300 dark:text-zinc-600" aria-hidden="true" />
+                    <p className="text-xs text-zinc-400 dark:text-zinc-500">Chọn đối tác để xem hoá đơn còn nợ.</p>
+                  </div>
+                ) : fields.length === 0 ? (
+                  <div className="flex flex-col items-center gap-1.5 py-4 text-center">
+                    <Inbox className="h-8 w-8 text-zinc-300 dark:text-zinc-600" aria-hidden="true" />
+                    <p className="text-xs text-zinc-400 dark:text-zinc-500">
+                      {openInvoices.length === 0 ? "Đối tác này không có hoá đơn còn nợ." : "Bấm \"Thêm dòng\" để chọn hoá đơn phân bổ."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {fields.map((f, idx) => {
+                      const selectedInvoiceId = allocations?.[idx]?.invoiceId;
+                      const inv = selectedInvoiceId ? invoiceMap.get(selectedInvoiceId) : undefined;
+                      // V4.1 TC-09 — HĐ đã chọn ở dòng khác không hiện lại.
+                      const takenElsewhere = new Set(
+                        (allocations ?? [])
+                          .filter((_, j) => j !== idx)
+                          .map((a) => a.invoiceId)
+                          .filter(Boolean),
+                      );
+                      const remaining = inv ? Number(inv.totalAmount) - Number(inv.paidAmount) : undefined;
+                      return (
+                        <div key={f.id} className="grid grid-cols-[1fr_auto] items-start gap-2 sm:grid-cols-[1fr_140px_auto]">
+                          <div className="col-span-2 sm:col-span-1">
+                            <select
+                              {...register(`allocations.${idx}.invoiceId` as const)}
+                              aria-label={`Hoá đơn dòng ${idx + 1}`}
+                              className={cn(selectClassName, "mt-0")}
+                            >
+                              <option value="">— Chọn hoá đơn —</option>
+                              {openInvoices.filter((i) => !takenElsewhere.has(i.id)).map((i) => (
+                                <option key={i.id} value={i.id}>
+                                  {i.invoiceNo} — còn nợ {fmtVND(Number(i.totalAmount) - Number(i.paidAmount))}
+                                </option>
+                              ))}
+                            </select>
+                            {remaining !== undefined && (
+                              <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">Còn nợ: {fmtVND(remaining)}</p>
+                            )}
+                          </div>
+                          <Input
+                            type="number"
+                            step="1000"
+                            {...register(`allocations.${idx}.amount` as const)}
+                            placeholder="Số tiền"
+                            className="tabular-nums"
+                          />
+                          <Button type="button" size="icon-sm" variant="ghost" onClick={() => remove(idx)} aria-label="Xoá dòng">
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
 
-          <div className={cn(
-            "flex items-center justify-between rounded-lg border px-3 py-2",
-            mismatch
-              ? "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40"
-              : "border-indigo-200 bg-indigo-50/60 dark:border-indigo-800 dark:bg-indigo-950/40",
-          )}>
-            <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">Tổng phân bổ</span>
-            <span className="text-lg font-bold text-zinc-900 dark:text-zinc-50">{fmtVND(allocationSum)}</span>
-          </div>
-          {errors.allocations && (
-            <p className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
-              <AlertTriangle className="h-3 w-3" aria-hidden="true" /> {(errors.allocations as { message?: string }).message ?? "Cần ít nhất 1 phân bổ hợp lệ"}
-            </p>
-          )}
+            {/* Tổng phân bổ — giá trị TÍNH TOÁN read-only, tách khỏi style
+                input phía trên để không nhầm là field nhập liệu (§1.8). */}
+            <div className={cn(
+              "flex items-center justify-between rounded-lg border border-dashed px-3 py-2",
+              mismatch
+                ? "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40"
+                : "border-indigo-200 bg-indigo-50/60 dark:border-indigo-800 dark:bg-indigo-950/40",
+            )}>
+              <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">Tổng phân bổ (tự tính)</span>
+              <span className="text-lg font-bold tabular-nums text-zinc-900 dark:text-zinc-50">{fmtVND(allocationSum)}</span>
+            </div>
+            {errors.allocations && (
+              <p className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
+                <AlertTriangle className="h-3 w-3" aria-hidden="true" /> {(errors.allocations as { message?: string }).message ?? "Cần ít nhất 1 phân bổ hợp lệ"}
+              </p>
+            )}
 
-          <div>
-            <Label htmlFor="pay-notes">Ghi chú</Label>
-            <Input id="pay-notes" {...register("notes")} className="mt-1" placeholder="Tuỳ chọn" />
-          </div>
+            <div>
+              <Label htmlFor="pay-notes">Ghi chú</Label>
+              <Input id="pay-notes" {...register("notes")} className="mt-1" placeholder="Tuỳ chọn" />
+            </div>
 
-          {wouldOverdraw && isAdmin && (
-            <label className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-              <input
-                type="checkbox"
-                className="mt-0.5"
-                checked={allowOverdraft}
-                onChange={(e) => setAllowOverdraft(e.target.checked)}
-              />
-              <span>Cho phép chi vượt số dư nguồn (chỉ Giám đốc). Số dư nguồn sẽ bị âm.</span>
-            </label>
-          )}
-          {wouldOverdraw && !isAdmin && (
-            <p className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
-              Nguồn chi không đủ số dư — chọn nguồn khác hoặc chuyển quỹ vào nguồn này trước.
-            </p>
-          )}
-
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Huỷ</Button>
-            <Button
-              type="submit"
-              disabled={
-                createMut.isPending ||
-                fields.length === 0 ||
-                mismatch ||
-                (wouldOverdraw && !(isAdmin && allowOverdraft))
-              }
-            >
-              {createMut.isPending ? "Đang lưu…" : "Ghi nhận thanh toán"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+            {wouldOverdraw && isAdmin && (
+              <label className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={allowOverdraft}
+                  onChange={(e) => setAllowOverdraft(e.target.checked)}
+                />
+                <span>Cho phép chi vượt số dư nguồn (chỉ Giám đốc). Số dư nguồn sẽ bị âm.</span>
+              </label>
+            )}
+            {wouldOverdraw && !isAdmin && (
+              <p className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+                Nguồn chi không đủ số dư — chọn nguồn khác hoặc chuyển quỹ vào nguồn này trước.
+              </p>
+            )}
+          </form>
+        </SheetBody>
+        <SheetFooter>
+          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Huỷ</Button>
+          <Button
+            type="submit"
+            form={formId}
+            disabled={
+              createMut.isPending ||
+              fields.length === 0 ||
+              mismatch ||
+              (wouldOverdraw && !(isAdmin && allowOverdraft))
+            }
+          >
+            {createMut.isPending ? "Đang lưu…" : "Ghi nhận thanh toán"}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

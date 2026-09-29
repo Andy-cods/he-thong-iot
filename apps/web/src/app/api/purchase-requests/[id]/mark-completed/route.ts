@@ -22,6 +22,16 @@ export async function POST(
 ) {
   const guard = await requireCan(req, "approve", "pr");
   if ("response" in guard) return guard.response;
+  // V4.2 audit S-guard — khớp docstring ("Admin đóng phiếu") + UI
+  // (canMarkCompleted = isAdmin only), giống cách mark-issued/dept-approve/
+  // director-approve tự khoá thêm role trên nền action chung `approve:pr`.
+  if (!guard.session.roles.includes("admin")) {
+    return jsonError(
+      "FORBIDDEN",
+      "Chỉ Admin được đóng phiếu (đánh dấu hoàn tất).",
+      403,
+    );
+  }
 
   const before = await getPR(params.id);
   if (!before) return jsonError("NOT_FOUND", "Không tìm thấy phiếu.", 404);

@@ -1,14 +1,19 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { lookupSku } from "@/server/repos/warehouseLocation";
 import { jsonError } from "@/server/http";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** GET /api/warehouse/lookup?q=xxx — tìm SKU/tên → tất cả vị trí + lot + qty. */
+/**
+ * GET /api/warehouse/lookup?q=xxx — tìm SKU/tên → tất cả vị trí + lot + qty.
+ *
+ * V4.2 audit S-guard — chỉ dùng trong `WarehouseLayoutTab` (trang /warehouse,
+ * admin/warehouse) → siết `read:inventory`.
+ */
 export async function GET(req: NextRequest) {
-  const guard = await requireSession(req);
+  const guard = await requireCan(req, "read", "inventory");
   if ("response" in guard) return guard.response;
 
   const url = new URL(req.url);

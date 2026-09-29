@@ -42,7 +42,12 @@ import {
   type Tx,
 } from "./stockGuard";
 
-export type GoodsIssueSource = "MATERIAL_REQUEST" | "QUICK_ISSUE" | "ISSUE_REQUEST";
+export type GoodsIssueSource =
+  | "MATERIAL_REQUEST"
+  | "QUICK_ISSUE"
+  | "ISSUE_REQUEST"
+  // V4.2 (migration 0067) — Kho bấm "Đã xuất kho" trên PR + chọn lô/bin trừ tồn.
+  | "PURCHASE_REQUEST";
 export type GoodsIssueReason =
   | "production"
   | "sales"
@@ -55,6 +60,7 @@ export const GOODS_ISSUE_SOURCES: GoodsIssueSource[] = [
   "MATERIAL_REQUEST",
   "QUICK_ISSUE",
   "ISSUE_REQUEST",
+  "PURCHASE_REQUEST",
 ];
 
 /** Trạng thái phiếu yêu cầu còn giao được. */
@@ -76,6 +82,8 @@ export class GoodsIssueError extends Error {
 
 export interface GoodsIssuePickInput extends IssuePick {
   materialRequestLineId?: string | null;
+  /** V4.2 (migration 0067) — dòng PR nguồn khi xuất từ Đề xuất vật tư. */
+  purchaseRequestLineId?: string | null;
   notes?: string | null;
 }
 
@@ -84,6 +92,8 @@ export interface CreateGoodsIssueInput {
   reason: GoodsIssueReason;
   materialRequestId?: string | null;
   issueRequestId?: string | null;
+  /** V4.2 (migration 0067) — nguồn PR khi Kho "Đã xuất kho" trừ tồn thật. */
+  purchaseRequestId?: string | null;
   woId?: string | null;
   reference?: string | null;
   notes?: string | null;
@@ -146,6 +156,7 @@ export async function createGoodsIssueTx(
       reason: input.reason,
       materialRequestId: input.materialRequestId ?? null,
       issueRequestId: input.issueRequestId ?? null,
+      purchaseRequestId: input.purchaseRequestId ?? null,
       woId: input.woId ?? null,
       reference: input.reference ?? null,
       notes: input.notes ?? null,
@@ -176,6 +187,7 @@ export async function createGoodsIssueTx(
       qty: String(p.qty),
       inventoryTxnId: posted.txnIds[i]!,
       materialRequestLineId: p.materialRequestLineId ?? null,
+      purchaseRequestLineId: p.purchaseRequestLineId ?? null,
       notes: p.notes ?? null,
     })),
   );
@@ -607,6 +619,33 @@ export async function listGoodsIssuesForMaterialRequest(materialRequestId: strin
     .from(goodsIssue)
     .leftJoin(userAccount, eq(userAccount.id, goodsIssue.issuedBy))
     .where(eq(goodsIssue.materialRequestId, materialRequestId))
+    .orderBy(goodsIssue.issuedAt);
+  const lines = await listGoodsIssueLines(headers.map((h) => h.id));
+  return headers.map((h) => ({
+    ...h,
+    lines: lines.filter((l) => l.goodsIssueId === h.id),
+  }));
+}
+
+/**
+ * V4.2 (migration 0067) — Phiếu xuất của 1 phiếu Đề xuất vật tư (PR), cho
+ * trang chi tiết PR hiển thị mã phiếu xuất đã sinh. Thiết kế "một thao tác,
+ * không lệch" (không giao từng phần) → thực tế tối đa 1 phần tử, nhưng vẫn
+ * trả mảng để phòng dữ liệu cũ/khác.
+ */
+export async function listGoodsIssuesForPurchaseRequest(purchaseRequestId: string) {
+  const headers = await db
+    .select({
+      id: goodsIssue.id,
+      issueNo: goodsIssue.issueNo,
+      totalQty: goodsIssue.totalQty,
+      notes: goodsIssue.notes,
+      issuedAt: goodsIssue.issuedAt,
+      issuedByName: sql<string | null>`COALESCE(${userAccount.fullName}, ${userAccount.username})`,
+    })
+    .from(goodsIssue)
+    .leftJoin(userAccount, eq(userAccount.id, goodsIssue.issuedBy))
+    .where(eq(goodsIssue.purchaseRequestId, purchaseRequestId))
     .orderBy(goodsIssue.issuedAt);
   const lines = await listGoodsIssueLines(headers.map((h) => h.id));
   return headers.map((h) => ({

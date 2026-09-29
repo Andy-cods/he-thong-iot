@@ -330,14 +330,21 @@ export function usePauseWorkOrder(id: string) {
   });
 }
 
+/**
+ * V4.2 PROD-01 — `completeReason` bắt buộc (≥3 ký tự, kiểm server-side) khi
+ * SL đạt < kế hoạch. Giữ overload nhận `number` để không phá vỡ call site cũ
+ * chỉ truyền `versionLock`.
+ */
 export function useCompleteWorkOrder(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (versionLock?: number) =>
-      request<{ data: WorkOrderRow }>(`/api/work-orders/${id}/complete`, {
+    mutationFn: (input?: number | { versionLock?: number; completeReason?: string }) => {
+      const data = typeof input === "number" ? { versionLock: input } : (input ?? {});
+      return request<{ data: WorkOrderRow }>(`/api/work-orders/${id}/complete`, {
         method: "POST",
-        body: JSON.stringify({ versionLock }),
-      }),
+        body: JSON.stringify(data),
+      });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.workOrders.detail(id) });
       qc.invalidateQueries({ queryKey: qk.workOrders.all });

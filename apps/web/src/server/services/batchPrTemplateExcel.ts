@@ -8,6 +8,7 @@
  * không đi theo model). Sheet đầu "Tổng hợp" liệt kê toàn bộ phiếu.
  */
 import ExcelJS from "exceljs";
+import { sanitizeExcelRow } from "./excelSafety";
 import {
   YCVT_TEMPLATE_SHEET,
   getYcvtTemplateBuffer,
@@ -96,7 +97,8 @@ function buildSummarySheet(
   });
   ws.views = [{ state: "frozen", ySplit: headerRow.number }];
   for (const rowData of summary.rows) {
-    const row = ws.addRow(rowData);
+    // V4.2 audit S14 — chống formula injection cho cột free-text (vd tên người).
+    const row = ws.addRow(sanitizeExcelRow(rowData));
     row.eachCell({ includeEmpty: true }, (cell) => {
       cell.border = THIN_BORDER;
     });

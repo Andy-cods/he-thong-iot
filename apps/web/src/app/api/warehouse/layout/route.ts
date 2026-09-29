@@ -4,7 +4,7 @@ import {
   listBinsWithStock,
 } from "@/server/repos/warehouseLocation";
 import { jsonError } from "@/server/http";
-import { requireSession } from "@/server/session";
+import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,9 +12,13 @@ export const dynamic = "force-dynamic";
 /**
  * GET /api/warehouse/layout — list tất cả bins active + stats summary.
  * Used cho 3D layout map.
+ *
+ * V4.2 audit S-guard — chỉ admin/warehouse thực sự dùng route này (dialog
+ * "Điều chỉnh tồn" trong bom-grid-pro chỉ render cho 2 role này; các trang
+ * khác gọi component chung nhưng không hiển thị nút mở dialog cho role khác).
  */
 export async function GET(req: NextRequest) {
-  const guard = await requireSession(req);
+  const guard = await requireCan(req, "read", "inventory");
   if ("response" in guard) return guard.response;
 
   try {

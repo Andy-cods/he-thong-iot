@@ -16,6 +16,11 @@ import { db } from "@/lib/db";
 import { vnToday } from "../../lib/procurement-policy";
 import { deriveDisplayLabel } from "@/lib/pr-display-label";
 import { currentYymm, genDocNoBatch } from "./_docNumber";
+import {
+  createGoodsIssueTx,
+  GoodsIssueError,
+  type CreatedGoodsIssue,
+} from "./goodsIssues";
 
 /**
  * Repository purchase_request — V1.2.
@@ -825,23 +830,251 @@ export async function markPRGoodsReceived(
 }
 
 /**
- * V3.7.70 YCVT — Timeline IV.2: Manual mark "Đã xuất kho" bởi admin/warehouse.
- * Idempotent qua WHERE goodsIssuedAt IS NULL.
+ * V4.2 (TASK "Trừ tồn luôn") — Timeline IV.2: "Đã xuất kho" giờ TRỪ TỒN THẬT
+ * trong cùng 1 thao tác, thay vì chỉ ghi mốc thời gian như trước (lỗi khiến
+ * Kho phải xuất lại lần 2 ở Sơ đồ kho → tồn lệch).
+ *
+ * 2 thiết kế:
+ *  - Đường thường: Kho chọn lô/bin cho từng dòng PR có itemId (gắn vật tư
+ *    trong danh mục) → validatePrIssuePicks (thuần, cap = approvedQty ?? qty)
+ *    → createGoodsIssueTx (Đợt 1b, TÁI DÙNG assertIssuable/postOutboundTxns/
+ *    genDocNo — không có logic tồn mới) sinh 1 phiếu xuất PX gắn
+ *    sourceType='PURCHASE_REQUEST'. Dòng không có itemId (nhập tay) không
+ *    trừ tồn được nhưng không chặn các dòng khác.
+ *  - Đường thoát hiểm: `noStockConfirm=true` + lý do ≥ 3 ký tự → ghi nhận đã
+ *    xuất KHÔNG trừ tồn (vật tư mua ngoài giao thẳng, không qua kho) — giữ
+ *    tương thích hành vi cũ, nhưng bắt buộc xác nhận rõ ràng + audit lý do.
+ *
+ * Idempotent: khoá PR FOR UPDATE trong transaction + WHERE goods_issued_at IS
+ * NULL ở UPDATE cuối → bấm 2 lần (kể cả gần như đồng thời) chỉ 1 lần trừ tồn,
+ * lần sau ném GoodsIssueError('ALREADY_ISSUED', 409). unique index
+ * `goods_issue_pr_uk` (migration 0067) là lưới an toàn cuối ở DB.
  */
-export async function markPRGoodsIssued(
+export interface PrIssueLineState {
+  id: string;
+  itemId: string | null;
+  sku: string | null;
+  /** SL đề xuất — dùng làm cap khi chưa có approvedQty. */
+  qty: number;
+  /** SL đã duyệt (Kho ghi ở bước 2) — cap ưu tiên khi có. */
+  approvedQty: number | null;
+}
+
+export interface PrIssuePickInput {
+  prLineId: string;
+  lotSerialId: string;
+  binId: string;
+  qty: number;
+}
+
+export interface PrIssuePickResolved {
+  itemId: string;
+  lotSerialId: string;
+  binId: string;
+  qty: number;
+  purchaseRequestLineId: string;
+}
+
+export type ValidatePrIssueResult =
+  | { ok: true; picks: PrIssuePickResolved[] }
+  | { ok: false; error: GoodsIssueError };
+
+const PR_ISSUE_EPS = 1e-6;
+
+/**
+ * THUẦN — kiểm picks xuất kho cho 1 PR:
+ *  - dòng phải thuộc PR (lấy từ `lines`, không tin client);
+ *  - dòng chưa gắn vật tư trong danh mục (itemId null) → không trừ tồn được;
+ *  - SL mỗi pick > 0; tổng pick mỗi dòng ≤ cap (approvedQty ?? qty đề xuất).
+ */
+export function validatePrIssuePicks(
+  lines: PrIssueLineState[],
+  picks: PrIssuePickInput[],
+): ValidatePrIssueResult {
+  const fail = (code: string, msg: string, status = 422): ValidatePrIssueResult => ({
+    ok: false,
+    error: new GoodsIssueError(code, msg, status),
+  });
+
+  if (picks.length === 0) {
+    return fail("EMPTY_ISSUE", "Chưa chọn lô xuất cho dòng nào.", 400);
+  }
+
+  const byId = new Map(lines.map((l) => [l.id, l]));
+  const qtyByLine = new Map<string, number>();
+  const resolved: PrIssuePickResolved[] = [];
+
+  for (const p of picks) {
+    if (!Number.isFinite(p.qty) || p.qty <= 0) {
+      return fail("INVALID_QTY", "Số lượng xuất phải lớn hơn 0.", 400);
+    }
+    const line = byId.get(p.prLineId);
+    if (!line) {
+      return fail(
+        "LINE_NOT_IN_REQUEST",
+        "Có dòng không thuộc phiếu này — vui lòng tải lại trang.",
+        400,
+      );
+    }
+    if (!line.itemId) {
+      return fail(
+        "LINE_NO_MASTER_ITEM",
+        `${line.sku ?? `Dòng ${p.prLineId.slice(0, 8)}`} chưa gắn vật tư trong danh mục — không trừ tồn được cho dòng này (bỏ qua hoặc dùng "ghi nhận không trừ tồn").`,
+      );
+    }
+    qtyByLine.set(line.id, (qtyByLine.get(line.id) ?? 0) + p.qty);
+    resolved.push({
+      itemId: line.itemId,
+      lotSerialId: p.lotSerialId,
+      binId: p.binId,
+      qty: p.qty,
+      purchaseRequestLineId: line.id,
+    });
+  }
+
+  for (const [lineId, qty] of qtyByLine) {
+    const line = byId.get(lineId)!;
+    const cap = line.approvedQty ?? line.qty;
+    if (qty > cap + PR_ISSUE_EPS) {
+      const label = line.sku ?? "Dòng";
+      const capLabel = line.approvedQty != null ? "SL đã duyệt" : "SL đề xuất";
+      return fail(
+        "OVER_ISSUE",
+        `${label} chỉ được xuất tối đa ${Number(cap.toFixed(4)).toLocaleString("vi-VN")} (${capLabel}), không xuất ${Number(qty.toFixed(4)).toLocaleString("vi-VN")}.`,
+      );
+    }
+  }
+
+  return { ok: true, picks: resolved };
+}
+
+export interface MarkPRIssuedInput {
+  actorUserId: string;
+  picks: PrIssuePickInput[];
+  /** Ghi nhận đã xuất KHÔNG trừ tồn (vật tư mua ngoài giao thẳng). */
+  noStockConfirm?: boolean;
+  /** Bắt buộc ≥ 3 ký tự khi noStockConfirm=true. */
+  noStockReason?: string | null;
+  notes?: string | null;
+}
+
+export interface MarkPRIssuedResult {
+  pr: PurchaseRequest;
+  goodsIssue: CreatedGoodsIssue | null;
+}
+
+export async function markPRGoodsIssuedWithStock(
   id: string,
-): Promise<PurchaseRequest | null> {
-  const [row] = await db
-    .update(purchaseRequest)
-    .set({ goodsIssuedAt: new Date(), updatedAt: new Date() })
-    .where(
-      and(
-        eq(purchaseRequest.id, id),
-        sql`${purchaseRequest.goodsIssuedAt} IS NULL`,
-      ),
-    )
-    .returning();
-  return row ?? null;
+  input: MarkPRIssuedInput,
+): Promise<MarkPRIssuedResult> {
+  return db.transaction(async (tx) => {
+    // Khoá PR TRƯỚC — 2 lượt bấm gần như đồng thời xếp hàng tại đây, lượt sau
+    // thấy goods_issued_at đã set → ALREADY_ISSUED (không trừ tồn 2 lần).
+    const [current] = await tx
+      .select()
+      .from(purchaseRequest)
+      .where(eq(purchaseRequest.id, id))
+      .for("update")
+      .limit(1);
+    if (!current) {
+      throw new GoodsIssueError("NOT_FOUND", "Không tìm thấy phiếu.", 404);
+    }
+    if (current.status !== "APPROVED" && current.status !== "CONVERTED") {
+      throw new GoodsIssueError(
+        "INVALID_STATE",
+        "Phiếu chưa được duyệt xong — chưa ghi nhận xuất kho được.",
+        409,
+      );
+    }
+    if (current.goodsIssuedAt) {
+      throw new GoodsIssueError(
+        "ALREADY_ISSUED",
+        "Phiếu đã ghi nhận xuất kho trước đó — không xuất lại.",
+        409,
+      );
+    }
+
+    let createdGoodsIssue: CreatedGoodsIssue | null = null;
+
+    if (input.noStockConfirm) {
+      const reason = (input.noStockReason ?? "").trim();
+      if (reason.length < 3) {
+        throw new GoodsIssueError(
+          "NO_STOCK_REASON_REQUIRED",
+          "Cần nhập lý do (tối thiểu 3 ký tự) khi ghi nhận đã xuất không trừ tồn.",
+          422,
+        );
+      }
+    } else {
+      const lineRows = await tx
+        .select({
+          id: purchaseRequestLine.id,
+          itemId: purchaseRequestLine.itemId,
+          qty: purchaseRequestLine.qty,
+          approvedQty: purchaseRequestLine.approvedQty,
+          masterSku: item.sku,
+          itemSku: purchaseRequestLine.itemSku,
+        })
+        .from(purchaseRequestLine)
+        .leftJoin(item, eq(item.id, purchaseRequestLine.itemId))
+        .where(eq(purchaseRequestLine.prId, id));
+
+      const lineStates: PrIssueLineState[] = lineRows.map((l) => ({
+        id: l.id,
+        itemId: l.itemId,
+        sku: l.masterSku ?? l.itemSku ?? null,
+        qty: Number(l.qty) || 0,
+        approvedQty: l.approvedQty != null ? Number(l.approvedQty) : null,
+      }));
+
+      const v = validatePrIssuePicks(lineStates, input.picks);
+      if (!v.ok) throw v.error;
+
+      createdGoodsIssue = await createGoodsIssueTx(tx, {
+        sourceType: "PURCHASE_REQUEST",
+        reason: "manual",
+        purchaseRequestId: id,
+        reference: current.paperFormNo ?? current.code,
+        notes: input.notes ?? null,
+        issuedBy: input.actorUserId,
+        receivedBy: current.requestedBy,
+        picks: v.picks.map((p) => ({
+          itemId: p.itemId,
+          lotSerialId: p.lotSerialId,
+          binId: p.binId,
+          qty: p.qty,
+          purchaseRequestLineId: p.purchaseRequestLineId,
+        })),
+      });
+    }
+
+    const [row] = await tx
+      .update(purchaseRequest)
+      .set({
+        goodsIssuedAt: new Date(),
+        updatedAt: new Date(),
+        ...(input.noStockConfirm
+          ? {
+              notes: sql`COALESCE(${purchaseRequest.notes}, '') || ${`\n[Đã xuất kho — KHÔNG trừ tồn: ${(input.noStockReason ?? "").trim()}]`}`,
+            }
+          : {}),
+      })
+      .where(
+        and(eq(purchaseRequest.id, id), sql`${purchaseRequest.goodsIssuedAt} IS NULL`),
+      )
+      .returning();
+    if (!row) {
+      // Race lý thuyết: lượt khác vừa commit giữa lúc khoá được nhả (không thể
+      // xảy ra trong cùng transaction đã FOR UPDATE, giữ để an toàn tuyệt đối).
+      throw new GoodsIssueError(
+        "ALREADY_ISSUED",
+        "Phiếu đã ghi nhận xuất kho trước đó — không xuất lại.",
+        409,
+      );
+    }
+
+    return { pr: row, goodsIssue: createdGoodsIssue };
+  });
 }
 
 /**

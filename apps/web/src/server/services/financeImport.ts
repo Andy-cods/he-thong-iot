@@ -5,6 +5,7 @@ import { finAccount, finCategory, finTransaction, supplier } from "@iot/db/schem
 import { db } from "@/lib/db";
 import { balanceAfter, formatVndFull } from "@/lib/finance";
 import { computeSha256 } from "./excelImport";
+import { assertImportRowLimit } from "./importLimits";
 
 /**
  * Phase D — Import Excel giao dịch thu/chi (`fin_transaction`). Bám khuôn
@@ -356,6 +357,11 @@ export async function parseFinanceWorkbook(
   if (!picked.sheet) {
     return { fileHash, rowTotal: 0, validRows, errors, warnings, headerMismatch: picked.missing };
   }
+
+  // V4.2 audit S15 — chỉ xử lý SHEET DỮ LIỆU đã chọn (TC-04) nên giới hạn số
+  // dòng ngay trên sheet đó, không cộng dồn các sheet không được đọc.
+  assertImportRowLimit(picked.sheet.rowCount);
+
   const headerMap = picked.headers;
   let rowTotal = 0;
   const occurrences = new Map<string, number>();

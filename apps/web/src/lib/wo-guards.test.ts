@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  WO_COMPLETE_REASON_MIN_LENGTH,
   checkPlannedDates,
   checkProgressLoggable,
   checkWoCompletable,
+  getWoCompleteShortfall,
   isWoDeletable,
   isWoScannable,
   isWoTransitionAllowed,
@@ -54,6 +56,72 @@ describe("V4.1 SX-04 — checkWoCompletable", () => {
         lines: [{ requiredQty: "2.5", completedQty: "2.5" }],
       }).ok,
     ).toBe(true);
+  });
+});
+
+describe("V4.2 PROD-01 — getWoCompleteShortfall", () => {
+  it("good < planned → trả về thông tin thiếu", () => {
+    const s = getWoCompleteShortfall({ goodQty: "3", plannedQty: "10" });
+    expect(s).toEqual({ good: 3, planned: 10, missing: 7 });
+  });
+  it("good >= planned → null (không cần xác nhận thêm)", () => {
+    expect(getWoCompleteShortfall({ goodQty: "10", plannedQty: "10" })).toBeNull();
+    expect(getWoCompleteShortfall({ goodQty: "12", plannedQty: "10" })).toBeNull();
+  });
+  it("planned rỗng/0 → null (không có kế hoạch để so)", () => {
+    expect(getWoCompleteShortfall({ goodQty: "5", plannedQty: null })).toBeNull();
+    expect(getWoCompleteShortfall({ goodQty: "5", plannedQty: "0" })).toBeNull();
+  });
+});
+
+describe("V4.2 PROD-01 — checkWoCompletable + plannedQty/completeReason", () => {
+  it("không truyền plannedQty → bỏ qua kiểm tra thiếu SL (backward-compatible)", () => {
+    // Giống test SX-04 cũ: good=1 < planned thật (không truyền) vẫn OK.
+    expect(
+      checkWoCompletable({ status: "IN_PROGRESS", goodQty: 1, lines: [] }).ok,
+    ).toBe(true);
+  });
+  it("good < planned, không có completeReason → chặn, nêu rõ số liệu thiếu", () => {
+    const r = checkWoCompletable({
+      status: "IN_PROGRESS",
+      goodQty: "3",
+      plannedQty: "10",
+      lines: [],
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.reason).toMatch(/Đạt 3 \/ kế hoạch 10/);
+      expect(r.reason).toMatch(/thiếu 7/);
+    }
+  });
+  it("good < planned, lý do < 3 ký tự → chặn", () => {
+    const r = checkWoCompletable({
+      status: "IN_PROGRESS",
+      goodQty: "3",
+      plannedQty: "10",
+      completeReason: "ok",
+      lines: [],
+    });
+    expect(r.ok).toBe(false);
+  });
+  it(`good < planned, lý do ≥ ${WO_COMPLETE_REASON_MIN_LENGTH} ký tự → OK`, () => {
+    const r = checkWoCompletable({
+      status: "IN_PROGRESS",
+      goodQty: "3",
+      plannedQty: "10",
+      completeReason: "Thiếu vật tư đầu vào",
+      lines: [],
+    });
+    expect(r.ok).toBe(true);
+  });
+  it("good >= planned → không cần completeReason (hành vi như cũ)", () => {
+    const r = checkWoCompletable({
+      status: "IN_PROGRESS",
+      goodQty: "10",
+      plannedQty: "10",
+      lines: [],
+    });
+    expect(r.ok).toBe(true);
   });
 });
 

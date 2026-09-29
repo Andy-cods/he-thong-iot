@@ -128,7 +128,7 @@ export function ImportTransactionsWizard({ onClose }: ImportTransactionsWizardPr
   };
 
   return (
-    <section className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 md:p-6">
+    <section className="space-y-4 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 md:p-6">
       <div className="flex items-center justify-between">
         <StepIndicator step={step} />
         <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Đóng">

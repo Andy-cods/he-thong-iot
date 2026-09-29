@@ -52,18 +52,54 @@ export type GuardResult = { ok: true } | { ok: false; reason: string };
 
 const EPS = 1e-9;
 
+/** V4.2 PROD-01 — lý do hoàn thành thiếu sản lượng phải ≥ 3 ký tự. */
+export const WO_COMPLETE_REASON_MIN_LENGTH = 3;
+
+export interface WoCompleteShortfall {
+  good: number;
+  planned: number;
+  /** > 0 — số lượng còn thiếu so với kế hoạch. */
+  missing: number;
+}
+
 /**
- * V4.1 SX-04: điều kiện hoàn thành WO.
+ * V4.2 PROD-01 — SL đạt (good_qty) so với kế hoạch (planned_qty). Trả về
+ * thông tin thiếu nếu `good < planned` (dùng để UI hiện hộp xác nhận "Đạt X /
+ * kế hoạch Y — hoàn thành thiếu Z?"), `null` nếu đã đủ/vượt kế hoạch — không
+ * cần xác nhận thêm, giữ nguyên hành vi cũ.
+ */
+export function getWoCompleteShortfall(input: {
+  goodQty: number | string | null | undefined;
+  plannedQty: number | string | null | undefined;
+}): WoCompleteShortfall | null {
+  const good = Number(input.goodQty ?? 0);
+  const planned = Number(input.plannedQty ?? 0);
+  if (!Number.isFinite(good) || !Number.isFinite(planned)) return null;
+  const missing = planned - good;
+  if (missing <= EPS) return null;
+  return { good, planned, missing };
+}
+
+/**
+ * V4.1 SX-04 (+ V4.2 PROD-01): điều kiện hoàn thành WO.
  *  - Phải đang sản xuất (IN_PROGRESS).
  *  - SL đạt (good_qty) > 0 — trước đây WO 0 dòng (LSX / từ dòng BOM) hoàn
  *    thành ngay cả khi chưa báo sản lượng nào.
  *  - WO kiểu cũ có dòng linh kiện: mọi dòng completed ≥ required.
+ *  - V4.2 PROD-01: nếu `good_qty < planned_qty` (hoàn thành thiếu sản lượng)
+ *    bắt buộc `completeReason` ≥ `WO_COMPLETE_REASON_MIN_LENGTH` ký tự —
+ *    không chặn hoàn thành (chính sách vẫn cho phép hoàn thành sớm/thiếu),
+ *    chỉ bắt xác nhận + ghi lý do. Đạt ≥ kế hoạch thì không cần lý do, hành vi
+ *    y hệt trước khi có PROD-01 (backward-compatible: caller không truyền
+ *    `plannedQty` → bỏ qua bước kiểm tra này hoàn toàn).
  *
  * V4.1 Q2: sau này thêm bước nhập kho thành phẩm (PROD_IN) — hiện TẠM ẨN.
  */
 export function checkWoCompletable(input: {
   status: WoStatus;
   goodQty: number | string | null | undefined;
+  plannedQty?: number | string | null | undefined;
+  completeReason?: string | null;
   lines: Array<{
     requiredQty: number | string;
     completedQty: number | string;
@@ -91,6 +127,21 @@ export function checkWoCompletable(input: {
       ok: false,
       reason: `Còn ${incomplete} dòng linh kiện chưa đủ số lượng — chưa hoàn thành được lệnh.`,
     };
+  }
+  if (input.plannedQty !== undefined) {
+    const shortfall = getWoCompleteShortfall({
+      goodQty: input.goodQty,
+      plannedQty: input.plannedQty,
+    });
+    if (shortfall) {
+      const reason = (input.completeReason ?? "").trim();
+      if (reason.length < WO_COMPLETE_REASON_MIN_LENGTH) {
+        return {
+          ok: false,
+          reason: `Đạt ${shortfall.good} / kế hoạch ${shortfall.planned} — hoàn thành thiếu ${shortfall.missing}. Nhập lý do (tối thiểu ${WO_COMPLETE_REASON_MIN_LENGTH} ký tự) để xác nhận hoàn thành thiếu sản lượng.`,
+        };
+      }
+    }
   }
   return { ok: true };
 }

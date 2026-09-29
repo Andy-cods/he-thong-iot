@@ -9,6 +9,17 @@ import { requireCan } from "@/server/session";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/** V4.2 — ẩn nguồn còn tiền làm tổng số dư dashboard "mất" số đó. Phải chuyển hết trước. */
+function blockHideWithBalance(balance: string | number | null | undefined) {
+  const b = Number(balance ?? 0);
+  if (Math.abs(b) < 0.5) return null;
+  return jsonError(
+    "FIN_ACCOUNT_HAS_BALANCE",
+    `Nguồn còn số dư ${b.toLocaleString("vi-VN")} ₫ — chuyển hết sang nguồn khác trước khi ngưng dùng.`,
+    409,
+  );
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } },
@@ -31,6 +42,10 @@ export async function PATCH(
 
   const before = await getFinAccountById(params.id);
   if (!before) return jsonError("NOT_FOUND", "Không tìm thấy tài khoản.", 404);
+  if (body.data.isActive === false && before.isActive !== false) {
+    const blocked = blockHideWithBalance(before.currentBalance);
+    if (blocked) return blocked;
+  }
   try {
     const after = await updateFinAccount(params.id, body.data);
     if (!after) return jsonError("NOT_FOUND", "Không tìm thấy tài khoản.", 404);
@@ -70,6 +85,8 @@ export async function DELETE(
   if (before.isActive === false) {
     return NextResponse.json({ data: { id: before.id, isActive: false } });
   }
+  const blocked = blockHideWithBalance(before.currentBalance);
+  if (blocked) return blocked;
   const after = await updateFinAccount(params.id, { isActive: false });
   if (!after) return jsonError("NOT_FOUND", "Không tìm thấy tài khoản.", 404);
   const meta = extractRequestMeta(req);
