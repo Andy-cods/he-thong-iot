@@ -47,6 +47,13 @@ export interface WizardProps {
   allowJump?: boolean;
   /** Custom label nút submit step cuối (default "Hoàn tất"). */
   submitLabel?: string;
+  /**
+   * V4.3 fix LOOP_E2E P1 — chặn cứng nút submit (khác `validate` — hiện NGAY
+   * khi điều kiện chưa đủ, không cần bấm mới biết). Chỉ áp dụng ở step cuối.
+   */
+  submitDisabled?: boolean;
+  /** Giải thích ngắn hiển thị cạnh nút khi `submitDisabled=true`. */
+  submitDisabledHint?: string;
   className?: string;
 }
 
@@ -58,6 +65,8 @@ export function Wizard({
   children,
   allowJump = false,
   submitLabel = "Hoàn tất",
+  submitDisabled = false,
+  submitDisabledHint,
   className,
 }: WizardProps) {
   const idx = Math.max(
@@ -173,6 +182,11 @@ export function Wizard({
 
       {/* Sticky footer */}
       <div className="border-t border-zinc-200 bg-white px-6 py-3 dark:border-zinc-800 dark:bg-zinc-900">
+        {isLast && submitDisabled && submitDisabledHint ? (
+          <p className="mx-auto mb-2 w-full max-w-5xl text-right text-xs text-amber-700 dark:text-amber-400">
+            {submitDisabledHint}
+          </p>
+        ) : null}
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3">
           <Button
             type="button"
@@ -191,7 +205,8 @@ export function Wizard({
               type="button"
               variant="primary"
               onClick={() => void handleSubmit()}
-              disabled={busy}
+              disabled={busy || submitDisabled}
+              title={submitDisabled ? submitDisabledHint : undefined}
             >
               {isSubmitting ? (
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />

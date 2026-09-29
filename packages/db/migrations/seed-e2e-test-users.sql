@@ -22,7 +22,10 @@ BEGIN
       ('e2e.planner',   'planner',   'E2E Test — Thiết kế'),
       ('e2e.warehouse', 'warehouse', 'E2E Test — Kho'),
       ('e2e.purchaser', 'purchaser', 'E2E Test — Thu mua'),
-      ('e2e.operator',  'operator',  'E2E Test — Gia công')
+      ('e2e.operator',  'operator',  'E2E Test — Gia công'),
+      -- V4.3 Đợt 2 (UI Apple) — cần tài khoản qc để kiểm chứng ẩn tab
+      -- `/warehouse` theo RBAC (mục 6), không có sẵn account e2e.qc trước đó.
+      ('e2e.qc',        'qc',        'E2E Test — QC/KCS')
     ) AS t(uname, rcode, fullname)
   LOOP
     SELECT id INTO v_user_id FROM app.user_account WHERE username = rec.uname LIMIT 1;

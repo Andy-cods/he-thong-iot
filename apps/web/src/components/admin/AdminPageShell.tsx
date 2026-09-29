@@ -105,8 +105,11 @@ export function AdminPageShell({
 
   return (
     <div className="relative -mx-4 -my-4 md:-mx-6 md:-my-5">
-      {/* V4.1 UI-24 (X6/X8): bỏ nền gradient + quầng màu — khung admin giống các trang khác. */}
-      <div className="relative bg-white dark:bg-zinc-900">
+      {/* V4.3 Đợt 2 mục 1 — bỏ nền trắng phủ toàn khối admin: để lộ nền trang
+          xám giữa header/tabs/nội dung, các thẻ trắng bo 14px bên trong
+          (`admin/users`, dashboard…) tự nổi lên đúng như thiết kế thay vì
+          hoà lẫn vào panel trắng cha. */}
+      <div className="relative bg-zinc-50 dark:bg-zinc-950">
 
         <div className="relative z-10 mx-auto w-full max-w-6xl px-4 pb-12 pt-5 md:px-6 md:pt-6">
         {/* Top: breadcrumb + meta */}
@@ -123,11 +126,11 @@ export function AdminPageShell({
         {/* Page header */}
         <header className="mt-3 flex flex-col gap-3 md:mt-0 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
-            <h1 className="truncate text-2xl font-semibold leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">
+            <h1 className="truncate text-2xl md:text-4xl font-bold leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">
               {title}
             </h1>
             {description ? (
-              <p className="mt-1 max-w-2xl text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+              <p className="mt-1 max-w-2xl text-base leading-relaxed text-zinc-600 dark:text-zinc-400">
                 {description}
               </p>
             ) : null}

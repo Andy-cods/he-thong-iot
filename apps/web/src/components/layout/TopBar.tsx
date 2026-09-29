@@ -37,11 +37,15 @@ export interface TopBarProps {
   allHrefs?: string[];
 }
 
-function matchActive(pathname: string, href: string, allHrefs: string[] = []): boolean {
+function matchActive(pathname: string, hrefRaw: string, allHrefs: string[] = []): boolean {
+  // V4.3 mục 4.3 — nav item có thể trỏ kèm query (vd "/warehouse?tab=movement&mode=qc"
+  // cho role qc) — so khớp active theo PATHNAME, bỏ phần query.
+  const href = hrefRaw.split("?")[0] ?? hrefRaw;
   if (href === "/") return pathname === "/";
   if (pathname === href) return true;
   if (!pathname.startsWith(`${href}/`)) return false;
-  for (const other of allHrefs) {
+  for (const otherRaw of allHrefs) {
+    const other = otherRaw.split("?")[0] ?? otherRaw;
     if (other === href || other === "/") continue;
     if (other.startsWith(`${href}/`)) {
       if (pathname === other || pathname.startsWith(`${other}/`)) return false;
@@ -117,8 +121,10 @@ export function TopBar({
     <header
       role="banner"
       className={cn(
-        "sticky top-0 z-topbar border-b border-zinc-200 bg-white shadow-sm",
-        "dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-none",
+        // V4.3 Apple — thanh trên mờ (vibrancy): nền trắng ~80% + backdrop-blur,
+        // hairline mảnh thay border đậm + shadow.
+        "sticky top-0 z-topbar border-b border-zinc-900/[0.06] bg-white/80 backdrop-blur-xl backdrop-saturate-150 supports-[backdrop-filter]:bg-white/80",
+        "dark:border-white/[0.08] dark:bg-zinc-900/70",
         className,
       )}
     >
@@ -132,7 +138,7 @@ export function TopBar({
               type="button"
               onClick={onSidebarToggle}
               aria-label="Mở menu"
-              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors md:hidden dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors md:hidden dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
             >
               <Menu className="h-4 w-4" aria-hidden />
             </button>
@@ -174,7 +180,7 @@ export function TopBar({
             type="button"
             onClick={onCommandOpen}
             aria-label={`Tìm kiếm (${shortcutLabel})`}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors xl:hidden dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors xl:hidden dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
           >
             <Search className="h-4 w-4" aria-hidden />
           </button>
@@ -193,7 +199,7 @@ export function TopBar({
       {navItems.length > 0 && (
         <nav
           aria-label="Điều hướng chính"
-          className="hidden md:flex items-center justify-center gap-1 border-t border-zinc-100 bg-white px-4 xl:px-6 dark:border-zinc-800 dark:bg-zinc-900"
+          className="hidden md:flex items-center justify-center gap-1 border-t border-zinc-900/[0.06] px-4 xl:px-6 dark:border-white/[0.08]"
         >
           {navItems.map((item) => {
             const Icon = item.icon;

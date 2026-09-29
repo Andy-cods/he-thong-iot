@@ -113,17 +113,18 @@ export function POTab() {
   };
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-zinc-50/30 dark:bg-zinc-950/30">
+    <div className="flex h-full flex-col overflow-hidden">
 
       {/* ── Header ── */}
-      {/* V4.1 UI-X6: header chuẩn flex-wrap + min-w-0 — điện thoại nút xuống dòng, không tràn/gãy chữ. */}
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
+      {/* V4.3 Đợt 2 mục 1 — tiêu đề Large Title BARE trên nền trang xám.
+          V4.1 UI-X6: header chuẩn flex-wrap + min-w-0 — điện thoại nút xuống dòng, không tràn/gãy chữ. */}
+      <header className="flex flex-wrap items-center justify-between gap-3 px-4 pb-3 pt-5 md:px-6 md:pt-6">
         <div className="min-w-0 flex-1 basis-56">
           {/* V4.1 UI-09 (X6): bỏ breadcrumb thân trang — topbar đã hiện cùng đường dẫn (+ nhãn tab). */}
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+          <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
             Đơn đặt hàng (PO)
           </h1>
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="mt-1 text-base text-zinc-500 dark:text-zinc-400">
             <span className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">{(stats?.total ?? total).toLocaleString("vi-VN")}</span> PO trong hệ thống
           </p>
         </div>
@@ -140,7 +141,7 @@ export function POTab() {
 
       {/* ── KPI cards ── */}
       {/* V4.1 UI-24 (X8): thẻ KPI trung tính (trắng, viền zinc) — màu chỉ khi mã hoá trạng thái (quá hạn). */}
-      <div className="grid grid-cols-2 gap-3 border-b border-zinc-200 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900 md:px-6 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 px-4 pb-3 md:px-6 lg:grid-cols-4">
         <StatTile
           icon={TrendingUp}
           label="Tổng giá trị"
@@ -169,7 +170,7 @@ export function POTab() {
       </div>
 
       {/* ── Filter bar ── */}
-      <div className="flex flex-wrap items-center gap-3 border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
+      <div className="flex flex-wrap items-center gap-3 px-4 pb-3 md:px-6">
         {/* Search */}
         <div className="relative w-full sm:w-auto">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" aria-hidden />

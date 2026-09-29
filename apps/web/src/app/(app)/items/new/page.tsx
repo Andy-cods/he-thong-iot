@@ -30,7 +30,7 @@ export default function NewItemPage() {
       {/* V4.1 UI-09 (X6): breadcrumb thân trang chỉ hiện trên điện thoại — desktop dùng breadcrumb topbar (tránh trùng). */}
       <Breadcrumb items={breadcrumbItems} className="mb-3 md:hidden" />
       <header className="mb-4">
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+        <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
           Tạo vật tư mới
         </h1>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">

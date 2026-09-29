@@ -30,11 +30,15 @@ function isBomWorkspacePath(pathname: string): boolean {
   return id !== "new" && id !== "import";
 }
 
-function matchActive(pathname: string, href: string, allHrefs: string[] = []): boolean {
+function matchActive(pathname: string, hrefRaw: string, allHrefs: string[] = []): boolean {
+  // V4.3 mục 4.3 — nav item có thể trỏ kèm query (vd "/warehouse?tab=movement&mode=qc"
+  // cho role qc) — so khớp active theo PATHNAME, bỏ phần query.
+  const href = hrefRaw.split("?")[0] ?? hrefRaw;
   if (href === "/") return pathname === "/";
   if (pathname === href) return true;
   if (!pathname.startsWith(`${href}/`)) return false;
-  for (const other of allHrefs) {
+  for (const otherRaw of allHrefs) {
+    const other = otherRaw.split("?")[0] ?? otherRaw;
     if (other === href || other === "/") continue;
     if (other.startsWith(`${href}/`)) {
       if (pathname === other || pathname.startsWith(`${other}/`)) return false;

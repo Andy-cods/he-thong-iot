@@ -40,13 +40,13 @@ type Size = "sm" | "md" | "lg";
 
 const sideClasses: Record<Side, string> = {
   right:
-    "inset-y-0 right-0 border-l rounded-l-lg data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right",
+    "inset-y-0 right-0 border-l rounded-l-xl data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right",
   left:
-    "inset-y-0 left-0 border-r rounded-r-lg data-[state=open]:slide-in-from-left data-[state=closed]:slide-out-to-left",
+    "inset-y-0 left-0 border-r rounded-r-xl data-[state=open]:slide-in-from-left data-[state=closed]:slide-out-to-left",
   bottom:
-    "inset-x-0 bottom-0 border-t rounded-t-lg data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom",
+    "inset-x-0 bottom-0 border-t rounded-t-xl data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom",
   top:
-    "inset-x-0 top-0 border-b rounded-b-lg data-[state=open]:slide-in-from-top data-[state=closed]:slide-out-to-top",
+    "inset-x-0 top-0 border-b rounded-b-xl data-[state=open]:slide-in-from-top data-[state=closed]:slide-out-to-top",
 };
 
 // V2 sizes — giảm từ V1 để phù hợp density compact.
@@ -113,7 +113,7 @@ export const SheetContent = React.forwardRef<
         {hideCloseButton ? null : (
           <DialogPrimitive.Close
             className={cn(
-              "absolute right-3 top-3 inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition-colors duration-100 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50",
+              "absolute right-3 top-3 inline-flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 transition-colors duration-100 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50",
               "focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
             )}
           >
@@ -140,6 +140,72 @@ export const SheetHeader = ({
   />
 );
 SheetHeader.displayName = "SheetHeader";
+
+/**
+ * V4.3 Đợt 2 mục 5 — header kiểu Apple "Huỷ · tiêu đề · hành động" (iOS modal
+ * sheet nav bar), thay cho `SheetHeader`/`SheetTitle` + nút X mặc định. Dùng
+ * cho form tạo/sửa 1 đối tượng (phiếu thu/chi, hoá đơn, thanh toán, xếp kệ…).
+ * `onCancel` thường là `() => onOpenChange(false)` — KHÔNG đổi hành vi submit
+ * (form vẫn có `id`, action bên phải chỉ là 1 nút submit hiển thị trong nav
+ * thay vì footer). Nếu không truyền `action`, vế phải để trống cho cân đối.
+ */
+export function SheetHeaderNav({
+  title,
+  onCancel,
+  cancelLabel = "Huỷ",
+  action,
+  className,
+}: {
+  title: React.ReactNode;
+  onCancel: () => void;
+  cancelLabel?: string;
+  /** Nút hành động chính bên phải — nhãn nên ghi rõ việc sẽ làm. */
+  action?: {
+    label: React.ReactNode;
+    onClick?: () => void;
+    type?: "button" | "submit";
+    form?: string;
+    disabled?: boolean;
+  };
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex h-12 shrink-0 items-center gap-2 border-b border-zinc-100 bg-zinc-50/80 px-3 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80",
+        className,
+      )}
+    >
+      <button
+        type="button"
+        onClick={onCancel}
+        className="shrink-0 rounded-md px-2 py-1 text-lg text-blue-600 transition-colors hover:bg-black/5 dark:text-blue-400 dark:hover:bg-white/5"
+      >
+        {cancelLabel}
+      </button>
+      <span className="min-w-0 flex-1 truncate text-center text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+        {title}
+      </span>
+      {action ? (
+        <button
+          type={action.type ?? "button"}
+          form={action.form}
+          disabled={action.disabled}
+          onClick={action.onClick}
+          className="shrink-0 rounded-md px-2 py-1 text-lg font-semibold text-blue-600 transition-colors hover:bg-black/5 disabled:cursor-not-allowed disabled:text-zinc-300 dark:text-blue-400 dark:hover:bg-white/5 dark:disabled:text-zinc-600"
+        >
+          {action.label}
+        </button>
+      ) : (
+        // Giữ chỗ bằng chiều rộng ước lượng của nút Huỷ để tiêu đề canh giữa thật.
+        <span className="shrink-0 px-2 py-1 text-lg opacity-0" aria-hidden="true">
+          {cancelLabel}
+        </span>
+      )}
+    </div>
+  );
+}
+SheetHeaderNav.displayName = "SheetHeaderNav";
 
 export const SheetBody = ({
   className,

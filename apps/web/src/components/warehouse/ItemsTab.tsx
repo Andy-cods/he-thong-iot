@@ -231,13 +231,15 @@ export function ItemsTab() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* V4.1 UI-X6: header chuẩn flex-wrap + min-w-0 — điện thoại nút xuống dòng, không tràn/gãy chữ. */}
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
+      {/* V4.3 Đợt 2 mục 1 — bare trên nền trang xám (đây là sub-tab trong hub
+          Kho, Large Title "Quản lí kho" đã ở page.tsx phía trên).
+          V4.1 UI-X6: header chuẩn flex-wrap + min-w-0 — điện thoại nút xuống dòng, không tràn/gãy chữ. */}
+      <header className="flex flex-wrap items-center justify-between gap-3 px-4 pb-3 pt-4 md:px-6">
         <div className="min-w-0 flex-1 basis-48">
-          <h2 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+          <h2 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             Danh mục vật tư
           </h2>
-          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="mt-0.5 text-base text-zinc-500 dark:text-zinc-400">
             {query.isError ? "—" : total.toLocaleString("vi-VN")} vật tư · cập nhật tức thời
           </p>
         </div>

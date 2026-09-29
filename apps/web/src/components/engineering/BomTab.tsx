@@ -345,10 +345,10 @@ export function BomTab() {
     <div className="flex h-full flex-col overflow-hidden bg-zinc-50/40 dark:bg-zinc-950">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+          <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
             BOM List
           </h1>
-          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="mt-0.5 text-base text-zinc-500 dark:text-zinc-400">
             Danh sách BOM ·{" "}
             <span className="tabular-nums">
               {totalRaw.toLocaleString("vi-VN")}

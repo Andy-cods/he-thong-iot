@@ -3,51 +3,52 @@
 @tailwind utilities;
 
 /* ============================================================
- * V2 Design tokens — Linear-inspired zinc + electric blue.
+ * V4.3 Design tokens — "Apple-inspired" (Hướng B, chốt 2026-09-30).
+ * Nguồn: plans/v4.3-design/APPLE_DESIGN_SYSTEM.md (§3, §4 — DÙNG; §2 token
+ * BỎ QUA, thay bằng hệ dưới, theo mẫu đã duyệt `huong-giao-dien.html` `.B`).
  * Reserve dark mode via [data-theme="dark"] — NO toggle V2.0.
- * Nguồn: plans/redesign-v2/260417-v2-design-spec.md §1.
  * ============================================================ */
 @layer base {
   :root {
     color-scheme: light;
 
-    /* Background layers */
-    --bg-page: #fafafa;
+    /* Background layers — nền trang xám nhạt Apple #F5F5F7, thẻ trắng nổi lên trên */
+    --bg-page: #f5f5f7;
     --bg-card: #ffffff;
-    --bg-muted: #f4f4f5;
-    --bg-hover: #f4f4f5;
+    --bg-muted: #ededef;
+    --bg-hover: #ededef;
     --bg-elevated: #ffffff;
 
-    /* Borders */
-    --border-subtle: #e4e4e7;
-    --border-strong: #d4d4d8;
-    --border-focus: #4f46e5;
+    /* Borders — hairline mảnh kiểu Apple (~10% đen) */
+    --border-subtle: #e2e2e4;
+    --border-strong: #d1d1d6;
+    --border-focus: #0071e3;
 
     /* Text */
-    --text-primary: #18181b;
-    --text-secondary: #3f3f46;
-    --text-muted: #71717a;
-    --text-placeholder: #a1a1aa;
-    --text-inverse: #fafafa;
-    --text-link: #2563eb;
+    --text-primary: #1d1d1f;
+    --text-secondary: #424245;
+    --text-muted: #86868b;
+    --text-placeholder: #aeaeb2;
+    --text-inverse: #f5f5f7;
+    --text-link: #0071e3;
 
-    /* Accent — indigo-600 */
-    --accent: #4f46e5;
-    --accent-hover: #4338ca;
-    --accent-press: #3730a3;
-    --accent-soft: #eef2ff;
-    --accent-ring: rgba(79, 70, 229, 0.35);
+    /* Accent — xanh hệ thống Apple */
+    --accent: #0071e3;
+    --accent-hover: #0060c2;
+    --accent-press: #004994;
+    --accent-soft: #e6f1fc;
+    --accent-ring: rgba(0, 113, 227, 0.35);
 
-    /* Semantic */
-    --success: #10b981;
-    --success-strong: #047857;
-    --success-soft: #ecfdf5;
-    --warning: #f59e0b;
-    --warning-strong: #b45309;
-    --warning-soft: #fffbeb;
-    --danger: #ef4444;
-    --danger-strong: #b91c1c;
-    --danger-soft: #fef2f2;
+    /* Semantic — Apple systemGreen/systemOrange/systemRed */
+    --success: #34c759;
+    --success-strong: #23863c;
+    --success-soft: #e9f9ed;
+    --warning: #ff9f0a;
+    --warning-strong: #b36c08;
+    --warning-soft: #fff4e0;
+    --danger: #ff3b30;
+    --danger-strong: #b8241c;
+    --danger-soft: #ffeceb;
     --info: #0ea5e9;
     --info-strong: #0369a1;
     --info-soft: #f0f9ff;
@@ -63,82 +64,79 @@
     --page-padding-y: 1.25rem; /* 20px */
 
     /* Focus ring */
-    --focus-ring: 2px solid #3b82f6;
+    --focus-ring: 2px solid #0071e3;
     --focus-ring-offset: 2px;
-    --focus-ring-pwa: 3px solid #2563eb;
+    --focus-ring-pwa: 3px solid #0060c2;
 
     /* Back-compat V1 aliases (để V1 code cũ không crash) */
-    --color-bg-base: #fafafa;
+    --color-bg-base: #f5f5f7;
     --color-bg-card: #ffffff;
-    --color-bg-zebra: #f4f4f5;
-    --color-text-primary: #18181b;
-    --color-text-muted: #71717a;
-    --color-brand-ink: #18181b;
-    --color-brand-steel: #3f3f46;
-    --color-brand-mist: #e4e4e7;
-    --color-cta: #4f46e5;
-    --color-cta-hover: #4338ca;
-    --color-cta-press: #3730a3;
-    --color-success: #10b981;
-    --color-warning: #f59e0b;
-    --color-danger: #ef4444;
+    --color-bg-zebra: #ededef;
+    --color-text-primary: #1d1d1f;
+    --color-text-muted: #86868b;
+    --color-brand-ink: #1d1d1f;
+    --color-brand-steel: #48484a;
+    --color-brand-mist: #e2e2e4;
+    --color-cta: #0071e3;
+    --color-cta-hover: #0060c2;
+    --color-cta-press: #004994;
+    --color-success: #34c759;
+    --color-warning: #ff9f0a;
+    --color-danger: #ff3b30;
     --color-info: #0ea5e9;
-    --ring-focus: 0 0 0 2px rgba(79, 70, 229, 0.5);
+    --ring-focus: 0 0 0 2px rgba(0, 113, 227, 0.5);
     --sidebar-width-collapsed: 0; /* V2 không còn collapsed rail */
 
     /* Shadow tokens V1.5 */
     --shadow-card: 0 1px 2px rgba(0,0,0,0.05), 0 1px 4px rgba(0,0,0,0.04);
     --shadow-card-hover: 0 3px 8px rgba(0,0,0,0.08);
-
-    /* Background — tối hơn 1 bậc */
-    --bg-page: #f7f7f8;
   }
 
   /* ============================================================
-   * Dark mode — V3.7.67 activated.
-   * Tone: zinc-950 page · zinc-900 card · indigo-400 accent.
-   * PWA route bị lock light qua [data-route="pwa"] override (cuối block).
+   * Dark mode — V4.3 Apple: nền đen thật #000, bề mặt #1C1C1E/#2C2C2E,
+   * accent xanh sáng #0A84FF (systemBlue dark). PWA route bị lock light
+   * qua [data-route="pwa"] override (cuối block).
    * ============================================================ */
   [data-theme="dark"] {
     color-scheme: dark;
 
     /* Background layers */
-    --bg-page: #09090b;       /* zinc-950 */
-    --bg-card: #18181b;       /* zinc-900 */
-    --bg-muted: #27272a;      /* zinc-800 */
-    --bg-hover: #27272a;
-    --bg-elevated: #1f1f22;   /* between 900 và 800 */
+    --bg-page: #000000;       /* Apple nền tối thật */
+    --bg-card: #1c1c1e;       /* Apple secondarySystemBackground dark */
+    --bg-muted: #2c2c2e;      /* Apple tertiarySystemBackground dark */
+    --bg-hover: #2c2c2e;
+    --bg-elevated: #1c1c1e;
 
     /* Borders */
-    --border-subtle: #27272a; /* zinc-800 */
-    --border-strong: #3f3f46; /* zinc-700 */
-    --border-focus: #818cf8;  /* indigo-400 */
+    --border-subtle: #2c2c2e;
+    --border-strong: #48484a;
+    --border-focus: #0a84ff;  /* Apple systemBlue dark */
 
     /* Text */
-    --text-primary: #fafafa;     /* zinc-50 */
-    --text-secondary: #d4d4d8;   /* zinc-300 */
-    --text-muted: #a1a1aa;       /* zinc-400 */
-    --text-placeholder: #71717a; /* zinc-500 */
-    --text-inverse: #18181b;     /* zinc-900 */
-    --text-link: #93c5fd;        /* blue-300 */
+    --text-primary: #f5f5f7;
+    --text-secondary: #d1d1d6;
+    --text-muted: #aeaeb2;
+    --text-placeholder: #6e6e73;
+    --text-inverse: #1d1d1f;
+    --text-link: #409cff;      /* Apple systemBlue dark, hover nhạt hơn */
 
-    /* Accent — sáng hơn light mode để đủ contrast trên nền tối */
-    --accent: #818cf8;        /* indigo-400 */
-    --accent-hover: #a5b4fc;  /* indigo-300 */
-    --accent-press: #6366f1;  /* indigo-500 */
-    --accent-soft: #1e1b4b;   /* indigo-950 */
-    --accent-ring: rgba(129, 140, 248, 0.45);
+    /* Accent — Apple systemBlue dark #0A84FF (sáng hơn light mode để đủ contrast) */
+    --accent: #0a84ff;
+    --accent-hover: #409cff;
+    --accent-press: #2686e7;
+    --accent-soft: #001f40;
+    --accent-ring: rgba(10, 132, 255, 0.45);
 
-    /* Semantic — strong giữ saturated, soft tối lại để hài hoà */
-    --success: #34d399;          /* emerald-400 */
-    --success-strong: #10b981;
-    --success-soft: #064e3b;     /* emerald-900 */
-    --warning: #fbbf24;          /* amber-400 */
-    --warning-strong: #f59e0b;
-    --warning-soft: #451a03;     /* amber-950 */
-    --danger: #f87171;           /* red-400 */
-    --danger-strong: #ef4444;
-    --danger-soft: #450a0a;      /* red-950 */
+    /* Semantic — Apple dark variants (sáng hơn 1 bậc để nổi trên nền đen) */
+    --success: #30d158;
+    --success-strong: #34c759;
+    --success-soft: #0a2a13;
+    --warning: #ff9f0a;
+    --warning-strong: #ffb340;
+    --warning-soft: #3d2502;
+    --danger: #ff453a;
+    --danger-strong: #ff6259;
+    --danger-soft: #3d0c09;
     --info: #38bdf8;             /* sky-400 */
     --info-strong: #0ea5e9;
     --info-soft: #082f49;        /* sky-950 */
@@ -146,27 +144,27 @@
     --shortage-strong: #f97316;
     --shortage-soft: #431407;    /* orange-950 */
 
-    /* Focus ring — dùng indigo-400 cho contrast trên nền tối */
-    --focus-ring: 2px solid #818cf8;
-    --focus-ring-pwa: 3px solid #a5b4fc;
+    /* Focus ring — Apple systemBlue dark cho contrast trên nền tối */
+    --focus-ring: 2px solid #0a84ff;
+    --focus-ring-pwa: 3px solid #409cff;
 
     /* Back-compat aliases */
-    --color-bg-base: #09090b;
-    --color-bg-card: #18181b;
-    --color-bg-zebra: #27272a;
-    --color-text-primary: #fafafa;
-    --color-text-muted: #a1a1aa;
-    --color-brand-ink: #fafafa;
-    --color-brand-steel: #d4d4d8;
-    --color-brand-mist: #3f3f46;
-    --color-cta: #818cf8;
-    --color-cta-hover: #a5b4fc;
-    --color-cta-press: #6366f1;
-    --color-success: #34d399;
-    --color-warning: #fbbf24;
-    --color-danger: #f87171;
+    --color-bg-base: #000000;
+    --color-bg-card: #1c1c1e;
+    --color-bg-zebra: #2c2c2e;
+    --color-text-primary: #f5f5f7;
+    --color-text-muted: #aeaeb2;
+    --color-brand-ink: #f5f5f7;
+    --color-brand-steel: #d1d1d6;
+    --color-brand-mist: #48484a;
+    --color-cta: #0a84ff;
+    --color-cta-hover: #409cff;
+    --color-cta-press: #2686e7;
+    --color-success: #30d158;
+    --color-warning: #ff9f0a;
+    --color-danger: #ff453a;
     --color-info: #38bdf8;
-    --ring-focus: 0 0 0 2px rgba(129, 140, 248, 0.55);
+    --ring-focus: 0 0 0 2px rgba(10, 132, 255, 0.55);
 
     /* Shadow — đậm hơn (bóng đen vẫn nhìn được trên nền tối) */
     --shadow-card: 0 1px 2px rgba(0,0,0,0.4), 0 1px 4px rgba(0,0,0,0.3);
@@ -180,7 +178,9 @@
   }
 
   html {
-    font-family: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    /* Apple system stack trước — Inter fallback (đủ dấu tiếng Việt) khi không
+     * chạy trên macOS/iOS/Windows mới. */
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
     font-feature-settings: "cv11" 1, "ss01" 1, "cv02" 1;
     font-size: 16px;
     background: var(--bg-page);
@@ -191,7 +191,7 @@
   }
 
   body {
-    @apply min-h-screen bg-zinc-50 text-zinc-900 text-base leading-[1.4] dark:bg-zinc-950 dark:text-zinc-50;
+    @apply min-h-screen bg-zinc-50 text-zinc-900 text-base leading-[1.4] tracking-[-0.01em] dark:bg-zinc-950 dark:text-zinc-50;
   }
 
   h1,
@@ -200,13 +200,17 @@
   h4,
   h5,
   h6 {
-    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
     @apply text-zinc-900 tracking-tight dark:text-zinc-50;
   }
 
+  /* V4.3 Apple "Large Title": h1 lớn + đậm hơn hẳn (28-30px desktop, weight 700).
+   * Trang nào tự set class riêng trên <h1>/PageHeader (phần lớn hiện nay) sẽ
+   * ghi đè rule này — đây là mặc định cho <h1> trần, việc đồng bộ từng
+   * PageHeader cụ thể để đợt 2. */
   h1 {
-    @apply text-xl font-semibold leading-tight md:text-2xl;
-  } /* mobile 17px → md 20px */
+    @apply text-2xl font-bold leading-tight tracking-[-0.02em] md:text-4xl;
+  } /* mobile 20px → md 28px, weight 700 */
   h2 {
     @apply text-lg font-semibold leading-snug md:text-xl;
   } /* mobile 15px → md 17px */
@@ -237,6 +241,38 @@
   [data-route="pwa"] :focus-visible {
     outline: 3px solid var(--accent-hover);
     outline-offset: 2px;
+  }
+
+  /* V4.3 Apple — scrollbar mảnh, tự ẩn khi không hover (macOS/iOS style).
+   * Firefox: `thin` + màu mờ. WebKit: track trong suốt, thumb bo tròn nhạt. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+  }
+  [data-theme="dark"] * {
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.18);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(0, 0, 0, 0.32);
+  }
+  [data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.16);
+  }
+  [data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.28);
   }
 
   /* Reduced motion */

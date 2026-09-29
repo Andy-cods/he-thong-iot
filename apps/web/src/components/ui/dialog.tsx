@@ -54,7 +54,7 @@ export const DialogContent = React.forwardRef<
       <DialogPrimitive.Content
         ref={ref}
         className={cn(
-          "fixed left-1/2 top-1/2 z-dialog grid w-[calc(100vw-2rem)] max-h-[calc(100dvh-2rem)] overflow-y-auto -translate-x-1/2 -translate-y-1/2 gap-3 rounded-lg border border-zinc-200 bg-white p-5 shadow-lg duration-200 ease-[cubic-bezier(0.25,1,0.5,1)] dark:border-zinc-800 dark:bg-zinc-900",
+          "fixed left-1/2 top-1/2 z-dialog grid w-[calc(100vw-2rem)] max-h-[calc(100dvh-2rem)] overflow-y-auto -translate-x-1/2 -translate-y-1/2 gap-3 rounded-xl border border-zinc-200 bg-white p-5 shadow-lg duration-200 ease-[cubic-bezier(0.25,1,0.5,1)] dark:border-zinc-800 dark:bg-zinc-900",
           "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
           "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
           sizeClass,
@@ -65,7 +65,7 @@ export const DialogContent = React.forwardRef<
         {children}
         <DialogPrimitive.Close
           className={cn(
-            "absolute right-3 top-3 inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition-colors duration-100 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50",
+            "absolute right-3 top-3 inline-flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 transition-colors duration-100 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50",
             "focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
           )}
         >

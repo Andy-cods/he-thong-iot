@@ -115,13 +115,15 @@ export function DataTable<T>({
       role="region"
       aria-label={ariaLabel}
       className={cn(
-        "relative w-full overflow-auto rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900",
+        // V4.3 Đợt 2 mục 1 — thẻ trắng bo 14px KHÔNG viền (chỉ shadow rất nhẹ),
+        // nổi trên nền trang xám thay vì panel viền dính sát các khối khác.
+        "relative w-full overflow-auto rounded-xl bg-white shadow-xs dark:bg-zinc-900",
         !disableMobileCards && "hidden md:block",
         className,
       )}
     >
       <table
-        className="w-full border-separate border-spacing-0 text-left text-sm text-zinc-800 dark:text-zinc-200"
+        className="w-full border-separate border-spacing-0 text-left text-md text-zinc-800 dark:text-zinc-200"
         style={minWidth ? { minWidth: `${minWidth}px` } : undefined}
       >
         <thead>
@@ -224,7 +226,7 @@ export function DataTable<T>({
           ? Array.from({ length: Math.min(skeletonRows, 4) }).map((_, i) => (
               <li
                 key={`sk-${i}`}
-                className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900"
+                className="rounded-xl bg-white p-3 shadow-xs dark:bg-zinc-900"
               >
                 <Skeleton className="h-4 w-32" />
                 <Skeleton className="mt-2 h-3 w-48" />
@@ -237,7 +239,7 @@ export function DataTable<T>({
                 onKeyDown={onRowClick ? handleRowKey(row) : undefined}
                 tabIndex={onRowClick ? 0 : undefined}
                 className={cn(
-                  "rounded-lg border border-zinc-200 bg-white p-3 text-sm dark:border-zinc-800 dark:bg-zinc-900",
+                  "rounded-xl bg-white p-3 text-md shadow-xs dark:bg-zinc-900",
                   onRowClick && "cursor-pointer active:bg-zinc-50 dark:active:bg-zinc-800/60",
                   rowClassName?.(row, i),
                 )}
@@ -271,7 +273,7 @@ export function DataTable<T>({
                       <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
                         {mobile.secondary.map((c) => (
                           <div key={c.id} className="min-w-0">
-                            <dt className="text-xs text-zinc-500 dark:text-zinc-400">
+                            <dt className="text-base text-zinc-500 dark:text-zinc-400">
                               {c.mobileLabel ?? c.header}
                             </dt>
                             <dd
@@ -292,8 +294,8 @@ export function DataTable<T>({
             ))}
         {mobileFooter ??
           (hasFooter && !showSkeleton && rows.length > 0 ? (
-            <li className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm font-semibold dark:border-zinc-700 dark:bg-zinc-800">
-              <div className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{footerLabel}</div>
+            <li className="rounded-xl bg-zinc-100 p-3 text-md font-semibold dark:bg-zinc-800">
+              <div className="text-base font-medium text-zinc-500 dark:text-zinc-400">{footerLabel}</div>
               <dl className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
                 {columns
                   .filter(
@@ -304,7 +306,7 @@ export function DataTable<T>({
                   )
                   .map((c) => (
                     <div key={c.id} className="min-w-0">
-                      <dt className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
+                      <dt className="text-base font-normal text-zinc-500 dark:text-zinc-400">
                         {c.mobileLabel ?? c.header}
                       </dt>
                       <dd className="tabular-nums text-zinc-900 dark:text-zinc-50">{c.footer}</dd>
@@ -375,7 +377,7 @@ export function RowActionsMenu({
           title={label}
           onClick={(e) => e.stopPropagation()}
           className={cn(
-            "inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 [@media(pointer:coarse)]:h-10 [@media(pointer:coarse)]:w-10 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50",
+            "inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 [@media(pointer:coarse)]:h-10 [@media(pointer:coarse)]:w-10 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50",
             className,
           )}
         >
@@ -413,6 +415,7 @@ export function StatTile({
   sub,
   icon: Icon,
   tone,
+  size = "default",
   className,
   onClick,
   active,
@@ -422,6 +425,12 @@ export function StatTile({
   sub?: React.ReactNode;
   icon?: React.ElementType;
   tone?: "warning" | "danger" | "success" | "progress";
+  /**
+   * MỚI (N1 APPLE_DESIGN_SYSTEM.md) — `"hero"` cho ĐÚNG 1 số quan trọng nhất/
+   * trang (số nặng hơn hẳn số phụ, kiểu Apple Health/Stocks). Additive, không
+   * đổi mặc định `"default"` (giao diện cũ giữ nguyên 100%).
+   */
+  size?: "default" | "hero";
   className?: string;
   onClick?: () => void;
   active?: boolean;
@@ -438,6 +447,7 @@ export function StatTile({
     success: "text-emerald-700 dark:text-emerald-400",
     progress: "text-indigo-700 dark:text-indigo-300",
   } as const;
+  const isHero = size === "hero";
   const Comp = onClick ? "button" : "div";
   return (
     <Comp
@@ -445,22 +455,53 @@ export function StatTile({
       onClick={onClick}
       aria-pressed={onClick ? Boolean(active) : undefined}
       className={cn(
-        "min-w-0 rounded-lg border bg-white p-3 text-left dark:bg-zinc-900 md:p-4",
+        // V4.3 Đợt 2 mục 1 — thẻ trắng bo 14px KHÔNG viền, shadow rất nhẹ
+        // (viền chỉ còn dùng làm vòng chọn `active`, không phải khung mặc định).
+        "min-w-0 rounded-xl bg-white text-left shadow-xs dark:bg-zinc-900",
+        isHero ? "p-4 md:p-5" : "p-3 md:p-4",
         active
-          ? "border-indigo-500 ring-1 ring-indigo-500"
-          : "border-zinc-200 dark:border-zinc-800",
-        onClick && "transition-colors hover:border-zinc-300 dark:hover:border-zinc-700",
+          ? "ring-1 ring-inset ring-indigo-500"
+          : onClick && "transition-shadow hover:shadow-md",
         className,
       )}
     >
       <div className="flex items-center gap-2">
-        {Icon ? <Icon className="h-4 w-4 shrink-0 text-zinc-400 dark:text-zinc-500" aria-hidden /> : null}
-        <span className="min-w-0 truncate text-xs font-medium text-zinc-500 dark:text-zinc-400">{label}</span>
+        {Icon ? (
+          <Icon
+            className={cn(
+              "shrink-0 text-zinc-400 dark:text-zinc-500",
+              isHero ? "h-5 w-5" : "h-4 w-4",
+            )}
+            aria-hidden
+          />
+        ) : null}
+        <span
+          className={cn(
+            "min-w-0 truncate font-medium text-zinc-500 dark:text-zinc-400 text-base",
+          )}
+        >
+          {label}
+        </span>
         {tone ? <span className={cn("ml-auto h-2 w-2 shrink-0 rounded-full", toneDot[tone])} aria-hidden /> : null}
       </div>
-      <div className="mt-1 truncate text-xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">{value}</div>
+      <div
+        className={cn(
+          "mt-1 truncate font-bold tabular-nums",
+          isHero ? "text-3xl md:text-4xl" : "text-xl font-semibold",
+          // V4.3 Đợt 2 mục 4 — ô hero tô màu ngữ nghĩa cho SỐ (không chỉ chấm/chữ
+          // phụ), khớp mẫu B "Chờ xếp kệ" xanh nổi bật hơn hẳn 3 ô còn lại.
+          isHero && tone ? toneText[tone] : "text-zinc-900 dark:text-zinc-50",
+        )}
+      >
+        {value}
+      </div>
       {sub ? (
-        <div className={cn("mt-0.5 truncate text-xs", tone ? toneText[tone] : "text-zinc-500 dark:text-zinc-400")}>
+        <div
+          className={cn(
+            "mt-0.5 truncate text-base",
+            tone ? toneText[tone] : "text-zinc-500 dark:text-zinc-400",
+          )}
+        >
           {sub}
         </div>
       ) : null}

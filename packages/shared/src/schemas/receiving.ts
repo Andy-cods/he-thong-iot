@@ -43,6 +43,18 @@ export const receivingEventSchema = z.object({
    * poLineId thì server tự chọn dòng còn thiếu hàng (line_no nhỏ trước).
    */
   poLineId: z.string().uuid().optional().nullable(),
+  /**
+   * V4.3 fix LOOP_E2E P1 — xác nhận tường minh "nhận vượt SL đặt" của dòng PO.
+   * Chỉ có hiệu lực khi đi kèm `overDeliveryReason` ≥ 3 ký tự — server chặn
+   * lại lần nữa trong transaction (xem `checkOverDelivery`), không tin FE.
+   */
+  allowOverDelivery: z.boolean().optional(),
+  overDeliveryReason: z
+    .string()
+    .trim()
+    .max(500, "Lý do nhận vượt tối đa 500 ký tự")
+    .optional()
+    .nullable(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 

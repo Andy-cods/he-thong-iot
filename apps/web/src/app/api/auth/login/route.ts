@@ -125,6 +125,7 @@ export async function POST(req: NextRequest) {
       isActive: userAccount.isActive,
       lockedUntil: userAccount.lockedUntil,
       fullName: userAccount.fullName,
+      mustChangePassword: userAccount.mustChangePassword,
     })
     .from(userAccount)
     .where(eq(userAccount.username, username))
@@ -303,6 +304,7 @@ export async function POST(req: NextRequest) {
       username: user.username,
       fullName: user.fullName,
       roles: roleCodes,
+      mustChangePassword: user.mustChangePassword,
     },
   });
 

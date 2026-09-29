@@ -7,6 +7,7 @@ import {
   WoTransitionError,
   completeWO,
 } from "@/server/repos/workOrders";
+import { putawayToBin } from "@/server/repos/warehouseLocation";
 import {
   extractRequestMeta,
   jsonError,
@@ -29,6 +30,15 @@ const schema = z.object({
    * thuộc có thiếu SL hay không, guard mới biết).
    */
   completeReason: z.string().trim().max(2000).optional(),
+  /**
+   * V4.3 Q2 — nhập kho thành phẩm khi hoàn thành. `fgQty` > 0 → tạo lô +
+   * `inventory_txn` PROD_IN trong cùng transaction. Không truyền/= 0 → giữ
+   * hành vi cũ (chỉ chuyển trạng thái, không nhập kho — dùng khi UI cũ/consumer
+   * khác gọi thẳng API không qua dialog hoàn thành).
+   */
+  fgQty: z.coerce.number().nonnegative().optional(),
+  fgBinId: z.string().uuid().optional().nullable(),
+  fgHoldQc: z.boolean().optional(),
 });
 
 /** POST /api/work-orders/[id]/complete — IN_PROGRESS → COMPLETED (admin/planner). */
@@ -43,10 +53,20 @@ export async function POST(
   if ("response" in body) return body.response;
 
   try {
+    const fgReceipt =
+      body.data.fgQty && body.data.fgQty > 0
+        ? {
+            qty: body.data.fgQty,
+            binId: body.data.fgBinId ?? null,
+            holdQc: body.data.fgHoldQc ?? false,
+            userId: guard.session.userId,
+          }
+        : null;
     const wo = await completeWO(
       params.id,
       body.data.versionLock,
       body.data.completeReason,
+      fgReceipt,
     );
     const meta = extractRequestMeta(req);
     await writeAudit({
@@ -60,9 +80,28 @@ export async function POST(
         goodQty: wo.goodQty,
         plannedQty: wo.plannedQty,
         completeReason: body.data.completeReason || null,
+        fgReceipt: wo.fgReceipt,
       },
       ...meta,
     });
+
+    // V4.3 Q2 — ghi log `warehouse_putaway` cho lô FG vừa nhập (không chặn
+    // response nếu ghi log lỗi — xem cùng cơ chế ở nhận hàng/chuyển bin).
+    if (wo.fgReceipt) {
+      void putawayToBin({
+        lotSerialId: wo.fgReceipt.lotSerialId,
+        itemId: wo.productItemId,
+        binId: wo.fgReceipt.binId,
+        qty: wo.fgReceipt.qty,
+        putawayBy: guard.session.userId,
+        notes: `Nhập kho thành phẩm ${wo.woNo}`,
+      }).catch((err) => {
+        logger.warn(
+          { err, lotSerialId: wo.fgReceipt?.lotSerialId },
+          "ghi warehouse_putaway lúc nhập kho thành phẩm thất bại",
+        );
+      });
+    }
 
     // Activity log + trigger derived status sync (fire-and-forget)
     void insertActivityLog({

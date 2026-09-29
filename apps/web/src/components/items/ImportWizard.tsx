@@ -615,7 +615,7 @@ function ResultPanel({
           <div className="h-12 w-12 animate-spin rounded-full border-2 border-zinc-200 border-t-indigo-500 dark:border-zinc-700" />
         )}
         <div>
-          <div className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+          <div className="text-2xl md:text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
             {isDone
               ? "Hoàn tất import"
               : isFailed

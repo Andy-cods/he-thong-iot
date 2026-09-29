@@ -317,7 +317,7 @@ export function WarehouseLayoutTab() {
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-800">
             <div className="flex items-center gap-1.5" title="Mức lấp đầy: ít → đầy">
               <span className="flex overflow-hidden rounded-sm ring-1 ring-indigo-200 dark:ring-indigo-800" aria-hidden>
-                {["#eef2ff", "#c7d2fe", "#6366f1", "#4f46e5", "#4338ca"].map((c) => (
+                {["#e6f1fc", "#a6cdf5", "#2686e7", "#0071e3", "#0060c2"].map((c) => (
                   <span key={c} className="h-2.5 w-2.5" style={{ backgroundColor: c }} />
                 ))}
               </span>
@@ -384,7 +384,7 @@ export function WarehouseLayoutTab() {
             </h3>
             <div className="space-y-2.5">
               <StatRow
-                color="#6366f1"
+                color="#2686e7"
                 label="Có hàng"
                 count={rackStats.occupied}
                 total={currentRack?.total ?? 0}

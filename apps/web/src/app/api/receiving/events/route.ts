@@ -6,8 +6,10 @@ import { logger } from "@/lib/logger";
 import {
   getEventPostState,
   insertEvent,
+  OverDeliveryRejectedError,
   postReceivingAtomic,
 } from "@/server/repos/receivingEvents";
+import { putawayToBin } from "@/server/repos/warehouseLocation";
 import {
   extractRequestMeta,
   jsonError,
@@ -89,6 +91,7 @@ export async function POST(req: NextRequest) {
     qcStatus?: string;
     qcDowngraded?: boolean;
     overDelivery?: boolean;
+    overDeliveryQty?: number;
     warning?: string | null;
   }> = [];
   const meta = extractRequestMeta(req);
@@ -209,10 +212,29 @@ export async function POST(req: NextRequest) {
         userId: guard.session.userId,
         qcStatus: e.qcStatus ?? "PENDING",
         canApproveQc,
+        allowOverDelivery: e.allowOverDelivery,
+        overDeliveryReason: e.overDeliveryReason,
       });
 
       // V3.11.3 (audit 1.2) — chỉ ack SAU khi post tồn kho thành công.
       acked.push(e.id);
+
+      // V4.3 — ghi log `warehouse_putaway` (nối lại hàm có sẵn từ V3.6, trước
+      // đây 0 nơi gọi). KHÔNG cần atomic với inventory_txn ở trên — log này
+      // chỉ phục vụ tra cứu/phân tích, mất 1 dòng log không mất tồn kho.
+      void putawayToBin({
+        lotSerialId: posted.lotSerialId,
+        itemId: itm.id,
+        binId: posted.locationBinId,
+        qty: e.qty,
+        putawayBy: guard.session.userId,
+        receiptId: posted.receiptId,
+      }).catch((err) => {
+        logger.warn(
+          { err, lotSerialId: posted.lotSerialId },
+          "ghi warehouse_putaway lúc nhận hàng thất bại (không chặn nhận hàng)",
+        );
+      });
 
       details.push({
         id: e.id,
@@ -224,7 +246,10 @@ export async function POST(req: NextRequest) {
         qcStatus: posted.qcStatus,
         qcDowngraded: posted.qcDowngraded,
         overDelivery: posted.overDelivery,
-        warning: posted.overDelivery ? "Qty nhận > 105% ordered" : null,
+        overDeliveryQty: posted.overDeliveryQty,
+        warning: posted.overDelivery
+          ? `Đã xác nhận nhận vượt ${posted.overDeliveryQty} so với SL đặt`
+          : null,
       });
 
       if (posted.qcStatus === "PENDING") {
@@ -318,11 +343,27 @@ export async function POST(req: NextRequest) {
           poStatus: posted.poStatus,
         },
         notes: posted.overDelivery
-          ? "Over-delivery > 105%"
+          ? `Nhận vượt SL đặt ${posted.overDeliveryQty} — đã xác nhận: ${
+              e.overDeliveryReason?.trim() || "(không có lý do)"
+            }`
           : undefined,
         ...meta,
       });
     } catch (err) {
+      // V4.3 fix LOOP_E2E P1 — vượt SL đặt mà không xác nhận là lỗi NGHIỆP VỤ
+      // chặn cứng, khác các lỗi khác của route này (vốn chỉ gom vào
+      // `rejected[]` với HTTP 200) — trả 422 rõ ràng ngay, dừng xử lý batch.
+      if (err instanceof OverDeliveryRejectedError) {
+        logger.warn(
+          { eventId: e.id, lineNo: err.lineNo, overQty: err.overQty },
+          "receiving over-delivery rejected",
+        );
+        return jsonError(err.code, err.message, 422, {
+          eventId: e.id,
+          lineNo: err.lineNo,
+          overQty: err.overQty,
+        });
+      }
       logger.warn({ err, eventId: e.id }, "receiving event post failed");
       rejected.push({
         id: e.id,

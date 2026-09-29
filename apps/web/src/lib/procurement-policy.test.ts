@@ -4,6 +4,7 @@ import {
   addDaysIso,
   buildPoInvoiceDraft,
   canEditPoPrices,
+  checkOverDelivery,
   detectPoPriceChanges,
   evaluatePoReceipt,
   findUnpricedPoLines,
@@ -133,6 +134,79 @@ describe("V4.1 TM-15/16 — nhận đủ theo TỪNG dòng, bỏ hàng QC không
         { lineNo: 2, orderedQty: 2, receivedQty: 1 },
       ]),
     ).toBe("PARTIAL");
+  });
+});
+
+describe("V4.3 LOOP_E2E P1 — chặn nhận vượt SL đặt của dòng PO", () => {
+  it("nhận vừa đủ (không vượt) → ok, over=false", () => {
+    const r = checkOverDelivery({
+      lineNo: 1,
+      orderedQty: 100,
+      alreadyAcceptedQty: 60,
+      qty: 40,
+    });
+    expect(r).toEqual({ ok: true, over: false, overQty: 0 });
+  });
+
+  it("vượt SL đặt, KHÔNG có cờ xác nhận → chặn (ok=false), nêu rõ dòng + số vượt", () => {
+    const r = checkOverDelivery({
+      lineNo: 2,
+      orderedQty: 100,
+      alreadyAcceptedQty: 60,
+      qty: 60, // 60+60=120 > 100
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.overQty).toBe(20);
+      expect(r.lineNo).toBe(2);
+      expect(r.message).toContain("Dòng 2");
+      expect(r.message).toContain("20.00");
+    }
+  });
+
+  it("vượt SL đặt nhưng có cờ + lý do quá ngắn → vẫn chặn", () => {
+    const r = checkOverDelivery({
+      lineNo: 1,
+      orderedQty: 100,
+      alreadyAcceptedQty: 60,
+      qty: 60,
+      allowOverDelivery: true,
+      overDeliveryReason: "ok", // 2 ký tự < 3
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it("vượt SL đặt + có cờ + lý do đủ dài → cho phép, trả overQty", () => {
+    const r = checkOverDelivery({
+      lineNo: 1,
+      orderedQty: 100,
+      alreadyAcceptedQty: 60,
+      qty: 60,
+      allowOverDelivery: true,
+      overDeliveryReason: "NCC giao dư, xưởng đồng ý nhận",
+    });
+    expect(r).toEqual({ ok: true, over: true, overQty: 20 });
+  });
+
+  it("orderedQty = 0 (dòng lỗi dữ liệu) → không coi là vượt", () => {
+    const r = checkOverDelivery({
+      lineNo: 1,
+      orderedQty: 0,
+      alreadyAcceptedQty: 0,
+      qty: 10,
+    });
+    expect(r).toEqual({ ok: true, over: false, overQty: 0 });
+  });
+
+  it("hàng NG trước đó không tính vào 'đã nhận' — nhận bù không bị chặn nhầm", () => {
+    // Đã nhận 100 nhưng NG hết (accepted=0) → nhận lại 100 KHÔNG phải vượt.
+    const r = checkOverDelivery({
+      lineNo: 1,
+      orderedQty: 100,
+      alreadyAcceptedQty: 0,
+      qty: 100,
+    });
+    expect(r).toEqual({ ok: true, over: false, overQty: 0 });
   });
 });
 

@@ -26,7 +26,15 @@ export interface RouteGuardRule {
 
 export const ROUTE_GUARDS: RouteGuardRule[] = [
   { prefix: "/admin", roles: ["admin"] },
-  { prefix: "/warehouse", roles: ["admin", "warehouse"], entities: ["inventory"] },
+  // V4.3 mục 4.3 — gộp `/qc-inbound` vào tab Kho "Chờ QC": role `qc` cần vào
+  // được `/warehouse?tab=movement&mode=qc`. Thêm entity `qcInspection` (qc CÓ
+  // quyền này, KHÔNG có `inventory`) để giữ nguyên chặn admin/warehouse như cũ
+  // qua entity `inventory`.
+  {
+    prefix: "/warehouse",
+    roles: ["admin", "warehouse", "qc"],
+    entities: ["inventory", "qcInspection"],
+  },
   // TASK-20260922 — /sales gồm cả phân hệ Tài chính (tab con) nên mở cho
   // accountant + shareholder; page.tsx tự lọc tab theo quyền từng role.
   {

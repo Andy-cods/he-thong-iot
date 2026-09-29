@@ -63,7 +63,7 @@ export function UserMenu({
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(
-          "inline-flex h-8 items-center gap-1.5 rounded-md px-1.5 text-base text-zinc-700 transition-colors duration-100",
+          "inline-flex h-8 items-center gap-1.5 rounded-lg px-1.5 text-base text-zinc-700 transition-colors duration-100",
           "hover:bg-zinc-100",
           "focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-2",
           "dark:text-zinc-300 dark:hover:bg-zinc-800",

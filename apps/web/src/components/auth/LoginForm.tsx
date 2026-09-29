@@ -85,7 +85,7 @@ export function LoginForm() {
       }
 
       const json = (await res.json().catch(() => ({}))) as
-        | { user: { username: string; fullName?: string | null } }
+        | { user: { username: string; fullName?: string | null; mustChangePassword?: boolean } }
         | { error: { message: string } }
         | Record<string, never>;
 
@@ -99,6 +99,14 @@ export function LoginForm() {
         setError(msg);
         setPassword("");
         passwordRef.current?.focus();
+        return;
+      }
+
+      // V4.3 — phải đổi mật khẩu: TẢI HẲN trang đổi MK. Điều hướng client để
+      // layout (app) tự redirect() sang /me/change-password làm Next 14 render
+      // layout nhưng phần trang rỗng (màn hình trắng, F5 mới hiện form).
+      if (typeof json === "object" && "user" in json && json.user.mustChangePassword) {
+        window.location.assign("/me/change-password");
         return;
       }
 

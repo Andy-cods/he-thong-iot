@@ -77,11 +77,28 @@ describe("V4.1 AD-17 — route guard", () => {
   });
 
   it("AD-19 — DENY đọc kho → chặn trang Kho + ẩn menu Kho", () => {
-    const deny = [{ entity: "inventory", action: "read", granted: false }];
+    // V4.3 mục 4.3 — `/warehouse` nay thêm entity `qcInspection` (role `qc`
+    // vào qua tab "Chờ QC", gộp `/qc-inbound`); `warehouse` role CŨNG có sẵn
+    // `qcInspection: [read, update]` nên chỉ DENY `inventory` không còn đủ
+    // chặn trang (API vẫn chặn thật qua `requireCan` — đây chỉ là guard UI).
+    // DENY cả 2 entity mới đúng ý "thu hồi toàn bộ quyền Kho".
+    const deny = [
+      { entity: "inventory", action: "read", granted: false },
+      { entity: "qcInspection", action: "read", granted: false },
+    ];
     expect(isRouteAllowed("/warehouse", ["warehouse"], deny)).toBe(false);
     const nav = filterNavForUser(NAV_ITEMS, ["warehouse"], deny).map((i) => i.href);
     expect(nav).not.toContain("/warehouse");
     expect(filterNavForUser(NAV_ITEMS, ["warehouse"]).map((i) => i.href)).toContain("/warehouse");
+  });
+
+  // V4.3 mục 4.3 — gộp `/qc-inbound` vào tab Kho "Chờ QC": role `qc` vào được
+  // `/warehouse` (qua `qcInspection`), operator/planner (không role kho/qc,
+  // không quyền kho nào) thì không.
+  it("V4.3 — qc vào được /warehouse (qcInspection), operator thì không", () => {
+    expect(isRouteAllowed("/warehouse", ["qc"])).toBe(true);
+    expect(isRouteAllowed("/warehouse", ["operator"])).toBe(false);
+    expect(isRouteAllowed("/warehouse", ["planner"])).toBe(false);
   });
 
   it("AD-19 — GRANT không mở hub của bộ phận khác (mục có roles)", () => {

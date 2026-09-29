@@ -69,7 +69,7 @@ export function CategoriesTab() {
       <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
         <div>
           {/* V4.1 UI-09 (X6): bỏ breadcrumb thân trang — topbar đã hiện cùng đường dẫn (+ nhãn tab). */}
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+          <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
             Danh mục thu chi
           </h1>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">

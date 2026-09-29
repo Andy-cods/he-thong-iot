@@ -124,7 +124,7 @@ export function CommandPalette({
     >
       <CommandPrimitive
         label="Bảng lệnh"
-        className="mt-[15vh] flex w-full max-w-[560px] flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/40"
+        className="mt-[15vh] flex w-full max-w-[560px] flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-lg dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/40"
         // cmdk handles arrow keys / enter / escape
         onKeyDown={(e) => {
           if (e.key === "Escape") {

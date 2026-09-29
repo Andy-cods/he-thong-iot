@@ -31,9 +31,7 @@ import {
   Sheet,
   SheetBody,
   SheetContent,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
+  SheetHeaderNav,
 } from "@/components/ui/sheet";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/ui/query-error";
@@ -126,7 +124,7 @@ export function PaymentsTab() {
       <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
         <div>
           {/* V4.1 UI-09 (X6): bỏ breadcrumb thân trang — topbar đã hiện cùng đường dẫn (+ nhãn tab). */}
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+          <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
             Lịch sử thanh toán
           </h1>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
@@ -454,18 +452,36 @@ function PaymentFormDialog({
   };
 
   const formId = "pay-form";
+  const actionLabel = createMut.isPending
+    ? "Đang lưu…"
+    : allocationSum > 0
+      ? `Ghi nhận ${direction === "OUT" ? "chi" : "thu"} ${fmtVND(allocationSum)}`
+      : "Ghi nhận thanh toán";
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       {/* size="lg" (560px) — nội dung có thể mở rộng động (nhiều dòng phân bổ),
           Dialog trung tâm cố định trước đây bóp chật ở 390px (§1.8/§3.4). */}
-      <SheetContent side="right" size="lg" className="flex flex-col">
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-2 text-base">
-            <CreditCard className="h-4 w-4" aria-hidden="true" />
-            Ghi nhận thanh toán
-          </SheetTitle>
-        </SheetHeader>
+      <SheetContent side="right" size="lg" className="flex flex-col" hideCloseButton>
+        <SheetHeaderNav
+          title={
+            <span className="inline-flex items-center gap-2">
+              <CreditCard className="h-4 w-4" aria-hidden="true" />
+              Ghi nhận thanh toán
+            </span>
+          }
+          onCancel={() => onOpenChange(false)}
+          action={{
+            label: actionLabel,
+            type: "submit",
+            form: formId,
+            disabled:
+              createMut.isPending ||
+              fields.length === 0 ||
+              mismatch ||
+              (wouldOverdraw && !(isAdmin && allowOverdraft)),
+          }}
+        />
         <SheetBody>
           <form id={formId} onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-3" noValidate>
             <div className="flex items-center gap-1.5">
@@ -577,7 +593,7 @@ function PaymentFormDialog({
                               ))}
                             </select>
                             {remaining !== undefined && (
-                              <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">Còn nợ: {fmtVND(remaining)}</p>
+                              <p className="mt-0.5 text-base text-zinc-500 dark:text-zinc-400">Còn nợ: {fmtVND(remaining)}</p>
                             )}
                           </div>
                           <Input
@@ -638,21 +654,6 @@ function PaymentFormDialog({
             )}
           </form>
         </SheetBody>
-        <SheetFooter>
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Huỷ</Button>
-          <Button
-            type="submit"
-            form={formId}
-            disabled={
-              createMut.isPending ||
-              fields.length === 0 ||
-              mismatch ||
-              (wouldOverdraw && !(isAdmin && allowOverdraft))
-            }
-          >
-            {createMut.isPending ? "Đang lưu…" : "Ghi nhận thanh toán"}
-          </Button>
-        </SheetFooter>
       </SheetContent>
     </Sheet>
   );

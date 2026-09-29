@@ -150,6 +150,62 @@ export function nextPoStatusAfterReceipt(
   return anyReceived ? "PARTIAL" : null;
 }
 
+/* ── V4.3 LOOP_E2E P1: chặn nhận vượt SL đặt của dòng PO ─────────────────── */
+
+/** Số ký tự tối thiểu của lý do "xác nhận nhận vượt". */
+export const OVER_DELIVERY_REASON_MIN_LEN = 3;
+
+export interface OverDeliveryCheckInput {
+  lineNo: number;
+  orderedQty: number | string;
+  /** SL đã nhận ĐẠT của dòng này (accepted = received − rejected), CHƯA cộng lần này. */
+  alreadyAcceptedQty: number | string;
+  /** SL đang nhận thêm ở lần này. */
+  qty: number;
+  /** Người dùng đã tick "Xác nhận nhận vượt". */
+  allowOverDelivery?: boolean | null;
+  /** Lý do nhận vượt — bắt buộc ≥ OVER_DELIVERY_REASON_MIN_LEN ký tự khi allowOverDelivery=true. */
+  overDeliveryReason?: string | null;
+}
+
+export type OverDeliveryCheckResult =
+  | { ok: true; over: false; overQty: 0 }
+  | { ok: true; over: true; overQty: number }
+  | { ok: false; over: true; overQty: number; lineNo: number; message: string };
+
+/**
+ * V4.3 fix LOOP_E2E P1 — THUẦN: nhận hàng vượt SL đặt (ordered_qty) của MỘT
+ * dòng PO phải bị chặn, trừ khi người dùng xác nhận tường minh
+ * (`allowOverDelivery: true`) kèm lý do đủ dài. Trước đây chỉ chặn khi vượt
+ * > 120% (OVER_DELIVERY_HARD_RATIO) nên PO đặt 100 vẫn âm thầm nhận được 120
+ * mà không ai xác nhận — sai lệch số liệu nguồn cho đối soát công nợ NCC.
+ */
+export function checkOverDelivery(
+  input: OverDeliveryCheckInput,
+): OverDeliveryCheckResult {
+  const ordered = num(input.orderedQty);
+  const already = num(input.alreadyAcceptedQty);
+  const projected = already + input.qty;
+  const overQty = round2(Math.max(0, projected - ordered));
+  const isOver = ordered > 0 && overQty > 1e-9;
+  if (!isOver) return { ok: true, over: false, overQty: 0 };
+
+  const reasonOk =
+    (input.overDeliveryReason ?? "").trim().length >= OVER_DELIVERY_REASON_MIN_LEN;
+  if (input.allowOverDelivery && reasonOk) {
+    return { ok: true, over: true, overQty };
+  }
+  return {
+    ok: false,
+    over: true,
+    overQty,
+    lineNo: input.lineNo,
+    message:
+      `Dòng ${input.lineNo}: nhận ${projected.toFixed(2)} vượt ${overQty.toFixed(2)} so với ` +
+      `SL đặt ${ordered.toFixed(2)}. Tick "Xác nhận nhận vượt" và nhập lý do (≥ ${OVER_DELIVERY_REASON_MIN_LEN} ký tự) để tiếp tục.`,
+  };
+}
+
 /* ── TM-10: dòng PR → dòng PO ─────────────────────────────────────────────── */
 
 /**

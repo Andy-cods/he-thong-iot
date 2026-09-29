@@ -13,11 +13,29 @@ import {
 import { db } from "@/lib/db";
 import {
   acceptedQtyOf,
+  checkOverDelivery,
   nextPoStatusAfterReceipt,
 } from "../../lib/procurement-policy";
 import { currentYymm, genDocNo } from "./_docNumber";
 import { applySnapshotQc, recomputeReceiptQcFlag } from "./inboundQc";
 import { getPOLineReceiptStats } from "./purchaseOrders";
+
+/**
+ * V4.3 fix LOOP_E2E P1 — throw riêng để route.ts phân biệt được với lỗi
+ * chung chung (PO_NOT_RECEIVABLE, LOT_CODE_TOO_LONG, …) và trả 422 rõ ràng
+ * thay vì gộp vào `rejected[]` như các lỗi khác.
+ */
+export class OverDeliveryRejectedError extends Error {
+  readonly code = "OVER_DELIVERY_REJECTED" as const;
+  readonly lineNo: number;
+  readonly overQty: number;
+  constructor(message: string, lineNo: number, overQty: number) {
+    super(message);
+    this.name = "OverDeliveryRejectedError";
+    this.lineNo = lineNo;
+    this.overQty = overQty;
+  }
+}
 
 /**
  * V4.1 hotfix — bin hệ thống "Chờ xếp kệ" (migration 0058). Nhận hàng KHÔNG
@@ -188,6 +206,13 @@ export interface PostReceivingInput {
    * mà gửi OK → hạ về PENDING (không báo lỗi), ghi metadata.qcDowngraded.
    */
   canApproveQc?: boolean;
+  /**
+   * V4.3 fix LOOP_E2E P1 — người dùng đã tick "Xác nhận nhận vượt" ở wizard.
+   * Chỉ có hiệu lực kèm `overDeliveryReason` ≥ 3 ký tự — xem `checkOverDelivery`.
+   */
+  allowOverDelivery?: boolean;
+  /** Lý do nhận vượt SL đặt — ghi vào notes dòng phiếu nhập + metadata sự kiện. */
+  overDeliveryReason?: string | null;
 }
 
 export interface PostReceivingResult {
@@ -196,6 +221,10 @@ export interface PostReceivingResult {
   receiptLineId: string;
   inventoryTxnId: string;
   lotSerialId: string;
+  /** V4.3 — bin THỰC TẾ đã ghi hàng vào (đã resolve default_bin_id/staging).
+   * Dùng để ghi log `warehouse_putaway` SAU khi transaction này commit (không
+   * cần atomic với inventory_txn — xem WAREHOUSE_UX_AND_FLOW.md mục 4.1.4). */
+  locationBinId: string;
   /** V4.1 D5 — mã lô THỰC TẾ đã ghi (có thể đã tách thành `<mã>-N`). */
   lotCode: string | null;
   /** true nếu mã lô bị tách do trùng lô cũ cùng mã hàng. */
@@ -208,11 +237,9 @@ export interface PostReceivingResult {
   newSnapshotState: string | null;
   poStatus: string | null;
   overDelivery: boolean;
+  /** V4.3 fix LOOP_E2E P1 — SL vượt so với ordered_qty (0 nếu overDelivery=false). */
+  overDeliveryQty: number;
 }
-
-/** V3.2 — soft over-delivery threshold (warning), hard block ngưỡng. */
-const OVER_DELIVERY_WARN_RATIO = 1.05; // > 105%: log warning
-const OVER_DELIVERY_HARD_RATIO = 1.20; // > 120%: throw OVER_DELIVERY_REJECTED
 
 /** V4.1 KHO-08 — PO ở các trạng thái này mới được nhận hàng. */
 export const RECEIVABLE_PO_STATUSES = ["SENT", "PARTIAL", "RECEIVED"] as const;
@@ -344,22 +371,30 @@ export async function postReceivingAtomic(
       resolvedBinId = await resolveStagingBinId(tx);
     }
 
-    // 1b) V3.2 — hard block over-delivery > 120% để tránh nhập sai SL nghiêm trọng
+    // 1b) V4.3 fix LOOP_E2E P1 — chặn CỨNG nhận vượt SL đặt (ordered_qty) của
+    // dòng PO, trừ khi có allowOverDelivery=true + overDeliveryReason hợp lệ.
     // V4.1 TM-16 — tính trên SL ĐẠT (trừ hàng QC không đạt) để NCC giao bù
-    // hàng NG không bị chặn nhầm là giao vượt.
+    // hàng NG không bị chặn nhầm là giao vượt. Đọc trong CÙNG transaction,
+    // sau khi đã FOR UPDATE khoá poLine ở trên — không đọc số cũ ngoài tx.
     const lineStatsBefore = await getPOLineReceiptStats(input.poId, tx);
-    {
-      const ordered = Number.parseFloat(poLine.orderedQty);
-      const cur = lineStatsBefore.find((l) => l.id === poLine.id);
-      const already = cur
-        ? acceptedQtyOf(cur)
-        : Number.parseFloat(poLine.receivedQty);
-      const projected = already + input.qty;
-      if (ordered > 0 && projected > ordered * OVER_DELIVERY_HARD_RATIO) {
-        throw new Error(
-          `OVER_DELIVERY_REJECTED: nhận ${projected.toFixed(2)} > ${(ordered * OVER_DELIVERY_HARD_RATIO).toFixed(2)} (${Math.round(OVER_DELIVERY_HARD_RATIO * 100)}% của ${ordered}). Liên hệ admin để chỉnh đặt hàng.`,
-        );
-      }
+    const curLineStats = lineStatsBefore.find((l) => l.id === poLine.id);
+    const alreadyAcceptedQty = curLineStats
+      ? acceptedQtyOf(curLineStats)
+      : Number.parseFloat(poLine.receivedQty);
+    const overCheck = checkOverDelivery({
+      lineNo: poLine.lineNo,
+      orderedQty: poLine.orderedQty,
+      alreadyAcceptedQty,
+      qty: input.qty,
+      allowOverDelivery: input.allowOverDelivery,
+      overDeliveryReason: input.overDeliveryReason,
+    });
+    if (!overCheck.ok) {
+      throw new OverDeliveryRejectedError(
+        overCheck.message,
+        overCheck.lineNo,
+        overCheck.overQty,
+      );
     }
 
     // 2) Find/create inbound_receipt header (1 per po + ngày)
@@ -450,6 +485,15 @@ export async function postReceivingAtomic(
     // 5) Insert inbound_receipt_line (gắn lô + trạng thái QC theo dòng)
     const lineQc: "PENDING" | "PASS" | "FAIL" =
       qc === "OK" ? "PASS" : qc === "NG" ? "FAIL" : "PENDING";
+    // V4.3 fix LOOP_E2E P1 — ghi rõ lý do "xác nhận nhận vượt" vào notes dòng
+    // phiếu nhập để audit/đối soát công nợ NCC sau này biết vì sao nhận > đặt.
+    const overDeliveryNote =
+      overCheck.over && input.overDeliveryReason?.trim()
+        ? `[Nhận vượt ${overCheck.overQty.toFixed(2)} so với đặt] Lý do: ${input.overDeliveryReason.trim()}`
+        : null;
+    const lineNotes = [input.notes?.trim() || null, overDeliveryNote]
+      .filter((s): s is string => !!s)
+      .join(" — ") || null;
     const [receiptLine] = await tx
       .insert(inboundReceiptLine)
       .values({
@@ -460,7 +504,7 @@ export async function postReceivingAtomic(
         locationBinId: resolvedBinId,
         lotCode,
         serialCode: input.serialCode ?? null,
-        notes: input.notes ?? null,
+        notes: lineNotes,
         lotSerialId,
         qcStatus: lineQc,
         qcCheckedBy: lineQc === "PENDING" ? null : input.userId,
@@ -533,11 +577,9 @@ export async function postReceivingAtomic(
       poStatus = updated?.status ?? null;
     }
 
-    // Over-delivery warning: nhận > 105% ordered
-    const orderedNum = Number.parseFloat(poLine.orderedQty);
-    const receivedAfter =
-      Number.parseFloat(poLine.receivedQty) + input.qty;
-    const overDelivery = orderedNum > 0 && receivedAfter > orderedNum * OVER_DELIVERY_WARN_RATIO;
+    // V4.3 fix LOOP_E2E P1 — cờ over-delivery lấy thẳng từ overCheck (bước 1b),
+    // đã tính "vượt ordered_qty" đúng theo SL ĐẠT tại thời điểm khoá dòng.
+    const overDelivery = overCheck.over;
 
     // 9) UPDATE bom_snapshot_line + transition state theo QC HIỆU LỰC (đã hạ
     //    cấp nếu thiếu quyền): PENDING → INBOUND_QC, OK → AVAILABLE, NG → PLANNED.
@@ -576,6 +618,10 @@ export async function postReceivingAtomic(
             requestedQcStatus: input.qcStatus ?? "PENDING",
             poStatus,
             overDelivery,
+            overDeliveryQty: overDelivery ? overCheck.overQty : 0,
+            overDeliveryReason: overDelivery
+              ? input.overDeliveryReason?.trim() || null
+              : null,
             postedAt: new Date().toISOString(),
           },
         )}::jsonb`,
@@ -588,6 +634,7 @@ export async function postReceivingAtomic(
       receiptLineId: receiptLine.id,
       inventoryTxnId: txn.id,
       lotSerialId,
+      locationBinId: resolvedBinId,
       lotCode,
       lotSplit,
       lotStatus,
@@ -597,6 +644,7 @@ export async function postReceivingAtomic(
       newSnapshotState,
       poStatus,
       overDelivery,
+      overDeliveryQty: overDelivery ? overCheck.overQty : 0,
     };
   });
 }

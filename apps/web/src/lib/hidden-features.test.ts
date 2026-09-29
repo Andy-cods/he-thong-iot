@@ -7,7 +7,10 @@ describe("V4.1 Q4/D10 — hiddenRouteRedirect", () => {
   it("cờ ẩn đang bật", () => {
     expect(HIDDEN_FEATURES.salesOrder).toBe(true);
     expect(HIDDEN_FEATURES.legacyAssembly).toBe(true);
-    expect(HIDDEN_FEATURES.fgReceipt).toBe(true);
+  });
+  // V4.3 Q2 — nhập kho thành phẩm đã bật lại (completeWO ghi PROD_IN thật).
+  it("fgReceipt đã bật lại (V4.3)", () => {
+    expect(HIDDEN_FEATURES.fgReceipt).toBe(false);
   });
   it("đơn hàng bán → /bom", () => {
     expect(hiddenRouteRedirect("/orders")).toBe("/bom");

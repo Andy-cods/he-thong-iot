@@ -349,7 +349,7 @@ export default function NewLsxPage() {
           <span className="font-medium text-zinc-900 dark:text-zinc-50">Phiếu LSX GTAM</span>
         </nav>
         <div className="mt-1.5 flex items-center justify-between">
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+          <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
             Phiếu Lệnh Sản Xuất (LSX GTAM)
           </h1>
           <div className="flex items-center gap-2">
@@ -388,7 +388,7 @@ export default function NewLsxPage() {
               <h2 className="mt-1 text-xl font-bold tracking-wide text-zinc-900 dark:text-zinc-50">
                 LỆNH SẢN XUẤT
               </h2>
-              <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+              <p className="mt-0.5 text-base text-zinc-500 dark:text-zinc-400">
                 Mẫu No: GTAM/PRD-LSX · Phiên bản 1.0
               </p>
             </div>

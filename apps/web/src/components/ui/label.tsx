@@ -28,7 +28,7 @@ export const Label = React.forwardRef<
     className={cn(
       uppercase
         ? "text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400"
-        : "text-base font-medium leading-none text-zinc-900 dark:text-zinc-100",
+        : "text-lg font-medium leading-none text-zinc-900 dark:text-zinc-100",
       "peer-disabled:cursor-not-allowed peer-disabled:opacity-60",
       className,
     )}

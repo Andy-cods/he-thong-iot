@@ -52,7 +52,8 @@ export default function OperationsPage({ searchParams }: OperationsPageProps) {
 
   return (
     <div className="flex flex-col md:h-full md:overflow-hidden">
-      <div className="border-b border-zinc-200 bg-white px-4 pb-3 pt-4 md:px-6 dark:border-zinc-800 dark:bg-zinc-900">
+      {/* V4.3 Đợt 2 mục 1 — tiêu đề Large Title BARE trên nền trang xám. */}
+      <div className="px-4 pb-2 pt-5 md:px-6 md:pt-6">
         <nav aria-label="Breadcrumb" className="text-xs text-zinc-500 dark:text-zinc-400">
           <Link href="/" className="hover:text-zinc-900 hover:underline dark:hover:text-zinc-50">
             Tổng quan
@@ -62,10 +63,10 @@ export default function OperationsPage({ searchParams }: OperationsPageProps) {
           <span className="mx-1.5 text-zinc-300 dark:text-zinc-600">›</span>
           <span className="font-medium text-zinc-900 dark:text-zinc-50">{tabLabel}</span>
         </nav>
-        <h1 className="mt-1.5 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+        <h1 className="mt-1.5 text-2xl md:text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
           Gia công
         </h1>
-        <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+        <p className="mt-0.5 text-base text-zinc-500 dark:text-zinc-400">
           {/* V4.1 UI-08 (§2.2): mô tả đúng nội dung — tab mặc định lọc “Chờ duyệt”;
               danh sách lệnh đầy đủ nằm ở Bộ phận Thiết kế › Yêu cầu SX (chọn “Tất cả”). */}
           Duyệt yêu cầu sản xuất từ Bộ phận Thiết kế — mặc định chỉ hiện yêu cầu chờ duyệt.

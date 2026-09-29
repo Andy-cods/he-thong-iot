@@ -23,6 +23,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { BinSuggestCombobox } from "@/components/warehouse/BinSuggestCombobox";
 
 /**
  * V3.7.4 — Bin actions: + thêm / - rút / chuyển bin.
@@ -35,7 +36,7 @@ import {
  * Sau mutation: invalidate ["warehouse"] queries → 3D + drawer + stats refresh.
  */
 
-interface BinContent {
+export interface BinContent {
   lotSerialId: string;
   lotCode: string | null;
   itemId: string;
@@ -46,7 +47,7 @@ interface BinContent {
   status: string;
 }
 
-interface BinNode {
+export interface BinNode {
   id: string;
   fullCode: string;
   isActive: boolean;
@@ -753,11 +754,13 @@ function RemoveStockDialog({
 /* TRANSFER DIALOG                                              */
 /* ============================================================ */
 
-function TransferDialog({
+export function TransferDialog({
   bin,
   contents,
   initialLot,
   allBins,
+  /** V4.3 mục 4.1.3 — prefill bin đích = gợi ý #1 (tab "Việc cần làm hôm nay" → "Xếp kệ"). */
+  initialToBinId,
   onClose,
   onSuccess,
 }: {
@@ -765,14 +768,18 @@ function TransferDialog({
   contents: BinContent[];
   initialLot: BinContent;
   allBins: BinNode[];
+  initialToBinId?: string;
   onClose: () => void;
   onSuccess: () => void;
 }) {
   const [selectedLotId, setSelectedLotId] = React.useState(
     initialLot.lotSerialId,
   );
-  const [toBinId, setToBinId] = React.useState("");
-  const [qty, setQty] = React.useState("");
+  const [toBinId, setToBinId] = React.useState(initialToBinId ?? "");
+  // V4.3 fix LOOP_E2E vướng #1 — tự điền SL = TOÀN BỘ tồn của lô đang chọn
+  // (trước đây để trống dù label đã ghi rõ "tối đa X" → người dùng phải tự
+  // gõ lại số đã hiển thị ngay trên dòng). Vẫn cho sửa tay bình thường.
+  const [qty, setQty] = React.useState(String(initialLot.qty));
   const [notes, setNotes] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
 
@@ -834,13 +841,20 @@ function TransferDialog({
 
         <div className="space-y-3">
           <div>
-            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+            <label className="text-lg font-medium text-zinc-700 dark:text-zinc-300">
               Lô / SKU
             </label>
             <select
               value={selectedLotId}
-              onChange={(e) => setSelectedLotId(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+              onChange={(e) => {
+                const nextId = e.target.value;
+                setSelectedLotId(nextId);
+                // V4.3 fix LOOP_E2E vướng #1 — đổi lô thì điền lại SL = tồn
+                // của lô mới (tránh giữ số cũ sai lô khi bin có nhiều lô).
+                const nextLot = contents.find((c) => c.lotSerialId === nextId);
+                if (nextLot) setQty(String(nextLot.qty));
+              }}
+              className="mt-1 block w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-lg dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
             >
               {contents.map((c) => (
                 <option key={c.lotSerialId} value={c.lotSerialId}>
@@ -851,25 +865,25 @@ function TransferDialog({
           </div>
 
           <div>
-            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+            <label className="text-lg font-medium text-zinc-700 dark:text-zinc-300">
               Bin đích
             </label>
-            <select
+            {/* V4.3 Đợt 2 — dùng BinSuggestCombobox (gợi ý vị trí putaway có sẵn)
+                thay <select> phẳng, khớp mẫu B "Gợi ý vị trí" trong sheet Xếp kệ. */}
+            <BinSuggestCombobox
+              itemId={lot.itemId}
+              qty={Number(qty) || lot.qty}
+              bins={targetOptions}
               value={toBinId}
-              onChange={(e) => setToBinId(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-            >
-              <option value="">— Chọn bin —</option>
-              {targetOptions.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.fullCode}
-                </option>
-              ))}
-            </select>
+              onChange={setToBinId}
+              placeholder="— Chọn bin —"
+              className="mt-1"
+              aria-label="Bin đích"
+            />
           </div>
 
           <div>
-            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+            <label className="text-lg font-medium text-zinc-700 dark:text-zinc-300">
               Số lượng chuyển (tối đa {lot.qty})
             </label>
             <Input
@@ -885,7 +899,7 @@ function TransferDialog({
           </div>
 
           <div>
-            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Ghi chú</label>
+            <label className="text-lg font-medium text-zinc-700 dark:text-zinc-300">Ghi chú</label>
             <Input
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -903,7 +917,15 @@ function TransferDialog({
             onClick={handleSubmit}
             disabled={!qty || !toBinId || submitting}
           >
-            {submitting ? "Đang chuyển…" : "Chuyển"}
+            {/* V4.3 Đợt 2 mục 5 — nút xác nhận ghi rõ việc sẽ làm thay vì
+                chữ "Chuyển" chung chung. */}
+            {submitting
+              ? "Đang chuyển…"
+              : qty && toBinId
+                ? `Chuyển ${qty} ${lot.itemUom ?? ""} → ${
+                    targetOptions.find((b) => b.id === toBinId)?.fullCode ?? "?"
+                  }`
+                : "Chuyển"}
           </Button>
         </DialogFooter>
       </DialogContent>

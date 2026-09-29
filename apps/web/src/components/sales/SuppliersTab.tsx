@@ -179,10 +179,10 @@ export function SuppliersTab() {
         {/* V4.1 UI-09 (X6): bỏ breadcrumb thân trang — topbar đã hiện cùng đường dẫn (+ nhãn tab). */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+            <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
               Nhà cung cấp
             </h1>
-            <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="mt-0.5 text-base text-zinc-500 dark:text-zinc-400">
               {isListError ? "—" : total.toLocaleString("vi-VN")} NCC
             </p>
           </div>

@@ -1,8 +1,12 @@
+import { cookies } from "next/headers";
+import type { Role } from "@iot/shared";
+import { AUTH_COOKIE_NAME, verifyAccessToken } from "@/lib/auth";
 import {
   WAREHOUSE_TABS,
   WarehouseTabsNav,
   type WarehouseTab,
 } from "@/components/warehouse/WarehouseTabsNav";
+import { TodayInboxTab } from "@/components/warehouse/TodayInboxTab";
 import { WarehouseLayoutTab } from "@/components/warehouse/WarehouseLayoutTab";
 import { ItemsTab } from "@/components/warehouse/ItemsTab";
 import { MovementTab } from "@/components/warehouse/MovementTab";
@@ -12,6 +16,23 @@ import { resolveMovementMode } from "@/components/warehouse/movement-mode";
 import { DeliveryNotesTab } from "@/components/warehouse/DeliveryNotesTab";
 import { GoodsIssuesTab } from "@/components/warehouse/GoodsIssuesTab";
 import { ReportTab } from "@/components/warehouse/ReportTab";
+
+/**
+ * V4.3 Đợt 2 mục 6 — vai `qc` vào `/warehouse` (route-guard cho phép, xem
+ * `lib/route-guard.ts`) chỉ có quyền RBAC trên entity `item` (Vật tư) và
+ * `qcInspection` (mode "qc" trong Nhập/Xuất kho) — KHÔNG có `inventory`
+ * (Việc cần làm hôm nay + Sơ đồ kho gọi `read:inventory` → 403),
+ * `goodsIssue` (Phiếu xuất kho), `deliveryNote` (Phiếu giao hàng) hay quyền
+ * cho Báo cáo kho. Ẩn 5 tab còn lại thay vì để qc bấm vào rồi ăn lỗi quyền.
+ */
+const QC_ONLY_VISIBLE_TABS: ReadonlyArray<WarehouseTab> = ["items", "movement"];
+
+async function getRolesFromCookie(): Promise<Role[]> {
+  const token = cookies().get(AUTH_COOKIE_NAME)?.value;
+  if (!token) return [];
+  const payload = await verifyAccessToken(token);
+  return payload?.roles ?? [];
+}
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +61,9 @@ interface WarehousePageProps {
 }
 
 function resolveTab(raw: string | undefined): WarehouseTab {
+  // V4.3 mục 3 — không truyền ?tab= → mặc định "today" (Việc cần làm hôm nay),
+  // thay "layout" (Sơ đồ kho) — link cũ `?tab=layout` vẫn chạy bình thường.
+  if (!raw) return "today";
   // Backward compat: ?tab=overview → "layout" (Tổng quan đã thay bằng Sơ đồ kho)
   if (raw === "overview") return "layout";
   // V3.7.7 — picking tab renamed → issue; Wave 5 Phase A — issue/receiving gộp movement
@@ -47,31 +71,50 @@ function resolveTab(raw: string | undefined): WarehouseTab {
   // V3.7.8 — lot-serial gộp vào items (xem chi tiết qua drawer item)
   if (raw === "lot-serial") return "items";
   const found = WAREHOUSE_TABS.find((t) => t.key === raw);
-  return found ? found.key : "layout";
+  return found ? found.key : "today";
 }
 
-export default function WarehousePage({ searchParams }: WarehousePageProps) {
-  const active = resolveTab(searchParams.tab);
+export default async function WarehousePage({ searchParams }: WarehousePageProps) {
+  const roles = await getRolesFromCookie();
+  const isQcOnly = roles.includes("qc") && !roles.includes("admin") && !roles.includes("warehouse");
+  const visibleTabs = isQcOnly
+    ? WAREHOUSE_TABS.filter((t) => QC_ONLY_VISIBLE_TABS.includes(t.key))
+    : WAREHOUSE_TABS;
+
+  let active = resolveTab(searchParams.tab);
+  // V4.3 Đợt 2 mục 6 — qc bookmark/gõ tay ?tab= một tab đã ẩn (VD "today",
+  // "layout") → rơi về "movement" (tab mặc định của vai qc) thay vì render
+  // component rồi ăn lỗi 403 từ API.
+  if (isQcOnly && !visibleTabs.some((t) => t.key === active)) {
+    active = "movement";
+  }
   // Backward-compat: ?tab=issue/picking (không có mode) → mặc định mode=out.
   const legacyOutMode = searchParams.tab === "issue" || searchParams.tab === "picking";
-  const mode = resolveMovementMode(searchParams.mode ?? (legacyOutMode ? "out" : undefined));
+  // qc không truyền ?mode= → mặc định "qc" (hàng chờ QC kết luận), tránh rơi
+  // vào mode "in" mặc định chung (ReceivingMovementView cần quyền qc không có).
+  const defaultMode = isQcOnly ? "qc" : legacyOutMode ? "out" : undefined;
+  const mode = resolveMovementMode(searchParams.mode ?? defaultMode);
 
   return (
     <div className="flex flex-col md:h-full md:overflow-hidden">
-      <div className="border-b border-zinc-200 bg-white px-4 pb-3 pt-4 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
+      {/* V4.3 Đợt 2 mục 1 — tiêu đề Large Title BARE trên nền trang xám
+          (không còn panel trắng viền dính vào tabs/nội dung bên dưới). */}
+      <div className="px-4 pb-2 pt-5 md:px-6 md:pt-6">
         {/* V4.1 UI-09 (X6): bỏ breadcrumb thân trang — topbar đã hiện cùng đường dẫn (+ nhãn tab). */}
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+        <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
           Quản lí kho
         </h1>
-        <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+        <p className="mt-0.5 text-base text-zinc-500 dark:text-zinc-400">
           Trang gộp Vật tư · Nhập/Xuất kho · Sơ đồ vị trí kệ/bin.
         </p>
       </div>
 
-      <WarehouseTabsNav active={active} />
+      <WarehouseTabsNav active={active} tabs={visibleTabs} />
 
       <div className="flex-1 md:min-h-0 md:overflow-auto">
-        {active === "layout" ? (
+        {active === "today" ? (
+          <TodayInboxTab />
+        ) : active === "layout" ? (
           <WarehouseLayoutTab />
         ) : active === "items" ? (
           <ItemsTab />

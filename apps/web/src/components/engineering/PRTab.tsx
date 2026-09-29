@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/ui/query-error";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PRListTable } from "@/components/procurement/PRListTable";
 import { ExportExcelDialog } from "@/components/archive/ExportExcelDialog";
 import { usePurchaseRequestsList } from "@/hooks/usePurchaseRequests";
@@ -123,17 +124,20 @@ export function PRTab() {
   );
 
   return (
-    <div className="flex flex-col bg-zinc-50/30 dark:bg-zinc-950/30 md:h-full md:overflow-hidden">
+    <div className="flex flex-col md:h-full md:overflow-hidden">
+      {/* V4.3 Đợt 2 mục 1 — tiêu đề Large Title BARE trên nền trang xám (không
+          còn panel trắng viền dính sát filter/bảng bên dưới — bảng tự nổi
+          thành thẻ riêng, xem `DataTable`). */}
       {/* V4.1 UI-06: header flex-wrap — điện thoại nút xuống dòng thay vì tràn phải
           (trang từng rộng 501px, tiêu đề gãy từng chữ). */}
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-zinc-200 bg-white px-4 py-4 md:px-6 dark:border-zinc-800 dark:bg-zinc-900">
+      <header className="flex flex-wrap items-start justify-between gap-3 px-4 pb-3 pt-5 md:px-6 md:pt-6">
         <div className="min-w-0 flex-1 basis-56">
           {/* V4.1 UI-09 (X6): bỏ breadcrumb thân trang — topbar đã hiện cùng đường dẫn (+ nhãn tab). */}
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+          <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
             {/* V4.1 UI-28: thống nhất 1 tên "Đề xuất vật tư" (menu, tab, tiêu đề). */}
             Đề xuất vật tư
           </h1>
-          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="mt-0.5 text-base text-zinc-500 dark:text-zinc-400">
             {query.isError ? "—" : total.toLocaleString("vi-VN")} phiếu
           </p>
         </div>
@@ -147,25 +151,21 @@ export function PRTab() {
         </div>
       </header>
 
-      {/* Thanh filter: trạng thái + khoảng ngày */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-zinc-200 bg-white px-4 py-2 md:px-6 dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="flex flex-wrap gap-1">
-          {["all", ...PR_STATUSES].map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => void setUrlState({ status: s as typeof urlState.status, page: 1 })}
-              className={`h-7 rounded-md px-2.5 text-xs font-medium transition-colors ${
-                urlState.status === s
-                  ? "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400"
-                  : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
-              }`}
-            >
-              {/* V4.1 UI-07: nhãn chip lọc từ lib/status.ts (khớp badge danh sách). */}
-              {s === "all" ? "Tất cả" : statusLabel("pr", s)}
-            </button>
-          ))}
-        </div>
+      {/* Thanh filter: trạng thái (segmented) + khoảng ngày */}
+      <div className="flex flex-wrap items-center gap-2 px-4 pb-3 md:px-6">
+        <Tabs
+          value={urlState.status}
+          onValueChange={(v) => void setUrlState({ status: v as typeof urlState.status, page: 1 })}
+        >
+          <TabsList variant="segmented">
+            {["all", ...PR_STATUSES].map((s) => (
+              <TabsTrigger key={s} value={s}>
+                {/* V4.1 UI-07: nhãn chip lọc từ lib/status.ts (khớp badge danh sách). */}
+                {s === "all" ? "Tất cả" : statusLabel("pr", s)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
 
         <div className="ml-auto flex items-center gap-2">
           <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">

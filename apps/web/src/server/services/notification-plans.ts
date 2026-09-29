@@ -232,7 +232,6 @@ export const L = {
   whOut: "/warehouse?tab=movement&mode=out",
   whQc: "/warehouse?tab=movement&mode=qc",
   whDeliveryNote: (id: string) => `/warehouse?tab=delivery-notes&id=${id}`,
-  qcInbound: "/qc-inbound",
   finPayments: "/sales?tab=fin-payments",
 } as const;
 
@@ -867,7 +866,7 @@ export function planReceiptQcPending(ctx: ReceiptQcCtx & { lineCount: number }):
         message: ctx.poNo
           ? `Hàng của PO ${ctx.poNo} đang bị giữ (HOLD) cho tới khi QC kết luận Đạt.`
           : "Hàng đang bị giữ (HOLD) cho tới khi QC kết luận Đạt.",
-        links: [L.qcInbound],
+        links: [L.whQc],
         severity: "warning",
       }),
     ],

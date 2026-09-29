@@ -64,7 +64,7 @@ export default function MyProductivityPage() {
           <span className="mx-1.5 text-zinc-300 dark:text-zinc-600">›</span>
           <span className="font-medium text-zinc-900 dark:text-zinc-50">Năng suất của tôi</span>
         </nav>
-        <h1 className="mt-1.5 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+        <h1 className="mt-1.5 text-2xl md:text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
           Báo cáo năng suất của tôi
         </h1>
         <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">

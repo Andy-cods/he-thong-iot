@@ -1,7 +1,6 @@
 /**
  * V4.1 Đợt 4 — Tính năng TẠM ẨN theo quyết định anh Thang (AUDIT §0/§8).
  *
- *  - Q2: nhập kho thành phẩm khi hoàn tất lệnh SX — chưa có backend PROD_IN.
  *  - Q4: Đơn hàng bán, ECO, Thiếu vật tư.
  *  - D10: Lắp ráp kiểu cũ (cần đơn hàng bán + snapshot) — ẩn cùng Đơn hàng bán.
  *
@@ -20,8 +19,13 @@ export const HIDDEN_FEATURES = {
   shortage: true,
   /** D10 — Lắp ráp kiểu cũ (`/assembly*`, tab "Lắp ráp"). */
   legacyAssembly: true,
-  /** Q2 — Nhập kho thành phẩm khi hoàn tất lệnh SX. */
-  fgReceipt: true,
+  /**
+   * V4.3 Q2 — Nhập kho thành phẩm khi hoàn tất lệnh SX. BẬT LẠI: `completeWO`
+   * (`server/repos/workOrders.ts`) nay ghi `inventory_lot_serial` + `inventory_txn`
+   * PROD_IN trong cùng transaction; dialog hoàn thành (`WorkOrderActions.tsx`)
+   * hiện ô SL thành phẩm + chọn vị trí.
+   */
+  fgReceipt: false,
 } as const;
 
 export type HiddenFeatureKey = keyof typeof HIDDEN_FEATURES;

@@ -5,17 +5,19 @@ import { cn } from "@/lib/utils";
 /**
  * V2 Input — Linear-inspired compact.
  * Size sm (h-8 filter bar) / default (h-9 form) / lg (h-11 PWA touch).
- * Font 13px (text-base V2). Border zinc-200, focus blue-500 outline.
+ * V4.3 Đợt 2 mục 2 — nội dung form lên 15px (text-lg); ô lọc nhỏ (sm) giữ
+ * 14px (text-md) — bảng/thanh lọc dày vẫn cần gọn. Border zinc-200, focus
+ * blue-500 outline.
  */
 
 const inputVariants = cva(
-  "flex w-full rounded-md border bg-white text-base text-zinc-900 placeholder:text-zinc-400 transition-colors duration-150 ease-out focus:outline-none disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-400 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-600",
+  "flex w-full rounded-lg border bg-white text-lg text-zinc-900 placeholder:text-zinc-400 transition-colors duration-150 ease-out focus:outline-none disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-400 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-600",
   {
     variants: {
       size: {
-        sm: "h-8 px-2.5 py-1", // 32px — filter
-        default: "h-9 px-3 py-1", // 36px — form default
-        lg: "h-11 px-3.5 py-2 text-md", // 44px — PWA
+        sm: "h-8 px-2.5 py-1 text-md", // 32px — filter, 14px
+        default: "h-9 px-3 py-1", // 36px — form default, 15px
+        lg: "h-11 px-3.5 py-2", // 44px — PWA, 15px
       },
     },
     defaultVariants: {

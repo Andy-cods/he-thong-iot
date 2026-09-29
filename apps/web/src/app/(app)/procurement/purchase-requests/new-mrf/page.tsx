@@ -258,7 +258,7 @@ export default function NewMRFPage() {
           </span>
         </nav>
         <div className="mt-1.5 flex items-center justify-between">
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+          <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
             Phiếu Yêu cầu Vật tư (YCVT)
           </h1>
           <div className="flex items-center gap-2">

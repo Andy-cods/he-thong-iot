@@ -4,30 +4,34 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 /**
- * V2 Button — Linear-inspired compact.
- * Size default = md (h-8 32px). Bỏ orange primary, dùng blue-500.
+ * V4.3 Button — Apple-inspired.
+ * Size default = md (h-8 32px). Bo 10px (rounded-lg), chữ semibold cho variant
+ * chính/nguy hiểm (đậm hơn kiểu Apple filled button).
  * GIỮ backward-compat variant name `default` / `danger` / `destructive`.
  */
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors duration-150 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.98]",
+  "inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition-colors duration-150 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.98]",
   {
     variants: {
       variant: {
         default:
-          "bg-indigo-600 text-white hover:bg-indigo-700 active:bg-indigo-800 disabled:bg-indigo-300 dark:bg-indigo-500 dark:hover:bg-indigo-400 dark:active:bg-indigo-600 dark:disabled:bg-indigo-900",
+          "bg-indigo-600 text-white font-semibold hover:bg-indigo-700 active:bg-indigo-800 disabled:bg-indigo-300 dark:bg-indigo-500 dark:hover:bg-indigo-400 dark:active:bg-indigo-600 dark:disabled:bg-indigo-900",
         primary:
-          "bg-indigo-600 text-white hover:bg-indigo-700 active:bg-indigo-800 disabled:bg-indigo-300 dark:bg-indigo-500 dark:hover:bg-indigo-400 dark:active:bg-indigo-600 dark:disabled:bg-indigo-900",
+          "bg-indigo-600 text-white font-semibold hover:bg-indigo-700 active:bg-indigo-800 disabled:bg-indigo-300 dark:bg-indigo-500 dark:hover:bg-indigo-400 dark:active:bg-indigo-600 dark:disabled:bg-indigo-900",
         secondary:
           "bg-zinc-100 text-zinc-900 border border-zinc-200 hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-700 dark:active:bg-zinc-600",
         outline:
           "border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50 hover:border-zinc-400 active:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800 dark:hover:border-zinc-600 dark:active:bg-zinc-700",
         ghost:
           "bg-transparent text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50 dark:active:bg-zinc-700",
+        /** Nút "viên thuốc" xanh nhạt kiểu Apple (list row action). Additive — không đổi API cũ. */
+        tinted:
+          "bg-accent/10 text-accent rounded-full hover:bg-accent/15 active:bg-accent/20 dark:bg-indigo-400/15 dark:text-indigo-300 dark:hover:bg-indigo-400/20",
         danger:
-          "bg-red-500 text-white hover:bg-red-600 active:bg-red-700 disabled:bg-red-300 dark:bg-red-600 dark:hover:bg-red-500 dark:active:bg-red-700 dark:disabled:bg-red-900",
+          "bg-red-500 text-white font-semibold hover:bg-red-600 active:bg-red-700 disabled:bg-red-300 dark:bg-red-600 dark:hover:bg-red-500 dark:active:bg-red-700 dark:disabled:bg-red-900",
         destructive:
-          "bg-red-500 text-white hover:bg-red-600 active:bg-red-700 disabled:bg-red-300 dark:bg-red-600 dark:hover:bg-red-500 dark:active:bg-red-700 dark:disabled:bg-red-900",
+          "bg-red-500 text-white font-semibold hover:bg-red-600 active:bg-red-700 disabled:bg-red-300 dark:bg-red-600 dark:hover:bg-red-500 dark:active:bg-red-700 dark:disabled:bg-red-900",
         link:
           "bg-transparent text-blue-600 underline-offset-2 hover:text-blue-700 hover:underline active:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 dark:active:text-blue-200",
       },

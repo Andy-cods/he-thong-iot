@@ -62,6 +62,12 @@ export interface ReceivingEventInput {
   locationBinId?: string | null;
   /** V4.1 KHO-09 — dòng PO cụ thể (PO có 2 dòng cùng mã hàng). */
   poLineId?: string | null;
+  /**
+   * V4.3 fix LOOP_E2E P1 — xác nhận tường minh "nhận vượt SL đặt". Chỉ có
+   * hiệu lực kèm `overDeliveryReason` ≥ 3 ký tự — server chặn lại lần nữa.
+   */
+  allowOverDelivery?: boolean;
+  overDeliveryReason?: string | null;
   metadata?: Record<string, unknown>;
 }
 
@@ -77,6 +83,7 @@ export interface ReceivingEventDetail {
   qcStatus?: string;
   qcDowngraded?: boolean;
   overDelivery?: boolean;
+  overDeliveryQty?: number;
   warning?: string | null;
 }
 

@@ -16,6 +16,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -24,8 +25,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useConfirm, usePrompt } from "@/components/ui/confirm-dialog";
+import { BinSuggestCombobox, type BinOption } from "@/components/warehouse/BinSuggestCombobox";
 import {
   useCancelWorkOrder,
   useCompleteWorkOrder,
@@ -34,6 +38,7 @@ import {
   useStartWorkOrder,
   type WorkOrderStatus,
 } from "@/hooks/useWorkOrders";
+import { HIDDEN_FEATURES } from "@/lib/hidden-features";
 import { qk } from "@/lib/query-keys";
 import {
   WO_COMPLETE_REASON_MIN_LENGTH,
@@ -62,6 +67,8 @@ export function WorkOrderActions({
   /** V4.2 PROD-01 — SL đạt/kế hoạch để phát hiện hoàn thành thiếu sản lượng. */
   goodQty,
   plannedQty,
+  /** V4.3 Q2 — item thành phẩm, cần để gợi ý vị trí + tạo lô FG khi hoàn thành. */
+  productItemId,
   size = "sm",
 }: {
   woId: string;
@@ -75,6 +82,7 @@ export function WorkOrderActions({
   canDelete?: boolean;
   goodQty?: string | number | null;
   plannedQty?: string | number | null;
+  productItemId?: string | null;
   size?: "sm" | "md";
 }) {
   const router = useRouter();
@@ -88,6 +96,66 @@ export function WorkOrderActions({
   const deleteMut = useDeleteWorkOrder(woId);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [deleteConfirm, setDeleteConfirm] = React.useState("");
+
+  // V4.3 Q2 — dialog hoàn thành có ô SL thành phẩm + chọn vị trí (nhập kho
+  // thành phẩm). Thay hộp thoại prompt đơn giản cũ khi fgReceipt đã bật lại.
+  const [completeOpen, setCompleteOpen] = React.useState(false);
+  const [completeReasonInput, setCompleteReasonInput] = React.useState("");
+  const [fgQtyInput, setFgQtyInput] = React.useState("");
+  const [fgBinId, setFgBinId] = React.useState("");
+  const [fgHoldQc, setFgHoldQc] = React.useState(false);
+  const [bins, setBins] = React.useState<BinOption[]>([]);
+  React.useEffect(() => {
+    if (!completeOpen || HIDDEN_FEATURES.fgReceipt) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/warehouse/layout");
+        const json = (await res.json()) as {
+          data?: { bins?: BinOption[] };
+        };
+        if (!cancelled) setBins((json.data?.bins ?? []).filter((b) => b.isActive));
+      } catch {
+        // ignore — combobox vẫn dùng được (nhóm "Chọn khác" trống, gõ tìm không ra)
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [completeOpen]);
+
+  // V4.3 Q2 — mặc định vị trí lưu = gợi ý #1 (chỉ tự điền khi còn để trống,
+  // không ghi đè lựa chọn tay của người dùng).
+  React.useEffect(() => {
+    const qtyNum = Number(fgQtyInput);
+    if (
+      !completeOpen ||
+      HIDDEN_FEATURES.fgReceipt ||
+      fgBinId ||
+      !productItemId ||
+      !Number.isFinite(qtyNum) ||
+      qtyNum <= 0
+    ) {
+      return;
+    }
+    const ctrl = new AbortController();
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/warehouse/putaway-suggestion?itemId=${encodeURIComponent(productItemId)}&qty=${qtyNum}`,
+          { signal: ctrl.signal },
+        );
+        if (!res.ok) return;
+        const json = (await res.json()) as { data?: Array<{ binId: string }> };
+        const top = json.data?.[0]?.binId;
+        if (top) setFgBinId((cur) => cur || top);
+      } catch {
+        // ignore — người dùng vẫn tự chọn được qua combobox
+      }
+    })();
+    return () => ctrl.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [completeOpen, fgQtyInput, productItemId]);
 
   // V3.7.46 — Approve/Reject Yêu cầu sản xuất (DRAFT only)
   const qc = useQueryClient();
@@ -199,15 +267,21 @@ export function WorkOrderActions({
     }
   };
 
+  const shortfall = getWoCompleteShortfall({ goodQty, plannedQty });
+
   const onComplete = async () => {
-    // TODO V4.1 Q2: bước "Nhập kho thành phẩm" (SL đạt → PROD_IN) đang TẠM ẨN
-    // theo quyết định anh Thang — hoàn thành hiện chỉ chuyển trạng thái.
-    //
-    // V4.2 PROD-01: nếu SL đạt < kế hoạch, không cho hoàn thành "êm" như cũ —
-    // hiện hộp xác nhận nêu rõ số liệu + bắt nhập lý do (≥3 ký tự, guard thật
-    // ở server `checkWoCompletable`, ô nhập ở đây chỉ là UX, không thay bảo
-    // mật). Đạt ≥ kế hoạch thì giữ nguyên hộp xác nhận đơn giản như trước.
-    const shortfall = getWoCompleteShortfall({ goodQty, plannedQty });
+    // V4.3 Q2 — fgReceipt đã bật lại: mở dialog có ô SL thành phẩm + chọn vị
+    // trí (thay vì prompt đơn giản cũ). Giữ nguyên yêu cầu lý do khi thiếu
+    // sản lượng (V4.2 PROD-01) — hiện ngay trong CÙNG dialog, không tách 2 bước.
+    if (!HIDDEN_FEATURES.fgReceipt) {
+      setCompleteReasonInput("");
+      setFgQtyInput(String(Number(goodQty ?? 0) || 0));
+      setFgBinId("");
+      setFgHoldQc(false);
+      setCompleteOpen(true);
+      return;
+    }
+    // Fallback (cờ fgReceipt bật lại true) — flow prompt/confirm cũ.
     let completeReason: string | undefined;
     if (shortfall) {
       const reason = await askText({
@@ -231,6 +305,33 @@ export function WorkOrderActions({
     try {
       await completeMut.mutateAsync({ versionLock, completeReason });
       toast.success("Lệnh SX đã hoàn thành.");
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+
+  const fgQtyNum = Number(fgQtyInput);
+  const completeReasonTrimmed = completeReasonInput.trim();
+  const completeReasonInvalid =
+    !!shortfall && completeReasonTrimmed.length < WO_COMPLETE_REASON_MIN_LENGTH;
+  const fgQtyInvalid = !Number.isFinite(fgQtyNum) || fgQtyNum < 0;
+
+  const submitComplete = async () => {
+    if (completeReasonInvalid || fgQtyInvalid) return;
+    try {
+      await completeMut.mutateAsync({
+        versionLock,
+        completeReason: shortfall ? completeReasonTrimmed : undefined,
+        fgQty: fgQtyNum > 0 ? fgQtyNum : undefined,
+        fgBinId: fgBinId || null,
+        fgHoldQc,
+      });
+      toast.success(
+        fgQtyNum > 0
+          ? `Lệnh SX đã hoàn thành — đã nhập kho ${fgQtyNum} thành phẩm.`
+          : "Lệnh SX đã hoàn thành.",
+      );
+      setCompleteOpen(false);
     } catch (e) {
       toast.error((e as Error).message);
     }
@@ -322,6 +423,15 @@ export function WorkOrderActions({
           Hoàn thành
         </Button>
       )}
+      {/* V4.3 fix LOOP_E2E vướng #3 — operator có canOperate (báo tiến độ) nhưng
+          KHÔNG canComplete (chỉ admin/planner — xem work-orders/[id]/page.tsx
+          `canComplete = isAdmin || planner`). Trước đây nút biến mất không
+          giải thích gì → dễ thắc mắc "làm xong sao không hoàn thành được". */}
+      {status === "IN_PROGRESS" && canOperate && !canComplete && (
+        <span className="inline-flex items-center gap-1.5 rounded-md bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600 ring-1 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700">
+          Kế hoạch/Giám đốc hoàn thành lệnh — bạn báo tiến độ ở tab Tiến độ
+        </span>
+      )}
       {status !== "COMPLETED" && status !== "CANCELLED" && canCancel && (
         <Button
           size={size}
@@ -410,6 +520,102 @@ export function WorkOrderActions({
                 <Trash2 className="h-3.5 w-3.5" />
               )}
               Xoá vĩnh viễn
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* V4.3 Q2 — Dialog hoàn thành: SL thành phẩm + vị trí lưu (nhập kho
+          thành phẩm) + lý do hoàn thành thiếu sản lượng (V4.2, nếu có). */}
+      <Dialog open={completeOpen} onOpenChange={setCompleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Hoàn thành lệnh sản xuất?</DialogTitle>
+            <DialogDescription>
+              {shortfall
+                ? `Đạt ${shortfall.good} / kế hoạch ${shortfall.planned} — hoàn thành thiếu ${shortfall.missing}. Nhập lý do để xác nhận hoàn thành sớm/thiếu.`
+                : "Cần đã báo sản lượng đạt > 0 (và đủ các dòng linh kiện nếu có)."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {shortfall ? (
+              <div className="space-y-1">
+                <Label htmlFor="wo-complete-reason" required>
+                  Lý do hoàn thành thiếu sản lượng
+                </Label>
+                <Textarea
+                  id="wo-complete-reason"
+                  value={completeReasonInput}
+                  onChange={(e) => setCompleteReasonInput(e.target.value)}
+                  rows={2}
+                  maxLength={2000}
+                  placeholder="VD: khách cần gấp, phần còn lại làm đợt sau…"
+                />
+                {completeReasonInvalid && completeReasonTrimmed.length > 0 ? (
+                  <p className="text-xs text-red-600">
+                    Lý do tối thiểu {WO_COMPLETE_REASON_MIN_LENGTH} ký tự.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div className="space-y-1">
+              <Label htmlFor="wo-fg-qty">Số lượng thành phẩm nhập kho</Label>
+              <Input
+                id="wo-fg-qty"
+                type="number"
+                min={0}
+                step="any"
+                value={fgQtyInput}
+                onChange={(e) => setFgQtyInput(e.target.value)}
+                className="tabular-nums"
+              />
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                Mặc định = SL đạt đã báo cáo. Để 0 nếu KHÔNG muốn nhập kho ngay
+                (ghi nhận sau).
+              </p>
+            </div>
+
+            {fgQtyNum > 0 ? (
+              <>
+                <div className="space-y-1">
+                  <Label htmlFor="wo-fg-bin">Vị trí lưu</Label>
+                  <BinSuggestCombobox
+                    itemId={productItemId ?? undefined}
+                    qty={fgQtyNum}
+                    bins={bins}
+                    value={fgBinId}
+                    onChange={setFgBinId}
+                    hintWhenEmpty="Sẽ vào vị trí gợi ý / Chờ xếp kệ"
+                    aria-label="Vị trí lưu thành phẩm"
+                    className="w-full"
+                  />
+                </div>
+                <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+                  <Checkbox
+                    checked={fgHoldQc}
+                    onCheckedChange={(v) => setFgHoldQc(v === true)}
+                  />
+                  Chờ QC thành phẩm (giữ lô, chưa xuất được cho tới khi QC đạt)
+                </label>
+              </>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setCompleteOpen(false)}>
+              Huỷ
+            </Button>
+            <Button
+              onClick={submitComplete}
+              disabled={completeMut.isPending || completeReasonInvalid || fgQtyInvalid}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              {completeMut.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-3.5 w-3.5" />
+              )}
+              Hoàn thành
             </Button>
           </DialogFooter>
         </DialogContent>

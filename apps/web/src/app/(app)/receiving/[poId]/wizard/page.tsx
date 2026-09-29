@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/domain/StatusBadge";
+import { BinSuggestCombobox } from "@/components/warehouse/BinSuggestCombobox";
 import {
   Wizard,
   WizardSummary,
@@ -65,11 +66,28 @@ interface LineInput {
   qcStatus: "OK" | "NG" | "PENDING";
   /** V3.7 — bin override; "" = dùng default bin của SKU. */
   binId: string;
+  /**
+   * V4.3 fix LOOP_E2E P1 — người dùng tick "Xác nhận nhận vượt" khi SL nhập
+   * > remainingQty. Chỉ có hiệu lực kèm `overDeliveryReason` ≥ 3 ký tự.
+   */
+  allowOverDelivery: boolean;
+  /** Lý do nhận vượt — bắt buộc khi allowOverDelivery=true. */
+  overDeliveryReason: string;
 }
 
 function emptyLineInput(): LineInput {
-  return { qty: "", lotCode: "", qcStatus: "PENDING", binId: "" };
+  return {
+    qty: "",
+    lotCode: "",
+    qcStatus: "PENDING",
+    binId: "",
+    allowOverDelivery: false,
+    overDeliveryReason: "",
+  };
 }
+
+/** V4.3 fix LOOP_E2E P1 — độ dài tối thiểu lý do nhận vượt (khớp server). */
+const OVER_DELIVERY_REASON_MIN_LEN = 3;
 
 export default function ReceivingWizardPage({
   params,
@@ -113,8 +131,9 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
   );
 
   // V3.7 — fetch danh sách bin để dropdown override.
+  // V4.3 — thêm area/rack để BinSuggestCombobox nhóm "Khu A · Kệ 01".
   const [bins, setBins] = React.useState<
-    Array<{ id: string; fullCode: string; isActive: boolean }>
+    Array<{ id: string; fullCode: string; isActive: boolean; area?: string | null; rack?: string | null }>
   >([]);
   React.useEffect(() => {
     let cancelled = false;
@@ -123,7 +142,13 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
         const res = await fetch("/api/warehouse/layout");
         const json = (await res.json()) as {
           data?: {
-            bins?: Array<{ id: string; fullCode: string; isActive: boolean }>;
+            bins?: Array<{
+              id: string;
+              fullCode: string;
+              isActive: boolean;
+              area?: string | null;
+              rack?: string | null;
+            }>;
           };
         };
         if (!cancelled) {
@@ -170,6 +195,10 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
           lotCode: prev[ln.id!]?.lotCode ?? "",
           qcStatus: "PENDING",
           binId: prev[ln.id!]?.binId ?? "",
+          // "Nhận đủ tất cả" luôn điền đúng = remainingQty (không vượt) →
+          // không cần xác nhận nhận vượt; giữ nguyên nếu trước đó đã có.
+          allowOverDelivery: prev[ln.id!]?.allowOverDelivery ?? false,
+          overDeliveryReason: prev[ln.id!]?.overDeliveryReason ?? "",
         };
         filled += 1;
       }
@@ -210,6 +239,19 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
       })
       .filter((x) => Number.isFinite(x.qtyNum) && x.qtyNum > 0);
   }, [po, inputs]);
+
+  // V4.3 fix LOOP_E2E P1 — dòng nhập SL > remainingQty mà chưa xác nhận
+  // "nhận vượt" hợp lệ (tick + lý do ≥3 ký tự) → chặn nút "Gửi nhận hàng".
+  const overDeliveryBlockers = React.useMemo(
+    () =>
+      activeLines.filter(
+        ({ ln, input, qtyNum }) =>
+          qtyNum > ln.remainingQty &&
+          (!input.allowOverDelivery ||
+            input.overDeliveryReason.trim().length < OVER_DELIVERY_REASON_MIN_LEN),
+      ),
+    [activeLines],
+  );
 
   const stats = React.useMemo(() => {
     let ok = 0;
@@ -358,6 +400,9 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
         locationBinId: input.binId || ln.defaultBinId || null,
         // V4.1 KHO-09 — server dùng đúng dòng PO này (PO 2 dòng cùng mã).
         poLineId: ln.id,
+        // V4.3 fix LOOP_E2E P1 — xác nhận nhận vượt (server chặn lại nếu thiếu).
+        allowOverDelivery: input.allowOverDelivery,
+        overDeliveryReason: input.overDeliveryReason.trim() || null,
         metadata: {
           source: "receiving-wizard",
           poId: po.poId,
@@ -471,6 +516,16 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
         onChangeStep={setStep}
         onSubmit={handleSubmit}
         submitLabel={submitted ? "Hoàn tất" : "Gửi nhận hàng"}
+        // V4.3 fix LOOP_E2E P1 — chặn nút Gửi khi còn dòng nhận vượt chưa xác
+        // nhận (tick + lý do). Đổi sang "Hoàn tất" (submitted=true) thì bỏ chặn.
+        submitDisabled={!submitted && overDeliveryBlockers.length > 0}
+        submitDisabledHint={
+          overDeliveryBlockers.length > 0
+            ? `Cần xác nhận "nhận vượt" cho ${overDeliveryBlockers.length} dòng vượt SL đặt: ${overDeliveryBlockers
+                .map((b) => b.ln.sku)
+                .join(", ")}.`
+            : undefined
+        }
         allowJump
         className="flex-1 min-h-0"
       >
@@ -806,7 +861,7 @@ function LineRow({
   onReset,
 }: {
   ln: POReceivingLine;
-  bins: Array<{ id: string; fullCode: string; isActive: boolean }>;
+  bins: Array<{ id: string; fullCode: string; isActive: boolean; area?: string | null; rack?: string | null }>;
   input: LineInput;
   disabled: boolean;
   canApproveQc: boolean;
@@ -817,10 +872,17 @@ function LineRow({
   const qtyNum = Number(input.qty);
   const overRemaining =
     Number.isFinite(qtyNum) && qtyNum > 0 && qtyNum > ln.remainingQty;
+  // V4.3 fix LOOP_E2E P1 — SL vượt so với đặt, hiện rõ cho người nhận thấy.
+  const overQty = overRemaining ? qtyNum - ln.remainingQty : 0;
+  const overDeliveryBlocked =
+    overRemaining &&
+    (!input.allowOverDelivery ||
+      input.overDeliveryReason.trim().length < OVER_DELIVERY_REASON_MIN_LEN);
   const hasInput =
     !!input.qty || !!input.lotCode.trim() || input.qcStatus !== "PENDING";
 
   return (
+    <>
     <tr
       className={cn(
         "border-t border-zinc-100 align-middle dark:border-zinc-800",
@@ -894,23 +956,26 @@ function LineRow({
           aria-label={`Số lô ${ln.sku}`}
         />
       </td>
-      {/* V3.7 — Vị trí lưu (bin override) */}
+      {/* V4.3 — Vị trí lưu: combobox gợi ý (thay <select> phẳng 91 bin cũ).
+          Gợi ý #1 đứng đầu kèm lý do; API lỗi vẫn chọn được như cũ (nhóm
+          "Chọn khác" luôn đủ danh sách, không phụ thuộc gợi ý). */}
       <td className="px-3 py-2">
         <div className="flex flex-col gap-0.5">
-          <select
+          <BinSuggestCombobox
+            itemId={ln.itemId}
+            qty={Number.isFinite(qtyNum) && qtyNum > 0 ? qtyNum : 1}
+            bins={bins}
             value={input.binId || ln.defaultBinId || ""}
-            onChange={(e) => onChange({ binId: e.target.value })}
+            onChange={(binId) => onChange({ binId })}
             disabled={disabled || isDone}
-            className="h-9 w-32 rounded-md border border-zinc-300 bg-white px-2 font-mono text-xs text-zinc-700 disabled:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:disabled:bg-zinc-800"
             aria-label={`Vị trí lưu ${ln.sku}`}
-          >
-            <option value="">— Chưa gán —</option>
-            {bins.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.fullCode}
-              </option>
-            ))}
-          </select>
+            hintWhenEmpty={
+              // V4.1 hotfix — chưa chọn bin + item chưa có default bin → hàng
+              // sẽ vào "Chờ xếp kệ" (migration 0058). Hiện rõ để user biết
+              // hàng đi đâu, tránh tưởng nhầm "để trống" = mất tồn kho.
+              !input.binId && !ln.defaultBinCode ? "Sẽ vào: Chờ xếp kệ" : null
+            }
+          />
           {ln.defaultBinCode && !input.binId && (
             <span className="text-xs text-emerald-600 dark:text-emerald-400">
               ✓ Mặc định {ln.defaultBinCode}
@@ -919,14 +984,6 @@ function LineRow({
           {input.binId && input.binId !== ln.defaultBinId && (
             <span className="text-xs text-amber-600 dark:text-amber-400">
               Đã đổi vị trí
-            </span>
-          )}
-          {/* V4.1 hotfix — chưa chọn bin + item chưa có default bin → hàng sẽ
-              vào "Chờ xếp kệ" (migration 0058). Hiện rõ để user biết hàng đi
-              đâu, tránh tưởng nhầm "để trống" = mất tồn kho. */}
-          {!input.binId && !ln.defaultBinCode && (
-            <span className="text-xs font-medium text-sky-600 dark:text-sky-400">
-              ⓘ Sẽ vào: Chờ xếp kệ
             </span>
           )}
         </div>
@@ -983,6 +1040,49 @@ function LineRow({
         </button>
       </td>
     </tr>
+    {/* V4.3 fix LOOP_E2E P1 — SL nhập > SL còn lại: bắt xác nhận tường minh
+        + lý do trước khi cho gửi (trước đây chỉ viền vàng, không chặn gì cả
+        → PO đặt 100 vẫn nhận được 120, xem LOOP_E2E.md mục Lỗi P1). */}
+    {overRemaining ? (
+      <tr className="border-t border-amber-200 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/30">
+        <td colSpan={11} className="px-3 py-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <AlertTriangle
+              className="h-3.5 w-3.5 flex-shrink-0 text-amber-600 dark:text-amber-400"
+              aria-hidden="true"
+            />
+            <span className="text-xs font-medium text-amber-800 dark:text-amber-300">
+              Vượt {overQty} {ln.uom} so với đặt ({ln.sku}).
+            </span>
+            <label className="flex items-center gap-1.5 text-xs text-amber-800 dark:text-amber-300">
+              <input
+                type="checkbox"
+                checked={input.allowOverDelivery}
+                disabled={disabled || isDone}
+                onChange={(e) => onChange({ allowOverDelivery: e.target.checked })}
+                className="h-3.5 w-3.5 rounded border-amber-400"
+              />
+              Xác nhận nhận vượt
+            </label>
+            <Input
+              value={input.overDeliveryReason}
+              onChange={(e) => onChange({ overDeliveryReason: e.target.value })}
+              placeholder={`Lý do nhận vượt (≥ ${OVER_DELIVERY_REASON_MIN_LEN} ký tự, bắt buộc)`}
+              disabled={disabled || isDone || !input.allowOverDelivery}
+              className="h-8 w-72 text-xs"
+              aria-label={`Lý do nhận vượt ${ln.sku}`}
+            />
+          </div>
+          {overDeliveryBlocked ? (
+            <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+              Chưa xác nhận đủ điều kiện — nút &quot;Gửi nhận hàng&quot; sẽ bị khoá cho tới khi tick +
+              nhập lý do.
+            </p>
+          ) : null}
+        </td>
+      </tr>
+    ) : null}
+    </>
   );
 }
 

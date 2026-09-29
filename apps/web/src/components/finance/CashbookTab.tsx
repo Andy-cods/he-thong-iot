@@ -36,9 +36,7 @@ import {
   Sheet,
   SheetBody,
   SheetContent,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
+  SheetHeaderNav,
 } from "@/components/ui/sheet";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/ui/query-error";
@@ -185,7 +183,7 @@ export function CashbookTab() {
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
         <div>
           {/* V4.1 UI-09 (X6): bỏ breadcrumb thân trang — topbar đã hiện cùng đường dẫn (+ nhãn tab). */}
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+          <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
             Sổ thu chi
           </h1>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
@@ -637,16 +635,34 @@ function TransactionFormDialog({
 
   const sourceLabel = direction === "IN" ? "Nguồn thu" : "Nguồn chi";
   const formId = "tx-form";
+  // V4.3 Đợt 2 mục 5 — nút hành động ghi rõ việc sẽ làm (số tiền cụ thể) thay
+  // vì nhãn chung chung "Tạo giao dịch".
+  const actionLabel = createMut.isPending
+    ? "Đang lưu…"
+    : amount > 0
+      ? `Tạo phiếu ${direction === "IN" ? "thu" : "chi"} ${fmtVND(amount)}`
+      : direction === "IN"
+        ? "Tạo phiếu thu"
+        : "Tạo phiếu chi";
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" size="md" className="flex flex-col">
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-2 text-base">
-            <Receipt className="h-4 w-4" aria-hidden="true" />
-            {direction === "IN" ? "Tạo phiếu thu" : "Tạo phiếu chi"}
-          </SheetTitle>
-        </SheetHeader>
+      <SheetContent side="right" size="md" className="flex flex-col" hideCloseButton>
+        <SheetHeaderNav
+          title={
+            <span className="inline-flex items-center gap-2">
+              <Receipt className="h-4 w-4" aria-hidden="true" />
+              {direction === "IN" ? "Tạo phiếu thu" : "Tạo phiếu chi"}
+            </span>
+          }
+          onCancel={() => onOpenChange(false)}
+          action={{
+            label: actionLabel,
+            type: "submit",
+            form: formId,
+            disabled: createMut.isPending || (wouldOverdraw && !(isAdmin && allowOverdraft)),
+          }}
+        />
         <SheetBody>
           <form id={formId} onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-3" noValidate>
             <input type="hidden" {...register("direction")} value={direction} />
@@ -709,16 +725,6 @@ function TransactionFormDialog({
             </div>
           </form>
         </SheetBody>
-        <SheetFooter>
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Huỷ</Button>
-          <Button
-            type="submit"
-            form={formId}
-            disabled={createMut.isPending || (wouldOverdraw && !(isAdmin && allowOverdraft))}
-          >
-            {createMut.isPending ? "Đang lưu…" : "Tạo giao dịch"}
-          </Button>
-        </SheetFooter>
       </SheetContent>
     </Sheet>
   );
@@ -785,16 +791,31 @@ function TransferFormDialog({
   };
 
   const formId = "tf-form";
+  const toCode = to?.name;
+  const actionLabel = transferMut.isPending
+    ? "Đang lưu…"
+    : amount > 0 && toCode
+      ? `Chuyển ${fmtVND(amount)} sang ${toCode}`
+      : "Chuyển quỹ";
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" size="md" className="flex flex-col">
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-2 text-base">
-            <ArrowLeftRight className="h-4 w-4" aria-hidden="true" />
-            Chuyển quỹ nội bộ
-          </SheetTitle>
-        </SheetHeader>
+      <SheetContent side="right" size="md" className="flex flex-col" hideCloseButton>
+        <SheetHeaderNav
+          title={
+            <span className="inline-flex items-center gap-2">
+              <ArrowLeftRight className="h-4 w-4" aria-hidden="true" />
+              Chuyển quỹ nội bộ
+            </span>
+          }
+          onCancel={() => onOpenChange(false)}
+          action={{
+            label: actionLabel,
+            type: "submit",
+            form: formId,
+            disabled: transferMut.isPending || (wouldOverdraw && !(isAdmin && allowOverdraft)),
+          }}
+        />
         <SheetBody>
           <form id={formId} onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-3" noValidate>
             <div>
@@ -840,12 +861,6 @@ function TransferFormDialog({
             </div>
           </form>
         </SheetBody>
-        <SheetFooter>
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Huỷ</Button>
-          <Button type="submit" form={formId} disabled={transferMut.isPending || (wouldOverdraw && !(isAdmin && allowOverdraft))}>
-            {transferMut.isPending ? "Đang lưu…" : "Chuyển quỹ"}
-          </Button>
-        </SheetFooter>
       </SheetContent>
     </Sheet>
   );

@@ -105,7 +105,7 @@ export function ConfirmDialog({
             <DialogTitle className="flex items-center gap-2">
               {danger ? (
                 <AlertTriangle
-                  className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400"
+                  className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400"
                   aria-hidden="true"
                 />
               ) : null}

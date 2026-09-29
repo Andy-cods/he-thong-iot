@@ -232,6 +232,7 @@ export default function WorkOrderDetailPage() {
               canDelete={isAdmin}
               goodQty={wo.goodQty}
               plannedQty={wo.plannedQty}
+              productItemId={wo.productItemId}
               size="sm"
             />
           </div>
@@ -754,6 +755,47 @@ export default function WorkOrderDetailPage() {
                       </tr>
                     );
                   })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* V4.3 Q2 — Lô thành phẩm đã nhập kho khi hoàn thành (PROD_IN). */}
+          {wo.fgLots.length > 0 && (
+            <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="border-b border-zinc-100 bg-zinc-50 px-5 py-3 dark:border-zinc-800 dark:bg-zinc-800/40">
+                <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+                  Lô thành phẩm đã nhập kho ({wo.fgLots.length})
+                </p>
+              </div>
+              <table className="w-full text-[12px]">
+                <thead className="bg-zinc-50 dark:bg-zinc-800/40">
+                  <tr className="text-xs uppercase text-zinc-500 dark:text-zinc-400">
+                    <th className="px-4 py-2 text-left">Mã lô</th>
+                    <th className="px-4 py-2 text-right">SL</th>
+                    <th className="px-4 py-2 text-left">Vị trí</th>
+                    <th className="px-4 py-2 text-left">Trạng thái</th>
+                    <th className="px-4 py-2 text-left">Nhập lúc</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {wo.fgLots.map((l) => (
+                    <tr key={l.lotSerialId} className="border-t border-zinc-100 dark:border-zinc-800">
+                      <td className="px-4 py-2 font-mono text-[11px] text-zinc-700 dark:text-zinc-300">
+                        {l.lotCode ?? "(không mã)"}
+                      </td>
+                      <td className="px-4 py-2 text-right font-mono">{fmtNum(l.qty)}</td>
+                      <td className="px-4 py-2 font-mono text-[11px]">
+                        {l.binFullCode ?? "—"}
+                      </td>
+                      <td className="px-4 py-2">
+                        <StatusPill domain="lot" code={l.status} size="sm" />
+                      </td>
+                      <td className="px-4 py-2 text-xs text-zinc-500 dark:text-zinc-400">
+                        {fmtDate(l.createdAt)}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>

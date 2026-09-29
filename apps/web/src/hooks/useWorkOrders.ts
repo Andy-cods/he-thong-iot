@@ -171,8 +171,20 @@ export interface WorkOrderLineRow {
   snapshotState: string;
 }
 
+/** V4.3 Q2 — lô thành phẩm đã nhập kho khi hoàn thành (PROD_IN). */
+export interface WoFgLotRow {
+  lotSerialId: string;
+  lotCode: string | null;
+  qty: number;
+  status: string;
+  binId: string | null;
+  binFullCode: string | null;
+  createdAt: string;
+}
+
 export interface WorkOrderDetail extends WorkOrderRow {
   lines: WorkOrderLineRow[];
+  fgLots: WoFgLotRow[];
 }
 
 interface RequestError extends Error {
@@ -330,15 +342,25 @@ export function usePauseWorkOrder(id: string) {
   });
 }
 
+export interface CompleteWorkOrderInput {
+  versionLock?: number;
+  completeReason?: string;
+  /** V4.3 Q2 — nhập kho thành phẩm. `fgQty` > 0 → tạo lô + PROD_IN. */
+  fgQty?: number;
+  fgBinId?: string | null;
+  fgHoldQc?: boolean;
+}
+
 /**
  * V4.2 PROD-01 — `completeReason` bắt buộc (≥3 ký tự, kiểm server-side) khi
  * SL đạt < kế hoạch. Giữ overload nhận `number` để không phá vỡ call site cũ
  * chỉ truyền `versionLock`.
+ * V4.3 Q2 — thêm `fgQty`/`fgBinId`/`fgHoldQc` (nhập kho thành phẩm).
  */
 export function useCompleteWorkOrder(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input?: number | { versionLock?: number; completeReason?: string }) => {
+    mutationFn: (input?: number | CompleteWorkOrderInput) => {
       const data = typeof input === "number" ? { versionLock: input } : (input ?? {});
       return request<{ data: WorkOrderRow }>(`/api/work-orders/${id}/complete`, {
         method: "POST",

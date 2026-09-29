@@ -61,8 +61,8 @@ export function ReceivablesTab() {
         {/* V4.1 UI-09 (X6): bỏ breadcrumb thân trang — topbar đã hiện cùng đường dẫn (+ nhãn tab). */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">Công nợ</h1>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">Công nợ</h1>
+            <p className="mt-1 text-base text-zinc-500 dark:text-zinc-400">
               {isPayable
                 ? "Hoá đơn đầu vào (mua từ NCC) chưa trả hết tiền — mình đang nợ ai"
                 : "Hoá đơn đầu ra (bán hàng) chưa thu hết tiền — ai đang nợ mình"}

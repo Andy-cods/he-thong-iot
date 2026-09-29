@@ -124,7 +124,7 @@ export function NotificationBell() {
         onClick={() => setOpen((v) => !v)}
         aria-label={`Thông báo (${unreadCount} chưa đọc)`}
         aria-expanded={open}
-        className="relative inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
+        className="relative inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
       >
         <Bell className="h-4 w-4" aria-hidden />
         {unreadCount > 0 && (

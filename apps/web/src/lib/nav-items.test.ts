@@ -85,12 +85,17 @@ describe("NAV_ITEMS V3.1 cấu trúc 6 section", () => {
 
   it("Bộ phận Gia công có hub, bảng sản xuất QC và QC nhập kho", () => {
     const opsHrefs = NAV_ITEMS.filter((i) => i.section === "operations").map((i) => i.href);
-    expect(opsHrefs).toEqual(["/operations", "/production-board", "/qc-inbound"]);
+    expect(opsHrefs).toEqual([
+      "/operations",
+      "/production-board",
+      "/warehouse?tab=movement&mode=qc",
+    ]);
   });
 
   // V4.1 Đợt 1a — "QC nhập kho" chỉ role qc (admin/warehouse vào qua tab Kho).
-  it("/qc-inbound chỉ cho role qc", () => {
-    const qcInbound = NAV_ITEMS.find((i) => i.href === "/qc-inbound");
+  // V4.3 mục 4.3 — gộp màn: trỏ thẳng tab "Chờ QC" (route /qc-inbound cũ chỉ redirect).
+  it("QC nhập kho chỉ cho role qc, trỏ thẳng tab Chờ QC", () => {
+    const qcInbound = NAV_ITEMS.find((i) => i.href === "/warehouse?tab=movement&mode=qc");
     expect(qcInbound?.roles).toEqual(["qc"]);
   });
 });
@@ -187,7 +192,7 @@ describe("filterNavByRoles", () => {
       "/",
       "/procurement/purchase-requests",
       "/production-board",
-      "/qc-inbound",
+      "/warehouse?tab=movement&mode=qc",
     ]);
   });
 

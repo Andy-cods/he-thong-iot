@@ -162,8 +162,10 @@ export const NAV_ITEMS: NavItem[] = [
   },
   // V4.1 Đợt 1a — Tổ QC kết luận QC nhập kho (hàng nhận đang HOLD chờ QC).
   // CHỈ role qc: admin + warehouse vào qua tab Kho › Nhập/Xuất kho › Chờ QC.
+  // V4.3 mục 4.3 — gộp màn: trỏ thẳng tab "Chờ QC" trong Kho (route
+  // `/qc-inbound` vẫn còn, chỉ redirect, giữ để link/bookmark cũ không 404).
   {
-    href: "/qc-inbound",
+    href: "/warehouse?tab=movement&mode=qc",
     label: "QC nhập kho",
     icon: ShieldCheck,
     roles: ["qc"],

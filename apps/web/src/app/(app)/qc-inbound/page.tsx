@@ -1,37 +1,12 @@
-import { Breadcrumb } from "@/components/ui/breadcrumb";
-import { QcPendingView } from "@/components/warehouse/QcPendingView";
-
-export const dynamic = "force-dynamic";
+import { redirect } from "next/navigation";
 
 /**
- * V4.1 Đợt 1a — `/qc-inbound` — màn "QC nhập kho" cho Tổ QC.
- *
- * Cùng nội dung với tab Kho › Nhập/Xuất kho › Chờ QC (`QcPendingView`), tách
- * trang riêng vì role qc không vào được /warehouse. Guard layout:
- * admin · qc · warehouse (khớp `read:qcInspection`).
+ * V4.3 mục 4.3 — gộp màn: `/qc-inbound` trùng chức năng với tab "Chờ QC"
+ * trong Kho › Nhập/Xuất kho (`QcPendingView` dùng chung). Giữ route này CHỈ để
+ * không 404 với link/bookmark cũ — chuyển thẳng sang
+ * `/warehouse?tab=movement&mode=qc`. Nav role `qc` đã trỏ thẳng chỗ mới
+ * (`lib/nav-items.ts`); route-guard `/warehouse` đã mở thêm role `qc`.
  */
-export default function QcInboundPage() {
-  return (
-    <div className="flex flex-col md:h-full md:overflow-hidden">
-      <div className="border-b border-zinc-200 bg-white px-4 pb-3 pt-4 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
-        {/* V4.1 UI-09 (X6): breadcrumb thân trang chỉ hiện trên điện thoại — desktop dùng breadcrumb topbar (tránh trùng). */}
-        <Breadcrumb
-          items={[
-            { label: "Tổng quan", href: "/" },
-            { label: "QC nhập kho" },
-          ]}
-          className="md:hidden"
-        />
-        <h1 className="mt-1.5 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          QC nhập kho
-        </h1>
-        <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-          Kiểm hàng vừa nhận: Đạt → hàng sẵn sàng xuất; Không đạt → giữ lô và báo Kho + Thu mua.
-        </p>
-      </div>
-      <div className="flex-1 bg-zinc-50/30 dark:bg-zinc-950/30 md:min-h-0 md:overflow-auto">
-        <QcPendingView />
-      </div>
-    </div>
-  );
+export default function QcInboundRedirectPage() {
+  redirect("/warehouse?tab=movement&mode=qc");
 }

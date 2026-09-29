@@ -71,6 +71,11 @@ export default function AdminUsersNewPage() {
 
   const handleSubmit = async (ev: React.FormEvent) => {
     ev.preventDefault();
+    // Enter trong ô nhập ở bước 1 cũng submit form — chỉ sang bước 2, không tạo user.
+    if (step === 1) {
+      handleNext();
+      return;
+    }
     if (!validateStep2()) return;
     try {
       const res = await createUser.mutateAsync({
@@ -223,7 +228,12 @@ export default function AdminUsersNewPage() {
               </Button>
             )}
             {step === 1 ? (
+              // `key` khác nhau: nếu không, React tái dùng CÙNG thẻ <button> cho
+              // "Tiếp tục" và "Tạo user" — setStep(2) render lại ngay trong sự kiện
+              // click, đổi type thành "submit" trước khi trình duyệt chạy hành vi
+              // mặc định → form bị gửi, user được tạo mà bỏ qua bước chọn vai trò.
               <Button
+                key="next"
                 type="button"
                 size="sm"
                 onClick={handleNext}
@@ -233,6 +243,7 @@ export default function AdminUsersNewPage() {
               </Button>
             ) : (
               <Button
+                key="submit"
                 type="submit"
                 size="sm"
                 disabled={createUser.isPending}

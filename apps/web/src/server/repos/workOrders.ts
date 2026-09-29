@@ -3,6 +3,8 @@ import {
   bomLine,
   bomSnapshotLine,
   bomTemplate,
+  inventoryLotSerial,
+  inventoryTxn,
   item,
   salesOrder,
   userAccount,
@@ -24,6 +26,7 @@ import {
 } from "@/lib/wo-guards";
 import { currentYymm, genDocNo } from "./_docNumber";
 import { releaseWoReservationsTx } from "./reservations";
+import { resolveStagingBinId } from "./stagingBin";
 
 /**
  * V1.3 Work Order repository.
@@ -168,6 +171,17 @@ export async function listWorkOrders(q: WorkOrderListQuery): Promise<{
   };
 }
 
+/** V4.3 Q2 — lô thành phẩm đã nhập kho khi hoàn thành WO (tra `inventory_txn PROD_IN`). */
+export interface WoFgLotRow {
+  lotSerialId: string;
+  lotCode: string | null;
+  qty: number;
+  status: string;
+  binId: string | null;
+  binFullCode: string | null;
+  createdAt: string;
+}
+
 export async function getWorkOrder(id: string): Promise<
   | (WorkOrder & {
       lines: (WorkOrderLine & {
@@ -184,6 +198,8 @@ export async function getWorkOrder(id: string): Promise<
       /** V4.1 SX-16 — BOM nguồn. */
       bomTemplateCode: string | null;
       bomTemplateName: string | null;
+      /** V4.3 Q2 — lô thành phẩm đã nhập kho khi hoàn thành (rỗng nếu chưa hoàn thành/chưa nhập). */
+      fgLots: WoFgLotRow[];
     })
   | null
 > {
@@ -223,6 +239,31 @@ export async function getWorkOrder(id: string): Promise<
     .where(eq(workOrderLine.woId, id))
     .orderBy(asc(workOrderLine.position));
 
+  // V4.3 Q2 — lô FG đã nhập kho khi hoàn thành (PROD_IN, ref_table='work_order').
+  const fgRows = await db.execute<{
+    lot_serial_id: string;
+    lot_code: string | null;
+    qty: string;
+    status: string;
+    bin_id: string | null;
+    bin_full_code: string | null;
+    created_at: string;
+  }>(sql`
+    SELECT
+      t.lot_serial_id,
+      ils.lot_code,
+      t.qty::text AS qty,
+      ils.status::text AS status,
+      t.to_bin_id AS bin_id,
+      lb.full_code AS bin_full_code,
+      t.created_at::text AS created_at
+    FROM app.inventory_txn t
+    LEFT JOIN app.inventory_lot_serial ils ON ils.id = t.lot_serial_id
+    LEFT JOIN app.location_bin lb ON lb.id = t.to_bin_id
+    WHERE t.ref_table = 'work_order' AND t.ref_id = ${id} AND t.tx_type = 'PROD_IN'
+    ORDER BY t.created_at ASC
+  `);
+
   return {
     ...wo.wo,
     orderNo: wo.orderNo ?? null,
@@ -237,6 +278,15 @@ export async function getWorkOrder(id: string): Promise<
       componentSku: l.componentSku,
       componentName: l.componentName,
       snapshotState: l.snapshotState,
+    })),
+    fgLots: (fgRows as unknown as Array<typeof fgRows[number]>).map((r) => ({
+      lotSerialId: r.lot_serial_id,
+      lotCode: r.lot_code,
+      qty: Number(r.qty ?? "0"),
+      status: r.status,
+      binId: r.bin_id,
+      binFullCode: r.bin_full_code,
+      createdAt: r.created_at,
     })),
   };
 }
@@ -619,6 +669,9 @@ async function lockWo(
   /** V4.2 PROD-01 — cần để so sánh SL đạt/kế hoạch khi hoàn thành. */
   plannedQty: string;
   notes: string | null;
+  /** V4.3 Q2 — cần để tạo lô FG khi hoàn thành (nhập kho thành phẩm). */
+  productItemId: string;
+  woNo: string;
 }> {
   const [cur] = await tx
     .select({
@@ -627,6 +680,8 @@ async function lockWo(
       goodQty: workOrder.goodQty,
       plannedQty: workOrder.plannedQty,
       notes: workOrder.notes,
+      productItemId: workOrder.productItemId,
+      woNo: workOrder.woNo,
     })
     .from(workOrder)
     .where(eq(workOrder.id, id))
@@ -734,6 +789,25 @@ export async function resumeWO(id: string, versionLock?: number): Promise<WorkOr
   );
 }
 
+/** V4.3 Q2 — nhập kho thành phẩm khi hoàn thành WO (bật `HIDDEN_FEATURES.fgReceipt`). */
+export interface FgReceiptInput {
+  /** SL thành phẩm nhập kho — UI mặc định = goodQty, cho sửa nếu phế phẩm phát sinh lúc nhập kho. */
+  qty: number;
+  /** Vị trí lưu; rỗng → `item.default_bin_id` → bin hệ thống "Chờ xếp kệ". */
+  binId?: string | null;
+  /** true = lô vào HOLD/MANUAL "Chờ QC thành phẩm" (dùng lại cơ chế hold sẵn có) thay vì AVAILABLE mặc định. */
+  holdQc?: boolean;
+  userId: string | null;
+}
+
+export interface FgReceiptResult {
+  lotSerialId: string;
+  lotCode: string;
+  binId: string;
+  qty: number;
+  status: "AVAILABLE" | "HOLD";
+}
+
 /**
  * Complete WO — V4.1 SX-04/05: 1 transaction thật, khoá WO rồi kiểm
  * `checkWoCompletable` (đang chạy + SL đạt > 0 + mọi dòng linh kiện đủ).
@@ -743,15 +817,21 @@ export async function resumeWO(id: string, versionLock?: number): Promise<WorkOr
  * `work_order.notes` (không thêm migration — cột text sẵn có) kèm số liệu
  * đạt/kế hoạch/thiếu, để tra cứu lại sau này không cần xem riêng nhật ký.
  *
- * TODO V4.1 Q2: điểm móc nhập kho thành phẩm — ghi `inventory_txn` PROD_IN
- * (SL đạt, lô FG) TRONG CÙNG transaction này khi anh Thang bật lại bước nhập
- * kho thành phẩm (`HIDDEN_FEATURES.fgReceipt`). Hiện chỉ chuyển trạng thái.
+ * V4.3 Q2 — bật lại nhập kho thành phẩm: khi `fgReceipt` được truyền (qty > 0),
+ * TRONG CÙNG transaction: kiểm `item.isActive` của `productItemId` (item có
+ * thể bị vô hiệu giữa lúc RELEASED và COMPLETED), tạo lô `inventory_lot_serial`
+ * mới (mã `FG-<woNo>`) + `inventory_txn` `PROD_IN` vào bin đã chọn (mặc định
+ * gợi ý putaway / "Chờ xếp kệ"). Thành phẩm mặc định `AVAILABLE`; `holdQc` cho
+ * lô vào HOLD "Chờ QC thành phẩm" (dùng lại cơ chế hold sẵn có, KHÔNG bảng mới).
+ * Hoàn thành 2 lần / huỷ sau hoàn thành bị chặn sẵn bởi state machine
+ * (`WO_ALLOWED_TRANSITIONS.COMPLETED = []`) nên không có đường tạo trùng lô FG.
  */
 export async function completeWO(
   id: string,
   versionLock?: number,
   completeReason?: string | null,
-): Promise<WorkOrder> {
+  fgReceipt?: FgReceiptInput | null,
+): Promise<WorkOrder & { fgReceipt: FgReceiptResult | null }> {
   return db.transaction(async (tx) => {
     const cur = await lockWo(tx, id);
     const lines = await tx
@@ -785,13 +865,77 @@ export async function completeWO(
             .join("\n")
         : undefined;
 
-    return transitionStatusTx(
+    const updated = await transitionStatusTx(
       tx,
       id,
       "COMPLETED",
       { completedAt: new Date(), ...(notes !== undefined ? { notes } : {}) },
       versionLock,
     );
+
+    let fgReceiptResult: FgReceiptResult | null = null;
+    if (fgReceipt && fgReceipt.qty > 0) {
+      if (!Number.isFinite(fgReceipt.qty) || fgReceipt.qty <= 0) {
+        throw new Error(
+          "FG_QTY_INVALID: Số lượng thành phẩm nhập kho phải lớn hơn 0.",
+        );
+      }
+      const [productItem] = await tx
+        .select({ isActive: item.isActive, defaultBinId: item.defaultBinId })
+        .from(item)
+        .where(eq(item.id, cur.productItemId))
+        .limit(1);
+      if (!productItem) {
+        throw new Error(
+          "FG_ITEM_NOT_FOUND: Không tìm thấy item thành phẩm của lệnh sản xuất.",
+        );
+      }
+      if (!productItem.isActive) {
+        throw new Error(
+          "FG_ITEM_INACTIVE: Item thành phẩm đã ngừng hoạt động, liên hệ admin trước khi nhập kho thành phẩm.",
+        );
+      }
+
+      let resolvedBinId = fgReceipt.binId?.trim() || null;
+      if (!resolvedBinId) resolvedBinId = productItem.defaultBinId ?? null;
+      if (!resolvedBinId) resolvedBinId = await resolveStagingBinId(tx);
+
+      const holdQc = fgReceipt.holdQc === true;
+      const lotCode = `FG-${cur.woNo}`;
+      const [newLot] = await tx
+        .insert(inventoryLotSerial)
+        .values({
+          itemId: cur.productItemId,
+          lotCode,
+          status: holdQc ? "HOLD" : "AVAILABLE",
+          holdCode: holdQc ? "MANUAL" : null,
+          holdReason: holdQc ? `Chờ QC thành phẩm (${cur.woNo})` : null,
+        })
+        .returning({ id: inventoryLotSerial.id });
+      if (!newLot) throw new Error("FG_LOT_INSERT_FAILED");
+
+      await tx.insert(inventoryTxn).values({
+        txType: "PROD_IN",
+        itemId: cur.productItemId,
+        qty: String(fgReceipt.qty),
+        toBinId: resolvedBinId,
+        lotSerialId: newLot.id,
+        refTable: "work_order",
+        refId: id,
+        postedBy: fgReceipt.userId,
+        notes: `Nhập kho thành phẩm khi hoàn thành lệnh ${cur.woNo}`,
+      });
+
+      fgReceiptResult = {
+        lotSerialId: newLot.id,
+        lotCode,
+        binId: resolvedBinId,
+        qty: fgReceipt.qty,
+        status: holdQc ? "HOLD" : "AVAILABLE",
+      };
+    }
+
+    return { ...updated, fgReceipt: fgReceiptResult };
   });
 }
 

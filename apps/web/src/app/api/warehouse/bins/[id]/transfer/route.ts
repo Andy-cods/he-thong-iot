@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { jsonError, parseJson } from "@/server/http";
 import { StockGuardError, mapDbGuardError } from "@/server/repos/stockGuard";
+import { putawayToBin } from "@/server/repos/warehouseLocation";
 import { writeAudit } from "@/server/services/audit";
 import { requireCan } from "@/server/session";
 
@@ -151,6 +152,21 @@ export async function POST(
       objectId: fromBinId,
       after: { toBinId, lotSerialId, qty, notes },
       notes: `Transfer ${qty} ${bins.fromCode} → ${bins.toCode}`,
+    });
+
+    // V4.3 — ghi log `warehouse_putaway` khi "xếp kệ" (chuyển từ Chờ xếp kệ
+    // sang bin thật) — dialog Chuyển bin dùng chung cho mọi lượt chuyển nên
+    // ghi log cho MỌI lượt (không chỉ riêng từ staging), phục vụ tra cứu "ai
+    // đặt lô nào vào bin nào". Không chặn response nếu ghi log lỗi.
+    void putawayToBin({
+      lotSerialId,
+      itemId,
+      binId: toBinId,
+      qty,
+      putawayBy: guard.session.userId,
+      notes: notes ?? null,
+    }).catch((err) => {
+      logger.warn({ err, lotSerialId, toBinId }, "ghi warehouse_putaway lúc chuyển bin thất bại");
     });
 
     return NextResponse.json({ data: { txnId: txn?.id } });

@@ -135,7 +135,7 @@ export default function AdminUsersPage() {
     >
       <div className="flex flex-col gap-4">
         {/* Filter bar */}
-        <section className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <section className="flex flex-wrap items-center gap-2 rounded-xl bg-white p-3 shadow-xs dark:bg-zinc-900">
           <div className="relative min-w-[240px] flex-1">
             <Search
               className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400 dark:text-zinc-500"
@@ -221,7 +221,7 @@ export default function AdminUsersPage() {
         </section>
 
         {/* Table */}
-        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="overflow-hidden rounded-xl bg-white shadow-xs dark:bg-zinc-900">
           <div className="grid h-9 grid-cols-[1fr,1.2fr,100px] items-center gap-3 border-b border-zinc-200 bg-zinc-50/70 px-4 text-[11px] font-semibold uppercase tracking-normal text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-400 md:grid-cols-[1fr,1.2fr,1.3fr,1.4fr,100px,120px,90px]">
             <span>Tên đăng nhập</span>
             <span>Họ tên</span>

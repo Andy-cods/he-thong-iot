@@ -28,7 +28,7 @@ export const DropdownMenuSubTrigger = React.forwardRef<
   <DropdownMenuPrimitive.SubTrigger
     ref={ref}
     className={cn(
-      "flex h-8 cursor-default select-none items-center gap-2 rounded-sm px-2 text-base outline-none transition-colors duration-100",
+      "flex h-8 cursor-default select-none items-center gap-2 rounded-md px-2 text-base outline-none transition-colors duration-100",
       "focus:bg-zinc-100 data-[state=open]:bg-zinc-100 dark:focus:bg-zinc-800 dark:data-[state=open]:bg-zinc-800",
       inset && "pl-7",
       className,
@@ -48,7 +48,7 @@ export const DropdownMenuSubContent = React.forwardRef<
   <DropdownMenuPrimitive.SubContent
     ref={ref}
     className={cn(
-      "z-dropdown min-w-[8rem] overflow-hidden rounded-md border border-zinc-200 bg-white p-1 text-zinc-900 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50",
+      "z-dropdown min-w-[8rem] overflow-hidden rounded-xl border border-zinc-200 bg-white p-1 text-zinc-900 shadow-md dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50",
       "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0",
       className,
     )}
@@ -66,7 +66,7 @@ export const DropdownMenuContent = React.forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       className={cn(
-        "z-dropdown min-w-[14rem] overflow-hidden rounded-md border border-zinc-200 bg-white p-1 text-zinc-900 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50",
+        "z-dropdown min-w-[14rem] overflow-hidden rounded-xl border border-zinc-200 bg-white p-1 text-zinc-900 shadow-md dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50",
         "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:duration-150",
         "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:duration-150",
         className,
@@ -87,7 +87,7 @@ export const DropdownMenuItem = React.forwardRef<
   <DropdownMenuPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex h-8 cursor-default select-none items-center gap-2 rounded-sm px-2 text-base outline-none transition-colors duration-100",
+      "relative flex h-8 cursor-default select-none items-center gap-2 rounded-md px-2 text-base outline-none transition-colors duration-100",
       "focus:bg-zinc-100 data-[disabled]:pointer-events-none data-[disabled]:opacity-50 dark:focus:bg-zinc-800",
       variant === "danger"
         ? "text-red-700 focus:bg-red-50 focus:text-red-800 dark:text-red-400 dark:focus:bg-red-950/40 dark:focus:text-red-300"
@@ -107,7 +107,7 @@ export const DropdownMenuCheckboxItem = React.forwardRef<
   <DropdownMenuPrimitive.CheckboxItem
     ref={ref}
     className={cn(
-      "relative flex h-8 cursor-default select-none items-center rounded-sm py-1 pl-7 pr-2 text-base text-zinc-700 outline-none transition-colors duration-100 focus:bg-zinc-100 focus:text-zinc-900 dark:text-zinc-300 dark:focus:bg-zinc-800 dark:focus:text-zinc-50",
+      "relative flex h-8 cursor-default select-none items-center rounded-md py-1 pl-7 pr-2 text-base text-zinc-700 outline-none transition-colors duration-100 focus:bg-zinc-100 focus:text-zinc-900 dark:text-zinc-300 dark:focus:bg-zinc-800 dark:focus:text-zinc-50",
       className,
     )}
     checked={checked}
@@ -130,7 +130,7 @@ export const DropdownMenuRadioItem = React.forwardRef<
   <DropdownMenuPrimitive.RadioItem
     ref={ref}
     className={cn(
-      "relative flex h-8 cursor-default select-none items-center rounded-sm py-1 pl-7 pr-2 text-base text-zinc-700 outline-none transition-colors duration-100 focus:bg-zinc-100 focus:text-zinc-900 dark:text-zinc-300 dark:focus:bg-zinc-800 dark:focus:text-zinc-50",
+      "relative flex h-8 cursor-default select-none items-center rounded-md py-1 pl-7 pr-2 text-base text-zinc-700 outline-none transition-colors duration-100 focus:bg-zinc-100 focus:text-zinc-900 dark:text-zinc-300 dark:focus:bg-zinc-800 dark:focus:text-zinc-50",
       className,
     )}
     {...props}

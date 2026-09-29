@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   ArrowLeftRight,
   BarChart3,
+  CalendarCheck,
   FileOutput,
   FileText,
   Map,
@@ -22,6 +23,13 @@ import { ScrollTabsList } from "@/components/common/ScrollTabsList";
  */
 
 export const WAREHOUSE_TABS = [
+  // V4.3 mục 3 — tab MẶC ĐỊNH: inbox thủ kho (lô chờ xếp kệ, yêu cầu xuất chờ
+  // duyệt, PO sắp về/quá hạn, dòng chờ QC) — thay "Sơ đồ kho" làm điểm vào.
+  {
+    key: "today" as const,
+    label: "Việc cần làm hôm nay",
+    icon: CalendarCheck,
+  },
   {
     key: "layout" as const,
     label: "Sơ đồ kho",
@@ -59,6 +67,7 @@ export const WAREHOUSE_TABS = [
 export type WarehouseTab = (typeof WAREHOUSE_TABS)[number]["key"];
 
 const TAB_HREF: Record<WarehouseTab, string> = {
+  today: "/warehouse?tab=today",
   layout: "/warehouse?tab=layout",
   items: "/warehouse?tab=items",
   movement: "/warehouse?tab=movement&mode=in",
@@ -69,8 +78,16 @@ const TAB_HREF: Record<WarehouseTab, string> = {
 
 export function WarehouseTabsNav({
   active,
+  /**
+   * V4.3 Đợt 2 mục 6 — danh sách tab thực sự hiện ra (mặc định = tất cả).
+   * `warehouse/page.tsx` lọc theo role trước khi truyền vào — vai `qc` chỉ
+   * thấy "Vật tư" + "Nhập / Xuất kho" (2 tab duy nhất API không 403), tránh
+   * bấm vào tab rồi ăn lỗi quyền.
+   */
+  tabs = WAREHOUSE_TABS,
 }: {
   active: WarehouseTab;
+  tabs?: typeof WAREHOUSE_TABS;
 }) {
   return (
     <nav
@@ -79,7 +96,7 @@ export function WarehouseTabsNav({
     >
       {/* V4.1 UI-X6: tự cuộn tab đang chọn + mép mờ báo còn tab. */}
       <ScrollTabsList className="gap-1 px-2 md:px-4">
-        {WAREHOUSE_TABS.map((t) => {
+        {tabs.map((t) => {
           const Icon = t.icon;
           const isActive = active === t.key;
           return (

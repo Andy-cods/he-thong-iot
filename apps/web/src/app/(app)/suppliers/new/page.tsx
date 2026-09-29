@@ -26,7 +26,7 @@ export default function NewSupplierPage() {
         className="mb-2 md:hidden"
       />
       <header className="mb-6">
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+        <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
           Thêm nhà cung cấp
         </h1>
         <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">

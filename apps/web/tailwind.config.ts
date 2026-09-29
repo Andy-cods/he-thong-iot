@@ -1,10 +1,22 @@
 import type { Config } from "tailwindcss";
 
-// Design tokens V2 — Linear-inspired (zinc + electric blue).
-// Nguồn: plans/redesign-v2/260417-v2-design-spec.md §1.
-// Typography: Inter (duy nhất) + JetBrains Mono cho SKU/batch/timestamp.
+// Design tokens V4.3 — "Apple-inspired" (Hướng B, chốt 2026-09-30).
+// Nguồn: plans/v4.3-design/APPLE_DESIGN_SYSTEM.md (§3 chức năng phụ, §4 wireframe —
+// DÙNG; §2 token GIỮ INDIGO/13px — BỎ QUA, thay bằng hệ dưới đây theo mẫu đã duyệt
+// `huong-giao-dien.html` mock `.B`).
+// Chiến lược remap: SỬA GIÁ TRỊ HEX của các key màu đã dùng khắp app (indigo, blue,
+// emerald, amber, red, zinc) thay vì đổi tên class hàng trăm file — mọi
+// `text-indigo-600`, `bg-emerald-50`, `text-zinc-500`... tự động hiển thị đúng tông
+// Apple mà KHÔNG cần sửa từng component gọi màu.
+// - accent: xanh hệ thống Apple `#0071E3` (thay indigo-600/blue-600 cũ — CẢ 2 palette
+//   `indigo` và `blue` đều trỏ về cùng 1 thang xanh này để toàn app chỉ còn 1 màu nhấn).
+// - semantic: xanh lá `#34C759` (emerald), cam `#FF9F0A` (amber), đỏ `#FF3B30` (red).
+// - zinc: nền trang `#F5F5F7`, chữ chính `#1D1D1F`, chữ phụ `#86868B`, bề mặt tối
+//   `#2C2C2E`, nền tối `#000000` — xem `docs/design-guidelines.md` khi tạo.
+// Typography: Inter (fallback có dấu tiếng Việt) sau -apple-system/SF Pro/Segoe UI Variable.
 // Breakpoints: sm 375 · md 768 · lg 1024 · xl 1280 · tv 1920.
-// Safety-orange `orange-500` `#F97316` CHỈ dùng cho shortage/critical semantic.
+// `orange` (safety-orange `#F97316`) KHÔNG đổi — semantic "thiếu hàng" riêng biệt với
+// amber/warning, giữ nguyên để không lẫn 2 ý nghĩa.
 
 export default {
   darkMode: ["class", '[data-theme="dark"]'], // Reserve V2.1 — không toggle V2.0
@@ -15,81 +27,100 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Zinc (neutral — replace slate V1)
+        // Zinc (neutral) — Apple systemGray scale. Anchors bắt buộc theo mẫu đã
+        // duyệt: 50=#F5F5F7 (nền trang), 500=#86868B (chữ phụ), 900=#1D1D1F (chữ
+        // chính, cũng dùng làm bề mặt tối), 800=#2C2C2E (bề mặt tối), 950=#000 (nền
+        // tối). Các bậc còn lại nội suy đơn điệu để không phá tương phản viền/hover.
         zinc: {
-          50: "#FAFAFA",
-          100: "#F4F4F5",
-          200: "#E4E4E7",
-          300: "#D4D4D8",
-          400: "#A1A1AA",
-          500: "#71717A",
-          600: "#52525B",
-          700: "#3F3F46",
-          800: "#27272A",
-          900: "#18181B",
-          950: "#09090B",
+          50: "#F5F5F7",
+          100: "#EDEDEF",
+          200: "#E2E2E4",
+          300: "#D1D1D6",
+          400: "#AEAEB2",
+          500: "#86868B",
+          600: "#6E6E73",
+          700: "#48484A",
+          800: "#2C2C2E",
+          900: "#1D1D1F",
+          950: "#000000",
         },
 
-        // Blue (semantic: info/link — giữ nguyên cho info badge)
+        // Blue — CÙNG thang Apple system blue với `indigo` (xem dưới). Trước đây
+        // là 1 xanh khác (link/info) tách biệt khỏi accent indigo; nay hợp nhất
+        // còn 1 màu nhấn duy nhất kiểu Apple (link, selected-state, accent đều
+        // cùng 1 xanh #0071E3).
         blue: {
-          50: "#EFF6FF",
-          100: "#DBEAFE",
-          200: "#BFDBFE",
-          300: "#93C5FD",
-          400: "#60A5FA",
-          500: "#3B82F6",
-          600: "#2563EB",
-          700: "#1D4ED8",
-          800: "#1E40AF",
-          900: "#1E3A8A",
-          950: "#172554",
+          50: "#E6F1FC",
+          100: "#CCE3F9",
+          200: "#A6CDF5",
+          300: "#80B8F1",
+          400: "#59A3ED",
+          500: "#2686E7",
+          600: "#0071E3",
+          700: "#0060C2",
+          800: "#004994",
+          900: "#003366",
+          950: "#001F40",
         },
 
-        // Indigo (primary accent V1.5)
+        // Indigo — accent chính, remap sang Apple system blue #0071E3 (light) /
+        // #0A84FF (dark, xem `--accent` trong globals.css). Cùng ramp với `blue`
+        // ở trên — mọi `bg-indigo-*`/`text-indigo-*`/`ring-indigo-*` có sẵn khắp
+        // app (button primary, StatusPill progress, focus ring, badge...) tự
+        // động hiển thị đúng xanh Apple mà không cần sửa từng file.
         indigo: {
-          50:  "#EEF2FF",
-          100: "#E0E7FF",
-          200: "#C7D2FE",
-          300: "#A5B4FC",
-          400: "#818CF8",
-          500: "#6366F1",
-          600: "#4F46E5",
-          700: "#4338CA",
-          800: "#3730A3",
-          900: "#312E81",
-          950: "#1E1B4B",
+          50:  "#E6F1FC",
+          100: "#CCE3F9",
+          200: "#A6CDF5",
+          300: "#80B8F1",
+          400: "#59A3ED",
+          500: "#2686E7",
+          600: "#0071E3",
+          700: "#0060C2",
+          800: "#004994",
+          900: "#003366",
+          950: "#001F40",
         },
 
-        // Semantic
+        // Semantic — Apple systemGreen/systemOrange/systemRed.
         emerald: {
-          50: "#ECFDF5",
-          100: "#D1FAE5",
-          200: "#A7F3D0",
-          300: "#6EE7B7",
-          400: "#34D399",
-          500: "#10B981",
-          600: "#059669",
-          700: "#047857",
+          50: "#E9F9ED",
+          100: "#D1F2D9",
+          200: "#A3E6B4",
+          300: "#75D890",
+          400: "#52CD70",
+          500: "#34C759",
+          600: "#2CA84B",
+          700: "#23863C",
+          800: "#1B652E",
+          900: "#134620",
+          950: "#0A2A13",
         },
         amber: {
-          50: "#FFFBEB",
-          100: "#FEF3C7",
-          200: "#FDE68A",
-          300: "#FCD34D",
-          400: "#FBBF24",
-          500: "#F59E0B",
-          600: "#D97706",
-          700: "#B45309",
+          50: "#FFF4E0",
+          100: "#FFE7C2",
+          200: "#FFD08A",
+          300: "#FFB852",
+          400: "#FFAA2E",
+          500: "#FF9F0A",
+          600: "#D9860A",
+          700: "#B36C08",
+          800: "#8A5306",
+          900: "#603A04",
+          950: "#3D2502",
         },
         red: {
-          50: "#FEF2F2",
-          100: "#FEE2E2",
-          200: "#FECACA",
-          300: "#FCA5A5",
-          400: "#F87171",
-          500: "#EF4444",
-          600: "#DC2626",
-          700: "#B91C1C",
+          50: "#FFECEB",
+          100: "#FFD5D2",
+          200: "#FFAEA8",
+          300: "#FF8880",
+          400: "#FF6259",
+          500: "#FF3B30",
+          600: "#E62E24",
+          700: "#B8241C",
+          800: "#8A1B15",
+          900: "#5C120E",
+          950: "#3D0C09",
         },
         sky: {
           50: "#F0F9FF",
@@ -110,13 +141,13 @@ export default {
           700: "#C2410C",
         },
 
-        // Aliases V2 — indigo-600 accent V1.5
+        // Aliases — Apple system blue accent
         accent: {
-          DEFAULT: "#4F46E5",   // indigo-600
-          hover:   "#4338CA",   // indigo-700
-          press:   "#3730A3",   // indigo-800
-          soft:    "#EEF2FF",   // indigo-50
-          ring:    "rgba(79, 70, 229, 0.35)",
+          DEFAULT: "#0071E3",   // Apple system blue (indigo-600)
+          hover:   "#0060C2",   // indigo-700
+          press:   "#004994",   // indigo-800
+          soft:    "#E6F1FC",   // indigo-50
+          ring:    "rgba(0, 113, 227, 0.35)",
         },
         shortage: {
           DEFAULT: "#F97316",
@@ -144,32 +175,51 @@ export default {
           900: "#18181B",
         },
         brand: {
-          DEFAULT: "#18181B",
-          ink: "#18181B",
-          steel: "#3F3F46",
-          mist: "#E4E4E7",
+          DEFAULT: "#1D1D1F",
+          ink: "#1D1D1F",
+          steel: "#48484A",
+          mist: "#E2E2E4",
         },
         cta: {
-          DEFAULT: "#4F46E5",
-          hover:   "#4338CA",
-          press:   "#3730A3",
-          soft:    "#EEF2FF",
+          DEFAULT: "#0071E3",
+          hover:   "#0060C2",
+          press:   "#004994",
+          soft:    "#E6F1FC",
         },
-        success: { DEFAULT: "#10B981", strong: "#047857", soft: "#ECFDF5" },
-        warning: { DEFAULT: "#F59E0B", strong: "#B45309", soft: "#FFFBEB" },
-        danger: { DEFAULT: "#EF4444", strong: "#B91C1C", soft: "#FEF2F2" },
+        success: { DEFAULT: "#34C759", strong: "#23863C", soft: "#E9F9ED" },
+        warning: { DEFAULT: "#FF9F0A", strong: "#B36C08", soft: "#FFF4E0" },
+        danger: { DEFAULT: "#FF3B30", strong: "#B8241C", soft: "#FFECEB" },
         info: { DEFAULT: "#0EA5E9", strong: "#0369A1", soft: "#F0F9FF" },
         scan: {
-          "flash-success": "#ECFDF5",
-          "flash-danger": "#FEF2F2",
+          "flash-success": "#E9F9ED",
+          "flash-danger": "#FFECEB",
         },
-        zebra: "#F4F4F5",
-        "border-focus": "#4F46E5",
+        zebra: "#EDEDEF",
+        "border-focus": "#0071E3",
       },
 
       fontFamily: {
-        sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
-        heading: ["Inter", "ui-sans-serif", "system-ui"], // alias — V2 bỏ Be Vietnam Pro
+        // Apple system stack trước — Inter làm fallback (đủ dấu tiếng Việt) khi
+        // không chạy trên macOS/iOS/Windows mới (Segoe UI Variable).
+        sans: [
+          "-apple-system",
+          "BlinkMacSystemFont",
+          '"SF Pro Text"',
+          '"Segoe UI Variable"',
+          "Inter",
+          "ui-sans-serif",
+          "system-ui",
+          "sans-serif",
+        ],
+        heading: [
+          "-apple-system",
+          "BlinkMacSystemFont",
+          '"SF Pro Display"',
+          '"Segoe UI Variable"',
+          "Inter",
+          "ui-sans-serif",
+          "system-ui",
+        ],
         mono: ['"JetBrains Mono"', "ui-monospace", "SFMono-Regular", "monospace"],
       },
 
@@ -216,28 +266,30 @@ export default {
 
       borderRadius: {
         none: "0",
-        sm: "4px",
+        sm: "4px",       // badge/chip nhỏ — không đổi
         DEFAULT: "6px",
-        md: "6px",
-        lg: "8px",
+        md: "6px",       // không đổi
+        lg: "10px",      // MỚI 8→10px — control (button/input/select), theo mẫu Apple "bo 10-12px"
+        xl: "14px",      // MỚI — bề mặt/thẻ trắng, Sheet/Dialog/Popover/Dropdown ("bo 12-14px")
         full: "9999px",
       },
 
       boxShadow: {
+        // Shadow rất nhẹ kiểu Apple — viền/nền tách khối thay vì đổ bóng đậm.
         xs: "0 1px 2px rgba(0, 0, 0, 0.04)",
-        sm: "0 2px 4px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.04)",
+        sm: "0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04)",
         md: "0 4px 12px rgba(0, 0, 0, 0.06)",
         lg: "0 16px 48px rgba(0, 0, 0, 0.12)",
         toast: "0 8px 24px rgba(0, 0, 0, 0.10)",
         // Back-compat aliases
         pop: "0 4px 12px rgba(0, 0, 0, 0.06)",
         dialog: "0 16px 48px rgba(0, 0, 0, 0.12)",
-        focus: "0 0 0 2px rgba(79, 70, 229, 0.5)",
-        "focus-strong": "0 0 0 3px rgba(67, 56, 202, 0.5)",
+        focus: "0 0 0 2px rgba(0, 113, 227, 0.5)",
+        "focus-strong": "0 0 0 3px rgba(0, 96, 194, 0.5)",
         card:       "0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
-        "card-hover": "0 4px 12px rgba(79,70,229,0.10), 0 1px 3px rgba(0,0,0,0.06)",
-        "scan-success": "0 0 0 3px rgba(16, 185, 129, 0.5)",
-        "scan-error": "0 0 0 3px rgba(239, 68, 68, 0.5)",
+        "card-hover": "0 4px 12px rgba(0,113,227,0.10), 0 1px 3px rgba(0,0,0,0.06)",
+        "scan-success": "0 0 0 3px rgba(52, 199, 89, 0.5)",
+        "scan-error": "0 0 0 3px rgba(255, 59, 48, 0.5)",
       },
 
       zIndex: {
@@ -301,14 +353,14 @@ export default {
           to: { backgroundPosition: "200% 0" },
         },
         "scan-flash-success": {
-          "0%": { outline: "0 solid rgba(16, 185, 129, 0)", backgroundColor: "transparent" },
-          "30%": { outline: "3px solid rgba(16, 185, 129, 0.5)", backgroundColor: "#ECFDF5" },
-          "100%": { outline: "0 solid rgba(16, 185, 129, 0)", backgroundColor: "transparent" },
+          "0%": { outline: "0 solid rgba(52, 199, 89, 0)", backgroundColor: "transparent" },
+          "30%": { outline: "3px solid rgba(52, 199, 89, 0.5)", backgroundColor: "#E9F9ED" },
+          "100%": { outline: "0 solid rgba(52, 199, 89, 0)", backgroundColor: "transparent" },
         },
         "scan-flash-danger": {
-          "0%": { outline: "0 solid rgba(239, 68, 68, 0)", backgroundColor: "transparent" },
-          "30%": { outline: "3px solid rgba(239, 68, 68, 0.5)", backgroundColor: "#FEF2F2" },
-          "100%": { outline: "0 solid rgba(239, 68, 68, 0)", backgroundColor: "transparent" },
+          "0%": { outline: "0 solid rgba(255, 59, 48, 0)", backgroundColor: "transparent" },
+          "30%": { outline: "3px solid rgba(255, 59, 48, 0.5)", backgroundColor: "#FFECEB" },
+          "100%": { outline: "0 solid rgba(255, 59, 48, 0)", backgroundColor: "transparent" },
         },
         "scan-shake-sm": {
           "0%,100%": { transform: "translateX(0)" },
@@ -331,14 +383,14 @@ export default {
           "75%": { transform: "translateX(4px)" },
         },
         "flash-success": {
-          "0%": { outline: "0 solid rgba(16, 185, 129, 0)", backgroundColor: "transparent" },
-          "30%": { outline: "3px solid rgba(16, 185, 129, 0.5)", backgroundColor: "#ECFDF5" },
-          "100%": { outline: "0 solid rgba(16, 185, 129, 0)", backgroundColor: "transparent" },
+          "0%": { outline: "0 solid rgba(52, 199, 89, 0)", backgroundColor: "transparent" },
+          "30%": { outline: "3px solid rgba(52, 199, 89, 0.5)", backgroundColor: "#E9F9ED" },
+          "100%": { outline: "0 solid rgba(52, 199, 89, 0)", backgroundColor: "transparent" },
         },
         "flash-danger": {
-          "0%": { outline: "0 solid rgba(239, 68, 68, 0)", backgroundColor: "transparent" },
-          "30%": { outline: "3px solid rgba(239, 68, 68, 0.5)", backgroundColor: "#FEF2F2" },
-          "100%": { outline: "0 solid rgba(239, 68, 68, 0)", backgroundColor: "transparent" },
+          "0%": { outline: "0 solid rgba(255, 59, 48, 0)", backgroundColor: "transparent" },
+          "30%": { outline: "3px solid rgba(255, 59, 48, 0.5)", backgroundColor: "#FFECEB" },
+          "100%": { outline: "0 solid rgba(255, 59, 48, 0)", backgroundColor: "transparent" },
         },
       },
 
