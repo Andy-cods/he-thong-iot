@@ -13,7 +13,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Input } from "@/components/ui/input";
+import { DateField } from "@/components/ui/date-field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AttachmentField } from "@/components/finance/AttachmentField";
 import { ConfirmActionDialog } from "@/components/finance/ConfirmActionDialog";
@@ -124,10 +124,9 @@ export function InvoiceDetailSheet({
                     Gia hạn thanh toán
                   </p>
                   <div className="flex items-center gap-2">
-                    <Input
-                      type="date"
+                    <DateField
                       value={dueDraft}
-                      onChange={(e) => setDueDraft(e.target.value)}
+                      onChange={setDueDraft}
                       aria-label="Hạn thanh toán mới"
                       className="w-44"
                     />

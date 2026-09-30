@@ -12,9 +12,11 @@ import {
   Wallet,
 } from "lucide-react";
 import { Line, LineChart, ResponsiveContainer } from "recharts";
+import { DateField } from "@/components/ui/date-field";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/ui/query-error";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CashflowChart } from "@/components/finance/CashflowChart";
 import { fmtVND, fmtVNDShort, toDateInputValue } from "@/components/finance/_format";
 import { useFinCashflow, useFinSummary, type CashflowPoint } from "@/hooks/useFinance";
@@ -71,45 +73,42 @@ export function OverviewTab() {
           </h1>
         </div>
 
-        {/* Date range picker — segmented control kiểu iOS Settings (§2.3) */}
+        {/* Date range picker — segmented control dùng chung (V4.4 A12), nút
+            active nền đen/zinc-900 khớp mẫu chuẩn toàn hệ (khác 3 kiểu tô màu
+            trước đây, xem plans/v4.4-ui/UI_INVENTORY.md §A12). */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex items-center gap-0.5 rounded-lg bg-zinc-100 p-0.5 dark:bg-zinc-800">
-            {RANGE_PRESETS.map((p) => (
-              <button
-                key={p.key}
-                type="button"
-                onClick={() => {
-                  setRangeDays(p.days);
-                  setCustomFrom("");
-                  setCustomTo("");
-                }}
-                className={cn(
-                  "h-7 shrink-0 rounded-md px-3 text-sm font-medium transition-colors",
-                  !customFrom && rangeDays === p.days
-                    ? "bg-white text-zinc-900 shadow-xs dark:bg-zinc-700 dark:text-zinc-50"
-                    : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200",
-                )}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
+          <Tabs
+            value={customFrom ? "" : String(rangeDays)}
+            onValueChange={(v) => {
+              setRangeDays(Number(v) as 7 | 30 | 90);
+              setCustomFrom("");
+              setCustomTo("");
+            }}
+          >
+            <TabsList variant="segmented">
+              {RANGE_PRESETS.map((p) => (
+                <TabsTrigger key={p.key} value={p.key}>
+                  {p.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
           <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
             <span>Từ</span>
-            <input
-              type="date"
+            <DateField
               value={customFrom}
-              onChange={(e) => setCustomFrom(e.target.value)}
-              className="h-8 rounded-lg border border-zinc-200 bg-white px-2 text-sm tabular-nums dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+              onChange={setCustomFrom}
+              aria-label="Từ ngày"
+              className="w-32"
             />
           </label>
           <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
             <span>Đến</span>
-            <input
-              type="date"
+            <DateField
               value={customTo}
-              onChange={(e) => setCustomTo(e.target.value)}
-              className="h-8 rounded-lg border border-zinc-200 bg-white px-2 text-sm tabular-nums dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+              onChange={setCustomTo}
+              aria-label="Đến ngày"
+              className="w-32"
             />
           </label>
         </div>

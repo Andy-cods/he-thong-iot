@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { useTheme } from "@/components/providers/ThemeProvider";
 import { fmtCompactVN, fmtVNDFull } from "@/components/finance/_format";
+import { formatDate } from "@/lib/format";
 import type { CashflowPoint } from "@/hooks/useFinance";
 
 /**
@@ -46,12 +47,13 @@ const COLORS = {
   },
 } as const;
 
+/**
+ * V4.4 (UI_INVENTORY.md §A3) — qua `formatDate()` dùng chung (giờ VN cố định,
+ * "YYYY-MM-DD" không đi qua múi giờ) thay vì tự viết lại `toLocaleDateString`
+ * cục bộ ở đây — 1 nguồn format ngày duy nhất cho toàn app.
+ */
 function fmtAxisDate(d: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d);
-  if (m) return `${m[3]}/${m[2]}`;
-  const date = new Date(d);
-  if (Number.isNaN(date.getTime())) return d;
-  return date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" });
+  return formatDate(d, "dd/MM");
 }
 
 /**

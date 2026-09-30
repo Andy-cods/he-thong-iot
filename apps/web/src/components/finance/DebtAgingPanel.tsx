@@ -282,17 +282,14 @@ export function DebtAgingPanel({
                         : undefined
                     }
                     className={cn(
-                      "rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900",
-                      // Hover nâng nhẹ kiểu class card hover dùng chung trong
-                      // globals.css — viết INLINE ở đây thay vì gọi lại class đó,
-                      // vì class gốc dùng 1 cú pháp easing tuỳ biến bị chính
-                      // Tailwind coi là mơ hồ (ambiguous) và chặn build cứng khi
-                      // class được dùng thật lần đầu (trước đây định nghĩa nhưng
-                      // không nơi nào gọi nên chưa lộ). Sửa tận gốc ở globals.css
-                      // ngoài phạm vi cho phép của task này — ghi nhận trong báo
-                      // cáo, không tự sửa file dùng chung.
-                      onPartnerClick &&
-                        "cursor-pointer transition-all duration-150 hover:-translate-y-px hover:border-zinc-300 hover:shadow-xs dark:hover:border-zinc-700",
+                      "rounded-xl p-3",
+                      // V4.4 (UI_INVENTORY.md §6) — `.card-interactive` dùng
+                      // chung (globals.css) đã vá xong cú pháp ambiguous cũ;
+                      // dùng lại thay vì tự viết trùng hover ở đây (tránh 2 nơi
+                      // định nghĩa cùng 1 hiệu ứng trôi lệch nhau về sau).
+                      onPartnerClick
+                        ? "card-interactive cursor-pointer"
+                        : "border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900",
                     )}
                   >
                     <div className="flex items-start justify-between gap-2">

@@ -38,11 +38,13 @@ import {
   SheetContent,
   SheetHeaderNav,
 } from "@/components/ui/sheet";
+import { DateField } from "@/components/ui/date-field";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/ui/query-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RowActionsMenu, StatTile } from "@/components/ui/data-table";
 import {
   AccountSourceSelect,
@@ -67,6 +69,7 @@ import {
 } from "@/hooks/useFinance";
 import { useSession } from "@/hooks/useSession";
 import type { FinTransactionFilter } from "@/lib/query-keys";
+import { formatNumber } from "@/lib/format";
 import { StatusPill } from "@/components/ui/status-badge";
 import { cn } from "@/lib/utils";
 
@@ -187,7 +190,7 @@ export function CashbookTab() {
             Sổ thu chi
           </h1>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            <span className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">{total.toLocaleString("vi-VN")}</span> giao dịch
+            <span className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">{formatNumber(total)}</span> giao dịch
           </p>
         </div>
         {canWrite && (
@@ -258,23 +261,16 @@ export function CashbookTab() {
 
       {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-2 border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
-        <div className="flex min-w-0 max-w-full items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
-          {(["all", "IN", "OUT"] as const).map((d) => (
-            <button
-              key={d}
-              type="button"
-              onClick={() => void setUrlState({ direction: d, page: 1 })}
-              className={cn(
-                "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors",
-                urlState.direction === d
-                  ? "border-indigo-600 bg-indigo-600 text-white"
-                  : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60",
-              )}
-            >
-              {d === "all" ? "Tất cả" : d === "IN" ? "Thu" : "Chi"}
-            </button>
-          ))}
-        </div>
+        {/* Segmented control dùng chung (V4.4 A12) thay pill indigo tự vẽ. */}
+        <Tabs value={urlState.direction} onValueChange={(v) => void setUrlState({ direction: v as typeof urlState.direction, page: 1 })}>
+          <TabsList variant="segmented">
+            {(["all", "IN", "OUT"] as const).map((d) => (
+              <TabsTrigger key={d} value={d}>
+                {d === "all" ? "Tất cả" : d === "IN" ? "Thu" : "Chi"}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
 
         <AccountSourceSelect
           accounts={accounts}
@@ -300,20 +296,20 @@ export function CashbookTab() {
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
             <span>Từ</span>
-            <input
-              type="date"
+            <DateField
               value={urlState.from}
-              onChange={(e) => void setUrlState({ from: e.target.value, page: 1 })}
-              className="h-8 rounded-lg border border-zinc-200 bg-white px-2 text-sm tabular-nums dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+              onChange={(v) => void setUrlState({ from: v, page: 1 })}
+              aria-label="Từ ngày"
+              className="w-32"
             />
           </label>
           <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
             <span>Đến</span>
-            <input
-              type="date"
+            <DateField
               value={urlState.to}
-              onChange={(e) => void setUrlState({ to: e.target.value, page: 1 })}
-              className="h-8 rounded-lg border border-zinc-200 bg-white px-2 text-sm tabular-nums dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+              onChange={(v) => void setUrlState({ to: v, page: 1 })}
+              aria-label="Đến ngày"
+              className="w-32"
             />
           </label>
           {hasFilter && (
@@ -697,7 +693,12 @@ function TransactionFormDialog({
               </div>
               <div>
                 <Label htmlFor="tx-date" required>Ngày giao dịch</Label>
-                <Input id="tx-date" type="date" {...register("transactionDate")} className="mt-1" />
+                <DateField
+                  id="tx-date"
+                  value={watch("transactionDate") as unknown as string}
+                  onChange={(v) => setValue("transactionDate", v as unknown as Date, { shouldValidate: true, shouldDirty: true })}
+                  className="mt-1"
+                />
               </div>
             </div>
 
@@ -842,7 +843,12 @@ function TransferFormDialog({
               </div>
               <div>
                 <Label htmlFor="tf-date" required>Ngày chuyển</Label>
-                <Input id="tf-date" type="date" {...register("transactionDate")} className="mt-1" />
+                <DateField
+                  id="tf-date"
+                  value={watch("transactionDate") as unknown as string}
+                  onChange={(v) => setValue("transactionDate", v as unknown as Date, { shouldValidate: true, shouldDirty: true })}
+                  className="mt-1"
+                />
               </div>
             </div>
             <div>

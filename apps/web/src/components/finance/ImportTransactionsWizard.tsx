@@ -25,6 +25,7 @@ import {
   useFinanceImportBatch,
   useUploadFinanceImport,
 } from "@/hooks/useFinance";
+import { formatNumber } from "@/lib/format";
 import { qk } from "@/lib/query-keys";
 import { statusLabel } from "@/lib/status";
 import { cn } from "@/lib/utils";
@@ -154,7 +155,7 @@ export function ImportTransactionsWizard({ onClose }: ImportTransactionsWizardPr
                 <FileSpreadsheet className="mx-auto mb-2 h-5 w-5 text-emerald-600" aria-hidden="true" />
                 <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">{file.name}</p>
                 <p className="text-xs text-zinc-500 tabular-nums dark:text-zinc-400">
-                  {(file.size / 1024).toLocaleString("vi-VN", { maximumFractionDigits: 0 })} KB
+                  {formatNumber(Math.round(file.size / 1024))} KB
                 </p>
               </div>
             ) : (
@@ -278,7 +279,7 @@ export function ImportTransactionsWizard({ onClose }: ImportTransactionsWizardPr
               Quay lại
             </Button>
             <Button onClick={handleCommit} disabled={uploadData.rowSuccess === 0 || commit.isPending}>
-              {commit.isPending ? "Đang gửi…" : `Xác nhận ghi ${uploadData.rowSuccess.toLocaleString("vi-VN")} dòng`}
+              {commit.isPending ? "Đang gửi…" : `Xác nhận ghi ${formatNumber(uploadData.rowSuccess)} dòng`}
             </Button>
           </div>
         </div>
@@ -360,7 +361,7 @@ function StatCard({
         {label}
       </div>
       <div className={cn("mt-1 text-lg font-semibold tabular-nums", toneClass)}>
-        {value.toLocaleString("vi-VN")}
+        {formatNumber(value)}
       </div>
     </div>
   );

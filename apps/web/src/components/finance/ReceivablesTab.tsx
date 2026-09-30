@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { ArrowDownCircle, ArrowUpCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DebtAgingPanel } from "@/components/finance/DebtAgingPanel";
 import { PartnerInvoicesDialog } from "@/components/finance/PartnerInvoicesDialog";
 import {
@@ -12,7 +12,6 @@ import {
   useReceivablesByCustomer,
   type PartnerAging,
 } from "@/hooks/useFinance";
-import { cn } from "@/lib/utils";
 
 /**
  * Sub-tab "Công nợ" — TASK-20260922: bổ sung CÔNG NỢ PHẢI TRẢ (nợ nhà cung
@@ -25,10 +24,12 @@ import { cn } from "@/lib/utils";
  *   2) User thường xem 1 chiều tại 1 thời điểm (kế toán trả nợ NCC khác lúc
  *      với kế toán đòi nợ khách) — segmented control giữ context "đang ở
  *      Công nợ" rõ ràng hơn là chuyển hẳn sang 1 tab khác.
- *   3) Dùng `Button` pill-toggle (bám pattern date-range preset ở
- *      `OverviewTab.tsx`) thay vì `Tabs` underline (đã dùng cho nav cấp 2
- *      của `SettlementsGroupTab`) — tránh 2 thanh tab underline chồng nhau
- *      gây rối mắt.
+ *   3) V4.4 A12 — dùng `<Tabs><TabsList variant="segmented">` dùng chung
+ *      (nền đen/zinc-900 khi active) thay `Button` pill-toggle tự tô màu
+ *      indigo trước đây: KHÔNG xung đột với `Tabs variant="line"` (underline)
+ *      của nav cấp 2 `SettlementsGroupTab` vì 2 biến thể có hình dáng khác
+ *      hẳn nhau (pill nền xám vs gạch chân) — chỉ thống nhất 1 màu active
+ *      DUY NHẤT cho mọi segmented control toàn hệ (xem UI_INVENTORY.md §A12).
  */
 
 type Direction = "payable" | "receivable";
@@ -68,28 +69,18 @@ export function ReceivablesTab() {
                 : "Hoá đơn đầu ra (bán hàng) chưa thu hết tiền — ai đang nợ mình"}
             </p>
           </div>
-          <div className="inline-flex items-center gap-1 self-stretch rounded-full border border-zinc-200 bg-white p-1 dark:border-zinc-700 dark:bg-zinc-900 sm:self-auto">
-            <Button
-              type="button"
-              size="sm"
-              variant={isPayable ? "default" : "ghost"}
-              className={cn("flex-1 gap-1.5 rounded-full sm:flex-none", !isPayable && "text-zinc-500 dark:text-zinc-400")}
-              onClick={() => setDirection("payable")}
-            >
-              <ArrowUpCircle className="h-3.5 w-3.5" aria-hidden="true" />
-              Phải trả
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={!isPayable ? "default" : "ghost"}
-              className={cn("flex-1 gap-1.5 rounded-full sm:flex-none", isPayable && "text-zinc-500 dark:text-zinc-400")}
-              onClick={() => setDirection("receivable")}
-            >
-              <ArrowDownCircle className="h-3.5 w-3.5" aria-hidden="true" />
-              Phải thu
-            </Button>
-          </div>
+          <Tabs value={direction} onValueChange={(v) => setDirection(v as Direction)} className="self-stretch sm:self-auto">
+            <TabsList variant="segmented" className="w-full sm:w-auto">
+              <TabsTrigger value="payable" className="flex-1 gap-1.5 sm:flex-none">
+                <ArrowUpCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                Phải trả
+              </TabsTrigger>
+              <TabsTrigger value="receivable" className="flex-1 gap-1.5 sm:flex-none">
+                <ArrowDownCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                Phải thu
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
       </header>
 

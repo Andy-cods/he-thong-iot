@@ -33,12 +33,14 @@ import {
   SheetContent,
   SheetHeaderNav,
 } from "@/components/ui/sheet";
+import { DateField } from "@/components/ui/date-field";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/ui/query-error";
 import { RowActionsMenu } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SupplierPicker, type SupplierPickerValue } from "@/components/procurement/SupplierPicker";
 import { AccountSourceSelect, BalanceAfterHint, selectClassName } from "@/components/finance/AccountSourceSelect";
 import { ConfirmActionDialog } from "@/components/finance/ConfirmActionDialog";
@@ -54,6 +56,7 @@ import {
 } from "@/hooks/useFinance";
 import { useSession } from "@/hooks/useSession";
 import type { FinPaymentFilter } from "@/lib/query-keys";
+import { formatNumber } from "@/lib/format";
 import { StatusPill } from "@/components/ui/status-badge";
 import { cn } from "@/lib/utils";
 
@@ -128,7 +131,7 @@ export function PaymentsTab() {
             Lịch sử thanh toán
           </h1>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            <span className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">{total.toLocaleString("vi-VN")}</span> đợt thanh toán
+            <span className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">{formatNumber(total)}</span> đợt thanh toán
           </p>
         </div>
         {canWrite && (
@@ -138,22 +141,17 @@ export function PaymentsTab() {
         )}
       </header>
 
-      <div className="flex items-center gap-1.5 border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
-        {(["all", "IN", "OUT"] as const).map((d) => (
-          <button
-            key={d}
-            type="button"
-            onClick={() => void setUrlState({ direction: d, page: 1 })}
-            className={cn(
-              "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors",
-              urlState.direction === d
-                ? "border-indigo-600 bg-indigo-600 text-white"
-                : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60",
-            )}
-          >
-            {d === "all" ? "Tất cả" : d === "IN" ? "Thu (từ khách)" : "Chi (cho NCC)"}
-          </button>
-        ))}
+      {/* Segmented control dùng chung (V4.4 A12) thay pill indigo tự vẽ. */}
+      <div className="border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
+        <Tabs value={urlState.direction} onValueChange={(v) => void setUrlState({ direction: v as typeof urlState.direction, page: 1 })}>
+          <TabsList variant="segmented">
+            {(["all", "IN", "OUT"] as const).map((d) => (
+              <TabsTrigger key={d} value={d}>
+                {d === "all" ? "Tất cả" : d === "IN" ? "Thu (từ khách)" : "Chi (cho NCC)"}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
       </div>
 
       <div className="flex-1 overflow-auto p-4 md:p-6">
@@ -168,7 +166,11 @@ export function PaymentsTab() {
             title="Không tải được lịch sử thanh toán"
           />
         ) : isEmpty ? (
-          <EmptyState preset="no-data" title="Chưa có thanh toán nào" description="Ghi nhận thanh toán cho hoá đơn để theo dõi công nợ." actions={canWrite ? <Button size="sm" onClick={() => setCreateOpen(true)}>Ghi nhận thanh toán</Button> : undefined} />
+          // V4.4 (FINANCE_UI_E2E §7.2) — bỏ nút CTA trùng tên với header (đã
+          // luôn hiện phía trên khi canWrite) để tránh 2 nút "Ghi nhận thanh
+          // toán" cùng lúc trong DOM — vô hại về UX nhưng dễ nhầm khi test tự
+          // động theo tên nút.
+          <EmptyState preset="no-data" title="Chưa có thanh toán nào" description="Ghi nhận thanh toán cho hoá đơn để theo dõi công nợ." />
         ) : (
           <div className="space-y-2">
             {rows.map((p) => (
@@ -484,23 +486,13 @@ function PaymentFormDialog({
         />
         <SheetBody>
           <form id={formId} onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-3" noValidate>
-            <div className="flex items-center gap-1.5">
-              {(["OUT", "IN"] as const).map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => { setDirection(d); setValue("allocations", []); }}
-                  className={cn(
-                    "inline-flex h-8 items-center rounded-full border px-3 text-sm font-medium",
-                    direction === d
-                      ? "border-indigo-600 bg-indigo-600 text-white"
-                      : "border-zinc-200 bg-white text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400",
-                  )}
-                >
-                  {d === "OUT" ? "Chi cho NCC" : "Thu từ khách"}
-                </button>
-              ))}
-            </div>
+            {/* Segmented control dùng chung (V4.4 A12) thay pill indigo tự vẽ. */}
+            <Tabs value={direction} onValueChange={(v) => { setDirection(v as FinDirection); setValue("allocations", []); }}>
+              <TabsList variant="segmented">
+                <TabsTrigger value="OUT">Chi cho NCC</TabsTrigger>
+                <TabsTrigger value="IN">Thu từ khách</TabsTrigger>
+              </TabsList>
+            </Tabs>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
@@ -523,7 +515,12 @@ function PaymentFormDialog({
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <Label htmlFor="pay-date" required>Ngày thanh toán</Label>
-                <Input id="pay-date" type="date" {...register("paymentDate")} className="mt-1" />
+                <DateField
+                  id="pay-date"
+                  value={watch("paymentDate") as unknown as string}
+                  onChange={(v) => setValue("paymentDate", v as unknown as Date, { shouldValidate: true, shouldDirty: true })}
+                  className="mt-1"
+                />
               </div>
               <div>
                 <Label htmlFor="pay-method">Phương thức</Label>

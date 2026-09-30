@@ -29,12 +29,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { DateField } from "@/components/ui/date-field";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/ui/query-error";
 import { RowActionsMenu } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SupplierPicker, type SupplierPickerValue } from "@/components/procurement/SupplierPicker";
 import { ConfirmActionDialog } from "@/components/finance/ConfirmActionDialog";
 import { fmtDate, fmtVND, todayInputValue } from "@/components/finance/_format";
@@ -47,6 +49,7 @@ import {
 } from "@/hooks/useFinance";
 import { useSession } from "@/hooks/useSession";
 import type { FinInvoiceFilter } from "@/lib/query-keys";
+import { formatNumber } from "@/lib/format";
 import { StatusPill } from "@/components/ui/status-badge";
 import { statusLabel } from "@/lib/status";
 import { cn } from "@/lib/utils";
@@ -119,7 +122,7 @@ export function InvoicesTab() {
             Hoá đơn
           </h1>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            <span className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">{total.toLocaleString("vi-VN")}</span> hoá đơn
+            <span className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">{formatNumber(total)}</span> hoá đơn
           </p>
         </div>
         {canWrite && (
@@ -146,23 +149,16 @@ export function InvoicesTab() {
 
       {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-2 border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900 md:px-6">
-        <div className="flex items-center gap-1.5">
-          {(["all", "IN", "OUT"] as const).map((d) => (
-            <button
-              key={d}
-              type="button"
-              onClick={() => void setUrlState({ direction: d, page: 1 })}
-              className={cn(
-                "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors",
-                urlState.direction === d
-                  ? "border-indigo-600 bg-indigo-600 text-white"
-                  : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60",
-              )}
-            >
-              {d === "all" ? "Tất cả" : d === "IN" ? "Đầu vào (mua)" : "Đầu ra (bán)"}
-            </button>
-          ))}
-        </div>
+        {/* Segmented control dùng chung (V4.4 A12) thay pill indigo tự vẽ. */}
+        <Tabs value={urlState.direction} onValueChange={(v) => void setUrlState({ direction: v as typeof urlState.direction, page: 1 })}>
+          <TabsList variant="segmented">
+            {(["all", "IN", "OUT"] as const).map((d) => (
+              <TabsTrigger key={d} value={d}>
+                {d === "all" ? "Tất cả" : d === "IN" ? "Đầu vào (mua)" : "Đầu ra (bán)"}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
         <select
           value={urlState.status}
           onChange={(e) => void setUrlState({ status: e.target.value as typeof urlState.status, page: 1 })}
@@ -287,7 +283,7 @@ export function InvoicesTab() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-50">{inv.invoiceNo}</p>
-                        <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+                        <p className="truncate text-xs text-zinc-500 dark:text-zinc-400" title={inv.supplierName ?? undefined}>
                           {inv.supplierName ?? "—"} · {inv.direction === "IN" ? "Đầu vào" : "Đầu ra"}
                         </p>
                       </div>
@@ -487,11 +483,21 @@ function InvoiceFormDialog({
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <Label htmlFor="inv-issue" required>Ngày phát hành</Label>
-                <Input id="inv-issue" type="date" {...register("issueDate")} className="mt-1" />
+                <DateField
+                  id="inv-issue"
+                  value={watch("issueDate") as unknown as string}
+                  onChange={(v) => setValue("issueDate", v as unknown as Date, { shouldValidate: true, shouldDirty: true })}
+                  className="mt-1"
+                />
               </div>
               <div>
                 <Label htmlFor="inv-due">Hạn thanh toán</Label>
-                <Input id="inv-due" type="date" {...register("dueDate")} className="mt-1" />
+                <DateField
+                  id="inv-due"
+                  value={watch("dueDate") as unknown as string}
+                  onChange={(v) => setValue("dueDate", (v || null) as unknown as Date, { shouldValidate: true, shouldDirty: true })}
+                  className="mt-1"
+                />
               </div>
             </div>
 
