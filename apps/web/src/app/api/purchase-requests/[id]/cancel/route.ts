@@ -6,10 +6,7 @@ import { PrCancelError, cancelPR, getPR } from "@/server/repos/purchaseRequests"
 import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
 import { requireSession } from "@/server/session";
 import { writeAudit } from "@/server/services/audit";
-import {
-  markEntityNotificationsRead,
-  notifyPRCancelled,
-} from "@/server/services/notifications";
+import { notifyPRCancelled } from "@/server/services/notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,9 +67,9 @@ export async function POST(
     });
 
     // V4.4 — phiếu đã huỷ, mọi nhắc duyệt/chờ duyệt trước đó không còn ý
-    // nghĩa: đánh dấu đã đọc để không ai bấm nhầm vào phiếu đã chết.
-    void markEntityNotificationsRead("purchase_request", params.id);
-
+    // nghĩa: `notifyPRCancelled` → `dispatchNotification` tự gọi
+    // `resolveStaleNotifications` theo bảng `RESOLVES_STALE[PR_CANCELLED]`
+    // (nhánh thông báo v4.4 mới gộp) — không cần tự đánh dấu đã đọc thủ công.
     void notifyPRCancelled({
       prId: params.id,
       prNo: before.paperFormNo ?? before.code,

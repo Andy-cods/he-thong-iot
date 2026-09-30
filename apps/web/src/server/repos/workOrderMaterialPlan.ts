@@ -31,6 +31,7 @@ import {
 import { suggestFifoPicks } from "@/server/repos/warehouseLocation";
 import { createPR, submitPR } from "@/server/repos/purchaseRequests";
 import { currentYymm, genDocNo } from "@/server/repos/_docNumber";
+import { uuidArray } from "@/server/repos/stockGuard";
 
 export class WoMaterialPlanError extends Error {
   constructor(
@@ -208,10 +209,13 @@ export async function getWoMaterialPlan(woId: string): Promise<WoMaterialPlan | 
   }
 
   // ── Tồn khả dụng hiện tại ───────────────────────────────────────────────
+  // `uuidArray` bọc ARRAY[...]::uuid[] — `= ANY(a, b, c)` (danh sách trần,
+  // không bọc ARRAY[]) là cú pháp SAI, Postgres báo "requires array on right
+  // side" (phát hiện qua kiểm E2E thật sau khi migration 0069 được áp).
   const stockRows = await db.execute<{ item_id: string; issuable_qty: string }>(sql`
     SELECT item_id::text AS item_id, issuable_qty::text AS issuable_qty
     FROM app.v_item_stock
-    WHERE item_id = ANY(${sql.join(itemIds.map((id) => sql`${id}::uuid`), sql`, `)})
+    WHERE item_id = ANY(${uuidArray(itemIds)})
   `);
   const availableByItem = new Map(
     (stockRows as unknown as Array<{ item_id: string; issuable_qty: string }>).map((r) => [
