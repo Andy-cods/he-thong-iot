@@ -52,8 +52,8 @@ test-results/
 .cache/
 .eslintcache
 
-# PWA generated
-apps/web/public/sw.js
+# V4.4 notify — đã bỏ next-pwa; apps/web/public/sw.js giờ là file TĨNH tự viết
+# (chỉ Web Push), COMMIT bình thường — KHÔNG ignore nữa.
 apps/web/public/workbox-*.js
 apps/web/public/worker-*.js
 apps/web/public/fallback-*.js

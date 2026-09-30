@@ -54,6 +54,11 @@ export const env = {
   // SMTP credentials chỉ worker cần (SMTP_HOST/USER/PASSWORD ở env worker);
   // web chỉ cần cờ này để quyết định enqueue hay không. Default false.
   MAIL_ENABLED: process.env.MAIL_ENABLED === "true",
+  // TASK-notify V4.4 — Web Push (VAPID). Thiếu 1 trong 2 khoá → push bị tắt
+  // êm (bỏ qua, không crash) — xem apps/web/src/server/services/push.ts.
+  VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY ?? "",
+  VAPID_PRIVATE_KEY: readSecret("VAPID_PRIVATE_KEY", false) ?? "",
+  VAPID_SUBJECT: process.env.VAPID_SUBJECT ?? "mailto:admin@songchau.vn",
   R2: {
     accountId: process.env.R2_ACCOUNT_ID ?? "",
     bucket: process.env.R2_BUCKET ?? "",
