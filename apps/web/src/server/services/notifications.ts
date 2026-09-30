@@ -455,29 +455,6 @@ export async function getUnreadCount(userId: string): Promise<number> {
   return row?.count ?? 0;
 }
 
-/**
- * V4.4 (Việc 4) — đánh dấu đã đọc mọi thông báo CHƯA ĐỌC gắn với 1 chứng từ
- * (vd nhắc duyệt/chờ duyệt của 1 PR khi phiếu đó vừa bị huỷ — không còn ai
- * cần xử lý nữa). Trả số dòng vừa đánh dấu.
- */
-export async function markEntityNotificationsRead(
-  entityType: string,
-  entityId: string,
-): Promise<number> {
-  const rows = await db
-    .update(notification)
-    .set({ readAt: new Date() })
-    .where(
-      and(
-        eq(notification.entityType, entityType),
-        eq(notification.entityId, entityId),
-        sql`${notification.readAt} IS NULL`,
-      ),
-    )
-    .returning({ id: notification.id });
-  return rows.length;
-}
-
 /** Lấy username của 1 user — convenience cho actor info. */
 export async function lookupUsername(userId: string): Promise<string | null> {
   const [row] = await db
