@@ -54,7 +54,13 @@ export type RbacEntity =
   // V4.1 Đợt 1b — Phiếu yêu cầu vật tư (material_request). `create` = lập
   // phiếu (planner/operator/admin); `transition` = Kho chuẩn bị / huỷ; giao
   // hàng THẬT phải qua phiếu xuất (`create:goodsIssue`), không đổi trạng thái tay.
-  | "materialRequest";
+  | "materialRequest"
+  // V4.3 Việc 2 — Phiên kiểm kê kho. `create`/`update` = Kho tạo phiên + nhập
+  // số đếm; `transition` = Kho gửi duyệt (DRAFT→PENDING_APPROVAL) hoặc mở lại
+  // đếm sau khi bị trả (REJECTED→DRAFT); `approve` = CHỈ Giám đốc (admin) chốt
+  // ghi điều chỉnh tồn HOẶC trả lại kèm lý do — quyết định nghiệp vụ cứng
+  // (chốt 2026-09-30), kiểm cả RBAC lẫn hard-check role ở route như deliveryNote.
+  | "stocktake";
 
 /** Partial vì không phải role nào cũng có action trên mọi entity. */
 type Matrix = Record<Role, Partial<Record<RbacEntity, RbacAction[]>>>;
@@ -102,6 +108,8 @@ export const RBAC_MATRIX: Matrix = {
     qcInspection: ["read", "update", "approve"],
     // V4.1 Đợt 1b — toàn quyền phiếu yêu cầu vật tư.
     materialRequest: ["create", "read", "update", "delete", "transition"],
+    // V4.3 Việc 2 — Giám đốc chốt/trả lại phiếu kiểm kê (approve) + toàn quyền còn lại.
+    stocktake: ["create", "read", "update", "delete", "approve", "transition"],
   },
   planner: {
     item: ["create", "read", "update"],
@@ -177,6 +185,9 @@ export const RBAC_MATRIX: Matrix = {
     // V4.1 Đợt 1b — Kho chuẩn bị (PICKING/READY), huỷ/đóng phiếu yêu cầu vật
     // tư; giao hàng bằng phiếu xuất (`create:goodsIssue`). KHÔNG lập phiếu.
     materialRequest: ["read", "update", "transition"],
+    // V4.3 Việc 2 — Kho tạo phiên kiểm kê + nhập số đếm + gửi duyệt/mở lại
+    // đếm. KHÔNG có `approve` — chỉ Giám đốc (admin) được chốt/trả lại.
+    stocktake: ["create", "read", "update", "transition"],
   },
   // V3.3 — Purchaser (Bộ phận Thu mua): full PR/PO + read supplier/item/BOM
   purchaser: {
@@ -269,6 +280,7 @@ export const RBAC_ENTITIES: RbacEntity[] = [
   "goodsIssue",
   "qcInspection",
   "materialRequest",
+  "stocktake",
 ];
 
 export const RBAC_ACTIONS: RbacAction[] = [

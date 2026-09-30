@@ -5,6 +5,7 @@ import { Loader2, Package, AlertTriangle, Box, RefreshCw, Printer, TrendingUp } 
 import { cn } from "@/lib/utils";
 import { QueryError } from "@/components/ui/query-error";
 import { ReconciliationSection } from "./ReconciliationSection";
+import { StocktakeSection } from "./StocktakeSection";
 import { formatQty } from "@/lib/format";
 
 /**
@@ -482,6 +483,9 @@ export function ReportTab() {
           </ul>
         )}
       </section>
+
+      {/* V4.3 Việc 2 — kiểm kê kho trọn vòng (tạo → đếm → duyệt chốt). */}
+      <StocktakeSection />
 
       {/* V4.1 Đợt 1c (D4) — đối soát trước kiểm kê (chỉ đọc, không tự trừ tồn) */}
       <ReconciliationSection />

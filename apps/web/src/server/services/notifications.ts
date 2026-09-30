@@ -42,6 +42,9 @@ import {
   planReceiptQcPassed,
   planReceiptQcPending,
   planRoles,
+  planStocktakeApproved,
+  planStocktakeRejected,
+  planStocktakeSubmitted,
   planUserIds,
   planWOApproved,
   planWOCancelled,
@@ -338,6 +341,15 @@ export const notifyDeliveryNoteRejected = (ctx: Arg<typeof planDeliveryNoteRejec
 
 export const notifyPaymentRecorded = (ctx: Arg<typeof planPaymentRecorded>) =>
   run(planPaymentRecorded(ctx));
+
+/* ── Kiểm kê kho ────────────────────────────────────────────────────────── */
+
+export const notifyStocktakeSubmitted = (ctx: Arg<typeof planStocktakeSubmitted>) =>
+  run(planStocktakeSubmitted(ctx));
+export const notifyStocktakeApproved = (ctx: Arg<typeof planStocktakeApproved>) =>
+  run(planStocktakeApproved(ctx));
+export const notifyStocktakeRejected = (ctx: Arg<typeof planStocktakeRejected>) =>
+  run(planStocktakeRejected(ctx));
 
 /* ── Helpers ────────────────────────────────────────────────────────────── */
 

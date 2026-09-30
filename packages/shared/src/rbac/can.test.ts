@@ -10,7 +10,7 @@ import {
 } from "./matrix";
 
 describe("RBAC matrix — shape + consistency", () => {
-  it("có đủ 9 role × 22 entity × 6 action (V4.1 Đợt 1a goodsIssue + qcInspection, 1b materialRequest)", () => {
+  it("có đủ 9 role × 23 entity × 6 action (V4.1 Đợt 1a goodsIssue + qcInspection, 1b materialRequest, V4.3 stocktake)", () => {
     expect(Object.keys(RBAC_MATRIX)).toEqual([
       "admin",
       "planner",
@@ -22,7 +22,7 @@ describe("RBAC matrix — shape + consistency", () => {
       "accountant",
       "shareholder",
     ]);
-    expect(RBAC_ENTITIES).toHaveLength(22);
+    expect(RBAC_ENTITIES).toHaveLength(23);
     expect(RBAC_ACTIONS).toHaveLength(6);
   });
 
@@ -232,6 +232,18 @@ describe("can() — assert 48+ cell từ matrix (§4 brainstorm)", () => {
     ["qc", "read", "materialRequest", false],
     ["purchaser", "read", "materialRequest", false],
     ["accountant", "read", "materialRequest", false],
+    // V4.3 Việc 2 — Kiểm kê kho: Kho tạo/đếm/gửi duyệt, CHỈ admin chốt/trả lại.
+    ["warehouse", "create", "stocktake", true],
+    ["warehouse", "update", "stocktake", true],
+    ["warehouse", "transition", "stocktake", true],
+    ["warehouse", "approve", "stocktake", false],
+    ["admin", "approve", "stocktake", true],
+    ["admin", "create", "stocktake", true],
+    ["planner", "read", "stocktake", false],
+    ["operator", "read", "stocktake", false],
+    ["qc", "read", "stocktake", false],
+    ["purchaser", "read", "stocktake", false],
+    ["accountant", "read", "stocktake", false],
   ];
 
   it.each(cases)(
@@ -271,6 +283,8 @@ describe("canAny() — nav filter shortcut", () => {
       "audit",
       "user",
       "session",
+      // V4.3 Việc 2 — kiểm kê kho thuộc Kho + Giám đốc, planner không đụng.
+      "stocktake",
     ];
     for (const e of RBAC_ENTITIES) {
       if (plannerExcluded.includes(e)) {

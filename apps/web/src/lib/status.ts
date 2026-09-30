@@ -416,6 +416,9 @@ export const NOTIF_TYPE_LABELS: Record<string, string> = {
   QC_RECEIPT_PENDING: "Hàng chờ QC",
   QC_RECEIPT_PASSED: "QC đạt",
   QC_RECEIPT_FAILED: "QC không đạt",
+  STOCKTAKE_SUBMITTED: "Kiểm kê chờ duyệt",
+  STOCKTAKE_APPROVED: "Kiểm kê đã duyệt",
+  STOCKTAKE_REJECTED: "Kiểm kê bị trả lại",
 };
 
 /** Mã lạ → "Thông báo" (không bao giờ lộ mã thô kiểu `PR_PENDING_REMINDER`). */

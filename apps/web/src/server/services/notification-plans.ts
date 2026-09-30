@@ -77,6 +77,10 @@ export const NOTIFICATION_EVENT_TYPES = [
   "FIN_INVOICE_OVERDUE",
   "FIN_RECEIVABLE_OVERDUE",
   "FIN_PAYMENT_RECORDED",
+  // V4.3 Việc 2 — Phiên kiểm kê kho.
+  "STOCKTAKE_SUBMITTED",
+  "STOCKTAKE_APPROVED",
+  "STOCKTAKE_REJECTED",
 ] as const;
 
 export type NotificationEventType = (typeof NOTIFICATION_EVENT_TYPES)[number];
@@ -216,6 +220,8 @@ export const MR_CREATOR_ROLES: readonly Role[] = ["admin", "planner", "operator"
 /** ISR lập từ màn Kho (/warehouse) hoặc Gia công (/operations). */
 export const ISR_CREATOR_ROLES: readonly Role[] = ["admin", "warehouse", "operator"];
 export const DELIVERY_NOTE_CREATOR_ROLES: readonly Role[] = ["admin", "warehouse"];
+/** V4.3 Việc 2 — phiên kiểm kê chỉ Kho/admin tạo được. */
+export const STOCKTAKE_CREATOR_ROLES: readonly Role[] = ["admin", "warehouse"];
 
 /* ── Link ─────────────────────────────────────────────────────────────── */
 
@@ -233,6 +239,8 @@ export const L = {
   whQc: "/warehouse?tab=movement&mode=qc",
   whDeliveryNote: (id: string) => `/warehouse?tab=delivery-notes&id=${id}`,
   finPayments: "/sales?tab=fin-payments",
+  // V4.3 Việc 2 — phiên kiểm kê nằm trong tab Báo cáo kho.
+  whStocktake: (id: string) => `/warehouse?tab=report&stocktake=${id}`,
 } as const;
 
 const role = (r: Role, c: NotifyContent): NotifyTarget => ({ kind: "role", role: r, ...c });
@@ -1346,5 +1354,85 @@ export function planPaymentRecorded(
     actorUsername: ctx.actorUsername,
     targets: [role("accountant", content)],
     adminFallback: content,
+  };
+}
+
+/* ── Kiểm kê kho ──────────────────────────────────────────────────────── */
+
+export interface StocktakeCtx extends Actor {
+  sessionId: string;
+  code: string;
+}
+
+/** Kho gửi duyệt (DRAFT→PENDING_APPROVAL) → CHỈ Giám đốc (admin) cần biết để chốt. */
+export function planStocktakeSubmitted(ctx: StocktakeCtx): NotifyPlan {
+  const content: NotifyContent = {
+    title: `Phiếu kiểm kê ${ctx.code} chờ duyệt`,
+    message: "Kho đã đếm xong — cần Giám đốc duyệt để ghi điều chỉnh tồn.",
+    links: [L.whStocktake(ctx.sessionId)],
+    severity: "warning",
+    email: true,
+  };
+  return {
+    eventType: "STOCKTAKE_SUBMITTED",
+    entityType: "stocktake_session",
+    entityId: ctx.sessionId,
+    entityCode: ctx.code,
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    targets: [role("admin", content)],
+  };
+}
+
+/** Giám đốc chốt (APPROVED) → người tạo phiếu + Kho (đã ghi điều chỉnh tồn). */
+export function planStocktakeApproved(
+  ctx: StocktakeCtx & { creatorUserId: string; diffLineCount: number },
+): NotifyPlan {
+  const content: NotifyContent = {
+    title: `Phiếu kiểm kê ${ctx.code} đã được duyệt`,
+    message:
+      ctx.diffLineCount > 0
+        ? `Đã ghi điều chỉnh tồn cho ${ctx.diffLineCount} dòng chênh lệch.`
+        : "Không có chênh lệch — không ghi điều chỉnh nào.",
+    links: [L.whStocktake(ctx.sessionId)],
+    severity: "success",
+  };
+  return {
+    eventType: "STOCKTAKE_APPROVED",
+    entityType: "stocktake_session",
+    entityId: ctx.sessionId,
+    entityCode: ctx.code,
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    targets: [
+      user(ctx.creatorUserId, STOCKTAKE_CREATOR_ROLES, content),
+      role("warehouse", content),
+    ],
+  };
+}
+
+/** Giám đốc trả lại kèm lý do (REJECTED) → người tạo phiếu + Kho (đếm lại). */
+export function planStocktakeRejected(
+  ctx: StocktakeCtx & { creatorUserId: string; reason?: string | null },
+): NotifyPlan {
+  const content: NotifyContent = {
+    title: `Phiếu kiểm kê ${ctx.code} bị trả lại`,
+    message: ctx.reason
+      ? `Lý do: ${ctx.reason} — đếm lại rồi gửi duyệt lại.`
+      : "Cần đếm lại rồi gửi duyệt lại.",
+    links: [L.whStocktake(ctx.sessionId)],
+    severity: "warning",
+  };
+  return {
+    eventType: "STOCKTAKE_REJECTED",
+    entityType: "stocktake_session",
+    entityId: ctx.sessionId,
+    entityCode: ctx.code,
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    targets: [
+      user(ctx.creatorUserId, STOCKTAKE_CREATOR_ROLES, content),
+      role("warehouse", content),
+    ],
   };
 }

@@ -25,4 +25,6 @@ export * from "./production-board";
 export * from "./delivery-note";
 // V4.1 Đợt 1b — phiếu xuất kho.
 export * from "./goods-issue";
+// V4.3 Việc 2 — kiểm kê kho.
+export * from "./stocktake";
 export { appSchema } from "./_schema";
