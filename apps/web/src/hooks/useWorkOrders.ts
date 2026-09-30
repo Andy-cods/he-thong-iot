@@ -511,3 +511,63 @@ export interface QcCheckItemRow {
   sortOrder: number;
   createdAt: string;
 }
+
+// ============================================================================
+// V4.4 (Việc 1) — "Xin vật tư theo BOM"
+// ============================================================================
+
+export interface WoMaterialPlanRow {
+  itemId: string;
+  sku: string | null;
+  name: string | null;
+  uom: string | null;
+  required: number;
+  alreadyRequested: number;
+  alreadyIssued: number;
+  remaining: number;
+  availableStock: number;
+  toIssueFromStock: number;
+  shortToBuy: number;
+}
+
+export interface WoMaterialPlan {
+  woId: string;
+  woNo: string;
+  plannedQty: number;
+  source: "MANUAL" | "BOM_TEMPLATE" | "NONE";
+  skippedRows: number;
+  status: "NONE" | "SHORTAGE" | "REQUESTED" | "ISSUED";
+  rows: WoMaterialPlanRow[];
+}
+
+/** Đọc nhu cầu vật tư theo BOM (đã trừ phần đã xin) — dùng cho Sheet "Xin vật tư" + badge trạng thái. */
+export function useWoMaterialPlan(woId: string | null) {
+  return useQuery({
+    queryKey: woId ? qk.workOrders.materialPlan(woId) : ["workOrders", "material-plan", "__none__"],
+    queryFn: () => request<{ data: WoMaterialPlan }>(`/api/work-orders/${woId}/material-plan`),
+    enabled: !!woId,
+    staleTime: 5_000,
+  });
+}
+
+export interface RequestWoMaterialsResult {
+  isr: { id: string; requestNo: string; totalQty: number } | null;
+  pr: { id: string; code: string; paperFormNo: string | null; totalQty: number } | null;
+  plan: WoMaterialPlan;
+}
+
+/** Bấm "Xin vật tư" — tạo ISR (phần kho đủ) + PR (phần thiếu) trong 1 lần. */
+export function useRequestWoMaterials(woId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      request<{ data: RequestWoMaterialsResult }>(
+        `/api/work-orders/${woId}/request-materials`,
+        { method: "POST" },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.workOrders.materialPlan(woId) });
+      qc.invalidateQueries({ queryKey: qk.workOrders.detail(woId) });
+    },
+  });
+}

@@ -141,6 +141,8 @@ export const qk = {
     progressLog: (id: string) => ["workOrders", id, "progress-log"] as const,
     /** V1.9-P4 — audit merged timeline. */
     audit: (id: string) => ["workOrders", id, "audit"] as const,
+    /** V4.4 (Việc 1) — nhu cầu vật tư theo BOM đã trừ phần đã xin. */
+    materialPlan: (id: string) => ["workOrders", id, "material-plan"] as const,
   },
   reservations: {
     all: ["reservations"] as const,
@@ -330,6 +332,7 @@ export interface PRFilter {
     | "APPROVED"
     | "CONVERTED"
     | "REJECTED"
+    | "CANCELLED"
   )[];
   linkedOrderId?: string;
   /** V1.8 — filter PR theo BOM (JOIN via sales_order.bom_template_id). */
