@@ -12,6 +12,7 @@ import {
   Factory,
   History as HistoryIcon,
   Loader2,
+  PackageSearch,
   Printer,
   Wrench,
 } from "lucide-react";
@@ -20,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProgressReportForm } from "@/components/work-orders/ProgressReportForm";
 import { ProgressTimeline } from "@/components/work-orders/ProgressTimeline";
+import { RequestMaterialsSheet } from "@/components/work-orders/RequestMaterialsSheet";
 import { WorkOrderActions } from "@/components/work-orders/WorkOrderActions";
 import { normalizeRoutingPlan } from "@/lib/wo-routing";
 import { useSession } from "@/hooks/useSession";
@@ -28,6 +30,7 @@ import { StatusPill } from "@/components/ui/status-badge";
 import { actionLabel, statusLabel } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import {
+  useWoMaterialPlan,
   useWorkOrderDetail,
   type WorkOrderStatus,
 } from "@/hooks/useWorkOrders";
@@ -138,6 +141,12 @@ export default function WorkOrderDetailPage() {
   const canApprove = isAdmin || roles.includes("operator");
   const canOperate = isAdmin || roles.includes("planner") || roles.includes("operator");
   const canComplete = isAdmin || roles.includes("planner");
+  // V4.4 (Việc 1) — "Xin vật tư theo BOM": mặc định planner + operator + admin
+  // (khớp `transition:wo` RBAC — warehouse/purchaser/qc không có quyền này).
+  const canRequestMaterial = isAdmin || roles.includes("planner") || roles.includes("operator");
+  const [materialSheetOpen, setMaterialSheetOpen] = React.useState(false);
+  const materialPlan = useWoMaterialPlan(id);
+  const materialStatus = materialPlan.data?.data.status;
   // V4.1 Đợt 1c (D6) — lập phiếu yêu cầu vật tư gắn lệnh SX này.
 
   if (query.isLoading) {
@@ -377,9 +386,36 @@ export default function WorkOrderDetailPage() {
 
             {/* II. Nguyên vật liệu */}
             <section className="border-b border-zinc-200 px-6 py-4 print:dark:border-zinc-300">
-              <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-zinc-800 dark:text-zinc-100 print:dark:text-zinc-800">
-                II. Nguyên vật liệu (BOM)
-              </h3>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 print:block">
+                <h3 className="text-sm font-bold uppercase tracking-wide text-zinc-800 dark:text-zinc-100 print:dark:text-zinc-800">
+                  II. Nguyên vật liệu (BOM)
+                </h3>
+                <div className="flex items-center gap-2 print:hidden">
+                  {materialStatus === "SHORTAGE" ? (
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                      Còn thiếu
+                    </span>
+                  ) : materialStatus === "REQUESTED" ? (
+                    <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
+                      Đã xin, chờ xuất
+                    </span>
+                  ) : materialStatus === "ISSUED" ? (
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                      Đã xuất đủ
+                    </span>
+                  ) : null}
+                  {canRequestMaterial && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setMaterialSheetOpen(true)}
+                    >
+                      <PackageSearch className="h-3.5 w-3.5" aria-hidden />
+                      Xin vật tư
+                    </Button>
+                  )}
+                </div>
+              </div>
               <div className="overflow-x-auto rounded-md border border-zinc-200 print:overflow-visible dark:border-zinc-700">
                 <table className="w-full text-[11px]">
                   <thead className="bg-zinc-100 dark:bg-zinc-800 print:dark:bg-zinc-100">
@@ -857,6 +893,15 @@ export default function WorkOrderDetailPage() {
             )}
           </div>
         </div>
+      )}
+
+      {canRequestMaterial && (
+        <RequestMaterialsSheet
+          open={materialSheetOpen}
+          onOpenChange={setMaterialSheetOpen}
+          woId={wo.id}
+          woNo={wo.woNo}
+        />
       )}
 
       {/* Print A4 landscape */}

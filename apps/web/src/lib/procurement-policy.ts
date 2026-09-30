@@ -28,6 +28,31 @@ export function canEditPoPrices(roles: readonly RoleLike[]): boolean {
   return roles.includes("admin") || roles.includes("purchaser");
 }
 
+/* ── V4.4 (Việc 4): huỷ phiếu đề xuất vật tư (PR) ──────────────────────── */
+
+export type PrStatusLike = "DRAFT" | "SUBMITTED" | "APPROVED" | "CONVERTED" | "REJECTED" | "CANCELLED";
+
+/**
+ * V4.4 — true nếu được phép huỷ PR: admin (mọi trạng thái còn huỷ được —
+ * DRAFT/SUBMITTED/APPROVED) hoặc chính người tạo NHƯNG chỉ khi còn
+ * DRAFT/SUBMITTED (chưa duyệt xong — huỷ APPROVED cần admin vì đã tốn công
+ * duyệt 3 bước, tránh người tạo tự ý huỷ sau khi được duyệt).
+ * CONVERTED/REJECTED/CANCELLED không huỷ được nữa (CONVERTED đã có PO — dùng
+ * huỷ/đóng PO; REJECTED/CANCELLED đã là trạng thái kết thúc).
+ */
+export function canCancelPR(input: {
+  status: PrStatusLike;
+  creatorId: string | null | undefined;
+  actorId: string;
+  actorRoles: readonly RoleLike[];
+}): boolean {
+  const cancellable = input.status === "DRAFT" || input.status === "SUBMITTED" || input.status === "APPROVED";
+  if (!cancellable) return false;
+  if (input.actorRoles.includes("admin")) return true;
+  if (input.status === "APPROVED") return false;
+  return !!input.creatorId && input.creatorId === input.actorId;
+}
+
 export interface PoPriceLine {
   itemId: string;
   unitPrice: number | string | null | undefined;

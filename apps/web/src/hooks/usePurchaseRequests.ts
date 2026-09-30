@@ -6,6 +6,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import type {
+  PRCancelInput,
   PRCreateInput,
   PRUpdateInput,
   PRRejectInput,
@@ -275,6 +276,22 @@ export function useRejectPurchaseRequest(id: string) {
   return useMutation({
     mutationFn: (data: PRRejectInput) =>
       request<{ data: PRRow }>(`/api/purchase-requests/${id}/reject`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.procurement.requests.all });
+      qc.invalidateQueries({ queryKey: qk.procurement.requests.detail(id) });
+    },
+  });
+}
+
+/** V4.4 (Việc 4) — Huỷ phiếu (khác reject: người tạo/admin tự huỷ). */
+export function useCancelPurchaseRequest(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: PRCancelInput) =>
+      request<{ data: PRRow }>(`/api/purchase-requests/${id}/cancel`, {
         method: "POST",
         body: JSON.stringify(data),
       }),

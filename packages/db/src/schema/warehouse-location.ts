@@ -14,6 +14,7 @@ import { userAccount } from "./auth";
 import { item, locationBin } from "./master";
 import { inventoryLotSerial } from "./inventory";
 import { inboundReceipt } from "./procurement";
+import { workOrder } from "./production";
 
 /**
  * V3.6 — Warehouse putaway log.
@@ -71,6 +72,11 @@ export const warehouseIssueRequest = appSchema.table(
     reason: varchar("reason", { length: 32 }).notNull().default("manual"),
     reference: varchar("reference", { length: 64 }),
     notes: text("notes"),
+    /**
+     * V4.4 (Việc 1, migration 0069) — Lệnh SX nguồn khi ISR sinh từ "Xin vật
+     * tư theo BOM". NULL = ISR lập tay như trước (không đổi hành vi cũ).
+     */
+    woId: uuid("wo_id").references(() => workOrder.id),
     /** Plan picks: [{ itemId, sku, picks: [{lotSerialId, lotCode, binId, binCode, qty}] }] */
     picksJson: jsonb("picks_json").notNull().default(sql`'[]'::jsonb`),
     totalQty: numeric("total_qty", { precision: 18, scale: 4 })
@@ -99,6 +105,7 @@ export const warehouseIssueRequest = appSchema.table(
       t.requestedBy,
       t.createdAt,
     ),
+    woIdx: index("issue_request_wo_idx").on(t.woId),
   }),
 );
 

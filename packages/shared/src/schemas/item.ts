@@ -28,6 +28,20 @@ const numericNonNeg = z.coerce
     message: "Phải ≥ 0",
   });
 
+/**
+ * V4.4 (Việc 3) — tạo nhanh vật tư ngay trong form Đề xuất vật tư (Sheet nhỏ:
+ * tên, ĐVT, nhóm). itemType suy ra từ `category` ở server (mapping đã có,
+ * xem `mapPrCategoryToItemType`) — form không hỏi itemType để giữ tối giản.
+ */
+export const itemQuickCreateSchema = z.object({
+  name: z.string().trim().min(1, "Bắt buộc").max(255),
+  uom: uomSchema,
+  category: z.enum(["MATERIAL", "CONSUMABLE", "TOOL", "OTHER"]).default("MATERIAL"),
+  /** true → bỏ qua cảnh báo trùng tên gần giống, vẫn tạo mới. */
+  force: z.boolean().default(false),
+});
+export type ItemQuickCreateInput = z.infer<typeof itemQuickCreateSchema>;
+
 export const itemCreateSchema = z.object({
   sku: z
     .string()

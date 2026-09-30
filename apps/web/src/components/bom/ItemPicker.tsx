@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, ChevronDown, Search, X } from "lucide-react";
+import { Check, ChevronDown, Plus, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Popover,
@@ -9,6 +9,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useItemsList } from "@/hooks/useItems";
+import { formatQty } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 interface ItemLike {
@@ -17,6 +18,13 @@ interface ItemLike {
   name: string;
   uom?: string;
   itemType?: string;
+  /**
+   * V4.4 (Việc 3) — tồn khả dụng, hiện khi `showStock`. `GET /api/items` trả
+   * `inventorySummary.availableQty` (xem `listItems`), không phải field phẳng
+   * — chấp cả 2 dạng để phòng API khác trả phẳng.
+   */
+  availableQty?: number;
+  inventorySummary?: { availableQty?: number };
 }
 
 export interface ItemPickerValue {
@@ -36,6 +44,13 @@ export interface ItemPickerProps {
   id?: string;
   /** Lọc theo item type, mặc định không lọc. */
   itemTypes?: string[];
+  /** V4.4 (Việc 3) — hiện cột "Tồn" bên cạnh ĐVT trong danh sách kết quả. */
+  showStock?: boolean;
+  /**
+   * V4.4 (Việc 3) — hiện "+ Tạo vật tư mới" cuối danh sách; nhận lại chuỗi
+   * đang gõ tìm kiếm để form cha prefill tên khi mở Sheet tạo nhanh.
+   */
+  onCreateNew?: (searchText: string) => void;
 }
 
 /**
@@ -54,6 +69,8 @@ export function ItemPicker({
   disabled,
   id,
   itemTypes,
+  showStock,
+  onCreateNew,
 }: ItemPickerProps) {
   const [open, setOpen] = React.useState(false);
   const [q, setQ] = React.useState("");
@@ -151,6 +168,7 @@ export function ItemPicker({
           )}
           {rows.map((r) => {
             const selected = value?.id === r.id;
+            const stockQty = r.inventorySummary?.availableQty ?? r.availableQty ?? 0;
             return (
               <li key={r.id}>
                 <button
@@ -181,6 +199,19 @@ export function ItemPicker({
                   {r.uom && (
                     <span className="text-xs text-zinc-400 dark:text-zinc-500">{r.uom}</span>
                   )}
+                  {showStock && (
+                    <span
+                      className={cn(
+                        "shrink-0 font-mono text-xs tabular-nums",
+                        stockQty > 0
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : "text-zinc-400 dark:text-zinc-500",
+                      )}
+                      title="Tồn khả dụng"
+                    >
+                      {formatQty(stockQty)}
+                    </span>
+                  )}
                   {selected && (
                     <Check
                       className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400"
@@ -192,6 +223,21 @@ export function ItemPicker({
             );
           })}
         </ul>
+        {onCreateNew && (
+          <div className="border-t border-zinc-100 p-1 dark:border-zinc-800">
+            <button
+              type="button"
+              onClick={() => {
+                onCreateNew(q);
+                setOpen(false);
+              }}
+              className="flex w-full items-center gap-1.5 rounded-sm px-2 py-1.5 text-left text-sm font-medium text-indigo-600 transition-colors hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
+            >
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+              Tạo vật tư mới{q.trim() ? ` "${q.trim()}"` : ""}
+            </button>
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   );

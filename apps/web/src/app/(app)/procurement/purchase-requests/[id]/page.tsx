@@ -48,6 +48,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useSession } from "@/hooks/useSession";
 import {
+  useCancelPurchaseRequest,
   useDeletePR,
   useDeptApprovePR,
   useDirectorApprovePR,
@@ -58,7 +59,7 @@ import {
   useRejectPurchaseRequest,
   type PRLineEnriched,
 } from "@/hooks/usePurchaseRequests";
-import { isSelfApprovalBlocked } from "@/lib/procurement-policy";
+import { canCancelPR, isSelfApprovalBlocked } from "@/lib/procurement-policy";
 import { useConvertPRToPOs } from "@/hooks/usePurchaseOrders";
 import { formatDate, formatMoney, formatQty } from "@/lib/format";
 import type { StatusTone } from "@/lib/status";
@@ -100,7 +101,8 @@ type ApprovalStep =
   | "DIRECTOR_APPROVED"
   | "CONVERTED"
   | "DONE"
-  | "REJECTED";
+  | "REJECTED"
+  | "CANCELLED";
 
 const STEP_LABEL: Record<ApprovalStep, string> = {
   DRAFT: "Nháp",
@@ -111,6 +113,8 @@ const STEP_LABEL: Record<ApprovalStep, string> = {
   CONVERTED: "Đã tạo PO",
   DONE: "Hoàn tất",
   REJECTED: "Từ chối",
+  // V4.4 (Việc 4) — huỷ bởi người tạo/admin, khác REJECTED.
+  CANCELLED: "Đã huỷ",
 };
 
 // V4.1 UI-07/08: bước duyệt YCVT (approvalStep) không phải trạng thái chung
@@ -124,6 +128,7 @@ const STEP_TONE: Record<ApprovalStep, StatusTone> = {
   CONVERTED: "success",
   DONE: "success",
   REJECTED: "danger",
+  CANCELLED: "neutral",
 };
 
 const PRIORITY_LABELS: Record<string, string> = {
@@ -171,6 +176,7 @@ export default function PurchaseRequestDetailPage() {
   const directorApprove = useDirectorApprovePR(id);
   const quickApprove = useQuickApprovePR(id);
   const reject = useRejectPurchaseRequest(id);
+  const cancel = useCancelPurchaseRequest(id);
   const convert = useConvertPRToPOs();
   const markCompleted = useMarkPRCompleted(id);
   const submitPr = useSubmitPR(id);
@@ -182,6 +188,9 @@ export default function PurchaseRequestDetailPage() {
 
   const [rejectOpen, setRejectOpen] = React.useState(false);
   const [rejectReason, setRejectReason] = React.useState("");
+  // V4.4 (Việc 4) — Huỷ phiếu (khác reject).
+  const [cancelOpen, setCancelOpen] = React.useState(false);
+  const [cancelReason, setCancelReason] = React.useState("");
   const [approveOpen, setApproveOpen] = React.useState<
     null | "dept" | "director" | "quick"
   >(null);
@@ -276,6 +285,16 @@ export default function PurchaseRequestDetailPage() {
     isAdmin && !!pr.goodsIssuedAt && !pr.completedAt;
   // V3.7.71 — Hard-delete YCVT, admin only
   const canDelete = isAdmin;
+  // V4.4 (Việc 4) — Huỷ phiếu: người tạo khi còn Nháp/Chờ duyệt, hoặc admin
+  // khi đã duyệt xong (APPROVED) mà chưa có PO (server kiểm lại — đây chỉ để
+  // ẩn/hiện nút, không phải nguồn sự thật quyền hạn). Dùng chung
+  // `canCancelPR` với route API để 2 nơi không lệch logic.
+  const canCancel = canCancelPR({
+    status,
+    creatorId: pr.requestedBy,
+    actorId: session.data?.id ?? "",
+    actorRoles: roles,
+  });
 
   const paperFormNo = pr.paperFormNo ?? "—";
   const todayStr = fmtDateVN(pr.createdAt);
@@ -311,6 +330,21 @@ export default function PurchaseRequestDetailPage() {
       setRejectReason("");
     } catch (err) {
       toast.error(`Từ chối thất bại: ${(err as Error).message}`);
+    }
+  };
+
+  const handleCancel = async () => {
+    if (cancelReason.trim().length < 3) {
+      toast.error("Lý do huỷ tối thiểu 3 ký tự");
+      return;
+    }
+    try {
+      await cancel.mutateAsync({ reason: cancelReason.trim() });
+      toast.success("Đã huỷ phiếu YCVT");
+      setCancelOpen(false);
+      setCancelReason("");
+    } catch (err) {
+      toast.error(`Huỷ thất bại: ${(err as Error).message}`);
     }
   };
 
@@ -444,6 +478,17 @@ export default function PurchaseRequestDetailPage() {
               >
                 <X className="h-3.5 w-3.5" />
                 Từ chối
+              </Button>
+            )}
+            {canCancel && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCancelOpen(true)}
+                className="border-zinc-300 text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
+              >
+                <X className="h-3.5 w-3.5" />
+                Huỷ phiếu
               </Button>
             )}
             {canQuickApprove && (
@@ -1003,6 +1048,47 @@ export default function PurchaseRequestDetailPage() {
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : null}
               Từ chối phiếu
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* V4.4 (Việc 4) — Huỷ phiếu dialog */}
+      <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Huỷ phiếu YCVT</DialogTitle>
+            <DialogDescription>
+              {status === "APPROVED"
+                ? "Phiếu đã duyệt xong nhưng chưa có Đơn hàng mua — huỷ sẽ dừng hẳn quy trình, không tạo PO nữa."
+                : "Phiếu sẽ chuyển sang trạng thái Đã huỷ — không thể khôi phục, tạo phiếu mới nếu vẫn cần."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="cancel-reason" required>
+              Lý do huỷ
+            </Label>
+            <Textarea
+              id="cancel-reason"
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              rows={3}
+              placeholder="VD: Tạo nhầm, không còn cần mua nữa, đổi phương án..."
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setCancelOpen(false)}>
+              Đóng
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => void handleCancel()}
+              disabled={cancel.isPending}
+            >
+              {cancel.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : null}
+              Huỷ phiếu
             </Button>
           </DialogFooter>
         </DialogContent>

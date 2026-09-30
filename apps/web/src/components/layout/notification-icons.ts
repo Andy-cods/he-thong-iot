@@ -34,6 +34,7 @@ export const NOTIFICATION_EVENT_ICON: Record<string, React.ElementType> = {
   PR_DEPT_APPROVED: ClipboardCheck,
   PR_APPROVED: CheckCircle2,
   PR_REJECTED: XCircle,
+  PR_CANCELLED: XCircle,
   PR_PENDING_REMINDER: AlarmClock,
   PR_GOODS_ISSUED: PackageCheck,
   PR_COMPLETED: CheckCheck,

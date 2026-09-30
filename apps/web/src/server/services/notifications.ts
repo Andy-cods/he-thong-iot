@@ -37,6 +37,7 @@ import {
   planPOSent,
   planPOSubcontractDraft,
   planPRApproved,
+  planPRCancelled,
   planPRDeptApproved,
   planPRProgress,
   planPRRejected,
@@ -341,6 +342,7 @@ export const notifyPRDeptApproved = (ctx: Arg<typeof planPRDeptApproved>) =>
 /** Duyệt cuối (director-approve / quick-approve): Thu mua + người lập + Kế toán — 1 dòng / người. */
 export const notifyPRApproved = (ctx: Arg<typeof planPRApproved>) => run(planPRApproved(ctx));
 export const notifyPRRejected = (ctx: Arg<typeof planPRRejected>) => run(planPRRejected(ctx));
+export const notifyPRCancelled = (ctx: Arg<typeof planPRCancelled>) => run(planPRCancelled(ctx));
 /** Ghi mốc "Đã xuất kho" (issued) / "Hoàn tất" (completed) → người lập. */
 export const notifyPRProgress = (ctx: Arg<typeof planPRProgress>) => run(planPRProgress(ctx));
 
@@ -451,6 +453,29 @@ export async function getUnreadCount(userId: string): Promise<number> {
       sql`${notification.recipientUser} = ${userId} AND ${notification.readAt} IS NULL`,
     );
   return row?.count ?? 0;
+}
+
+/**
+ * V4.4 (Việc 4) — đánh dấu đã đọc mọi thông báo CHƯA ĐỌC gắn với 1 chứng từ
+ * (vd nhắc duyệt/chờ duyệt của 1 PR khi phiếu đó vừa bị huỷ — không còn ai
+ * cần xử lý nữa). Trả số dòng vừa đánh dấu.
+ */
+export async function markEntityNotificationsRead(
+  entityType: string,
+  entityId: string,
+): Promise<number> {
+  const rows = await db
+    .update(notification)
+    .set({ readAt: new Date() })
+    .where(
+      and(
+        eq(notification.entityType, entityType),
+        eq(notification.entityId, entityId),
+        sql`${notification.readAt} IS NULL`,
+      ),
+    )
+    .returning({ id: notification.id });
+  return rows.length;
 }
 
 /** Lấy username của 1 user — convenience cho actor info. */

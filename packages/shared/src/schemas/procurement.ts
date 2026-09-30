@@ -17,6 +17,9 @@ export const PR_STATUSES = [
   "APPROVED",
   "CONVERTED",
   "REJECTED",
+  // V4.4 (Việc 4) — huỷ bởi người tạo/admin, khác REJECTED (bị người duyệt
+  // từ chối). Migration 0069 ALTER TYPE ADD VALUE.
+  "CANCELLED",
 ] as const;
 export type PRStatus = (typeof PR_STATUSES)[number];
 
@@ -26,6 +29,7 @@ export const PR_STATUS_LABELS: Record<PRStatus, string> = {
   APPROVED: "Đã duyệt",
   CONVERTED: "Đã chuyển PO",
   REJECTED: "Từ chối",
+  CANCELLED: "Đã huỷ",
 };
 
 export const PO_STATUSES = [
@@ -180,6 +184,15 @@ export const prApproveSchema = z.object({
 });
 
 export const prRejectSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(3, "Lý do tối thiểu 3 ký tự")
+    .max(500, "Tối đa 500 ký tự"),
+});
+
+/** V4.4 (Việc 4) — Huỷ phiếu (khác reject: người tạo/admin tự huỷ). */
+export const prCancelSchema = z.object({
   reason: z
     .string()
     .trim()
@@ -371,6 +384,7 @@ export type PRCreateFromShortageInput = z.infer<
 export type PRUpdateInput = z.infer<typeof prUpdateSchema>;
 export type PRApproveInput = z.infer<typeof prApproveSchema>;
 export type PRRejectInput = z.infer<typeof prRejectSchema>;
+export type PRCancelInput = z.infer<typeof prCancelSchema>;
 export type PRListQuery = z.infer<typeof prListQuerySchema>;
 
 export type POLineInput = z.infer<typeof poLineInputSchema>;

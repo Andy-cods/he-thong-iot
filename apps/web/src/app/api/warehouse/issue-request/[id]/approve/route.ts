@@ -1,9 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { z } from "zod";
 import { eq, sql } from "drizzle-orm";
 import { warehouseIssueRequest } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import { jsonError } from "@/server/http";
+import { validateIsrOverridePicks, type IsrPickLine } from "@/lib/isr-relot";
+import { jsonError, parseJson } from "@/server/http";
 import {
   createGoodsIssueTx,
   GoodsIssueError,
@@ -40,6 +42,15 @@ export const dynamic = "force-dynamic";
  * V4.1 Đợt 1b (Q3) — duyệt sinh 1 phiếu xuất kho PX-YYMM-NNNN
  * (`source_type='ISSUE_REQUEST'`) cùng transaction; unique index
  * `goods_issue_isr_uk` chặn 1 ISR sinh 2 phiếu (lưới an toàn sau bước claim).
+ *
+ * V4.4 (Việc 2) — "Chọn lại lô khi lô đã hụt": trước đây nếu lô khoá lúc tạo
+ * không còn đủ, `createGoodsIssueTx` ném `StockGuardError` → transaction
+ * rollback → yêu cầu KẸT ở PENDING vĩnh viễn (chỉ còn nút "Từ chối"). Nay body
+ * có thể gửi kèm `picks` mới (Kho tự gọi `/api/warehouse/fifo-pick` gợi ý lại
+ * rồi build lại) để duyệt lại với lô khác, hoặc xuất ÍT HƠN kèm `partialNote`
+ * bắt buộc — `validateIsrOverridePicks` (THUẦN, test riêng) chặn không cho
+ * override thêm mã hàng mới hoặc vượt SL đã xin ban đầu. Không gửi `picks` →
+ * hành vi y hệt trước đây (dùng picksJson đã lưu lúc tạo).
  */
 
 interface PicksJson {
@@ -52,6 +63,29 @@ interface PicksJson {
   }>;
 }
 
+const pickSchema = z.object({
+  lotSerialId: z.string().uuid(),
+  lotCode: z.string().nullable().optional(),
+  binId: z.string().uuid(),
+  binCode: z.string().nullable().optional(),
+  qty: z.coerce.number().positive(),
+});
+const lineSchema = z.object({
+  itemId: z.string().uuid(),
+  sku: z.string().nullable().optional(),
+  picks: z.array(pickSchema).min(1),
+});
+const approveBodySchema = z
+  .object({
+    /** V4.4 — override lô/bin (chọn lại lô hụt) hoặc xuất ít hơn (1 phần). */
+    picks: z.array(lineSchema).optional(),
+    /** Bắt buộc khi tổng override < tổng đã xin ban đầu (xuất 1 phần). */
+    partialNote: z.string().trim().max(500).optional().nullable(),
+  })
+  .nullable()
+  .optional()
+  .transform((v) => v ?? {});
+
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } },
@@ -63,9 +97,24 @@ export async function POST(
     return jsonError("INVALID_ID", "ID không hợp lệ", 400);
   }
 
-  // Load request
+  const body = await parseJson(req, approveBodySchema);
+  if ("response" in body) return body.response;
+
+  // Load request — cột tường minh (không `.select()` cả row) để tránh phụ
+  // thuộc cứng vào MỌI cột tương lai của bảng (đã thấy trong `route.ts`/
+  // `reject/route.ts` cùng thư mục, theo cùng quy ước).
   const [request] = await db
-    .select()
+    .select({
+      id: warehouseIssueRequest.id,
+      requestNo: warehouseIssueRequest.requestNo,
+      status: warehouseIssueRequest.status,
+      reason: warehouseIssueRequest.reason,
+      reference: warehouseIssueRequest.reference,
+      notes: warehouseIssueRequest.notes,
+      picksJson: warehouseIssueRequest.picksJson,
+      requestedBy: warehouseIssueRequest.requestedBy,
+      woId: warehouseIssueRequest.woId,
+    })
     .from(warehouseIssueRequest)
     .where(eq(warehouseIssueRequest.id, params.id))
     .limit(1);
@@ -95,14 +144,46 @@ export async function POST(
     );
   }
 
-  const lines = (request.picksJson as unknown as PicksJson[]) ?? [];
+  const originalLines = (request.picksJson as unknown as PicksJson[]) ?? [];
+  const overrideLines = body.data.picks as IsrPickLine[] | undefined;
+
+  let finalLines: PicksJson[] = originalLines;
+  let partialNote: string | null = null;
+  let overrideTotalQty: number | null = null;
+  if (overrideLines) {
+    const check = validateIsrOverridePicks(originalLines, overrideLines);
+    if (!check.ok) {
+      return jsonError(check.error.code, check.error.message, 400);
+    }
+    if (check.isPartial) {
+      const note = body.data.partialNote?.trim() ?? "";
+      if (note.length < 3) {
+        return jsonError(
+          "PARTIAL_NOTE_REQUIRED",
+          "Xuất ít hơn số lượng đã xin ban đầu — cần nhập lý do (tối thiểu 3 ký tự).",
+          400,
+        );
+      }
+      partialNote = note;
+    }
+    finalLines = overrideLines;
+    // V4.4 — cập nhật lại total_qty của ISR khớp SL THỰC XUẤT (quan trọng khi
+    // xuất 1 phần — tránh total_qty treo số cũ trong khi picksJson đã đổi,
+    // gây sai khi cộng dồn báo cáo theo total_qty).
+    overrideTotalQty = check.totalOverride;
+  }
 
   try {
     const result = await db.transaction(async (tx) => {
       // V3.11.4 (audit 1.3) — CLAIM request ngay đầu transaction: UPDATE có điều
       // kiện `status='PENDING'` returning. 2 duyệt đồng thời: chỉ 1 giành được
       // (1 row), cái còn lại 0 row → throw 409 (tránh xuất kho 2 lần cùng picks).
+      // V4.4 — nếu có override, ghi luôn picksJson thực tế đã xuất (audit trail)
+      // + note lý do xuất 1 phần (nếu có) vào cùng UPDATE claim.
       const now = new Date();
+      const claimNotes = partialNote
+        ? `${request.notes ? `${request.notes}\n` : ""}[Xuất 1 phần: ${partialNote}]`
+        : request.notes;
       const claimed = await tx
         .update(warehouseIssueRequest)
         .set({
@@ -111,6 +192,13 @@ export async function POST(
           approvedAt: now,
           completedAt: now,
           updatedAt: now,
+          ...(overrideLines
+            ? {
+                picksJson: finalLines,
+                notes: claimNotes,
+                totalQty: String(overrideTotalQty ?? 0),
+              }
+            : {}),
         })
         .where(
           sql`${warehouseIssueRequest.id} = ${params.id} AND ${warehouseIssueRequest.status} = 'PENDING'`,
@@ -127,7 +215,7 @@ export async function POST(
       // định, chỉ lô AVAILABLE, không vượt tồn bin, không lấn phần đã giữ chỗ.
       // ISR lập từ trước mà lô nay đang HOLD (chờ QC) → 409 rõ lý do.
       // V4.1 Đợt 1b — đi qua phiếu xuất kho PX (guard + ledger + dòng phiếu).
-      const picks: GoodsIssuePickInput[] = lines.flatMap((l) =>
+      const picks: GoodsIssuePickInput[] = finalLines.flatMap((l) =>
         l.picks.map((p) => ({
           itemId: l.itemId,
           lotSerialId: p.lotSerialId,
@@ -139,8 +227,15 @@ export async function POST(
         sourceType: "ISSUE_REQUEST",
         reason: toGoodsIssueReason(request.reason),
         issueRequestId: request.id,
+        // V4.4 (Việc 1) — ISR sinh từ "Xin vật tư theo BOM" mang theo wo_id →
+        // phiếu xuất PX cũng gắn đúng WO để báo cáo/đối chiếu.
+        woId: request.woId ?? null,
         reference: request.reference ?? request.requestNo,
-        notes: `${request.requestNo} · approved${request.notes ? ` · ${request.notes}` : ""}`.slice(0, 500),
+        notes: (
+          partialNote
+            ? `${request.requestNo} · approved (1 phần: ${partialNote})`
+            : `${request.requestNo} · approved${request.notes ? ` · ${request.notes}` : ""}`
+        ).slice(0, 500),
         issuedBy: guard.session.userId,
         receivedBy: request.requestedBy,
         picks,

@@ -3,6 +3,7 @@ import {
   acceptedQtyOf,
   addDaysIso,
   buildPoInvoiceDraft,
+  canCancelPR,
   canEditPoPrices,
   checkOverDelivery,
   detectPoPriceChanges,
@@ -347,5 +348,42 @@ describe("V4.1 PO-UI — điều chỉnh giá PO sau DRAFT", () => {
 
   it("tổng hợp tiền + đếm dòng chưa có giá", () => {
     expect(summarizePoLines(lines)).toEqual({ subtotal: 2000, vat: 140, total: 2140, unpriced: 1 });
+  });
+});
+
+describe("canCancelPR — V4.4 Việc 4", () => {
+  const base = { creatorId: "u-creator", actorId: "u-creator", actorRoles: ["planner"] as string[] };
+
+  it("người tạo huỷ được phiếu DRAFT/SUBMITTED của chính mình", () => {
+    expect(canCancelPR({ ...base, status: "DRAFT" })).toBe(true);
+    expect(canCancelPR({ ...base, status: "SUBMITTED" })).toBe(true);
+  });
+
+  it("người tạo KHÔNG huỷ được phiếu APPROVED (cần admin)", () => {
+    expect(canCancelPR({ ...base, status: "APPROVED" })).toBe(false);
+  });
+
+  it("admin huỷ được cả APPROVED (chưa có PO — route kiểm riêng)", () => {
+    expect(
+      canCancelPR({ ...base, actorId: "u-admin", actorRoles: ["admin"], status: "APPROVED" }),
+    ).toBe(true);
+  });
+
+  it("người khác (không phải người tạo, không phải admin) không huỷ được", () => {
+    expect(
+      canCancelPR({ ...base, actorId: "u-other", actorRoles: ["warehouse"], status: "SUBMITTED" }),
+    ).toBe(false);
+  });
+
+  it("CONVERTED/REJECTED/CANCELLED không huỷ được nữa dù là admin", () => {
+    const admin = { ...base, actorId: "u-admin", actorRoles: ["admin"] as string[] };
+    expect(canCancelPR({ ...admin, status: "CONVERTED" })).toBe(false);
+    expect(canCancelPR({ ...admin, status: "REJECTED" })).toBe(false);
+    expect(canCancelPR({ ...admin, status: "CANCELLED" })).toBe(false);
+  });
+
+  it("creatorId null (phiếu cũ) → chỉ admin huỷ được", () => {
+    expect(canCancelPR({ status: "DRAFT", creatorId: null, actorId: "u1", actorRoles: ["planner"] })).toBe(false);
+    expect(canCancelPR({ status: "DRAFT", creatorId: null, actorId: "u1", actorRoles: ["admin"] })).toBe(true);
   });
 });

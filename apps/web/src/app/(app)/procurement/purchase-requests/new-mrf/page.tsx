@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ItemPickerField } from "@/components/procurement/ItemPickerField";
+import type { ItemPickerValue } from "@/components/bom/ItemPicker";
 import {
   useCreatePurchaseRequest,
   usePreviewPaperFormNo,
@@ -38,14 +40,14 @@ import { cn } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 /**
- * V3.7.72 — Free-text item name + SKU. itemId nullable.
- * Nếu user gõ Mã VT trùng với item trong master → backend resolve.
- * Còn lại lưu name + sku free-text.
+ * V4.4 (Việc 3) — chọn vật tư từ danh mục (ItemPickerField: tìm + tạo nhanh)
+ * thay vì gõ tên/mã tự do — tránh tạo item trùng lặp âm thầm khi Thu mua
+ * "Tạo PO" (`findOrCreateItemForLine`, LOOP_E2E.md #2). Phiếu CŨ đã lưu tên
+ * tự do vẫn hiển thị/hoạt động ở trang chi tiết — không đổi dữ liệu cũ.
  */
 interface MRFLineDraft {
   localId: string;
-  itemName: string;
-  itemSku: string;
+  item: ItemPickerValue | null;
   specification: string;
   uom: string;
   qty: string;
@@ -82,8 +84,7 @@ const DEPT_OPTIONS = [
 function blankLine(): MRFLineDraft {
   return {
     localId: crypto.randomUUID(),
-    itemName: "",
-    itemSku: "",
+    item: null,
     specification: "",
     uom: "",
     qty: "1",
@@ -139,10 +140,7 @@ export default function NewMRFPage() {
   const [lines, setLines] = React.useState<MRFLineDraft[]>(() => [blankLine()]);
 
   const validLines = React.useMemo(
-    () =>
-      lines.filter(
-        (l) => l.itemName.trim().length > 0 && Number(l.qty) > 0,
-      ),
+    () => lines.filter((l) => !!l.item && Number(l.qty) > 0),
     [lines],
   );
 
@@ -179,7 +177,7 @@ export default function NewMRFPage() {
 
   const handleSubmit = async () => {
     if (validLines.length === 0) {
-      toast.error("Cần ít nhất 1 dòng có Tên vật tư + số lượng > 0.");
+      toast.error("Cần ít nhất 1 dòng đã chọn vật tư + số lượng > 0.");
       return;
     }
     if (!requestReason.trim()) {
@@ -198,17 +196,17 @@ export default function NewMRFPage() {
       proposingDepartment: proposingDepartment.trim() || null,
       requestReason: requestReason.trim() || null,
       lines: validLines.map((l) => ({
-        // V3.7.72 — free-text item name + sku (itemId không cần)
-        itemId: null,
-        itemName: l.itemName.trim() || null,
-        itemSku: l.itemSku.trim() || null,
+        // V4.4 (Việc 3) — itemId thật từ ItemPicker (đã chọn hoặc vừa tạo nhanh).
+        itemId: l.item!.id,
+        itemName: l.item!.name,
+        itemSku: l.item!.sku,
         qty: Number(l.qty),
         preferredSupplierId: null,
         snapshotLineId: null,
         neededBy: l.neededBy ? new Date(l.neededBy) : null,
         notes: l.notes.trim() || null,
         specification: l.specification.trim() || null,
-        uom: l.uom.trim() || null,
+        uom: l.uom.trim() || l.item!.uom || null,
         priority: l.priority,
         category: l.category,
         estimatedUnitPrice: l.estimatedUnitPrice
@@ -408,8 +406,7 @@ export default function NewMRFPage() {
                 <thead>
                   <tr className="bg-[#F5F5F5] text-xs font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
                     <Th w="w-8">STT</Th>
-                    <Th w="min-w-[160px]">Tên vật tư</Th>
-                    <Th w="w-28">Mã VT</Th>
+                    <Th w="min-w-[220px]">Vật tư (Mã · Tên)</Th>
                     <Th w="min-w-[120px]">Quy cách</Th>
                     <Th w="w-14">ĐVT</Th>
                     <Th w="w-14" align="right">
@@ -458,30 +455,21 @@ export default function NewMRFPage() {
                           </span>
                         </Td>
                         <Td>
-                          {/* V3.7.72 — Free-text Tên vật tư (textarea wrap) */}
-                          <textarea
-                            value={l.itemName}
-                            onChange={(e) =>
-                              updateLine(l.localId, {
-                                itemName: e.target.value,
-                              })
-                            }
-                            placeholder="VD: Ốc M3 đầu nấm"
-                            rows={1}
-                            className="w-full resize-none bg-transparent text-[11px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
-                            style={{ minHeight: 18 }}
-                          />
-                        </Td>
-                        <Td>
-                          <input
-                            type="text"
-                            value={l.itemSku}
-                            onChange={(e) =>
-                              updateLine(l.localId, { itemSku: e.target.value })
-                            }
-                            placeholder="VD: VT-0001"
-                            className="w-full bg-transparent font-mono text-[10.5px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
-                          />
+                          <div className="min-w-[200px] print:hidden">
+                            <ItemPickerField
+                              value={l.item}
+                              onChange={(item) =>
+                                updateLine(l.localId, {
+                                  item,
+                                  uom: item?.uom ? item.uom : l.uom,
+                                })
+                              }
+                              placeholder="Tìm hoặc tạo vật tư..."
+                            />
+                          </div>
+                          <span className="hidden text-[11px] print:inline">
+                            {l.item ? `${l.item.sku} — ${l.item.name}` : "—"}
+                          </span>
                         </Td>
                         <Td>
                           <textarea

@@ -28,6 +28,7 @@ export const NOTIFICATION_EVENT_TYPES = [
   "PR_DEPT_APPROVED",
   "PR_APPROVED",
   "PR_REJECTED",
+  "PR_CANCELLED", // V4.4 Việc 4 — người tạo/admin tự huỷ (khác REJECTED)
   "PR_PENDING_REMINDER", // worker prReminderScan.ts insert trực tiếp
   "PR_GOODS_ISSUED",
   "PR_COMPLETED",
@@ -505,6 +506,36 @@ export function planPRRejected(ctx: PRCtx & { reason?: string | null }): NotifyP
         severity: "warning",
       }),
     ],
+  };
+}
+
+/**
+ * V4.4 (Việc 4) — Huỷ phiếu (khác REJECTED — người tạo/admin tự huỷ, không
+ * phải bị người duyệt từ chối). Chỉ báo người lập nếu người huỷ KHÁC người
+ * lập (vd admin huỷ hộ) — tự huỷ phiếu của chính mình thì không cần báo lại.
+ */
+export function planPRCancelled(
+  ctx: PRCtx & { reason?: string | null; byCreator: boolean },
+): NotifyPlan {
+  return {
+    eventType: "PR_CANCELLED",
+    entityType: "purchase_request",
+    entityId: ctx.prId,
+    entityCode: ctx.prNo,
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    targets: ctx.byCreator
+      ? []
+      : [
+          user(ctx.creatorUserId, PR_CREATOR_ROLES, {
+            title: `${ctx.prNo} đã bị huỷ`,
+            message: ctx.reason
+              ? `Lý do: ${ctx.reason}`
+              : `Người huỷ: ${ctx.actorUsername ?? "—"}.`,
+            links: [L.pr(ctx.prId)],
+            severity: "warning",
+          }),
+        ],
   };
 }
 

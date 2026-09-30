@@ -17,6 +17,7 @@ import { appSchema } from "./_schema";
 import { userAccount } from "./auth";
 import { item, supplier, locationBin } from "./master";
 import { salesOrder } from "./order";
+import { workOrder } from "./production";
 
 export const purchaseOrderStatusEnum = pgEnum("purchase_order_status", [
   "DRAFT",
@@ -49,6 +50,9 @@ export const purchaseRequestStatusEnum = pgEnum("purchase_request_status", [
   "APPROVED",
   "CONVERTED",
   "REJECTED",
+  // V4.4 (Việc 4, migration 0069) — huỷ bởi người tạo/admin, khác REJECTED
+  // (bị người duyệt từ chối). Value thêm bằng ALTER TYPE ADD VALUE (idempotent).
+  "CANCELLED",
 ]);
 
 /** V1.2 — Purchase Request (header). V3.7.55 thêm fields theo form MRF GTAM. V3.7.69 thêm workflow 3 bước YCVT. */
@@ -101,6 +105,21 @@ export const purchaseRequest = appSchema.table(
     rejectedAt: timestamp("rejected_at", { withTimezone: true }),
     rejectionReason: text("rejection_reason"),
 
+    /**
+     * V4.4 (Việc 4, migration 0069) — Huỷ phiếu (người tạo khi còn DRAFT/
+     * SUBMITTED, hoặc admin khi APPROVED mà chưa có PO). Cột riêng, KHÔNG dùng
+     * chung rejected_* để không lẫn "bị từ chối" với "tự huỷ".
+     */
+    cancelledBy: uuid("cancelled_by").references(() => userAccount.id),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    cancellationReason: text("cancellation_reason"),
+
+    /**
+     * V4.4 (Việc 1, migration 0069) — Lệnh SX nguồn khi PR sinh từ "Xin vật
+     * tư theo BOM" (phần thiếu phải mua). NULL = PR lập tay/nguồn khác.
+     */
+    linkedWoId: uuid("linked_wo_id").references(() => workOrder.id),
+
     /** V3.7.69 YCVT — Tổng tiền dự kiến cache (sum line.line_total). Auto-calc bằng trigger. */
     totalEstimatedAmount: numeric("total_estimated_amount", {
       precision: 18,
@@ -123,6 +142,7 @@ export const purchaseRequest = appSchema.table(
     requestedIdx: index("pr_requested_by_idx").on(t.requestedBy),
     paperFormNoUk: uniqueIndex("pr_paper_form_no_uk").on(t.paperFormNo),
     approvalStepIdx: index("pr_approval_step_idx").on(t.approvalStep, t.createdAt),
+    linkedWoIdx: index("pr_linked_wo_idx").on(t.linkedWoId),
   }),
 );
 

@@ -2,6 +2,7 @@ import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import {
   bomSnapshotLine,
   item,
+  purchaseOrder,
   purchaseRequest,
   purchaseRequestLine,
   salesOrder,
@@ -187,6 +188,9 @@ export async function listPRDayBuckets(q: {
       approved: sql<number>`count(*) filter (where ${purchaseRequest.status} = 'APPROVED')::int`,
       converted: sql<number>`count(*) filter (where ${purchaseRequest.status} = 'CONVERTED')::int`,
       rejected: sql<number>`count(*) filter (where ${purchaseRequest.status} = 'REJECTED')::int`,
+      // V4.4 (Việc 4, migration 0069) — cần enum app.purchase_request_status
+      // đã có value 'CANCELLED' mới chạy được (ALTER TYPE ADD VALUE).
+      cancelled: sql<number>`count(*) filter (where ${purchaseRequest.status} = 'CANCELLED')::int`,
     })
     .from(purchaseRequest)
     .where(whereExpr)
@@ -202,6 +206,7 @@ export async function listPRDayBuckets(q: {
       APPROVED: r.approved,
       CONVERTED: r.converted,
       REJECTED: r.rejected,
+      CANCELLED: r.cancelled,
     },
   }));
 }
@@ -394,6 +399,8 @@ export interface CreatePRInput {
   title?: string | null;
   source?: "SHORTAGE" | "MANUAL";
   linkedOrderId?: string | null;
+  /** V4.4 (Việc 1, migration 0069) — PR sinh từ "Xin vật tư theo BOM" của 1 WO. */
+  linkedWoId?: string | null;
   requestedBy: string | null;
   notes?: string | null;
   lines: CreatePRLineInput[];
@@ -463,6 +470,7 @@ export async function createPR(input: CreatePRInput): Promise<PurchaseRequest> {
         status: "DRAFT",
         source: input.source ?? "MANUAL",
         linkedOrderId: input.linkedOrderId ?? null,
+        linkedWoId: input.linkedWoId ?? null,
         requestedBy: input.requestedBy,
         notes: input.notes ?? null,
         targetDepartment: input.targetDepartment ?? null,
@@ -1177,6 +1185,80 @@ export async function rejectPR(
     )
     .returning();
   return row ?? null;
+}
+
+/** V4.4 (Việc 4) — Huỷ phiếu (khác reject: người tạo/admin tự huỷ). */
+export class PrCancelError extends Error {
+  constructor(
+    public readonly code: string,
+    message: string,
+    public readonly status = 409,
+  ) {
+    super(message);
+    this.name = "PrCancelError";
+  }
+}
+
+/**
+ * Huỷ PR — cho phép khi DRAFT/SUBMITTED (người tạo hoặc admin) hoặc APPROVED
+ * mà CHƯA có PO nào (chỉ admin — kiểm tra route). Repo chỉ enforce state
+ * machine + guard "đã có PO" bằng transaction (route enforce quyền theo
+ * người tạo/role, xem `purchase-requests/[id]/cancel/route.ts`).
+ */
+export async function cancelPR(
+  id: string,
+  userId: string | null,
+  reason: string,
+): Promise<PurchaseRequest> {
+  return db.transaction(async (tx) => {
+    const [pr] = await tx
+      .select()
+      .from(purchaseRequest)
+      .where(eq(purchaseRequest.id, id))
+      .for("update")
+      .limit(1);
+    if (!pr) throw new PrCancelError("NOT_FOUND", "Không tìm thấy PR.", 404);
+
+    const cancellableStatuses: PurchaseRequestStatus[] = ["DRAFT", "SUBMITTED", "APPROVED"];
+    if (!cancellableStatuses.includes(pr.status)) {
+      throw new PrCancelError(
+        "INVALID_STATE",
+        `Phiếu đang ở trạng thái ${pr.status} — không thể huỷ.`,
+      );
+    }
+
+    if (pr.status === "APPROVED") {
+      const [po] = await tx
+        .select({ id: purchaseOrder.id, poNo: purchaseOrder.poNo })
+        .from(purchaseOrder)
+        .where(eq(purchaseOrder.prId, id))
+        .limit(1);
+      if (po) {
+        throw new PrCancelError(
+          "HAS_PO",
+          `Phiếu đã có Đơn hàng mua ${po.poNo} — không thể huỷ, dùng Huỷ/Đóng PO thay thế.`,
+        );
+      }
+    }
+
+    const [row] = await tx
+      .update(purchaseRequest)
+      .set({
+        status: "CANCELLED",
+        approvalStep: "CANCELLED",
+        cancelledBy: userId,
+        cancelledAt: new Date(),
+        cancellationReason: reason,
+        notes: sql`COALESCE(${purchaseRequest.notes}, '') || ${`\n[CANCELLED: ${reason}]`}`,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(eq(purchaseRequest.id, id), inArray(purchaseRequest.status, cancellableStatuses)),
+      )
+      .returning();
+    if (!row) throw new PrCancelError("CONFLICT", "Phiếu đã thay đổi trạng thái.");
+    return row;
+  });
 }
 
 /**
