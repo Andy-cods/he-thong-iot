@@ -26,8 +26,17 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <QueryProvider>
           {/* V4.1 UX-01: hộp xác nhận/nhập lý do dạng Promise (useConfirm/usePrompt). */}
           <ConfirmProvider>
-            {children}
+            {/* V4.4 A6 — SonnerProvider PHẢI render/mount TRƯỚC `children` trong
+                JSX: React chạy effect theo thứ tự cây (con trước cha, anh em
+                theo thứ tự JSX) — nếu `children` (chứa AppShell) đứng trước,
+                effect của AppShell chạy TRƯỚC effect mount của Toaster, nên
+                `toast()` gọi ngay khi 1 trang mount (VD chặn quyền) bị RƠI MẤT
+                vì Toaster chưa kịp subscribe. Đổi thứ tự khắc phục tận gốc cho
+                MỌI toast gọi từ effect mount-time trong toàn app, không chỉ
+                denied-toast. Component không portal theo vị trí DOM nên không
+                ảnh hưởng layout. */}
             <SonnerProvider />
+            {children}
           </ConfirmProvider>
         </QueryProvider>
       </NuqsAdapter>

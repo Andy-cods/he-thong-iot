@@ -141,7 +141,7 @@
 
 ## 2. NHÓM A — Component dùng chung (sửa 1 chỗ ăn nhiều trang, làm TRƯỚC)
 
-### A1. [P1] BOM List và Items List KHÔNG dùng `<table>` thật / thiếu ARIA hợp lệ
+### A1. [P1] BOM List và Items List KHÔNG dùng `<table>` thật / thiếu ARIA hợp lệ ✅ ĐÃ SỬA — commit `b5965ba`
 
 - **Vấn đề**: `apps/web/src/components/bom/BomListTable.tsx` và
   `apps/web/src/components/items/ItemListTable.tsx` tự implement virtualized div-grid
@@ -168,7 +168,7 @@
 - **Ảnh**: `D/bom-list__desktop-light.png`, `D/items-list__desktop-light.png` (nhìn ĐẸP, không phát
   hiện được lỗi này qua ảnh — chỉ phát hiện qua kiểm tra DOM).
 
-### A2. [P1] Màu nút chính trong Dialog `bom-grid-pro` lệch khỏi accent indigo, và không nhất quán nội bộ
+### A2. [P1] Màu nút chính trong Dialog `bom-grid-pro` lệch khỏi accent indigo, và không nhất quán nội bộ ✅ ĐÃ SỬA — commit `720ae0b`
 
 - **Vấn đề**: `WOQuickDialog.tsx:297` dùng `bg-purple-600 hover:bg-purple-700` cho nút hành động chính;
   `SubcontractPOQuickDialog.tsx:502` dùng `bg-violet-400` (dark) `..bg-violet-700` (hover) — 2 Dialog
@@ -179,8 +179,12 @@
 - **Cách sửa**: đổi cả 2 về `bg-indigo-600 hover:bg-indigo-700` (hoặc dùng `<Button>` mặc định thay vì
   className cứng, để tự động ăn theo token khi đổi sau này).
 - **Mức độ**: P1 (màu ngoài hệ + không nhất quán nội bộ 1 nhóm chức năng).
+- **Cập nhật khi sửa**: tại thời điểm sửa, `SubcontractPOQuickDialog.tsx` đã đổi
+  từ `bg-violet-400` (mô tả cũ ở trên) sang `bg-orange-600` (agent khác đổi
+  giữa lúc kiểm kê và lúc sửa) — vẫn là màu ngoài hệ, đã đổi cả 2 về
+  `bg-indigo-600 hover:bg-indigo-700` như kế hoạch.
 
-### A3. [P2] Format số/ngày tự viết cục bộ thay vì qua `lib/format.ts`
+### A3. [P2] Format số/ngày tự viết cục bộ thay vì qua `lib/format.ts` ✅ ĐÃ RÀ SOÁT (helper đã đủ) — commit `d717977`
 
 - **Vấn đề**: 106 chỗ (47 file) gọi `.toLocaleString()` trực tiếp trong component thay vì qua
   `formatMoney`/`formatMoneyShort`/`formatQty`/`formatNumber` của `apps/web/src/lib/format.ts`. Đa số
@@ -201,7 +205,7 @@
   bộ mới trong component trang).
 - **Mức độ**: P2 (không sai hiển thị ngay, nhưng rủi ro bảo trì + rủi ro giờ khi lệch múi giờ).
 
-### A4. [P2] Input ngày native hiện placeholder "mm/dd/yyyy" (định dạng Mỹ)
+### A4. [P2] Input ngày native hiện placeholder "mm/dd/yyyy" (định dạng Mỹ) ✅ ĐÃ TẠO `DateField` DÙNG CHUNG — commit `d717977`
 
 - **Vấn đề**: `<input type="date">` (HTML native) hiện placeholder theo locale trình duyệt/OS — mặc định
   thường là "mm/dd/yyyy" — trong khi MỌI nơi khác trong app hiển thị ngày kiểu Việt Nam "dd/MM/yyyy".
@@ -212,8 +216,14 @@
   thay bằng date-picker tuỳ chỉnh (chi phí lớn, không cấp thiết).
 - **Mức độ**: P2 — ghi nhận là giới hạn nền tảng đã biết, không cần sửa gấp; nếu muốn nhất quán tuyệt đối
   mới cần đầu tư date-picker riêng.
+- **Đã làm (agent NHÓM A)**: tạo `components/ui/date-field.tsx` (`DateField`) — ô nhập text hiển thị
+  dd/mm/yyyy nhất quán (tự chèn "/", validate ngày thật) + nút mở date-picker native qua `showPicker()`;
+  `value`/`onChange` vẫn là ISO "yyyy-MM-dd" y hệt `<input type="date">` cũ — drop-in, không phá form. Helper
+  thuần `parseVnDate`/`autoFormatVnDateInput` trong `lib/format.ts` (có vitest). **CHƯA wire vào form nào** —
+  xem "Việc cho nhóm trang" bên dưới để biết danh sách chỗ cần thay (`PRTab.tsx:178,188`,
+  `material-requests/page.tsx:265,275`, filter Tài chính · Tổng quan).
 
-### A5. [P0 — xác nhận lại bằng ảnh mới] Dashboard "Cần xử lý" mâu thuẫn với chuông thông báo
+### A5. [P0 — xác nhận lại bằng ảnh mới] Dashboard "Cần xử lý" mâu thuẫn với chuông thông báo ⏭ NGOÀI PHẠM VI NHÓM A
 
 - **Vấn đề**: Khối "Cần xử lý" trên Dashboard hiện "ỔN ĐỊNH — Tất cả đang ổn, Chưa có việc cần xử lý gấp"
   (ảnh `G/dashboard__desktop-light.png`, tái hiện y hệt ở `desktop-dark`) trong khi CÙNG LÚC chuông
@@ -240,8 +250,12 @@
   "ỔN ĐỊNH" sai.
 - **Mức độ**: P0 (sai lệch thông tin nghiệp vụ hiển thị ngay tại khối hero N1 của Dashboard — có thể
   khiến người có trách nhiệm bỏ sót việc quá hạn, 1 PO 27 triệu đang treo).
+- **Không xử lý ở đợt NHÓM A**: root cause nằm ở `app/api/dashboard/action-items/route.ts` (logic nghiệp
+  vụ/API — điều kiện SQL/status đếm "Cần xử lý"), ngoài phạm vi cho phép của agent UI nhóm A ("KHÔNG sửa
+  code nghiệp vụ/API/server/hooks"). Cần agent backend/API hoặc agent trang Dashboard xử lý theo đúng cách
+  sửa đã nêu (mở rộng điều kiện PR + gộp BBGH/ISR).
 
-### A6. [P1 — phát hiện MỚI] Redirect khi bị chặn quyền hoàn toàn im lặng
+### A6. [P1 — phát hiện MỚI] Redirect khi bị chặn quyền hoàn toàn im lặng ✅ ĐÃ SỬA — commit `1e3df66`
 
 - **Vấn đề**: `apps/web/src/app/(app)/layout.tsx:114` — khi user truy cập route không đủ quyền, server
   `redirect("/?denied=1")`. Đã grep TOÀN BỘ `app/` và `components/` — **KHÔNG có bất kỳ chỗ nào đọc query
@@ -255,8 +269,16 @@
   `useSearchParams().get("denied")`, nếu có → hiện toast (sonner) "Bạn không có quyền truy cập trang đó",
   sau đó `router.replace("/")` để xoá query khỏi URL (tránh lặp lại toast khi refresh/back).
 - **Mức độ**: P1 (UX im lặng khi từ chối truy cập — người dùng không hiểu vì sao bị đưa về trang chủ).
+- **Đã làm**: `AppShell.tsx` đọc `denied=1` qua `useSearchParams`, hiện toast lỗi + tự dọn query
+  (`router.replace`). `admin/layout.tsx` (guard admin-only riêng, KHÔNG qua `route-guard.ts` chung nên
+  chưa được phát hiện lúc đầu) cũng redirect `"/"` trần — đã đổi thành `"/?denied=1"` để đồng bộ.
+  **Root cause phụ phát hiện khi verify**: `SonnerProvider` render SAU `{children}` trong
+  `components/providers.tsx` khiến effect mount của `AppShell` chạy TRƯỚC effect mount của `Toaster` (React
+  chạy effect con trước cha, anh em theo thứ tự JSX) → MỌI `toast()` gọi ngay lúc 1 trang mount (không chỉ
+  denied-toast) bị RƠI MẤT vì Toaster chưa kịp subscribe. Đã đổi thứ tự `SonnerProvider` lên trước
+  `{children}` — vá tận gốc cho toàn app, không chỉ riêng tính năng này.
 
-### A7. [P1] "Bin" tiếng Anh còn sót, trộn với "Vị trí"/"Ô kệ" tiếng Việt
+### A7. [P1] "Bin" tiếng Anh còn sót, trộn với "Vị trí"/"Ô kệ" tiếng Việt ⏭ NGOÀI PHẠM VI NHÓM A (agent Kho đang sửa song song)
 
 - **Vấn đề**: `components/warehouse/BinActions.tsx:869` (label) và `:881` (`aria-label="Bin đích"`) dùng
   từ "Bin" tiếng Anh, trong khi `components/warehouse/WarehouseLayoutTab.tsx:355` và toàn bộ UI panel
@@ -275,7 +297,7 @@
 - **Mức độ**: P1 (thuật ngữ không nhất quán — đúng loại lỗi "nhãn/thuật ngữ không thống nhất" yêu cầu
   kiểm kê nêu rõ).
 
-### A8. [P2] Chính tả "Quản lí kho" khác quy ước "Quản lý" dùng ở nơi khác
+### A8. [P2] Chính tả "Quản lí kho" khác quy ước "Quản lý" dùng ở nơi khác ⏭ NGOÀI PHẠM VI NHÓM A (thuộc trang `/warehouse`, agent Kho đang sửa song song)
 
 - **Vấn đề**: Large Title trang `/warehouse` hiện "Quản lí kho" (dùng "lí") trong khi các trang khác của
   hệ thống (VD "Quản trị hệ thống") và văn phong hành chính Việt Nam phổ biến dùng "Quản lý" (dùng "lý").
@@ -285,7 +307,7 @@
 - **Cách sửa**: đổi thành "Quản lý kho" cho nhất quán với phần còn lại của hệ thống.
 - **Mức độ**: P2.
 
-### A9. [Đã đạt — không cần sửa, ghi nhận để không lặp lại nhầm]
+### A9. [Đã đạt — không cần sửa, ghi nhận để không lặp lại nhầm] ✅ XÁC NHẬN LẠI (agent NHÓM A) — vẫn đúng, không cần sửa
 
 - Không còn `window.confirm`/`window.prompt`/`window.alert` nào trong `apps/web/src` (grep xác nhận 0
   kết quả) — đã chuyển hoàn toàn sang `ConfirmDialog`/`useConfirm`/`usePrompt`.
@@ -295,7 +317,7 @@
 - Dialog "Thêm linh kiện vào BOM" (2 trường) và Dialog xác nhận (`ConfirmDialog`) đều ĐÚNG chuẩn N6 —
   không cần đổi.
 
-### A11. [P1 — xác nhận qua 2 agent độc lập, nhiều file] Breadcrumb mobile "Trang chủ" vs desktop "Tổng quan"
+### A11. [P1 — xác nhận qua 2 agent độc lập, nhiều file] Breadcrumb mobile "Trang chủ" vs desktop "Tổng quan" ⏭ NGOÀI PHẠM VI NHÓM A (sửa từng page.tsx)
 
 - **Vấn đề**: `apps/web/src/lib/breadcrumb-items.ts` đã chuẩn hoá `ROOT_LABEL = "Tổng quan"` dùng cho
   breadcrumb TopBar (desktop). Nhưng NHIỀU trang tự dựng 1 `<Breadcrumb>` RIÊNG chỉ hiện trên mobile
@@ -316,8 +338,11 @@
   1 component `Breadcrumb` cho cả 2 viewport để tránh lặp lỗi này ở trang mới.
 - **Mức độ**: P1 (nhất quán điều hướng — lộ rõ khi thao tác trên điện thoại, đúng loại "chi tiết nhỏ
   nhưng lặp lại nhiều nơi" mà yêu cầu kiểm kê đặc biệt nhấn mạnh).
+- **Xác nhận (agent NHÓM A)**: `lib/breadcrumb-items.ts` đã export đúng `ROOT_LABEL = "Tổng quan"`, không
+  cần sửa gì ở file helper dùng chung. Lỗi hoàn toàn nằm ở việc các page.tsx TỰ hard-code chuỗi
+  `"Trang chủ"` thay vì `import { ROOT_LABEL }` — sửa từng file đã liệt kê ở trên, xem "Việc cho nhóm trang".
 
-### A12. [P1 — SHARED, xác nhận qua agent C] 3 kiểu "segmented control" dùng màu active khác nhau
+### A12. [P1 — SHARED, xác nhận qua agent C] 3 kiểu "segmented control" dùng màu active khác nhau ✅ ĐÃ SỬA PHẦN DÙNG CHUNG — commit `7f8a3bc`
 
 - **Vấn đề**: Cùng là segmented control (N7) nhưng 3 cách tô màu mục đang chọn khác nhau tồn tại song
   song, thậm chí trong CÙNG 1 hub Thu mua→Tài chính: (a) nền đen/zinc-900
@@ -328,8 +353,15 @@
   `APPLE_DESIGN_SYSTEM.md`), chốt 1 màu active DUY NHẤT (đề xuất: nền đen/zinc-900 — đã là mẫu phổ biến
   nhất ở BOM List/PO/Suppliers) rồi thay dần các nơi còn lại.
 - **Mức độ**: P1.
+- **Đã làm (agent NHÓM A)**: `components/ui/tabs.tsx` (`TabsList`/`TabsTrigger` `variant="segmented"`) —
+  ĐÂY LÀ component dùng chung DUY NHẤT hiện có cho pattern này; đã chốt màu active = nền đen/zinc-900 +
+  chữ trắng (dark: đảo ngược zinc-100/zinc-900), khớp mẫu phổ biến nhất. `PRTab.tsx` (Đề xuất vật tư) là
+  consumer duy nhất hiện tại — tự động ăn theo màu mới, đã verify computed style đúng ở cả 2 theme. 5 file
+  còn lại (`POTab.tsx`, `SuppliersTab.tsx`, `OverviewTab.tsx`, `CashbookTab.tsx`, `ReceivablesTab.tsx`) TỰ
+  VẼ nút riêng, KHÔNG dùng `Tabs`/`TabsList` — ngoài phạm vi sửa trực tiếp ở đây (page-specific), xem
+  "Việc cho nhóm trang" để migrate sang dùng chung.
 
-### A13. [P1 — SHARED, xác nhận qua agent G1] ConfirmDialog gõ "XOA" cho hành động CÓ THỂ hồi phục
+### A13. [P1 — SHARED, xác nhận qua agent G1] ConfirmDialog gõ "XOA" cho hành động CÓ THỂ hồi phục ✅ ĐÃ CẢNH BÁO JSDoc — commit `18f3581`
 
 - **Vấn đề**: `components/ui/dialog.tsx:154` đặt mặc định `confirmText = "XOA"` cho typed-confirm. Hành
   động "Vô hiệu hoá user" (`app/(app)/admin/users/[id]/page.tsx:433-438`) — một hành động REVERSIBLE (mô
@@ -339,8 +371,13 @@
 - **Cách sửa**: chỉ dùng typed-confirm "XOA" cho hành động xoá vĩnh viễn thật sự; hành động reversible
   (vô hiệu hoá, khoá tạm) nên dùng nút xác nhận thường hoặc từ khoá khác phù hợp hơn (VD gõ tên user).
 - **Mức độ**: P1.
+- **Đã làm (agent NHÓM A)**: thêm JSDoc cảnh báo ngay tại `DialogConfirmProps.confirmText`
+  (`components/ui/dialog.tsx`) và `ConfirmDialogProps.typeToConfirm` (`components/ui/confirm-dialog.tsx`) —
+  chỉ dùng "XOA" cho hành động xoá vĩnh viễn. Việc sửa chỗ gọi cụ thể
+  (`admin/users/[id]/page.tsx:433-438` — đổi confirmText hoặc bỏ typeToConfirm cho hành động "Vô hiệu hoá
+  user") thuộc trang cụ thể, ngoài phạm vi — xem "Việc cho nhóm trang".
 
-### A14. [P1 — SHARED, xác nhận qua agent G1] Rò rỉ enum/tên trường kỹ thuật thô ra UI
+### A14. [P1 — SHARED, xác nhận qua agent G1] Rò rỉ enum/tên trường kỹ thuật thô ra UI ✅ ĐÃ SỬA FALLBACK DÙNG CHUNG — commit `deccf77`
 
 - **Vấn đề**: Khi danh sách nhãn dịch (`SORT_OPTIONS_BY_ROLE`, hoặc tương tự) THIẾU 1 entry, code fallback
   về hiện thẳng key kỹ thuật thô (VD "PRODUCTION_QTY_SCRAP" thay vì "Phế phẩm") — đây là lớp lỗi
@@ -353,8 +390,13 @@
   trung tính an toàn (VD "(chưa đặt tên)") thay vì render trực tiếp key kỹ thuật, để lỗi tương lai không
   lộ ra là dòng CHỮ HOA khó hiểu.
 - **Mức độ**: P0 tại nơi đã xác nhận qua ảnh (department report), P1 nếu là rủi ro tiềm ẩn/pattern.
+- **Đã làm (agent NHÓM A)**: `actionLabel()` (`lib/status.ts`) và `auditObjectLabel()`
+  (`lib/audit-scope.ts`) — thiếu entry trong bảng nhãn giờ dùng `prettifyUnknownCode()` (viết hoa chữ đầu
+  câu, bỏ gạch dưới) thay vì render thẳng key thô. Có vitest (`status.test.ts`). Trường hợp CỤ THỂ đã xác
+  nhận (`department/page.tsx:269-289` thiếu nhãn "production_qty_scrap"; `employee-productivity/page.tsx:
+  478,481` CÓ helper nhưng quên gọi) vẫn cần sửa tại trang — xem "Việc cho nhóm trang".
 
-### A15. [P2 — SHARED] "Export Excel"/English leftover rải rác dù tổng thể đã Việt hoá tốt
+### A15. [P2 — SHARED] "Export Excel"/English leftover rải rác dù tổng thể đã Việt hoá tốt ⏭ NGOÀI PHẠM VI NHÓM A (rải rác trang + 1 chỗ API)
 
 - Đã xác nhận thêm vài chỗ tiếng Anh sót cụ thể (ngoài phạm vi "sạch hoàn toàn" ghi ở A9): nút
   "Export Excel" ở `admin/reports/employee-productivity/page.tsx:102` (nơi khác cùng module dùng
@@ -366,7 +408,7 @@
   `admin/users/page.tsx:28-39` đã có nhãn Việt hoá đầy đủ nhưng không tái sử dụng).
 - **Mức độ**: P2 (rải rác, sửa từng chỗ khi chạm file, không cấp thiết).
 
-### A16. [P1 — SHARED] Bảng ≥5 cột ẩn hẳn dữ liệu quan trọng trên mobile thay vì chuyển card-list
+### A16. [P1 — SHARED] Bảng ≥5 cột ẩn hẳn dữ liệu quan trọng trên mobile thay vì chuyển card-list ⏭ NGOÀI PHẠM VI NHÓM A (rework từng trang admin)
 
 - **Vấn đề mở rộng của N9**: một số bảng không tràn/cắt chữ (đã dùng `hidden md:block`/`md:flex` để ẩn
   cột thay vì để vỡ layout) NHƯNG hệ quả là MẤT HẲN thông tin quan trọng trên mobile thay vì hiện dưới
@@ -381,7 +423,7 @@
   thay vì `hidden md:block` cắt bớt cột.
 - **Mức độ**: P1 (mất chức năng, không chỉ mất thẩm mỹ).
 
-### A17. [P0 — bẫy toàn hệ thống, xác nhận qua agent G2] Global CSS `h1..h6 dark:text-zinc-50` ghi đè text màu cứng không có biến thể `dark:`
+### A17. [P0 — bẫy toàn hệ thống, xác nhận qua agent G2] Global CSS `h1..h6 dark:text-zinc-50` ghi đè text màu cứng không có biến thể `dark:` ✅ ĐÃ SỬA — commit `a823db7`
 
 - **Vấn đề**: `apps/web/src/app/globals.css:197-205` có rule toàn cục `h1,h2,…,h6 { @apply text-zinc-900
   … dark:text-zinc-50 }`, compile ra selector `.dark h1` (specificity 0,1,1). BẤT KỲ trang nào tự đặt
@@ -406,7 +448,7 @@
   merge: "mọi `<h1>` custom màu phải tự khai `dark:` tường minh, không dựa vào global override".
 - **Mức độ**: P0 (mất thông tin hoàn toàn ở dark mode, xảy ra ngay tại trang lỗi mà user dễ gặp).
 
-### A18. [P1 — phát hiện MỚI] Trang `/login` tràn ngang ~128px do khối trang trí thiếu `overflow-hidden`
+### A18. [P1 — phát hiện MỚI] Trang `/login` tràn ngang ~128px do khối trang trí thiếu `overflow-hidden` ✅ ĐÃ SỬA — commit `a2d90bf`
 
 - **Vấn đề**: Ảnh `G/login__desktop-light.png`/`__desktop-dark.png` có kích thước THẬT 1568×900 thay vì
   1440×900 như mọi trang khác trong bộ ảnh (Playwright `fullPage` chụp theo `scrollWidth` thật của
@@ -424,13 +466,68 @@
 - **Mức độ**: P1 (trang ĐẦU TIÊN mọi user nhìn thấy, lỗi tràn ngang dễ bị đánh giá là "web vỡ" ngay từ
   ấn tượng đầu, dù không chặn chức năng).
 
-### A10. [P2] Ctrl+K mới search điều hướng, chưa search nội dung nghiệp vụ
+### A10. [P2] Ctrl+K mới search điều hướng, chưa search nội dung nghiệp vụ ⏭ BACKLOG — không xử lý đợt NHÓM A (không phải lỗi hồi quy)
 
 - **Xác nhận qua ảnh** `interactions/01-cmdk-palette.png`: input để trống hiện đúng 7 mục điều hướng
   (Tổng quan, Bộ phận Thiết kế, Đề xuất vật tư, Bộ phận Gia công, Bảng sản xuất (QC), Bộ phận Thu mua,
   Bộ phận Kho, Quản trị) — CHƯA thử gõ mã PO/BOM để xác nhận có search nội dung hay không (đã nêu trong
   design system là backlog V4.4, không phải lỗi mới).
 - **Mức độ**: P2 (backlog, không phải lỗi hồi quy).
+
+---
+
+## 2.5. Việc cho nhóm trang (agent NHÓM B–G) — phát sinh từ đợt sửa NHÓM A
+
+> Agent NHÓM A (component dùng chung) đã sửa xong phần helper/component dùng chung ở §2 (xem "✅ ĐÃ SỬA"
+> ở từng mục). Các việc dưới đây CẦN SỬA TỪNG TRANG — ngoài phạm vi agent NHÓM A ("KHÔNG sửa từng trang" —
+> xem đầu prompt) — liệt kê lại đây để nhóm trang không phải đọc lại toàn bộ §2.
+
+1. **[A5, P0 — CẦN AGENT BACKEND/API]** `app/api/dashboard/action-items/route.ts:52-58` — mở rộng điều
+   kiện PR thành `status IN ('SUBMITTED','DEPT_APPROVED')`; dài hạn gộp thêm BBGH/ISR chờ duyệt vào cùng
+   widget "Cần xử lý". Đây là sửa logic nghiệp vụ/API, KHÔNG phải UI thuần — không thuộc agent UI nào,
+   cần agent backend hoặc chủ trì tính năng Dashboard.
+2. **[A7, P1 — Kho]** `components/warehouse/BinActions.tsx:869,881` — "Bin đích" → "Vị trí đích"/"Ô đích";
+   "Thêm hàng vào bin" → "Thêm hàng vào ô/kệ". Grep thêm `"AVAILABLE"` trong
+   `apps/web/src/components/warehouse/` để định vị badge trạng thái tồn tiếng Anh, đổi qua `STATUS_DEFS`
+   phù hợp trong `lib/status.ts` (đã có sẵn, không cần thêm domain mới).
+3. **[A8, P2 — Kho]** Grep `"Quản lí"` trong `app/(app)/warehouse/page.tsx` hoặc
+   `components/warehouse/WarehouseTabsNav.tsx` → đổi thành "Quản lý kho".
+4. **[A11, P1 — nhiều nhóm]** Import `ROOT_LABEL` từ `lib/breadcrumb-items.ts` thay chuỗi cứng
+   `"Trang chủ"` ở: `app/(app)/suppliers/new/page.tsx:22`, `app/(app)/suppliers/[id]/page.tsx:131`,
+   `app/(app)/admin/users/new/page.tsx:110`, `app/(app)/admin/reports/department/page.tsx:80`,
+   `app/(app)/admin/settings/page.tsx:37`, `app/(app)/admin/reports/employee-productivity/page.tsx:87`,
+   `app/(app)/items/import/` (xác minh dòng cụ thể khi sửa).
+5. **[A12, P1 — Thu mua/Tài chính]** Migrate `POTab.tsx:210`, `SuppliersTab.tsx:243` (tự vẽ nền đen —
+   gần đúng chuẩn, có thể giữ tạm hoặc đổi sang component chung), `OverviewTab.tsx:76-96` (trắng-trên-xám,
+   LỆCH chuẩn), `CashbookTab.tsx:270`, `ReceivablesTab.tsx:72-92` (indigo đặc, LỆCH chuẩn) sang dùng
+   `<Tabs><TabsList variant="segmented"><TabsTrigger>` (`components/ui/tabs.tsx`) — tự động ăn theo màu
+   active chuẩn (đen/zinc-900) đã chốt, không cần tự set màu.
+6. **[A13, P1 — Quản trị]** `app/(app)/admin/users/[id]/page.tsx:433-438` — hành động "Vô hiệu hoá user"
+   (reversible) đang dùng `typeToConfirm`/`confirmText` mặc định "XOA" — đổi sang không dùng typed-confirm
+   (chỉ `tone="danger"` + nút xác nhận thường) hoặc đổi confirmText phù hợp hơn (VD tên user).
+7. **[A14, P1 — Quản trị]** `app/(app)/admin/reports/department/page.tsx:269-289` — bổ sung nhãn Việt cho
+   metric `production_qty_scrap` ("Phế phẩm") vào bảng nhãn role operator. `app/(app)/admin/reports/
+   employee-productivity/page.tsx:478,481` — gọi `actionLabel()`/`auditObjectLabel()` (đã có sẵn trong
+   `lib/status.ts`/`lib/audit-scope.ts`) thay vì hiện thẳng "LOGIN"/"session" thô.
+8. **[A15, P2 — Quản trị]** `admin/reports/employee-productivity/page.tsx:102` — "Export Excel" →
+   "Xuất Excel" (khớp `admin/audit/page.tsx:179`); `admin/page.tsx:67` — "audit log" → tiếng Việt;
+   `app/api/admin/users/[id]/reset-password/route.ts:87` — log message tiếng Anh hiện trong Nhật ký (cần
+   sửa ở API, không phải UI thuần); `components/admin/UserForm.tsx:24-58` — dùng lại nhãn vai trò tiếng
+   Việt đã có ở `admin/users/page.tsx:28-39` thay vì tên tiếng Anh.
+9. **[A16, P1 — Quản trị]** Chuyển bảng ẩn cột mobile sang card-list thật (mọi trường xuất hiện, chỉ đổi bố
+   cục — mẫu chuẩn: `admin/settings/sessions`): `admin/audit/page.tsx:29` + `components/admin/
+   AuditRow.tsx:106-130`; `admin/users/page.tsx:224-232,292-319`; `admin/reports/department/
+   page.tsx:269-289`.
+10. **[A3, P2 — mọi nhóm]** Thay `.toLocaleString()`/`.toLocaleDateString()`/`.toLocaleTimeString()` cục bộ
+    bằng `formatMoney`/`formatMoneyShort`/`formatQty`/`formatNumber`/`formatPercent`/`formatDate*` của
+    `lib/format.ts` — tập trung ở `components/dashboard/*`, `components/finance/*`, `components/
+    warehouse/*`, `components/engineering/*` (106 chỗ, 47 file). Ưu tiên trước (nhạy cảm logic "quá hạn"):
+    `components/layout/NotificationBell.tsx:336`, `components/orders/ProductionOverviewCards.tsx:49`,
+    `components/auth/SessionExpiryGuard.tsx:31`, `components/finance/CashflowChart.tsx:54`.
+11. **[A4, P2 — mọi nhóm có input ngày]** Cân nhắc thay `<input type="date">` bằng `DateField`
+    (`components/ui/date-field.tsx`, MỚI) ở các nơi cần hiển thị dd/mm/yyyy nhất quán: bộ lọc "Từ/Đến"
+    Tài chính · Tổng quan (`OverviewTab.tsx`), `PRTab.tsx:178,188`, `material-requests/page.tsx:265,275`.
+    Không bắt buộc — input date cũ vẫn hoạt động bình thường, đây là nâng cấp UX tuỳ chọn.
 
 ---
 

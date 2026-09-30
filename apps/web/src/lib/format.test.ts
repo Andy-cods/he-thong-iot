@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  autoFormatVnDateInput,
   formatDate,
   formatDateTime,
   formatMoney,
@@ -7,6 +8,7 @@ import {
   formatPercent,
   formatQty,
   formatRelative,
+  parseVnDate,
   toLocalDateInput,
 } from "./format";
 import { formatVndFull } from "./finance";
@@ -120,5 +122,38 @@ describe("formatRelative", () => {
     expect(formatRelative("2026-09-27T09:59:40Z", { now, justNow: "vài giây trước" })).toBe(
       "vài giây trước",
     );
+  });
+});
+
+// V4.4 A4 — DateField (components/ui/date-field.tsx): ô nhập dd/mm/yyyy gõ
+// tay thay `<input type="date">` native (placeholder mm/dd/yyyy ở máy tiếng Anh).
+describe("parseVnDate", () => {
+  it("dd/MM/yyyy hợp lệ → ISO yyyy-MM-dd", () => {
+    expect(parseVnDate("27/09/2026")).toBe("2026-09-27");
+    expect(parseVnDate("01/01/2000")).toBe("2000-01-01");
+  });
+  it("ngày không tồn tại → null (31/02, 00/13...)", () => {
+    expect(parseVnDate("31/02/2026")).toBeNull();
+    expect(parseVnDate("29/02/2027")).toBeNull(); // 2027 không nhuận
+    expect(parseVnDate("29/02/2028")).toBe("2028-02-29"); // 2028 nhuận
+    expect(parseVnDate("00/01/2026")).toBeNull();
+    expect(parseVnDate("01/13/2026")).toBeNull();
+  });
+  it("sai định dạng / rỗng / mm-dd-yyyy Mỹ → null", () => {
+    expect(parseVnDate("")).toBeNull();
+    expect(parseVnDate("2026-09-27")).toBeNull();
+    expect(parseVnDate("9/27/2026")).toBeNull();
+    expect(parseVnDate("27-09-2026")).toBeNull();
+  });
+});
+
+describe("autoFormatVnDateInput", () => {
+  it("tự chèn / khi gõ số liên tục", () => {
+    expect(autoFormatVnDateInput("27092026")).toBe("27/09/2026");
+    expect(autoFormatVnDateInput("2709")).toBe("27/09");
+    expect(autoFormatVnDateInput("27")).toBe("27");
+  });
+  it("bỏ ký tự không phải số, giới hạn 8 chữ số", () => {
+    expect(autoFormatVnDateInput("27/09/2026abc99")).toBe("27/09/2026");
   });
 });

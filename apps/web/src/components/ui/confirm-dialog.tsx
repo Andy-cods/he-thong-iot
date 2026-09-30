@@ -54,7 +54,14 @@ export interface ConfirmDialogProps {
   cancelLabel?: string;
   tone?: ConfirmTone;
   loading?: boolean;
-  /** Bắt gõ đúng chuỗi mới bật nút xác nhận. */
+  /**
+   * Bắt gõ đúng chuỗi mới bật nút xác nhận.
+   *
+   * V4.4 A13 — chỉ dùng cho hành động XOÁ VĨNH VIỄN/không thể hồi phục (VD
+   * gõ "XOA"). Hành động có thể hồi phục (vô hiệu hoá, khoá tạm…) không nên
+   * bắt gõ "XOA" — gây hiểu nhầm mức độ nghiêm trọng; bỏ prop này và dùng
+   * `tone="danger"` với nút xác nhận thường là đủ.
+   */
   typeToConfirm?: string;
   /** Tắt nút xác nhận (VD ô lý do chưa hợp lệ). */
   confirmDisabled?: boolean;

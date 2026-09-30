@@ -32,7 +32,11 @@ export default async function AdminLayout({
     .where(eq(userRole.userId, payload.sub));
 
   const isAdmin = roles.some((r) => r.code === "admin");
-  if (!isAdmin) redirect("/");
+  // V4.4 A6 — trước redirect("/") TRẦN, bỏ qua cơ chế toast "không có quyền"
+  // mà (app)/layout.tsx dùng cho mọi route-guard khác (route-guard.ts không
+  // phủ /admin/* vì layout này tự kiểm role riêng) → im lặng y hệt lỗi đã vá.
+  // Thêm ?denied=1 để AppShell (components/layout/AppShell.tsx) hiện toast.
+  if (!isAdmin) redirect("/?denied=1");
 
   // Layout chỉ làm role-guard. Mỗi page tự quyết định:
   //   - Page mới (V1.9+): dùng <AdminPageShell /> full-bleed (handle gradient + nav).

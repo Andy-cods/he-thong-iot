@@ -93,7 +93,11 @@ export const TabsTrigger = React.forwardRef<
               "inline-flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-md px-3 text-sm font-medium text-zinc-600 transition-all duration-150 ease-out dark:text-zinc-300",
               "hover:text-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 focus-visible:outline-offset-1 dark:hover:text-zinc-50",
               "disabled:pointer-events-none disabled:opacity-50",
-              "data-[state=active]:bg-white data-[state=active]:text-zinc-900 data-[state=active]:shadow-xs dark:data-[state=active]:bg-zinc-700 dark:data-[state=active]:text-zinc-50",
+              // V4.4 A12 — chốt 1 màu active DUY NHẤT cho mọi segmented control
+              // (nền đen/zinc-900) khớp mẫu phổ biến nhất (BOM List/PO/NCC),
+              // thay vì trắng-trên-xám kiểu iOS trước đây (3 kiểu tô màu khác
+              // nhau cùng tồn tại — xem UI_INVENTORY.md §A12).
+              "data-[state=active]:bg-zinc-900 data-[state=active]:text-white data-[state=active]:shadow-xs dark:data-[state=active]:bg-zinc-100 dark:data-[state=active]:text-zinc-900",
             )
           : cn(
               "inline-flex h-8 shrink-0 items-center justify-center whitespace-nowrap border-b-2 border-transparent px-3 text-base font-medium text-zinc-500 transition-colors duration-100 ease-out dark:text-zinc-400",

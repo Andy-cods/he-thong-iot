@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 import { TopBar } from "@/components/layout/TopBar";
 import { CommandPalette } from "@/components/command/CommandPalette";
 import {
@@ -63,8 +63,25 @@ export function AppShell({
 }: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname() ?? "/";
+  const searchParams = useSearchParams();
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [paletteOpen, setPaletteOpen] = React.useState(false);
+
+  // V4.4 A6 — layout.tsx redirect("/?denied=1") khi route-guard chặn quyền
+  // trước đây HOÀN TOÀN IM LẶNG (không toast/banner nào đọc query này). Đọc
+  // ở đây (AppShell bọc mọi trang (app)/*) thay vì sửa từng page.tsx.
+  const deniedHandledRef = React.useRef(false);
+  React.useEffect(() => {
+    if (searchParams?.get("denied") !== "1" || deniedHandledRef.current) return;
+    deniedHandledRef.current = true;
+    toast.error("Bạn không có quyền truy cập trang đó", {
+      description: "Đã tự động chuyển về Tổng quan.",
+    });
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("denied");
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }, [searchParams, pathname, router]);
 
   const roleKey = user.role ?? "";
   const userRoles = React.useMemo(

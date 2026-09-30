@@ -194,6 +194,19 @@
     @apply min-h-screen bg-zinc-50 text-zinc-900 text-base leading-[1.4] tracking-[-0.01em] dark:bg-zinc-950 dark:text-zinc-50;
   }
 
+  /* V4.4 A17 — BẪY DARK MODE (P0, đã vá 2 trang lỗi liên quan — xem
+   * plans/v4.4-ui/UI_INVENTORY.md §A17): rule này ép MỌI <h1..h6> sang
+   * `dark:text-zinc-50` bất kể trang có tự set `text-zinc-900` riêng hay
+   * không — vì selector phần tử `[data-theme=dark] h1` (0,1,1) LUÔN thắng 1
+   * utility class không có cặp `dark:` (0,1,0). Hệ quả: nếu trang bọc
+   * heading trong 1 khối nền KHÔNG có `dark:bg-*` tương ứng (VD còn
+   * `bg-zinc-50`/`bg-white` trần), chữ sẽ thành TRẮNG TRÊN NỀN SÁNG ở dark
+   * mode → mất tương phản hoàn toàn (đã xảy ra ở `app/not-found.tsx` và
+   * `app/(app)/not-found.tsx`). KHÔNG xoá/đổi rule này (nó đúng chức năng
+   * mặc định) — mọi `<h1>`/khối chứa `<h1>` MỚI phải tự khai báo tường minh
+   * `dark:text-*` VÀ `dark:bg-*` cho nền bao quanh, không dựa ngầm vào rule
+   * global này để "tự động đúng".
+   */
   h1,
   h2,
   h3,
