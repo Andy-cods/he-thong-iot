@@ -82,6 +82,9 @@ export const STATUS_DEFS = {
     APPROVED: d("Đã duyệt", "success"),
     CONVERTED: d("Đã chuyển PO", "success"),
     REJECTED: d("Từ chối", "danger"),
+    // V4.4 (Việc 4) — người tạo/admin tự huỷ phiếu (khác REJECTED — bị người
+    // duyệt từ chối). Dùng chung định nghĩa "Đã huỷ" quy ước Đợt 6.
+    CANCELLED,
   },
   /** Đơn đặt hàng (purchase_order_status). */
   po: {
@@ -374,6 +377,7 @@ export const NOTIF_TYPE_LABELS: Record<string, string> = {
   PR_DEPT_APPROVED: "Kho đã duyệt",
   PR_APPROVED: "Đề xuất được duyệt",
   PR_REJECTED: "Đề xuất bị từ chối",
+  PR_CANCELLED: "Đề xuất đã huỷ",
   PR_PENDING_REMINDER: "Nhắc duyệt",
   PR_GOODS_ISSUED: "Vật tư đã xuất kho",
   PR_COMPLETED: "Đề xuất hoàn tất",
