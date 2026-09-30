@@ -31,6 +31,7 @@ export const NOTIFICATION_EVENT_TYPES = [
   "PR_PENDING_REMINDER", // worker prReminderScan.ts insert trực tiếp
   "PR_GOODS_ISSUED",
   "PR_COMPLETED",
+  "PR_APPROVED_NO_PO_REMINDER", // worker prApprovedNoPoScan.ts insert trực tiếp
   // Đơn mua hàng (PO)
   "PO_CREATED_FROM_PR",
   "PO_SUBCONTRACT_DRAFT",
@@ -84,6 +85,15 @@ export type NotificationEventType = (typeof NOTIFICATION_EVENT_TYPES)[number];
 export type NotificationSeverity = "info" | "success" | "warning" | "error";
 
 /**
+ * Nhóm hiển thị chuông/trang thông báo (V4.4 notify):
+ *   - "action"   — Cần bạn duyệt: người nhận phải làm gì đó tiếp theo.
+ *   - "reminder" — Nhắc hạn: worker phát định kỳ (PR_PENDING_REMINDER,
+ *     PR_APPROVED_NO_PO_REMINDER, FIN_INVOICE_*, FIN_RECEIVABLE_OVERDUE).
+ *   - "update"   — Cập nhật: chỉ để biết tiến độ, không cần thao tác. Mặc định.
+ */
+export type NotifyCategory = "action" | "update" | "reminder";
+
+/**
  * Email CHỈ cho việc người nhận phải DUYỆT (template email = "[Cần duyệt]").
  * Ngoài whitelist này còn cần target bật `email: true` — vd PR_DEPT_APPROVED
  * gửi email cho người duyệt cuối nhưng KHÔNG cho người lập (chỉ báo tiến độ).
@@ -99,6 +109,87 @@ export const EMAIL_EVENTS: ReadonlySet<NotificationEventType> = new Set<Notifica
   "DELIVERY_NOTE_CREATED",
 ]);
 
+/**
+ * Nhóm hiển thị chuông/trang thông báo THEO event_type — coarse-grained, suy
+ * luận từ TÊN sự kiện (không lưu cột riêng trong DB — xem migration 0070 §ghi
+ * chú vận hành: bảng `notification` do `hethong_app` sở hữu, role vận hành/
+ * staging thường không có quyền ALTER TABLE nên tránh yêu cầu DDL). Hạn chế
+ * đã biết: 1 event có thể gửi cho nhiều vai trò với sắc thái khác nhau (VD
+ * PR_APPROVED báo Thu mua "cần tạo PO" — action — lẫn người lập "chỉ để biết"
+ * — update) nhưng dùng chung 1 nhóm cho cả 2 vì suy theo event_type. Chấp
+ * nhận đánh đổi độ chính xác lấy KISS (không cần cột DB mới, không cần DDL
+ * trên bảng có sẵn) — xem NOTIFY_MATRIX.md mục "Hạn chế đã biết".
+ */
+export function categoryForEventType(eventType: string): NotifyCategory {
+  if (REMINDER_EVENT_TYPES.has(eventType as NotificationEventType)) return "reminder";
+  if (ACTION_EVENT_TYPES.has(eventType as NotificationEventType)) return "action";
+  return "update";
+}
+
+/** Worker phát định kỳ (không qua NotifyPlan) — luôn là "Nhắc hạn". */
+export const REMINDER_EVENT_TYPES: ReadonlySet<NotificationEventType> = new Set<NotificationEventType>([
+  "PR_PENDING_REMINDER",
+  "PR_APPROVED_NO_PO_REMINDER",
+  "FIN_INVOICE_DUE_SOON",
+  "FIN_INVOICE_OVERDUE",
+  "FIN_RECEIVABLE_OVERDUE",
+]);
+
+/**
+ * Event mà PHẦN LỚN/TOÀN BỘ người nhận cần làm gì đó tiếp theo → "Cần bạn
+ * duyệt". Khớp với các target đã gắn `category: "action"` trong các hàm
+ * planXxx() bên dưới (xem test notification-plans.test.ts đối chiếu 2 nguồn).
+ */
+export const ACTION_EVENT_TYPES: ReadonlySet<NotificationEventType> = new Set<NotificationEventType>([
+  "PR_SUBMITTED",
+  "PR_DEPT_APPROVED",
+  "PR_APPROVED",
+  "PO_CREATED_FROM_PR",
+  "PO_SUBCONTRACT_DRAFT",
+  "PO_APPROVAL_REQUESTED",
+  "QC_RECEIPT_PENDING",
+  "PO_INVOICE_DRAFT",
+  "WO_REQUEST_SUBMITTED",
+  "ISSUE_REQUEST_NEW",
+  "DELIVERY_NOTE_CREATED",
+  "MATERIAL_REQUEST_NEW",
+  "PO_RECEIVED_FULL",
+]);
+
+/**
+ * Khi eventType này phát ra, các thông báo "chờ xử lý" CŨ hơn của CÙNG chứng
+ * từ (entityId) — mọi người nhận — coi như hết hiệu lực (chứng từ đã qua bước
+ * đó) → tự động đánh dấu đã đọc. Sửa đúng gốc "hộp thư dồn" trên prod (VD PR
+ * đã được Kho duyệt bước 2 nhưng PR_SUBMITTED/PR_PENDING_REMINDER cũ vẫn nằm
+ * chưa đọc trong hộp thư Kho/Giám đốc dù họ đã xử lý). Thuần — test được
+ * không cần DB (notification-plans.test.ts).
+ */
+export const RESOLVES_STALE: Partial<
+  Record<NotificationEventType, readonly NotificationEventType[]>
+> = {
+  PR_DEPT_APPROVED: ["PR_SUBMITTED", "PR_PENDING_REMINDER"],
+  PR_APPROVED: ["PR_SUBMITTED", "PR_DEPT_APPROVED", "PR_PENDING_REMINDER"],
+  PR_REJECTED: ["PR_SUBMITTED", "PR_DEPT_APPROVED", "PR_PENDING_REMINDER"],
+  PO_CREATED_FROM_PR: ["PR_APPROVED_NO_PO_REMINDER"],
+  PO_APPROVED: ["PO_APPROVAL_REQUESTED", "PO_SUBCONTRACT_DRAFT"],
+  PO_APPROVAL_REJECTED: ["PO_APPROVAL_REQUESTED", "PO_SUBCONTRACT_DRAFT"],
+  PO_CANCELLED: ["PO_APPROVAL_REQUESTED", "PO_SUBCONTRACT_DRAFT"],
+  PO_CLOSED: ["PO_APPROVAL_REQUESTED"],
+  PO_INVOICE_CONFIRMED: ["PO_INVOICE_DRAFT"],
+  WO_APPROVED: ["WO_REQUEST_SUBMITTED"],
+  WO_REJECTED: ["WO_REQUEST_SUBMITTED"],
+  ISSUE_REQUEST_APPROVED: ["ISSUE_REQUEST_NEW"],
+  ISSUE_REQUEST_REJECTED: ["ISSUE_REQUEST_NEW"],
+  DELIVERY_NOTE_CONFIRMED: ["DELIVERY_NOTE_CREATED"],
+  DELIVERY_NOTE_REJECTED: ["DELIVERY_NOTE_CREATED"],
+  MATERIAL_REQUEST_PICKING: ["MATERIAL_REQUEST_NEW"],
+  MATERIAL_REQUEST_CANCELLED: [
+    "MATERIAL_REQUEST_NEW",
+    "MATERIAL_REQUEST_PICKING",
+    "MATERIAL_REQUEST_READY",
+  ],
+};
+
 export interface NotifyContent {
   title: string;
   message?: string;
@@ -107,6 +198,13 @@ export interface NotifyContent {
   severity?: NotificationSeverity;
   /** Gửi email (chỉ có tác dụng khi eventType thuộc EMAIL_EVENTS). */
   email?: boolean;
+  /** Nhóm hiển thị — mặc định "update" nếu không khai (xem NotifyCategory). */
+  category?: NotifyCategory;
+  /**
+   * Gửi kèm push đẩy (Web Push) qua lớp deliver() — CHỈ cho việc thật sự cần
+   * người nhận hành động (không push mọi cập nhật nhỏ). Mặc định false.
+   */
+  push?: boolean;
   /** Ghi đè entity của plan cho target này (vd PR vs PO). */
   entityType?: string;
   entityId?: string;
@@ -262,6 +360,7 @@ export interface PRCtx extends Actor {
 /** Bước 1 — người lập gửi phiếu → Kho (kiểm tồn + duyệt bước 2) + Giám đốc (duyệt nhanh). */
 export function planPRSubmitted(ctx: PRCtx): NotifyPlan {
   const link = [L.pr(ctx.prId)];
+  const who = ctx.actorUsername ?? "Người lập phiếu";
   return {
     eventType: "PR_SUBMITTED",
     entityType: "purchase_request",
@@ -271,20 +370,24 @@ export function planPRSubmitted(ctx: PRCtx): NotifyPlan {
     actorUsername: ctx.actorUsername,
     targets: [
       role("warehouse", {
-        title: `Cần kiểm tra tồn kho: ${ctx.prNo}`,
+        title: `${who} gửi đề xuất ${ctx.prNo} — cần kiểm tồn`,
         message: ctx.title
           ? `"${ctx.title}" — kiểm tra lượng tồn rồi duyệt`
           : "Kiểm tra lượng tồn thực tế rồi duyệt phiếu",
         links: link,
         severity: "warning",
         email: true,
+        category: "action",
+        push: true,
       }),
       role("admin", {
-        title: `Phiếu YCVT mới chờ duyệt: ${ctx.prNo}`,
+        title: `${who} gửi đề xuất ${ctx.prNo} — chờ duyệt`,
         message: ctx.title ? `"${ctx.title}" — bấm để duyệt nhanh` : "Bấm để xem và duyệt nhanh",
         links: link,
         severity: "info",
         email: true,
+        category: "action",
+        push: true,
       }),
     ],
   };
@@ -308,6 +411,8 @@ export function planPRDeptApproved(ctx: PRCtx): NotifyPlan {
           : "Kho đã kiểm tồn và duyệt — chờ duyệt cuối",
         links: link,
         email: true,
+        category: "action",
+        push: true,
       }),
       role("purchaser", {
         title: `${ctx.prNo} đã qua Kho — chờ duyệt cuối`,
@@ -316,6 +421,8 @@ export function planPRDeptApproved(ctx: PRCtx): NotifyPlan {
           : "Chờ Giám đốc/Thu mua duyệt cuối",
         links: link,
         email: true,
+        category: "action",
+        push: true,
       }),
       user(ctx.creatorUserId, PR_CREATOR_ROLES, {
         title: `${ctx.prNo} đã qua bước 2/3`,
@@ -345,6 +452,8 @@ export function planPRApproved(ctx: PRCtx): NotifyPlan {
           ? `"${ctx.title}" — mở phiếu và bấm “Tạo PO”.`
           : "Mở phiếu và bấm “Tạo PO”.",
         links: link,
+        category: "action",
+        push: true,
       }),
       user(ctx.creatorUserId, PR_CREATOR_ROLES, {
         title: `${ctx.prNo} đã được duyệt`,
@@ -437,6 +546,7 @@ export function planPOCreatedFromPR(
         title: `${ctx.poCount} PO nháp mới từ phiếu ${ctx.prNo}`,
         message: "Nhập/kiểm tra đơn giá rồi gửi Giám đốc duyệt trước khi gửi NCC.",
         links: [L.po(ctx.firstPoId), L.salesPo],
+        category: "action",
       }),
       user(ctx.prCreatorUserId, PR_CREATOR_ROLES, {
         title: `Phiếu ${ctx.prNo} đã được lập ${ctx.poCount} đơn mua hàng (PO)`,
@@ -463,16 +573,19 @@ export function planPOSubcontractDraft(
     actorUsername: ctx.actorUsername,
     targets: [
       role("purchaser", {
-        title: `Đơn gia công ngoài: ${ctx.poNo}`,
+        title: `Đơn gia công ngoài mới: ${ctx.poNo}`,
         message: `Linh kiện ${ctx.sku} SL ${ctx.qty}. Cần chốt đơn giá + trình duyệt.`,
         links: [L.po(ctx.poId), L.salesPo],
         email: true,
+        category: "action",
+        push: true,
       }),
     ],
     adminFallback: {
       title: `Đơn gia công ngoài: ${ctx.poNo}`,
       message: `Linh kiện ${ctx.sku} SL ${ctx.qty}. Cần chốt đơn giá + duyệt.`,
       links: [L.po(ctx.poId)],
+      category: "action",
     },
   };
 }
@@ -491,7 +604,7 @@ export function planPOApprovalRequested(
     actorUsername: ctx.actorUsername,
     targets: [
       role("admin", {
-        title: `PO chờ duyệt: ${ctx.poNo}`,
+        title: `${ctx.actorUsername ?? "Thu mua"} gửi duyệt PO ${ctx.poNo}`,
         message:
           total > 0
             ? `Giá trị ${vnd(total)} — mở PO để duyệt/từ chối.`
@@ -499,6 +612,8 @@ export function planPOApprovalRequested(
         links: [L.po(ctx.poId)],
         severity: "warning",
         email: true,
+        category: "action",
+        push: true,
       }),
     ],
   };
@@ -712,6 +827,7 @@ export function planPOReceivedFull(
         title: `PO ${ctx.poNo} đã nhận đủ — có thể tạo HĐ mua`,
         message: "Mở PO, mục Hoá đơn mua → tạo HĐ nháp, nhập số HĐ NCC rồi xác nhận ghi công nợ.",
         links: [L.poInvoice(ctx.poId)],
+        category: "action",
       }),
     ],
   };
@@ -809,6 +925,7 @@ export function planPOInvoiceDraft(
     title: `HĐ mua nháp từ ${ctx.poNo} chờ xác nhận`,
     message: `Tổng ${vnd(ctx.totalAmount)} — nhập số HĐ của NCC rồi “Xác nhận ghi công nợ”.`,
     links: [L.poInvoice(ctx.poId)],
+    category: "action",
   };
   return {
     eventType: "PO_INVOICE_DRAFT",
@@ -868,6 +985,8 @@ export function planReceiptQcPending(ctx: ReceiptQcCtx & { lineCount: number }):
           : "Hàng đang bị giữ (HOLD) cho tới khi QC kết luận Đạt.",
         links: [L.whQc],
         severity: "warning",
+        category: "action",
+        push: true,
       }),
     ],
   };
@@ -968,12 +1087,14 @@ const productLine = (ctx: WOCtx) =>
 /** Thiết kế gửi Yêu cầu SX → Gia công duyệt (cần hành động). */
 export function planWORequestSubmitted(ctx: WOCtx): NotifyPlan {
   const content: NotifyContent = {
-    title: `Yêu cầu sản xuất mới: ${ctx.woNo}`,
+    title: `${ctx.actorUsername ?? "Thiết kế"} gửi yêu cầu sản xuất ${ctx.woNo}`,
     message: productLine(ctx)
       ? `${productLine(ctx)} — chờ duyệt`
       : "Bộ phận Thiết kế gửi yêu cầu — chờ Gia công duyệt",
     links: woLinks(ctx.woId),
     email: true,
+    category: "action",
+    push: true,
   };
   return woPlan("WO_REQUEST_SUBMITTED", ctx, [role("operator", content)], {
     adminFallback: { ...content, email: false },
@@ -1085,9 +1206,10 @@ const mrPlan = (
 export function planMaterialRequestNew(ctx: MRCtx): NotifyPlan {
   return mrPlan("MATERIAL_REQUEST_NEW", ctx, [
     role("warehouse", {
-      title: `Yêu cầu vật tư: ${ctx.requestNo}`,
+      title: `${ctx.actorUsername ?? "Người lập phiếu"} yêu cầu vật tư ${ctx.requestNo}`,
       message: ctx.itemSummary ?? "Chờ Bộ phận Kho chuẩn bị",
       links: [L.mr(ctx.requestId), L.whOut],
+      category: "action",
     }),
   ]);
 }
@@ -1184,25 +1306,31 @@ export function planIssueRequestNew(ctx: ISRCtx): NotifyPlan {
     : ctx.totalQty
       ? `SL ${ctx.totalQty}`
       : "";
+  const who = ctx.actorUsername ?? "Người lập phiếu";
   const adminContent: NotifyContent = {
     title: directorOnly
-      ? `Xuất ${ctx.reason === "sales" ? "bán" : "trả NCC"} chờ Giám đốc duyệt: ${ctx.requestNo}`
-      : `Yêu cầu xuất kho: ${ctx.requestNo}`,
+      ? `${who} yêu cầu xuất ${ctx.reason === "sales" ? "bán" : "trả NCC"} ${ctx.requestNo} — chờ duyệt`
+      : `${who} yêu cầu xuất kho ${ctx.requestNo}`,
     message: detail || "Chờ duyệt xuất kho",
     links: [L.whOut],
     severity: directorOnly ? "warning" : "info",
     email: directorOnly,
+    category: "action",
+    push: directorOnly,
   };
   const targets: NotifyTarget[] = [];
   if (directorOnly) targets.push(role("admin", adminContent));
   targets.push(
     role("warehouse", {
-      title: `Yêu cầu xuất kho: ${ctx.requestNo}`,
+      title: `${who} yêu cầu xuất kho ${ctx.requestNo}`,
       message: directorOnly
         ? `${detail ? `${detail} · ` : ""}Xuất bán/trả NCC — chờ Giám đốc duyệt.`
         : detail || "Chờ duyệt xuất kho",
       links: [L.whOut],
       email: !directorOnly,
+      // directorOnly: Kho chỉ biết trước, chưa làm được gì tới khi Giám đốc duyệt.
+      category: directorOnly ? "update" : "action",
+      push: !directorOnly,
     }),
   );
   return {
@@ -1283,10 +1411,12 @@ const dnPlan = (
 export function planDeliveryNoteCreated(ctx: DeliveryNoteCtx): NotifyPlan {
   return dnPlan("DELIVERY_NOTE_CREATED", ctx, [
     role("admin", {
-      title: `Phiếu giao hàng ${ctx.noteNo} chờ duyệt`,
+      title: `${ctx.actorUsername ?? "Kho"} lập phiếu giao hàng ${ctx.noteNo} — chờ duyệt`,
       message: "Chỉ Giám đốc được phê duyệt phiếu giao hàng ra ngoài công ty.",
       links: [L.whDeliveryNote(ctx.deliveryNoteId)],
       email: true,
+      category: "action",
+      push: true,
     }),
   ]);
 }

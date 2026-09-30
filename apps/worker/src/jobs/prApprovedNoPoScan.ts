@@ -1,8 +1,9 @@
 import type { Job } from "bullmq";
-import { and, eq, gt, inArray, notInArray } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, notInArray } from "drizzle-orm";
 import { notification, purchaseOrder, purchaseRequest, role, userAccount, userRole } from "@iot/db/schema";
 import type { Role } from "@iot/shared";
 import { db } from "../db.js";
+import { daysSinceApproved } from "./reminderLogic.js";
 
 /**
  * V4.2 PROCUREMENT_WAREHOUSE.md P1-1 — "PR đã duyệt nhưng kẹt không lên PO".
@@ -129,20 +130,24 @@ export async function processPrApprovedNoPoScan(
 
     const prNo = pr.paperFormNo ?? pr.code;
     const approvedAt = pr.directorApprovedAt ?? pr.updatedAt;
-    const days = approvedAt
-      ? Math.floor((Date.now() - approvedAt.getTime()) / (24 * 60 * 60 * 1000))
-      : null;
+    const days = daysSinceApproved(approvedAt);
 
-    await db.insert(notification).values(
-      userIds.map((userId) => ({
-        recipientUser: userId,
-        recipientRole: null,
-        actorUserId: null,
-        actorUsername: null,
-        eventType: EVENT_TYPE,
-        entityType: "purchase_request",
-        entityId: pr.id,
-        entityCode: prNo,
+    // Chống trùng — xem comment tương đương trong prReminderScan.ts: mỗi
+    // người tối đa 1 dòng CHƯA ĐỌC / PR, nhắc lại chỉ cập nhật created_at.
+    for (const userId of userIds) {
+      const [existingUnread] = await db
+        .select({ id: notification.id })
+        .from(notification)
+        .where(
+          and(
+            eq(notification.recipientUser, userId),
+            eq(notification.eventType, EVENT_TYPE),
+            eq(notification.entityId, pr.id),
+            isNull(notification.readAt),
+          ),
+        )
+        .limit(1);
+      const values = {
         title: `${prNo} đã duyệt nhưng chưa lên PO`,
         message:
           days !== null
@@ -150,8 +155,26 @@ export async function processPrApprovedNoPoScan(
             : "Đã duyệt xong, chưa tạo Đơn hàng mua nào — bấm để xử lý.",
         link: `/procurement/purchase-requests/${pr.id}`,
         severity: "warning" as const,
-      })),
-    );
+      };
+      if (existingUnread) {
+        await db
+          .update(notification)
+          .set({ ...values, createdAt: new Date() })
+          .where(eq(notification.id, existingUnread.id));
+      } else {
+        await db.insert(notification).values({
+          recipientUser: userId,
+          recipientRole: null,
+          actorUserId: null,
+          actorUsername: null,
+          eventType: EVENT_TYPE,
+          entityType: "purchase_request",
+          entityId: pr.id,
+          entityCode: prNo,
+          ...values,
+        });
+      }
+    }
     reminded++;
   }
 

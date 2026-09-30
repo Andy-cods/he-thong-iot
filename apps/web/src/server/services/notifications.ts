@@ -1,12 +1,15 @@
-import { and, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { notification, role, userAccount, userRole } from "@iot/db/schema";
 import type { Role } from "@iot/shared";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { enqueueEmailSend } from "@/server/services/emailQueue";
+import { deliverPush } from "@/server/services/push";
 import {
+  ACTION_EVENT_TYPES,
   EMAIL_EVENTS,
+  RESOLVES_STALE,
   assignRecipients,
   planDeliveryNoteConfirmed,
   planDeliveryNoteCreated,
@@ -83,7 +86,13 @@ interface EmitInput {
   link?: string | null;
   severity?: NotificationSeverity;
   email?: boolean;
+  /** Gửi kèm Web Push (chỉ việc thật sự cần hành động — xem notification-plans.ts). */
+  push?: boolean;
 }
+
+/** actor_username là varchar(64) — cắt phòng hờ tên hiển thị dài (hiếm với tên VN). */
+const truncateActorName = (s: string | null | undefined): string | null =>
+  s ? s.slice(0, 64) : null;
 
 /**
  * Email chỉ khi: MAIL_ENABLED + event thuộc EMAIL_EVENTS (việc cần DUYỆT) +
@@ -121,30 +130,108 @@ async function maybeEmail(notifId: string, input: EmitInput): Promise<void> {
   }
 }
 
+/**
+ * Chống trùng/nhắc dày: cùng người nhận + cùng eventType + cùng chứng từ mà
+ * ĐANG CÒN CHƯA ĐỌC → cập nhật (nội dung mới nhất + đẩy created_at lên đầu
+ * danh sách) thay vì chèn dòng mới. Áp dụng cho MỌI plan (không chỉ reminder)
+ * — vd PR bị từ chối rồi người lập sửa gửi lại, nếu Kho chưa kịp đọc bản cũ
+ * thì gộp thành 1 dòng thay vì 2 bản PR_SUBMITTED riêng biệt.
+ */
+async function upsertNotification(input: EmitInput): Promise<string | null> {
+  if (!input.entityId) return null;
+  const [existing] = await db
+    .select({ id: notification.id })
+    .from(notification)
+    .where(
+      and(
+        eq(notification.recipientUser, input.recipientUser),
+        eq(notification.eventType, input.eventType),
+        eq(notification.entityId, input.entityId),
+        isNull(notification.readAt),
+      ),
+    )
+    .limit(1);
+  if (!existing) return null;
+  await db
+    .update(notification)
+    .set({
+      actorUserId: input.actorUserId ?? null,
+      actorUsername: truncateActorName(input.actorUsername),
+      entityCode: input.entityCode ?? null,
+      title: input.title,
+      message: input.message ?? null,
+      link: input.link ?? null,
+      severity: input.severity ?? "info",
+      createdAt: new Date(),
+    })
+    .where(eq(notification.id, existing.id));
+  return existing.id;
+}
+
 async function emitNotification(input: EmitInput): Promise<string | null> {
   try {
-    const [row] = await db
-      .insert(notification)
-      .values({
-        recipientUser: input.recipientUser,
-        recipientRole: null,
-        actorUserId: input.actorUserId ?? null,
-        actorUsername: input.actorUsername ?? null,
-        eventType: input.eventType,
-        entityType: input.entityType ?? null,
-        entityId: input.entityId ?? null,
-        entityCode: input.entityCode ?? null,
-        title: input.title,
-        message: input.message ?? null,
-        link: input.link ?? null,
-        severity: input.severity ?? "info",
-      })
-      .returning({ id: notification.id });
-    if (row?.id) void maybeEmail(row.id, input);
-    return row?.id ?? null;
+    const upserted = await upsertNotification(input);
+    let notifId = upserted;
+    if (!notifId) {
+      const [row] = await db
+        .insert(notification)
+        .values({
+          recipientUser: input.recipientUser,
+          recipientRole: null,
+          actorUserId: input.actorUserId ?? null,
+          actorUsername: truncateActorName(input.actorUsername),
+          eventType: input.eventType,
+          entityType: input.entityType ?? null,
+          entityId: input.entityId ?? null,
+          entityCode: input.entityCode ?? null,
+          title: input.title,
+          message: input.message ?? null,
+          link: input.link ?? null,
+          severity: input.severity ?? "info",
+        })
+        .returning({ id: notification.id });
+      notifId = row?.id ?? null;
+    }
+    if (notifId) {
+      void maybeEmail(notifId, input);
+      if (input.push) {
+        void deliverPush(input.recipientUser, {
+          title: input.title,
+          body: input.message,
+          link: input.link,
+          tag: input.entityId,
+        });
+      }
+    }
+    return notifId;
   } catch (err) {
     logger.warn({ err, eventType: input.eventType }, "emitNotification failed");
     return null;
+  }
+}
+
+/**
+ * Khi plan.eventType nằm trong RESOLVES_STALE → đánh dấu đã đọc mọi thông báo
+ * CŨ (mọi người nhận) của CÙNG chứng từ thuộc các eventType đã lỗi thời. Chạy
+ * độc lập với việc có deliveries mới hay không — chứng từ có thể được xử lý
+ * bởi người không nhận thông báo bước trước (vd admin xử lý thay).
+ */
+async function resolveStaleNotifications(plan: NotifyPlan): Promise<void> {
+  const staleTypes = RESOLVES_STALE[plan.eventType];
+  if (!staleTypes || staleTypes.length === 0 || !plan.entityId) return;
+  try {
+    await db
+      .update(notification)
+      .set({ readAt: new Date() })
+      .where(
+        and(
+          eq(notification.entityId, plan.entityId),
+          inArray(notification.eventType, [...staleTypes]),
+          isNull(notification.readAt),
+        ),
+      );
+  } catch (err) {
+    logger.warn({ err, eventType: plan.eventType }, "resolveStaleNotifications failed");
   }
 }
 
@@ -200,9 +287,11 @@ export async function dispatchNotification(plan: NotifyPlan): Promise<number> {
           link: d.link,
           severity: d.content.severity,
           email: d.content.email,
+          push: d.content.push,
         }),
       ),
     );
+    void resolveStaleNotifications(plan);
     return deliveries.length;
   } catch (err) {
     logger.warn({ err, eventType: plan.eventType }, "dispatchNotification failed");
@@ -360,4 +449,45 @@ export async function lookupUsername(userId: string): Promise<string | null> {
     .where(eq(userAccount.id, userId))
     .limit(1);
   return row?.username ?? null;
+}
+
+export interface ActionItemsSummary {
+  total: number;
+  byEntityType: Record<string, number>;
+}
+
+/**
+ * TASK-notify V4.4 (P0 dashboard) — "Cần xử lý" trên Dashboard PHẢI dùng
+ * CÙNG nguồn với nhóm "Cần bạn duyệt" ở chuông: unread + eventType thuộc
+ * ACTION_EVENT_TYPES, theo ĐÚNG recipient_user (không phải đếm lại trạng thái
+ * chứng từ 1 lần nữa — trước đây route dashboard tự viết SQL riêng trên
+ * purchase_request/purchase_order/work_order, GLOBAL không theo người xem,
+ * thiếu PR bước DEPT_APPROVED + không đếm ISR/BBGH/PO chờ duyệt → báo "Ổn
+ * định" sai). GROUP BY entity_type để `dashboard-action-items.ts` gộp hiển
+ * thị theo 3 hàng hiện có của ActionItemsCard.
+ */
+export async function getActionItemsForUser(userId: string): Promise<ActionItemsSummary> {
+  const rows = await db
+    .select({
+      entityType: notification.entityType,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(notification)
+    .where(
+      and(
+        eq(notification.recipientUser, userId),
+        isNull(notification.readAt),
+        inArray(notification.eventType, [...ACTION_EVENT_TYPES]),
+      ),
+    )
+    .groupBy(notification.entityType);
+
+  const byEntityType: Record<string, number> = {};
+  let total = 0;
+  for (const r of rows) {
+    const key = r.entityType ?? "other";
+    byEntityType[key] = (byEntityType[key] ?? 0) + r.count;
+    total += r.count;
+  }
+  return { total, byEntityType };
 }
