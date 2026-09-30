@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FileUp, Plus } from "lucide-react";
+import { FileUp, MapPin, Plus } from "lucide-react";
 import {
   parseAsArrayOf,
   parseAsBoolean,
@@ -33,6 +33,7 @@ import {
   type ItemRow,
 } from "@/components/items/ItemListTable";
 import { ItemQuickEditSheet } from "@/components/items/ItemQuickEditSheet";
+import { DefaultBinSuggestionSheet } from "@/components/warehouse/DefaultBinSuggestionSheet";
 import { useItemsList, useBulkDeleteItems } from "@/hooks/useItems";
 import {
   isSelected,
@@ -160,6 +161,7 @@ export function ItemsTab() {
   const [focusedIndex, setFocusedIndex] = React.useState(-1);
   const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
   const bulkDelete = useBulkDeleteItems();
+  const [suggestOpen, setSuggestOpen] = React.useState(false);
 
   const searchRef = React.useRef<HTMLInputElement>(null);
 
@@ -244,6 +246,10 @@ export function ItemsTab() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => setSuggestOpen(true)}>
+            <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
+            Đề xuất vị trí mặc định
+          </Button>
           <Button asChild variant="ghost" size="sm">
             <Link href="/items/import" className="whitespace-nowrap">
               <FileUp className="h-3.5 w-3.5" aria-hidden="true" />
@@ -419,6 +425,12 @@ export function ItemsTab() {
         actionLabel="Xoá tất cả"
         loading={bulkDelete.isPending}
         onConfirm={() => void handleBulkDelete()}
+      />
+
+      <DefaultBinSuggestionSheet
+        open={suggestOpen}
+        onOpenChange={setSuggestOpen}
+        onApplied={() => void query.refetch()}
       />
     </div>
   );
