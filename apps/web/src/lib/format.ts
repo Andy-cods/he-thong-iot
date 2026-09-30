@@ -248,3 +248,38 @@ export function formatSku(sku: string | null | undefined): string {
   if (!sku) return "—";
   return sku.trim().toUpperCase();
 }
+
+/**
+ * V4.4 A4 — cặp helper thuần cho `DateField` (components/ui/date-field.tsx):
+ * ô nhập ngày dd/MM/yyyy gõ tay, thay `<input type="date">` native hiện
+ * placeholder theo locale máy (mm/dd/yyyy ở máy tiếng Anh).
+ */
+
+/** "dd/MM/yyyy" hợp lệ (kiểm cả ngày thật trong tháng/năm, VD 31/02 → null) → ISO "yyyy-MM-dd". */
+export function parseVnDate(display: string): string | null {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(display.trim());
+  if (!m) return null;
+  const [, dd, mm, yyyy] = m as unknown as [string, string, string, string];
+  const d = Number(dd);
+  const mo = Number(mm);
+  const y = Number(yyyy);
+  if (mo < 1 || mo > 12 || d < 1 || d > 31 || y < 1000 || y > 9999) return null;
+  const check = new Date(Date.UTC(y, mo - 1, d));
+  if (
+    check.getUTCFullYear() !== y ||
+    check.getUTCMonth() !== mo - 1 ||
+    check.getUTCDate() !== d
+  ) {
+    return null;
+  }
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+/** Tự chèn "/" khi gõ số liên tục: "01012026" → "01/01/2026". */
+export function autoFormatVnDateInput(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 8);
+  const parts = [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4, 8)].filter(
+    (p) => p.length > 0,
+  );
+  return parts.join("/");
+}
