@@ -39,7 +39,11 @@ function LoginFallback() {
 
 function LoginContent() {
   return (
-    <div className="relative grid min-h-screen grid-cols-1 bg-[#020617] lg:grid-cols-[1fr_420px] xl:grid-cols-[1fr_460px]">
+    // V4.4 A18 — khối glow trang trí `-right-32` (cột form, phía dưới) tràn
+    // 128px ra ngoài mép phải, kéo giãn scrollWidth toàn trang (tràn ngang
+    // 1568px thay vì 1440px). `overflow-x-clip` chặn tràn ngang mà không ảnh
+    // hưởng cuộn dọc (khác `overflow-hidden` có thể cắt sticky/scroll dọc).
+    <div className="relative grid min-h-screen grid-cols-1 overflow-x-clip bg-[#020617] lg:grid-cols-[1fr_420px] xl:grid-cols-[1fr_460px]">
       {/* Hero (left 60%) — full background */}
       <div className="relative h-full min-h-[40vh] lg:min-h-screen">
         <LoginHero />
