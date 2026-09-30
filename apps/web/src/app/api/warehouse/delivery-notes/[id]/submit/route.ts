@@ -46,7 +46,7 @@ export async function POST(
     deliveryNoteId: row.id,
     noteNo: row.noteNo,
     actorUserId: guard.session.userId,
-    actorUsername: guard.session.username,
+    actorUsername: guard.session.fullName,
   });
 
   return NextResponse.json({ data: row });

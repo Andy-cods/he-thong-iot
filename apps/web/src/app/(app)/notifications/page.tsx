@@ -14,6 +14,8 @@ import { QueryError } from "@/components/ui/query-error";
 import { cn } from "@/lib/utils";
 import { formatRelative } from "@/lib/format";
 import { notifTypeLabel } from "@/lib/status";
+import { groupNotificationsByCategory, type NotifyCategory } from "@/lib/notification-groups";
+import { PushNotificationToggle } from "@/components/layout/PushNotificationToggle";
 
 /**
  * V3.3 — Trang `/notifications` full list với filter unread/all + role broadcast.
@@ -35,11 +37,12 @@ interface NotificationItem {
   readAt: string | null;
   createdAt: string;
   isDirect: boolean;
+  category: NotifyCategory;
 }
 
 interface NotificationsResponse {
   data: NotificationItem[];
-  meta: { hasMore: boolean; nextCursor: string | null; unreadCount: number };
+  meta: { hasMore: boolean; nextCursor: string | null; unreadCount: number; unreadTotal: number };
 }
 
 
@@ -99,6 +102,7 @@ export default function NotificationsPage() {
   let items = query.data?.data ?? [];
   if (filter === "direct") items = items.filter((i) => i.isDirect);
   if (filter === "broadcast") items = items.filter((i) => !i.isDirect);
+  const groups = groupNotificationsByCategory(items);
 
   const unreadCount = query.data?.meta.unreadCount ?? 0;
 
@@ -145,6 +149,11 @@ export default function NotificationsPage() {
           )}
         </div>
       </header>
+
+      {/* Web Push toggle (V4.4) */}
+      <div className="px-4 pt-3 md:px-6">
+        <PushNotificationToggle />
+      </div>
 
       {/* Filter pills */}
       <div className="flex items-center gap-2 overflow-x-auto border-b border-zinc-200 bg-white px-4 py-3 md:px-6 dark:border-zinc-800 dark:bg-zinc-900">
@@ -198,71 +207,26 @@ export default function NotificationsPage() {
             </p>
           </div>
         ) : (
-          <div className="mx-auto max-w-3xl space-y-2">
-            {items.map((n) => {
-              const Icon = notificationIcon(n.eventType);
-              const sevCls = SEVERITY_CLS[n.severity] ?? SEVERITY_CLS.info!;
-              const isUnread = n.isDirect && !n.readAt;
-              const card = (
-                <div
-                  className={cn(
-                    "flex gap-3 rounded-2xl border bg-white p-3 transition-shadow hover:shadow-md md:gap-4 md:p-4 dark:bg-zinc-900",
-                    isUnread
-                      ? "border-indigo-300 shadow-sm dark:border-indigo-700"
-                      : "border-zinc-200 dark:border-zinc-800",
-                  )}
-                >
-                  <div className={cn(
-                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset md:h-11 md:w-11",
-                    sevCls,
-                  )}>
-                    <Icon className="h-4 w-4 md:h-5 md:w-5" aria-hidden />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className={cn(
-                        "line-clamp-2 text-sm leading-snug md:text-base",
-                        isUnread
-                          ? "font-bold text-zinc-900 dark:text-zinc-50"
-                          : "font-semibold text-zinc-800 dark:text-zinc-200",
-                      )}>
-                        {n.title}
-                      </p>
-                      {isUnread && (
-                        <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-indigo-500" aria-hidden />
-                      )}
-                    </div>
-                    {n.message && (
-                      <p className="mt-1 line-clamp-3 text-sm text-zinc-600 dark:text-zinc-400">{n.message}</p>
-                    )}
-                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-                      <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                        {notifTypeLabel(n.eventType)}
-                      </span>
-                      <span>{relativeTime(n.createdAt)}</span>
-                      {n.actorUsername && <span>· bởi {n.actorUsername}</span>}
-                      {!n.isDirect && (
-                        <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-600 ring-1 ring-inset ring-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-300 dark:ring-indigo-800">
-                          Cho bộ phận
-                        </span>
-                      )}
-                    </div>
-                  </div>
+          <div className="mx-auto max-w-3xl space-y-5">
+            {groups.map((g) => (
+              <section key={g.key}>
+                <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+                  {g.label}
+                  <span className="ml-1.5 font-normal normal-case text-zinc-400 dark:text-zinc-500">
+                    ({g.items.length})
+                  </span>
+                </h2>
+                <div className="space-y-2">
+                  {g.items.map((n) => (
+                    <NotificationCard
+                      key={n.id}
+                      item={n}
+                      onRead={(id) => markRead.mutate(id)}
+                    />
+                  ))}
                 </div>
-              );
-              return n.link ? (
-                <Link
-                  key={n.id}
-                  href={n.link}
-                  onClick={() => { if (isUnread) markRead.mutate(n.id); }}
-                  className="block"
-                >
-                  {card}
-                </Link>
-              ) : (
-                <div key={n.id}>{card}</div>
-              );
-            })}
+              </section>
+            ))}
           </div>
         )}
       </div>
@@ -273,4 +237,81 @@ export default function NotificationsPage() {
 // V4.1 UI-15: thời gian tương đối qua lib/format (≥ 7 ngày → dd/MM/yyyy giờ VN).
 function relativeTime(iso: string): string {
   return formatRelative(iso, { justNow: "Vừa xong" });
+}
+
+/** 1 thẻ thông báo trên trang /notifications — tách khỏi vòng lặp nhóm (V4.4). */
+function NotificationCard({
+  item: n,
+  onRead,
+}: {
+  item: NotificationItem;
+  onRead: (id: string) => void;
+}) {
+  const Icon = notificationIcon(n.eventType);
+  const sevCls = SEVERITY_CLS[n.severity] ?? SEVERITY_CLS.info!;
+  const isUnread = n.isDirect && !n.readAt;
+  const card = (
+    <div
+      className={cn(
+        "flex gap-3 rounded-2xl border bg-white p-3 transition-shadow hover:shadow-md md:gap-4 md:p-4 dark:bg-zinc-900",
+        isUnread
+          ? "border-indigo-300 shadow-sm dark:border-indigo-700"
+          : "border-zinc-200 dark:border-zinc-800",
+      )}
+    >
+      <div
+        className={cn(
+          "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset md:h-11 md:w-11",
+          sevCls,
+        )}
+      >
+        <Icon className="h-4 w-4 md:h-5 md:w-5" aria-hidden />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-2">
+          <p
+            className={cn(
+              "line-clamp-2 text-sm leading-snug md:text-base",
+              isUnread
+                ? "font-bold text-zinc-900 dark:text-zinc-50"
+                : "font-semibold text-zinc-800 dark:text-zinc-200",
+            )}
+          >
+            {n.title}
+          </p>
+          {isUnread && (
+            <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-indigo-500" aria-hidden />
+          )}
+        </div>
+        {n.message && (
+          <p className="mt-1 line-clamp-3 text-sm text-zinc-600 dark:text-zinc-400">{n.message}</p>
+        )}
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+          <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+            {notifTypeLabel(n.eventType)}
+          </span>
+          <span>{relativeTime(n.createdAt)}</span>
+          {n.actorUsername && <span>· bởi {n.actorUsername}</span>}
+          {!n.isDirect && (
+            <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-600 ring-1 ring-inset ring-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-300 dark:ring-indigo-800">
+              Cho bộ phận
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+  return n.link ? (
+    <Link
+      href={n.link}
+      onClick={() => {
+        if (isUnread) onRead(n.id);
+      }}
+      className="block"
+    >
+      {card}
+    </Link>
+  ) : (
+    <div>{card}</div>
+  );
 }

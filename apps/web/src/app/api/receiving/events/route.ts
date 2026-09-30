@@ -290,7 +290,7 @@ export async function POST(req: NextRequest) {
           poNo: po.poNo,
           prId: po.prId ?? null,
           actorUserId: guard.session.userId,
-          actorUsername: guard.session.username,
+          actorUsername: guard.session.fullName,
           prCreatorUserId,
         });
       } else if (
@@ -302,7 +302,7 @@ export async function POST(req: NextRequest) {
           poId: po.id,
           poNo: po.poNo,
           actorUserId: guard.session.userId,
-          actorUsername: guard.session.username,
+          actorUsername: guard.session.fullName,
         });
       }
 
@@ -381,7 +381,7 @@ export async function POST(req: NextRequest) {
       poNo: info.poNo,
       lineCount: info.lines,
       actorUserId: guard.session.userId,
-      actorUsername: guard.session.username,
+      actorUsername: guard.session.fullName,
     });
   }
 

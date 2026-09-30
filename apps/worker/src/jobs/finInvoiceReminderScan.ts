@@ -1,8 +1,9 @@
 import type { Job } from "bullmq";
-import { and, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import { finInvoice, notification, role, supplier, userAccount, userRole } from "@iot/db/schema";
 import type { Role } from "@iot/shared";
 import { db } from "../db.js";
+import { mergeUniqueUserIds, outstandingAmount } from "./reminderLogic.js";
 
 /**
  * V4.0 đợt 2 Phase F — "Nhắc hạn" hoá đơn tài chính (fin_invoice).
@@ -102,10 +103,8 @@ export async function processFinInvoiceReminderScan(
   const shareholderIds = await getActiveUserIdsByRoles(["shareholder"]);
   // Người giữ nhiều role (vd muahang = purchaser + accountant, admin kiêm kế
   // toán) chỉ nhận 1 dòng / hoá đơn / loại nhắc → gộp Set trước khi fan-out.
-  const payableRecipients = [...new Set([...accountantIds, ...adminIds])];
-  const receivableRecipients = [
-    ...new Set([...accountantIds, ...adminIds, ...shareholderIds]),
-  ];
+  const payableRecipients = mergeUniqueUserIds(accountantIds, adminIds);
+  const receivableRecipients = mergeUniqueUserIds(accountantIds, adminIds, shareholderIds);
 
   // ── Nhánh 1: sắp đến hạn trong 3 ngày (direction=IN, chưa trả đủ) ────────
   const dueSoonRows = await db
@@ -197,7 +196,7 @@ export async function processFinInvoiceReminderScan(
       skipped++;
       continue;
     }
-    const outstanding = Number(inv.totalAmount) - Number(inv.paidAmount);
+    const outstanding = outstandingAmount(inv.totalAmount, inv.paidAmount);
     const supplierName = inv.supplierId ? supplierNameMap.get(inv.supplierId) : null;
     const title = `Hoá đơn ${inv.invoiceNo} sắp đến hạn — ${inv.dueDate}`;
     const message = supplierName
@@ -220,7 +219,7 @@ export async function processFinInvoiceReminderScan(
 
   for (const inv of overdueInRows) {
     if (!(await alreadyRemindedToday(OVERDUE_EVENT, inv.id, OVERDUE_REPEAT_MS))) {
-      const outstanding = Number(inv.totalAmount) - Number(inv.paidAmount);
+      const outstanding = outstandingAmount(inv.totalAmount, inv.paidAmount);
       const supplierName = inv.supplierId ? supplierNameMap.get(inv.supplierId) : null;
       const title = `Hoá đơn ${inv.invoiceNo} đã QUÁ HẠN thanh toán`;
       const message = supplierName
@@ -254,7 +253,7 @@ export async function processFinInvoiceReminderScan(
     if (await alreadyRemindedToday(RECEIVABLE_OVERDUE_EVENT, inv.id, OVERDUE_REPEAT_MS)) {
       skipped++;
     } else {
-      const outstanding = Number(inv.totalAmount) - Number(inv.paidAmount);
+      const outstanding = outstandingAmount(inv.totalAmount, inv.paidAmount);
       const supplierName = inv.supplierId ? supplierNameMap.get(inv.supplierId) : null;
       const title = `Công nợ phải thu ${inv.invoiceNo} đã quá hạn`;
       const message = supplierName
@@ -280,9 +279,38 @@ export async function processFinInvoiceReminderScan(
       .where(eq(finInvoice.id, inv.id));
   }
 
-  if (notifyRows.length > 0) {
-    await db.insert(notification).values(
-      notifyRows.map((r) => ({
+  // Chống trùng — xem comment tương đương trong prReminderScan.ts: mỗi người
+  // tối đa 1 dòng CHƯA ĐỌC / hoá đơn / loại nhắc; nhắc lại (7 ngày/lần với
+  // OVERDUE_REPEAT_MS) chỉ cập nhật created_at + nội dung mới nhất thay vì
+  // chèn thêm dòng — trước đây insert thẳng mỗi lần quét qua ngưỡng lặp lại
+  // → hoá đơn bị bỏ quên nhiều tuần dồn nhiều dòng chưa đọc cho cùng 1 người.
+  for (const r of notifyRows) {
+    const [existingUnread] = await db
+      .select({ id: notification.id })
+      .from(notification)
+      .where(
+        and(
+          eq(notification.recipientUser, r.recipientUser),
+          eq(notification.eventType, r.eventType),
+          eq(notification.entityId, r.entityId),
+          isNull(notification.readAt),
+        ),
+      )
+      .limit(1);
+    const values = {
+      entityCode: r.entityCode,
+      title: r.title,
+      message: r.message,
+      link: r.link,
+      severity: r.severity,
+    };
+    if (existingUnread) {
+      await db
+        .update(notification)
+        .set({ ...values, createdAt: new Date() })
+        .where(eq(notification.id, existingUnread.id));
+    } else {
+      await db.insert(notification).values({
         recipientUser: r.recipientUser,
         recipientRole: null,
         actorUserId: null,
@@ -290,13 +318,9 @@ export async function processFinInvoiceReminderScan(
         eventType: r.eventType,
         entityType: "fin_invoice",
         entityId: r.entityId,
-        entityCode: r.entityCode,
-        title: r.title,
-        message: r.message,
-        link: r.link,
-        severity: r.severity,
-      })),
-    );
+        ...values,
+      });
+    }
   }
 
   return { dueSoonReminded, overdueMarked, receivableOverdueReminded, skipped };

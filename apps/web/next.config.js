@@ -32,35 +32,12 @@ const buildSha = resolveBuildSha();
 const buildDate = resolveBuildDate();
 const buildVersion = require("./package.json").version;
 
-const withPWA = require("next-pwa")({
-  dest: "public",
-  register: true,
-  skipWaiting: true,
-  disable: process.env.NODE_ENV === "development",
-  runtimeCaching: [
-    {
-      urlPattern: /^https?.*\/api\/(health|ready)$/,
-      handler: "NetworkOnly",
-    },
-    {
-      urlPattern: /^https?.*\/_next\/static\/.*/,
-      handler: "CacheFirst",
-      options: {
-        cacheName: "next-static",
-        expiration: { maxEntries: 200, maxAgeSeconds: 30 * 24 * 60 * 60 },
-      },
-    },
-    {
-      urlPattern: /\.(?:png|jpg|jpeg|svg|webp|gif|ico)$/,
-      handler: "CacheFirst",
-      options: {
-        cacheName: "images",
-        expiration: { maxEntries: 200, maxAgeSeconds: 7 * 24 * 60 * 60 },
-      },
-    },
-  ],
-});
-
+// TASK-notify V4.4 — đã BỎ next-pwa (chủ xưởng từng quyết định bỏ PWA đầy đủ;
+// route /pwa/receive không còn tồn tại, chỉ còn next.config.js/manifest cũ
+// làm dư thừa). `public/sw.js` giờ là file TĨNH tự viết (không phải
+// Workbox generate) — CHỈ xử lý Web Push + mở link khi bấm thông báo, không
+// cache offline (đăng ký thủ công lúc người dùng bấm "Bật thông báo", xem
+// apps/web/src/lib/push.ts) — KHÔNG auto-register như next-pwa trước đây.
 const nextConfig = {
   reactStrictMode: true,
   trailingSlash: false,
@@ -160,4 +137,4 @@ const nextConfig = {
   },
 };
 
-module.exports = withPWA(nextConfig);
+module.exports = nextConfig;

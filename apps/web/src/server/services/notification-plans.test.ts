@@ -4,9 +4,13 @@ import { isRouteAllowed } from "@/lib/route-guard";
 import { NOTIF_TYPE_LABELS } from "@/lib/status";
 import { NOTIFICATION_EVENT_ICON } from "@/components/layout/notification-icons";
 import {
+  ACTION_EVENT_TYPES,
   EMAIL_EVENTS,
   NOTIFICATION_EVENT_TYPES,
+  REMINDER_EVENT_TYPES,
+  RESOLVES_STALE,
   assignRecipients,
+  categoryForEventType,
   planDeliveryNoteConfirmed,
   planDeliveryNoteCreated,
   planDeliveryNoteRejected,
@@ -261,3 +265,56 @@ describe("TASK-20260927 — assignRecipients", () => {
 function planWORelease4(): NotifyPlan {
   return planWOReleased({ ...WO, creatorUserId: U(20) });
 }
+
+describe("TASK-notify V4.4 — nhóm hiển thị (category) + chống trùng/nhắc dày", () => {
+  it("RESOLVES_STALE chỉ tham chiếu eventType có thật", () => {
+    for (const [trigger, staleTypes] of Object.entries(RESOLVES_STALE)) {
+      expect(NOTIFICATION_EVENT_TYPES, trigger).toContain(trigger);
+      for (const s of staleTypes ?? []) {
+        expect(NOTIFICATION_EVENT_TYPES, `${trigger} → ${s}`).toContain(s);
+      }
+    }
+  });
+
+  it("RESOLVES_STALE không tự tham chiếu chính nó (tránh vô nghĩa)", () => {
+    for (const [trigger, staleTypes] of Object.entries(RESOLVES_STALE)) {
+      expect(staleTypes, trigger).not.toContain(trigger);
+    }
+  });
+
+  it("ACTION_EVENT_TYPES và REMINDER_EVENT_TYPES không giao nhau", () => {
+    for (const e of ACTION_EVENT_TYPES) {
+      expect(REMINDER_EVENT_TYPES.has(e), e).toBe(false);
+    }
+  });
+
+  it("categoryForEventType: reminder > action > update (mặc định)", () => {
+    expect(categoryForEventType("PR_PENDING_REMINDER")).toBe("reminder");
+    expect(categoryForEventType("FIN_INVOICE_OVERDUE")).toBe("reminder");
+    expect(categoryForEventType("PR_SUBMITTED")).toBe("action");
+    expect(categoryForEventType("WO_REQUEST_SUBMITTED")).toBe("action");
+    expect(categoryForEventType("WO_COMPLETED")).toBe("update");
+    expect(categoryForEventType("KHONG_TON_TAI")).toBe("update");
+  });
+
+  it("mọi target category:'action' trong các plan thuộc ACTION_EVENT_TYPES (đối chiếu 2 nguồn)", () => {
+    for (const [name, plan] of PLANS) {
+      const hasActionTarget = plan.targets.some((t) => t.category === "action");
+      if (hasActionTarget) {
+        expect(ACTION_EVENT_TYPES.has(plan.eventType), `${name} (${plan.eventType})`).toBe(true);
+      }
+    }
+  });
+
+  it("target push:true đều nằm trong EMAIL_EVENTS hoặc ACTION_EVENT_TYPES (chỉ push việc cần xử lý)", () => {
+    for (const [name, plan] of PLANS) {
+      const hasPush = plan.targets.some((t) => t.push);
+      if (hasPush) {
+        expect(
+          ACTION_EVENT_TYPES.has(plan.eventType) || EMAIL_EVENTS.has(plan.eventType),
+          `${name} (${plan.eventType})`,
+        ).toBe(true);
+      }
+    }
+  });
+});

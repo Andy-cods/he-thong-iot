@@ -5,7 +5,9 @@
 // Mục đích: kiểm chứng hệ thống THÔNG BÁO (notification) của luồng duyệt
 // đề xuất vật tư (YCVT/PR) 3 bước V4.0 hoạt động đúng và KHÔNG AI BỊ MISS:
 //   1. Tạo phiếu (auto-submit)  → PR_SUBMITTED  fan-out direct: warehouse,
-//      purchaser, admin (V4.0: warehouse là "Trưởng bộ phận" kiểm tồn).
+//      admin (V4.0: warehouse là "Trưởng bộ phận" kiểm tồn — purchaser CHƯA
+//      vào cuộc ở bước này, chỉ từ PR_DEPT_APPROVED trở đi — sửa V4.4, trước
+//      đây comment/test kỳ vọng nhầm purchaser ở bước 1).
 //   2. Kho duyệt bước 2 (dept-approve, chỉ admin|warehouse — planner ĐÃ
 //      MẤT quyền V4.0) → PR_DEPT_APPROVED tới: purchaser, admin, creator.
 //   3. Duyệt cuối (director-approve admin|purchaser, hoặc quick-approve
@@ -291,12 +293,16 @@ async function main() {
       }
     }
 
-    // ---- 1c. Assert PR_SUBMITTED tới warehouse + purchaser + admin ----
+    // ---- 1c. Assert PR_SUBMITTED tới warehouse + admin ----
+    // V4.4 — bỏ "purchaser" khỏi danh sách kỳ vọng: planPRSubmitted() (bước 1,
+    // Kho kiểm tồn + Giám đốc duyệt nhanh) CHƯA BAO GIỜ target role purchaser
+    // (purchaser chỉ vào cuộc ở PR_DEPT_APPROVED/PR_APPROVED) — xác nhận qua
+    // git blame/diff, đây là kỳ vọng lệch từ trước, không phải regression.
     if (created.prId) {
       console.log(c("\n--- Bước 1c: assert PR_SUBMITTED không ai bị miss ---", "bold"));
       // Đợi ngắn để fire-and-forget notify* (không await trong route) kịp insert.
       await sleep(800);
-      for (const role of ["warehouse", "purchaser", "admin"]) {
+      for (const role of ["warehouse", "admin"]) {
         if (!has(role)) continue;
         const st = await getNotifState(role);
         if (!st.ok) {
@@ -329,7 +335,7 @@ async function main() {
           }
         }
       }
-      step("Bước 1c", !issues.some((i) => i.step === 1 && i.kind === "FAIL"), "Assert PR_SUBMITTED cho warehouse/purchaser/admin");
+      step("Bước 1c", !issues.some((i) => i.step === 1 && i.kind === "FAIL"), "Assert PR_SUBMITTED cho warehouse/admin");
     } else {
       step("Bước 1c", false, "Không có PR để assert (bước 1b fail)");
     }
@@ -365,9 +371,17 @@ async function main() {
             logInfo(`${role} nhận PR_DEPT_APPROVED đúng (title="${matched.title}")`);
             if (role !== "planner" && baseline2[role] !== undefined) {
               const after = await getNotifState(role);
-              if (after.ok && after.unreadCount <= baseline2[role]) {
+              // V4.4 RESOLVES_STALE — dept-approve vừa thêm PR_DEPT_APPROVED
+              // (unread mới, +1) vừa tự đánh dấu ĐÃ ĐỌC PR_SUBMITTED cũ của
+              // CHÍNH role này (-1) → tổng có thể HOÀ (không đổi), đây là
+              // hành vi ĐÚNG (chống hộp thư dồn), không phải MISS. Chỉ fail
+              // khi unreadCount thực sự GIẢM (< before) — tức bản thân
+              // PR_DEPT_APPROVED mới không được tính vào unread.
+              if (after.ok && after.unreadCount < baseline2[role]) {
                 fail(1, "GET /api/notifications (unreadCount)", 200, { before: baseline2[role], after: after.unreadCount },
-                  `${role} unreadCount KHÔNG tăng sau PR_DEPT_APPROVED.`);
+                  `${role} unreadCount GIẢM sau PR_DEPT_APPROVED (before=${baseline2[role]}, after=${after.unreadCount}) — không hợp lý dù có RESOLVES_STALE (tối đa hoà, không giảm).`);
+              } else if (after.ok) {
+                logInfo(`${role} unreadCount: ${baseline2[role]} → ${after.unreadCount} (hoà hoặc tăng đều hợp lệ — xem RESOLVES_STALE)`);
               }
             }
           }

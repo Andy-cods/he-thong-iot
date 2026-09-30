@@ -259,6 +259,7 @@ export async function POST(req: NextRequest) {
   const token = await signAccessToken({
     sub: user.id,
     username: user.username,
+    fullName: user.fullName,
     roles: roleCodes,
     sid: sessionRow?.id,
     ttlSeconds: sessionTtl,
@@ -279,6 +280,7 @@ export async function POST(req: NextRequest) {
     actor: {
       userId: user.id,
       username: user.username,
+      fullName: user.fullName,
       roles: roleCodes,
       sessionId: sessionRow?.id ?? null,
     },

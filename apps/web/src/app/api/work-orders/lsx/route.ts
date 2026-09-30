@@ -154,7 +154,7 @@ export async function POST(req: NextRequest) {
       productName: it?.name ?? it?.sku,
       plannedQty: body.data.plannedQty,
       actorUserId: guard.session.userId,
-      actorUsername: guard.session.username,
+      actorUsername: guard.session.fullName,
     }).catch((err) => {
       logger.warn({ err, woId: wo.id }, "notify LSX request submitted failed");
     });

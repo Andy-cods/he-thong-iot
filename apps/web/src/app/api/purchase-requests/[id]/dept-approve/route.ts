@@ -100,7 +100,7 @@ export async function POST(
       prNo: before.paperFormNo ?? before.code,
       title: before.title ?? null,
       actorUserId: guard.session.userId,
-      actorUsername: guard.session.username,
+      actorUsername: guard.session.fullName,
       creatorUserId: before.requestedBy,
     });
 

@@ -64,7 +64,7 @@ export async function POST(
       poNo: before.poNo,
       supplierName: null, // best-effort, có thể join supplier sau nếu cần
       actorUserId: guard.session.userId,
-      actorUsername: guard.session.username,
+      actorUsername: guard.session.fullName,
     });
 
     return NextResponse.json({ data: row });

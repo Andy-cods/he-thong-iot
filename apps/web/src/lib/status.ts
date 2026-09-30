@@ -377,6 +377,7 @@ export const NOTIF_TYPE_LABELS: Record<string, string> = {
   PR_PENDING_REMINDER: "Nhắc duyệt",
   PR_GOODS_ISSUED: "Vật tư đã xuất kho",
   PR_COMPLETED: "Đề xuất hoàn tất",
+  PR_APPROVED_NO_PO_REMINDER: "Nhắc lên PO",
   PO_SENT: "PO đã gửi",
   PO_RECEIVED_PARTIAL: "PO nhận một phần",
   PO_RECEIVED_FULL: "PO nhận đủ",

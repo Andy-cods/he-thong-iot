@@ -95,7 +95,7 @@ export async function POST(
       title: before.title ?? null,
       creatorUserId: before.requestedBy,
       actorUserId: guard.session.userId,
-      actorUsername: guard.session.username,
+      actorUsername: guard.session.fullName,
     });
 
     return NextResponse.json({ data: row });

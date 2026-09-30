@@ -62,7 +62,7 @@ export async function POST(
       prId: row.prId,
       prRequesterUserId: pr?.requestedBy ?? null,
       actorUserId: guard.session.userId,
-      actorUsername: guard.session.username,
+      actorUsername: guard.session.fullName,
     });
     return NextResponse.json({ data: row });
   } catch (err) {

@@ -107,7 +107,7 @@ export async function POST(
       invoiceNo: invoice.invoiceNo,
       totalAmount: invoice.totalAmount,
       actorUserId: guard.session.userId,
-      actorUsername: guard.session.username,
+      actorUsername: guard.session.fullName,
     });
     return NextResponse.json(
       { data: { invoice, link: financeInvoiceLink(invoice.id) } },
@@ -182,7 +182,7 @@ export async function PATCH(
         invoiceNo: after.invoiceNo,
         totalAmount: after.totalAmount,
         actorUserId: guard.session.userId,
-        actorUsername: guard.session.username,
+        actorUsername: guard.session.fullName,
       });
     }
     return NextResponse.json({

@@ -148,7 +148,7 @@ export async function POST(
       poNo: before.poNo,
       prId: before.prId ?? null,
       actorUserId: guard.session.userId,
-      actorUsername: guard.session.username,
+      actorUsername: guard.session.fullName,
       prCreatorUserId,
     });
 

@@ -51,10 +51,10 @@
       "url": "/procurement/purchase-requests"
     },
     {
-      "name": "Nhận hàng",
-      "short_name": "Nhận",
-      "description": "Mở trạm nhận hàng PWA",
-      "url": "/pwa/receive"
+      "name": "Thông báo",
+      "short_name": "Thông báo",
+      "description": "Xem thông báo cần xử lý",
+      "url": "/notifications"
     }
   ]
 }

@@ -68,7 +68,7 @@ export async function POST(
       prNo: row.paperFormNo ?? row.code,
       title: row.title ?? null,
       actorUserId: guard.session.userId,
-      actorUsername: guard.session.username,
+      actorUsername: guard.session.fullName,
     });
 
     return NextResponse.json({ data: row });

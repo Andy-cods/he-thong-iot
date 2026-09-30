@@ -143,7 +143,7 @@ export async function POST(
       sku: it.sku,
       qty: defaultQty,
       actorUserId: guard.session.userId,
-      actorUsername: guard.session.username,
+      actorUsername: guard.session.fullName,
     });
 
     return NextResponse.json({ data: po }, { status: 201 });

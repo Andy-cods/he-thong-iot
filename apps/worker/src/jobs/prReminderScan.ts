@@ -1,8 +1,9 @@
 import type { Job } from "bullmq";
-import { and, eq, gt, inArray, lt } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, lt } from "drizzle-orm";
 import { notification, purchaseRequest, role, userAccount, userRole } from "@iot/db/schema";
 import type { Role } from "@iot/shared";
 import { db } from "../db.js";
+import { prReminderStepLabel, prReminderTargetRoles } from "./reminderLogic.js";
 
 /**
  * V3.16 — "Nhắc duyệt" PR (tính năng mới, thiết kế từ đầu).
@@ -117,10 +118,7 @@ export async function processPrReminderScan(
     // V4.0 — "Trưởng bộ phận" = KHO (trước đây là planner). PHẢI khớp guard
     // trong apps/web/src/app/api/purchase-requests/[id]/dept-approve/route.ts,
     // nếu lệch thì worker nhắc nhầm người → phiếu bị bỏ quên.
-    const targetRoles: Role[] =
-      pr.approvalStep === "SUBMITTED"
-        ? ["warehouse", "admin"]
-        : ["purchaser", "admin"];
+    const targetRoles = prReminderTargetRoles(pr.approvalStep);
     const cacheKey = [...targetRoles].sort().join(",");
     let userIds = roleUserCache.get(cacheKey);
     if (!userIds) {
@@ -133,25 +131,51 @@ export async function processPrReminderScan(
     }
 
     const prNo = pr.paperFormNo ?? pr.code;
-    const stepLabel =
-      pr.approvalStep === "SUBMITTED" ? "Trưởng bộ phận" : "Giám đốc/Mua hàng";
+    const stepLabel = prReminderStepLabel(pr.approvalStep);
 
-    await db.insert(notification).values(
-      userIds.map((userId) => ({
-        recipientUser: userId,
-        recipientRole: null,
-        actorUserId: null,
-        actorUsername: null,
-        eventType: EVENT_TYPE,
-        entityType: "purchase_request",
-        entityId: pr.id,
-        entityCode: prNo,
+    // Chống trùng: mỗi người tối đa 1 dòng CHƯA ĐỌC / PR — nếu lần nhắc trước
+    // vẫn còn chưa đọc thì cập nhật (bump created_at lên đầu danh sách) thay
+    // vì chèn thêm dòng mới (trước đây insert thẳng mỗi lần quét qua ngưỡng
+    // 24h → 1 PR bị bỏ quên nhiều ngày dồn nhiều dòng PR_PENDING_REMINDER
+    // chưa đọc cho cùng 1 người — đúng nguyên nhân "hộp thư dồn" đo trên prod).
+    for (const userId of userIds) {
+      const [existingUnread] = await db
+        .select({ id: notification.id })
+        .from(notification)
+        .where(
+          and(
+            eq(notification.recipientUser, userId),
+            eq(notification.eventType, EVENT_TYPE),
+            eq(notification.entityId, pr.id),
+            isNull(notification.readAt),
+          ),
+        )
+        .limit(1);
+      const values = {
         title: `Nhắc duyệt: ${prNo} chờ quá 24h`,
         message: `Đang chờ ${stepLabel} duyệt — bấm để xử lý.`,
         link: `/procurement/purchase-requests/${pr.id}`,
         severity: "warning" as const,
-      })),
-    );
+      };
+      if (existingUnread) {
+        await db
+          .update(notification)
+          .set({ ...values, createdAt: new Date() })
+          .where(eq(notification.id, existingUnread.id));
+      } else {
+        await db.insert(notification).values({
+          recipientUser: userId,
+          recipientRole: null,
+          actorUserId: null,
+          actorUsername: null,
+          eventType: EVENT_TYPE,
+          entityType: "purchase_request",
+          entityId: pr.id,
+          entityCode: prNo,
+          ...values,
+        });
+      }
+    }
     reminded++;
   }
 

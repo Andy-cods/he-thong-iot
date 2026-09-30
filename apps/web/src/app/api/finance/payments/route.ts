@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
       totalAmount: Number(result.payment.totalAmount),
       direction: result.payment.direction,
       actorUserId: guard.session.userId,
-      actorUsername: guard.session.username,
+      actorUsername: guard.session.fullName,
     }).catch((err) => logger.warn({ err }, "notifyPaymentRecorded failed"));
     return NextResponse.json({ data: result }, { status: 201 });
   } catch (err) {
