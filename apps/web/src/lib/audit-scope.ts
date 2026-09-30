@@ -1,4 +1,4 @@
-import { actionLabel } from "@/lib/status";
+import { actionLabel, prettifyUnknownCode } from "@/lib/status";
 import type { RbacEntity } from "@iot/shared";
 
 /**
@@ -69,8 +69,9 @@ export const AUDIT_OBJECT_TYPES: AuditObjectTypeDef[] = [
 
 const BY_CODE = new Map(AUDIT_OBJECT_TYPES.map((t) => [t.code, t]));
 
+/** V4.4 A14 — thiếu entry → prettify thay vì render thẳng key thô (xem lib/status.ts). */
 export function auditObjectLabel(code: string): string {
-  return BY_CODE.get(code)?.label ?? code;
+  return BY_CODE.get(code)?.label ?? prettifyUnknownCode(code);
 }
 
 /**

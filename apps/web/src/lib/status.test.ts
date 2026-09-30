@@ -5,9 +5,11 @@ import {
   STATUS_DEFS,
   STATUS_TONES,
   TONE_CLASSES,
+  actionLabel,
   activeStatusCode,
   getStatus,
   notifTypeLabel,
+  prettifyUnknownCode,
   statusLabel,
   statusOptions,
   type StatusDomain,
@@ -102,5 +104,26 @@ describe("ACTION_LABELS / NOTIF_TYPE_LABELS", () => {
     expect(notifTypeLabel("PR_PENDING_REMINDER")).toBe("Nhắc duyệt");
     expect(notifTypeLabel("FIN_INVOICE_OVERDUE")).toBe("Hoá đơn quá hạn");
     expect(notifTypeLabel("SOMETHING_NEW")).toBe("Thông báo");
+  });
+});
+
+// V4.4 A14 — bảng nhãn thiếu entry KHÔNG được render thẳng key thô
+// (VD "PRODUCTION_QTY_SCRAP") — prettify tối thiểu thay vì ALL CAPS khó hiểu.
+describe("prettifyUnknownCode", () => {
+  it("SCREAMING_SNAKE_CASE → 'Câu thường, viết hoa chữ đầu'", () => {
+    expect(prettifyUnknownCode("PRODUCTION_QTY_SCRAP")).toBe("Production qty scrap");
+    expect(prettifyUnknownCode("session")).toBe("Session");
+  });
+  it("rỗng → giữ nguyên (không có gì để prettify)", () => {
+    expect(prettifyUnknownCode("")).toBe("");
+  });
+});
+
+describe("actionLabel — mã lạ dùng prettify thay vì trả thô", () => {
+  it("mã đã biết → nhãn tiếng Việt như cũ", () => {
+    expect(actionLabel("LOGIN")).toBe("Đăng nhập");
+  });
+  it("mã lạ → prettify, không phải ALL CAPS", () => {
+    expect(actionLabel("SOME_NEW_ACTION")).toBe("Some new action");
   });
 });

@@ -320,9 +320,21 @@ export const ACTION_LABELS: Record<string, string> = {
   ECO_REJECT: "Từ chối ECO",
 };
 
+/**
+ * V4.4 A14 — khi bảng nhãn THIẾU 1 entry (VD thêm action/metric mới quên cập
+ * nhật map), trước đây render thẳng key kỹ thuật thô ("PRODUCTION_QTY_SCRAP",
+ * "LOGIN"…) — CHỮ HOA khó hiểu với người dùng cuối. Prettify tối thiểu (bỏ
+ * gạch dưới, viết hoa chữ đầu câu) để lỗi tương lai đỡ "lộ" hơn, KHÔNG che
+ * giấu thông tin (vẫn suy ra được từ code gốc, dev vẫn dò được entry thiếu).
+ */
+export function prettifyUnknownCode(code: string): string {
+  const words = code.trim().toLowerCase().replace(/[_-]+/g, " ").trim();
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : code;
+}
+
 export function actionLabel(code: string | null | undefined): string {
   if (!code) return "—";
-  return ACTION_LABELS[code] ?? code;
+  return ACTION_LABELS[code] ?? prettifyUnknownCode(code);
 }
 
 /** V4.1 UI-27: loại đối tượng (object_type / entity) → tiếng Việt. */
