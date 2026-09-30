@@ -40,6 +40,9 @@ import {
   planReceiptQcFailed,
   planReceiptQcPassed,
   planReceiptQcPending,
+  planStocktakeApproved,
+  planStocktakeRejected,
+  planStocktakeSubmitted,
   planWOApproved,
   planWOCancelled,
   planWOCompleted,
@@ -66,6 +69,7 @@ const QC = {
   poCreatorUserId: U(2), sku: "SKU-1", lotCode: "L1", qty: 2, ...A,
 };
 const DN = { deliveryNoteId: "dn-1", noteNo: "GH-01", ...A };
+const ST = { sessionId: "st-1", code: "KK-2609-0001", ...A };
 
 /** Mọi plan builder × các biến thể nhánh. */
 const PLANS: Array<[string, NotifyPlan]> = [
@@ -120,6 +124,11 @@ const PLANS: Array<[string, NotifyPlan]> = [
   ["DN confirmed (no PO)", planDeliveryNoteConfirmed(DN)],
   ["DN rejected", planDeliveryNoteRejected({ ...DN, deliveredByUserId: U(7), reason: "x" })],
   ["payment recorded", planPaymentRecorded({ ...A, paymentId: "p", paymentCode: "PT-1", totalAmount: 10, direction: "OUT" })],
+  ["stocktake submitted", planStocktakeSubmitted(ST)],
+  ["stocktake approved", planStocktakeApproved({ ...ST, creatorUserId: U(8), diffLineCount: 3 })],
+  ["stocktake approved (no diff)", planStocktakeApproved({ ...ST, creatorUserId: U(8), diffLineCount: 0 })],
+  ["stocktake rejected", planStocktakeRejected({ ...ST, creatorUserId: U(8), reason: "đếm thiếu 2 ô" })],
+  ["stocktake rejected (no reason)", planStocktakeRejected({ ...ST, creatorUserId: U(8), reason: null })],
 ];
 
 describe("TASK-20260927 — link thông báo mở được theo vai trò người nhận", () => {

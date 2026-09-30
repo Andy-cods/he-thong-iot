@@ -118,4 +118,54 @@ describe("scorePutawayCandidates", () => {
     const result = scorePutawayCandidates([], 5);
     expect(result).toEqual([]);
   });
+
+  describe("phân tán (d) — nhiều bin trống đồng hạng, nhiều vật tư khác nhau", () => {
+    // V4.3 — trước đây khi nhiều bin trống CÙNG sức chứa còn lại (không tiêu
+    // chí (a)/(b)/(c) nào khớp), sort ổn định luôn trả bin ĐẦU TIÊN theo thứ
+    // tự cố định cho MỌI vật tư → dồn hết hàng mới vào 1 ô trống (đúng vấn đề
+    // audit WAREHOUSE_UX_AND_FLOW.md mục 4.1). Test này xác nhận đã rải đều.
+    const emptyBins = Array.from({ length: 6 }, (_, i) =>
+      candidate({
+        binId: `empty-${i}`,
+        binFullCode: `A-0${i}-1-01`,
+        capacity: 100,
+        currentQty: 0,
+      }),
+    );
+
+    it("không truyền itemId → giữ hành vi cũ (luôn bin đầu tiên theo thứ tự)", () => {
+      const result = scorePutawayCandidates([...emptyBins, staging], 5);
+      expect(result[0]?.binId).toBe("empty-0");
+    });
+
+    it("truyền itemId khác nhau → top suggestion rải ra nhiều bin khác nhau", () => {
+      const topBinIds = new Set<string>();
+      for (let i = 0; i < 12; i++) {
+        const result = scorePutawayCandidates(
+          [...emptyBins, staging],
+          5,
+          `item-${i}`,
+        );
+        expect(result[0]?.reasonCode).toBe("MOST_CAPACITY");
+        topBinIds.add(result[0]!.binId);
+      }
+      // 12 item khác nhau trên 6 bin trống đồng hạng → phải chạm ít nhất vài
+      // bin khác nhau (không phải luôn dồn về đúng 1 ô).
+      expect(topBinIds.size).toBeGreaterThan(1);
+    });
+
+    it("cùng 1 itemId gọi lại nhiều lần → LUÔN ra cùng 1 gợi ý (ổn định, không random)", () => {
+      const r1 = scorePutawayCandidates([...emptyBins, staging], 5, "item-fixed");
+      const r2 = scorePutawayCandidates([...emptyBins, staging], 5, "item-fixed");
+      expect(r1[0]?.binId).toBe(r2[0]?.binId);
+    });
+
+    it("bin KHÔNG đồng hạng (capacity khác nhau) vẫn ưu tiên đúng — không bị xoay vòng phá thứ tự", () => {
+      const small = candidate({ binId: "small", binFullCode: "A-09-1-01", currentQty: 80, capacity: 100 }); // remaining 20
+      const big = candidate({ binId: "big", binFullCode: "A-01-1-01", currentQty: 10, capacity: 100 }); // remaining 90
+      const result = scorePutawayCandidates([small, big, staging], 5, "any-item");
+      expect(result[0]?.binId).toBe("big");
+      expect(result[1]?.binId).toBe("small");
+    });
+  });
 });

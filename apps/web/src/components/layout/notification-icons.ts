@@ -9,6 +9,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   Clock,
+  ClipboardX,
   Factory,
   FileText,
   Lock,
@@ -75,6 +76,9 @@ export const NOTIFICATION_EVENT_ICON: Record<string, React.ElementType> = {
   FIN_INVOICE_OVERDUE: ShieldAlert,
   FIN_RECEIVABLE_OVERDUE: ShieldAlert,
   FIN_PAYMENT_RECORDED: Banknote,
+  STOCKTAKE_SUBMITTED: ClipboardList,
+  STOCKTAKE_APPROVED: ClipboardCheck,
+  STOCKTAKE_REJECTED: ClipboardX,
 };
 
 export function notificationIcon(eventType: string): React.ElementType {

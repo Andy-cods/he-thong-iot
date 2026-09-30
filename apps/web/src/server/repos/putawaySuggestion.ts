@@ -74,13 +74,65 @@ function fmtQty(n: number): string {
   return rounded.toLocaleString("vi-VN");
 }
 
+/** Hash chuỗi ổn định (không phụ thuộc runtime) — dùng để phân tán tie-break theo itemId. */
+function stableHash(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  }
+  return h;
+}
+
+/**
+ * Xoay vòng 1 nhóm ứng viên ĐÃ ĐỒNG HẠNG theo hash(itemId) — nhiều vật tư
+ * khác nhau rơi vào cùng nhóm (vd cùng "bin trống, cùng khu, không phân biệt
+ * gì thêm") sẽ được rải đều ra các bin trong nhóm thay vì luôn nhận bin ĐẦU
+ * TIÊN theo thứ tự sắp xếp cố định. Cùng itemId gọi lại nhiều lần vẫn ra
+ * cùng 1 thứ tự (ổn định/idempotent) — không phải ngẫu nhiên.
+ */
+function rotateGroup<T>(group: T[], itemId: string | undefined): T[] {
+  if (!itemId || group.length <= 1) return group;
+  const offset = stableHash(itemId) % group.length;
+  return offset === 0 ? group : [...group.slice(offset), ...group.slice(0, offset)];
+}
+
+/**
+ * Gom các phần tử LIÊN TIẾP có cùng `keyFn` thành từng nhóm (đầu vào PHẢI đã
+ * sắp xếp sao cho các phần tử đồng hạng đứng cạnh nhau). Dùng để tìm nhóm
+ * "đồng điểm" rồi xoay vòng riêng từng nhóm — không đụng thứ tự ưu tiên giữa
+ * các nhóm khác điểm.
+ */
+function groupConsecutiveBy<T>(items: T[], keyFn: (item: T) => string): T[][] {
+  const groups: T[][] = [];
+  let currentKey: string | null = null;
+  for (const item of items) {
+    const k = keyFn(item);
+    if (k !== currentKey || groups.length === 0) {
+      groups.push([item]);
+      currentKey = k;
+    } else {
+      groups[groups.length - 1]!.push(item);
+    }
+  }
+  return groups;
+}
+
 /**
  * THUẦN — chấm điểm + xếp hạng danh sách bin ứng viên. Không chạm DB.
  * Luôn trả về >= 1 phần tử NẾU `candidates` có bin `isStaging` (fallback).
+ *
+ * `itemId` (tuỳ chọn) dùng để PHÂN TÁN các ứng viên đồng hạng ở tiêu chí (c)
+ * và (d) — trước đây khi nhiều bin trống ngang điểm nhau (capacity bằng
+ * nhau), sort ổn định luôn trả về bin ĐẦU TIÊN theo thứ tự SQL cố định
+ * (area, rack, level_no, position) cho MỌI vật tư khác nhau → dồn hết hàng
+ * mới vào 1 ô trống (đúng vấn đề audit `WAREHOUSE_UX_AND_FLOW.md` mục 4.1 ghi
+ * nhận). Thứ tự ưu tiên GIỮ NGUYÊN (cùng kệ > cùng khu > mã ô), chỉ xoay vòng
+ * NỘI BỘ nhóm đồng hạng để rải đều.
  */
 export function scorePutawayCandidates(
   candidates: PutawayCandidate[],
   qty: number,
+  itemId?: string,
 ): PutawaySuggestion[] {
   const staging = candidates.find((c) => c.isStaging) ?? null;
   const eligible = candidates.filter((c) => {
@@ -123,8 +175,10 @@ export function scorePutawayCandidates(
     used.add(defaultBin.binId);
   }
 
-  // (c) Bin trống cùng khu/nhóm vật tư — ưu tiên cùng kệ (rack) trước.
-  const sameZone = eligible
+  // (c) Bin trống cùng khu/nhóm vật tư — ưu tiên cùng kệ (rack) trước. Nhóm
+  // ĐỒNG HẠNG (cùng rack-match + cùng sức chứa còn lại) được xoay vòng theo
+  // itemId để rải đều nhiều vật tư ra nhiều bin trống thay vì luôn cùng 1 ô.
+  const sameZoneSorted = eligible
     .filter((c) => c.sameZoneCategoryMatch && !used.has(c.binId))
     .sort((x, y) => {
       if (x.sameRackCategoryMatch !== y.sameRackCategoryMatch) {
@@ -132,6 +186,10 @@ export function scorePutawayCandidates(
       }
       return (remainingOf(y) ?? Infinity) - (remainingOf(x) ?? Infinity);
     });
+  const sameZone = groupConsecutiveBy(
+    sameZoneSorted,
+    (c) => `${c.sameRackCategoryMatch}|${remainingOf(c) ?? "inf"}`,
+  ).flatMap((g) => rotateGroup(g, itemId));
   for (const c of sameZone) {
     out.push({
       binId: c.binId,
@@ -146,9 +204,15 @@ export function scorePutawayCandidates(
   }
 
   // (d) Sức chứa còn lại lớn nhất (tie-break cuối, KHÔNG tính bin "Chờ xếp kệ").
-  const rest = eligible
+  // Nhiều bin trống CÙNG sức chứa còn lại (vd 90 bin trống, capacity bằng
+  // nhau) trước đây luôn trả về bin ĐẦU TIÊN theo thứ tự SQL cố định cho MỌI
+  // vật tư → dồn hết vào 1 ô. Xoay vòng theo itemId trong nhóm đồng hạng.
+  const restSorted = eligible
     .filter((c) => !used.has(c.binId) && !c.isStaging)
     .sort((x, y) => (remainingOf(y) ?? Infinity) - (remainingOf(x) ?? Infinity));
+  const rest = groupConsecutiveBy(restSorted, (c) => `${remainingOf(c) ?? "inf"}`).flatMap(
+    (g) => rotateGroup(g, itemId),
+  );
   for (const c of rest) {
     const remaining = remainingOf(c);
     out.push({
@@ -293,5 +357,5 @@ export async function suggestPutawayBins(
     sameRackCategoryMatch: r.same_rack_category_match,
   }));
 
-  return scorePutawayCandidates(candidates, qty);
+  return scorePutawayCandidates(candidates, qty, itemId);
 }
