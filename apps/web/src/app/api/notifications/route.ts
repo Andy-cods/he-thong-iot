@@ -5,6 +5,14 @@ import type { Role } from "@iot/shared";
 import { db } from "@/lib/db";
 import { jsonError } from "@/server/http";
 import { requireSession } from "@/server/session";
+import {
+  ACTION_EVENT_TYPES,
+  REMINDER_EVENT_TYPES,
+  categoryForEventType,
+} from "@/server/services/notification-plans";
+
+/** Event "cần xử lý" (action | reminder) — dùng đếm badge chuông, KHÔNG tính "update". */
+const NEEDS_ACTION_EVENT_TYPES = [...ACTION_EVENT_TYPES, ...REMINDER_EVENT_TYPES];
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -80,7 +88,10 @@ export async function GET(req: NextRequest) {
       ? items[items.length - 1]!.createdAt.toISOString()
       : null;
 
-    // Đếm unread (chỉ direct, không tính role broadcast cho badge)
+    // Badge chuông = số "cần xử lý" chưa đọc (action | reminder) — KHÔNG tính
+    // "update" (chỉ để biết) và không tính role broadcast, đúng mục 4 yêu cầu
+    // "badge đếm đúng việc cần xử lý" (trước đây đếm MỌI unread, kể cả
+    // update, làm badge cao hơn số việc thật sự cần làm).
     const [unreadRow] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(notification)
@@ -88,20 +99,32 @@ export async function GET(req: NextRequest) {
         and(
           eq(notification.recipientUser, userId),
           isNull(notification.readAt),
+          inArray(notification.eventType, NEEDS_ACTION_EVENT_TYPES),
         ),
       );
     const unreadCount = unreadRow?.count ?? 0;
+
+    // Tổng unread direct (mọi nhóm) — hiển thị ở filter "Chưa đọc" trên trang
+    // /notifications, KHÔNG dùng cho badge chuông.
+    const [unreadTotalRow] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(notification)
+      .where(and(eq(notification.recipientUser, userId), isNull(notification.readAt)));
+    const unreadTotal = unreadTotalRow?.count ?? 0;
 
     return NextResponse.json({
       data: items.map((r) => ({
         ...r,
         // Đánh dấu xem có phải direct (đếm vào badge) hay role broadcast (không)
         isDirect: r.recipientUser === userId,
+        // V4.4 — nhóm hiển thị chuông/trang: "action" | "reminder" | "update".
+        category: categoryForEventType(r.eventType),
       })),
       meta: {
         hasMore,
         nextCursor,
         unreadCount,
+        unreadTotal,
       },
     });
   } catch (e) {

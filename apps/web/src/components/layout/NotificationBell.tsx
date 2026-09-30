@@ -10,6 +10,7 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { notificationIcon } from "@/components/layout/notification-icons";
 import { cn } from "@/lib/utils";
 import { QueryError } from "@/components/ui/query-error";
+import { groupNotificationsByCategory, type NotifyCategory } from "@/lib/notification-groups";
 
 /**
  * V3.3 — NotificationBell với dropdown panel.
@@ -40,11 +41,12 @@ interface NotificationItem {
   readAt: string | null;
   createdAt: string;
   isDirect: boolean;
+  category: NotifyCategory;
 }
 
 interface NotificationsResponse {
   data: NotificationItem[];
-  meta: { hasMore: boolean; nextCursor: string | null; unreadCount: number };
+  meta: { hasMore: boolean; nextCursor: string | null; unreadCount: number; unreadTotal: number };
 }
 
 
@@ -116,6 +118,7 @@ export function NotificationBell() {
 
   const unreadCount = query.data?.meta.unreadCount ?? 0;
   const items = query.data?.data ?? [];
+  const groups = groupNotificationsByCategory(items);
 
   return (
     <div ref={wrapRef} className="relative">
@@ -195,16 +198,23 @@ export function NotificationBell() {
                 </p>
               </div>
             ) : (
-              <ul className="divide-y divide-zinc-50 dark:divide-zinc-800">
-                {items.map((n) => (
-                  <NotificationItemRow
-                    key={n.id}
-                    item={n}
-                    onRead={(id) => markRead.mutate(id)}
-                    onClick={() => setOpen(false)}
-                  />
-                ))}
-              </ul>
+              groups.map((g) => (
+                <div key={g.key}>
+                  <p className="sticky top-0 bg-zinc-50/95 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-400 backdrop-blur dark:bg-zinc-900/95 dark:text-zinc-500">
+                    {g.label}
+                  </p>
+                  <ul className="divide-y divide-zinc-50 dark:divide-zinc-800">
+                    {g.items.map((n) => (
+                      <NotificationItemRow
+                        key={n.id}
+                        item={n}
+                        onRead={(id) => markRead.mutate(id)}
+                        onClick={() => setOpen(false)}
+                      />
+                    ))}
+                  </ul>
+                </div>
+              ))
             )}
           </div>
 

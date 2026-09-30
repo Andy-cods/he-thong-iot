@@ -36,6 +36,7 @@ export const NOTIFICATION_EVENT_ICON: Record<string, React.ElementType> = {
   PR_PENDING_REMINDER: AlarmClock,
   PR_GOODS_ISSUED: PackageCheck,
   PR_COMPLETED: CheckCheck,
+  PR_APPROVED_NO_PO_REMINDER: AlarmClock,
   PO_CREATED_FROM_PR: FileText,
   PO_SUBCONTRACT_DRAFT: Factory,
   PO_APPROVAL_REQUESTED: Clock,
