@@ -128,13 +128,14 @@ export function ItemListTable({
     <div
       ref={parentRef}
       className="relative hidden h-full w-full overflow-auto rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 md:block"
-      role="region"
+      /* V4.4 A1 — trước role="region" + <table className="sr-only"> RỖNG
+       * (không có tbody/hàng thật) không tạo ngữ nghĩa bảng nào cho AT; các
+       * `role="row"` bên dưới đứng ngoài table/grid là KHÔNG HỢP LỆ theo ARIA.
+       * role="table" thật + aria-label thay thế caption rỗng cũ. */
+      role="table"
       aria-label="Danh mục vật tư"
+      aria-rowcount={rows.length + 1}
     >
-      <table className="sr-only">
-        <caption>Danh mục vật tư</caption>
-      </table>
-
       {/* Header row — h-8 bg-zinc-50 11px uppercase */}
       <div
         className={cn(
@@ -143,7 +144,7 @@ export function ItemListTable({
         )}
         role="row"
       >
-        <div className="flex items-center justify-center">
+        <div className="flex items-center justify-center" role="columnheader">
           <Checkbox
             aria-label="Chọn tất cả trong trang"
             checked={
@@ -235,7 +236,7 @@ export function ItemListTable({
               tabIndex={-1}
             >
               {/* Checkbox cell */}
-              <div className="flex items-center justify-center">
+              <div className="flex items-center justify-center" role="cell">
                 <Checkbox
                   checked={checked}
                   onCheckedChange={() => onToggleRow(row.id)}
@@ -246,6 +247,7 @@ export function ItemListTable({
               {/* SKU — sticky left-0 border-r, font-mono 12px */}
               <Link
                 href={`/items/${row.id}`}
+                role="cell"
                 className={cn(
                   "sticky left-0 truncate border-r border-zinc-100 bg-white pr-2 font-mono text-sm text-zinc-700 hover:text-blue-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:text-blue-300",
                   "focus-visible:outline-none focus-visible:text-blue-600",
@@ -260,6 +262,7 @@ export function ItemListTable({
               {/* Name — flex-1 truncate */}
               <Link
                 href={`/items/${row.id}`}
+                role="cell"
                 className="truncate pr-2 text-zinc-900 hover:text-blue-600 focus-visible:outline-none focus-visible:text-blue-600 dark:text-zinc-100 dark:hover:text-blue-300 dark:focus-visible:text-blue-300"
                 title={row.name}
               >
@@ -269,17 +272,19 @@ export function ItemListTable({
               {/* Loại — badge-like text (ẩn < md) */}
               <div
                 className="hidden truncate text-zinc-600 md:block"
+                role="cell"
                 title={ITEM_TYPE_LABELS[row.itemType]}
               >
                 {ITEM_TYPE_LABELS[row.itemType]}
               </div>
 
               {/* UoM (ẩn < md) */}
-              <div className="hidden text-zinc-500 md:block">{row.uom}</div>
+              <div className="hidden text-zinc-500 md:block" role="cell">{row.uom}</div>
 
               {/* Danh mục (ẩn < md) */}
               <div
                 className="hidden truncate text-zinc-600 md:block"
+                role="cell"
                 title={row.category ?? ""}
               >
                 {row.category ?? "—"}
@@ -288,6 +293,7 @@ export function ItemListTable({
               {/* V3.7 — Vị trí kho (default bin) */}
               <div
                 className="hidden truncate md:block"
+                role="cell"
                 title={row.defaultBinCode ?? "Chưa gán bin"}
               >
                 {row.defaultBinCode ? (
@@ -302,7 +308,7 @@ export function ItemListTable({
               {/* Tồn kho — V1.9 P6 + TASK-20260427-017:
                     - Available cell color đỏ nếu ≤ 0, amber nếu < minStock.
                     - Tooltip hiển thị on-hand / reserved chi tiết. */}
-              <div className="hidden flex-col items-end justify-center whitespace-nowrap pr-2 tabular-nums text-zinc-700 md:flex dark:text-zinc-300">
+              <div className="hidden flex-col items-end justify-center whitespace-nowrap pr-2 tabular-nums text-zinc-700 md:flex dark:text-zinc-300" role="cell">
                 {row.inventorySummary ? (
                   <StockCell row={row} />
                 ) : row.onHand !== null && row.onHand !== undefined ? (
@@ -313,7 +319,7 @@ export function ItemListTable({
               </div>
 
               {/* Status badge sm V2 */}
-              <div>
+              <div role="cell">
                 {/* V4.1 UI-07/08: "Đang dùng" / "Ngừng dùng" từ lib/status.ts (bỏ "Active"/"Đã xoá"). */}
                 {(() => {
                   const s = getStatus("item", activeStatusCode(row.isActive));
@@ -322,7 +328,7 @@ export function ItemListTable({
               </div>
 
               {/* Actions — icon buttons h-7 w-7 ghost (ẩn < md) */}
-              <div className="hidden items-center justify-center gap-0.5 md:flex">
+              <div className="hidden items-center justify-center gap-0.5 md:flex" role="cell">
                 {onPreview && (
                   <button
                     type="button"

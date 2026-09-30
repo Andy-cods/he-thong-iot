@@ -256,8 +256,13 @@ export function BomListTable({
     <div
       ref={parentRef}
       className="relative h-full w-full overflow-auto rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
-      role="region"
+      /* V4.4 A1 — trước chỉ role="region", các `role="row"` con KHÔNG HỢP LỆ
+       * theo spec ARIA (row phải nằm trong table/grid/treegrid) → trình đọc
+       * màn hình bỏ qua toàn bộ ngữ nghĩa bảng. role="table" (không dùng
+       * "grid" vì bảng này không có điều hướng bàn phím 2 chiều kiểu grid). */
+      role="table"
       aria-label="Danh sách BOM"
+      aria-rowcount={rows.length + 1}
     >
       {/* Header */}
       <div
@@ -267,7 +272,7 @@ export function BomListTable({
         )}
         role="row"
       >
-        <div className="flex items-center justify-center">
+        <div className="flex items-center justify-center" role="columnheader">
           <Checkbox
             aria-label="Chọn tất cả trong trang"
             checked={
@@ -389,7 +394,7 @@ export function BomListTable({
               )}
               tabIndex={-1}
             >
-              <div className="flex items-center justify-center">
+              <div className="flex items-center justify-center" role="cell">
                 <Checkbox
                   checked={checked}
                   onCheckedChange={() => onToggleRow(row.id)}
@@ -399,6 +404,7 @@ export function BomListTable({
 
               <Link
                 href={`/bom/${row.id}`}
+                role="cell"
                 className={cn(
                   "sticky left-0 truncate border-r border-zinc-100 bg-white pr-2 font-mono text-sm text-zinc-700 hover:text-indigo-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:text-indigo-300",
                   checked && "bg-indigo-50 dark:bg-indigo-950/40",
@@ -409,7 +415,7 @@ export function BomListTable({
                 {row.code}
               </Link>
 
-              <div className="min-w-0 pr-2">
+              <div className="min-w-0 pr-2" role="cell">
                 {onRename ? (
                   <InlineRenameCell row={row} onRename={onRename} />
                 ) : (
@@ -425,6 +431,7 @@ export function BomListTable({
 
               <div
                 className="hidden truncate font-mono text-sm text-zinc-600 md:block dark:text-zinc-400"
+                role="cell"
                 title={
                   row.parentItemSku
                     ? `${row.parentItemSku} — ${row.parentItemName ?? ""}`
@@ -434,23 +441,23 @@ export function BomListTable({
                 {row.parentItemSku ?? "—"}
               </div>
 
-              <div className="hidden text-right tabular-nums text-zinc-700 md:block dark:text-zinc-300">
+              <div className="hidden text-right tabular-nums text-zinc-700 md:block dark:text-zinc-300" role="cell">
                 {formatNumber(row.componentCount)}
               </div>
 
-              <div className="hidden text-right tabular-nums text-zinc-700 md:block dark:text-zinc-300">
+              <div className="hidden text-right tabular-nums text-zinc-700 md:block dark:text-zinc-300" role="cell">
                 {formatNumber(Number(row.targetQty))}
               </div>
 
-              <div>
+              <div role="cell">
                 <StatusPill domain="bom" code={row.status} dot />
               </div>
 
-              <div className="hidden truncate text-xs text-zinc-500 md:block dark:text-zinc-400">
+              <div className="hidden truncate text-xs text-zinc-500 md:block dark:text-zinc-400" role="cell">
                 {formatDate(row.updatedAt, "dd/MM/yyyy HH:mm")}
               </div>
 
-              <div className="hidden items-center justify-end gap-0.5 md:flex">
+              <div className="hidden items-center justify-end gap-0.5 md:flex" role="cell">
                 {onPreview && (
                   <button
                     type="button"
