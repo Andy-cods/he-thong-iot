@@ -29,6 +29,7 @@ import { StatusPill } from "@/components/ui/status-badge";
 import { useConfirm, usePrompt } from "@/components/ui/confirm-dialog";
 import { formatDateTime, formatQty } from "@/lib/format";
 import { statusLabel } from "@/lib/status";
+import { ReLotIssueRequestDialog, type ReLotRequestSummary } from "@/components/warehouse/ReLotIssueRequestDialog";
 
 /**
  * Wave 5 Phase A/B — `<IssueMovementView>` (trước đây `IssueTab`).
@@ -1016,6 +1017,12 @@ function PendingRequestsPanel() {
   // V4.1 UX-01: hộp xác nhận / nhập lý do dùng chung.
   const askConfirm = useConfirm();
   const askReason = usePrompt();
+  // V4.4 (Việc 2) — lô hụt lúc duyệt: mở dialog "Chọn lại lô" thay vì chỉ báo lỗi.
+  const [relotRequest, setRelotRequest] = React.useState<ReLotRequestSummary | null>(null);
+  const STOCK_ERROR_CODES = React.useMemo(
+    () => new Set(["LOT_NOT_AVAILABLE", "INSUFFICIENT_BIN", "INSUFFICIENT_FREE"]),
+    [],
+  );
 
   const handleApprove = async (id: string, reqNo: string) => {
     if (
@@ -1033,9 +1040,19 @@ function PendingRequestsPanel() {
       });
       const json = (await res.json()) as {
         data?: { totalQty: number; txnIds: string[]; issueNo?: string };
-        error?: { message?: string };
+        error?: { code?: string; message?: string };
       };
       if (!res.ok || !json.data) {
+        // V4.4 (Việc 2) — lô đã khoá lúc tạo nay hụt → cho "Chọn lại lô" thay
+        // vì để phiếu kẹt PENDING vĩnh viễn (chỉ còn nút Từ chối).
+        if (json.error?.code && STOCK_ERROR_CODES.has(json.error.code)) {
+          const row = rows.find((r) => r.id === id);
+          if (row) {
+            toast.error(`${json.error.message ?? "Lô đã chọn không còn đủ."} — chọn lại lô bên dưới.`);
+            setRelotRequest({ id: row.id, requestNo: row.requestNo, picksJson: row.picksJson });
+            return;
+          }
+        }
         toast.error(json.error?.message ?? "Lỗi duyệt");
         return;
       }
@@ -1276,6 +1293,18 @@ function PendingRequestsPanel() {
           )}
         </div>
       )}
+
+      <ReLotIssueRequestDialog
+        open={!!relotRequest}
+        onOpenChange={(o) => {
+          if (!o) setRelotRequest(null);
+        }}
+        request={relotRequest}
+        onApproved={() => {
+          invalidateStockQueries(qc);
+          void refetch();
+        }}
+      />
     </section>
   );
 }
