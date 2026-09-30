@@ -294,7 +294,7 @@ export function WOQuickDialog({
               });
             }}
             disabled={mutation.isPending}
-            className="bg-purple-600 hover:bg-purple-700 dark:bg-purple-700 dark:hover:bg-purple-600"
+            className="bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500"
           >
             {mutation.isPending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
