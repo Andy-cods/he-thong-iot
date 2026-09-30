@@ -158,6 +158,8 @@ export const ACTION_EVENT_TYPES: ReadonlySet<NotificationEventType> = new Set<No
   "DELIVERY_NOTE_CREATED",
   "MATERIAL_REQUEST_NEW",
   "PO_RECEIVED_FULL",
+  "STOCKTAKE_SUBMITTED",
+  "STOCKTAKE_REJECTED",
 ]);
 
 /**
@@ -192,6 +194,10 @@ export const RESOLVES_STALE: Partial<
     "MATERIAL_REQUEST_PICKING",
     "MATERIAL_REQUEST_READY",
   ],
+  // Kiểm kê: chốt/trả lại → "chờ duyệt" cũ hết hiệu lực; gửi duyệt lại → "bị trả lại" cũ hết.
+  STOCKTAKE_APPROVED: ["STOCKTAKE_SUBMITTED", "STOCKTAKE_REJECTED"],
+  STOCKTAKE_REJECTED: ["STOCKTAKE_SUBMITTED"],
+  STOCKTAKE_SUBMITTED: ["STOCKTAKE_REJECTED"],
 };
 
 export interface NotifyContent {
@@ -1497,11 +1503,13 @@ export interface StocktakeCtx extends Actor {
 /** Kho gửi duyệt (DRAFT→PENDING_APPROVAL) → CHỈ Giám đốc (admin) cần biết để chốt. */
 export function planStocktakeSubmitted(ctx: StocktakeCtx): NotifyPlan {
   const content: NotifyContent = {
-    title: `Phiếu kiểm kê ${ctx.code} chờ duyệt`,
+    title: `${ctx.actorUsername ?? "Kho"} gửi duyệt phiếu kiểm kê ${ctx.code}`,
     message: "Kho đã đếm xong — cần Giám đốc duyệt để ghi điều chỉnh tồn.",
     links: [L.whStocktake(ctx.sessionId)],
     severity: "warning",
     email: true,
+    category: "action",
+    push: true,
   };
   return {
     eventType: "STOCKTAKE_SUBMITTED",
@@ -1552,6 +1560,8 @@ export function planStocktakeRejected(
       : "Cần đếm lại rồi gửi duyệt lại.",
     links: [L.whStocktake(ctx.sessionId)],
     severity: "warning",
+    category: "action",
+    push: true,
   };
   return {
     eventType: "STOCKTAKE_REJECTED",
