@@ -137,7 +137,16 @@ export interface DialogConfirmProps {
   onOpenChange: (open: boolean) => void;
   title: string;
   description?: string;
-  /** Text user phải gõ. Default "XOA". */
+  /**
+   * Text user phải gõ. Default "XOA".
+   *
+   * V4.4 A13 — CHỈ dùng mặc định "XOA" cho hành động XOÁ VĨNH VIỄN, không
+   * thể hồi phục. Hành động reversible (vô hiệu hoá, khoá tạm, huỷ nháp…)
+   * KHÔNG nên gõ "XOA" — gây cảm giác sai mức độ nghiêm trọng. Truyền
+   * `confirmText` khác phù hợp hơn (VD tên đối tượng), hoặc cân nhắc dùng
+   * `ConfirmDialog` (confirm-dialog.tsx) với nút xác nhận thường (không
+   * `typeToConfirm`) cho hành động có thể hồi phục.
+   */
   confirmText?: string;
   /** Label cho action button. Default "Xoá". */
   actionLabel?: string;
