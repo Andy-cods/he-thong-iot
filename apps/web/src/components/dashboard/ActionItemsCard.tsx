@@ -17,14 +17,17 @@ import { QueryError } from "@/components/ui/query-error";
 
 /**
  * V3.2 ActionItemsCard — 3 row "Cần xử lý" cho Dashboard Tổng quan
- * (TASK-20260427-027).
+ * (TASK-20260427-027). V4.4 (P0): đổi nguồn dữ liệu sang ĐÚNG cùng nhóm
+ * "Cần bạn duyệt" của chuông thông báo — theo NGƯỜI ĐANG XEM, không còn đếm
+ * lại trạng thái chứng từ riêng (trước đây thiếu PR bước DEPT_APPROVED,
+ * không đếm ISR/BBGH/PO chờ duyệt → báo "Ổn định" sai).
  *
- * Data source: GET /api/dashboard/action-items (cache Redis 30s).
+ * Data source: GET /api/dashboard/action-items (cache Redis 30s, theo user).
  *
- * 3 row:
- *  - PR DRAFT chờ submit/duyệt
- *  - PO quá hạn ETA
- *  - WO IN_PROGRESS quá hạn planned_end
+ * 3 row (đều là việc CẦN BẠN xử lý tiếp, bấm vào mở /notifications):
+ *  - PR chờ xử lý (đề xuất vật tư — mọi bước duyệt)
+ *  - PO chờ xử lý (đơn mua — chốt giá/gửi duyệt/duyệt)
+ *  - Việc khác chờ xử lý (Lệnh SX / xuất kho / BBGH / QC / hoá đơn…)
  *
  * Hành vi: zero state — show "Tất cả ổn" với check icon. Có ít nhất 1 row >0
  * thì mỗi row hiện count, link "Xem".
@@ -161,24 +164,24 @@ export function ActionItemsCard({ className }: ActionItemsCardProps) {
             <ActionRow
               icon={ClipboardList}
               tone="violet"
-              label="PR chờ duyệt"
-              hint="Phiếu đang chờ Kho / Giám đốc duyệt"
+              label="PR chờ xử lý"
+              hint="Đề xuất vật tư đang chờ bạn kiểm tồn/duyệt"
               count={data.prDraft.count}
               href={data.prDraft.href}
             />
             <ActionRow
               icon={Package}
               tone="amber"
-              label="PO quá hạn ETA"
-              hint="Đơn mua chưa nhận đủ qua ngày"
+              label="PO chờ xử lý"
+              hint="Đơn mua đang chờ bạn chốt giá/gửi duyệt/duyệt"
               count={data.poOverdue.count}
               href={data.poOverdue.href}
             />
             <ActionRow
               icon={Factory}
               tone="rose"
-              label="WO trễ kế hoạch"
-              hint="Lệnh sản xuất quá ngày kết thúc"
+              label="Việc khác chờ xử lý"
+              hint="Lệnh SX / xuất kho / BBGH / QC / hoá đơn…"
               count={data.woOverdue.count}
               href={data.woOverdue.href}
             />

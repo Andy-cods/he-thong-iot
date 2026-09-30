@@ -1,36 +1,42 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { sql } from "drizzle-orm";
-import { purchaseOrder, purchaseRequest, workOrder } from "@iot/db/schema";
-import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { bucketActionItemsByEntityType } from "@/lib/dashboard-action-items";
 import { jsonError } from "@/server/http";
 import { forbidden, getSession, isDisplayKiosk, unauthorized } from "@/server/session";
 import { cacheGetJson, cacheSetJson } from "@/server/services/redis";
+import { getActionItemsForUser } from "@/server/services/notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/dashboard/action-items — TASK-20260427-027.
+ * GET /api/dashboard/action-items — TASK-20260427-027, sửa lại V4.4 (P0).
  *
- * Aggregate 3 nhóm việc cần xử lý trên dashboard:
- *   - prDraft: Số PR status='DRAFT' đang chờ submit/duyệt.
- *   - poOverdue: PO chưa nhận đủ + expected_eta < now()
- *                (status NOT IN CLOSED/RECEIVED/CANCELLED).
- *   - woOverdue: WO IN_PROGRESS + planned_end < CURRENT_DATE.
+ * TRƯỚC ĐÂY: tự đếm lại bằng SQL riêng trên purchase_request/purchase_order/
+ * work_order — GLOBAL (không theo người xem), thiếu PR ở bước DEPT_APPROVED
+ * (chờ Giám đốc) và không đếm ISR/BBGH/PO chờ duyệt → thẻ báo "Ổn định" dù có
+ * việc thật đang chờ (kiểm kê UI_INVENTORY.md #1).
  *
- * Cache Redis 30s. Auth: user đã login.
+ * NAY: dùng ĐÚNG cùng nguồn với nhóm "Cần bạn duyệt" ở chuông —
+ * `getActionItemsForUser()` (notifications.ts) đếm unread + eventType thuộc
+ * ACTION_EVENT_TYPES theo recipient_user = NGƯỜI ĐANG XEM, rồi
+ * `bucketActionItemsByEntityType()` (thuần, có test) gộp vào 3 hàng hiện có
+ * của ActionItemsCard. Tổng luôn KHỚP số trong nhóm "Cần bạn duyệt" của
+ * chính người đó trên trang /notifications.
+ *
+ * Cache Redis 30s — SCOPE THEO USER (trước đây 1 key chung cho mọi người xem
+ * là bug gốc thứ 2: dù có sửa SQL cũng vẫn trả nhầm số của người khác).
  *
  * Sample response:
  * {
  *   "cachedAt": "2026-04-27T12:34:56.789Z",
- *   "prDraft":   { "count": 3, "href": "/procurement/purchase-requests?status=DRAFT" },
- *   "poOverdue": { "count": 1, "href": "/procurement/purchase-orders?overdue=true" },
- *   "woOverdue": { "count": 0, "href": "/work-orders?overdue=true" }
+ *   "prDraft":   { "count": 3, "href": "/notifications" },
+ *   "poOverdue": { "count": 1, "href": "/notifications" },
+ *   "woOverdue": { "count": 2, "href": "/notifications" }
  * }
  */
 
-const CACHE_KEY = "dashboard:action-items:v2";
+const CACHE_KEY_PREFIX = "dashboard:action-items:v3:";
 const CACHE_TTL_SECONDS = 30;
 
 export interface DashboardActionItem {
@@ -45,50 +51,18 @@ export interface DashboardActionItemsPayload {
   woOverdue: DashboardActionItem;
 }
 
-async function buildPayload(): Promise<DashboardActionItemsPayload> {
-  const [prRows, poRows, woRows] = await Promise.all([
-    db
-      .select({
-        // V4.1 Đợt 2 — "PR chờ duyệt" = đang ở bước 1-2 (phiếu tự gửi khi tạo
-        // nên DRAFT gần như luôn 0 → thẻ báo sai "không có việc").
-        count: sql<number>`COUNT(*) FILTER (WHERE ${purchaseRequest.status} = 'SUBMITTED')::int`,
-      })
-      .from(purchaseRequest),
-    db
-      .select({
-        count: sql<number>`COUNT(*) FILTER (
-          WHERE ${purchaseOrder.expectedEta} IS NOT NULL
-            AND ${purchaseOrder.expectedEta} < CURRENT_DATE
-            AND ${purchaseOrder.status} IN ('SENT','PARTIAL')
-        )::int`,
-      })
-      .from(purchaseOrder),
-    db
-      .select({
-        count: sql<number>`COUNT(*) FILTER (
-          WHERE ${workOrder.status} = 'IN_PROGRESS'
-            AND ${workOrder.plannedEnd} IS NOT NULL
-            AND ${workOrder.plannedEnd} < CURRENT_DATE
-        )::int`,
-      })
-      .from(workOrder),
-  ]);
+async function buildPayload(userId: string): Promise<DashboardActionItemsPayload> {
+  const summary = await getActionItemsForUser(userId);
+  const buckets = bucketActionItemsByEntityType(summary.byEntityType);
 
+  // Cả 3 hàng đều trỏ về /notifications — số hiển thị giờ LÀ số thông báo
+  // "Cần bạn duyệt" thật (không còn suy diễn qua bộ lọc trạng thái riêng lẻ
+  // dễ lệch mỗi khi nghiệp vụ đổi), bấm vào thấy đúng danh sách đang chờ.
   return {
     cachedAt: new Date().toISOString(),
-    prDraft: {
-      count: prRows[0]?.count ?? 0,
-      href: "/procurement/purchase-requests?status=SUBMITTED",
-    },
-    poOverdue: {
-      count: poRows[0]?.count ?? 0,
-      // V4.1 Đợt 2 — link cũ redirect sang /sales?tab=po làm MẤT bộ lọc.
-      href: "/sales?tab=po&overdue=1",
-    },
-    woOverdue: {
-      count: woRows[0]?.count ?? 0,
-      href: "/work-orders?overdue=true",
-    },
+    prDraft: { count: buckets.prPending, href: "/notifications" },
+    poOverdue: { count: buckets.poPending, href: "/notifications" },
+    woOverdue: { count: buckets.otherPending, href: "/notifications" },
   };
 }
 
@@ -98,23 +72,22 @@ export async function GET(req: NextRequest) {
     if (!session) return unauthorized();
     if (isDisplayKiosk(session)) return forbidden(); // V3.11.4 (audit S.8)
 
+    const cacheKey = `${CACHE_KEY_PREFIX}${session.userId}`;
     const fresh = req.nextUrl.searchParams.get("fresh") === "1";
     if (!fresh) {
-      const cached =
-        await cacheGetJson<DashboardActionItemsPayload>(CACHE_KEY);
+      const cached = await cacheGetJson<DashboardActionItemsPayload>(cacheKey);
       if (cached) {
         return NextResponse.json(cached, {
           headers: {
-            "Cache-Control":
-              "private, s-maxage=30, stale-while-revalidate=60",
+            "Cache-Control": "private, s-maxage=30, stale-while-revalidate=60",
             "X-Cache": "HIT",
           },
         });
       }
     }
 
-    const payload = await buildPayload();
-    await cacheSetJson(CACHE_KEY, payload, CACHE_TTL_SECONDS);
+    const payload = await buildPayload(session.userId);
+    await cacheSetJson(cacheKey, payload, CACHE_TTL_SECONDS);
 
     return NextResponse.json(payload, {
       headers: {
