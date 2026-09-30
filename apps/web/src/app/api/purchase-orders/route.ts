@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
         poNo: row.poNo,
         supplierName: null,
         actorUserId: guard.session.userId,
-        actorUsername: guard.session.username,
+        actorUsername: guard.session.fullName,
       });
     } else if (approvalStatus === "pending") {
       void notifyPOApprovalRequested({
@@ -139,7 +139,7 @@ export async function POST(req: NextRequest) {
         poNo: row.poNo,
         totalAmount: row.totalAmount,
         actorUserId: guard.session.userId,
-        actorUsername: guard.session.username,
+        actorUsername: guard.session.fullName,
       });
     }
 

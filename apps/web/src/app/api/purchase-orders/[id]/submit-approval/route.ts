@@ -49,7 +49,7 @@ export async function POST(
       poNo: row.poNo,
       totalAmount: row.totalAmount,
       actorUserId: guard.session.userId,
-      actorUsername: guard.session.username,
+      actorUsername: guard.session.fullName,
     });
 
     const meta = extractRequestMeta(req);

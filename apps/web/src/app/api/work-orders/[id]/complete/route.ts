@@ -125,7 +125,7 @@ export async function POST(
       plannedQty: wo.plannedQty,
       goodQty: wo.goodQty,
       actorUserId: guard.session.userId,
-      actorUsername: guard.session.username,
+      actorUsername: guard.session.fullName,
       creatorUserId: wo.createdBy,
     });
 

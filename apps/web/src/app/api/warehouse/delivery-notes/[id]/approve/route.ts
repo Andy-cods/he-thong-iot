@@ -72,7 +72,7 @@ export async function POST(
     // Thu mua không vào được /warehouse → link PO gốc (nếu phiếu gắn PO).
     poId: row.poId ?? null,
     actorUserId: guard.session.userId,
-    actorUsername: guard.session.username,
+    actorUsername: guard.session.fullName,
   });
 
   return NextResponse.json({ data: row });

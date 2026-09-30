@@ -39,6 +39,8 @@ export interface SignAccessTokenInput {
   sid?: string;
   /** V3.8.2: override TTL (giây). Mặc định env.JWT_ACCESS_TTL. Kiosk TV = 24h. */
   ttlSeconds?: number;
+  /** TASK-notify V4.4: tên hiển thị (user_account.full_name) cho thông báo. */
+  fullName?: string;
 }
 
 export async function signAccessToken(
@@ -48,6 +50,7 @@ export async function signAccessToken(
     usr: input.username,
     roles: input.roles,
     ...(input.sid ? { sid: input.sid } : {}),
+    ...(input.fullName ? { fn: input.fullName } : {}),
   })
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setSubject(input.sub)

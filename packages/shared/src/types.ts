@@ -24,7 +24,7 @@ export type Role = (typeof ROLES)[number];
 export interface JwtPayload {
   /** User UUID. */
   sub: string;
-  /** Username (human-readable). */
+  /** Username (human-readable, dùng để đăng nhập). */
   usr: string;
   /** Roles đã gán. */
   roles: Role[];
@@ -34,6 +34,12 @@ export interface JwtPayload {
   exp: number;
   /** V1.4: session row id để revoke / list. Optional cho JWT cũ. */
   sid?: string;
+  /**
+   * TASK-notify V4.4 — tên hiển thị (user_account.full_name) để thông báo
+   * dùng tên người thay vì username đăng nhập. Optional: JWT phát trước bản
+   * này chưa có claim → caller phải fallback về `usr`.
+   */
+  fn?: string;
 }
 
 /** Session context mà mọi handler auth-protected nhận. */

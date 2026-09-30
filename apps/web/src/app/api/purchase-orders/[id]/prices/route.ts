@@ -103,7 +103,7 @@ export async function PATCH(
           totalAfter: result.totalAfter,
           invoiceRefreshedNo: result.invoiceRefreshed?.invoiceNo ?? null,
           actorUserId: guard.session.userId,
-          actorUsername: guard.session.username,
+          actorUsername: guard.session.fullName,
         });
       }
     }

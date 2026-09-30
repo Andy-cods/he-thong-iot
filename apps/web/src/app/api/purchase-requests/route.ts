@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
         prNo: finalRow.paperFormNo ?? finalRow.code,
         title: body.data.title ?? null,
         actorUserId: guard.session.userId,
-        actorUsername: guard.session.username,
+        actorUsername: guard.session.fullName,
       });
     }
 

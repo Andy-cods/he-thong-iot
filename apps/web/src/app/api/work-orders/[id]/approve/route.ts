@@ -112,7 +112,7 @@ export async function POST(
     plannedQty: wo.plannedQty,
     creatorUserId: wo.createdBy,
     actorUserId: guard.session.userId,
-    actorUsername: guard.session.username,
+    actorUsername: guard.session.fullName,
   }).catch((err) => {
     logger.warn({ err, woId: wo.id }, "notify WO approved failed");
   });

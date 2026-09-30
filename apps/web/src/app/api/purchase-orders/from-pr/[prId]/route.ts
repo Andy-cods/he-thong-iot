@@ -108,7 +108,7 @@ export async function POST(
           poCount: result.createdPOs.length,
           firstPoId: firstPo.id,
           actorUserId: guard.session.userId,
-          actorUsername: guard.session.username,
+          actorUsername: guard.session.fullName,
         });
       }
     }

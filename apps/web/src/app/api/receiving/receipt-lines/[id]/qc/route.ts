@@ -109,7 +109,7 @@ export async function POST(
               prId: po.prId ?? null,
               prCreatorUserId: pr?.requestedBy ?? null,
               actorUserId: guard.session.userId,
-              actorUsername: guard.session.username,
+              actorUsername: guard.session.fullName,
             });
           }
         }
@@ -128,7 +128,7 @@ export async function POST(
       lotCode: r.lotCode,
       qty: r.qty,
       actorUserId: guard.session.userId,
-      actorUsername: guard.session.username,
+      actorUsername: guard.session.fullName,
     };
     if (r.result === "FAIL") {
       void notifyReceiptQcFailed({ ...qcCtx, notes });

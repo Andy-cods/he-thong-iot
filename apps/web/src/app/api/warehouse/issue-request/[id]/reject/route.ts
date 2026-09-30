@@ -85,7 +85,7 @@ export async function POST(
     requestId: current.id,
     requestNo: current.requestNo,
     actorUserId: guard.session.userId,
-    actorUsername: guard.session.username,
+    actorUsername: guard.session.fullName,
     requesterUserId: current.requestedBy,
     reason: current.reason,
     rejectReason: body.data.reason,

@@ -281,7 +281,7 @@ export async function PATCH(
           // (giá sau duyệt đi đường /prices, báo thêm Giám đốc + Kế toán).
           afterApproval: false,
           actorUserId: guard.session.userId,
-          actorUsername: guard.session.username,
+          actorUsername: guard.session.fullName,
         });
       }
     }

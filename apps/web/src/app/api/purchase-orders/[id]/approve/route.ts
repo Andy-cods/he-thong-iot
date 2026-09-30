@@ -97,7 +97,7 @@ export async function POST(
       poId: row.id,
       poNo: row.poNo,
       actorUserId: guard.session.userId,
-      actorUsername: guard.session.username,
+      actorUsername: guard.session.fullName,
       // TASK-20260927 — người lập + người gửi duyệt (có thể là Thiết kế) nhận kết quả.
       creatorUserId: row.createdBy,
       submitterUserId: submittedBy ?? null,

@@ -16,6 +16,12 @@ import { logger } from "@/lib/logger";
 export interface Session {
   userId: string;
   username: string;
+  /**
+   * TASK-notify V4.4: tên hiển thị (user_account.full_name) — dùng cho
+   * thông báo/audit thay vì username đăng nhập. Fallback = username khi JWT
+   * cũ (phát trước bản này) chưa có claim `fn`.
+   */
+  fullName: string;
   roles: Role[];
   /** V1.4: session row id từ JWT sid. Null nếu JWT cũ (pre-V1.4). */
   sessionId: string | null;
@@ -38,6 +44,7 @@ export async function getSession(req: NextRequest): Promise<Session | null> {
   return {
     userId: payload.sub,
     username: payload.usr,
+    fullName: payload.fn ?? payload.usr,
     roles: payload.roles ?? [],
     sessionId: payload.sid ?? null,
   };

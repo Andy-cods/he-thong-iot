@@ -101,7 +101,7 @@ export async function POST(
     productName: it?.name ?? it?.sku,
     creatorUserId: wo.createdBy,
     actorUserId: guard.session.userId,
-    actorUsername: guard.session.username,
+    actorUsername: guard.session.fullName,
     reason,
   }).catch((err) => {
     logger.warn({ err, woId: wo.id }, "notify WO rejected failed");

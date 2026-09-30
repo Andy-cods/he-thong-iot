@@ -173,7 +173,7 @@ export async function POST(req: NextRequest) {
       requestId: created!.id,
       requestNo: created!.requestNo,
       actorUserId: guard.session.userId,
-      actorUsername: guard.session.username,
+      actorUsername: guard.session.fullName,
       reference: reference ?? null,
       totalQty,
     });

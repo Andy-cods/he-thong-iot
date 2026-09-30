@@ -58,7 +58,7 @@ export async function POST(
       creatorUserId: wo.createdBy,
       reason: body.data.reason ?? null,
       actorUserId: guard.session.userId,
-      actorUsername: guard.session.username,
+      actorUsername: guard.session.fullName,
     });
     return NextResponse.json({ data: wo });
   } catch (err) {
