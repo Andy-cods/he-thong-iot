@@ -201,6 +201,11 @@ function CategoryColumn({
           {rows.map((r) => (
             <li
               key={r.id}
+              // V4.4 (REVIEW_UI.md §1.11/§6) — mã kỹ thuật nội bộ (VD
+              // "CHI_DIENNUOC") không cần hiện thường trực cho người dùng
+              // cuối; ẩn khỏi giao diện, chỉ còn lộ qua `title` khi rê chuột
+              // (vẫn tra được khi cần hỗ trợ/debug).
+              title={r.code}
               className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
             >
               <div className="min-w-0">
@@ -212,7 +217,6 @@ function CategoryColumn({
                     </span>
                   )}
                 </p>
-                <p className="font-mono text-xs text-zinc-400 dark:text-zinc-500">{r.code}</p>
               </div>
               {canWrite && (
                 <Button size="icon-sm" variant="ghost" onClick={() => onEdit(r)} aria-label={`Sửa ${r.name}`}>
