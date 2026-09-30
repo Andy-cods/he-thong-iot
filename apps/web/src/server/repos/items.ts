@@ -15,6 +15,8 @@ import type {
   ItemUpdate,
 } from "@iot/shared";
 import { db } from "@/lib/db";
+import { findExactNameDuplicate } from "@/lib/item-dedupe";
+import { currentYymm } from "./_docNumber";
 
 export interface ItemInventorySummary {
   /** Tồn thực tế mọi lô (kể cả HOLD) — app.v_item_stock.on_hand_total. */
@@ -306,6 +308,94 @@ export async function createItem(input: ItemCreate, actorId: string | null) {
     })
     .returning();
   return row;
+}
+
+/** V4.4 (Việc 3) — "nhóm" trong Sheet tạo nhanh → itemType (giữ khớp mapping đã dùng ở `purchaseOrders.ts findOrCreateItemForLine`). */
+function mapQuickCreateCategoryToItemType(
+  category: "MATERIAL" | "CONSUMABLE" | "TOOL" | "OTHER",
+): "RAW" | "CONSUMABLE" | "TOOL" | "PURCHASED" {
+  switch (category) {
+    case "MATERIAL":
+      return "RAW";
+    case "CONSUMABLE":
+      return "CONSUMABLE";
+    case "TOOL":
+      return "TOOL";
+    default:
+      return "PURCHASED";
+  }
+}
+
+/** Sinh SKU tạm cho vật tư tạo nhanh: VT-<yymm>-<rand>. */
+function genQuickCreateSku(): string {
+  const yymm = currentYymm();
+  const rand = Math.random().toString(36).slice(2, 7).toUpperCase();
+  return `VT-${yymm}-${rand}`;
+}
+
+export type QuickCreateItemResult =
+  | { ok: true; item: NonNullable<Awaited<ReturnType<typeof createItem>>> }
+  | { ok: false; duplicate: { id: string; sku: string; name: string } };
+
+/**
+ * V4.4 (Việc 3) — Tạo nhanh vật tư từ Sheet trong form Đề xuất vật tư.
+ * Kiểm trùng tên (chuẩn hoá bỏ dấu/khoảng trắng — `findExactNameDuplicate`)
+ * TRƯỚC khi tạo trừ khi `force=true` (người dùng đã xem cảnh báo và xác nhận
+ * vẫn muốn tạo mới) — đúng yêu cầu "kiểm trùng tên gần giống trước khi tạo và
+ * gợi ý vật tư có sẵn".
+ */
+export async function quickCreateItem(
+  input: { name: string; uom: string; category: "MATERIAL" | "CONSUMABLE" | "TOOL" | "OTHER"; force: boolean },
+  actorId: string | null,
+): Promise<QuickCreateItemResult> {
+  if (!input.force) {
+    // Gộp khoảng trắng thừa TRƯỚC khi dò ILIKE — nếu không, tên gõ nhiều
+    // khoảng trắng giữa các từ (lỗi gõ thường gặp) sẽ KHÔNG khớp substring
+    // với tên đã lưu (1 khoảng trắng) dù `findExactNameDuplicate` bên dưới
+    // có coi 2 tên là trùng sau chuẩn hoá — phải khớp ở bước lọc ứng viên
+    // trước thì mới tới được bước so sánh.
+    const needle = input.name.trim().replace(/\s+/g, " ");
+    const candidates = await db
+      .select({ id: item.id, sku: item.sku, name: item.name })
+      .from(item)
+      .where(
+        and(
+          eq(item.isActive, true),
+          sql`unaccent(${item.name}) ILIKE unaccent('%' || ${needle} || '%')
+              OR unaccent(${needle}) ILIKE unaccent('%' || ${item.name} || '%')`,
+        ),
+      )
+      .limit(10);
+    const dup = findExactNameDuplicate(input.name, candidates);
+    if (dup) return { ok: false, duplicate: dup };
+  }
+
+  let sku = genQuickCreateSku();
+  for (let i = 0; i < 6; i += 1) {
+    const exists = await checkSkuExists(sku);
+    if (!exists) break;
+    sku = genQuickCreateSku();
+  }
+
+  const row = await createItem(
+    {
+      sku,
+      name: input.name,
+      itemType: mapQuickCreateCategoryToItemType(input.category),
+      uom: input.uom as ItemCreate["uom"],
+      status: "ACTIVE",
+      category: input.category,
+      description: null,
+      minStockQty: 0,
+      reorderQty: 0,
+      leadTimeDays: 0,
+      isLotTracked: false,
+      isSerialTracked: false,
+    },
+    actorId,
+  );
+  if (!row) throw new Error("QUICK_CREATE_ITEM_FAILED");
+  return { ok: true, item: row };
 }
 
 export async function updateItem(

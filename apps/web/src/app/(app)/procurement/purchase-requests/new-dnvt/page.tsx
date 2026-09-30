@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { Loader2, Plus, Printer, Trash2 } from "lucide-react";
 import type { PRCreateInput } from "@iot/shared";
 import { Button } from "@/components/ui/button";
+import { ItemPickerField } from "@/components/procurement/ItemPickerField";
+import type { ItemPickerValue } from "@/components/bom/ItemPicker";
 import {
   useCreatePurchaseRequest,
   usePreviewPaperFormNo,
@@ -30,7 +32,13 @@ export const dynamic = "force-dynamic";
 
 interface DnvtLineDraft {
   localId: string;
-  itemName: string;
+  /**
+   * V4.4 (Việc 3) — chọn từ danh mục (id/sku thật) thay vì gõ tên tự do, để
+   * tránh tạo item trùng lặp âm thầm khi Thu mua "Tạo PO" (xem
+   * `findOrCreateItemForLine`, LOOP_E2E.md #2). Phiếu CŨ đã lưu tên tự do vẫn
+   * hiển thị/hoạt động bình thường ở trang chi tiết — không đổi dữ liệu cũ.
+   */
+  item: ItemPickerValue | null;
   specification: string;
   uom: string;
   qty: string;
@@ -68,7 +76,7 @@ const DEPT_OPTIONS = [
 function blankLine(): DnvtLineDraft {
   return {
     localId: crypto.randomUUID(),
-    itemName: "",
+    item: null,
     specification: "",
     uom: "",
     qty: "1",
@@ -123,8 +131,7 @@ export default function NewDnvtPage() {
   const [lines, setLines] = React.useState<DnvtLineDraft[]>(() => [blankLine()]);
 
   const validLines = React.useMemo(
-    () =>
-      lines.filter((l) => l.itemName.trim().length > 0 && Number(l.qty) > 0),
+    () => lines.filter((l) => !!l.item && Number(l.qty) > 0),
     [lines],
   );
 
@@ -151,7 +158,7 @@ export default function NewDnvtPage() {
 
   const handleSubmit = async () => {
     if (validLines.length === 0) {
-      toast.error("Cần ít nhất 1 dòng có Tên vật tư + số lượng > 0.");
+      toast.error("Cần ít nhất 1 dòng đã chọn vật tư + số lượng > 0.");
       return;
     }
     if (!requestReason.trim()) {
@@ -170,16 +177,18 @@ export default function NewDnvtPage() {
       // V3.10 — loại phiếu DNVT (backend chung, khác template export).
       formType: "DNVT",
       lines: validLines.map((l) => ({
-        itemId: null,
-        itemName: l.itemName.trim() || null,
-        itemSku: null,
+        // V4.4 (Việc 3) — itemId thật từ ItemPicker (đã chọn hoặc vừa tạo
+        // nhanh), thay vì luôn null + itemName tự do như trước.
+        itemId: l.item!.id,
+        itemName: l.item!.name,
+        itemSku: l.item!.sku,
         qty: Number(l.qty),
         preferredSupplierId: null,
         snapshotLineId: null,
         neededBy: l.neededBy ? new Date(l.neededBy) : null,
         notes: l.notes.trim() || null,
         specification: l.specification.trim() || null,
-        uom: l.uom.trim() || null,
+        uom: l.uom.trim() || l.item!.uom || null,
         priority: l.priority,
         category: l.category,
         estimatedUnitPrice: null,
@@ -405,16 +414,21 @@ export default function NewDnvtPage() {
                         </span>
                       </Td>
                       <Td>
-                        <textarea
-                          value={l.itemName}
-                          onChange={(e) =>
-                            updateLine(l.localId, { itemName: e.target.value })
-                          }
-                          placeholder="VD: Nhôm AL6061"
-                          rows={1}
-                          className="w-full resize-none bg-transparent text-[11px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
-                          style={{ minHeight: 18 }}
-                        />
+                        <div className="min-w-[200px] print:hidden">
+                          <ItemPickerField
+                            value={l.item}
+                            onChange={(item) =>
+                              updateLine(l.localId, {
+                                item,
+                                uom: item?.uom ? item.uom : l.uom,
+                              })
+                            }
+                            placeholder="Tìm hoặc tạo vật tư..."
+                          />
+                        </div>
+                        <span className="hidden text-[11px] print:inline">
+                          {l.item ? `${l.item.sku} — ${l.item.name}` : "—"}
+                        </span>
                       </Td>
                       <Td>
                         <textarea
