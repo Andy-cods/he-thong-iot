@@ -30,6 +30,7 @@ import {
 import { useSuppliersList, type SupplierRow } from "@/hooks/useSuppliers";
 import { useConvertPRToPOs } from "@/hooks/usePurchaseOrders";
 import { cn } from "@/lib/utils";
+import { formatNumber } from "@/lib/format";
 
 /**
  * V3.4 — ConvertPRToPODialog.
@@ -220,7 +221,7 @@ export function ConvertPRToPODialog({
                       </div>
                     </td>
                     <td className="px-3 py-3 text-right font-mono text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-                      {Number(l.qty).toLocaleString("vi-VN")}
+                      {formatNumber(Number(l.qty))}
                     </td>
                     <td className="px-3 py-3">
                       {hasSupplier ? (

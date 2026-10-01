@@ -140,7 +140,10 @@ export function DnvtDetailBody({ pr }: { pr: DnvtDetailPr }) {
       {/* II. Danh mục vật tư (14 cột) */}
       <section className="border-b border-zinc-300 dark:border-zinc-700 print:dark:border-zinc-300">
         <SectionTitle>II. Danh mục vật tư</SectionTitle>
-        <div className="overflow-x-auto print:overflow-visible">
+        {/* V4.4 UI nhóm C-PR — bảng 14 cột chỉ hiện ≥md (bản in giữ nguyên);
+            mobile dùng card-list bên dưới (nhánh MRF cùng trang cha đã có,
+            DNVT trước đây thiếu hẳn — xem UI_INVENTORY.md §5 mục 5). */}
+        <div className="hidden overflow-x-auto md:block print:block print:overflow-visible">
           <table className="w-full border-collapse text-[11px]">
             <thead>
               <tr className="bg-[#F5F5F5] text-xs font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
@@ -231,6 +234,13 @@ export function DnvtDetailBody({ pr }: { pr: DnvtDetailPr }) {
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile: card-list thay bảng (ẩn khi IN — bản in dùng bảng ở trên) */}
+        <div className="space-y-2 p-2 md:hidden print:hidden">
+          {pr.lines.map((l, idx) => (
+            <DnvtLineItemCard key={l.id} line={l} idx={idx} />
+          ))}
         </div>
       </section>
 
@@ -380,6 +390,115 @@ function Td({
   );
 }
 
+/** V4.4 UI nhóm C-PR — card mobile cho 1 dòng vật tư DNVT (khớp pattern
+ * `LineItemCard` của nhánh MRF ở `[id]/page.tsx`, lược field giá/tiền vì DNVT
+ * không có 2 cột đó). */
+function DnvtLineItemCard({ line: l, idx }: { line: DnvtDetailLine; idx: number }) {
+  const qty = Number(l.qty) || 0;
+  const onHand = l.onHandSnapshot != null ? Number(l.onHandSnapshot) : null;
+  const approvedQty = l.approvedQty != null ? Number(l.approvedQty) : null;
+  const lowStock = onHand != null && qty > 0 ? onHand < qty : false;
+  return (
+    <div className="rounded-lg border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+      {/* Cấp 1 — tên + STT/phân loại */}
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <div className="min-w-0 break-words text-[14px] font-semibold leading-snug text-zinc-900 dark:text-zinc-50">
+          {l.name ?? "—"}
+        </div>
+        <span className="shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+          #{idx + 1} · {CATEGORY_LABELS[l.category ?? "OTHER"] ?? "—"}
+        </span>
+      </div>
+      {/* Cấp 2 — khối số quyết định */}
+      <div className="grid grid-cols-3 gap-2 rounded-md bg-zinc-50 p-2 dark:bg-zinc-800/50">
+        <Metric label="SL YC" value={fmtNum(qty)} unit={l.uom ?? l.itemUom} />
+        <Metric
+          label="Tồn kho"
+          value={onHand != null ? fmtNum(onHand) : "—"}
+          className={
+            lowStock
+              ? "font-semibold text-rose-600 dark:text-rose-400"
+              : onHand != null
+                ? "text-emerald-700 dark:text-emerald-400"
+                : "text-zinc-400"
+          }
+        />
+        <Metric
+          label="Duyệt"
+          value={approvedQty != null ? fmtNum(approvedQty) : "—"}
+          className={
+            approvedQty != null
+              ? "font-semibold text-emerald-700 dark:text-emerald-400"
+              : "text-zinc-400"
+          }
+        />
+      </div>
+      {/* Cấp 3 — phụ (ẩn field rỗng) */}
+      <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 border-t border-zinc-100 pt-2 text-[11px] text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
+        <Meta label="Quy cách" value={l.specification} />
+        <Meta label="Ngày cần" value={l.neededBy ? fmtDateVN(l.neededBy) : null} />
+        <Meta label="Ưu tiên" value={PRIORITY_LABELS[l.priority ?? "NORMAL"]} />
+        <Meta label="Mã tham chiếu" value={l.referenceCode} />
+        <Meta label="Tham khảo" value={l.referenceNote} />
+        <Meta label="Ghi chú" value={l.notes} wide />
+        <Meta
+          label="Ngày giao hàng"
+          value={l.deliveryDate ? fmtDateVN(l.deliveryDate) : null}
+        />
+      </dl>
+    </div>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  unit,
+  className,
+}: {
+  label: string;
+  value: string;
+  unit?: string | null;
+  className?: string;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="text-xs uppercase tracking-wide text-zinc-400">
+        {label}
+      </div>
+      <div className={cn("font-mono text-[15px] tabular-nums", className)}>
+        {value}
+        {unit ? (
+          <span className="ml-1 text-[11px] font-normal text-zinc-400">
+            {unit}
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/** Field phụ — ẩn hẳn nếu rỗng để card gọn. */
+function Meta({
+  label,
+  value,
+  wide,
+}: {
+  label: string;
+  value: string | null | undefined;
+  wide?: boolean;
+}) {
+  if (value == null || value === "" || value === "—") return null;
+  return (
+    <div className={cn("min-w-0", wide ? "col-span-2" : "")}>
+      <span className="text-zinc-400">{label}: </span>
+      <span className="break-words text-zinc-700 dark:text-zinc-300">
+        {value}
+      </span>
+    </div>
+  );
+}
+
 function ApprovalRow({
   role,
   name,
@@ -401,7 +520,12 @@ function ApprovalRow({
       <Td>
         <span className="font-medium">{role}</span>
       </Td>
-      <Td>{name || " "}</Td>
+      <Td>
+        {/* V4.4 UI nhóm C-PR — màn hình hiện "—" nhất quán với mọi placeholder
+            khác trong bảng; bản in giữ Ô TRỐNG thật (chỗ ký tay trên phiếu
+            giấy) nên ẩn dấu "—" khi print. */}
+        {name || <span className="text-zinc-300 dark:text-zinc-600 print:hidden">—</span>}
+      </Td>
       <Td>
         <span className="font-mono text-[10.5px]">
           {signed ? `✓ ${date}` : date}

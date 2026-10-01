@@ -24,6 +24,8 @@ import { usePurchaseRequestsList } from "@/hooks/usePurchaseRequests";
 import { useSession } from "@/hooks/useSession";
 import type { PRFilter } from "@/lib/query-keys";
 import { statusLabel } from "@/lib/status";
+import { formatNumber } from "@/lib/format";
+import { DateField } from "@/components/ui/date-field";
 
 /**
  * V3.16 — Đề xuất mua vật tư (YCVT/MRF) dạng BẢNG PHẲNG.
@@ -138,7 +140,7 @@ export function PRTab() {
             Đề xuất vật tư
           </h1>
           <p className="mt-0.5 text-base text-zinc-500 dark:text-zinc-400">
-            {query.isError ? "—" : total.toLocaleString("vi-VN")} phiếu
+            {query.isError ? "—" : formatNumber(total)} phiếu
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -170,22 +172,22 @@ export function PRTab() {
         <div className="ml-auto flex items-center gap-2">
           <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
             <span className="text-zinc-500 dark:text-zinc-400">Từ</span>
-            <input
-              type="date"
+            <DateField
               value={urlState.from}
               max={urlState.to || undefined}
-              onChange={(e) => void setUrlState({ from: e.target.value, page: 1 })}
-              className="h-8 rounded-lg border border-zinc-200 bg-white px-2.5 text-sm tabular-nums focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+              onChange={(v) => void setUrlState({ from: v, page: 1 })}
+              className="h-8 text-sm"
+              aria-label="Lọc từ ngày"
             />
           </label>
           <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
             <span className="text-zinc-500 dark:text-zinc-400">Đến</span>
-            <input
-              type="date"
+            <DateField
               value={urlState.to}
               min={urlState.from || undefined}
-              onChange={(e) => void setUrlState({ to: e.target.value, page: 1 })}
-              className="h-8 rounded-lg border border-zinc-200 bg-white px-2.5 text-sm tabular-nums focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+              onChange={(v) => void setUrlState({ to: v, page: 1 })}
+              className="h-8 text-sm"
+              aria-label="Lọc đến ngày"
             />
           </label>
           {hasFilter && (

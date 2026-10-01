@@ -36,6 +36,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { StatusPill } from "@/components/ui/status-badge";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -230,7 +231,7 @@ export default function PurchaseRequestDetailPage() {
       <div className="m-6 rounded-xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-800 dark:bg-red-950/40">
         <AlertCircle className="mx-auto h-8 w-8 text-red-400 dark:text-red-500" aria-hidden />
         <p className="mt-2 text-sm font-semibold text-red-700 dark:text-red-300">
-          Không tìm thấy phiếu YCVT
+          Không tìm thấy phiếu đề xuất vật tư
         </p>
         <Button asChild variant="outline" size="sm" className="mt-3">
           <Link href="/procurement/purchase-requests">Về danh sách</Link>
@@ -241,6 +242,10 @@ export default function PurchaseRequestDetailPage() {
 
   const step = (pr.approvalStep ?? "DRAFT") as ApprovalStep;
   const status = pr.status as PRStatus;
+  // V4.4 UI nhóm C-PR — nhãn loại phiếu ĐÚNG theo record thật (trước hard-code
+  // "YCVT" trong mọi dialog/toast dùng chung cho cả 2 loại, kể cả khi record
+  // là DNVT — xem UI_INVENTORY.md §5 C.B).
+  const formLabel = pr.formType === "DNVT" ? "DNVT" : "MRF";
 
   // V4.0 — "Trưởng bộ phận" duyệt bước 2 LÀ KHO (kiểm lượng tồn rồi duyệt),
   // không còn là Thiết kế (planner). Phải khớp guard server tại
@@ -325,7 +330,7 @@ export default function PurchaseRequestDetailPage() {
     }
     try {
       await reject.mutateAsync({ reason: rejectReason.trim() });
-      toast.success("Đã từ chối phiếu YCVT");
+      toast.success(`Đã từ chối phiếu ${formLabel}`);
       setRejectOpen(false);
       setRejectReason("");
     } catch (err) {
@@ -340,7 +345,7 @@ export default function PurchaseRequestDetailPage() {
     }
     try {
       await cancel.mutateAsync({ reason: cancelReason.trim() });
-      toast.success("Đã huỷ phiếu YCVT");
+      toast.success(`Đã huỷ phiếu ${formLabel}`);
       setCancelOpen(false);
       setCancelReason("");
     } catch (err) {
@@ -397,14 +402,17 @@ export default function PurchaseRequestDetailPage() {
                   {pr.code}
                 </span>
                 {paperFormNo !== "—" ? (
-                  <span className="rounded bg-[#005D9F] px-2 py-0.5 font-mono text-[11px] text-white">
+                  // V4.4 UI nhóm C-PR — trước dùng hex #005D9F cứng (ngoài khung
+                  // mô phỏng phiếu giấy, lẫn vào toolbar app) → đổi sang Badge
+                  // chuẩn hệ thống (tone info) để không rò màu ngoài hệ.
+                  <Badge variant="info" className="font-mono normal-case tracking-normal">
                     {paperFormNo}
-                  </span>
+                  </Badge>
                 ) : null}
                 <StatusPill tone={STEP_TONE[step]} label={STEP_LABEL[step]} dot />
               </div>
               <h1 className="mt-1 truncate text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-                {pr.title || "Phiếu YCVT"}
+                {pr.title || (pr.formType === "DNVT" ? "Phiếu DNVT" : "Phiếu MRF")}
               </h1>
             </div>
           </div>
@@ -581,7 +589,7 @@ export default function PurchaseRequestDetailPage() {
                 onClick={() =>
                   void (async () => {
                     const ok = await askConfirm({
-                      title: "Đóng phiếu YCVT này?",
+                      title: `Đóng phiếu ${formLabel} này?`,
                       description: "Sau khi đóng không sửa được.",
                       confirmLabel: "Hoàn tất",
                     });
@@ -1017,7 +1025,7 @@ export default function PurchaseRequestDetailPage() {
       <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Từ chối phiếu YCVT</DialogTitle>
+            <DialogTitle>Từ chối phiếu {formLabel}</DialogTitle>
             <DialogDescription>
               Phiếu sẽ chuyển sang trạng thái REJECTED. Người đề xuất sẽ nhận
               thông báo và có thể tạo phiếu mới.
@@ -1057,7 +1065,7 @@ export default function PurchaseRequestDetailPage() {
       <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Huỷ phiếu YCVT</DialogTitle>
+            <DialogTitle>Huỷ phiếu {formLabel}</DialogTitle>
             <DialogDescription>
               {status === "APPROVED"
                 ? "Phiếu đã duyệt xong nhưng chưa có Đơn hàng mua — huỷ sẽ dừng hẳn quy trình, không tạo PO nữa."
@@ -1163,7 +1171,7 @@ export default function PurchaseRequestDetailPage() {
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Xoá phiếu YCVT — không thể hoàn tác</DialogTitle>
+            <DialogTitle>Xoá phiếu {formLabel} — không thể hoàn tác</DialogTitle>
             <DialogDescription>
               Hành động này sẽ xoá vĩnh viễn phiếu{" "}
               <strong className="font-mono">

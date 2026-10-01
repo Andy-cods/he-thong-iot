@@ -15,6 +15,7 @@ import {
 } from "@/hooks/usePurchaseRequests";
 import { useSession } from "@/hooks/useSession";
 import { cn } from "@/lib/utils";
+import { formatDate } from "@/lib/format";
 
 /**
  * V3.10 — `/procurement/purchase-requests/new-dnvt` —
@@ -90,13 +91,9 @@ function blankLine(): DnvtLineDraft {
   };
 }
 
-function formatDateVN(d: Date): string {
-  return d.toLocaleDateString("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
+// V4.4 UI nhóm C-PR (A3) — bỏ hàm format ngày cục bộ, dùng `lib/format.ts`
+// (mẫu "dd/MM/yyyy" mặc định khớp 100% hành vi cũ).
+const formatDateVN = (d: Date) => formatDate(d);
 
 export default function NewDnvtPage() {
   const router = useRouter();
@@ -368,6 +365,11 @@ export default function NewDnvtPage() {
               </Button>
             </SectionTitle>
 
+            {/* V4.4 UI nhóm C-PR — chỉ báo cuộn ngang mobile (bảng nhiều cột
+                bị cắt cụt ở 390px nhưng không có gợi ý còn nội dung). */}
+            <p className="mb-1 text-[11px] text-zinc-400 md:hidden print:hidden" aria-hidden="true">
+              ← Vuốt ngang để xem đủ cột →
+            </p>
             <div className="overflow-x-auto print:overflow-visible">
               <table className="w-full border-collapse text-[11px]">
                 <thead>

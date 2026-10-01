@@ -25,7 +25,7 @@ import { RequestMaterialsSheet } from "@/components/work-orders/RequestMaterials
 import { WorkOrderActions } from "@/components/work-orders/WorkOrderActions";
 import { normalizeRoutingPlan } from "@/lib/wo-routing";
 import { useSession } from "@/hooks/useSession";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatNumber } from "@/lib/format";
 import { StatusPill } from "@/components/ui/status-badge";
 import { actionLabel, statusLabel } from "@/lib/status";
 import { cn } from "@/lib/utils";
@@ -94,7 +94,8 @@ function fmtNum(n: number | string | null | undefined): string {
   if (n === null || n === undefined || n === "") return "—";
   const num = typeof n === "string" ? Number(n) : n;
   if (!Number.isFinite(num)) return "—";
-  return num.toLocaleString("vi-VN");
+  // V4.4 UI nhóm E (A3) — qua lib/format.ts thay vì tự gọi toLocaleString.
+  return formatNumber(num);
 }
 
 export default function WorkOrderDetailPage() {
@@ -391,18 +392,11 @@ export default function WorkOrderDetailPage() {
                   II. Nguyên vật liệu (BOM)
                 </h3>
                 <div className="flex items-center gap-2 print:hidden">
-                  {materialStatus === "SHORTAGE" ? (
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
-                      Còn thiếu
-                    </span>
-                  ) : materialStatus === "REQUESTED" ? (
-                    <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
-                      Đã xin, chờ xuất
-                    </span>
-                  ) : materialStatus === "ISSUED" ? (
-                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
-                      Đã xuất đủ
-                    </span>
+                  {/* V4.4 UI nhóm E — trước tự vẽ span màu rời rạc, nay qua
+                      StatusPill dùng chung (6 tông) khớp domain "woMaterial"
+                      ở lib/status.ts. */}
+                  {materialStatus && materialStatus !== "NONE" ? (
+                    <StatusPill domain="woMaterial" code={materialStatus} dot />
                   ) : null}
                   {canRequestMaterial && (
                     <Button
@@ -538,7 +532,7 @@ export default function WorkOrderDetailPage() {
                           Tổng thời gian:
                         </td>
                         <td className="px-2 py-2 text-right font-mono text-[12px] text-emerald-700 tabular-nums dark:text-emerald-400 print:dark:text-emerald-700">
-                          {totalRoutingMin.toLocaleString("vi-VN")} phút
+                          {formatNumber(totalRoutingMin)} phút
                         </td>
                         <td colSpan={2} />
                       </tr>
@@ -804,7 +798,12 @@ export default function WorkOrderDetailPage() {
                   Lô thành phẩm đã nhập kho ({wo.fgLots.length})
                 </p>
               </div>
-              <table className="w-full text-[12px]">
+              {/* V4.4 UI nhóm E — bảng 5 cột trước dùng `overflow-hidden` (KHÔNG
+                  PHẢI overflow-x-auto) → cột "Nhập lúc" bị CẮT MẤT hoàn toàn
+                  trên mobile, không cách nào xem (UI_INVENTORY.md §9 mục 1).
+                  Chuyển sang: bảng thật chỉ ≥md, card-list đầy đủ trường trên
+                  mobile (giữ đúng tinh thần N9 — không ẩn bớt cột). */}
+              <table className="hidden w-full text-[12px] md:table">
                 <thead className="bg-zinc-50 dark:bg-zinc-800/40">
                   <tr className="text-xs uppercase text-zinc-500 dark:text-zinc-400">
                     <th className="px-4 py-2 text-left">Mã lô</th>
@@ -834,6 +833,28 @@ export default function WorkOrderDetailPage() {
                   ))}
                 </tbody>
               </table>
+              <div className="space-y-2 p-3 md:hidden">
+                {wo.fgLots.map((l) => (
+                  <div
+                    key={l.lotSerialId}
+                    className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-700"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-mono text-[12px] font-semibold text-zinc-800 dark:text-zinc-100">
+                        {l.lotCode ?? "(không mã)"}
+                      </span>
+                      <StatusPill domain="lot" code={l.status} size="sm" />
+                    </div>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400">
+                      <span className="font-mono tabular-nums text-zinc-700 dark:text-zinc-300">
+                        SL {fmtNum(l.qty)}
+                      </span>
+                      <span>Vị trí: {l.binFullCode ?? "—"}</span>
+                      <span>Nhập lúc: {fmtDate(l.createdAt)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
