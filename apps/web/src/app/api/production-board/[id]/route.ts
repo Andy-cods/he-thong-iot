@@ -5,6 +5,7 @@ import {
   BoardItemDuplicateError,
   BoardItemNotFoundError,
   deleteBoardItem,
+  getBoardItemById,
   updateBoardItem,
 } from "@/server/repos/productionBoard";
 import { jsonError, parseJson, validateUuidParam } from "@/server/http";
@@ -52,6 +53,33 @@ const patchSchema = z.object({
 function stripUnitPrice<T extends { unitPrice?: unknown }>(item: T): Omit<T, "unitPrice"> {
   const { unitPrice: _unitPrice, ...rest } = item;
   return rest;
+}
+
+/**
+ * TASK-20261001 (việc 1) — GET chi tiết 1 mã hàng, dùng để prefill form Sửa
+ * với `unitPrice` thật (danh sách GET /api/production-board không còn trả
+ * trường này cho bất kỳ vai nào). Vai không `canSeeOrderValue` vẫn gọi được
+ * (để prefill các trường khác) nhưng KHÔNG nhận `unitPrice`.
+ */
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  const guard = await requireCan(req, "read", "productionBoard");
+  if ("response" in guard) return guard.response;
+
+  const idCheck = validateUuidParam(params.id);
+  if ("response" in idCheck) return idCheck.response;
+
+  try {
+    const row = await getBoardItemById(params.id);
+    if (!row) return jsonError("NOT_FOUND", "Không tìm thấy mã hàng.", 404);
+    const canSeePrice = canSeeOrderValue(guard.session.roles);
+    return NextResponse.json({ data: canSeePrice ? row : stripUnitPrice(row) });
+  } catch (err) {
+    logger.error({ err, id: params.id }, "get production board item failed");
+    return jsonError("INTERNAL", "Lỗi tải mã hàng.", 500);
+  }
 }
 
 /**

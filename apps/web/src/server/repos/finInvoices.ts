@@ -312,6 +312,45 @@ export async function getPayablesAging(): Promise<AgingBucketRow[]> {
   return getInvoiceAging("IN");
 }
 
+/**
+ * TASK-20261001 — Dữ liệu THÔ cho ô "Dự trù chi" phần (a): HĐ mua ĐÃ XÁC
+ * NHẬN (status UNPAID/PARTIAL/OVERDUE — KHÔNG gồm DRAFT, tránh đếm trùng với
+ * `getExpectedPayableSummary()` phần HĐ nháp) còn dư nợ, kèm NCC + hạn thanh
+ * toán. Hàm thuần `groupPayablesBySupplierAndBucket()`
+ * (lib/finance-overview-policy.ts) nhóm theo NCC × mốc hạn.
+ */
+export async function getPayablesRawForBucketing(): Promise<
+  Array<{
+    supplierId: string | null;
+    supplierName: string;
+    dueDate: string | null;
+    outstandingAmount: number;
+  }>
+> {
+  const rows = (await db.execute(sql`
+    SELECT
+      fi.supplier_id AS supplier_id,
+      COALESCE(s.name, '(Không rõ NCC)') AS supplier_name,
+      fi.due_date AS due_date,
+      (fi.total_amount - fi.paid_amount) AS outstanding_amount
+    FROM app.fin_invoice fi
+    LEFT JOIN app.supplier s ON s.id = fi.supplier_id
+    WHERE fi.direction = 'IN' AND fi.status IN ('UNPAID', 'PARTIAL', 'OVERDUE')
+  `)) as unknown as Array<{
+    supplier_id: string | null;
+    supplier_name: string;
+    due_date: string | null;
+    outstanding_amount: string;
+  }>;
+
+  return rows.map((r) => ({
+    supplierId: r.supplier_id,
+    supplierName: r.supplier_name,
+    dueDate: r.due_date,
+    outstandingAmount: Number(r.outstanding_amount ?? 0),
+  }));
+}
+
 export interface PartnerAgingRow {
   /** id đối tác — chỉ có với NCC (supplierId); null khi group theo tên khách trong notes (OUT). */
   partnerId: string | null;

@@ -105,6 +105,25 @@ export async function listBoardItems(opts?: {
   return [...active, ...completed];
 }
 
+/**
+ * TASK-20261001 (việc 1) — lấy 1 mã hàng theo id, DÙNG cho API chi tiết
+ * `GET /api/production-board/[id]` (prefill form Sửa — danh sách GET
+ * `/api/production-board` không còn trả `unitPrice` nữa).
+ */
+export async function getBoardItemById(id: string): Promise<BoardItemRow | null> {
+  const [row] = await db
+    .select({
+      item: productionBoardItem,
+      updatedByName: userAccount.fullName,
+    })
+    .from(productionBoardItem)
+    .leftJoin(userAccount, eq(userAccount.id, productionBoardItem.updatedBy))
+    .where(eq(productionBoardItem.id, id))
+    .limit(1);
+  if (!row) return null;
+  return { ...row.item, updatedByName: row.updatedByName ?? null };
+}
+
 /** Đếm theo trạng thái cho widget homepage. */
 export async function countBoardByStatus(): Promise<
   Record<ProductionBoardStatus, number>
@@ -440,7 +459,9 @@ export async function getBoardValueSummary(): Promise<BoardValueSummary> {
     })
     .from(productionBoardItem)
     .where(
-      inArray(productionBoardItem.status, ["QUEUED", "IN_PROGRESS", "QC", "COMPLETED"]),
+      // TASK-20261001 — bỏ QUEUED (chưa bắt đầu gia công, chưa đủ chắc chắn
+      // để tính vào "Dự trù thu" — xem lib/finance-overview-policy.ts).
+      inArray(productionBoardItem.status, ["IN_PROGRESS", "QC", "COMPLETED"]),
     );
   return computeBoardValueSummary(rows);
 }

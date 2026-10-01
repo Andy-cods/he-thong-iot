@@ -427,3 +427,40 @@ export type FinTransactionListQuery = z.infer<typeof finTransactionListQuerySche
 export type FinPaymentAllocationInput = z.infer<typeof finPaymentAllocationInputSchema>;
 export type FinPaymentCreate = z.infer<typeof finPaymentCreateSchema>;
 export type FinPaymentListQuery = z.infer<typeof finPaymentListQuerySchema>;
+
+/** ==== fin_planned_expense (TASK-20261001 — "Dự trù chi" việc 3) ==== */
+
+export const FIN_PLANNED_EXPENSE_STATUSES = ["OPEN", "DONE", "CANCELLED"] as const;
+export type FinPlannedExpenseStatus = (typeof FIN_PLANNED_EXPENSE_STATUSES)[number];
+
+export const finPlannedExpenseCreateSchema = z.object({
+  description: z.string().trim().min(1, "Bắt buộc").max(500),
+  amount: positiveAmount,
+  dueDate: dateStringOrDate,
+  categoryId: uuid.optional().nullable(),
+  supplierId: uuid.optional().nullable(),
+  accountId: uuid.optional().nullable(),
+  notes: optionalTrim(2000),
+});
+
+// PATCH: trường không gửi = giữ nguyên (xem quy ước TC-05 ở finInvoiceUpdateSchema).
+export const finPlannedExpenseUpdateSchema = z.object({
+  description: z.string().trim().min(1, "Bắt buộc").max(500).optional(),
+  amount: positiveAmount.optional(),
+  dueDate: dateStringOrDate.optional(),
+  categoryId: uuid.optional().nullable(),
+  supplierId: uuid.optional().nullable(),
+  accountId: uuid.optional().nullable(),
+  notes: patchTrim(2000),
+  status: z.enum(FIN_PLANNED_EXPENSE_STATUSES).optional(),
+});
+
+export const finPlannedExpenseListQuerySchema = z.object({
+  status: z.enum(FIN_PLANNED_EXPENSE_STATUSES).optional(),
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(200).default(100),
+});
+
+export type FinPlannedExpenseCreate = z.infer<typeof finPlannedExpenseCreateSchema>;
+export type FinPlannedExpenseUpdate = z.infer<typeof finPlannedExpenseUpdateSchema>;
+export type FinPlannedExpenseListQuery = z.infer<typeof finPlannedExpenseListQuerySchema>;
