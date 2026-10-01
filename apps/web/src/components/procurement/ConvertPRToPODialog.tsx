@@ -31,6 +31,7 @@ import { useSuppliersList, type SupplierRow } from "@/hooks/useSuppliers";
 import { useConvertPRToPOs } from "@/hooks/usePurchaseOrders";
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/format";
+import { findSimilarSupplier } from "@/lib/supplier-dedupe";
 
 /**
  * V3.4 — ConvertPRToPODialog.
@@ -301,6 +302,12 @@ function SupplierPicker({
       s.code.toLowerCase() === q.toLowerCase(),
   );
   const showCreate = q.length > 0 && !hasExact;
+  // V4.5 QA-A P1 — gõ tên rút gọn (vd "Mạnh Hưng") không khớp CHÍNH XÁC tên
+  // pháp lý đầy đủ đã có ("CÔNG TY TNHH ... MẠNH HƯNG") nhưng vẫn phải cảnh
+  // báo + gợi ý "Dùng NCC này" — tránh tạo trùng, gãy tổng hợp công nợ theo
+  // NCC. `suppliers` đã lọc theo `q` (ILIKE) nên ứng viên gần giống (nếu có)
+  // luôn nằm trong danh sách này.
+  const similar = showCreate ? findSimilarSupplier(q, suppliers) : null;
 
   const triggerLabel = selection
     ? selection.kind === "existing"
@@ -356,6 +363,70 @@ function SupplierPicker({
                     Nhập tên để tạo NCC mới…
                   </CommandPrimitive.Empty>
                 ) : null}
+                {/* V4.5 QA-A P1 — cảnh báo NCC gần giống TRƯỚC danh sách, nổi
+                    bật hơn hẳn "Dùng NCC mới" (nay đưa xuống CUỐI) để tránh
+                    bấm nhầm tạo trùng như ca lỗi thật (gõ "Mạnh Hưng" thay vì
+                    tên pháp lý đầy đủ đã có). */}
+                {similar ? (
+                  <div className="mx-1 mb-1 flex items-start gap-1.5 rounded-sm bg-amber-50 px-2 py-1.5 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                    <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    <span>
+                      Có NCC gần giống đã tồn tại — kiểm tra kỹ trước khi tạo mới (chọn ở danh sách
+                      dưới nếu đúng).
+                    </span>
+                  </div>
+                ) : null}
+                {suppliers.map((s) => {
+                  const selectedExisting =
+                    selection?.kind === "existing" && selection.id === s.id;
+                  const isSuggested = similar?.id === s.id;
+                  return (
+                    <CommandPrimitive.Item
+                      key={s.id}
+                      value={`${s.code} ${s.name}`}
+                      onSelect={() => {
+                        onSelect({
+                          kind: "existing",
+                          id: s.id,
+                          label: `${s.code} — ${s.name}`,
+                        });
+                        setOpen(false);
+                        setQuery("");
+                      }}
+                      className={cn(
+                        "flex cursor-pointer flex-col gap-0.5 rounded-sm px-2 py-1.5 text-sm aria-selected:bg-indigo-50 dark:aria-selected:bg-indigo-950/40",
+                        isSuggested &&
+                          "ring-1 ring-inset ring-amber-300 bg-amber-50/60 dark:bg-amber-950/20",
+                      )}
+                    >
+                      <span className="flex items-center gap-2">
+                        <Check
+                          className={cn(
+                            "h-3.5 w-3.5 shrink-0",
+                            selectedExisting
+                              ? "text-indigo-600 dark:text-indigo-400"
+                              : "text-transparent",
+                          )}
+                        />
+                        <span className="font-mono text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+                          {s.code}
+                        </span>
+                        <span className="truncate text-zinc-700 dark:text-zinc-300">{s.name}</span>
+                        {isSuggested ? (
+                          <span className="ml-auto shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
+                            gần giống
+                          </span>
+                        ) : null}
+                      </span>
+                      {/* V4.5 QA-A P1 — hiện MST/điện thoại để phân biệt các NCC cùng tên/gần tên. */}
+                      {(s.taxCode || s.phone) && (
+                        <span className="pl-6 text-[11px] text-zinc-500 dark:text-zinc-400">
+                          {[s.taxCode ? `MST ${s.taxCode}` : null, s.phone].filter(Boolean).join(" · ")}
+                        </span>
+                      )}
+                    </CommandPrimitive.Item>
+                  );
+                })}
                 {showCreate ? (
                   <CommandPrimitive.Item
                     key="__create_new__"
@@ -373,39 +444,6 @@ function SupplierPicker({
                     </span>
                   </CommandPrimitive.Item>
                 ) : null}
-                {suppliers.map((s) => {
-                  const selectedExisting =
-                    selection?.kind === "existing" && selection.id === s.id;
-                  return (
-                    <CommandPrimitive.Item
-                      key={s.id}
-                      value={`${s.code} ${s.name}`}
-                      onSelect={() => {
-                        onSelect({
-                          kind: "existing",
-                          id: s.id,
-                          label: `${s.code} — ${s.name}`,
-                        });
-                        setOpen(false);
-                        setQuery("");
-                      }}
-                      className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm aria-selected:bg-indigo-50 dark:aria-selected:bg-indigo-950/40"
-                    >
-                      <Check
-                        className={cn(
-                          "h-3.5 w-3.5 shrink-0",
-                          selectedExisting
-                            ? "text-indigo-600 dark:text-indigo-400"
-                            : "text-transparent",
-                        )}
-                      />
-                      <span className="font-mono text-xs font-semibold text-zinc-800 dark:text-zinc-200">
-                        {s.code}
-                      </span>
-                      <span className="truncate text-zinc-700 dark:text-zinc-300">{s.name}</span>
-                    </CommandPrimitive.Item>
-                  );
-                })}
               </>
             )}
           </CommandPrimitive.List>
