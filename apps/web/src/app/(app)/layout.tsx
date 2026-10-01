@@ -7,6 +7,7 @@ import { AUTH_COOKIE_NAME, verifyAccessToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { AppShell } from "@/components/layout/AppShell";
 import { SessionExpiryGuard } from "@/components/auth/SessionExpiryGuard";
+import { LogoutLink } from "@/components/auth/LogoutLink";
 import { isSessionValid } from "@/server/repos/sessions";
 import { listActiveOverridesByUser } from "@/server/repos/userPermissionOverrides";
 import { isRouteAllowed } from "@/lib/route-guard";
@@ -112,6 +113,22 @@ export default async function AppLayout({
   // V3.3 — Route guard: chặn user truy cập trang ngoài bộ phận. Admin bypass.
   if (!isRouteAllowed(currentPath, roleCodes, overrides)) {
     redirect("/?denied=1");
+  }
+
+  // V4.4 — đang bị bắt đổi mật khẩu: khung tối giản, KHÔNG hiện điều hướng (mọi
+  // mục khác đều bị đá ngược về đây — hiện ra chỉ gây khó hiểu).
+  if (userRow.mustChangePassword) {
+    return (
+      <div className="min-h-dvh bg-zinc-100 dark:bg-black">
+        <header className="flex items-center justify-between px-4 py-3 sm:px-6">
+          <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            Xưởng IoT
+          </span>
+          <LogoutLink />
+        </header>
+        <main className="mx-auto w-full max-w-lg px-4 pb-10">{children}</main>
+      </div>
+    );
   }
 
   return (

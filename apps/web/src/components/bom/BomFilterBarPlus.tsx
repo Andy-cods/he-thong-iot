@@ -155,8 +155,11 @@ export function BomFilterBarPlus({
                 ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
                 : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800",
             )}
+            // Mặc định server ẩn BOM "Ngừng dùng" (xoá mềm) — nhãn phải nói đúng
+            // điều đó, không ghi "Tất cả" (V4.4 UI D1#4). Xem BOM ngừng dùng: chip riêng.
+            title="Nháp và Đang dùng — BOM Ngừng dùng xem ở chip riêng"
           >
-            Tất cả
+            Đang hiệu lực
           </button>
           {STATUS_CHIPS.map((opt) => {
             const active = state.statuses.includes(opt.v);

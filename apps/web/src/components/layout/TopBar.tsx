@@ -11,6 +11,7 @@ import { NotificationBell } from "@/components/layout/NotificationBell";
 import { ThemeQuickToggle } from "@/components/theme/ThemeToggle";
 import { formatShortcut } from "@/lib/shortcuts";
 import { useBomDetail } from "@/hooks/useBom";
+import { useLotHistory } from "@/hooks/useLotSerial";
 import { cn } from "@/lib/utils";
 import type { NavItem } from "@/lib/nav-items";
 
@@ -111,10 +112,20 @@ export function TopBar({
   }, [pathname]);
   const bomDetail = useBomDetail(bomId);
   const bomCode = bomDetail.data?.data?.template?.code;
-  const segmentLabels = React.useMemo(
-    () => (bomId && bomCode ? { [bomId]: bomCode } : undefined),
-    [bomId, bomCode],
-  );
+  // V4.4 UI D2#4 — chi tiết lô: hiện mã lô/serial thay UUID thô (chỉ gọi khi ở /lot-serial/<id>).
+  const lotId = React.useMemo(() => {
+    const m = /^\/lot-serial\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(\/|$)/i.exec(pathname);
+    return m ? m[1]! : null;
+  }, [pathname]);
+  const lotDetail = useLotHistory(lotId);
+  const lotLabel =
+    lotDetail.data?.data?.lot?.lotCode ?? lotDetail.data?.data?.lot?.serialCode ?? lotDetail.data?.data?.lot?.itemSku ?? null;
+  const segmentLabels = React.useMemo(() => {
+    const labels: Record<string, string> = {};
+    if (bomId && bomCode) labels[bomId] = bomCode;
+    if (lotId && lotLabel) labels[lotId] = lotLabel;
+    return Object.keys(labels).length > 0 ? labels : undefined;
+  }, [bomId, bomCode, lotId, lotLabel]);
   const shortcutLabel = formatShortcut("Mod+K");
 
   return (
