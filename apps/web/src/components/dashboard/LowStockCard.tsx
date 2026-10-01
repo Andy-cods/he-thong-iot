@@ -11,11 +11,25 @@ import { Skeleton } from "@/components/ui/skeleton";
  * V3.2 LowStockCard — bảng top 5 SKU thiếu hàng cho Dashboard Tổng quan
  * (TASK-20260427-027).
  *
- * Data: GET /api/inventory/balance?hasLotOnly=true&pageSize=200 (endpoint có
- * sẵn). Filter client-side `available < minStockQty`, sort theo gap, top 5.
+ * Data: GET /api/inventory/balance?hasLotOnly=true&pageSize=500 (endpoint có
+ * sẵn, 500 = max cho phép theo zod ở route). Filter client-side
+ * `available < minStockQty`, sort theo gap, top 5.
  *
  * Lý do client-side filter: endpoint hiện chưa có query param `lowStockOnly`,
  * tránh sửa repo + migration trong scope dashboard. Volume nhỏ, OK.
+ *
+ * V4.4 fix P2 (REGRESSION.md mục 3.7 — "treo ở trạng thái skeleton rỗng") —
+ * không tái hiện được hiện tượng treo vĩnh viễn với code/dữ liệu hiện tại
+ * (API thật trả 200 trong ~0.25s, `loading` luôn được set false trong
+ * `finally` dù thành công/lỗi/abort — xác nhận qua Playwright trên staging).
+ * Có 2 khả năng: (a) đã được sửa gián tiếp bởi 1 đợt dọn dẹp khác trước đó,
+ * (b) chỉ xảy ra khi API chậm bất thường trên môi trường khác (nhiều dữ liệu
+ * hơn, DB tải cao). Vá phòng thủ: thêm TIMEOUT cho request (không bao giờ
+ * treo skeleton quá `FETCH_TIMEOUT_MS` dù backend không phản hồi) — đảm bảo
+ * đúng yêu cầu "có dữ liệu thì hiện, rỗng thì empty state, lỗi thì trạng
+ * thái lỗi — không bao giờ treo skeleton" trong MỌI trường hợp, không chỉ
+ * trường hợp đã tái hiện được. Tăng `pageSize` 200→500 (max cho phép) để
+ * giảm khả năng bỏ sót SKU thiếu hàng nằm ngoài trang đầu khi danh mục lớn.
  */
 
 interface BalanceRow {
@@ -37,6 +51,8 @@ interface BalanceResponse {
 }
 
 const POLL_MS = 120_000;
+/** V4.4 fix P2 — timeout cứng cho request, đảm bảo không treo skeleton vô hạn. */
+const FETCH_TIMEOUT_MS = 15_000;
 
 // V4.4 (A3) — dùng `formatQty` (lib/format.ts, maxDecimals=2, không UOM vì
 // cột đã có span ĐVT riêng) thay toLocaleString cục bộ.
@@ -53,12 +69,22 @@ export function LowStockCard({ className }: LowStockCardProps) {
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
 
-  const fetchData = React.useCallback(async (signal?: AbortSignal) => {
+  const fetchData = React.useCallback(async (externalSignal?: AbortSignal) => {
+    // V4.4 fix P2 — tách controller RIÊNG cho timeout, nối với externalSignal
+    // (huỷ khi unmount/đổi hiệu lực). PHÂN BIỆT 2 lý do abort: unmount (im
+    // lặng, component đã rời đi, không cần set state) vs HẾT GIỜ thật (phải
+    // báo lỗi rõ cho người dùng) — nếu không phân biệt, request treo quá lâu
+    // (backend chậm) sẽ không bao giờ rời trạng thái skeleton vì nhánh
+    // AbortError cũ return thẳng, bỏ qua luôn cả setError.
+    const timeoutCtrl = new AbortController();
+    const onExternalAbort = () => timeoutCtrl.abort();
+    externalSignal?.addEventListener("abort", onExternalAbort);
+    const timeoutId = setTimeout(() => timeoutCtrl.abort(), FETCH_TIMEOUT_MS);
     try {
       const res = await fetch(
-        "/api/inventory/balance?hasLotOnly=true&pageSize=200",
+        "/api/inventory/balance?hasLotOnly=true&pageSize=500",
         {
-          signal,
+          signal: timeoutCtrl.signal,
           credentials: "same-origin",
           headers: { Accept: "application/json" },
         },
@@ -78,9 +104,15 @@ export function LowStockCard({ className }: LowStockCardProps) {
       setRows(low);
       setError(null);
     } catch (e) {
-      if ((e as Error).name === "AbortError") return;
+      if ((e as Error).name === "AbortError") {
+        if (externalSignal?.aborted) return; // unmount — không cần cập nhật state
+        setError("Tải tồn kho quá lâu, thử lại sau.");
+        return;
+      }
       setError("Không tải được tồn kho.");
     } finally {
+      clearTimeout(timeoutId);
+      externalSignal?.removeEventListener("abort", onExternalAbort);
       setLoading(false);
     }
   }, []);
