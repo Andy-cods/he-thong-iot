@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { canSeeOrderValue } from "./production-board-policy";
+import {
+  BOARD_QTY_MAX,
+  BOARD_QTY_MAX_MESSAGE,
+  BOARD_UNIT_PRICE_MAX,
+  BOARD_UNIT_PRICE_MAX_MESSAGE,
+  canSeeOrderValue,
+} from "./production-board-policy";
 
 /**
  * V4.4.2 — Việc 2: hàm quyền DUY NHẤT quyết định ai thấy/nhập đơn giá bán +
@@ -31,5 +37,18 @@ describe("canSeeOrderValue", () => {
     expect(canSeeOrderValue([])).toBe(false);
     expect(canSeeOrderValue(null)).toBe(false);
     expect(canSeeOrderValue(undefined)).toBe(false);
+  });
+});
+
+/** V4.5 QA-C P2-1/QA-D P1-01 — giới hạn hợp lý đơn giá/SL Bảng sản xuất. */
+describe("BOARD_UNIT_PRICE_MAX / BOARD_QTY_MAX", () => {
+  it("giá trị đúng theo yêu cầu nghiệp vụ (10 tỷ ₫ / 10 triệu đơn vị)", () => {
+    expect(BOARD_UNIT_PRICE_MAX).toBe(10_000_000_000);
+    expect(BOARD_QTY_MAX).toBe(10_000_000);
+  });
+
+  it("thông báo tiếng Việt chứa đúng con số giới hạn", () => {
+    expect(BOARD_UNIT_PRICE_MAX_MESSAGE).toMatch(/10\.000\.000\.000/);
+    expect(BOARD_QTY_MAX_MESSAGE).toMatch(/10\.000\.000/);
   });
 });

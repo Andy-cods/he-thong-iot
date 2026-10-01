@@ -8,7 +8,13 @@ import {
 } from "@/server/repos/productionBoard";
 import { jsonError, parseJson } from "@/server/http";
 import { requireCan } from "@/server/session";
-import { canSeeOrderValue } from "@/lib/production-board-policy";
+import {
+  BOARD_QTY_MAX,
+  BOARD_QTY_MAX_MESSAGE,
+  BOARD_UNIT_PRICE_MAX,
+  BOARD_UNIT_PRICE_MAX_MESSAGE,
+  canSeeOrderValue,
+} from "@/lib/production-board-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,8 +68,8 @@ const createSchema = z.object({
   rfqNo: z.string().max(64).nullish(),
   productName: z.string().min(1).max(2000),
   customer: z.string().max(64).nullish(),
-  qtyPlanned: z.number().nonnegative().optional().default(0),
-  qtyDone: z.number().nonnegative().optional().default(0),
+  qtyPlanned: z.number().nonnegative().max(BOARD_QTY_MAX, BOARD_QTY_MAX_MESSAGE).optional().default(0),
+  qtyDone: z.number().nonnegative().max(BOARD_QTY_MAX, BOARD_QTY_MAX_MESSAGE).optional().default(0),
   uom: z.string().max(24).nullish(),
   status: z.enum(BOARD_STATUSES).optional().default("QUEUED"),
   deadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
@@ -74,7 +80,8 @@ const createSchema = z.object({
   // V4.4.2 — Đơn giá bán. Vai không được xem tài chính đơn hàng gửi lên vẫn
   // bị BỎ QUA ở route (không throw lỗi — tránh vỡ luồng tạo mã hàng bình
   // thường của QC nếu client cũ/lỗi gửi kèm trường thừa).
-  unitPrice: z.number().nonnegative().nullish(),
+  // V4.5 QA-C P2-1/QA-D P1-01 — chặn giá/SL phi thực tế (xem lib/production-board-policy.ts).
+  unitPrice: z.number().nonnegative().max(BOARD_UNIT_PRICE_MAX, BOARD_UNIT_PRICE_MAX_MESSAGE).nullish(),
 });
 
 /** Bỏ `unitPrice` khỏi object trả về cho vai không được xem giá. */

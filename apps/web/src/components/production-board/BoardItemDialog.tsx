@@ -31,7 +31,13 @@ import {
   type BoardStatus,
 } from "@/hooks/useProductionBoard";
 import { useSession } from "@/hooks/useSession";
-import { canSeeOrderValue } from "@/lib/production-board-policy";
+import {
+  BOARD_QTY_MAX,
+  BOARD_QTY_MAX_MESSAGE,
+  BOARD_UNIT_PRICE_MAX,
+  BOARD_UNIT_PRICE_MAX_MESSAGE,
+  canSeeOrderValue,
+} from "@/lib/production-board-policy";
 import { formatMoney } from "@/lib/format";
 
 /**
@@ -91,7 +97,13 @@ export function BoardItemDialog({ open, onOpenChange, item }: Props) {
   const [form, setForm] = React.useState(emptyForm());
   const [isDirty, setIsDirty] = React.useState(false);
   const [warnOpen, setWarnOpen] = React.useState(false);
-  const [errors, setErrors] = React.useState<{ productCode?: string; productName?: string }>({});
+  const [errors, setErrors] = React.useState<{
+    productCode?: string;
+    productName?: string;
+    qtyPlanned?: string;
+    qtyDone?: string;
+    unitPrice?: string;
+  }>({});
   const productCodeRef = React.useRef<HTMLInputElement>(null);
   const productNameRef = React.useRef<HTMLTextAreaElement>(null);
 
@@ -143,6 +155,13 @@ export function BoardItemDialog({ open, onOpenChange, item }: Props) {
     const nextErrors: typeof errors = {};
     if (!form.productCode.trim()) nextErrors.productCode = "Nhập mã hàng.";
     if (!form.productName.trim()) nextErrors.productName = "Nhập tên/spec sản phẩm.";
+    // V4.5 QA-C P2-1/QA-D P1-01 — chặn giá/SL phi thực tế ngay ở client (server
+    // vẫn kiểm lại — xem zod schema ở route production-board).
+    if ((Number(form.qtyPlanned) || 0) > BOARD_QTY_MAX) nextErrors.qtyPlanned = BOARD_QTY_MAX_MESSAGE;
+    if ((Number(form.qtyDone) || 0) > BOARD_QTY_MAX) nextErrors.qtyDone = BOARD_QTY_MAX_MESSAGE;
+    if (canSeePrice && (Number(form.unitPrice) || 0) > BOARD_UNIT_PRICE_MAX) {
+      nextErrors.unitPrice = BOARD_UNIT_PRICE_MAX_MESSAGE;
+    }
     setErrors(nextErrors);
     if (nextErrors.productCode) {
       productCodeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -154,6 +173,7 @@ export function BoardItemDialog({ open, onOpenChange, item }: Props) {
       productNameRef.current?.focus();
       return;
     }
+    if (nextErrors.qtyPlanned || nextErrors.qtyDone || nextErrors.unitPrice) return;
 
     const payload = {
       productCode: form.productCode.trim(),
@@ -299,14 +319,18 @@ export function BoardItemDialog({ open, onOpenChange, item }: Props) {
                       value={form.qtyPlanned}
                       uom={form.uom}
                       onChange={(v) => set("qtyPlanned", v)}
+                      max={BOARD_QTY_MAX}
                     />
+                    {errors.qtyPlanned && <FieldError>{errors.qtyPlanned}</FieldError>}
                   </Field>
                   <Field label="SL đã đạt">
                     <QtyWithUom
                       value={form.qtyDone}
                       uom={form.uom}
                       onChange={(v) => set("qtyDone", v)}
+                      max={BOARD_QTY_MAX}
                     />
+                    {errors.qtyDone && <FieldError>{errors.qtyDone}</FieldError>}
                   </Field>
                   <Field label="ĐVT" className="col-span-2 sm:col-span-1">
                     <Input
@@ -327,11 +351,14 @@ export function BoardItemDialog({ open, onOpenChange, item }: Props) {
                         <Input
                           type="number"
                           min={0}
+                          max={BOARD_UNIT_PRICE_MAX}
                           value={form.unitPrice}
                           onChange={(e) => set("unitPrice", e.target.value)}
                           placeholder="Chưa nhập"
                           className="text-right tabular-nums"
+                          error={!!errors.unitPrice}
                         />
+                        {errors.unitPrice && <FieldError>{errors.unitPrice}</FieldError>}
                       </Field>
                       <div className="col-span-2 sm:col-span-1 flex items-end">
                         <p className="w-full rounded-md border border-dashed border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/40 dark:text-zinc-300">
@@ -433,16 +460,20 @@ function QtyWithUom({
   value,
   uom,
   onChange,
+  max,
 }: {
   value: string;
   uom: string;
   onChange: (v: string) => void;
+  /** V4.5 QA-C P2-1 — chặn SL phi thực tế (xem lib/production-board-policy.ts). */
+  max?: number;
 }) {
   return (
     <div className="relative">
       <Input
         type="number"
         min={0}
+        max={max}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="pr-14 text-right tabular-nums"

@@ -676,6 +676,8 @@ export interface FinSummaryResponse {
     inProduction: { value: number; itemCount: number };
     expectedReceivable: { value: number; itemCount: number };
     missingPriceCount: number;
+    /** V4.5 QA-D P1-01 — số dòng giá bất thường, bị loại khỏi 2 tổng trên. */
+    abnormalCount: number;
   };
   /** V4.4.2 — "Dự trù chi": PO mở chưa có HĐ + HĐ mua đang NHÁP. */
   expectedPayable: {

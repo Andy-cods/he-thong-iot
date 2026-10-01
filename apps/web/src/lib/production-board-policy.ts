@@ -28,3 +28,17 @@ export function canSeeOrderValue(roles: readonly Role[] | null | undefined): boo
   if (!roles || roles.length === 0) return false;
   return roles.some((r) => ORDER_VALUE_ROLES.has(r));
 }
+
+/**
+ * V4.5 QA-C P2-1/QA-D P1-01 — giới hạn hợp lý cho đơn giá bán + SL kế hoạch
+ * trên Bảng sản xuất. Trước đây không giới hạn: 1 dòng gõ nhầm (vd thêm vài
+ * số 0 vào đơn giá, 999.999.999.999đ × 99.999) làm ô "Đang sản xuất" ở Tổng
+ * quan Tài chính nhảy lên mức phi thực tế (~99.999 nghìn tỷ tỷ đồng), không
+ * cảnh báo. Dùng CHUNG cho zod schema (API tạo/sửa mã hàng) + input UI
+ * (`max` attribute, xem `BoardItemDialog.tsx`).
+ */
+export const BOARD_UNIT_PRICE_MAX = 10_000_000_000; // 10 tỷ ₫/đơn vị
+export const BOARD_QTY_MAX = 10_000_000; // 10 triệu đơn vị
+
+export const BOARD_UNIT_PRICE_MAX_MESSAGE = `Đơn giá tối đa ${BOARD_UNIT_PRICE_MAX.toLocaleString("vi-VN")} ₫.`;
+export const BOARD_QTY_MAX_MESSAGE = `Số lượng tối đa ${BOARD_QTY_MAX.toLocaleString("vi-VN")}.`;

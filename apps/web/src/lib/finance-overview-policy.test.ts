@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ABNORMAL_LINE_VALUE_THRESHOLD,
   computeBoardValueSummary,
   computeExpectedPayable,
   type BoardValueRow,
@@ -61,7 +62,39 @@ describe("computeBoardValueSummary — Đang sản xuất / Dự trù thu", () =
       inProduction: { value: 0, itemCount: 0 },
       expectedReceivable: { value: 0, itemCount: 0 },
       missingPriceCount: 0,
+      abnormalCount: 0,
     });
+  });
+});
+
+describe("V4.5 QA-D P1-01 — dòng giá bất thường bị loại khỏi tổng", () => {
+  it("1 dòng giá trị vượt ngưỡng → loại khỏi tổng, đếm vào abnormalCount", () => {
+    const rows: BoardValueRow[] = [
+      { status: "QUEUED", qtyPlanned: "10", qtyDone: "0", unitPrice: "1000" },
+      // Dòng gõ nhầm (vd thêm vài số 0 vào đơn giá) — qty*price vượt ngưỡng.
+      { status: "IN_PROGRESS", qtyPlanned: "99999", qtyDone: "0", unitPrice: "999999999999" },
+    ];
+    const out = computeBoardValueSummary(rows);
+    expect(out.inProduction).toEqual({ value: 10000, itemCount: 1 }); // chỉ dòng hợp lệ
+    expect(out.abnormalCount).toBe(1);
+  });
+
+  it("dòng Dự trù thu (COMPLETED) vượt ngưỡng cũng bị loại", () => {
+    const rows: BoardValueRow[] = [
+      { status: "COMPLETED", qtyPlanned: "1", qtyDone: "99999", unitPrice: "999999999999" },
+    ];
+    const out = computeBoardValueSummary(rows);
+    expect(out.expectedReceivable).toEqual({ value: 0, itemCount: 0 });
+    expect(out.abnormalCount).toBe(1);
+  });
+
+  it("đúng ngưỡng (không vượt) → vẫn tính bình thường, không đánh dấu bất thường", () => {
+    const rows: BoardValueRow[] = [
+      { status: "QUEUED", qtyPlanned: "1", qtyDone: "0", unitPrice: String(ABNORMAL_LINE_VALUE_THRESHOLD) },
+    ];
+    const out = computeBoardValueSummary(rows);
+    expect(out.inProduction).toEqual({ value: ABNORMAL_LINE_VALUE_THRESHOLD, itemCount: 1 });
+    expect(out.abnormalCount).toBe(0);
   });
 });
 

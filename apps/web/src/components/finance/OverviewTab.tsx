@@ -74,6 +74,10 @@ export function OverviewTab() {
   const production = summary?.production;
   const expectedPayable = summary?.expectedPayable;
   const missingPriceCount = production?.missingPriceCount ?? 0;
+  // V4.5 QA-D P1-01 — dòng giá bất thường (qty × đơn giá vượt ngưỡng hợp lý)
+  // bị loại khỏi tổng "Đang sản xuất"/"Dự trù thu" ở server — cảnh báo riêng
+  // thay vì im lặng bỏ qua (tránh người xem tưởng số liệu đã đủ).
+  const abnormalCount = production?.abnormalCount ?? 0;
 
   const isLoading = cashflowQuery.isLoading || summaryQuery.isLoading;
   const hasData = (cashflow?.series.length ?? 0) > 0;
@@ -204,6 +208,24 @@ export function OverviewTab() {
                   {canOpenBoard && (
                     <Link
                       href="/production-board?missingPrice=1"
+                      className="ml-auto shrink-0 font-semibold underline hover:no-underline"
+                    >
+                      Xem danh sách
+                    </Link>
+                  )}
+                </div>
+              )}
+              {abnormalCount > 0 && (
+                <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  <span>
+                    {abnormalCount} dòng có giá bất thường (SL × đơn giá quá lớn) — đã loại khỏi
+                    tổng "Đang sản xuất"/"Dự trù thu" để không làm sai số liệu. Kiểm tra lại đơn
+                    giá trên Bảng sản xuất.
+                  </span>
+                  {canOpenBoard && (
+                    <Link
+                      href="/production-board"
                       className="ml-auto shrink-0 font-semibold underline hover:no-underline"
                     >
                       Xem danh sách
