@@ -23,7 +23,7 @@ import { useSession } from "@/hooks/useSession";
 const ALL_TABS = [
   { key: "bom", label: "BOM List", icon: Network },
   { key: "work-orders", label: "Yêu cầu sản xuất", icon: Factory },
-  { key: "pr", label: "Yêu cầu mua", icon: ShoppingCart },
+  { key: "pr", label: "Đề xuất vật tư", icon: ShoppingCart },
 ] as const satisfies ReadonlyArray<HubTabDef>;
 
 type EngineeringTab = (typeof ALL_TABS)[number]["key"];
@@ -91,16 +91,16 @@ export default function EngineeringPage() {
         ? "Sản xuất & Đề xuất mua phôi"
         : isQc || isAccountant
           ? "Đề xuất mua vật tư"
-          : "BOM List · Yêu cầu mua";
+          : "BOM List · Đề xuất vật tư";
   const pageSubtitle = isAdminOrPlanner
-    ? "BOM List · Yêu cầu sản xuất (gửi Gia công duyệt) · Yêu cầu mua."
+    ? "BOM List · Yêu cầu sản xuất (gửi Gia công duyệt) · Đề xuất vật tư."
     : isWarehouse
       ? "Xem BOM List · điều chỉnh tồn kho · gửi Phiếu MRF GTAM đến Thu mua."
       : isOperator
         ? "Xem BOM List · tạo Phiếu MRF GTAM mua phôi gửi Bộ phận Thu mua."
         : isQc || isAccountant
-          ? "Tạo & theo dõi Phiếu đề xuất vật tư (YCVT/MRF) gửi Thu mua duyệt."
-          : "Xem BOM List để đối chiếu vật tư · duyệt yêu cầu mua hàng tại /sales.";
+          ? "Tạo & theo dõi Phiếu đề xuất vật tư (ĐNVT/MRF) gửi Thu mua duyệt."
+          : "Xem BOM List để đối chiếu vật tư · duyệt đề xuất vật tư tại /sales.";
 
   return (
     <div className="flex flex-col md:h-full md:overflow-hidden">

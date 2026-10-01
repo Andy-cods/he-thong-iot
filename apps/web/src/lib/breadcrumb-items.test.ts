@@ -81,13 +81,17 @@ describe("V4.1 X6 — crumb theo ?tab= của trang hub", () => {
     ]);
     expect(
       buildBreadcrumbItems("/engineering", undefined, "pr").map((i) => i.label),
-    ).toEqual(["Tổng quan", "Bộ phận Thiết kế", "Yêu cầu mua"]);
+    ).toEqual(["Tổng quan", "Bộ phận Thiết kế", "Đề xuất vật tư"]);
     expect(
       buildBreadcrumbItems("/sales", undefined, "fin-cashbook").map((i) => i.label),
     ).toEqual(["Tổng quan", "Bộ phận Thu mua", "Tài chính · Sổ quỹ"]);
+    // V4.4 UI nhóm E — `?tab=assembly` bị HIDDEN_FEATURES.legacyAssembly ẩn
+    // (D10), trang hub fallback nội dung về "requests" → breadcrumb giờ khớp
+    // đúng ("Yêu cầu sản xuất"), không còn tự mâu thuẫn với nhãn cũ "Quy trình
+    // lắp ráp" (xem UI_INVENTORY.md §9 mục 3 + HUB_TAB_ALIASES["/operations"]).
     expect(
       buildBreadcrumbItems("/operations", undefined, "assembly").map((i) => i.label),
-    ).toEqual(["Tổng quan", "Bộ phận Gia công", "Quy trình lắp ráp"]);
+    ).toEqual(["Tổng quan", "Bộ phận Gia công", "Yêu cầu sản xuất"]);
   });
 
   it("khoá tab cũ được quy về tab hiện hành", () => {

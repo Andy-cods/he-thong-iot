@@ -18,6 +18,7 @@ import {
 } from "@/hooks/usePurchaseRequests";
 import { useSession } from "@/hooks/useSession";
 import { cn } from "@/lib/utils";
+import { formatDate, formatMoney } from "@/lib/format";
 
 /**
  * V3.7.69 — `/procurement/purchase-requests/new-mrf` —
@@ -97,13 +98,9 @@ function blankLine(): MRFLineDraft {
   };
 }
 
-function formatDateVN(d: Date): string {
-  return d.toLocaleDateString("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
+// V4.4 UI nhóm C-PR (A3) — bỏ hàm format ngày cục bộ, dùng `lib/format.ts`
+// (mẫu "dd/MM/yyyy" mặc định khớp 100% hành vi cũ).
+const formatDateVN = (d: Date) => formatDate(d);
 
 export default function NewMRFPage() {
   const router = useRouter();
@@ -162,7 +159,7 @@ export default function NewMRFPage() {
 
   const addLine = () => {
     if (lines.length >= 20) {
-      toast.warning("Phiếu YCVT tối đa 20 dòng. Tách nhiều phiếu nếu cần.");
+      toast.warning("Phiếu tối đa 20 dòng. Tách nhiều phiếu nếu cần.");
       return;
     }
     setLines((prev) => [...prev, blankLine()]);
@@ -188,7 +185,7 @@ export default function NewMRFPage() {
     const payload: PRCreateInput = {
       title:
         title.trim() ||
-        `YCVT ${proposingDepartment} ${formatDateVN(new Date())}`,
+        `MRF ${proposingDepartment} ${formatDateVN(new Date())}`,
       source: "MANUAL",
       linkedOrderId: null,
       notes: null,
@@ -220,10 +217,10 @@ export default function NewMRFPage() {
     try {
       const res = await createPR.mutateAsync(payload);
       const formNo = res.data.paperFormNo ?? res.data.code;
-      toast.success(`Đã gửi phiếu YCVT ${formNo}`);
+      toast.success(`Đã gửi phiếu MRF ${formNo}`);
       router.push(`/procurement/purchase-requests/${res.data.id}`);
     } catch (err) {
-      toast.error((err as Error).message ?? "Không tạo được phiếu YCVT");
+      toast.error((err as Error).message ?? "Không tạo được phiếu MRF");
     }
   };
 
@@ -248,16 +245,16 @@ export default function NewMRFPage() {
             href="/procurement/purchase-requests"
             className="hover:text-zinc-900 hover:underline dark:hover:text-zinc-50"
           >
-            Yêu cầu mua hàng
+            Đề xuất vật tư
           </Link>
           <span className="mx-1.5 text-zinc-300 dark:text-zinc-600">›</span>
           <span className="font-medium text-zinc-900 dark:text-zinc-50">
-            Tạo phiếu YCVT mới
+            Tạo phiếu đề xuất vật tư (MRF)
           </span>
         </nav>
         <div className="mt-1.5 flex items-center justify-between">
           <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-            Phiếu Yêu cầu Vật tư (YCVT)
+            Phiếu đề xuất vật tư (MRF)
           </h1>
           <div className="flex items-center gap-2">
             <Button
@@ -368,7 +365,7 @@ export default function NewMRFPage() {
                 <input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder={`VD: YCVT ${proposingDepartment} ${todayStr}`}
+                  placeholder={`VD: MRF ${proposingDepartment} ${todayStr}`}
                   className="w-full bg-transparent text-[12px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
                 />
               </FieldRow>
@@ -401,6 +398,11 @@ export default function NewMRFPage() {
               </Button>
             </SectionTitle>
 
+            {/* V4.4 UI nhóm C-PR — chỉ báo cuộn ngang mobile (bảng nhiều cột
+                bị cắt cụt ở 390px nhưng không có gợi ý còn nội dung). */}
+            <p className="mb-1 text-[11px] text-zinc-400 md:hidden print:hidden" aria-hidden="true">
+              ← Vuốt ngang để xem đủ cột →
+            </p>
             <div className="overflow-x-auto print:overflow-visible">
               <table className="w-full border-collapse text-[11px]">
                 <thead>
@@ -590,7 +592,7 @@ export default function NewMRFPage() {
                         <Td align="right">
                           <span className="block break-words font-mono text-[11px] text-zinc-700 tabular-nums dark:text-zinc-300 print:dark:text-zinc-700">
                             {lineTotal > 0
-                              ? lineTotal.toLocaleString("vi-VN")
+                              ? formatMoney(lineTotal, { unit: "none" })
                               : "—"}
                           </span>
                         </Td>
@@ -643,7 +645,7 @@ export default function NewMRFPage() {
                       Tổng tiền dự kiến (VNĐ):
                     </td>
                     <td className="px-2 py-2 text-right font-mono text-[12px] text-[#005D9F] tabular-nums">
-                      {totalAmount.toLocaleString("vi-VN")}
+                      {formatMoney(totalAmount, { unit: "none" })}
                     </td>
                     <td colSpan={3} />
                   </tr>

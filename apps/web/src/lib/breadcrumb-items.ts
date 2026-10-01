@@ -12,6 +12,8 @@
  *   thành link). Tab lạ / không có tab → không thêm.
  */
 
+import { HIDDEN_FEATURES } from "@/lib/hidden-features";
+
 export interface BreadcrumbItem {
   label: string;
   href?: string;
@@ -88,7 +90,9 @@ export const HUB_TAB_LABELS: Record<string, Record<string, string>> = {
   "/engineering": {
     bom: "BOM List",
     "work-orders": "Yêu cầu sản xuất",
-    pr: "Yêu cầu mua",
+    // V4.4 UI nhóm C-PR/E — khớp nhãn tab thật ở `app/(app)/engineering/page.tsx`
+    // (trước "Yêu cầu mua" tự mâu thuẫn với H1 "Đề xuất vật tư" cùng màn hình).
+    pr: "Đề xuất vật tư",
   },
   "/operations": {
     requests: "Yêu cầu sản xuất",
@@ -127,6 +131,12 @@ export const HUB_TAB_ALIASES: Record<string, Record<string, string>> = {
     receiving: "movement",
     "lot-serial": "items",
   },
+  // V4.4 UI nhóm E — `?tab=assembly` ẩn qua HIDDEN_FEATURES.legacyAssembly
+  // (D10): `app/(app)/operations/page.tsx` fallback nội dung về "requests"
+  // nhưng breadcrumb TopBar (dùng HUB_TAB_LABELS, không biết cờ ẩn) vẫn gắn
+  // nhãn cũ "Quy trình lắp ráp" cho link/bookmark cũ → tự mâu thuẫn với nội
+  // dung hiển thị thật. Alias để breadcrumb khớp đúng fallback của trang.
+  "/operations": HIDDEN_FEATURES.legacyAssembly ? { assembly: "requests" } : {},
 };
 
 /** Nhãn tab của hub; `null` nếu route không phải hub hoặc tab không hợp lệ. */
