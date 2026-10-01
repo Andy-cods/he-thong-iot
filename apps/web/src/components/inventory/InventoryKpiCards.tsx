@@ -63,11 +63,13 @@ const KPI_DEFS: Array<{
   },
 ];
 
+// V4.4 D2/B — 0 class dark: trong toàn file (grep xác nhận), KPI "Tồn kho"
+// luôn hiện theme sáng bất kể app đang dark. Thêm cặp dark: cho mọi màu.
 const ACCENT_CLASS: Record<"indigo" | "emerald" | "amber" | "blue", string> = {
-  indigo: "text-indigo-700",
-  emerald: "text-emerald-700",
-  amber: "text-amber-700",
-  blue: "text-blue-700",
+  indigo: "text-indigo-700 dark:text-indigo-400",
+  emerald: "text-emerald-700 dark:text-emerald-400",
+  amber: "text-amber-700 dark:text-amber-400",
+  blue: "text-blue-700 dark:text-blue-400",
 };
 
 export function InventoryKpiCards({
@@ -115,13 +117,13 @@ function KpiCard({
   return (
     <div
       className={cn(
-        "rounded-md border border-zinc-100 bg-zinc-50/60",
+        "rounded-md border border-zinc-100 bg-zinc-50/60 dark:border-zinc-800 dark:bg-zinc-800/40",
         compact ? "px-2 py-1.5" : "px-3 py-2.5",
       )}
     >
       <div
         className={cn(
-          "font-medium uppercase tracking-wide text-zinc-500",
+          "font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400",
           compact ? "text-xs" : "text-xs",
         )}
       >
@@ -137,7 +139,7 @@ function KpiCard({
         {formatNumber(value)}
       </div>
       {hint ? (
-        <div className="mt-0.5 text-xs text-zinc-500">{hint}</div>
+        <div className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{hint}</div>
       ) : null}
     </div>
   );

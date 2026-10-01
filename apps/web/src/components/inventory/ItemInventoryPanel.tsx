@@ -73,15 +73,15 @@ export function ItemInventoryPanel({
     <div className="space-y-4">
       <header className="flex items-center justify-between gap-2">
         <div>
-          <h3 className="text-base font-semibold text-zinc-900">Tồn kho</h3>
-          <p className="mt-0.5 text-[12px] text-zinc-500">
+          <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Tồn kho</h3>
+          <p className="mt-0.5 text-[12px] text-zinc-500 dark:text-zinc-400">
             Dữ liệu realtime từ <span className="font-mono">inventory_txn</span>
             {" "}+ reservation. Đồng bộ với ô "Xem tồn" ở BOM Grid.
           </p>
         </div>
         <div className="flex items-center gap-2">
           {query.isFetching ? (
-            <span className="inline-flex items-center gap-1 text-xs text-zinc-500">
+            <span className="inline-flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400">
               <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
               Đang tải…
             </span>
@@ -100,7 +100,7 @@ export function ItemInventoryPanel({
       </header>
 
       {query.isLoading ? (
-        <div className="flex items-center gap-2 py-8 text-sm text-zinc-500">
+        <div className="flex items-center gap-2 py-8 text-sm text-zinc-500 dark:text-zinc-400">
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
           Đang tải tồn kho…
         </div>
@@ -128,55 +128,81 @@ export function ItemInventoryPanel({
             />
           ) : null}
 
-          <div className="rounded-md border border-zinc-200 bg-white">
-            <div className="flex items-center justify-between border-b border-zinc-100 px-3 py-2">
-              <span className="text-[12px] font-semibold uppercase tracking-wide text-zinc-600">
+          <div className="rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="flex items-center justify-between border-b border-zinc-100 px-3 py-2 dark:border-zinc-800">
+              <span className="text-[12px] font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
                 Lot gần nhất ({query.data.data.lots.length})
               </span>
               <a
                 href={`/lot-serial?itemId=${encodeURIComponent(itemId)}`}
-                className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                className="text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
               >
                 Xem đầy đủ tại Lot/Serial →
               </a>
             </div>
             {query.data.data.lots.length === 0 ? (
-              <div className="p-6 text-center text-[13px] text-zinc-500">
+              <div className="p-6 text-center text-[13px] text-zinc-500 dark:text-zinc-400">
                 Chưa có lot nào cho vật tư này.
               </div>
             ) : (
-              <table className="w-full text-[13px]">
-                <thead className="bg-zinc-50/50 text-[11px] uppercase tracking-wide text-zinc-500">
-                  <tr>
-                    <th className="px-3 py-2 text-left">Mã lô / serial</th>
-                    <th className="px-3 py-2 text-left">Trạng thái</th>
-                    <th className="px-3 py-2 text-right">Tồn</th>
-                    <th className="px-3 py-2 text-left">HSD</th>
-                    <th className="px-3 py-2 text-left">Nhập kho</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100">
-                  {query.data.data.lots.map((lot) => (
-                    <tr key={lot.id} className="hover:bg-zinc-50/60">
-                      <td className="px-3 py-2 font-mono text-[12px] text-zinc-800">
-                        {lot.lotCode ?? lot.serialCode ?? "—"}
-                      </td>
-                      <td className="px-3 py-2">
-                        <StatusPill domain="lot" code={lot.status} />
-                      </td>
-                      <td className="px-3 py-2 text-right font-mono tabular-nums text-zinc-800">
-                        {formatNumber(lot.onHandQty)}
-                      </td>
-                      <td className="px-3 py-2 text-[12px] text-zinc-600">
-                        {formatDate(lot.expDate)}
-                      </td>
-                      <td className="px-3 py-2 text-[12px] text-zinc-500">
-                        {formatDate(lot.createdAt, "dd/MM/yyyy")}
-                      </td>
+              <>
+                {/* V4.4 D2/B (P1) — trước KHÔNG có dark: (toàn file 0 class) VÀ
+                    không có card-list mobile. Bảng desktop giữ nguyên, thêm thẻ
+                    điện thoại bên dưới. */}
+                <table className="hidden w-full text-[13px] sm:table">
+                  <thead className="bg-zinc-50/50 text-[11px] uppercase tracking-wide text-zinc-500 dark:bg-zinc-800/50 dark:text-zinc-400">
+                    <tr>
+                      <th className="px-3 py-2 text-left">Mã lô / serial</th>
+                      <th className="px-3 py-2 text-left">Trạng thái</th>
+                      <th className="px-3 py-2 text-right">Tồn</th>
+                      <th className="px-3 py-2 text-left">HSD</th>
+                      <th className="px-3 py-2 text-left">Nhập kho</th>
                     </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                    {query.data.data.lots.map((lot) => (
+                      <tr key={lot.id} className="hover:bg-zinc-50/60 dark:hover:bg-zinc-800/40">
+                        <td className="px-3 py-2 font-mono text-[12px] text-zinc-800 dark:text-zinc-200">
+                          {lot.lotCode ?? lot.serialCode ?? "—"}
+                        </td>
+                        <td className="px-3 py-2">
+                          <StatusPill domain="lot" code={lot.status} />
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono tabular-nums text-zinc-800 dark:text-zinc-200">
+                          {formatNumber(lot.onHandQty)}
+                        </td>
+                        <td className="px-3 py-2 text-[12px] text-zinc-600 dark:text-zinc-400">
+                          {formatDate(lot.expDate)}
+                        </td>
+                        <td className="px-3 py-2 text-[12px] text-zinc-500 dark:text-zinc-400">
+                          {formatDate(lot.createdAt, "dd/MM/yyyy")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                <ul className="divide-y divide-zinc-100 sm:hidden dark:divide-zinc-800">
+                  {query.data.data.lots.map((lot) => (
+                    <li key={lot.id} className="flex items-start justify-between gap-2 px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="font-mono text-[12px] text-zinc-800 dark:text-zinc-200">
+                          {lot.lotCode ?? lot.serialCode ?? "—"}
+                        </p>
+                        <div className="mt-1">
+                          <StatusPill domain="lot" code={lot.status} />
+                        </div>
+                        <p className="mt-1 text-[12px] text-zinc-500 dark:text-zinc-400">
+                          HSD {formatDate(lot.expDate)} · Nhập {formatDate(lot.createdAt, "dd/MM/yyyy")}
+                        </p>
+                      </div>
+                      <span className="shrink-0 font-mono text-[13px] tabular-nums text-zinc-800 dark:text-zinc-200">
+                        {formatNumber(lot.onHandQty)}
+                      </span>
+                    </li>
                   ))}
-                </tbody>
-              </table>
+                </ul>
+              </>
             )}
           </div>
         </>
@@ -194,14 +220,14 @@ function MinStockAlert({
 }) {
   if (available >= minStock) {
     return (
-      <div className="rounded-md border border-emerald-100 bg-emerald-50/50 px-3 py-2 text-[12px] text-emerald-800">
+      <div className="rounded-md border border-emerald-100 bg-emerald-50/50 px-3 py-2 text-[12px] text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-400">
         Tồn khả dụng {formatNumber(available)} ≥ ngưỡng min {formatNumber(minStock)}.
       </div>
     );
   }
   const shortage = minStock - available;
   return (
-    <div className="rounded-md border border-amber-200 bg-amber-50/60 px-3 py-2 text-[12px] text-amber-800">
+    <div className="rounded-md border border-amber-200 bg-amber-50/60 px-3 py-2 text-[12px] text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-400">
       Tồn khả dụng {formatNumber(available)} dưới ngưỡng min{" "}
       {formatNumber(minStock)} — thiếu {formatNumber(shortage)}. Cần đặt mua bổ
       sung.

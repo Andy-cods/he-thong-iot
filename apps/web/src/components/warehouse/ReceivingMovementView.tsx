@@ -37,6 +37,7 @@ import { QueryError } from "@/components/ui/query-error";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatTile } from "@/components/ui/data-table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
   usePurchaseOrdersList,
@@ -50,7 +51,7 @@ import {
 import { cn } from "@/lib/utils";
 import { StatusPill } from "@/components/ui/status-badge";
 import { formatMoney } from "@/lib/format";
-import { TONE_CLASSES, getStatus, statusLabel } from "@/lib/status";
+import { statusLabel } from "@/lib/status";
 import { ReceivingHistoryDrawer } from "./ReceivingHistoryDrawer";
 
 /**
@@ -407,9 +408,11 @@ export function ReceivingMovementView() {
         {/* V4.1 UI-05: danh sách lỗi → KPI hiện "—" thay vì 0. */}
         {/* V4.1 UI-24/UI-07 (Đợt 6C): thẻ trung tính; nhãn KPI TRÙNG nhãn pill trạng thái
             PO ("Đã gửi NCC" / "Nhận một phần") để người xem đối chiếu được với bảng. */}
+        {/* V4.4 B (N1/N2) — trước không ô nào hero (4 số ngang hàng, không biết
+            nhìn đâu trước). "Quá hạn giao" là số cần xử lý gấp nhất/ca → hero. */}
+        <StatTile icon={AlertTriangle} label="Quá hạn giao" value={isError ? "—" : overdueRows.length} sub="cần xử lý gấp" tone={!isError && overdueRows.length > 0 ? "warning" : undefined} size="hero" />
         <StatTile icon={Clock} label={statusLabel("po", "SENT")} value={stats?.sentCount ?? (isError ? "—" : sentCount)} sub="chưa nhận hàng" />
         <StatTile icon={Package} label={statusLabel("po", "PARTIAL")} value={stats?.partialCount ?? (isError ? "—" : partialCount)} sub="đang nhận tiếp" />
-        <StatTile icon={AlertTriangle} label="Quá hạn giao" value={isError ? "—" : overdueRows.length} sub="cần xử lý gấp" tone={!isError && overdueRows.length > 0 ? "warning" : undefined} />
         <StatTile icon={CheckCircle2} label="Giao hôm nay" value={isError ? "—" : todayRows.length} sub="theo ngày dự kiến" />
       </div>
 
@@ -425,29 +428,16 @@ export function ReceivingMovementView() {
             className="h-9 w-64 rounded-lg border border-zinc-200 bg-white pl-9 pr-3 text-sm placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500"
           />
         </div>
-        <div className="flex items-center gap-1.5">
-          {[
-            { v: "all" as const,     label: "Tất cả",     dot: "bg-zinc-400"   },
-            // V4.1 UI-07/08: chip lọc dùng nhãn + chấm màu từ lib/status.ts.
-            { v: "SENT" as const,    label: statusLabel("po", "SENT"),    dot: TONE_CLASSES[getStatus("po", "SENT").tone].dot },
-            { v: "PARTIAL" as const, label: statusLabel("po", "PARTIAL"), dot: TONE_CLASSES[getStatus("po", "PARTIAL").tone].dot },
-          ].map((opt) => (
-            <button
-              key={opt.v}
-              type="button"
-              onClick={() => setStatusFilter(opt.v)}
-              className={cn(
-                "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors",
-                statusFilter === opt.v
-                  ? "border-indigo-300 bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-200 dark:border-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300 dark:ring-indigo-800"
-                  : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-zinc-600 dark:hover:bg-zinc-800/60",
-              )}
-            >
-              <span className={cn("h-1.5 w-1.5 rounded-full", opt.dot)} aria-hidden />
-              {opt.label}
-            </button>
-          ))}
-        </div>
+        {/* V4.4 B.F — trước là 3 <button> rời tô màu riêng (đối lập segmented
+            "Nhập kho/Xuất kho/Chờ QC" cùng module); đổi về 1 khối nền xám thật
+            (Tabs variant="segmented") cho khớp N7 + màu active chuẩn A12. */}
+        <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as "all" | "SENT" | "PARTIAL")}>
+          <TabsList variant="segmented" aria-label="Lọc theo trạng thái PO">
+            <TabsTrigger value="all">Tất cả</TabsTrigger>
+            <TabsTrigger value="SENT">{statusLabel("po", "SENT")}</TabsTrigger>
+            <TabsTrigger value="PARTIAL">{statusLabel("po", "PARTIAL")}</TabsTrigger>
+          </TabsList>
+        </Tabs>
         <p className="ml-auto text-xs text-zinc-500 dark:text-zinc-400">
           <span className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">{rows.length}</span> PO khớp bộ lọc
         </p>

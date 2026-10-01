@@ -4,6 +4,7 @@ import * as React from "react";
 import { Loader2, Package, AlertTriangle, Box, RefreshCw, Printer, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QueryError } from "@/components/ui/query-error";
+import { StatTile } from "@/components/ui/data-table";
 import { ReconciliationSection } from "./ReconciliationSection";
 import { StocktakeSection } from "./StocktakeSection";
 import { formatQty } from "@/lib/format";
@@ -205,78 +206,78 @@ export function ReportTab() {
         </div>
       </header>
 
-      {/* Stats KPI cards */}
+      {/* Stats KPI cards — V4.4 B (N1/N2): trước 4 ô `KpiCard` tự chế cùng cỡ
+          (không ô nào nổi bật). Đổi sang `StatTile` dùng chung, đúng 1 ô hero
+          ("Đang dùng" — chỉ số tổng quan sử dụng kho quan trọng nhất/báo cáo). */}
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <KpiCard
-          icon={<Box className="h-4 w-4" />}
-          label="Tổng số ô"
-          value={stats.totalBins}
-          tone="zinc"
-        />
-        <KpiCard
-          icon={<Package className="h-4 w-4" />}
+        <StatTile icon={Box} label="Tổng số ô" value={formatQty(stats.totalBins)} />
+        <StatTile
+          size="hero"
+          icon={Package}
           label="Đang dùng"
-          value={stats.occupiedBins}
-          sub={`${stats.totalBins > 0 ? Math.round((stats.occupiedBins / stats.totalBins) * 100) : 0}%`}
-          tone="indigo"
+          value={formatQty(stats.occupiedBins)}
+          sub={`${stats.totalBins > 0 ? Math.round((stats.occupiedBins / stats.totalBins) * 100) : 0}% tổng số ô`}
         />
-        <KpiCard
-          icon={<Box className="h-4 w-4" />}
+        <StatTile
+          icon={Box}
           label="Trống"
-          value={stats.emptyBins}
+          value={formatQty(stats.emptyBins)}
           sub={`${stats.totalBins > 0 ? Math.round((stats.emptyBins / stats.totalBins) * 100) : 0}%`}
-          tone="emerald"
         />
-        <KpiCard
-          icon={<AlertTriangle className="h-4 w-4" />}
+        <StatTile
+          icon={AlertTriangle}
           label="Cảnh báo"
-          value={stats.lowStockBins}
+          value={formatQty(stats.lowStockBins)}
           sub="dưới ngưỡng"
-          tone="amber"
+          tone={stats.lowStockBins > 0 ? "warning" : undefined}
         />
       </section>
 
       {/* Distribution by fill level */}
-      <section className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+      <section className="rounded-xl bg-white p-4 shadow-xs dark:bg-zinc-900">
         <h3 className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
           Phân bố theo mức lấp đầy
         </h3>
+        {/* V4.4 B (P1 nặng) — trước 4 màu khác họ (violet/indigo/blue/teal) cho
+            cùng khái niệm "% lấp đầy" mà Sơ đồ kho dùng ĐÚNG 1 thang indigo
+            (xem `WarehouseLayout3D.tsx` THEMES full/high/mid/low). Đổi về
+            cùng 1 thang indigo đậm→nhạt cho nhất quán giữa 2 tab. */}
         <div className="space-y-2">
           <DistRow
             label="Đầy (≥ 85%)"
             count={buckets.full}
             total={stats.totalBins}
-            color="bg-violet-500"
+            color="bg-indigo-700 dark:bg-indigo-500"
           />
           <DistRow
             label="Cao (60–85%)"
             count={buckets.high}
             total={stats.totalBins}
-            color="bg-indigo-500"
+            color="bg-indigo-500 dark:bg-indigo-400"
           />
           <DistRow
             label="Trung (30–60%)"
             count={buckets.mid}
             total={stats.totalBins}
-            color="bg-blue-500"
+            color="bg-indigo-400 dark:bg-indigo-400/70"
           />
           <DistRow
             label="Thấp (1–30%)"
             count={buckets.low}
             total={stats.totalBins}
-            color="bg-teal-500"
+            color="bg-indigo-200 dark:bg-indigo-300/40"
           />
           <DistRow
             label="Trống (0%)"
             count={buckets.empty}
             total={stats.totalBins}
-            color="bg-zinc-300"
+            color="bg-zinc-300 dark:bg-zinc-700"
           />
         </div>
       </section>
 
       {/* Capacity utilization theo kệ */}
-      <section className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+      <section className="rounded-xl bg-white p-4 shadow-xs dark:bg-zinc-900">
         <h3 className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
           Tỷ lệ sử dụng theo kệ
         </h3>
@@ -301,15 +302,16 @@ export function ReportTab() {
                     <div
                       className={cn(
                         "h-5 transition-all",
+                        // V4.4 B — cùng thang indigo với "Phân bố theo mức lấp đầy" ở trên.
                         pct >= 85
-                          ? "bg-violet-500"
+                          ? "bg-indigo-700 dark:bg-indigo-500"
                           : pct >= 60
-                            ? "bg-indigo-500"
+                            ? "bg-indigo-500 dark:bg-indigo-400"
                             : pct >= 30
-                              ? "bg-blue-500"
+                              ? "bg-indigo-400 dark:bg-indigo-400/70"
                               : pct > 0
-                                ? "bg-teal-500"
-                                : "bg-zinc-200",
+                                ? "bg-indigo-200 dark:bg-indigo-300/40"
+                                : "bg-zinc-200 dark:bg-zinc-700",
                       )}
                       style={{ width: `${pct}%` }}
                     />
@@ -338,7 +340,7 @@ export function ReportTab() {
       </section>
 
       {/* Top SKU by qty */}
-      <section className="rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+      <section className="rounded-xl bg-white shadow-xs dark:bg-zinc-900">
         <header className="border-b border-zinc-200 p-4 dark:border-zinc-800">
           <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
             <TrendingUp className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
@@ -394,7 +396,7 @@ export function ReportTab() {
       </section>
 
       {/* Low stock bins */}
-      <section className="rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+      <section className="rounded-xl bg-white shadow-xs dark:bg-zinc-900">
         <header className="border-b border-zinc-200 p-4 dark:border-zinc-800">
           <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
             Ô thấp tồn ({lowBins.length})
@@ -446,7 +448,7 @@ export function ReportTab() {
       </section>
 
       {/* Unslotted SKUs */}
-      <section className="rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+      <section className="rounded-xl bg-white shadow-xs dark:bg-zinc-900">
         <header className="border-b border-zinc-200 p-4 dark:border-zinc-800">
           <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
             Mã chưa gán vị trí kho ({unslotted.length})
@@ -489,51 +491,6 @@ export function ReportTab() {
 
       {/* V4.1 Đợt 1c (D4) — đối soát trước kiểm kê (chỉ đọc, không tự trừ tồn) */}
       <ReconciliationSection />
-    </div>
-  );
-}
-
-function KpiCard({
-  icon,
-  label,
-  value,
-  sub,
-  tone,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-  sub?: string;
-  tone: "zinc" | "indigo" | "emerald" | "amber";
-}) {
-  const tones = {
-    zinc: "bg-zinc-50 text-zinc-700 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700",
-    // V4.1 UI-24 (X8): icon KPI trung tính; chỉ amber (cảnh báo) giữ màu.
-    indigo: "bg-zinc-50 text-zinc-600 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700",
-    emerald: "bg-zinc-50 text-zinc-600 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700",
-    amber: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800",
-  };
-  return (
-    <div className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-      <div className="flex items-center gap-2">
-        <span
-          className={cn(
-            "inline-flex h-7 w-7 items-center justify-center rounded-md ring-1 ring-inset",
-            tones[tone],
-          )}
-        >
-          {icon}
-        </span>
-        <span className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-          {label}
-        </span>
-      </div>
-      <div className="mt-2 flex items-end gap-2">
-        <span className="text-2xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
-          {value.toLocaleString("vi-VN")}
-        </span>
-        {sub && <span className="text-xs text-zinc-500 dark:text-zinc-400">{sub}</span>}
-      </div>
     </div>
   );
 }
