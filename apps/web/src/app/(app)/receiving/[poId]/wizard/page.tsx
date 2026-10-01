@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/domain/StatusBadge";
 import { StatusPill } from "@/components/ui/status-badge";
+import { statusLabel } from "@/lib/status";
 import { BinSuggestCombobox } from "@/components/warehouse/BinSuggestCombobox";
 import {
   Wizard,
@@ -131,6 +132,19 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
   const sentRef = React.useRef(
     new Map<string, { id: string; scanId: string; sig: string; acked: boolean }>(),
   );
+
+  // V4.4 (bổ sung chủ xưởng) — cảnh báo rời/đóng tab khi đã nhập SL/lô nhưng
+  // CHƯA gửi nhận hàng (tránh mất công nhập lại khi đóng tab nhầm).
+  React.useEffect(() => {
+    const hasUnsavedInput = Object.keys(inputs).length > 0 && !submitted;
+    if (!hasUnsavedInput) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [inputs, submitted]);
 
   // V3.7 — fetch danh sách bin để dropdown override.
   // V4.3 — thêm area/rack để BinSuggestCombobox nhóm "Khu A · Kệ 01".
@@ -627,7 +641,8 @@ function StepCheck({
       {isComplete ? (
         <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400">
           <CheckCircle2 className="mr-1 inline h-4 w-4" aria-hidden="true" />
-          PO đã {po.status}. Không thể nhận thêm.
+          {/* V4.4 B.H — trước in thẳng mã enum thô "PO đã RECEIVED"/"PO đã CLOSED". */}
+          Trạng thái PO: {statusLabel("po", po.status)}. Không thể nhận thêm.
         </div>
       ) : null}
 

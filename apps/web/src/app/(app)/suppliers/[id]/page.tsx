@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/domain/StatusBadge";
 import { StatusPill } from "@/components/ui/status-badge";
-import { formatDate as fmtDateVN, formatMoney, formatNumber, formatQty } from "@/lib/format";
+import { formatDate as fmtDateVN, formatMoney, formatNumber, formatPercent, formatQty } from "@/lib/format";
 import { activeStatusCode, getStatus, statusLabel } from "@/lib/status";
 import { ROOT_LABEL } from "@/lib/breadcrumb-items";
 import { SupplierFormSheet } from "@/components/suppliers/SupplierFormSheet";
@@ -705,15 +705,15 @@ function StatsTab({ supplierId }: { supplierId: string }) {
         <MiniKpi
           label="Chi tiêu từ đầu năm"
           value={formatVnd(d.ytdSpend)}
-          sublabel={`${d.ytdPoCount} PO năm nay`}
+          sublabel={`${formatNumber(d.ytdPoCount)} PO năm nay`}
         />
         <MiniKpi
           label="Thời gian giao TB"
-          value={`${d.avgLeadTimeDays.toFixed(1)} ngày`}
+          value={`${formatNumber(d.avgLeadTimeDays, undefined, { maximumFractionDigits: 1 })} ngày`}
         />
         <MiniKpi
           label="Tỷ lệ đúng hẹn"
-          value={`${d.onTimeRate.toFixed(1)}%`}
+          value={formatPercent(d.onTimeRate, { ratio: false })}
         />
       </div>
 

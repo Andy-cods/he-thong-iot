@@ -226,7 +226,7 @@ export function PoDraftLinesEditor({
                 <div className="text-right text-xs text-zinc-500 dark:text-zinc-400">
                   Thành tiền
                   <p className="h-8 pt-1.5 text-sm font-medium tabular-nums text-zinc-900 dark:text-zinc-100">
-                    {formatMoney(pre, { unit: "none" })}
+                    {formatMoney(pre)}
                   </p>
                 </div>
                 <button

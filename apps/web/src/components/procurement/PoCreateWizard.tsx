@@ -6,6 +6,7 @@ import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import type { POCreateInput } from "@iot/shared";
 import { Button } from "@/components/ui/button";
+import { DateField } from "@/components/ui/date-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -107,6 +108,20 @@ export function PoCreateWizard() {
   );
 
   const create = useCreatePurchaseOrder();
+
+  // V4.4 (bổ sung chủ xưởng) — cảnh báo rời trang khi đã nhập dữ liệu đáng kể
+  // (đã qua bước 1, chọn NCC, hoặc gõ dòng hàng) nhưng CHƯA tạo PO.
+  React.useEffect(() => {
+    const hasProgress =
+      step > 1 || !!state.supplier || state.lines.some((l) => l.item);
+    if (!hasProgress || create.isSuccess) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [step, state.supplier, state.lines, create.isSuccess]);
 
   // Auto-fill lines khi chọn PR.
   React.useEffect(() => {
@@ -424,13 +439,10 @@ export function PoCreateWizard() {
               <Label htmlFor="exp-eta" uppercase>
                 Ngày dự kiến nhận
               </Label>
-              <Input
+              <DateField
                 id="exp-eta"
-                type="date"
                 value={state.expectedEta}
-                onChange={(e) =>
-                  setState((s) => ({ ...s, expectedEta: e.target.value }))
-                }
+                onChange={(v) => setState((s) => ({ ...s, expectedEta: v }))}
               />
             </div>
             <div className="space-y-1.5">

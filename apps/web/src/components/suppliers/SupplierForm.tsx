@@ -30,6 +30,8 @@ export interface SupplierFormProps {
   formId?: string;
   defaultValues?: Partial<SupplierCreate>;
   onSubmit: (data: SupplierCreate) => Promise<void> | void;
+  /** V4.4 — báo cho Sheet bọc ngoài biết form đã bị sửa (để cảnh báo khi đóng). */
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 const REGION_OPTIONS = [
@@ -44,12 +46,13 @@ export function SupplierForm({
   formId = "supplier-form",
   defaultValues,
   onSubmit,
+  onDirtyChange,
 }: SupplierFormProps) {
   const {
     register,
     handleSubmit,
     control,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<SupplierCreate>({
     resolver: zodResolver(supplierCreateSchema),
     defaultValues: {
@@ -76,6 +79,10 @@ export function SupplierForm({
   });
 
   const isEdit = Boolean(defaultValues?.code);
+
+  React.useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   const { fields, append, remove } = useFieldArray({
     control,

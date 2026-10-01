@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import type { SupplierCreate } from "@iot/shared";
 import {
   Sheet,
@@ -7,6 +8,7 @@ import {
   SheetContent,
   SheetHeaderNav,
 } from "@/components/ui/sheet";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { SupplierForm, type SupplierFormProps } from "./SupplierForm";
 
 /**
@@ -16,6 +18,11 @@ import { SupplierForm, type SupplierFormProps } from "./SupplierForm";
  * Sheet" + C.I "inline-edit là ngôn ngữ overlay thứ 3"). Nút xác nhận nằm ở
  * `SheetHeaderNav` (luôn hiện, không cần cuộn hết form dài 15+ trường), ghi
  * rõ việc sẽ làm ("Tạo nhà cung cấp" / "Lưu thay đổi").
+ *
+ * V4.4 (bổ sung chủ xưởng) — cảnh báo mất dữ liệu khi đóng Sheet (Huỷ/Esc/
+ * click nền) lúc form đang có thay đổi CHƯA lưu; đóng êm (không hỏi) khi
+ * form sạch hoặc khi đóng do `onSubmit` đã lưu thành công (caller tự gọi
+ * `onOpenChange(false)` trực tiếp, không qua `requestClose` nên không bị hỏi lại).
  */
 
 const FORM_ID = "supplier-form";
@@ -37,12 +44,36 @@ export function SupplierFormSheet({
   submitting,
   onSubmit,
 }: SupplierFormSheetProps) {
+  const askConfirm = useConfirm();
+  const dirtyRef = React.useRef(false);
+
+  // Reset cờ "đã sửa" mỗi lần Sheet mở lại (tránh dính trạng thái phiên trước).
+  React.useEffect(() => {
+    if (open) dirtyRef.current = false;
+  }, [open]);
+
+  const requestClose = () => {
+    if (!dirtyRef.current) {
+      onOpenChange(false);
+      return;
+    }
+    void askConfirm({
+      title: "Đóng mà không lưu?",
+      description: "Thông tin vừa nhập sẽ bị mất.",
+      confirmLabel: "Đóng, không lưu",
+      cancelLabel: "Tiếp tục nhập",
+      tone: "danger",
+    }).then((ok) => {
+      if (ok) onOpenChange(false);
+    });
+  };
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={(next) => (next ? onOpenChange(true) : requestClose())}>
       <SheetContent side="right" size="lg" hideCloseButton className="flex flex-col">
         <SheetHeaderNav
           title={mode === "create" ? "Thêm nhà cung cấp" : "Chỉnh sửa nhà cung cấp"}
-          onCancel={() => onOpenChange(false)}
+          onCancel={requestClose}
           action={{
             label: submitting
               ? "Đang lưu…"
@@ -61,7 +92,14 @@ export function SupplierFormSheet({
               trang chi tiết.
             </p>
           ) : null}
-          <SupplierForm formId={FORM_ID} defaultValues={defaultValues} onSubmit={onSubmit} />
+          <SupplierForm
+            formId={FORM_ID}
+            defaultValues={defaultValues}
+            onSubmit={onSubmit}
+            onDirtyChange={(d) => {
+              dirtyRef.current = d;
+            }}
+          />
         </SheetBody>
       </SheetContent>
     </Sheet>

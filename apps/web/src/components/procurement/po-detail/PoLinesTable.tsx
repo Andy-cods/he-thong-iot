@@ -4,6 +4,7 @@ import * as React from "react";
 import { AlertTriangle, Loader2, Lock, PencilLine, Save } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useUpdatePOPrices } from "@/hooks/usePurchaseOrders";
 import { formatDate, formatMoney, formatQty, formatUom } from "@/lib/format";
 import { parseVnNumber } from "@/lib/po-detail";
@@ -58,6 +59,7 @@ export function PoLinesTable({ po, canPriceRole, priceLockReason, invoiceStatus 
   const [draft, setDraft] = React.useState<Record<string, DraftPrice>>({});
   const containerRef = React.useRef<HTMLDivElement>(null);
   const savePrices = useUpdatePOPrices(po.id);
+  const askConfirm = useConfirm();
 
   const canEditPrice = canPriceRole && priceLockReason === null;
 
@@ -143,13 +145,32 @@ export function PoLinesTable({ po, canPriceRole, priceLockReason, invoiceStatus 
     }
   };
 
+  // V4.4 — cảnh báo mất dữ liệu khi thoát sửa giá mà CHƯA lưu (Esc hoặc nút
+  // "Huỷ"), chỉ hỏi khi thật sự có thay đổi (so khớp changedEdits()) — tránh
+  // phiền khi người dùng chỉ bật/tắt chế độ sửa mà chưa gõ gì.
+  const requestCancelEdit = () => {
+    if (changedEdits().length === 0) {
+      cancelEdit();
+      return;
+    }
+    void askConfirm({
+      title: "Huỷ thay đổi giá?",
+      description: "Các giá vừa sửa chưa lưu sẽ bị mất.",
+      confirmLabel: "Huỷ thay đổi",
+      cancelLabel: "Tiếp tục sửa",
+      tone: "danger",
+    }).then((ok) => {
+      if (ok) cancelEdit();
+    });
+  };
+
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       e.preventDefault();
       void handleSave();
     } else if (e.key === "Escape") {
       e.preventDefault();
-      cancelEdit();
+      requestCancelEdit();
     }
   };
 
@@ -269,7 +290,7 @@ export function PoLinesTable({ po, canPriceRole, priceLockReason, invoiceStatus 
             <span className="hidden text-xs text-zinc-500 lg:inline dark:text-zinc-400">
               Enter để lưu · Esc để huỷ
             </span>
-            <Button variant="ghost" size="sm" onClick={cancelEdit} disabled={savePrices.isPending}>
+            <Button variant="ghost" size="sm" onClick={requestCancelEdit} disabled={savePrices.isPending}>
               Huỷ
             </Button>
             <Button size="sm" onClick={() => void handleSave()} disabled={savePrices.isPending}>

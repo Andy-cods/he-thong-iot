@@ -26,11 +26,6 @@ export interface PoLineEditorProps {
   disabled?: boolean;
 }
 
-// V4.1 UI-13: tiền chỉ số (cột đã ghi VND) — dùng formatMoney chung.
-function fmtVND(n: number): string {
-  return formatMoney(n, { unit: "none" });
-}
-
 function computeLineTotal(line: PoLineDraft): number {
   const qty = Number(line.qty) || 0;
   const price = Number(line.unitPrice) || 0;
@@ -88,7 +83,8 @@ export function PoLineEditor({
 
   return (
     <div className="space-y-3">
-      <div className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+      {/* Desktop/tablet — bảng đầy đủ. */}
+      <div className="hidden overflow-hidden rounded-md border border-zinc-200 bg-white md:block dark:border-zinc-800 dark:bg-zinc-900">
         <table className="w-full text-sm">
           <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-800/60 dark:text-zinc-400">
             <tr>
@@ -155,7 +151,7 @@ export function PoLineEditor({
                   />
                 </td>
                 <td className="px-2 py-2 text-right tabular-nums text-zinc-900 dark:text-zinc-50">
-                  {fmtVND(computeLineTotal(l))}
+                  {formatMoney(computeLineTotal(l))}
                 </td>
                 <td className="px-2 py-2">
                   <button
@@ -177,7 +173,7 @@ export function PoLineEditor({
                 Tạm tính (chưa VAT):
               </td>
               <td className="px-2 py-2 text-right tabular-nums text-zinc-900 dark:text-zinc-50">
-                {fmtVND(subtotal)}
+                {formatMoney(subtotal)}
               </td>
               <td />
             </tr>
@@ -186,7 +182,7 @@ export function PoLineEditor({
                 Tổng VAT:
               </td>
               <td className="px-2 py-2 text-right tabular-nums text-zinc-900 dark:text-zinc-50">
-                {fmtVND(totalTax)}
+                {formatMoney(totalTax)}
               </td>
               <td />
             </tr>
@@ -198,13 +194,116 @@ export function PoLineEditor({
                 Tổng cộng:
               </td>
               <td className="px-2 py-2 text-right text-base font-semibold tabular-nums text-indigo-700 dark:text-indigo-400">
-                {fmtVND(grandTotal)} VND
+                {formatMoney(grandTotal)}
               </td>
               <td />
             </tr>
           </tfoot>
         </table>
       </div>
+
+      {/* Mobile — dòng hàng thành card (chuẩn N9), thay bảng cuộn ngang. */}
+      <div className="space-y-3 md:hidden">
+        {lines.map((l, idx) => (
+          <div
+            key={l.localId}
+            className="space-y-3 rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <span className="mt-2 shrink-0 text-xs font-medium text-zinc-400 dark:text-zinc-500">
+                #{idx + 1}
+              </span>
+              <div className="min-w-0 flex-1">
+                <ItemPicker
+                  value={l.item}
+                  onChange={(v) => updateLine(idx, { item: v })}
+                  disabled={disabled}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => removeLine(idx)}
+                disabled={disabled || lines.length === 1}
+                className="mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-zinc-400 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40 dark:text-zinc-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+                aria-label={`Xoá dòng ${idx + 1}`}
+              >
+                <Trash2 className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <label className="space-y-1">
+                <span className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                  SL {l.item?.uom ? `(${l.item.uom})` : ""}
+                </span>
+                <Input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={l.qty}
+                  onChange={(e) => updateLine(idx, { qty: e.target.value })}
+                  className="h-9 text-right tabular-nums"
+                  disabled={disabled}
+                  aria-label={`Số lượng dòng ${idx + 1}`}
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                  Đơn giá
+                </span>
+                <Input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={l.unitPrice}
+                  onChange={(e) => updateLine(idx, { unitPrice: e.target.value })}
+                  className="h-9 text-right tabular-nums"
+                  disabled={disabled}
+                  aria-label={`Đơn giá dòng ${idx + 1}`}
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                  VAT%
+                </span>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="any"
+                  value={l.taxRate}
+                  onChange={(e) => updateLine(idx, { taxRate: e.target.value })}
+                  className="h-9 text-right tabular-nums"
+                  disabled={disabled}
+                  aria-label={`VAT phần trăm dòng ${idx + 1}`}
+                />
+              </label>
+            </div>
+            <div className="flex items-center justify-between border-t border-zinc-100 pt-2 text-sm dark:border-zinc-800">
+              <span className="text-zinc-500 dark:text-zinc-400">Thành tiền</span>
+              <span className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
+                {formatMoney(computeLineTotal(l))}
+              </span>
+            </div>
+          </div>
+        ))}
+
+        {/* Tổng — gọn trên mobile, cùng số liệu với tfoot bảng desktop. */}
+        <div className="space-y-1.5 rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm dark:border-zinc-800 dark:bg-zinc-800/60">
+          <div className="flex items-center justify-between text-zinc-600 dark:text-zinc-400">
+            <span>Tạm tính (chưa VAT)</span>
+            <span className="tabular-nums text-zinc-900 dark:text-zinc-50">{formatMoney(subtotal)}</span>
+          </div>
+          <div className="flex items-center justify-between text-zinc-600 dark:text-zinc-400">
+            <span>Tổng VAT</span>
+            <span className="tabular-nums text-zinc-900 dark:text-zinc-50">{formatMoney(totalTax)}</span>
+          </div>
+          <div className="flex items-center justify-between border-t border-zinc-200 pt-1.5 font-semibold dark:border-zinc-700">
+            <span className="text-zinc-900 dark:text-zinc-50">Tổng cộng</span>
+            <span className="tabular-nums text-indigo-700 dark:text-indigo-400">{formatMoney(grandTotal)}</span>
+          </div>
+        </div>
+      </div>
+
       <div className="flex justify-start">
         <Button
           type="button"
