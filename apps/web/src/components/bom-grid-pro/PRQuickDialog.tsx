@@ -120,6 +120,10 @@ export function PRQuickDialog({
 }: PRQuickDialogProps) {
   const router = useRouter();
   const createPR = useCreatePurchaseRequest();
+  // V4.5 QA-E P2 — chặn double-submit (xem new-mrf/page.tsx — cùng cơ chế):
+  // khoá đồng bộ + Idempotency-Key, sinh lại mỗi lần dialog mở (useEffect bên dưới).
+  const submittingRef = React.useRef(false);
+  const idempotencyKeyRef = React.useRef<string>();
 
   const sku = line?.node.componentSku ?? "";
   const name = line?.node.componentName ?? "(chưa có tên)";
@@ -147,6 +151,8 @@ export function PRQuickDialog({
       setNotes(`Từ BOM ${templateCode} — dòng ${sku}${leadHint}`);
       setOpenAfterCreate(true);
       setQtyError(null);
+      submittingRef.current = false;
+      idempotencyKeyRef.current = crypto.randomUUID();
       setSupplierState({
         id: sourcing.supplierId ?? "",
         code: sourcing.supplierCode ?? "",
@@ -162,6 +168,8 @@ export function PRQuickDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // V4.5 QA-E P2 — khoá đồng bộ NGAY đầu hàm.
+    if (submittingRef.current) return;
     if (!line) return;
     if (!Number.isFinite(qtyNum) || qtyNum <= 0) {
       setQtyError("Số lượng phải > 0");
@@ -179,6 +187,7 @@ export function PRQuickDialog({
       return;
     }
     setQtyError(null);
+    submittingRef.current = true;
 
     try {
       const extraNotes: string[] = [];
@@ -211,6 +220,7 @@ export function PRQuickDialog({
             preferredSupplierId: supplier.id || null,
           },
         ],
+        idempotencyKey: idempotencyKeyRef.current,
       });
 
       const created = res.data;
@@ -236,6 +246,7 @@ export function PRQuickDialog({
       }
     } catch (err) {
       toast.error((err as Error)?.message ?? "Không tạo được PR");
+      submittingRef.current = false;
     }
   };
 

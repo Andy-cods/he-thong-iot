@@ -100,6 +100,12 @@ export default function NewDnvtPage() {
   const session = useSession();
   const createPR = useCreatePurchaseRequest();
   const previewNo = usePreviewPaperFormNo();
+  // V4.5 QA-E P2 — chặn double-submit tạo 2 phiếu trùng: khoá đồng bộ (ref,
+  // không chờ React re-render `isPending`) + Idempotency-Key cố định cho cả
+  // phiên form này (xem new-mrf/page.tsx — cùng cơ chế, cùng hook).
+  const submittingRef = React.useRef(false);
+  const idempotencyKeyRef = React.useRef<string>();
+  if (!idempotencyKeyRef.current) idempotencyKeyRef.current = crypto.randomUUID();
 
   // Header (I. Thông tin chung)
   const [targetDepartment, setTargetDepartment] = React.useState(
@@ -154,6 +160,8 @@ export default function NewDnvtPage() {
   };
 
   const handleSubmit = async () => {
+    // V4.5 QA-E P2 — khoá đồng bộ NGAY đầu hàm, trước mọi validate/await.
+    if (submittingRef.current) return;
     if (validLines.length === 0) {
       toast.error("Cần ít nhất 1 dòng đã chọn vật tư + số lượng > 0.");
       return;
@@ -162,6 +170,7 @@ export default function NewDnvtPage() {
       toast.error("Vui lòng nhập lý do đề xuất.");
       return;
     }
+    submittingRef.current = true;
 
     const payload: PRCreateInput = {
       title: `DNVT ${proposingDepartment} ${formatDateVN(new Date())}`,
@@ -198,12 +207,16 @@ export default function NewDnvtPage() {
     };
 
     try {
-      const res = await createPR.mutateAsync(payload);
+      const res = await createPR.mutateAsync({
+        ...payload,
+        idempotencyKey: idempotencyKeyRef.current,
+      });
       const formNo = res.data.paperFormNo ?? res.data.code;
       toast.success(`Đã gửi phiếu đề xuất vật tư ${formNo}`);
       router.push(`/procurement/purchase-requests/${res.data.id}`);
     } catch (err) {
       toast.error((err as Error).message ?? "Không tạo được phiếu");
+      submittingRef.current = false;
     }
   };
 
