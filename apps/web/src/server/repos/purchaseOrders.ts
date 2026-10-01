@@ -1469,3 +1469,49 @@ export async function getExpectedPayableSummary(): Promise<ExpectedPayableSummar
     draftInvoiceAmounts: draftInvoiceRows.map((r) => r.total_amount),
   });
 }
+
+/**
+ * TASK-20261001 — danh sách chi tiết PO chưa có hoá đơn (phần dùng CHO Sheet
+ * "Dự trù chi", KHÁC `getExpectedPayableSummary` chỉ trả tổng số). Cùng điều
+ * kiện lọc — xem doc-comment trên.
+ */
+export async function getOpenPoListForExpectedExpense(): Promise<
+  Array<{
+    id: string;
+    poNo: string;
+    supplierName: string;
+    totalAmount: number;
+    status: string;
+    expectedEta: string | null;
+  }>
+> {
+  const rows = (await db.execute(sql`
+    SELECT po.id AS id, po.po_no AS po_no, s.name AS supplier_name,
+           po.total_amount AS total_amount, po.status AS status,
+           po.expected_eta AS expected_eta
+    FROM app.purchase_order po
+    JOIN app.supplier s ON s.id = po.supplier_id
+    WHERE po.status IN ('SENT', 'PARTIAL', 'RECEIVED')
+      AND NOT EXISTS (
+        SELECT 1 FROM app.fin_invoice fi
+        WHERE fi.purchase_order_id = po.id AND fi.status <> 'CANCELLED'
+      )
+    ORDER BY po.total_amount DESC
+  `)) as unknown as Array<{
+    id: string;
+    po_no: string;
+    supplier_name: string;
+    total_amount: string;
+    status: string;
+    expected_eta: string | null;
+  }>;
+
+  return rows.map((r) => ({
+    id: r.id,
+    poNo: r.po_no,
+    supplierName: r.supplier_name,
+    totalAmount: Number(r.total_amount) || 0,
+    status: r.status,
+    expectedEta: r.expected_eta,
+  }));
+}

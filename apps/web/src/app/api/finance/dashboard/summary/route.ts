@@ -3,11 +3,14 @@ import {
   getAccountsBalanceSummary,
   getCashflowTotals,
   getPayablesAging,
+  getPayablesRawForBucketing,
   getReceivablesAging,
 } from "@/server/repos/finInvoices";
 import { getBoardValueSummary } from "@/server/repos/productionBoard";
 import { getExpectedPayableSummary } from "@/server/repos/purchaseOrders";
+import { getOpenPlannedExpenseAmounts } from "@/server/repos/finPlannedExpense";
 import { addDaysIso, vnToday } from "@/lib/finance";
+import { groupPayablesBySupplierAndBucket } from "@/lib/finance-overview-policy";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -19,15 +22,19 @@ export const dynamic = "force-dynamic";
  * `totalPayable` cho KPI "công nợ phải trả" ở OverviewTab, đối xứng với
  * `totalReceivable` đã có).
  *
- * V4.4.2 (Việc 2) — bổ sung hàng "Kế hoạch" (khác hàng số thực ở trên):
- *   - `production.inProduction`  — Σ(qty_planned × unit_price) mã hàng đang
- *     chạy (QUEUED/IN_PROGRESS/QC).
- *   - `production.expectedReceivable` — Σ(qty_done × unit_price) mã hàng
- *     COMPLETED (hoàn thành, chưa giao) — KHÔNG phải tồn kho, không trùng
- *     `totalReceivable` (công nợ phải thu từ hoá đơn bán).
+ * V4.4.2 (Việc 2) / TASK-20261001 (việc 2+3) — bổ sung hàng "Kế hoạch" (khác
+ * hàng số thực ở trên):
+ *   - `production.expectedReceivable` — "Dự trù thu" GỘP: Σ(qty_planned ×
+ *     đơn giá) mã hàng đang gia công (IN_PROGRESS/QC) + Σ(qty_done × đơn giá)
+ *     mã hàng COMPLETED (hoàn thành, chưa giao) — KHÔNG gồm QUEUED/DELIVERED,
+ *     KHÔNG trùng `totalReceivable` (công nợ phải thu từ hoá đơn bán).
  *   - `production.missingPriceCount` — mã hàng (2 nhóm trên) chưa nhập giá.
- *   - `expectedPayable` — cam kết chi chưa thành công nợ phải trả (PO mở
- *     chưa có HĐ + HĐ mua đang NHÁP), không đếm trùng `totalPayable`.
+ *   - `expectedPayable` — "Dự trù chi": (a) công nợ phải trả SẮP ĐẾN HẠN
+ *     (`payableDueSoon` = OVERDUE + ≤30 ngày, chi tiết theo NCC × mốc hạn ở
+ *     `payableBySupplierBucket`) + (b) PO mở chưa có HĐ + HĐ mua NHÁP + (c)
+ *     khoản chi dự kiến OPEN (`plannedExpenseOpenValue`). `value` = tổng cả
+ *     3 phần — KHÔNG đếm trùng `totalPayable` (chỉ lấy phần ≤30 ngày của
+ *     công nợ, không phải toàn bộ — xem lib/finance-overview-policy.ts).
  * Mọi vai đọc `finance` (admin/accountant/shareholder) đều thấy — không cần
  * quyền `productionBoard`/`po` riêng vì đây là số TỔNG HỢP phía server.
  */
@@ -39,18 +46,41 @@ export async function GET(req: NextRequest) {
   const to = vnToday();
   const from = addDaysIso(to, -29);
 
-  const [totals, totalBalance, receivableBuckets, payableBuckets, production, expectedPayable] =
-    await Promise.all([
-      getCashflowTotals(from, to),
-      getAccountsBalanceSummary(),
-      getReceivablesAging(),
-      getPayablesAging(),
-      getBoardValueSummary(),
-      getExpectedPayableSummary(),
-    ]);
+  const [
+    totals,
+    totalBalance,
+    receivableBuckets,
+    payableBuckets,
+    production,
+    expectedPayablePoDraft,
+    payableRawRows,
+    plannedExpenseOpenAmounts,
+  ] = await Promise.all([
+    getCashflowTotals(from, to),
+    getAccountsBalanceSummary(),
+    getReceivablesAging(),
+    getPayablesAging(),
+    getBoardValueSummary(),
+    getExpectedPayableSummary(),
+    getPayablesRawForBucketing(),
+    getOpenPlannedExpenseAmounts(),
+  ]);
 
   const totalReceivable = receivableBuckets.reduce((s, b) => s + b.outstandingAmount, 0);
   const totalPayable = payableBuckets.reduce((s, b) => s + b.outstandingAmount, 0);
+
+  const payableBySupplierBucket = groupPayablesBySupplierAndBucket(payableRawRows, to);
+  const plannedExpenseOpenValue = plannedExpenseOpenAmounts.reduce((s, v) => s + v, 0);
+
+  const expectedPayable = {
+    ...expectedPayablePoDraft,
+    payableDueSoon: payableBySupplierBucket.dueSoonAmount,
+    plannedExpenseOpenValue,
+    plannedExpenseOpenCount: plannedExpenseOpenAmounts.length,
+    // Tổng "Dự trù chi" = công nợ sắp đến hạn (≤30 ngày) + PO mở chưa HĐ +
+    // HĐ nháp (expectedPayablePoDraft.value) + khoản chi dự kiến OPEN.
+    value: payableBySupplierBucket.dueSoonAmount + expectedPayablePoDraft.value + plannedExpenseOpenValue,
+  };
 
   return NextResponse.json({
     data: {
@@ -62,6 +92,7 @@ export async function GET(req: NextRequest) {
       totalPayable,
       production,
       expectedPayable,
+      payableBySupplierBucket,
       period: { from, to },
     },
   });

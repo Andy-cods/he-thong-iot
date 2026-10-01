@@ -7,7 +7,6 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   BarChart3,
-  Factory,
   Landmark,
   PackageCheck,
   ReceiptText,
@@ -23,6 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SimpleTooltip } from "@/components/ui/tooltip";
 import { CashflowChart } from "@/components/finance/CashflowChart";
+import { ExpectedExpenseSheet } from "@/components/finance/ExpectedExpenseSheet";
 import { fmtVND, fmtVNDShort, toDateInputValue } from "@/components/finance/_format";
 import { useFinCashflow, useFinSummary, type CashflowPoint } from "@/hooks/useFinance";
 import { useSession } from "@/hooks/useSession";
@@ -62,7 +62,8 @@ export function OverviewTab() {
   // được (vd accountant không có quyền entity `productionBoard` nên không
   // vào được /production-board — card vẫn hiện số nhưng không phải link).
   const canOpenBoard = isRouteAllowed("/production-board", roles ?? []);
-  const canOpenSales = isRouteAllowed("/sales", roles ?? []);
+  // TASK-20261001 (việc 3) — Sheet chi tiết ô "Dự trù chi".
+  const [expenseDetailOpen, setExpenseDetailOpen] = React.useState(false);
 
   const cashflow = cashflowQuery.data?.data;
   const summary = summaryQuery.data?.data;
@@ -70,7 +71,7 @@ export function OverviewTab() {
   // summary (đã bổ sung server-side) thay vì gọi lại API aging riêng.
   const totalReceivable = summary?.totalReceivable ?? 0;
   const totalPayable = summary?.totalPayable ?? 0;
-  // V4.4.2 — hàng "Kế hoạch" (Đang sản xuất / Dự trù thu / Dự trù chi).
+  // TASK-20261001 — hàng "Kế hoạch" (Dự trù thu GỘP / Dự trù chi).
   const production = summary?.production;
   const expectedPayable = summary?.expectedPayable;
   const missingPriceCount = production?.missingPriceCount ?? 0;
@@ -154,36 +155,24 @@ export function OverviewTab() {
               series={cashflow?.series}
             />
 
-            {/* V4.4.2 — hàng "Kế hoạch" (Đang sản xuất / Dự trù thu / Dự trù
-                chi), TÁCH BẠCH khỏi hàng số thực bên dưới (nguồn Bảng sản
-                xuất + PO mở, không phải sổ quỹ đã ghi nhận). */}
+            {/* TASK-20261001 — hàng "Kế hoạch" (Dự trù thu GỘP / Dự trù chi),
+                TÁCH BẠCH khỏi hàng số thực bên dưới (nguồn Bảng sản xuất +
+                công nợ sắp đến hạn + PO mở, không phải sổ quỹ đã ghi nhận). */}
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
                 Kế hoạch (dự trù — chưa phát sinh dòng tiền thực)
               </p>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <PlanKpiCard
-                  icon={Factory}
-                  label="Đang sản xuất"
-                  amount={summaryFailed ? null : (production?.inProduction.value ?? 0)}
-                  sub={
-                    production
-                      ? `${production.inProduction.itemCount} mã hàng`
-                      : undefined
-                  }
-                  tooltip="Σ(SL kế hoạch × đơn giá) các mã hàng đang chạy trên Bảng sản xuất (Sắp gia công / Đang gia công / Đang kiểm QC)."
-                  href={canOpenBoard ? "/production-board" : undefined}
-                />
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <PlanKpiCard
                   icon={PackageCheck}
                   label="Dự trù thu"
                   amount={summaryFailed ? null : (production?.expectedReceivable.value ?? 0)}
                   sub={
                     production
-                      ? `${production.expectedReceivable.itemCount} mã hàng hoàn thành, chưa giao`
+                      ? `Đang gia công ${fmtVND(production.expectedReceivable.inProgress.value)} · Đã xong chờ giao ${fmtVND(production.expectedReceivable.completed.value)}`
                       : undefined
                   }
-                  tooltip="Σ(SL đã đạt × đơn giá) các mã hàng đã Hoàn thành nhưng chưa giao khách — hàng đã làm xong, tiền chưa về."
+                  tooltip="Σ(SL kế hoạch × đơn giá) mã hàng Đang gia công/QC + Σ(SL đã đạt × đơn giá) mã hàng Đã xong chờ giao. KHÔNG gồm mã Sắp gia công (chưa bắt đầu) hay Đã giao."
                   href={canOpenBoard ? "/production-board" : undefined}
                 />
                 <PlanKpiCard
@@ -192,19 +181,17 @@ export function OverviewTab() {
                   amount={summaryFailed ? null : (expectedPayable?.value ?? 0)}
                   sub={
                     expectedPayable
-                      ? `${expectedPayable.poCount} PO mở · ${expectedPayable.draftInvoiceCount} HĐ nháp`
+                      ? `Công nợ ≤30 ngày ${fmtVND(expectedPayable.payableDueSoon)} · PO chưa HĐ ${fmtVND(expectedPayable.poValue)} · Chi dự kiến ${fmtVND(expectedPayable.plannedExpenseOpenValue)}`
                       : undefined
                   }
-                  tooltip="Giá trị PO đã gửi/đang nhận CHƯA có hoá đơn mua + tổng hoá đơn mua đang NHÁP (chưa xác nhận) — KHÔNG gồm hoá đơn đã xác nhận (đã nằm trong Công nợ phải trả)."
-                  href={canOpenSales ? "/sales?tab=po" : undefined}
+                  tooltip="Công nợ phải trả sắp đến hạn (quá hạn + ≤30 ngày) + PO đã gửi/đang nhận CHƯA có hoá đơn + HĐ mua đang NHÁP + khoản chi dự kiến chưa chi. Bấm để xem chi tiết theo NCC × mốc hạn."
+                  onClick={() => setExpenseDetailOpen(true)}
                 />
               </div>
               {missingPriceCount > 0 && (
                 <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
                   <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                  <span>
-                    {missingPriceCount} mã hàng chưa có đơn giá — số liệu "Đang sản xuất"/"Dự trù thu" chưa đủ.
-                  </span>
+                  <span>{missingPriceCount} mã hàng chưa có đơn giá — số liệu "Dự trù thu" chưa đủ.</span>
                   {canOpenBoard && (
                     <Link
                       href="/production-board?missingPrice=1"
@@ -220,8 +207,7 @@ export function OverviewTab() {
                   <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                   <span>
                     {abnormalCount} dòng có giá bất thường (SL × đơn giá quá lớn) — đã loại khỏi
-                    tổng "Đang sản xuất"/"Dự trù thu" để không làm sai số liệu. Kiểm tra lại đơn
-                    giá trên Bảng sản xuất.
+                    tổng "Dự trù thu" để không làm sai số liệu. Kiểm tra lại đơn giá trên Bảng sản xuất.
                   </span>
                   {canOpenBoard && (
                     <Link
@@ -311,6 +297,9 @@ export function OverviewTab() {
           </div>
         )}
       </div>
+
+      {/* TASK-20261001 (việc 3) — Sheet chi tiết ô "Dự trù chi". */}
+      <ExpectedExpenseSheet open={expenseDetailOpen} onOpenChange={setExpenseDetailOpen} />
     </div>
   );
 }
@@ -463,6 +452,7 @@ function PlanKpiCard({
   sub,
   tooltip,
   href,
+  onClick,
 }: {
   icon: React.ElementType;
   label: string;
@@ -470,12 +460,15 @@ function PlanKpiCard({
   sub?: string;
   tooltip: string;
   href?: string;
+  /** TASK-20261001 — mở Sheet chi tiết thay vì điều hướng trang (vd "Dự trù chi"). */
+  onClick?: () => void;
 }) {
+  const clickable = !!href || !!onClick;
   const body = (
     <div
       className={cn(
         "min-w-0 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900",
-        href && "transition-colors hover:border-indigo-300 hover:bg-indigo-50/40 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/20",
+        clickable && "transition-colors hover:border-indigo-300 hover:bg-indigo-50/40 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/20",
       )}
     >
       <div className="flex items-start justify-between gap-2">
@@ -506,13 +499,21 @@ function PlanKpiCard({
       )}
     </div>
   );
-  return href ? (
-    <Link href={href} className="block">
-      {body}
-    </Link>
-  ) : (
-    body
-  );
+  if (href) {
+    return (
+      <Link href={href} className="block">
+        {body}
+      </Link>
+    );
+  }
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className="block w-full text-left">
+        {body}
+      </button>
+    );
+  }
+  return body;
 }
 
 function GrowthPill({ label, pct, inverse }: { label: string; pct: number; inverse?: boolean }) {

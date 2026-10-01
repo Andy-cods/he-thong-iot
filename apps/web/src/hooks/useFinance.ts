@@ -663,6 +663,25 @@ export function useFinCashflow(filter: FinCashflowFilter) {
   });
 }
 
+/** TASK-20261001 — 6 mốc hạn công nợ phải trả (xem lib/finance-overview-policy.ts). */
+export type PayableDueBucket = "OVERDUE" | "0-30" | "31-45" | "46-60" | "61-90" | "90+";
+
+export interface PayableBucketRow {
+  supplierId: string | null;
+  supplierName: string;
+  bucket: PayableDueBucket;
+  amount: number;
+  invoiceCount: number;
+}
+
+export interface PayablesBySupplierBucketSummary {
+  rows: PayableBucketRow[];
+  totalBySupplier: Array<{ supplierId: string | null; supplierName: string; total: number; invoiceCount: number }>;
+  totalByBucket: Record<PayableDueBucket, number>;
+  dueSoonAmount: number;
+  grandTotal: number;
+}
+
 export interface FinSummaryResponse {
   totalIn: number;
   totalOut: number;
@@ -671,22 +690,39 @@ export interface FinSummaryResponse {
   /** TASK-20260922 — tổng công nợ phải thu/phải trả, dùng cho KPI OverviewTab. */
   totalReceivable: number;
   totalPayable: number;
-  /** V4.4.2 — hàng "Kế hoạch" (Đang sản xuất / Dự trù thu), xem Bảng sản xuất. */
+  /**
+   * TASK-20261001 — "Dự trù thu" GỘP (Đang gia công IN_PROGRESS/QC dùng
+   * qty_planned + Đã xong chờ giao COMPLETED dùng qty_done). Thay thế ô
+   * "Đang sản xuất" riêng trước đây (V4.4.2).
+   */
   production: {
-    inProduction: { value: number; itemCount: number };
-    expectedReceivable: { value: number; itemCount: number };
+    expectedReceivable: {
+      value: number;
+      itemCount: number;
+      inProgress: { value: number; itemCount: number };
+      completed: { value: number; itemCount: number };
+    };
     missingPriceCount: number;
-    /** V4.5 QA-D P1-01 — số dòng giá bất thường, bị loại khỏi 2 tổng trên. */
+    /** V4.5 QA-D P1-01 — số dòng giá bất thường, bị loại khỏi tổng trên. */
     abnormalCount: number;
   };
-  /** V4.4.2 — "Dự trù chi": PO mở chưa có HĐ + HĐ mua đang NHÁP. */
+  /**
+   * TASK-20261001 — "Dự trù chi" = công nợ phải trả sắp đến hạn (≤30 ngày,
+   * `payableDueSoon`) + PO mở chưa HĐ/HĐ nháp (`poValue`+`draftInvoiceValue`)
+   * + khoản chi dự kiến OPEN (`plannedExpenseOpenValue`). `value` = tổng cả 3.
+   */
   expectedPayable: {
     value: number;
     poValue: number;
     poCount: number;
     draftInvoiceValue: number;
     draftInvoiceCount: number;
+    payableDueSoon: number;
+    plannedExpenseOpenValue: number;
+    plannedExpenseOpenCount: number;
   };
+  /** Chi tiết công nợ phải trả theo NCC × mốc hạn — dùng vẽ Sheet chi tiết. */
+  payableBySupplierBucket: PayablesBySupplierBucketSummary;
   period: { from: string; to: string };
 }
 
@@ -695,6 +731,108 @@ export function useFinSummary() {
     queryKey: qk.finance.dashboardSummary,
     queryFn: () => request<{ data: FinSummaryResponse }>("/api/finance/dashboard/summary"),
     staleTime: 30_000,
+  });
+}
+
+/* ══════════════════════════ TASK-20261001 — Dự trù chi (Sheet chi tiết) ══════════════════════════ */
+
+export interface OpenPoForExpectedExpense {
+  id: string;
+  poNo: string;
+  supplierName: string;
+  totalAmount: number;
+  status: string;
+  expectedEta: string | null;
+}
+
+export type FinPlannedExpenseStatus = "OPEN" | "DONE" | "CANCELLED";
+
+export interface FinPlannedExpenseRow {
+  id: string;
+  description: string;
+  amount: string;
+  dueDate: string;
+  categoryId: string | null;
+  categoryName: string | null;
+  supplierId: string | null;
+  supplierName: string | null;
+  accountId: string | null;
+  status: FinPlannedExpenseStatus;
+  notes: string | null;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ExpectedExpenseDetail {
+  payableBySupplierBucket: PayablesBySupplierBucketSummary;
+  openPos: OpenPoForExpectedExpense[];
+  plannedExpenses: FinPlannedExpenseRow[];
+}
+
+/** Chi tiết ô "Dự trù chi" — gọi khi mở Sheet (không gọi mỗi lần tải Tổng quan). */
+export function useExpectedExpenseDetail(enabled: boolean) {
+  return useQuery({
+    queryKey: [...qk.finance.dashboardSummary, "expected-expense"],
+    queryFn: () =>
+      request<{ data: ExpectedExpenseDetail }>("/api/finance/dashboard/expected-expense"),
+    staleTime: 10_000,
+    enabled,
+  });
+}
+
+export interface FinPlannedExpenseCreateInput {
+  description: string;
+  amount: number;
+  dueDate: string;
+  categoryId?: string | null;
+  supplierId?: string | null;
+  accountId?: string | null;
+  notes?: string | null;
+}
+
+export function useCreatePlannedExpense() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: FinPlannedExpenseCreateInput) =>
+      request<{ data: FinPlannedExpenseRow }>("/api/finance/planned-expenses", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: [...qk.finance.dashboardSummary] });
+    },
+  });
+}
+
+export function useUpdatePlannedExpense() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: Partial<FinPlannedExpenseCreateInput> & { status?: FinPlannedExpenseStatus };
+    }) =>
+      request<{ data: FinPlannedExpenseRow }>(`/api/finance/planned-expenses/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: [...qk.finance.dashboardSummary] });
+    },
+  });
+}
+
+export function useDeletePlannedExpense() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      request<{ ok: true }>(`/api/finance/planned-expenses/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: [...qk.finance.dashboardSummary] });
+    },
   });
 }
 

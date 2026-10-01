@@ -313,6 +313,42 @@ export const finTransaction = appSchema.table(
   }),
 );
 
+/**
+ * fin_planned_expense — TASK-20261001 (Dự trù chi, việc 3) — "khoản chi dự
+ * kiến" nhập tay, KHÔNG gắn hoá đơn (vd lương kỳ tới, thuê mặt bằng chưa có
+ * HĐ) — khác `fin_invoice`/`getExpectedPayableSummary` (PO chưa HĐ). Trạng
+ * thái dùng VARCHAR + CHECK (không pgEnum) theo đúng quy ước
+ * 0057_delivery_note.sql/0068_stocktake.sql (tránh ALTER TYPE khi mở rộng).
+ * Đánh dấu "Đã chi" (DONE) KHÔNG tự ghi `fin_transaction` — UI mở sẵn form
+ * phiếu chi điền trước số tiền/danh mục, kế toán xác nhận tạo phiếu chi thật
+ * rồi set DONE (tránh ghi trùng/ghi nhầm tài khoản ở application layer).
+ */
+export const finPlannedExpense = appSchema.table(
+  "fin_planned_expense",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    description: varchar("description", { length: 500 }).notNull(),
+    amount: numeric("amount", { precision: 18, scale: 2 }).notNull(),
+    dueDate: date("due_date").notNull(),
+    categoryId: uuid("category_id").references(() => finCategory.id),
+    supplierId: uuid("supplier_id").references(() => supplier.id),
+    accountId: uuid("account_id").references(() => finAccount.id),
+    status: varchar("status", { length: 16 }).notNull().default("OPEN"),
+    notes: text("notes"),
+    createdBy: uuid("created_by").references(() => userAccount.id),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (t) => ({
+    statusIdx: index("fin_planned_expense_status_idx").on(t.status),
+    dueDateIdx: index("fin_planned_expense_due_date_idx").on(t.dueDate),
+  }),
+);
+
 export type FinAccount = typeof finAccount.$inferSelect;
 export type NewFinAccount = typeof finAccount.$inferInsert;
 export type FinCategory = typeof finCategory.$inferSelect;
@@ -325,3 +361,5 @@ export type FinPayment = typeof finPayment.$inferSelect;
 export type NewFinPayment = typeof finPayment.$inferInsert;
 export type FinPaymentAllocation = typeof finPaymentAllocation.$inferSelect;
 export type NewFinPaymentAllocation = typeof finPaymentAllocation.$inferInsert;
+export type FinPlannedExpense = typeof finPlannedExpense.$inferSelect;
+export type NewFinPlannedExpense = typeof finPlannedExpense.$inferInsert;
