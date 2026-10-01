@@ -14,6 +14,11 @@ import {
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryError } from "@/components/ui/query-error";
+import {
+  NOTIFY_STREAM_WINDOW_EVENT,
+  useNotificationStream,
+  type NotifyStreamPayload,
+} from "@/hooks/useNotificationStream";
 
 /**
  * V3.2 ActionItemsCard — 3 row "Cần xử lý" cho Dashboard Tổng quan
@@ -46,6 +51,10 @@ interface ActionItemsPayload {
 }
 
 const POLL_MS = 60_000;
+// TASK-notify-realtime — SSE kết nối → giãn poll làm lưới an toàn (component
+// này dùng fetch tay, không phải React Query, nên vẫn cần tự poll + tự nghe
+// NOTIFY_STREAM_WINDOW_EVENT để refetch tức thì khi server đẩy tín hiệu).
+const POLL_MS_SSE = 5 * 60_000;
 
 interface ActionItemsCardProps {
   className?: string;
@@ -77,14 +86,31 @@ export function ActionItemsCard({ className }: ActionItemsCardProps) {
     }
   }, []);
 
+  // SSE kết nối → nhận tín hiệu "action" tức thời bên dưới, giãn poll ra 5
+  // phút làm lưới an toàn thay vì 60s. SSE rớt/chưa kết nối → giữ 60s cũ.
+  const sseConnected = useNotificationStream(true);
+
   React.useEffect(() => {
     const ctrl = new AbortController();
     void fetchData(ctrl.signal);
-    const id = setInterval(() => fetchData(ctrl.signal), POLL_MS);
+    const id = setInterval(() => fetchData(ctrl.signal), sseConnected ? POLL_MS_SSE : POLL_MS);
     return () => {
       clearInterval(id);
       ctrl.abort();
     };
+  }, [fetchData, sseConnected]);
+
+  // Cache action-items đã bị server xoá ngay khi phát/đọc thông báo "action"
+  // (xem dashboard-cache.ts) → refetch ngay khi nhận tín hiệu, không đợi poll.
+  React.useEffect(() => {
+    const handler = (ev: Event) => {
+      const payload = (ev as CustomEvent<NotifyStreamPayload>).detail;
+      if (payload?.category === "action") {
+        void fetchData();
+      }
+    };
+    window.addEventListener(NOTIFY_STREAM_WINDOW_EVENT, handler);
+    return () => window.removeEventListener(NOTIFY_STREAM_WINDOW_EVENT, handler);
   }, [fetchData]);
 
   const total = data

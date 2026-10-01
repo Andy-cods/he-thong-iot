@@ -7,16 +7,25 @@ import {
   CheckCheck,
 } from "lucide-react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { notificationIcon } from "@/components/layout/notification-icons";
 import { cn } from "@/lib/utils";
 import { QueryError } from "@/components/ui/query-error";
 import { groupNotificationsByCategory, type NotifyCategory } from "@/lib/notification-groups";
+import {
+  NOTIFY_STREAM_WINDOW_EVENT,
+  useNotificationStreamInvalidate,
+  type NotifyStreamPayload,
+} from "@/hooks/useNotificationStream";
 
 /**
  * V3.3 — NotificationBell với dropdown panel.
  *
- * Polling /api/notifications mỗi 60s (V4.2 PERF_REDUNDANCY.md #7 — trước đây
- * 30s toàn cục, ước tính ~15.000 query/ngày, chiếm phần lớn tổng polling).
+ * TASK-notify-realtime: ưu tiên SSE `/api/notifications/stream` (xem
+ * `useNotificationStream.ts`) — có thông báo mới/đã đọc là server đẩy ngay,
+ * component chỉ cần invalidate query này để refetch. Poll 60s (V4.2
+ * PERF_REDUNDANCY.md #7) vẫn giữ làm LƯỚI AN TOÀN: khi SSE đang kết nối giãn
+ * ra 5 phút, SSE rớt/chưa kết nối thì về lại 60s như cũ.
  * `refetchIntervalInBackground: false` (mặc định của TanStack Query, khai báo
  * tường minh) — dừng poll khi tab không hiển thị. Bù lại bật
  * `refetchOnWindowFocus: "always"` riêng cho query này (ghi đè default tắt ở
@@ -62,6 +71,23 @@ export function NotificationBell() {
   const wrapRef = React.useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
 
+  // SSE kết nối → nhận tin tức thời, hạ poll xuống làm lưới an toàn (5 phút).
+  // SSE hỏng/chưa kết nối → giữ nguyên poll 60s như trước.
+  const sseConnected = useNotificationStreamInvalidate(true);
+
+  // "Cần bạn duyệt" tới NGAY lúc đang mở app khác tab → toast nhẹ, không cần
+  // mở dropdown. Không toast cho "update"/"reminder" (tránh làm phiền).
+  React.useEffect(() => {
+    const handler = (ev: Event) => {
+      const payload = (ev as CustomEvent<NotifyStreamPayload>).detail;
+      if (payload?.kind === "new" && payload.category === "action" && payload.title) {
+        toast.info(payload.title, { description: "Cần bạn duyệt" });
+      }
+    };
+    window.addEventListener(NOTIFY_STREAM_WINDOW_EVENT, handler);
+    return () => window.removeEventListener(NOTIFY_STREAM_WINDOW_EVENT, handler);
+  }, []);
+
   const query = useQuery<NotificationsResponse>({
     queryKey: ["notifications", "list"],
     queryFn: async () => {
@@ -72,7 +98,7 @@ export function NotificationBell() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.json();
     },
-    refetchInterval: 60_000,
+    refetchInterval: sseConnected ? 5 * 60_000 : 60_000,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: "always",
     staleTime: 55_000,

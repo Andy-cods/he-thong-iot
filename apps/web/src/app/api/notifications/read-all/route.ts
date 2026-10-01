@@ -4,6 +4,8 @@ import { notification } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import { jsonError } from "@/server/http";
 import { requireSession } from "@/server/session";
+import { invalidateActionItemsCache } from "@/server/services/dashboard-cache";
+import { publishNotifyEvent } from "@/server/services/notify-pubsub";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,6 +29,10 @@ export async function POST(req: NextRequest) {
         ),
       )
       .returning({ id: notification.id });
+    if (result.length > 0) {
+      publishNotifyEvent({ kind: "read-all", userIds: [guard.session.userId] });
+      void invalidateActionItemsCache(guard.session.userId);
+    }
     return NextResponse.json({ data: { marked: result.length } });
   } catch (e) {
     return jsonError(

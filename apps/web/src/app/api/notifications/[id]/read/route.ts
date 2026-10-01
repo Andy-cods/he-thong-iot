@@ -4,6 +4,8 @@ import { notification } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import { jsonError } from "@/server/http";
 import { requireSession } from "@/server/session";
+import { invalidateActionItemsCache } from "@/server/services/dashboard-cache";
+import { publishNotifyEvent } from "@/server/services/notify-pubsub";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,6 +40,16 @@ export async function POST(
         ),
       )
       .returning({ id: notification.id });
+    // Sau khi commit DB thành công → phát tức thì để badge/dashboard giảm
+    // ngay ở mọi tab/thiết bị của chính người này.
+    if (row) {
+      publishNotifyEvent({
+        kind: "read",
+        userIds: [guard.session.userId],
+        notificationId: row.id,
+      });
+      void invalidateActionItemsCache(guard.session.userId);
+    }
     return NextResponse.json({ data: { id: row?.id ?? null, marked: !!row } });
   } catch (e) {
     return jsonError(

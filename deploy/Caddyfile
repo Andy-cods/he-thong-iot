@@ -52,6 +52,21 @@
 		reverse_proxy app:3001
 	}
 
+	# TASK-notify-realtime — SSE /api/notifications/stream. Caddy v2
+	# (net/http/httputil.ReverseProxy) tự nhận diện response KHÔNG có
+	# Content-Length (chunked) và flush ngay sau mỗi write, không cần
+	# flush_interval -1. Khai báo TƯỜNG MINH ở đây để không phụ thuộc hành vi
+	# ngầm + phòng trường hợp sau này có middleware/buffer chèn Content-Length.
+	@notifyStream path /api/notifications/stream
+	handle @notifyStream {
+		reverse_proxy app:3001 {
+			flush_interval -1
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
 	# Mặc định: proxy hết về Next.js
 	handle {
 		reverse_proxy app:3001 {
