@@ -91,14 +91,15 @@ export function ReleaseRevisionDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex items-start gap-2 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+        {/* V4.4 D1 (tự phát hiện) — khối cảnh báo 0 class dark: trong file. */}
+        <div className="flex items-start gap-2 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
           <AlertTriangle
             className="mt-0.5 h-4 w-4 shrink-0"
             aria-hidden="true"
           />
           <div className="space-y-1">
             <p className="font-medium">Sau khi release:</p>
-            <ul className="list-disc pl-4 text-xs text-amber-700">
+            <ul className="list-disc pl-4 text-xs text-amber-700 dark:text-amber-400">
               <li>Template chuyển sang ACTIVE (nếu đang DRAFT).</li>
               <li>
                 Không sửa lines trong template nữa — muốn sửa phải clone hoặc
@@ -127,7 +128,7 @@ export function ReleaseRevisionDialog({
           <div className="space-y-1.5">
             <Label htmlFor="release-confirm" uppercase required>
               Gõ{" "}
-              <span className="font-mono font-semibold text-red-700">
+              <span className="font-mono font-semibold text-red-700 dark:text-red-400">
                 {CONFIRM_KEYWORD}
               </span>{" "}
               để xác nhận

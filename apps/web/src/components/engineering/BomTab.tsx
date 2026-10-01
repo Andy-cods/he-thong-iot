@@ -32,6 +32,7 @@ import {
 import { BomCardGrid, type BomCardItem } from "@/components/bom/BomCardGrid";
 import { useBomList, useDeleteBomTemplate, useUpdateBomTemplate } from "@/hooks/useBom";
 import { useSession } from "@/hooks/useSession";
+import { formatNumber } from "@/lib/format";
 import {
   isSelected,
   selectionCount,
@@ -351,7 +352,7 @@ export function BomTab() {
           <p className="mt-0.5 text-base text-zinc-500 dark:text-zinc-400">
             Danh sách BOM ·{" "}
             <span className="tabular-nums">
-              {totalRaw.toLocaleString("vi-VN")}
+              {formatNumber(totalRaw)}
             </span>{" "}
             BOM
           </p>
@@ -493,7 +494,7 @@ export function BomTab() {
           </span>{" "}
           /{" "}
           <span className="tabular-nums text-zinc-900 dark:text-zinc-50">
-            {totalRaw.toLocaleString("vi-VN")}
+            {formatNumber(totalRaw)}
           </span>
         </div>
         <div className="flex items-center gap-1">

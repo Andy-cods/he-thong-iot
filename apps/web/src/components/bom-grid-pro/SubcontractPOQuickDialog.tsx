@@ -6,18 +6,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2, Send } from "lucide-react";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetFooter,
+  SheetHeaderNav,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DateField } from "@/components/ui/date-field";
 import {
   Select,
   SelectContent,
@@ -168,25 +168,26 @@ export function SubcontractPOQuickDialog({
   const name = line.node.componentName ?? line.node.description ?? "";
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[560px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Send className="h-5 w-5 text-orange-600 dark:text-orange-400" aria-hidden />
-            Tạo PO Đặt gia công ngoài
-          </DialogTitle>
-          <DialogDescription>
-            BOM <span className="font-mono">{templateCode}</span> · Linh kiện{" "}
-            <span className="font-mono">{sku}</span>
-            {name ? ` — ${name}` : ""}
-            <br />
-            <span className="text-orange-700 font-medium dark:text-orange-400">
-              PO này sẽ dùng template DDH-Mau khi tải PDF (sau khi TM-A duyệt).
-            </span>
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="grid gap-3 py-2">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      {/* V4.4 D.A — dialog 6 trường (vượt ngưỡng N6) → Sheet, khớp chuẩn
+          `BomLineSheet`/`StocktakeCreateSheet` (Sheet + SheetHeaderNav). */}
+      <SheetContent side="right" size="md" hideCloseButton className="flex flex-col">
+        <SheetHeaderNav
+          title="Tạo PO Đặt gia công ngoài"
+          onCancel={() => onOpenChange(false)}
+        />
+        <SheetBody className="space-y-3">
+          <div className="flex items-start gap-2 text-sm text-zinc-600 dark:text-zinc-300">
+            <Send className="mt-0.5 h-4 w-4 shrink-0 text-orange-600 dark:text-orange-400" aria-hidden />
+            <p>
+              BOM <span className="font-mono">{templateCode}</span> · Linh kiện{" "}
+              <span className="font-mono">{sku}</span>
+              {name ? ` — ${name}` : ""}
+            </p>
+          </div>
+          <p className="text-xs font-medium text-orange-700 dark:text-orange-400">
+            PO này sẽ dùng template DDH-Mau khi tải PDF (sau khi TM-A duyệt).
+          </p>
           {/* Supplier */}
           <div className="space-y-1.5">
             <Label htmlFor="sub-supplier" required>
@@ -276,11 +277,10 @@ export function SubcontractPOQuickDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="sub-eta">Ngày giao dự kiến</Label>
-              <Input
+              <DateField
                 id="sub-eta"
-                type="date"
                 value={expectedEta}
-                onChange={(e) => setExpectedEta(e.target.value)}
+                onChange={setExpectedEta}
               />
             </div>
             <div className="space-y-1.5">
@@ -303,16 +303,15 @@ export function SubcontractPOQuickDialog({
             />
             <span>Mở PO sau khi tạo (để TM-A chốt giá + duyệt)</span>
           </label>
-        </div>
+        </SheetBody>
 
-        <DialogFooter>
+        <SheetFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Huỷ
           </Button>
           <Button
             onClick={() => mutation.mutate()}
             disabled={mutation.isPending || !supplierId}
-            className="bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500"
           >
             {mutation.isPending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -321,8 +320,8 @@ export function SubcontractPOQuickDialog({
             )}
             Tạo PO gia công ngoài
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

@@ -244,12 +244,24 @@ export function BomListTable({
     }
   }, []);
 
+  // V4.4 D.B — cột "Thành phẩm" (parentItemSku) hay rỗng 100% (BOM không gắn
+  // parentItemId) nhưng vẫn chiếm chỗ cố định (N4). Ẩn hẳn cột khi KHÔNG có
+  // dòng nào trong trang hiện tại có dữ liệu — tự hiện lại nếu API sau này
+  // trả parentItemSku (không cần sửa UI lần nữa). Root cause (thiếu JOIN ở
+  // server/repos/bomTemplates.ts) ngoài phạm vi UI thuần — xem status-D.md.
+  const hasParentItem = React.useMemo(
+    () => rows.some((r) => !!r.parentItemSku),
+    [rows],
+  );
+
   // Mobile: 4 col primary (checkbox + code + name + status).
-  // md+: 9 col full (thêm parent/lines/target/updated/actions).
+  // md+: full (thêm [parent nếu có data]/lines/target/updated/actions).
   // V4.1 UI-11 (Đợt 6C): gap-x giữa cột — trước dính "SL MỤC TIÊUTRẠNG THÁI" / số sát pill.
   const gridCols = cn(
     "grid-cols-[32px_96px_minmax(0,1fr)_88px] gap-x-2",
-    "md:grid-cols-[32px_128px_minmax(0,1fr)_128px_72px_88px_112px_104px_104px] md:gap-x-3",
+    hasParentItem
+      ? "md:grid-cols-[32px_128px_minmax(0,1fr)_128px_72px_88px_112px_104px_104px] md:gap-x-3"
+      : "md:grid-cols-[32px_128px_minmax(0,1fr)_72px_88px_112px_104px_104px] md:gap-x-3",
   );
 
   return (
@@ -301,10 +313,12 @@ export function BomListTable({
             onSortChange={onSortChange}
           />
         </div>
-        <div role="columnheader" className="hidden md:block">
-          {/* V4.1 UI-27: Parent item → Thành phẩm */}
-          Thành phẩm
-        </div>
+        {hasParentItem && (
+          <div role="columnheader" className="hidden md:block">
+            {/* V4.1 UI-27: Parent item → Thành phẩm */}
+            Thành phẩm
+          </div>
+        )}
         <div role="columnheader" className="hidden text-right md:block">
           <SortHeader
             field="componentCount"
@@ -344,10 +358,15 @@ export function BomListTable({
               )}
               style={{ height: rowHeight }}
             >
+              {/* V4.4 D.B: rows rỗng lúc loading → hasParentItem=false → khớp
+                  đúng gridCols 8-cột hiện tại (cột thật tự hiện lại nếu data
+                  về có parentItemSku, chấp nhận 1 nhịp reflow nhỏ). */}
               <Skeleton className="h-3.5 w-3.5" />
               <Skeleton className="h-3 w-20" />
               <Skeleton className="h-3 w-48" />
-              <Skeleton className="hidden h-3 w-20 md:block" />
+              {hasParentItem && (
+                <Skeleton className="hidden h-3 w-20 md:block" />
+              )}
               <Skeleton className="hidden h-3 w-10 md:block" />
               <Skeleton className="hidden h-3 w-12 md:block" />
               <Skeleton className="h-4 w-16 rounded-sm" />
@@ -429,17 +448,19 @@ export function BomListTable({
                 )}
               </div>
 
-              <div
-                className="hidden truncate font-mono text-sm text-zinc-600 md:block dark:text-zinc-400"
-                role="cell"
-                title={
-                  row.parentItemSku
-                    ? `${row.parentItemSku} — ${row.parentItemName ?? ""}`
-                    : ""
-                }
-              >
-                {row.parentItemSku ?? "—"}
-              </div>
+              {hasParentItem && (
+                <div
+                  className="hidden truncate font-mono text-sm text-zinc-600 md:block dark:text-zinc-400"
+                  role="cell"
+                  title={
+                    row.parentItemSku
+                      ? `${row.parentItemSku} — ${row.parentItemName ?? ""}`
+                      : ""
+                  }
+                >
+                  {row.parentItemSku ?? "—"}
+                </div>
+              )}
 
               <div className="hidden text-right tabular-nums text-zinc-700 md:block dark:text-zinc-300" role="cell">
                 {formatNumber(row.componentCount)}

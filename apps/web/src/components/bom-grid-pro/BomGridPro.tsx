@@ -606,8 +606,11 @@ export function BomGridPro({
             </button>
           </td>
           {/* V4.1 UI-BOM: nền ĐẶC (không /40) — ô sticky trong suốt để lộ
-              nội dung cuộn ngang bên dưới. */}
-          <td className="sticky right-0 z-10 border-l border-indigo-100 bg-indigo-50 px-1 group-hover:bg-indigo-100 dark:border-indigo-900 dark:bg-indigo-950 dark:group-hover:bg-indigo-900">
+              nội dung cuộn ngang bên dưới. V4.4 D1-P0: sticky-right CHỈ từ
+              md — dưới 390px cột này đè lên nội dung "BOM gốc" vì viewport
+              hẹp hơn tổng độ rộng bảng; dưới md để nó cuộn theo dòng bình
+              thường (vẫn tới được bằng cuộn ngang). */}
+          <td className="md:sticky md:right-0 z-10 border-l border-indigo-100 bg-indigo-50 px-1 group-hover:bg-indigo-100 dark:border-indigo-900 dark:bg-indigo-950 dark:group-hover:bg-indigo-900">
             <ActionsCell
               row={row}
               onEdit={readOnly ? undefined : handleEditRow}
@@ -654,8 +657,12 @@ export function BomGridPro({
         <td className="px-2 text-right font-mono text-xs tabular-nums text-zinc-700 dark:text-zinc-300">
           {formatNumber(qty)}
         </td>
-        {/* BOM gốc — Excel "BOM gốc" = SKU/mã linh kiện */}
-        <td className="px-2 font-mono text-xs font-medium text-zinc-800 truncate dark:text-zinc-200">
+        {/* BOM gốc — Excel "BOM gốc" = SKU/mã linh kiện.
+            V4.4 D1-P0: cố định (sticky-left) DƯỚI md — đây là thông tin quan
+            trọng nhất mỗi dòng, giữ nguyên vị trí khi cuộn ngang xem các cột
+            còn lại trên điện thoại ("cuộn ngang có cột mã cố định"). Nền đặc
+            để không lộ nội dung cuộn phía dưới. */}
+        <td className="px-2 font-mono text-xs font-medium text-zinc-800 truncate dark:text-zinc-200 max-md:sticky max-md:left-0 max-md:z-10 max-md:border-r max-md:border-zinc-200 max-md:bg-white max-md:group-hover:bg-zinc-50 dark:max-md:border-zinc-700 dark:max-md:bg-zinc-900 dark:max-md:group-hover:bg-zinc-800/60">
           {row.node.componentItemId ? (
             <Link
               href={`/items/${row.node.componentItemId}`}
@@ -913,8 +920,9 @@ export function BomGridPro({
             </td>
           );
         })()}
-        {/* Actions — sticky right. V1.7-beta.2.2: phân nhánh com/fab. */}
-        <td className="sticky right-0 z-10 border-l border-zinc-100 bg-white px-1 group-hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:group-hover:bg-zinc-800/60">
+        {/* Actions — sticky right. V1.7-beta.2.2: phân nhánh com/fab.
+            V4.4 D1-P0: sticky-right CHỈ từ md (xem giải thích ở dòng nhóm). */}
+        <td className="md:sticky md:right-0 z-10 border-l border-zinc-100 bg-white px-1 group-hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:group-hover:bg-zinc-800/60">
           <ActionsCell
             row={row}
             onEdit={readOnly ? undefined : handleEditRow}
@@ -1082,8 +1090,15 @@ export function BomGridPro({
             {showCol("progress") && <col style={{ width: "150px" }} />}{/* Tiến độ */}
             {showEtaCol && <col style={{ width: "172px" }} />}{/* V3.8.3 Dự kiến nhận (luôn hiện, đủ rộng cho "dd/MM · quá NN ngày") */}
             {/* V4.1 UI-BOM: 100px → 132px. Tối đa 4 nút 24px + gap + padding
-                ≈ 118px; 100px làm nút tràn sang cột/dòng bên cạnh. */}
-            <col style={{ width: `${ACTIONS_COL_W}px` }} />  {/* Thao tác */}
+                ≈ 118px; 100px làm nút tràn sang cột/dòng bên cạnh.
+                V4.4 D1-P0: nút icon nay dùng size="icon-sm" (to hơn khi
+                pointer:coarse, 36px, cho đủ vùng chạm) — dưới md nới rộng
+                cột này để 4 nút 36px không tràn (đã bỏ sticky nên không đè
+                cột khác, chỉ cần đủ chỗ khi cuộn tới). */}
+            <col
+              style={{ width: `${ACTIONS_COL_W}px` }}
+              className="max-md:!w-[168px]"
+            />  {/* Thao tác */}
           </colgroup>
           <thead>
             <tr className="h-8 text-xs font-medium uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
@@ -1103,8 +1118,9 @@ export function BomGridPro({
               <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-right" title="Quantity (hệ số) — số lượng linh kiện trên 1 sản phẩm">
                 Quantity
               </th>
-              {/* BOM gốc */}
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-left">
+              {/* BOM gốc — V4.4 D1-P0: cố định thêm bên trái dưới md, khớp
+                  ô dữ liệu cùng cột (xem giải thích ở <td> tương ứng). */}
+              <th className="sticky top-0 z-20 max-md:left-0 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-left">
                 BOM gốc
               </th>
               {/* Ghi chú */}
@@ -1275,7 +1291,11 @@ export function BomGridPro({
                   Dự kiến nhận
                 </th>
               )}
-              <th className="sticky right-0 top-0 z-30 border-b-2 border-l border-zinc-900 bg-zinc-50 px-2 text-center dark:border-zinc-50 dark:bg-zinc-800">
+              {/* V4.4 D1-P0: sticky-right CHỈ từ md (giữ nguyên desktop) —
+                  dưới md cột "Thao tác" đè lên "BOM gốc" vì bảng rộng hơn
+                  nhiều so với 390px, trong khi cột mã đã tự cố định bên
+                  trái (xem <th>/<td> "BOM gốc"). */}
+              <th className="sticky top-0 md:right-0 z-30 border-b-2 border-l border-zinc-900 bg-zinc-50 px-2 text-center dark:border-zinc-50 dark:bg-zinc-800">
                 Thao tác
               </th>
             </tr>

@@ -51,7 +51,14 @@ export const SEGMENT_LABELS: Record<string, string> = {
   receiving: "Nhận hàng",
   wizard: "Nhận hàng theo PO",
   assembly: "Lắp ráp",
-  "lot-serial": "Lô / Serial",
+  // V4.4 D2-P1 — trước "Lô / Serial" (trỏ `/lot-serial`, IA cũ) LỆCH với
+  // breadcrumb thân trang mobile đã sửa tay ("Kho / Vật tư") + LỆCH thuật ngữ
+  // hub `/warehouse?tab=items` (đã gọi "Vật tư" — xem HUB_TAB_LABELS bên
+  // dưới). Đổi khớp — desktop vẫn thiếu 1 cấp "Kho" so với mobile (cấu trúc
+  // segment 1-1 theo URL, `/lot-serial` không có "Kho" làm segment riêng) +
+  // chưa thay UUID cuối bằng mã lô (cần sửa `components/layout/TopBar.tsx`
+  // như đã làm cho `bomCode` — ngoài phạm vi UI nhóm D, xem status-D.md).
+  "lot-serial": "Vật tư",
   finance: "Tài chính",
   notifications: "Thông báo",
   me: "Cá nhân",

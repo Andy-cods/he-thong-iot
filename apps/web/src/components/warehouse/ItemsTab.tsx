@@ -46,6 +46,15 @@ import { useHotkey } from "@/lib/shortcuts";
 
 const TRACKING_VALUES = ["lot", "serial", "none"] as const;
 
+export interface ItemsTabProps {
+  /**
+   * V4.4 D2-P0 — vật tư cần mở sẵn sheet chi tiết khi vào tab (deep-link từ
+   * `?itemId=`, xem `app/(app)/warehouse/page.tsx`). Optional — không truyền
+   * thì hành vi giữ nguyên như cũ.
+   */
+  initialItemId?: string;
+}
+
 /**
  * V3 (TASK-20260427-014) — `<ItemsTab>` cho `/warehouse?tab=items`.
  *
@@ -54,7 +63,7 @@ const TRACKING_VALUES = ["lot", "serial", "none"] as const;
  * `/jkeSpace`, quick-edit sheet. KHÔNG import từ page cũ — copy logic để
  * page cũ có thể bị xoá an toàn (đã redirect).
  */
-export function ItemsTab() {
+export function ItemsTab({ initialItemId }: ItemsTabProps = {}) {
   const router = useRouter();
 
   const [urlState, setUrlState] = useQueryStates(
@@ -159,6 +168,14 @@ export function ItemsTab() {
 
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [focusedIndex, setFocusedIndex] = React.useState(-1);
+
+  // V4.4 D2-P0 — deep-link `?itemId=`: mở sẵn sheet chi tiết 1 lần khi mount
+  // (sheet tự hiện tab "Kho" + "Lot gần nhất" của đúng vật tư — thay vì đá
+  // user ra danh sách 865 vật tư không liên quan như trước).
+  React.useEffect(() => {
+    if (initialItemId) setEditingId(initialItemId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialItemId]);
   const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
   const bulkDelete = useBulkDeleteItems();
   const [suggestOpen, setSuggestOpen] = React.useState(false);

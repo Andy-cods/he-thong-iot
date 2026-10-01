@@ -104,18 +104,19 @@ export function ActionsCell({
   // V3.7.43 — Action button theo Category (metadata.category từ Excel).
   const category = classifyAction(row);
 
+  const inventoryLabel = isFab ? "Xem tồn phôi vật liệu" : "Xem tồn kho";
   const inventoryButton = showInventoryAction ? (
     <Button
-      size="sm"
+      size="icon-sm"
       variant="ghost"
-      className="h-6 w-6 p-0"
-      title={isFab ? "Xem tồn phôi vật liệu" : "Xem tồn kho"}
+      title={inventoryLabel}
+      aria-label={inventoryLabel}
       onClick={(e) => {
         e.stopPropagation();
         if (!useInventoryPopover) onInventory?.(row);
       }}
     >
-      <Package className="h-3 w-3" aria-hidden />
+      <Package className="h-3.5 w-3.5" aria-hidden />
     </Button>
   ) : null;
 
@@ -129,58 +130,62 @@ export function ActionsCell({
           Đặt gia công ngoài → 📤 Tạo PO Subcontract (NEW) */}
       {category === "thuong-mai" && !isFab && onOrder && (
         <Button
-          size="sm"
+          size="icon-sm"
           variant="ghost"
-          className="h-6 w-6 p-0 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+          className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:text-blue-400 dark:hover:bg-blue-950/40"
           title="Đặt mua nhanh (Thương mại)"
+          aria-label="Đặt mua nhanh (Thương mại)"
           onClick={(e) => {
             e.stopPropagation();
             onOrder(row);
           }}
         >
-          <ShoppingCart className="h-3 w-3" aria-hidden />
+          <ShoppingCart className="h-3.5 w-3.5" aria-hidden />
         </Button>
       )}
       {category === "gtam" && onCreateWO && (
         <Button
-          size="sm"
+          size="icon-sm"
           variant="ghost"
-          className="h-6 w-6 p-0 text-purple-600 hover:bg-purple-50 hover:text-purple-700"
+          className="text-purple-600 hover:bg-purple-50 hover:text-purple-700 dark:text-purple-400 dark:hover:bg-purple-950/40"
           title="Gửi yêu cầu sản xuất GTAM (chờ Gia công duyệt)"
+          aria-label="Gửi yêu cầu sản xuất GTAM (chờ Gia công duyệt)"
           onClick={(e) => {
             e.stopPropagation();
             onCreateWO(row);
           }}
         >
-          <Factory className="h-3 w-3" aria-hidden />
+          <Factory className="h-3.5 w-3.5" aria-hidden />
         </Button>
       )}
       {category === "gia-cong-ngoai" && onCreateSubcontract && (
         <Button
-          size="sm"
+          size="icon-sm"
           variant="ghost"
-          className="h-6 w-6 p-0 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
+          className="text-orange-600 hover:bg-orange-50 hover:text-orange-700 dark:text-orange-400 dark:hover:bg-orange-950/40"
           title="Tạo PO Đặt gia công ngoài (sẽ có DDH PDF)"
+          aria-label="Tạo PO Đặt gia công ngoài (sẽ có DDH PDF)"
           onClick={(e) => {
             e.stopPropagation();
             onCreateSubcontract(row);
           }}
         >
-          <Send className="h-3 w-3" aria-hidden />
+          <Send className="h-3.5 w-3.5" aria-hidden />
         </Button>
       )}
       {isFab && onViewRoute && category === "thuong-mai" && (
         <Button
-          size="sm"
+          size="icon-sm"
           variant="ghost"
-          className="h-6 w-6 p-0 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+          className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
           title="Xem quy trình gia công"
+          aria-label="Xem quy trình gia công"
           onClick={(e) => {
             e.stopPropagation();
             onViewRoute(row);
           }}
         >
-          <Route className="h-3 w-3" aria-hidden />
+          <Route className="h-3.5 w-3.5" aria-hidden />
         </Button>
       )}
 
@@ -202,16 +207,16 @@ export function ActionsCell({
       {/* Edit — cả 2 kind */}
       {onEdit && (
         <Button
-          size="sm"
+          size="icon-sm"
           variant="ghost"
-          className="h-6 w-6 p-0"
           title="Chỉnh sửa chi tiết"
+          aria-label="Chỉnh sửa chi tiết"
           onClick={(e) => {
             e.stopPropagation();
             onEdit(row);
           }}
         >
-          <Pencil className="h-3 w-3" aria-hidden />
+          <Pencil className="h-3.5 w-3.5" aria-hidden />
         </Button>
       )}
 
@@ -219,13 +224,13 @@ export function ActionsCell({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
-            size="sm"
+            size="icon-sm"
             variant="ghost"
-            className="h-6 w-6 p-0"
             title="Thao tác khác"
+            aria-label="Thao tác khác"
             onClick={(e) => e.stopPropagation()}
           >
-            <MoreHorizontal className="h-3 w-3" aria-hidden />
+            <MoreHorizontal className="h-3.5 w-3.5" aria-hidden />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
