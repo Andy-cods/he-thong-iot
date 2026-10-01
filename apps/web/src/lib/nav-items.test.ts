@@ -150,12 +150,13 @@ describe("filterNavByRoles", () => {
   // TASK-20261001 — purchaser ĐƠN (không kèm accountant) KHÔNG thấy "Tài
   // chính - Kế toán" (khớp yêu cầu "THUMUA-KETOAN chỉ purchaser thì không
   // thấy Tài chính").
-  it("purchaser thấy đề xuất vật tư và hub thu mua, KHÔNG thấy Tài chính", () => {
+  it("purchaser thấy đề xuất vật tư, Bảng sản xuất (thêm mã hàng) và hub thu mua, KHÔNG thấy Tài chính", () => {
     const filtered = filterNavByRoles(NAV_ITEMS, ["purchaser"]);
     const hrefs = filtered.map((i) => i.href);
     expect(hrefs).toEqual([
       "/",
       "/procurement/purchase-requests",
+      "/production-board",
       "/sales",
     ]);
     expect(hrefs).not.toContain("/material-requests");

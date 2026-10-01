@@ -81,7 +81,8 @@ export const ROUTE_GUARDS: RouteGuardRule[] = [
   // V3.8/V4.0 — Bảng sản xuất: admin + qc nhập liệu, shareholder xem.
   {
     prefix: "/production-board",
-    roles: ["admin", "qc", "shareholder"],
+    // V4.4.2 — Thu mua được thêm mã hàng (matrix create:productionBoard) → phải vào được trang.
+    roles: ["admin", "qc", "shareholder", "purchaser"],
     entities: ["productionBoard"],
   },
   // V4.1 Đợt 1a — màn Chờ QC nhập kho.

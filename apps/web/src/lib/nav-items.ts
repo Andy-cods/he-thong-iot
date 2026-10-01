@@ -168,7 +168,7 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/production-board",
     label: "Bảng sản xuất (QC)",
     icon: MonitorPlay,
-    roles: ["admin", "qc", "shareholder"],
+    roles: ["admin", "qc", "shareholder", "purchaser"],
     section: "operations",
   },
   // V4.1 Đợt 1a — Tổ QC kết luận QC nhập kho (hàng nhận đang HOLD chờ QC).
