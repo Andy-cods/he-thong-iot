@@ -18,6 +18,7 @@ import { AuditRow } from "@/components/admin/AuditRow";
 import { AdminPageShell } from "@/components/admin/AdminPageShell";
 import { useAuditList } from "@/hooks/useAdmin";
 import { cn } from "@/lib/utils";
+import { formatNumber } from "@/lib/format";
 import {
   AUDIT_ACTION_OPTIONS,
   AUDIT_OBJECT_TYPES,
@@ -68,7 +69,7 @@ export default function AdminAuditPage() {
   const total = query.data?.meta.total ?? 0;
   // V4.1 UI-05: lỗi tải → hiển thị "—" thay vì "0".
   const totalLabel =
-    query.isError && !query.data ? "—" : total.toLocaleString("vi-VN");
+    query.isError && !query.data ? "—" : formatNumber(total);
   const pageCount = Math.max(1, Math.ceil(total / urlState.pageSize));
 
   const hasFilter =
@@ -308,21 +309,27 @@ export default function AdminAuditPage() {
         </section>
 
         {/* Table */}
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        {/* V4.4 (A1/A16) — `role="table"` bao ngoài + `role="row"`/`columnheader`
+            cho header, khớp `role="row"`/`cell` mỗi `AuditRow` bên dưới (trước
+            đây `role="row"` đứng ngoài table/grid là KHÔNG hợp lệ ARIA). Header
+            desktop ẨN trên mobile (`AuditRow` tự vẽ 2 dòng card thay vì theo
+            cột lưới) — khớp cách `DataTable` ẩn `<table>` dưới `md`. */}
+        <div role="table" aria-label="Nhật ký hệ thống" className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div
+            role="row"
             className={cn(
               // V4.1 UI-11 (Đợt 6C): header lệch khỏi pill vì thiếu gap-3 (hàng có gap-3) và
               // thanh cuộn của thân bảng ăn bề ngang → cả 2 cùng scrollbar-gutter:stable.
-              "sticky top-0 z-sticky grid h-9 items-center gap-3 overflow-hidden border-b border-zinc-200 bg-zinc-50/70 px-4 text-xs font-semibold uppercase tracking-normal text-zinc-500 [scrollbar-gutter:stable] dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-400",
+              "sticky top-0 z-sticky hidden h-9 items-center gap-3 overflow-hidden border-b border-zinc-200 bg-zinc-50/70 px-4 text-xs font-semibold uppercase tracking-normal text-zinc-500 [scrollbar-gutter:stable] md:grid dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-400",
               GRID_COLS,
             )}
           >
-            <span>Thời điểm</span>
-            <span>Người dùng</span>
-            <span>Hành động</span>
-            <span>Đối tượng</span>
-            <span className="hidden md:block">Mã đối tượng</span>
-            <span className="hidden md:block">Thay đổi</span>
+            <span role="columnheader">Thời điểm</span>
+            <span role="columnheader">Người dùng</span>
+            <span role="columnheader">Hành động</span>
+            <span role="columnheader">Đối tượng</span>
+            <span role="columnheader">Mã đối tượng</span>
+            <span role="columnheader">Thay đổi</span>
           </div>
 
           {query.isLoading ? (
@@ -362,7 +369,7 @@ export default function AdminAuditPage() {
               />
             </div>
           ) : virtualize ? (
-            <div ref={parentRef} className="max-h-[60vh] flex-1 overflow-auto [scrollbar-gutter:stable]">
+            <div ref={parentRef} role="rowgroup" className="max-h-[60vh] flex-1 overflow-auto [scrollbar-gutter:stable]">
               <div
                 style={{
                   height: `${virt.getTotalSize()}px`,
@@ -376,6 +383,13 @@ export default function AdminAuditPage() {
                   return (
                     <div
                       key={row.id}
+                      // V4.4 (tự phát hiện) — đo chiều cao THẬT thay vì tin
+                      // `estimateSize: 36` cố định: dòng mở "Xem thay đổi" (mọi
+                      // viewport) hoặc thẻ mobile 2 dòng đều CAO HƠN 36px, nếu
+                      // không đo lại các dòng phía dưới sẽ ĐÈ LÊN NHAU khi ảo
+                      // hoá (>50 dòng, mặc định 100/trang → luôn xảy ra).
+                      ref={virt.measureElement}
+                      data-index={vr.index}
                       style={{
                         position: "absolute",
                         top: 0,
@@ -391,7 +405,7 @@ export default function AdminAuditPage() {
               </div>
             </div>
           ) : (
-            <div className="max-h-[60vh] flex-1 overflow-auto [scrollbar-gutter:stable]">
+            <div role="rowgroup" className="max-h-[60vh] flex-1 overflow-auto [scrollbar-gutter:stable]">
               {rows.map((row) => (
                 <AuditRow key={row.id} row={row} gridCols={GRID_COLS} />
               ))}

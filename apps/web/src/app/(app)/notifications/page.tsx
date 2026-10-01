@@ -56,6 +56,71 @@ const SEVERITY_CLS: Record<string, string> = {
   error:   "bg-red-50 text-red-600 ring-red-200",
 };
 
+/**
+ * V4.4 (G2, UI_INVENTORY §0 "Loại 1"/"Loại 2") — gộp hiển thị thông báo trùng
+ * lặp, KHÔNG đổi logic tạo/đọc thông báo (chỉ transform tại tầng render):
+ *
+ * - "Loại 1" (P1, ĐÚNG THIẾT KẾ nhưng UI gây hiểu lầm spam) — worker nhắc lại
+ *   mỗi 24h cho cùng 1 phiếu còn treo (`PR_PENDING_REMINDER`…) → 4 thông báo
+ *   giống hệt nhau ngoại trừ mốc thời gian. Gộp theo (entity, loại sự kiện)
+ *   KHÔNG giới hạn ngày — giữ bản MỚI NHẤT làm đại diện + đếm "đã nhắc N lần".
+ * - "Loại 2" (P2, khuyến nghị phòng tái diễn dù chưa chắc root cause) — vài
+ *   cặp thông báo lặp 5-6 lần CÙNG NGÀY (nghi ngờ insert trùng ở seed/E2E).
+ *   Gộp theo (entity, loại sự kiện, ngày) cho các nhóm KHÁC "reminder" —
+ *   an toàn vì cùng ngày + cùng entity + cùng loại sự kiện gần như chắc chắn
+ *   là bản ghi lặp, không phải 2 sự kiện nghiệp vụ khác nhau thật.
+ */
+interface DisplayNotification extends NotificationItem {
+  repeatCount: number;
+  groupedIds: string[];
+}
+
+function foldNotification(
+  existing: DisplayNotification,
+  incoming: NotificationItem,
+): DisplayNotification {
+  const incomingIsNewer =
+    new Date(incoming.createdAt).getTime() > new Date(existing.createdAt).getTime();
+  const base = incomingIsNewer ? incoming : existing;
+  const anyUnread =
+    (existing.isDirect && !existing.readAt) || (incoming.isDirect && !incoming.readAt);
+  return {
+    ...base,
+    readAt: anyUnread ? null : base.readAt,
+    repeatCount: existing.repeatCount + 1,
+    groupedIds: [...existing.groupedIds, incoming.id],
+  };
+}
+
+function collapseNotifications(
+  items: NotificationItem[],
+  keyOf: (n: NotificationItem) => string,
+): DisplayNotification[] {
+  const seen = new Map<string, DisplayNotification>();
+  const order: string[] = [];
+  for (const n of items) {
+    const key = n.entityId ? keyOf(n) : `id:${n.id}`;
+    const existing = seen.get(key);
+    if (!existing) {
+      seen.set(key, { ...n, repeatCount: 1, groupedIds: [n.id] });
+      order.push(key);
+    } else {
+      seen.set(key, foldNotification(existing, n));
+    }
+  }
+  return order.map((k) => seen.get(k)!);
+}
+
+function collapseForDisplay(category: NotifyCategory, items: NotificationItem[]): DisplayNotification[] {
+  if (category === "reminder") {
+    return collapseNotifications(items, (n) => `${n.entityType ?? ""}:${n.entityId}:${n.eventType}`);
+  }
+  return collapseNotifications(
+    items,
+    (n) => `${n.entityType ?? ""}:${n.entityId}:${n.eventType}:${n.createdAt.slice(0, 10)}`,
+  );
+}
+
 export default function NotificationsPage() {
   const [filter, setFilter] = React.useState<"all" | "unread" | "direct" | "broadcast">("all");
   const qc = useQueryClient();
@@ -208,25 +273,30 @@ export default function NotificationsPage() {
           </div>
         ) : (
           <div className="mx-auto max-w-3xl space-y-5">
-            {groups.map((g) => (
-              <section key={g.key}>
-                <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
-                  {g.label}
-                  <span className="ml-1.5 font-normal normal-case text-zinc-400 dark:text-zinc-500">
-                    ({g.items.length})
-                  </span>
-                </h2>
-                <div className="space-y-2">
-                  {g.items.map((n) => (
-                    <NotificationCard
-                      key={n.id}
-                      item={n}
-                      onRead={(id) => markRead.mutate(id)}
-                    />
-                  ))}
-                </div>
-              </section>
-            ))}
+            {groups.map((g) => {
+              // V4.4 — gộp trùng lặp TẠI TẦNG HIỂN THỊ, dữ liệu gốc `g.items`
+              // giữ nguyên (đếm unread, cursor phân trang không đổi).
+              const displayed = collapseForDisplay(g.key, g.items);
+              return (
+                <section key={g.key}>
+                  <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+                    {g.label}
+                    <span className="ml-1.5 font-normal normal-case text-zinc-400 dark:text-zinc-500">
+                      ({displayed.length})
+                    </span>
+                  </h2>
+                  <div className="space-y-2">
+                    {displayed.map((n) => (
+                      <NotificationCard
+                        key={n.id}
+                        item={n}
+                        onRead={(ids) => ids.forEach((id) => markRead.mutate(id))}
+                      />
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
           </div>
         )}
       </div>
@@ -244,8 +314,8 @@ function NotificationCard({
   item: n,
   onRead,
 }: {
-  item: NotificationItem;
-  onRead: (id: string) => void;
+  item: DisplayNotification;
+  onRead: (ids: string[]) => void;
 }) {
   const Icon = notificationIcon(n.eventType);
   const sevCls = SEVERITY_CLS[n.severity] ?? SEVERITY_CLS.info!;
@@ -297,6 +367,14 @@ function NotificationCard({
               Cho bộ phận
             </span>
           )}
+          {n.repeatCount > 1 && (
+            <span
+              className="rounded bg-amber-50 px-1.5 py-0.5 font-medium text-amber-700 ring-1 ring-inset ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800"
+              title="Cùng 1 chứng từ, hệ thống nhắc lại theo chu kỳ — đã gộp hiển thị"
+            >
+              Đã nhắc {n.repeatCount} lần
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -305,7 +383,9 @@ function NotificationCard({
     <Link
       href={n.link}
       onClick={() => {
-        if (isUnread) onRead(n.id);
+        // Thẻ đã gộp (repeatCount > 1) → đánh dấu đã đọc TOÀN BỘ id gốc, không
+        // chỉ bản đại diện đang hiện, để chuông thông báo/unreadCount khớp.
+        if (isUnread) onRead(n.groupedIds);
       }}
       className="block"
     >

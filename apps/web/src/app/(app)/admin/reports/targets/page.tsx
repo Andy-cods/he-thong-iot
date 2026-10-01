@@ -15,6 +15,7 @@ import {
   type ReportTargetRow,
 } from "@/hooks/useReports";
 import { cn } from "@/lib/utils";
+import { formatNumber } from "@/lib/format";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 
 /**
@@ -83,12 +84,12 @@ export default function ReportTargetsPage() {
         { label: "Báo cáo", href: "/admin/reports/employee-productivity" },
         { label: "Mục tiêu KPI" },
       ]}
-      title="KPI Baselines / Mục tiêu năng suất"
+      title="Mục tiêu KPI"
       description={
         <span className="flex items-center gap-2">
           <Target className="h-3.5 w-3.5 text-indigo-600" aria-hidden="true" />
-          Set baseline cho mỗi (bộ phận × metric × period). Khi báo cáo có
-          target → hiển thị &quot;đạt / chưa đạt&quot; trên KPI card.
+          Đặt mức mục tiêu cho từng bộ phận × chỉ số × chu kỳ. Khi báo cáo có
+          mục tiêu, thẻ KPI sẽ hiện &quot;đạt / chưa đạt&quot;.
         </span>
       }
       actions={
@@ -101,7 +102,7 @@ export default function ReportTargetsPage() {
           </Link>
           <Button size="sm" onClick={() => setShowCreate(!showCreate)}>
             <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-            {showCreate ? "Đóng form" : "Thêm target"}
+            {showCreate ? "Đóng form" : "Thêm mục tiêu"}
           </Button>
         </div>
       }
@@ -139,8 +140,8 @@ export default function ReportTargetsPage() {
             </div>
           ) : targets.length === 0 ? (
             <div className="rounded-xl border border-dashed border-zinc-200 bg-white px-6 py-12 text-center text-sm text-zinc-500 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-              Bộ phận này chưa có KPI target nào — nhấn &quot;Thêm
-              target&quot; để tạo.
+              Bộ phận này chưa có mục tiêu KPI nào — nhấn &quot;Thêm
+              mục tiêu&quot; để tạo.
             </div>
           ) : (
             <ul className="space-y-2">
@@ -217,11 +218,11 @@ function CreateForm({
     e.preventDefault();
     const v = Number(targetValue);
     if (!Number.isFinite(v) || v < 0) {
-      toast.error("Target value phải ≥ 0");
+      toast.error("Giá trị mục tiêu phải ≥ 0");
       return;
     }
     if (!metricId) {
-      toast.error("Vui lòng chọn metric");
+      toast.error("Vui lòng chọn chỉ số");
       return;
     }
     try {
@@ -233,10 +234,10 @@ function CreateForm({
         comparison,
         notes: notes.trim() || null,
       });
-      toast.success("Đã tạo KPI target");
+      toast.success("Đã tạo mục tiêu KPI");
       onClose();
     } catch (err) {
-      toast.error((err as Error).message ?? "Tạo target thất bại");
+      toast.error((err as Error).message ?? "Tạo mục tiêu thất bại");
     }
   };
 
@@ -247,10 +248,10 @@ function CreateForm({
     >
       <header className="mb-3">
         <h3 className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Thêm KPI target
+          Thêm mục tiêu KPI
         </h3>
         <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-          Đặt mục tiêu cho 1 metric trong 1 chu kỳ.
+          Đặt mục tiêu cho 1 chỉ số trong 1 chu kỳ.
         </p>
       </header>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-6">
@@ -267,7 +268,7 @@ function CreateForm({
             ))}
           </Select>
         </Field>
-        <Field label="Metric">
+        <Field label="Chỉ số">
           <Select
             value={metricId}
             onChange={(e) => setMetricId(e.target.value)}
@@ -295,7 +296,7 @@ function CreateForm({
             <option value="yearly">Năm</option>
           </Select>
         </Field>
-        <Field label="Target value">
+        <Field label="Giá trị mục tiêu">
           <Input
             type="number"
             step="0.01"
@@ -390,7 +391,9 @@ function TargetRow({ target }: { target: ReportTargetRow }) {
 
   return (
     <li className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900">
-      <div className="flex items-center gap-3">
+      {/* V4.4 (tự phát hiện) — `flex-wrap` phòng vỡ ngang trên mobile khi dòng
+          có nhiều khối (nhãn + input sửa + 2 nút) cùng lúc. */}
+      <div className="flex flex-wrap items-center gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
             <span className="font-mono text-xs font-semibold uppercase tracking-normal text-zinc-500 dark:text-zinc-400">
@@ -426,7 +429,7 @@ function TargetRow({ target }: { target: ReportTargetRow }) {
             <Input
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Notes"
+              placeholder="Ghi chú"
               className="w-48"
               maxLength={500}
             />
@@ -456,10 +459,10 @@ function TargetRow({ target }: { target: ReportTargetRow }) {
               )}
             >
               <div className="text-xs font-semibold uppercase tracking-normal text-zinc-500 dark:text-zinc-400">
-                Target {target.comparison === "gte" ? "≥" : "≤"}
+                Mục tiêu {target.comparison === "gte" ? "≥" : "≤"}
               </div>
               <div className="font-mono text-sm font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
-                {Number(target.targetValue).toLocaleString("vi-VN")}
+                {formatNumber(Number(target.targetValue))}
               </div>
             </div>
             <Button

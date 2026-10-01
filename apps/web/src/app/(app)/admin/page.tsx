@@ -23,7 +23,7 @@ import { QueryError } from "@/components/ui/query-error";
 import { useAdminStats, type AdminStatsPayload } from "@/hooks/useAdmin";
 import { cn } from "@/lib/utils";
 import { AdminPageShell } from "@/components/admin/AdminPageShell";
-import { formatRelative } from "@/lib/format";
+import { formatNumber, formatRelative } from "@/lib/format";
 import { actionLabel, entityLabel } from "@/lib/status";
 
 /**
@@ -64,7 +64,7 @@ export default function AdminIndexPage() {
         { label: "Quản trị" },
       ]}
       title="Trang quản trị"
-      description="Theo dõi hoạt động, phiên đăng nhập, audit log và sức khỏe hệ thống."
+      description="Theo dõi hoạt động, phiên đăng nhập, nhật ký hệ thống và sức khỏe hệ thống."
       meta={
         <span>
           {version} <span className="text-zinc-300 dark:text-zinc-600">·</span> {sha}
@@ -89,12 +89,12 @@ export default function AdminIndexPage() {
             loading={statsQuery.isLoading}
             value={
               stats
-                ? stats.users.active.toLocaleString("vi-VN")
+                ? formatNumber(stats.users.active)
                 : undefined
             }
             sub={
               stats
-                ? `trong tổng ${stats.users.total.toLocaleString("vi-VN")} tài khoản`
+                ? `trong tổng ${formatNumber(stats.users.total)} tài khoản`
                 : undefined
             }
             trendLabel="đang hoạt động"
@@ -106,12 +106,12 @@ export default function AdminIndexPage() {
             loading={statsQuery.isLoading}
             value={
               stats
-                ? stats.sessions.last24h.toLocaleString("vi-VN")
+                ? formatNumber(stats.sessions.last24h)
                 : undefined
             }
             sub={
               stats
-                ? `${stats.sessions.activeNow.toLocaleString("vi-VN")} phiên còn hiệu lực`
+                ? `${formatNumber(stats.sessions.activeNow)} phiên còn hiệu lực`
                 : undefined
             }
             trendLabel="đăng nhập"
@@ -124,7 +124,7 @@ export default function AdminIndexPage() {
             loading={statsQuery.isLoading}
             value={
               stats
-                ? stats.audit.total24h.toLocaleString("vi-VN")
+                ? formatNumber(stats.audit.total24h)
                 : undefined
             }
             sub={
@@ -147,7 +147,7 @@ export default function AdminIndexPage() {
             loading={statsQuery.isLoading}
             value={
               stats
-                ? stats.rateLimits.hits24h.toLocaleString("vi-VN")
+                ? formatNumber(stats.rateLimits.hits24h)
                 : undefined
             }
             sub="Ước lượng từ bộ đếm Redis"
@@ -222,7 +222,7 @@ export default function AdminIndexPage() {
                   status={
                     stats.systemHealth.queueDepth > 20 ? "slow" : "ok"
                   }
-                  detail={`${stats.systemHealth.queueDepth.toLocaleString("vi-VN")} việc trong hàng đợi`}
+                  detail={`${formatNumber(stats.systemHealth.queueDepth)} việc trong hàng đợi`}
                 />
                 <HealthCard
                   icon={<Globe className="h-4 w-4" aria-hidden="true" />}

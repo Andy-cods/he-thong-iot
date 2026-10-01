@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ChevronRight, Loader2, Users } from "lucide-react";
 import { useDepartmentReport } from "@/hooks/useReports";
 import { AdminPageShell } from "@/components/admin/AdminPageShell";
+import { ROOT_LABEL } from "@/lib/breadcrumb-items";
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/format";
 
@@ -18,6 +19,19 @@ const ROLE_OPTIONS = [
   { value: "planner", label: "Bộ phận Thiết kế" },
 ] as const;
 
+/**
+ * V4.4 A14 (P0) — đây là bảng nhãn CHO CỘT SẮP XẾP, nhưng cũng được tái dùng
+ * để tra nhãn 4 chỉ số đầu tiên hiện trên leaderboard (`Object.entries(
+ * row.keyMetrics).slice(0, 4)` bên dưới). `keyMetrics` giữ NGUYÊN THỨ TỰ mà
+ * `getEmployeeProductivity()` (server/repos/employeeProductivity.ts) đẩy vào
+ * mảng `metrics` — thứ tự đó KHÔNG khớp 1:1 với danh sách dưới đây, nên trước
+ * đây 1 vài metric lọt vào "top 4" mà THIẾU nhãn ở đây → rơi vào fallback
+ * `?? k` hiện thẳng key kỹ thuật thô ("PRODUCTION_QTY_SCRAP" cho MỌI dòng
+ * operator — luôn là chỉ số thứ 4). Đã rà lại đúng 4 metric đầu tiên thật sự
+ * của cả 4 role (xem thứ tự `metrics.push(...)` trong employeeProductivity.ts)
+ * và bổ sung đủ: operator thiếu "production_qty_scrap", warehouse thiếu
+ * "inv_minus", purchaser thiếu "pr_created", planner thiếu "wo_completed".
+ */
 const SORT_OPTIONS_BY_ROLE: Record<
   string,
   Array<{ value: string; label: string }>
@@ -26,15 +40,18 @@ const SORT_OPTIONS_BY_ROLE: Record<
     { value: "production_qty_good", label: "Sản lượng đạt" },
     { value: "wo_completed", label: "WO hoàn thành" },
     { value: "wo_created", label: "WO tạo" },
+    { value: "production_qty_scrap", label: "Phế phẩm" },
     { value: "progress_reports", label: "Báo cáo tiến độ" },
   ],
   warehouse: [
     { value: "receivings", label: "Nhận hàng" },
     { value: "inv_plus", label: "Bổ sung tồn" },
+    { value: "inv_minus", label: "Giảm tồn" },
     { value: "issues_picked", label: "Xuất kho" },
     { value: "qc_checks", label: "QC kiểm" },
   ],
   purchaser: [
+    { value: "pr_created", label: "PR tạo" },
     { value: "po_created", label: "PO tạo" },
     { value: "po_value", label: "Giá trị PO" },
     { value: "pr_approved", label: "PR duyệt" },
@@ -43,6 +60,7 @@ const SORT_OPTIONS_BY_ROLE: Record<
     { value: "bom_created", label: "BOM tạo" },
     { value: "bom_revisions_released", label: "Revision release" },
     { value: "wo_created", label: "WO tạo" },
+    { value: "wo_completed", label: "WO hoàn thành" },
   ],
 };
 
@@ -77,7 +95,7 @@ export default function DepartmentReportPage() {
   return (
     <AdminPageShell
       breadcrumb={[
-        { label: "Trang chủ", href: "/" },
+        { label: ROOT_LABEL, href: "/" },
         { label: "Quản trị", href: "/admin" },
         { label: "Báo cáo", href: "/admin/reports/employee-productivity" },
         { label: "Bộ phận" },
@@ -287,8 +305,33 @@ function Leaderboard({
                     </div>
                   ))}
               </div>
-              <ChevronRight className="h-4 w-4 text-zinc-300 transition-colors group-hover:text-indigo-500 dark:text-zinc-600" />
+              <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition-colors group-hover:text-indigo-500 dark:text-zinc-600" />
             </div>
+            {/* V4.4 A16 — mobile: trước đây `hidden md:flex` ẩn HẲN 4 chỉ số,
+                chỉ còn hạng + tên. Hiện lại dạng lưới nhãn:giá trị (card-list
+                thật, giống mẫu chuẩn `admin/settings/sessions`) thay vì cắt bớt
+                thông tin quan trọng nhất của trang. */}
+            <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-zinc-100 pt-3 dark:border-zinc-800 md:hidden">
+              {Object.entries(row.keyMetrics)
+                .slice(0, 4)
+                .map(([k, v]) => (
+                  <div key={k} className="min-w-0">
+                    <dt className="truncate text-[11px] font-semibold uppercase tracking-normal text-zinc-500 dark:text-zinc-400">
+                      {SORT_OPTIONS_BY_ROLE[data.department.role]?.find(
+                        (o) => o.value === k,
+                      )?.label ?? k}
+                    </dt>
+                    <dd
+                      className={cn(
+                        "text-sm font-semibold tabular-nums",
+                        k === sortBy ? "text-indigo-700 dark:text-indigo-400" : "text-zinc-700 dark:text-zinc-300",
+                      )}
+                    >
+                      {formatNumber(v)}
+                    </dd>
+                  </div>
+                ))}
+            </dl>
           </li>
         ))}
       </ol>

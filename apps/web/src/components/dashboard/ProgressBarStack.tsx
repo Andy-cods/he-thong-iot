@@ -10,6 +10,7 @@ import {
   ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatNumber } from "@/lib/format";
 import { BigStatCard } from "./BigStatCard";
 import { HIDDEN_FEATURES } from "@/lib/hidden-features";
 import type { DashboardOverviewV2Payload } from "@/app/api/dashboard/overview-v2/route";
@@ -40,9 +41,8 @@ export interface ProgressBarStackProps {
   className?: string;
 }
 
-function formatNum(n: number): string {
-  return Number(n || 0).toLocaleString("vi-VN");
-}
+// V4.4 (A3) — bỏ hàm cục bộ trùng lib/format.ts, dùng thẳng `formatNumber`.
+const formatNum = formatNumber;
 
 export function ProgressBarStack({
   data,
@@ -158,11 +158,15 @@ export function ProgressBarStack({
         }
         loading={loading}
       />
+      {/* V4.4 (A11/C.A — thống nhất tên gọi V4.1 UI-28) — trước đây "Yêu cầu
+          mua (PR)" khác hẳn tên chuẩn "Đề xuất vật tư" dùng ở PRTab.tsx/trang
+          `/procurement/purchase-requests`, đúng loại lỗi tự mâu thuẫn tên gọi
+          hệ thống liệt kê ở top-10 vấn đề lớn nhất. */}
       <BigStatCard
-        label="Yêu cầu mua (PR)"
+        label="Đề xuất vật tư"
         icon={ClipboardList}
         tone="violet"
-        moduleLabel="Yêu cầu mua"
+        moduleLabel="Đề xuất vật tư"
         href={DRILLDOWN_URLS.purchaseRequests}
         value={p?.purchaseRequests.percent ?? 0}
         valueSuffix="%"
@@ -171,7 +175,7 @@ export function ProgressBarStack({
         denominator={p?.purchaseRequests.denominator ?? 0}
         subText={
           p && p.purchaseRequests.denominator > 0
-            ? `${formatNum(p.purchaseRequests.numerator)} / ${formatNum(p.purchaseRequests.denominator)} yêu cầu`
+            ? `${formatNum(p.purchaseRequests.numerator)} / ${formatNum(p.purchaseRequests.denominator)} đề xuất`
             : undefined
         }
         loading={loading}

@@ -21,22 +21,28 @@ export interface UserFormState {
   isActive: boolean;
 }
 
+/**
+ * V4.4 (NHÓM G, A15) — nhãn vai trò tiếng Việt thống nhất (trước đây 5/9 vai
+ * trò hiện tên tiếng Anh "Admin, Planner, Warehouse, Operator, Purchaser"
+ * cạnh 4 vai trò đã Việt hoá — nay dùng ĐÚNG nhãn `admin/users/page.tsx` đã
+ * định nghĩa, nguồn DUY NHẤT cho toàn bộ danh sách + form user).
+ */
 export const ALL_ROLES: { code: Role; label: string; desc: string }[] = [
   { code: "admin", label: "Admin", desc: "Toàn quyền — quản trị user + audit" },
-  { code: "planner", label: "Planner", desc: "Kế hoạch SX — BOM, Orders" },
+  { code: "planner", label: "Bộ phận Thiết kế", desc: "Kế hoạch SX — BOM, Orders" },
   {
     code: "warehouse",
-    label: "Warehouse",
+    label: "Bộ phận Kho",
     desc: "Kho — nhận hàng, tồn kho",
   },
-  { code: "operator", label: "Operator", desc: "Gia công xưởng" },
+  { code: "operator", label: "Bộ phận Gia công", desc: "Gia công xưởng" },
   {
     code: "purchaser",
-    label: "Purchaser",
+    label: "Bộ phận Thu mua",
     desc: "Thu mua — duyệt PR, tạo PO",
   },
   // V3.8 — Tổ QC/KCS: quản lý Bảng điều hành sản xuất (production board).
-  { code: "qc", label: "QC / KCS", desc: "Kiểm tra chất lượng — Bảng sản xuất" },
+  { code: "qc", label: "Tổ QC / KCS", desc: "Kiểm tra chất lượng — Bảng sản xuất" },
   // V3.8.2 — Màn hình TV (kiosk): CHỈ xem bảng sản xuất, phiên 24h.
   {
     code: "display",
@@ -46,7 +52,7 @@ export const ALL_ROLES: { code: Role; label: string; desc: string }[] = [
   // V3.9 — Bộ phận Kế toán: nhận YCVT đã duyệt, tải PDF/Excel.
   {
     code: "accountant",
-    label: "Kế toán",
+    label: "Bộ phận Kế toán",
     desc: "Nhận phiếu YCVT đã duyệt — tải PDF/Excel",
   },
   // V4.0 — Cổ đông: READ-ONLY Tài chính + tiến độ sản xuất.
@@ -56,6 +62,28 @@ export const ALL_ROLES: { code: Role; label: string; desc: string }[] = [
     desc: "Chỉ xem Tài chính (thu chi, công nợ) + tiến độ sản xuất",
   },
 ];
+
+/** Tra nhãn Việt hoá theo mã vai trò — dùng chung cho badge ở list/detail user. */
+export const ROLE_LABELS: Record<Role, string> = Object.fromEntries(
+  ALL_ROLES.map((r) => [r.code, r.label]),
+) as Record<Role, string>;
+
+/**
+ * V4.4 (NHÓM G, DRY) — màu badge vai trò dùng chung (trước đây
+ * `admin/users/page.tsx` và `admin/users/[id]/page.tsx` mỗi trang tự khai 1
+ * bản `ROLE_BADGE` giống hệt nhau).
+ */
+export const ROLE_BADGE_CLASSES: Record<Role, string> = {
+  admin: "bg-violet-50 text-violet-700 ring-violet-200 dark:bg-violet-950/40 dark:text-violet-400 dark:ring-violet-800",
+  planner: "bg-indigo-50 text-indigo-700 ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-800",
+  purchaser: "bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:ring-rose-800",
+  warehouse: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800",
+  operator: "bg-zinc-100 text-zinc-700 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700",
+  qc: "bg-teal-50 text-teal-700 ring-teal-200 dark:bg-teal-950/40 dark:text-teal-400 dark:ring-teal-800",
+  display: "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:ring-sky-800",
+  accountant: "bg-lime-50 text-lime-700 ring-lime-200 dark:bg-lime-950/40 dark:text-lime-400 dark:ring-lime-800",
+  shareholder: "bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-200 dark:bg-fuchsia-950/40 dark:text-fuchsia-400 dark:ring-fuchsia-800",
+};
 
 export interface UserFormProps {
   mode: "create" | "edit";

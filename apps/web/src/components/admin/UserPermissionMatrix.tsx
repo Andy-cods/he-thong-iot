@@ -31,7 +31,9 @@ const ENTITY_LABELS: Record<RbacEntityKey, string> = {
   bomRevision: "BOM Revision",
   salesOrder: "Đơn hàng",
   bomSnapshot: "BOM Snapshot",
-  pr: "Yêu cầu mua",
+  // V4.4 (A11/C.A) — thống nhất "Đề xuất vật tư" (V4.1 UI-28), trước đây
+  // "Yêu cầu mua" khác tên với PRTab.tsx/trang `/procurement/purchase-requests`.
+  pr: "Đề xuất vật tư",
   po: "Đơn mua",
   wo: "Lệnh sản xuất",
   reservation: "Giữ kho",

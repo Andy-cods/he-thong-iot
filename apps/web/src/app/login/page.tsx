@@ -75,7 +75,7 @@ function LoginContent() {
             {/* Heading */}
             <div className="mb-8">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-400">
-                Welcome back
+                Chào mừng trở lại
               </p>
               <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">
                 Đăng nhập
@@ -89,7 +89,7 @@ function LoginContent() {
 
             <p className="mt-8 text-center text-xs text-zinc-500">
               Hệ thống dành cho nhân viên nội bộ. Mọi truy cập đều được ghi
-              nhận trong audit log.
+              nhận trong nhật ký hệ thống.
             </p>
           </div>
         </div>

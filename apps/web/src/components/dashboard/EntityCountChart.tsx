@@ -13,6 +13,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatNumber } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { DashboardCountsPayload } from "@/app/api/dashboard/counts/route";
 
@@ -85,7 +86,7 @@ export function EntityCountChart({ data, loading, className }: EntityCountChartP
                 </span>
                 <span className="flex items-baseline gap-1">
                   <span className="text-lg font-semibold leading-none tabular-nums text-zinc-900 dark:text-zinc-50">
-                    {it.total.toLocaleString("vi-VN")}
+                    {formatNumber(it.total)}
                   </span>
                   {it.active !== it.total && it.total > 0 && (
                     <span

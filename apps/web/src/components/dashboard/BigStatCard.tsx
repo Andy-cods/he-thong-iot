@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { ArrowUpRight, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatNumber } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
@@ -85,12 +86,11 @@ export interface BigStatCardProps {
   alwaysShowValue?: boolean;
 }
 
+// V4.4 (A3) — dùng `formatNumber` (lib/format.ts) thay toLocaleString cục bộ;
+// `maximumFractionDigits: 1` tự nhiên bỏ ".0" thừa cho số nguyên, không cần
+// nhánh `Number.isInteger` riêng.
 function formatValue(n: number): string {
-  if (Number.isInteger(n)) return n.toLocaleString("vi-VN");
-  return n.toLocaleString("vi-VN", {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-  });
+  return formatNumber(n, undefined, { maximumFractionDigits: 1 });
 }
 
 export function BigStatCard({

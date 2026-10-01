@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ChangePasswordForm } from "@/components/admin/ChangePasswordForm";
 import { AdminPageShell } from "@/components/admin/AdminPageShell";
+import { ROOT_LABEL } from "@/lib/breadcrumb-items";
 
 export default function AdminSettingsPage() {
   const router = useRouter();
@@ -34,7 +35,7 @@ export default function AdminSettingsPage() {
   return (
     <AdminPageShell
       breadcrumb={[
-        { label: "Trang chủ", href: "/" },
+        { label: ROOT_LABEL, href: "/" },
         { label: "Quản trị", href: "/admin" },
         { label: "Cài đặt" },
       ]}
@@ -129,7 +130,7 @@ export default function AdminSettingsPage() {
           <dl className="space-y-2 text-xs">
             <Row label="Phiên bản" value={version} mono />
             <Row label="Commit" value={sha} mono />
-            <Row label="Build date" value={date} mono />
+            <Row label="Ngày build" value={date} mono />
           </dl>
         </SectionCard>
       </div>

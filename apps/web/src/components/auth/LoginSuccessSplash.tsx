@@ -150,7 +150,7 @@ export function LoginSuccessSplash({
             MES SONG CHAU
           </h1>
           <p className="mt-1.5 text-xs font-semibold uppercase tracking-[0.25em] text-cyan-300/90">
-            Smart Manufacturing Execution System
+            Hệ thống điều hành sản xuất thông minh
           </p>
         </div>
 

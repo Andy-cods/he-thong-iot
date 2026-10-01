@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, Pencil, Plus, Search, X } from "lucide-react";
+import { Eye, Plus, Search, X } from "lucide-react";
 import {
   parseAsInteger,
   parseAsString,
@@ -15,41 +15,26 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/ui/query-error";
-import { useUsersList } from "@/hooks/useAdmin";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { useUsersList, type AdminUserListRow } from "@/hooks/useAdmin";
 import { AdminPageShell } from "@/components/admin/AdminPageShell";
+import { ALL_ROLES, ROLE_BADGE_CLASSES, ROLE_LABELS } from "@/components/admin/UserForm";
 import { cn } from "@/lib/utils";
 import { StatusPill } from "@/components/ui/status-badge";
-import { formatDate as formatDateVN } from "@/lib/format";
+import { formatDate as formatDateVN, formatNumber } from "@/lib/format";
 import { activeStatusCode, statusLabel } from "@/lib/status";
 
 const ACTIVE_MODES = ["all", "active", "inactive"] as const;
 type ActiveMode = (typeof ACTIVE_MODES)[number];
 
+// V4.4 (NHÓM G, DRY) — lấy từ `UserForm.ALL_ROLES` (nguồn DUY NHẤT nhãn vai
+// trò), chỉ thêm option "Tất cả vai trò" riêng cho bộ lọc trang này.
 const ROLE_OPTIONS: { code: Role | "all"; label: string }[] = [
   { code: "all", label: "Tất cả vai trò" },
-  { code: "admin", label: "Admin" },
-  { code: "planner", label: "Bộ phận Thiết kế" },
-  { code: "purchaser", label: "Bộ phận Thu mua" },
-  { code: "warehouse", label: "Bộ phận Kho" },
-  { code: "operator", label: "Bộ phận Gia công" },
-  { code: "qc", label: "Tổ QC / KCS" },
-  { code: "display", label: "Màn hình TV" },
-  { code: "accountant", label: "Bộ phận Kế toán" },
-  { code: "shareholder", label: "Cổ đông" },
+  ...ALL_ROLES.map((r) => ({ code: r.code, label: r.label })),
 ];
 
-const ROLE_BADGE: Record<Role, string> = {
-  admin: "bg-violet-50 text-violet-700 ring-violet-200 dark:bg-violet-950/40 dark:text-violet-400 dark:ring-violet-800",
-  planner: "bg-indigo-50 text-indigo-700 ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-800",
-  purchaser: "bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:ring-rose-800",
-  warehouse: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800",
-  operator: "bg-zinc-100 text-zinc-700 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700",
-  qc: "bg-teal-50 text-teal-700 ring-teal-200 dark:bg-teal-950/40 dark:text-teal-400 dark:ring-teal-800",
-  display: "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:ring-sky-800",
-  accountant: "bg-lime-50 text-lime-700 ring-lime-200 dark:bg-lime-950/40 dark:text-lime-400 dark:ring-lime-800",
-  // V4.0 — Cổ đông (read-only Tài chính + tiến độ sản xuất).
-  shareholder: "bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-200 dark:bg-fuchsia-950/40 dark:text-fuchsia-400 dark:ring-fuchsia-800",
-};
+type UserRow = AdminUserListRow;
 
 // V4.1 UI-15: ngày theo giờ VN qua lib/format.
 function formatDate(iso: string | null): string {
@@ -106,6 +91,97 @@ export default function AdminUsersPage() {
     void setUrlState({ q: "", role: "all", active: "all", page: 1 });
   };
 
+  // V4.4 (NHÓM G, A16) — chuyển sang `DataTable` dùng chung: trước đây tự vẽ
+  // `<div role="grid">` + ẩn Vai trò/Đăng nhập cuối/Hành động trên mobile bằng
+  // `hidden md:block` → MẤT HẲN thông tin trên điện thoại. `DataTable` tự
+  // chuyển card-list đầy đủ trường dưới `md`, không cần tự tay ẩn cột nào.
+  const columns = React.useMemo<DataTableColumn<UserRow>[]>(
+    () => [
+      {
+        id: "username",
+        header: "Tên đăng nhập",
+        kind: "code",
+        mobile: "primary",
+        cell: (u) => (
+          <Link
+            href={`/admin/users/${u.id}`}
+            className="truncate font-mono text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:underline dark:text-indigo-400 dark:hover:text-indigo-300"
+          >
+            {u.username}
+          </Link>
+        ),
+      },
+      {
+        id: "fullName",
+        header: "Họ tên",
+        mobile: "primary",
+        cell: (u) => (
+          <span className="truncate text-sm text-zinc-900 dark:text-zinc-50">{u.fullName}</span>
+        ),
+      },
+      {
+        id: "email",
+        header: "Email",
+        cell: (u) => (
+          <span className="truncate text-sm text-zinc-600 dark:text-zinc-400">{u.email ?? "—"}</span>
+        ),
+      },
+      {
+        id: "roles",
+        header: "Vai trò",
+        cell: (u) =>
+          u.roles.length === 0 ? (
+            <span className="text-xs text-zinc-400 dark:text-zinc-500">—</span>
+          ) : (
+            <div className="flex flex-wrap gap-1">
+              {u.roles.map((r) => (
+                <span
+                  key={r}
+                  className={cn(
+                    "inline-flex h-5 items-center whitespace-nowrap rounded-full px-2 text-xs font-medium ring-1 ring-inset",
+                    ROLE_BADGE_CLASSES[r],
+                  )}
+                >
+                  {ROLE_LABELS[r] ?? r}
+                </span>
+              ))}
+            </div>
+          ),
+      },
+      {
+        id: "status",
+        header: "Trạng thái",
+        kind: "status",
+        cell: (u) => (
+          // V4.1 UI-07/08: "Hoạt động" / "Vô hiệu hoá" (bỏ "Active/Disabled").
+          <StatusPill domain="user" code={activeStatusCode(u.isActive)} dot />
+        ),
+      },
+      {
+        id: "lastLogin",
+        header: "Đăng nhập cuối",
+        kind: "date",
+        cell: (u) => formatDate(u.lastLoginAt),
+      },
+      {
+        id: "actions",
+        header: "Hành động",
+        kind: "actions",
+        cell: (u) => (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => router.push(`/admin/users/${u.id}`)}
+            aria-label={`Xem chi tiết ${u.username}`}
+          >
+            <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+          </Button>
+        ),
+      },
+    ],
+    [router],
+  );
+
   return (
     <AdminPageShell
       breadcrumb={[
@@ -119,7 +195,7 @@ export default function AdminUsersPage() {
           Quản lý tài khoản, phân vai trò và theo dõi trạng thái hoạt động.{" "}
           <span className="font-medium text-zinc-700 dark:text-zinc-300">
             {/* V4.1 UI-05: lỗi tải → "—" thay vì "0 tài khoản" */}
-            {query.isError && !query.data ? "—" : total.toLocaleString("vi-VN")} tài khoản
+            {query.isError && !query.data ? "—" : formatNumber(total)} tài khoản
           </span>
           .
         </>
@@ -221,124 +297,56 @@ export default function AdminUsersPage() {
         </section>
 
         {/* Table */}
-        <div className="overflow-hidden rounded-xl bg-white shadow-xs dark:bg-zinc-900">
-          <div className="grid h-9 grid-cols-[1fr,1.2fr,100px] items-center gap-3 border-b border-zinc-200 bg-zinc-50/70 px-4 text-[11px] font-semibold uppercase tracking-normal text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-400 md:grid-cols-[1fr,1.2fr,1.3fr,1.4fr,100px,120px,90px]">
-            <span>Tên đăng nhập</span>
-            <span>Họ tên</span>
-            <span className="hidden md:block">Email</span>
-            <span className="hidden md:block">Vai trò</span>
-            <span className="text-center">Trạng thái</span>
-            <span className="hidden md:block">Đăng nhập cuối</span>
-            <span className="hidden text-right md:block">Hành động</span>
-          </div>
-
-          {query.isLoading ? (
-            <div className="p-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
-              Đang tải…
-            </div>
-          ) : query.isError && rows.length === 0 ? (
-            // V4.1 UI-05: API lỗi (429/500/403) → KHÔNG hiện "Tạo user đầu tiên".
+        {query.isError && rows.length === 0 ? (
+          // V4.1 UI-05: API lỗi (429/500/403) → KHÔNG hiện "Tạo user đầu tiên".
+          <div className="overflow-hidden rounded-xl bg-white shadow-xs dark:bg-zinc-900">
             <QueryError
               error={query.error}
               onRetry={() => void query.refetch()}
               retrying={query.isFetching}
               title="Không tải được danh sách người dùng"
             />
-          ) : rows.length === 0 ? (
-            <div className="p-6">
-              {hasFilter ? (
-                <EmptyState
-                  preset="no-filter-match"
-                  title="Không tìm thấy user khớp bộ lọc"
-                  description="Thử thay đổi từ khoá hoặc xoá bộ lọc."
-                  actions={
-                    <Button variant="ghost" size="sm" onClick={handleReset}>
-                      Xoá bộ lọc
-                    </Button>
-                  }
-                />
-              ) : (
-                <EmptyState
-                  preset="no-data"
-                  title="Chưa có người dùng nào"
-                  description="Tạo tài khoản đầu tiên để bắt đầu sử dụng hệ thống."
-                  actions={
-                    <Button asChild size="sm">
-                      <Link href="/admin/users/new">
-                        <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                        Tạo user đầu tiên
-                      </Link>
-                    </Button>
-                  }
-                />
-              )}
-            </div>
-          ) : (
-            <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
-              {rows.map((u) => (
-                <li
-                  key={u.id}
-                  className="group grid min-h-[40px] grid-cols-[1fr,1.2fr,100px] items-center gap-3 px-4 py-2 transition-colors hover:bg-indigo-50/40 dark:hover:bg-indigo-950/30 md:grid-cols-[1fr,1.2fr,1.3fr,1.4fr,100px,120px,90px]"
-                >
-                  <Link
-                    href={`/admin/users/${u.id}`}
-                    className="truncate font-mono text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:underline dark:text-indigo-400 dark:hover:text-indigo-300"
-                  >
-                    {u.username}
-                  </Link>
-                  <span className="truncate text-sm text-zinc-900 dark:text-zinc-50">
-                    {u.fullName}
-                  </span>
-                  <span className="hidden truncate text-sm text-zinc-600 dark:text-zinc-400 md:block">
-                    {u.email ?? "—"}
-                  </span>
-                  <div className="hidden flex-wrap gap-1 md:flex">
-                    {u.roles.length === 0 ? (
-                      <span className="text-xs text-zinc-400 dark:text-zinc-500">—</span>
-                    ) : (
-                      u.roles.map((r) => (
-                        <span
-                          key={r}
-                          className={cn(
-                            "inline-flex h-5 items-center rounded-full px-1.5 font-mono text-xs font-semibold uppercase ring-1 ring-inset",
-                            ROLE_BADGE[r],
-                          )}
-                        >
-                          {r}
-                        </span>
-                      ))
-                    )}
-                  </div>
-                  <span className="text-center">
-                    {/* V4.1 UI-07/08: "Hoạt động" / "Vô hiệu hoá" (bỏ "Active/Disabled"). */}
-                    <StatusPill domain="user" code={activeStatusCode(u.isActive)} dot />
-                  </span>
-                  <span className="hidden truncate text-xs text-zinc-500 tabular-nums dark:text-zinc-400 md:block">
-                    {formatDate(u.lastLoginAt)}
-                  </span>
-                  <div className="hidden justify-end gap-1 md:flex">
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => router.push(`/admin/users/${u.id}`)}
-                      aria-label={`Xem ${u.username}`}
-                    >
-                      <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => router.push(`/admin/users/${u.id}`)}
-                      aria-label={`Sửa ${u.username}`}
-                    >
-                      <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-                    </Button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+          </div>
+        ) : !query.isLoading && rows.length === 0 ? (
+          <div className="overflow-hidden rounded-xl bg-white p-6 shadow-xs dark:bg-zinc-900">
+            {hasFilter ? (
+              <EmptyState
+                preset="no-filter-match"
+                title="Không tìm thấy user khớp bộ lọc"
+                description="Thử thay đổi từ khoá hoặc xoá bộ lọc."
+                actions={
+                  <Button variant="ghost" size="sm" onClick={handleReset}>
+                    Xoá bộ lọc
+                  </Button>
+                }
+              />
+            ) : (
+              <EmptyState
+                preset="no-data"
+                title="Chưa có người dùng nào"
+                description="Tạo tài khoản đầu tiên để bắt đầu sử dụng hệ thống."
+                actions={
+                  <Button asChild size="sm">
+                    <Link href="/admin/users/new">
+                      <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                      Tạo user đầu tiên
+                    </Link>
+                  </Button>
+                }
+              />
+            )}
+          </div>
+        ) : (
+          <DataTable
+            columns={columns}
+            rows={rows}
+            getRowKey={(u) => u.id}
+            loading={query.isLoading}
+            ariaLabel="Danh sách người dùng"
+            minWidth={760}
+            onRowClick={(u) => router.push(`/admin/users/${u.id}`)}
+          />
+        )}
 
         {/* Pagination */}
         <footer className="flex items-center justify-between text-xs">
@@ -352,7 +360,7 @@ export default function AdminUsersPage() {
             </span>{" "}
             /{" "}
             <span className="tabular-nums text-zinc-900 dark:text-zinc-50">
-              {query.isError && !query.data ? "—" : total.toLocaleString("vi-VN")}
+              {query.isError && !query.data ? "—" : formatNumber(total)}
             </span>
           </span>
           <div className="flex items-center gap-1">

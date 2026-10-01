@@ -5,10 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { KeyRound, MoreHorizontal, UserX } from "lucide-react";
 import { toast } from "sonner";
-import type { Role } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import { QueryError } from "@/components/ui/query-error";
-import { DialogConfirm } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ResetPasswordDialog } from "@/components/admin/ResetPasswordDialog";
-import { UserForm, type UserFormState } from "@/components/admin/UserForm";
+import { ROLE_BADGE_CLASSES, ROLE_LABELS, UserForm, type UserFormState } from "@/components/admin/UserForm";
 import { UserPermissionMatrix } from "@/components/admin/UserPermissionMatrix";
 import { AdminPageShell } from "@/components/admin/AdminPageShell";
 import {
@@ -32,20 +31,8 @@ import { isSelfAdminDemotion } from "@/lib/admin-guards";
 import { cn } from "@/lib/utils";
 import { StatusPill } from "@/components/ui/status-badge";
 import { formatDateTime } from "@/lib/format";
-import { actionLabel, activeStatusCode, entityLabel, statusLabel } from "@/lib/status";
-
-const ROLE_BADGE: Record<Role, string> = {
-  admin: "bg-violet-50 text-violet-700 ring-violet-200 dark:bg-violet-950/40 dark:text-violet-400 dark:ring-violet-800",
-  planner: "bg-indigo-50 text-indigo-700 ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-800",
-  purchaser: "bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:ring-rose-800",
-  warehouse: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800",
-  operator: "bg-zinc-100 text-zinc-700 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700",
-  qc: "bg-teal-50 text-teal-700 ring-teal-200 dark:bg-teal-950/40 dark:text-teal-400 dark:ring-teal-800",
-  display: "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:ring-sky-800",
-  accountant: "bg-lime-50 text-lime-700 ring-lime-200 dark:bg-lime-950/40 dark:text-lime-400 dark:ring-lime-800",
-  // V4.0 — Cổ đông (read-only Tài chính + tiến độ sản xuất).
-  shareholder: "bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-200 dark:bg-fuchsia-950/40 dark:text-fuchsia-400 dark:ring-fuchsia-800",
-};
+import { actionLabel, activeStatusCode, statusLabel } from "@/lib/status";
+import { auditObjectLabel } from "@/lib/audit-scope";
 
 const ACTION_COLORS: Record<string, string> = {
   CREATE: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800",
@@ -215,11 +202,11 @@ export default function AdminUserDetailPage({
             <span
               key={r}
               className={cn(
-                "inline-flex h-5 items-center rounded-full px-1.5 font-mono text-xs font-semibold uppercase ring-1 ring-inset",
-                ROLE_BADGE[r],
+                "inline-flex h-5 items-center whitespace-nowrap rounded-full px-2 text-xs font-medium ring-1 ring-inset",
+                ROLE_BADGE_CLASSES[r],
               )}
             >
-              {r}
+              {ROLE_LABELS[r] ?? r}
             </span>
           ))}
         </span>
@@ -390,35 +377,44 @@ export default function AdminUserDetailPage({
                 Chưa có hoạt động nào được ghi lại.
               </div>
             ) : (
+              // V4.4 (NHÓM G) — mobile: 4 cột cố định [130,110,1fr,1fr] không đủ
+              // chỗ trên 390px (240px chiếm bởi 2 cột đầu). Gộp 2 cặp cột liền
+              // nhau thành 2 dòng bằng `sm:contents` (giữ đúng thứ tự DOM nên
+              // desktop KHÔNG đổi — `contents` chỉ "biến mất" khỏi layout để
+              // 4 span tham gia lưới `sm:grid-cols-[...]` y hệt trước).
               <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
                 {auditQuery.data!.data.map((ev) => (
                   <li
                     key={ev.id}
-                    className="grid min-h-[40px] grid-cols-[130px,110px,1fr,1fr] items-center gap-3 px-4 py-2 text-xs transition-colors hover:bg-zinc-50/70 dark:hover:bg-zinc-800/60"
+                    className="flex flex-col gap-1 px-4 py-2.5 text-xs transition-colors hover:bg-zinc-50/70 dark:hover:bg-zinc-800/60 sm:grid sm:min-h-[40px] sm:grid-cols-[130px,110px,1fr,1fr] sm:items-center sm:gap-3 sm:py-2"
                   >
-                    <span className="text-[11px] text-zinc-500 tabular-nums dark:text-zinc-400">
-                      {fmtTime(ev.occurredAt)}
-                    </span>
-                    <span
-                      className={cn(
-                        "inline-flex h-5 w-fit max-w-full items-center justify-center truncate whitespace-nowrap rounded-full px-1.5 text-xs font-semibold ring-1 ring-inset",
-                        ACTION_COLORS[ev.action] ?? ACTION_COLORS.UPDATE,
-                      )}
-                      title={ev.action}
-                    >
-                      {actionLabel(ev.action)}
-                    </span>
-                    <span className="truncate text-zinc-700 dark:text-zinc-300">
-                      {entityLabel(ev.objectType)}
-                      {ev.objectId ? (
-                        <code className="ml-1 font-mono text-xs text-zinc-400 dark:text-zinc-500">
-                          #{ev.objectId.slice(0, 8)}
-                        </code>
-                      ) : null}
-                    </span>
-                    <span className="truncate text-zinc-500 dark:text-zinc-400">
-                      {ev.notes ?? "—"}
-                    </span>
+                    <div className="flex items-center gap-2 sm:contents">
+                      <span className="text-[11px] text-zinc-500 tabular-nums dark:text-zinc-400">
+                        {fmtTime(ev.occurredAt)}
+                      </span>
+                      <span
+                        className={cn(
+                          "inline-flex h-5 w-fit max-w-full items-center justify-center truncate whitespace-nowrap rounded-full px-1.5 text-xs font-semibold ring-1 ring-inset",
+                          ACTION_COLORS[ev.action] ?? ACTION_COLORS.UPDATE,
+                        )}
+                        title={ev.action}
+                      >
+                        {actionLabel(ev.action)}
+                      </span>
+                    </div>
+                    <div className="flex min-w-0 items-center gap-2 sm:contents">
+                      <span className="truncate text-zinc-700 dark:text-zinc-300">
+                        {auditObjectLabel(ev.objectType)}
+                        {ev.objectId ? (
+                          <code className="ml-1 font-mono text-xs text-zinc-400 dark:text-zinc-500">
+                            #{ev.objectId.slice(0, 8)}
+                          </code>
+                        ) : null}
+                      </span>
+                      <span className="truncate text-zinc-500 dark:text-zinc-400">
+                        {ev.notes ?? "—"}
+                      </span>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -427,13 +423,17 @@ export default function AdminUserDetailPage({
         </TabsContent>
       </Tabs>
 
-      <DialogConfirm
+      {/* V4.4 A13 — "Vô hiệu hoá" là hành động HỒI PHỤC ĐƯỢC (bật lại switch
+          "Tài khoản đang hoạt động" là xong), không nên bắt gõ "XOA" như xoá
+          vĩnh viễn → đổi từ `DialogConfirm` (typed-confirm mặc định "XOA")
+          sang `ConfirmDialog` tone="danger" với nút xác nhận thường. */}
+      <ConfirmDialog
         open={deactivateOpen}
         onOpenChange={setDeactivateOpen}
         title={`Vô hiệu hoá ${user.username}?`}
-        description={`User sẽ không thể đăng nhập. Bạn có thể kích hoạt lại sau bằng cách bật switch "Tài khoản đang hoạt động". Gõ "XOA" để xác nhận.`}
-        confirmText="XOA"
-        actionLabel="Vô hiệu hoá"
+        description={`User sẽ không thể đăng nhập. Bạn có thể kích hoạt lại sau bằng cách bật switch "Tài khoản đang hoạt động".`}
+        tone="danger"
+        confirmLabel="Vô hiệu hoá"
         loading={deactivate.isPending}
         onConfirm={() => void handleDeactivate()}
       />

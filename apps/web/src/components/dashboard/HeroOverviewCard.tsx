@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Activity, RefreshCw, Boxes, Factory, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatNumber, formatRelative } from "@/lib/format";
 import type { DashboardOverviewV2Payload } from "@/app/api/dashboard/overview-v2/route";
 
 /**
@@ -16,32 +17,10 @@ import type { DashboardOverviewV2Payload } from "@/app/api/dashboard/overview-v2
  *    (denominator-numerator).
  *  - Live status pulse + nút Tải lại có spinner.
  *  - Layout 2 row: title block + stats block, responsive stack <md.
+ *
+ * V4.4 (A3) — bỏ 2 hàm `formatRelative`/`formatNum` tự viết cục bộ (chép y
+ * hệt logic `lib/format.ts`), dùng nguồn DUY NHẤT.
  */
-
-function formatRelative(iso: string): string {
-  try {
-    const t = new Date(iso).getTime();
-    if (!Number.isFinite(t)) return "—";
-    const diffSec = Math.floor((Date.now() - t) / 1000);
-    if (diffSec < 0) return "vừa xong";
-    if (diffSec < 60) return "vừa xong";
-    if (diffSec < 3600) return `${Math.floor(diffSec / 60)} phút trước`;
-    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} giờ trước`;
-    return new Date(iso).toLocaleString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return "—";
-  }
-}
-
-function formatNum(n: number): string {
-  return Number(n || 0).toLocaleString("vi-VN");
-}
 
 export interface HeroOverviewCardProps {
   data: DashboardOverviewV2Payload | null;
@@ -214,7 +193,7 @@ function HeroStat({ icon: Icon, value, label, loading }: HeroStatProps) {
           loading && "opacity-40",
         )}
       >
-        {loading ? "—" : formatNum(value)}
+        {loading ? "—" : formatNumber(value)}
       </span>
       <span className="min-w-0 text-xs font-medium text-zinc-500 dark:text-zinc-400 sm:mt-0.5">{label}</span>
     </div>

@@ -158,9 +158,14 @@ export default function ProfilePage() {
                     variant="ghost"
                     onClick={() => setEditing(true)}
                     className="shrink-0"
+                    aria-label="Chỉnh sửa hồ sơ"
                   >
                     <Pencil className="h-3.5 w-3.5" />
-                    Chỉnh sửa
+                    {/* V4.4 (G2, tự phát hiện) — nút "Chỉnh sửa" chiếm chỗ khiến
+                        tên dài (VD "Quản trị hệ thống") bị `truncate` cắt cụt dù
+                        đủ chỗ nếu bỏ nhãn chữ trên mobile — ẩn chữ dưới `sm`,
+                        chỉ còn icon (vẫn có `aria-label` cho a11y). */}
+                    <span className="hidden sm:inline">Chỉnh sửa</span>
                   </Button>
                 ) : null}
               </div>

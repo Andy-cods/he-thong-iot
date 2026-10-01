@@ -283,3 +283,20 @@ export function autoFormatVnDateInput(raw: string): string {
   );
   return parts.join("/");
 }
+
+/**
+ * V4.4 (NHÓM G) — 1 vài endpoint báo cáo năng suất trả timestamp ĐÃ quy đổi
+ * giờ VN thành chuỗi "YYYY-MM-DD HH:mm" ở SQL (`to_char(... AT TIME ZONE
+ * 'Asia/Ho_Chi_Minh', ...)`), khác hẳn ISO instant mà `formatDate`/`vnParts`
+ * ở trên xử lý (chúng CỘNG THÊM +7h — nếu áp cho chuỗi đã là giờ VN sẵn sẽ bị
+ * lệch giờ gấp đôi). Hàm này CHỈ đổi thứ tự hiển thị "dd/MM/yyyy HH:mm" cho
+ * đúng quy ước Việt Nam, không cộng/trừ giờ. Chuỗi lạ (không đúng khuôn) trả
+ * nguyên văn để không vỡ UI.
+ */
+export function formatVnWallClock(value: string | null | undefined): string {
+  if (!value) return "—";
+  const m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(value);
+  if (!m) return value;
+  const [, y, mo, d, h, mi] = m as unknown as [string, string, string, string, string, string];
+  return `${d}/${mo}/${y} ${h}:${mi}`;
+}
