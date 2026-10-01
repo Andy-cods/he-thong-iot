@@ -3,12 +3,14 @@
 import * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Banknote, EyeOff, Landmark, Pencil, Plus, ShoppingCart, Wallet2 } from "lucide-react";
+import { Banknote, EyeOff, Landmark, Pencil, Plus, Scale, ShoppingCart, Wallet2 } from "lucide-react";
 import {
   can,
   FIN_ACCOUNT_TYPE_LABELS,
   FIN_ACCOUNT_TYPES,
+  finAccountAdjustBalanceSchema,
   finAccountCreateSchema,
+  type FinAccountAdjustBalance,
   type FinAccountCreate,
   type FinAccountType,
 } from "@iot/shared";
@@ -19,6 +21,7 @@ import {
   SheetContent,
   SheetFooter,
   SheetHeader,
+  SheetHeaderNav,
   SheetTitle,
 } from "@/components/ui/sheet";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -26,10 +29,12 @@ import { QueryError } from "@/components/ui/query-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { groupAccountsByType } from "@/components/finance/AccountSourceSelect";
 import { ConfirmActionDialog } from "@/components/finance/ConfirmActionDialog";
 import { fmtVND } from "@/components/finance/_format";
 import {
+  useAdjustFinAccountBalance,
   useCreateFinAccount,
   useDeactivateFinAccount,
   useFinAccountsList,
@@ -61,6 +66,9 @@ export function AccountsTab() {
   const roles = session?.roles ?? [];
   const canWrite = can(roles, "create", "finance");
   const canDelete = can(roles, "delete", "finance");
+  // V4.5 — "Điều chỉnh số dư" CHỈ admin (Giám đốc), không phải mọi người có
+  // quyền sửa nguồn tiền (kế toán có create:finance nhưng KHÔNG sửa opening).
+  const isAdmin = roles.includes("admin");
 
   const query = useFinAccountsList({ isActive: true });
   const rows = query.data?.data ?? [];
@@ -69,6 +77,7 @@ export function AccountsTab() {
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<FinAccountRow | null>(null);
   const [hideTarget, setHideTarget] = React.useState<FinAccountRow | null>(null);
+  const [adjustTarget, setAdjustTarget] = React.useState<FinAccountRow | null>(null);
   const deactivateMut = useDeactivateFinAccount();
   const groups = groupAccountsByType(rows);
 
@@ -148,11 +157,13 @@ export function AccountsTab() {
                       row={r}
                       canWrite={canWrite}
                       canDelete={canDelete}
+                      isAdmin={isAdmin}
                       onEdit={() => {
                         setEditing(r);
                         setDialogOpen(true);
                       }}
                       onDeactivate={() => setHideTarget(r)}
+                      onAdjustBalance={() => setAdjustTarget(r)}
                     />
                   ))}
                 </div>
@@ -163,6 +174,12 @@ export function AccountsTab() {
       </div>
 
       <AccountFormDialog open={dialogOpen} onOpenChange={setDialogOpen} editing={editing} />
+      <AdjustBalanceSheet
+        open={!!adjustTarget}
+        onOpenChange={(open) => { if (!open) setAdjustTarget(null); }}
+        account={adjustTarget}
+        onDone={() => setAdjustTarget(null)}
+      />
       <ConfirmActionDialog
         open={!!hideTarget}
         onOpenChange={(open) => { if (!open) setHideTarget(null); }}
@@ -192,14 +209,18 @@ function AccountCard({
   row,
   canWrite,
   canDelete,
+  isAdmin,
   onEdit,
   onDeactivate,
+  onAdjustBalance,
 }: {
   row: FinAccountRow;
   canWrite: boolean;
   canDelete: boolean;
+  isAdmin: boolean;
   onEdit: () => void;
   onDeactivate: () => void;
+  onAdjustBalance: () => void;
 }) {
   const Icon = TYPE_ICON[row.type] ?? Wallet2;
   const negative = Number(row.currentBalance) < 0;
@@ -251,14 +272,24 @@ function AccountCard({
         </div>
       )}
 
-      {canDelete && (
-        <div className="mt-3 border-t border-zinc-100 pt-3 dark:border-zinc-800">
-          {/* "Ẩn" khác "Xoá" — không dùng màu đỏ cảnh báo (dành cho destructive
-              thật sự), đổi sang trung tính + icon mắt gạch chéo (§1.10). */}
-          <Button size="sm" variant="ghost" onClick={onDeactivate} className="gap-1.5 text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800">
-            <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
-            Ẩn nguồn
-          </Button>
+      {(canDelete || isAdmin) && (
+        <div className="mt-3 flex flex-wrap items-center gap-1 border-t border-zinc-100 pt-3 dark:border-zinc-800">
+          {/* V4.5 — CHỈ admin (Giám đốc): sửa số dư đúng thực tế, không qua
+              giao dịch thu/chi (không làm sai báo cáo). */}
+          {isAdmin && (
+            <Button size="sm" variant="ghost" onClick={onAdjustBalance} className="gap-1.5 text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800">
+              <Scale className="h-3.5 w-3.5" aria-hidden="true" />
+              Điều chỉnh số dư
+            </Button>
+          )}
+          {canDelete && (
+            // "Ẩn" khác "Xoá" — không dùng màu đỏ cảnh báo (dành cho destructive
+            // thật sự), đổi sang trung tính + icon mắt gạch chéo (§1.10).
+            <Button size="sm" variant="ghost" onClick={onDeactivate} className="gap-1.5 text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800">
+              <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
+              Ẩn nguồn
+            </Button>
+          )}
         </div>
       )}
     </div>
@@ -360,7 +391,7 @@ function AccountFormDialog({
               <select
                 id="acc-type"
                 {...register("type")}
-                className="mt-1 h-9 w-full rounded-md border border-zinc-300 bg-white px-2 text-base text-zinc-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                className="mt-1 h-9 w-full rounded-md border border-zinc-300 bg-white px-2 text-[16px] text-zinc-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 sm:text-md"
               >
                 {FIN_ACCOUNT_TYPES.map((t) => (
                   <option key={t} value={t}>{FIN_ACCOUNT_TYPE_LABELS[t]}</option>
@@ -403,6 +434,146 @@ function AccountFormDialog({
           <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Huỷ</Button>
           <Button type="submit" form={formId} disabled={submitting}>{submitting ? "Đang lưu…" : "Lưu"}</Button>
         </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+/**
+ * V4.5 — "Điều chỉnh số dư" (chỉ admin). Sheet chuẩn Apple (SheetHeaderNav):
+ * nhập số dư ĐÚNG hiện tại/đầu kỳ mới (không phải chênh lệch) + lý do bắt
+ * buộc ≥3 ký tự. Hiện rõ số dư hiện tại → số mới + chênh lệch trước khi gửi.
+ * KHÔNG tạo giao dịch thu/chi — server tự dịch `opening_balance`
+ * (xem `computeOpeningBalanceForTarget`, lib/finance.ts).
+ */
+function AdjustBalanceSheet({
+  open,
+  onOpenChange,
+  account,
+  onDone,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  account: FinAccountRow | null;
+  onDone: () => void;
+}) {
+  const adjustMut = useAdjustFinAccountBalance(account?.id ?? "__none__");
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    formState: { errors },
+  } = useForm<FinAccountAdjustBalance>({
+    resolver: zodResolver(finAccountAdjustBalanceSchema),
+    defaultValues: { newBalance: 0, reason: "" },
+  });
+
+  React.useEffect(() => {
+    if (open && account) {
+      reset({ newBalance: Number(account.currentBalance), reason: "" });
+    }
+  }, [open, account, reset]);
+
+  const newBalance = Number(watch("newBalance")) || 0;
+  const currentBalance = account ? Number(account.currentBalance) : 0;
+  const delta = newBalance - currentBalance;
+
+  const onSubmit = async (data: FinAccountAdjustBalance) => {
+    if (!account) return;
+    try {
+      await adjustMut.mutateAsync(data);
+      onDone();
+    } catch {
+      /* toast lỗi đã hiện ở hook */
+    }
+  };
+
+  const formId = "acc-adjust-balance-form";
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" size="sm" hideCloseButton className="flex flex-col">
+        <SheetHeaderNav
+          title={
+            <span className="inline-flex items-center gap-2">
+              <Scale className="h-4 w-4" aria-hidden="true" />
+              Điều chỉnh số dư
+            </span>
+          }
+          onCancel={() => onOpenChange(false)}
+          action={{
+            label: adjustMut.isPending ? "Đang lưu…" : "Điều chỉnh số dư",
+            type: "submit",
+            form: formId,
+            disabled: adjustMut.isPending,
+          }}
+        />
+        <SheetBody>
+          {account && (
+            <form id={formId} onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-4" noValidate>
+              <div className="rounded-lg bg-zinc-50 p-3 text-sm dark:bg-zinc-800/50">
+                <p className="font-semibold text-zinc-900 dark:text-zinc-50">{account.name}</p>
+                <p className="font-mono text-xs text-zinc-500 dark:text-zinc-400">{account.code}</p>
+              </div>
+
+              <div>
+                <Label>Số dư hiện tại</Label>
+                <p className="mt-1 text-right font-mono text-lg font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
+                  {fmtVND(currentBalance)}
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="adj-new-balance" required>Số dư đúng (mới)</Label>
+                <Input
+                  id="adj-new-balance"
+                  type="number"
+                  step="1000"
+                  {...register("newBalance")}
+                  error={!!errors.newBalance}
+                  className="mt-1 text-right tabular-nums"
+                  placeholder="0"
+                />
+                {errors.newBalance && (
+                  <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.newBalance.message}</p>
+                )}
+              </div>
+
+              <div
+                className={cn(
+                  "flex items-center justify-between rounded-lg border px-3 py-2 text-sm",
+                  delta === 0
+                    ? "border-zinc-200 bg-white text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400"
+                    : delta > 0
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-400"
+                      : "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-400",
+                )}
+              >
+                <span>Chênh lệch</span>
+                <span className="font-mono font-semibold tabular-nums">
+                  {delta === 0 ? "0 ₫" : `${delta > 0 ? "+" : "−"}${fmtVND(Math.abs(delta))}`}
+                </span>
+              </div>
+
+              <div>
+                <Label htmlFor="adj-reason" required>Lý do điều chỉnh</Label>
+                <Textarea
+                  id="adj-reason"
+                  {...register("reason")}
+                  error={!!errors.reason}
+                  rows={3}
+                  placeholder="VD: Đối chiếu sổ quỹ cuối tháng 9, phát hiện thiếu 500.000đ chưa ghi nhận."
+                  className="mt-1"
+                />
+                {errors.reason && (
+                  <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.reason.message}</p>
+                )}
+              </div>
+            </form>
+          )}
+        </SheetBody>
       </SheetContent>
     </Sheet>
   );

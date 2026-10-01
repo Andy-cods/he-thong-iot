@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type {
+  FinAccountAdjustBalance,
   FinAccountCreate,
   FinAccountType,
   FinAccountUpdate,
@@ -258,6 +259,23 @@ export function useUpdateFinAccount(id: string) {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.finance.accounts.all });
+    },
+  });
+}
+
+/** V4.5 — "Điều chỉnh số dư" (chỉ admin thấy nút). */
+export function useAdjustFinAccountBalance(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    onError: toastError,
+    mutationFn: (data: FinAccountAdjustBalance) =>
+      request<{ data: FinAccountRow }>(`/api/finance/accounts/${id}/adjust-balance`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.finance.accounts.all });
+      qc.invalidateQueries({ queryKey: qk.finance.dashboardSummary });
     },
   });
 }

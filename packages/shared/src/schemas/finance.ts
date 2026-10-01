@@ -146,6 +146,26 @@ export const finAccountUpdateSchema = finAccountCreateSchema
     isActive: z.coerce.boolean().optional(),
   });
 
+/**
+ * V4.5 — "Điều chỉnh số dư" nguồn tiền. CHỈ admin (kiểm ở route, ngoài RBAC
+ * `update:finance` thường dùng cho kế toán) — xem
+ * `apps/web/src/app/api/finance/accounts/[id]/adjust-balance/route.ts`.
+ * `newBalance` = số dư hiện tại/đầu kỳ ĐÚNG mà admin muốn đặt (không phải
+ * chênh lệch) — server tự tính lại `opening_balance` để `current_balance`
+ * khớp giá trị này (xem `computeOpeningBalanceForTarget`, lib/finance.ts).
+ */
+export const finAccountAdjustBalanceSchema = z.object({
+  newBalance: z.coerce
+    .number()
+    .min(-999_999_999_999, "Số tiền quá lớn")
+    .max(999_999_999_999, "Số tiền quá lớn"),
+  reason: z
+    .string()
+    .trim()
+    .min(3, "Lý do phải có ít nhất 3 ký tự")
+    .max(500, "Lý do tối đa 500 ký tự"),
+});
+
 export const finAccountListQuerySchema = z.object({
   type: z.enum(FIN_ACCOUNT_TYPES).optional(),
   isActive: z
@@ -362,6 +382,7 @@ export const finPaymentListQuerySchema = z.object({
 export type FinAccountCreate = z.infer<typeof finAccountCreateSchema>;
 export type FinAccountUpdate = z.infer<typeof finAccountUpdateSchema>;
 export type FinAccountListQuery = z.infer<typeof finAccountListQuerySchema>;
+export type FinAccountAdjustBalance = z.infer<typeof finAccountAdjustBalanceSchema>;
 
 export type FinCategoryCreate = z.infer<typeof finCategoryCreateSchema>;
 export type FinCategoryUpdate = z.infer<typeof finCategoryUpdateSchema>;

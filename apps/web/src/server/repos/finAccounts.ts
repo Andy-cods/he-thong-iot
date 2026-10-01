@@ -2,7 +2,7 @@ import { and, asc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 import { finAccount } from "@iot/db/schema";
 import type { FinAccountCreate, FinAccountType, FinAccountUpdate } from "@iot/shared";
 import { db } from "@/lib/db";
-import { evaluateSpend, FinSourceError, isoDateVN } from "@/lib/finance";
+import { computeOpeningBalanceForTarget, evaluateSpend, FinSourceError, isoDateVN } from "@/lib/finance";
 
 /** Transaction handle của Drizzle (giống pattern `_docNumber.ts`). */
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -105,6 +105,44 @@ export async function updateFinAccount(id: string, input: FinAccountUpdate) {
     .where(eq(finAccount.id, id))
     .returning();
   return row ?? null;
+}
+
+/**
+ * V4.5 — "Điều chỉnh số dư" (CHỈ admin, kiểm ở route). Khoá dòng nguồn
+ * (`FOR UPDATE`) trong 1 transaction rồi dịch `opening_balance` sao cho
+ * `current_balance` = `targetBalance` admin nhập — KHÔNG tạo giao dịch thu/chi
+ * nào (không làm sai báo cáo thu chi). Trả về before/after để route ghi audit.
+ */
+export async function adjustFinAccountBalance(
+  id: string,
+  targetBalance: number,
+): Promise<{ before: typeof finAccount.$inferSelect; after: typeof finAccount.$inferSelect } | null> {
+  return db.transaction(async (tx) => {
+    const [before] = await tx
+      .select()
+      .from(finAccount)
+      .where(eq(finAccount.id, id))
+      .for("update");
+    if (!before) return null;
+
+    const newOpening = computeOpeningBalanceForTarget(
+      before.currentBalance,
+      before.openingBalance,
+      targetBalance,
+    );
+
+    const [after] = await tx
+      .update(finAccount)
+      .set({
+        openingBalance: String(newOpening),
+        currentBalance: String(targetBalance),
+        updatedAt: new Date(),
+      })
+      .where(eq(finAccount.id, id))
+      .returning();
+
+    return { before, after: after! };
+  });
 }
 
 export async function softDeleteFinAccount(id: string) {

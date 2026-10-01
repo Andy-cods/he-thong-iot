@@ -3,6 +3,7 @@ import {
   addDaysIso,
   balanceAfter,
   buildTransferLegs,
+  computeOpeningBalanceForTarget,
   contentDispositionAttachment,
   evaluateSpend,
   formatVndFull,
@@ -117,5 +118,25 @@ describe("V4.1 TC-26 — Content-Disposition tên tiếng Việt", () => {
     expect(h).toContain('filename="So thu chi thang 9-errors.xlsx"');
     expect(h).toContain("filename*=UTF-8''S%E1%BB%95%20thu%20chi");
     expect(/^[\x20-\x7e]*$/.test(h)).toBe(true);
+  });
+});
+
+describe("V4.5 — computeOpeningBalanceForTarget (admin điều chỉnh số dư)", () => {
+  it("chưa có giao dịch (current = opening) → opening mới = số admin nhập", () => {
+    expect(computeOpeningBalanceForTarget(5_000_000, 5_000_000, 7_000_000)).toBe(7_000_000);
+  });
+  it("đã có giao dịch (current != opening) → giữ nguyên chênh lệch do giao dịch", () => {
+    // opening=1.000.000, đã thu 500.000 → current=1.500.000. Admin sửa thành 2.000.000
+    // (phát hiện thiếu sót 500.000) → opening mới = 1.000.000 + (2.000.000 - 1.500.000) = 1.500.000.
+    expect(computeOpeningBalanceForTarget(1_500_000, 1_000_000, 2_000_000)).toBe(1_500_000);
+  });
+  it("nhận chuỗi numeric (từ DB)", () => {
+    expect(computeOpeningBalanceForTarget("1500000.00", "1000000.00", 1_000_000)).toBe(500_000);
+  });
+  it("đặt về đúng số dư hiện tại (không đổi) → opening không đổi", () => {
+    expect(computeOpeningBalanceForTarget(3_200_000, 1_000_000, 3_200_000)).toBe(1_000_000);
+  });
+  it("cho phép số dư mới âm (ghi nhận lỗ/âm quỹ có chủ đích)", () => {
+    expect(computeOpeningBalanceForTarget(0, 0, -200_000)).toBe(-200_000);
   });
 });

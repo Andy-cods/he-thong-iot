@@ -85,6 +85,24 @@ export class FinSourceError extends Error {
   }
 }
 
+/**
+ * V4.5 — "Điều chỉnh số dư" (chỉ admin). `current_balance` = `opening_balance`
+ * + SUM(giao dịch POSTED) do trigger `fin_account_recalc_balance` (migration
+ * 0055) tự tính lại mỗi khi `fin_transaction` thay đổi — SUM đó không đổi khi
+ * admin chỉnh số dư (không tạo giao dịch nào). Vậy để `current_balance` =
+ * `targetBalance` sau khi chỉnh, phải dịch `opening_balance` đúng bằng phần
+ * chênh lệch mong muốn: `openingNew = openingOld + (target - currentOld)`.
+ */
+export function computeOpeningBalanceForTarget(
+  currentBalance: number | string,
+  openingBalance: number | string,
+  targetBalance: number,
+): number {
+  const current = Number(currentBalance) || 0;
+  const opening = Number(openingBalance) || 0;
+  return opening + (targetBalance - current);
+}
+
 export interface TransferLegInput {
   fromAccountId: string;
   toAccountId: string;
