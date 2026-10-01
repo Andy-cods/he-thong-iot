@@ -35,6 +35,9 @@ const BOARD_STATUSES = [
  * Query:
  *   ?completedLimit=5  → số mã hoàn thành gần nhất giữ lại.
  *   ?all=1             → trả cả DELIVERED cũ (cho trang quản lý QC).
+ *   ?missingPrice=1    → CHỈ vai `canSeeOrderValue` — lọc server-side các mã
+ *                        CHƯA nhập đơn giá (link từ Tổng quan Tài chính).
+ *                        KHÔNG trả `unitPrice` dù lọc theo field này.
  */
 export async function GET(req: NextRequest) {
   const guard = await requireCan(req, "read", "productionBoard");
@@ -52,11 +55,17 @@ export async function GET(req: NextRequest) {
       listBoardItems({ completedLimit, includeDelivered }),
       countBoardByStatus(),
     ]);
-    // V4.4.2 — chỉ trả `unitPrice` cho vai xem được tài chính đơn hàng (lọc
-    // Ở SERVER, không chỉ ẩn UI) — TV xưởng (/board, role display) và các vai
-    // khác (qc/planner/operator/warehouse/shareholder) KHÔNG nhận trường này.
+
+    // TASK-20261001 (việc 1) — bỏ cột "Giá trị"/"Tổng giá trị" khỏi UI (màn
+    // chiếu TV xưởng không lộ giá) → danh sách KHÔNG trả `unitPrice` nữa cho
+    // BẤT KỲ vai nào. Vai `canSeeOrderValue` lấy giá qua API chi tiết
+    // GET /api/production-board/[id] (mở form Sửa) — xem route đó.
     const canSeePrice = canSeeOrderValue(guard.session.roles);
-    const data = canSeePrice ? items : items.map(stripUnitPrice);
+    const missingPriceOnly = canSeePrice && url.searchParams.get("missingPrice") === "1";
+    const filtered = missingPriceOnly
+      ? items.filter((it) => it.unitPrice === null || it.unitPrice === undefined)
+      : items;
+    const data = filtered.map(stripUnitPrice);
     return NextResponse.json({ data, counts });
   } catch (err) {
     logger.error({ err }, "list production board failed");

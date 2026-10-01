@@ -37,7 +37,7 @@ import {
 } from "@/hooks/useProductionBoard";
 import { cn } from "@/lib/utils";
 import { TONE_CLASSES, getStatus, type StatusTone } from "@/lib/status";
-import { formatDate, formatMoney, formatQty } from "@/lib/format";
+import { formatDate, formatQty } from "@/lib/format";
 import { canSeeOrderValue } from "@/lib/production-board-policy";
 
 /**
@@ -68,14 +68,6 @@ const STATUS_OPTIONS: BoardStatus[] = [
 ];
 
 export default function ProductionBoardAdminPage() {
-  const { data, isLoading, isError, error, isFetching, refetch } = useProductionBoard({
-    all: true,
-    completedLimit: 20,
-    refetchInterval: 0,
-  });
-  const updateMut = useUpdateBoardItem();
-  const deleteMut = useDeleteBoardItem();
-
   // V4.0 — Cổ đông (shareholder) chỉ được `read` productionBoard: ẩn toàn bộ
   // nút Thêm/Sửa/Xoá + đổi trạng thái nhanh. API đã chặn bằng requireCan,
   // đây là lớp UI để không hiện chức năng người dùng không thể dùng.
@@ -84,32 +76,33 @@ export default function ProductionBoardAdminPage() {
   const canEditBoard = can(roles, "update", "productionBoard");
   const canCreateBoard = can(roles, "create", "productionBoard");
   const canDeleteBoard = can(roles, "delete", "productionBoard");
-  // V4.4.2 — chỉ admin/kế toán/thu mua thấy cột "Giá trị" + tổng giá trị
-  // (API đã lọc field `unitPrice` theo vai, đây là lớp UI đồng bộ).
+  // TASK-20261001 (việc 1) — bỏ hẳn cột "Giá trị" + "Tổng giá trị" khỏi danh
+  // sách cho MỌI vai (màn chiếu TV xưởng không lộ giá). `canSeeOrderValue`
+  // vẫn dùng để cho phép lọc "Chưa có giá" (link từ Tổng quan Tài chính) và
+  // nhập "Đơn giá bán" trong form Thêm/Sửa (BoardItemDialog) — API list
+  // không trả `unitPrice` cho bất kỳ vai nào nữa.
   const canSeeValue = canSeeOrderValue(roles);
+
+  // V4.4.2 — link từ Tổng quan Tài chính ("N mã hàng chưa có đơn giá") →
+  // `?missingPrice=1`. TASK-20261001 — lọc giờ làm Ở SERVER (`?missingPrice=1`
+  // trên chính API list) vì API không còn trả `unitPrice` để lọc client-side.
+  const searchParams = useSearchParams();
+  const missingPriceFilter = canSeeValue && searchParams?.get("missingPrice") === "1";
+
+  const { data, isLoading, isError, error, isFetching, refetch } = useProductionBoard({
+    all: true,
+    completedLimit: 20,
+    refetchInterval: 0,
+    missingPrice: missingPriceFilter,
+  });
+  const updateMut = useUpdateBoardItem();
+  const deleteMut = useDeleteBoardItem();
 
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editItem, setEditItem] = React.useState<BoardItem | null>(null);
 
-  // V4.4.2 — link từ Tổng quan Tài chính ("N mã hàng chưa có đơn giá") →
-  // `?missingPrice=1` lọc client-side (API đã trả đủ item cho vai xem giá).
-  const searchParams = useSearchParams();
-  const missingPriceFilter = canSeeValue && searchParams?.get("missingPrice") === "1";
-
-  const allItems = data?.data ?? [];
-  const items = missingPriceFilter
-    ? allItems.filter((it) => it.unitPrice === null || it.unitPrice === undefined)
-    : allItems;
+  const items = data?.data ?? [];
   const counts = data?.counts;
-  const totalValue = React.useMemo(() => {
-    if (!canSeeValue) return 0;
-    return allItems.reduce((sum, it) => {
-      if (it.status === "DELIVERED") return sum;
-      const price = it.unitPrice == null ? 0 : Number(it.unitPrice) || 0;
-      const qty = it.status === "COMPLETED" ? Number(it.qtyDone) || 0 : Number(it.qtyPlanned) || 0;
-      return sum + qty * price;
-    }, 0);
-  }, [allItems, canSeeValue]);
 
   const openCreate = () => {
     setEditItem(null);
@@ -211,34 +204,9 @@ export default function ProductionBoardAdminPage() {
         </span>
       ),
     },
-    // V4.4.2 — cột "Giá trị" (SL × đơn giá) chỉ hiện với vai xem được tài
-    // chính đơn hàng (admin/kế toán/thu mua) — API đã không trả `unitPrice`
-    // cho vai khác nên cột này không thể hiện nhầm số 0 gây hiểu lầm.
-    ...(canSeeValue
-      ? [
-          {
-            id: "value",
-            header: "Giá trị",
-            kind: "number",
-            width: 140,
-            cell: (it: BoardItem) => {
-              if (it.unitPrice === null || it.unitPrice === undefined) {
-                return (
-                  <span className="font-semibold text-amber-600 dark:text-amber-400">
-                    Chưa có giá
-                  </span>
-                );
-              }
-              const qty = it.status === "COMPLETED" ? Number(it.qtyDone) || 0 : Number(it.qtyPlanned) || 0;
-              return (
-                <span className="tabular-nums text-zinc-900 dark:text-zinc-50">
-                  {formatMoney(qty * (Number(it.unitPrice) || 0))}
-                </span>
-              );
-            },
-          } satisfies DataTableColumn<BoardItem>,
-        ]
-      : []),
+    // TASK-20261001 (việc 1) — bỏ hẳn cột "Giá trị" khỏi danh sách cho MỌI
+    // vai (màn chiếu TV xưởng không lộ giá). API list cũng không còn trả
+    // `unitPrice` — xem "Đơn giá bán" trong form Thêm/Sửa (BoardItemDialog).
     {
       id: "deadline",
       header: "Hạn",
@@ -342,13 +310,6 @@ export default function ProductionBoardAdminPage() {
               tone={getStatus("board", s).tone}
             />
           ))}
-          {/* V4.4.2 — tổng giá trị theo trạng thái (SL kế hoạch/đạt × đơn giá),
-              chỉ hiện với vai xem được tài chính đơn hàng. */}
-          {canSeeValue && (
-            <span className="ml-auto text-sm font-semibold tabular-nums text-zinc-700 dark:text-zinc-200">
-              Tổng giá trị: {formatMoney(totalValue)}
-            </span>
-          )}
         </div>
       )}
 

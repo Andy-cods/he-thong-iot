@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  useBoardItem,
   useCreateBoardItem,
   useUpdateBoardItem,
   type BoardItem,
@@ -94,6 +95,13 @@ export function BoardItemDialog({ open, onOpenChange, item }: Props) {
   // DUY NHẤT, dùng chung client/server — xem lib/production-board-policy.ts).
   const canSeePrice = canSeeOrderValue(session.data?.roles);
 
+  // TASK-20261001 (việc 1) — danh sách (prop `item`, lấy từ GET list) KHÔNG
+  // còn trả `unitPrice` cho bất kỳ vai nào → khi mở Sửa + vai được xem giá,
+  // gọi API chi tiết để lấy `unitPrice` THẬT (tránh gửi PATCH với unitPrice
+  // rỗng đè mất giá đã nhập trước đó).
+  const detailQuery = useBoardItem(item?.id ?? null, { enabled: open && isEdit && canSeePrice });
+  const detailItem = detailQuery.data?.data;
+
   const [form, setForm] = React.useState(emptyForm());
   const [isDirty, setIsDirty] = React.useState(false);
   const [warnOpen, setWarnOpen] = React.useState(false);
@@ -126,12 +134,24 @@ export function BoardItemDialog({ open, onOpenChange, item }: Props) {
         currentStage: item.currentStage ?? "",
         notes: item.notes ?? "",
         isPinned: item.isPinned,
+        // V4.4.2/TASK-20261001 — `item` (từ list) không còn mang `unitPrice`
+        // thật; để trống ở đây, hiệu ứng dưới điền lại khi API chi tiết trả về.
         unitPrice: item.unitPrice == null ? "" : String(item.unitPrice),
       });
     } else {
       setForm(emptyForm());
     }
   }, [open, item]);
+
+  // TASK-20261001 (việc 1) — điền `unitPrice` THẬT khi API chi tiết trả về
+  // (không đánh dấu dirty — đây là giá trị gốc, không phải người dùng sửa).
+  React.useEffect(() => {
+    if (!open || !isEdit || !canSeePrice || !detailItem) return;
+    setForm((f) => ({
+      ...f,
+      unitPrice: detailItem.unitPrice == null ? "" : String(detailItem.unitPrice),
+    }));
+  }, [open, isEdit, canSeePrice, detailItem]);
 
   const set = <K extends keyof ReturnType<typeof emptyForm>>(
     k: K,
@@ -141,7 +161,10 @@ export function BoardItemDialog({ open, onOpenChange, item }: Props) {
     setIsDirty(true);
   };
 
-  const busy = createMut.isPending || updateMut.isPending;
+  // Chặn Lưu khi đang tải `unitPrice` thật (tránh PATCH với ô giá còn rỗng
+  // đè mất giá cũ — xem hiệu ứng điền `detailItem.unitPrice` ở trên).
+  const priceLoading = isEdit && canSeePrice && detailQuery.isLoading;
+  const busy = createMut.isPending || updateMut.isPending || priceLoading;
 
   const attemptClose = React.useCallback(() => {
     if (isDirty && !busy) {

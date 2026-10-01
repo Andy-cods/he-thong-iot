@@ -95,20 +95,24 @@ const BOARD_KEY = ["production-board"] as const;
 export function useProductionBoard(opts?: {
   completedLimit?: number;
   all?: boolean;
+  /** TASK-20261001 — lọc server-side mã hàng CHƯA có đơn giá (chỉ hiệu lực với vai `canSeeOrderValue`). */
+  missingPrice?: boolean;
   /** ms; mặc định 15s cho TV. 0 = tắt auto-refresh. */
   refetchInterval?: number;
   enabled?: boolean;
 }) {
   const completedLimit = opts?.completedLimit ?? 5;
   const all = opts?.all ?? false;
+  const missingPrice = opts?.missingPrice ?? false;
   const refetchInterval = opts?.refetchInterval ?? 15_000;
 
   const p = new URLSearchParams();
   p.set("completedLimit", String(completedLimit));
   if (all) p.set("all", "1");
+  if (missingPrice) p.set("missingPrice", "1");
 
   return useQuery<BoardResponse>({
-    queryKey: [...BOARD_KEY, { completedLimit, all }],
+    queryKey: [...BOARD_KEY, { completedLimit, all, missingPrice }],
     queryFn: () => request<BoardResponse>(`/api/production-board?${p.toString()}`),
     refetchInterval: refetchInterval > 0 ? refetchInterval : false,
     refetchOnWindowFocus: true,
@@ -162,6 +166,20 @@ export function useUpdateBoardItem() {
         body: JSON.stringify(payload),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: BOARD_KEY }),
+  });
+}
+
+/**
+ * TASK-20261001 (việc 1) — chi tiết 1 mã hàng (kèm `unitPrice` thật cho vai
+ * `canSeeOrderValue`) — dùng để prefill form Sửa; danh sách `useProductionBoard`
+ * không còn trả `unitPrice` cho bất kỳ vai nào (xem route GET list).
+ */
+export function useBoardItem(id: string | null, opts?: { enabled?: boolean }) {
+  return useQuery<{ data: BoardItem }>({
+    queryKey: [...BOARD_KEY, "detail", id],
+    queryFn: () => request<{ data: BoardItem }>(`/api/production-board/${id}`),
+    enabled: !!id && (opts?.enabled ?? true),
+    staleTime: 0,
   });
 }
 
