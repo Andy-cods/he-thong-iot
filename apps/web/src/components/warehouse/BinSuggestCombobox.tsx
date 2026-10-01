@@ -188,7 +188,7 @@ export function BinSuggestCombobox({
             <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" aria-hidden />
           </button>
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-[300px] p-0" sideOffset={4}>
+        <PopoverContent align="start" className="w-[320px] p-0" sideOffset={4}>
           <CommandPrimitive shouldFilter={false} className="flex flex-col" loop>
             <div className="flex items-center border-b border-zinc-200 px-3 py-2 dark:border-zinc-700">
               <Search className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" aria-hidden />

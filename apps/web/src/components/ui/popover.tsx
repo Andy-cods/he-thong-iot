@@ -17,14 +17,21 @@ export const PopoverAnchor = PopoverPrimitive.Anchor;
 export const PopoverContent = React.forwardRef<
   React.ElementRef<typeof PopoverPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>
->(({ className, align = "center", sideOffset = 4, ...props }, ref) => (
+>(({ className, align = "center", sideOffset = 4, collisionPadding = 8, ...props }, ref) => (
   <PopoverPrimitive.Portal>
     <PopoverPrimitive.Content
       ref={ref}
       align={align}
       sideOffset={sideOffset}
+      // V4.6 — combobox trong bảng dòng (DNVT/PO/kho…) hay nằm sát mép phải
+      // khi bảng cuộn ngang → không có collisionPadding, popper đôi khi vẫn
+      // tính quá sát viewport làm phần cuối danh sách/nút "Tạo..." như bị cắt.
+      // `avoidCollisions` (mặc định true) + padding 8px ép nó LUÔN né mép màn
+      // hình. `max-w-[calc(100vw-16px)]` chặn tràn ngang trên mobile 390px dù
+      // content khai `w-[360px]` cố định.
+      collisionPadding={collisionPadding}
       className={cn(
-        "z-popover w-72 rounded-xl border border-zinc-200 bg-white p-3 text-zinc-900 shadow-md outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50",
+        "z-popover w-72 max-w-[calc(100vw-16px)] rounded-xl border border-zinc-200 bg-white p-3 text-zinc-900 shadow-md outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50",
         "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:duration-150",
         "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:duration-150",
         className,
