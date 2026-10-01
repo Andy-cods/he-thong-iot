@@ -1,6 +1,17 @@
 import ExcelJS from "exceljs";
 import { sanitizeExcelCellValue } from "./excelSafety";
+import { formatDateTime } from "@/lib/format";
 import type { StocktakeLineRow } from "@/server/repos/stocktake";
+
+/** V4.4 — nhãn tiếng Việt cho trạng thái phiên kiểm kê (khớp StocktakeSessionSheet.tsx),
+ * tránh lộ mã enum thô (VD "PENDING_APPROVAL") ra phiếu in. */
+const STOCKTAKE_STATUS_LABEL: Record<string, string> = {
+  DRAFT: "Đang đếm",
+  PENDING_APPROVAL: "Chờ Giám đốc duyệt",
+  APPROVED: "Đã duyệt",
+  REJECTED: "Bị trả lại",
+  CANCELLED: "Đã huỷ",
+};
 
 /**
  * V4.3 Việc 2 — In/xuất phiếu kiểm kê (Excel) để đếm tay nếu cần, hoặc lưu
@@ -19,9 +30,14 @@ export async function buildStocktakeSheetWorkbook(
   ws.getCell("A1").value = `PHIẾU KIỂM KÊ ${session.code}`;
   ws.getCell("A1").font = { bold: true, size: 14 };
   ws.mergeCells("A2:G2");
-  ws.getCell("A2").value = `Phạm vi: ${session.scopeNote ?? "—"} · Chụp tồn lúc: ${new Date(
-    session.snapshotAt,
-  ).toLocaleString("vi-VN")} · Trạng thái: ${session.status}`;
+  // V4.4 — giờ VN cố định (formatDateTime, không lệ thuộc TZ host) + nhãn
+  // trạng thái tiếng Việt thay vì mã enum thô.
+  const statusLabel = STOCKTAKE_STATUS_LABEL[session.status] ?? session.status;
+  ws.getCell("A2").value = sanitizeExcelCellValue(
+    `Phạm vi: ${session.scopeNote ?? "—"} · Chụp tồn lúc: ${formatDateTime(
+      session.snapshotAt,
+    )} · Trạng thái: ${statusLabel}`,
+  );
 
   ws.addRow([]);
   const headerRowIdx = 4;
@@ -44,9 +60,11 @@ export async function buildStocktakeSheetWorkbook(
     { key: "counted", width: 16 },
     { key: "notes", width: 24 },
   ];
+  // V4.4 — cố định hàng tiêu đề khi cuộn (danh sách vật tư kiểm kê có thể dài).
+  ws.views = [{ state: "frozen", ySplit: headerRowIdx }];
 
   for (const l of lines) {
-    ws.addRow([
+    const row = ws.addRow([
       sanitizeExcelCellValue(l.binFullCode),
       sanitizeExcelCellValue(l.sku),
       sanitizeExcelCellValue(l.name),
@@ -55,6 +73,14 @@ export async function buildStocktakeSheetWorkbook(
       l.countedQty ?? "",
       sanitizeExcelCellValue(l.notes ?? ""),
     ]);
+    // V4.4 — số lượng căn phải, tối đa 4 số lẻ (khớp numeric(18,4) ở kho),
+    // không hiện số 0 thừa.
+    row.getCell(5).numFmt = "#,##0.####";
+    row.getCell(5).alignment = { horizontal: "right" };
+    if (l.countedQty != null) {
+      row.getCell(6).numFmt = "#,##0.####";
+      row.getCell(6).alignment = { horizontal: "right" };
+    }
   }
 
   const buf = await wb.xlsx.writeBuffer();

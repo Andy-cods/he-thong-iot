@@ -242,7 +242,7 @@ export async function buildDefaultBinExportWorkbook(rows: DefaultBinExportRow[])
     { header: "Tổng tồn", key: "totalQty", width: 14 },
   ];
   for (const r of rows) {
-    ws.addRow({
+    const row = ws.addRow({
       sku: sanitizeExcelCellValue(r.sku),
       name: sanitizeExcelCellValue(r.name),
       currentBinCode: sanitizeExcelCellValue(r.currentBinCode ?? ""),
@@ -250,8 +250,15 @@ export async function buildDefaultBinExportWorkbook(rows: DefaultBinExportRow[])
       suggestedQty: r.suggestedQty ?? "",
       totalQty: r.totalQty ?? "",
     });
+    // V4.4 — số lượng căn phải, tối đa 4 số lẻ (khớp numeric(18,4) ở kho).
+    row.getCell("suggestedQty").numFmt = "#,##0.####";
+    row.getCell("suggestedQty").alignment = { horizontal: "right" };
+    row.getCell("totalQty").numFmt = "#,##0.####";
+    row.getCell("totalQty").alignment = { horizontal: "right" };
   }
   ws.getRow(1).font = { bold: true };
+  // V4.4 — cố định hàng tiêu đề (danh sách toàn bộ vật tư active có thể dài).
+  ws.views = [{ state: "frozen", ySplit: 1 }];
 
   const guide = wb.addWorksheet("HuongDan");
   guide.addRow(["Cột", "Bắt buộc", "Ghi chú"]);

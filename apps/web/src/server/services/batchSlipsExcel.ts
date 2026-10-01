@@ -8,22 +8,23 @@
  */
 import ExcelJS from "exceljs";
 import { sanitizeExcelCellValue, sanitizeExcelRow } from "./excelSafety";
+import { toExcelVnDate } from "@/lib/format";
 
 export interface SlipSheet {
   /** Tên gợi ý cho sheet — sẽ được sanitize theo luật Excel + dedupe bên trong. */
   sheetName: string;
   /** Tiêu đề in đậm ở dòng đầu sheet, vd "PHIẾU YÊU CẦU VẬT TƯ — MR-2607-0001". */
   title: string;
-  /** Các cặp [nhãn, giá trị] hiển thị ngay dưới tiêu đề. */
-  info: Array<[string, string]>;
+  /** Các cặp [nhãn, giá trị] hiển thị ngay dưới tiêu đề. `Date` → ô ngày thật. */
+  info: Array<[string, string | number | Date]>;
   columns: Array<{ header: string; width: number }>;
-  /** Dữ liệu theo đúng thứ tự `columns`. */
-  rows: Array<Array<string | number | null>>;
+  /** Dữ liệu theo đúng thứ tự `columns`. `Date` → ô NGÀY THẬT, không phải chuỗi. */
+  rows: Array<Array<string | number | Date | null>>;
 }
 
 export interface SummaryTable {
   columns: Array<{ header: string; width: number }>;
-  rows: Array<Array<string | number | null>>;
+  rows: Array<Array<string | number | Date | null>>;
 }
 
 const HEADER_FILL: ExcelJS.Fill = {
@@ -73,6 +74,12 @@ function styleHeaderRow(row: ExcelJS.Row): void {
 function styleDataRow(row: ExcelJS.Row): void {
   row.eachCell({ includeEmpty: true }, (cell) => {
     cell.border = THIN_BORDER;
+    // V4.4 — cột ngày là Date thật; dịch +7h trước khi gán vì ExcelJS tính
+    // serial ngày theo UTC thô (không biết timezone).
+    if (cell.value instanceof Date) {
+      cell.value = toExcelVnDate(cell.value);
+      cell.numFmt = "dd/mm/yyyy hh:mm";
+    }
   });
 }
 
@@ -127,6 +134,11 @@ export async function buildSlipsWorkbook(input: {
       // V4.2 audit S14 — value là free-text (vd lý do đề xuất, ghi chú).
       const row = ws.addRow([label, sanitizeExcelCellValue(value)]);
       row.getCell(1).font = { bold: true };
+      // V4.4 — cột ngày là Date thật; dịch +7h vì ExcelJS tính serial theo UTC thô.
+      if (value instanceof Date) {
+        row.getCell(2).value = toExcelVnDate(value);
+        row.getCell(2).numFmt = "dd/mm/yyyy hh:mm";
+      }
     }
 
     ws.addRow([]); // dòng trống trước bảng
@@ -147,24 +159,4 @@ export async function buildSlipsWorkbook(input: {
 
   const buf = await workbook.xlsx.writeBuffer();
   return new Uint8Array(buf);
-}
-
-/**
- * V3.14 — Format `Date` → "dd/MM/yyyy HH:mm" theo giờ Asia/Ho_Chi_Minh (dùng
- * cho cột "Ngày tạo" trong info block + summary). Dùng `formatToParts` (locale
- * `en-GB`) thay vì lắp ráp thủ công từ `toLocaleString` để không lệ thuộc định
- * dạng dấu phẩy/khoảng trắng riêng của từng locale/runtime.
- */
-export function formatVNDateTime(d: Date): string {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(d);
-  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
-  return `${get("day")}/${get("month")}/${get("year")} ${get("hour")}:${get("minute")}`;
 }
