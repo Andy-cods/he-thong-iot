@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useItemCategories } from "@/hooks/useItems";
 import { cn } from "@/lib/utils";
 
@@ -170,41 +171,22 @@ export function FilterBar({
           </PopoverContent>
         </Popover>
 
-        {/* Active segmented control — 3 mode */}
-        <div
-          role="radiogroup"
-          aria-label="Lọc theo trạng thái"
-          className="inline-flex h-8 items-center rounded-md border border-zinc-200 bg-white p-0.5 dark:border-zinc-700 dark:bg-zinc-900"
+        {/* Active segmented control — 3 mode.
+            V4.4 D.F: dùng chung <Tabs variant="segmented"> thay tự dựng tay
+            (DRY, tự ăn theo màu active chuẩn đen/zinc-900 đã chốt ở A12). */}
+        <Tabs
+          value={activeMode}
+          onValueChange={(v) =>
+            onChange({ active: v === "all" ? null : v === "active" })
+          }
         >
-          {(
-            [
-              { v: "all", label: "Tất cả", val: null },
-              { v: "active", label: "Đang dùng", val: true },
-              // V4.1 UI-07: thống nhất "Ngừng dùng" (lib/status.ts domain item).
-              { v: "inactive", label: "Ngừng dùng", val: false },
-            ] as const
-          ).map((opt) => {
-            const isActive = activeMode === opt.v;
-            return (
-              <button
-                key={opt.v}
-                type="button"
-                role="radio"
-                aria-checked={isActive}
-                onClick={() => onChange({ active: opt.val })}
-                className={cn(
-                  "inline-flex h-7 items-center rounded-sm px-2.5 text-base font-medium transition-colors",
-                  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-0",
-                  isActive
-                    ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                    : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100",
-                )}
-              >
-                {opt.label}
-              </button>
-            );
-          })}
-        </div>
+          <TabsList variant="segmented" aria-label="Lọc theo trạng thái">
+            <TabsTrigger value="all">Tất cả</TabsTrigger>
+            <TabsTrigger value="active">Đang dùng</TabsTrigger>
+            {/* V4.1 UI-07: thống nhất "Ngừng dùng" (lib/status.ts domain item). */}
+            <TabsTrigger value="inactive">Ngừng dùng</TabsTrigger>
+          </TabsList>
+        </Tabs>
 
         {/* V1.9 P6 — Category filter Popover (dropdown + count, single-select) */}
         <Popover>

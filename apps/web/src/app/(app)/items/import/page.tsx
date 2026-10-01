@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { AUTH_COOKIE_NAME, verifyAccessToken } from "@/lib/auth";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { ROOT_LABEL } from "@/lib/breadcrumb-items";
 import { ImportWizard } from "@/components/items/ImportWizard";
 
 export const metadata = {
@@ -21,9 +22,11 @@ export default async function ItemImportPage() {
   return (
     <div className="mx-auto w-full max-w-4xl p-6">
       {/* V4.1 UI-09 (X6): breadcrumb thân trang chỉ hiện trên điện thoại — desktop dùng breadcrumb topbar (tránh trùng). */}
+      {/* V4.4 A11 — "Trang chủ" chuỗi cứng cũ, lệch ROOT_LABEL "Tổng quan"
+          dùng chung mọi nơi khác → import hằng số thay vì chuỗi cứng. */}
       <Breadcrumb
         items={[
-          { label: "Trang chủ", href: "/" },
+          { label: ROOT_LABEL, href: "/" },
           { label: "Vật tư", href: "/items" },
           { label: "Nhập Excel" },
         ]}

@@ -6,18 +6,18 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Factory, Loader2 } from "lucide-react";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetFooter,
+  SheetHeaderNav,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DateField } from "@/components/ui/date-field";
 import {
   Select,
   SelectContent,
@@ -144,26 +144,27 @@ export function WOQuickDialog({
   const name = line.node.componentName ?? line.node.description ?? "";
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[520px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Factory className="h-5 w-5 text-purple-600 dark:text-purple-400" aria-hidden />
-            Gửi yêu cầu sản xuất GTAM
-          </DialogTitle>
-          <DialogDescription>
-            BOM <span className="font-mono">{templateCode}</span> · Linh kiện{" "}
-            <span className="font-mono">{sku}</span>
-            {name ? ` — ${name}` : ""}
-            <br />
-            <span className="text-purple-700 font-medium text-xs dark:text-purple-400">
-              ℹ️ Đây là <strong>yêu cầu sản xuất</strong> — Bộ phận Gia công sẽ
-              duyệt rồi mới chuyển thành lệnh sản xuất chính thức.
-            </span>
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="grid gap-3 py-2">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      {/* V4.4 D.A — dialog 5 trường (vượt ngưỡng N6) → Sheet, khớp chuẩn
+          `BomLineSheet`/`StocktakeCreateSheet` (Sheet + SheetHeaderNav). */}
+      <SheetContent side="right" size="md" hideCloseButton className="flex flex-col">
+        <SheetHeaderNav
+          title="Gửi yêu cầu sản xuất GTAM"
+          onCancel={() => onOpenChange(false)}
+        />
+        <SheetBody className="space-y-3">
+          <div className="flex items-start gap-2 text-sm text-zinc-600 dark:text-zinc-300">
+            <Factory className="mt-0.5 h-4 w-4 shrink-0 text-purple-600 dark:text-purple-400" aria-hidden />
+            <p>
+              BOM <span className="font-mono">{templateCode}</span> · Linh kiện{" "}
+              <span className="font-mono">{sku}</span>
+              {name ? ` — ${name}` : ""}
+            </p>
+          </div>
+          <p className="text-xs font-medium text-purple-700 dark:text-purple-400">
+            ℹ️ Đây là <strong>yêu cầu sản xuất</strong> — Bộ phận Gia công sẽ
+            duyệt rồi mới chuyển thành lệnh sản xuất chính thức.
+          </p>
           {/* Info readonly */}
           <div className="rounded-md border border-zinc-100 bg-zinc-50 p-3 text-xs space-y-1 dark:border-zinc-800 dark:bg-zinc-800">
             <div className="flex justify-between">
@@ -237,20 +238,18 @@ export function WOQuickDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="wo-start">Bắt đầu dự kiến</Label>
-              <Input
+              <DateField
                 id="wo-start"
-                type="date"
                 value={plannedStart}
-                onChange={(e) => setPlannedStart(e.target.value)}
+                onChange={setPlannedStart}
               />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="wo-end">Kết thúc dự kiến</Label>
-              <Input
+              <DateField
                 id="wo-end"
-                type="date"
                 value={plannedEnd}
-                onChange={(e) => setPlannedEnd(e.target.value)}
+                onChange={setPlannedEnd}
               />
             </div>
           </div>
@@ -275,9 +274,9 @@ export function WOQuickDialog({
             />
             <span>Mở yêu cầu sau khi gửi (theo dõi VH-A duyệt)</span>
           </label>
-        </div>
+        </SheetBody>
 
-        <DialogFooter>
+        <SheetFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Huỷ
           </Button>
@@ -294,7 +293,6 @@ export function WOQuickDialog({
               });
             }}
             disabled={mutation.isPending}
-            className="bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500"
           >
             {mutation.isPending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -303,8 +301,8 @@ export function WOQuickDialog({
             )}
             Gửi yêu cầu sản xuất
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

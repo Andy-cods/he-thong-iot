@@ -30,11 +30,13 @@ export function BomFilterChip({
   return (
     <div
       className={cn(
-        "inline-flex h-7 items-center gap-1 rounded-md border border-indigo-200 bg-indigo-50 px-2 text-xs text-indigo-700 shadow-sm",
+        // V4.4 D2 (tự phát hiện) — 0 class dark: trong cả file → chip luôn
+        // hiện theme sáng bất kể app đang dark.
+        "inline-flex h-7 items-center gap-1 rounded-md border border-indigo-200 bg-indigo-50 px-2 text-xs text-indigo-700 shadow-sm dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300",
         className,
       )}
     >
-      <span className="text-xs font-medium uppercase tracking-wide text-indigo-500">
+      <span className="text-xs font-medium uppercase tracking-wide text-indigo-500 dark:text-indigo-400">
         BOM:
       </span>
       <Link
@@ -48,7 +50,7 @@ export function BomFilterChip({
       <button
         type="button"
         onClick={onDismiss}
-        className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded hover:bg-indigo-100 hover:text-indigo-900"
+        className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded hover:bg-indigo-100 hover:text-indigo-900 dark:hover:bg-indigo-900/50 dark:hover:text-indigo-100"
         aria-label="Bỏ filter BOM"
         title="Bỏ filter BOM"
       >

@@ -73,8 +73,8 @@ export function ItemInventoryPanel({
     <div className="space-y-4">
       <header className="flex items-center justify-between gap-2">
         <div>
-          <h3 className="text-base font-semibold text-zinc-900">Tồn kho</h3>
-          <p className="mt-0.5 text-[12px] text-zinc-500">
+          <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Tồn kho</h3>
+          <p className="mt-0.5 text-[12px] text-zinc-500 dark:text-zinc-400">
             Dữ liệu realtime từ <span className="font-mono">inventory_txn</span>
             {" "}+ reservation. Đồng bộ với ô "Xem tồn" ở BOM Grid.
           </p>
@@ -100,7 +100,7 @@ export function ItemInventoryPanel({
       </header>
 
       {query.isLoading ? (
-        <div className="flex items-center gap-2 py-8 text-sm text-zinc-500">
+        <div className="flex items-center gap-2 py-8 text-sm text-zinc-500 dark:text-zinc-400">
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
           Đang tải tồn kho…
         </div>
@@ -128,55 +128,95 @@ export function ItemInventoryPanel({
             />
           ) : null}
 
-          <div className="rounded-md border border-zinc-200 bg-white">
-            <div className="flex items-center justify-between border-b border-zinc-100 px-3 py-2">
-              <span className="text-[12px] font-semibold uppercase tracking-wide text-zinc-600">
+          <div className="rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="flex items-center justify-between border-b border-zinc-100 px-3 py-2 dark:border-zinc-800">
+              <span className="text-[12px] font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
                 Lot gần nhất ({query.data.data.lots.length})
               </span>
+              {/* V4.4 D2-P0 — trỏ thẳng /warehouse?tab=items (đích thật sau khi
+                  /lot-serial gộp vào Vật tư), kèm itemId để mở sẵn sheet chi
+                  tiết ĐÚNG vật tư đang xem (trước đây mất tham số qua redirect
+                  → đá ra danh sách toàn bộ vật tư không liên quan). */}
               <a
-                href={`/lot-serial?itemId=${encodeURIComponent(itemId)}`}
-                className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                href={`/warehouse?tab=items&itemId=${encodeURIComponent(itemId)}`}
+                className="text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
               >
                 Xem đầy đủ tại Lot/Serial →
               </a>
             </div>
             {query.data.data.lots.length === 0 ? (
-              <div className="p-6 text-center text-[13px] text-zinc-500">
+              <div className="p-6 text-center text-[13px] text-zinc-500 dark:text-zinc-400">
                 Chưa có lot nào cho vật tư này.
               </div>
             ) : (
-              <table className="w-full text-[13px]">
-                <thead className="bg-zinc-50/50 text-[11px] uppercase tracking-wide text-zinc-500">
-                  <tr>
-                    <th className="px-3 py-2 text-left">Mã lô / serial</th>
-                    <th className="px-3 py-2 text-left">Trạng thái</th>
-                    <th className="px-3 py-2 text-right">Tồn</th>
-                    <th className="px-3 py-2 text-left">HSD</th>
-                    <th className="px-3 py-2 text-left">Nhập kho</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100">
-                  {query.data.data.lots.map((lot) => (
-                    <tr key={lot.id} className="hover:bg-zinc-50/60">
-                      <td className="px-3 py-2 font-mono text-[12px] text-zinc-800">
-                        {lot.lotCode ?? lot.serialCode ?? "—"}
-                      </td>
-                      <td className="px-3 py-2">
-                        <StatusPill domain="lot" code={lot.status} />
-                      </td>
-                      <td className="px-3 py-2 text-right font-mono tabular-nums text-zinc-800">
-                        {formatNumber(lot.onHandQty)}
-                      </td>
-                      <td className="px-3 py-2 text-[12px] text-zinc-600">
-                        {formatDate(lot.expDate)}
-                      </td>
-                      <td className="px-3 py-2 text-[12px] text-zinc-500">
-                        {formatDate(lot.createdAt, "dd/MM/yyyy")}
-                      </td>
+              <>
+                {/* Desktop/tablet — bảng đầy đủ. */}
+                <table className="hidden w-full text-[13px] md:table">
+                  <thead className="bg-zinc-50/50 text-[11px] uppercase tracking-wide text-zinc-500 dark:bg-zinc-800/50 dark:text-zinc-400">
+                    <tr>
+                      <th className="px-3 py-2 text-left">Mã lô / serial</th>
+                      <th className="px-3 py-2 text-left">Trạng thái</th>
+                      <th className="px-3 py-2 text-right">Tồn</th>
+                      <th className="px-3 py-2 text-left">HSD</th>
+                      <th className="px-3 py-2 text-left">Nhập kho</th>
                     </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                    {query.data.data.lots.map((lot) => (
+                      <tr key={lot.id} className="hover:bg-zinc-50/60 dark:hover:bg-zinc-800/40">
+                        <td className="px-3 py-2 font-mono text-[12px] text-zinc-800 dark:text-zinc-200">
+                          {lot.lotCode ?? lot.serialCode ?? "—"}
+                        </td>
+                        <td className="px-3 py-2">
+                          <StatusPill domain="lot" code={lot.status} />
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono tabular-nums text-zinc-800 dark:text-zinc-200">
+                          {formatNumber(lot.onHandQty)}
+                        </td>
+                        <td className="px-3 py-2 text-[12px] text-zinc-600 dark:text-zinc-400">
+                          {formatDate(lot.expDate)}
+                        </td>
+                        <td className="px-3 py-2 text-[12px] text-zinc-500 dark:text-zinc-400">
+                          {formatDate(lot.createdAt, "dd/MM/yyyy")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {/* V4.4 D2-P1 — điện thoại: card-list (mọi trường vẫn hiện đủ,
+                    chỉ đổi bố cục), khớp pattern DataTable `renderMobileCard`. */}
+                <ul className="divide-y divide-zinc-100 md:hidden dark:divide-zinc-800">
+                  {query.data.data.lots.map((lot) => (
+                    <li key={lot.id} className="p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="font-mono text-[13px] font-medium text-zinc-800 dark:text-zinc-200">
+                          {lot.lotCode ?? lot.serialCode ?? "—"}
+                        </span>
+                        <StatusPill domain="lot" code={lot.status} />
+                      </div>
+                      <dl className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-[12px]">
+                        <div>
+                          <dt className="text-zinc-400 dark:text-zinc-500">Tồn</dt>
+                          <dd className="font-mono tabular-nums text-zinc-700 dark:text-zinc-300">
+                            {formatNumber(lot.onHandQty)}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-zinc-400 dark:text-zinc-500">HSD</dt>
+                          <dd className="text-zinc-600 dark:text-zinc-400">{formatDate(lot.expDate)}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-zinc-400 dark:text-zinc-500">Nhập kho</dt>
+                          <dd className="text-zinc-600 dark:text-zinc-400">
+                            {formatDate(lot.createdAt, "dd/MM/yyyy")}
+                          </dd>
+                        </div>
+                      </dl>
+                    </li>
                   ))}
-                </tbody>
-              </table>
+                </ul>
+              </>
             )}
           </div>
         </>
@@ -194,14 +234,14 @@ function MinStockAlert({
 }) {
   if (available >= minStock) {
     return (
-      <div className="rounded-md border border-emerald-100 bg-emerald-50/50 px-3 py-2 text-[12px] text-emerald-800">
+      <div className="rounded-md border border-emerald-100 bg-emerald-50/50 px-3 py-2 text-[12px] text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
         Tồn khả dụng {formatNumber(available)} ≥ ngưỡng min {formatNumber(minStock)}.
       </div>
     );
   }
   const shortage = minStock - available;
   return (
-    <div className="rounded-md border border-amber-200 bg-amber-50/60 px-3 py-2 text-[12px] text-amber-800">
+    <div className="rounded-md border border-amber-200 bg-amber-50/60 px-3 py-2 text-[12px] text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
       Tồn khả dụng {formatNumber(available)} dưới ngưỡng min{" "}
       {formatNumber(minStock)} — thiếu {formatNumber(shortage)}. Cần đặt mua bổ
       sung.

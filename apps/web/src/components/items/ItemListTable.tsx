@@ -16,7 +16,7 @@ import {
   type Selection,
 } from "@/hooks/use-selection";
 import { cn } from "@/lib/utils";
-import { formatNumber } from "@/lib/format";
+import { formatNumber, formatUom } from "@/lib/format";
 import { activeStatusCode, getStatus } from "@/lib/status";
 
 export interface ItemRow {
@@ -279,7 +279,7 @@ export function ItemListTable({
               </div>
 
               {/* UoM (ẩn < md) */}
-              <div className="hidden text-zinc-500 md:block" role="cell">{row.uom}</div>
+              <div className="hidden text-zinc-500 md:block" role="cell">{formatUom(row.uom)}</div>
 
               {/* Danh mục (ẩn < md) */}
               <div
@@ -383,15 +383,15 @@ function StockCell({ row, align = "end" }: { row: ItemRow; align?: "start" | "en
         : "text-zinc-900 dark:text-zinc-100";
   return (
     <span
-      title={`Tồn thực tế: ${formatNumber(sum.totalQty)} ${row.uom}
-Đang giữ: ${formatNumber(sum.reservedQty)} ${row.uom}
-Khả dụng: ${formatNumber(sum.availableQty)} ${row.uom}${minStock > 0 ? `
+      title={`Tồn thực tế: ${formatNumber(sum.totalQty)} ${formatUom(row.uom)}
+Đang giữ: ${formatNumber(sum.reservedQty)} ${formatUom(row.uom)}
+Khả dụng: ${formatNumber(sum.availableQty)} ${formatUom(row.uom)}${minStock > 0 ? `
 Tồn tối thiểu: ${formatNumber(minStock)}` : ""}`}
       className={cn("flex flex-col tabular-nums", align === "end" ? "items-end" : "items-start")}
     >
       <span className={cn("text-sm font-medium", availColor)}>
         {formatNumber(sum.availableQty)}{" "}
-        <span className="text-xs font-normal text-zinc-500">{row.uom}</span>
+        <span className="text-xs font-normal text-zinc-500">{formatUom(row.uom)}</span>
       </span>
       <span className="text-xs leading-tight text-zinc-500">
         Tổng:{" "}

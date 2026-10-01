@@ -178,7 +178,8 @@ export function ItemBomUsagesPanel({ itemId }: ItemBomUsagesPanelProps) {
 
               {isOpen && (
                 <div className="border-t border-zinc-100 bg-zinc-50/40 dark:border-zinc-800 dark:bg-zinc-800/40">
-                  <table className="w-full text-sm">
+                  {/* Desktop/tablet — bảng đầy đủ. */}
+                  <table className="hidden w-full text-sm md:table">
                     <thead>
                       <tr className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                         <th className="px-4 py-2 text-left">Dòng</th>
@@ -249,6 +250,71 @@ export function ItemBomUsagesPanel({ itemId }: ItemBomUsagesPanelProps) {
                       ))}
                     </tbody>
                   </table>
+
+                  {/* V4.4 D2-P1 — điện thoại: card-list (mọi trường vẫn hiện
+                      đủ, chỉ đổi bố cục), khớp pattern bảng "Lot gần nhất"
+                      ở ItemInventoryPanel. */}
+                  <ul className="divide-y divide-zinc-100 md:hidden dark:divide-zinc-800">
+                    {tpl.usages.map((u, idx) => (
+                      <li key={u.lineId} className="px-4 py-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-mono text-xs text-zinc-700 dark:text-zinc-300">
+                            Dòng #{idx + 1}
+                            <span className="ml-1.5 text-zinc-400 dark:text-zinc-500">
+                              {u.lineId.slice(0, 8)}
+                            </span>
+                          </span>
+                          {u.childCount > 0 && (
+                            <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-800">
+                              cụm · {u.childCount} con
+                            </span>
+                          )}
+                        </div>
+                        <dl className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                          <div>
+                            <dt className="text-zinc-400 dark:text-zinc-500">SL/bộ</dt>
+                            <dd className="font-mono tabular-nums text-zinc-800 dark:text-zinc-200">
+                              {formatNumber(u.quantityPer)}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-zinc-400 dark:text-zinc-500">Hao hụt</dt>
+                            <dd className="font-mono tabular-nums text-orange-600 dark:text-orange-400">
+                              {u.scrapPct > 0 ? `${u.scrapPct.toFixed(1)}%` : "—"}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-zinc-400 dark:text-zinc-500">Thuộc cụm</dt>
+                            <dd>
+                              {u.parentItemId ? (
+                                <Link
+                                  href={`/items/${u.parentItemId}`}
+                                  className="font-mono text-indigo-700 hover:underline dark:text-indigo-400"
+                                >
+                                  {u.parentItemId.slice(0, 8)}…
+                                </Link>
+                              ) : (
+                                <span className="italic text-zinc-400 dark:text-zinc-500">gốc</span>
+                              )}
+                            </dd>
+                          </div>
+                        </dl>
+                        <Button
+                          asChild
+                          size="sm"
+                          variant="ghost"
+                          className="mt-1.5 h-7 gap-1 px-0 text-xs"
+                        >
+                          <Link
+                            href={`/bom/${tpl.templateId}/grid?highlightLine=${u.lineId}`}
+                          >
+                            Xem dòng
+                            <ArrowRight className="h-3 w-3" aria-hidden="true" />
+                          </Link>
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
             </div>

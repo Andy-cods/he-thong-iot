@@ -501,7 +501,12 @@ function StepIndicator({ step }: { step: Step }) {
   const activeIdx = STEP_ORDER.indexOf(step);
   return (
     <ol
-      className="flex items-center gap-0 rounded-md border border-zinc-200 bg-white px-4 h-12 dark:border-zinc-800 dark:bg-zinc-900"
+      // V4.4 D2-P1 — `h-12` CỐ ĐỊNH khiến label bước 4 "Kết quả" (ít khoảng
+      // trống nhất, không có vạch nối theo sau) word-wrap 2 dòng bị dòng dưới
+      // che khuất bởi nội dung theo sau ở 390px ("cắt cứng, không đọc được").
+      // `min-h-12` cho phép hàng tự cao lên nếu lỡ wrap, không đổi gì ở
+      // desktop (label 1 dòng vẫn vừa y hệt cũ).
+      className="flex items-center gap-0 rounded-md border border-zinc-200 bg-white px-4 py-2 min-h-12 dark:border-zinc-800 dark:bg-zinc-900"
       aria-label="Tiến trình import"
     >
       {STEP_ORDER.map((s, i) => {
@@ -528,7 +533,10 @@ function StepIndicator({ step }: { step: Step }) {
             </span>
             <span
               className={cn(
-                "text-base font-medium",
+                // V4.4 D2-P1 — chữ nhỏ hơn dưới md giảm khả năng word-wrap 2
+                // dòng ở 390px (xem giải thích ở <ol> phía trên); md+ giữ
+                // nguyên text-base như cũ.
+                "text-sm font-medium md:text-base",
                 state === "current" && "text-zinc-900 dark:text-zinc-50",
                 state === "done" && "text-emerald-700 dark:text-emerald-400",
                 state === "pending" && "text-zinc-500 dark:text-zinc-400",

@@ -94,6 +94,12 @@ export default async function WarehousePage({ searchParams }: WarehousePageProps
   // vào mode "in" mặc định chung (ReceivingMovementView cần quyền qc không có).
   const defaultMode = isQcOnly ? "qc" : legacyOutMode ? "out" : undefined;
   const mode = resolveMovementMode(searchParams.mode ?? defaultMode);
+  // V4.4 D2-P0 — `?itemId=` deep-link (nút "Xem đầy đủ tại Lot/Serial →" ở tab
+  // Kho trang chi tiết Vật tư, qua `/lot-serial?itemId=` redirect ở trên, hoặc
+  // link thẳng `/warehouse?tab=items&itemId=`) → mở sẵn sheet chi tiết đúng
+  // vật tư trong ItemsTab thay vì rơi vào danh sách KHÔNG lọc gì.
+  const initialItemId =
+    typeof searchParams.itemId === "string" ? searchParams.itemId : undefined;
 
   return (
     <div className="flex flex-col md:h-full md:overflow-hidden">
@@ -117,7 +123,7 @@ export default async function WarehousePage({ searchParams }: WarehousePageProps
         ) : active === "layout" ? (
           <WarehouseLayoutTab />
         ) : active === "items" ? (
-          <ItemsTab />
+          <ItemsTab initialItemId={initialItemId} />
         ) : active === "movement" ? (
           <MovementTab mode={mode} />
         ) : active === "goods-issues" ? (
