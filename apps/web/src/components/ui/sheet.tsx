@@ -183,9 +183,15 @@ export function SheetHeaderNav({
       >
         {cancelLabel}
       </button>
-      <span className="min-w-0 flex-1 truncate text-center text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-        {title}
-      </span>
+      {/* V4.5 QA-B P2: trước đây là <span> trần — Radix cảnh báo console
+          "DialogContent requires a DialogTitle" vì không có phần tử Title nào
+          trong Content. `asChild` giữ nguyên thẻ/class hiển thị, chỉ thêm
+          id + aria-labelledby liên kết tới Content. */}
+      <DialogPrimitive.Title asChild>
+        <span className="min-w-0 flex-1 truncate text-center text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+          {title}
+        </span>
+      </DialogPrimitive.Title>
       {action ? (
         <button
           type={action.type ?? "button"}

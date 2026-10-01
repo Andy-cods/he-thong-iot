@@ -4,7 +4,7 @@ import * as React from "react";
 import { FileText, Paperclip, Upload, X, ZoomIn } from "lucide-react";
 import { FIN_ATTACHMENT_URL_RE } from "@iot/shared";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useUploadFinAttachment } from "@/hooks/useFinance";
 import { cn } from "@/lib/utils";
 
@@ -146,6 +146,9 @@ export function AttachmentField({
       {isImage && (
         <Dialog open={zoomOpen} onOpenChange={setZoomOpen}>
           <DialogContent size="lg" className="bg-transparent p-0 shadow-none">
+            {/* V4.5 QA-B P2: dialog chỉ có ảnh, không có tiêu đề hiển thị —
+                vẫn cần DialogTitle cho trình đọc màn hình (Radix yêu cầu). */}
+            <DialogTitle className="sr-only">Xem ảnh chứng từ đính kèm phóng to</DialogTitle>
             <div className="relative">
               <button
                 type="button"

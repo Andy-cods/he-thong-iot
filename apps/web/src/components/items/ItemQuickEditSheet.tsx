@@ -22,6 +22,7 @@ import {
 import {
   Sheet,
   SheetContent,
+  SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ItemForm } from "@/components/items/ItemForm";
@@ -135,16 +136,21 @@ export function ItemQuickEditSheet({
         >
           {/* V2 header padding 16 border-b */}
           <div className="flex h-12 shrink-0 items-center justify-between border-b border-zinc-100 px-4 dark:border-zinc-800">
-            <h2 className="text-base font-medium text-zinc-900 dark:text-zinc-50">
-              {item ? (
-                <>
-                  Chỉnh sửa ·{" "}
-                  <span className="font-mono text-zinc-700 dark:text-zinc-300">{item.sku}</span>
-                </>
-              ) : (
-                "Chỉnh sửa"
-              )}
-            </h2>
+            {/* V4.5 QA-B P2: thiếu DialogTitle cho Radix Dialog (console a11y
+                warning) — bọc h2 hiện có bằng SheetTitle (asChild giữ nguyên
+                thẻ/class, chỉ thêm liên kết aria-labelledby). */}
+            <SheetTitle asChild>
+              <h2 className="text-base font-medium text-zinc-900 dark:text-zinc-50">
+                {item ? (
+                  <>
+                    Chỉnh sửa ·{" "}
+                    <span className="font-mono text-zinc-700 dark:text-zinc-300">{item.sku}</span>
+                  </>
+                ) : (
+                  "Chỉnh sửa"
+                )}
+              </h2>
+            </SheetTitle>
             <button
               type="button"
               onClick={attemptClose}
