@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
 import {
+  BoardItemDuplicateError,
   BoardItemNotFoundError,
   deleteBoardItem,
   updateBoardItem,
@@ -80,6 +81,9 @@ export async function PATCH(
   } catch (err) {
     if (err instanceof BoardItemNotFoundError) {
       return jsonError("NOT_FOUND", err.message, 404);
+    }
+    if (err instanceof BoardItemDuplicateError) {
+      return jsonError("DUPLICATE", err.message, 409);
     }
     logger.error({ err, id: params.id }, "update production board item failed");
     return jsonError("INTERNAL", "Lỗi cập nhật mã hàng.", 500);

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
 import {
+  BoardItemDuplicateError,
   countBoardByStatus,
   createBoardItem,
   listBoardItems,
@@ -113,6 +114,9 @@ export async function POST(req: NextRequest) {
       { status: 201 },
     );
   } catch (err) {
+    if (err instanceof BoardItemDuplicateError) {
+      return jsonError("DUPLICATE", err.message, 409);
+    }
     logger.error({ err }, "create production board item failed");
     return jsonError("INTERNAL", "Lỗi tạo mã hàng.", 500);
   }

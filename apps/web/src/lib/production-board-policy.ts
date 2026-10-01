@@ -42,3 +42,39 @@ export const BOARD_QTY_MAX = 10_000_000; // 10 triệu đơn vị
 
 export const BOARD_UNIT_PRICE_MAX_MESSAGE = `Đơn giá tối đa ${BOARD_UNIT_PRICE_MAX.toLocaleString("vi-VN")} ₫.`;
 export const BOARD_QTY_MAX_MESSAGE = `Số lượng tối đa ${BOARD_QTY_MAX.toLocaleString("vi-VN")}.`;
+
+/**
+ * V4.5 QA-C P2-2 — mã hàng Bảng sản xuất trùng `productCode` (+ `rfqNo`)
+ * không bị chặn, tạo 2 dòng tiến độ riêng cho cùng 1 mã. THUẦN (không đụng
+ * DB) → repo (`server/repos/productionBoard.ts`) chỉ query ứng viên CÙNG
+ * `productCode` (narrow, rẻ) rồi gọi hàm ở đây để quyết định trùng hay không
+ * — giữ đúng convention "logic thuần test vitest, repo chỉ fetch+ghép".
+ */
+export interface BoardItemIdentity {
+  productCode: string;
+  rfqNo: string | null;
+}
+
+/**
+ * Coi 2 mã hàng là TRÙNG khi cùng `productCode` (so khớp y hệt sau khi trim —
+ * mã hàng là code nội bộ, không phải tên tự do nên không cần bỏ dấu/fuzzy
+ * như `lib/item-dedupe.ts`) VÀ cùng `rfqNo` (rỗng/null coi là cùng 1 giá trị
+ * "không có RFQ" — 2 mã hàng cùng code nhưng khác RFQ là 2 đơn hàng khác
+ * nhau, không phải trùng).
+ */
+export function isSameBoardItemIdentity(a: BoardItemIdentity, b: BoardItemIdentity): boolean {
+  const codeA = a.productCode.trim();
+  const codeB = b.productCode.trim();
+  if (!codeA || !codeB || codeA !== codeB) return false;
+  const rfqA = a.rfqNo?.trim() || null;
+  const rfqB = b.rfqNo?.trim() || null;
+  return rfqA === rfqB;
+}
+
+/** Tìm ứng viên trùng đầu tiên trong danh sách (vd kết quả query theo productCode). */
+export function findDuplicateBoardItem<T extends BoardItemIdentity>(
+  target: BoardItemIdentity,
+  candidates: readonly T[],
+): T | null {
+  return candidates.find((c) => isSameBoardItemIdentity(target, c)) ?? null;
+}
