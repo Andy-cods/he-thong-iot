@@ -160,6 +160,19 @@ export const STATUS_DEFS = {
     CONFIRMED: d("Đã duyệt", "success"),
     REJECTED: d("Từ chối", "danger"),
   },
+  /**
+   * Phiên kiểm kê kho (stocktake_session.status).
+   * V4.4 B — trước đây `StocktakeSection.tsx`/`StocktakeSessionSheet.tsx` tự
+   * khai 2 bản `STATUS_LABEL`/`STATUS_TONE` GẦN GIỐNG NHAU nhưng lệch 1 nhãn
+   * (PENDING_APPROVAL: "Chờ duyệt" vs "Chờ Giám đốc duyệt") — gộp về 1 nguồn.
+   */
+  stocktake: {
+    DRAFT: d("Đang đếm", "progress"),
+    PENDING_APPROVAL: d("Chờ Giám đốc duyệt", "info", { short: "Chờ duyệt" }),
+    APPROVED: d("Đã duyệt", "success"),
+    REJECTED: d("Bị trả lại", "danger"),
+    CANCELLED,
+  },
   /** Lô / serial tồn kho (lot_status). */
   lot: {
     AVAILABLE: d("Sẵn dùng", "success"),
@@ -338,6 +351,30 @@ export function prettifyUnknownCode(code: string): string {
 export function actionLabel(code: string | null | undefined): string {
   if (!code) return "—";
   return ACTION_LABELS[code] ?? prettifyUnknownCode(code);
+}
+
+/**
+ * V4.4 B — nhãn loại giao dịch kho (`inv_tx_type`, `packages/db/src/schema/
+ * inventory.ts`). Dùng cho cảnh báo giao dịch mới trong `StocktakeSessionSheet`
+ * (trước hiện thẳng mã enum thô "ADJUST_PLUS"...). Nhãn khớp `eventLabel()`
+ * cục bộ tại `app/(app)/lot-serial/[id]/page.tsx` — gộp dần về đây khi có dịp.
+ */
+export const INV_TX_TYPE_LABELS: Record<string, string> = {
+  IN_RECEIPT: "Nhận hàng",
+  OUT_ISSUE: "Xuất kho",
+  TRANSFER: "Chuyển kho",
+  ADJUST_PLUS: "Điều chỉnh cộng",
+  ADJUST_MINUS: "Điều chỉnh trừ",
+  RESERVE: "Giữ hàng",
+  UNRESERVE: "Bỏ giữ hàng",
+  PROD_IN: "Nhập sản xuất",
+  PROD_OUT: "Xuất sản xuất",
+  ASSEMBLY_CONSUME: "Lắp ráp tiêu hao",
+};
+
+export function invTxTypeLabel(code: string | null | undefined): string {
+  if (!code) return "Giao dịch";
+  return INV_TX_TYPE_LABELS[code] ?? prettifyUnknownCode(code);
 }
 
 /** V4.1 UI-27: loại đối tượng (object_type / entity) → tiếng Việt. */

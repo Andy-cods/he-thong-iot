@@ -8,11 +8,18 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { QueryError } from "@/components/ui/query-error";
+import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetFooter,
+  SheetHeaderNav,
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useSession } from "@/hooks/useSession";
 import { StatusPill } from "@/components/ui/status-badge";
 import { useConfirm, usePrompt } from "@/components/ui/confirm-dialog";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatQty } from "@/lib/format";
 import { statusLabel } from "@/lib/status";
 
 /**
@@ -357,18 +364,26 @@ function CreateDeliveryNoteDialog({
   const [vehiclePlate, setVehiclePlate] = React.useState("");
   const [carrierName, setCarrierName] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
+  // V4.4 (chủ xưởng) — lỗi tiếng Việt ngay dưới trường + cuộn tới lỗi đầu khi gửi.
+  const [errors, setErrors] = React.useState<{ issueRequestId?: string; recipientName?: string }>({});
+  const sourceFieldRef = React.useRef<HTMLDivElement>(null);
+  const recipientFieldRef = React.useRef<HTMLDivElement>(null);
 
   const eligible = (data?.data ?? []).filter((r) =>
     ["sales", "return"].includes(r.reason),
   );
 
   const handleCreate = async () => {
-    if (!issueRequestId) {
-      toast.error("Chọn yêu cầu xuất kho nguồn.");
+    const nextErrors: typeof errors = {};
+    if (!issueRequestId) nextErrors.issueRequestId = "Chọn yêu cầu xuất kho nguồn.";
+    if (!recipientName.trim()) nextErrors.recipientName = "Nhập tên bên nhận.";
+    setErrors(nextErrors);
+    if (nextErrors.issueRequestId) {
+      sourceFieldRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
-    if (!recipientName.trim()) {
-      toast.error("Nhập tên bên nhận.");
+    if (nextErrors.recipientName) {
+      recipientFieldRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
     setSubmitting(true);
@@ -401,23 +416,24 @@ function CreateDeliveryNoteDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-dialog flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl dark:bg-zinc-900">
-        <h3 className="flex items-center gap-2 text-sm font-bold text-zinc-900 dark:text-zinc-50">
-          <Truck className="h-4 w-4" /> Tạo phiếu giao hàng
-        </h3>
-        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-          Chỉ áp dụng cho yêu cầu xuất kho {statusLabel("issueRequest", "COMPLETED").toLowerCase()} với lý do
-          xuất bán / trả hàng NCC.
-        </p>
+    // V4.4 (chủ xưởng) — trước tự vẽ <div fixed> tay (không Dialog/Sheet thật:
+    // không backdrop click-to-close chuẩn, không Escape, không focus-trap,
+    // không cuộn khi nội dung dài hơn màn hình) → đổi sang Sheet dùng chung.
+    <Sheet open onOpenChange={(o) => !o && onClose()}>
+      <SheetContent side="right" size="md" hideCloseButton className="flex flex-col">
+        <SheetHeaderNav title="Tạo phiếu giao hàng" onCancel={onClose} />
+        <SheetBody className="space-y-3">
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            Chỉ áp dụng cho yêu cầu xuất kho {statusLabel("issueRequest", "COMPLETED").toLowerCase()} với lý do
+            xuất bán / trả hàng NCC.
+          </p>
 
-        <div className="mt-4 space-y-3">
-          <div>
+          <div ref={sourceFieldRef}>
             <label className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
-              Yêu cầu xuất kho nguồn
+              Yêu cầu xuất kho nguồn <span className="text-red-500">*</span>
             </label>
             {isLoading ? (
-              <p className="text-xs text-zinc-500">Đang tải…</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">Đang tải…</p>
             ) : eligibleQuery.isError && eligible.length === 0 ? (
               <QueryError
                 compact
@@ -433,29 +449,48 @@ function CreateDeliveryNoteDialog({
               </p>
             ) : (
               <select
-                className="w-full rounded-md border border-zinc-300 bg-white px-2.5 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                aria-invalid={!!errors.issueRequestId}
+                className={cn(
+                  "h-9 w-full rounded-md border bg-white px-2.5 text-sm dark:bg-zinc-900 dark:text-zinc-50",
+                  errors.issueRequestId
+                    ? "border-red-500 dark:border-red-500"
+                    : "border-zinc-300 dark:border-zinc-700",
+                )}
                 value={issueRequestId}
-                onChange={(e) => setIssueRequestId(e.target.value)}
+                onChange={(e) => {
+                  setIssueRequestId(e.target.value);
+                  setErrors((p) => ({ ...p, issueRequestId: undefined }));
+                }}
               >
                 <option value="">— Chọn —</option>
                 {eligible.map((r) => (
                   <option key={r.id} value={r.id}>
-                    {r.requestNo} · {ISSUE_REASON_LABEL[r.reason] ?? r.reason} · SL {Number(r.totalQty).toLocaleString("vi-VN")}
+                    {r.requestNo} · {ISSUE_REASON_LABEL[r.reason] ?? r.reason} · SL {formatQty(r.totalQty)}
                   </option>
                 ))}
               </select>
             )}
+            {errors.issueRequestId ? (
+              <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.issueRequestId}</p>
+            ) : null}
           </div>
 
-          <div>
+          <div ref={recipientFieldRef}>
             <label className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
-              Tên bên nhận *
+              Tên bên nhận <span className="text-red-500">*</span>
             </label>
             <Input
               value={recipientName}
-              onChange={(e) => setRecipientName(e.target.value)}
+              onChange={(e) => {
+                setRecipientName(e.target.value);
+                setErrors((p) => ({ ...p, recipientName: undefined }));
+              }}
               placeholder="Tên khách hàng / nhà cung cấp nhận trả hàng"
+              error={!!errors.recipientName}
             />
+            {errors.recipientName ? (
+              <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.recipientName}</p>
+            ) : null}
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
@@ -506,20 +541,20 @@ function CreateDeliveryNoteDialog({
               />
             </div>
           </div>
-        </div>
+        </SheetBody>
 
-        <div className="mt-5 flex justify-end gap-2">
+        <SheetFooter>
           <Button variant="outline" onClick={onClose} disabled={submitting}>
             Huỷ
           </Button>
-          <Button onClick={handleCreate} disabled={submitting}>
+          <Button onClick={() => void handleCreate()} disabled={submitting}>
             {submitting ? (
               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
             ) : null}
             Tạo phiếu
           </Button>
-        </div>
-      </div>
-    </div>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

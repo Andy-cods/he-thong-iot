@@ -101,11 +101,14 @@ export default async function WarehousePage({ searchParams }: WarehousePageProps
           (không còn panel trắng viền dính vào tabs/nội dung bên dưới). */}
       <div className="px-4 pb-2 pt-5 md:px-6 md:pt-6">
         {/* V4.1 UI-09 (X6): bỏ breadcrumb thân trang — topbar đã hiện cùng đường dẫn (+ nhãn tab). */}
+        {/* V4.4 A8 — "Quản lí" → "Quản lý" cho nhất quán chính tả toàn hệ
+            thống (các trang khác dùng "Quản lý", VD "Quản trị hệ thống"). */}
         <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Quản lí kho
+          Quản lý kho
         </h1>
         <p className="mt-0.5 text-base text-zinc-500 dark:text-zinc-400">
-          Trang gộp Vật tư · Nhập/Xuất kho · Sơ đồ vị trí kệ/bin.
+          {/* V4.4 A7 — "bin" tiếng Anh → "ô/kệ". */}
+          Trang gộp Vật tư · Nhập/Xuất kho · Sơ đồ vị trí ô kệ.
         </p>
       </div>
 

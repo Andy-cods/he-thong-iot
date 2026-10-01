@@ -44,6 +44,9 @@ export function StocktakeCreateSheet({
   const [scopeNote, setScopeNote] = React.useState("");
   const [notes, setNotes] = React.useState("");
   const [creating, setCreating] = React.useState(false);
+  // V4.4 (chủ xưởng) — lỗi tiếng Việt ngay dưới trường + cuộn tới lỗi khi gửi.
+  const [attemptedSubmit, setAttemptedSubmit] = React.useState(false);
+  const binPickerRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     if (!open) return;
@@ -56,6 +59,7 @@ export function StocktakeCreateSheet({
     setSelected(new Set());
     setScopeNote("");
     setNotes("");
+    setAttemptedSubmit(false);
   }, [open]);
 
   const byArea = React.useMemo(() => {
@@ -91,7 +95,8 @@ export function StocktakeCreateSheet({
 
   const handleCreate = async () => {
     if (selected.size === 0) {
-      toast.error("Chọn ít nhất 1 ô để kiểm kê");
+      setAttemptedSubmit(true);
+      binPickerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
     setCreating(true);
@@ -140,14 +145,19 @@ export function StocktakeCreateSheet({
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={1000} rows={2} />
           </div>
 
-          <div>
+          <div ref={binPickerRef}>
             <div className="mb-2 flex items-center justify-between">
               <h3 className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-50">
-                Chọn ô kệ ({selected.size} đã chọn)
+                Chọn ô kệ <span className="text-red-500">*</span> ({selected.size} đã chọn)
               </h3>
             </div>
+            {attemptedSubmit && selected.size === 0 ? (
+              <p className="mb-2 text-xs text-red-600 dark:text-red-400">
+                Chọn ít nhất 1 ô để kiểm kê.
+              </p>
+            ) : null}
             {loading ? (
-              <div className="flex items-center gap-2 py-6 text-sm text-zinc-500">
+              <div className="flex items-center gap-2 py-6 text-sm text-zinc-500 dark:text-zinc-400">
                 <Loader2 className="h-4 w-4 animate-spin" /> Đang tải…
               </div>
             ) : (
@@ -178,7 +188,7 @@ export function StocktakeCreateSheet({
                             />
                             <span className="min-w-0 flex-1 truncate font-mono">{b.fullCode}</span>
                             {b.totalQty > 0 && (
-                              <span className="shrink-0 tabular-nums text-zinc-400">
+                              <span className="shrink-0 tabular-nums text-zinc-400 dark:text-zinc-500">
                                 {formatQty(b.totalQty)}
                               </span>
                             )}
@@ -196,7 +206,9 @@ export function StocktakeCreateSheet({
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Huỷ
           </Button>
-          <Button disabled={creating || selected.size === 0} onClick={() => void handleCreate()}>
+          {/* V4.4 (chủ xưởng) — không khoá nút khi chưa chọn ô: bấm để THẤY lỗi
+              "Chọn ít nhất 1 ô" ngay dưới trường, thay vì nút câm không rõ lý do. */}
+          <Button disabled={creating} onClick={() => void handleCreate()}>
             {creating ? "Đang tạo…" : "Tạo phiên kiểm kê"}
           </Button>
         </SheetFooter>

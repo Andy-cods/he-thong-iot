@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Box, Layers, MoreVertical } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatQty } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
@@ -1112,10 +1113,10 @@ function BinPro3D({
         pointerEvents="none"
         style={{ textShadow: hasStock ? "0 1px 2px rgba(0,0,0,0.3)" : "none" }}
       >
-        {Math.round(bin.totalQty).toLocaleString("vi-VN")}
+        {formatQty(Math.round(bin.totalQty))}
         {" "}
         <tspan fontSize="13" fontWeight="500" fill={theme.textSecondary}>
-          / {bin.capacity ? Math.round(Number(bin.capacity)).toLocaleString("vi-VN") : "—"}
+          / {bin.capacity ? formatQty(Math.round(Number(bin.capacity))) : "—"}
         </tspan>
       </text>
 
@@ -1454,9 +1455,9 @@ function Bin2DPro({
           {bin.primarySku ? `SKU: ${bin.primarySku.slice(0, 11)}` : hasStock ? `${bin.skuCount} SKU` : "Trống"}
         </p>
         <p className="mt-1 font-mono text-[14px] font-extrabold" style={{ color: theme.textPrimary }}>
-          {Math.round(bin.totalQty).toLocaleString("vi-VN")}
+          {formatQty(Math.round(bin.totalQty))}
           <span className="font-normal text-[10px] ml-1" style={{ color: theme.textSecondary }}>
-            / {bin.capacity ? Math.round(Number(bin.capacity)).toLocaleString("vi-VN") : "—"}
+            / {bin.capacity ? formatQty(Math.round(Number(bin.capacity))) : "—"}
           </span>
         </p>
         <div className="mt-1 flex items-center gap-1.5">

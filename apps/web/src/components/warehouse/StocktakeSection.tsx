@@ -4,7 +4,8 @@ import * as React from "react";
 import { useSearchParams } from "next/navigation";
 import { ClipboardList, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { StatusPill } from "@/components/ui/status-badge";
+import { formatDate, formatQty } from "@/lib/format";
 import { StocktakeCreateSheet } from "./StocktakeCreateSheet";
 import { StocktakeSessionSheet } from "./StocktakeSessionSheet";
 
@@ -24,22 +25,6 @@ interface SessionRow {
   counted_count: number;
   bin_count: number;
 }
-
-const STATUS_LABEL: Record<string, string> = {
-  DRAFT: "Đang đếm",
-  PENDING_APPROVAL: "Chờ duyệt",
-  APPROVED: "Đã duyệt",
-  REJECTED: "Bị trả lại",
-  CANCELLED: "Đã huỷ",
-};
-
-const STATUS_TONE: Record<string, string> = {
-  DRAFT: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
-  PENDING_APPROVAL: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
-  APPROVED: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
-  REJECTED: "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400",
-  CANCELLED: "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400",
-};
 
 export function StocktakeSection() {
   const searchParams = useSearchParams();
@@ -73,7 +58,9 @@ export function StocktakeSection() {
   }, [searchParams]);
 
   return (
-    <section className="rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+    // V4.4 B (tự rà màn mới) — card container đổi về token V4.3 §2.2
+    // (rounded-xl + shadow-xs, không viền) khớp chuẩn chung.
+    <section className="rounded-xl bg-white shadow-xs dark:bg-zinc-900">
       <header className="flex items-center justify-between gap-2 border-b border-zinc-200 p-4 dark:border-zinc-800">
         <div>
           <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
@@ -90,7 +77,7 @@ export function StocktakeSection() {
       </header>
 
       {loading ? (
-        <div className="flex items-center gap-2 px-4 py-6 text-sm text-zinc-500">
+        <div className="flex items-center gap-2 px-4 py-6 text-sm text-zinc-500 dark:text-zinc-400">
           <Loader2 className="h-4 w-4 animate-spin" /> Đang tải…
         </div>
       ) : rows.length === 0 ? (
@@ -98,46 +85,76 @@ export function StocktakeSection() {
           Chưa có phiên kiểm kê nào.
         </p>
       ) : (
-        <table className="w-full text-sm">
-          <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-            <tr>
-              <th className="px-3 py-2 text-left">Mã phiếu</th>
-              <th className="px-3 py-2 text-left">Phạm vi</th>
-              <th className="px-3 py-2 text-left">Trạng thái</th>
-              <th className="px-3 py-2 text-right">Tiến độ đếm</th>
-              <th className="px-3 py-2 text-left">Người tạo</th>
-              <th className="px-3 py-2 text-left">Ngày tạo</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr
-                key={r.id}
-                className="cursor-pointer border-t border-zinc-100 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/60"
-                onClick={() => setOpenSessionId(r.id)}
-              >
-                <td className="px-3 py-2 font-mono text-xs font-semibold text-zinc-900 dark:text-zinc-50">
-                  {r.code}
-                </td>
-                <td className="px-3 py-2 text-xs text-zinc-600 dark:text-zinc-400">
-                  {r.scope_note ?? `${r.bin_count} ô`}
-                </td>
-                <td className="px-3 py-2">
-                  <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", STATUS_TONE[r.status])}>
-                    {STATUS_LABEL[r.status] ?? r.status}
-                  </span>
-                </td>
-                <td className="px-3 py-2 text-right text-xs tabular-nums text-zinc-600 dark:text-zinc-400">
-                  {r.counted_count}/{r.line_count}
-                </td>
-                <td className="px-3 py-2 text-xs text-zinc-600 dark:text-zinc-400">{r.creator_name ?? "—"}</td>
-                <td className="px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">
-                  {new Date(r.created_at).toLocaleDateString("vi-VN")}
-                </td>
+        <>
+          {/* V4.4 B — thêm card-list mobile (bảng 6 cột trước không có nhánh
+              < md, N9). */}
+          <table className="hidden w-full text-sm md:table">
+            <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+              <tr>
+                <th className="px-3 py-2 text-left">Mã phiếu</th>
+                <th className="px-3 py-2 text-left">Phạm vi</th>
+                <th className="px-3 py-2 text-left">Trạng thái</th>
+                <th className="px-3 py-2 text-right">Tiến độ đếm</th>
+                <th className="px-3 py-2 text-left">Người tạo</th>
+                <th className="px-3 py-2 text-left">Ngày tạo</th>
               </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr
+                  key={r.id}
+                  className="cursor-pointer border-t border-zinc-100 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/60"
+                  onClick={() => setOpenSessionId(r.id)}
+                >
+                  <td className="px-3 py-2 font-mono text-xs font-semibold text-zinc-900 dark:text-zinc-50">
+                    {r.code}
+                  </td>
+                  <td className="px-3 py-2 text-xs text-zinc-600 dark:text-zinc-400">
+                    {r.scope_note ?? `${r.bin_count} ô`}
+                  </td>
+                  <td className="px-3 py-2">
+                    <StatusPill domain="stocktake" code={r.status} />
+                  </td>
+                  <td className="px-3 py-2 text-right text-xs tabular-nums text-zinc-600 dark:text-zinc-400">
+                    {r.counted_count}/{r.line_count}
+                  </td>
+                  <td className="px-3 py-2 text-xs text-zinc-600 dark:text-zinc-400">{r.creator_name ?? "—"}</td>
+                  <td className="px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">
+                    {formatDate(r.created_at)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <ul className="divide-y divide-zinc-100 md:hidden dark:divide-zinc-800">
+            {rows.map((r) => (
+              <li
+                key={r.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => setOpenSessionId(r.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") setOpenSessionId(r.id);
+                }}
+                className="flex min-h-[44px] cursor-pointer items-start justify-between gap-2 px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-50">{r.code}</span>
+                    <StatusPill domain="stocktake" code={r.status} />
+                  </div>
+                  <p className="mt-0.5 truncate text-xs text-zinc-600 dark:text-zinc-400">
+                    {r.scope_note ?? `${r.bin_count} ô`} · {r.creator_name ?? "—"} · {formatDate(r.created_at)}
+                  </p>
+                </div>
+                <span className="shrink-0 text-right text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
+                  {formatQty(r.counted_count)}/{formatQty(r.line_count)}
+                </span>
+              </li>
             ))}
-          </tbody>
-        </table>
+          </ul>
+        </>
       )}
 
       <StocktakeCreateSheet

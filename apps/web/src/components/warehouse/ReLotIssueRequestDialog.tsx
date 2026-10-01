@@ -5,13 +5,12 @@ import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetFooter,
+  SheetHeaderNav,
+} from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { formatQty } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -190,18 +189,19 @@ export function ReLotIssueRequestDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="lg" className="max-w-xl">
-        <DialogHeader>
-          <DialogTitle>Chọn lại lô — {request?.requestNo}</DialogTitle>
-          <DialogDescription>
+    // V4.4 (chủ xưởng) — Dialog giữa màn → Sheet (N6: nhiều dòng/mã hàng,
+    // mobile toàn màn thay bị bóp giữa trang); giữ nguyên hành vi/logic.
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" size="lg" hideCloseButton className="flex flex-col">
+        <SheetHeaderNav title={`Chọn lại lô — ${request?.requestNo ?? ""}`} onCancel={() => onOpenChange(false)} />
+        <SheetBody className="space-y-3">
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
             Lô đã chọn lúc tạo yêu cầu không còn đủ (đã có người xuất bớt).
             Gợi ý lô mới theo FIFO — có thể xuất ít hơn số đã xin ban đầu kèm
             lý do, phần còn thiếu tạo yêu cầu mới sau.
-          </DialogDescription>
-        </DialogHeader>
+          </p>
 
-        <div className="space-y-3">
+          <div className="space-y-3">
           {lines.map((l) => (
             <div
               key={l.itemId}
@@ -253,9 +253,10 @@ export function ReLotIssueRequestDialog({
                         )
                       }
                       className={cn(
-                        "h-8 w-24 rounded-md border bg-white px-2 text-right font-mono text-sm dark:bg-zinc-900 dark:text-zinc-50",
+                        // V4.4 (chủ xưởng) — h-8 (32px) < 44px vùng chạm tối thiểu → h-11.
+                        "h-11 w-28 rounded-md border bg-white px-2 text-right font-mono text-sm tabular-nums dark:bg-zinc-900 dark:text-zinc-50",
                         l.desired > l.covered + EPS
-                          ? "border-red-400"
+                          ? "border-red-400 dark:border-red-500"
                           : "border-zinc-200 dark:border-zinc-700",
                       )}
                     />
@@ -269,26 +270,33 @@ export function ReLotIssueRequestDialog({
               )}
             </div>
           ))}
-        </div>
-
-        {isPartial ? (
-          <div className="rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/40">
-            <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-amber-800 dark:text-amber-300">
-              <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
-              Xuất {fmt(totalDesired)}/{fmt(totalOriginal)} — ít hơn số đã xin ban đầu.
-            </p>
-            <Textarea
-              value={partialNote}
-              onChange={(e) => setPartialNote(e.target.value)}
-              rows={2}
-              maxLength={500}
-              placeholder="Bắt buộc nêu lý do xuất một phần — VD: lô hụt, phần còn lại chờ nhập thêm."
-              autoFocus
-            />
           </div>
-        ) : null}
 
-        <DialogFooter>
+          {isPartial ? (
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/40">
+              <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-amber-800 dark:text-amber-300">
+                <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
+                Xuất {fmt(totalDesired)}/{fmt(totalOriginal)} — ít hơn số đã xin ban đầu.
+              </p>
+              <label className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                Lý do xuất một phần <span className="text-red-500">*</span>
+              </label>
+              <Textarea
+                value={partialNote}
+                onChange={(e) => setPartialNote(e.target.value)}
+                rows={2}
+                maxLength={500}
+                placeholder="VD: lô hụt, phần còn lại chờ nhập thêm."
+                autoFocus
+              />
+              {partialNote.trim().length > 0 && partialNote.trim().length < 3 ? (
+                <p className="mt-1 text-xs text-red-600 dark:text-red-400">Lý do tối thiểu 3 ký tự.</p>
+              ) : null}
+            </div>
+          ) : null}
+        </SheetBody>
+
+        <SheetFooter className="flex-wrap gap-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
             Huỷ
           </Button>
@@ -301,7 +309,8 @@ export function ReLotIssueRequestDialog({
             Gợi ý lại
           </Button>
           <Button
-            className="bg-violet-600 text-white hover:bg-violet-700 dark:bg-violet-500 dark:hover:bg-violet-400"
+            // V4.4 (chủ xưởng) — violet lệch khỏi accent indigo-600 chuẩn
+            // (1 màu thương hiệu duy nhất cho hành động chính).
             onClick={() => void handleConfirm()}
             disabled={
               submitting ||
@@ -316,8 +325,8 @@ export function ReLotIssueRequestDialog({
               ? `Xuất một phần (${fmt(totalDesired)})`
               : `Duyệt lại + xuất (${fmt(totalDesired)})`}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
