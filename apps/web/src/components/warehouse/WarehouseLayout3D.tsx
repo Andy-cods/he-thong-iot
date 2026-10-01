@@ -1296,12 +1296,25 @@ function Rack2DView({
     // V4.4 B (P0) — 390px trước đây chỉ lọt ~1.5/6 cột, không gợi ý cuộn. Ô kệ
     // co nhỏ hơn ở mobile (`Bin2DPro` w-28/h-24 → md:w-40/h-[120px] giữ nguyên
     // desktop) + cuộn ngang có snap từng ô + dòng gợi ý cuộn chỉ hiện < md.
+    // V4.4 fix P1/P2 (REGRESSION.md 3.6) — ở desktop 1280-1920px, hàng ô kệ
+    // (`flex` 1 dòng, không wrap) RỘNG HƠN khung nội dung thật (vd kệ 6
+    // cột/tầng × 160px + gap ≈ 1020px + cột nhãn ≈ 1116px, trong khi khung
+    // chỉ còn ~994px sau sidebar+panel) → tràn 122px. Container cha CÓ
+    // overflow-auto nên về lý thuyết cuộn được, nhưng (a) gợi ý cuộn
+    // "← Vuốt ngang…" bị ẩn cứng `md:hidden` (chỉ làm cho mobile), (b)
+    // không có thanh cuộn/gradient nào gợi ý còn nội dung — người dùng
+    // desktop không biết để cuộn, tưởng là vỡ layout (cột cuối bị cắt chữ
+    // nửa chừng, xác nhận thật qua ảnh chụp 1440×900). SỬA: để hàng ô kệ TỰ
+    // XUỐNG DÒNG (`md:flex-wrap`) khi không đủ chỗ ngang thay vì buộc cuộn —
+    // mọi cột luôn hiển thị đủ ở 1280-1920px, không cần phát hiện cuộn ẩn.
+    // CHỈ đổi hành vi từ `md:` trở lên — mobile (snap-scroll ô 116px) giữ
+    // NGUYÊN như cũ.
     <div className="flex h-full flex-col gap-2 overflow-hidden p-3 md:p-6">
       <p className="shrink-0 text-center text-xs text-zinc-500 md:hidden dark:text-zinc-400">
         ← Vuốt ngang để xem thêm ô kệ · chạm giữ 1 ô để thao tác nhanh →
       </p>
       <div className="flex-1 overflow-auto">
-        <div className="m-auto flex w-fit flex-col gap-3 md:gap-4">
+        <div className="m-auto flex w-fit flex-col gap-3 md:w-full md:gap-4">
           {Array.from({ length: levels }).map((_, idx) => {
             const lvl = levels - idx;
             const tier = tierLabels[idx];
@@ -1315,7 +1328,7 @@ function Rack2DView({
                   <span className="whitespace-nowrap text-[10px] font-bold uppercase tracking-wider text-zinc-500 md:text-xs dark:text-zinc-400">{tier}</span>
                   <span className="mt-0.5 hidden whitespace-nowrap text-xs text-zinc-500 md:block dark:text-zinc-400">Cao 2.0m</span>
                 </div>
-                <div className="flex snap-x snap-proximity gap-2 md:gap-3">
+                <div className="flex snap-x snap-proximity gap-2 md:min-w-0 md:flex-1 md:flex-wrap md:gap-3 md:snap-none">
                   {items.map((bin) => (
                     <Bin2DPro
                       key={bin.id}

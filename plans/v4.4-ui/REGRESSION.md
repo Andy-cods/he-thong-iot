@@ -207,6 +207,44 @@ không có nội dung thật lẫn thông báo "không có dữ liệu" — trô
 | — | Nút "Bật thông báo" không test được do giới hạn Chromium headless | Môi trường, không phải bug | — |
 | — | Thanh tab hub mobile — code đã đúng, ảnh không đủ rõ để kết luận | Cần xem bằng mắt trên thiết bị thật | `components/common/ScrollTabsList.tsx` |
 
+## Đã sửa (2026-10-01, agent sau — 5 lỗi trong bảng trên)
+
+> Môi trường kiểm chứng: `BASE=http://localhost:3400` (build từ branch sau khi merge `v43/warehouse`),
+> DB/Redis staging qua đường hầm 15432/16379. Mỗi lỗi 1 commit riêng (xem lịch sử git), có bằng chứng chạy thật.
+
+1. **P0 Dashboard "Cần xử lý" purchaser — SỬA.** Nguyên nhân gốc KHÔNG phải dashboard và chuông đọc khác nguồn
+   (chúng đã dùng chung `getActionItemsForUser`/`ACTION_EVENT_TYPES`, luôn khớp số với nhau — xác nhận 48=48
+   trước khi sửa) mà là **cả hai cùng bị thổi phồng bởi thông báo "action" ĐÃ XỬ LÝ XONG nhưng chưa bao giờ tự
+   hết hiệu lực**: `RESOLVES_STALE` chỉ khớp theo `entity_id` DUY NHẤT của chính sự kiện mới, trong khi PR→PO
+   (và PO→hoá đơn) đổi SANG entity khác nên không bao giờ khớp được. Xác nhận thật: 18/19 `PR_APPROVED`,
+   14/17 `PO_CREATED_FROM_PR`, 6/12 `PO_RECEIVED_FULL` chưa đọc của `e2e.purchaser` là việc ĐÃ XONG từ lâu. Sửa
+   `resolveExtraEntityIds` + mở rộng `RESOLVES_STALE` + migration dọn nợ cũ → dashboard 48→11, khớp đúng bell=11.
+   `notify-matrix.mjs`: 10 PASS/0 FAIL (trước FAIL C.purchaser).
+2. **P1 Phiên kiểm kê kẹt DRAFT — SỬA.** 3 nguyên nhân gốc: (1) dấu phẩy thập phân kiểu Việt ("12,5") →
+   `Number()`=NaN → `JSON.stringify` tự biến thành `null` → server âm thầm lưu "chưa đếm", không báo lỗi; (2)
+   `dirty`/`counts` dùng React state, đọc qua closure có thể cũ khi gõ nhanh; (3) mỗi blur gọi `/counts` riêng lẻ
+   KHÔNG xếp hàng → nhiều request chạy song song, mất dữ liệu (xác nhận: vẫn mất 10-48/40-102 dòng dù đã sửa #1
+   #2). Sửa: parser chấp nhận dấu phẩy + không bao giờ gửi `null` ngầm, chuyển state sang ref, xếp hàng request
+   bằng promise chain. Bằng chứng thật: phiên 102 dòng và 63 dòng điền tuần tự nhanh (xen giá trị dấu phẩy) →
+   Gửi duyệt → PENDING_APPROVAL, 0 dòng chưa đếm; phiên cố ý để lỗi/thiếu → nút khoá đúng "N ô sai định dạng, N
+   dòng chưa đếm" + filter "Chỉ hiện dòng chưa đếm" lọc đúng.
+3. **P1 Sheet "Thêm mã hàng" dark mode — KHÔNG PHẢI LỖI, xác nhận lại.** Tái hiện bằng Playwright thật (
+   `colorScheme: 'dark'` + `localStorage.setItem('mes-theme','dark')` TRƯỚC khi app load — đúng cơ chế
+   `ThemeProvider.tsx`, `data-theme` trên `<html>`) ở 1440×900: Sheet + mọi input đổi màu tối đúng
+   (`rgb(29,29,31)`), không có dấu hiệu lỗi compositing. Đúng như nghi vấn ban đầu trong báo cáo — là nhiễu ảnh
+   chụp headless của phiên test trước, không phải lỗi sản phẩm. Không cần sửa code.
+4. **P1/P2 Sơ đồ kho vỡ cột cuối — SỬA.** Nguyên nhân gốc: hàng ô kệ mỗi tầng dùng `flex` 1 dòng không wrap
+   (thiết kế cho cuộn ngang mobile), khung cha có `overflow-auto` nên cuộn được NHƯNG gợi ý cuộn bị ẩn cứng
+   `md:hidden` và không có thanh cuộn/gradient nào — người dùng desktop không biết để cuộn. Đo thật: kệ 6
+   cột/tầng cần ~1116px, khung chỉ còn ~994px ở 1440px → tràn 122px, cột cuối bị cắt chữ giữa chừng. Sửa: hàng ô
+   kệ tự xuống dòng (`md:flex-wrap`) thay vì buộc cuộn ẩn, chỉ đổi từ `md:` trở lên (mobile giữ nguyên). Đo lại:
+   `scrollWidth - clientWidth` = 0 tại cả 1280/1440/1920px (ảnh đối chiếu trước/sau).
+5. **P2 Dashboard "Top SKU thiếu hàng" treo skeleton — KHÔNG TÁI HIỆN ĐƯỢC, đã vá phòng thủ.** Với code + dữ
+   liệu hiện tại, API trả 200 trong ~0.25s và `loading` luôn được set `false` (kể cả lỗi/abort) — xác nhận qua
+   Playwright, hiện đúng "Tồn kho đầy đủ". Không loại trừ khả năng chỉ xảy ra khi backend chậm bất thường ở môi
+   trường khác → vá thêm timeout cứng 15s (hết giờ → trạng thái lỗi rõ ràng, không bao giờ treo skeleton vô hạn
+   trong MỌI trường hợp) + tăng `pageSize` 200→500 (giảm khả năng bỏ sót SKU ngoài trang đầu).
+
 ## Ghi chú phương pháp (để agent sau không lặp lại)
 
 - **Rate limit đăng nhập**: hệ thống giới hạn 5 lần login/60 giây/username (`loginRateLimitByUsername`,

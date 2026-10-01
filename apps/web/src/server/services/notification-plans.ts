@@ -184,12 +184,28 @@ export const RESOLVES_STALE: Partial<
     "PR_PENDING_REMINDER",
     "PR_APPROVED_NO_PO_REMINDER",
   ],
-  PO_CREATED_FROM_PR: ["PR_APPROVED_NO_PO_REMINDER"],
+  // "PR_APPROVED" ("Cần tạo PO") hết hiệu lực khi PO đã lên — PHẢI dùng
+  // resolveExtraEntityIds=[prId] ở planPOCreatedFromPR vì entityId của plan
+  // này là PO (firstPoId), khác entityId PR_APPROVED (prId) — xác nhận thật
+  // trên staging: 18/19 PR_APPROVED chưa đọc của purchaser đã có PO.
+  PO_CREATED_FROM_PR: ["PR_APPROVED_NO_PO_REMINDER", "PR_APPROVED"],
+  // "PO_CREATED_FROM_PR"/"PO_SUBCONTRACT_DRAFT" ("Cần nhập giá/gửi duyệt")
+  // hết hiệu lực ngay khi Thu mua đã làm xong việc đó — gửi duyệt (có thể
+  // duyệt lại sau) HOẶC gửi thẳng NCC (PO nhỏ, bỏ qua bước duyệt) — xác nhận
+  // thật: 14/17 PO_CREATED_FROM_PR chưa đọc của purchaser đã rời DRAFT.
+  PO_APPROVAL_REQUESTED: ["PO_CREATED_FROM_PR", "PO_SUBCONTRACT_DRAFT"],
+  PO_SENT: ["PO_CREATED_FROM_PR", "PO_SUBCONTRACT_DRAFT"],
   PO_APPROVED: ["PO_APPROVAL_REQUESTED", "PO_SUBCONTRACT_DRAFT"],
   PO_APPROVAL_REJECTED: ["PO_APPROVAL_REQUESTED", "PO_SUBCONTRACT_DRAFT"],
-  PO_CANCELLED: ["PO_APPROVAL_REQUESTED", "PO_SUBCONTRACT_DRAFT"],
-  PO_CLOSED: ["PO_APPROVAL_REQUESTED"],
+  PO_CANCELLED: ["PO_APPROVAL_REQUESTED", "PO_SUBCONTRACT_DRAFT", "PO_CREATED_FROM_PR"],
+  PO_CLOSED: ["PO_APPROVAL_REQUESTED", "PO_CREATED_FROM_PR", "PO_SUBCONTRACT_DRAFT", "PO_RECEIVED_FULL"],
   PO_INVOICE_CONFIRMED: ["PO_INVOICE_DRAFT"],
+  // "PO_RECEIVED_FULL" ("Kế toán: có thể tạo HĐ mua") hết hiệu lực khi HĐ
+  // nháp đã tạo — dùng resolveExtraEntityIds=[poId] ở planPOInvoiceDraft vì
+  // entityId của plan này là hoá đơn (invoiceId), khác entityId PO_RECEIVED_FULL
+  // (poId) — xác nhận thật: 6/12 PO_RECEIVED_FULL chưa đọc của purchaser đã
+  // có HĐ mua.
+  PO_INVOICE_DRAFT: ["PO_RECEIVED_FULL"],
   WO_APPROVED: ["WO_REQUEST_SUBMITTED"],
   WO_REJECTED: ["WO_REQUEST_SUBMITTED"],
   ISSUE_REQUEST_APPROVED: ["ISSUE_REQUEST_NEW"],
@@ -249,6 +265,29 @@ export interface NotifyPlan {
   /** Không còn ai nhận (sau khi loại actor) → báo mọi Giám đốc với nội dung này. */
   adminFallback?: NotifyContent;
   excludeUserIds?: readonly string[];
+  /**
+   * V4.4 (fix P0 hộp thư dồn purchaser) — `resolveStaleNotifications()` chỉ
+   * khớp theo `entityId` DUY NHẤT của chính plan này. Nhưng nhiều chuyển tiếp
+   * nghiệp vụ đổi SANG entity khác (VD PR → PO khi tạo PO từ PR: notification
+   * mới gắn `entityId=poId`, trong khi thông báo CŨ cần hết hiệu lực
+   * (`PR_APPROVED`) lại gắn `entityId=prId`) — nếu chỉ dùng `plan.entityId`
+   * thì KHÔNG BAO GIỜ khớp được, để lại "hộp thư dồn" vĩnh viễn (xác nhận thật
+   * trên staging: 18/19 `PR_APPROVED` chưa đọc của purchaser ĐÃ có PO rồi).
+   * Khai báo thêm id của (các) chứng từ NGUỒN tại đây để hàm thuần
+   * `staleResolutionEntityIds()` gộp vào điều kiện UPDATE.
+   */
+  resolveExtraEntityIds?: readonly string[];
+}
+
+/**
+ * V4.4 (fix P0) — Toàn bộ entityId cần đối chiếu khi hết hiệu lực thông báo
+ * cũ cho `plan.eventType` (xem `resolveExtraEntityIds`) — THUẦN, test được
+ * không cần DB. `resolveStaleNotifications()` (notifications.ts) gọi hàm này
+ * rồi UPDATE, không tự suy luận lại danh sách id.
+ */
+export function staleResolutionEntityIds(plan: NotifyPlan): string[] {
+  const ids = [plan.entityId, ...(plan.resolveExtraEntityIds ?? [])];
+  return [...new Set(ids.filter((id): id is string => !!id))];
 }
 
 export interface CandidateUser {
@@ -593,6 +632,9 @@ export function planPOCreatedFromPR(
     entityCode: ctx.prNo,
     actorUserId: ctx.actorUserId,
     actorUsername: ctx.actorUsername,
+    // Hết hiệu lực PR_APPROVED/PR_APPROVED_NO_PO_REMINDER của CHÍNH PR nguồn
+    // (entityId=prId, khác entityId=firstPoId của notification mới này).
+    resolveExtraEntityIds: [ctx.prId],
     targets: [
       role("purchaser", {
         title: `${ctx.poCount} PO nháp mới từ phiếu ${ctx.prNo}`,
@@ -986,6 +1028,9 @@ export function planPOInvoiceDraft(
     entityCode: ctx.invoiceNo,
     actorUserId: ctx.actorUserId,
     actorUsername: ctx.actorUsername,
+    // Hết hiệu lực PO_RECEIVED_FULL ("có thể tạo HĐ mua") của CHÍNH PO nguồn
+    // (entityId=poId, khác entityId=invoiceId của notification mới này).
+    resolveExtraEntityIds: [ctx.poId],
     targets: [role("accountant", content)],
     adminFallback: content,
   };
