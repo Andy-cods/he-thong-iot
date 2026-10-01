@@ -3,7 +3,7 @@ import { logger } from "@/lib/logger";
 import { statusLabel } from "@/lib/status";
 import { listPRsInRange, type PRSlip } from "@/server/repos/purchaseRequests";
 import { jsonError } from "@/server/http";
-import { canViewAllPRs } from "@/server/services/prAccess";
+import { canExportPrExcel, canViewAllPRs } from "@/server/services/prAccess";
 import { requireCan } from "@/server/session";
 import { deriveDisplayLabel, NO_LINE_LABEL } from "@/lib/pr-display-label";
 import {
@@ -102,6 +102,15 @@ function toDnvtData(s: PRSlip): DnvtExportData {
 export async function GET(req: NextRequest) {
   const guard = await requireCan(req, "read", "pr");
   if ("response" in guard) return guard.response;
+
+  // TASK-6VIEC Việc 1 — chỉ admin/purchaser/accountant được xuất Excel.
+  if (!canExportPrExcel(guard.session.roles)) {
+    return jsonError(
+      "FORBIDDEN",
+      "Bạn không có quyền xuất Excel phiếu đề xuất vật tư.",
+      403,
+    );
+  }
 
   const url = new URL(req.url);
   const from = url.searchParams.get("from") ?? "";

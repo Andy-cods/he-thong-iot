@@ -22,6 +22,7 @@ import { PRListTable } from "@/components/procurement/PRListTable";
 import { ExportExcelDialog } from "@/components/archive/ExportExcelDialog";
 import { usePurchaseRequestsList } from "@/hooks/usePurchaseRequests";
 import { useSession } from "@/hooks/useSession";
+import { canExportPrExcel } from "@/server/services/prAccess";
 import type { PRFilter } from "@/lib/query-keys";
 import { statusLabel } from "@/lib/status";
 import { formatNumber } from "@/lib/format";
@@ -101,6 +102,8 @@ export function PRTab() {
   const session = useSession();
   const roles = session.data?.roles ?? [];
   const canCreateMRF = can(roles, "create", "pr");
+  // TASK-6VIEC Việc 1 — chỉ admin/purchaser/accountant được xuất Excel.
+  const canExportExcel = canExportPrExcel(roles);
 
   const createButtons = (
     <div className="flex items-center gap-2">
@@ -144,11 +147,13 @@ export function PRTab() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <ExportExcelDialog
-            module="purchase-requests"
-            defaultFrom={exportRange.from}
-            defaultTo={exportRange.to}
-          />
+          {canExportExcel && (
+            <ExportExcelDialog
+              module="purchase-requests"
+              defaultFrom={exportRange.from}
+              defaultTo={exportRange.to}
+            />
+          )}
           {createButtons}
         </div>
       </header>

@@ -61,6 +61,7 @@ import {
   type PRLineEnriched,
 } from "@/hooks/usePurchaseRequests";
 import { canCancelPR, isSelfApprovalBlocked } from "@/lib/procurement-policy";
+import { canExportPrExcel } from "@/server/services/prAccess";
 import { useConvertPRToPOs } from "@/hooks/usePurchaseOrders";
 import { formatDate, formatMoney, formatQty } from "@/lib/format";
 import type { StatusTone } from "@/lib/status";
@@ -170,6 +171,9 @@ export default function PurchaseRequestDetailPage() {
   const isPurchaser = roles.includes("purchaser");
   // V4.0 — Kho là "Trưởng bộ phận" duyệt bước 2 của phiếu YCVT.
   const isWarehouse = roles.includes("warehouse");
+  // TASK-6VIEC Việc 1 — chỉ admin/purchaser/accountant được xuất Excel (PDF
+  // vẫn mở cho mọi vai). Khớp guard server `canExportPrExcel`.
+  const canExportExcel = canExportPrExcel(roles);
 
   const router = useRouter();
   const detail = usePurchaseRequestDetail(id);
@@ -436,13 +440,15 @@ export default function PurchaseRequestDetailPage() {
                   <Printer className="h-3.5 w-3.5" aria-hidden />
                   In phiếu
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  disabled={exporting !== null}
-                  onSelect={() => void handleExportExcel()}
-                >
-                  <FileSpreadsheet className="h-3.5 w-3.5" aria-hidden />
-                  Excel
-                </DropdownMenuItem>
+                {canExportExcel && (
+                  <DropdownMenuItem
+                    disabled={exporting !== null}
+                    onSelect={() => void handleExportExcel()}
+                  >
+                    <FileSpreadsheet className="h-3.5 w-3.5" aria-hidden />
+                    Excel
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem
                   disabled={exporting !== null}
                   onSelect={() => void handleExportPdf()}

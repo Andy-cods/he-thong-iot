@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { getPR, getPRLinesEnriched } from "@/server/repos/purchaseRequests";
 import { deriveDisplayLabel, NO_LINE_LABEL } from "@/lib/pr-display-label";
 import { jsonError } from "@/server/http";
-import { canViewAllPRs } from "@/server/services/prAccess";
+import { canExportPrExcel, canViewAllPRs } from "@/server/services/prAccess";
 import { requireCan } from "@/server/session";
 import {
   buildYcvtExcel,
@@ -30,6 +30,16 @@ export async function GET(
 ) {
   const guard = await requireCan(req, "read", "pr");
   if ("response" in guard) return guard.response;
+
+  // TASK-6VIEC Việc 1 — mọi bộ phận xem được phiếu của mình, nhưng chỉ
+  // admin/purchaser/accountant được xuất Excel.
+  if (!canExportPrExcel(guard.session.roles)) {
+    return jsonError(
+      "FORBIDDEN",
+      "Bạn không có quyền xuất Excel phiếu đề xuất vật tư.",
+      403,
+    );
+  }
 
   try {
     const pr = await getPR(params.id);
