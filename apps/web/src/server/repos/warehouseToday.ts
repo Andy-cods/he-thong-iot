@@ -200,7 +200,7 @@ async function getPendingIssues(): Promise<WarehouseTodaySummary["pendingIssues"
       kind: "PR" as const,
       id: r.id,
       code: r.code,
-      reasonLabel: "Đề xuất vật tư — đã nhận hàng",
+      reasonLabel: "Đã nhận hàng — chờ xuất cho bộ phận",
       totalQty: null,
       requestedAt: (r.goodsReceivedAt ?? new Date()).toISOString(),
       href: `/procurement/purchase-requests/${r.id}`,
