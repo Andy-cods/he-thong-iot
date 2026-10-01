@@ -3,6 +3,7 @@ import { Building2, ShoppingCart } from "lucide-react";
 import { HubTabsNav, type HubTabDef } from "@/components/common/HubTabsNav";
 import { SuppliersTab } from "@/components/sales/SuppliersTab";
 import { POTab } from "@/components/sales/POTab";
+import { resolveLegacySalesFinRedirect } from "@/lib/legacy-redirects";
 
 export const dynamic = "force-dynamic";
 
@@ -16,10 +17,13 @@ export const dynamic = "force-dynamic";
  *
  * Lịch sử: V2 (2026-09-22, TASK-20260922) từng gộp 9 tab → 5 tab rồi nhập
  * luôn 3 tab Tài chính (Tổng quan/Sổ quỹ/Công nợ & Thiết lập, key `fin-*`)
- * làm tab con của `/sales`. Giữ `LEGACY_FIN_TAB_REDIRECT` bên dưới để MỌI
- * link/bookmark cũ `?tab=fin-*` (+ alias cũ hơn `fin-invoices`/`fin-payments`/
- * `fin-receivables`/`fin-accounts`/`fin-categories`) tự chuyển sang `/finance`
- * tương ứng — KHÔNG gãy link cũ (giữ nguyên mọi query khác, vd `invoiceId`).
+ * làm tab con của `/sales`. Logic redirect link cũ `?tab=fin-*` (+ alias cũ
+ * hơn `fin-invoices`/`fin-payments`/`fin-receivables`/`fin-accounts`/
+ * `fin-categories`) nay nằm ở `lib/legacy-redirects.ts` (dùng CHUNG với
+ * `(app)/layout.tsx`, chạy TRƯỚC route-guard — xem QA-D P1-2: route-guard
+ * `/sales` chỉ còn admin/purchaser nên accountant/shareholder gọi link cũ bị
+ * chặn thẳng trước khi tới được code dưới đây). Giữ lại ở đây làm fallback —
+ * không còn source-of-truth cho mapping (tránh lệch 2 nơi).
  *
  * Route guard `/sales` (lib/route-guard.ts) nay chỉ còn admin/purchaser +
  * entities `po`/`supplier` (đã bỏ accountant/shareholder/`finance`).
@@ -31,43 +35,19 @@ const SALES_TABS = [
 
 type SalesTab = (typeof SALES_TABS)[number]["key"];
 
-/**
- * Map tab Tài chính cũ (từng ở `/sales`) → { tab, sub } mới ở `/finance`.
- * `fin-overview` đổi tên key thành `overview` (hub mới không cần tiền tố
- * `fin-` vì không còn lẫn với tab PO/Nhà cung cấp khác hub nữa).
- */
-const LEGACY_FIN_TAB_REDIRECT: Record<string, { tab: string; sub?: string }> = {
-  "fin-overview": { tab: "overview" },
-  "fin-cashbook": { tab: "cashbook" },
-  "fin-settle": { tab: "settle" },
-  // Alias cũ hơn (trước TASK-20260922 gộp sub-tab) — vẫn thấy trong thông báo/
-  // email cũ, worker reminder jobs trước khi sửa (defense in depth).
-  "fin-invoices": { tab: "cashbook", sub: "invoices" },
-  "fin-payments": { tab: "cashbook", sub: "payments" },
-  "fin-receivables": { tab: "settle", sub: "receivables" },
-  "fin-accounts": { tab: "settle", sub: "accounts" },
-  "fin-categories": { tab: "settle", sub: "categories" },
-};
-
 interface SalesPageProps {
   searchParams: { tab?: string; sub?: string } & Record<string, string | string[] | undefined>;
 }
 
 export default function SalesPage({ searchParams }: SalesPageProps) {
   const requested = searchParams.tab;
-  const legacyFin = requested ? LEGACY_FIN_TAB_REDIRECT[requested] : undefined;
-  if (legacyFin) {
-    const qs = new URLSearchParams();
-    qs.set("tab", legacyFin.tab);
-    const sub = typeof searchParams.sub === "string" ? searchParams.sub : legacyFin.sub;
-    if (sub) qs.set("sub", sub);
-    // Giữ nguyên MỌI query khác (vd `invoiceId` từ `financeInvoiceLink()`).
-    for (const [k, v] of Object.entries(searchParams)) {
-      if (k === "tab" || k === "sub" || typeof v !== "string") continue;
-      qs.set(k, v);
-    }
-    redirect(`/finance?${qs.toString()}`);
-  }
+  const search = new URLSearchParams(
+    Object.entries(searchParams).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
+  ).toString();
+  const legacyTarget = resolveLegacySalesFinRedirect("/sales", search ? `?${search}` : "");
+  if (legacyTarget) redirect(legacyTarget);
 
   const found = SALES_TABS.find((t) => t.key === requested);
   const active: SalesTab = found ? found.key : "po";
