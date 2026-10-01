@@ -78,8 +78,8 @@ const RACK_PAD = 36;
 /** V3.7.3 — base extends wider beyond rack content. */
 const BASE_OVERHANG = 36;
 
-/** 6 fill-level themes + 3 special states. */
-type ThemeKey = "full" | "high" | "mid" | "low" | "warning" | "slotted" | "empty" | "inactive" | "staging";
+/** 6 fill-level themes + 4 special states (+ overload V4.5 QA-B). */
+type ThemeKey = "full" | "high" | "mid" | "low" | "warning" | "overload" | "slotted" | "empty" | "inactive" | "staging";
 
 interface BinTheme {
   /** 4-stop gradient cho front face */
@@ -202,6 +202,26 @@ const THEMES: Record<ThemeKey, BinTheme> = {
     statusLabel: "Sắp hết",
     palletTone: "amber",
   },
+  // V4.5 QA-B P2 — OVERLOAD: tồn thực > sức chứa khai báo (>100%). Rose đậm,
+  // tách biệt hẳn khỏi thang indigo (fill-level) và amber (Sắp hết) để không
+  // bị nhầm với ô đầy bình thường — đúng góp ý QA "quá tải chỉ trùng màu ô
+  // đầy, không có cảnh báo riêng".
+  overload: {
+    frontStops: solid("#e11d48"),
+    topStops: ["#fb7185", "#f43f5e"],
+    sideStops: ["#881337", "#4c0519"],
+    stroke: "#881337",
+    shadow: "rgba(190, 18, 60, 0.5)",
+    textPrimary: "#ffffff",
+    textSecondary: "rgba(255, 228, 230, 0.95)",
+    progressFill: "#ffffff",
+    progressTrack: "rgba(255, 255, 255, 0.3)",
+    glassRef: "rgba(255, 255, 255, 0.3)",
+    led: "#fecdd3",
+    ledGlow: "rgba(254, 205, 213, 0.8)",
+    statusLabel: "Quá tải",
+    palletTone: "amber",
+  },
   // EMPTY: trống
   empty: {
     frontStops: solid("#f1f5f9"),
@@ -276,9 +296,19 @@ const THEMES: Record<ThemeKey, BinTheme> = {
 /** V4.1 hotfix — full_code của bin hệ thống "Chờ xếp kệ" (migration 0058). */
 const STAGING_BIN_FULL_CODE = "STAGING-CHO-XEP-KE";
 
-function getBinTheme(bin: BinNode): { key: ThemeKey; theme: BinTheme; pct: number } {
+function getBinTheme(bin: BinNode): {
+  key: ThemeKey;
+  theme: BinTheme;
+  /** Clamped 0-100 — dùng để vẽ độ rộng thanh tiến độ. */
+  pct: number;
+  /** V4.5 QA-B P2: % thật KHÔNG cap ở 100 — dùng để hiện nhãn (vd "520%"). */
+  rawPct: number;
+  isOverloaded: boolean;
+} {
   const cap = Number(bin.capacity ?? "0");
-  const pct = cap > 0 ? Math.min(100, Math.max(0, (bin.totalQty / cap) * 100)) : 0;
+  const rawPct = cap > 0 ? Math.max(0, (bin.totalQty / cap) * 100) : 0;
+  const pct = Math.min(100, rawPct);
+  const isOverloaded = cap > 0 && rawPct > 100;
   let key: ThemeKey;
   // V4.1 hotfix — bin "Chờ xếp kệ" luôn nổi bật màu cam, bất kể fill level,
   // để nhắc nhân viên xếp lại. Check trước cả inactive/fill-level.
@@ -288,12 +318,15 @@ function getBinTheme(bin: BinNode): { key: ThemeKey; theme: BinTheme; pct: numbe
     // V3.7.16 — Bin chưa có tồn nhưng đã gán SKU → theme "slotted" (sky-blue) thay "empty" gray
     key = (bin.slotCount ?? 0) > 0 ? "slotted" : "empty";
   }
+  // V4.5 QA-B P2 — tồn vượt sức chứa khai báo: ưu tiên cao hơn "Sắp hết"
+  // (isLow) vì đây là tình trạng nghiêm trọng hơn cần thấy ngay.
+  else if (isOverloaded) key = "overload";
   else if (bin.isLow) key = "warning";
   else if (pct > 85) key = "full";
   else if (pct > 60) key = "high";
   else if (pct > 30) key = "mid";
   else key = "low";
-  return { key, theme: THEMES[key], pct };
+  return { key, theme: THEMES[key], pct, rawPct, isOverloaded };
 }
 
 export function WarehouseLayout3D({
@@ -852,9 +885,9 @@ function BinPro3D({
   onMouseEnter: () => void;
   onMouseLeave: () => void;
 }) {
-  const { key: tone, theme, pct } = getBinTheme(bin);
+  const { key: tone, theme, pct, rawPct, isOverloaded } = getBinTheme(bin);
   const hasStock = bin.totalQty > 0;
-  const isWarning = tone === "warning";
+  const isWarning = tone === "warning" || tone === "overload";
 
   // Front face coords
   const fxL = x;
@@ -1151,7 +1184,9 @@ function BinPro3D({
             fill="rgba(255, 255, 255, 0.5)"
           />
         )}
-        {/* Pct label */}
+        {/* Pct label — V4.5 QA-B P2: khi quá tải hiện % THẬT (vd "520%"),
+            không cap ở 100% như thanh tiến độ (thanh vẫn đầy 100% bình
+            thường, chỉ đổi màu rose qua theme "overload" ở trên). */}
         <text
           x={fxR - 16}
           y={fyT + BIN_H - 22}
@@ -1162,7 +1197,7 @@ function BinPro3D({
           fontFamily="ui-monospace, SFMono-Regular, monospace"
           opacity="0.85"
         >
-          {Math.round(pct)}%
+          {Math.round(isOverloaded ? rawPct : pct)}%
         </text>
       </g>
 
@@ -1370,7 +1405,7 @@ function Bin2DPro({
   /** Phase E — click-phải mở popover thao tác nhanh Nhập/Xuất ngay tại ô bin. */
   onContextMenu?: (e: React.MouseEvent) => void;
 }) {
-  const { theme, pct } = getBinTheme(bin);
+  const { theme, pct, rawPct, isOverloaded } = getBinTheme(bin);
   const hasStock = bin.totalQty > 0;
 
   // Long-press (touch/tablet) → mở popover thao tác nhanh giống click-phải trên desktop.
@@ -1422,7 +1457,7 @@ function Bin2DPro({
         // 160×120 từ md trở lên (không đổi desktop/tablet).
         "group relative flex w-[116px] shrink-0 snap-start flex-col justify-between overflow-hidden rounded-lg border p-2 text-left md:w-40 md:p-3",
         "h-[104px] md:h-[120px]",
-        bin.isLow && hasStock && "warehouse-bin-pulse",
+        (bin.isLow || isOverloaded) && hasStock && "warehouse-bin-pulse",
       )}
     >
       {/* Glass reflection top */}
@@ -1477,7 +1512,11 @@ function Bin2DPro({
           <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: theme.progressTrack }}>
             <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: theme.progressFill }} />
           </div>
-          <span className="text-[9px] font-bold tabular-nums" style={{ color: theme.textPrimary }}>{Math.round(pct)}%</span>
+          {/* V4.5 QA-B P2: thẻ ô kệ — hiện % THẬT khi quá tải (vd "520%") thay
+              vì cap ở 100% giống ô đầy bình thường. */}
+          <span className="text-[9px] font-bold tabular-nums" style={{ color: theme.textPrimary }}>
+            {Math.round(isOverloaded ? rawPct : pct)}%
+          </span>
         </div>
       </div>
     </button>

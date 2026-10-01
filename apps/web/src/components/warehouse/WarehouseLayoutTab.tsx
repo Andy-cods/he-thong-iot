@@ -250,6 +250,13 @@ export function WarehouseLayoutTab() {
   }, [binsWithSku, statusFilter, selectedRackKey]);
 
   const selectedBin = binsWithSku.find((b) => b.id === selectedBinId) ?? null;
+  // V4.5 QA-B P2: % quá tải thật (không cap 100) khi tồn > sức chứa khai báo.
+  const binOverloadPct = React.useMemo(() => {
+    if (!selectedBin?.capacity) return null;
+    const cap = Number(selectedBin.capacity);
+    if (!(cap > 0) || selectedBin.totalQty <= cap) return null;
+    return Math.round((selectedBin.totalQty / cap) * 100);
+  }, [selectedBin]);
 
   // Stats kệ hiện tại — Phase E: bỏ số liệu bịa (kích thước/tải trọng), tính
   // "Số tầng"/"Số ô mỗi tầng" thật từ dữ liệu bin (levelNo/position), không
@@ -778,8 +785,18 @@ export function WarehouseLayoutTab() {
               <DetailStat
                 label="Sức chứa"
                 value={selectedBin.capacity ? formatQty(Number(selectedBin.capacity)) : "—"}
+                tone={binOverloadPct !== null ? "danger" : "default"}
               />
             </div>
+            {/* V4.5 QA-B P2: tồn vượt sức chứa khai báo — cảnh báo riêng, rõ %
+                thật, không lẫn với "Sắp hết" (2 tình trạng đối lập). */}
+            {binOverloadPct !== null && (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-400">
+                <p className="flex items-center gap-2 font-semibold">
+                  <AlertTriangle className="h-4 w-4" /> Quá tải — tồn vượt sức chứa khai báo ({binOverloadPct}%)
+                </p>
+              </div>
+            )}
             {selectedBin.isLow && selectedBin.totalQty > 0 && (
               <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400">
                 <p className="flex items-center gap-2 font-semibold">
@@ -939,11 +956,41 @@ function LegendDot({ color, label, pulse, stroke }: {
   );
 }
 
-function DetailStat({ label, value }: { label: string; value: string }) {
+function DetailStat({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  /** V4.5 QA-B P2: tone "danger" cho ô Sức chứa khi tồn vượt capacity. */
+  tone?: "default" | "danger";
+}) {
   return (
-    <div className="rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-800">
-      <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{label}</p>
-      <p className="mt-1 font-mono text-base font-bold text-zinc-900 dark:text-zinc-50">{value}</p>
+    <div
+      className={cn(
+        "rounded-lg px-3 py-2",
+        tone === "danger"
+          ? "bg-rose-50 dark:bg-rose-950/40"
+          : "bg-zinc-50 dark:bg-zinc-800",
+      )}
+    >
+      <p
+        className={cn(
+          "text-xs font-semibold uppercase tracking-wider",
+          tone === "danger" ? "text-rose-600 dark:text-rose-400" : "text-zinc-500 dark:text-zinc-400",
+        )}
+      >
+        {label}
+      </p>
+      <p
+        className={cn(
+          "mt-1 font-mono text-base font-bold",
+          tone === "danger" ? "text-rose-700 dark:text-rose-400" : "text-zinc-900 dark:text-zinc-50",
+        )}
+      >
+        {value}
+      </p>
     </div>
   );
 }
@@ -990,12 +1037,26 @@ function BinListView({ bins, onSelect }: { bins: BinNode[]; onSelect: (id: strin
       cell: (b) => {
         const cap = Number(b.capacity ?? "0");
         const pct = cap > 0 ? Math.round((b.totalQty / cap) * 100) : 0;
+        // V4.5 QA-B P2: quá tải (>100%) đổi màu rose + nhãn riêng thay vì chỉ
+        // trông giống ô đầy 100% bình thường (thanh vẫn clip ở overflow-hidden
+        // nên không tràn khung, chỉ đổi màu + chữ để phân biệt rõ).
+        const isOverloaded = pct > 100;
         return (
           <div className="flex items-center justify-end gap-2">
             <div className="h-1.5 w-16 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-              <div className="h-full rounded-full bg-indigo-500" style={{ width: `${pct}%` }} />
+              <div
+                className={cn("h-full rounded-full", isOverloaded ? "bg-rose-600" : "bg-indigo-500")}
+                style={{ width: `${Math.min(100, pct)}%` }}
+              />
             </div>
-            <span className="w-9 text-right text-xs tabular-nums text-zinc-600 dark:text-zinc-400">{pct}%</span>
+            <span
+              className={cn(
+                "text-right text-xs tabular-nums",
+                isOverloaded ? "w-16 font-semibold text-rose-600 dark:text-rose-400" : "w-9 text-zinc-600 dark:text-zinc-400",
+              )}
+            >
+              {pct}% {isOverloaded && "· Quá tải"}
+            </span>
           </div>
         );
       },

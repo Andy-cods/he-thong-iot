@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatQty } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import {
   Sheet,
   SheetBody,
@@ -194,6 +195,12 @@ export function BinQuickActionsPopover({
   const [removeTarget, setRemoveTarget] = React.useState<BinContent | null>(null);
   const [transferTarget, setTransferTarget] = React.useState<BinContent | null>(null);
 
+  // V4.5 QA-B P2: cảnh báo quá tải rõ ràng (không chỉ dựa vào số thô) — cùng
+  // ngưỡng với thẻ ô kệ/sơ đồ kho (WarehouseLayout3D.getBinTheme).
+  const cap = bin.capacity ? Number(bin.capacity) : 0;
+  const isOverloaded = cap > 0 && bin.totalQty > cap;
+  const overloadPct = cap > 0 ? Math.round((bin.totalQty / cap) * 100) : 0;
+
   return (
     <div className="w-72">
       <div className="mb-3 flex items-center justify-between gap-2">
@@ -202,13 +209,24 @@ export function BinQuickActionsPopover({
           <p className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-50">{bin.fullCode}</p>
         </div>
         <div className="text-right">
-          <p className="font-mono text-base font-bold tabular-nums text-zinc-900 dark:text-zinc-50">
+          <p
+            className={cn(
+              "font-mono text-base font-bold tabular-nums",
+              isOverloaded ? "text-rose-600 dark:text-rose-400" : "text-zinc-900 dark:text-zinc-50",
+            )}
+          >
             {formatQty(bin.totalQty)}
             <span className="ml-1 text-xs font-normal text-zinc-400 dark:text-zinc-500">
               / {bin.capacity ? formatQty(Number(bin.capacity)) : "—"}
             </span>
           </p>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">tồn / sức chứa</p>
+          {isOverloaded ? (
+            <p className="text-xs font-semibold text-rose-600 dark:text-rose-400">
+              Quá tải · {overloadPct}%
+            </p>
+          ) : (
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">tồn / sức chứa</p>
+          )}
         </div>
       </div>
 
