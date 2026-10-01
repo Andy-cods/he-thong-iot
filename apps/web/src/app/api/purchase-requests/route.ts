@@ -141,8 +141,9 @@ export async function POST(req: NextRequest) {
         // để notifyPRSubmitted bắn tới purchaser.
         // V3.7.69 — submitPR() đồng thời sinh paper_form_no — phải merge lại
         // vào response (paperFormNo + approvalStep + status).
+        // TASK-6VIEC Việc 2 — `saveAsDraft` giữ nguyên DRAFT, không auto-submit.
         let finalRow = row;
-        if (row.status === "DRAFT") {
+        if (row.status === "DRAFT" && !body.data.saveAsDraft) {
           const submitted = await submitPR(row.id);
           if (submitted) finalRow = submitted;
         }

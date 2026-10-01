@@ -10,6 +10,7 @@ import {
   ChevronsUpDown,
   Info,
   Loader2,
+  Save,
   Search,
   X,
 } from "lucide-react";
@@ -166,8 +167,10 @@ export function PRQuickDialog({
   const qtyNum = Number(qty);
   const belowMoq = moq !== null && Number.isFinite(qtyNum) && qtyNum < moq;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // TASK-6VIEC Việc 2 — "Lưu nháp": giữ DRAFT, KHÔNG gửi thông báo. Dùng
+  // chung validate + payload với "Tạo PR" (asDraft=false, hành vi cũ — auto
+  // submit ngay sau khi tạo).
+  const handleCreate = async (asDraft: boolean) => {
     // V4.5 QA-E P2 — khoá đồng bộ NGAY đầu hàm.
     if (submittingRef.current) return;
     if (!line) return;
@@ -220,6 +223,7 @@ export function PRQuickDialog({
             preferredSupplierId: supplier.id || null,
           },
         ],
+        saveAsDraft: asDraft,
         idempotencyKey: idempotencyKeyRef.current,
       });
 
@@ -229,7 +233,7 @@ export function PRQuickDialog({
         : null;
 
       toast.success(
-        `Đã tạo PR ${created.code ?? ""}`.trim(),
+        `${asDraft ? "Đã lưu nháp" : "Đã tạo PR"} ${created.code ?? ""}`.trim(),
         prHref
           ? {
               action: {
@@ -249,6 +253,12 @@ export function PRQuickDialog({
       submittingRef.current = false;
     }
   };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    void handleCreate(false);
+  };
+  const handleSaveDraft = () => void handleCreate(true);
 
   const pending = createPR.isPending;
 
@@ -376,6 +386,17 @@ export function PRQuickDialog({
               disabled={pending}
             >
               Huỷ
+            </Button>
+            {/* TASK-6VIEC Việc 2 — lưu nháp (DRAFT, không gửi thông báo) bên
+                cạnh "Tạo PR" (gửi duyệt ngay). */}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleSaveDraft}
+              disabled={pending}
+            >
+              <Save className="h-3.5 w-3.5" aria-hidden />
+              Lưu nháp
             </Button>
             <Button type="submit" disabled={pending}>
               {pending ? (

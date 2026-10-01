@@ -2,16 +2,19 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Plus, Printer, Trash2 } from "lucide-react";
-import type { PRCreateInput } from "@iot/shared";
+import { Loader2, Plus, Printer, Save, Trash2 } from "lucide-react";
+import type { PRCreateInput, PRUpdateInput } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import { ItemPickerField } from "@/components/procurement/ItemPickerField";
 import type { ItemPickerValue } from "@/components/bom/ItemPicker";
 import {
   useCreatePurchaseRequest,
   usePreviewPaperFormNo,
+  usePurchaseRequestDetail,
+  useSubmitPR,
+  useUpdatePurchaseRequest,
 } from "@/hooks/usePurchaseRequests";
 import { useSession } from "@/hooks/useSession";
 import { cn } from "@/lib/utils";
@@ -100,6 +103,14 @@ export default function NewDnvtPage() {
   const session = useSession();
   const createPR = useCreatePurchaseRequest();
   const previewNo = usePreviewPaperFormNo();
+  // TASK-6VIEC Việc 2 — ?draftId=<id> → mở lại phiếu NHÁP đã lưu để sửa tiếp
+  // (PATCH thay vì POST). Không có draftId → form tạo mới như cũ.
+  const searchParams = useSearchParams();
+  const draftId = searchParams.get("draftId");
+  const draftDetail = usePurchaseRequestDetail(draftId ?? "");
+  const updatePR = useUpdatePurchaseRequest(draftId ?? "");
+  const submitDraft = useSubmitPR(draftId ?? "");
+  const prefilledRef = React.useRef(false);
   // V4.5 QA-E P2 — chặn double-submit tạo 2 phiếu trùng: khoá đồng bộ (ref,
   // không chờ React re-render `isPending`) + Idempotency-Key cố định cho cả
   // phiên form này (xem new-mrf/page.tsx — cùng cơ chế, cùng hook).
@@ -133,6 +144,43 @@ export default function NewDnvtPage() {
   // Lines (II. Danh mục vật tư)
   const [lines, setLines] = React.useState<DnvtLineDraft[]>(() => [blankLine()]);
 
+  // TASK-6VIEC Việc 2 — prefill form từ phiếu NHÁP khi mở qua ?draftId=.
+  React.useEffect(() => {
+    if (!draftId || prefilledRef.current) return;
+    const pr = draftDetail.data?.data;
+    if (!pr) return;
+    prefilledRef.current = true;
+    setTargetDepartment(pr.targetDepartment ?? targetDepartment);
+    setProposingDepartment(pr.proposingDepartment ?? proposingDepartment);
+    setRequestReason(pr.requestReason ?? "");
+    if (pr.lines.length > 0) {
+      setLines(
+        pr.lines.map((l) => ({
+          localId: crypto.randomUUID(),
+          item: l.itemId
+            ? {
+                id: l.itemId,
+                sku: l.sku ?? "",
+                name: l.name ?? "",
+                uom: l.itemUom ?? l.uom ?? "",
+              }
+            : null,
+          specification: l.specification ?? "",
+          uom: l.uom ?? l.itemUom ?? "",
+          qty: l.qty ?? "1",
+          neededBy: l.neededBy ? l.neededBy.slice(0, 10) : "",
+          priority: l.priority ?? "NORMAL",
+          category: l.category ?? "CONSUMABLE",
+          referenceCode: l.referenceCode ?? "",
+          referenceNote: l.referenceNote ?? "",
+          notes: l.notes ?? "",
+          deliveryDate: l.deliveryDate ? l.deliveryDate.slice(0, 10) : "",
+        })),
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftId, draftDetail.data]);
+
   const validLines = React.useMemo(
     () => lines.filter((l) => !!l.item && Number(l.qty) > 0),
     [lines],
@@ -159,6 +207,77 @@ export default function NewDnvtPage() {
     });
   };
 
+  // TASK-6VIEC Việc 2 — dựng lines/header payload dùng chung cho "Lưu nháp"
+  // lẫn "Gửi phiếu" (create mới hoặc PATCH phiếu nháp đang sửa).
+  const buildLinesPayload = () =>
+    validLines.map((l) => ({
+      // V4.4 (Việc 3) — itemId thật từ ItemPicker (đã chọn hoặc vừa tạo
+      // nhanh), thay vì luôn null + itemName tự do như trước.
+      itemId: l.item!.id,
+      itemName: l.item!.name,
+      itemSku: l.item!.sku,
+      qty: Number(l.qty),
+      preferredSupplierId: null,
+      snapshotLineId: null,
+      neededBy: l.neededBy ? new Date(l.neededBy) : null,
+      notes: l.notes.trim() || null,
+      specification: l.specification.trim() || null,
+      uom: l.uom.trim() || l.item!.uom || null,
+      priority: l.priority,
+      category: l.category,
+      estimatedUnitPrice: null,
+      referenceCode: l.referenceCode.trim() || null,
+      onHandSnapshot: null,
+      // V3.10 DNVT — Tham khảo + Ngày giao hàng.
+      referenceNote: l.referenceNote.trim() || null,
+      deliveryDate: l.deliveryDate ? new Date(l.deliveryDate) : null,
+    }));
+
+  const buildHeader = () => ({
+    title: `DNVT ${proposingDepartment} ${formatDateVN(new Date())}`,
+    targetDepartment: targetDepartment.trim() || null,
+    proposingDepartment: proposingDepartment.trim() || null,
+    requestReason: requestReason.trim() || null,
+  });
+
+  /** TASK-6VIEC Việc 2 — "Lưu nháp": giữ status DRAFT, KHÔNG gửi thông báo. */
+  const handleSaveDraft = async () => {
+    if (submittingRef.current) return;
+    if (validLines.length === 0) {
+      toast.error("Cần ít nhất 1 dòng đã chọn vật tư + số lượng > 0.");
+      return;
+    }
+    submittingRef.current = true;
+    try {
+      if (draftId) {
+        const patch: PRUpdateInput = { ...buildHeader(), lines: buildLinesPayload() };
+        await updatePR.mutateAsync(patch);
+        toast.success("Đã lưu nháp");
+        router.push(`/procurement/purchase-requests/${draftId}`);
+      } else {
+        const payload: PRCreateInput = {
+          ...buildHeader(),
+          source: "MANUAL",
+          linkedOrderId: null,
+          notes: null,
+          formType: "DNVT",
+          lines: buildLinesPayload(),
+          saveAsDraft: true,
+        };
+        const res = await createPR.mutateAsync({
+          ...payload,
+          idempotencyKey: idempotencyKeyRef.current,
+        });
+        toast.success("Đã lưu nháp");
+        router.push(`/procurement/purchase-requests/${res.data.id}`);
+      }
+    } catch (err) {
+      toast.error((err as Error).message ?? "Không lưu được nháp");
+    } finally {
+      submittingRef.current = false;
+    }
+  };
+
   const handleSubmit = async () => {
     // V4.5 QA-E P2 — khoá đồng bộ NGAY đầu hàm, trước mọi validate/await.
     if (submittingRef.current) return;
@@ -172,41 +291,27 @@ export default function NewDnvtPage() {
     }
     submittingRef.current = true;
 
-    const payload: PRCreateInput = {
-      title: `DNVT ${proposingDepartment} ${formatDateVN(new Date())}`,
-      source: "MANUAL",
-      linkedOrderId: null,
-      notes: null,
-      targetDepartment: targetDepartment.trim() || null,
-      proposingDepartment: proposingDepartment.trim() || null,
-      requestReason: requestReason.trim() || null,
-      // V3.10 — loại phiếu DNVT (backend chung, khác template export).
-      formType: "DNVT",
-      lines: validLines.map((l) => ({
-        // V4.4 (Việc 3) — itemId thật từ ItemPicker (đã chọn hoặc vừa tạo
-        // nhanh), thay vì luôn null + itemName tự do như trước.
-        itemId: l.item!.id,
-        itemName: l.item!.name,
-        itemSku: l.item!.sku,
-        qty: Number(l.qty),
-        preferredSupplierId: null,
-        snapshotLineId: null,
-        neededBy: l.neededBy ? new Date(l.neededBy) : null,
-        notes: l.notes.trim() || null,
-        specification: l.specification.trim() || null,
-        uom: l.uom.trim() || l.item!.uom || null,
-        priority: l.priority,
-        category: l.category,
-        estimatedUnitPrice: null,
-        referenceCode: l.referenceCode.trim() || null,
-        onHandSnapshot: null,
-        // V3.10 DNVT — Tham khảo + Ngày giao hàng.
-        referenceNote: l.referenceNote.trim() || null,
-        deliveryDate: l.deliveryDate ? new Date(l.deliveryDate) : null,
-      })),
-    };
-
     try {
+      // TASK-6VIEC Việc 2 — đang sửa phiếu NHÁP (?draftId=) → PATCH rồi submit.
+      if (draftId) {
+        const patch: PRUpdateInput = { ...buildHeader(), lines: buildLinesPayload() };
+        await updatePR.mutateAsync(patch);
+        const submitted = await submitDraft.mutateAsync();
+        const formNo = submitted.data.paperFormNo ?? submitted.data.code;
+        toast.success(`Đã gửi phiếu đề xuất vật tư ${formNo}`);
+        router.push(`/procurement/purchase-requests/${draftId}`);
+        return;
+      }
+
+      const payload: PRCreateInput = {
+        ...buildHeader(),
+        source: "MANUAL",
+        linkedOrderId: null,
+        notes: null,
+        // V3.10 — loại phiếu DNVT (backend chung, khác template export).
+        formType: "DNVT",
+        lines: buildLinesPayload(),
+      };
       const res = await createPR.mutateAsync({
         ...payload,
         idempotencyKey: idempotencyKeyRef.current,
@@ -224,7 +329,11 @@ export default function NewDnvtPage() {
     window.print();
   };
 
-  const pending = createPR.isPending;
+  const pending =
+    createPR.isPending ||
+    updatePR.isPending ||
+    submitDraft.isPending ||
+    (!!draftId && !prefilledRef.current && draftDetail.isLoading);
   const paperFormNoPreview = previewNo.data?.data.paperFormNo ?? "—/PRD-MRF/—";
   const todayStr = formatDateVN(new Date());
 
@@ -256,6 +365,17 @@ export default function NewDnvtPage() {
             <Button variant="ghost" size="sm" onClick={handlePrint} disabled={pending}>
               <Printer className="h-3.5 w-3.5" />
               In phiếu
+            </Button>
+            {/* TASK-6VIEC Việc 2 — lưu nháp (DRAFT, không gửi thông báo) bên
+                cạnh "Gửi phiếu". */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void handleSaveDraft()}
+              disabled={pending}
+            >
+              <Save className="h-3.5 w-3.5" />
+              Lưu nháp
             </Button>
             <Button size="sm" onClick={() => void handleSubmit()} disabled={pending}>
               {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}

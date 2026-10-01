@@ -121,6 +121,12 @@ export const prCreateSchema = z.object({
   requestReason: z.string().trim().max(2000).optional().nullable(),
   // V3.10 — Loại phiếu trình bày (optional; server default 'MRF' cho backward-compat).
   formType: z.enum(PR_FORM_TYPES).optional(),
+  /**
+   * TASK-6VIEC Việc 2 — true = giữ nguyên DRAFT (KHÔNG auto-submit, KHÔNG bắn
+   * notification). Mặc định false/omit giữ nguyên hành vi cũ (tạo xong tự
+   * động gửi luôn — xem POST /api/purchase-requests).
+   */
+  saveAsDraft: z.boolean().optional(),
 });
 
 export const prCreateFromShortageSchema = z.object({

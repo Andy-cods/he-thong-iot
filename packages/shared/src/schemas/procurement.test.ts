@@ -5,10 +5,28 @@ import {
   poListQuerySchema,
   poPriceUpdateSchema,
   poUpdateSchema,
+  prCreateSchema,
 } from "./procurement";
 
 const uuidA = "00000000-0000-4000-8000-000000000001";
 const uuidB = "00000000-0000-4000-8000-000000000002";
+
+describe("TASK-6VIEC Việc 2 — prCreateSchema.saveAsDraft", () => {
+  it("mặc định không có saveAsDraft (undefined) — giữ hành vi cũ (auto-submit)", () => {
+    const parsed = prCreateSchema.parse({
+      lines: [{ itemId: uuidA, qty: 1 }],
+    });
+    expect(parsed.saveAsDraft).toBeUndefined();
+  });
+
+  it("chấp nhận saveAsDraft: true — route sẽ giữ DRAFT, không auto-submit", () => {
+    const parsed = prCreateSchema.parse({
+      lines: [{ itemId: uuidA, qty: 1 }],
+      saveAsDraft: true,
+    });
+    expect(parsed.saveAsDraft).toBe(true);
+  });
+});
 
 describe("PO schemas", () => {
   it("defaults to a plain draft", () => {

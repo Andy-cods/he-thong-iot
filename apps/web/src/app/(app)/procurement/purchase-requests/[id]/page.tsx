@@ -18,6 +18,7 @@ import {
   Loader2,
   MoreHorizontal,
   PackageCheck,
+  Pencil,
   Printer,
   Trash2,
   Truck,
@@ -26,7 +27,7 @@ import {
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { downloadFromUrl } from "@/lib/download";
-import type { PRStatus } from "@iot/shared";
+import { can, type PRStatus } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
@@ -277,6 +278,16 @@ export default function PurchaseRequestDetailPage() {
       isWarehouse ||
       roles.includes("planner") ||
       roles.includes("accountant"));
+  // TASK-6VIEC Việc 2 — "Sửa phiếu" (mở lại form tạo ở chế độ sửa nháp) chỉ
+  // cho người lập (bất kể role) hoặc vai có update:pr trong RBAC matrix —
+  // khớp guard server PATCH /api/purchase-requests/[id].
+  const canEditDraft =
+    status === "DRAFT" &&
+    (pr.requestedBy === session.data?.id || can(roles, "update", "pr"));
+  const editDraftHref =
+    pr.formType === "DNVT"
+      ? `/procurement/purchase-requests/new-dnvt?draftId=${pr.id}`
+      : `/procurement/purchase-requests/new-mrf?draftId=${pr.id}`;
   // V3.9 — Admin duyệt nhanh gộp 2 cấp khi phiếu vừa SUBMITTED.
   const canQuickApprove = isAdmin && step === "SUBMITTED";
   // V4.0 — người từ chối phải là người duyệt được bước tương ứng: Kho (bước 2)
@@ -292,8 +303,11 @@ export default function PurchaseRequestDetailPage() {
     !pr.goodsIssuedAt;
   const canMarkCompleted =
     isAdmin && !!pr.goodsIssuedAt && !pr.completedAt;
-  // V3.7.71 — Hard-delete YCVT, admin only
-  const canDelete = isAdmin;
+  // V3.7.71 — Hard-delete YCVT, admin only.
+  // TASK-6VIEC Việc 2 — hoặc người lập phiếu xoá phiếu NHÁP của chính mình
+  // (khớp guard server DELETE /api/purchase-requests/[id]).
+  const canDelete =
+    isAdmin || (status === "DRAFT" && pr.requestedBy === session.data?.id);
   // V4.4 (Việc 4) — Huỷ phiếu: người tạo khi còn Nháp/Chờ duyệt, hoặc admin
   // khi đã duyệt xong (APPROVED) mà chưa có PO (server kiểm lại — đây chỉ để
   // ẩn/hiện nút, không phải nguồn sự thật quyền hạn). Dùng chung
@@ -459,6 +473,15 @@ export default function PurchaseRequestDetailPage() {
               </DropdownMenuContent>
             </DropdownMenu>
 
+            {/* TASK-6VIEC Việc 2 — mở lại phiếu NHÁP để sửa tiếp trước khi gửi. */}
+            {canEditDraft && (
+              <Button asChild size="sm" variant="outline">
+                <Link href={editDraftHref}>
+                  <Pencil className="h-3.5 w-3.5" aria-hidden />
+                  Sửa phiếu
+                </Link>
+              </Button>
+            )}
             {canSubmit && (
               <Button
                 size="sm"

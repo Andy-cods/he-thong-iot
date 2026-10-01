@@ -102,6 +102,11 @@ export interface PRLineEnriched {
   lineTotal?: string | null;
   // V4.0 Wave 3 Phase B — mã ID hệ thống duy nhất (khác referenceCode free-text).
   lineRefCode?: string | null;
+  // V3.10 DNVT — Tham khảo (free-text) + Ngày giao hàng. Server đã trả 2 cột
+  // này từ lâu (xem server/repos/purchaseRequests.ts) nhưng interface này
+  // thiếu khai báo — TASK-6VIEC Việc 2 cần đọc lại khi "mở phiếu nháp để sửa".
+  referenceNote?: string | null;
+  deliveryDate?: string | null;
 }
 
 export interface PRListResponse {

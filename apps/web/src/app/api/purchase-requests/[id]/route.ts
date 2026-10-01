@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { prUpdateSchema } from "@iot/shared";
+import { can, prUpdateSchema } from "@iot/shared";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { purchaseRequest, userAccount } from "@iot/db/schema";
 import { logger } from "@/lib/logger";
@@ -18,7 +18,7 @@ import {
 } from "@/server/http";
 import { writeAudit, diffObjects } from "@/server/services/audit";
 import { canViewAllPRs } from "@/server/services/prAccess";
-import { requireCan } from "@/server/session";
+import { requireCan, requireSession } from "@/server/session";
 import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -110,7 +110,11 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireCan(req, "update", "pr");
+  // TASK-6VIEC Việc 2 — "lưu nháp → sửa tiếp → gửi" cần cho CẢ operator/qc/
+  // accountant (không có RBAC update:pr trong matrix) sửa phiếu NHÁP CỦA
+  // CHÍNH MÌNH. Guard nghiệp vụ tách khỏi RBAC matrix (giống `cancel` route):
+  // requireSession trước, rồi check (update:pr RBAC) HOẶC (chủ phiếu + DRAFT).
+  const guard = await requireSession(req);
   if ("response" in guard) return guard.response;
 
   // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB.
@@ -119,6 +123,17 @@ export async function PATCH(
 
   const before = await getPR(params.id);
   if (!before) return jsonError("NOT_FOUND", "Không tìm thấy PR.", 404);
+
+  const isOwnDraftEdit =
+    before.status === "DRAFT" && before.requestedBy === guard.session.userId;
+  if (!isOwnDraftEdit && !can(guard.session.roles, "update", "pr")) {
+    return jsonError(
+      "FORBIDDEN",
+      "Bạn không có quyền sửa phiếu này.",
+      403,
+    );
+  }
+
   if (
     !(EDITABLE_STATUSES as readonly string[]).includes(before.status as string)
   ) {
@@ -251,7 +266,10 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const guard = await requireCan(req, "delete", "pr");
+  // TASK-6VIEC Việc 2 — người lập phiếu xoá được phiếu NHÁP của chính mình
+  // (trước đây chỉ admin — RBAC matrix `delete:pr`). Admin vẫn hard-delete
+  // được phiếu ở mọi trạng thái (kể cả force=1 khi đã có PO) như cũ.
+  const guard = await requireSession(req);
   if ("response" in guard) return guard.response;
 
   // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB.
@@ -260,6 +278,16 @@ export async function DELETE(
 
   const before = await getPR(params.id);
   if (!before) return jsonError("NOT_FOUND", "Không tìm thấy phiếu.", 404);
+
+  const isOwnDraftDelete =
+    before.status === "DRAFT" && before.requestedBy === guard.session.userId;
+  if (!isOwnDraftDelete && !can(guard.session.roles, "delete", "pr")) {
+    return jsonError(
+      "FORBIDDEN",
+      "Chỉ người lập phiếu (khi còn Nháp) hoặc admin mới xoá được phiếu này.",
+      403,
+    );
+  }
 
   const url = new URL(req.url);
   const force = url.searchParams.get("force") === "1";
