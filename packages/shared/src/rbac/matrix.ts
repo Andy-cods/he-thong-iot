@@ -203,8 +203,8 @@ export const RBAC_MATRIX: Matrix = {
     wo: ["read"],
     reservation: ["read"],
     eco: ["read"],
-    // V3.8 — purchaser xem bảng sản xuất (read-only).
-    productionBoard: ["read"],
+    // V3.8 — purchaser xem bảng sản xuất; V4.4 — được thêm mã hàng (không sửa/xoá).
+    productionBoard: ["create", "read"], // V4.4 — Thu mua (muahang) thêm mã hàng vào Bảng sản xuất; sửa/xoá vẫn QC + admin.
     // V4.0 — Thu mua nhận BBGH sau khi giao nhận xong (chỉ đọc + tải file).
     deliveryNote: ["read"],
   },
