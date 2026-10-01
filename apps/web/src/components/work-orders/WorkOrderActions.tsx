@@ -36,13 +36,16 @@ import {
   useDeleteWorkOrder,
   usePauseWorkOrder,
   useStartWorkOrder,
+  useWoMaterialPlan,
   type WorkOrderStatus,
 } from "@/hooks/useWorkOrders";
 import { HIDDEN_FEATURES } from "@/lib/hidden-features";
 import { qk } from "@/lib/query-keys";
 import {
   WO_COMPLETE_REASON_MIN_LENGTH,
+  formatWoMaterialShortageLine,
   getWoCompleteShortfall,
+  getWoMaterialShortageLines,
   isWoDeletable,
 } from "@/lib/wo-guards";
 import { statusLabel } from "@/lib/status";
@@ -269,6 +272,18 @@ export function WorkOrderActions({
 
   const shortfall = getWoCompleteShortfall({ goodQty, plannedQty });
 
+  // V4.5 QA-C P1-1 — đọc material-plan thật (cùng nguồn với Sheet "Xin vật tư
+  // theo BOM", React Query cache chung theo `qk.workOrders.materialPlan`) để
+  // hiện danh sách vật tư CHƯA XUẤT ĐỦ ngay trong dialog hoàn thành, áp dụng
+  // CÙNG cơ chế xác nhận + lý do như thiếu sản lượng (không chặn cứng).
+  const materialPlanQuery = useWoMaterialPlan(woId);
+  const materialShortage = React.useMemo(
+    () => getWoMaterialShortageLines(materialPlanQuery.data?.data.rows ?? []),
+    [materialPlanQuery.data],
+  );
+  const hasMaterialShortage = materialShortage.length > 0;
+  const requiresCompleteReason = !!shortfall || hasMaterialShortage;
+
   const onComplete = async () => {
     // V4.3 Q2 — fgReceipt đã bật lại: mở dialog có ô SL thành phẩm + chọn vị
     // trí (thay vì prompt đơn giản cũ). Giữ nguyên yêu cầu lý do khi thiếu
@@ -283,14 +298,26 @@ export function WorkOrderActions({
     }
     // Fallback (cờ fgReceipt bật lại true) — flow prompt/confirm cũ.
     let completeReason: string | undefined;
-    if (shortfall) {
+    if (requiresCompleteReason) {
+      const descParts: string[] = [];
+      if (shortfall) {
+        descParts.push(
+          `Đạt ${shortfall.good} / kế hoạch ${shortfall.planned} — hoàn thành thiếu ${shortfall.missing}.`,
+        );
+      }
+      if (hasMaterialShortage) {
+        descParts.push(
+          `Vật tư chưa xuất đủ: ${materialShortage.map(formatWoMaterialShortageLine).join(", ")}.`,
+        );
+      }
+      descParts.push("Nhập lý do để xác nhận hoàn thành.");
       const reason = await askText({
-        title: "Hoàn thành thiếu sản lượng?",
-        description: `Đạt ${shortfall.good} / kế hoạch ${shortfall.planned} — hoàn thành thiếu ${shortfall.missing}. Nhập lý do để xác nhận hoàn thành sớm/thiếu.`,
-        label: "Lý do hoàn thành thiếu sản lượng",
+        title: "Hoàn thành lệnh sản xuất — cần xác nhận",
+        description: descParts.join(" "),
+        label: "Lý do xác nhận hoàn thành",
         minLength: WO_COMPLETE_REASON_MIN_LENGTH,
         tone: "danger",
-        confirmLabel: "Hoàn thành (thiếu SL)",
+        confirmLabel: "Hoàn thành",
       });
       if (reason === null) return;
       completeReason = reason.trim();
@@ -313,7 +340,7 @@ export function WorkOrderActions({
   const fgQtyNum = Number(fgQtyInput);
   const completeReasonTrimmed = completeReasonInput.trim();
   const completeReasonInvalid =
-    !!shortfall && completeReasonTrimmed.length < WO_COMPLETE_REASON_MIN_LENGTH;
+    requiresCompleteReason && completeReasonTrimmed.length < WO_COMPLETE_REASON_MIN_LENGTH;
   const fgQtyInvalid = !Number.isFinite(fgQtyNum) || fgQtyNum < 0;
 
   const submitComplete = async () => {
@@ -321,7 +348,7 @@ export function WorkOrderActions({
     try {
       await completeMut.mutateAsync({
         versionLock,
-        completeReason: shortfall ? completeReasonTrimmed : undefined,
+        completeReason: requiresCompleteReason ? completeReasonTrimmed : undefined,
         fgQty: fgQtyNum > 0 ? fgQtyNum : undefined,
         fgBinId: fgBinId || null,
         fgHoldQc,
@@ -526,7 +553,9 @@ export function WorkOrderActions({
       </Dialog>
 
       {/* V4.3 Q2 — Dialog hoàn thành: SL thành phẩm + vị trí lưu (nhập kho
-          thành phẩm) + lý do hoàn thành thiếu sản lượng (V4.2, nếu có). */}
+          thành phẩm) + lý do hoàn thành thiếu sản lượng (V4.2, nếu có).
+          V4.5 QA-C P1-1 — thêm danh sách vật tư chưa xuất đủ (nếu có), bắt
+          cùng ô lý do xác nhận (không chặn cứng, giống cơ chế thiếu SL). */}
       <Dialog open={completeOpen} onOpenChange={setCompleteOpen}>
         <DialogContent>
           <DialogHeader>
@@ -538,10 +567,24 @@ export function WorkOrderActions({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            {shortfall ? (
+            {hasMaterialShortage ? (
+              <div className="space-y-1.5 rounded-md border border-amber-200 bg-amber-50 p-2.5 text-sm dark:border-amber-900 dark:bg-amber-950/30">
+                <p className="font-medium text-amber-800 dark:text-amber-300">
+                  Vật tư theo BOM chưa xuất đủ ({materialShortage.length} dòng):
+                </p>
+                <ul className="list-inside list-disc space-y-0.5 text-amber-700 dark:text-amber-400">
+                  {materialShortage.map((l) => (
+                    <li key={l.itemId}>{formatWoMaterialShortageLine(l)}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {requiresCompleteReason ? (
               <div className="space-y-1">
                 <Label htmlFor="wo-complete-reason" required>
-                  Lý do hoàn thành thiếu sản lượng
+                  {hasMaterialShortage
+                    ? "Lý do xác nhận hoàn thành (thiếu SL/vật tư)"
+                    : "Lý do hoàn thành thiếu sản lượng"}
                 </Label>
                 <Textarea
                   id="wo-complete-reason"
@@ -549,7 +592,7 @@ export function WorkOrderActions({
                   onChange={(e) => setCompleteReasonInput(e.target.value)}
                   rows={2}
                   maxLength={2000}
-                  placeholder="VD: khách cần gấp, phần còn lại làm đợt sau…"
+                  placeholder="VD: khách cần gấp, phần còn lại làm đợt sau, xưởng tự có sẵn vật tư ngoài hệ thống…"
                 />
                 {completeReasonInvalid && completeReasonTrimmed.length > 0 ? (
                   <p className="text-xs text-red-600">
