@@ -6,7 +6,6 @@ import { requireCan } from "@/server/session";
 import { statusLabel } from "@/lib/status";
 import {
   buildSlipsWorkbook,
-  formatVNDateTime,
   type SlipSheet,
   type SummaryTable,
 } from "@/server/services/batchSlipsExcel";
@@ -54,7 +53,8 @@ export async function GET(req: NextRequest) {
       ],
       rows: slipsData.map((s) => [
         s.requestNo,
-        formatVNDateTime(new Date(s.createdAt)),
+        // V4.4 — ô NGÀY THẬT (Date), không phải chuỗi đã format sẵn.
+        new Date(s.createdAt),
         statusLabel("mr", s.status),
         s.requestedByName || s.requestedByUsername || "—",
         s.lines.length,
@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
       info: [
         ["Trạng thái", statusLabel("mr", s.status)],
         ["Người yêu cầu", s.requestedByName || s.requestedByUsername || "—"],
-        ["Ngày tạo", formatVNDateTime(new Date(s.createdAt))],
+        ["Ngày tạo", new Date(s.createdAt)],
         ["Ghi chú", s.notes || "—"],
       ],
       columns: [

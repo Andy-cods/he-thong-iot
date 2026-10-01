@@ -1,5 +1,4 @@
 import { type NextRequest } from "next/server";
-import { formatDateTime } from "@/lib/format";
 import { logger } from "@/lib/logger";
 import { statusLabel } from "@/lib/status";
 import { listPRsInRange, type PRSlip } from "@/server/repos/purchaseRequests";
@@ -132,8 +131,9 @@ export async function GET(req: NextRequest) {
       ],
       rows: slipsData.map((s) => [
         s.paperFormNo ?? s.code,
-        // V4.1 UI-15/UI-07: ngày giờ VN + nhãn trạng thái từ lib dùng chung.
-        formatDateTime(s.createdAt),
+        // V4.4 — ô NGÀY THẬT (Date), không phải chuỗi đã format sẵn, để Excel
+        // sort/lọc được theo ngày (numFmt áp ở buildPrTemplateWorkbook).
+        new Date(s.createdAt),
         s.formType ?? "MRF",
         statusLabel("pr", s.status),
         s.requestedByName || "—",
