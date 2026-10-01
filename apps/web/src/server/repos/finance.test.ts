@@ -410,7 +410,7 @@ function seedInvoice(
     purchaseOrderId: null,
     salesOrderId: null,
     issueDate: "2026-09-01",
-    dueDate: overrides.dueDate ?? "2026-10-01",
+    dueDate: overrides.dueDate ?? "2099-12-31",
     subtotalAmount: "1000000",
     vatRate: "8",
     vatAmount: "80000",
