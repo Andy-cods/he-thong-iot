@@ -6,11 +6,14 @@ import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { enqueueEmailSend } from "@/server/services/emailQueue";
 import { deliverPush } from "@/server/services/push";
+import { invalidateActionItemsCache } from "@/server/services/dashboard-cache";
+import { publishNotifyEvent } from "@/server/services/notify-pubsub";
 import {
   ACTION_EVENT_TYPES,
   EMAIL_EVENTS,
   RESOLVES_STALE,
   assignRecipients,
+  categoryForEventType,
   planDeliveryNoteConfirmed,
   planDeliveryNoteCreated,
   planDeliveryNoteRejected,
@@ -207,6 +210,17 @@ async function emitNotification(input: EmitInput): Promise<string | null> {
           tag: input.entityId,
         });
       }
+      // TASK-notify-realtime — CHỈ phát SAU khi insert/update ở trên đã xong
+      // (notifId tồn tại nghĩa là ghi DB thành công). Fire-and-forget, không
+      // throw — lỗi Redis không được làm hỏng nghiệp vụ chính.
+      publishNotifyEvent({
+        kind: "new",
+        userIds: [input.recipientUser],
+        notificationId: notifId,
+        category: categoryForEventType(input.eventType),
+        title: input.title,
+      });
+      void invalidateActionItemsCache(input.recipientUser);
     }
     return notifId;
   } catch (err) {
@@ -232,7 +246,7 @@ async function resolveStaleNotifications(plan: NotifyPlan): Promise<void> {
   const entityIds = staleResolutionEntityIds(plan);
   if (entityIds.length === 0) return;
   try {
-    await db
+    const resolved = await db
       .update(notification)
       .set({ readAt: new Date() })
       .where(
@@ -241,7 +255,21 @@ async function resolveStaleNotifications(plan: NotifyPlan): Promise<void> {
           inArray(notification.eventType, [...staleTypes]),
           isNull(notification.readAt),
         ),
-      );
+      )
+      .returning({ id: notification.id, recipientUser: notification.recipientUser });
+
+    // Phát "read" cho TỪNG người bị ảnh hưởng (badge giảm tức thì ở mọi tab/
+    // thiết bị của họ) + xoá cache action-items — kể cả người không phải actor
+    // của sự kiện vừa xảy ra (VD admin xử lý thay người khác).
+    const affectedUsers = new Set<string>();
+    for (const row of resolved) {
+      if (!row.recipientUser) continue;
+      affectedUsers.add(row.recipientUser);
+      publishNotifyEvent({ kind: "read", userIds: [row.recipientUser], notificationId: row.id });
+    }
+    await Promise.allSettled(
+      [...affectedUsers].map((userId) => invalidateActionItemsCache(userId)),
+    );
   } catch (err) {
     logger.warn({ err, eventType: plan.eventType }, "resolveStaleNotifications failed");
   }

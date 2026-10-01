@@ -4,6 +4,7 @@ import { bucketActionItemsByEntityType } from "@/lib/dashboard-action-items";
 import { jsonError } from "@/server/http";
 import { forbidden, getSession, isDisplayKiosk, unauthorized } from "@/server/session";
 import { cacheGetJson, cacheSetJson } from "@/server/services/redis";
+import { actionItemsCacheKey } from "@/server/services/dashboard-cache";
 import { getActionItemsForUser } from "@/server/services/notifications";
 
 export const runtime = "nodejs";
@@ -36,7 +37,8 @@ export const dynamic = "force-dynamic";
  * }
  */
 
-const CACHE_KEY_PREFIX = "dashboard:action-items:v3:";
+// V TASK-notify-realtime — prefix khoá cache chuyển sang dashboard-cache.ts
+// (notifications.ts dùng chung để xoá cache ngay khi phát/đọc thông báo).
 const CACHE_TTL_SECONDS = 30;
 
 export interface DashboardActionItem {
@@ -72,7 +74,7 @@ export async function GET(req: NextRequest) {
     if (!session) return unauthorized();
     if (isDisplayKiosk(session)) return forbidden(); // V3.11.4 (audit S.8)
 
-    const cacheKey = `${CACHE_KEY_PREFIX}${session.userId}`;
+    const cacheKey = actionItemsCacheKey(session.userId);
     const fresh = req.nextUrl.searchParams.get("fresh") === "1";
     if (!fresh) {
       const cached = await cacheGetJson<DashboardActionItemsPayload>(cacheKey);
