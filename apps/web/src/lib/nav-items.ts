@@ -1,5 +1,6 @@
 import {
   Factory,
+  Landmark,
   LayoutDashboard,
   Layers,
   MonitorPlay,
@@ -22,13 +23,17 @@ import { isHiddenHref } from "./hidden-features";
  *
  * Group theo BỘ PHẬN thay vì function. Sau TASK-20260427-025 mỗi bộ phận có
  * 1 hub duy nhất (tabs bên trong) thay vì nhiều entry rời:
- *   - dashboard:   Tổng quan          (/)
- *   - warehouse:   Bộ phận Kho        (/warehouse)
- *   - purchasing:  Bộ phận Thu mua    (/sales — tab PO + Suppliers + Tài chính)
- *   - engineering: Bộ phận Thiết kế   (/engineering — tab BOM + WO + PR)
- *   - operations:  Bộ phận Gia công   (/operations — tab Assembly + future QC/Maint)
- *   - accounting:  Bộ phận Kế toán    (Coming soon)
- *   - other:       Quản trị           (/admin)
+ *   - dashboard:   Tổng quan            (/)
+ *   - warehouse:   Bộ phận Kho          (/warehouse)
+ *   - purchasing:  Bộ phận Thu mua      (/sales — tab PO + Nhà cung cấp)
+ *   - finance:     Tài chính - Kế toán  (/finance — tab Tổng quan + Sổ quỹ + Công nợ)
+ *   - engineering: Bộ phận Thiết kế     (/engineering — tab BOM + WO + PR)
+ *   - operations:  Bộ phận Gia công     (/operations — tab Assembly + future QC/Maint)
+ *   - other:       Quản trị             (/admin)
+ *
+ * TASK-20261001 — "Tài chính - Kế toán" tách thành section/nav item RIÊNG,
+ * không còn gộp vào "purchasing" (lịch sử TASK-20260922 từng gộp — xem
+ * comment cũ ở git blame nếu cần tham khảo).
  *
  * @see plans/redesign-v3/{brainstorm,ui-redesign,implementation-plan,addendum-user-answers}.md
  */
@@ -36,6 +41,7 @@ export type NavSection =
   | "dashboard"
   | "warehouse"
   | "purchasing"
+  | "finance"
   | "engineering"
   | "operations"
   | "other";
@@ -75,6 +81,7 @@ export const NAV_SECTION_LABEL: Record<NavSection, string> = {
   dashboard: "Tổng quan",
   warehouse: "Bộ phận Kho",
   purchasing: "Bộ phận Thu mua",
+  finance: "Tài chính - Kế toán",
   engineering: "Bộ phận Thiết kế",
   operations: "Bộ phận Gia công",
   other: "Quản trị",
@@ -82,11 +89,15 @@ export const NAV_SECTION_LABEL: Record<NavSection, string> = {
 
 // V3.7.48 — Order theo workflow nghiệp vụ thực tế: Thiết kế đề xuất → Vận hành
 // duyệt sản xuất → Thu mua mua vật tư → Kho nhận hàng → Quản trị (admin).
+// TASK-20261001 — "Tài chính - Kế toán" đặt NGAY SAU "purchasing" (cạnh Thu
+// mua, đối tượng dùng chồng lấn nhiều: Thu mua ghi nhận HĐ mua, Kế toán theo
+// dõi dòng tiền/công nợ phát sinh từ đó).
 export const NAV_SECTION_ORDER: NavSection[] = [
   "dashboard",
   "engineering",
   "operations",
   "purchasing",
+  "finance",
   "warehouse",
   "other",
 ];
@@ -171,21 +182,36 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ["qc"],
     section: "operations",
   },
-  // --- Bộ phận Thu mua — nay gồm PO + Nhà cung cấp + phân hệ Tài chính ---
-  // TASK-20260922 — Tài chính trở thành tab con của /sales (yêu cầu user).
-  // CỐ Ý dùng `roles` (không phải `entities: canAny`) — nhiều role khác
-  // (warehouse, operator, planner) cũng có quyền `read` trên entity "po"/
-  // "supplier" trong RBAC matrix (để đối chiếu nghiệp vụ qua API) nhưng KHÔNG
-  // thuộc bộ phận Thu mua, nếu gate bằng `entities` thì nav item /sales sẽ lộ
-  // ra cho họ. roles liệt kê đúng 4 role được vào /sales (khớp route guard
-  // layout.tsx + tab-filter trong page.tsx): purchaser/admin thấy PO+NCC,
-  // accountant/shareholder thấy Tài chính.
+  // --- Bộ phận Thu mua — PO + Nhà cung cấp (Tài chính đã tách hub riêng) ---
+  // TASK-20261001 — bỏ accountant/shareholder khỏi `roles` (trước đây để họ
+  // vào /sales xem tab Tài chính con — nay dùng /finance). CỐ Ý dùng `roles`
+  // (không phải `entities: canAny`) — warehouse/operator/planner cũng có
+  // quyền `read` trên entity "po"/"supplier" (để đối chiếu nghiệp vụ qua API)
+  // nhưng KHÔNG thuộc bộ phận Thu mua, nếu gate bằng `entities` thì nav item
+  // /sales sẽ lộ ra cho họ.
   {
     href: "/sales",
     label: "Bộ phận Thu mua",
     icon: ShoppingBag,
-    roles: ["admin", "purchaser", "accountant", "shareholder"],
+    roles: ["admin", "purchaser"],
     section: "purchasing",
+  },
+  // --- Tài chính - Kế toán — mục menu cấp 1 RIÊNG (TASK-20261001) ---
+  // Gate bằng `entity: "finance"` (không `roles` cứng): đúng NGỮ NGHĨA
+  // "vai có read:finance" — RBAC matrix hiện chỉ admin/accountant/shareholder
+  // có quyền `finance` nên kết quả tương đương nhưng tự động đúng nếu matrix
+  // đổi, và quan trọng hơn: user có NHIỀU role (vd tài khoản `muahang` thực tế
+  // = purchaser + accountant) vẫn thấy ĐỦ CẢ HAI mục "Bộ phận Thu mua" (do
+  // role purchaser) và "Tài chính - Kế toán" (do role accountant) — khớp yêu
+  // cầu. Role purchaser ĐƠN (không kèm accountant) → canAny(..., "finance")
+  // = false → KHÔNG thấy mục này (đúng yêu cầu "THUMUA-KETOAN chỉ purchaser
+  // thì không thấy Tài chính").
+  {
+    href: "/finance",
+    label: "Tài chính - Kế toán",
+    icon: Landmark,
+    entity: "finance",
+    section: "finance",
   },
   // --- Bộ phận Kho — chỉ warehouse + admin ---
   {

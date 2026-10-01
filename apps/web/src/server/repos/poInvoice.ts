@@ -36,9 +36,12 @@ export class PoInvoiceError extends Error {
 
 export type PoInvoiceRow = typeof finInvoice.$inferSelect;
 
-/** Link mở HĐ ở màn Tài chính (Đợt 3 có thể đọc `invoiceId` để mở sẵn chi tiết). */
+/**
+ * Link mở HĐ ở màn Tài chính (`invoiceId` để mở sẵn chi tiết).
+ * TASK-20261001 — Tài chính tách hub riêng `/finance` (trước `/sales?tab=fin-cashbook...`).
+ */
 export function financeInvoiceLink(invoiceId: string): string {
-  return `/sales?tab=fin-cashbook&sub=invoices&invoiceId=${invoiceId}`;
+  return `/finance?tab=cashbook&sub=invoices&invoiceId=${invoiceId}`;
 }
 
 async function loadInvoiceLines(

@@ -5,11 +5,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * V4.2 perf (PERF_REDUNDANCY.md #6) — `OverviewTab` (tab "Tổng quan" Tài
- * chính) kéo theo `recharts` (CashflowChart + LineChart nội bộ). Trước đây
- * `sales/page.tsx` import tĩnh `OverviewTab` ở top-level nên MỌI lượt vào
- * `/sales` (kể cả đang xem tab PO/Nhà cung cấp) đều tải chunk recharts.
+ * chính) kéo theo `recharts` (CashflowChart + LineChart nội bộ). Import tĩnh
+ * `OverviewTab` ở top-level trang hub sẽ khiến MỌI lượt vào hub (kể cả đang
+ * xem tab Sổ quỹ/Công nợ) đều tải chunk recharts.
  *
- * `sales/page.tsx` là Server Component (dùng `cookies()`) nên không thể gọi
+ * TASK-20261001 — dùng ở `finance/page.tsx` (trước đây ở `sales/page.tsx`
+ * khi Tài chính còn là tab con của Thu mua, nay đã tách hub riêng).
+ * `finance/page.tsx` là Server Component nên không thể gọi
  * `next/dynamic(..., { ssr: false })` trực tiếp trong đó (Next chỉ cho phép
  * `ssr: false` trong Client Component) — bọc qua client wrapper này, theo
  * đúng pattern `AuditRow.tsx` đã dùng cho `AuditDiffViewer`.

@@ -389,7 +389,8 @@ export const L = {
   whOut: "/warehouse?tab=movement&mode=out",
   whQc: "/warehouse?tab=movement&mode=qc",
   whDeliveryNote: (id: string) => `/warehouse?tab=delivery-notes&id=${id}`,
-  finPayments: "/sales?tab=fin-payments",
+  // TASK-20261001 — Tài chính tách hub riêng `/finance` (trước `/sales?tab=fin-payments`).
+  finPayments: "/finance?tab=cashbook&sub=payments",
   // V4.3 Việc 2 — phiên kiểm kê nằm trong tab Báo cáo kho.
   whStocktake: (id: string) => `/warehouse?tab=report&stocktake=${id}`,
 } as const;

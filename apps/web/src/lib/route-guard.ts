@@ -35,12 +35,14 @@ export const ROUTE_GUARDS: RouteGuardRule[] = [
     roles: ["admin", "warehouse", "qc"],
     entities: ["inventory", "qcInspection"],
   },
-  // TASK-20260922 — /sales gồm cả phân hệ Tài chính (tab con) nên mở cho
-  // accountant + shareholder; page.tsx tự lọc tab theo quyền từng role.
+  // TASK-20261001 — Tài chính đã TÁCH ra hub riêng `/finance` (mục menu cấp
+  // 1 "Tài chính - Kế toán"). `/sales` giờ chỉ còn PO + Nhà cung cấp → bỏ
+  // accountant/shareholder/entity `finance` (trước đây mở cho họ để vào tab
+  // Tài chính con của /sales — nay dùng `/finance`).
   {
     prefix: "/sales",
-    roles: ["admin", "purchaser", "accountant", "shareholder"],
-    entities: ["po", "supplier", "finance"],
+    roles: ["admin", "purchaser"],
+    entities: ["po", "supplier"],
   },
   // V3.7.57 — BOM list mở cho mọi bộ phận xem (read-only cho non-planner).
   // V3.9 — qc + accountant vào /engineering để dùng tab "Đề xuất vật tư" (PR).
@@ -84,7 +86,8 @@ export const ROUTE_GUARDS: RouteGuardRule[] = [
   },
   // V4.1 Đợt 1a — màn Chờ QC nhập kho.
   { prefix: "/qc-inbound", roles: ["admin", "qc", "warehouse"], entities: ["qcInspection"] },
-  // TASK-20260922 — /finance chỉ còn redirect sang /sales?tab=...
+  // TASK-20261001 — hub "Tài chính - Kế toán" riêng (trước đây chỉ redirect
+  // sang /sales?tab=fin-*, nay là trang thật — xem finance/page.tsx).
   { prefix: "/finance", roles: ["admin", "accountant", "shareholder"], entities: ["finance"] },
   // V4.1 AD-16 — trang NCC chi tiết: ai ĐỌC được NCC (purchaser, planner, kho,
   // kế toán từ Đợt 3…) đều vào được — khớp API /api/suppliers/* (read:supplier).

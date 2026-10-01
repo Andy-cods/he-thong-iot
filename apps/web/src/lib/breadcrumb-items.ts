@@ -105,9 +105,14 @@ export const HUB_TAB_LABELS: Record<string, Record<string, string>> = {
   "/sales": {
     po: "Đặt hàng (PO)",
     suppliers: "Nhà cung cấp",
-    "fin-overview": "Tài chính · Tổng quan",
-    "fin-cashbook": "Tài chính · Sổ quỹ",
-    "fin-settle": "Tài chính · Công nợ & Thiết lập",
+  },
+  // TASK-20261001 — Tài chính tách hub riêng `/finance` (trước đây 3 dòng
+  // `fin-*` ở đây — `/sales` giờ redirect mọi `?tab=fin-*` sang `/finance`
+  // TRƯỚC KHI breadcrumb render nên không còn cần nhãn cho khoá cũ ở đây).
+  "/finance": {
+    overview: "Tổng quan",
+    cashbook: "Sổ quỹ",
+    settle: "Công nợ & Thiết lập",
   },
   "/warehouse": {
     layout: "Sơ đồ kho",
@@ -121,13 +126,6 @@ export const HUB_TAB_LABELS: Record<string, Record<string, string>> = {
 
 /** Khoá tab cũ (bookmark/link cũ) → khoá tab hiện hành — khớp resolveTab của trang hub. */
 export const HUB_TAB_ALIASES: Record<string, Record<string, string>> = {
-  "/sales": {
-    "fin-invoices": "fin-cashbook",
-    "fin-payments": "fin-cashbook",
-    "fin-receivables": "fin-settle",
-    "fin-accounts": "fin-settle",
-    "fin-categories": "fin-settle",
-  },
   "/warehouse": {
     overview: "layout",
     picking: "movement",

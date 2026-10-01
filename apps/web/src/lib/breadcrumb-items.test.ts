@@ -82,9 +82,10 @@ describe("V4.1 X6 — crumb theo ?tab= của trang hub", () => {
     expect(
       buildBreadcrumbItems("/engineering", undefined, "pr").map((i) => i.label),
     ).toEqual(["Tổng quan", "Bộ phận Thiết kế", "Đề xuất vật tư"]);
+    // TASK-20261001 — Tài chính tách hub riêng `/finance`.
     expect(
-      buildBreadcrumbItems("/sales", undefined, "fin-cashbook").map((i) => i.label),
-    ).toEqual(["Tổng quan", "Bộ phận Thu mua", "Tài chính · Sổ quỹ"]);
+      buildBreadcrumbItems("/finance", undefined, "cashbook").map((i) => i.label),
+    ).toEqual(["Tổng quan", "Tài chính", "Sổ quỹ"]);
     // V4.4 UI nhóm E — `?tab=assembly` bị HIDDEN_FEATURES.legacyAssembly ẩn
     // (D10), trang hub fallback nội dung về "requests" → breadcrumb giờ khớp
     // đúng ("Yêu cầu sản xuất"), không còn tự mâu thuẫn với nhãn cũ "Quy trình
@@ -97,7 +98,7 @@ describe("V4.1 X6 — crumb theo ?tab= của trang hub", () => {
   it("khoá tab cũ được quy về tab hiện hành", () => {
     expect(hubTabLabel("/warehouse", "picking")).toBe("Nhập / Xuất kho");
     expect(hubTabLabel("/warehouse", "overview")).toBe("Sơ đồ kho");
-    expect(hubTabLabel("/sales", "fin-receivables")).toBe("Tài chính · Công nợ & Thiết lập");
+    expect(hubTabLabel("/finance", "settle")).toBe("Công nợ & Thiết lập");
   });
 
   it("tab lạ / thiếu tab / route không phải hub → không thêm crumb", () => {

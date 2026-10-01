@@ -1,140 +1,89 @@
-import { cookies } from "next/headers";
-import {
-  BarChart3,
-  Building2,
-  ShoppingCart,
-  Wallet,
-  Wallet2,
-} from "lucide-react";
-import type { Role } from "@iot/shared";
-import { canAny } from "@iot/shared";
-import { AUTH_COOKIE_NAME, verifyAccessToken } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { Building2, ShoppingCart } from "lucide-react";
 import { HubTabsNav, type HubTabDef } from "@/components/common/HubTabsNav";
 import { SuppliersTab } from "@/components/sales/SuppliersTab";
 import { POTab } from "@/components/sales/POTab";
-import { OverviewTabLazy } from "@/components/sales/OverviewTabLazy";
-import { CashbookGroupTab } from "@/components/finance/CashbookGroupTab";
-import { SettlementsGroupTab } from "@/components/finance/SettlementsGroupTab";
 
 export const dynamic = "force-dynamic";
 
 /**
- * TASK-20260922 — `/sales` Hub Bộ phận Thu mua.
+ * TASK-20261001 — `/sales` Hub Bộ phận Thu mua.
  *
- * V2 (2026-09-22): gộp 9 tab → 5 tab theo yêu cầu user ("gộp các function
- * con vào được không nó dài quá không tối ưu layout"). Tiêu chí gộp: TẦN
- * SUẤT DÙNG + NGHIỆP VỤ LIÊN QUAN (không gộp bừa cho đủ số):
- *   - "Sổ quỹ" = Thu chi + Hoá đơn + Thanh toán — cùng nghiệp vụ dòng tiền
- *     hằng ngày, kế toán mở liên tục trong ca làm việc. Sub-tab cấp 2 bên
- *     trong (xem CashbookGroupTab).
- *   - "Công nợ & Thiết lập" = Công nợ + Tài khoản + Danh mục — Tài khoản/
- *     Danh mục là cấu hình ít đụng tới (setup 1 lần), gom chung với Công nợ
- *     (theo dõi định kỳ, không phải hằng ngày) để không chiếm thêm 1 tab
- *     cấp 1 riêng. Sub-tab cấp 2 bên trong (xem SettlementsGroupTab).
- *   - "Tổng quan TC" giữ nguyên standalone vì đã là dashboard, không có gì
- *     để gộp thêm.
- *   - PO / Nhà cung cấp giữ nguyên — khác nghiệp vụ (mua hàng vs dòng tiền),
- *     dùng bởi role purchaser (không phải accountant).
+ * V3 (2026-10-01): TÁCH phân hệ Tài chính ra hub riêng `/finance` (mục menu
+ * cấp 1 "Tài chính - Kế toán", xem `nav-items.ts` + `finance/page.tsx`) theo
+ * yêu cầu chủ xưởng ("tư duy để làm hoàn chỉnh" — Tài chính không còn là tab
+ * con của Thu mua). `/sales` giờ CHỈ còn 2 tab: Đặt hàng (PO) + Nhà cung cấp.
  *
- * Lọc tab theo role:
- *   - po/suppliers → chỉ role purchaser + admin (`group: "purchasing"`).
- *     KHÔNG dùng `canAny(roles, "po")` vì accountant cũng có `po: ["read"]`
- *     trong RBAC matrix (để đối chiếu công nợ qua API) — nếu lọc theo entity
- *     thì tab PO sẽ lộ ra cho accountant dù đó không phải chức năng của họ.
- *   - 3 tab tài chính → `canAny(roles, "finance")` (accountant/shareholder/admin).
+ * Lịch sử: V2 (2026-09-22, TASK-20260922) từng gộp 9 tab → 5 tab rồi nhập
+ * luôn 3 tab Tài chính (Tổng quan/Sổ quỹ/Công nợ & Thiết lập, key `fin-*`)
+ * làm tab con của `/sales`. Giữ `LEGACY_FIN_TAB_REDIRECT` bên dưới để MỌI
+ * link/bookmark cũ `?tab=fin-*` (+ alias cũ hơn `fin-invoices`/`fin-payments`/
+ * `fin-receivables`/`fin-accounts`/`fin-categories`) tự chuyển sang `/finance`
+ * tương ứng — KHÔNG gãy link cũ (giữ nguyên mọi query khác, vd `invoiceId`).
  *
- * Route guard `/sales` (layout.tsx) đã mở cho admin/purchaser/accountant/
- * shareholder. Việc lọc TAB (không phải route) đảm bảo accountant/shareholder
- * vào /sales chỉ thấy đúng tab Tài chính, không thấy PO/Nhà cung cấp — và
- * ngược lại purchaser không thấy tab Tài chính.
- *
- * `/finance` cũ giữ lại làm alias redirect (xem `finance/page.tsx`) → vẫn trỏ
- * `?tab=fin-overview` (tab này KHÔNG đổi tên/gộp nên không gãy).
- *
- * Deep-link cũ (`?tab=fin-invoices`, `?tab=fin-payments`, `?tab=fin-receivables`,
- * `?tab=fin-accounts`, `?tab=fin-categories`) được tự map sang tab gộp đúng
- * sub-tab qua `LEGACY_TAB_REDIRECT` bên dưới — không gãy bookmark cũ.
+ * Route guard `/sales` (lib/route-guard.ts) nay chỉ còn admin/purchaser +
+ * entities `po`/`supplier` (đã bỏ accountant/shareholder/`finance`).
  */
-const PURCHASING_ROLES: Role[] = ["admin", "purchaser"];
-
-// V4.2 UI (redesign Tài chính §1.9) — bỏ tiền tố "TC:" lặp lại ở 3 nhãn cuối:
-// icon riêng biệt (BarChart3/Wallet/Wallet2, khác hẳn ShoppingCart/Building2
-// của nhóm mua hàng) đã đủ phân nhóm trực quan, tiền tố chỉ tốn ký tự và là
-// nguyên nhân chính khiến nhãn dài bị cắt trên thanh tab 390px. `key` giữ
-// nguyên (`fin-overview`/`fin-cashbook`/`fin-settle`) nên link `?tab=` cũ
-// không gãy.
 const SALES_TABS = [
-  { key: "po",           label: "Đặt hàng (PO)",       icon: ShoppingCart, group: "purchasing" as const },
-  { key: "suppliers",    label: "Nhà cung cấp",        icon: Building2,    group: "purchasing" as const },
-  { key: "fin-overview", label: "Tổng quan",           icon: BarChart3,    group: "finance" as const },
-  { key: "fin-cashbook", label: "Sổ quỹ",              icon: Wallet,       group: "finance" as const },
-  { key: "fin-settle",   label: "Công nợ & Thiết lập", icon: Wallet2,      group: "finance" as const },
-] as const satisfies ReadonlyArray<HubTabDef & { group: "purchasing" | "finance" }>;
+  { key: "po", label: "Đặt hàng (PO)", icon: ShoppingCart },
+  { key: "suppliers", label: "Nhà cung cấp", icon: Building2 },
+] as const satisfies ReadonlyArray<HubTabDef>;
 
 type SalesTab = (typeof SALES_TABS)[number]["key"];
 
 /**
- * Map tab cũ (trước khi gộp) → { tab mới, sub mới } để bookmark/link cũ vẫn
- * mở đúng nội dung. `fin-overview` không có trong map vì không đổi tên.
+ * Map tab Tài chính cũ (từng ở `/sales`) → { tab, sub } mới ở `/finance`.
+ * `fin-overview` đổi tên key thành `overview` (hub mới không cần tiền tố
+ * `fin-` vì không còn lẫn với tab PO/Nhà cung cấp khác hub nữa).
  */
-const LEGACY_TAB_REDIRECT: Record<string, { tab: SalesTab; sub: string }> = {
-  "fin-invoices":    { tab: "fin-cashbook", sub: "invoices" },
-  "fin-payments":    { tab: "fin-cashbook", sub: "payments" },
-  "fin-receivables": { tab: "fin-settle",   sub: "receivables" },
-  "fin-accounts":    { tab: "fin-settle",   sub: "accounts" },
-  "fin-categories":  { tab: "fin-settle",   sub: "categories" },
+const LEGACY_FIN_TAB_REDIRECT: Record<string, { tab: string; sub?: string }> = {
+  "fin-overview": { tab: "overview" },
+  "fin-cashbook": { tab: "cashbook" },
+  "fin-settle": { tab: "settle" },
+  // Alias cũ hơn (trước TASK-20260922 gộp sub-tab) — vẫn thấy trong thông báo/
+  // email cũ, worker reminder jobs trước khi sửa (defense in depth).
+  "fin-invoices": { tab: "cashbook", sub: "invoices" },
+  "fin-payments": { tab: "cashbook", sub: "payments" },
+  "fin-receivables": { tab: "settle", sub: "receivables" },
+  "fin-accounts": { tab: "settle", sub: "accounts" },
+  "fin-categories": { tab: "settle", sub: "categories" },
 };
-
-/** Tab hiện hay ẩn theo group: "purchasing" cần role purchaser/admin (role-based,
- *  không dùng entity vì accountant cũng có quyền read entity "po"); "finance"
- *  dùng entity RBAC chuẩn. */
-function isTabVisible(group: "purchasing" | "finance", roles: Role[]): boolean {
-  if (group === "finance") return canAny(roles, "finance");
-  return roles.some((r) => PURCHASING_ROLES.includes(r));
-}
 
 interface SalesPageProps {
   searchParams: { tab?: string; sub?: string } & Record<string, string | string[] | undefined>;
 }
 
-/** Đọc roles từ JWT cookie (server component) — không cần round-trip DB. */
-async function getRolesFromCookie(): Promise<Role[]> {
-  const token = cookies().get(AUTH_COOKIE_NAME)?.value;
-  if (!token) return [];
-  const payload = await verifyAccessToken(token);
-  return payload?.roles ?? [];
-}
-
-export default async function SalesPage({ searchParams }: SalesPageProps) {
-  const roles = await getRolesFromCookie();
-  const visibleTabs = SALES_TABS.filter((t) => isTabVisible(t.group, roles));
-
+export default function SalesPage({ searchParams }: SalesPageProps) {
   const requested = searchParams.tab;
-  const legacy = requested ? LEGACY_TAB_REDIRECT[requested] : undefined;
-  const effectiveTab = legacy?.tab ?? requested;
-  const effectiveSub = legacy?.sub ?? searchParams.sub;
+  const legacyFin = requested ? LEGACY_FIN_TAB_REDIRECT[requested] : undefined;
+  if (legacyFin) {
+    const qs = new URLSearchParams();
+    qs.set("tab", legacyFin.tab);
+    const sub = typeof searchParams.sub === "string" ? searchParams.sub : legacyFin.sub;
+    if (sub) qs.set("sub", sub);
+    // Giữ nguyên MỌI query khác (vd `invoiceId` từ `financeInvoiceLink()`).
+    for (const [k, v] of Object.entries(searchParams)) {
+      if (k === "tab" || k === "sub" || typeof v !== "string") continue;
+      qs.set(k, v);
+    }
+    redirect(`/finance?${qs.toString()}`);
+  }
 
-  // Fallback an toàn: nếu vì lý do gì đó không tab nào hiện (không nên xảy ra
-  // vì route guard /sales đã chặn user không có quyền po/supplier/finance),
-  // vẫn cần 1 giá trị hợp lệ cho HubTabsNav thay vì undefined.
-  const found = visibleTabs.find((t) => t.key === effectiveTab);
-  const active: SalesTab = found ? found.key : (visibleTabs[0]?.key ?? "po");
+  const found = SALES_TABS.find((t) => t.key === requested);
+  const active: SalesTab = found ? found.key : "po";
 
   return (
     <div className="flex flex-col bg-zinc-50/30 dark:bg-zinc-950/30 md:h-full md:overflow-hidden">
       <HubTabsNav
         basePath="/sales"
-        tabs={visibleTabs}
+        tabs={SALES_TABS}
         active={active}
         ariaLabel="Purchasing sections"
       />
 
       <div className="flex-1 md:min-h-0 md:overflow-hidden">
-        {active === "po"           && <POTab />}
-        {active === "suppliers"    && <SuppliersTab />}
-        {active === "fin-overview" && <OverviewTabLazy />}
-        {active === "fin-cashbook" && <CashbookGroupTab initialSub={effectiveSub} />}
-        {active === "fin-settle"   && <SettlementsGroupTab initialSub={effectiveSub} />}
+        {active === "po" && <POTab />}
+        {active === "suppliers" && <SuppliersTab />}
       </div>
     </div>
   );

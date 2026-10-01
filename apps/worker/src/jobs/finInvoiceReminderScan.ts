@@ -210,7 +210,8 @@ export async function processFinInvoiceReminderScan(
         entityCode: inv.invoiceNo,
         title,
         message,
-        link: `/sales?tab=fin-invoices`,
+        // TASK-20261001 — Tài chính tách hub riêng `/finance` (trước `/sales?tab=fin-invoices`).
+        link: `/finance?tab=cashbook&sub=invoices`,
         severity: "warning",
       });
     }
@@ -233,7 +234,8 @@ export async function processFinInvoiceReminderScan(
           entityCode: inv.invoiceNo,
           title,
           message,
-          link: `/sales?tab=fin-invoices`,
+          // TASK-20261001 — Tài chính tách hub riêng `/finance` (trước `/sales?tab=fin-invoices`).
+          link: `/finance?tab=cashbook&sub=invoices`,
           severity: "error",
         });
       }
@@ -267,7 +269,8 @@ export async function processFinInvoiceReminderScan(
           entityCode: inv.invoiceNo,
           title,
           message,
-          link: `/sales?tab=fin-receivables`,
+          // TASK-20261001 — Tài chính tách hub riêng `/finance` (trước `/sales?tab=fin-receivables`).
+          link: `/finance?tab=settle&sub=receivables`,
           severity: "error",
         });
       }

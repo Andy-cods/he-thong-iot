@@ -7,17 +7,16 @@ import {
 } from "./nav-items";
 
 /**
- * V3.1 — Unit tests cho nav-items sau khi gộp Kế toán + Mua bán thành
- * section "purchasing" (Bộ phận Thu mua). 6 sections: dashboard / warehouse /
- * purchasing / engineering / operations / other.
+ * V3.1 — Unit tests cho nav-items. 7 sections: dashboard / warehouse /
+ * purchasing / finance / engineering / operations / other.
  *
- * TASK-20260922 — Tài chính không còn là nav item riêng (/finance), đã trở
- * thành tab con của /sales. Section "purchasing" giờ chỉ còn 1 item /sales,
- * gate bằng `entities: ["po", "supplier", "finance"]` (OR) để accountant/
- * shareholder cũng thấy item này (nhưng vào /sales chỉ thấy tab Tài chính).
+ * TASK-20261001 — Tài chính tách lại thành nav item RIÊNG (/finance), không
+ * còn là tab con của /sales (đảo ngược quyết định TASK-20260922). Section
+ * "purchasing" giờ chỉ còn /sales (PO + Nhà cung cấp, roles admin/purchaser);
+ * "finance" là section mới chỉ 1 item /finance, gate bằng `entity: "finance"`.
  */
 
-describe("NAV_ITEMS V3.1 cấu trúc 6 section", () => {
+describe("NAV_ITEMS V3.1 cấu trúc 7 section", () => {
   it("có item Tổng quan section dashboard", () => {
     const dashboard = NAV_ITEMS.find((i) => i.href === "/");
     expect(dashboard).toBeDefined();
@@ -25,17 +24,26 @@ describe("NAV_ITEMS V3.1 cấu trúc 6 section", () => {
     expect(dashboard?.label).toBe("Tổng quan");
   });
 
-  it("Mua bán & Kế toán nằm trong section purchasing", () => {
-    const fin = NAV_ITEMS.find((i) => i.section === "purchasing");
-    expect(fin).toBeDefined();
-    expect(fin?.href).toBe("/sales");
+  it("Bộ phận Thu mua nằm trong section purchasing", () => {
+    const sales = NAV_ITEMS.find((i) => i.section === "purchasing");
+    expect(sales).toBeDefined();
+    expect(sales?.href).toBe("/sales");
   });
 
-  it("section labels có đủ 6 bộ phận", () => {
+  // TASK-20261001 — Tài chính - Kế toán là nav item + section riêng.
+  it("Tài chính - Kế toán nằm trong section finance riêng", () => {
+    const fin = NAV_ITEMS.find((i) => i.section === "finance");
+    expect(fin).toBeDefined();
+    expect(fin?.href).toBe("/finance");
+    expect(fin?.entity).toBe("finance");
+  });
+
+  it("section labels có đủ 7 bộ phận", () => {
     expect(NAV_SECTION_LABEL).toEqual({
       dashboard:   "Tổng quan",
       warehouse:   "Bộ phận Kho",
       purchasing:  "Bộ phận Thu mua",
+      finance:     "Tài chính - Kế toán",
       engineering: "Bộ phận Thiết kế",
       operations:  "Bộ phận Gia công",
       other:       "Quản trị",
@@ -48,6 +56,7 @@ describe("NAV_ITEMS V3.1 cấu trúc 6 section", () => {
       "engineering",
       "operations",
       "purchasing",
+      "finance",
       "warehouse",
       "other",
     ]);
@@ -58,19 +67,20 @@ describe("NAV_ITEMS V3.1 cấu trúc 6 section", () => {
     expect(warehouseHrefs).toEqual(["/warehouse"]);
   });
 
-  // TASK-20260922 — section purchasing chỉ còn 1 hub /sales (Tài chính đã
-  // gộp làm tab con bên trong, không còn nav item /finance riêng).
-  it("Purchasing section chỉ còn hub /sales (Tài chính đã gộp làm tab con)", () => {
-    const finHrefs = NAV_ITEMS.filter((i) => i.section === "purchasing").map((i) => i.href);
-    expect(finHrefs).toEqual(["/sales"]);
+  // TASK-20261001 — purchasing section chỉ còn hub /sales (Tài chính tách
+  // hub riêng "finance" — xem test "Tài chính - Kế toán nằm trong section
+  // finance riêng" ở trên).
+  it("Purchasing section chỉ còn hub /sales", () => {
+    const purchasingHrefs = NAV_ITEMS.filter((i) => i.section === "purchasing").map((i) => i.href);
+    expect(purchasingHrefs).toEqual(["/sales"]);
   });
 
   // /sales gate bằng `roles` (không phải `entities`) vì warehouse/operator/
   // planner cũng có quyền read entity "po"/"supplier" nhưng không thuộc bộ
   // phận Thu mua — xem comment chi tiết tại nav-items.ts.
-  it("/sales chỉ cho đúng 4 role: admin/purchaser/accountant/shareholder", () => {
+  it("/sales chỉ cho đúng 2 role: admin/purchaser", () => {
     const sales = NAV_ITEMS.find((i) => i.href === "/sales");
-    expect(sales?.roles).toEqual(["admin", "purchaser", "accountant", "shareholder"]);
+    expect(sales?.roles).toEqual(["admin", "purchaser"]);
   });
 
   it("Bộ phận Thiết kế có hub và lối tắt đề xuất vật tư", () => {
@@ -137,7 +147,10 @@ describe("filterNavByRoles", () => {
 
   // V3.11.5 — Bộ phận Mua hàng chỉ thấy Tổng quan + Đề xuất vật tư + Thu mua
   // (đã bỏ /engineering khỏi nav purchaser, xem nav-items.ts).
-  it("purchaser thấy đề xuất vật tư và hub thu mua", () => {
+  // TASK-20261001 — purchaser ĐƠN (không kèm accountant) KHÔNG thấy "Tài
+  // chính - Kế toán" (khớp yêu cầu "THUMUA-KETOAN chỉ purchaser thì không
+  // thấy Tài chính").
+  it("purchaser thấy đề xuất vật tư và hub thu mua, KHÔNG thấy Tài chính", () => {
     const filtered = filterNavByRoles(NAV_ITEMS, ["purchaser"]);
     const hrefs = filtered.map((i) => i.href);
     expect(hrefs).toEqual([
@@ -146,6 +159,16 @@ describe("filterNavByRoles", () => {
       "/sales",
     ]);
     expect(hrefs).not.toContain("/material-requests");
+    expect(hrefs).not.toContain("/finance");
+  });
+
+  // TASK-20261001 — tài khoản thực tế `muahang` = purchaser + accountant →
+  // phải thấy ĐỦ CẢ HAI mục "Bộ phận Thu mua" lẫn "Tài chính - Kế toán".
+  it("purchaser + accountant (vd tài khoản muahang) thấy CẢ /sales lẫn /finance", () => {
+    const filtered = filterNavByRoles(NAV_ITEMS, ["purchaser", "accountant"]);
+    const hrefs = filtered.map((i) => i.href);
+    expect(hrefs).toContain("/sales");
+    expect(hrefs).toContain("/finance");
   });
 
   it("operator thấy BOM, đề xuất vật tư và hub gia công", () => {
@@ -159,28 +182,27 @@ describe("filterNavByRoles", () => {
     ]);
   });
 
-  // TASK-20260922 — Cổ đông: CHỈ Tổng quan + Bảng sản xuất + /sales (Tài
-  // chính đã gộp làm tab con của /sales, không còn nav item /finance riêng).
-  // Cổ đông vào /sales chỉ thấy 7 tab Tài chính (page.tsx tự lọc theo entity).
-  it("shareholder chỉ thấy tổng quan, bảng sản xuất và hub thu mua (để xem Tài chính)", () => {
+  // TASK-20261001 — Cổ đông: CHỈ Tổng quan + Bảng sản xuất + /finance (Tài
+  // chính tách hub riêng — cổ đông KHÔNG thuộc Thu mua nên không thấy /sales).
+  it("shareholder chỉ thấy tổng quan, bảng sản xuất và hub Tài chính", () => {
     const filtered = filterNavByRoles(NAV_ITEMS, ["shareholder"]);
     const hrefs = filtered.map((i) => i.href);
-    expect(hrefs).toEqual(["/", "/production-board", "/sales"]);
+    expect(hrefs).toEqual(["/", "/production-board", "/finance"]);
     expect(hrefs).not.toContain("/engineering");
     expect(hrefs).not.toContain("/procurement/purchase-requests");
-    expect(hrefs).not.toContain("/finance");
+    expect(hrefs).not.toContain("/sales");
     expect(hrefs).not.toContain("/warehouse");
     expect(hrefs).not.toContain("/admin");
   });
 
-  // TASK-20260922 — Kế toán thấy /sales (để vào tab Tài chính) + Đề xuất vật
-  // tư (YCVT). Không còn nav item /finance riêng.
-  it("accountant thấy hub thu mua (tài chính) và đề xuất vật tư", () => {
+  // TASK-20261001 — Kế toán thấy /finance (hub Tài chính riêng) + Đề xuất
+  // vật tư (YCVT). KHÔNG thấy /sales (PO/Nhà cung cấp không phải việc của họ).
+  it("accountant thấy hub Tài chính và đề xuất vật tư, KHÔNG thấy /sales", () => {
     const filtered = filterNavByRoles(NAV_ITEMS, ["accountant"]);
     const hrefs = filtered.map((i) => i.href);
-    expect(hrefs).toContain("/sales");
+    expect(hrefs).toContain("/finance");
     expect(hrefs).toContain("/procurement/purchase-requests");
-    expect(hrefs).not.toContain("/finance");
+    expect(hrefs).not.toContain("/sales");
     expect(hrefs).not.toContain("/admin");
     expect(hrefs).not.toContain("/warehouse");
   });
@@ -202,6 +224,7 @@ describe("filterNavByRoles", () => {
     expect(hrefs).toContain("/admin");
     expect(hrefs).toContain("/engineering");
     expect(hrefs).toContain("/sales");
+    expect(hrefs).toContain("/finance");
     expect(hrefs).toContain("/operations");
     expect(hrefs).toContain("/warehouse");
     expect(hrefs).not.toContain("/material-requests");
