@@ -473,6 +473,25 @@ export function BomGridPro({
   const visibleRowsRef = React.useRef(visibleRows);
   visibleRowsRef.current = visibleRows;
 
+  // V4.5 QA-C P2-3: lưới tràn ngang trên điện thoại (390px) nhưng không có
+  // chỉ báo cuộn — người dùng không biết còn cột (Tiến độ/SL/Dự kiến nhận)
+  // ngoài khung hình. Theo dõi scrollLeft của chính `parentRef` (container
+  // cuộn ngang DUY NHẤT — không ảnh hưởng cuộn dọc của virtualizer) để hiện
+  // mép mờ 2 bên, cùng kiểu với `ScrollTabsList`.
+  const [bomMoreLeft, setBomMoreLeft] = React.useState(false);
+  const [bomMoreRight, setBomMoreRight] = React.useState(false);
+  const updateBomScrollFade = React.useCallback(() => {
+    const el = parentRef.current;
+    if (!el) return;
+    setBomMoreLeft(el.scrollLeft > 2);
+    setBomMoreRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+  }, []);
+  React.useEffect(() => {
+    updateBomScrollFade();
+    window.addEventListener("resize", updateBomScrollFade);
+    return () => window.removeEventListener("resize", updateBomScrollFade);
+  }, [updateBomScrollFade, tableMinWidth, visibleRows.length]);
+
   // V1.8 Batch 3 — Deep-link highlight: đọc `?highlightLine=<lineId>` từ
   // query param (khi navigate từ /items/[id] tab "Dùng trong BOM"). Nếu match:
   //   1. Ensure row visible (expand ancestor groups).
@@ -1066,7 +1085,8 @@ export function BomGridPro({
           Category | Quy cách (tham khảo) | NCC | PIC | SL | Tiến độ | Thao tác.
           Header label tiếng Việt khớp Excel. Cột Hao hụt/notes phụ chỉ hiện
           khi showAllColumns=true. */}
-      <div ref={parentRef} className="flex-1 overflow-auto">
+      <div className="relative min-w-0 flex-1">
+      <div ref={parentRef} onScroll={updateBomScrollFade} className="h-full overflow-auto">
         {/* V4.1 UI-03: min-width = tổng độ rộng cột → điện thoại cuộn ngang
             thay vì bóp cột (cột "BOM gốc" từng còn 1 ký tự). */}
         <table
@@ -1350,6 +1370,21 @@ export function BomGridPro({
             )}
           </tbody>
         </table>
+      </div>
+      {/* V4.5 QA-C P2-3: mép mờ 2 bên báo còn cột ngoài khung hình (cùng kiểu
+          ScrollTabsList) — chỉ hiện khi bảng thật sự tràn (bomMoreLeft/Right). */}
+      {bomMoreLeft ? (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-white to-transparent dark:from-zinc-900"
+        />
+      ) : null}
+      {bomMoreRight ? (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-white to-transparent dark:from-zinc-900"
+        />
+      ) : null}
       </div>
 
       {/* Footer — nút thêm dòng mới */}

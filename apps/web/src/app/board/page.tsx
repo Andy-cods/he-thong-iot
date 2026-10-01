@@ -157,38 +157,43 @@ export default function BoardPage() {
   return (
     <div className="board-root flex h-screen w-screen flex-col overflow-hidden text-slate-100">
       {/* ===== Header ===== */}
-      <header className="relative flex items-center justify-between px-10 py-4">
-        <div className="flex items-center gap-5">
+      {/* V4.5 QA-C P2-5: màn hình chính dùng cho TV (≥1024px, thường F11
+          fullscreen) nên giữ NGUYÊN kích thước/bố cục lớn ở đó — chỉ thêm
+          breakpoint riêng cho mobile (<lg) để tiêu đề không wrap 3 dòng đè
+          lên cụm số Đang GC/QC/Sắp GC và số không bị cắt mép phải: header
+          chuyển sang xếp dọc (flex-col), tiêu đề + cụm số thu nhỏ cỡ chữ. */}
+      <header className="relative flex flex-col items-stretch gap-3 px-4 py-3 lg:flex-row lg:items-center lg:justify-between lg:gap-0 lg:px-10 lg:py-4">
+        <div className="flex items-center gap-3 lg:gap-5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/img/logo-gtam.png"
             alt="GTAM"
-            className="h-14 w-auto object-contain drop-shadow"
+            className="h-9 w-auto shrink-0 object-contain drop-shadow lg:h-14"
           />
-          <div>
-            <h1 className="text-[2rem] font-black uppercase leading-none tracking-[0.18em] text-white">
+          <div className="min-w-0">
+            <h1 className="text-lg font-black uppercase leading-tight tracking-[0.1em] text-white lg:whitespace-nowrap lg:text-[2rem] lg:leading-none lg:tracking-[0.18em]">
               Bảng Sản Xuất
             </h1>
-            <p className="mt-1.5 text-xs font-semibold uppercase tracking-[0.35em] text-amber-400/90">
+            <p className="mt-0.5 truncate text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-400/90 lg:mt-1.5 lg:text-xs lg:tracking-[0.35em]">
               Xưởng cơ khí GTAM — Production Status
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-8">
+        <div className="flex items-center justify-between gap-4 lg:gap-8">
           {counts && (
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4 lg:gap-6">
               <HeaderStat n={counts.IN_PROGRESS} label={tvShort("IN_PROGRESS")} tone="text-amber-300" />
               <HeaderStat n={counts.QC} label={tvShort("QC")} tone="text-cyan-300" />
               <HeaderStat n={counts.QUEUED} label={tvShort("QUEUED")} tone="text-slate-300" />
             </div>
           )}
-          <div className="h-12 w-px bg-amber-400/20" />
-          <div className="text-right">
+          <div className="hidden h-12 w-px bg-amber-400/20 lg:block" />
+          <div className="shrink-0 text-right">
             <div className="flex items-baseline justify-end gap-1 font-mono font-bold tabular-nums leading-none text-white">
-              <span className="text-[2.6rem]">{clock.time}</span>
-              <span className="text-2xl text-amber-400/80">:{clock.sec}</span>
-              <span className="ml-3 inline-flex items-center gap-1.5 self-center rounded-full bg-emerald-400/10 px-2.5 py-1 text-[11px] font-bold tracking-wider text-emerald-300 ring-1 ring-emerald-400/40">
+              <span className="text-xl lg:text-[2.6rem]">{clock.time}</span>
+              <span className="text-sm text-amber-400/80 lg:text-2xl">:{clock.sec}</span>
+              <span className="ml-2 hidden items-center gap-1.5 self-center rounded-full bg-emerald-400/10 px-2.5 py-1 text-[11px] font-bold tracking-wider text-emerald-300 ring-1 ring-emerald-400/40 lg:ml-3 lg:inline-flex">
                 <span className="relative flex h-2 w-2">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
@@ -196,7 +201,7 @@ export default function BoardPage() {
                 LIVE
               </span>
             </div>
-            <p className="mt-1.5 text-sm font-medium uppercase tracking-widest text-slate-400">
+            <p className="mt-1 hidden text-sm font-medium uppercase tracking-widest text-slate-400 lg:mt-1.5 lg:block">
               {clock.date}
             </p>
           </div>
@@ -206,20 +211,24 @@ export default function BoardPage() {
       </header>
 
       {/* ===== Column header ===== */}
-      <div
-        className={`${GRID} mx-10 mt-3 border-b border-amber-400/20 px-4 pb-2.5 text-[13px] font-bold uppercase tracking-[0.15em] text-amber-400/80`}
-      >
-        <span>Mã hàng</span>
-        <span>Sản phẩm</span>
-        <span className="text-center">KH</span>
-        <span className="text-right">SL đạt / KH</span>
-        <span>Tiến độ</span>
-        <span className="text-center">Hạn</span>
-        <span className="text-center">Trạng thái</span>
+      {/* V4.5 QA-C P2-5: dưới lg, bảng cột cố định (rem) sẽ tràn — cho cuộn
+          ngang thay vì vỡ, vẫn giữ layout lưới cũ nguyên vẹn ở TV (lg+). */}
+      <div className="mx-4 overflow-x-auto lg:mx-10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div
+          className={`${GRID} mt-3 min-w-max border-b border-amber-400/20 px-4 pb-2.5 text-[13px] font-bold uppercase tracking-[0.15em] text-amber-400/80`}
+        >
+          <span>Mã hàng</span>
+          <span>Sản phẩm</span>
+          <span className="text-center">KH</span>
+          <span className="text-right">SL đạt / KH</span>
+          <span>Tiến độ</span>
+          <span className="text-center">Hạn</span>
+          <span className="text-center">Trạng thái</span>
+        </div>
       </div>
 
       {/* ===== Rows ===== */}
-      <main className="flex flex-1 flex-col overflow-hidden px-10 pt-1">
+      <main className="flex flex-1 flex-col overflow-auto px-4 pt-1 lg:overflow-hidden lg:px-10">
         {isLoading ? (
           <Center>Đang tải bảng…</Center>
         ) : isError ? (
@@ -230,14 +239,16 @@ export default function BoardPage() {
             Chưa có lệnh nào đang chạy
           </Center>
         ) : (
-          <div key={page} className="board-page flex flex-1 flex-col">
-            {pageItems.map((it, idx) => (
-              <BoardRow
-                key={it.id}
-                item={it}
-                zebra={idx % 2 === 1}
-              />
-            ))}
+          <div key={page} className="board-page flex flex-1 flex-col overflow-x-auto lg:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex min-w-max flex-1 flex-col lg:min-w-0">
+              {pageItems.map((it, idx) => (
+                <BoardRow
+                  key={it.id}
+                  item={it}
+                  zebra={idx % 2 === 1}
+                />
+              ))}
+            </div>
           </div>
         )}
 
