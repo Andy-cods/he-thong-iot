@@ -90,7 +90,18 @@ export function ItemPicker({
     active: true,
   });
 
-  const rows = query.data?.data ?? [];
+  // V4.6 (QA PO_FLOW_E2E.md P3) — `useItemsList` giữ `placeholderData: prev
+  // => prev` để tránh nháy UI khi đổi `debouncedQ` → trong lúc gõ NHANH ở
+  // nhiều dòng liên tiếp (test + có thể người dùng thật dán nhiều dòng), danh
+  // sách CŨ (của lần tìm trước) vẫn hiện VÀ bấm được trong khoảng ~200ms chờ
+  // debounce + fetch của lần tìm MỚI — click rơi đúng lúc đó sẽ chốt nhầm kết
+  // quả cũ. `query.isPlaceholderData` = true đúng trong khoảng này (dữ liệu
+  // đang hiện CHƯA khớp `debouncedQ` hiện tại) → ẩn hẳn danh sách cũ, hiện
+  // "Đang tải..." thay vì vẫn cho bấm, đảm bảo CHỈ chốt được kết quả của truy
+  // vấn mới nhất của chính ô này.
+  const resultsStale = query.isPlaceholderData;
+  const rows = resultsStale ? [] : (query.data?.data ?? []);
+  const showLoadingRow = query.isLoading || resultsStale;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -156,12 +167,12 @@ export function ItemPicker({
           </div>
         </div>
         <ul className="max-h-72 overflow-auto p-1" role="listbox">
-          {query.isLoading && rows.length === 0 && (
+          {showLoadingRow && (
             <li className="px-2 py-4 text-center text-sm text-zinc-500 dark:text-zinc-400">
               Đang tải...
             </li>
           )}
-          {!query.isLoading && rows.length === 0 && (
+          {!showLoadingRow && rows.length === 0 && (
             <li className="px-2 py-4 text-center text-sm text-zinc-500 dark:text-zinc-400">
               Không có kết quả
             </li>
