@@ -535,7 +535,7 @@ export function ReceivingMovementView() {
                   { onSuccess: () => { setApproveTarget(null); setApproveNote(""); } },
                 );
               }}
-              className="bg-emerald-600 hover:bg-emerald-700"
+              className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
             >
               {approveMutation.isPending ? (
                 <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Đang xử lý…</>

@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DateField } from "@/components/ui/date-field";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 import { formatDateTime, formatQty } from "@/lib/format";
@@ -239,24 +240,26 @@ export function GoodsIssuesTab() {
             className="h-8 w-48 rounded-lg border border-zinc-200 bg-white pl-8 pr-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
           />
         </div>
+        {/* V4.4 (chủ xưởng) — DateField dd/mm/yyyy thay input date native
+            (placeholder theo locale máy, có máy ra "mm/dd/yyyy"). */}
         <label className="flex items-center gap-1.5 text-sm text-zinc-500 dark:text-zinc-400">
           Từ
-          <input
-            type="date"
+          <DateField
             value={from}
             max={to || undefined}
-            onChange={(e) => setFrom(e.target.value)}
-            className="h-8 rounded-lg border border-zinc-200 bg-white px-2 text-sm tabular-nums dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            onChange={setFrom}
+            size="sm"
+            className="w-32"
           />
         </label>
         <label className="flex items-center gap-1.5 text-sm text-zinc-500 dark:text-zinc-400">
           Đến
-          <input
-            type="date"
+          <DateField
             value={to}
             min={from || undefined}
-            onChange={(e) => setTo(e.target.value)}
-            className="h-8 rounded-lg border border-zinc-200 bg-white px-2 text-sm tabular-nums dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            onChange={setTo}
+            size="sm"
+            className="w-32"
           />
         </label>
         {hasFilter ? (

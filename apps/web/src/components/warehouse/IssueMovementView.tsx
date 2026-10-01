@@ -1266,7 +1266,7 @@ function PendingRequestsPanel() {
                                 size="sm"
                                 disabled={acting === r.id}
                                 onClick={() => void handleApprove(r.id, r.requestNo)}
-                                className="bg-emerald-600 hover:bg-emerald-700"
+                                className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
                               >
                                 <CheckCircle2 className="h-3.5 w-3.5" />
                                 Duyệt + xuất

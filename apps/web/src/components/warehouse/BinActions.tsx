@@ -94,7 +94,7 @@ export function BinActionsBar({
         <Button
           size="sm"
           onClick={() => setAddOpen(true)}
-          className="w-full bg-emerald-600 hover:bg-emerald-700"
+          className="w-full bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
         >
           {/* V4.4 A7 — "bin" tiếng Anh → "ô/kệ". */}
           <Plus className="h-3.5 w-3.5" /> Thêm hàng vào ô/kệ
@@ -227,7 +227,7 @@ export function BinQuickActionsPopover({
       {mode === "in" ? (
         <Button
           size="sm"
-          className="w-full bg-emerald-600 hover:bg-emerald-700"
+          className="w-full bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
           onClick={() => setAddOpen(true)}
         >
           {/* V4.4 A7 — "bin" tiếng Anh → "ô/kệ". */}
@@ -539,7 +539,7 @@ function AddStockDialog({
           <Button
             onClick={handleSubmit}
             disabled={!selectedItem || !qty || submitting}
-            className="bg-emerald-600 hover:bg-emerald-700"
+            className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
           >
             {/* V4.4 Đợt 2 mục 5 — nút xác nhận ghi rõ việc sẽ làm. */}
             {submitting ? "Đang lưu…" : `Thêm vào ${bin.fullCode}`}
@@ -699,7 +699,7 @@ function RemoveStockDialog({
           <Button
             onClick={handleSubmit}
             disabled={!qty || submitting}
-            className="bg-rose-600 hover:bg-rose-700"
+            className="bg-rose-600 hover:bg-rose-700 dark:bg-rose-700 dark:hover:bg-rose-600"
           >
             {/* V4.4 Đợt 2 mục 5 — nút xác nhận ghi rõ việc sẽ làm. */}
             {submitting ? "Đang rút…" : `Rút khỏi ${bin.fullCode}`}
