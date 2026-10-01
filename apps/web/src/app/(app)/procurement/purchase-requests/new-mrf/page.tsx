@@ -409,28 +409,28 @@ export default function NewMRFPage() {
                   <tr className="bg-[#F5F5F5] text-xs font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
                     <Th w="w-8">STT</Th>
                     <Th w="min-w-[220px]">Vật tư (Mã · Tên)</Th>
-                    <Th w="min-w-[120px]">Quy cách</Th>
-                    <Th w="w-14">ĐVT</Th>
-                    <Th w="w-14" align="right">
+                    <Th w="min-w-[160px] print:min-w-[120px] print:w-auto">Quy cách</Th>
+                    <Th w="min-w-[72px] print:w-14 print:min-w-0">ĐVT</Th>
+                    <Th w="min-w-[96px] print:w-14 print:min-w-0" align="right">
                       SL
                     </Th>
-                    <Th w="w-16" align="right">
+                    <Th w="min-w-[72px] print:w-16 print:min-w-0" align="right">
                       Tồn kho
                     </Th>
-                    <Th w="w-14" align="right">
+                    <Th w="min-w-[64px] print:w-14 print:min-w-0" align="right">
                       Duyệt
                     </Th>
-                    <Th w="w-28">Ngày cần</Th>
-                    <Th w="w-28">Ưu tiên</Th>
-                    <Th w="w-28">Phân loại</Th>
-                    <Th w="w-28" align="right">
+                    <Th w="min-w-[140px] print:w-28 print:min-w-0">Ngày cần</Th>
+                    <Th w="min-w-[110px] print:w-28 print:min-w-0">Ưu tiên</Th>
+                    <Th w="min-w-[110px] print:w-28 print:min-w-0">Phân loại</Th>
+                    <Th w="min-w-[110px] print:w-28 print:min-w-0" align="right">
                       Đơn giá DK
                     </Th>
-                    <Th w="w-32" align="right">
+                    <Th w="min-w-[120px] print:w-32 print:min-w-0" align="right">
                       Tổng tiền
                     </Th>
-                    <Th w="w-24">Mã ref</Th>
-                    <Th w="min-w-[120px]">Ghi chú</Th>
+                    <Th w="min-w-[96px] print:w-24 print:min-w-0">Mã ref</Th>
+                    <Th w="min-w-[140px] print:min-w-[120px] print:w-auto">Ghi chú</Th>
                     <Th w="w-8" hideOnPrint>
                       &nbsp;
                     </Th>
@@ -457,7 +457,7 @@ export default function NewMRFPage() {
                           </span>
                         </Td>
                         <Td>
-                          <div className="min-w-[200px] print:hidden">
+                          <div className="min-w-[220px] print:hidden">
                             <ItemPickerField
                               value={l.item}
                               onChange={(item) =>
@@ -483,7 +483,7 @@ export default function NewMRFPage() {
                             }
                             placeholder="VD: D6x50xL100"
                             rows={1}
-                            className="w-full resize-none bg-transparent text-[11px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
+                            className="w-full resize-none bg-transparent text-[16px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600 sm:text-md print:text-[11px]"
                             style={{ minHeight: 18 }}
                           />
                         </Td>
@@ -495,7 +495,7 @@ export default function NewMRFPage() {
                               updateLine(l.localId, { uom: e.target.value })
                             }
                             placeholder="Cái"
-                            className="w-full bg-transparent text-center text-[11px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
+                            className="w-full bg-transparent text-center text-[16px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600 sm:text-md print:text-[11px]"
                           />
                         </Td>
                         <Td>
@@ -507,7 +507,7 @@ export default function NewMRFPage() {
                             onChange={(e) =>
                               updateLine(l.localId, { qty: e.target.value })
                             }
-                            className="w-full bg-transparent text-right font-mono text-[11px] outline-none"
+                            className="w-full bg-transparent text-right font-mono text-[16px] tabular-nums outline-none sm:text-md print:text-[11px]"
                           />
                         </Td>
                         <Td align="right">
@@ -535,7 +535,7 @@ export default function NewMRFPage() {
                                 neededBy: e.target.value,
                               })
                             }
-                            className="w-full bg-transparent text-[11px] outline-none"
+                            className="w-full bg-transparent text-[16px] outline-none sm:text-md print:text-[11px]"
                           />
                         </Td>
                         <Td>
@@ -547,7 +547,7 @@ export default function NewMRFPage() {
                                   .value as MRFLineDraft["priority"],
                               })
                             }
-                            className="w-full min-w-0 bg-transparent pr-1 text-[11px] outline-none"
+                            className="w-full min-w-0 bg-transparent pr-1 text-[16px] outline-none sm:text-md print:text-[11px]"
                           >
                             {Object.entries(PRIORITY_LABELS).map(([k, v]) => (
                               <option key={k} value={k}>
@@ -565,7 +565,7 @@ export default function NewMRFPage() {
                                   .value as MRFLineDraft["category"],
                               })
                             }
-                            className="w-full min-w-0 bg-transparent pr-1 text-[11px] outline-none"
+                            className="w-full min-w-0 bg-transparent pr-1 text-[16px] outline-none sm:text-md print:text-[11px]"
                           >
                             {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
                               <option key={k} value={k}>
@@ -586,7 +586,7 @@ export default function NewMRFPage() {
                               })
                             }
                             placeholder="0"
-                            className="w-full bg-transparent text-right font-mono text-[11px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
+                            className="w-full bg-transparent text-right font-mono text-[16px] tabular-nums outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600 sm:text-md print:text-[11px]"
                           />
                         </Td>
                         <Td align="right">
@@ -606,7 +606,7 @@ export default function NewMRFPage() {
                               })
                             }
                             placeholder="Link/PO"
-                            className="w-full bg-transparent text-[11px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
+                            className="w-full bg-transparent text-[16px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600 sm:text-md print:text-[11px]"
                           />
                         </Td>
                         <Td>
@@ -616,7 +616,7 @@ export default function NewMRFPage() {
                               updateLine(l.localId, { notes: e.target.value })
                             }
                             rows={1}
-                            className="w-full resize-none bg-transparent text-[11px] outline-none"
+                            className="w-full resize-none bg-transparent text-[16px] outline-none sm:text-md print:text-[11px]"
                             style={{ minHeight: 18 }}
                           />
                         </Td>

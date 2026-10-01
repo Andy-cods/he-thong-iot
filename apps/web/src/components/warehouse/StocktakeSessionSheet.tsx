@@ -534,7 +534,7 @@ export function StocktakeSessionSheet({
                                 placeholder="Số đếm"
                                 aria-invalid={invalid}
                                 className={cn(
-                                  "h-11 w-24 shrink-0 rounded-lg border text-right text-lg font-semibold tabular-nums focus:outline-none",
+                                  "h-11 w-24 shrink-0 rounded-lg border text-right text-[16px] font-semibold tabular-nums focus:outline-none sm:text-lg",
                                   invalid
                                     ? "border-red-500 bg-red-50 focus:border-red-600 dark:border-red-500 dark:bg-red-950/30"
                                     : "border-zinc-300 focus:border-blue-500 dark:border-zinc-700 dark:bg-zinc-900",

@@ -23,8 +23,11 @@ export function groupAccountsByType(accounts: FinAccountRow[]) {
   })).filter((g) => g.accounts.length > 0);
 }
 
+// V4.6 — font select tài chính trước đây `text-base` (13px theo scale custom
+// dự án) < 14px tối thiểu, lại dưới 16px nên iOS tự zoom khi focus. Đổi sang
+// text-[16px] (mobile) / sm:text-md (14px desktop).
 export const selectClassName =
-  "mt-1 h-9 w-full rounded-md border border-zinc-300 bg-white px-2 text-base text-zinc-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50";
+  "mt-1 h-9 w-full rounded-md border border-zinc-300 bg-white px-2 text-[16px] text-zinc-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 sm:text-md";
 
 export const AccountSourceSelect = React.forwardRef<
   HTMLSelectElement,

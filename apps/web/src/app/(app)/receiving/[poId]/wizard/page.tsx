@@ -955,7 +955,7 @@ function LineRow({
           placeholder="0"
           disabled={disabled || isDone}
           className={cn(
-            "h-9 w-24 text-right tabular-nums",
+            "h-9 min-w-[96px] text-right text-[16px] tabular-nums sm:text-lg",
             overRemaining && "border-amber-400 focus-visible:ring-amber-400 dark:border-amber-600",
           )}
           aria-invalid={overRemaining || undefined}

@@ -84,17 +84,17 @@ export function PoLineEditor({
   return (
     <div className="space-y-3">
       {/* Desktop/tablet — bảng đầy đủ. */}
-      <div className="hidden overflow-hidden rounded-md border border-zinc-200 bg-white md:block dark:border-zinc-800 dark:bg-zinc-900">
-        <table className="w-full text-sm">
+      <div className="hidden overflow-x-auto rounded-md border border-zinc-200 bg-white md:block dark:border-zinc-800 dark:bg-zinc-900">
+        <table className="w-full min-w-[760px] text-sm">
           <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-800/60 dark:text-zinc-400">
             <tr>
               <th className="w-8 px-2 py-2 text-left">#</th>
               <th className="px-2 py-2 text-left">Vật tư</th>
-              <th className="w-24 px-2 py-2 text-right">SL</th>
-              <th className="w-16 px-2 py-2 text-left">ĐVT</th>
-              <th className="w-32 px-2 py-2 text-right">Đơn giá</th>
-              <th className="w-20 px-2 py-2 text-right">VAT%</th>
-              <th className="w-36 px-2 py-2 text-right">Thành tiền</th>
+              <th className="min-w-[96px] px-2 py-2 text-right">SL</th>
+              <th className="min-w-[72px] px-2 py-2 text-left">ĐVT</th>
+              <th className="min-w-[128px] px-2 py-2 text-right">Đơn giá</th>
+              <th className="min-w-[80px] px-2 py-2 text-right">VAT%</th>
+              <th className="min-w-[144px] px-2 py-2 text-right">Thành tiền</th>
               <th className="w-8 px-2 py-2" />
             </tr>
           </thead>
