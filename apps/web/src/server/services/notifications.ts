@@ -57,6 +57,7 @@ import {
   planWOReleased,
   planWORequestSubmitted,
   planWOStarted,
+  staleResolutionEntityIds,
   type CandidateUser,
   type NotificationEventType,
   type NotificationSeverity,
@@ -219,17 +220,24 @@ async function emitNotification(input: EmitInput): Promise<string | null> {
  * CŨ (mọi người nhận) của CÙNG chứng từ thuộc các eventType đã lỗi thời. Chạy
  * độc lập với việc có deliveries mới hay không — chứng từ có thể được xử lý
  * bởi người không nhận thông báo bước trước (vd admin xử lý thay).
+ *
+ * Dùng `staleResolutionEntityIds()` (THUẦN) thay vì chỉ `plan.entityId` — một
+ * số chuyển tiếp đổi SANG entity khác (VD tạo PO từ PR: notification mới gắn
+ * entityId=PO, nhưng thông báo CŨ cần hết hiệu lực PR_APPROVED lại gắn
+ * entityId=PR) nên cần cả `plan.resolveExtraEntityIds` mới khớp đúng.
  */
 async function resolveStaleNotifications(plan: NotifyPlan): Promise<void> {
   const staleTypes = RESOLVES_STALE[plan.eventType];
-  if (!staleTypes || staleTypes.length === 0 || !plan.entityId) return;
+  if (!staleTypes || staleTypes.length === 0) return;
+  const entityIds = staleResolutionEntityIds(plan);
+  if (entityIds.length === 0) return;
   try {
     await db
       .update(notification)
       .set({ readAt: new Date() })
       .where(
         and(
-          eq(notification.entityId, plan.entityId),
+          inArray(notification.entityId, entityIds),
           inArray(notification.eventType, [...staleTypes]),
           isNull(notification.readAt),
         ),

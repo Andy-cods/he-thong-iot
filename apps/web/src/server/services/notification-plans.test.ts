@@ -55,6 +55,7 @@ import {
   planWORequestSubmitted,
   planWOStarted,
   resolveLink,
+  staleResolutionEntityIds,
   type CandidateUser,
   type NotifyPlan,
 } from "./notification-plans";
@@ -316,5 +317,64 @@ describe("TASK-notify V4.4 — nhóm hiển thị (category) + chống trùng/nh
         ).toBe(true);
       }
     }
+  });
+});
+
+describe("TASK-notify V4.4 (fix P0 hộp thư dồn purchaser) — resolveExtraEntityIds", () => {
+  it("staleResolutionEntityIds gộp entityId + resolveExtraEntityIds, lọc trùng/rỗng", () => {
+    expect(
+      staleResolutionEntityIds({
+        eventType: "PO_CREATED_FROM_PR",
+        entityType: "purchase_order",
+        entityId: "po-1",
+        resolveExtraEntityIds: ["pr-1", "po-1", undefined as unknown as string, ""],
+        targets: [],
+      }),
+    ).toEqual(["po-1", "pr-1"]);
+  });
+
+  it("staleResolutionEntityIds trả [] khi không có entityId lẫn resolveExtraEntityIds", () => {
+    expect(
+      staleResolutionEntityIds({ eventType: "PR_SUBMITTED", entityType: "purchase_request", targets: [] }),
+    ).toEqual([]);
+  });
+
+  it("planPOCreatedFromPR khai báo resolveExtraEntityIds=[prId] — PO và PR có entityId KHÁC nhau", () => {
+    const plan = planPOCreatedFromPR({
+      ...A,
+      prId: "pr-1",
+      prNo: "YCVT-01",
+      prCreatorUserId: U(1),
+      poCount: 1,
+      firstPoId: "po-1",
+    });
+    expect(plan.entityId).toBe("po-1");
+    expect(plan.resolveExtraEntityIds).toEqual(["pr-1"]);
+    // Không dùng resolveExtraEntityIds thì KHÔNG BAO GIỜ khớp được PR_APPROVED
+    // (entityId=pr-1) — xác nhận lỗi gốc đã sửa (trước đây chỉ dùng entityId).
+    expect(staleResolutionEntityIds(plan)).toContain("pr-1");
+  });
+
+  it("planPOInvoiceDraft khai báo resolveExtraEntityIds=[poId] — hoá đơn và PO có entityId KHÁC nhau", () => {
+    const plan = planPOInvoiceDraft({ ...PO, invoiceId: "inv-1", invoiceNo: "HD-01", totalAmount: 1000 });
+    expect(plan.entityId).toBe("inv-1");
+    expect(plan.resolveExtraEntityIds).toEqual(["po-1"]);
+    expect(staleResolutionEntityIds(plan)).toContain("po-1");
+  });
+
+  it("RESOLVES_STALE: tạo PO từ PR phải hết hiệu lực PR_APPROVED (không chỉ bản nhắc)", () => {
+    expect(RESOLVES_STALE.PO_CREATED_FROM_PR).toContain("PR_APPROVED");
+  });
+
+  it("RESOLVES_STALE: gửi duyệt PO / gửi NCC thẳng phải hết hiệu lực PO_CREATED_FROM_PR", () => {
+    expect(RESOLVES_STALE.PO_APPROVAL_REQUESTED).toContain("PO_CREATED_FROM_PR");
+    expect(RESOLVES_STALE.PO_SENT).toContain("PO_CREATED_FROM_PR");
+    expect(RESOLVES_STALE.PO_CANCELLED).toContain("PO_CREATED_FROM_PR");
+    expect(RESOLVES_STALE.PO_CLOSED).toContain("PO_CREATED_FROM_PR");
+  });
+
+  it("RESOLVES_STALE: tạo HĐ mua nháp / đóng PO phải hết hiệu lực PO_RECEIVED_FULL", () => {
+    expect(RESOLVES_STALE.PO_INVOICE_DRAFT).toContain("PO_RECEIVED_FULL");
+    expect(RESOLVES_STALE.PO_CLOSED).toContain("PO_RECEIVED_FULL");
   });
 });
