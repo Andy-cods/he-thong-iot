@@ -6,18 +6,20 @@ import { cn } from "@/lib/utils";
 import { QueryError } from "@/components/ui/query-error";
 import { StatTile } from "@/components/ui/data-table";
 import { ReconciliationSection } from "./ReconciliationSection";
-import { StocktakeSection } from "./StocktakeSection";
 import { formatQty } from "@/lib/format";
 
 /**
  * V3.7 — Tab "Báo cáo kho".
  *
- * 4 sections:
+ * Sections:
  *   1. Stats card (tổng bins / occupied / empty / low)
  *   2. Capacity utilization theo kệ (bar chart đơn giản)
  *   3. Bins low-stock (qty < lowThreshold)
  *   4. SKUs chưa gán bin
  *   5. V4.1 Đợt 1c — Đối soát trước kiểm kê (ReconciliationSection, D4)
+ *
+ * TASK-6VIEC Việc 4 — "Kiểm kê kho" (StocktakeSection, trước là section #6
+ * ở đây từ V4.3 Việc 2) đã tách sang tab riêng "Kiểm kê" — xem StocktakeTab.tsx.
  */
 
 interface BinNode {
@@ -486,8 +488,8 @@ export function ReportTab() {
         )}
       </section>
 
-      {/* V4.3 Việc 2 — kiểm kê kho trọn vòng (tạo → đếm → duyệt chốt). */}
-      <StocktakeSection />
+      {/* TASK-6VIEC Việc 4 — "Kiểm kê kho" (StocktakeSection) tách sang tab
+          riêng "Kiểm kê" (ngang "Báo cáo kho") — xem StocktakeTab.tsx. */}
 
       {/* V4.1 Đợt 1c (D4) — đối soát trước kiểm kê (chỉ đọc, không tự trừ tồn) */}
       <ReconciliationSection />

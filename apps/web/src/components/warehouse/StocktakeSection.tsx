@@ -10,8 +10,14 @@ import { StocktakeCreateSheet } from "./StocktakeCreateSheet";
 import { StocktakeSessionSheet } from "./StocktakeSessionSheet";
 
 /**
- * V4.3 Việc 2 — Section "Kiểm kê kho" trong tab Báo cáo kho (gộp chung, không
- * thêm tab cấp 1 mới — mục 3 `WAREHOUSE_UX_AND_FLOW.md`).
+ * V4.3 Việc 2 — Section "Kiểm kê kho".
+ *
+ * TASK-6VIEC Việc 4 — tách khỏi tab "Báo cáo kho" sang tab riêng "Kiểm kê"
+ * (`StocktakeTab.tsx`, `/warehouse?tab=stocktake`). Vẫn đọc được deep-link
+ * phiên kiểm kê qua CẢ `?id=` (link mới) LẪN `?stocktake=` (link cũ —
+ * `/warehouse?tab=report&stocktake=<id>`, các thông báo đã gửi trước khi tách
+ * vẫn phải mở đúng phiên — xem backward-compat `?tab=report&stocktake=` ở
+ * `warehouse/page.tsx`).
  */
 
 interface SessionRow {
@@ -51,9 +57,10 @@ export function StocktakeSection() {
     void load();
   }, [load]);
 
-  // Mở đúng phiên khi tới từ link thông báo (?tab=report&stocktake=<id>).
+  // Mở đúng phiên khi tới từ link thông báo — `?id=` (mới, tab riêng) hoặc
+  // `?stocktake=` (cũ, thông báo gửi trước khi tách tab — TASK-6VIEC Việc 4).
   React.useEffect(() => {
-    const id = searchParams?.get("stocktake");
+    const id = searchParams?.get("id") ?? searchParams?.get("stocktake");
     if (id) setOpenSessionId(id);
   }, [searchParams]);
 

@@ -391,8 +391,11 @@ export const L = {
   whDeliveryNote: (id: string) => `/warehouse?tab=delivery-notes&id=${id}`,
   // TASK-20261001 — Tài chính tách hub riêng `/finance` (trước `/sales?tab=fin-payments`).
   finPayments: "/finance?tab=cashbook&sub=payments",
-  // V4.3 Việc 2 — phiên kiểm kê nằm trong tab Báo cáo kho.
-  whStocktake: (id: string) => `/warehouse?tab=report&stocktake=${id}`,
+  // TASK-6VIEC Việc 4 — "Kiểm kê" tách khỏi tab Báo cáo kho thành tab riêng
+  // `stocktake` (trước V4.3 Việc 2 nằm chung tab `report`). StocktakeSection
+  // vẫn đọc được param `stocktake=` cũ (link thông báo đã gửi trước khi tách)
+  // song song param `id=` mới — xem StocktakeSection.tsx + warehouse/page.tsx.
+  whStocktake: (id: string) => `/warehouse?tab=stocktake&id=${id}`,
 } as const;
 
 const role = (r: Role, c: NotifyContent): NotifyTarget => ({ kind: "role", role: r, ...c });

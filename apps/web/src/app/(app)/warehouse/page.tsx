@@ -16,6 +16,7 @@ import { resolveMovementMode } from "@/components/warehouse/movement-mode";
 import { DeliveryNotesTab } from "@/components/warehouse/DeliveryNotesTab";
 import { GoodsIssuesTab } from "@/components/warehouse/GoodsIssuesTab";
 import { ReportTab } from "@/components/warehouse/ReportTab";
+import { StocktakeTab } from "@/components/warehouse/StocktakeTab";
 
 /**
  * V4.3 Đợt 2 mục 6 — vai `qc` vào `/warehouse` (route-guard cho phép, xem
@@ -50,10 +51,13 @@ export const dynamic = "force-dynamic";
  *   - `items`     — Danh mục vật tư (re-use logic /items cũ)
  *   - `movement`  — Nhập / Xuất kho (gộp `receiving` + `issue` cũ — Wave 5 Phase A)
  *   - `goods-issues` — Phiếu xuất kho PX (V4.1 Đợt 1b; `?id=` mở sẵn 1 phiếu)
+ *   - `stocktake` — Kiểm kê kho (TASK-6VIEC Việc 4; `?id=` mở sẵn 1 phiên)
  *   - `report`    — Báo cáo kho
  *
  * Backward-compat: `?tab=receiving` → movement&mode=in, `?tab=issue`/`picking`
- * → movement&mode=out, `?tab=overview` → layout, `?tab=lot-serial` → items.
+ * → movement&mode=out, `?tab=overview` → layout, `?tab=lot-serial` → items,
+ * `?tab=report&stocktake=<id>` (thông báo gửi trước TASK-6VIEC Việc 4) →
+ * `stocktake` (tab mới) giữ nguyên `<id>`.
  */
 
 interface WarehousePageProps {
@@ -82,6 +86,11 @@ export default async function WarehousePage({ searchParams }: WarehousePageProps
     : WAREHOUSE_TABS;
 
   let active = resolveTab(searchParams.tab);
+  // TASK-6VIEC Việc 4 — link cũ `?tab=report&stocktake=<id>` (thông báo đã
+  // gửi trước khi tách "Kiểm kê" thành tab riêng) phải vẫn mở đúng tab mới.
+  if (active === "report" && typeof searchParams.stocktake === "string") {
+    active = "stocktake";
+  }
   // V4.3 Đợt 2 mục 6 — qc bookmark/gõ tay ?tab= một tab đã ẩn (VD "today",
   // "layout") → rơi về "movement" (tab mặc định của vai qc) thay vì render
   // component rồi ăn lỗi 403 từ API.
@@ -133,6 +142,8 @@ export default async function WarehousePage({ searchParams }: WarehousePageProps
           <GoodsIssuesTab />
         ) : active === "delivery-notes" ? (
           <DeliveryNotesTab />
+        ) : active === "stocktake" ? (
+          <StocktakeTab />
         ) : (
           <ReportTab />
         )}

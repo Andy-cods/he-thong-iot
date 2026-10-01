@@ -3,6 +3,7 @@ import {
   ArrowLeftRight,
   BarChart3,
   CalendarCheck,
+  ClipboardList,
   FileOutput,
   FileText,
   Map,
@@ -57,6 +58,14 @@ export const WAREHOUSE_TABS = [
     label: "Phiếu giao hàng",
     icon: FileText,
   },
+  // TASK-6VIEC Việc 4 — "Kiểm kê" tách khỏi tab "Báo cáo kho" thành tab riêng
+  // (trước V4.3 Việc 2 là 1 section bên trong ReportTab) — đặt ngang hàng,
+  // ngay trước "Báo cáo kho".
+  {
+    key: "stocktake" as const,
+    label: "Kiểm kê",
+    icon: ClipboardList,
+  },
   {
     key: "report" as const,
     label: "Báo cáo kho",
@@ -73,6 +82,7 @@ const TAB_HREF: Record<WarehouseTab, string> = {
   movement: "/warehouse?tab=movement&mode=in",
   "goods-issues": "/warehouse?tab=goods-issues",
   "delivery-notes": "/warehouse?tab=delivery-notes",
+  stocktake: "/warehouse?tab=stocktake",
   report: "/warehouse?tab=report",
 };
 

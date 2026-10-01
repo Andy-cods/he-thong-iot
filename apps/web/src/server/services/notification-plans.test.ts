@@ -244,6 +244,31 @@ describe("TASK-20260927 — assignRecipients", () => {
     expect(d.find((x) => x.userId === U(4))?.link).toBe("/work-orders/wo-1");
   });
 
+  // TASK-6VIEC Việc 4 — "Kiểm kê" tách khỏi tab "Báo cáo kho" (`?tab=report`)
+  // sang tab riêng "Kiểm kê" (`?tab=stocktake`). Mọi thông báo kiểm kê phải
+  // trỏ tab mới, không còn link tab report cũ.
+  it("STOCKTAKE_*: link trỏ tab 'stocktake' riêng (không còn ?tab=report)", () => {
+    const submitted = assignRecipients(planStocktakeSubmitted(ST), users);
+    expect(submitted[0]?.link).toBe("/warehouse?tab=stocktake&id=st-1");
+
+    const approved = assignRecipients(
+      planStocktakeApproved({ ...ST, creatorUserId: U(12), diffLineCount: 1 }),
+      users,
+    );
+    for (const d of approved) {
+      expect(d.link).toBe("/warehouse?tab=stocktake&id=st-1");
+      expect(d.link).not.toContain("tab=report");
+    }
+
+    const rejected = assignRecipients(
+      planStocktakeRejected({ ...ST, creatorUserId: U(12), reason: "x" }),
+      users,
+    );
+    for (const d of rejected) {
+      expect(d.link).toBe("/warehouse?tab=stocktake&id=st-1");
+    }
+  });
+
   it("WO_RELEASED loại người lập khỏi fan-out Gia công", () => {
     const d = assignRecipients(planWORelease4(), [...users, { id: U(20), roles: ["operator"] }]);
     expect(d.map((x) => x.userId).sort()).toEqual([U(14)]);
