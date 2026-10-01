@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Activity, Clock } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DateField } from "@/components/ui/date-field";
 import { QueryError } from "@/components/ui/query-error";
 import { useBomAuditLog } from "@/hooks/useBom";
 import { formatDate } from "@/lib/format";
@@ -104,23 +105,15 @@ export function BomAuditPanel({ bomId }: { bomId: string }) {
       {/* Inline toolbar — date range + entity type chips */}
       <div className="flex flex-wrap items-center gap-2 border-b border-zinc-200 bg-zinc-50/60 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-800/60">
         <Activity className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" aria-hidden />
+        {/* V4.5 QA-A: DateField dd/mm/yyyy thay `<input type="date">` native
+            (mm/dd/yyyy theo locale trình duyệt). */}
         <label className="flex items-center gap-1 text-xs text-zinc-600 dark:text-zinc-400">
           Từ
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            className="h-6 rounded-sm border border-zinc-200 bg-white px-1.5 text-xs tabular-nums focus:border-indigo-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-          />
+          <DateField size="sm" value={dateFrom} onChange={setDateFrom} className="w-[7.5rem]" />
         </label>
         <label className="flex items-center gap-1 text-xs text-zinc-600 dark:text-zinc-400">
           Đến
-          <input
-            type="date"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            className="h-6 rounded-sm border border-zinc-200 bg-white px-1.5 text-xs tabular-nums focus:border-indigo-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-          />
+          <DateField size="sm" value={dateTo} onChange={setDateTo} className="w-[7.5rem]" />
         </label>
         <div className="flex flex-wrap items-center gap-1">
           {FILTER_OBJECT_TYPES.map((t) => {

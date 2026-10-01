@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { DateField } from "@/components/ui/date-field";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ItemPicker, type ItemPickerValue } from "@/components/bom/ItemPicker";
@@ -205,13 +206,9 @@ export function CreateOrderDialog({
 
             <div className="space-y-1">
               <Label htmlFor="co-due">Deadline</Label>
-              <Input
-                id="co-due"
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="tabular-nums"
-              />
+              {/* V4.5 QA-A: DateField dd/mm/yyyy thay `<input type="date">`
+                  native (mm/dd/yyyy theo locale trình duyệt). */}
+              <DateField id="co-due" value={dueDate} onChange={setDueDate} />
             </div>
 
             <div className="space-y-1">

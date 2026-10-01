@@ -28,6 +28,7 @@ import { can } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/hooks/useSession";
 import { ExportExcelDialog } from "@/components/archive/ExportExcelDialog";
+import { DateField } from "@/components/ui/date-field";
 import { formatDate } from "@/lib/format";
 import { StatusPill } from "@/components/ui/status-badge";
 import { statusLabel } from "@/lib/status";
@@ -255,24 +256,22 @@ export default function MaterialRequestsArchivePage() {
         </select>
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
+          {/* V4.5 QA-A: DateField dd/mm/yyyy thay `<input type="date">` native
+              (mm/dd/yyyy theo locale trình duyệt). */}
           <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
             <span className="text-zinc-500 dark:text-zinc-400">Từ</span>
-            <input
-              type="date"
+            <DateField
               value={urlState.from}
               max={urlState.to || undefined}
-              onChange={(e) => void setUrlState({ from: e.target.value, page: 1 })}
-              className="h-8 rounded-lg border border-zinc-200 bg-white px-2.5 text-sm tabular-nums focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+              onChange={(v) => void setUrlState({ from: v, page: 1 })}
             />
           </label>
           <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
             <span className="text-zinc-500 dark:text-zinc-400">Đến</span>
-            <input
-              type="date"
+            <DateField
               value={urlState.to}
               min={urlState.from || undefined}
-              onChange={(e) => void setUrlState({ to: e.target.value, page: 1 })}
-              className="h-8 rounded-lg border border-zinc-200 bg-white px-2.5 text-sm tabular-nums focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+              onChange={(v) => void setUrlState({ to: v, page: 1 })}
             />
           </label>
           {hasFilter && (

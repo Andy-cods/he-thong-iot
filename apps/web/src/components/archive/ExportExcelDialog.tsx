@@ -4,7 +4,7 @@ import * as React from "react";
 import { Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DateField } from "@/components/ui/date-field";
 import {
   Dialog,
   DialogContent,
@@ -134,22 +134,22 @@ export function ExportExcelDialog({
         <div className="flex flex-col gap-3 sm:flex-row sm:gap-2">
           <label className="flex-1 space-y-1">
             <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Từ ngày</span>
-            <Input
-              type="date"
+            {/* V4.5 QA-A: thay `<input type="date">` native (mm/dd/yyyy theo
+                locale) bằng DateField dd/mm/yyyy — giá trị ISO không đổi. */}
+            <DateField
               value={from}
               max={to || undefined}
-              onChange={(e) => setFrom(e.target.value)}
-              className="dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+              onChange={setFrom}
+              className="w-full"
             />
           </label>
           <label className="flex-1 space-y-1">
             <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Đến ngày</span>
-            <Input
-              type="date"
+            <DateField
               value={to}
               min={from || undefined}
-              onChange={(e) => setTo(e.target.value)}
-              className="dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+              onChange={setTo}
+              className="w-full"
             />
           </label>
         </div>

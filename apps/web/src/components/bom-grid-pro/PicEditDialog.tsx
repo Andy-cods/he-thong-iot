@@ -2,10 +2,11 @@
 
 import * as React from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Calendar, Loader2, Package, User } from "lucide-react";
+import { Loader2, Package, User } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateField } from "@/components/ui/date-field";
 import {
   Dialog,
   DialogContent,
@@ -200,16 +201,15 @@ export function PicEditDialog({ open, onClose, line }: PicEditDialogProps) {
             <label className="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
               Ngày NCC giao (dự kiến)
             </label>
-            <div className="relative mt-1.5">
-              <Calendar className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" />
-              <Input
-                type="date"
-                value={expectedEta}
-                onChange={(e) => setExpectedEta(e.target.value)}
-                disabled={submitting}
-                className="h-10 pl-9"
-              />
-            </div>
+            {/* V4.5 QA-A: DateField dd/mm/yyyy thay `<input type="date">`
+                native (mm/dd/yyyy theo locale) — đã có icon lịch riêng (nút mở
+                date-picker) nên bỏ icon trang trí thừa của khối cũ. */}
+            <DateField
+              value={expectedEta}
+              onChange={setExpectedEta}
+              disabled={submitting}
+              className="mt-1.5"
+            />
           </div>
 
           {/* Status note + quick presets */}

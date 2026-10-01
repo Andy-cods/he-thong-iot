@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateField } from "@/components/ui/date-field";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/ui/query-error";
 import { AuditRow } from "@/components/admin/AuditRow";
@@ -215,24 +216,22 @@ export default function AdminAuditPage() {
             </div>
             <div>
               <FilterLabel>Từ ngày</FilterLabel>
-              <Input
-                type="date"
+              {/* V4.5 QA-A: DateField dd/mm/yyyy thay `<input type="date">`
+                  native (mm/dd/yyyy theo locale trình duyệt). */}
+              <DateField
                 value={urlState.from}
-                onChange={(e) =>
-                  void setUrlState({ from: e.target.value, page: 1 })
-                }
-                className="mt-1 h-9 w-[150px]"
+                onChange={(v) => void setUrlState({ from: v, page: 1 })}
+                className="mt-1 w-[150px]"
+                aria-label="Từ ngày"
               />
             </div>
             <div>
               <FilterLabel>Đến ngày</FilterLabel>
-              <Input
-                type="date"
+              <DateField
                 value={urlState.to}
-                onChange={(e) =>
-                  void setUrlState({ to: e.target.value, page: 1 })
-                }
-                className="mt-1 h-9 w-[150px]"
+                onChange={(v) => void setUrlState({ to: v, page: 1 })}
+                className="mt-1 w-[150px]"
+                aria-label="Đến ngày"
               />
             </div>
             {hasFilter ? (

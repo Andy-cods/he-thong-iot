@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { DateField } from "@/components/ui/date-field";
 import { statusLabel } from "@/lib/status";
 import { Label } from "@/components/ui/label";
 import { useExportPOExcel } from "@/hooks/usePurchaseOrders";
@@ -113,22 +113,22 @@ export function PoExportDialog({ trigger }: PoExportDialogProps) {
               <Label htmlFor="exp-from" uppercase>
                 Từ ngày
               </Label>
-              <Input
+              {/* V4.5 QA-A: DateField dd/mm/yyyy thay `<input type="date">`
+                  native (mm/dd/yyyy theo locale trình duyệt). */}
+              <DateField
                 id="exp-from"
-                type="date"
                 value={from}
-                onChange={(e) => setFrom(e.target.value)}
+                onChange={setFrom}
               />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="exp-to" uppercase>
                 Đến ngày
               </Label>
-              <Input
+              <DateField
                 id="exp-to"
-                type="date"
                 value={to}
-                onChange={(e) => setTo(e.target.value)}
+                onChange={setTo}
               />
             </div>
           </div>

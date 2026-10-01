@@ -13,6 +13,7 @@ import {
 import { type BomStatus } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateField } from "@/components/ui/date-field";
 import {
   Popover,
   PopoverContent,
@@ -222,21 +223,21 @@ export function BomFilterBarPlus({
               <div className="grid grid-cols-2 gap-2">
                 <label className="block">
                   <span className="text-xs text-zinc-500 dark:text-zinc-400">Từ</span>
-                  <Input
-                    type="date"
+                  {/* V4.5 QA-A: DateField dd/mm/yyyy thay `<input type="date">`
+                      native (mm/dd/yyyy theo locale trình duyệt). */}
+                  <DateField
                     size="sm"
                     value={state.dateFrom}
-                    onChange={(e) => onChange({ dateFrom: e.target.value })}
+                    onChange={(v) => onChange({ dateFrom: v })}
                     className="mt-0.5"
                   />
                 </label>
                 <label className="block">
                   <span className="text-xs text-zinc-500 dark:text-zinc-400">Đến</span>
-                  <Input
-                    type="date"
+                  <DateField
                     size="sm"
                     value={state.dateTo}
-                    onChange={(e) => onChange({ dateTo: e.target.value })}
+                    onChange={(v) => onChange({ dateTo: v })}
                     className="mt-0.5"
                   />
                 </label>

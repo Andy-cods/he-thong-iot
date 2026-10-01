@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { Textarea } from "@/components/ui/textarea";
+import { DateField } from "@/components/ui/date-field";
 import { formatDate } from "@/lib/format";
 import type { PoDetail, PoHeaderForm } from "./types";
 
@@ -55,7 +56,14 @@ export function PoInfoCard({
     {
       label: "Ngày dự kiến",
       value: editing ? (
-        <input type="date" aria-label="Ngày dự kiến" value={form.expectedEta} onChange={set("expectedEta")} className={inputCls} />
+        // V4.5 QA-A: `<input type="date">` native hiện mm/dd/yyyy theo locale
+        // trình duyệt — đổi sang DateField (dd/mm/yyyy, ISO không đổi).
+        <DateField
+          aria-label="Ngày dự kiến"
+          value={form.expectedEta}
+          onChange={(v) => setForm((f) => ({ ...f, expectedEta: v }))}
+          size="sm"
+        />
       ) : po.expectedEta ? (
         formatDate(po.expectedEta, "dd/MM/yyyy")
       ) : null,

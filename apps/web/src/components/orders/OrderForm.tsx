@@ -13,6 +13,7 @@ import {
 } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateField } from "@/components/ui/date-field";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ItemPicker, type ItemPickerValue } from "@/components/bom/ItemPicker";
@@ -92,6 +93,8 @@ export function OrderForm({
   }, [isDirty, onDirtyChange]);
 
   const errors = form.formState.errors;
+  // V4.5 QA-A: xem comment cạnh <DateField id="dueDate"> bên dưới.
+  const watchedDueDate = form.watch("dueDate");
 
   return (
     <form
@@ -163,12 +166,28 @@ export function OrderForm({
           <Label htmlFor="dueDate" uppercase>
             Deadline
           </Label>
-          <Input
+          {/* V4.5 QA-A: `<input type="date">` native hiện mm/dd/yyyy theo
+              locale trình duyệt — đổi sang DateField (dd/mm/yyyy nhất quán,
+              giá trị ISO yyyy-MM-dd không đổi). */}
+          <DateField
             id="dueDate"
-            type="date"
             disabled={readOnly}
-            className="tabular-nums md:w-[200px]"
-            {...form.register("dueDate")}
+            className="md:w-[200px]"
+            // V4.5: `dueDate` khai Date ở type OrderCreate (output sau Zod
+            // transform) nhưng runtime trước submit luôn là string "yyyy-MM-dd"
+            // (giống hệt `<input type="date">` cũ) — cùng cách "cast" tạm đã
+            // dùng ở defaultValues phía trên (RHF `register` trước đây bỏ qua
+            // kiểm tra này vì nhận thẳng ChangeEvent, không strict type).
+            value={
+              typeof watchedDueDate === "string" ? watchedDueDate : null
+            }
+            onChange={(v) =>
+              form.setValue(
+                "dueDate",
+                (v || null) as unknown as OrderCreate["dueDate"],
+                { shouldDirty: true, shouldValidate: true },
+              )
+            }
           />
           <HelperText tone="muted">Ngày giao hàng dự kiến</HelperText>
         </Field>

@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { ArrowUpRight, Factory } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DateField } from "@/components/ui/date-field";
 import { QueryError } from "@/components/ui/query-error";
 import { StatusPill } from "@/components/ui/status-badge";
 import { cn } from "@/lib/utils";
@@ -101,15 +102,15 @@ export function BomProductionPanel({ bomId }: { bomId: string }) {
 
       {/* Toolbar — date filter */}
       <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-zinc-200 bg-white px-5 py-3 dark:border-zinc-800 dark:bg-zinc-900">
+        {/* V4.5 QA-A: DateField dd/mm/yyyy thay `<input type="date">` native
+            (mm/dd/yyyy theo locale trình duyệt). */}
         <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
           Từ
-          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
-            className="h-8 rounded-lg border border-zinc-200 bg-white px-2.5 text-sm tabular-nums focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50" />
+          <DateField size="sm" value={dateFrom} onChange={setDateFrom} />
         </label>
         <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
           Đến
-          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
-            className="h-8 rounded-lg border border-zinc-200 bg-white px-2.5 text-sm tabular-nums focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50" />
+          <DateField size="sm" value={dateTo} onChange={setDateTo} />
         </label>
         {(dateFrom || dateTo) && (
           <button type="button" onClick={() => { setDateFrom(""); setDateTo(""); }}
