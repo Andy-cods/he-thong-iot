@@ -68,10 +68,20 @@ function TopBarBreadcrumbWithTab({
   pathname: string;
   segmentLabels?: Record<string, string | undefined>;
 }) {
-  const tab = useSearchParams()?.get("tab") ?? null;
+  const searchParams = useSearchParams();
+  const tab = searchParams?.get("tab") ?? null;
+  // TASK-6VIEC Việc 4 — link thông báo kiểm kê cũ (`/warehouse?tab=report&
+  // stocktake=<id>`, gửi trước khi tách tab "Kiểm kê") vẫn MỞ ĐÚNG nội dung
+  // tab "Kiểm kê" (xem backward-compat ở `warehouse/page.tsx`) nhưng crumb
+  // tính riêng ở đây theo `tab` thô ("report") sẽ lệch khỏi nội dung thật
+  // nếu không áp cùng quy tắc — khớp 1-1 với điều kiện phía page.tsx.
+  const effectiveTab =
+    pathname === "/warehouse" && tab === "report" && searchParams?.get("stocktake")
+      ? "stocktake"
+      : tab;
   const items = React.useMemo(
-    () => buildBreadcrumbItems(pathname, segmentLabels, tab),
-    [pathname, segmentLabels, tab],
+    () => buildBreadcrumbItems(pathname, segmentLabels, effectiveTab),
+    [pathname, segmentLabels, effectiveTab],
   );
   return <Breadcrumb items={items} />;
 }

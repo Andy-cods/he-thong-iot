@@ -95,6 +95,12 @@ describe("V4.1 X6 — crumb theo ?tab= của trang hub", () => {
     ).toEqual(["Tổng quan", "Bộ phận Gia công", "Yêu cầu sản xuất"]);
   });
 
+  // TASK-6VIEC Việc 4 — "Kiểm kê" tách riêng khỏi "Báo cáo kho".
+  it("tab 'stocktake' (Kiểm kê) có nhãn riêng, khác 'report' (Báo cáo kho)", () => {
+    expect(hubTabLabel("/warehouse", "stocktake")).toBe("Kiểm kê");
+    expect(hubTabLabel("/warehouse", "report")).toBe("Báo cáo kho");
+  });
+
   it("khoá tab cũ được quy về tab hiện hành", () => {
     expect(hubTabLabel("/warehouse", "picking")).toBe("Nhập / Xuất kho");
     expect(hubTabLabel("/warehouse", "overview")).toBe("Sơ đồ kho");

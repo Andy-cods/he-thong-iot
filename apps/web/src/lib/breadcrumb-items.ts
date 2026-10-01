@@ -120,6 +120,8 @@ export const HUB_TAB_LABELS: Record<string, Record<string, string>> = {
     movement: "Nhập / Xuất kho",
     "goods-issues": "Phiếu xuất kho",
     "delivery-notes": "Phiếu giao hàng",
+    // TASK-6VIEC Việc 4 — tab "Kiểm kê" tách riêng khỏi "Báo cáo kho".
+    stocktake: "Kiểm kê",
     report: "Báo cáo kho",
   },
 };
