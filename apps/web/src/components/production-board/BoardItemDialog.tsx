@@ -30,6 +30,9 @@ import {
   type BoardItem,
   type BoardStatus,
 } from "@/hooks/useProductionBoard";
+import { useSession } from "@/hooks/useSession";
+import { canSeeOrderValue } from "@/lib/production-board-policy";
+import { formatMoney } from "@/lib/format";
 
 /**
  * V3.8 — Sheet tạo/sửa mã hàng trên Bảng sản xuất (QC lead).
@@ -71,6 +74,8 @@ function emptyForm() {
     currentStage: "",
     notes: "",
     isPinned: false,
+    /** V4.4.2 — chuỗi để input tự do; "" = chưa nhập (khác "0"). */
+    unitPrice: "",
   };
 }
 
@@ -78,6 +83,10 @@ export function BoardItemDialog({ open, onOpenChange, item }: Props) {
   const isEdit = !!item;
   const createMut = useCreateBoardItem();
   const updateMut = useUpdateBoardItem();
+  const session = useSession();
+  // V4.4.2 — chỉ admin/kế toán/thu mua thấy + nhập đơn giá bán (hàm quyền
+  // DUY NHẤT, dùng chung client/server — xem lib/production-board-policy.ts).
+  const canSeePrice = canSeeOrderValue(session.data?.roles);
 
   const [form, setForm] = React.useState(emptyForm());
   const [isDirty, setIsDirty] = React.useState(false);
@@ -105,6 +114,7 @@ export function BoardItemDialog({ open, onOpenChange, item }: Props) {
         currentStage: item.currentStage ?? "",
         notes: item.notes ?? "",
         isPinned: item.isPinned,
+        unitPrice: item.unitPrice == null ? "" : String(item.unitPrice),
       });
     } else {
       setForm(emptyForm());
@@ -158,6 +168,11 @@ export function BoardItemDialog({ open, onOpenChange, item }: Props) {
       currentStage: form.currentStage.trim() || null,
       notes: form.notes.trim() || null,
       isPinned: form.isPinned,
+      // V4.4.2 — chỉ gửi khi vai thấy ô này (ẩn với QC…) — server cũng tự lọc
+      // nếu client vẫn gửi, nhưng không gửi là KISS hơn ở đây.
+      ...(canSeePrice
+        ? { unitPrice: form.unitPrice.trim() === "" ? null : Number(form.unitPrice) || 0 }
+        : {}),
     };
     try {
       if (isEdit && item) {
@@ -304,6 +319,34 @@ export function BoardItemDialog({ open, onOpenChange, item }: Props) {
                   <Field label="Hạn giao" className="col-span-2 sm:col-span-1">
                     <DateField value={form.deadline} onChange={(v) => set("deadline", v)} />
                   </Field>
+                  {/* V4.4.2 — chỉ admin/kế toán/thu mua thấy + nhập đơn giá bán
+                      (canSeeOrderValue) — QC/kho/vận hành/cổ đông KHÔNG thấy ô này. */}
+                  {canSeePrice && (
+                    <>
+                      <Field label="Đơn giá bán (₫)" className="col-span-2 sm:col-span-1">
+                        <Input
+                          type="number"
+                          min={0}
+                          value={form.unitPrice}
+                          onChange={(e) => set("unitPrice", e.target.value)}
+                          placeholder="Chưa nhập"
+                          className="text-right tabular-nums"
+                        />
+                      </Field>
+                      <div className="col-span-2 sm:col-span-1 flex items-end">
+                        <p className="w-full rounded-md border border-dashed border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/40 dark:text-zinc-300">
+                          Thành tiền = SL kế hoạch × đơn giá ={" "}
+                          <span className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
+                            {form.unitPrice.trim() === ""
+                              ? "—"
+                              : formatMoney(
+                                  (Number(form.qtyPlanned) || 0) * (Number(form.unitPrice) || 0),
+                                )}
+                          </span>
+                        </p>
+                      </div>
+                    </>
+                  )}
                 </div>
               </section>
 

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   Monitor,
   Pencil,
@@ -9,6 +10,7 @@ import {
   Plus,
   Trash2,
   Tv,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -35,7 +37,8 @@ import {
 } from "@/hooks/useProductionBoard";
 import { cn } from "@/lib/utils";
 import { TONE_CLASSES, getStatus, type StatusTone } from "@/lib/status";
-import { formatDate, formatQty } from "@/lib/format";
+import { formatDate, formatMoney, formatQty } from "@/lib/format";
+import { canSeeOrderValue } from "@/lib/production-board-policy";
 
 /**
  * V3.8 — /production-board — Trang quản lý Bảng sản xuất cho Tổ QC.
@@ -81,12 +84,32 @@ export default function ProductionBoardAdminPage() {
   const canEditBoard = can(roles, "update", "productionBoard");
   const canCreateBoard = can(roles, "create", "productionBoard");
   const canDeleteBoard = can(roles, "delete", "productionBoard");
+  // V4.4.2 — chỉ admin/kế toán/thu mua thấy cột "Giá trị" + tổng giá trị
+  // (API đã lọc field `unitPrice` theo vai, đây là lớp UI đồng bộ).
+  const canSeeValue = canSeeOrderValue(roles);
 
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editItem, setEditItem] = React.useState<BoardItem | null>(null);
 
-  const items = data?.data ?? [];
+  // V4.4.2 — link từ Tổng quan Tài chính ("N mã hàng chưa có đơn giá") →
+  // `?missingPrice=1` lọc client-side (API đã trả đủ item cho vai xem giá).
+  const searchParams = useSearchParams();
+  const missingPriceFilter = canSeeValue && searchParams?.get("missingPrice") === "1";
+
+  const allItems = data?.data ?? [];
+  const items = missingPriceFilter
+    ? allItems.filter((it) => it.unitPrice === null || it.unitPrice === undefined)
+    : allItems;
   const counts = data?.counts;
+  const totalValue = React.useMemo(() => {
+    if (!canSeeValue) return 0;
+    return allItems.reduce((sum, it) => {
+      if (it.status === "DELIVERED") return sum;
+      const price = it.unitPrice == null ? 0 : Number(it.unitPrice) || 0;
+      const qty = it.status === "COMPLETED" ? Number(it.qtyDone) || 0 : Number(it.qtyPlanned) || 0;
+      return sum + qty * price;
+    }, 0);
+  }, [allItems, canSeeValue]);
 
   const openCreate = () => {
     setEditItem(null);
@@ -188,6 +211,34 @@ export default function ProductionBoardAdminPage() {
         </span>
       ),
     },
+    // V4.4.2 — cột "Giá trị" (SL × đơn giá) chỉ hiện với vai xem được tài
+    // chính đơn hàng (admin/kế toán/thu mua) — API đã không trả `unitPrice`
+    // cho vai khác nên cột này không thể hiện nhầm số 0 gây hiểu lầm.
+    ...(canSeeValue
+      ? [
+          {
+            id: "value",
+            header: "Giá trị",
+            kind: "number",
+            width: 140,
+            cell: (it: BoardItem) => {
+              if (it.unitPrice === null || it.unitPrice === undefined) {
+                return (
+                  <span className="font-semibold text-amber-600 dark:text-amber-400">
+                    Chưa có giá
+                  </span>
+                );
+              }
+              const qty = it.status === "COMPLETED" ? Number(it.qtyDone) || 0 : Number(it.qtyPlanned) || 0;
+              return (
+                <span className="tabular-nums text-zinc-900 dark:text-zinc-50">
+                  {formatMoney(qty * (Number(it.unitPrice) || 0))}
+                </span>
+              );
+            },
+          } satisfies DataTableColumn<BoardItem>,
+        ]
+      : []),
     {
       id: "deadline",
       header: "Hạn",
@@ -291,6 +342,33 @@ export default function ProductionBoardAdminPage() {
               tone={getStatus("board", s).tone}
             />
           ))}
+          {/* V4.4.2 — tổng giá trị theo trạng thái (SL kế hoạch/đạt × đơn giá),
+              chỉ hiện với vai xem được tài chính đơn hàng. */}
+          {canSeeValue && (
+            <span className="ml-auto text-sm font-semibold tabular-nums text-zinc-700 dark:text-zinc-200">
+              Tổng giá trị: {formatMoney(totalValue)}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* V4.4.2 — banner lọc "chưa có giá" (link từ Tổng quan Tài chính). */}
+      {missingPriceFilter && (
+        <div className="flex items-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300 md:px-6">
+          <span>
+            Đang lọc: {items.length} mã hàng chưa có đơn giá — số liệu Tổng quan Tài chính chưa đủ.
+          </span>
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="ml-auto h-6 gap-1 px-2 text-amber-800 hover:bg-amber-100 dark:text-amber-300 dark:hover:bg-amber-900/40"
+          >
+            <Link href="/production-board">
+              <X className="h-3 w-3" />
+              Bỏ lọc
+            </Link>
+          </Button>
         </div>
       )}
 

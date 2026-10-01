@@ -8,6 +8,7 @@ import {
 } from "@/server/repos/productionBoard";
 import { jsonError, parseJson } from "@/server/http";
 import { requireCan } from "@/server/session";
+import { canSeeOrderValue } from "@/lib/production-board-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,10 +35,20 @@ const patchSchema = z.object({
   notes: z.string().max(2000).nullish(),
   isPinned: z.boolean().optional(),
   seq: z.number().int().nonnegative().optional(),
+  // V4.4.2 — Đơn giá bán; bỏ qua ở route nếu actor không được xem giá (QC
+  // toàn quyền sửa/xoá mã hàng nhưng KHÔNG phải vai xem tài chính đơn hàng).
+  unitPrice: z.number().nonnegative().nullish(),
 });
 
+/** Bỏ `unitPrice` khỏi object trả về cho vai không được xem giá. */
+function stripUnitPrice<T extends { unitPrice?: unknown }>(item: T): Omit<T, "unitPrice"> {
+  const { unitPrice: _unitPrice, ...rest } = item;
+  return rest;
+}
+
 /**
- * PATCH /api/production-board/[id] — cập nhật mã hàng (chỉ qc + admin).
+ * PATCH /api/production-board/[id] — cập nhật mã hàng (qc + admin; V4.4 xoá
+ * `unitPrice` không nằm trong nhóm này — purchaser chỉ `create`, không `update`).
  * QC lead dùng để đổi trạng thái / SL đạt / công đoạn.
  */
 export async function PATCH(
@@ -50,12 +61,15 @@ export async function PATCH(
   const body = await parseJson(req, patchSchema);
   if ("response" in body) return body.response;
 
+  const canSeePrice = canSeeOrderValue(guard.session.roles);
+
   try {
     const row = await updateBoardItem(params.id, {
       ...body.data,
+      unitPrice: canSeePrice ? body.data.unitPrice : undefined,
       userId: guard.session.userId,
     });
-    return NextResponse.json({ data: row });
+    return NextResponse.json({ data: canSeePrice ? row : stripUnitPrice(row) });
   } catch (err) {
     if (err instanceof BoardItemNotFoundError) {
       return jsonError("NOT_FOUND", err.message, 404);

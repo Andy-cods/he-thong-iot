@@ -19,6 +19,10 @@ import {
   prLineToPoLine,
   type PoReceiptLine,
 } from "../../lib/procurement-policy";
+import {
+  computeExpectedPayable,
+  type ExpectedPayableSummary,
+} from "../../lib/finance-overview-policy";
 import { currentYymm, genDocNo } from "./_docNumber";
 
 /**
@@ -1431,5 +1435,40 @@ export async function closePO(
       .returning();
     if (!row) throw new Error("PO_UPDATE_FAILED");
     return row;
+  });
+}
+
+/**
+ * V4.4.2 — Việc 2: "Dự trù chi" ở Tổng quan Tài chính — cam kết chi CHƯA
+ * thành công nợ phải trả (tránh đếm trùng với `getPayablesAging()`):
+ *   1. Giá trị PO đã duyệt/gửi/đang nhận (SENT/PARTIAL/RECEIVED) mà CHƯA có
+ *      hoá đơn mua nào còn hiệu lực (status <> CANCELLED) gắn vào PO đó.
+ *   2. + Tổng hoá đơn mua (direction=IN) đang NHÁP (status=DRAFT) — hoá đơn
+ *      NHÁP chưa "Xác nhận" nên chưa vào `fin_invoice` công nợ (status UNPAID
+ *      trở lên mới tính vào Công nợ phải trả).
+ * KHÔNG cộng PO đã CLOSED (thường đã có hoá đơn) hay HĐ đã xác nhận (đã nằm
+ * trong Công nợ phải trả — `getPayablesAging()`). Chỉ fetch DỮ LIỆU THÔ ở
+ * đây — công thức cộng tổng (hàm thuần, có vitest) ở `lib/finance-overview-policy.ts`.
+ */
+export async function getExpectedPayableSummary(): Promise<ExpectedPayableSummary> {
+  const openPoRows = (await db.execute(sql`
+    SELECT po.total_amount AS total_amount
+    FROM app.purchase_order po
+    WHERE po.status IN ('SENT', 'PARTIAL', 'RECEIVED')
+      AND NOT EXISTS (
+        SELECT 1 FROM app.fin_invoice fi
+        WHERE fi.purchase_order_id = po.id AND fi.status <> 'CANCELLED'
+      )
+  `)) as unknown as Array<{ total_amount: string }>;
+
+  const draftInvoiceRows = (await db.execute(sql`
+    SELECT fi.total_amount AS total_amount
+    FROM app.fin_invoice fi
+    WHERE fi.direction = 'IN' AND fi.status = 'DRAFT'
+  `)) as unknown as Array<{ total_amount: string }>;
+
+  return computeExpectedPayable({
+    openPoAmounts: openPoRows.map((r) => r.total_amount),
+    draftInvoiceAmounts: draftInvoiceRows.map((r) => r.total_amount),
   });
 }

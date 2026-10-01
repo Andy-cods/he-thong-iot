@@ -38,6 +38,12 @@ export interface BoardItem {
   currentStage: string | null;
   notes: string | null;
   isPinned: boolean;
+  /**
+   * V4.4.2 — Đơn giá bán (VND/đơn vị). `undefined` khi API lọc field này cho
+   * vai không xem được tài chính đơn hàng (xem `canSeeOrderValue`) — KHÁC
+   * `null` (vai xem được nhưng mã hàng chưa nhập giá).
+   */
+  unitPrice?: string | null;
   completedAt: string | null;
   createdAt: string;
   createdBy: string | null;
@@ -125,6 +131,8 @@ export interface BoardItemPayload {
   notes?: string | null;
   isPinned?: boolean;
   seq?: number;
+  /** V4.4.2 — chỉ gửi khi form hiện ô (role `canSeeOrderValue`); server bỏ qua nếu không đúng vai. */
+  unitPrice?: number | null;
 }
 
 export function useCreateBoardItem() {

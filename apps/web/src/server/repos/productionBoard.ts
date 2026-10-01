@@ -7,6 +7,10 @@ import {
   type ProductionBoardStatus,
 } from "@iot/db/schema";
 import { db } from "@/lib/db";
+import {
+  computeBoardValueSummary,
+  type BoardValueSummary,
+} from "@/lib/finance-overview-policy";
 
 /**
  * V3.8 — Production Board repository.
@@ -139,6 +143,8 @@ export interface CreateBoardItemInput {
   notes?: string | null;
   isPinned?: boolean;
   seq?: number;
+  /** V4.4.2 — Đơn giá bán. `undefined` = không set (role không được nhập giá). */
+  unitPrice?: number | null;
   userId: string | null;
 }
 
@@ -171,6 +177,12 @@ export async function createBoardItem(
         currentStage: input.currentStage ?? null,
         notes: input.notes ?? null,
         isPinned: input.isPinned ?? false,
+        unitPrice:
+          input.unitPrice === undefined
+            ? null
+            : input.unitPrice === null
+              ? null
+              : String(input.unitPrice),
         completedAt:
           input.status === "COMPLETED" || input.status === "DELIVERED"
             ? sql`now()`
@@ -208,6 +220,8 @@ export interface UpdateBoardItemInput {
   notes?: string | null;
   isPinned?: boolean;
   seq?: number;
+  /** V4.4.2 — `undefined` = không đổi (route đã lọc field theo quyền trước khi gọi repo). */
+  unitPrice?: number | null;
   userId: string | null;
 }
 
@@ -248,6 +262,8 @@ export async function updateBoardItem(
     if (input.notes !== undefined) patch.notes = input.notes;
     if (input.isPinned !== undefined) patch.isPinned = input.isPinned;
     if (input.seq !== undefined) patch.seq = input.seq;
+    if (input.unitPrice !== undefined)
+      patch.unitPrice = input.unitPrice === null ? null : String(input.unitPrice);
 
     const updated = await tx
       .update(productionBoardItem)
@@ -275,6 +291,19 @@ export async function updateBoardItem(
         oldV: String(before.qtyDone),
         newV: String(input.qtyDone),
       });
+    }
+    // V4.4.2 — ghi lịch sử đổi đơn giá bán (chỉ route gọi tới khi actor có
+    // quyền `canSeeOrderValue`; lọc field hiển thị cho vai khác ở route history).
+    if (input.unitPrice !== undefined) {
+      const oldPrice = before.unitPrice === null ? null : String(before.unitPrice);
+      const newPrice = input.unitPrice === null ? null : String(input.unitPrice);
+      if (oldPrice !== newPrice) {
+        histories.push({
+          field: "unit_price",
+          oldV: oldPrice ?? "—",
+          newV: newPrice ?? "—",
+        });
+      }
     }
     if (histories.length > 0) {
       await tx.insert(productionBoardHistory).values(
@@ -341,4 +370,24 @@ export async function getBoardHistory(
     .orderBy(desc(productionBoardHistory.changedAt))
     .limit(100);
   return rows.map((r) => ({ ...r, changedByName: r.changedByName ?? null }));
+}
+
+/**
+ * V4.4.2 — Việc 2: tổng giá trị Bảng sản xuất cho 2 ô "Đang sản xuất"/"Dự
+ * trù thu" ở Tổng quan Tài chính. Chỉ fetch DỮ LIỆU THÔ ở đây — công thức
+ * tính (hàm thuần, có vitest) nằm ở `lib/finance-overview-policy.ts`.
+ */
+export async function getBoardValueSummary(): Promise<BoardValueSummary> {
+  const rows = await db
+    .select({
+      status: productionBoardItem.status,
+      qtyPlanned: productionBoardItem.qtyPlanned,
+      qtyDone: productionBoardItem.qtyDone,
+      unitPrice: productionBoardItem.unitPrice,
+    })
+    .from(productionBoardItem)
+    .where(
+      inArray(productionBoardItem.status, ["QUEUED", "IN_PROGRESS", "QC", "COMPLETED"]),
+    );
+  return computeBoardValueSummary(rows);
 }

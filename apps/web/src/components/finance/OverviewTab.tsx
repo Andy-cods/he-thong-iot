@@ -1,11 +1,15 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
+  AlertTriangle,
   ArrowDownRight,
   ArrowUpRight,
   BarChart3,
+  Factory,
   Landmark,
+  PackageCheck,
   ReceiptText,
   TrendingDown,
   TrendingUp,
@@ -17,9 +21,12 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/ui/query-error";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SimpleTooltip } from "@/components/ui/tooltip";
 import { CashflowChart } from "@/components/finance/CashflowChart";
 import { fmtVND, fmtVNDShort, toDateInputValue } from "@/components/finance/_format";
 import { useFinCashflow, useFinSummary, type CashflowPoint } from "@/hooks/useFinance";
+import { useSession } from "@/hooks/useSession";
+import { isRouteAllowed } from "@/lib/route-guard";
 import { cn } from "@/lib/utils";
 
 /**
@@ -49,6 +56,13 @@ export function OverviewTab() {
 
   const cashflowQuery = useFinCashflow({ from, to, compareWith: "previous_period" });
   const summaryQuery = useFinSummary();
+  const session = useSession();
+  const roles = session.data?.roles;
+  // V4.4.2 — chỉ dẫn link "mở danh sách nguồn" tới trang user THỰC SỰ vào
+  // được (vd accountant không có quyền entity `productionBoard` nên không
+  // vào được /production-board — card vẫn hiện số nhưng không phải link).
+  const canOpenBoard = isRouteAllowed("/production-board", roles ?? []);
+  const canOpenSales = isRouteAllowed("/sales", roles ?? []);
 
   const cashflow = cashflowQuery.data?.data;
   const summary = summaryQuery.data?.data;
@@ -56,6 +70,10 @@ export function OverviewTab() {
   // summary (đã bổ sung server-side) thay vì gọi lại API aging riêng.
   const totalReceivable = summary?.totalReceivable ?? 0;
   const totalPayable = summary?.totalPayable ?? 0;
+  // V4.4.2 — hàng "Kế hoạch" (Đang sản xuất / Dự trù thu / Dự trù chi).
+  const production = summary?.production;
+  const expectedPayable = summary?.expectedPayable;
+  const missingPriceCount = production?.missingPriceCount ?? 0;
 
   const isLoading = cashflowQuery.isLoading || summaryQuery.isLoading;
   const hasData = (cashflow?.series.length ?? 0) > 0;
@@ -132,8 +150,75 @@ export function OverviewTab() {
               series={cashflow?.series}
             />
 
+            {/* V4.4.2 — hàng "Kế hoạch" (Đang sản xuất / Dự trù thu / Dự trù
+                chi), TÁCH BẠCH khỏi hàng số thực bên dưới (nguồn Bảng sản
+                xuất + PO mở, không phải sổ quỹ đã ghi nhận). */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+                Kế hoạch (dự trù — chưa phát sinh dòng tiền thực)
+              </p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <PlanKpiCard
+                  icon={Factory}
+                  label="Đang sản xuất"
+                  amount={summaryFailed ? null : (production?.inProduction.value ?? 0)}
+                  sub={
+                    production
+                      ? `${production.inProduction.itemCount} mã hàng`
+                      : undefined
+                  }
+                  tooltip="Σ(SL kế hoạch × đơn giá) các mã hàng đang chạy trên Bảng sản xuất (Sắp gia công / Đang gia công / Đang kiểm QC)."
+                  href={canOpenBoard ? "/production-board" : undefined}
+                />
+                <PlanKpiCard
+                  icon={PackageCheck}
+                  label="Dự trù thu"
+                  amount={summaryFailed ? null : (production?.expectedReceivable.value ?? 0)}
+                  sub={
+                    production
+                      ? `${production.expectedReceivable.itemCount} mã hàng hoàn thành, chưa giao`
+                      : undefined
+                  }
+                  tooltip="Σ(SL đã đạt × đơn giá) các mã hàng đã Hoàn thành nhưng chưa giao khách — hàng đã làm xong, tiền chưa về."
+                  href={canOpenBoard ? "/production-board" : undefined}
+                />
+                <PlanKpiCard
+                  icon={Wallet}
+                  label="Dự trù chi"
+                  amount={summaryFailed ? null : (expectedPayable?.value ?? 0)}
+                  sub={
+                    expectedPayable
+                      ? `${expectedPayable.poCount} PO mở · ${expectedPayable.draftInvoiceCount} HĐ nháp`
+                      : undefined
+                  }
+                  tooltip="Giá trị PO đã gửi/đang nhận CHƯA có hoá đơn mua + tổng hoá đơn mua đang NHÁP (chưa xác nhận) — KHÔNG gồm hoá đơn đã xác nhận (đã nằm trong Công nợ phải trả)."
+                  href={canOpenSales ? "/sales?tab=po" : undefined}
+                />
+              </div>
+              {missingPriceCount > 0 && (
+                <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  <span>
+                    {missingPriceCount} mã hàng chưa có đơn giá — số liệu "Đang sản xuất"/"Dự trù thu" chưa đủ.
+                  </span>
+                  {canOpenBoard && (
+                    <Link
+                      href="/production-board?missingPrice=1"
+                      className="ml-auto shrink-0 font-semibold underline hover:no-underline"
+                    >
+                      Xem danh sách
+                    </Link>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* 5 KPI phụ — grid responsive để nhãn dài ("Công nợ phải thu/trả")
                 không bị cắt trên mobile (§1.1 P0). */}
+            <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+              Số thực (đã ghi nhận)
+            </p>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               <KpiCard
                 icon={TrendingUp}
@@ -168,6 +253,7 @@ export function OverviewTab() {
                 amount={summaryFailed ? null : (summary?.totalBalance ?? 0)}
                 accent="zinc"
               />
+            </div>
             </div>
 
             {/* Chart */}
@@ -338,6 +424,72 @@ function KpiCard({
         <p className="truncate text-xs tabular-nums text-zinc-500 dark:text-zinc-400">{fmtVND(amount)}</p>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * V4.4.2 — Thẻ KPI hàng "Kế hoạch" (Đang sản xuất / Dự trù thu / Dự trù chi).
+ * Khác `KpiCard` (hàng "Số thực"): có tooltip giải thích công thức tiếng
+ * Việt (`SimpleTooltip`) + dòng phụ `sub` (số mã hàng/PO) + click mở trang
+ * nguồn khi user có quyền vào (`href`); không có `growth` (số kế hoạch,
+ * không so kỳ trước).
+ */
+function PlanKpiCard({
+  icon: Icon,
+  label,
+  amount,
+  sub,
+  tooltip,
+  href,
+}: {
+  icon: React.ElementType;
+  label: string;
+  amount: number | null;
+  sub?: string;
+  tooltip: string;
+  href?: string;
+}) {
+  const body = (
+    <div
+      className={cn(
+        "min-w-0 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900",
+        href && "transition-colors hover:border-indigo-300 hover:bg-indigo-50/40 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/20",
+      )}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 items-start gap-1.5">
+          <Icon className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
+          <p className="text-xs font-medium leading-snug text-zinc-500 dark:text-zinc-400">{label}</p>
+        </div>
+        <SimpleTooltip content={tooltip}>
+          <span
+            tabIndex={0}
+            role="img"
+            aria-label="Giải thích công thức"
+            className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-current text-[10px] font-bold text-zinc-300 hover:text-zinc-500 dark:text-zinc-600 dark:hover:text-zinc-400"
+          >
+            ?
+          </span>
+        </SimpleTooltip>
+      </div>
+      <p className="mt-1 truncate text-xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50" title={amount === null ? undefined : fmtVND(amount)}>
+        {amount === null ? "—" : fmtVNDShort(amount)}
+      </p>
+      {amount === null ? (
+        <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">Không tải được</p>
+      ) : (
+        <p className="truncate text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
+          {sub ?? (fmtVND(amount) !== fmtVNDShort(amount) ? fmtVND(amount) : "")}
+        </p>
+      )}
+    </div>
+  );
+  return href ? (
+    <Link href={href} className="block">
+      {body}
+    </Link>
+  ) : (
+    body
   );
 }
 

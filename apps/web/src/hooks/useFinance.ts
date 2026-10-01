@@ -671,6 +671,20 @@ export interface FinSummaryResponse {
   /** TASK-20260922 — tổng công nợ phải thu/phải trả, dùng cho KPI OverviewTab. */
   totalReceivable: number;
   totalPayable: number;
+  /** V4.4.2 — hàng "Kế hoạch" (Đang sản xuất / Dự trù thu), xem Bảng sản xuất. */
+  production: {
+    inProduction: { value: number; itemCount: number };
+    expectedReceivable: { value: number; itemCount: number };
+    missingPriceCount: number;
+  };
+  /** V4.4.2 — "Dự trù chi": PO mở chưa có HĐ + HĐ mua đang NHÁP. */
+  expectedPayable: {
+    value: number;
+    poValue: number;
+    poCount: number;
+    draftInvoiceValue: number;
+    draftInvoiceCount: number;
+  };
   period: { from: string; to: string };
 }
 

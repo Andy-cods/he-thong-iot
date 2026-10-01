@@ -57,6 +57,12 @@ export const productionBoardItem = appSchema.table(
       .notNull()
       .default("0"),
     uom: varchar("uom", { length: 24 }).default("Pcs"),
+    /**
+     * V4.4.2 (migration 0074) — Đơn giá bán (VND/đơn vị), NULL = chưa nhập.
+     * Chỉ admin/kế toán/thu mua xem (lọc ở API, xem `canSeeOrderValue()`) —
+     * không hiện trên TV xưởng (/board, role display).
+     */
+    unitPrice: numeric("unit_price", { precision: 18, scale: 2 }),
     status: productionBoardStatusEnum("status").notNull().default("QUEUED"),
     /** Hạn giao (deadline). */
     deadline: date("deadline"),

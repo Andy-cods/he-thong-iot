@@ -8,6 +8,7 @@ import {
 } from "@/server/repos/productionBoard";
 import { jsonError, parseJson } from "@/server/http";
 import { requireCan } from "@/server/session";
+import { canSeeOrderValue } from "@/lib/production-board-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,7 +45,12 @@ export async function GET(req: NextRequest) {
       listBoardItems({ completedLimit, includeDelivered }),
       countBoardByStatus(),
     ]);
-    return NextResponse.json({ data: items, counts });
+    // V4.4.2 — chỉ trả `unitPrice` cho vai xem được tài chính đơn hàng (lọc
+    // Ở SERVER, không chỉ ẩn UI) — TV xưởng (/board, role display) và các vai
+    // khác (qc/planner/operator/warehouse/shareholder) KHÔNG nhận trường này.
+    const canSeePrice = canSeeOrderValue(guard.session.roles);
+    const data = canSeePrice ? items : items.map(stripUnitPrice);
+    return NextResponse.json({ data, counts });
   } catch (err) {
     logger.error({ err }, "list production board failed");
     return jsonError("INTERNAL", "Lỗi tải bảng sản xuất.", 500);
@@ -65,10 +71,20 @@ const createSchema = z.object({
   notes: z.string().max(2000).nullish(),
   isPinned: z.boolean().optional().default(false),
   seq: z.number().int().nonnegative().optional(),
+  // V4.4.2 — Đơn giá bán. Vai không được xem tài chính đơn hàng gửi lên vẫn
+  // bị BỎ QUA ở route (không throw lỗi — tránh vỡ luồng tạo mã hàng bình
+  // thường của QC nếu client cũ/lỗi gửi kèm trường thừa).
+  unitPrice: z.number().nonnegative().nullish(),
 });
 
+/** Bỏ `unitPrice` khỏi object trả về cho vai không được xem giá. */
+function stripUnitPrice<T extends { unitPrice?: unknown }>(item: T): Omit<T, "unitPrice"> {
+  const { unitPrice: _unitPrice, ...rest } = item;
+  return rest;
+}
+
 /**
- * POST /api/production-board — tạo mã hàng mới (chỉ qc + admin).
+ * POST /api/production-board — tạo mã hàng mới (qc + admin + purchaser, V4.4).
  */
 export async function POST(req: NextRequest) {
   const guard = await requireCan(req, "create", "productionBoard");
@@ -77,12 +93,18 @@ export async function POST(req: NextRequest) {
   const body = await parseJson(req, createSchema);
   if ("response" in body) return body.response;
 
+  const canSeePrice = canSeeOrderValue(guard.session.roles);
+
   try {
     const row = await createBoardItem({
       ...body.data,
+      unitPrice: canSeePrice ? body.data.unitPrice : undefined,
       userId: guard.session.userId,
     });
-    return NextResponse.json({ data: row }, { status: 201 });
+    return NextResponse.json(
+      { data: canSeePrice ? row : stripUnitPrice(row) },
+      { status: 201 },
+    );
   } catch (err) {
     logger.error({ err }, "create production board item failed");
     return jsonError("INTERNAL", "Lỗi tạo mã hàng.", 500);
