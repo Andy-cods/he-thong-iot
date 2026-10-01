@@ -10,17 +10,21 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * POST /api/items/quick-create — V4.4 (Việc 3).
+ * POST /api/items/quick-create — V4.4 (Việc 3), mở quyền V4.6.
  *
  * Tạo nhanh vật tư ngay trong form Đề xuất vật tư (Sheet nhỏ: tên/ĐVT/nhóm)
  * thay vì để người dùng gõ tên tự do rồi để `findOrCreateItemForLine` tự
- * đoán lúc chuyển PO (nguồn gây trùng item — xem LOOP_E2E.md #2). Cùng
- * `create:item` RBAC với `/api/items` (admin/planner) — role khác chỉ tìm +
- * chọn item có sẵn qua ItemPicker, không tạo mới (giữ nguyên phạm vi quyền
- * hiện có, không mở rộng thêm).
+ * đoán lúc chuyển PO (nguồn gây trùng item — xem LOOP_E2E.md #2).
+ *
+ * V4.6 — chủ xưởng yêu cầu MỌI vai tạo được phiếu Đề xuất vật tư (pr:create)
+ * cũng tạo nhanh được vật tư từ trong phiếu (trước đây bị 403 vì dùng
+ * `create:item`, chỉ admin/planner có). Dùng `create:pr` thay vì `create:item`
+ * — PHẠM VI CHỈ giới hạn ở quick-create (tên/ĐVT/nhóm tối thiểu, có kiểm
+ * trùng tên + audit người tạo); KHÔNG mở `/api/items` đầy đủ (sửa/xoá vật tư,
+ * trang quản lý vật tư vẫn theo `create:item`/`update:item` như cũ).
  */
 export async function POST(req: NextRequest) {
-  const guard = await requireCan(req, "create", "item");
+  const guard = await requireCan(req, "create", "pr");
   if ("response" in guard) return guard.response;
 
   const body = await parseJson(req, itemQuickCreateSchema);

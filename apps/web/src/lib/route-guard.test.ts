@@ -92,6 +92,30 @@ describe("V4.1 AD-17 — route guard", () => {
     expect(filterNavForUser(NAV_ITEMS, ["warehouse"]).map((i) => i.href)).toContain("/warehouse");
   });
 
+  it("V4.6 — mọi vai nghiệp vụ thấy menu + vào được '/procurement/purchase-requests'; display/shareholder thì không", () => {
+    const businessRoles: Role[] = [
+      "admin",
+      "planner",
+      "operator",
+      "warehouse",
+      "purchaser",
+      "qc",
+      "accountant",
+    ];
+    const prNavItem = NAV_ITEMS.find((i) => i.href === "/procurement/purchase-requests");
+    expect(prNavItem?.roles).toEqual(expect.arrayContaining(businessRoles));
+    for (const r of businessRoles) {
+      expect(filterNavByRoles(NAV_ITEMS, [r]).map((i) => i.href)).toContain(
+        "/procurement/purchase-requests",
+      );
+      expect(isRouteAllowed("/procurement/purchase-requests", [r])).toBe(true);
+    }
+    expect(isRouteAllowed("/procurement/purchase-requests", ["shareholder"])).toBe(false);
+    expect(
+      filterNavByRoles(NAV_ITEMS, ["shareholder"]).map((i) => i.href),
+    ).not.toContain("/procurement/purchase-requests");
+  });
+
   // V4.3 mục 4.3 — gộp `/qc-inbound` vào tab Kho "Chờ QC": role `qc` vào được
   // `/warehouse` (qua `qcInspection`), operator/planner (không role kho/qc,
   // không quyền kho nào) thì không.

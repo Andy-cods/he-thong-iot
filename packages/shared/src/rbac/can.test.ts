@@ -105,6 +105,12 @@ describe("can() — assert 48+ cell từ matrix (§4 brainstorm)", () => {
     ["qc", "read", "pr", true],
     ["accountant", "create", "pr", true],
     ["accountant", "read", "pr", true],
+    // V4.6 — chủ xưởng chốt: MỌI vai nghiệp vụ tạo được phiếu Đề xuất vật tư,
+    // display/shareholder (chỉ-xem) KHÔNG được. Bảng trên đã phủ 7 vai
+    // (admin/planner/operator/warehouse/purchaser/qc/accountant) → true;
+    // khẳng định lại 2 vai còn lại KHÔNG có.
+    ["display", "create", "pr", false],
+    ["shareholder", "create", "pr", false],
     // PO
     ["admin", "approve", "po", true],
     ["planner", "approve", "po", false],

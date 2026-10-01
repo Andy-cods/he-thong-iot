@@ -52,7 +52,11 @@ export function ItemPickerField({
   id?: string;
 }) {
   const session = useSession();
-  const canCreateItem = can(session.data?.roles, "create", "item");
+  // V4.6 — chủ xưởng yêu cầu mọi vai tạo được phiếu Đề xuất vật tư (pr:create)
+  // cũng tạo nhanh được vật tư ngay trong phiếu (trước đây gate theo
+  // `create:item`, chỉ admin/planner → qc/warehouse/operator/accountant/
+  // purchaser bị 403). Khớp RBAC mới ở `/api/items/quick-create`.
+  const canCreateItem = can(session.data?.roles, "create", "pr");
 
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [name, setName] = React.useState("");
