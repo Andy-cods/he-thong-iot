@@ -13,6 +13,7 @@ import { formatShortcut } from "@/lib/shortcuts";
 import { useBomDetail } from "@/hooks/useBom";
 import { useLotHistory } from "@/hooks/useLotSerial";
 import { cn } from "@/lib/utils";
+import { ScrollTabsList } from "@/components/common/ScrollTabsList";
 import type { NavItem } from "@/lib/nav-items";
 
 /**
@@ -210,54 +211,64 @@ export function TopBar({
       {navItems.length > 0 && (
         <nav
           aria-label="Điều hướng chính"
-          className="hidden md:flex items-center justify-center gap-1 border-t border-zinc-900/[0.06] px-4 xl:px-6 dark:border-white/[0.08]"
+          className="hidden border-t border-zinc-900/[0.06] md:block dark:border-white/[0.08]"
         >
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = matchActive(pathname, item.href, allHrefs);
+          {/* V4.5 QA-E P1: bọc ScrollTabsList — hết tràn ngang trang ở 768/1280px
+              (trước đây `justify-center` trần đẩy mục đầu/cuối ra ngoài khung hình
+              không có cách cuộn lại). Cố tình KHÔNG dùng justify-center ở đây: khi
+              nội dung tràn, `justify-content: center` làm phần đầu bị kẹt ở vùng
+              scrollLeft âm (không thể cuộn tới) — cùng lỗi gốc đang sửa. Căn trái
+              giống mọi nơi khác dùng component này (Kho/Thu mua/BOM). Mép mờ 2
+              bên + tự cuộn tab đang chọn vào tầm nhìn lúc mount đến từ component
+              dùng chung. */}
+          <ScrollTabsList className="gap-1 px-4 xl:px-6">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = matchActive(pathname, item.href, allHrefs);
 
-            if (item.disabled) {
+              if (item.disabled) {
+                return (
+                  <li key={item.href} className="shrink-0">
+                    <span className="relative flex items-center gap-2.5 px-4 py-3 text-[15px] font-medium text-zinc-300 cursor-not-allowed select-none dark:text-zinc-700">
+                      <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.75} aria-hidden />
+                      <span>{item.label}</span>
+                    </span>
+                  </li>
+                );
+              }
+
               return (
-                <span
-                  key={item.href}
-                  className="relative flex items-center gap-2.5 px-4 py-3 text-[15px] font-medium text-zinc-300 cursor-not-allowed select-none dark:text-zinc-700"
-                >
-                  <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.75} aria-hidden />
-                  <span>{item.label}</span>
-                </span>
+                <li key={item.href} className="shrink-0">
+                  <Link
+                    href={item.href}
+                    aria-current={isActive ? "page" : undefined}
+                    className={cn(
+                      "relative flex items-center gap-2.5 px-4 py-3 text-[15px] font-medium transition-colors duration-150 whitespace-nowrap",
+                      "after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:rounded-t-full after:transition-all after:duration-150",
+                      isActive
+                        ? "text-indigo-600 after:bg-indigo-600 dark:text-indigo-400 dark:after:bg-indigo-400"
+                        : "text-zinc-600 hover:text-zinc-900 after:bg-transparent hover:after:bg-zinc-200 dark:text-zinc-400 dark:hover:text-zinc-50 dark:hover:after:bg-zinc-700",
+                    )}
+                  >
+                    <Icon
+                      className={cn(
+                        "h-[18px] w-[18px] shrink-0 transition-colors",
+                        isActive ? "text-indigo-600 dark:text-indigo-400" : "text-zinc-400 dark:text-zinc-500",
+                      )}
+                      strokeWidth={1.75}
+                      aria-hidden
+                    />
+                    <span>{item.label}</span>
+                    {item.badge && (
+                      <span className="ml-0.5 rounded-full bg-zinc-100 px-1.5 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                        {item.badge}
+                      </span>
+                    )}
+                  </Link>
+                </li>
               );
-            }
-
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={isActive ? "page" : undefined}
-                className={cn(
-                  "relative flex items-center gap-2.5 px-4 py-3 text-[15px] font-medium transition-colors duration-150 whitespace-nowrap",
-                  "after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:rounded-t-full after:transition-all after:duration-150",
-                  isActive
-                    ? "text-indigo-600 after:bg-indigo-600 dark:text-indigo-400 dark:after:bg-indigo-400"
-                    : "text-zinc-600 hover:text-zinc-900 after:bg-transparent hover:after:bg-zinc-200 dark:text-zinc-400 dark:hover:text-zinc-50 dark:hover:after:bg-zinc-700",
-                )}
-              >
-                <Icon
-                  className={cn(
-                    "h-[18px] w-[18px] shrink-0 transition-colors",
-                    isActive ? "text-indigo-600 dark:text-indigo-400" : "text-zinc-400 dark:text-zinc-500",
-                  )}
-                  strokeWidth={1.75}
-                  aria-hidden
-                />
-                <span>{item.label}</span>
-                {item.badge && (
-                  <span className="ml-0.5 rounded-full bg-zinc-100 px-1.5 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                    {item.badge}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
+            })}
+          </ScrollTabsList>
         </nav>
       )}
     </header>
