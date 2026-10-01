@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/domain/StatusBadge";
+import { StatusPill } from "@/components/ui/status-badge";
 import { BinSuggestCombobox } from "@/components/warehouse/BinSuggestCombobox";
 import {
   Wizard,
@@ -28,6 +29,7 @@ import {
   type WizardStep,
 } from "@/components/wizard";
 import { cn } from "@/lib/utils";
+import { formatQty } from "@/lib/format";
 import { uuidv7 } from "@/lib/uuid-v7";
 import {
   usePOForReceiving,
@@ -474,38 +476,28 @@ function ReceivingWizardInner({ poId }: { poId: string }) {
           ]}
           className="md:hidden"
         />
-        <div className="mt-2 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-900/50">
+        {/* V4.4 B.H — badge trạng thái PO trước tự vẽ tay + in thẳng mã enum
+            thô ("RECEIVED"/"PARTIAL"...) ngay trong trang dùng làm MẪU THAM
+            CHIẾU "PO detail đã đạt"; nay qua StatusPill dùng chung (nhãn Việt
+            + tông + chấm nhấp nháy khi PARTIAL, khớp lib/status.ts domain "po").
+            Thêm flex-wrap + min-w-0 (X6) để badge không đẩy tràn trên mobile. */}
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-900/50">
               <Truck className="h-6 w-6 text-indigo-700 dark:text-indigo-400" aria-hidden />
             </div>
-            <div>
+            <div className="min-w-0">
               <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
                 Wizard nhận hàng
               </h1>
-              <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+              <p className="mt-0.5 truncate text-sm text-zinc-500 dark:text-zinc-400">
                 <span className="font-mono font-semibold text-zinc-700 dark:text-zinc-300">{po.poCode}</span>
                 {po.supplierName && <> · {po.supplierName}</>}
               </p>
             </div>
           </div>
           {po.status && (
-            <span className={cn(
-              "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset",
-              po.status === "PARTIAL" ? "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800" :
-              po.status === "RECEIVED" || po.status === "CLOSED" ? "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800" :
-              po.status === "CANCELLED" ? "bg-red-50 text-red-700 ring-red-200 dark:bg-red-950/40 dark:text-red-400 dark:ring-red-800" :
-              "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:ring-blue-800",
-            )}>
-              <span className={cn(
-                "h-2 w-2 rounded-full",
-                po.status === "PARTIAL" ? "bg-amber-500 animate-pulse" :
-                po.status === "RECEIVED" || po.status === "CLOSED" ? "bg-emerald-500" :
-                po.status === "CANCELLED" ? "bg-red-500" :
-                "bg-blue-500",
-              )} aria-hidden />
-              {po.status}
-            </span>
+            <StatusPill domain="po" code={po.status} dot pulse={po.status === "PARTIAL"} size="md" />
           )}
         </div>
       </header>
@@ -591,7 +583,16 @@ function StepCheck({
         items={[
           { label: "Mã PO", value: po.poCode, emphasize: true },
           { label: "Nhà cung cấp", value: po.supplierName },
-          { label: "Trạng thái", value: po.status ?? "—" },
+          {
+            label: "Trạng thái",
+            // V4.4 B.H — trước hiện text thô "RECEIVED"/"PARTIAL" không màu,
+            // ngay trong trang mẫu tham chiếu "PO detail đã đạt".
+            value: po.status ? (
+              <StatusPill domain="po" code={po.status} dot pulse={po.status === "PARTIAL"} />
+            ) : (
+              "—"
+            ),
+          },
           { label: "Dự kiến giao", value: po.expectedDate || "—" },
           {
             label: "Số dòng",
@@ -600,7 +601,7 @@ function StepCheck({
           {
             label: "Đã nhận",
             value: totals
-              ? `${totals.receivedTotal}/${totals.orderedTotal} (${totals.receivedPct}%)`
+              ? `${formatQty(totals.receivedTotal)}/${formatQty(totals.orderedTotal)} (${totals.receivedPct}%)`
               : "—",
           },
         ]}
@@ -1120,7 +1121,7 @@ function StepQc({
           { label: "Số dòng nhập", value: stats.lines, emphasize: true },
           {
             label: "Tổng qty thực nhận",
-            value: stats.total.toLocaleString("vi-VN"),
+            value: formatQty(stats.total),
             emphasize: true,
           },
         ]}

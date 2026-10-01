@@ -19,6 +19,7 @@ import {
 } from "nuqs";
 import { PO_STATUSES } from "@iot/shared";
 import { Button } from "@/components/ui/button";
+import { DateField } from "@/components/ui/date-field";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/ui/query-error";
 import { StatTile } from "@/components/ui/data-table";
@@ -26,7 +27,7 @@ import { POListTable } from "@/components/procurement/POListTable";
 import { PoExportDialog } from "@/components/procurement/PoExportDialog";
 import { usePurchaseOrdersList, usePurchaseOrdersStats } from "@/hooks/usePurchaseOrders";
 import type { POFilter } from "@/lib/query-keys";
-import { formatMoneyShort } from "@/lib/format";
+import { formatMoneyShort, formatNumber } from "@/lib/format";
 import { TONE_CLASSES, statusOptions } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
@@ -125,7 +126,7 @@ export function POTab() {
             Đơn đặt hàng (PO)
           </h1>
           <p className="mt-1 text-base text-zinc-500 dark:text-zinc-400">
-            <span className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">{(stats?.total ?? total).toLocaleString("vi-VN")}</span> PO trong hệ thống
+            <span className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">{formatNumber(stats?.total ?? total)}</span> PO trong hệ thống
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -140,9 +141,13 @@ export function POTab() {
       </header>
 
       {/* ── KPI cards ── */}
-      {/* V4.1 UI-24 (X8): thẻ KPI trung tính (trắng, viền zinc) — màu chỉ khi mã hoá trạng thái (quá hạn). */}
+      {/* V4.1 UI-24 (X8): thẻ KPI trung tính (trắng, viền zinc) — màu chỉ khi mã hoá trạng thái (quá hạn).
+          V4.4 (N1) — "Tổng giá trị" là số quan trọng nhất trang (headline chi
+          tiêu Thu mua) nên lên `size="hero"`, 3 ô còn lại giữ cỡ mặc định để
+          tạo phân cấp rõ (trước 4 ô cùng cỡ text-xl, không số nào nổi bật). */}
       <div className="grid grid-cols-2 gap-3 px-4 pb-3 md:px-6 lg:grid-cols-4">
         <StatTile
+          size="hero"
           icon={TrendingUp}
           label="Tổng giá trị"
           value={kpi(fmtVND(stats?.totalSpend ?? 0))}
@@ -247,24 +252,27 @@ export function POTab() {
           <span className="text-xs tabular-nums opacity-80">{stats?.overdueCount ?? 0}</span>
         </button>
 
-        {/* Date range */}
+        {/* Date range — V4.4 A4: DateField dùng chung (dd/mm/yyyy nhất quán)
+            thay `<input type="date">` native (placeholder theo locale OS). */}
         <div className="ml-auto flex items-center gap-2">
           <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
             <span className="text-zinc-500 dark:text-zinc-400">Từ</span>
-            <input
-              type="date"
+            <DateField
               value={urlState.from}
-              onChange={(e) => void setUrlState({ from: e.target.value, page: 1 })}
-              className="h-8 rounded-lg border border-zinc-200 bg-white px-2.5 text-sm tabular-nums focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+              onChange={(v) => void setUrlState({ from: v, page: 1 })}
+              size="sm"
+              className="w-[8.5rem]"
+              aria-label="Từ ngày"
             />
           </label>
           <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
             <span className="text-zinc-500 dark:text-zinc-400">Đến</span>
-            <input
-              type="date"
+            <DateField
               value={urlState.to}
-              onChange={(e) => void setUrlState({ to: e.target.value, page: 1 })}
-              className="h-8 rounded-lg border border-zinc-200 bg-white px-2.5 text-sm tabular-nums focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+              onChange={(v) => void setUrlState({ to: v, page: 1 })}
+              size="sm"
+              className="w-[8.5rem]"
+              aria-label="Đến ngày"
             />
           </label>
           {hasFilter && (
@@ -318,7 +326,7 @@ export function POTab() {
           <div className="tabular-nums">
             Trang <span className="font-semibold text-zinc-900 dark:text-zinc-50">{urlState.page}</span> / {pageCount}
             <span className="mx-2 text-zinc-300 dark:text-zinc-600">·</span>
-            <span className="text-zinc-500 dark:text-zinc-400">{total.toLocaleString("vi-VN")} PO</span>
+            <span className="text-zinc-500 dark:text-zinc-400">{formatNumber(total)} PO</span>
           </div>
           <div className="flex items-center gap-1">
             <Button size="sm" variant="ghost" disabled={urlState.page <= 1}

@@ -229,14 +229,14 @@ export function PoCreateWizard() {
               Chọn nguồn PO
             </h2>
             <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
-              Bắt đầu từ đầu hoặc kế thừa dữ liệu từ Yêu cầu mua đã duyệt.
+              Bắt đầu từ đầu hoặc kế thừa dữ liệu từ Đề xuất vật tư (PR) đã duyệt.
             </p>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <label
               className={cn(
-                "group relative flex cursor-pointer flex-col gap-2 rounded-2xl border-2 p-5 transition-all",
+                "group relative flex cursor-pointer flex-col gap-2 rounded-xl border-2 p-5 transition-all",
                 state.source === "MANUAL"
                   ? "border-indigo-500 bg-indigo-50 ring-2 ring-indigo-100 dark:bg-indigo-950/40 dark:ring-indigo-900"
                   : "border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm dark:border-zinc-700 dark:bg-zinc-900",
@@ -276,7 +276,7 @@ export function PoCreateWizard() {
 
             <label
               className={cn(
-                "group relative flex cursor-pointer flex-col gap-2 rounded-2xl border-2 p-5 transition-all",
+                "group relative flex cursor-pointer flex-col gap-2 rounded-xl border-2 p-5 transition-all",
                 state.source === "FROM_PR"
                   ? "border-indigo-500 bg-indigo-50 ring-2 ring-indigo-100 dark:bg-indigo-950/40 dark:ring-indigo-900"
                   : "border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm dark:border-zinc-700 dark:bg-zinc-900",

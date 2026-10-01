@@ -43,7 +43,9 @@ export interface PoLinesTableProps {
 function priceToInput(v: string | number | null | undefined): string {
   const n = Number(v ?? 0);
   if (!Number.isFinite(n) || n <= 0) return "";
-  return n.toLocaleString("vi-VN", { maximumFractionDigits: 4 });
+  // V4.4 (A3) — qua formatQty dùng chung thay toLocaleString cục bộ (không
+  // truyền uom → chỉ format số, giữ nguyên hành vi cũ).
+  return formatQty(n);
 }
 
 function taxOf(l: PoLine): number {
