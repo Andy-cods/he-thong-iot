@@ -869,10 +869,7 @@ export async function createPO(
 
     const approve = input.autoApprove === true;
     const submit = input.submitForApproval === true && !approve;
-    // V4.1 TM-10 — không cho gửi duyệt / tạo-kèm-duyệt PO còn dòng chưa có giá.
-    if ((approve || submit) && linesPrepared.some((l) => Number(l.unitPrice) <= 0)) {
-      throw new Error("UNPRICED_LINES");
-    }
+    // V4.4.3 — dòng chưa có giá vẫn được gửi duyệt / tạo-kèm-duyệt (giá bổ sung sau).
     const now = new Date();
     const metadata: Record<string, unknown> = approve
       ? {

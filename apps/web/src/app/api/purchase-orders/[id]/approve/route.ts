@@ -1,9 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { poApproveSchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
-import { approvePO, getPO, getPOLines } from "@/server/repos/purchaseOrders";
+import { approvePO, getPO } from "@/server/repos/purchaseOrders";
 import {
-  findUnpricedPoLines,
   isSelfApprovalBlocked,
 } from "@/lib/procurement-policy";
 import { getPR } from "@/server/repos/purchaseRequests";
@@ -58,17 +57,8 @@ export async function POST(
     );
   }
 
-  // V4.1 TM-10 — không duyệt PO còn dòng chưa có đơn giá (trước đây duyệt
-  // được PO 0đ → công nợ / HĐ mua sai).
-  const unpriced = findUnpricedPoLines(await getPOLines(params.id));
-  if (unpriced.length > 0) {
-    return jsonError(
-      "UNPRICED_LINES",
-      `PO còn ${unpriced.length} dòng chưa có đơn giá (dòng ${unpriced.join(", ")}) — từ chối để Thu mua bổ sung giá.`,
-      409,
-      { lineNos: unpriced },
-    );
-  }
+  // V4.4.3 — cho duyệt PO còn dòng chưa có giá (giá chốt sau). Không sai công
+  // nợ: công nợ phải trả chỉ phát sinh khi Kế toán xác nhận HĐ mua theo số thật.
 
   try {
     const row = await approvePO(

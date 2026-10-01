@@ -1,10 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { logger } from "@/lib/logger";
 import {
-  getPOLines,
   submitPOForApproval,
 } from "@/server/repos/purchaseOrders";
-import { findUnpricedPoLines } from "@/lib/procurement-policy";
 import { notifyPOApprovalRequested } from "@/server/services/notifications";
 import { extractRequestMeta, jsonError } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
@@ -28,16 +26,9 @@ export async function POST(
   if ("response" in guard) return guard.response;
   if (!hasRole(guard.session, "planner", "purchaser")) return forbidden();
 
-  // V4.1 TM-10 — PO phải có đủ đơn giá trước khi gửi duyệt.
-  const unpriced = findUnpricedPoLines(await getPOLines(params.id));
-  if (unpriced.length > 0) {
-    return jsonError(
-      "UNPRICED_LINES",
-      `PO còn ${unpriced.length} dòng chưa có đơn giá (dòng ${unpriced.join(", ")}) — nhập giá trước khi gửi duyệt.`,
-      409,
-      { lineNos: unpriced },
-    );
-  }
+  // V4.4.3 — chủ xưởng: hàng CHƯA BIẾT GIÁ vẫn được gửi duyệt (bổ sung giá sau
+  // bằng điều chỉnh giá). Trang PO hiện băng cảnh báo "N dòng chưa có giá";
+  // công nợ chỉ ghi khi Kế toán xác nhận HĐ mua theo số trên hoá đơn thật.
 
   try {
     const row = await submitPOForApproval(params.id, guard.session.userId);
