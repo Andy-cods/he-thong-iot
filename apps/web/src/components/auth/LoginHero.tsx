@@ -90,9 +90,9 @@ export function LoginHero() {
 
       {/* Feature badges bottom-left */}
       <div className="absolute bottom-12 left-12 z-20 hidden flex-col gap-3 lg:flex">
-        <FeatureBadge index={0} label="Real-time OEE & Production Tracking" />
-        <FeatureBadge index={1} label="BOM-centric · Atomic Receiving · QC Flow" />
-        <FeatureBadge index={2} label="PWA · Offline-capable barcode scan" />
+        <FeatureBadge index={0} label="Theo dõi OEE & sản xuất theo thời gian thực" />
+        <FeatureBadge index={1} label="BOM trung tâm · Nhận hàng theo lô · Quy trình QC" />
+        <FeatureBadge index={2} label="PWA · Quét mã vạch hoạt động cả khi mất mạng" />
       </div>
 
       {/* Build line bottom-right */}

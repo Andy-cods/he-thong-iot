@@ -4,6 +4,7 @@ import * as React from "react";
 import { usePathname } from "next/navigation";
 import { Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { formatDate } from "@/lib/format";
 import {
   Dialog,
   DialogContent,
@@ -27,11 +28,11 @@ import {
 const WARN_BEFORE_MS = 10 * 60_000;
 const IGNORE_401 = ["/api/auth/login", "/api/auth/logout"];
 
+// V4.4 (A3, ưu tiên — nhạy cảm logic "quá hạn") — giờ hiển thị PHẢI theo giờ
+// Việt Nam cố định (Asia/Ho_Chi_Minh) bất kể múi giờ máy chạy, dùng chung
+// `formatDate` thay vì `toLocaleTimeString` theo múi giờ trình duyệt.
 function fmtTime(ms: number) {
-  return new Date(ms).toLocaleTimeString("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatDate(ms, "HH:mm");
 }
 
 export function SessionExpiryGuard({ expiresAt }: { expiresAt: number | null }) {

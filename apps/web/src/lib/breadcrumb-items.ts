@@ -64,7 +64,11 @@ export const SEGMENT_LABELS: Record<string, string> = {
   settings: "Cài đặt",
   sessions: "Phiên đăng nhập",
   reports: "Báo cáo",
-  targets: "Chỉ tiêu",
+  // V4.4 (NHÓM G) — chốt 1 tên DUY NHẤT "Mục tiêu KPI" cho trang
+  // `/admin/reports/targets` (trước đây có 3 tên khác nhau: "Chỉ tiêu" ở
+  // breadcrumb desktop, "Mục tiêu KPI" ở breadcrumb mobile + QuickLink trang
+  // Quản trị, "KPI Baselines / Mục tiêu năng suất" ở H1).
+  targets: "Mục tiêu KPI",
   department: "Bộ phận",
   "employee-productivity": "Năng suất nhân viên",
   "new-dnvt": "Tạo phiếu ĐNVT",

@@ -75,23 +75,47 @@ export function AuditRow({ row, style, gridCols }: AuditRowProps) {
     diff.count > 0 || row.beforeJson !== null || row.afterJson !== null;
   const canRollback = ROLLBACKABLE.has(row.action) && row.objectId !== null;
 
+  const diffButton = hasDiff ? (
+    <button
+      type="button"
+      onClick={() => setExpanded((v) => !v)}
+      className="inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-xs font-medium text-zinc-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50/50 hover:text-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-400"
+      aria-expanded={expanded}
+      aria-label={expanded ? "Thu gọn thay đổi" : "Xem thay đổi"}
+    >
+      {expanded ? (
+        <ChevronDown className="h-3 w-3" aria-hidden="true" />
+      ) : (
+        <ChevronRight className="h-3 w-3" aria-hidden="true" />
+      )}
+      {diff.count > 0 ? `${diff.count} thay đổi` : "Xem thay đổi"}
+    </button>
+  ) : row.notes ? (
+    <span className="truncate text-zinc-500 dark:text-zinc-400">{row.notes}</span>
+  ) : (
+    <span className="text-zinc-400 dark:text-zinc-500">—</span>
+  );
+
   return (
-    <div style={style} role="row" className="border-t border-zinc-100 dark:border-zinc-800">
+    <div style={style} className="border-t border-zinc-100 dark:border-zinc-800">
+      {/* Desktop/tablet — bảng lưới 6 cột như cũ (ẩn dưới md). */}
       <div
+        role="row"
         className={cn(
-          "grid min-h-[36px] items-center gap-3 px-4 py-1.5 text-xs transition-colors hover:bg-indigo-50/30 dark:hover:bg-indigo-950/30",
+          "hidden min-h-[36px] items-center gap-3 px-4 py-1.5 text-xs transition-colors hover:bg-indigo-50/30 md:grid dark:hover:bg-indigo-950/30",
           gridCols,
         )}
       >
-        <span className="break-words text-xs leading-tight text-zinc-500 tabular-nums md:whitespace-nowrap dark:text-zinc-400">
+        <span role="cell" className="whitespace-nowrap text-xs leading-tight text-zinc-500 tabular-nums dark:text-zinc-400">
           {fmtTime(row.occurredAt)}
         </span>
-        <span className="truncate text-zinc-700 dark:text-zinc-300">
+        <span role="cell" className="truncate text-zinc-700 dark:text-zinc-300">
           {row.actorUsername ?? (
             <span className="italic text-zinc-400 dark:text-zinc-500">hệ thống</span>
           )}
         </span>
         <span
+          role="cell"
           className={cn(
             "inline-flex h-5 w-fit max-w-full items-center justify-center truncate whitespace-nowrap rounded-full px-1.5 text-xs font-semibold ring-1 ring-inset",
             ACTION_PILL[row.action] ?? ACTION_PILL.UPDATE,
@@ -100,33 +124,54 @@ export function AuditRow({ row, style, gridCols }: AuditRowProps) {
         >
           {actionLabel(row.action)}
         </span>
-        <span className="truncate text-zinc-700 dark:text-zinc-300" title={row.objectType}>
+        <span role="cell" className="truncate text-zinc-700 dark:text-zinc-300" title={row.objectType}>
           {auditObjectLabel(row.objectType)}
         </span>
-        <code className="hidden truncate font-mono text-xs text-zinc-500 md:block dark:text-zinc-400">
+        <code role="cell" className="truncate font-mono text-xs text-zinc-500 dark:text-zinc-400">
           {row.objectId ? row.objectId.slice(0, 8) : "—"}
         </code>
-        <div className="hidden items-center gap-1.5 md:flex">
-          {hasDiff ? (
-            <button
-              type="button"
-              onClick={() => setExpanded((v) => !v)}
-              className="inline-flex whitespace-nowrap items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-xs font-medium text-zinc-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50/50 hover:text-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-400"
-              aria-expanded={expanded}
-              aria-label={expanded ? "Thu gọn thay đổi" : "Xem thay đổi"}
-            >
-              {expanded ? (
-                <ChevronDown className="h-3 w-3" aria-hidden="true" />
-              ) : (
-                <ChevronRight className="h-3 w-3" aria-hidden="true" />
+        <div role="cell" className="flex items-center gap-1.5">
+          {diffButton}
+        </div>
+      </div>
+
+      {/* V4.4 A16 — mobile: trước đây `hidden md:block`/`md:flex` ẨN HẲN "Mã đối
+          tượng" + "Thay đổi", admin dùng điện thoại không xem được nội dung
+          thay đổi của bất kỳ sự kiện nào. Gộp lại thành 2 dòng thẻ (mọi trường
+          vẫn hiện đủ) thay vì cắt cột — đúng tinh thần card-list N9. */}
+      <div role="row" className="flex flex-col gap-1 px-4 py-2 text-xs transition-colors hover:bg-indigo-50/30 md:hidden dark:hover:bg-indigo-950/30">
+        <div role="cell" className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span
+              className={cn(
+                "inline-flex h-5 w-fit shrink-0 items-center justify-center truncate whitespace-nowrap rounded-full px-1.5 text-xs font-semibold ring-1 ring-inset",
+                ACTION_PILL[row.action] ?? ACTION_PILL.UPDATE,
               )}
-              {diff.count > 0 ? `${diff.count} thay đổi` : "Xem thay đổi"}
-            </button>
-          ) : row.notes ? (
-            <span className="truncate text-zinc-500 dark:text-zinc-400">{row.notes}</span>
-          ) : (
-            <span className="text-zinc-400 dark:text-zinc-500">—</span>
-          )}
+              title={row.action}
+            >
+              {actionLabel(row.action)}
+            </span>
+            <span className="truncate text-zinc-700 dark:text-zinc-300" title={row.objectType}>
+              {auditObjectLabel(row.objectType)}
+            </span>
+          </div>
+          <span className="shrink-0 text-zinc-500 tabular-nums dark:text-zinc-400">
+            {fmtTime(row.occurredAt)}
+          </span>
+        </div>
+        <div role="cell" className="flex items-center justify-between gap-2">
+          <span className="min-w-0 truncate text-zinc-500 dark:text-zinc-400">
+            {row.actorUsername ?? (
+              <span className="italic">hệ thống</span>
+            )}
+            {row.objectId ? (
+              <>
+                {" · "}
+                <code className="font-mono text-zinc-400 dark:text-zinc-500">#{row.objectId.slice(0, 8)}</code>
+              </>
+            ) : null}
+          </span>
+          {diffButton}
         </div>
       </div>
 

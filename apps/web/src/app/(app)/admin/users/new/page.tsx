@@ -14,6 +14,7 @@ import {
 } from "@/components/admin/TempPasswordDisplay";
 import { AdminPageShell } from "@/components/admin/AdminPageShell";
 import { useCreateUser } from "@/hooks/useAdmin";
+import { ROOT_LABEL } from "@/lib/breadcrumb-items";
 import { cn } from "@/lib/utils";
 
 type Step = 1 | 2;
@@ -107,7 +108,7 @@ export default function AdminUsersNewPage() {
   return (
     <AdminPageShell
       breadcrumb={[
-        { label: "Trang chủ", href: "/" },
+        { label: ROOT_LABEL, href: "/" },
         { label: "Quản trị", href: "/admin" },
         { label: "Người dùng", href: "/admin/users" },
         { label: "Tạo mới" },

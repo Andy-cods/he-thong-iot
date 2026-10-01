@@ -22,6 +22,7 @@ import { useMySessions, useRevokeSession } from "@/hooks/useSessions";
 import { cn } from "@/lib/utils";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { formatDateTime } from "@/lib/format";
+import { parseUserAgent } from "@/lib/user-agent";
 
 /**
  * V3.7.66 — Trang Cài đặt cá nhân (mọi role đã login).
@@ -90,7 +91,10 @@ export default function SettingsPage() {
               hint="Bật/tắt notification realtime"
               disabled
             />
-            <div className="flex items-center justify-between rounded-lg border border-zinc-100 bg-zinc-50/40 px-3 py-2.5 dark:border-zinc-800 dark:bg-zinc-900/40">
+            {/* V4.4 (G2 top-5 #5) — `justify-between` không cho nhãn wrap trước
+                segmented 3 nút → "Sáng / Tối / Theo hệ thống" vỡ chữ từng từ
+                trên mobile hẹp. Xếp dọc rồi mới sang hàng ngang từ `sm`. */}
+            <div className="flex flex-col gap-2 rounded-lg border border-zinc-100 bg-zinc-50/40 px-3 py-2.5 dark:border-zinc-800 dark:bg-zinc-900/40 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
               <div>
                 <div className="text-sm font-medium tracking-tight text-zinc-800 dark:text-zinc-200">
                   Giao diện
@@ -217,7 +221,12 @@ function SessionsList() {
   return (
     <ul className="divide-y divide-zinc-100 rounded-lg border border-zinc-100 dark:divide-zinc-800 dark:border-zinc-800">
       {sessions.map((s) => {
-        const isMobile = /mobi|android|iphone|ipad/i.test(s.userAgent ?? "");
+        // V4.4 (G.C) — trước đây hiện thẳng chuỗi user-agent thô ("Mozilla/5.0
+        // (Windows NT 10.0...)") cho user cuối, vi phạm N4. Dùng chung
+        // `parseUserAgent` (đã dùng ở `admin/settings/sessions`) → tên trình
+        // duyệt/OS ngắn gọn tiếng người đọc được.
+        const ua = parseUserAgent(s.userAgent);
+        const isMobile = ua.isMobile;
         const isCurrent = s.isCurrent ?? false;
         return (
           <li
@@ -254,7 +263,7 @@ function SessionsList() {
               </div>
               <div className="font-mono text-xs text-zinc-500 dark:text-zinc-400">
                 {s.ipAddress ?? "—"}
-                {s.userAgent ? ` · ${s.userAgent.slice(0, 60)}` : ""}
+                {s.userAgent ? ` · ${ua.summary}` : ""}
               </div>
               <div className="text-xs text-zinc-400 dark:text-zinc-500">
                 Bắt đầu: {formatDateTime(s.issuedAt)}

@@ -20,7 +20,10 @@ import {
 import { useUsersList } from "@/hooks/useAdmin";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { formatNumber } from "@/lib/format";
+import { formatDateTime, formatMoney, formatNumber, formatVnWallClock } from "@/lib/format";
+import { actionLabel } from "@/lib/status";
+import { auditObjectLabel } from "@/lib/audit-scope";
+import { ROOT_LABEL } from "@/lib/breadcrumb-items";
 import { downloadFromUrl } from "@/lib/download";
 
 /**
@@ -41,9 +44,9 @@ function formatNumOrDash(n: number | null | undefined): string {
   return formatNumber(n);
 }
 
+// V4.4 (A3) — bỏ `new Intl.NumberFormat` cục bộ, dùng `formatMoney` (lib/format.ts).
 function formatVND(n: number | null | undefined): string {
-  if (n == null || n === 0) return "0 ₫";
-  return new Intl.NumberFormat("vi-VN").format(n) + " ₫";
+  return formatMoney(n);
 }
 
 export default function EmployeeProductivityPage() {
@@ -84,7 +87,7 @@ export default function EmployeeProductivityPage() {
   return (
     <AdminPageShell
       breadcrumb={[
-        { label: "Trang chủ", href: "/" },
+        { label: ROOT_LABEL, href: "/" },
         { label: "Quản trị", href: "/admin" },
         { label: "Báo cáo năng suất" },
       ]}
@@ -99,7 +102,7 @@ export default function EmployeeProductivityPage() {
             disabled={!selectedUserId}
           >
             <Download className="h-3.5 w-3.5" aria-hidden="true" />
-            Export Excel
+            Xuất Excel
           </Button>
           <Link
             href="/admin/reports/department"
@@ -296,12 +299,11 @@ function HeroCard({ data }: { data: EmployeeReport }) {
             <strong className="text-indigo-700 dark:text-indigo-400">
               {formatNumber(data.summary.totalActions)}
             </strong>{" "}
-            actions
+            lượt thao tác
           </p>
           {data.summary.lastSeen ? (
             <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-              Lần online cuối:{" "}
-              {new Date(data.summary.lastSeen).toLocaleString("vi-VN")}
+              Lần online cuối: {formatDateTime(data.summary.lastSeen)}
             </p>
           ) : null}
         </div>
@@ -333,9 +335,17 @@ function HeroCard({ data }: { data: EmployeeReport }) {
   );
 }
 
+// V4.4 (A15) — server (`employeeProductivity.ts`) trả `label: "Tổng action
+// audit"` (English leftover) cho metric `audit_total`; sửa ở tầng hiển thị
+// (không đổi API) vì ngoài phạm vi "KHÔNG sửa server/API" của agent UI.
+const METRIC_LABEL_OVERRIDE: Record<string, string> = {
+  audit_total: "Tổng số thao tác",
+};
+
 function MetricCard({ metric }: { metric: ProductivityMetric }) {
   const showValue = metric.value != null && metric.value > 0;
   const t = metric.target;
+  const label = METRIC_LABEL_OVERRIDE[metric.id] ?? metric.label;
   return (
     <div
       className={cn(
@@ -349,7 +359,7 @@ function MetricCard({ metric }: { metric: ProductivityMetric }) {
     >
       <div className="flex items-start justify-between gap-1">
         <div className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-          {metric.label}
+          {label}
         </div>
         {t ? (
           <span
@@ -405,20 +415,29 @@ function DailyChart({
   label: string;
 }) {
   const max = Math.max(1, ...data.map((d) => d.actions));
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  // V4.4 (G2 top-5 #4) — mobile: cột có dữ liệu (thường cuối tháng) bị cuộn ẩn
+  // ngoài màn hình, không gợi ý cuộn → trông như biểu đồ trống. Tự cuộn tới
+  // cuối (ngày gần nhất) khi có dữ liệu, cộng chú thích "Vuốt để xem đủ".
+  React.useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollLeft = el.scrollWidth;
+  }, [data]);
   return (
     <section className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
       <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-800 dark:text-zinc-200">
         <BarChart3 className="h-4 w-4 text-indigo-500" />
         Hoạt động theo ngày — {label}
       </div>
-      <div className="flex items-end gap-0.5 overflow-x-auto pb-2">
+      <div ref={scrollRef} className="flex items-end gap-0.5 overflow-x-auto pb-2">
         {data.map((d) => {
           const heightPct = (d.actions / max) * 100;
           return (
             <div
               key={d.date}
               className="flex min-w-[18px] flex-1 flex-col items-center justify-end"
-              title={`${d.date}: ${d.actions} actions`}
+              title={`${d.date}: ${d.actions} lượt`}
             >
               <div
                 className={cn(
@@ -434,12 +453,15 @@ function DailyChart({
           );
         })}
       </div>
-      <div className="mt-2 flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
-        <span>0 → {max} actions/ngày</span>
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400">
+        <span>0 → {max} lượt/ngày</span>
         <span>·</span>
         <span>
           {data.filter((d) => d.actions > 0).length} ngày có hoạt động
         </span>
+        {data.length > 15 ? (
+          <span className="text-zinc-400 dark:text-zinc-500 sm:hidden">· Vuốt để xem đủ {data.length} ngày</span>
+        ) : null}
       </div>
     </section>
   );
@@ -457,7 +479,7 @@ function RecentActions({
           <Activity className="h-4 w-4 text-indigo-500" />
           Hoạt động gần nhất
         </div>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">Chưa có audit log trong khoảng thời gian này.</p>
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">Chưa có nhật ký hoạt động trong khoảng thời gian này.</p>
       </section>
     );
   }
@@ -470,15 +492,15 @@ function RecentActions({
       <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
         {actions.map((a, i) => (
           <li key={i} className="py-2 text-[12px]">
-            <div className="flex items-baseline gap-2">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
               <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400">
-                {a.timestamp}
+                {formatVnWallClock(a.timestamp)}
               </span>
               <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-800">
-                {a.action}
+                {actionLabel(a.action)}
               </span>
               <span className="text-zinc-700 dark:text-zinc-300">
-                {a.objectType}
+                {auditObjectLabel(a.objectType ?? "")}
                 {a.objectCode ? ` · ${a.objectCode}` : ""}
               </span>
             </div>
@@ -639,7 +661,7 @@ function CompareCard({
           <div className="text-xs text-zinc-500 dark:text-zinc-400">{d.user.username}</div>
         </div>
         <div className="ml-auto text-xs text-zinc-500 dark:text-zinc-400">
-          {d.period.activeDays} ngày · {d.summary.totalActions} actions
+          {d.period.activeDays} ngày · {d.summary.totalActions} lượt thao tác
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2">
@@ -650,7 +672,7 @@ function CompareCard({
           const better = myValue > peerValue;
           return (
             <div key={m.id} className="rounded bg-zinc-50 px-2 py-1.5 dark:bg-zinc-800/60">
-              <div className="text-xs uppercase text-zinc-500 dark:text-zinc-400">{m.label}</div>
+              <div className="text-xs uppercase text-zinc-500 dark:text-zinc-400">{METRIC_LABEL_OVERRIDE[m.id] ?? m.label}</div>
               <div
                 className={cn(
                   "text-sm font-semibold tabular-nums",

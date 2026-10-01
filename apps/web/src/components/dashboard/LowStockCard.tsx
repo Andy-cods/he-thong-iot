@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { ArrowUpRight, PackageOpen, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatQty } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
@@ -37,10 +38,10 @@ interface BalanceResponse {
 
 const POLL_MS = 120_000;
 
+// V4.4 (A3) — dùng `formatQty` (lib/format.ts, maxDecimals=2, không UOM vì
+// cột đã có span ĐVT riêng) thay toLocaleString cục bộ.
 function formatNum(n: number): string {
-  return Number(n || 0).toLocaleString("vi-VN", {
-    maximumFractionDigits: 2,
-  });
+  return formatQty(n, null, 2);
 }
 
 interface LowStockCardProps {

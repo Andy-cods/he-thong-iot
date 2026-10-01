@@ -12,7 +12,9 @@ import { Label } from "@/components/ui/label";
 import { QueryError } from "@/components/ui/query-error";
 import { useMyProductivityReport, type EmployeeReport, type ProductivityMetric } from "@/hooks/useReports";
 import { cn } from "@/lib/utils";
-import { formatNumber } from "@/lib/format";
+import { formatMoney, formatNumber, formatVnWallClock } from "@/lib/format";
+import { actionLabel } from "@/lib/status";
+import { auditObjectLabel } from "@/lib/audit-scope";
 
 /**
  * V3.7.62 — Self-view báo cáo năng suất.
@@ -34,9 +36,9 @@ function currentVnYearMonth() {
   };
 }
 
+// V4.4 (A3) — bỏ `new Intl.NumberFormat` cục bộ, dùng `formatMoney` (lib/format.ts).
 function formatVND(n: number | null | undefined): string {
-  if (n == null || n === 0) return "0 ₫";
-  return new Intl.NumberFormat("vi-VN").format(n) + " ₫";
+  return formatMoney(n);
 }
 
 export default function MyProductivityPage() {
@@ -202,7 +204,7 @@ function HeroCard({ data }: { data: EmployeeReport }) {
           <p className="mt-3 text-[13px] text-zinc-600 dark:text-zinc-400">
             <strong className="text-zinc-900 dark:text-zinc-50">{data.period.label}</strong> ·{" "}
             <strong className="text-emerald-700 dark:text-emerald-400">{data.period.activeDays}</strong> ngày hoạt động ·{" "}
-            <strong className="text-indigo-700 dark:text-indigo-400">{formatNumber(data.summary.totalActions)}</strong> actions
+            <strong className="text-indigo-700 dark:text-indigo-400">{formatNumber(data.summary.totalActions)}</strong> lượt thao tác
           </p>
         </div>
         <div className="flex flex-col items-end gap-1 text-right">
@@ -228,9 +230,16 @@ function HeroCard({ data }: { data: EmployeeReport }) {
   );
 }
 
+// V4.4 (A15) — server trả `label: "Tổng action audit"` (English leftover)
+// cho metric `audit_total`; sửa ở tầng hiển thị, không đổi API.
+const METRIC_LABEL_OVERRIDE: Record<string, string> = {
+  audit_total: "Tổng số thao tác",
+};
+
 function MetricCard({ metric }: { metric: ProductivityMetric }) {
   const showValue = metric.value != null && metric.value > 0;
   const t = metric.target;
+  const label = METRIC_LABEL_OVERRIDE[metric.id] ?? metric.label;
   return (
     <div
       className={cn(
@@ -243,7 +252,7 @@ function MetricCard({ metric }: { metric: ProductivityMetric }) {
       )}
     >
       <div className="flex items-start justify-between gap-1">
-        <div className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{metric.label}</div>
+        <div className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{label}</div>
         {t ? (
           <span
             className={cn(
@@ -328,20 +337,29 @@ function DailyChart({
   label: string;
 }) {
   const max = Math.max(1, ...data.map((d) => d.actions));
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  // V4.4 (G2 top-5 #4) — cột có dữ liệu (thường cuối tháng) bị cuộn ẩn ngoài
+  // màn hình mobile, không gợi ý cuộn → biểu đồ trông trống rỗng. Tự cuộn tới
+  // cuối (ngày gần nhất) + thêm chú thích "Vuốt để xem đủ" khi nhiều cột.
+  React.useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollLeft = el.scrollWidth;
+  }, [data]);
   return (
     <section className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
       <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-800 dark:text-zinc-200">
         <BarChart3 className="h-4 w-4 text-indigo-500" />
         Hoạt động theo ngày — {label}
       </div>
-      <div className="flex items-end gap-0.5 overflow-x-auto pb-2">
+      <div ref={scrollRef} className="flex items-end gap-0.5 overflow-x-auto pb-2">
         {data.map((d) => {
           const heightPct = (d.actions / max) * 100;
           return (
             <div
               key={d.date}
               className="flex min-w-[18px] flex-1 flex-col items-center justify-end"
-              title={`${d.date}: ${d.actions} actions`}
+              title={`${d.date}: ${d.actions} lượt`}
             >
               <div
                 className={cn(
@@ -357,6 +375,11 @@ function DailyChart({
           );
         })}
       </div>
+      {data.length > 15 ? (
+        <p className="mt-1.5 text-xs text-zinc-400 dark:text-zinc-500 sm:hidden">
+          Vuốt để xem đủ {data.length} ngày
+        </p>
+      ) : null}
     </section>
   );
 }
@@ -368,7 +391,7 @@ function RecentActions({ actions }: { actions: EmployeeReport["recentActions"] }
         <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-zinc-800 dark:text-zinc-200">
           <Activity className="h-4 w-4 text-indigo-500" /> Hoạt động gần nhất
         </div>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">Chưa có audit log trong khoảng thời gian này.</p>
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">Chưa có nhật ký hoạt động trong khoảng thời gian này.</p>
       </section>
     );
   }
@@ -381,13 +404,13 @@ function RecentActions({ actions }: { actions: EmployeeReport["recentActions"] }
       <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
         {actions.map((a, i) => (
           <li key={i} className="py-2 text-[12px]">
-            <div className="flex items-baseline gap-2">
-              <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400">{a.timestamp}</span>
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400">{formatVnWallClock(a.timestamp)}</span>
               <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-800">
-                {a.action}
+                {actionLabel(a.action)}
               </span>
               <span className="text-zinc-700 dark:text-zinc-300">
-                {a.objectType}{a.objectCode ? ` · ${a.objectCode}` : ""}
+                {auditObjectLabel(a.objectType ?? "")}{a.objectCode ? ` · ${a.objectCode}` : ""}
               </span>
             </div>
             {a.notes ? (
