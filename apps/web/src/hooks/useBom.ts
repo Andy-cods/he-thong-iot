@@ -376,6 +376,8 @@ export interface BomWorkspaceSummary {
   bomTemplateId: string;
   ordersTotal: number;
   ordersActive: number;
+  /** V4.5 QA-C P2-4 — MỌI trạng thái, khớp số dòng tab "Lệnh SX" (WorkOrdersPanel mặc định không lọc). */
+  workOrdersTotal: number;
   workOrdersActive: number;
   /** V1.8 batch 4 — WO IN_PROGRESS|PAUSED (cho tab Lắp ráp badge). */
   assemblyInProgress: number;

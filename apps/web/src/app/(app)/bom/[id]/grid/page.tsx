@@ -151,11 +151,16 @@ export default function BomGridPage() {
   const readOnly = isObsolete || !canEditBom;
 
   // TASK-20260427-016 — `shortage`/`eco` tabs retired; bỏ counts tương ứng.
+  // V4.5 QA-C P2-4 — tab "Lệnh SX" dùng `workOrdersTotal` (mọi trạng thái),
+  // khớp số dòng WorkOrdersPanel thực sự liệt kê mặc định (không lọc trạng
+  // thái) — trước đây dùng `workOrdersActive` (loại COMPLETED/CANCELLED) nên
+  // badge hiện "0" dù tab có đủ 5 lệnh thật. Tab "Sản xuất" giữ nguyên ý
+  // nghĩa "đang chạy" (workOrdersActive).
   const tabCounts: Partial<Record<TopTabKey, number>> = summary
     ? {
         orders: summary.ordersActive,
         production: summary.workOrdersActive,
-        "work-orders": summary.workOrdersActive,
+        "work-orders": summary.workOrdersTotal,
         procurement: summary.procurementActive,
         assembly: summary.assemblyInProgress,
       }
