@@ -19,6 +19,8 @@ import {
   getPR,
   markPRGoodsReceived,
 } from "@/server/repos/purchaseRequests";
+import { findActiveInvoiceForPo } from "@/server/repos/poInvoice";
+import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -143,6 +145,9 @@ export async function POST(
       // Auto-hook: PR.goodsReceivedAt = now (idempotent — chỉ set lần đầu)
       void markPRGoodsReceived(before.prId).catch(() => {});
     }
+    // P2 (PO_FLOW_E2E.md bước 10) — đã có HĐ active thì không báo lại Kế toán
+    // "có thể tạo HĐ mua" (gây hiểu nhầm chưa làm).
+    const activeInvoice = await findActiveInvoiceForPo(db, params.poId).catch(() => null);
     void notifyPOReceivedFull({
       poId: params.poId,
       poNo: before.poNo,
@@ -150,6 +155,7 @@ export async function POST(
       actorUserId: guard.session.userId,
       actorUsername: guard.session.fullName,
       prCreatorUserId,
+      hasActiveInvoice: !!activeInvoice,
     });
 
     return NextResponse.json({

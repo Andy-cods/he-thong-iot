@@ -893,10 +893,48 @@ export function planPOReceivedPartial(ctx: POCtx): NotifyPlan {
   };
 }
 
-/** PO nhận đủ → Thu mua + người đề xuất PR + Kế toán (tạo HĐ mua). */
+/**
+ * PO nhận đủ → Thu mua + người đề xuất PR + Kế toán (tạo HĐ mua).
+ *
+ * P2 (QA `plans/v4.4-notify/PO_FLOW_E2E.md` bước 10) — PO nhận nốt phần còn
+ * lại khi ĐÃ có HĐ mua active (DRAFT/UNPAID/PARTIAL/PAID/OVERDUE, chưa huỷ)
+ * vẫn báo Kế toán "có thể tạo HĐ mua" → hiểu nhầm chưa làm, dù
+ * `PO_INVOICE_CONFIRMED` đã xử lý xong trước đó. `eventType` này nằm trong
+ * `ACTION_EVENT_TYPES` (coarse theo cả event, không tách được riêng 1 target)
+ * nên cách sửa AN TOÀN nhất là bỏ hẳn target Kế toán khi đã có HĐ active —
+ * không gửi thông báo sai/thừa, không cần tách event type mới (KISS).
+ */
 export function planPOReceivedFull(
-  ctx: POCtx & { prId?: string | null; prCreatorUserId?: string | null },
+  ctx: POCtx & {
+    prId?: string | null;
+    prCreatorUserId?: string | null;
+    hasActiveInvoice?: boolean;
+  },
 ): NotifyPlan {
+  const targets: NotifyTarget[] = [
+    role("purchaser", {
+      title: `${ctx.poNo} đã nhận đủ`,
+      message: "PO đã nhận đủ hàng (trạng thái Đã nhận).",
+      links: [L.po(ctx.poId), L.salesPo],
+      severity: "success",
+    }),
+    user(ctx.prId ? ctx.prCreatorUserId : null, PR_CREATOR_ROLES, {
+      title: `Linh kiện đã về: ${ctx.poNo}`,
+      message: "Hàng cho đề xuất của bạn đã về kho đủ số lượng.",
+      links: ctx.prId ? [L.po(ctx.poId), L.pr(ctx.prId)] : [L.po(ctx.poId)],
+      severity: "success",
+    }),
+  ];
+  if (!ctx.hasActiveInvoice) {
+    targets.push(
+      role("accountant", {
+        title: `PO ${ctx.poNo} đã nhận đủ — có thể tạo HĐ mua`,
+        message: "Mở PO, mục Hoá đơn mua → tạo HĐ nháp, nhập số HĐ NCC rồi xác nhận ghi công nợ.",
+        links: [L.poInvoice(ctx.poId)],
+        category: "action",
+      }),
+    );
+  }
   return {
     eventType: "PO_RECEIVED_FULL",
     entityType: "purchase_order",
@@ -904,26 +942,7 @@ export function planPOReceivedFull(
     entityCode: ctx.poNo,
     actorUserId: ctx.actorUserId,
     actorUsername: ctx.actorUsername,
-    targets: [
-      role("purchaser", {
-        title: `${ctx.poNo} đã nhận đủ`,
-        message: "PO đã nhận đủ hàng (trạng thái Đã nhận).",
-        links: [L.po(ctx.poId), L.salesPo],
-        severity: "success",
-      }),
-      user(ctx.prId ? ctx.prCreatorUserId : null, PR_CREATOR_ROLES, {
-        title: `Linh kiện đã về: ${ctx.poNo}`,
-        message: "Hàng cho đề xuất của bạn đã về kho đủ số lượng.",
-        links: ctx.prId ? [L.po(ctx.poId), L.pr(ctx.prId)] : [L.po(ctx.poId)],
-        severity: "success",
-      }),
-      role("accountant", {
-        title: `PO ${ctx.poNo} đã nhận đủ — có thể tạo HĐ mua`,
-        message: "Mở PO, mục Hoá đơn mua → tạo HĐ nháp, nhập số HĐ NCC rồi xác nhận ghi công nợ.",
-        links: [L.poInvoice(ctx.poId)],
-        category: "action",
-      }),
-    ],
+    targets,
   };
 }
 

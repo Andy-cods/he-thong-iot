@@ -378,3 +378,32 @@ describe("TASK-notify V4.4 (fix P0 hộp thư dồn purchaser) — resolveExtraE
     expect(RESOLVES_STALE.PO_CLOSED).toContain("PO_RECEIVED_FULL");
   });
 });
+
+describe("P2 (PO_FLOW_E2E.md bước 10) — planPOReceivedFull không báo lại Kế toán khi PO đã có HĐ active", () => {
+  it("chưa có HĐ (mặc định) → vẫn báo accountant 'có thể tạo HĐ mua'", () => {
+    const plan = planPOReceivedFull({ ...PO, prId: "pr-1", prCreatorUserId: U(1) });
+    const accTarget = plan.targets.find((t) => t.kind === "role" && t.role === "accountant");
+    expect(accTarget).toBeDefined();
+    expect(accTarget?.title).toContain("có thể tạo HĐ mua");
+    expect(accTarget?.category).toBe("action");
+  });
+
+  it("đã có HĐ active (hasActiveInvoice=true) → KHÔNG còn target accountant", () => {
+    const plan = planPOReceivedFull({
+      ...PO,
+      prId: "pr-1",
+      prCreatorUserId: U(1),
+      hasActiveInvoice: true,
+    });
+    expect(plan.targets.find((t) => t.kind === "role" && t.role === "accountant")).toBeUndefined();
+    // purchaser + người đề xuất PR vẫn nhận như cũ.
+    expect(plan.targets.find((t) => t.kind === "role" && t.role === "purchaser")).toBeDefined();
+    expect(plan.targets.some((t) => t.kind === "user" && t.userId === U(1))).toBe(true);
+  });
+
+  it("đã có HĐ active nhưng không có PR gốc → vẫn không lỗi, không có target accountant", () => {
+    const plan = planPOReceivedFull({ ...PO, hasActiveInvoice: true });
+    expect(plan.targets.find((t) => t.kind === "role" && t.role === "accountant")).toBeUndefined();
+    expect(plan.targets.find((t) => t.kind === "role" && t.role === "purchaser")).toBeDefined();
+  });
+});

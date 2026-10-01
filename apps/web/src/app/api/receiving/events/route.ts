@@ -18,6 +18,7 @@ import {
 import { writeAudit } from "@/server/services/audit";
 import { insertActivityLog } from "@/server/repos/activityLogs";
 import { getPR, markPRGoodsReceived } from "@/server/repos/purchaseRequests";
+import { findActiveInvoiceForPo } from "@/server/repos/poInvoice";
 import {
   notifyPOReceivedFull,
   notifyPOReceivedPartial,
@@ -285,6 +286,9 @@ export async function POST(req: NextRequest) {
           // Hoàn tất" ở trang PR mới hiện ra.
           void markPRGoodsReceived(po.prId).catch(() => {});
         }
+        // P2 (PO_FLOW_E2E.md bước 10) — PO đã có HĐ active thì không báo lại
+        // Kế toán "có thể tạo HĐ mua" (gây hiểu nhầm chưa làm).
+        const activeInvoice = await findActiveInvoiceForPo(db, po.id).catch(() => null);
         void notifyPOReceivedFull({
           poId: po.id,
           poNo: po.poNo,
@@ -292,6 +296,7 @@ export async function POST(req: NextRequest) {
           actorUserId: guard.session.userId,
           actorUsername: guard.session.fullName,
           prCreatorUserId,
+          hasActiveInvoice: !!activeInvoice,
         });
       } else if (
         posted.poStatus === "PARTIAL" &&

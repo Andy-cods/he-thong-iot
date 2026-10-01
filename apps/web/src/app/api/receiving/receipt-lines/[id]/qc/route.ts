@@ -5,7 +5,9 @@ import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
 import { QcDecisionError, decideReceiptLineQc } from "@/server/repos/inboundQc";
 import { mapDbGuardError } from "@/server/repos/stockGuard";
 import { getPO, recomputePoReceiptStatus } from "@/server/repos/purchaseOrders";
+import { findActiveInvoiceForPo } from "@/server/repos/poInvoice";
 import { getPR } from "@/server/repos/purchaseRequests";
+import { db } from "@/lib/db";
 import { writeAudit } from "@/server/services/audit";
 import {
   notifyPOReceivedFull,
@@ -103,6 +105,9 @@ export async function POST(
           });
           if (changed.to === "RECEIVED" && po) {
             const pr = po.prId ? await getPR(po.prId).catch(() => null) : null;
+            // P2 (PO_FLOW_E2E.md bước 10) — đã có HĐ active thì không báo lại
+            // Kế toán "có thể tạo HĐ mua".
+            const activeInvoice = await findActiveInvoiceForPo(db, po.id).catch(() => null);
             void notifyPOReceivedFull({
               poId: po.id,
               poNo: po.poNo,
@@ -110,6 +115,7 @@ export async function POST(
               prCreatorUserId: pr?.requestedBy ?? null,
               actorUserId: guard.session.userId,
               actorUsername: guard.session.fullName,
+              hasActiveInvoice: !!activeInvoice,
             });
           }
         }
