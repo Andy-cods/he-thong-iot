@@ -5,7 +5,7 @@ import {
   getPaymentAllocations,
   voidPaymentWithAllocations,
 } from "@/server/repos/finPayments";
-import { extractRequestMeta, jsonError } from "@/server/http";
+import { extractRequestMeta, jsonError, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { requireCan } from "@/server/session";
 
@@ -19,6 +19,9 @@ export async function GET(
 ) {
   const guard = await requireCan(req, "read", "finance");
   if ("response" in guard) return guard.response;
+  // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB.
+  const idCheck = validateUuidParam(params.id);
+  if ("response" in idCheck) return idCheck.response;
   const row = await getFinPaymentById(params.id);
   if (!row) return jsonError("NOT_FOUND", "Không tìm thấy thanh toán.", 404);
   const allocations = await getPaymentAllocations(params.id);
@@ -36,6 +39,10 @@ export async function DELETE(
 ) {
   const guard = await requireCan(req, "update", "finance");
   if ("response" in guard) return guard.response;
+
+  // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB.
+  const idCheck = validateUuidParam(params.id);
+  if ("response" in idCheck) return idCheck.response;
 
   const before = await getFinPaymentById(params.id);
   if (!before) return jsonError("NOT_FOUND", "Không tìm thấy thanh toán.", 404);

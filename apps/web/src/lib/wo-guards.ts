@@ -63,6 +63,58 @@ export interface WoCompleteShortfall {
 }
 
 /**
+ * V4.5 QA-C P1-1 — 1 dòng vật tư BOM chưa xuất đủ cho lệnh (so `required` —
+ * tính từ `work_order.material_requirements`/BOM — với `alreadyIssued` —
+ * ISR COMPLETED gắn `wo_id`, xem `lib/wo-material-plan.ts`). `work_order_line`
+ * (dòng linh kiện kiểu cũ) không còn được ghi bởi bất kỳ route tạo lệnh nào
+ * (`work-orders/from-bom-line`, `work-orders/lsx`) nên không dùng được để
+ * chặn hoàn thành nữa — thay bằng kiểm tra trực tiếp trên material-plan.
+ */
+export interface WoMaterialShortageLine {
+  itemId: string;
+  sku: string | null;
+  name: string | null;
+  uom: string | null;
+  required: number;
+  issued: number;
+  /** > 0 — số lượng chưa xuất đủ so với nhu cầu BOM. */
+  missing: number;
+}
+
+/**
+ * V4.5 QA-C P1-1 — lọc các dòng vật tư BOM chưa xuất đủ từ bảng kế hoạch vật
+ * tư (`buildMaterialPlanRows`/`getWoMaterialPlan`). THUẦN — không đụng DB.
+ */
+export function getWoMaterialShortageLines(
+  rows: Array<{
+    itemId: string;
+    sku: string | null;
+    name: string | null;
+    uom: string | null;
+    required: number | string;
+    alreadyIssued: number | string;
+  }>,
+): WoMaterialShortageLine[] {
+  const out: WoMaterialShortageLine[] = [];
+  for (const r of rows) {
+    const required = Number(r.required) || 0;
+    const issued = Number(r.alreadyIssued) || 0;
+    const missing = required - issued;
+    if (missing > EPS) {
+      out.push({ itemId: r.itemId, sku: r.sku, name: r.name, uom: r.uom, required, issued, missing });
+    }
+  }
+  return out;
+}
+
+/** Dòng chuỗi tiếng Việt ngắn gọn cho 1 dòng vật tư thiếu (dùng trong thông báo/ghi chú). */
+export function formatWoMaterialShortageLine(l: WoMaterialShortageLine): string {
+  const label = l.name || l.sku || l.itemId;
+  const uom = l.uom ? ` ${l.uom}` : "";
+  return `${label} (thiếu ${l.missing}${uom})`;
+}
+
+/**
  * V4.2 PROD-01 — SL đạt (good_qty) so với kế hoạch (planned_qty). Trả về
  * thông tin thiếu nếu `good < planned` (dùng để UI hiện hộp xác nhận "Đạt X /
  * kế hoạch Y — hoàn thành thiếu Z?"), `null` nếu đã đủ/vượt kế hoạch — không
@@ -92,6 +144,15 @@ export function getWoCompleteShortfall(input: {
  *    chỉ bắt xác nhận + ghi lý do. Đạt ≥ kế hoạch thì không cần lý do, hành vi
  *    y hệt trước khi có PROD-01 (backward-compatible: caller không truyền
  *    `plannedQty` → bỏ qua bước kiểm tra này hoàn toàn).
+ *  - V4.5 QA-C P1-1: `lines` (`work_order_line`) không còn được route tạo lệnh
+ *    nào ghi dữ liệu nữa (luôn rỗng trong thực tế) nên không còn chặn được gì
+ *    — giữ tham số để không phá API hiện có nhưng không còn ý nghĩa thực tế.
+ *    Thay vào đó, nếu caller truyền `materialShortage` (tính từ material-plan
+ *    thật — xem `getWoMaterialShortageLines`) và còn dòng chưa xuất đủ, áp
+ *    dụng CÙNG cơ chế với thiếu sản lượng: không chặn cứng, chỉ bắt xác nhận
+ *    + lý do ≥ `WO_COMPLETE_REASON_MIN_LENGTH` ký tự. Không truyền
+ *    `materialShortage` → bỏ qua kiểm tra này hoàn toàn (vd lệnh không có
+ *    BOM/vật tư — `getWoMaterialShortageLines` trả mảng rỗng tự nhiên).
  *
  * V4.1 Q2: sau này thêm bước nhập kho thành phẩm (PROD_IN) — hiện TẠM ẨN.
  */
@@ -104,6 +165,8 @@ export function checkWoCompletable(input: {
     requiredQty: number | string;
     completedQty: number | string;
   }>;
+  /** V4.5 QA-C P1-1 — dòng vật tư BOM chưa xuất đủ (rỗng/undefined = bỏ qua). */
+  materialShortage?: WoMaterialShortageLine[];
 }): GuardResult {
   if (input.status !== "IN_PROGRESS") {
     return {
@@ -128,19 +191,29 @@ export function checkWoCompletable(input: {
       reason: `Còn ${incomplete} dòng linh kiện chưa đủ số lượng — chưa hoàn thành được lệnh.`,
     };
   }
-  if (input.plannedQty !== undefined) {
-    const shortfall = getWoCompleteShortfall({
-      goodQty: input.goodQty,
-      plannedQty: input.plannedQty,
-    });
-    if (shortfall) {
-      const reason = (input.completeReason ?? "").trim();
-      if (reason.length < WO_COMPLETE_REASON_MIN_LENGTH) {
-        return {
-          ok: false,
-          reason: `Đạt ${shortfall.good} / kế hoạch ${shortfall.planned} — hoàn thành thiếu ${shortfall.missing}. Nhập lý do (tối thiểu ${WO_COMPLETE_REASON_MIN_LENGTH} ký tự) để xác nhận hoàn thành thiếu sản lượng.`,
-        };
+  const shortfall =
+    input.plannedQty !== undefined
+      ? getWoCompleteShortfall({ goodQty: input.goodQty, plannedQty: input.plannedQty })
+      : null;
+  const materialShortage = (input.materialShortage ?? []).filter((l) => l.missing > EPS);
+  if (shortfall || materialShortage.length > 0) {
+    const reason = (input.completeReason ?? "").trim();
+    if (reason.length < WO_COMPLETE_REASON_MIN_LENGTH) {
+      const parts: string[] = [];
+      if (shortfall) {
+        parts.push(
+          `Đạt ${shortfall.good} / kế hoạch ${shortfall.planned} — hoàn thành thiếu ${shortfall.missing}`,
+        );
       }
+      if (materialShortage.length > 0) {
+        parts.push(
+          `Vật tư chưa xuất đủ: ${materialShortage.map(formatWoMaterialShortageLine).join(", ")}`,
+        );
+      }
+      return {
+        ok: false,
+        reason: `${parts.join(". ")}. Nhập lý do (tối thiểu ${WO_COMPLETE_REASON_MIN_LENGTH} ký tự) để xác nhận hoàn thành.`,
+      };
     }
   }
   return { ok: true };

@@ -4,7 +4,9 @@ import {
   checkPlannedDates,
   checkProgressLoggable,
   checkWoCompletable,
+  formatWoMaterialShortageLine,
   getWoCompleteShortfall,
+  getWoMaterialShortageLines,
   isWoDeletable,
   isWoScannable,
   isWoTransitionAllowed,
@@ -122,6 +124,127 @@ describe("V4.2 PROD-01 — checkWoCompletable + plannedQty/completeReason", () =
       lines: [],
     });
     expect(r.ok).toBe(true);
+  });
+});
+
+describe("V4.5 QA-C P1-1 — getWoMaterialShortageLines", () => {
+  it("required > alreadyIssued → liệt kê dòng thiếu", () => {
+    const rows = getWoMaterialShortageLines([
+      { itemId: "a", sku: "SKU-A", name: "Vật tư A", uom: "PCS", required: 10, alreadyIssued: 4 },
+      { itemId: "b", sku: "SKU-B", name: "Vật tư B", uom: "KG", required: 5, alreadyIssued: 5 },
+    ]);
+    expect(rows).toEqual([
+      { itemId: "a", sku: "SKU-A", name: "Vật tư A", uom: "PCS", required: 10, issued: 4, missing: 6 },
+    ]);
+  });
+  it("lệnh không có BOM/vật tư (mảng rỗng) → không thiếu gì", () => {
+    expect(getWoMaterialShortageLines([])).toEqual([]);
+  });
+  it("đã xuất đủ/vượt mọi dòng → mảng rỗng", () => {
+    expect(
+      getWoMaterialShortageLines([
+        { itemId: "a", sku: null, name: "A", uom: null, required: "10", alreadyIssued: "12" },
+      ]),
+    ).toEqual([]);
+  });
+  it("formatWoMaterialShortageLine ưu tiên tên, có đơn vị", () => {
+    expect(
+      formatWoMaterialShortageLine({
+        itemId: "a",
+        sku: "SKU-A",
+        name: "Vật tư A",
+        uom: "PCS",
+        required: 10,
+        issued: 4,
+        missing: 6,
+      }),
+    ).toBe("Vật tư A (thiếu 6 PCS)");
+    expect(
+      formatWoMaterialShortageLine({
+        itemId: "a",
+        sku: null,
+        name: null,
+        uom: null,
+        required: 10,
+        issued: 4,
+        missing: 6,
+      }),
+    ).toBe("a (thiếu 6)");
+  });
+});
+
+describe("V4.5 QA-C P1-1 — checkWoCompletable + materialShortage", () => {
+  const baseLines: Array<{ requiredQty: number | string; completedQty: number | string }> = [];
+
+  it("có vật tư thiếu, KHÔNG completeReason → chặn, nêu rõ vật tư thiếu (không chặn cứng, chỉ bắt xác nhận)", () => {
+    const r = checkWoCompletable({
+      status: "IN_PROGRESS",
+      goodQty: 5,
+      lines: baseLines,
+      materialShortage: [
+        { itemId: "a", sku: "SKU-A", name: "Vật tư A", uom: "PCS", required: 10, issued: 4, missing: 6 },
+      ],
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.reason).toMatch(/Vật tư chưa xuất đủ/);
+      expect(r.reason).toMatch(/Vật tư A \(thiếu 6 PCS\)/);
+    }
+  });
+  it("có vật tư thiếu, lý do < 3 ký tự → chặn", () => {
+    const r = checkWoCompletable({
+      status: "IN_PROGRESS",
+      goodQty: 5,
+      completeReason: "ok",
+      lines: baseLines,
+      materialShortage: [
+        { itemId: "a", sku: null, name: "A", uom: null, required: 10, issued: 0, missing: 10 },
+      ],
+    });
+    expect(r.ok).toBe(false);
+  });
+  it(`có vật tư thiếu, lý do ≥ ${WO_COMPLETE_REASON_MIN_LENGTH} ký tự → OK (hoàn thành kèm ghi lý do)`, () => {
+    const r = checkWoCompletable({
+      status: "IN_PROGRESS",
+      goodQty: 5,
+      completeReason: "Xưởng tự có vật tư ngoài hệ thống",
+      lines: baseLines,
+      materialShortage: [
+        { itemId: "a", sku: null, name: "A", uom: null, required: 10, issued: 0, missing: 10 },
+      ],
+    });
+    expect(r.ok).toBe(true);
+  });
+  it("không truyền materialShortage → bỏ qua kiểm tra (backward-compatible, lệnh không BOM/vật tư)", () => {
+    expect(
+      checkWoCompletable({ status: "IN_PROGRESS", goodQty: 5, lines: baseLines }).ok,
+    ).toBe(true);
+  });
+  it("materialShortage rỗng (đã xuất đủ) → không cần lý do", () => {
+    expect(
+      checkWoCompletable({
+        status: "IN_PROGRESS",
+        goodQty: 5,
+        lines: baseLines,
+        materialShortage: [],
+      }).ok,
+    ).toBe(true);
+  });
+  it("thiếu CẢ sản lượng lẫn vật tư, lý do hợp lệ → OK, thông báo nêu cả 2", () => {
+    const r = checkWoCompletable({
+      status: "IN_PROGRESS",
+      goodQty: "3",
+      plannedQty: "10",
+      lines: baseLines,
+      materialShortage: [
+        { itemId: "a", sku: null, name: "A", uom: null, required: 10, issued: 4, missing: 6 },
+      ],
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.reason).toMatch(/Đạt 3 \/ kế hoạch 10/);
+      expect(r.reason).toMatch(/Vật tư chưa xuất đủ/);
+    }
   });
 });
 

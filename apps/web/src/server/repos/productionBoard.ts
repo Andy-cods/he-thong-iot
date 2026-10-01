@@ -1,4 +1,4 @@
-import { asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import {
   productionBoardHistory,
   productionBoardItem,
@@ -11,6 +11,7 @@ import {
   computeBoardValueSummary,
   type BoardValueSummary,
 } from "@/lib/finance-overview-policy";
+import { findDuplicateBoardItem } from "@/lib/production-board-policy";
 
 /**
  * V3.8 — Production Board repository.
@@ -148,10 +149,51 @@ export interface CreateBoardItemInput {
   userId: string | null;
 }
 
+/**
+ * V4.5 QA-C P2-2 — tạo/sửa mã hàng trùng CẢ `productCode` lẫn `rfqNo` (coi
+ * `rfqNo` rỗng/null là cùng 1 giá trị "không có RFQ") bị chặn: trước đây
+ * không kiểm gì, tạo được 2 dòng tiến độ riêng cho cùng 1 mã hàng.
+ */
+export class BoardItemDuplicateError extends Error {
+  constructor(
+    public readonly existingId: string,
+    productCode: string,
+  ) {
+    super(
+      `Mã hàng "${productCode}" đã tồn tại trên Bảng sản xuất (cùng Mã hàng + Số RFQ) — kiểm tra lại trước khi tạo mới.`,
+    );
+    this.name = "BoardItemDuplicateError";
+  }
+}
+
+async function assertNoDuplicateBoardItem(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  productCode: string,
+  rfqNo: string | null,
+  excludeId?: string,
+): Promise<void> {
+  // Query NARROW theo productCode (rẻ — mã hàng hiếm khi trùng hàng loạt),
+  // quyết định trùng hay không bằng hàm THUẦN (test vitest riêng) — xem
+  // `lib/production-board-policy.ts` (findDuplicateBoardItem/isSameBoardItemIdentity).
+  const candidates = await tx
+    .select({ id: productionBoardItem.id, productCode: productionBoardItem.productCode, rfqNo: productionBoardItem.rfqNo })
+    .from(productionBoardItem)
+    .where(
+      and(
+        eq(productionBoardItem.productCode, productCode),
+        excludeId ? ne(productionBoardItem.id, excludeId) : undefined,
+      ),
+    );
+  const existing = findDuplicateBoardItem({ productCode, rfqNo }, candidates);
+  if (existing) throw new BoardItemDuplicateError(existing.id, productCode);
+}
+
 export async function createBoardItem(
   input: CreateBoardItemInput,
 ): Promise<ProductionBoardItem> {
   return db.transaction(async (tx) => {
+    await assertNoDuplicateBoardItem(tx, input.productCode, input.rfqNo ?? null);
+
     // seq mặc định = MAX(seq)+1 nếu không truyền.
     let seq = input.seq;
     if (seq === undefined) {
@@ -243,6 +285,17 @@ export async function updateBoardItem(
       .where(eq(productionBoardItem.id, id))
       .limit(1);
     if (!before) throw new BoardItemNotFoundError();
+
+    // V4.5 QA-C P2-2 — chỉ cần kiểm lại khi productCode HOẶC rfqNo đổi (giữ
+    // nguyên cả 2 thì không thể tự trùng với chính nó).
+    if (input.productCode !== undefined || input.rfqNo !== undefined) {
+      await assertNoDuplicateBoardItem(
+        tx,
+        input.productCode ?? before.productCode,
+        (input.rfqNo !== undefined ? input.rfqNo : before.rfqNo) ?? null,
+        id,
+      );
+    }
 
     const patch: Partial<typeof productionBoardItem.$inferInsert> = {
       updatedBy: input.userId,

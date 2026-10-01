@@ -14,6 +14,7 @@ import {
   extractRequestMeta,
   jsonError,
   parseJson,
+  validateUuidParam,
 } from "@/server/http";
 import { writeAudit, diffObjects } from "@/server/services/audit";
 import { canViewAllPRs } from "@/server/services/prAccess";
@@ -34,6 +35,10 @@ export async function GET(
 ) {
   const guard = await requireCan(_req, "read", "pr");
   if ("response" in guard) return guard.response;
+
+  // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB.
+  const idCheck = validateUuidParam(params.id);
+  if ("response" in idCheck) return idCheck.response;
 
   const row = await getPR(params.id);
   if (!row) return jsonError("NOT_FOUND", "Không tìm thấy PR.", 404);
@@ -107,6 +112,10 @@ export async function PATCH(
 ) {
   const guard = await requireCan(req, "update", "pr");
   if ("response" in guard) return guard.response;
+
+  // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB.
+  const idCheck = validateUuidParam(params.id);
+  if ("response" in idCheck) return idCheck.response;
 
   const before = await getPR(params.id);
   if (!before) return jsonError("NOT_FOUND", "Không tìm thấy PR.", 404);
@@ -244,6 +253,10 @@ export async function DELETE(
 ) {
   const guard = await requireCan(req, "delete", "pr");
   if ("response" in guard) return guard.response;
+
+  // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB.
+  const idCheck = validateUuidParam(params.id);
+  if ("response" in idCheck) return idCheck.response;
 
   const before = await getPR(params.id);
   if (!before) return jsonError("NOT_FOUND", "Không tìm thấy phiếu.", 404);

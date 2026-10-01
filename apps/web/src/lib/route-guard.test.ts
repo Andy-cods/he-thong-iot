@@ -130,6 +130,17 @@ describe("V4.1 AD-17 — route guard", () => {
       isRouteAllowed("/warehouse", ["planner"], [{ entity: "inventory", action: "read", granted: true }]),
     ).toBe(false);
   });
+
+  // V4.5 QA-C P1-2 — RBAC matrix cấp read:productionBoard cho planner/operator/
+  // warehouse từ V3.8 nhưng route-guard.ts quên cập nhật → 3 vai này gọi API
+  // /api/production-board được 200 nhưng vào trang bị redirect về Tổng quan.
+  it("QA-C P1-2 — planner/operator/warehouse vào được /production-board (khớp matrix read)", () => {
+    for (const r of ["planner", "operator", "warehouse"] as Role[]) {
+      expect(isRouteAllowed("/production-board", [r])).toBe(true);
+    }
+    // Vai không có read:productionBoard trong matrix vẫn bị chặn trang.
+    expect(isRouteAllowed("/production-board", ["accountant"])).toBe(false);
+  });
 });
 
 describe("V4.1 AD-13 — Ctrl+K dùng chung nguồn với menu", () => {

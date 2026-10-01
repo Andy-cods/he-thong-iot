@@ -17,7 +17,7 @@ import { z } from "zod";
 import { item as itemTable, workOrder } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
+import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { notifyWOApproved } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
@@ -46,6 +46,10 @@ export async function POST(
       403,
     );
   }
+
+  // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB.
+  const idCheck = validateUuidParam(params.id);
+  if ("response" in idCheck) return idCheck.response;
 
   const body = await parseJson(req, bodySchema);
   if ("response" in body) return body.response;

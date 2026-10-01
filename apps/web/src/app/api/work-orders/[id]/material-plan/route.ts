@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { logger } from "@/lib/logger";
 import { getWoMaterialPlan } from "@/server/repos/workOrderMaterialPlan";
-import { jsonError } from "@/server/http";
+import { jsonError, validateUuidParam } from "@/server/http";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -22,6 +22,10 @@ export async function GET(
 ) {
   const guard = await requireCan(req, "read", "wo");
   if ("response" in guard) return guard.response;
+
+  // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB.
+  const idCheck = validateUuidParam(params.id);
+  if ("response" in idCheck) return idCheck.response;
 
   try {
     const plan = await getWoMaterialPlan(params.id);

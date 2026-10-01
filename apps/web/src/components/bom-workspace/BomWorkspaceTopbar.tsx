@@ -242,9 +242,13 @@ export function BomWorkspaceTopbar({
             onClick={() => onOpenTab("orders")}
           />
         )}
+        {/* V4.5 QA-C P2-4 — dùng `workOrdersTotal` (mọi trạng thái), khớp số
+            dòng tab "Lệnh SX" thực sự hiển thị (WorkOrdersPanel mặc định
+            KHÔNG lọc trạng thái) — trước đây dùng `workOrdersActive` (loại
+            COMPLETED/CANCELLED) khiến badge hiện "0" dù tab có đủ 5 lệnh. */}
         <KpiChip
           label={TOP_TAB_LABELS["work-orders"]}
-          count={summary?.workOrdersActive}
+          count={summary?.workOrdersTotal}
           onClick={() => onOpenTab("work-orders")}
         />
         {/* TASK-20260427-016 — KPI `Thiếu vật tư` & `ECO` retired cùng tab tương ứng. */}

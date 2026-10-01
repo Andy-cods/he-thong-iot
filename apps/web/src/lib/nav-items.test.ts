@@ -121,13 +121,16 @@ describe("filterNavByRoles", () => {
     expect(filtered.length).toBe(NAV_ITEMS.length);
   });
 
-  it("warehouse thấy BOM/đề xuất vật tư và hub kho", () => {
+  // V4.5 QA-C P1-2 — warehouse có read:productionBoard trong matrix từ V3.8,
+  // nay cũng thấy mục menu tương ứng (trước đây bị quên cập nhật).
+  it("warehouse thấy BOM/đề xuất vật tư, bảng sản xuất và hub kho", () => {
     const filtered = filterNavByRoles(NAV_ITEMS, ["warehouse"]);
     const hrefs = filtered.map((i) => i.href);
     expect(hrefs).toEqual([
       "/",
       "/engineering",
       "/procurement/purchase-requests",
+      "/production-board",
       "/warehouse",
     ]);
     expect(hrefs).not.toContain("/admin");
@@ -135,13 +138,15 @@ describe("filterNavByRoles", () => {
     expect(hrefs).not.toContain("/operations");
   });
 
-  it("planner thấy thiết kế và đề xuất vật tư", () => {
+  // V4.5 QA-C P1-2 — planner có read:productionBoard trong matrix từ V3.8.
+  it("planner thấy thiết kế, đề xuất vật tư và bảng sản xuất", () => {
     const filtered = filterNavByRoles(NAV_ITEMS, ["planner"]);
     const hrefs = filtered.map((i) => i.href);
     expect(hrefs).toEqual([
       "/",
       "/engineering",
       "/procurement/purchase-requests",
+      "/production-board",
     ]);
   });
 
@@ -172,7 +177,8 @@ describe("filterNavByRoles", () => {
     expect(hrefs).toContain("/finance");
   });
 
-  it("operator thấy BOM, đề xuất vật tư và hub gia công", () => {
+  // V4.5 QA-C P1-2 — operator có read:productionBoard trong matrix từ V3.8.
+  it("operator thấy BOM, đề xuất vật tư, hub gia công và bảng sản xuất", () => {
     const filtered = filterNavByRoles(NAV_ITEMS, ["operator"]);
     const hrefs = filtered.map((i) => i.href);
     expect(hrefs).toEqual([
@@ -180,6 +186,7 @@ describe("filterNavByRoles", () => {
       "/engineering",
       "/procurement/purchase-requests",
       "/operations",
+      "/production-board",
     ]);
   });
 

@@ -13,7 +13,8 @@ export const dynamic = "force-dynamic";
  *
  * Trả về counters cho ContextualSidebar badges + KPI header:
  *  - ordersTotal / ordersActive (chưa CLOSED/CANCELLED/FULFILLED)
- *  - workOrdersActive (DRAFT/QUEUED/IN_PROGRESS/PAUSED)
+ *  - workOrdersTotal (MỌI trạng thái — khớp số dòng tab "Lệnh SX" hiển thị
+ *    mặc định, xem QA-C P2-4) / workOrdersActive (DRAFT/QUEUED/IN_PROGRESS/PAUSED)
  *  - shortageComponents (count distinct component thiếu > 0)
  *  - ecoTotal / ecoActive (không phải APPLIED/REJECTED)
  *  - lineCount (BOM current tree size)
@@ -49,8 +50,18 @@ export async function GET(
         -- cả enum V1.3 (có QUEUED/PAUSED) lẫn V1.2 cũ trên VPS (chỉ
         -- DRAFT/RELEASED/IN_PROGRESS/COMPLETED/CANCELLED — migration 0006a
         -- chưa apply). Active = mọi WO chưa kết thúc.
+        -- V4.5 QA-C P2-4 — cột active KHÔNG tính WO COMPLETED/CANCELLED nên
+        -- khi mọi lệnh của BOM đã xong (ca thường gặp: BOM test xong hết),
+        -- badge "Lệnh SX" ở header hiện "0" dù tab (WorkOrdersPanel, mặc định
+        -- KHÔNG lọc trạng thái) vẫn liệt kê đủ cả 5 lệnh — số liệu tự mâu thuẫn.
+        -- Thêm cột total KHÔNG lọc trạng thái, KHỚP đúng số dòng tab thực sự
+        -- hiển thị, dùng cho badge tab "Lệnh SX" (work-orders) thay vì active
+        -- (giữ active cho nơi khác cần ý nghĩa "đang chạy").
         SELECT
-          COUNT(wo.id)::int AS active,
+          COUNT(wo.id)::int AS total,
+          COUNT(wo.id) FILTER (
+            WHERE wo.status NOT IN ('COMPLETED', 'CANCELLED')
+          )::int AS active,
           COUNT(wo.id) FILTER (
             WHERE wo.status IN ('IN_PROGRESS', 'PAUSED')
           )::int AS in_progress
@@ -58,7 +69,6 @@ export async function GET(
         FROM app.work_order wo
         LEFT JOIN app.sales_order so ON so.id = wo.linked_order_id
         WHERE (wo.bom_template_id = ${id} OR so.bom_template_id = ${id})
-          AND wo.status NOT IN ('COMPLETED', 'CANCELLED')
       ),
       shortage_agg AS (
         SELECT COUNT(DISTINCT bsl.component_item_id)::int AS components
@@ -101,6 +111,7 @@ export async function GET(
       SELECT
         o.total AS orders_total,
         o.active AS orders_active,
+        w.total AS work_orders_total,
         w.active AS work_orders_active,
         w.in_progress AS assembly_in_progress,
         s.components AS shortage_components,
@@ -120,6 +131,7 @@ export async function GET(
     `)) as unknown as Array<{
       orders_total: number;
       orders_active: number;
+      work_orders_total: number;
       work_orders_active: number;
       assembly_in_progress: number;
       shortage_components: number;
@@ -134,6 +146,7 @@ export async function GET(
     const row = rows[0] ?? {
       orders_total: 0,
       orders_active: 0,
+      work_orders_total: 0,
       work_orders_active: 0,
       assembly_in_progress: 0,
       shortage_components: 0,
@@ -150,6 +163,7 @@ export async function GET(
         bomTemplateId: id,
         ordersTotal: row.orders_total,
         ordersActive: row.orders_active,
+        workOrdersTotal: row.work_orders_total,
         workOrdersActive: row.work_orders_active,
         assemblyInProgress: row.assembly_in_progress,
         shortageComponents: row.shortage_components,

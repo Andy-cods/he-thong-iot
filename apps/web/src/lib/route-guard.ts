@@ -82,7 +82,12 @@ export const ROUTE_GUARDS: RouteGuardRule[] = [
   {
     prefix: "/production-board",
     // V4.4.2 — Thu mua được thêm mã hàng (matrix create:productionBoard) → phải vào được trang.
-    roles: ["admin", "qc", "shareholder", "purchaser"],
+    // V4.5 QA-C P1-2 — matrix RBAC cấp read:productionBoard thêm cho planner/
+    // operator/warehouse (V3.8, xem packages/shared/src/rbac/matrix.ts) nhưng
+    // route-guard quên cập nhật theo → 3 vai này bị chặn trang dù API 200. Bổ
+    // sung roles cho khớp matrix; quyền ghi (thêm mã hàng) vẫn do `can()` ở UI
+    // + API quyết định, trang chỉ đọc với 3 vai mới.
+    roles: ["admin", "qc", "shareholder", "purchaser", "planner", "operator", "warehouse"],
     entities: ["productionBoard"],
   },
   // V4.1 Đợt 1a — màn Chờ QC nhập kho.

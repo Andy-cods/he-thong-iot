@@ -18,6 +18,7 @@ import {
 } from "@iot/db/schema";
 import type { SupplierCreate, SupplierUpdate } from "@iot/shared";
 import { db } from "@/lib/db";
+import { findSimilarSupplier, type SupplierNameCandidate } from "@/lib/supplier-dedupe";
 
 /**
  * V1.9 P7 — List supplier kèm cột Khu vực + Số items + filter region/sort.
@@ -130,6 +131,47 @@ export async function getSupplierByCode(code: string) {
     .where(eq(supplier.code, code.toUpperCase()))
     .limit(1);
   return row ?? null;
+}
+
+export interface SimilarSupplierMatch {
+  id: string;
+  code: string;
+  name: string;
+  taxCode: string | null;
+  phone: string | null;
+}
+
+/**
+ * V4.5 QA-A P1 — kiểm NCC trùng tên GẦN GIỐNG (không chỉ trùng tuyệt đối)
+ * trước khi tạo mới, giống cơ chế `quickCreateItem` (items.ts). Candidate lấy
+ * rộng bằng ILIKE 2 chiều (unaccent cả 2 vế — bắt cả ca tên dài chứa tên ngắn
+ * lẫn tên ngắn gõ y hệt 1 phần tên dài), quyết định trùng thật bằng hàm THUẦN
+ * `findSimilarSupplier` (lib/supplier-dedupe.ts — bỏ "Công ty"/"TNHH"/"CP"…).
+ * Chỉ xét NCC đang hoạt động (NCC đã ngưng không cần cảnh báo trùng).
+ */
+export async function findSimilarActiveSupplier(
+  name: string,
+): Promise<SimilarSupplierMatch | null> {
+  const needle = name.trim().replace(/\s+/g, " ");
+  if (!needle) return null;
+  const candidates = await db
+    .select({
+      id: supplier.id,
+      code: supplier.code,
+      name: supplier.name,
+      taxCode: supplier.taxCode,
+      phone: supplier.phone,
+    })
+    .from(supplier)
+    .where(
+      and(
+        eq(supplier.isActive, true),
+        sql`unaccent(${supplier.name}) ILIKE unaccent('%' || ${needle} || '%')
+            OR unaccent(${needle}) ILIKE unaccent('%' || ${supplier.name} || '%')`,
+      ),
+    )
+    .limit(20);
+  return findSimilarSupplier(needle, candidates as SupplierNameCandidate[]) as SimilarSupplierMatch | null;
 }
 
 export async function createSupplier(input: SupplierCreate) {

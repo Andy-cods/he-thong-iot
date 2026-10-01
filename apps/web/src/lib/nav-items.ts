@@ -164,11 +164,13 @@ export const NAV_ITEMS: NavItem[] = [
   // V3.8 — Bảng điều hành sản xuất (Tổ QC nhập liệu, chiếu TV) — chỉ qc + admin.
   // V4.0 — thêm shareholder (Cổ đông) để theo dõi tiến độ gia công, read-only
   // (trang tự ẩn nút CRUD qua can(), xem production-board/page.tsx).
+  // V4.5 QA-C P1-2 — thêm planner/operator/warehouse (đã có read:productionBoard
+  // trong matrix từ V3.8 nhưng menu/route-guard quên cập nhật theo).
   {
     href: "/production-board",
     label: "Bảng sản xuất (QC)",
     icon: MonitorPlay,
-    roles: ["admin", "qc", "shareholder", "purchaser"],
+    roles: ["admin", "qc", "shareholder", "purchaser", "planner", "operator", "warehouse"],
     section: "operations",
   },
   // V4.1 Đợt 1a — Tổ QC kết luận QC nhập kho (hàng nhận đang HOLD chờ QC).

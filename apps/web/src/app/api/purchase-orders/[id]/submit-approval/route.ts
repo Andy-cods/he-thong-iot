@@ -4,7 +4,7 @@ import {
   submitPOForApproval,
 } from "@/server/repos/purchaseOrders";
 import { notifyPOApprovalRequested } from "@/server/services/notifications";
-import { extractRequestMeta, jsonError } from "@/server/http";
+import { extractRequestMeta, jsonError, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { forbidden, hasRole, requireCan } from "@/server/session";
 
@@ -24,6 +24,9 @@ export async function POST(
 ) {
   const guard = await requireCan(req, "update", "po");
   if ("response" in guard) return guard.response;
+  // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB.
+  const idCheck = validateUuidParam(params.id);
+  if ("response" in idCheck) return idCheck.response;
   if (!hasRole(guard.session, "planner", "purchaser")) return forbidden();
 
   // V4.4.3 — chủ xưởng: hàng CHƯA BIẾT GIÁ vẫn được gửi duyệt (bổ sung giá sau

@@ -223,12 +223,23 @@ export function usePurchaseRequestDetail(id: string | null) {
   });
 }
 
+/**
+ * V4.5 QA-E P2 — `idempotencyKey` tuỳ chọn: sinh 1 lần/phiên form (vd
+ * `crypto.randomUUID()` qua `useRef`), gửi kèm MỌI lần submit (kể cả
+ * double-click/retry) của phiên đó. Server (POST /api/purchase-requests)
+ * dùng khoá này chặn tạo 2 phiếu trùng — không gửi thì giữ nguyên hành vi
+ * cũ (không có idempotency, chỉ còn `disabled={isPending}` phía UI).
+ */
 export function useCreatePurchaseRequest() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: PRCreateInput) =>
+    mutationFn: ({
+      idempotencyKey,
+      ...data
+    }: PRCreateInput & { idempotencyKey?: string }) =>
       request<{ data: PRRow }>("/api/purchase-requests", {
         method: "POST",
+        headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
         body: JSON.stringify(data),
       }),
     onSuccess: () => {

@@ -66,6 +66,38 @@ export function parseSearchParams<S extends z.ZodTypeAny>(
   return { data: parsed.data };
 }
 
+/**
+ * V4.5 QA-C P2-6 — RFC 4122 UUID (any version), dùng chung cho mọi route
+ * `[id]` trước khi query DB. Trước đây gọi vd `GET /api/work-orders/
+ * not-a-uuid/reject` → Postgres ném lỗi cast "invalid input syntax for type
+ * uuid", không route nào bắt riêng → lọt xuống 500 thô (body rỗng) thay vì
+ * lỗi 400 sạch tiếng Việt.
+ */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isValidUuid(id: unknown): id is string {
+  return typeof id === "string" && UUID_RE.test(id);
+}
+
+/**
+ * Kiểm `id` (param route `[id]`) đúng định dạng UUID TRƯỚC khi query DB.
+ * Gọi ngay đầu handler: `const check = validateUuidParam(params.id); if
+ * ("response" in check) return check.response;`
+ */
+export function validateUuidParam(
+  id: unknown,
+  label = "id",
+): { ok: true } | { response: NextResponse } {
+  if (isValidUuid(id)) return { ok: true };
+  return {
+    response: jsonError(
+      "INVALID_ID",
+      `Tham số "${label}" không đúng định dạng (phải là UUID).`,
+      400,
+    ),
+  };
+}
+
 export function jsonError(
   code: string,
   message: string,

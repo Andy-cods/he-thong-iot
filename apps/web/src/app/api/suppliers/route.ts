@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { z } from "zod";
 import {
   supplierCreateSchema,
   supplierListQuerySchema,
@@ -6,6 +7,7 @@ import {
 import { logger } from "@/lib/logger";
 import {
   createSupplier,
+  findSimilarActiveSupplier,
   getSupplierByCode,
   listSuppliers,
 } from "@/server/repos/suppliers";
@@ -37,10 +39,17 @@ export async function GET(req: NextRequest) {
   });
 }
 
+// V4.5 QA-A P1 — `force: true` = người dùng đã thấy gợi ý NCC gần giống và
+// xác nhận vẫn muốn tạo mới (giống cơ chế `quickCreateItem`). Mở rộng LOCAL ở
+// route (không đụng `supplierCreateSchema` dùng chung cho form sửa/client).
+const supplierCreateWithForceSchema = supplierCreateSchema.extend({
+  force: z.coerce.boolean().optional().default(false),
+});
+
 export async function POST(req: NextRequest) {
   const guard = await requireCan(req, "create", "supplier");
   if ("response" in guard) return guard.response;
-  const body = await parseJson(req, supplierCreateSchema);
+  const body = await parseJson(req, supplierCreateWithForceSchema);
   if ("response" in body) return body.response;
 
   const dup = await getSupplierByCode(body.data.code);
@@ -50,6 +59,19 @@ export async function POST(req: NextRequest) {
       `Mã NCC "${body.data.code}" đã tồn tại.`,
       409,
     );
+
+  if (!body.data.force) {
+    const similar = await findSimilarActiveSupplier(body.data.name);
+    if (similar) {
+      return jsonError(
+        "SUPPLIER_NAME_SIMILAR",
+        `NCC "${similar.name}" (mã ${similar.code}) có tên gần giống — kiểm tra lại trước khi tạo mới. Gửi lại kèm "force: true" nếu vẫn muốn tạo NCC mới.`,
+        409,
+        { suggestion: similar },
+      );
+    }
+  }
+
   try {
     const row = await createSupplier(body.data);
     if (!row) throw new Error("createSupplier trả về undefined");

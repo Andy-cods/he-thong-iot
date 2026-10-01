@@ -20,11 +20,14 @@ import { routingPlanForInsert } from "@/lib/wo-routing";
 import {
   WO_STATUS_LABEL_VI,
   checkWoCompletable,
+  formatWoMaterialShortageLine,
   getWoCompleteShortfall,
+  getWoMaterialShortageLines,
   isWoDeletable,
   isWoTransitionAllowed,
 } from "@/lib/wo-guards";
 import { currentYymm, genDocNo } from "./_docNumber";
+import { getWoMaterialPlan } from "./workOrderMaterialPlan";
 import { releaseWoReservationsTx } from "./reservations";
 import { resolveStagingBinId } from "./stagingBin";
 
@@ -825,6 +828,16 @@ export interface FgReceiptResult {
  * lô vào HOLD "Chờ QC thành phẩm" (dùng lại cơ chế hold sẵn có, KHÔNG bảng mới).
  * Hoàn thành 2 lần / huỷ sau hoàn thành bị chặn sẵn bởi state machine
  * (`WO_ALLOWED_TRANSITIONS.COMPLETED = []`) nên không có đường tạo trùng lô FG.
+ *
+ * V4.5 QA-C P1-1 — `work_order_line` (tham số `lines` bên dưới) không còn
+ * được bất kỳ route tạo lệnh nào ghi dữ liệu (luôn rỗng) nên guard cũ đọc
+ * bảng này không còn chặn được gì: hoàn thành lệnh dù chưa hề "Xin vật tư
+ * theo BOM"/chưa xuất kho vẫn lọt qua. Tính trước `materialShortage` từ
+ * material-plan THẬT (`getWoMaterialPlan` — so `required` với `alreadyIssued`
+ * = ISR COMPLETED gắn `wo_id`) NGOÀI transaction (chỉ đọc, không khoá gì
+ * thêm — đủ cho 1 guard "mềm" yêu cầu xác nhận, không phải invariant cứng),
+ * rồi truyền vào `checkWoCompletable` giống hệt cơ chế thiếu sản lượng đã có:
+ * không chặn cứng, chỉ bắt xác nhận + lý do ≥3 ký tự, lưu vào `notes`.
  */
 export async function completeWO(
   id: string,
@@ -832,6 +845,9 @@ export async function completeWO(
   completeReason?: string | null,
   fgReceipt?: FgReceiptInput | null,
 ): Promise<WorkOrder & { fgReceipt: FgReceiptResult | null }> {
+  const materialPlan = await getWoMaterialPlan(id);
+  const materialShortage = materialPlan ? getWoMaterialShortageLines(materialPlan.rows) : [];
+
   return db.transaction(async (tx) => {
     const cur = await lockWo(tx, id);
     const lines = await tx
@@ -847,6 +863,7 @@ export async function completeWO(
       plannedQty: cur.plannedQty,
       completeReason,
       lines,
+      materialShortage,
     });
     if (!check.ok) throw new WoTransitionError(check.reason);
 
@@ -855,15 +872,19 @@ export async function completeWO(
       plannedQty: cur.plannedQty,
     });
     const trimmedReason = completeReason?.trim() || null;
+    const noteLines: string[] = [];
+    if (shortfall && trimmedReason) {
+      noteLines.push(
+        `[Hoàn thành thiếu SL — ${new Date().toISOString().slice(0, 10)}] Đạt ${shortfall.good}/${shortfall.planned} (thiếu ${shortfall.missing}). Lý do: ${trimmedReason}`,
+      );
+    }
+    if (materialShortage.length > 0 && trimmedReason) {
+      noteLines.push(
+        `[Hoàn thành thiếu vật tư — ${new Date().toISOString().slice(0, 10)}] ${materialShortage.map(formatWoMaterialShortageLine).join(", ")}. Lý do: ${trimmedReason}`,
+      );
+    }
     const notes =
-      shortfall && trimmedReason
-        ? [
-            cur.notes,
-            `[Hoàn thành thiếu SL — ${new Date().toISOString().slice(0, 10)}] Đạt ${shortfall.good}/${shortfall.planned} (thiếu ${shortfall.missing}). Lý do: ${trimmedReason}`,
-          ]
-            .filter(Boolean)
-            .join("\n")
-        : undefined;
+      noteLines.length > 0 ? [cur.notes, ...noteLines].filter(Boolean).join("\n") : undefined;
 
     const updated = await transitionStatusTx(
       tx,

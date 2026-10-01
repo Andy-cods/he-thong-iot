@@ -11,6 +11,7 @@ import { LogoutLink } from "@/components/auth/LogoutLink";
 import { isSessionValid } from "@/server/repos/sessions";
 import { listActiveOverridesByUser } from "@/server/repos/userPermissionOverrides";
 import { isRouteAllowed } from "@/lib/route-guard";
+import { resolveLegacySalesFinRedirect } from "@/lib/legacy-redirects";
 import type { PermissionOverrideLite } from "@/lib/permissions";
 import { logger } from "@/lib/logger";
 
@@ -109,6 +110,15 @@ export default async function AppLayout({
       logger.warn({ err, userId: userRow.id }, "layout: load overrides failed");
     }
   }
+
+  // V4.5 QA-D P1-2 — link/bookmark cũ `/sales?tab=fin-*` phải chuyển sang
+  // `/finance` TRƯỚC khi kiểm quyền `/sales` bên dưới: rule `/sales` nay chỉ
+  // còn admin/purchaser nên accountant/shareholder (chủ nhân thật của Tài
+  // chính) bị chặn thẳng về "/?denied=1" trước khi kịp redirect — xem
+  // `lib/legacy-redirects.ts`. Áp dụng cho MỌI vai (không chỉ accountant/
+  // shareholder) — khớp hành vi redirect cũ của `sales/page.tsx`.
+  const legacyFinRedirect = resolveLegacySalesFinRedirect(currentPath, currentSearch);
+  if (legacyFinRedirect) redirect(legacyFinRedirect);
 
   // V3.3 — Route guard: chặn user truy cập trang ngoài bộ phận. Admin bypass.
   if (!isRouteAllowed(currentPath, roleCodes, overrides)) {
