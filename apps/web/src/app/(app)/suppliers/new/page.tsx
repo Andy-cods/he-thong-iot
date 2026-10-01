@@ -1,54 +1,22 @@
 "use client";
 
+import * as React from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import type { SupplierCreate } from "@iot/shared";
-import { Breadcrumb } from "@/components/ui/breadcrumb";
-import { SupplierForm } from "@/components/suppliers/SupplierForm";
-import { useCreateSupplier } from "@/hooks/useSuppliers";
 
 /**
- * V2 /suppliers/new — Breadcrumb + H1 xl + SupplierForm spacious.
+ * V4.4 (N6) — route cũ giữ lại CHỈ để không vỡ bookmark/link cũ trỏ thẳng
+ * `/suppliers/new`. Form tạo NCC giờ là Sheet trên trang danh sách (xem
+ * `SuppliersTab.tsx` + `SupplierFormSheet.tsx`) thay vì điều hướng full-page
+ * (vi phạm N6 — Supplier là 1 trong các thực thể nêu đích danh nên dùng
+ * Sheet). Redirect THẲNG sang `/sales?tab=suppliers&new=true` (không qua
+ * `/suppliers` — route đó tự redirect `/sales?tab=suppliers` và LÀM MẤT mọi
+ * query param khác, xem `app/(app)/suppliers/page.tsx`) để `SuppliersTab` tự
+ * mở Sheet. nuqs `parseAsBoolean` chỉ nhận "true"/"false", KHÔNG nhận "1"/"0".
  */
-export default function NewSupplierPage() {
+export default function NewSupplierPageRedirect() {
   const router = useRouter();
-  const create = useCreateSupplier();
-
-  return (
-    <div className="mx-auto w-full max-w-4xl p-6">
-      {/* V4.1 UI-09 (X6): breadcrumb thân trang chỉ hiện trên điện thoại — desktop dùng breadcrumb topbar (tránh trùng). */}
-      <Breadcrumb
-        items={[
-          { label: "Trang chủ", href: "/" },
-          { label: "Nhà cung cấp", href: "/suppliers" },
-          { label: "Tạo mới" },
-        ]}
-        className="mb-2 md:hidden"
-      />
-      <header className="mb-6">
-        <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Thêm nhà cung cấp
-        </h1>
-        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-          Nhập thông tin cơ bản. Danh sách vật tư cung cấp gắn sau trong trang
-          chi tiết.
-        </p>
-      </header>
-
-      <SupplierForm
-        submitting={create.isPending}
-        onCancel={() => router.push("/suppliers")}
-        onSubmit={async (data: SupplierCreate) => {
-          try {
-            const res = await create.mutateAsync(data);
-            toast.success(`Đã tạo NCC ${data.code}.`);
-            const newId = res.data?.id;
-            router.push(newId ? `/suppliers/${newId}` : "/suppliers");
-          } catch (err) {
-            toast.error((err as Error).message);
-          }
-        }}
-      />
-    </div>
-  );
+  React.useEffect(() => {
+    router.replace("/sales?tab=suppliers&new=true");
+  }, [router]);
+  return null;
 }

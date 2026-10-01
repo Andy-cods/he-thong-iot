@@ -6,6 +6,7 @@ import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import type { POCreateInput } from "@iot/shared";
 import { Button } from "@/components/ui/button";
+import { DateField } from "@/components/ui/date-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -107,6 +108,20 @@ export function PoCreateWizard() {
   );
 
   const create = useCreatePurchaseOrder();
+
+  // V4.4 (bổ sung chủ xưởng) — cảnh báo rời trang khi đã nhập dữ liệu đáng kể
+  // (đã qua bước 1, chọn NCC, hoặc gõ dòng hàng) nhưng CHƯA tạo PO.
+  React.useEffect(() => {
+    const hasProgress =
+      step > 1 || !!state.supplier || state.lines.some((l) => l.item);
+    if (!hasProgress || create.isSuccess) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [step, state.supplier, state.lines, create.isSuccess]);
 
   // Auto-fill lines khi chọn PR.
   React.useEffect(() => {
@@ -229,14 +244,14 @@ export function PoCreateWizard() {
               Chọn nguồn PO
             </h2>
             <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
-              Bắt đầu từ đầu hoặc kế thừa dữ liệu từ Yêu cầu mua đã duyệt.
+              Bắt đầu từ đầu hoặc kế thừa dữ liệu từ Đề xuất vật tư (PR) đã duyệt.
             </p>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <label
               className={cn(
-                "group relative flex cursor-pointer flex-col gap-2 rounded-2xl border-2 p-5 transition-all",
+                "group relative flex cursor-pointer flex-col gap-2 rounded-xl border-2 p-5 transition-all",
                 state.source === "MANUAL"
                   ? "border-indigo-500 bg-indigo-50 ring-2 ring-indigo-100 dark:bg-indigo-950/40 dark:ring-indigo-900"
                   : "border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm dark:border-zinc-700 dark:bg-zinc-900",
@@ -276,7 +291,7 @@ export function PoCreateWizard() {
 
             <label
               className={cn(
-                "group relative flex cursor-pointer flex-col gap-2 rounded-2xl border-2 p-5 transition-all",
+                "group relative flex cursor-pointer flex-col gap-2 rounded-xl border-2 p-5 transition-all",
                 state.source === "FROM_PR"
                   ? "border-indigo-500 bg-indigo-50 ring-2 ring-indigo-100 dark:bg-indigo-950/40 dark:ring-indigo-900"
                   : "border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm dark:border-zinc-700 dark:bg-zinc-900",
@@ -424,13 +439,10 @@ export function PoCreateWizard() {
               <Label htmlFor="exp-eta" uppercase>
                 Ngày dự kiến nhận
               </Label>
-              <Input
+              <DateField
                 id="exp-eta"
-                type="date"
                 value={state.expectedEta}
-                onChange={(e) =>
-                  setState((s) => ({ ...s, expectedEta: e.target.value }))
-                }
+                onChange={(v) => setState((s) => ({ ...s, expectedEta: v }))}
               />
             </div>
             <div className="space-y-1.5">

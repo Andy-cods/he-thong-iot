@@ -17,13 +17,21 @@ import { Textarea } from "@/components/ui/textarea";
  * V1.9 P7 — SupplierForm extend: thêm section Địa chỉ, Ngân hàng, Điều khoản,
  * danh sách người liên hệ (dynamic array). Giữ interface cũ — caller chỉ cần
  * truyền thêm defaultValues.
+ *
+ * V4.4 (N6) — bỏ khung thẻ/nút hành động riêng của form (trước render full
+ * trang hoặc expand inline) để nhúng vào `SupplierFormSheet` (Sheet chuẩn) —
+ * xem `plans/v4.4-ui/UI_INVENTORY.md` mục "suppliers-new dùng FULL-PAGE thay
+ * Sheet". Nút xác nhận giờ nằm ở `SheetHeaderNav` của Sheet bọc ngoài, gắn
+ * bằng `form={formId}` — chỉ cần `<form id={formId}>` bao trọn các trường.
  */
 
 export interface SupplierFormProps {
+  /** id gắn với nút submit bên ngoài (`SheetHeaderNav`/`SheetFooter`). */
+  formId?: string;
   defaultValues?: Partial<SupplierCreate>;
   onSubmit: (data: SupplierCreate) => Promise<void> | void;
-  onCancel?: () => void;
-  submitting?: boolean;
+  /** V4.4 — báo cho Sheet bọc ngoài biết form đã bị sửa (để cảnh báo khi đóng). */
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 const REGION_OPTIONS = [
@@ -35,16 +43,16 @@ const REGION_OPTIONS = [
 ];
 
 export function SupplierForm({
+  formId = "supplier-form",
   defaultValues,
   onSubmit,
-  onCancel,
-  submitting,
+  onDirtyChange,
 }: SupplierFormProps) {
   const {
     register,
     handleSubmit,
     control,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<SupplierCreate>({
     resolver: zodResolver(supplierCreateSchema),
     defaultValues: {
@@ -72,6 +80,10 @@ export function SupplierForm({
 
   const isEdit = Boolean(defaultValues?.code);
 
+  React.useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
+
   const { fields, append, remove } = useFieldArray({
     control,
     name: "contactPersons",
@@ -79,8 +91,9 @@ export function SupplierForm({
 
   return (
     <form
+      id={formId}
       onSubmit={(e) => void handleSubmit(onSubmit)(e)}
-      className="mx-auto w-full max-w-[860px] space-y-6 rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900"
+      className="space-y-6"
       noValidate
     >
       {/* Section 1 — Thông tin chung */}
@@ -374,17 +387,6 @@ export function SupplierForm({
           </FormField>
         </div>
       </section>
-
-      <div className="flex justify-end gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
-        {onCancel ? (
-          <Button type="button" variant="ghost" onClick={onCancel}>
-            Huỷ
-          </Button>
-        ) : null}
-        <Button type="submit" disabled={submitting}>
-          {submitting ? "Đang lưu…" : isEdit ? "Lưu thay đổi" : "Tạo nhà cung cấp"}
-        </Button>
-      </div>
     </form>
   );
 }

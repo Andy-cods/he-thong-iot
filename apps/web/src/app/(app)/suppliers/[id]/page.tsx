@@ -11,10 +11,8 @@ import {
   MapPin,
   Package,
   Phone,
-  Save,
   Trash2,
   TrendingUp,
-  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { SupplierUpdate } from "@iot/shared";
@@ -35,9 +33,10 @@ import {
 } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/domain/StatusBadge";
 import { StatusPill } from "@/components/ui/status-badge";
-import { formatDate as fmtDateVN, formatMoney } from "@/lib/format";
+import { formatDate as fmtDateVN, formatMoney, formatNumber, formatPercent, formatQty } from "@/lib/format";
 import { activeStatusCode, getStatus, statusLabel } from "@/lib/status";
-import { SupplierForm } from "@/components/suppliers/SupplierForm";
+import { ROOT_LABEL } from "@/lib/breadcrumb-items";
+import { SupplierFormSheet } from "@/components/suppliers/SupplierFormSheet";
 import {
   useDeleteSupplier,
   useSupplier,
@@ -128,7 +127,7 @@ export default function SupplierDetailPage() {
       {/* V4.1 UI-09 (X6): breadcrumb thân trang chỉ hiện trên điện thoại — desktop dùng breadcrumb topbar (tránh trùng). */}
       <Breadcrumb
         items={[
-          { label: "Trang chủ", href: "/" },
+          { label: ROOT_LABEL, href: "/" },
           canUpdate
             ? { label: "Nhà cung cấp", href: "/suppliers" }
             : { label: "Nhà cung cấp" },
@@ -137,8 +136,12 @@ export default function SupplierDetailPage() {
         className="mb-2 md:hidden"
       />
 
-      {/* V4.1 UI-X6: header flex-wrap + min-w-0 (trang từng tràn 418px trên 390px). */}
-      <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
+      {/* V4.1 UI-X6: header flex-wrap + min-w-0 (trang từng tràn 418px trên 390px).
+          V4.4 C.J — đổi flex-col → sm:flex-row: trước tên NCC dài + khối nút
+          cùng hàng ở khoảng rộng trung bình khiến tên bị ép còn ~180px (wrap
+          6 dòng đứng cạnh nút); nay xếp chồng dọc cho tới sm, đủ rộng mới ghép
+          hàng. */}
+      <header className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="min-w-0 break-words text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
@@ -196,90 +199,7 @@ export default function SupplierDetailPage() {
 
         {/* TAB 1 — Thông tin */}
         <TabsContent value="info">
-          {editing ? (
-            <div className="rounded-2xl border border-indigo-200 bg-indigo-50/30 p-5 shadow-sm dark:border-indigo-800 dark:bg-indigo-950/30">
-              <div className="mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Edit3 className="h-4 w-4 text-indigo-600 dark:text-indigo-400" aria-hidden />
-                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-                    Chỉnh sửa thông tin nhà cung cấp
-                  </h3>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setEditing(false)}
-                  disabled={update.isPending}
-                >
-                  <X className="h-3.5 w-3.5" aria-hidden /> Đóng
-                </Button>
-              </div>
-
-              <SupplierForm
-                defaultValues={{
-                  code: supplier.code,
-                  name: supplier.name,
-                  contactName: supplier.contactName,
-                  phone: supplier.phone,
-                  email: supplier.email,
-                  address: supplier.address,
-                  taxCode: supplier.taxCode,
-                  region: supplier.region ?? null,
-                  city: supplier.city ?? null,
-                  ward: supplier.ward ?? null,
-                  streetAddress: supplier.streetAddress ?? null,
-                  factoryAddress: supplier.factoryAddress ?? null,
-                  latitude: supplier.latitude
-                    ? (Number(supplier.latitude) as unknown as number)
-                    : null,
-                  longitude: supplier.longitude
-                    ? (Number(supplier.longitude) as unknown as number)
-                    : null,
-                  website: supplier.website ?? null,
-                  bankInfo: supplier.bankInfo ?? {
-                    name: null,
-                    account: null,
-                    branch: null,
-                  },
-                  paymentTerms: supplier.paymentTerms ?? null,
-                  contactPersons: supplier.contactPersons ?? [],
-                  internalNotes: supplier.internalNotes ?? null,
-                }}
-                submitting={update.isPending}
-                onSubmit={async (data) => {
-                  try {
-                    const patch: SupplierUpdate = {
-                      name: data.name,
-                      contactName: data.contactName,
-                      phone: data.phone,
-                      email: data.email,
-                      address: data.address,
-                      taxCode: data.taxCode,
-                      region: data.region,
-                      city: data.city,
-                      ward: data.ward,
-                      streetAddress: data.streetAddress,
-                      factoryAddress: data.factoryAddress,
-                      latitude: data.latitude,
-                      longitude: data.longitude,
-                      website: data.website,
-                      bankInfo: data.bankInfo,
-                      paymentTerms: data.paymentTerms,
-                      contactPersons: data.contactPersons,
-                      internalNotes: data.internalNotes,
-                    };
-                    await update.mutateAsync(patch);
-                    toast.success("Đã cập nhật nhà cung cấp");
-                    setEditing(false);
-                  } catch (err) {
-                    toast.error((err as Error).message);
-                  }
-                }}
-              />
-            </div>
-          ) : (
-            <InfoTab supplier={supplier} />
-          )}
+          <InfoTab supplier={supplier} />
         </TabsContent>
 
         {/* TAB 2 — Vật liệu cung cấp */}
@@ -298,6 +218,74 @@ export default function SupplierDetailPage() {
           <StatsTab supplierId={id} />
         </TabsContent>
       </Tabs>
+
+      {/* V4.4 C.I — Sheet chuẩn thay "expand inline" (rounded-2xl border-indigo-200
+          giữa trang) — cùng shell với /suppliers/new (SupplierFormSheet), Info
+          tab vẫn hiện phía sau overlay nên không cần ẩn/hiện qua điều kiện. */}
+      <SupplierFormSheet
+        open={editing}
+        onOpenChange={setEditing}
+        mode="edit"
+        submitting={update.isPending}
+        defaultValues={{
+          code: supplier.code,
+          name: supplier.name,
+          contactName: supplier.contactName,
+          phone: supplier.phone,
+          email: supplier.email,
+          address: supplier.address,
+          taxCode: supplier.taxCode,
+          region: supplier.region ?? null,
+          city: supplier.city ?? null,
+          ward: supplier.ward ?? null,
+          streetAddress: supplier.streetAddress ?? null,
+          factoryAddress: supplier.factoryAddress ?? null,
+          latitude: supplier.latitude
+            ? (Number(supplier.latitude) as unknown as number)
+            : null,
+          longitude: supplier.longitude
+            ? (Number(supplier.longitude) as unknown as number)
+            : null,
+          website: supplier.website ?? null,
+          bankInfo: supplier.bankInfo ?? {
+            name: null,
+            account: null,
+            branch: null,
+          },
+          paymentTerms: supplier.paymentTerms ?? null,
+          contactPersons: supplier.contactPersons ?? [],
+          internalNotes: supplier.internalNotes ?? null,
+        }}
+        onSubmit={async (data) => {
+          try {
+            const patch: SupplierUpdate = {
+              name: data.name,
+              contactName: data.contactName,
+              phone: data.phone,
+              email: data.email,
+              address: data.address,
+              taxCode: data.taxCode,
+              region: data.region,
+              city: data.city,
+              ward: data.ward,
+              streetAddress: data.streetAddress,
+              factoryAddress: data.factoryAddress,
+              latitude: data.latitude,
+              longitude: data.longitude,
+              website: data.website,
+              bankInfo: data.bankInfo,
+              paymentTerms: data.paymentTerms,
+              contactPersons: data.contactPersons,
+              internalNotes: data.internalNotes,
+            };
+            await update.mutateAsync(patch);
+            toast.success("Đã cập nhật nhà cung cấp");
+            setEditing(false);
+          } catch (err) {
+            toast.error((err as Error).message);
+          }
+        }}
+      />
 
       <DialogConfirm
         open={deleteOpen}
@@ -566,7 +554,7 @@ function ItemsTab({
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <MiniKpi
           label="Tổng vật tư cung cấp"
-          value={total.toLocaleString("vi-VN")}
+          value={formatNumber(total)}
           icon={<Package className="h-4 w-4" />}
         />
         <MiniKpi label="Nhóm nhiều nhất" value={topCategory} />
@@ -661,7 +649,7 @@ function ItemsTab({
                   </td>
                   <td className="px-3 text-right tabular-nums text-zinc-900 dark:text-zinc-50">
                     {r.priceRef
-                      ? `${Number(r.priceRef).toLocaleString("vi-VN")} ${r.currency}`
+                      ? `${formatNumber(Number(r.priceRef))} ${r.currency}`
                       : "—"}
                   </td>
                   <td className="px-3 text-right">
@@ -711,21 +699,21 @@ function StatsTab({ supplierId }: { supplierId: string }) {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <MiniKpi
           label="Tổng PO"
-          value={d.totalPoCount.toLocaleString("vi-VN")}
+          value={formatNumber(d.totalPoCount)}
           icon={<TrendingUp className="h-4 w-4" />}
         />
         <MiniKpi
           label="Chi tiêu từ đầu năm"
           value={formatVnd(d.ytdSpend)}
-          sublabel={`${d.ytdPoCount} PO năm nay`}
+          sublabel={`${formatNumber(d.ytdPoCount)} PO năm nay`}
         />
         <MiniKpi
           label="Thời gian giao TB"
-          value={`${d.avgLeadTimeDays.toFixed(1)} ngày`}
+          value={`${formatNumber(d.avgLeadTimeDays, undefined, { maximumFractionDigits: 1 })} ngày`}
         />
         <MiniKpi
           label="Tỷ lệ đúng hẹn"
-          value={`${d.onTimeRate.toFixed(1)}%`}
+          value={formatPercent(d.onTimeRate, { ratio: false })}
         />
       </div>
 
@@ -775,7 +763,7 @@ function StatsTab({ supplierId }: { supplierId: string }) {
                       {r.poCount}
                     </td>
                     <td className="px-3 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
-                      {Number(r.totalQty).toLocaleString("vi-VN")} {r.uom}
+                      {formatQty(r.totalQty, r.uom)}
                     </td>
                     <td className="px-3 text-right tabular-nums text-zinc-900 dark:text-zinc-50">
                       {formatVnd(r.totalSpend)}

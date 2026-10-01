@@ -1,26 +1,33 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, Pencil, Plus, Search, X } from "lucide-react";
+import { toast } from "sonner";
 import {
   parseAsBoolean,
   parseAsInteger,
   parseAsString,
   useQueryStates,
 } from "nuqs";
+import type { SupplierCreate } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/ui/query-error";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/domain/StatusBadge";
 import { CodeText, DataTable, RowActionsMenu, type DataTableColumn } from "@/components/ui/data-table";
-import { useSuppliersList, type SupplierRow } from "@/hooks/useSuppliers";
+import { SupplierFormSheet } from "@/components/suppliers/SupplierFormSheet";
+import {
+  useCreateSupplier,
+  useSuppliersList,
+  type SupplierRow,
+} from "@/hooks/useSuppliers";
 import { useHotkey } from "@/lib/shortcuts";
+import { formatNumber } from "@/lib/format";
 import { activeStatusCode, getStatus, statusLabel } from "@/lib/status";
-import { cn } from "@/lib/utils";
 
 type ActiveMode = "all" | "active" | "inactive";
 
@@ -52,9 +59,15 @@ export function SuppliersTab() {
       active: parseAsBoolean,
       page: parseAsInteger.withDefault(1),
       pageSize: parseAsInteger.withDefault(20),
+      // V4.4 (N6) — cho phép deep-link "/suppliers?new=true" (dùng bởi redirect
+      // từ route cũ /suppliers/new) tự mở Sheet tạo mới, không cần full-page.
+      new: parseAsBoolean.withDefault(false),
     },
     { history: "replace", shallow: true, throttleMs: 250 },
   );
+
+  const create = useCreateSupplier();
+  const closeCreate = () => void setUrlState({ new: false });
 
   const [searchInput, setSearchInput] = React.useState(urlState.q);
   React.useEffect(() => {
@@ -110,6 +123,12 @@ export function SuppliersTab() {
   const activeMode: ActiveMode =
     urlState.active === null ? "all" : urlState.active ? "active" : "inactive";
 
+  // V4.4 (N4) — cột 100% rỗng trên TOÀN TRANG hiện tại thì ẩn hẳn thay vì
+  // chiếm chỗ chỉ để hiện "—" từng dòng (xem UI_INVENTORY.md mục "Cột Điện
+  // thoại/Email 100% rỗng vẫn hiện đầy đủ").
+  const hasAnyPhone = rows.some((r) => !!r.phone);
+  const hasAnyEmail = rows.some((r) => !!r.email);
+
   const columns: DataTableColumn<SupplierRow>[] = [
     {
       id: "code",
@@ -129,22 +148,30 @@ export function SuppliersTab() {
         </span>
       ),
     },
-    {
-      id: "phone",
-      header: "Điện thoại",
-      width: 140,
-      cell: (r) => <span className="tabular-nums text-zinc-600 dark:text-zinc-400">{r.phone ?? "—"}</span>,
-    },
-    {
-      id: "email",
-      header: "Email",
-      width: 220,
-      cell: (r) => (
-        <span className="block max-w-[14rem] truncate text-zinc-600 dark:text-zinc-400" title={r.email ?? undefined}>
-          {r.email ?? "—"}
-        </span>
-      ),
-    },
+    ...(hasAnyPhone
+      ? [
+          {
+            id: "phone",
+            header: "Điện thoại",
+            width: 140,
+            cell: (r) => <span className="tabular-nums text-zinc-600 dark:text-zinc-400">{r.phone ?? "—"}</span>,
+          } satisfies DataTableColumn<SupplierRow>,
+        ]
+      : []),
+    ...(hasAnyEmail
+      ? [
+          {
+            id: "email",
+            header: "Email",
+            width: 220,
+            cell: (r) => (
+              <span className="block max-w-[14rem] truncate text-zinc-600 dark:text-zinc-400" title={r.email ?? undefined}>
+                {r.email ?? "—"}
+              </span>
+            ),
+          } satisfies DataTableColumn<SupplierRow>,
+        ]
+      : []),
     {
       id: "status",
       header: "Trạng thái",
@@ -183,14 +210,12 @@ export function SuppliersTab() {
               Nhà cung cấp
             </h1>
             <p className="mt-0.5 text-base text-zinc-500 dark:text-zinc-400">
-              {isListError ? "—" : total.toLocaleString("vi-VN")} NCC
+              {isListError ? "—" : formatNumber(total)} NCC
             </p>
           </div>
-          <Button asChild size="sm">
-            <Link href="/suppliers/new">
-              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-              Tạo mới
-            </Link>
+          <Button size="sm" onClick={() => void setUrlState({ new: true })}>
+            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+            Tạo mới
           </Button>
         </div>
       </header>
@@ -223,32 +248,25 @@ export function SuppliersTab() {
           ) : null}
         </div>
 
-        {/* Segmented 3-mode active (h-8) */}
-        <div className="inline-flex h-8 overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
-          {ACTIVE_MODES.map((m, i) => (
-            <button
-              key={m.value}
-              type="button"
-              onClick={() =>
-                void setUrlState({
-                  active:
-                    m.value === "all" ? null : m.value === "active" ? true : false,
-                  page: 1,
-                })
-              }
-              className={cn(
-                "inline-flex h-full items-center px-3 text-base font-medium transition-colors",
-                i > 0 && "border-l border-zinc-200 dark:border-zinc-700",
-                activeMode === m.value
-                  ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                  : "bg-white text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/60",
-              )}
-              aria-pressed={activeMode === m.value}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
+        {/* V4.4 A12 — segmented control dùng chung (trước tự vẽ nền đen riêng,
+            trùng lặp với PRTab.tsx; nay ăn theo 1 màu active DUY NHẤT). */}
+        <Tabs
+          value={activeMode}
+          onValueChange={(v) =>
+            void setUrlState({
+              active: v === "all" ? null : v === "active" ? true : false,
+              page: 1,
+            })
+          }
+        >
+          <TabsList variant="segmented">
+            {ACTIVE_MODES.map((m) => (
+              <TabsTrigger key={m.value} value={m.value}>
+                {m.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
 
         {hasFilter ? (
           <button
@@ -293,11 +311,9 @@ export function SuppliersTab() {
               title="Chưa có nhà cung cấp"
               description="Thêm NCC đầu tiên để gắn vật tư với nguồn cung."
               actions={
-                <Button asChild size="sm">
-                  <Link href="/suppliers/new">
-                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                    Tạo nhà cung cấp đầu tiên
-                  </Link>
+                <Button size="sm" onClick={() => void setUrlState({ new: true })}>
+                  <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                  Tạo nhà cung cấp đầu tiên
                 </Button>
               }
             />
@@ -334,7 +350,7 @@ export function SuppliersTab() {
             </span>{" "}
             /{" "}
             <span className="tabular-nums text-zinc-900 dark:text-zinc-50">
-              {total.toLocaleString("vi-VN")}
+              {formatNumber(total)}
             </span>
           </div>
           <div className="flex items-center gap-1">
@@ -362,6 +378,26 @@ export function SuppliersTab() {
           </div>
         </footer>
       ) : null}
+
+      {/* V4.4 (N6) — Sheet tạo NCC thay full-page /suppliers/new cũ (route cũ
+          giờ redirect sang "?new=true" để giữ tương thích bookmark/link cũ). */}
+      <SupplierFormSheet
+        open={urlState.new}
+        onOpenChange={(open) => void setUrlState({ new: open })}
+        mode="create"
+        submitting={create.isPending}
+        onSubmit={async (data: SupplierCreate) => {
+          try {
+            const res = await create.mutateAsync(data);
+            toast.success(`Đã tạo NCC ${data.code}.`);
+            closeCreate();
+            const newId = res.data?.id;
+            if (newId) router.push(`/suppliers/${newId}`);
+          } catch (err) {
+            toast.error((err as Error).message);
+          }
+        }}
+      />
     </div>
   );
 }

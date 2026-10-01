@@ -6,6 +6,7 @@ import { CheckCircle2, ExternalLink, FileText, Loader2, Save } from "lucide-reac
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { DateField } from "@/components/ui/date-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { QueryError } from "@/components/ui/query-error";
@@ -309,7 +310,7 @@ export function PoInvoicePanel({
           {d.canConfirm ? (
             <>
               <div className={compact ? "grid grid-cols-2 gap-2" : "grid gap-3 sm:grid-cols-2 lg:grid-cols-3"}>
-                <Field label="Số hoá đơn NCC">
+                <Field label="Số hoá đơn NCC" required>
                   <Input
                     value={form.invoiceNo}
                     onChange={(e) => setForm((f) => ({ ...f, invoiceNo: e.target.value }))}
@@ -317,24 +318,23 @@ export function PoInvoicePanel({
                   />
                 </Field>
                 <Field label="Ngày hoá đơn">
-                  <Input
-                    type="date"
+                  <DateField
                     value={form.issueDate}
-                    onChange={(e) => setForm((f) => ({ ...f, issueDate: e.target.value }))}
+                    onChange={(v) => setForm((f) => ({ ...f, issueDate: v }))}
                   />
                 </Field>
                 <Field label="Hạn thanh toán">
-                  <Input
-                    type="date"
+                  <DateField
                     value={form.dueDate}
-                    onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))}
+                    onChange={(v) => setForm((f) => ({ ...f, dueDate: v }))}
                   />
                 </Field>
-                <Field label="Tạm tính (chưa VAT)">
+                <Field label="Tạm tính (chưa VAT)" required>
                   <Input
                     type="number"
                     min={0}
                     step="any"
+                    className="text-right tabular-nums"
                     value={form.subtotalAmount}
                     onChange={(e) => setForm((f) => ({ ...f, subtotalAmount: e.target.value }))}
                   />
@@ -345,6 +345,7 @@ export function PoInvoicePanel({
                     min={0}
                     max={100}
                     step="0.01"
+                    className="text-right tabular-nums"
                     value={form.vatRate}
                     onChange={(e) => setForm((f) => ({ ...f, vatRate: e.target.value }))}
                   />
@@ -454,10 +455,21 @@ function Stat({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  required,
+  children,
+}: {
+  label: string;
+  /** V4.1 UI-07 chuẩn Sheet/form: dấu `*` đỏ cho trường bắt buộc để xác nhận HĐ. */
+  required?: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <div className="space-y-1">
-      <Label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">{label}</Label>
+      <Label required={required} className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">
+        {label}
+      </Label>
       {children}
     </div>
   );

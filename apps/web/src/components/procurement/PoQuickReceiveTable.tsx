@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { formatQty } from "@/lib/format";
 import { uuidv7 } from "@/lib/uuid-v7";
 import {
   usePOForReceiving,
@@ -316,10 +317,10 @@ export function PoQuickReceiveTable({
                     ) : null}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">
-                    {ln.orderedQty.toLocaleString("vi-VN")}
+                    {formatQty(ln.orderedQty)}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums text-emerald-700 dark:text-emerald-400">
-                    {ln.receivedQty.toLocaleString("vi-VN")}
+                    {formatQty(ln.receivedQty)}
                   </td>
                   <td
                     className={cn(
@@ -329,7 +330,7 @@ export function PoQuickReceiveTable({
                         : "text-zinc-400 dark:text-zinc-500",
                     )}
                   >
-                    {ln.remainingQty.toLocaleString("vi-VN")}
+                    {formatQty(ln.remainingQty)}
                   </td>
                   <td className="px-3 py-2 text-right">
                     <Input
