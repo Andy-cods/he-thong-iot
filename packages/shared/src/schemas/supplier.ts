@@ -150,6 +150,18 @@ export const itemSupplierUpdateSchema = itemSupplierCreateSchema
   .omit({ supplierId: true })
   .partial();
 
+/**
+ * TASK-6VIEC Việc 3 — Gộp 2 NCC trùng. `targetId` = NCC GIỮ LẠI (nhận mọi
+ * tham chiếu FK từ NCC ở URL param, NCC đó sẽ bị `is_active=false`).
+ */
+export const supplierMergeSchema = z
+  .object({
+    targetId: z.string().uuid("targetId phải là UUID"),
+  })
+  .strict();
+
+export type SupplierMergeInput = z.infer<typeof supplierMergeSchema>;
+
 export type SupplierCreate = z.infer<typeof supplierCreateSchema>;
 export type SupplierUpdate = z.infer<typeof supplierUpdateSchema>;
 export type SupplierListQuery = z.infer<typeof supplierListQuerySchema>;

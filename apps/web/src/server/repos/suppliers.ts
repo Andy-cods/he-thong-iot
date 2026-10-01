@@ -10,14 +10,20 @@ import {
   type SQL,
 } from "drizzle-orm";
 import {
+  aliasSupplier,
+  finInvoice,
+  finPayment,
+  finTransaction,
   item,
   itemSupplier,
   purchaseOrder,
   purchaseOrderLine,
+  purchaseRequestLine,
   supplier,
 } from "@iot/db/schema";
 import type { SupplierCreate, SupplierUpdate } from "@iot/shared";
 import { db } from "@/lib/db";
+import { formatDateTime } from "@/lib/format";
 import { findSimilarSupplier, type SupplierNameCandidate } from "@/lib/supplier-dedupe";
 
 /**
@@ -253,6 +259,226 @@ export async function softDeleteSupplier(id: string) {
     .where(eq(supplier.id, id))
     .returning();
   return row ?? null;
+}
+
+/* ============================================================================
+ * TASK-6VIEC Việc 3 — Gộp NCC trùng (chỉ admin). Mọi FK supplier_id ở các
+ * bảng purchase_order, fin_invoice, fin_payment, fin_transaction,
+ * item_supplier, purchase_request_line.preferred_supplier_id + alias_supplier
+ * chuyển sang NCC GIỮ LẠI (targetId); NCC nguồn (sourceId) đánh dấu
+ * is_active=false + ghi chú — KHÔNG xoá cứng (giữ nguyên lịch sử/audit).
+ * ============================================================================ */
+
+export interface SupplierMergeCounts {
+  purchaseOrderCount: number;
+  finInvoiceCount: number;
+  finPaymentCount: number;
+  finTransactionCount: number;
+  itemSupplierCount: number;
+  aliasCount: number;
+  prLineCount: number;
+}
+
+/** Đếm số tham chiếu sẽ CHUYỂN sang NCC đích nếu gộp sourceId — màn xác nhận. */
+export async function getSupplierMergeCounts(
+  sourceId: string,
+): Promise<SupplierMergeCounts> {
+  const count = sql<number>`count(*)::int`;
+  const [po, inv, pay, txn, isup, alias, prl] = await Promise.all([
+    db.select({ c: count }).from(purchaseOrder).where(eq(purchaseOrder.supplierId, sourceId)),
+    db.select({ c: count }).from(finInvoice).where(eq(finInvoice.supplierId, sourceId)),
+    db.select({ c: count }).from(finPayment).where(eq(finPayment.supplierId, sourceId)),
+    db.select({ c: count }).from(finTransaction).where(eq(finTransaction.supplierId, sourceId)),
+    db.select({ c: count }).from(itemSupplier).where(eq(itemSupplier.supplierId, sourceId)),
+    db.select({ c: count }).from(aliasSupplier).where(eq(aliasSupplier.supplierId, sourceId)),
+    db
+      .select({ c: count })
+      .from(purchaseRequestLine)
+      .where(eq(purchaseRequestLine.preferredSupplierId, sourceId)),
+  ]);
+  return {
+    purchaseOrderCount: po[0]?.c ?? 0,
+    finInvoiceCount: inv[0]?.c ?? 0,
+    finPaymentCount: pay[0]?.c ?? 0,
+    finTransactionCount: txn[0]?.c ?? 0,
+    itemSupplierCount: isup[0]?.c ?? 0,
+    aliasCount: alias[0]?.c ?? 0,
+    prLineCount: prl[0]?.c ?? 0,
+  };
+}
+
+export interface SupplierMergeResult {
+  moved: SupplierMergeCounts;
+  itemSupplierConflictsResolved: number;
+  finInvoiceConflictsRenamed: number;
+}
+
+export class SupplierMergeError extends Error {}
+
+/**
+ * Gộp sourceId VÀO targetId: chuyển MỌI FK supplier_id sang targetId, đánh
+ * dấu sourceId is_active=false. 1 TRANSACTION duy nhất — lỗi giữa chừng
+ * rollback toàn bộ (không có trạng thái "gộp dở").
+ *
+ * Xung đột unique:
+ *  - item_supplier (item_id, supplier_id): giữ bản MỚI HƠN (createdAt lớn
+ *    hơn), xoá bản còn lại — đúng yêu cầu "giữ bản mới hơn/gộp".
+ *  - fin_invoice (direction, invoice_no, supplier_id): GIỮ CẢ 2 (không mất
+ *    chứng từ tài chính) — hậu tố invoiceNo của hoá đơn nguồn bằng mã NCC cũ
+ *    để phân biệt khi trùng số hoá đơn giữa 2 NCC.
+ *  - purchase_order / fin_payment / fin_transaction /
+ *    purchase_request_line.preferred_supplier_id / alias_supplier: không có
+ *    unique theo supplier → update thẳng.
+ */
+export async function mergeSuppliers(
+  sourceId: string,
+  targetId: string,
+): Promise<SupplierMergeResult> {
+  if (sourceId === targetId) {
+    throw new SupplierMergeError("Không thể gộp NCC vào chính nó.");
+  }
+
+  return db.transaction(async (tx) => {
+    const [source] = await tx
+      .select()
+      .from(supplier)
+      .where(eq(supplier.id, sourceId))
+      .limit(1);
+    if (!source) throw new SupplierMergeError("Không tìm thấy NCC nguồn.");
+    const [target] = await tx
+      .select()
+      .from(supplier)
+      .where(eq(supplier.id, targetId))
+      .limit(1);
+    if (!target) throw new SupplierMergeError("Không tìm thấy NCC đích.");
+
+    const poRes = await tx
+      .update(purchaseOrder)
+      .set({ supplierId: targetId })
+      .where(eq(purchaseOrder.supplierId, sourceId))
+      .returning({ id: purchaseOrder.id });
+
+    const payRes = await tx
+      .update(finPayment)
+      .set({ supplierId: targetId })
+      .where(eq(finPayment.supplierId, sourceId))
+      .returning({ id: finPayment.id });
+
+    const txnRes = await tx
+      .update(finTransaction)
+      .set({ supplierId: targetId })
+      .where(eq(finTransaction.supplierId, sourceId))
+      .returning({ id: finTransaction.id });
+
+    const prlRes = await tx
+      .update(purchaseRequestLine)
+      .set({ preferredSupplierId: targetId })
+      .where(eq(purchaseRequestLine.preferredSupplierId, sourceId))
+      .returning({ id: purchaseRequestLine.id });
+
+    const aliasRes = await tx
+      .update(aliasSupplier)
+      .set({ supplierId: targetId })
+      .where(eq(aliasSupplier.supplierId, sourceId))
+      .returning({ id: aliasSupplier.id });
+
+    const sourceInvoices = await tx
+      .select({
+        id: finInvoice.id,
+        direction: finInvoice.direction,
+        invoiceNo: finInvoice.invoiceNo,
+      })
+      .from(finInvoice)
+      .where(eq(finInvoice.supplierId, sourceId));
+    let finInvoiceConflictsRenamed = 0;
+    for (const inv of sourceInvoices) {
+      const [clash] = await tx
+        .select({ id: finInvoice.id })
+        .from(finInvoice)
+        .where(
+          and(
+            eq(finInvoice.supplierId, targetId),
+            eq(finInvoice.direction, inv.direction),
+            eq(finInvoice.invoiceNo, inv.invoiceNo),
+          ),
+        )
+        .limit(1);
+      if (clash) {
+        finInvoiceConflictsRenamed += 1;
+        await tx
+          .update(finInvoice)
+          .set({
+            supplierId: targetId,
+            invoiceNo: `${inv.invoiceNo}-GOP-${source.code}`,
+          })
+          .where(eq(finInvoice.id, inv.id));
+      } else {
+        await tx
+          .update(finInvoice)
+          .set({ supplierId: targetId })
+          .where(eq(finInvoice.id, inv.id));
+      }
+    }
+
+    const sourceItemSuppliers = await tx
+      .select()
+      .from(itemSupplier)
+      .where(eq(itemSupplier.supplierId, sourceId));
+    let itemSupplierConflictsResolved = 0;
+    for (const row of sourceItemSuppliers) {
+      const [clash] = await tx
+        .select()
+        .from(itemSupplier)
+        .where(
+          and(eq(itemSupplier.itemId, row.itemId), eq(itemSupplier.supplierId, targetId)),
+        )
+        .limit(1);
+      if (clash) {
+        itemSupplierConflictsResolved += 1;
+        const sourceIsNewer =
+          new Date(row.createdAt).getTime() > new Date(clash.createdAt).getTime();
+        if (sourceIsNewer) {
+          await tx.delete(itemSupplier).where(eq(itemSupplier.id, clash.id));
+          await tx
+            .update(itemSupplier)
+            .set({ supplierId: targetId })
+            .where(eq(itemSupplier.id, row.id));
+        } else {
+          await tx.delete(itemSupplier).where(eq(itemSupplier.id, row.id));
+        }
+      } else {
+        await tx
+          .update(itemSupplier)
+          .set({ supplierId: targetId })
+          .where(eq(itemSupplier.id, row.id));
+      }
+    }
+
+    const mergedNote = `[Đã gộp vào ${target.code} — ${target.name} lúc ${formatDateTime(new Date())}]`;
+    await tx
+      .update(supplier)
+      .set({
+        isActive: false,
+        internalNotes: source.internalNotes
+          ? `${source.internalNotes}\n${mergedNote}`
+          : mergedNote,
+      })
+      .where(eq(supplier.id, sourceId));
+
+    return {
+      moved: {
+        purchaseOrderCount: poRes.length,
+        finInvoiceCount: sourceInvoices.length,
+        finPaymentCount: payRes.length,
+        finTransactionCount: txnRes.length,
+        itemSupplierCount: sourceItemSuppliers.length,
+        aliasCount: aliasRes.length,
+        prLineCount: prlRes.length,
+      },
+      itemSupplierConflictsResolved,
+      finInvoiceConflictsRenamed,
+    };
+  });
 }
 
 /* ============================================================================

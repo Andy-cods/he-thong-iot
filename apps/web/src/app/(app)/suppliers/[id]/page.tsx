@@ -9,6 +9,7 @@ import {
   ExternalLink,
   Mail,
   MapPin,
+  Merge,
   Package,
   Phone,
   Trash2,
@@ -37,6 +38,7 @@ import { formatDate as fmtDateVN, formatMoney, formatNumber, formatPercent, form
 import { activeStatusCode, getStatus, statusLabel } from "@/lib/status";
 import { ROOT_LABEL } from "@/lib/breadcrumb-items";
 import { SupplierFormSheet } from "@/components/suppliers/SupplierFormSheet";
+import { MergeSupplierDialog } from "@/components/suppliers/MergeSupplierDialog";
 import {
   useDeleteSupplier,
   useSupplier,
@@ -75,6 +77,8 @@ export default function SupplierDetailPage() {
   const del = useDeleteSupplier();
 
   const [deleteOpen, setDeleteOpen] = React.useState(false);
+  // TASK-6VIEC Việc 3 — gộp NCC trùng (chỉ admin, xem canDelete bên dưới).
+  const [mergeOpen, setMergeOpen] = React.useState(false);
   const [editing, setEditing] = React.useState(false);
   const [tab, setTab] = React.useState<TabKey>("info");
   const [itemsSearch, setItemsSearch] = React.useState("");
@@ -176,6 +180,18 @@ export default function SupplierDetailPage() {
               Chỉnh sửa
             </Button>
           )}
+          {/* TASK-6VIEC Việc 3 — chỉ admin (canDelete = RBAC delete:supplier),
+              purchaser chỉ ĐỀ XUẤT gộp ngoài hệ thống, không thao tác được. */}
+          {canDelete && supplier.isActive ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setMergeOpen(true)}
+            >
+              <Merge className="h-3.5 w-3.5" aria-hidden="true" />
+              Gộp vào NCC khác
+            </Button>
+          ) : null}
           {canDelete ? (
             <Button
               variant="outline"
@@ -304,6 +320,15 @@ export default function SupplierDetailPage() {
             toast.error((err as Error).message);
           }
         }}
+      />
+
+      {/* TASK-6VIEC Việc 3 — gộp NCC trùng. Gộp xong, NCC hiện tại (nguồn)
+          ngừng hoạt động → điều hướng sang NCC giữ lại. */}
+      <MergeSupplierDialog
+        open={mergeOpen}
+        onOpenChange={setMergeOpen}
+        source={{ id: supplier.id, code: supplier.code, name: supplier.name }}
+        onMerged={(targetId) => router.push(`/suppliers/${targetId}`)}
       />
     </div>
   );

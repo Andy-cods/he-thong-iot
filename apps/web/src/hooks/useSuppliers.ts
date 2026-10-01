@@ -229,6 +229,60 @@ export function useDeleteSupplier() {
   });
 }
 
+/* ============================================================================
+ * TASK-6VIEC Việc 3 — Gộp NCC trùng (chỉ admin).
+ * ============================================================================ */
+
+export interface SupplierMergeCounts {
+  purchaseOrderCount: number;
+  finInvoiceCount: number;
+  finPaymentCount: number;
+  finTransactionCount: number;
+  itemSupplierCount: number;
+  aliasCount: number;
+  prLineCount: number;
+}
+
+export interface SupplierMergePreview {
+  source: { id: string; code: string; name: string };
+  target: { id: string; code: string; name: string };
+  counts: SupplierMergeCounts;
+}
+
+/** Màn xác nhận: đếm số PO/hoá đơn/thanh toán/giao dịch/giá vật tư sẽ chuyển. */
+export function useSupplierMergePreview(sourceId: string, targetId: string | null) {
+  return useQuery({
+    queryKey: ["supplier", sourceId, "merge-preview", targetId],
+    queryFn: () =>
+      request<{ data: SupplierMergePreview }>(
+        `/api/suppliers/${sourceId}/merge-preview?targetId=${targetId}`,
+      ),
+    enabled: !!sourceId && !!targetId,
+  });
+}
+
+export interface SupplierMergeResult {
+  moved: SupplierMergeCounts;
+  itemSupplierConflictsResolved: number;
+  finInvoiceConflictsRenamed: number;
+}
+
+/** sourceId = NCC sẽ bị gộp (is_active=false); body.targetId = NCC giữ lại. */
+export function useMergeSupplier(sourceId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (targetId: string) =>
+      request<{ data: SupplierMergeResult }>(`/api/suppliers/${sourceId}/merge`, {
+        method: "POST",
+        body: JSON.stringify({ targetId }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["suppliers"] });
+      qc.invalidateQueries({ queryKey: ["supplier"] });
+    },
+  });
+}
+
 export function useUpdateItemSupplier(itemId: string, sid: string) {
   const qc = useQueryClient();
   return useMutation({
