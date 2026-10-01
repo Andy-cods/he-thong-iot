@@ -53,7 +53,7 @@ export const ALL_ROLES: { code: Role; label: string; desc: string }[] = [
   {
     code: "accountant",
     label: "Bộ phận Kế toán",
-    desc: "Nhận phiếu YCVT đã duyệt — tải PDF/Excel",
+    desc: "Nhận phiếu đề xuất vật tư đã duyệt — tải PDF/Excel",
   },
   // V4.0 — Cổ đông: READ-ONLY Tài chính + tiến độ sản xuất.
   {
