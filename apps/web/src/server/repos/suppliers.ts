@@ -279,18 +279,39 @@ export interface SupplierMergeCounts {
   prLineCount: number;
 }
 
+/**
+ * `alias_supplier` nằm trong migration 0008a_product_line.sql nhưng một số
+ * môi trường (VD staging qua tunnel lúc verify V6) CHƯA áp migration này —
+ * phát hiện khi kiểm thật (`information_schema` trên staging, đúng quy trình
+ * bắt buộc ở `verify_on_prod_not_just_tests`), KHÔNG xoá cứng được khi sai —
+ * UPDATE/SELECT thẳng vào bảng không tồn tại sẽ 500 cả API gộp NCC. Kiểm tồn
+ * tại qua `to_regclass` (rẻ, không lỗi) trước khi đụng bảng này; môi trường
+ * đã có bảng (đúng migration) không đổi hành vi.
+ */
+async function aliasSupplierTableExists(
+  executor: Pick<typeof db, "execute">,
+): Promise<boolean> {
+  const rows = (await executor.execute(
+    sql`SELECT to_regclass('app.alias_supplier') IS NOT NULL AS exists`,
+  )) as unknown as Array<{ exists: boolean }>;
+  return rows[0]?.exists === true;
+}
+
 /** Đếm số tham chiếu sẽ CHUYỂN sang NCC đích nếu gộp sourceId — màn xác nhận. */
 export async function getSupplierMergeCounts(
   sourceId: string,
 ): Promise<SupplierMergeCounts> {
   const count = sql<number>`count(*)::int`;
+  const hasAliasTable = await aliasSupplierTableExists(db);
   const [po, inv, pay, txn, isup, alias, prl] = await Promise.all([
     db.select({ c: count }).from(purchaseOrder).where(eq(purchaseOrder.supplierId, sourceId)),
     db.select({ c: count }).from(finInvoice).where(eq(finInvoice.supplierId, sourceId)),
     db.select({ c: count }).from(finPayment).where(eq(finPayment.supplierId, sourceId)),
     db.select({ c: count }).from(finTransaction).where(eq(finTransaction.supplierId, sourceId)),
     db.select({ c: count }).from(itemSupplier).where(eq(itemSupplier.supplierId, sourceId)),
-    db.select({ c: count }).from(aliasSupplier).where(eq(aliasSupplier.supplierId, sourceId)),
+    hasAliasTable
+      ? db.select({ c: count }).from(aliasSupplier).where(eq(aliasSupplier.supplierId, sourceId))
+      : Promise.resolve([{ c: 0 }]),
     db
       .select({ c: count })
       .from(purchaseRequestLine)
@@ -376,11 +397,15 @@ export async function mergeSuppliers(
       .where(eq(purchaseRequestLine.preferredSupplierId, sourceId))
       .returning({ id: purchaseRequestLine.id });
 
-    const aliasRes = await tx
-      .update(aliasSupplier)
-      .set({ supplierId: targetId })
-      .where(eq(aliasSupplier.supplierId, sourceId))
-      .returning({ id: aliasSupplier.id });
+    // Môi trường chưa áp migration 0008a_product_line.sql không có bảng này
+    // — bỏ qua an toàn thay vì 500 cả API gộp (xem aliasSupplierTableExists).
+    const aliasRes = (await aliasSupplierTableExists(tx))
+      ? await tx
+          .update(aliasSupplier)
+          .set({ supplierId: targetId })
+          .where(eq(aliasSupplier.supplierId, sourceId))
+          .returning({ id: aliasSupplier.id })
+      : [];
 
     const sourceInvoices = await tx
       .select({
