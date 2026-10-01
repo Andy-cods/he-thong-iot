@@ -127,3 +127,26 @@ describe("actionLabel — mã lạ dùng prettify thay vì trả thô", () => {
     expect(actionLabel("SOME_NEW_ACTION")).toBe("Some new action");
   });
 });
+
+// TASK-6VIEC Việc 6 — "Đạt một phần" cho phiếu nhận hàng có cả dòng đạt lẫn
+// không đạt (thay vì nhãn "Không đạt" cho cả phiếu). Domain "receiptQc" giữ
+// CẢ 2 vocab: OK/NG/PENDING (quyết định 1 dòng) và PASS/FAIL/PENDING/PARTIAL
+// (qc_flag tổng của cả phiếu — xem computeReceiptQcFlag, server/repos/inboundQc.ts).
+describe("receiptQc — nhãn trạng thái QC tổng của phiếu nhận hàng", () => {
+  it("PARTIAL (mix PASS+FAIL) → 'Đạt một phần', tông warning", () => {
+    expect(getStatus("receiptQc", "PARTIAL")).toEqual({
+      label: "Đạt một phần",
+      tone: "warning",
+    });
+  });
+
+  it("PASS/FAIL (qc_flag tổng) ra đúng nhãn — trước đây lọt mã thô vì thiếu entry", () => {
+    expect(statusLabel("receiptQc", "PASS")).toBe("Đạt");
+    expect(statusLabel("receiptQc", "FAIL")).toBe("Không đạt");
+  });
+
+  it("OK/NG (quyết định 1 dòng) vẫn giữ nguyên nhãn cũ", () => {
+    expect(statusLabel("receiptQc", "OK")).toBe("Đạt");
+    expect(statusLabel("receiptQc", "NG")).toBe("Không đạt");
+  });
+});

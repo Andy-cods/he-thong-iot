@@ -37,7 +37,16 @@ export const purchaseOrderTypeEnum = pgEnum("purchase_order_type", [
   "SUBCONTRACT",
 ]);
 
-export const qcFlagEnum = pgEnum("qc_flag", ["PENDING", "PASS", "FAIL"]);
+// TASK-6VIEC Việc 6 — "PARTIAL" (Đạt một phần): phiếu nhận hàng có CẢ dòng
+// PASS lẫn dòng FAIL, không còn gộp chung "FAIL" cho cả phiếu. Cần migration
+// packages/db/migrations/0076_qc_flag_partial.sql (ALTER TYPE ADD VALUE —
+// CHƯA áp ở bất kỳ môi trường nào, xem ghi chú trong file migration).
+export const qcFlagEnum = pgEnum("qc_flag", [
+  "PENDING",
+  "PASS",
+  "FAIL",
+  "PARTIAL",
+]);
 
 /**
  * V1.2 Purchase Request status enum.

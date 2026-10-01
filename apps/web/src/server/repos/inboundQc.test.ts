@@ -12,8 +12,18 @@ vi.mock("@/lib/logger", () => ({
 import { computeReceiptQcFlag, snapshotQcTarget } from "./inboundQc";
 
 describe("computeReceiptQcFlag", () => {
-  it("có FAIL → FAIL (kể cả còn PENDING)", () => {
-    expect(computeReceiptQcFlag(["PASS", "FAIL", "PENDING"])).toBe("FAIL");
+  // TASK-6VIEC Việc 6 — có CẢ dòng PASS lẫn FAIL → PARTIAL ("Đạt một phần"),
+  // KHÔNG còn gộp chung "FAIL" cho cả phiếu như trước (hành vi cũ đã đổi).
+  it("có cả PASS lẫn FAIL → PARTIAL (Đạt một phần), kể cả còn PENDING", () => {
+    expect(computeReceiptQcFlag(["PASS", "FAIL", "PENDING"])).toBe("PARTIAL");
+    expect(computeReceiptQcFlag(["PASS", "FAIL"])).toBe("PARTIAL");
+    // Dòng cũ NULL (D3, coi là đạt) cũng tính là "có PASS" khi xét mix.
+    expect(computeReceiptQcFlag([null, "FAIL"])).toBe("PARTIAL");
+  });
+
+  it("có FAIL nhưng KHÔNG có dòng nào PASS → FAIL (giữ nguyên hành vi cũ)", () => {
+    expect(computeReceiptQcFlag(["FAIL", "FAIL"])).toBe("FAIL");
+    expect(computeReceiptQcFlag(["FAIL", "PENDING"])).toBe("FAIL");
   });
 
   it("còn PENDING, không FAIL → PENDING", () => {

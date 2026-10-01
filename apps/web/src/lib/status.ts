@@ -190,11 +190,24 @@ export const STATUS_DEFS = {
     CONSUMED: d("Đã dùng hết", "neutral"),
     EXPIRED: d("Hết hạn", "danger"),
   },
-  /** Kết quả QC nhận hàng (receiving qc). */
+  /**
+   * Kết quả QC nhận hàng (receiving qc).
+   *
+   * 2 vocab cùng domain (giữ cả 2 để không phá chỗ đang dùng):
+   *  - OK/NG/PENDING — quyết định 1 DÒNG phiếu nhập (hardcode ở QcPendingView).
+   *  - PASS/FAIL/PENDING/PARTIAL — `inbound_receipt.qc_flag` TỔNG của cả
+   *    phiếu (nhiều dòng), tính bởi `computeReceiptQcFlag` (server/repos/
+   *    inboundQc.ts). TASK-6VIEC Việc 6 — phiếu có CẢ dòng đạt lẫn không đạt
+   *    → "Đạt một phần" (PARTIAL), không còn gộp chung "Không đạt" cho cả
+   *    phiếu (PASS: trước đây thiếu entry này, hiện raw code "PASS"/"FAIL").
+   */
   receiptQc: {
     PENDING: d("Chờ kiểm", "info"),
     OK: d("Đạt", "success"),
     NG: d("Không đạt", "danger"),
+    PASS: d("Đạt", "success"),
+    FAIL: d("Không đạt", "danger"),
+    PARTIAL: d("Đạt một phần", "warning"),
   },
   /** Dòng vật tư sheet BOM (material_row_status). */
   materialRow: {

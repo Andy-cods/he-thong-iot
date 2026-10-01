@@ -1,0 +1,24 @@
+-- 0076_qc_flag_partial.sql
+-- TASK-6VIEC Việc 6 — "Đạt một phần" cho phiếu nhận hàng có cả dòng đạt lẫn
+-- không đạt. Trước đây `computeReceiptQcFlag()` (server/repos/inboundQc.ts)
+-- gộp chung thành 'FAIL' bất kể phiếu còn bao nhiêu dòng đã Đạt — hiển thị
+-- "Không đạt" cho CẢ PHIẾU dù chỉ 1-2 dòng bị từ chối, gây hiểu lầm toàn bộ
+-- hàng bị trả.
+--
+-- Thêm giá trị 'PARTIAL' vào enum `app.qc_flag` (cột `inbound_receipt.qc_flag`
+-- — packages/db/src/schema/procurement.ts `qcFlagEnum`). Không đổi nghĩa 3
+-- giá trị cũ (PENDING/PASS/FAIL), không có dữ liệu nào bị ghi giá trị mới
+-- cho tới khi code ứng dụng (đã deploy) gọi computeReceiptQcFlag() lần kế
+-- tiếp mỗi phiếu đổi dòng QC.
+--
+-- Idempotent: `ADD VALUE IF NOT EXISTS` (Postgres 12+) — an toàn chạy lại
+-- nhiều lần. KHÔNG bọc BEGIN/COMMIT: ALTER TYPE ... ADD VALUE không được
+-- dùng giá trị mới trong CÙNG transaction đã thêm nó (lỗi "unsafe use of
+-- new value"), nên để statement tự autocommit riêng — cùng quy ước đã dùng ở
+-- 0069_wo_material_isr_pr_links.sql / 0052_audit_action_catchup.sql.
+--
+-- KHÔNG áp migration này ở bất kỳ môi trường nào (local/staging/prod) trong
+-- phạm vi commit này — chỉ chuẩn bị file, chờ merge + apply riêng theo quy
+-- trình deploy của dự án.
+
+ALTER TYPE app.qc_flag ADD VALUE IF NOT EXISTS 'PARTIAL';

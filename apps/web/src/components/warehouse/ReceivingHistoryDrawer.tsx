@@ -30,6 +30,9 @@ export interface ReceivingHistoryDrawerProps {
 
 // V4.1 UI-07/08: nhãn + màu QC từ lib/status.ts (domain "receiptQc") — bỏ QC_BADGE
 // cục bộ ("OK"/"NG"/"Chờ KCS" → "Đạt"/"Không đạt"/"Chờ kiểm"). Mã lạ coi như chờ kiểm.
+// Dùng cho mục "Raw scan events" (ev.qcStatus — vocab OK/NG/PENDING của
+// receiving_event, KHÁC vocab PASS/FAIL/PENDING/PARTIAL của inbound_receipt.
+// qc_flag tổng cả phiếu — xem receiptQc domain trong lib/status.ts).
 function qcCode(flag: string | null | undefined): "OK" | "NG" | "PENDING" {
   return flag === "OK" || flag === "NG" ? flag : "PENDING";
 }
@@ -102,7 +105,12 @@ export function ReceivingHistoryDrawer({ po, onClose }: ReceivingHistoryDrawerPr
                       <li key={r.id} className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
                         <div className="flex items-center justify-between">
                           <span className="font-mono text-sm font-bold text-indigo-700 dark:text-indigo-400">{r.receiptNo}</span>
-                          <StatusPill domain="receiptQc" code={qcCode(r.qcFlag)} />
+                          {/* TASK-6VIEC Việc 6 — r.qcFlag là qc_flag TỔNG của
+                              cả phiếu (PASS/FAIL/PENDING/PARTIAL), không phải
+                              vocab OK/NG — trước đây qua qcCode() luôn rơi về
+                              "PENDING" (bug), giờ đọc thẳng (domain receiptQc
+                              đã khai báo đủ PASS/FAIL/PARTIAL). */}
+                          <StatusPill domain="receiptQc" code={r.qcFlag} />
                         </div>
                         <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                           {formatDateTime(r.receivedAt)}

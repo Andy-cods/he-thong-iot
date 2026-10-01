@@ -27,7 +27,11 @@ import { releaseLotReservationsTx } from "./reservations";
 import type { Tx } from "./stockGuard";
 
 export type ReceiptLineQcStatus = "PENDING" | "PASS" | "FAIL";
-export type ReceiptQcFlag = "PENDING" | "PASS" | "FAIL";
+// TASK-6VIEC Việc 6 — thêm "PARTIAL" (Đạt một phần): phiếu có CẢ dòng PASS
+// lẫn dòng FAIL không còn gộp chung nhãn "Không đạt" cho cả phiếu nữa (gây
+// hiểu lầm toàn bộ hàng bị từ chối trong khi chỉ 1 phần). Enum DB `qc_flag`
+// cần migration 0076 (ALTER TYPE ... ADD VALUE — xem packages/db/migrations).
+export type ReceiptQcFlag = "PENDING" | "PASS" | "FAIL" | "PARTIAL";
 
 export class QcDecisionError extends Error {
   constructor(
@@ -42,13 +46,21 @@ export class QcDecisionError extends Error {
 
 /**
  * THUẦN — trạng thái QC tổng của phiếu nhập từ trạng thái các dòng:
- * có FAIL → FAIL; còn PENDING → PENDING; còn lại → PASS.
+ *  - Có CẢ dòng PASS lẫn dòng FAIL → PARTIAL ("Đạt một phần" — TASK-6VIEC
+ *    Việc 6; trước đây gộp chung thành FAIL, gây hiểu lầm cả phiếu bị từ
+ *    chối trong khi chỉ 1 phần).
+ *  - Có FAIL (không có PASS nào) → FAIL, bất kể còn PENDING hay không.
+ *  - Không có FAIL, còn PENDING → PENDING.
+ *  - Còn lại (toàn PASS/NULL) → PASS.
  * `null` (dòng cũ trước V4.1) = đạt (D3).
  */
 export function computeReceiptQcFlag(
   statuses: Array<string | null | undefined>,
 ): ReceiptQcFlag {
-  if (statuses.some((s) => s === "FAIL")) return "FAIL";
+  const hasFail = statuses.some((s) => s === "FAIL");
+  const hasPass = statuses.some((s) => s === "PASS" || s == null);
+  if (hasFail && hasPass) return "PARTIAL";
+  if (hasFail) return "FAIL";
   if (statuses.some((s) => s === "PENDING")) return "PENDING";
   return "PASS";
 }
