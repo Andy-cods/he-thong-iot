@@ -328,8 +328,10 @@ export function TodayInboxTab() {
 
   return (
     <div className="space-y-5 p-4 sm:p-6">
-      {/* V4.3 Đợt 2 mục 4 — 4 ô số lớn, ô "Chờ xếp kệ" tô xanh (quan trọng
-          nhất, nhiều thao tác nhất/ca — khớp mẫu B `.tile.hot`). */}
+      {/* V4.4 A (N1/N2) — trước 4 ô ĐỀU size="hero", chỉ khác MÀU (phản đúng
+          phản-pattern N1/N2: phân cấp phải bằng CỠ CHỮ, không phải màu). Giữ
+          ĐÚNG 1 ô hero "Chờ xếp kệ" (nhiều thao tác nhất/ca, tô xanh có chủ
+          đích theo N1 — hero được PHÉP có tone); 3 ô còn lại về size mặc định. */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatTile
           size="hero"
@@ -339,19 +341,16 @@ export function TodayInboxTab() {
           tone="progress"
         />
         <StatTile
-          size="hero"
           icon={Clock}
           label="Chờ duyệt xuất"
           value={data.pendingIssues.count}
         />
         <StatTile
-          size="hero"
           icon={Truck}
           label="PO sắp về"
           value={data.incomingPos.count}
         />
         <StatTile
-          size="hero"
           icon={ShieldCheck}
           label="Chờ QC"
           value={data.qcPending.count}

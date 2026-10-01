@@ -256,7 +256,7 @@ export function GoodsIssuePanel({
                   <td className="px-4 py-2.5 text-right font-mono text-sm text-zinc-800 dark:text-zinc-200">
                     {fmt(remaining)}
                     {l.itemUom ? (
-                      <span className="ml-1 text-xs font-normal text-zinc-500">{l.itemUom}</span>
+                      <span className="ml-1 text-xs font-normal text-zinc-500 dark:text-zinc-400">{l.itemUom}</span>
                     ) : null}
                   </td>
                   <td

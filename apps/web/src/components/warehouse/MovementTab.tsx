@@ -5,7 +5,7 @@ import type { MovementMode } from "./movement-mode";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowDownToLine, ArrowUpFromLine, ShieldCheck } from "lucide-react";
 import { can } from "@iot/shared";
-import { cn } from "@/lib/utils";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSession } from "@/hooks/useSession";
 import { useQcPendingCount } from "@/hooks/useInboundQc";
 import { ReceivingMovementView } from "./ReceivingMovementView";
@@ -47,69 +47,35 @@ export function MovementTab({ mode }: { mode: MovementMode }) {
 
   return (
     <div className="flex h-full flex-col overflow-auto bg-zinc-50/30 dark:bg-zinc-950/30">
-      {/* Segmented control Nhập ⇄ Xuất */}
+      {/* Segmented control Nhập ⇄ Xuất — dùng chung `Tabs variant="segmented"`
+          (N7/A12) thay vì 3 <button> tự vẽ, màu active zinc-900 chuẩn toàn hệ. */}
       <div className="sticky top-0 z-sticky border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900 sm:px-6">
-        <div
-          role="tablist"
-          aria-label="Chế độ Nhập/Xuất kho/Chờ QC"
-          className="inline-flex h-10 items-center rounded-xl bg-zinc-100 p-1 dark:bg-zinc-800"
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === "in"}
-            onClick={() => setMode("in")}
-            className={cn(
-              "inline-flex h-8 items-center gap-1.5 rounded-lg px-4 text-sm font-semibold transition-colors",
-              mode === "in"
-                ? "bg-white text-indigo-700 shadow-sm dark:bg-zinc-900 dark:text-indigo-300"
-                : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200",
-            )}
-          >
-            <ArrowDownToLine className="h-4 w-4" aria-hidden />
-            Nhập kho
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === "out"}
-            onClick={() => setMode("out")}
-            className={cn(
-              "inline-flex h-8 items-center gap-1.5 rounded-lg px-4 text-sm font-semibold transition-colors",
-              mode === "out"
-                ? "bg-white text-indigo-700 shadow-sm dark:bg-zinc-900 dark:text-indigo-300"
-                : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200",
-            )}
-          >
-            <ArrowUpFromLine className="h-4 w-4" aria-hidden />
-            Xuất kho
-          </button>
-          {canSeeQc ? (
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === "qc"}
-              onClick={() => setMode("qc")}
-              className={cn(
-                "inline-flex h-8 items-center gap-1.5 rounded-lg px-4 text-sm font-semibold transition-colors",
-                mode === "qc"
-                  ? "bg-white text-indigo-700 shadow-sm dark:bg-zinc-900 dark:text-indigo-300"
-                  : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200",
-              )}
-            >
-              <ShieldCheck className="h-4 w-4" aria-hidden />
-              Chờ QC
-              {pendingQc > 0 ? (
-                <span
-                  className="ml-0.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-amber-500 px-1.5 text-xs font-bold tabular-nums text-white"
-                  aria-label={`${pendingQc} dòng chờ QC`}
-                >
-                  {pendingQc > 99 ? "99+" : pendingQc}
-                </span>
-              ) : null}
-            </button>
-          ) : null}
-        </div>
+        <Tabs value={mode} onValueChange={(v) => setMode(v as MovementMode)}>
+          <TabsList variant="segmented" aria-label="Chế độ Nhập/Xuất kho/Chờ QC">
+            <TabsTrigger value="in" className="gap-1.5">
+              <ArrowDownToLine className="h-4 w-4" aria-hidden />
+              Nhập kho
+            </TabsTrigger>
+            <TabsTrigger value="out" className="gap-1.5">
+              <ArrowUpFromLine className="h-4 w-4" aria-hidden />
+              Xuất kho
+            </TabsTrigger>
+            {canSeeQc ? (
+              <TabsTrigger value="qc" className="gap-1.5">
+                <ShieldCheck className="h-4 w-4" aria-hidden />
+                Chờ QC
+                {pendingQc > 0 ? (
+                  <span
+                    className="ml-0.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-amber-500 px-1.5 text-xs font-bold tabular-nums text-white"
+                    aria-label={`${pendingQc} dòng chờ QC`}
+                  >
+                    {pendingQc > 99 ? "99+" : pendingQc}
+                  </span>
+                ) : null}
+              </TabsTrigger>
+            ) : null}
+          </TabsList>
+        </Tabs>
       </div>
 
       {/* Nội dung theo mode */}

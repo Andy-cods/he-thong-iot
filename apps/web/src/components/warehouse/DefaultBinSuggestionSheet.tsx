@@ -12,7 +12,7 @@ import {
   SheetFooter,
   SheetHeaderNav,
 } from "@/components/ui/sheet";
-import { formatQty } from "@/lib/format";
+import { formatPercent, formatQty } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
@@ -188,7 +188,7 @@ export function DefaultBinSuggestionSheet({
             </div>
 
             {loading ? (
-              <div className="flex items-center gap-2 py-8 text-sm text-zinc-500">
+              <div className="flex items-center gap-2 py-8 text-sm text-zinc-500 dark:text-zinc-400">
                 <Loader2 className="h-4 w-4 animate-spin" /> Đang tải…
               </div>
             ) : loadError ? (
@@ -217,15 +217,15 @@ export function DefaultBinSuggestionSheet({
                         <span className="truncate text-xs text-zinc-500 dark:text-zinc-400">{r.name}</span>
                       </div>
                       <div className="mt-0.5 flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400">
-                        <span className={cn(r.currentDefaultBinCode ? "" : "italic text-zinc-400")}>
+                        <span className={cn(r.currentDefaultBinCode ? "" : "italic text-zinc-400 dark:text-zinc-500")}>
                           {r.currentDefaultBinCode ?? "chưa có"}
                         </span>
                         <span aria-hidden>→</span>
                         <span className="rounded bg-blue-50 px-1.5 py-0.5 font-mono font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-400">
                           {r.suggestedBinCode}
                         </span>
-                        <span className="ml-auto shrink-0 tabular-nums text-zinc-400">
-                          {formatQty(r.suggestedQty)}/{formatQty(r.totalQty)} ({Math.round(r.share * 100)}%)
+                        <span className="ml-auto shrink-0 tabular-nums text-zinc-400 dark:text-zinc-500">
+                          {formatQty(r.suggestedQty)}/{formatQty(r.totalQty)} ({formatPercent(r.share, { maxDecimals: 0 })})
                         </span>
                       </div>
                     </div>

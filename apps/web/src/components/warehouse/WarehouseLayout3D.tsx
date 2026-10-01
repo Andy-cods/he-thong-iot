@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import { Box, Layers, MoreVertical } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatQty } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
@@ -388,20 +390,18 @@ export function WarehouseLayout3D({
               );
             })}
           </div>
-          <div className="flex items-center gap-1 rounded-xl border border-zinc-200 bg-zinc-100 p-0.5 dark:border-zinc-700 dark:bg-zinc-800">
-            <button type="button" onClick={() => setViewMode("3d")}
-              className={cn("inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-all",
-                viewMode === "3d" ? "bg-white text-indigo-700 shadow-sm dark:bg-zinc-900 dark:text-indigo-400" : "text-zinc-600 dark:text-zinc-400",
-              )}>
-              <Box className="h-3.5 w-3.5" /> 3D
-            </button>
-            <button type="button" onClick={() => setViewMode("2d")}
-              className={cn("inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-all",
-                viewMode === "2d" ? "bg-white text-indigo-700 shadow-sm dark:bg-zinc-900 dark:text-indigo-400" : "text-zinc-600 dark:text-zinc-400",
-              )}>
-              <Layers className="h-3.5 w-3.5" /> 2D
-            </button>
-          </div>
+          {/* V4.4 A12 — segmented control dùng chung, màu active zinc-900 chuẩn
+              (trước tự vẽ trắng-trên-xám kiểu iOS, 1 trong 3 kiểu lệch chuẩn). */}
+          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
+            <TabsList variant="segmented" aria-label="Chế độ xem sơ đồ kho">
+              <TabsTrigger value="3d" className="gap-1.5">
+                <Box className="h-3.5 w-3.5" /> 3D
+              </TabsTrigger>
+              <TabsTrigger value="2d" className="gap-1.5">
+                <Layers className="h-3.5 w-3.5" /> 2D
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
       )}
 
@@ -1113,10 +1113,10 @@ function BinPro3D({
         pointerEvents="none"
         style={{ textShadow: hasStock ? "0 1px 2px rgba(0,0,0,0.3)" : "none" }}
       >
-        {Math.round(bin.totalQty).toLocaleString("vi-VN")}
+        {formatQty(Math.round(bin.totalQty))}
         {" "}
         <tspan fontSize="13" fontWeight="500" fill={theme.textSecondary}>
-          / {bin.capacity ? Math.round(Number(bin.capacity)).toLocaleString("vi-VN") : "—"}
+          / {bin.capacity ? formatQty(Math.round(Number(bin.capacity))) : "—"}
         </tspan>
       </text>
 
@@ -1293,45 +1293,53 @@ function Rack2DView({
 
   return (
     // V4.1 UI-24 (#13): khung cuộn + m-auto (không cắt mép trái), cột nhãn tầng dính trái.
-    <div className="flex h-full overflow-auto p-4 md:p-6">
-      <div className="m-auto flex flex-col gap-4">
-        {Array.from({ length: levels }).map((_, idx) => {
-          const lvl = levels - idx;
-          const tier = tierLabels[idx];
-          const items = rack.items
-            .filter((b) => b.levelNo === lvl)
-            .sort((a, b) => (a.position ?? "").localeCompare(b.position ?? ""));
+    // V4.4 B (P0) — 390px trước đây chỉ lọt ~1.5/6 cột, không gợi ý cuộn. Ô kệ
+    // co nhỏ hơn ở mobile (`Bin2DPro` w-28/h-24 → md:w-40/h-[120px] giữ nguyên
+    // desktop) + cuộn ngang có snap từng ô + dòng gợi ý cuộn chỉ hiện < md.
+    <div className="flex h-full flex-col gap-2 overflow-hidden p-3 md:p-6">
+      <p className="shrink-0 text-center text-xs text-zinc-500 md:hidden dark:text-zinc-400">
+        ← Vuốt ngang để xem thêm ô kệ · chạm giữ 1 ô để thao tác nhanh →
+      </p>
+      <div className="flex-1 overflow-auto">
+        <div className="m-auto flex w-fit flex-col gap-3 md:gap-4">
+          {Array.from({ length: levels }).map((_, idx) => {
+            const lvl = levels - idx;
+            const tier = tierLabels[idx];
+            const items = rack.items
+              .filter((b) => b.levelNo === lvl)
+              .sort((a, b) => (a.position ?? "").localeCompare(b.position ?? ""));
 
-          return (
-            <div key={lvl} className="flex items-stretch gap-3">
-              <div className="sticky left-0 z-10 flex w-[84px] shrink-0 flex-col items-center justify-center rounded-lg border border-zinc-200 bg-white px-2 dark:border-zinc-700 dark:bg-zinc-900">
-                <span className="whitespace-nowrap text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{tier}</span>
-                <span className="mt-0.5 whitespace-nowrap text-xs text-zinc-500 dark:text-zinc-400">Cao 2.0m</span>
+            return (
+              <div key={lvl} className="flex items-stretch gap-2 md:gap-3">
+                <div className="sticky left-0 z-10 flex w-[60px] shrink-0 flex-col items-center justify-center rounded-lg border border-zinc-200 bg-white px-1 dark:border-zinc-700 dark:bg-zinc-900 md:w-[84px] md:px-2">
+                  <span className="whitespace-nowrap text-[10px] font-bold uppercase tracking-wider text-zinc-500 md:text-xs dark:text-zinc-400">{tier}</span>
+                  <span className="mt-0.5 hidden whitespace-nowrap text-xs text-zinc-500 md:block dark:text-zinc-400">Cao 2.0m</span>
+                </div>
+                <div className="flex snap-x snap-proximity gap-2 md:gap-3">
+                  {items.map((bin) => (
+                    <Bin2DPro
+                      key={bin.id}
+                      bin={bin}
+                      isSelected={bin.id === selectedBinId}
+                      isHovered={bin.id === hoveredBinId}
+                      onClick={() => onBinClick(bin)}
+                      onMouseEnter={() => onBinHover(bin.id)}
+                      onMouseLeave={() => onBinHover(null)}
+                      onContextMenu={
+                        onBinContextMenu
+                          ? (e) => {
+                              e.preventDefault();
+                              onBinContextMenu(bin, { x: e.clientX, y: e.clientY });
+                            }
+                          : undefined
+                      }
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="flex gap-3">
-                {items.map((bin) => (
-                  <Bin2DPro
-                    key={bin.id}
-                    bin={bin}
-                    isSelected={bin.id === selectedBinId}
-                    isHovered={bin.id === hoveredBinId}
-                    onClick={() => onBinClick(bin)}
-                    onMouseEnter={() => onBinHover(bin.id)}
-                    onMouseLeave={() => onBinHover(null)}
-                    onContextMenu={
-                      onBinContextMenu
-                        ? (e) => {
-                            e.preventDefault();
-                            onBinContextMenu(bin, { x: e.clientX, y: e.clientY });
-                          }
-                        : undefined
-                    }
-                  />
-                ))}
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -1385,8 +1393,6 @@ function Bin2DPro({
       onTouchEnd={clearLongPress}
       onTouchMove={clearLongPress}
       style={{
-        width: 160,
-        height: 120,
         background: `linear-gradient(180deg, ${theme.frontStops[0]}, ${theme.frontStops[1]} 35%, ${theme.frontStops[2]} 70%, ${theme.frontStops[3]})`,
         borderColor: theme.stroke,
         boxShadow: isSelected
@@ -1398,7 +1404,11 @@ function Bin2DPro({
         transition: "transform 0.2s, box-shadow 0.2s",
       }}
       className={cn(
-        "group relative flex flex-col justify-between overflow-hidden rounded-lg border p-3 text-left",
+        // V4.4 B (P0) — kích thước cố định 160×120 vỡ layout dưới 390px (chỉ
+        // lọt ~1.5 cột). Co nhỏ ở mobile (vẫn ≥44px chạm được), giữ NGUYÊN
+        // 160×120 từ md trở lên (không đổi desktop/tablet).
+        "group relative flex w-[116px] shrink-0 snap-start flex-col justify-between overflow-hidden rounded-lg border p-2 text-left md:w-40 md:p-3",
+        "h-[104px] md:h-[120px]",
         bin.isLow && hasStock && "warehouse-bin-pulse",
       )}
     >
@@ -1445,9 +1455,9 @@ function Bin2DPro({
           {bin.primarySku ? `SKU: ${bin.primarySku.slice(0, 11)}` : hasStock ? `${bin.skuCount} SKU` : "Trống"}
         </p>
         <p className="mt-1 font-mono text-[14px] font-extrabold" style={{ color: theme.textPrimary }}>
-          {Math.round(bin.totalQty).toLocaleString("vi-VN")}
+          {formatQty(Math.round(bin.totalQty))}
           <span className="font-normal text-[10px] ml-1" style={{ color: theme.textSecondary }}>
-            / {bin.capacity ? Math.round(Number(bin.capacity)).toLocaleString("vi-VN") : "—"}
+            / {bin.capacity ? formatQty(Math.round(Number(bin.capacity))) : "—"}
           </span>
         </p>
         <div className="mt-1 flex items-center gap-1.5">

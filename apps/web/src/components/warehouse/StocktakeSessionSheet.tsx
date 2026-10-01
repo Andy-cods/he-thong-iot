@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { StatTile } from "@/components/ui/data-table";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeaderNav } from "@/components/ui/sheet";
 import { useConfirm, usePrompt } from "@/components/ui/confirm-dialog";
+import { StatusPill } from "@/components/ui/status-badge";
 import { useSession } from "@/hooks/useSession";
-import { formatQty } from "@/lib/format";
+import { formatDateTime, formatMoney, formatQty } from "@/lib/format";
+import { invTxTypeLabel } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
 /**
@@ -72,22 +74,6 @@ interface DetailResponse {
   variance: VarianceSummary;
   txnWarnings: TxnWarning[];
 }
-
-const STATUS_LABEL: Record<string, string> = {
-  DRAFT: "Đang đếm",
-  PENDING_APPROVAL: "Chờ Giám đốc duyệt",
-  APPROVED: "Đã duyệt",
-  REJECTED: "Bị trả lại",
-  CANCELLED: "Đã huỷ",
-};
-
-const STATUS_TONE: Record<string, string> = {
-  DRAFT: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
-  PENDING_APPROVAL: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
-  APPROVED: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
-  REJECTED: "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400",
-  CANCELLED: "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400",
-};
 
 export function StocktakeSessionSheet({
   sessionId,
@@ -325,26 +311,19 @@ export function StocktakeSessionSheet({
           onCancel={() => onOpenChange(false)}
         />
         {loading || !detail ? (
-          <div className="flex flex-1 items-center justify-center gap-2 text-sm text-zinc-500">
+          <div className="flex flex-1 items-center justify-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
             <Loader2 className="h-4 w-4 animate-spin" /> Đang tải…
           </div>
         ) : (
           <>
             <SheetBody className="space-y-4">
               <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={cn(
-                    "rounded-full px-2.5 py-1 text-xs font-semibold",
-                    STATUS_TONE[detail.session.status],
-                  )}
-                >
-                  {STATUS_LABEL[detail.session.status] ?? detail.session.status}
-                </span>
+                <StatusPill domain="stocktake" code={detail.session.status} size="md" />
                 {detail.session.scopeNote && (
                   <span className="text-xs text-zinc-500 dark:text-zinc-400">{detail.session.scopeNote}</span>
                 )}
-                <span className="ml-auto text-xs text-zinc-400">
-                  Chụp tồn: {new Date(detail.session.snapshotAt).toLocaleString("vi-VN")}
+                <span className="ml-auto text-xs text-zinc-400 dark:text-zinc-500">
+                  Chụp tồn: {formatDateTime(detail.session.snapshotAt)}
                 </span>
               </div>
 
@@ -365,8 +344,9 @@ export function StocktakeSessionSheet({
                     <ul className="mt-1 space-y-0.5">
                       {detail.txnWarnings.slice(0, 5).map((w, i) => (
                         <li key={i}>
-                          {w.binFullCode} · {w.sku} · {w.txType} {formatQty(w.qty)} lúc{" "}
-                          {new Date(w.occurredAt).toLocaleString("vi-VN")}
+                          {/* V4.4 A14 — "ADJUST_PLUS" thô → nhãn Việt qua invTxTypeLabel(). */}
+                          {w.binFullCode} · {w.sku} · {invTxTypeLabel(w.txType)} {formatQty(w.qty)} lúc{" "}
+                          {formatDateTime(w.occurredAt)}
                         </li>
                       ))}
                     </ul>
@@ -384,7 +364,8 @@ export function StocktakeSessionSheet({
                     value={
                       detail.variance.surplusValue == null && detail.variance.shortageValue == null
                         ? "—"
-                        : `${formatQty((detail.variance.surplusValue ?? 0) - (detail.variance.shortageValue ?? 0))} đ`
+                        : // V4.4 A3 — tiền dùng formatMoney() (₫ chuẩn) thay hậu tố "đ" tự ghép.
+                          formatMoney((detail.variance.surplusValue ?? 0) - (detail.variance.shortageValue ?? 0), { sign: true })
                     }
                   />
                 </div>
@@ -424,14 +405,14 @@ export function StocktakeSessionSheet({
                     </div>
                   ))}
                   {saving && (
-                    <p className="text-xs text-zinc-400">
+                    <p className="text-xs text-zinc-400 dark:text-zinc-500">
                       <Loader2 className="mr-1 inline h-3 w-3 animate-spin" /> Đang lưu nháp…
                     </p>
                   )}
                 </div>
               ) : (
-                <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
-                  <table className="w-full text-xs">
+                <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+                  <table className="w-full min-w-[480px] text-xs">
                     <thead className="bg-zinc-50 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
                       <tr>
                         <th className="px-2 py-1.5 text-left">Ô</th>
@@ -464,7 +445,7 @@ export function StocktakeSessionSheet({
                                   ? "text-emerald-600 dark:text-emerald-400"
                                   : diff < 0
                                     ? "text-red-600 dark:text-red-400"
-                                    : "text-zinc-400",
+                                    : "text-zinc-400 dark:text-zinc-500",
                               )}
                             >
                               {diff > 0 ? "+" : ""}

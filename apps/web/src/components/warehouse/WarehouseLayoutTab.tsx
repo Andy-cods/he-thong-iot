@@ -7,7 +7,6 @@ import {
   Box as BoxIcon,
   Boxes,
   CheckCircle2,
-  ChevronRight,
   Filter,
   Layers,
   Loader2,
@@ -20,7 +19,18 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { QueryError } from "@/components/ui/query-error";
+import {
+  Sheet,
+  SheetBody,
+  SheetClose,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { StatusPill } from "@/components/ui/status-badge";
+import { formatDate, formatQty, formatUom } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { WarehouseLayout3D, type BinNode } from "./WarehouseLayout3D";
 import { BinActionsBar, BinQuickActionsPopover, useBinMutationRefresh } from "./BinActions";
@@ -556,7 +566,7 @@ export function WarehouseLayoutTab() {
                         >
                           <span className="font-mono">{loc.binFullCode}</span>
                           <span className="text-indigo-400">·</span>
-                          <span>{loc.qty.toLocaleString("vi-VN")}</span>
+                          <span>{formatQty(loc.qty)}</span>
                         </button>
                       ))}
                     </div>
@@ -622,7 +632,7 @@ export function WarehouseLayoutTab() {
               <Divider />
               <FooterStat
                 label="Tổng số lượng"
-                value={kpi(rackStats.totalQty.toLocaleString("vi-VN"))}
+                value={kpi(formatQty(rackStats.totalQty))}
                 icon={Package}
               />
               <Divider />
@@ -708,22 +718,29 @@ export function WarehouseLayoutTab() {
         </Popover>
       )}
 
-      {/* Bin detail drawer */}
-      {selectedBin && (
-        <div className="fixed inset-y-0 right-0 z-30 w-[calc(100vw-2rem)] sm:w-[360px] md:w-[400px] max-w-[400px] shadow-2xl ring-1 ring-zinc-200 bg-white overflow-y-auto dark:ring-zinc-700 dark:bg-zinc-900">
-          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-200 bg-white px-5 py-3.5 dark:border-zinc-700 dark:bg-zinc-900">
-            <div>
-              <p className="text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Vị trí</p>
-              <p className="font-mono text-lg font-bold text-zinc-900 dark:text-zinc-50">{selectedBin.fullCode}</p>
-            </div>
-            <button
-              onClick={() => setSelectedBinId(null)}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 dark:text-zinc-500 dark:hover:bg-zinc-800"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="p-5 space-y-4">
+      {/* Bin detail drawer — V4.4 B.A (P1): trước tự vẽ <div fixed> tay (không
+          backdrop mờ, không animation, không focus-trap) → đổi sang `Sheet`
+          dùng chung, giữ NGUYÊN bố cục/nội dung. */}
+      <Sheet
+        open={!!selectedBin}
+        onOpenChange={(o) => {
+          if (!o) setSelectedBinId(null);
+        }}
+      >
+        <SheetContent side="right" size="md" hideCloseButton>
+          {selectedBin && (
+            <>
+              <SheetHeader className="h-auto shrink-0 items-start py-3.5">
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Vị trí</p>
+                  <SheetTitle className="font-mono text-lg">{selectedBin.fullCode}</SheetTitle>
+                </div>
+                <SheetClose className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-100 dark:text-zinc-500 dark:hover:bg-zinc-800">
+                  <X className="h-4 w-4" />
+                  <span className="sr-only">Đóng</span>
+                </SheetClose>
+              </SheetHeader>
+              <SheetBody className="space-y-4">
             {/* Phase E — Bin actions lên đầu drawer, trước thống kê, giảm số
                 thao tác để tới hành động chính (xem plan wave-5 §7.1). */}
             <BinActionsBar
@@ -755,12 +772,12 @@ export function WarehouseLayoutTab() {
             />
 
             <div className="grid grid-cols-2 gap-3">
-              <DetailStat label="Tổng SL" value={selectedBin.totalQty.toLocaleString("vi-VN")} />
+              <DetailStat label="Tổng SL" value={formatQty(selectedBin.totalQty)} />
               <DetailStat label="Số mã vật tư" value={String(selectedBin.skuCount)} />
               <DetailStat label="Số lot" value={String(selectedBin.lotCount)} />
               <DetailStat
                 label="Sức chứa"
-                value={selectedBin.capacity ? Number(selectedBin.capacity).toLocaleString("vi-VN") : "—"}
+                value={selectedBin.capacity ? formatQty(Number(selectedBin.capacity)) : "—"}
               />
             </div>
             {selectedBin.isLow && selectedBin.totalQty > 0 && (
@@ -799,8 +816,12 @@ export function WarehouseLayoutTab() {
                           <p className="mt-0.5 text-xs text-zinc-700 truncate dark:text-zinc-300">{c.itemName ?? "—"}</p>
                         </div>
                         <span className="font-mono text-base font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
-                          {c.qty.toLocaleString("vi-VN")}
-                          {c.itemUom && <span className="ml-1 text-xs font-normal text-zinc-500 dark:text-zinc-400">{c.itemUom}</span>}
+                          {formatQty(c.qty)}
+                          {c.itemUom && (
+                            <span className="ml-1 text-xs font-normal text-zinc-500 dark:text-zinc-400">
+                              {formatUom(c.itemUom)}
+                            </span>
+                          )}
                         </span>
                       </div>
                       <div className="mt-2 flex flex-wrap gap-2 text-xs text-zinc-500 dark:text-zinc-400">
@@ -809,24 +830,21 @@ export function WarehouseLayoutTab() {
                             Lô: {c.lotCode}
                           </span>
                         )}
-                        {c.expDate && <span>HSD: {c.expDate}</span>}
-                        <span className={cn(
-                          "rounded px-1.5 py-0.5 font-medium",
-                          c.status === "AVAILABLE" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400" :
-                          c.status === "HOLD" ? "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400" :
-                          "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
-                        )}>
-                          {c.status}
-                        </span>
+                        {c.expDate && <span>HSD: {formatDate(c.expDate)}</span>}
+                        {/* V4.4 A7 — trước hiện thẳng mã enum "AVAILABLE" thô, không qua
+                            bảng nhãn/tông màu dùng chung. */}
+                        <StatusPill domain="lot" code={c.status} size="sm" />
                       </div>
                     </li>
                   ))}
                 </ul>
               )}
             </div>
-          </div>
-        </div>
-      )}
+              </SheetBody>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
@@ -932,60 +950,93 @@ function DetailStat({ label, value }: { label: string; value: string }) {
 
 /* ─── Bin list view (Danh sách hàng tab) ─────────────────────────────────── */
 
+// V4.4 B.B (P1) — trước tự vẽ <table> không có nhánh mobile (card-list) →
+// đổi sang `DataTable` dùng chung, tự có thẻ điện thoại + tabular-nums.
 function BinListView({ bins, onSelect }: { bins: BinNode[]; onSelect: (id: string) => void }) {
+  const columns: DataTableColumn<BinNode>[] = [
+    {
+      id: "code",
+      header: "Mã ô",
+      kind: "code",
+      mobile: "primary",
+      cell: (b) => (
+        <span className="font-bold text-indigo-600 dark:text-indigo-400">{b.fullCode}</span>
+      ),
+    },
+    {
+      id: "level",
+      header: "Tầng",
+      cell: (b) => `Tầng ${b.levelNo ?? "—"}`,
+    },
+    {
+      id: "qty",
+      header: "Tồn",
+      kind: "number",
+      cell: (b) => formatQty(b.totalQty),
+    },
+    {
+      id: "cap",
+      header: "Sức chứa",
+      kind: "number",
+      cell: (b) => {
+        const cap = Number(b.capacity ?? "0");
+        return cap > 0 ? formatQty(cap) : "—";
+      },
+    },
+    {
+      id: "pct",
+      header: "% đầy",
+      kind: "number",
+      cell: (b) => {
+        const cap = Number(b.capacity ?? "0");
+        const pct = cap > 0 ? Math.round((b.totalQty / cap) * 100) : 0;
+        return (
+          <div className="flex items-center justify-end gap-2">
+            <div className="h-1.5 w-16 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+              <div className="h-full rounded-full bg-indigo-500" style={{ width: `${pct}%` }} />
+            </div>
+            <span className="w-9 text-right text-xs tabular-nums text-zinc-600 dark:text-zinc-400">{pct}%</span>
+          </div>
+        );
+      },
+    },
+    {
+      id: "sku",
+      header: "Mã vật tư",
+      kind: "number",
+      cell: (b) => b.skuCount,
+    },
+    {
+      id: "lot",
+      header: "Lô",
+      kind: "number",
+      cell: (b) => b.lotCount,
+    },
+    {
+      id: "status",
+      header: "Trạng thái",
+      kind: "status",
+      cell: (b) =>
+        b.totalQty === 0 ? (
+          <StatusPill tone="neutral" label="Trống" />
+        ) : b.isLow ? (
+          <StatusPill tone="warning" label="Sắp hết" />
+        ) : (
+          <StatusPill tone="success" label="Có hàng" />
+        ),
+    },
+  ];
+
   return (
     <div className="h-full overflow-auto p-4">
-      <table className="w-full">
-        <thead className="sticky top-0 bg-white z-10 dark:bg-zinc-900">
-          <tr className="border-b-2 border-zinc-100 text-xs font-bold uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-            <th className="px-3 py-2.5 text-left">Mã ô</th>
-            <th className="px-3 py-2.5 text-left">Tầng</th>
-            <th className="px-3 py-2.5 text-right">Tồn</th>
-            <th className="px-3 py-2.5 text-right">Sức chứa</th>
-            <th className="px-3 py-2.5 text-right">% đầy</th>
-            <th className="px-3 py-2.5 text-left">Mã vật tư</th>
-            <th className="px-3 py-2.5 text-left">Lô</th>
-            <th className="px-3 py-2.5 text-left">Trạng thái</th>
-            <th className="w-12" />
-          </tr>
-        </thead>
-        <tbody>
-          {bins.map((b) => {
-            const cap = Number(b.capacity ?? "0");
-            const pct = cap > 0 ? Math.round((b.totalQty / cap) * 100) : 0;
-            return (
-              <tr key={b.id} className="border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer dark:border-zinc-800 dark:hover:bg-zinc-800/60" onClick={() => onSelect(b.id)}>
-                <td className="px-3 py-2.5 font-mono text-sm font-bold text-indigo-600 dark:text-indigo-400">{b.fullCode}</td>
-                <td className="px-3 py-2.5 text-sm text-zinc-700 dark:text-zinc-300">Tầng {b.levelNo}</td>
-                <td className="px-3 py-2.5 text-right font-mono text-sm font-bold dark:text-zinc-50">{b.totalQty.toLocaleString("vi-VN")}</td>
-                <td className="px-3 py-2.5 text-right font-mono text-sm text-zinc-600 dark:text-zinc-400">{cap > 0 ? cap.toLocaleString("vi-VN") : "—"}</td>
-                <td className="px-3 py-2.5 text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    <div className="h-1.5 w-16 rounded-full bg-zinc-100 overflow-hidden dark:bg-zinc-800">
-                      <div className="h-full rounded-full bg-indigo-500" style={{ width: `${pct}%` }} />
-                    </div>
-                    <span className="text-xs tabular-nums text-zinc-600 w-9 text-right dark:text-zinc-400">{pct}%</span>
-                  </div>
-                </td>
-                <td className="px-3 py-2.5 text-sm text-zinc-700 dark:text-zinc-300">{b.skuCount}</td>
-                <td className="px-3 py-2.5 text-sm text-zinc-700 dark:text-zinc-300">{b.lotCount}</td>
-                <td className="px-3 py-2.5">
-                  {b.totalQty === 0 ? (
-                    <span className="inline-flex whitespace-nowrap items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">Trống</span>
-                  ) : b.isLow ? (
-                    <span className="inline-flex whitespace-nowrap items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-800">Sắp hết</span>
-                  ) : (
-                    <span className="inline-flex whitespace-nowrap items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800">Có hàng</span>
-                  )}
-                </td>
-                <td className="px-3 py-2.5">
-                  <ChevronRight className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <DataTable
+        columns={columns}
+        rows={bins}
+        getRowKey={(b) => b.id}
+        onRowClick={(b) => onSelect(b.id)}
+        ariaLabel="Danh sách ô kệ"
+        minWidth={640}
+      />
     </div>
   );
 }

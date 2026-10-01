@@ -91,7 +91,7 @@ export function WarehouseTabsNav({
 }) {
   return (
     <nav
-      aria-label="Warehouse sections"
+      aria-label="Các mục trong Kho"
       className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
     >
       {/* V4.1 UI-X6: tự cuộn tab đang chọn + mép mờ báo còn tab. */}

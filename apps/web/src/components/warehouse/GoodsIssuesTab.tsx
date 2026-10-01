@@ -15,9 +15,11 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DateField } from "@/components/ui/date-field";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 import { formatDateTime, formatQty } from "@/lib/format";
+import { prettifyUnknownCode } from "@/lib/status";
 
 /**
  * V4.1 Đợt 1b (Q3) — Tab Kho › "Phiếu xuất kho".
@@ -29,18 +31,23 @@ import { formatDateTime, formatQty } from "@/lib/format";
  * + tô sáng nếu nằm trong trang hiện tại.
  */
 
-type SourceType = "MATERIAL_REQUEST" | "QUICK_ISSUE" | "ISSUE_REQUEST";
+// V4.4 B (P1) — thiếu "PURCHASE_REQUEST" (Kho bấm "Đã xuất kho" trên Đề xuất
+// vật tư, từ migration 0067) khiến badge rò rỉ thẳng mã enum thô ra UI khi dữ
+// liệu thật trả về loại nguồn này. Thêm đủ 4 nguồn + nhãn/màu riêng.
+type SourceType = "MATERIAL_REQUEST" | "QUICK_ISSUE" | "ISSUE_REQUEST" | "PURCHASE_REQUEST";
 
 const SOURCE_LABEL: Record<SourceType, string> = {
   MATERIAL_REQUEST: "Phiếu yêu cầu vật tư",
   QUICK_ISSUE: "Xuất nhanh",
   ISSUE_REQUEST: "Yêu cầu xuất kho",
+  PURCHASE_REQUEST: "Đề xuất vật tư",
 };
 
 const SOURCE_BADGE: Record<SourceType, string> = {
   MATERIAL_REQUEST: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300",
   QUICK_ISSUE: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
   ISSUE_REQUEST: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
+  PURCHASE_REQUEST: "bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-400",
 };
 
 const REASON_LABEL: Record<string, string> = {
@@ -233,24 +240,26 @@ export function GoodsIssuesTab() {
             className="h-8 w-48 rounded-lg border border-zinc-200 bg-white pl-8 pr-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
           />
         </div>
+        {/* V4.4 (chủ xưởng) — DateField dd/mm/yyyy thay input date native
+            (placeholder theo locale máy, có máy ra "mm/dd/yyyy"). */}
         <label className="flex items-center gap-1.5 text-sm text-zinc-500 dark:text-zinc-400">
           Từ
-          <input
-            type="date"
+          <DateField
             value={from}
             max={to || undefined}
-            onChange={(e) => setFrom(e.target.value)}
-            className="h-8 rounded-lg border border-zinc-200 bg-white px-2 text-sm tabular-nums dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            onChange={setFrom}
+            size="sm"
+            className="w-32"
           />
         </label>
         <label className="flex items-center gap-1.5 text-sm text-zinc-500 dark:text-zinc-400">
           Đến
-          <input
-            type="date"
+          <DateField
             value={to}
             min={from || undefined}
-            onChange={(e) => setTo(e.target.value)}
-            className="h-8 rounded-lg border border-zinc-200 bg-white px-2 text-sm tabular-nums dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            onChange={setTo}
+            size="sm"
+            className="w-32"
           />
         </label>
         {hasFilter ? (
@@ -291,39 +300,56 @@ export function GoodsIssuesTab() {
           className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
         />
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-          <table className="w-full min-w-[820px] text-sm">
-            <thead>
-              <tr className="border-b border-zinc-200 bg-zinc-50 text-left text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
-                <th className="w-8 px-2 py-2" />
-                <th className="px-3 py-2">Số phiếu</th>
-                <th className="px-3 py-2">Ngày xuất</th>
-                <th className="px-3 py-2">Nguồn</th>
-                <th className="px-3 py-2">Chứng từ gốc</th>
-                <th className="px-3 py-2">Người xuất</th>
-                <th className="px-3 py-2 text-right">Số dòng</th>
-                <th className="px-3 py-2 text-right">Tổng SL</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <GoodsIssueRowView
-                  key={r.id}
-                  row={r}
-                  highlighted={r.id === focusId}
-                  expanded={expanded === r.id}
-                  onToggle={() => setExpanded((cur) => (cur === r.id ? null : r.id))}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          {/* V4.4 B (P1) — bảng 7 cột (min-w 820px) không có card-list mobile,
+              bắt cuộn ngang trên 390px. Giữ NGUYÊN bảng desktop (hành vi mở
+              rộng dòng xem chi tiết), thêm thẻ điện thoại < md bên dưới. */}
+          <div className="hidden overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 md:block">
+            <table className="w-full min-w-[820px] text-sm">
+              <thead>
+                <tr className="border-b border-zinc-200 bg-zinc-50 text-left text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-400">
+                  <th className="w-8 px-2 py-2" />
+                  <th className="px-3 py-2">Số phiếu</th>
+                  <th className="px-3 py-2">Ngày xuất</th>
+                  <th className="px-3 py-2">Nguồn</th>
+                  <th className="px-3 py-2">Chứng từ gốc</th>
+                  <th className="px-3 py-2">Người xuất</th>
+                  <th className="px-3 py-2 text-right">Số dòng</th>
+                  <th className="px-3 py-2 text-right">Tổng SL</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <GoodsIssueRowView
+                    key={r.id}
+                    row={r}
+                    highlighted={r.id === focusId}
+                    expanded={expanded === r.id}
+                    onToggle={() => setExpanded((cur) => (cur === r.id ? null : r.id))}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <ul className="space-y-2 md:hidden">
+            {rows.map((r) => (
+              <GoodsIssueCardView
+                key={r.id}
+                row={r}
+                highlighted={r.id === focusId}
+                expanded={expanded === r.id}
+                onToggle={() => setExpanded((cur) => (cur === r.id ? null : r.id))}
+              />
+            ))}
+          </ul>
+        </>
       )}
 
       {rows.length > 0 ? (
         <div className="mt-3 flex items-center justify-between text-sm text-zinc-600 dark:text-zinc-400">
           <span className="tabular-nums">
-            {total.toLocaleString("vi-VN")} phiếu · Trang {page} / {pageCount}
+            {formatQty(total)} phiếu · Trang {page} / {pageCount}
           </span>
           <div className="flex items-center gap-1">
             <Button
@@ -400,8 +426,15 @@ function GoodsIssueRowView({
         <td className="px-3 py-2 font-mono font-semibold text-zinc-900 dark:text-zinc-50">{row.issueNo}</td>
         <td className="px-3 py-2 tabular-nums text-zinc-600 dark:text-zinc-400">{fmtDateTime(row.issuedAt)}</td>
         <td className="px-3 py-2">
-          <span className={cn("rounded px-1.5 py-0.5 text-xs font-medium", SOURCE_BADGE[row.sourceType])}>
-            {SOURCE_LABEL[row.sourceType] ?? row.sourceType}
+          {/* V4.4 A14 — nguồn lạ (chưa khai báo trong tương lai) hiện nhãn
+              trung tính đã prettify thay vì rò rỉ mã enum thô. */}
+          <span
+            className={cn(
+              "rounded px-1.5 py-0.5 text-xs font-medium",
+              SOURCE_BADGE[row.sourceType] ?? "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+            )}
+          >
+            {SOURCE_LABEL[row.sourceType] ?? prettifyUnknownCode(row.sourceType)}
           </span>
           {row.reason !== "production" ? (
             <span className="ml-1 text-xs text-zinc-500">· {REASON_LABEL[row.reason] ?? row.reason}</span>
@@ -439,14 +472,123 @@ function GoodsIssueRowView({
   );
 }
 
+/** V4.4 B (P1) — thẻ điện thoại cho `GoodsIssuesTab` (< md), cùng hành vi mở
+ * rộng xem dòng chi tiết với bảng desktop (`GoodsIssueRowView`), chỉ đổi cách
+ * trình bày — không trường nào bị ẩn (đúng tinh thần N9, khác kiểu "ẩn bớt
+ * cột" sai ở A16). */
+function GoodsIssueCardView({
+  row,
+  highlighted,
+  expanded,
+  onToggle,
+}: {
+  row: GoodsIssueRow;
+  highlighted: boolean;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const detail = useQuery<{ data: GoodsIssueDetail }>({
+    queryKey: ["goods-issues", "detail", row.id],
+    queryFn: () => fetchJson(`/api/goods-issues/${row.id}`),
+    enabled: expanded,
+    staleTime: 60_000,
+  });
+
+  return (
+    <li
+      className={cn(
+        "rounded-xl bg-white p-3 text-sm shadow-xs dark:bg-zinc-900",
+        highlighted && "ring-1 ring-inset ring-indigo-300 dark:ring-indigo-700",
+      )}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full min-h-[44px] items-start justify-between gap-2 text-left"
+        aria-expanded={expanded}
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-50">{row.issueNo}</span>
+            {expanded ? (
+              <ChevronDown className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden />
+            ) : (
+              <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden />
+            )}
+          </div>
+          <p className="mt-0.5 tabular-nums text-xs text-zinc-500 dark:text-zinc-400">
+            {fmtDateTime(row.issuedAt)}
+          </p>
+        </div>
+        <span className="shrink-0 text-right font-mono font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
+          {fmtQty(row.totalQty)}
+        </span>
+      </button>
+
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        <span
+          className={cn(
+            "rounded px-1.5 py-0.5 text-xs font-medium",
+            SOURCE_BADGE[row.sourceType] ?? "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+          )}
+        >
+          {SOURCE_LABEL[row.sourceType] ?? prettifyUnknownCode(row.sourceType)}
+        </span>
+        {row.reason !== "production" ? (
+          <span className="text-xs text-zinc-500">· {REASON_LABEL[row.reason] ?? row.reason}</span>
+        ) : null}
+      </div>
+
+      <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
+        <div className="col-span-2 min-w-0">
+          <dt className="text-xs text-zinc-500 dark:text-zinc-400">Chứng từ gốc</dt>
+          <dd className="truncate text-xs text-zinc-700 dark:text-zinc-300">
+            <SourceRef row={row} />
+            {row.woNo ? <span className="ml-1 text-zinc-500">· {row.woNo}</span> : null}
+          </dd>
+        </div>
+        <div className="min-w-0">
+          <dt className="text-xs text-zinc-500 dark:text-zinc-400">Người xuất</dt>
+          <dd className="truncate text-xs text-zinc-700 dark:text-zinc-300">{row.issuedByName ?? "—"}</dd>
+        </div>
+        <div className="min-w-0">
+          <dt className="text-xs text-zinc-500 dark:text-zinc-400">Số dòng</dt>
+          <dd className="tabular-nums text-xs text-zinc-700 dark:text-zinc-300">{row.lineCount ?? "—"}</dd>
+        </div>
+      </dl>
+
+      {expanded ? (
+        <div className="mt-3 border-t border-zinc-100 pt-3 dark:border-zinc-800">
+          {detail.isLoading ? (
+            <p className="inline-flex items-center gap-1 text-xs text-zinc-500">
+              <Loader2 className="h-3 w-3 animate-spin" /> Đang tải dòng…
+            </p>
+          ) : detail.isError || !detail.data ? (
+            <p className="text-xs text-red-600 dark:text-red-400">
+              {(detail.error as Error)?.message ?? "Không tải được dòng phiếu."}
+            </p>
+          ) : (
+            <GoodsIssueLines lines={detail.data.data.lines} notes={row.notes} />
+          )}
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
 function GoodsIssueDetailView({ gi }: { gi: GoodsIssueDetail }) {
   return (
     <div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
         <span className="font-mono font-bold text-zinc-900 dark:text-zinc-50">{gi.issueNo}</span>
         <span className="text-zinc-500">{fmtDateTime(gi.issuedAt)}</span>
-        <span className={cn("rounded px-1.5 py-0.5 text-xs font-medium", SOURCE_BADGE[gi.sourceType])}>
-          {SOURCE_LABEL[gi.sourceType] ?? gi.sourceType}
+        <span
+          className={cn(
+            "rounded px-1.5 py-0.5 text-xs font-medium",
+            SOURCE_BADGE[gi.sourceType] ?? "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+          )}
+        >
+          {SOURCE_LABEL[gi.sourceType] ?? prettifyUnknownCode(gi.sourceType)}
         </span>
         <SourceRef row={gi} />
         <span className="text-zinc-500">{gi.issuedByName ?? ""}</span>
@@ -468,33 +610,36 @@ function GoodsIssueLines({
 }) {
   return (
     <div>
-      <table className="w-full text-xs">
-        <thead>
-          <tr className="text-left text-zinc-500 dark:text-zinc-400">
-            <th className="py-1 pr-2">#</th>
-            <th className="py-1 pr-2">Mã</th>
-            <th className="py-1 pr-2">Tên</th>
-            <th className="py-1 pr-2">Lô</th>
-            <th className="py-1 pr-2">Vị trí</th>
-            <th className="py-1 text-right">SL</th>
-          </tr>
-        </thead>
-        <tbody>
-          {lines.map((l) => (
-            <tr key={l.id} className="border-t border-zinc-100 dark:border-zinc-800">
-              <td className="py-1 pr-2 text-zinc-400">{l.lineNo}</td>
-              <td className="py-1 pr-2 font-mono font-semibold text-indigo-600 dark:text-indigo-400">{l.sku ?? "—"}</td>
-              <td className="max-w-[220px] truncate py-1 pr-2 text-zinc-700 dark:text-zinc-300">{l.itemName ?? "—"}</td>
-              <td className="py-1 pr-2 font-mono">{l.lotCode ?? "—"}</td>
-              <td className="py-1 pr-2 font-mono">{l.binCode ?? "—"}</td>
-              <td className="py-1 text-right font-mono">
-                {fmtQty(l.qty)}
-                {l.uom ? <span className="ml-1 text-zinc-400">{l.uom}</span> : null}
-              </td>
+      {/* V4.4 B — bọc overflow-x-auto phòng SKU/tên dài trên thẻ mobile hẹp. */}
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[380px] text-xs">
+          <thead>
+            <tr className="text-left text-zinc-500 dark:text-zinc-400">
+              <th className="py-1 pr-2">#</th>
+              <th className="py-1 pr-2">Mã</th>
+              <th className="py-1 pr-2">Tên</th>
+              <th className="py-1 pr-2">Lô</th>
+              <th className="py-1 pr-2">Vị trí</th>
+              <th className="py-1 text-right">SL</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {lines.map((l) => (
+              <tr key={l.id} className="border-t border-zinc-100 dark:border-zinc-800">
+                <td className="py-1 pr-2 text-zinc-400">{l.lineNo}</td>
+                <td className="py-1 pr-2 font-mono font-semibold text-indigo-600 dark:text-indigo-400">{l.sku ?? "—"}</td>
+                <td className="max-w-[160px] truncate py-1 pr-2 text-zinc-700 dark:text-zinc-300">{l.itemName ?? "—"}</td>
+                <td className="py-1 pr-2 font-mono">{l.lotCode ?? "—"}</td>
+                <td className="py-1 pr-2 font-mono">{l.binCode ?? "—"}</td>
+                <td className="py-1 text-right font-mono">
+                  {fmtQty(l.qty)}
+                  {l.uom ? <span className="ml-1 text-zinc-400">{l.uom}</span> : null}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       {notes ? <p className="mt-1 text-xs italic text-zinc-500">{notes}</p> : null}
     </div>
   );

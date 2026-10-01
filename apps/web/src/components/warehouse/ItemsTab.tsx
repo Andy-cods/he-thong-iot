@@ -35,6 +35,7 @@ import {
 import { ItemQuickEditSheet } from "@/components/items/ItemQuickEditSheet";
 import { DefaultBinSuggestionSheet } from "@/components/warehouse/DefaultBinSuggestionSheet";
 import { useItemsList, useBulkDeleteItems } from "@/hooks/useItems";
+import { formatQty } from "@/lib/format";
 import {
   isSelected,
   selectionCount,
@@ -259,7 +260,7 @@ export function ItemsTab({ initialItemId }: ItemsTabProps = {}) {
             Danh mục vật tư
           </h2>
           <p className="mt-0.5 text-base text-zinc-500 dark:text-zinc-400">
-            {query.isError ? "—" : total.toLocaleString("vi-VN")} vật tư · cập nhật tức thời
+            {query.isError ? "—" : formatQty(total)} vật tư · cập nhật tức thời
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -360,7 +361,7 @@ export function ItemsTab({ initialItemId }: ItemsTabProps = {}) {
           </span>{" "}
           /{" "}
           <span className="tabular-nums text-zinc-900 dark:text-zinc-50">
-            {total.toLocaleString("vi-VN")}
+            {formatQty(total)}
           </span>
         </div>
         <div className="flex items-center gap-1">

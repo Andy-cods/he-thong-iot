@@ -225,13 +225,13 @@ export function IssueMovementView() {
             <Stat label="Số mã vật tư" value={String(totalLines)} />
             <Stat
               label="Tổng SL"
-              value={totalQty.toLocaleString("vi-VN")}
+              value={formatQty(totalQty)}
               tone="emerald"
             />
             {totalShortage > 0 && (
               <Stat
                 label="Thiếu"
-                value={totalShortage.toLocaleString("vi-VN")}
+                value={formatQty(totalShortage)}
                 tone="amber"
               />
             )}
@@ -327,13 +327,13 @@ export function IssueMovementView() {
           </div>
 
           {/* Submit */}
-          <div className="mt-5 flex items-center justify-between gap-3 rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800">
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800">
             <div className="text-xs text-zinc-600 dark:text-zinc-400">
               {totalLines === 0 ? (
                 "Chưa có dòng nào để xuất."
               ) : totalShortage > 0 ? (
                 <span className="text-amber-700 dark:text-amber-400">
-                  ⚠ Thiếu {totalShortage} đơn vị, vẫn xuất phần có sẵn.
+                  ⚠ Thiếu {formatQty(totalShortage)} đơn vị, vẫn xuất phần có sẵn.
                 </span>
               ) : (
                 <span className="text-emerald-700 dark:text-emerald-400">
@@ -436,7 +436,7 @@ function SimpleLineRow({
             ) : (
               <span className="inline-flex whitespace-nowrap items-center gap-0.5 rounded bg-amber-100 px-1.5 py-0.5 font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
                 <AlertCircle className="h-3 w-3" />
-                Thiếu {shortage}
+                Thiếu {formatQty(shortage)}
               </span>
             )}
           </>
@@ -444,9 +444,9 @@ function SimpleLineRow({
         {line.item && (
           <span
             className="inline-flex whitespace-nowrap items-center rounded px-1.5 py-0.5 text-xs text-zinc-500 dark:text-zinc-400"
-            title={`Khả dụng: ${have} ${line.item.uom} (không tính hàng chờ QC / đã giữ chỗ)`}
+            title={`Khả dụng: ${formatQty(have, line.item.uom)} (không tính hàng chờ QC / đã giữ chỗ)`}
           >
-            khả dụng {have.toLocaleString("vi-VN")}
+            khả dụng {formatQty(have)}
           </span>
         )}
         {removable && (
@@ -554,7 +554,7 @@ function CreateIssueRequestPanel() {
     }
     if (totalShortage > 0) {
       toast.error(
-        `Thiếu tồn ${totalShortage} đơn vị — giảm số lượng hoặc bỏ dòng thiếu trước khi gửi yêu cầu.`,
+        `Thiếu tồn ${formatQty(totalShortage)} đơn vị — giảm số lượng hoặc bỏ dòng thiếu trước khi gửi yêu cầu.`,
       );
       return;
     }
@@ -776,13 +776,13 @@ function CreateIssueRequestPanel() {
         )}
 
         {/* Submit */}
-        <div className="mt-4 flex items-center justify-between gap-3 rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800">
           <div className="text-xs text-zinc-600 dark:text-zinc-400">
             {totalLines === 0 ? (
               "Chưa có dòng nào."
             ) : totalShortage > 0 ? (
               <span className="text-amber-700 dark:text-amber-400">
-                ⚠ Thiếu {totalShortage} đơn vị — không thể gửi yêu cầu.
+                ⚠ Thiếu {formatQty(totalShortage)} đơn vị — không thể gửi yêu cầu.
               </span>
             ) : (
               <span className="text-emerald-700 dark:text-emerald-400">
@@ -937,7 +937,7 @@ function ItemPicker({
                       : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400",
                   )}
                 >
-                  {r.totalQty.toLocaleString("vi-VN")} {r.uom}
+                  {formatQty(r.totalQty, r.uom)}
                 </span>
               </button>
             </li>
@@ -1206,7 +1206,7 @@ function PendingRequestsPanel() {
                           <span className="tabular-nums">
                             {totalLines} mã / {totalPicks} lần lấy / tổng{" "}
                             <span className="font-semibold text-emerald-700 dark:text-emerald-400">
-                              {Number(r.totalQty).toLocaleString("vi-VN")}
+                              {formatQty(r.totalQty)}
                             </span>
                           </span>
                         </p>
@@ -1266,7 +1266,7 @@ function PendingRequestsPanel() {
                                 size="sm"
                                 disabled={acting === r.id}
                                 onClick={() => void handleApprove(r.id, r.requestNo)}
-                                className="bg-emerald-600 hover:bg-emerald-700"
+                                className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
                               >
                                 <CheckCircle2 className="h-3.5 w-3.5" />
                                 Duyệt + xuất

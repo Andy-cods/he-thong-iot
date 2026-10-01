@@ -14,15 +14,15 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { formatQty } from "@/lib/format";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetFooter,
+  SheetHeaderNav,
+} from "@/components/ui/sheet";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BinSuggestCombobox } from "@/components/warehouse/BinSuggestCombobox";
 
 /**
@@ -77,49 +77,27 @@ export function BinActionsBar({
 
   return (
     <>
-      {/* Segmented control Nhập ⇄ Xuất — nhất quán với MovementTab + popover sơ đồ kho */}
-      <div
-        role="tablist"
-        aria-label="Chế độ Nhập/Xuất tại bin"
-        className="mb-2 inline-flex h-9 w-full items-center rounded-lg bg-zinc-100 p-1 dark:bg-zinc-800"
-      >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "in"}
-          onClick={() => setMode("in")}
-          className={cn(
-            "inline-flex h-7 flex-1 items-center justify-center gap-1.5 rounded-md text-xs font-semibold transition-colors",
-            mode === "in"
-              ? "bg-white text-indigo-700 shadow-sm dark:bg-zinc-900 dark:text-indigo-300"
-              : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200",
-          )}
-        >
-          <ArrowDownToLine className="h-3.5 w-3.5" aria-hidden /> Nhập
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "out"}
-          onClick={() => setMode("out")}
-          className={cn(
-            "inline-flex h-7 flex-1 items-center justify-center gap-1.5 rounded-md text-xs font-semibold transition-colors",
-            mode === "out"
-              ? "bg-white text-indigo-700 shadow-sm dark:bg-zinc-900 dark:text-indigo-300"
-              : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200",
-          )}
-        >
-          <ArrowUpFromLine className="h-3.5 w-3.5" aria-hidden /> Xuất
-        </button>
-      </div>
+      {/* Segmented control Nhập ⇄ Xuất — dùng chung Tabs variant="segmented"
+          (N7/A12), nhất quán với MovementTab + popover sơ đồ kho. */}
+      <Tabs value={mode} onValueChange={(v) => setMode(v as BinQuickMode)}>
+        <TabsList variant="segmented" aria-label="Chế độ Nhập/Xuất tại vị trí" className="mb-2 w-full">
+          <TabsTrigger value="in" className="flex-1 gap-1.5">
+            <ArrowDownToLine className="h-3.5 w-3.5" aria-hidden /> Nhập
+          </TabsTrigger>
+          <TabsTrigger value="out" className="flex-1 gap-1.5">
+            <ArrowUpFromLine className="h-3.5 w-3.5" aria-hidden /> Xuất
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {mode === "in" ? (
         <Button
           size="sm"
           onClick={() => setAddOpen(true)}
-          className="w-full bg-emerald-600 hover:bg-emerald-700"
+          className="w-full bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
         >
-          <Plus className="h-3.5 w-3.5" /> Thêm hàng vào bin
+          {/* V4.4 A7 — "bin" tiếng Anh → "ô/kệ". */}
+          <Plus className="h-3.5 w-3.5" /> Thêm hàng vào ô/kệ
         </Button>
       ) : (
         <div className="grid grid-cols-2 gap-2">
@@ -225,58 +203,35 @@ export function BinQuickActionsPopover({
         </div>
         <div className="text-right">
           <p className="font-mono text-base font-bold tabular-nums text-zinc-900 dark:text-zinc-50">
-            {bin.totalQty.toLocaleString("vi-VN")}
+            {formatQty(bin.totalQty)}
             <span className="ml-1 text-xs font-normal text-zinc-400 dark:text-zinc-500">
-              / {bin.capacity ? Number(bin.capacity).toLocaleString("vi-VN") : "—"}
+              / {bin.capacity ? formatQty(Number(bin.capacity)) : "—"}
             </span>
           </p>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">tồn / sức chứa</p>
         </div>
       </div>
 
-      {/* Segmented control Nhập ⇄ Xuất — nhất quán với MovementTab */}
-      <div
-        role="tablist"
-        aria-label="Chế độ Nhập/Xuất tại bin"
-        className="mb-3 inline-flex h-9 w-full items-center rounded-lg bg-zinc-100 p-1 dark:bg-zinc-800"
-      >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "in"}
-          onClick={() => setMode("in")}
-          className={cn(
-            "inline-flex h-7 flex-1 items-center justify-center gap-1.5 rounded-md text-xs font-semibold transition-colors",
-            mode === "in"
-              ? "bg-white text-indigo-700 shadow-sm dark:bg-zinc-900 dark:text-indigo-300"
-              : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200",
-          )}
-        >
-          <ArrowDownToLine className="h-3.5 w-3.5" aria-hidden /> Nhập
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "out"}
-          onClick={() => setMode("out")}
-          className={cn(
-            "inline-flex h-7 flex-1 items-center justify-center gap-1.5 rounded-md text-xs font-semibold transition-colors",
-            mode === "out"
-              ? "bg-white text-indigo-700 shadow-sm dark:bg-zinc-900 dark:text-indigo-300"
-              : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200",
-          )}
-        >
-          <ArrowUpFromLine className="h-3.5 w-3.5" aria-hidden /> Xuất
-        </button>
-      </div>
+      {/* Segmented control Nhập ⇄ Xuất — dùng chung Tabs variant="segmented" (N7/A12), nhất quán với MovementTab */}
+      <Tabs value={mode} onValueChange={(v) => setMode(v as BinQuickMode)}>
+        <TabsList variant="segmented" aria-label="Chế độ Nhập/Xuất tại vị trí" className="mb-3 w-full">
+          <TabsTrigger value="in" className="flex-1 gap-1.5">
+            <ArrowDownToLine className="h-3.5 w-3.5" aria-hidden /> Nhập
+          </TabsTrigger>
+          <TabsTrigger value="out" className="flex-1 gap-1.5">
+            <ArrowUpFromLine className="h-3.5 w-3.5" aria-hidden /> Xuất
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {mode === "in" ? (
         <Button
           size="sm"
-          className="w-full bg-emerald-600 hover:bg-emerald-700"
+          className="w-full bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
           onClick={() => setAddOpen(true)}
         >
-          <Plus className="h-3.5 w-3.5" /> Thêm hàng vào bin
+          {/* V4.4 A7 — "bin" tiếng Anh → "ô/kệ". */}
+          <Plus className="h-3.5 w-3.5" /> Thêm hàng vào ô/kệ
         </Button>
       ) : (
         <div className="grid grid-cols-2 gap-2">
@@ -300,7 +255,7 @@ export function BinQuickActionsPopover({
       )}
 
       {mode === "out" && !contentsLoading && contents.length === 0 && (
-        <p className="mt-2 text-center text-xs text-zinc-500 dark:text-zinc-400">Bin đang trống, không có gì để rút.</p>
+        <p className="mt-2 text-center text-xs text-zinc-500 dark:text-zinc-400">Ô kệ đang trống, không có gì để rút.</p>
       )}
       {contentsLoading && (
         <p className="mt-2 inline-flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400">
@@ -452,19 +407,21 @@ function AddStockDialog({
   };
 
   return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent size="md">
-        <DialogHeader>
-          <DialogTitle>
-            Thêm hàng vào{" "}
-            <code className="font-mono text-indigo-700 dark:text-indigo-400">{bin.fullCode}</code>
-          </DialogTitle>
-          <DialogDescription>
-            Nhập SKU + số lượng. Sẽ tạo một lot mới (hoặc dùng lot có sẵn nếu nhập mã lot khớp).
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-3">
+    <Sheet open onOpenChange={(o) => !o && onClose()}>
+      <SheetContent side="right" size="md" hideCloseButton className="flex flex-col">
+        <SheetHeaderNav
+          title={
+            <>
+              Thêm hàng vào{" "}
+              <code className="font-mono text-indigo-700 dark:text-indigo-400">{bin.fullCode}</code>
+            </>
+          }
+          onCancel={onClose}
+        />
+        <SheetBody className="space-y-3">
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            Nhập SKU + số lượng. Sẽ tạo một lô mới (hoặc dùng lô có sẵn nếu nhập mã lô khớp).
+          </p>
           {/* Item search */}
           <div>
             <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
@@ -573,22 +530,23 @@ function AddStockDialog({
               placeholder="VD: nhập từ tồn cũ, kiểm kho..."
             />
           </div>
-        </div>
+        </SheetBody>
 
-        <DialogFooter>
+        <SheetFooter>
           <Button variant="ghost" onClick={onClose}>
             Huỷ
           </Button>
           <Button
             onClick={handleSubmit}
             disabled={!selectedItem || !qty || submitting}
-            className="bg-emerald-600 hover:bg-emerald-700"
+            className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
           >
-            {submitting ? "Đang lưu…" : "Thêm vào bin"}
+            {/* V4.4 Đợt 2 mục 5 — nút xác nhận ghi rõ việc sẽ làm. */}
+            {submitting ? "Đang lưu…" : `Thêm vào ${bin.fullCode}`}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -656,22 +614,25 @@ function RemoveStockDialog({
   };
 
   return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent size="md">
-        <DialogHeader>
-          <DialogTitle>
-            Rút hàng khỏi{" "}
-            <code className="font-mono text-indigo-700 dark:text-indigo-400">{bin.fullCode}</code>
-          </DialogTitle>
-          <DialogDescription>
-            Chọn lot và số lượng cần rút. Hệ thống tạo ADJUST_MINUS transaction.
-          </DialogDescription>
-        </DialogHeader>
+    <Sheet open onOpenChange={(o) => !o && onClose()}>
+      <SheetContent side="right" size="md" hideCloseButton className="flex flex-col">
+        <SheetHeaderNav
+          title={
+            <>
+              Rút hàng khỏi{" "}
+              <code className="font-mono text-indigo-700 dark:text-indigo-400">{bin.fullCode}</code>
+            </>
+          }
+          onCancel={onClose}
+        />
+        <SheetBody className="space-y-3">
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            Chọn lô và số lượng cần rút. Hệ thống tạo giao dịch rút hàng (ADJUST_MINUS).
+          </p>
 
-        <div className="space-y-3">
           <div>
             <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-              Lô / SKU trong bin
+              Lô / SKU trong ô kệ
             </label>
             <select
               value={selectedLotId}
@@ -680,7 +641,7 @@ function RemoveStockDialog({
             >
               {contents.map((c) => (
                 <option key={c.lotSerialId} value={c.lotSerialId}>
-                  {c.itemSku} · {c.lotCode ?? "anon"} · tồn {c.qty}
+                  {c.itemSku} · {c.lotCode ?? "anon"} · tồn {formatQty(c.qty)}
                 </option>
               ))}
             </select>
@@ -693,9 +654,7 @@ function RemoveStockDialog({
             </div>
             <div className="mt-1 flex justify-between">
               <span className="text-zinc-500 dark:text-zinc-400">Tồn hiện tại:</span>
-              <span className="font-semibold tabular-nums">
-                {lot.qty.toLocaleString("vi-VN")} {lot.itemUom}
-              </span>
+              <span className="font-semibold tabular-nums">{formatQty(lot.qty, lot.itemUom)}</span>
             </div>
           </div>
 
@@ -718,7 +677,7 @@ function RemoveStockDialog({
               className="mt-1 text-xs text-indigo-600 hover:underline dark:text-indigo-400"
               onClick={() => setQty(String(lot.qty))}
             >
-              Rút hết ({lot.qty})
+              Rút hết ({formatQty(lot.qty)})
             </button>
           </div>
 
@@ -731,22 +690,23 @@ function RemoveStockDialog({
               placeholder="VD: hỏng, mất, kiểm kho lệch..."
             />
           </div>
-        </div>
+        </SheetBody>
 
-        <DialogFooter>
+        <SheetFooter>
           <Button variant="ghost" onClick={onClose}>
             Huỷ
           </Button>
           <Button
             onClick={handleSubmit}
             disabled={!qty || submitting}
-            className="bg-rose-600 hover:bg-rose-700"
+            className="bg-rose-600 hover:bg-rose-700 dark:bg-rose-700 dark:hover:bg-rose-600"
           >
-            {submitting ? "Đang rút…" : "Rút khỏi bin"}
+            {/* V4.4 Đợt 2 mục 5 — nút xác nhận ghi rõ việc sẽ làm. */}
+            {submitting ? "Đang rút…" : `Rút khỏi ${bin.fullCode}`}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -797,7 +757,7 @@ export function TransferDialog({
       return;
     }
     if (!toBinId) {
-      toast.error("Chọn bin đích.");
+      toast.error("Chọn vị trí đích.");
       return;
     }
     setSubmitting(true);
@@ -815,7 +775,7 @@ export function TransferDialog({
       });
       const json = (await res.json()) as { error?: { message?: string } };
       if (!res.ok) {
-        toast.error(json.error?.message ?? "Lỗi chuyển bin");
+        toast.error(json.error?.message ?? "Lỗi chuyển vị trí");
         return;
       }
       const toCode = allBins.find((b) => b.id === toBinId)?.fullCode ?? "?";
@@ -827,21 +787,26 @@ export function TransferDialog({
   };
 
   return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent size="md">
-        <DialogHeader>
-          <DialogTitle>
-            Chuyển hàng từ{" "}
-            <code className="font-mono text-indigo-700 dark:text-indigo-400">{bin.fullCode}</code>
-          </DialogTitle>
-          <DialogDescription>
-            Chọn lot, bin đích và số lượng. Hệ thống tạo TRANSFER transaction.
-          </DialogDescription>
-        </DialogHeader>
+    <Sheet open onOpenChange={(o) => !o && onClose()}>
+      <SheetContent side="right" size="md" hideCloseButton className="flex flex-col">
+        <SheetHeaderNav
+          title={
+            <>
+              Chuyển hàng từ{" "}
+              <code className="font-mono text-indigo-700 dark:text-indigo-400">{bin.fullCode}</code>
+            </>
+          }
+          onCancel={onClose}
+        />
+        <SheetBody className="space-y-3">
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            Chọn lô, vị trí đích và số lượng. Hệ thống tạo giao dịch chuyển kho (TRANSFER).
+          </p>
 
-        <div className="space-y-3">
           <div>
-            <label className="text-lg font-medium text-zinc-700 dark:text-zinc-300">
+            {/* V4.4 — nhãn trước đây to bất thường (text-lg) so với 2 sheet
+                Thêm/Rút cùng bộ (text-xs), đồng bộ lại cho nhất quán. */}
+            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
               Lô / SKU
             </label>
             <select
@@ -854,19 +819,19 @@ export function TransferDialog({
                 const nextLot = contents.find((c) => c.lotSerialId === nextId);
                 if (nextLot) setQty(String(nextLot.qty));
               }}
-              className="mt-1 block w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-lg dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+              className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
             >
               {contents.map((c) => (
                 <option key={c.lotSerialId} value={c.lotSerialId}>
-                  {c.itemSku} · {c.lotCode ?? "anon"} · tồn {c.qty}
+                  {c.itemSku} · {c.lotCode ?? "anon"} · tồn {formatQty(c.qty)}
                 </option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="text-lg font-medium text-zinc-700 dark:text-zinc-300">
-              Bin đích
+            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+              Vị trí đích
             </label>
             {/* V4.3 Đợt 2 — dùng BinSuggestCombobox (gợi ý vị trí putaway có sẵn)
                 thay <select> phẳng, khớp mẫu B "Gợi ý vị trí" trong sheet Xếp kệ. */}
@@ -876,15 +841,15 @@ export function TransferDialog({
               bins={targetOptions}
               value={toBinId}
               onChange={setToBinId}
-              placeholder="— Chọn bin —"
+              placeholder="— Chọn vị trí —"
               className="mt-1"
-              aria-label="Bin đích"
+              aria-label="Vị trí đích"
             />
           </div>
 
           <div>
-            <label className="text-lg font-medium text-zinc-700 dark:text-zinc-300">
-              Số lượng chuyển (tối đa {lot.qty})
+            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+              Số lượng chuyển (tối đa {formatQty(lot.qty)})
             </label>
             <Input
               type="number"
@@ -899,7 +864,7 @@ export function TransferDialog({
           </div>
 
           <div>
-            <label className="text-lg font-medium text-zinc-700 dark:text-zinc-300">Ghi chú</label>
+            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Ghi chú</label>
             <Input
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -907,9 +872,9 @@ export function TransferDialog({
               placeholder="Lý do chuyển..."
             />
           </div>
-        </div>
+        </SheetBody>
 
-        <DialogFooter>
+        <SheetFooter>
           <Button variant="ghost" onClick={onClose}>
             Huỷ
           </Button>
@@ -922,14 +887,14 @@ export function TransferDialog({
             {submitting
               ? "Đang chuyển…"
               : qty && toBinId
-                ? `Chuyển ${qty} ${lot.itemUom ?? ""} → ${
+                ? `Chuyển ${formatQty(Number(qty) || 0, lot.itemUom)} → ${
                     targetOptions.find((b) => b.id === toBinId)?.fullCode ?? "?"
                   }`
                 : "Chuyển"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
 
