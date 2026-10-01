@@ -36,6 +36,7 @@ import {
   View,
   pdf,
 } from "@react-pdf/renderer";
+import { formatDate, formatMoney, formatQty } from "@/lib/format";
 
 // V3.7.40 — Roboto bundled TTF (hỗ trợ tiếng Việt diacritics đầy đủ).
 // Path resolution multi-mode:
@@ -285,19 +286,20 @@ const styles = StyleSheet.create({
   signHint: { fontSize: 8, color: "#555" },
   signSpace: { height: 34 },
   signName: { fontWeight: 700 },
+  pageFooter: {
+    position: "absolute",
+    bottom: 10,
+    right: 28,
+    fontSize: 7,
+    color: "#888",
+  },
 });
 
 // =====================================================================
-// Helpers
+// Helpers — dùng chung lib/format.ts (giờ VN cố định, không lệ thuộc TZ host).
 // =====================================================================
-const fmtVnd = (n: number) =>
-  Number.isFinite(n) ? n.toLocaleString("vi-VN") : "0";
-const fmtDate = (d: Date) => {
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const yyyy = d.getFullYear();
-  return `${dd}/${mm}/${yyyy}`;
-};
+const fmtVnd = (n: number) => formatMoney(n, { unit: "none" });
+const fmtDate = (d: Date) => formatDate(d, "dd/MM/yyyy");
 
 // =====================================================================
 // PDF Document
@@ -441,7 +443,7 @@ export function PurchaseOrderPdfDoc(input: POPdfInput) {
                 {l.itemUom ?? "—"}
               </Text>
               <Text style={[styles.tableCell, styles.cQty]}>
-                {fmtVnd(Number(l.orderedQty))}
+                {formatQty(l.orderedQty)}
               </Text>
               <Text style={[styles.tableCell, styles.cPrice]}>
                 {fmtVnd(Number(l.unitPrice))}
@@ -453,8 +455,9 @@ export function PurchaseOrderPdfDoc(input: POPdfInput) {
           ))}
         </View>
 
-        {/* Footer: notes + totals */}
-        <View style={styles.footerRow}>
+        {/* Footer: notes + totals — wrap={false} để không bị cắt ngang trang khi
+            bảng vật tư vừa hết trang (tránh khung tổng tiền bị đứt đôi). */}
+        <View style={styles.footerRow} wrap={false}>
           <View style={styles.notesBox}>
             <Text style={{ fontWeight: 700, marginBottom: 4 }}>
               Ghi chú và yêu cầu
@@ -540,6 +543,15 @@ export function PurchaseOrderPdfDoc(input: POPdfInput) {
             </View>
           </View>
         </View>
+
+        {/* Số trang — chỉ hiện khi có từ 2 trang trở lên (bảng vật tư dài). */}
+        <Text
+          style={styles.pageFooter}
+          fixed
+          render={({ pageNumber, totalPages }) =>
+            totalPages > 1 ? `Trang ${pageNumber}/${totalPages}` : ""
+          }
+        />
       </Page>
     </Document>
   );
