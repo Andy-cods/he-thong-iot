@@ -9,6 +9,7 @@ import {
   formatQty,
   formatRelative,
   parseVnDate,
+  toExcelVnDate,
   toLocalDateInput,
 } from "./format";
 import { formatVndFull } from "./finance";
@@ -155,5 +156,28 @@ describe("autoFormatVnDateInput", () => {
   });
   it("bỏ ký tự không phải số, giới hạn 8 chữ số", () => {
     expect(autoFormatVnDateInput("27/09/2026abc99")).toBe("27/09/2026");
+  });
+});
+
+// V4.4 — phiếu in Excel: ExcelJS tính serial ngày từ Date.getTime() theo UTC
+// thô (không biết timezone) nên phải dịch +7h trước khi gán cell.value, nếu
+// không ngày hiển thị trong Excel sẽ lệch với PDF/UI (vốn đã tính đúng giờ VN).
+describe("toExcelVnDate", () => {
+  it("dịch +7h để Excel hiện đúng NGÀY VN khi giờ UTC đã sang hôm sau", () => {
+    // 23:30 UTC 07/09 = 06:30 VN 08/09 — PDF/UI phải hiện 08/09, Excel cũng vậy.
+    const d = toExcelVnDate("2026-09-07T23:30:00.000Z");
+    expect(d?.toISOString()).toBe("2026-09-08T06:30:00.000Z");
+  });
+  it("chuỗi ngày thuần yyyy-MM-dd (không giờ) không bị lệch sang ngày khác", () => {
+    const d = toExcelVnDate("2026-09-15");
+    expect(d?.getUTCFullYear()).toBe(2026);
+    expect(d?.getUTCMonth()).toBe(8); // tháng 9 (0-based)
+    expect(d?.getUTCDate()).toBe(15);
+  });
+  it("null/undefined/rỗng/ngày không hợp lệ → null", () => {
+    expect(toExcelVnDate(null)).toBeNull();
+    expect(toExcelVnDate(undefined)).toBeNull();
+    expect(toExcelVnDate("")).toBeNull();
+    expect(toExcelVnDate("khong-phai-ngay")).toBeNull();
   });
 });

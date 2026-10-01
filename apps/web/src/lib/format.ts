@@ -275,6 +275,23 @@ export function parseVnDate(display: string): string | null {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+/**
+ * V4.4 — Dùng khi gán Date THẬT vào ô Excel (ExcelJS/`xlsx`): thư viện tính
+ * serial ngày trực tiếp từ `Date.getTime()` theo UTC, không biết timezone —
+ * nếu gán thẳng timestamp UTC, Excel sẽ hiển thị theo NGÀY UTC thay vì ngày
+ * Việt Nam (VD 23:30 UTC 07/09 = 06:30 VN 08/09, nhưng Excel lại hiện 07/09).
+ * Dịch +7h trước khi gán (cùng cách `vnParts()` ở trên tính ngày cho PDF/UI)
+ * để Excel hiển thị đúng ngày/giờ VN. CHỈ dùng ngay trước `cell.value = …`,
+ * KHÔNG dùng để hiển thị trực tiếp ở nơi khác.
+ */
+export function toExcelVnDate(date: Date | string | number | null | undefined): Date | null {
+  if (date === null || date === undefined || date === "") return null;
+  const d = date instanceof Date ? date : new Date(date);
+  const t = d.getTime();
+  if (Number.isNaN(t)) return null;
+  return new Date(t + VN_OFFSET_MS);
+}
+
 /** Tự chèn "/" khi gõ số liên tục: "01012026" → "01/01/2026". */
 export function autoFormatVnDateInput(raw: string): string {
   const digits = raw.replace(/\D/g, "").slice(0, 8);

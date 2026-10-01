@@ -20,6 +20,7 @@ import {
   View,
   pdf,
 } from "@react-pdf/renderer";
+import { formatDate, formatDateTime, formatQty } from "@/lib/format";
 
 const FONT_CANDIDATES = [
   path.join(process.cwd(), "public/fonts"),
@@ -114,28 +115,11 @@ const CATEGORY_VI: Record<string, string> = {
   OTHER: "Khác",
 };
 
-const fmtDate = (d: Date | string | null | undefined): string => {
-  if (!d) return "—";
-  const dt = d instanceof Date ? d : new Date(d);
-  if (Number.isNaN(dt.getTime())) return "—";
-  return `${String(dt.getDate()).padStart(2, "0")}/${String(
-    dt.getMonth() + 1,
-  ).padStart(2, "0")}/${dt.getFullYear()}`;
-};
-const fmtDateTime = (d: Date | string | null | undefined): string => {
-  if (!d) return "—";
-  const dt = d instanceof Date ? d : new Date(d);
-  if (Number.isNaN(dt.getTime())) return "—";
-  return `${fmtDate(dt)} ${String(dt.getHours()).padStart(2, "0")}:${String(
-    dt.getMinutes(),
-  ).padStart(2, "0")}`;
-};
-const fmtNum = (n: number | string | null | undefined): string => {
-  if (n === null || n === undefined || n === "") return "—";
-  const num = typeof n === "string" ? Number(n) : n;
-  if (!Number.isFinite(num)) return "—";
-  return num.toLocaleString("vi-VN");
-};
+// V4.4 — dùng chung lib/format.ts: giờ VN cố định (+07) bất kể TZ server/CI,
+// số lượng tối đa 4 số lẻ + bỏ số 0 thừa (khớp numeric(18,4) ở kho).
+const fmtDate = (d: Date | string | null | undefined): string => formatDate(d, "dd/MM/yyyy");
+const fmtDateTime = (d: Date | string | null | undefined): string => formatDateTime(d);
+const fmtNum = (n: number | string | null | undefined): string => formatQty(n);
 
 /* ===== Styles ===== */
 
@@ -295,6 +279,13 @@ const styles = StyleSheet.create({
     textAlign: "right",
     fontSize: 8,
     color: "#52525B",
+  },
+  pageFooter: {
+    position: "absolute",
+    bottom: 8,
+    right: 12,
+    fontSize: 7,
+    color: "#888",
   },
 });
 
@@ -485,6 +476,15 @@ function DnvtPdfDoc(input: DnvtPdfInput) {
         <Text style={styles.footerNote}>
           Mẫu No: GTAM/PRD-MRF-02 | Phiên bản: 1.0 | Hiệu lực: 2025
         </Text>
+
+        {/* Số trang — chỉ hiện khi phiếu tràn ≥ 2 trang (danh mục vật tư dài). */}
+        <Text
+          style={styles.pageFooter}
+          fixed
+          render={({ pageNumber, totalPages }) =>
+            totalPages > 1 ? `Trang ${pageNumber}/${totalPages}` : ""
+          }
+        />
       </Page>
     </Document>
   );

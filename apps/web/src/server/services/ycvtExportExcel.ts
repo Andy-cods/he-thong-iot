@@ -49,6 +49,7 @@ import fs from "node:fs";
 import path from "node:path";
 import ExcelJS from "exceljs";
 import { sanitizeExcelCellValue as safe } from "./excelSafety";
+import { toExcelVnDate } from "@/lib/format";
 
 const PRIORITY_LABEL: Record<string, string> = {
   URGENT: "Khẩn",
@@ -141,28 +142,23 @@ async function loadLogoBuffer(): Promise<Buffer | null> {
   return null;
 }
 
-function fmtDateVN(d: Date | string | null | undefined): string {
-  if (!d) return "";
-  const dt = typeof d === "string" ? new Date(d) : d;
-  if (Number.isNaN(dt.getTime())) return "";
-  return dt.toLocaleDateString("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+/**
+ * V4.4 — Gán Ô NGÀY/NGÀY GIỜ THẬT (không phải chuỗi) để Excel coi là kiểu
+ * Date — luôn ép numFmt kiểu VN, GHI ĐÈ numFmt gốc của template (file mẫu gốc
+ * có vài ô mang numFmt kiểu Mỹ "mm-dd-yy" dễ đọc nhầm ngày/tháng).
+ */
+function setDateCell(cell: ExcelJS.Cell, d: Date | string | null | undefined): void {
+  const dt = toExcelVnDate(d);
+  if (!dt) return;
+  cell.value = dt;
+  cell.numFmt = "dd/mm/yyyy";
 }
 
-function fmtDateTimeVN(d: Date | string | null | undefined): string {
-  if (!d) return "";
-  const dt = typeof d === "string" ? new Date(d) : d;
-  if (Number.isNaN(dt.getTime())) return "";
-  return dt.toLocaleString("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+function setDateTimeCell(cell: ExcelJS.Cell, d: Date | string | null | undefined): void {
+  const dt = toExcelVnDate(d);
+  if (!dt) return;
+  cell.value = dt;
+  cell.numFmt = "dd/mm/yyyy hh:mm";
 }
 
 /** V3.15 — Template + sheet name export dùng chung cho batch (mỗi phiếu 1 sheet). */
@@ -200,7 +196,7 @@ export async function addYcvtLogo(
 export function fillYcvtCells(ws: ExcelJS.Worksheet, data: YcvtExportData): void {
   // Header
   ws.getCell("O2").value = data.paperFormNo;
-  ws.getCell("O3").value = data.createdAt; // ExcelJS handles Date → numeric
+  setDateCell(ws.getCell("O3"), data.createdAt);
 
   // Section I
   ws.getCell("D6").value = safe(data.targetDepartment ?? "");
@@ -221,7 +217,7 @@ export function fillYcvtCells(ws: ExcelJS.Worksheet, data: YcvtExportData): void
     ws.getCell(`F${r}`).value = l.qty;
     if (l.onHandSnapshot != null) ws.getCell(`G${r}`).value = l.onHandSnapshot;
     if (l.approvedQty != null) ws.getCell(`H${r}`).value = l.approvedQty;
-    if (l.neededBy) ws.getCell(`I${r}`).value = fmtDateVN(l.neededBy);
+    setDateCell(ws.getCell(`I${r}`), l.neededBy);
     ws.getCell(`J${r}`).value = PRIORITY_LABEL[l.priority ?? "NORMAL"] ?? "";
     ws.getCell(`K${r}`).value = CATEGORY_LABEL[l.category ?? "OTHER"] ?? "";
     if (l.estimatedUnitPrice != null)
@@ -234,49 +230,47 @@ export function fillYcvtCells(ws: ExcelJS.Worksheet, data: YcvtExportData): void
   // Section III approval (rows 36-40 theo template)
   // Row 36 = Người đề xuất
   ws.getCell("E36").value = safe(data.requestedByName ?? "");
-  if (data.createdAt) {
-    ws.getCell("I36").value = fmtDateTimeVN(data.createdAt);
-  }
+  setDateTimeCell(ws.getCell("I36"), data.createdAt);
   ws.getCell("M36").value = "Đã ký khi gửi phiếu";
 
   // Row 39 = Trưởng bộ phận
   if (data.deptApprovedByName) {
     ws.getCell("E39").value = safe(data.deptApprovedByName);
-    ws.getCell("I39").value = fmtDateTimeVN(data.deptApprovedAt);
+    setDateTimeCell(ws.getCell("I39"), data.deptApprovedAt);
     ws.getCell("M39").value = safe(data.deptApprovalNote ?? "Đã duyệt");
   }
 
   // Row 40 = Giám đốc / Mua hàng
   if (data.directorApprovedByName) {
     ws.getCell("E40").value = safe(data.directorApprovedByName);
-    ws.getCell("I40").value = fmtDateTimeVN(data.directorApprovedAt);
+    setDateTimeCell(ws.getCell("I40"), data.directorApprovedAt);
     ws.getCell("M40").value = safe(data.directorApprovalNote ?? "Đã duyệt cuối");
   }
 
   // Section IV tracking (rows 44-48)
   // Row 44 = Đã duyệt đề xuất
   if (data.directorApprovedAt) {
-    ws.getCell("J44").value = fmtDateTimeVN(data.directorApprovedAt);
+    setDateTimeCell(ws.getCell("J44"), data.directorApprovedAt);
     ws.getCell("M44").value = "Giám đốc đã duyệt";
   }
   // Row 45 = Đã tạo đơn mua
   if (data.poCreatedAt) {
-    ws.getCell("J45").value = fmtDateTimeVN(data.poCreatedAt);
+    setDateTimeCell(ws.getCell("J45"), data.poCreatedAt);
     ws.getCell("M45").value = "PO đã tạo";
   }
   // Row 46 = Đã nhận hàng
   if (data.goodsReceivedAt) {
-    ws.getCell("J46").value = fmtDateTimeVN(data.goodsReceivedAt);
+    setDateTimeCell(ws.getCell("J46"), data.goodsReceivedAt);
     ws.getCell("M46").value = "Hàng về kho";
   }
   // Row 47 = Đã xuất kho
   if (data.goodsIssuedAt) {
-    ws.getCell("J47").value = fmtDateTimeVN(data.goodsIssuedAt);
+    setDateTimeCell(ws.getCell("J47"), data.goodsIssuedAt);
     ws.getCell("M47").value = "Đã xuất cho bộ phận";
   }
   // Row 48 = Hoàn tất
   if (data.completedAt) {
-    ws.getCell("J48").value = fmtDateTimeVN(data.completedAt);
+    setDateTimeCell(ws.getCell("J48"), data.completedAt);
     ws.getCell("M48").value = "Phiếu hoàn tất";
   }
 }

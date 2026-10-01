@@ -27,6 +27,7 @@ import {
   View,
   pdf,
 } from "@react-pdf/renderer";
+import { formatDate, formatDateTime, formatMoney, formatQty } from "@/lib/format";
 
 // Roboto bundled TTF (path-resolution multi-mode dev + Docker).
 const FONT_CANDIDATES = [
@@ -135,30 +136,13 @@ const CATEGORY_VI: Record<string, string> = {
   OTHER: "Khác",
 };
 
-const fmtDate = (d: Date | string | null | undefined): string => {
-  if (!d) return "—";
-  const dt = d instanceof Date ? d : new Date(d);
-  if (Number.isNaN(dt.getTime())) return "—";
-  return `${String(dt.getDate()).padStart(2, "0")}/${String(
-    dt.getMonth() + 1,
-  ).padStart(2, "0")}/${dt.getFullYear()}`;
-};
-
-const fmtDateTime = (d: Date | string | null | undefined): string => {
-  if (!d) return "—";
-  const dt = d instanceof Date ? d : new Date(d);
-  if (Number.isNaN(dt.getTime())) return "—";
-  return `${fmtDate(dt)} ${String(dt.getHours()).padStart(2, "0")}:${String(
-    dt.getMinutes(),
-  ).padStart(2, "0")}`;
-};
-
-const fmtNum = (n: number | string | null | undefined): string => {
-  if (n === null || n === undefined || n === "") return "—";
-  const num = typeof n === "string" ? Number(n) : n;
-  if (!Number.isFinite(num)) return "—";
-  return num.toLocaleString("vi-VN");
-};
+// V4.4 — dùng chung lib/format.ts: giờ VN cố định (+07) bất kể TZ server/CI,
+// số lượng tối đa 4 số lẻ + bỏ số 0 thừa (khớp numeric(18,4) ở kho).
+const fmtDate = (d: Date | string | null | undefined): string => formatDate(d, "dd/MM/yyyy");
+const fmtDateTime = (d: Date | string | null | undefined): string => formatDateTime(d);
+const fmtNum = (n: number | string | null | undefined): string => formatQty(n);
+/** Tiền (đơn giá dự kiến/tổng tiền) — làm tròn đồng, dấu chấm hàng nghìn, không ký hiệu ₫ (cột đã có nhãn "(VNĐ)"). */
+const fmtMoney = (n: number | string | null | undefined): string => formatMoney(n, { unit: "none" });
 
 /* =========================================================================
  * Styles
@@ -372,6 +356,13 @@ const styles = StyleSheet.create({
     fontSize: 8.5,
   },
   ruleLine: { marginBottom: 2 },
+  pageFooter: {
+    position: "absolute",
+    bottom: 8,
+    right: 12,
+    fontSize: 7,
+    color: "#888",
+  },
 });
 
 /* =========================================================================
@@ -507,10 +498,10 @@ function YcvtPdfDoc(input: YcvtPdfInput) {
                   {CATEGORY_VI[l.category ?? "OTHER"] ?? "—"}
                 </Text>
                 <Text style={[styles.tCell, styles.cPrice]}>
-                  {fmtNum(l.estimatedUnitPrice)}
+                  {fmtMoney(l.estimatedUnitPrice)}
                 </Text>
                 <Text style={[styles.tCell, styles.cTotal]}>
-                  {lineTotal > 0 ? fmtNum(lineTotal) : "—"}
+                  {lineTotal > 0 ? fmtMoney(lineTotal) : "—"}
                 </Text>
                 <Text style={[styles.tCell, styles.cRef]}>
                   {l.referenceCode ?? "—"}
@@ -524,7 +515,7 @@ function YcvtPdfDoc(input: YcvtPdfInput) {
               Tổng tiền dự kiến (VNĐ):
             </Text>
             <Text style={{ width: 70, textAlign: "right", color: COLOR_PRIMARY }}>
-              {fmtNum(totalAmount)}
+              {fmtMoney(totalAmount)}
             </Text>
             <Text style={{ width: 128 }} />
           </View>
@@ -678,6 +669,15 @@ function YcvtPdfDoc(input: YcvtPdfInput) {
             </Text>
           </View>
         </View>
+
+        {/* Số trang — chỉ hiện khi phiếu tràn ≥ 2 trang (danh mục vật tư dài). */}
+        <Text
+          style={styles.pageFooter}
+          fixed
+          render={({ pageNumber, totalPages }) =>
+            totalPages > 1 ? `Trang ${pageNumber}/${totalPages}` : ""
+          }
+        />
       </Page>
     </Document>
   );

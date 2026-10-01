@@ -9,6 +9,7 @@
  */
 import ExcelJS from "exceljs";
 import { sanitizeExcelRow } from "./excelSafety";
+import { toExcelVnDate } from "@/lib/format";
 import {
   YCVT_TEMPLATE_SHEET,
   getYcvtTemplateBuffer,
@@ -33,7 +34,8 @@ export interface PrSheetInput {
 
 export interface PrSummary {
   columns: Array<{ header: string; width: number }>;
-  rows: Array<Array<string | number | null>>;
+  /** `Date` → ô NGÀY THẬT (numFmt tự áp "dd/mm/yyyy hh:mm"), không phải chuỗi. */
+  rows: Array<Array<string | number | Date | null>>;
 }
 
 const HEADER_FILL: ExcelJS.Fill = {
@@ -101,6 +103,12 @@ function buildSummarySheet(
     const row = ws.addRow(sanitizeExcelRow(rowData));
     row.eachCell({ includeEmpty: true }, (cell) => {
       cell.border = THIN_BORDER;
+      // V4.4 — cột ngày là Date thật (không phải chuỗi "dd/mm/yyyy" cố định);
+      // dịch +7h trước khi gán vì ExcelJS tính serial ngày theo UTC thô.
+      if (cell.value instanceof Date) {
+        cell.value = toExcelVnDate(cell.value);
+        cell.numFmt = "dd/mm/yyyy hh:mm";
+      }
     });
   }
 }

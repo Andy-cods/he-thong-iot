@@ -16,23 +16,28 @@
 import ExcelJS from "exceljs";
 import { NextResponse, type NextRequest } from "next/server";
 import { poExportQuerySchema } from "@iot/shared";
-import { formatDate } from "@/lib/format";
+import { toExcelVnDate } from "@/lib/format";
 import { logger } from "@/lib/logger";
 import { statusLabel } from "@/lib/status";
 import { listPOsForExport } from "@/server/repos/purchaseOrders";
 import { jsonError, parseSearchParams } from "@/server/http";
 import { requireCan } from "@/server/session";
+import { sanitizeExcelCellValue as safe } from "@/server/services/excelSafety";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * V4.1 UI-15: ngày theo giờ VN (server Node chạy UTC → trước đây PO tạo trước
- * 7h sáng bị lùi 1 ngày). Ô trống giữ "" như cũ.
+ * V4.4 — ô NGÀY THẬT (Date, numFmt "dd/mm/yyyy") thay vì chuỗi đã format sẵn,
+ * để kế toán lọc/sort theo ngày được trong Excel. `toExcelVnDate` dịch +7h vì
+ * ExcelJS tính serial ngày theo UTC thô (không biết timezone) — không dịch sẽ
+ * lệch ngày với PO tạo gần nửa đêm giờ VN (V4.1 UI-15, lỗi tương tự với chuỗi).
  */
-function fmtDate(d: string | Date | null | undefined): string {
-  const out = formatDate(d, "dd/MM/yyyy");
-  return out === "—" ? "" : out;
+function setDateCell(cell: ExcelJS.Cell, d: string | Date | null | undefined): void {
+  const dt = toExcelVnDate(d);
+  if (!dt) return;
+  cell.value = dt;
+  cell.numFmt = "dd/mm/yyyy";
 }
 
 /**
@@ -103,15 +108,16 @@ export async function GET(req: NextRequest) {
       const preTax = qty * price;
       const vat = preTax * (tax / 100);
       const lineTotal = Number(r.lineTotal ?? 0) || preTax + vat;
-      sheet.addRow({
+      // V4.4 audit S14 — sanitize cột free-text (tên NCC/vật tư, mã PR) chống
+      // formula injection khi mở bằng Excel/Sheets.
+      const row = sheet.addRow({
         poNo: r.poNo,
-        orderDate: fmtDate(r.orderDate),
-        supplierName: r.supplierName ?? "",
-        supplierCode: r.supplierCode ?? "",
-        supplierTax: r.supplierTaxCode ?? "",
+        supplierName: safe(r.supplierName ?? ""),
+        supplierCode: safe(r.supplierCode ?? ""),
+        supplierTax: safe(r.supplierTaxCode ?? ""),
         lineNo: r.lineNo,
-        itemSku: r.itemSku ?? "",
-        itemName: r.itemName ?? "",
+        itemSku: safe(r.itemSku ?? ""),
+        itemName: safe(r.itemName ?? ""),
         uom: r.itemUom ?? "",
         qty: qty,
         unitPrice: money(price),
@@ -119,12 +125,13 @@ export async function GET(req: NextRequest) {
         preTax: money(preTax),
         vat: money(vat),
         lineTotal: money(lineTotal),
-        expectedEta: fmtDate(r.expectedEta ?? null),
-        actualDelivery: fmtDate(r.actualDeliveryDate ?? null),
         // V4.1 UI-07: nhãn trạng thái từ lib/status (cùng chữ với màn hình).
         status: statusLabel("po", r.status),
-        prCode: r.prCode ?? "",
+        prCode: safe(r.prCode ?? ""),
       });
+      setDateCell(row.getCell("orderDate"), r.orderDate);
+      setDateCell(row.getCell("expectedEta"), r.expectedEta ?? null);
+      setDateCell(row.getCell("actualDelivery"), r.actualDeliveryDate ?? null);
     }
 
     // Format cột số tabular-nums align right
@@ -136,6 +143,7 @@ export async function GET(req: NextRequest) {
     for (const col of ["unitPrice", "preTax", "vat", "lineTotal"]) {
       sheet.getColumn(col).numFmt = "#,##0";
     }
+    sheet.getColumn("qty").numFmt = "#,##0.####";
 
     const buffer = await workbook.xlsx.writeBuffer();
     const ts = new Date().toISOString().slice(0, 10);

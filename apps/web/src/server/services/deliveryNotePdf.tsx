@@ -29,6 +29,7 @@ import {
   View,
   pdf,
 } from "@react-pdf/renderer";
+import { formatDate, formatQty } from "@/lib/format";
 
 const FONT_CANDIDATES = [
   path.join(process.cwd(), "public/fonts"),
@@ -129,21 +130,10 @@ const CONDITION_VI: Record<string, string> = {
   DAMAGED: "Hư hỏng",
 };
 
-const fmtDate = (d: Date | string | null | undefined): string => {
-  if (!d) return "—";
-  const dt = d instanceof Date ? d : new Date(d);
-  if (Number.isNaN(dt.getTime())) return "—";
-  return `${String(dt.getDate()).padStart(2, "0")}/${String(
-    dt.getMonth() + 1,
-  ).padStart(2, "0")}/${dt.getFullYear()}`;
-};
-
-const fmtNum = (n: number | string | null | undefined): string => {
-  if (n === null || n === undefined || n === "") return "—";
-  const num = typeof n === "string" ? Number(n) : n;
-  if (!Number.isFinite(num)) return "—";
-  return num.toLocaleString("vi-VN");
-};
+// V4.4 — dùng chung lib/format.ts: giờ VN cố định (+07) bất kể TZ server/CI,
+// số lượng tối đa 4 số lẻ + bỏ số 0 thừa (khớp numeric(18,4) ở kho).
+const fmtDate = (d: Date | string | null | undefined): string => formatDate(d, "dd/MM/yyyy");
+const fmtNum = (n: number | string | null | undefined): string => formatQty(n);
 
 /* =========================================================================
  * Types
@@ -334,14 +324,16 @@ const styles = StyleSheet.create({
   tCell: { padding: 2, borderRightWidth: 0.5, borderRightColor: "#CCC" },
 
   conclusionRow: { flexDirection: "row", padding: 6, gap: 14 },
-  conclusionOption: { flexDirection: "row", alignItems: "center", gap: 3, fontSize: 8.5 },
+  conclusionOption: { flexDirection: "row", alignItems: "center", gap: 4, fontSize: 8.5 },
   checkbox: {
-    width: 9,
-    height: 9,
+    width: 11,
+    height: 11,
     borderWidth: 1,
     borderColor: "#000",
-    textAlign: "center",
+    alignItems: "center",
+    justifyContent: "center",
   },
+  checkboxMark: { fontSize: 9, fontWeight: 700, lineHeight: 1 },
 
   signRow: { flexDirection: "row", marginTop: 4, padding: 8 },
   signBox: { flex: 1, textAlign: "center", fontSize: 9, paddingHorizontal: 4 },
@@ -355,6 +347,13 @@ const styles = StyleSheet.create({
     fontSize: 7,
     color: "#888",
     marginTop: 4,
+  },
+  pageFooter: {
+    position: "absolute",
+    bottom: 8,
+    right: 24,
+    fontSize: 7,
+    color: "#888",
   },
 });
 
@@ -517,15 +516,27 @@ function DeliveryNotePage({
         <Text style={styles.sectionTitle}>{LABELS.sectionConclusion}</Text>
         <View style={styles.conclusionRow}>
           <View style={styles.conclusionOption}>
-            <Text style={styles.checkbox}>{deliveryResult === "FULL" ? "X" : ""}</Text>
+            <View style={styles.checkbox}>
+              {deliveryResult === "FULL" ? (
+                <Text style={styles.checkboxMark}>X</Text>
+              ) : null}
+            </View>
             <Text>{LABELS.conclusionFull}</Text>
           </View>
           <View style={styles.conclusionOption}>
-            <Text style={styles.checkbox}>{deliveryResult === "SHORT" ? "X" : ""}</Text>
+            <View style={styles.checkbox}>
+              {deliveryResult === "SHORT" ? (
+                <Text style={styles.checkboxMark}>X</Text>
+              ) : null}
+            </View>
             <Text>{LABELS.conclusionShort}</Text>
           </View>
           <View style={styles.conclusionOption}>
-            <Text style={styles.checkbox}>{deliveryResult === "DAMAGED" ? "X" : ""}</Text>
+            <View style={styles.checkbox}>
+              {deliveryResult === "DAMAGED" ? (
+                <Text style={styles.checkboxMark}>X</Text>
+              ) : null}
+            </View>
             <Text>{LABELS.conclusionDamaged}</Text>
           </View>
         </View>
@@ -549,6 +560,15 @@ function DeliveryNotePage({
         </View>
         <Text style={styles.footerNote}>{LABELS.footerNote}</Text>
       </View>
+
+      {/* Số trang — chỉ hiện khi file PDF tràn ≥ 2 trang (nhiều liên/dòng hàng dài). */}
+      <Text
+        style={styles.pageFooter}
+        fixed
+        render={({ pageNumber, totalPages }) =>
+          totalPages > 1 ? `Trang ${pageNumber}/${totalPages}` : ""
+        }
+      />
     </Page>
   );
 }

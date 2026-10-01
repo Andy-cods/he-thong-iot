@@ -25,6 +25,7 @@ import fs from "node:fs";
 import path from "node:path";
 import ExcelJS from "exceljs";
 import { sanitizeExcelCellValue as safe } from "./excelSafety";
+import { toExcelVnDate } from "@/lib/format";
 
 const PRIORITY_LABEL: Record<string, string> = {
   URGENT: "Khẩn",
@@ -108,15 +109,16 @@ async function loadLogoBuffer(): Promise<Buffer | null> {
   return null;
 }
 
-function fmtDateVN(d: Date | string | null | undefined): string {
-  if (!d) return "";
-  const dt = typeof d === "string" ? new Date(d) : d;
-  if (Number.isNaN(dt.getTime())) return "";
-  return dt.toLocaleDateString("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+/**
+ * V4.4 — Gán Ô NGÀY THẬT (không phải chuỗi) để Excel coi là kiểu Date (căn
+ * phải, sort/so sánh được, lọc theo khoảng ngày được) — luôn ép numFmt
+ * "dd/mm/yyyy" (kiểu VN) bất kể ô template có định dạng khác hay không có.
+ */
+function setDateCell(cell: ExcelJS.Cell, d: Date | string | null | undefined): void {
+  const dt = toExcelVnDate(d);
+  if (!dt) return;
+  cell.value = dt;
+  cell.numFmt = "dd/mm/yyyy";
 }
 
 /** V3.15 — Template + sheet name export dùng chung cho batch (mỗi phiếu 1 sheet). */
@@ -153,7 +155,7 @@ export async function addDnvtLogo(
 export function fillDnvtCells(ws: ExcelJS.Worksheet, data: DnvtExportData): void {
   // Header
   ws.getCell("L2").value = data.paperFormNo;
-  ws.getCell("L3").value = data.createdAt; // ExcelJS Date → numeric (fmt dd/mm/yyyy)
+  setDateCell(ws.getCell("L3"), data.createdAt);
 
   // Section I
   ws.getCell("C7").value = safe(data.targetDepartment ?? "");
@@ -173,26 +175,26 @@ export function fillDnvtCells(ws: ExcelJS.Worksheet, data: DnvtExportData): void
     ws.getCell(`E${r}`).value = l.qty;
     if (l.onHandSnapshot != null) ws.getCell(`F${r}`).value = l.onHandSnapshot;
     if (l.approvedQty != null) ws.getCell(`G${r}`).value = l.approvedQty;
-    if (l.neededBy) ws.getCell(`H${r}`).value = fmtDateVN(l.neededBy);
+    setDateCell(ws.getCell(`H${r}`), l.neededBy);
     ws.getCell(`I${r}`).value = PRIORITY_LABEL[l.priority ?? "NORMAL"] ?? "";
     ws.getCell(`J${r}`).value = CATEGORY_LABEL[l.category ?? "OTHER"] ?? "";
     ws.getCell(`K${r}`).value = safe(l.referenceCode ?? "");
     ws.getCell(`L${r}`).value = safe(l.referenceNote ?? "");
     ws.getCell(`M${r}`).value = safe(l.notes ?? "");
-    if (l.deliveryDate) ws.getCell(`N${r}`).value = fmtDateVN(l.deliveryDate);
+    setDateCell(ws.getCell(`N${r}`), l.deliveryDate);
   }
 
   // Section III — phê duyệt (rows 37..41; C=Họ tên, I=Ký tên/Ngày)
   ws.getCell("C37").value = safe(data.requestedByName ?? "");
-  if (data.createdAt) ws.getCell("I37").value = fmtDateVN(data.createdAt);
+  setDateCell(ws.getCell("I37"), data.createdAt);
   // 38 Kiểm tra tồn kho + 39 Kiểm tra kỹ thuật: để trống (ký tay offline).
   if (data.deptApprovedByName) {
     ws.getCell("C40").value = safe(data.deptApprovedByName);
-    ws.getCell("I40").value = fmtDateVN(data.deptApprovedAt);
+    setDateCell(ws.getCell("I40"), data.deptApprovedAt);
   }
   if (data.directorApprovedByName) {
     ws.getCell("C41").value = safe(data.directorApprovedByName);
-    ws.getCell("I41").value = fmtDateVN(data.directorApprovedAt);
+    setDateCell(ws.getCell("I41"), data.directorApprovedAt);
   }
 }
 
