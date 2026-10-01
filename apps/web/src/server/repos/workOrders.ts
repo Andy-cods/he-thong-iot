@@ -1059,3 +1059,53 @@ export async function deleteWO(
     return true;
   });
 }
+
+export interface BomEditWoImpact {
+  /** Tổng số lệnh SX CHƯA HOÀN THÀNH bị ảnh hưởng (không giới hạn bởi `wos`). */
+  count: number;
+  /** Tối đa 20 lệnh đầu (đủ hiển thị trong cảnh báo, không spam dialog). */
+  wos: Array<{ id: string; woNo: string; status: WorkOrderStatus }>;
+}
+
+/**
+ * TASK-6VIEC Việc 5 — đếm/liệt kê lệnh SX (WO) CHƯA HOÀN THÀNH đang dùng BOM
+ * template hoặc dòng BOM cụ thể, để FE cảnh báo "Đang có N lệnh SX dùng BOM
+ * này: …" TRƯỚC khi lưu sửa/xoá dòng BOM (không chặn hành động).
+ *
+ * "Dùng BOM này" = WO gắn trực tiếp `bom_template_id` HOẶC `bom_line_id`
+ * (dòng cụ thể), HOẶC gián tiếp qua đơn hàng (`sales_order.bom_template_id`)
+ * — cùng định nghĩa "active" với `GET .../summary` (status NOT IN
+ * COMPLETED/CANCELLED — negative filter để tương thích cả enum V1.3 lẫn
+ * V1.2 cũ chưa apply migration 0006a, xem comment ở summary/route.ts).
+ */
+export async function getActiveWosForBomEdit(opts: {
+  bomTemplateId: string;
+  bomLineId: string;
+}): Promise<BomEditWoImpact> {
+  const whereSql = sql`
+    wo.status NOT IN ('COMPLETED', 'CANCELLED')
+    AND (
+      wo.bom_template_id = ${opts.bomTemplateId}
+      OR so.bom_template_id = ${opts.bomTemplateId}
+      OR wo.bom_line_id = ${opts.bomLineId}
+    )
+  `;
+
+  const countRows = (await db.execute(sql`
+    SELECT COUNT(DISTINCT wo.id)::int AS count
+    FROM app.work_order wo
+    LEFT JOIN app.sales_order so ON so.id = wo.linked_order_id
+    WHERE ${whereSql}
+  `)) as unknown as Array<{ count: number }>;
+
+  const listRows = (await db.execute(sql`
+    SELECT DISTINCT wo.id, wo.wo_no AS "woNo", wo.status
+    FROM app.work_order wo
+    LEFT JOIN app.sales_order so ON so.id = wo.linked_order_id
+    WHERE ${whereSql}
+    ORDER BY wo.wo_no
+    LIMIT 20
+  `)) as unknown as Array<{ id: string; woNo: string; status: WorkOrderStatus }>;
+
+  return { count: countRows[0]?.count ?? 0, wos: listRows };
+}

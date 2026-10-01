@@ -30,8 +30,10 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { useUpdateBomLine } from "@/hooks/useBom";
+import { useConfirm } from "@/components/ui/confirm-dialog";
+import { useBomLineWoImpact, useUpdateBomLine } from "@/hooks/useBom";
 import { useSuppliersList, type SupplierRow } from "@/hooks/useSuppliers";
+import { buildBomEditWoWarning } from "@/lib/bom-wo-warning";
 import type { BomFlatRow } from "@/lib/bom-grid/flatten-tree";
 import { cn } from "@/lib/utils";
 
@@ -246,6 +248,10 @@ export function BomLineSheet({
     Partial<Record<keyof FormState, string>>
   >({});
   const mutation = useUpdateBomLine(templateId);
+  // TASK-6VIEC Việc 5 — cảnh báo nếu có lệnh SX chưa hoàn thành đang dùng
+  // dòng BOM này (xác nhận trước khi lưu, không chặn).
+  const woImpact = useBomLineWoImpact(templateId, open ? (line?.id ?? null) : null);
+  const askConfirm = useConfirm();
 
   React.useEffect(() => {
     if (open && line) {
@@ -368,6 +374,20 @@ export function BomLineSheet({
     e.preventDefault();
     if (!line) return;
     if (!validate()) return;
+
+    // TASK-6VIEC Việc 5 — có lệnh SX chưa hoàn thành dùng dòng BOM này →
+    // cảnh báo + xin xác nhận TRƯỚC khi lưu (không chặn, chỉ hỏi lại).
+    const warning = buildBomEditWoWarning(
+      woImpact.data?.data ?? { count: 0, wos: [] },
+    );
+    if (warning) {
+      const confirmed = await askConfirm({
+        title: "Đang có lệnh SX dùng BOM này",
+        description: warning,
+        confirmLabel: "Vẫn lưu",
+      });
+      if (!confirmed) return;
+    }
 
     const existingMeta = (line.node.metadata ?? {}) as Record<string, unknown>;
     const nextMeta: Record<string, unknown> = { ...existingMeta };

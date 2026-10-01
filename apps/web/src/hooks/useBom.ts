@@ -358,6 +358,32 @@ export function useDeleteBomLine(templateId: string) {
   });
 }
 
+export interface BomLineWoImpact {
+  count: number;
+  wos: Array<{ id: string; woNo: string; status: string }>;
+}
+
+/**
+ * TASK-6VIEC Việc 5 — số lệnh SX CHƯA HOÀN THÀNH đang dùng BOM/dòng này,
+ * dùng để cảnh báo trước khi lưu sửa/xoá (xem BomLineSheet/BomGridPro).
+ * `enabled=false` khi chưa có lineId (dòng mới chưa lưu) — không có gì để
+ * tra, cũng tránh gọi API với id rỗng.
+ */
+export function useBomLineWoImpact(
+  templateId: string,
+  lineId: string | null | undefined,
+) {
+  return useQuery({
+    queryKey: ["bom", "line-wo-impact", templateId, lineId],
+    queryFn: () =>
+      request<{ data: BomLineWoImpact }>(
+        `/api/bom/templates/${templateId}/lines/${lineId}/wo-impact`,
+      ),
+    enabled: !!templateId && !!lineId,
+    staleTime: 10_000,
+  });
+}
+
 export interface MoveBomLineVars {
   lineId: string;
   newParentLineId: string | null;

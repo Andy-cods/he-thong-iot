@@ -12,7 +12,8 @@ import {
 import { toast } from "sonner";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { BomTreeNodeRaw } from "@/hooks/useBom";
-import { useAddBomLine, useDeleteBomLine } from "@/hooks/useBom";
+import { useAddBomLine, useBomLineWoImpact, useDeleteBomLine } from "@/hooks/useBom";
+import { buildBomEditWoWarning } from "@/lib/bom-wo-warning";
 import { useSession } from "@/hooks/useSession";
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/format";
@@ -173,6 +174,12 @@ export function BomGridPro({
 
   const deleteLine = useDeleteBomLine(templateId);
   const addLine = useAddBomLine(templateId);
+  // TASK-6VIEC Việc 5 — cảnh báo nếu có lệnh SX chưa hoàn thành đang dùng
+  // dòng BOM sắp xoá (chỉ cảnh báo trong dialog xác nhận, không chặn xoá).
+  const deleteWoImpact = useBomLineWoImpact(templateId, deleteTarget?.id ?? null);
+  const deleteWoWarning = buildBomEditWoWarning(
+    deleteWoImpact.data?.data ?? { count: 0, wos: [] },
+  );
 
   const handleEditRow = React.useCallback(
     (row: BomFlatRow) => {
@@ -1412,9 +1419,16 @@ export function BomGridPro({
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         title={`Xoá "${deleteTarget?.node.componentSku ?? ""}"?`}
         description={
-          deleteTarget?.childCount
-            ? `Dòng này có ${deleteTarget.childCount} linh kiện con. Các linh kiện con cũng bị xoá theo. Gõ "XOA" để xác nhận.`
-            : `Xoá dòng linh kiện này? Gõ "XOA" để xác nhận.`
+          // TASK-6VIEC Việc 5 — chèn cảnh báo lệnh SX (nếu có) lên đầu, không
+          // thay đổi luồng xoá hiện có (vẫn phải gõ "XOA" để xác nhận).
+          [
+            deleteWoWarning,
+            deleteTarget?.childCount
+              ? `Dòng này có ${deleteTarget.childCount} linh kiện con. Các linh kiện con cũng bị xoá theo. Gõ "XOA" để xác nhận.`
+              : `Xoá dòng linh kiện này? Gõ "XOA" để xác nhận.`,
+          ]
+            .filter(Boolean)
+            .join(" ")
         }
         confirmText="XOA"
         actionLabel="Xoá"
