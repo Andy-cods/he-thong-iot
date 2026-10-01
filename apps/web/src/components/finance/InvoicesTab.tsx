@@ -17,6 +17,7 @@ import {
   type FinInvoiceCreate,
 } from "@iot/shared";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Sheet,
   SheetBody,
@@ -396,6 +397,7 @@ function InvoiceFormDialog({
       vatRate: 8,
       vatAmount: 0,
       totalAmount: 0,
+      confirmZeroAmount: false,
     },
   });
 
@@ -412,6 +414,7 @@ function InvoiceFormDialog({
         vatRate: 8,
         vatAmount: 0,
         totalAmount: 0,
+        confirmZeroAmount: false,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -419,6 +422,10 @@ function InvoiceFormDialog({
 
   const subtotal = Number(watch("subtotalAmount")) || 0;
   const vatRate = Number(watch("vatRate")) || 0;
+  // V4.5 QA-D P2-01 — HĐ 0 ₫ tự thành "Đã trả" ngay (computeInvoiceStatus:
+  // paid(0) >= total(0)) — bắt xác nhận rõ ràng thay vì âm thầm cho qua.
+  const isZeroAmount = subtotal + Math.round((subtotal * vatRate) / 100) <= 0;
+  const confirmZeroAmount = watch("confirmZeroAmount");
 
   React.useEffect(() => {
     const vat = Math.round((subtotal * vatRate) / 100);
@@ -461,7 +468,7 @@ function InvoiceFormDialog({
             label: actionLabel,
             type: "submit",
             form: formId,
-            disabled: createMut.isPending,
+            disabled: createMut.isPending || (isZeroAmount && !confirmZeroAmount),
           }}
         />
         <SheetBody>
@@ -534,6 +541,33 @@ function InvoiceFormDialog({
               <p className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
                 <AlertTriangle className="h-3 w-3" aria-hidden="true" /> {errors.totalAmount.message}
               </p>
+            )}
+
+            {/* V4.5 QA-D P2-01 — HĐ 0 ₫ tự ghi "Đã trả" ngay, dễ do quên điền
+                số tiền — bắt xác nhận rõ thay vì âm thầm cho qua. */}
+            {isZeroAmount && (
+              <div className="space-y-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 dark:border-amber-900 dark:bg-amber-950/30">
+                <label className="flex items-start gap-2 text-sm text-amber-800 dark:text-amber-300">
+                  <Checkbox
+                    checked={!!confirmZeroAmount}
+                    onCheckedChange={(v) =>
+                      setValue("confirmZeroAmount", v === true, { shouldValidate: true })
+                    }
+                    className="mt-0.5"
+                  />
+                  <span>
+                    Hoá đơn <strong>0 ₫</strong> sẽ được ghi là <strong>đã thanh toán</strong> ngay
+                    khi tạo — tick xác nhận nếu đúng ý định (vd điều chỉnh/ghi nhận), không phải do
+                    quên điền số tiền.
+                  </span>
+                </label>
+                {errors.confirmZeroAmount && (
+                  <p className="flex items-center gap-1 pl-6 text-xs text-red-600 dark:text-red-400">
+                    <AlertTriangle className="h-3 w-3" aria-hidden="true" />{" "}
+                    {errors.confirmZeroAmount.message}
+                  </p>
+                )}
+              </div>
             )}
           </form>
         </SheetBody>

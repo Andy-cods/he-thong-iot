@@ -227,14 +227,31 @@ export const finInvoiceCreateSchema = z
     totalAmount: nonNegativeAmount,
     notes: optionalTrim(2000),
     attachmentUrl: attachmentUrlCreate,
+    /**
+     * V4.5 QA-D P2-01 — HĐ tổng 0 ₫ tự động ghi "Đã trả" ngay lúc tạo
+     * (`computeInvoiceStatus`: paid(0) >= total(0)) — dễ do quên điền số
+     * tiền. Bắt xác nhận rõ ràng thay vì âm thầm cho qua; KHÔNG chặn hẳn
+     * (vẫn có thể có use-case HĐ 0 ₫ hợp lệ, vd điều chỉnh/ghi nhận).
+     */
+    confirmZeroAmount: z.coerce.boolean().optional().default(false),
   })
-  .refine(
-    (v) => Math.abs(v.subtotalAmount + v.vatAmount - v.totalAmount) <= 1,
-    {
-      message: "Tổng tiền phải bằng Tiền hàng + Tiền VAT (sai số cho phép ±1 ₫)",
-      path: ["totalAmount"],
-    },
-  );
+  .superRefine((v, ctx) => {
+    if (Math.abs(v.subtotalAmount + v.vatAmount - v.totalAmount) > 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Tổng tiền phải bằng Tiền hàng + Tiền VAT (sai số cho phép ±1 ₫)",
+        path: ["totalAmount"],
+      });
+    }
+    if (v.totalAmount <= 0 && !v.confirmZeroAmount) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          'Hoá đơn 0 ₫ sẽ được ghi là "Đã trả" ngay khi tạo — tick xác nhận nếu đúng ý định.',
+        path: ["confirmZeroAmount"],
+      });
+    }
+  });
 
 // V4.1 TC-05 — PATCH: trường không gửi = giữ nguyên (không ép null).
 export const finInvoiceUpdateSchema = z.object({
