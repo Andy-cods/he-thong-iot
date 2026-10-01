@@ -29,7 +29,7 @@ import { BomFilterChip } from "@/components/bom/BomFilterChip";
 import { cn } from "@/lib/utils";
 import { StatusPill } from "@/components/ui/status-badge";
 import { TONE_CLASSES, getStatus, statusLabel } from "@/lib/status";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatNumber } from "@/lib/format";
 
 /* ─── Status / Priority config ─────────────────────────────────────────── */
 
@@ -300,9 +300,9 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
           return (
             <span>
               <span className={cn("font-semibold", good >= planned ? "text-emerald-700 dark:text-emerald-400" : "text-zinc-800 dark:text-zinc-200")}>
-                {good.toLocaleString("vi-VN")}
+                {formatNumber(good)}
               </span>
-              <span className="text-zinc-400 dark:text-zinc-500"> / {planned.toLocaleString("vi-VN")}</span>
+              <span className="text-zinc-400 dark:text-zinc-500"> / {formatNumber(planned)}</span>
             </span>
           );
         },
@@ -638,7 +638,7 @@ export function WorkOrdersTab({ variant = "engineering" }: WorkOrdersTabProps = 
       {urlState.view === "table" && (
         <footer className="flex h-10 items-center justify-between border-t border-zinc-200 bg-white px-4 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
           <span>
-            Trang <span className="tabular-nums">{urlState.page}/{pageCount}</span> · {total.toLocaleString("vi-VN")} lệnh
+            Trang <span className="tabular-nums">{urlState.page}/{pageCount}</span> · {formatNumber(total)} lệnh
           </span>
           <div className="flex items-center gap-1">
             <Button size="sm" variant="ghost" disabled={urlState.page <= 1}

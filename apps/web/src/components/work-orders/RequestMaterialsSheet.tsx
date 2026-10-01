@@ -117,6 +117,11 @@ export function RequestMaterialsSheet({
                 </p>
               ) : null}
 
+              {/* V4.4 UI nhóm E — chỉ báo cuộn ngang mobile (bảng 6 cột, min-w
+                  640px chắc chắn tràn ở 390px). */}
+              <p className="mb-1 text-xs text-zinc-400 md:hidden" aria-hidden="true">
+                ← Vuốt ngang để xem đủ cột →
+              </p>
               <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
                 <table className="w-full min-w-[640px] text-sm">
                   <thead>

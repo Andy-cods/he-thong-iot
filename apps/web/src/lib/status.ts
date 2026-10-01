@@ -146,6 +146,16 @@ export const STATUS_DEFS = {
     DELIVERED: d("Đã giao", "success"),
     CANCELLED,
   },
+  /** V4.4 UI nhóm E — trạng thái cấp vật tư theo BOM cho 1 Lệnh SX, tính ở
+   * `lib/wo-material-plan.ts` (không phải cột DB, chỉ hiển thị). Trước đây
+   * `work-orders/[id]/page.tsx` tự vẽ span màu rời rạc thay vì qua
+   * `StatusPill` dùng chung — chuyển về đây cho nhất quán 6 tông. */
+  woMaterial: {
+    NONE: d("Không áp dụng", "neutral"),
+    SHORTAGE: d("Còn thiếu", "warning"),
+    REQUESTED: d("Đã xin, chờ xuất", "info"),
+    ISSUED: d("Đã xuất đủ", "success"),
+  },
   /** Yêu cầu xuất kho (issue_request.status). */
   issueRequest: {
     PENDING: d("Chờ duyệt", "info"),

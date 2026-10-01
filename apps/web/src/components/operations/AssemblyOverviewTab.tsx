@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { QueryError } from "@/components/ui/query-error";
 import { useWorkOrdersList, type WorkOrderRow } from "@/hooks/useWorkOrders";
 import { cn } from "@/lib/utils";
+import { formatNumber } from "@/lib/format";
 
 /**
  * V3.7.47 — Quy trình lắp ráp (sub-tab của Operations).
@@ -347,7 +348,7 @@ function WoCard({ wo, compact }: { wo: WorkOrderRow; compact?: boolean }) {
         <div className="flex items-center justify-between gap-2 text-xs text-zinc-600 dark:text-zinc-400">
           <span>Tiến độ</span>
           <span className="font-mono font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
-            {goodQty.toLocaleString("vi-VN")} / {plannedQty.toLocaleString("vi-VN")}
+            {formatNumber(goodQty)} / {formatNumber(plannedQty)}
             {pct > 0 ? ` · ${pct}%` : ""}
           </span>
         </div>

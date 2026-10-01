@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Loader2, Plus, Printer, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateField } from "@/components/ui/date-field";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ItemPicker, type ItemPickerValue } from "@/components/bom/ItemPicker";
@@ -20,6 +21,7 @@ import {
 } from "@/hooks/useWorkOrders";
 import { cn } from "@/lib/utils";
 import { checkPlannedDates } from "@/lib/wo-guards";
+import { formatNumber } from "@/lib/format";
 
 /**
  * V3.7.58 — `/work-orders/new-lsx` — Phiếu Lệnh Sản Xuất GTAM.
@@ -432,15 +434,14 @@ export default function NewLsxPage() {
             </div>
             <div className="space-y-1">
               <Label>Ngày bắt đầu</Label>
-              <Input type="date" value={plannedStart} onChange={(e) => setPlannedStart(e.target.value)} />
+              <DateField value={plannedStart} onChange={setPlannedStart} />
             </div>
             <div className="space-y-1">
               <Label>Ngày kết thúc</Label>
-              <Input
-                type="date"
+              <DateField
                 value={plannedEnd}
                 min={plannedStart || undefined}
-                onChange={(e) => setPlannedEnd(e.target.value)}
+                onChange={setPlannedEnd}
               />
             </div>
           </section>
@@ -608,7 +609,7 @@ export default function NewLsxPage() {
                   <tr className="border-t-2 border-zinc-300 font-semibold dark:border-zinc-700">
                     <td colSpan={4} className="px-2 py-1.5 text-right text-[11px]">Tổng thời gian:</td>
                     <td className="px-1 py-1.5 text-right font-mono text-[12px] text-emerald-700 tabular-nums dark:text-emerald-400">
-                      {totalRoutingMin.toLocaleString("vi-VN")} phút
+                      {formatNumber(totalRoutingMin)} phút
                     </td>
                     <td colSpan={3} />
                   </tr>

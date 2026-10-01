@@ -5,14 +5,18 @@ import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Sheet, SheetBody, SheetContent, SheetHeaderNav } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateField } from "@/components/ui/date-field";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -28,7 +32,14 @@ import {
 } from "@/hooks/useProductionBoard";
 
 /**
- * V3.8 — Dialog tạo/sửa mã hàng trên Bảng sản xuất (QC lead).
+ * V3.8 — Sheet tạo/sửa mã hàng trên Bảng sản xuất (QC lead).
+ *
+ * V4.4 UI nhóm E (UI_INVENTORY.md §9 mục 2) — trước là Dialog `size="lg"` với
+ * 12 trường, vi phạm N6 ("form nhiều trường phải dùng Sheet, không Dialog").
+ * Chuyển sang Sheet bên phải + SheetHeaderNav + nhóm trường inset grouped
+ * (tiêu đề nhóm qua `<Label uppercase>`), lỗi hiện ngay dưới trường thay vì
+ * chỉ toast, cảnh báo khi đóng form đang có thay đổi chưa lưu — khớp chuẩn
+ * chung form phiếu của hệ thống. KHÔNG đổi payload/logic gọi API.
  */
 
 const STATUS_OPTIONS: Array<{ value: BoardStatus; label: string }> = [
@@ -46,29 +57,40 @@ interface Props {
   item?: BoardItem | null;
 }
 
-export function BoardItemDialog({ open, onOpenChange, item }: Props) {
-  const isEdit = !!item;
-  const createMut = useCreateBoardItem();
-  const updateMut = useUpdateBoardItem();
-
-  const [form, setForm] = React.useState({
+function emptyForm() {
+  return {
     productCode: "",
     rfqNo: "",
     productName: "",
     customer: "",
     qtyPlanned: "0",
     qtyDone: "0",
-    uom: "Pcs",
+    uom: "PCS",
     status: "QUEUED" as BoardStatus,
     deadline: "",
     currentStage: "",
     notes: "",
     isPinned: false,
-  });
+  };
+}
+
+export function BoardItemDialog({ open, onOpenChange, item }: Props) {
+  const isEdit = !!item;
+  const createMut = useCreateBoardItem();
+  const updateMut = useUpdateBoardItem();
+
+  const [form, setForm] = React.useState(emptyForm());
+  const [isDirty, setIsDirty] = React.useState(false);
+  const [warnOpen, setWarnOpen] = React.useState(false);
+  const [errors, setErrors] = React.useState<{ productCode?: string; productName?: string }>({});
+  const productCodeRef = React.useRef<HTMLInputElement>(null);
+  const productNameRef = React.useRef<HTMLTextAreaElement>(null);
 
   // Reset form khi mở dialog / đổi item.
   React.useEffect(() => {
     if (!open) return;
+    setErrors({});
+    setIsDirty(false);
     if (item) {
       setForm({
         productCode: item.productCode,
@@ -77,7 +99,7 @@ export function BoardItemDialog({ open, onOpenChange, item }: Props) {
         customer: item.customer ?? "",
         qtyPlanned: String(item.qtyPlanned ?? "0"),
         qtyDone: String(item.qtyDone ?? "0"),
-        uom: item.uom ?? "Pcs",
+        uom: item.uom ?? "PCS",
         status: item.status,
         deadline: item.deadline ? item.deadline.slice(0, 10) : "",
         currentStage: item.currentStage ?? "",
@@ -85,37 +107,44 @@ export function BoardItemDialog({ open, onOpenChange, item }: Props) {
         isPinned: item.isPinned,
       });
     } else {
-      setForm({
-        productCode: "",
-        rfqNo: "",
-        productName: "",
-        customer: "",
-        qtyPlanned: "0",
-        qtyDone: "0",
-        uom: "Pcs",
-        status: "QUEUED",
-        deadline: "",
-        currentStage: "",
-        notes: "",
-        isPinned: false,
-      });
+      setForm(emptyForm());
     }
   }, [open, item]);
 
-  const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
+  const set = <K extends keyof ReturnType<typeof emptyForm>>(
+    k: K,
+    v: ReturnType<typeof emptyForm>[K],
+  ) => {
     setForm((f) => ({ ...f, [k]: v }));
+    setIsDirty(true);
+  };
 
   const busy = createMut.isPending || updateMut.isPending;
 
+  const attemptClose = React.useCallback(() => {
+    if (isDirty && !busy) {
+      setWarnOpen(true);
+    } else {
+      onOpenChange(false);
+    }
+  }, [isDirty, busy, onOpenChange]);
+
   const handleSubmit = async () => {
-    if (!form.productCode.trim()) {
-      toast.error("Nhập Mã hàng");
+    const nextErrors: typeof errors = {};
+    if (!form.productCode.trim()) nextErrors.productCode = "Nhập mã hàng.";
+    if (!form.productName.trim()) nextErrors.productName = "Nhập tên/spec sản phẩm.";
+    setErrors(nextErrors);
+    if (nextErrors.productCode) {
+      productCodeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      productCodeRef.current?.focus();
       return;
     }
-    if (!form.productName.trim()) {
-      toast.error("Nhập Tên/Spec sản phẩm");
+    if (nextErrors.productName) {
+      productNameRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      productNameRef.current?.focus();
       return;
     }
+
     const payload = {
       productCode: form.productCode.trim(),
       rfqNo: form.rfqNo.trim() || null,
@@ -123,7 +152,7 @@ export function BoardItemDialog({ open, onOpenChange, item }: Props) {
       customer: form.customer.trim() || null,
       qtyPlanned: Number(form.qtyPlanned) || 0,
       qtyDone: Number(form.qtyDone) || 0,
-      uom: form.uom.trim() || "Pcs",
+      uom: form.uom.trim() || "PCS",
       status: form.status,
       deadline: form.deadline || null,
       currentStage: form.currentStage.trim() || null,
@@ -138,161 +167,248 @@ export function BoardItemDialog({ open, onOpenChange, item }: Props) {
         await createMut.mutateAsync(payload);
         toast.success(`Đã thêm ${payload.productCode}`);
       }
+      setIsDirty(false);
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Lỗi lưu");
     }
   };
 
+  const actionLabel = busy
+    ? "Đang lưu…"
+    : isEdit
+      ? "Lưu thay đổi"
+      : "Thêm vào bảng";
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="lg" className="max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {isEdit ? "Sửa mã hàng" : "Thêm mã hàng vào bảng"}
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Sheet open={open} onOpenChange={(o) => !o && attemptClose()}>
+        <SheetContent
+          side="right"
+          size="lg"
+          hideCloseButton
+          onInteractOutside={(e) => {
+            if (isDirty) {
+              e.preventDefault();
+              setWarnOpen(true);
+            }
+          }}
+          onEscapeKeyDown={(e) => {
+            if (isDirty) {
+              e.preventDefault();
+              setWarnOpen(true);
+            }
+          }}
+          className="flex flex-col"
+        >
+          <SheetHeaderNav
+            title={isEdit ? "Sửa mã hàng" : "Thêm mã hàng vào bảng"}
+            onCancel={attemptClose}
+            action={{ label: actionLabel, onClick: () => void handleSubmit(), disabled: busy }}
+          />
+          <SheetBody>
+            <div className="space-y-5">
+              {/* Nhóm 1 — Thông tin sản phẩm */}
+              <section className="space-y-3">
+                <Label uppercase>Thông tin sản phẩm</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Mã hàng (BQMS)" required className="col-span-2 sm:col-span-1">
+                    <Input
+                      ref={productCodeRef}
+                      value={form.productCode}
+                      onChange={(e) => set("productCode", e.target.value)}
+                      placeholder="Z0000002-259491"
+                      autoFocus
+                      error={!!errors.productCode}
+                    />
+                    {errors.productCode && <FieldError>{errors.productCode}</FieldError>}
+                  </Field>
+                  <Field label="Mã RFQ" className="col-span-2 sm:col-span-1">
+                    <Input
+                      value={form.rfqNo}
+                      onChange={(e) => set("rfqNo", e.target.value)}
+                      placeholder="QT25052426"
+                    />
+                  </Field>
+                  <Field label="Tên / Spec sản phẩm" required className="col-span-2">
+                    <Textarea
+                      ref={productNameRef}
+                      value={form.productName}
+                      onChange={(e) => set("productName", e.target.value)}
+                      placeholder="BASE B_VINYL B ATTACH COMMON, L161xW66xH26 mm, PB108"
+                      rows={2}
+                      error={!!errors.productName}
+                    />
+                    {errors.productName && <FieldError>{errors.productName}</FieldError>}
+                  </Field>
+                  <Field label="Khách hàng" className="col-span-2 sm:col-span-1">
+                    <Input
+                      value={form.customer}
+                      onChange={(e) => set("customer", e.target.value)}
+                      placeholder="SEVT / SEV"
+                    />
+                  </Field>
+                </div>
+              </section>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Mã hàng (BQMS) *" className="col-span-2 sm:col-span-1">
-            <Input
-              value={form.productCode}
-              onChange={(e) => set("productCode", e.target.value)}
-              placeholder="Z0000002-259491"
-              autoFocus
-            />
-          </Field>
-          <Field label="Mã RFQ" className="col-span-2 sm:col-span-1">
-            <Input
-              value={form.rfqNo}
-              onChange={(e) => set("rfqNo", e.target.value)}
-              placeholder="QT25052426"
-            />
-          </Field>
-          <Field label="Tên / Spec sản phẩm *" className="col-span-2">
-            <Textarea
-              value={form.productName}
-              onChange={(e) => set("productName", e.target.value)}
-              placeholder="BASE B_VINYL B ATTACH COMMON, L161xW66xH26 mm, PB108"
-              rows={2}
-            />
-          </Field>
-          <Field label="Khách hàng" className="col-span-2 sm:col-span-1">
-            <Input
-              value={form.customer}
-              onChange={(e) => set("customer", e.target.value)}
-              placeholder="SEVT / SEV"
-            />
-          </Field>
-          <Field label="Công đoạn hiện tại" className="col-span-2 sm:col-span-1">
-            <Input
-              value={form.currentStage}
-              onChange={(e) => set("currentStage", e.target.value)}
-              placeholder="CNC 02 / Đánh bóng…"
-            />
-          </Field>
+              {/* Nhóm 2 — Tiến độ & đơn vị */}
+              <section className="space-y-3">
+                <Label uppercase>Tiến độ &amp; đơn vị</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Công đoạn hiện tại" className="col-span-2 sm:col-span-1">
+                    <Input
+                      value={form.currentStage}
+                      onChange={(e) => set("currentStage", e.target.value)}
+                      placeholder="CNC 02 / Đánh bóng…"
+                    />
+                  </Field>
+                  <Field label="Trạng thái" className="col-span-2 sm:col-span-1">
+                    <Select
+                      value={form.status}
+                      onValueChange={(v) => set("status", v as BoardStatus)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STATUS_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>
+                            {o.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="SL kế hoạch">
+                    <QtyWithUom
+                      value={form.qtyPlanned}
+                      uom={form.uom}
+                      onChange={(v) => set("qtyPlanned", v)}
+                    />
+                  </Field>
+                  <Field label="SL đã đạt">
+                    <QtyWithUom
+                      value={form.qtyDone}
+                      uom={form.uom}
+                      onChange={(v) => set("qtyDone", v)}
+                    />
+                  </Field>
+                  <Field label="ĐVT" className="col-span-2 sm:col-span-1">
+                    <Input
+                      value={form.uom}
+                      onChange={(e) => set("uom", e.target.value.toUpperCase())}
+                      placeholder="PCS / SET"
+                      className="uppercase"
+                    />
+                  </Field>
+                  <Field label="Hạn giao" className="col-span-2 sm:col-span-1">
+                    <DateField value={form.deadline} onChange={(v) => set("deadline", v)} />
+                  </Field>
+                </div>
+              </section>
 
-          <Field label="SL kế hoạch">
-            <Input
-              type="number"
-              min={0}
-              value={form.qtyPlanned}
-              onChange={(e) => set("qtyPlanned", e.target.value)}
-            />
-          </Field>
-          <Field label="SL đã đạt">
-            <Input
-              type="number"
-              min={0}
-              value={form.qtyDone}
-              onChange={(e) => set("qtyDone", e.target.value)}
-            />
-          </Field>
-          <Field label="ĐVT">
-            <Input
-              value={form.uom}
-              onChange={(e) => set("uom", e.target.value)}
-              placeholder="Pcs / Set"
-            />
-          </Field>
-          <Field label="Hạn giao">
-            <Input
-              type="date"
-              value={form.deadline}
-              onChange={(e) => set("deadline", e.target.value)}
-            />
-          </Field>
+              {/* Nhóm 3 — Khác */}
+              <section className="space-y-3">
+                <Label uppercase>Khác</Label>
+                <label className="flex cursor-pointer items-center gap-2 text-base text-zinc-700 dark:text-zinc-200">
+                  <Checkbox
+                    checked={form.isPinned}
+                    onCheckedChange={(v) => set("isPinned", v === true)}
+                  />
+                  ★ Ghim lên đầu bảng (ưu tiên/khẩn)
+                </label>
+                <Field label="Ghi chú">
+                  <Textarea
+                    value={form.notes}
+                    onChange={(e) => set("notes", e.target.value)}
+                    rows={2}
+                  />
+                </Field>
+              </section>
+            </div>
+          </SheetBody>
+        </SheetContent>
+      </Sheet>
 
-          <Field label="Trạng thái" className="col-span-2 sm:col-span-1">
-            <Select
-              value={form.status}
-              onValueChange={(v) => set("status", v as BoardStatus)}
+      {/* Cảnh báo khi đóng Sheet đang có thay đổi chưa lưu. */}
+      <Dialog open={warnOpen} onOpenChange={setWarnOpen}>
+        <DialogContent size="sm">
+          <DialogHeader>
+            <DialogTitle>Bỏ thay đổi chưa lưu?</DialogTitle>
+            <DialogDescription>
+              Bạn có thay đổi chưa được lưu. Đóng bảng sẽ mất các thay đổi này.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setWarnOpen(false)}>
+              Tiếp tục chỉnh sửa
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setWarnOpen(false);
+                setIsDirty(false);
+                onOpenChange(false);
+              }}
             >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_OPTIONS.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          <div className="col-span-2 flex items-end sm:col-span-1">
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-700 dark:text-zinc-200">
-              <input
-                type="checkbox"
-                checked={form.isPinned}
-                onChange={(e) => set("isPinned", e.target.checked)}
-                className="h-4 w-4 rounded border-zinc-300"
-              />
-              ★ Ghim lên đầu bảng (ưu tiên/khẩn)
-            </label>
-          </div>
-
-          <Field label="Ghi chú" className="col-span-2">
-            <Textarea
-              value={form.notes}
-              onChange={(e) => set("notes", e.target.value)}
-              rows={2}
-            />
-          </Field>
-        </div>
-
-        <DialogFooter>
-          <Button
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-            disabled={busy}
-          >
-            Hủy
-          </Button>
-          <Button onClick={handleSubmit} disabled={busy}>
-            {busy ? "Đang lưu…" : isEdit ? "Lưu thay đổi" : "Thêm vào bảng"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+              Bỏ thay đổi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
 function Field({
   label,
+  required,
   children,
   className,
 }: {
   label: string;
+  required?: boolean;
   children: React.ReactNode;
   className?: string;
 }) {
   return (
     <div className={className}>
-      <Label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+      <Label required={required} className="mb-1 block text-base">
         {label}
       </Label>
       {children}
+    </div>
+  );
+}
+
+function FieldError({ children }: { children: React.ReactNode }) {
+  return <p className="mt-1 text-xs text-red-600 dark:text-red-400">{children}</p>;
+}
+
+/** Ô số lượng căn phải, tabular-nums, hiện ĐVT bên phải trong cùng ô. */
+function QtyWithUom({
+  value,
+  uom,
+  onChange,
+}: {
+  value: string;
+  uom: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="relative">
+      <Input
+        type="number"
+        min={0}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="pr-14 text-right tabular-nums"
+      />
+      {uom ? (
+        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-zinc-400 dark:text-zinc-500">
+          {uom}
+        </span>
+      ) : null}
     </div>
   );
 }
