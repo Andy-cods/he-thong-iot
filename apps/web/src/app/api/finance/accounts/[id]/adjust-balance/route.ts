@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { finAccountAdjustBalanceSchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import { adjustFinAccountBalance, getFinAccountById } from "@/server/repos/finAccounts";
-import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
+import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { forbidden, requireCan } from "@/server/session";
 
@@ -25,6 +25,10 @@ export async function POST(
   const guard = await requireCan(req, "update", "finance");
   if ("response" in guard) return guard.response;
   if (!guard.session.roles.includes("admin")) return forbidden();
+
+  // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB.
+  const idCheck = validateUuidParam(params.id);
+  if ("response" in idCheck) return idCheck.response;
 
   const body = await parseJson(req, finAccountAdjustBalanceSchema);
   if ("response" in body) return body.response;

@@ -8,7 +8,7 @@ import {
   updateFinInvoice,
 } from "@/server/repos/finInvoices";
 import { getFinPaymentById } from "@/server/repos/finPayments";
-import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
+import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { diffObjects, writeAudit } from "@/server/services/audit";
 import { requireCan } from "@/server/session";
 
@@ -22,6 +22,9 @@ export async function GET(
 ) {
   const guard = await requireCan(req, "read", "finance");
   if ("response" in guard) return guard.response;
+  // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB.
+  const idCheck = validateUuidParam(params.id);
+  if ("response" in idCheck) return idCheck.response;
   // V4.1 TC-03 — kèm `supplierName` để UI không tra danh sách NCC.
   const row = await getFinInvoiceWithPartner(params.id);
   if (!row) return jsonError("NOT_FOUND", "Không tìm thấy hoá đơn.", 404);
@@ -49,6 +52,9 @@ export async function PATCH(
 ) {
   const guard = await requireCan(req, "update", "finance");
   if ("response" in guard) return guard.response;
+  // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB.
+  const idCheck = validateUuidParam(params.id);
+  if ("response" in idCheck) return idCheck.response;
   const body = await parseJson(req, finInvoiceUpdateSchema);
   if ("response" in body) return body.response;
 

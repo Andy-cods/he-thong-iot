@@ -12,6 +12,7 @@ import {
   extractRequestMeta,
   jsonError,
   parseJson,
+  validateUuidParam,
 } from "@/server/http";
 import { writeAudit, diffObjects } from "@/server/services/audit";
 import { notifyPOPriceUpdated } from "@/server/services/notifications";
@@ -36,6 +37,10 @@ export async function GET(
 ) {
   const guard = await requireCan(req, "read", "po");
   if ("response" in guard) return guard.response;
+
+  // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB.
+  const idCheck = validateUuidParam(params.id);
+  if ("response" in idCheck) return idCheck.response;
 
   const row = await getPO(params.id);
   if (!row) return jsonError("NOT_FOUND", "Không tìm thấy PO.", 404);
@@ -116,6 +121,10 @@ export async function PATCH(
 ) {
   const guard = await requireCan(req, "update", "po");
   if ("response" in guard) return guard.response;
+
+  // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB.
+  const idCheck = validateUuidParam(params.id);
+  if ("response" in idCheck) return idCheck.response;
 
   const before = await getPO(params.id);
   if (!before) return jsonError("NOT_FOUND", "Không tìm thấy PO.", 404);

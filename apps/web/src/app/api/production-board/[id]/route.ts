@@ -7,7 +7,7 @@ import {
   deleteBoardItem,
   updateBoardItem,
 } from "@/server/repos/productionBoard";
-import { jsonError, parseJson } from "@/server/http";
+import { jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { requireCan } from "@/server/session";
 import {
   BOARD_QTY_MAX,
@@ -66,6 +66,10 @@ export async function PATCH(
   const guard = await requireCan(req, "update", "productionBoard");
   if ("response" in guard) return guard.response;
 
+  // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB.
+  const idCheck = validateUuidParam(params.id);
+  if ("response" in idCheck) return idCheck.response;
+
   const body = await parseJson(req, patchSchema);
   if ("response" in body) return body.response;
 
@@ -99,6 +103,10 @@ export async function DELETE(
 ) {
   const guard = await requireCan(req, "delete", "productionBoard");
   if ("response" in guard) return guard.response;
+
+  // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB.
+  const idCheck = validateUuidParam(params.id);
+  if ("response" in idCheck) return idCheck.response;
 
   try {
     await deleteBoardItem(params.id, guard.session.userId);

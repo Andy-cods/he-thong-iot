@@ -7,7 +7,7 @@ import {
 } from "@/server/repos/purchaseRequests";
 import { GoodsIssueError } from "@/server/repos/goodsIssues";
 import { mapDbGuardError } from "@/server/repos/stockGuard";
-import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
+import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { notifyPRProgress } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
@@ -53,6 +53,10 @@ export async function POST(
 ) {
   const guard = await requireCan(req, "approve", "pr");
   if ("response" in guard) return guard.response;
+
+  // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB.
+  const idCheck = validateUuidParam(params.id);
+  if ("response" in idCheck) return idCheck.response;
   // V4.2 audit S-guard — RBAC action `approve:pr` dùng chung cho nhiều bước;
   // khớp docstring + UI (canMarkIssued = isAdmin || isWarehouse) nên khoá
   // thêm role tại đây, giống dept-approve/director-approve cùng thư mục.

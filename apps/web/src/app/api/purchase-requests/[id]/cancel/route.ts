@@ -3,7 +3,7 @@ import { prCancelSchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import { canCancelPR } from "@/lib/procurement-policy";
 import { PrCancelError, cancelPR, getPR } from "@/server/repos/purchaseRequests";
-import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
+import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { requireSession } from "@/server/session";
 import { writeAudit } from "@/server/services/audit";
 import { notifyPRCancelled } from "@/server/services/notifications";
@@ -27,6 +27,10 @@ export async function POST(
 ) {
   const guard = await requireSession(req);
   if ("response" in guard) return guard.response;
+
+  // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB.
+  const idCheck = validateUuidParam(params.id);
+  if ("response" in idCheck) return idCheck.response;
 
   const before = await getPR(params.id);
   if (!before) return jsonError("NOT_FOUND", "Không tìm thấy PR.", 404);

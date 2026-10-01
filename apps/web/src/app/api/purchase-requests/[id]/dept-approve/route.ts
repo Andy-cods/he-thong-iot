@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
 import { deptApprovePR, getPR } from "@/server/repos/purchaseRequests";
-import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
+import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { notifyPRDeptApproved } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
@@ -28,6 +28,10 @@ export async function POST(
 ) {
   const guard = await requireCan(req, "approve", "pr");
   if ("response" in guard) return guard.response;
+
+  // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB.
+  const idCheck = validateUuidParam(params.id);
+  if ("response" in idCheck) return idCheck.response;
   // RBAC action `approve:pr` được dùng cho cả hai cấp, nên route phải khóa
   // thêm đúng vai trò của cấp Trưởng bộ phận.
   //

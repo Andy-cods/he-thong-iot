@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
 import { directorApprovePR, getPR } from "@/server/repos/purchaseRequests";
-import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
+import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import {
   notifyPRApproved,
@@ -30,6 +30,10 @@ export async function POST(
 ) {
   const guard = await requireCan(req, "approve", "pr");
   if ("response" in guard) return guard.response;
+
+  // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB.
+  const idCheck = validateUuidParam(params.id);
+  if ("response" in idCheck) return idCheck.response;
   // Tách quyền cấp duyệt cuối khỏi quyền duyệt cấp Trưởng bộ phận. Matrix
   // chung không biểu diễn được hai stage khác nhau của cùng entity PR.
   if (

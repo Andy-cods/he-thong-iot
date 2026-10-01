@@ -11,7 +11,7 @@ import { z } from "zod";
 import { item as itemTable, workOrder } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
+import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { notifyWORejected } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
@@ -29,6 +29,11 @@ export async function POST(
 ) {
   const guard = await requireCan(req, "transition", "wo");
   if ("response" in guard) return guard.response;
+
+  // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB (ca lỗi thật:
+  // POST /api/work-orders/not-a-uuid/reject → 500 thô trước khi fix này).
+  const idCheck = validateUuidParam(params.id);
+  if ("response" in idCheck) return idCheck.response;
 
   // V3.7.46 — Chỉ operator (VH-A) hoặc admin mới được từ chối YCSX
   // (separation of duties — planner là creator).

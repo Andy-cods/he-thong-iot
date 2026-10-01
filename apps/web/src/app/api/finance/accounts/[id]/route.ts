@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { finAccountUpdateSchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import { getFinAccountById, updateFinAccount } from "@/server/repos/finAccounts";
-import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
+import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { diffObjects, writeAudit } from "@/server/services/audit";
 import { requireCan } from "@/server/session";
 
@@ -26,6 +26,9 @@ export async function GET(
 ) {
   const guard = await requireCan(req, "read", "finance");
   if ("response" in guard) return guard.response;
+  // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB.
+  const idCheck = validateUuidParam(params.id);
+  if ("response" in idCheck) return idCheck.response;
   const row = await getFinAccountById(params.id);
   if (!row) return jsonError("NOT_FOUND", "Không tìm thấy tài khoản.", 404);
   return NextResponse.json({ data: row });
@@ -37,6 +40,9 @@ export async function PATCH(
 ) {
   const guard = await requireCan(req, "update", "finance");
   if ("response" in guard) return guard.response;
+  // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB.
+  const idCheck = validateUuidParam(params.id);
+  if ("response" in idCheck) return idCheck.response;
   const body = await parseJson(req, finAccountUpdateSchema);
   if ("response" in body) return body.response;
 
@@ -80,6 +86,9 @@ export async function DELETE(
 ) {
   const guard = await requireCan(req, "delete", "finance");
   if ("response" in guard) return guard.response;
+  // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB.
+  const idCheck = validateUuidParam(params.id);
+  if ("response" in idCheck) return idCheck.response;
   const before = await getFinAccountById(params.id);
   if (!before) return jsonError("NOT_FOUND", "Không tìm thấy tài khoản.", 404);
   if (before.isActive === false) {

@@ -12,6 +12,7 @@ import {
   extractRequestMeta,
   jsonError,
   parseJson,
+  validateUuidParam,
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { insertActivityLog } from "@/server/repos/activityLogs";
@@ -48,6 +49,10 @@ export async function POST(
 ) {
   const guard = await requireCan(req, "transition", "wo");
   if ("response" in guard) return guard.response;
+
+  // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB.
+  const idCheck = validateUuidParam(params.id);
+  if ("response" in idCheck) return idCheck.response;
 
   const body = await parseJson(req, schema);
   if ("response" in body) return body.response;

@@ -6,7 +6,7 @@ import {
   voidTransferGroup,
 } from "@/server/repos/finTransactions";
 import { getFinPaymentById, voidPaymentWithAllocations } from "@/server/repos/finPayments";
-import { extractRequestMeta, jsonError } from "@/server/http";
+import { extractRequestMeta, jsonError, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { requireCan } from "@/server/session";
 
@@ -31,6 +31,10 @@ export async function POST(
 ) {
   const guard = await requireCan(req, "update", "finance");
   if ("response" in guard) return guard.response;
+
+  // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB.
+  const idCheck = validateUuidParam(params.id);
+  if ("response" in idCheck) return idCheck.response;
 
   const before = await getFinTransactionById(params.id);
   if (!before) return jsonError("NOT_FOUND", "Không tìm thấy giao dịch.", 404);

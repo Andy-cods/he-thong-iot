@@ -4,7 +4,7 @@ import {
   WoMaterialPlanError,
   createWoMaterialRequests,
 } from "@/server/repos/workOrderMaterialPlan";
-import { jsonError } from "@/server/http";
+import { jsonError, validateUuidParam } from "@/server/http";
 import { requireCan } from "@/server/session";
 import { writeAudit } from "@/server/services/audit";
 import { notifyIssueRequestNew, notifyPRSubmitted } from "@/server/services/notifications";
@@ -29,6 +29,10 @@ export async function POST(
 ) {
   const guard = await requireCan(req, "transition", "wo");
   if ("response" in guard) return guard.response;
+
+  // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB.
+  const idCheck = validateUuidParam(params.id);
+  if ("response" in idCheck) return idCheck.response;
 
   try {
     const result = await createWoMaterialRequests(params.id, guard.session.userId);
