@@ -61,19 +61,25 @@ export function ThemeSegmented({ className }: { className?: string }) {
 }
 
 export function ThemeQuickToggle({ className }: { className?: string }) {
-  const { mode, resolved, setMode } = useTheme();
-  // Cycle: light → dark → system → light
-  const next: ThemeMode =
-    mode === "light" ? "dark" : mode === "dark" ? "system" : "light";
-  const label =
-    mode === "system" ? `Hệ thống (${resolved === "dark" ? "Tối" : "Sáng"})` : mode === "dark" ? "Tối" : "Sáng";
-  const Icon = mode === "system" ? Monitor : mode === "dark" ? Moon : Sun;
+  const { resolved, setMode } = useTheme();
+  // V4.5 QA-E P3: chu kỳ theo TRẠNG THÁI HIỂN THỊ THỰC TẾ (`resolved`), không
+  // theo `mode` thô. Trước đây cycle light→dark→system→light cứ nhảy sang
+  // "light" khi rời "Hệ thống" bất kể đang resolve gì — nếu hệ thống đã sẵn
+  // hiển thị sáng thì bấm lần đầu KHÔNG thấy đổi (icon đổi nhưng màu giao
+  // diện giữ nguyên), giống nút bị đơ, phải bấm lần 2 mới thấy đổi. Nay bấm
+  // LUÔN lật đúng màu đang hiển thị: đang tối → bấm ra sáng, đang sáng → bấm
+  // ra tối. Lựa chọn "Hệ thống" đầy đủ vẫn có ở `ThemeSegmented` (trang Cài
+  // đặt) — quick toggle ở topbar chỉ cần đổi nhanh 2 chiều sáng/tối.
+  const next: ThemeMode = resolved === "dark" ? "light" : "dark";
+  const label = resolved === "dark" ? "Tối" : "Sáng";
+  const nextLabel = next === "dark" ? "Tối" : "Sáng";
+  const Icon = resolved === "dark" ? Moon : Sun;
   return (
     <button
       type="button"
       onClick={() => setMode(next)}
-      aria-label={`Giao diện: ${label} — bấm để đổi`}
-      title={`Giao diện: ${label}`}
+      aria-label={`Giao diện: ${label} — bấm để đổi sang ${nextLabel}`}
+      title={`Giao diện: ${label} — bấm để đổi sang ${nextLabel}`}
       className={cn(
         "inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50",
         className,

@@ -6,18 +6,21 @@ import { Check } from "lucide-react";
 /**
  * V3.2 — Cinematic splash khi login thành công.
  *
- * Animation timeline (~7400ms total):
- *   0ms     — overlay fade-in
- *   100ms   — logo scale-in spring + glow pulse breathing
- *   400ms   — checkmark badge bounce-in
- *   500ms   — brand text slide-up
- *   700ms   — welcome message slide-up
- *   900ms   — progress bar slide-up + bắt đầu fill
- *   900-7100ms — progress 0% → 100% with realtime counter, 4 milestones loaded
- *   7300ms  — exit animation (scale + fade)
- *   7400ms  — onComplete() callback
+ * V4.5 QA-E P3: rút tổng thời lượng xuống ≤1,2s (trước 3,4s — JSDoc cũ còn ghi
+ * nhầm ~7400ms, lệch xa cả số thực 3400ms lẫn số hiện tại) + cho bấm/nhấn phím
+ * bất kỳ để bỏ qua ngay, vì tài khoản dùng lại nhiều lần/ngày (kiosk,
+ * operator) thấy cảnh này lặp lại là chậm. Mốc thời gian các giai đoạn tính
+ * theo TỶ LỆ của hằng số bên dưới (`durationMs`/`PROGRESS_START_DELAY`/
+ * `EXIT_DURATION`) — xem các hằng số đó thay vì số ms cứng để tránh lệch lại:
+ *   0                        — overlay fade-in + logo/text slide-up (so le)
+ *   PROGRESS_START_DELAY     — progress bar bắt đầu fill 0% → 100%
+ *   durationMs - EXIT_DURATION — bắt đầu exit animation (scale + fade)
+ *   durationMs               — onComplete() callback
  *
- * Side effects:
+ * Tôn trọng `prefers-reduced-motion: reduce` — bỏ HẲN hiệu ứng (không render
+ * overlay, không chạy timer) và gọi `onComplete()` ngay.
+ *
+ * Side effects (khi không ở chế độ reduced-motion):
  *   - 12 particles burst from logo center
  *   - Background animated radial gradient indigo + cyan
  *   - Scanline cyan sweep ×3 lần
@@ -29,9 +32,13 @@ export interface LoginSuccessSplashProps {
   durationMs?: number;
 }
 
-const DEFAULT_DURATION = 3400;
-const PROGRESS_START_DELAY = 900;
-const EXIT_DURATION = 100;
+/** V4.5 QA-E P3: ≤1200ms theo yêu cầu nghiệm thu (trước 3400ms). */
+const DEFAULT_DURATION = 1100;
+// Khớp với lúc ".splash-progress-section" (CSS bên dưới) hiện xong — nếu đổi
+// 1 trong 2 bên thì đổi bên kia theo, không để progress bar chạy TRƯỚC khi
+// khung chứa nó kịp fade-in.
+const PROGRESS_START_DELAY = 350;
+const EXIT_DURATION = 120;
 
 const MILESTONES = [
   { pct: 18,  label: "Xác thực phiên đăng nhập",   key: "auth"     },
@@ -50,18 +57,43 @@ export function LoginSuccessSplash({
   const [stage, setStage] = React.useState<"in" | "out">("in");
   const [progress, setProgress] = React.useState(0);
 
+  // V4.5 QA-E P3: đảm bảo onComplete chỉ gọi đúng 1 lần dù tới từ timer tự
+  // nhiên HAY từ bấm/phím bỏ qua (2 đường có thể đua nhau).
+  const completedRef = React.useRef(false);
+  const complete = React.useCallback(() => {
+    if (completedRef.current) return;
+    completedRef.current = true;
+    onComplete();
+  }, [onComplete]);
+
+  // V4.5 QA-E P3: tôn trọng prefers-reduced-motion — bỏ hẳn hiệu ứng, không
+  // chạy timeline nào cả, chuyển trang ngay. Đọc 1 lần lúc mount (giá trị
+  // không đổi trong vòng đời splash).
+  const [reducedMotion] = React.useState(
+    () =>
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
+
+  React.useEffect(() => {
+    if (reducedMotion) complete();
+  }, [reducedMotion, complete]);
+
   // Stage transitions
   React.useEffect(() => {
+    if (reducedMotion) return;
     const exitT = setTimeout(() => setStage("out"), durationMs - EXIT_DURATION);
-    const completeT = setTimeout(() => onComplete(), durationMs);
+    const completeT = setTimeout(complete, durationMs);
     return () => {
       clearTimeout(exitT);
       clearTimeout(completeT);
     };
-  }, [durationMs, onComplete]);
+  }, [durationMs, reducedMotion, complete]);
 
   // Progress counter — realtime tween từ 0 → 100% trong (durationMs - PROGRESS_START_DELAY - EXIT_DURATION)
   React.useEffect(() => {
+    if (reducedMotion) return;
     const startDelay = PROGRESS_START_DELAY;
     const fillDuration = durationMs - startDelay - EXIT_DURATION;
     let raf = 0;
@@ -85,7 +117,26 @@ export function LoginSuccessSplash({
       clearTimeout(startT);
       cancelAnimationFrame(raf);
     };
-  }, [durationMs]);
+  }, [durationMs, reducedMotion]);
+
+  // V4.5 QA-E P3: bấm/chạm/nhấn phím BẤT KỲ → bỏ qua splash ngay (vẫn giữ
+  // animation thoát 120ms cho mượt, không cắt cụt hình).
+  React.useEffect(() => {
+    if (reducedMotion) return;
+    const handleSkip = () => {
+      if (completedRef.current) return;
+      setStage("out");
+      window.setTimeout(complete, EXIT_DURATION);
+    };
+    window.addEventListener("pointerdown", handleSkip);
+    window.addEventListener("keydown", handleSkip);
+    return () => {
+      window.removeEventListener("pointerdown", handleSkip);
+      window.removeEventListener("keydown", handleSkip);
+    };
+  }, [reducedMotion, complete]);
+
+  if (reducedMotion) return null;
 
   const displayName = fullName || username;
   const greeting = getGreeting();
@@ -113,7 +164,7 @@ export function LoginSuccessSplash({
             className="splash-particle"
             style={{
               ['--angle' as string]: `${i * 30}deg`,
-              ['--delay' as string]: `${0.4 + i * 0.02}s`,
+              ['--delay' as string]: `${0.15 + i * 0.01}s`,
             }}
           />
         ))}
@@ -217,6 +268,11 @@ export function LoginSuccessSplash({
             })}
           </div>
         </div>
+
+        {/* V4.5 QA-E P3: gợi ý có thể bỏ qua — tránh cảm giác "bị kẹt" chờ. */}
+        <p className="splash-skip-hint text-[11px] text-zinc-500">
+          Bấm hoặc nhấn phím bất kỳ để bỏ qua
+        </p>
       </div>
 
       <style jsx>{`
@@ -276,10 +332,12 @@ export function LoginSuccessSplash({
           opacity: 0;
         }
         .splash-scanline-1 {
-          animation: scanline-sweep 1.5s cubic-bezier(0.22, 1, 0.36, 1) 0.1s forwards;
+          animation: scanline-sweep 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.05s forwards;
         }
+        /* V4.5 QA-E P3: splash rút còn ~1.1s — bỏ sweep thứ 2 (trước delay
+           1.7s, dài hơn CẢ tổng thời lượng splash mới, sẽ không kịp chạy). */
         .splash-scanline-2 {
-          animation: scanline-sweep 1.5s cubic-bezier(0.22, 1, 0.36, 1) 1.7s forwards;
+          animation: none;
         }
         .splash-scanline-3 {
           animation: none;
@@ -299,7 +357,7 @@ export function LoginSuccessSplash({
         }
 
         .splash-logo-wrap {
-          animation: logo-pop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both;
+          animation: logo-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) 0.05s both;
         }
         @keyframes logo-pop {
           from {
@@ -343,7 +401,7 @@ export function LoginSuccessSplash({
         }
 
         .splash-check {
-          animation: check-bounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.4s both;
+          animation: check-bounce 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both;
         }
         @keyframes check-bounce {
           from {
@@ -357,15 +415,21 @@ export function LoginSuccessSplash({
         }
 
         .splash-brand {
-          animation: text-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.5s both;
+          animation: text-up 0.3s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
           opacity: 0;
         }
         .splash-welcome {
-          animation: text-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.7s both;
+          animation: text-up 0.3s cubic-bezier(0.22, 1, 0.36, 1) 0.28s both;
           opacity: 0;
         }
+        /* V4.5 QA-E P3: khớp PROGRESS_START_DELAY (JS) — xem comment cạnh
+           hằng số đó. */
         .splash-progress-section {
-          animation: text-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.85s both;
+          animation: text-up 0.3s cubic-bezier(0.22, 1, 0.36, 1) 0.35s both;
+          opacity: 0;
+        }
+        .splash-skip-hint {
+          animation: text-up 0.3s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
           opacity: 0;
         }
         @keyframes text-up {
@@ -408,7 +472,7 @@ export function LoginSuccessSplash({
           background: rgba(99, 241, 255, 0.95);
           box-shadow: 0 0 8px rgba(99, 241, 255, 0.8);
           opacity: 0;
-          animation: particle-burst 1.2s cubic-bezier(0.22, 1, 0.36, 1) var(--delay) both;
+          animation: particle-burst 0.5s cubic-bezier(0.22, 1, 0.36, 1) var(--delay) both;
         }
         @keyframes particle-burst {
           0% {
