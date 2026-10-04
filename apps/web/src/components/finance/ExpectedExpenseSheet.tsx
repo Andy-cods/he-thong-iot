@@ -133,24 +133,24 @@ function PayableBucketTable({
               <tr>
                 <th className="px-3 py-2 text-left font-medium">Nhà cung cấp</th>
                 {PAYABLE_DUE_BUCKETS.map((b) => (
-                  <th key={b} className="px-3 py-2 text-right font-medium tabular-nums">
+                  <th key={b} className="px-3 py-2 text-right whitespace-nowrap font-medium tabular-nums">
                     {PAYABLE_DUE_BUCKET_LABELS[b]}
                   </th>
                 ))}
-                <th className="px-3 py-2 text-right font-semibold">Tổng</th>
+                <th className="px-3 py-2 text-right whitespace-nowrap font-semibold">Tổng</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {summary.totalBySupplier.map((s) => (
                 <tr key={s.supplierId ?? s.supplierName}>
-                  <td className="px-3 py-2 text-zinc-800 dark:text-zinc-200">{s.supplierName}</td>
+                  <td className="min-w-[200px] px-3 py-2 text-zinc-800 dark:text-zinc-200">{s.supplierName}</td>
                   {PAYABLE_DUE_BUCKETS.map((b) => {
                     const v = amountFor(s.supplierId, b);
                     return (
                       <td
                         key={b}
                         className={cn(
-                          "px-3 py-2 text-right tabular-nums",
+                          "px-3 py-2 text-right whitespace-nowrap tabular-nums",
                           v > 0 && b === "OVERDUE"
                             ? "font-semibold text-red-600 dark:text-red-400"
                             : "text-zinc-600 dark:text-zinc-300",
@@ -160,7 +160,7 @@ function PayableBucketTable({
                       </td>
                     );
                   })}
-                  <td className="px-3 py-2 text-right font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
+                  <td className="px-3 py-2 text-right whitespace-nowrap font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
                     {fmtVND(s.total)}
                   </td>
                 </tr>
@@ -170,11 +170,11 @@ function PayableBucketTable({
               <tr>
                 <td className="px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-200">Tổng</td>
                 {PAYABLE_DUE_BUCKETS.map((b) => (
-                  <td key={b} className="px-3 py-2 text-right font-semibold tabular-nums text-zinc-700 dark:text-zinc-200">
+                  <td key={b} className="px-3 py-2 text-right whitespace-nowrap font-semibold tabular-nums text-zinc-700 dark:text-zinc-200">
                     {summary.totalByBucket[b] > 0 ? fmtVND(summary.totalByBucket[b]) : "—"}
                   </td>
                 ))}
-                <td className="px-3 py-2 text-right font-bold tabular-nums text-zinc-900 dark:text-zinc-50">
+                <td className="px-3 py-2 text-right whitespace-nowrap font-bold tabular-nums text-zinc-900 dark:text-zinc-50">
                   {fmtVND(summary.grandTotal)}
                 </td>
               </tr>
