@@ -63,7 +63,7 @@ export function ExpectedExpenseSheet({
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" size="lg" hideCloseButton className="flex flex-col">
+        <SheetContent side="right" size="lg" hideCloseButton className="flex flex-col md:w-[880px] md:max-w-[95vw]">
           <SheetHeaderNav
             title={
               <span className="inline-flex items-center gap-2">
