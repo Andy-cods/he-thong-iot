@@ -41,7 +41,7 @@ import { Input } from "@/components/ui/input";
 export function PRTab() {
   const [urlState, setUrlState] = useQueryStates(
     {
-      status: parseAsStringEnum(["all", ...PR_STATUSES]).withDefault("all"),
+      status: parseAsStringEnum(["all", ...PR_STATUSES, "COMPLETED"]).withDefault("all"),
       page: parseAsInteger.withDefault(1),
       pageSize: parseAsInteger.withDefault(50),
       q: parseAsString.withDefault(""),
@@ -79,8 +79,9 @@ export function PRTab() {
 
   const filter: PRFilter = React.useMemo(
     () => ({
+      completed: urlState.status === "COMPLETED" ? true : undefined,
       status:
-        urlState.status === "all"
+        urlState.status === "all" || urlState.status === "COMPLETED"
           ? undefined
           : [urlState.status as PRStatus],
       page: urlState.page,
@@ -114,6 +115,7 @@ export function PRTab() {
   const tabCount = (s: string): number | undefined => {
     if (!counts) return undefined;
     if (s === "all") return counts.all;
+    if (s === "COMPLETED") return counts.completed;
     return counts.byStatus[s as PRStatus] ?? 0;
   };
   const hasFilter =
@@ -208,10 +210,10 @@ export function PRTab() {
           onValueChange={(v) => void setUrlState({ status: v as typeof urlState.status, page: 1 })}
         >
           <TabsList variant="segmented">
-            {["all", ...PR_STATUSES].map((s) => (
+            {["all", ...PR_STATUSES, ...(counts?.completed !== undefined ? ["COMPLETED"] : [])].map((s) => (
               <TabsTrigger key={s} value={s}>
                 {/* V4.1 UI-07: nhãn chip lọc từ lib/status.ts (khớp badge danh sách). */}
-                {s === "all" ? "Tất cả" : statusLabel("pr", s)}
+                {s === "all" ? "Tất cả" : s === "COMPLETED" ? "Hoàn tất" : statusLabel("pr", s)}
                 {tabCount(s) !== undefined ? (
                   <span className="ml-1.5 tabular-nums text-zinc-400 dark:text-zinc-500">
                     {formatNumber(tabCount(s))}

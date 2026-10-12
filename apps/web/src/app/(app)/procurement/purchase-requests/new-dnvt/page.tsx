@@ -26,6 +26,9 @@ import {
   normalizeNumStr,
   proposingDepartmentForRoles,
   validatePrLines,
+  missingLineErrors,
+  duplicateItemLines,
+  scrollToFirst,
   type LineError,
 } from "@/lib/pr-form";
 import { toLocalDateInput, formatDate } from "@/lib/format";
@@ -150,6 +153,8 @@ export default function NewDnvtPage() {
   const guard = useUnsavedChangesGuard(dirty);
   // L12: lỗi theo dòng (tô đỏ dòng + nêu rõ "Dòng X ...").
   const [lineErrors, setLineErrors] = React.useState<LineError[]>([]);
+  // A16 - Ly do de xuat trong khi Gui: to do o + cuon toi.
+  const [reasonError, setReasonError] = React.useState(false);
 
   // TASK-6VIEC Việc 2 — prefill form từ phiếu NHÁP khi mở qua ?draftId=.
   React.useEffect(() => {
@@ -188,6 +193,9 @@ export default function NewDnvtPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftId, draftDetail.data]);
 
+  // A19 - dong trung vat tu: chi canh bao, van cho gui.
+  const dupMap = React.useMemo(() => duplicateItemLines(lines), [lines]);
+
   const validLines = React.useMemo(
     () => lines.filter((l) => !!l.item && Number(l.qty) > 0),
     [lines],
@@ -224,6 +232,7 @@ export default function NewDnvtPage() {
     const errs = validatePrLines(lines, toLocalDateInput());
     setLineErrors(errs);
     if (errs.length > 0) {
+      scrollToFirst('[data-line-error="true"]');
       toast.error(errs.slice(0, 3).map((e) => e.message).join("\n") + (errs.length > 3 ? `\n… và ${errs.length - 3} lỗi khác` : ""));
       return false;
     }
@@ -268,6 +277,8 @@ export default function NewDnvtPage() {
     if (submittingRef.current) return;
     if (!checkLines()) return;
     if (validLines.length === 0) {
+      setLineErrors(missingLineErrors(lines));
+      scrollToFirst('[data-line-error="true"]');
       toast.error("Cần ít nhất 1 dòng đã chọn vật tư + số lượng > 0.");
       return;
     }
@@ -309,10 +320,14 @@ export default function NewDnvtPage() {
     if (submittingRef.current) return;
     if (!checkLines()) return;
     if (validLines.length === 0) {
+      setLineErrors(missingLineErrors(lines));
+      scrollToFirst('[data-line-error="true"]');
       toast.error("Cần ít nhất 1 dòng đã chọn vật tư + số lượng > 0.");
       return;
     }
     if (!requestReason.trim()) {
+      setReasonError(true);
+      scrollToFirst('[data-reason-field="true"]');
       toast.error("Vui lòng nhập lý do đề xuất.");
       return;
     }
@@ -520,9 +535,14 @@ export default function NewDnvtPage() {
                 <textarea
                   rows={2}
                   value={requestReason}
-                  onChange={(e) => setRequestReason(e.target.value)}
+                  onChange={(e) => {
+                    setRequestReason(e.target.value);
+                    if (e.target.value.trim()) setReasonError(false);
+                  }}
+                  data-reason-field="true"
+                  aria-invalid={reasonError || undefined}
                   placeholder="VD: Gia công cho Code Z0000002-558567"
-                  className="w-full resize-none bg-transparent text-[12px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
+                  className="w-full resize-none rounded bg-transparent text-[12px] outline-none placeholder:text-zinc-300 aria-[invalid=true]:bg-red-50 aria-[invalid=true]:ring-1 aria-[invalid=true]:ring-red-400 dark:placeholder:text-zinc-600 dark:aria-[invalid=true]:bg-red-950/30"
                   maxLength={2000}
                 />
               </FieldRow>
@@ -562,10 +582,10 @@ export default function NewDnvtPage() {
                 <thead>
                   <tr className="bg-[#F5F5F5] text-xs font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
                     <Th w="w-8">STT</Th>
-                    <Th w="min-w-[220px] print:min-w-[150px] print:w-auto">Tên vật tư</Th>
-                    <Th w="min-w-[160px] print:min-w-[120px] print:w-auto">Quy cách chi tiết</Th>
+                    <Th w="min-w-[280px] print:min-w-[150px] print:w-auto">Tên vật tư</Th>
+                    <Th w="min-w-[140px] print:min-w-[120px] print:w-auto">Quy cách chi tiết</Th>
                     <Th w="min-w-[72px] print:w-14 print:min-w-0">ĐVT</Th>
-                    <Th w="min-w-[150px] print:w-16 print:min-w-0" align="center">
+                    <Th w="min-w-[96px] print:w-16 print:min-w-0" align="center">
                       SL YC
                     </Th>
                     <Th w="min-w-[72px] print:w-16 print:min-w-0" align="right">
@@ -574,13 +594,13 @@ export default function NewDnvtPage() {
                     <Th w="min-w-[64px] print:w-14 print:min-w-0" align="right">
                       Duyệt
                     </Th>
-                    <Th w="min-w-[150px] print:w-28 print:min-w-0">Ngày cần</Th>
+                    <Th w="min-w-[136px] print:w-28 print:min-w-0">Ngày cần</Th>
                     <Th w="min-w-[130px] print:w-28 print:min-w-0">Ưu tiên</Th>
-                    <Th w="min-w-[220px] print:w-28 print:min-w-0">Phân loại</Th>
+                    <Th w="min-w-[150px] print:w-28 print:min-w-0">Phân loại</Th>
                     <Th w="min-w-[96px] print:w-24 print:min-w-0">Mã tham chiếu</Th>
                     <Th w="min-w-[88px] print:w-20 print:min-w-0">Tham khảo</Th>
                     <Th w="min-w-[140px] print:min-w-[110px] print:w-auto">Ghi chú</Th>
-                    <Th w="min-w-[150px] print:w-28 print:min-w-0">Ngày giao hàng</Th>
+                    <Th w="min-w-[136px] print:w-28 print:min-w-0">Ngày giao hàng</Th>
                     <Th w="w-8" hideOnPrint>
                       &nbsp;
                     </Th>
@@ -591,6 +611,7 @@ export default function NewDnvtPage() {
                     <tr
                       key={l.localId}
                       aria-invalid={lineErrors.some((e) => e.localId === l.localId) || undefined}
+                      data-line-error={lineErrors.some((e) => e.localId === l.localId) ? "true" : undefined}
                       className={cn(
                         lineErrors.some((e) => e.localId === l.localId) &&
                           "bg-red-50 outline outline-1 -outline-offset-1 outline-red-400 dark:bg-red-950/30",
@@ -606,7 +627,7 @@ export default function NewDnvtPage() {
                         </span>
                       </Td>
                       <Td>
-                        <div className="min-w-[220px] print:hidden">
+                        <div className="min-w-[260px] print:hidden">
                           <ItemPickerField
                             value={l.item}
                             onChange={(item) =>
@@ -617,6 +638,11 @@ export default function NewDnvtPage() {
                             }
                             placeholder="Tìm hoặc tạo vật tư..."
                           />
+                            {dupMap.has(l.localId) ? (
+                              <p className="mt-1 text-[11px] leading-snug text-amber-700 dark:text-amber-400" role="status">
+                                Trùng vật tư với dòng {dupMap.get(l.localId)} — vẫn gửi được nếu cố ý.
+                              </p>
+                            ) : null}
                         </div>
                         <span className="hidden text-[11px] print:inline">
                           {l.item ? `${l.item.sku} — ${l.item.name}` : "—"}

@@ -21,9 +21,10 @@ export interface PRListTableProps {
 
 /** V3.16 (mục 1) — ưu tiên nhãn vật tư tự sinh (mua CÁI GÌ), fallback tiêu đề. */
 function prLabel(row: PRRow): string | null {
-  return row.displayLabel && row.displayLabel !== NO_LINE_LABEL
-    ? row.displayLabel
-    : (row.title ?? null);
+  // A14 — ưu tiên TIÊU ĐỀ người lập nhập; trống mới fallback tên vật tư dòng đầu.
+  const title = row.title?.trim();
+  if (title) return title;
+  return row.displayLabel && row.displayLabel !== NO_LINE_LABEL ? row.displayLabel : null;
 }
 
 /**
@@ -66,6 +67,32 @@ export function PRListTable({ rows, loading, sortDir, onSortDateClick }: PRListT
             <span className="text-zinc-400 dark:text-zinc-500">—</span>
           );
         },
+      },
+      {
+        id: "paperNo",
+        header: "Số phiếu",
+        width: 130,
+        cell: (r) =>
+          r.paperFormNo ? (
+            <span className="block max-w-[8rem] truncate font-mono text-xs" title={r.paperFormNo}>
+              {r.paperFormNo}
+            </span>
+          ) : (
+            <span className="text-zinc-400 dark:text-zinc-500">—</span>
+          ),
+      },
+      {
+        id: "requester",
+        header: "Người lập",
+        width: 140,
+        cell: (r) =>
+          r.requestedByName ? (
+            <span className="block max-w-[9rem] truncate" title={r.requestedByName}>
+              {r.requestedByName}
+            </span>
+          ) : (
+            <span className="text-zinc-400 dark:text-zinc-500">—</span>
+          ),
       },
       {
         id: "source",
@@ -131,7 +158,7 @@ export function PRListTable({ rows, loading, sortDir, onSortDateClick }: PRListT
       skeletonRows={10}
       dense
       ariaLabel="Danh sách PR"
-      minWidth={680}
+      minWidth={940}
       className="max-h-full"
       onRowClick={(r) => router.push(`/procurement/purchase-requests/${r.id}`)}
     />

@@ -345,6 +345,8 @@ export interface PRFilter {
   to?: string;
   /** V3.16 — sort theo cột "Ngày tạo". Mặc định "desc". */
   sortDir?: "asc" | "desc";
+  /** A14 — tab "Hoàn tất": phiếu đã xuất/nhận xong (completed_at). */
+  completed?: boolean;
   page?: number;
   pageSize?: number;
 }

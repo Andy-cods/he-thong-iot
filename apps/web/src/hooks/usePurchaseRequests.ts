@@ -158,6 +158,13 @@ export interface PRDetailResponse {
   data: PRRow & {
     lines: PRLineEnriched[];
     goodsIssues?: PRGoodsIssueRow[];
+    /** A18 — các PO sinh từ phiếu này (nếu server trả) để mục IV hiện trạng thái PO thật. */
+    purchaseOrders?: Array<{
+      id?: string;
+      poNo?: string | null;
+      code?: string | null;
+      status: string;
+    }>;
     /** L8 — tiến độ xuất kho nhiều đợt. */
     issueProgress?: {
       complete: boolean;
@@ -168,8 +175,6 @@ export interface PRDetailResponse {
     issueStage?: "WAREHOUSE" | "FINAL";
     /** SL còn xuất được từ kho ở giai đoạn hiện tại (0 = ẩn nút "Đã xuất kho" ở giai đoạn Kho). */
     warehouseIssuableRemaining?: number;
-    /** A18 — mọi PO của phiếu (kể cả CANCELLED) với trạng thái thật. */
-    purchaseOrders?: { id: string; poNo: string; status: string }[];
   };
 }
 
@@ -240,6 +245,7 @@ function buildListUrl(f: PRFilter): string {
   if (f.from) p.set("from", f.from);
   if (f.to) p.set("to", f.to);
   if (f.sortDir) p.set("sortDir", f.sortDir);
+  if (f.completed) p.set("completed", "1");
   if (f.page) p.set("page", String(f.page));
   if (f.pageSize) p.set("pageSize", String(f.pageSize));
   for (const s of f.status ?? []) p.append("status", s);

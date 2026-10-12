@@ -25,6 +25,7 @@ interface DnvtDetailLine {
   referenceNote?: string | null;
   notes?: string | null;
   deliveryDate?: string | Date | null;
+  issuedQty?: number | null;
 }
 
 export interface DnvtDetailPr {
@@ -36,6 +37,9 @@ export interface DnvtDetailPr {
   requestedByName?: string | null;
   requestReason?: string | null;
   lines: DnvtDetailLine[];
+  goodsIssues?: unknown[];
+  issueProgress?: { lines: { id: string; remaining: number }[] };
+  status?: string | null;
   approvalStep?: string | null;
   deptApprovedByName?: string | null;
   deptApprovedAt?: string | Date | null;
@@ -73,6 +77,15 @@ function fmtNum(n: number | string | null | undefined): string {
 export function DnvtDetailBody({ pr }: { pr: DnvtDetailPr }) {
   const paperFormNo = pr.paperFormNo ?? pr.code;
   const step = pr.approvalStep ?? "DRAFT";
+  // A18 — cột Đã xuất / Còn lại khi đã xuất kho và API trả issuedQty.
+  const showIssued =
+    (pr.goodsIssues?.length ?? 0) > 0 && pr.lines.some((l) => l.issuedQty != null);
+  const remainingOfLine = (l: DnvtDetailLine): number => {
+    const p = pr.issueProgress?.lines.find((x) => x.id === l.id);
+    if (p) return p.remaining;
+    const cap = Math.min(Number(l.qty) || 0, l.approvedQty != null ? Number(l.approvedQty) : Infinity);
+    return Math.max(0, cap - (l.issuedQty ?? 0));
+  };
 
   return (
     <article className="border-2 border-zinc-900 bg-white text-zinc-900 shadow-md print:border print:border-zinc-900 print:shadow-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 print:dark:border-zinc-900 print:dark:bg-white print:dark:text-zinc-900">
@@ -155,6 +168,8 @@ export function DnvtDetailBody({ pr }: { pr: DnvtDetailPr }) {
                 <Th w="w-14" align="right">SL YC</Th>
                 <Th w="w-16" align="right">Tồn kho</Th>
                 <Th w="w-14" align="right">Cần mua</Th>
+                {showIssued ? <Th w="w-16" align="right">Đã xuất</Th> : null}
+                {showIssued ? <Th w="w-16" align="right">Còn lại</Th> : null}
                 <Th w="w-28">Ngày cần</Th>
                 <Th w="w-28">Ưu tiên</Th>
                 <Th w="w-28">Phân loại</Th>
@@ -227,9 +242,19 @@ export function DnvtDetailBody({ pr }: { pr: DnvtDetailPr }) {
                         <span className="text-zinc-400 dark:text-zinc-500">—</span>
                       )}
                     </Td>
+                    {showIssued ? (
+                      <Td align="right">
+                        <span className="font-mono">{(l.issuedQty ?? 0) > 0 ? fmtNum(l.issuedQty ?? 0) : "—"}</span>
+                      </Td>
+                    ) : null}
+                    {showIssued ? (
+                      <Td align="right">
+                        <span className="font-mono">{fmtNum(remainingOfLine(l))}</span>
+                      </Td>
+                    ) : null}
                     <Td>{fmtDateVN(l.neededBy)}</Td>
                     <Td>{PRIORITY_LABELS[l.priority ?? "NORMAL"] ?? "—"}</Td>
-                    <Td>{CATEGORY_LABELS[l.category ?? "OTHER"] ?? "—"}</Td>
+                    <Td>{(l.category ? CATEGORY_LABELS[l.category] : null) ?? "—"}</Td>
                     <Td>{l.referenceCode ?? "—"}</Td>
                     <Td>{l.referenceNote ?? "—"}</Td>
                     <Td>{l.notes ?? "—"}</Td>
@@ -244,7 +269,12 @@ export function DnvtDetailBody({ pr }: { pr: DnvtDetailPr }) {
         {/* Mobile: card-list thay bảng (ẩn khi IN — bản in dùng bảng ở trên) */}
         <div className="space-y-2 p-2 md:hidden print:hidden">
           {pr.lines.map((l, idx) => (
-            <DnvtLineItemCard key={l.id} line={l} idx={idx} />
+            <DnvtLineItemCard
+              key={l.id}
+              line={l}
+              idx={idx}
+              remaining={showIssued ? remainingOfLine(l) : null}
+            />
           ))}
         </div>
       </section>
@@ -255,8 +285,8 @@ export function DnvtDetailBody({ pr }: { pr: DnvtDetailPr }) {
         <table className="w-full border-collapse text-[11px]">
           <thead>
             <tr className="bg-[#F5F5F5] text-xs font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
-              <Th w="w-48">Vai trò</Th>
-              <Th w="w-56">Họ tên</Th>
+              <Th w="md:w-48">Vai trò</Th>
+              <Th w="md:w-56">Họ tên</Th>
               <Th>Ký tên / Ngày</Th>
             </tr>
           </thead>
@@ -265,7 +295,7 @@ export function DnvtDetailBody({ pr }: { pr: DnvtDetailPr }) {
               role="Người đề xuất"
               name={pr.requestedByName ?? null}
               date={fmtDateTimeVN(pr.createdAt)}
-              signed
+              signed={pr.status !== "DRAFT"}
             />
             <ApprovalRow role="Kiểm tra tồn kho" name={null} date=" " />
             <ApprovalRow role="Kiểm tra kỹ thuật" name={null} date=" " />
@@ -334,14 +364,14 @@ function FieldRow({
   return (
     <div
       className={cn(
-        "grid grid-cols-[140px_1fr] border-b border-zinc-200 dark:border-zinc-700 print:dark:border-zinc-300",
+        "grid grid-cols-[110px_minmax(0,1fr)] border-b border-zinc-200 md:grid-cols-[140px_minmax(0,1fr)] dark:border-zinc-700 print:dark:border-zinc-300",
         wide ? "md:col-span-2" : "",
       )}
     >
       <div className="border-r border-zinc-200 bg-[#F5F5F5] px-3 py-2 text-[12px] font-bold text-zinc-800 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:border-zinc-300 print:dark:bg-zinc-100 print:dark:text-zinc-800">
         {label}
       </div>
-      <div className="flex min-h-[28px] items-center px-3 py-1">{children}</div>
+      <div className="flex min-h-[28px] min-w-0 items-center px-3 py-1 [overflow-wrap:anywhere]">{children}</div>
     </div>
   );
 }
@@ -398,7 +428,15 @@ function Td({
 /** V4.4 UI nhóm C-PR — card mobile cho 1 dòng vật tư DNVT (khớp pattern
  * `LineItemCard` của nhánh MRF ở `[id]/page.tsx`, lược field giá/tiền vì DNVT
  * không có 2 cột đó). */
-function DnvtLineItemCard({ line: l, idx }: { line: DnvtDetailLine; idx: number }) {
+function DnvtLineItemCard({
+  line: l,
+  idx,
+  remaining,
+}: {
+  line: DnvtDetailLine;
+  idx: number;
+  remaining?: number | null;
+}) {
   const qty = Number(l.qty) || 0;
   const onHand = l.availableQty != null
         ? Number(l.availableQty)
@@ -415,7 +453,7 @@ function DnvtLineItemCard({ line: l, idx }: { line: DnvtDetailLine; idx: number 
           {l.name ?? "—"}
         </div>
         <span className="shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-          #{idx + 1} · {CATEGORY_LABELS[l.category ?? "OTHER"] ?? "—"}
+          #{idx + 1} · {(l.category ? CATEGORY_LABELS[l.category] : null) ?? "—"}
         </span>
       </div>
       {/* Cấp 2 — khối số quyết định */}
@@ -442,6 +480,12 @@ function DnvtLineItemCard({ line: l, idx }: { line: DnvtDetailLine; idx: number 
           }
         />
       </div>
+      {remaining != null ? (
+        <div className="mt-2 grid grid-cols-2 gap-2 rounded-md bg-zinc-50 p-2 dark:bg-zinc-800/50">
+          <Metric label="Đã xuất" value={(l.issuedQty ?? 0) > 0 ? fmtNum(l.issuedQty ?? 0) : "—"} />
+          <Metric label="Còn lại" value={fmtNum(remaining)} />
+        </div>
+      ) : null}
       {/* Cấp 3 — phụ (ẩn field rỗng) */}
       <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 border-t border-zinc-100 pt-2 text-[11px] text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
         <Meta label="Quy cách" value={l.specification} />
