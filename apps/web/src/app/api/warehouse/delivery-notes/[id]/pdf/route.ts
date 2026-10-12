@@ -1,3 +1,4 @@
+import { contentDispositionAttachment } from "@/lib/content-disposition";
 import { type NextRequest } from "next/server";
 import { eq } from "drizzle-orm";
 import { userAccount, warehouseIssueRequest } from "@iot/db/schema";
@@ -85,7 +86,7 @@ export async function GET(
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+        "Content-Disposition": contentDispositionAttachment(filename),
         "Cache-Control": "no-store",
       },
     });

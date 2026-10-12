@@ -9,6 +9,7 @@
  * cảnh báo. V1.4 KHÔNG pagination (export all match); V1.5 sẽ streaming đầy đủ.
  */
 
+import { contentDispositionAttachment } from "@/lib/content-disposition";
 import ExcelJS from "exceljs";
 import { NextResponse, type NextRequest } from "next/server";
 import { auditListQuerySchema } from "@iot/shared";
@@ -131,7 +132,7 @@ export async function GET(req: NextRequest) {
       headers: {
         "Content-Type":
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Disposition": contentDispositionAttachment(filename),
         "X-Export-Count": String(result.rows.length),
         "X-Export-Total": String(result.total),
         ...(truncated

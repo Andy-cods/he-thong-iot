@@ -118,3 +118,102 @@ describe("validatePrIssuePicks", () => {
     expect(r.ok).toBe(true);
   });
 });
+
+describe("L8 — xuất kho nhiều đợt", () => {
+  it("trừ phần đã xuất ở đợt trước khỏi cap (còn lại)", async () => {
+    const { validatePrIssuePicks } = await load();
+    const ls = [{ id: "l1", itemId: "i", sku: "A-01", qty: 6, approvedQty: null, issuedQty: 2 }];
+    const ok = validatePrIssuePicks(ls, [{ prLineId: "l1", lotSerialId: "x", binId: "b", qty: 4 }]);
+    expect(ok.ok).toBe(true);
+    const over = validatePrIssuePicks(ls, [{ prLineId: "l1", lotSerialId: "x", binId: "b", qty: 4.5 }]);
+    expect(over.ok).toBe(false);
+    if (over.ok) return;
+    expect(over.error.code).toBe("OVER_ISSUE");
+    expect(over.error.message).toContain("đã xuất");
+  });
+
+  it("dòng đã xuất đủ → không xuất thêm", async () => {
+    const { validatePrIssuePicks } = await load();
+    const r = validatePrIssuePicks(
+      [{ id: "l1", itemId: "i", sku: "A-01", qty: 6, approvedQty: 5, issuedQty: 5 }],
+      [{ prLineId: "l1", lotSerialId: "x", binId: "b", qty: 1 }],
+    );
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error.message).toContain("đã xuất đủ");
+  });
+
+  it("computePrIssueProgress: đủ khi mọi dòng có vật tư đã xuất đủ; dòng nhập tay không tính", async () => {
+    const { computePrIssueProgress } = await load();
+    const part = computePrIssueProgress([
+      { id: "l1", itemId: "i1", sku: "A", qty: 6, approvedQty: null, issuedQty: 2 },
+      { id: "l2", itemId: "i2", sku: "B", qty: 3, approvedQty: null, issuedQty: 3 },
+      { id: "l3", itemId: null, sku: "C", qty: 9, approvedQty: null, issuedQty: 0 },
+    ]);
+    expect(part.complete).toBe(false);
+    expect(part.pendingLines).toBe(1);
+    expect(part.lines[0]).toMatchObject({ cap: 6, issued: 2, remaining: 4 });
+
+    const done = computePrIssueProgress([
+      { id: "l1", itemId: "i1", sku: "A", qty: 6, approvedQty: 5, issuedQty: 5 },
+      { id: "l3", itemId: null, sku: "C", qty: 9, approvedQty: null },
+    ]);
+    expect(done.complete).toBe(true);
+  });
+
+  it("computePrIssueProgress: không có dòng gắn vật tư nào → không tự hoàn tất", async () => {
+    const { computePrIssueProgress } = await load();
+    expect(
+      computePrIssueProgress([{ id: "l3", itemId: null, sku: null, qty: 1, approvedQty: null }]).complete,
+    ).toBe(false);
+  });
+
+  it("sai số làm tròn 4 số lẻ không chặn hoàn tất", async () => {
+    const { computePrIssueProgress } = await load();
+    expect(
+      computePrIssueProgress([
+        { id: "l1", itemId: "i", sku: "A", qty: 0.333333, approvedQty: null, issuedQty: 0.3333 },
+      ]).complete,
+    ).toBe(true);
+  });
+});
+
+describe("L4 — chỉ nhận hàng khi TẤT CẢ PO xong", () => {
+  it("areAllPOsReceived", async () => {
+    const { areAllPOsReceived } = await load();
+    expect(areAllPOsReceived(["RECEIVED", "SENT"])).toBe(false);
+    expect(areAllPOsReceived(["RECEIVED", "PARTIAL"])).toBe(false);
+    expect(areAllPOsReceived(["RECEIVED", "RECEIVED"])).toBe(true);
+    expect(areAllPOsReceived(["RECEIVED", "CLOSED"])).toBe(true);
+    // PO huỷ không tính
+    expect(areAllPOsReceived(["RECEIVED", "CANCELLED"])).toBe(true);
+    // chỉ toàn PO huỷ / không có PO → chưa coi là đã nhận
+    expect(areAllPOsReceived(["CANCELLED"])).toBe(false);
+    expect(areAllPOsReceived([])).toBe(false);
+  });
+});
+
+describe("L6/L9/L10/L13 — helper thuần", () => {
+  it("cancelBlockedMessage: REJECTED không bảo 'không có quyền'", async () => {
+    const { cancelBlockedMessage } = await load();
+    const m = cancelBlockedMessage("REJECTED");
+    expect(m).toContain("từ chối");
+    expect(m).toContain("Tạo lại");
+    expect(cancelBlockedMessage("CANCELLED")).toContain("đã huỷ");
+  });
+
+  it("isItemUsableForPR: chỉ ACTIVE và chưa vô hiệu hoá", async () => {
+    const { isItemUsableForPR } = await load();
+    expect(isItemUsableForPR({ status: "ACTIVE", isActive: true })).toBe(true);
+    expect(isItemUsableForPR({ status: "ACTIVE", isActive: false })).toBe(false);
+    expect(isItemUsableForPR({ status: "OBSOLETE", isActive: true })).toBe(false);
+    expect(isItemUsableForPR({ status: "DRAFT", isActive: true })).toBe(false);
+  });
+
+  it("escapeLike: % _ \\ của người dùng không thành wildcard", async () => {
+    const { escapeLike } = await load();
+    expect(escapeLike("50%_x")).toBe("50\\%\\_x");
+    expect(escapeLike("a\\b")).toBe("a\\\\b");
+    expect(escapeLike("Tấm nhôm")).toBe("Tấm nhôm");
+  });
+});

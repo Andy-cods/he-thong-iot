@@ -1,6 +1,8 @@
 import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import {
   bomSnapshotLine,
+  goodsIssue,
+  goodsIssueLine,
   item,
   purchaseOrder,
   purchaseRequest,
@@ -43,13 +45,48 @@ export interface ListPRsQuery {
   to?: string;
   /** V3.16 — bảng phẳng thay thư mục: sort theo Ngày tạo. Mặc định "desc". */
   sortDir?: "asc" | "desc";
+  /**
+   * L13 — tìm theo mã phiếu / số phiếu giấy / tiêu đề / tên-mã vật tư (mọi dòng) /
+   * người lập (họ tên hoặc username).
+   */
+  q?: string;
+  /**
+   * L5 — người đang xem: phiếu NHÁP của người khác bị loại khỏi danh sách
+   * (admin thấy tất cả). Bỏ qua → không lọc (chỉ dùng cho job nội bộ).
+   */
+  viewer?: { userId: string; isAdmin: boolean };
   page: number;
   pageSize: number;
 }
 
+export interface PRStatusCounts {
+  /** Số phiếu theo `status` (áp mọi bộ lọc TRỪ status — để hiện số trên tab). */
+  byStatus: Partial<Record<PurchaseRequestStatus, number>>;
+  /** Phiếu SUBMITTED tách theo bước: chờ Kho (SUBMITTED) / chờ duyệt cuối (DEPT_APPROVED). */
+  bySubmittedStep: { SUBMITTED: number; DEPT_APPROVED: number };
+  all: number;
+}
+
 export interface ListPRsResult {
-  rows: (PurchaseRequest & { displayLabel: string })[];
+  rows: (PurchaseRequest & { displayLabel: string; requestedByName: string | null })[];
   total: number;
+  counts: PRStatusCounts;
+}
+
+/** Escape ký tự đặc biệt của LIKE/ILIKE (\ % _). */
+export function escapeLike(term: string): string {
+  return term.replace(/[\\%_]/g, (c) => `\\${c}`);
+}
+
+/**
+ * L5 — điều kiện SQL: phiếu NHÁP chỉ chủ phiếu (và admin) thấy. Trả undefined
+ * khi không cần lọc (admin / không có viewer).
+ */
+export function draftVisibilityCondition(
+  viewer: { userId: string; isAdmin: boolean } | undefined,
+): SQL | undefined {
+  if (!viewer || viewer.isAdmin) return undefined;
+  return sql`(${purchaseRequest.status} <> 'DRAFT' OR ${purchaseRequest.requestedBy} = ${viewer.userId})`;
 }
 
 /**
@@ -82,13 +119,37 @@ const lineCountExpr = sql<number>`(
 
 export async function listPRs(q: ListPRsQuery): Promise<ListPRsResult> {
   const where: SQL[] = [];
-  if (q.status && q.status.length > 0) {
-    where.push(
-      inArray(
-        purchaseRequest.status,
-        q.status as unknown as (typeof purchaseRequest.status.enumValues)[number][],
-      ),
-    );
+  const statusCond =
+    q.status && q.status.length > 0
+      ? inArray(
+          purchaseRequest.status,
+          q.status as unknown as (typeof purchaseRequest.status.enumValues)[number][],
+        )
+      : undefined;
+  const draftCond = draftVisibilityCondition(q.viewer);
+  if (draftCond) where.push(draftCond);
+  const term = q.q?.trim();
+  if (term) {
+    const like = `%${escapeLike(term)}%`;
+    where.push(sql`(
+      ${purchaseRequest.code} ILIKE ${like}
+      OR COALESCE(${purchaseRequest.paperFormNo}, '') ILIKE ${like}
+      OR COALESCE(${purchaseRequest.title}, '') ILIKE ${like}
+      OR EXISTS (
+        SELECT 1 FROM ${purchaseRequestLine} qpl
+        LEFT JOIN ${item} qit ON qit.id = qpl.item_id
+        WHERE qpl.pr_id = ${purchaseRequest.id}
+          AND (
+            COALESCE(qit.name, qpl.item_name, '') ILIKE ${like}
+            OR COALESCE(qit.sku, qpl.item_sku, '') ILIKE ${like}
+          )
+      )
+      OR EXISTS (
+        SELECT 1 FROM ${userAccount} qu
+        WHERE qu.id = ${purchaseRequest.requestedBy}
+          AND (COALESCE(qu.full_name, '') ILIKE ${like} OR qu.username ILIKE ${like})
+      )
+    )`);
   }
   if (q.linkedOrderId) where.push(eq(purchaseRequest.linkedOrderId, q.linkedOrderId));
   if (q.requestedBy) where.push(eq(purchaseRequest.requestedBy, q.requestedBy));
@@ -118,8 +179,15 @@ export async function listPRs(q: ListPRsQuery): Promise<ListPRsResult> {
     where.push(eq(salesOrder.bomTemplateId, q.bomTemplateId));
   }
 
-  const whereExpr = where.length > 0 ? and(...where) : sql`true`;
+  // whereBase = mọi bộ lọc TRỪ status (dùng đếm số trên từng tab).
+  const whereBase = where.length > 0 ? and(...where) : sql`true`;
+  const whereExpr = statusCond ? and(whereBase, statusCond) : whereBase;
   const offset = (q.page - 1) * q.pageSize;
+
+  const requestedByNameExpr = sql<string | null>`(
+    SELECT COALESCE(ua.full_name, ua.username) FROM ${userAccount} ua
+    WHERE ua.id = ${purchaseRequest.requestedBy}
+  )`;
 
   const baseQuery = db
     .select({
@@ -127,11 +195,12 @@ export async function listPRs(q: ListPRsQuery): Promise<ListPRsResult> {
       firstLineName: firstLineNameExpr,
       firstLineSku: firstLineSkuExpr,
       lineCount: lineCountExpr,
+      requestedByName: requestedByNameExpr,
     })
     .from(purchaseRequest)
     .leftJoin(salesOrder, eq(salesOrder.id, purchaseRequest.linkedOrderId));
 
-  const [totalResult, rows] = await Promise.all([
+  const [totalResult, rows, countRows] = await Promise.all([
     db
       .select({ count: sql<number>`count(*)::int` })
       .from(purchaseRequest)
@@ -146,11 +215,37 @@ export async function listPRs(q: ListPRsQuery): Promise<ListPRsResult> {
       )
       .limit(q.pageSize)
       .offset(offset),
+    db
+      .select({
+        status: purchaseRequest.status,
+        step: purchaseRequest.approvalStep,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(purchaseRequest)
+      .leftJoin(salesOrder, eq(salesOrder.id, purchaseRequest.linkedOrderId))
+      .where(whereBase)
+      .groupBy(purchaseRequest.status, purchaseRequest.approvalStep),
   ]);
+
+  const counts: PRStatusCounts = {
+    byStatus: {},
+    bySubmittedStep: { SUBMITTED: 0, DEPT_APPROVED: 0 },
+    all: 0,
+  };
+  for (const c of countRows) {
+    const st = c.status as PurchaseRequestStatus;
+    counts.byStatus[st] = (counts.byStatus[st] ?? 0) + c.count;
+    counts.all += c.count;
+    if (st === "SUBMITTED") {
+      if (c.step === "DEPT_APPROVED") counts.bySubmittedStep.DEPT_APPROVED += c.count;
+      else counts.bySubmittedStep.SUBMITTED += c.count;
+    }
+  }
 
   return {
     rows: rows.map((r) => ({
       ...r.pr,
+      requestedByName: r.requestedByName ?? null,
       displayLabel: deriveDisplayLabel(
         [{ name: r.firstLineName, sku: r.firstLineSku }],
         60,
@@ -158,6 +253,7 @@ export async function listPRs(q: ListPRsQuery): Promise<ListPRsResult> {
       ),
     })),
     total: totalResult[0]?.count ?? 0,
+    counts,
   };
 }
 
@@ -173,8 +269,11 @@ export interface PRDayBucket {
  */
 export async function listPRDayBuckets(q: {
   requestedBy?: string;
+  viewer?: { userId: string; isAdmin: boolean };
 }): Promise<PRDayBucket[]> {
   const where: SQL[] = [];
+  const draftCond = draftVisibilityCondition(q.viewer);
+  if (draftCond) where.push(draftCond);
   if (q.requestedBy) where.push(eq(purchaseRequest.requestedBy, q.requestedBy));
   const whereExpr = where.length > 0 ? and(...where) : sql`true`;
   const dayExpr = sql<string>`to_char(${purchaseRequest.createdAt} AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD')`;
@@ -252,10 +351,13 @@ export async function listPRsInRange(q: {
   from: string;
   to: string;
   requestedBy?: string;
+  viewer?: { userId: string; isAdmin: boolean };
 }): Promise<PRSlip[]> {
   const where: SQL[] = [
     sql`(${purchaseRequest.createdAt} AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN ${q.from}::date AND ${q.to}::date`,
   ];
+  const draftCond = draftVisibilityCondition(q.viewer);
+  if (draftCond) where.push(draftCond);
   if (q.requestedBy) where.push(eq(purchaseRequest.requestedBy, q.requestedBy));
   const whereExpr = and(...where);
 
@@ -412,6 +514,63 @@ export interface CreatePRInput {
   formType?: "MRF" | "DNVT" | null;
 }
 
+/** Lỗi nghiệp vụ khi tạo/sửa phiếu (route map sang 422 tiếng Việt). */
+export class PrValidationError extends Error {
+  constructor(
+    public readonly code: string,
+    message: string,
+    public readonly status = 422,
+  ) {
+    super(message);
+    this.name = "PrValidationError";
+  }
+}
+
+/** THUẦN — vật tư dùng được cho phiếu mới: tồn tại, ACTIVE và chưa bị vô hiệu hoá (xoá mềm). */
+export function isItemUsableForPR(i: { status: string; isActive: boolean }): boolean {
+  return i.status === "ACTIVE" && i.isActive;
+}
+
+/**
+ * L9/L10 — kiểm TRƯỚC khi cấp mã PR: mọi itemId phải tồn tại + ACTIVE. Trước đây
+ * itemId lạ ném FK → 500 và đã tiêu 1 mã PR; vật tư xoá mềm vẫn gắn được.
+ * Throw PrValidationError (422) nêu rõ dòng sai.
+ */
+export async function assertPrItemsUsable(
+  lines: { itemId?: string | null }[],
+): Promise<void> {
+  const ids = Array.from(
+    new Set(lines.map((l) => l.itemId).filter((x): x is string => !!x)),
+  );
+  if (ids.length === 0) return;
+  const found = await db
+    .select({
+      id: item.id,
+      sku: item.sku,
+      name: item.name,
+      status: item.status,
+      isActive: item.isActive,
+    })
+    .from(item)
+    .where(inArray(item.id, ids));
+  const byId = new Map(found.map((f) => [f.id, f]));
+  const problems: string[] = [];
+  lines.forEach((l, idx) => {
+    if (!l.itemId) return;
+    const it = byId.get(l.itemId);
+    if (!it) {
+      problems.push(`Dòng ${idx + 1}: vật tư không tồn tại trong danh mục.`);
+    } else if (!isItemUsableForPR(it)) {
+      problems.push(
+        `Dòng ${idx + 1}: vật tư ${it.sku} đã bị vô hiệu hoá — chọn vật tư khác hoặc nhập tay.`,
+      );
+    }
+  });
+  if (problems.length > 0) {
+    throw new PrValidationError("ITEM_INVALID", problems.slice(0, 5).join(" "));
+  }
+}
+
 async function genPRCode(): Promise<string> {
   const rows = await db.execute(sql`SELECT app.gen_pr_code() AS code`);
   const row = (rows as unknown as Array<{ code: string }>)[0];
@@ -551,8 +710,8 @@ export async function createPRFromShortage(
     SELECT
       bsl.component_item_id AS item_id,
       SUM(bsl.remaining_short_qty) AS total_short,
-      MIN(bsl.id) AS sample_line_id,
-      MIN(bsl.order_id) AS linked_order_id
+      (array_agg(bsl.id ORDER BY bsl.id))[1] AS sample_line_id,
+      (array_agg(bsl.order_id ORDER BY bsl.order_id))[1] AS linked_order_id
     FROM app.bom_snapshot_line bsl
     WHERE bsl.component_item_id = ANY(${itemIds})
       AND bsl.state IN ('PLANNED', 'PURCHASING')
@@ -837,6 +996,28 @@ export async function markPRGoodsReceived(
   return row ?? null;
 }
 
+/** THUẦN — mọi PO (đã loại CANCELLED) của PR đã nhận đủ/đóng? Không có PO nào → false. */
+export function areAllPOsReceived(poStatuses: readonly string[]): boolean {
+  const live = poStatuses.filter((s) => s !== "CANCELLED");
+  return live.length > 0 && live.every((s) => s === "RECEIVED" || s === "CLOSED");
+}
+
+/**
+ * L4 — chỉ đánh "Đã nhận hàng" của PR khi TẤT CẢ PO (không tính CANCELLED) đã
+ * RECEIVED/CLOSED. PR tách N PO theo NCC: PO đầu nhận đủ chưa đủ để coi cả PR đã
+ * nhận (trước đây gọi markPRGoodsReceived ngay khi 1 PO xong).
+ */
+export async function markPRGoodsReceivedIfAllPOsDone(
+  prId: string,
+): Promise<PurchaseRequest | null> {
+  const pos = await db
+    .select({ status: purchaseOrder.status })
+    .from(purchaseOrder)
+    .where(eq(purchaseOrder.prId, prId));
+  if (!areAllPOsReceived(pos.map((p) => p.status as string))) return null;
+  return markPRGoodsReceived(prId);
+}
+
 /**
  * V4.2 (TASK "Trừ tồn luôn") — Timeline IV.2: "Đã xuất kho" giờ TRỪ TỒN THẬT
  * trong cùng 1 thao tác, thay vì chỉ ghi mốc thời gian như trước (lỗi khiến
@@ -866,6 +1047,8 @@ export interface PrIssueLineState {
   qty: number;
   /** SL đã duyệt (Kho ghi ở bước 2) — cap ưu tiên khi có. */
   approvedQty: number | null;
+  /** L8 — tổng đã xuất ở các đợt trước (mặc định 0). Cho phép xuất nhiều đợt. */
+  issuedQty?: number;
 }
 
 export interface PrIssuePickInput {
@@ -887,13 +1070,17 @@ export type ValidatePrIssueResult =
   | { ok: true; picks: PrIssuePickResolved[] }
   | { ok: false; error: GoodsIssueError };
 
-const PR_ISSUE_EPS = 1e-6;
+/** Sai số khi so sánh SL (goods_issue_line.qty chỉ 4 số lẻ, PR line 6 số lẻ). */
+const PR_ISSUE_EPS = 1e-4;
+
+const fmtQ = (n: number) => Number(n.toFixed(4)).toLocaleString("vi-VN");
 
 /**
- * THUẦN — kiểm picks xuất kho cho 1 PR:
+ * THUẦN — kiểm picks xuất kho cho 1 PR (L8: xuất NHIỀU ĐỢT):
  *  - dòng phải thuộc PR (lấy từ `lines`, không tin client);
  *  - dòng chưa gắn vật tư trong danh mục (itemId null) → không trừ tồn được;
- *  - SL mỗi pick > 0; tổng pick mỗi dòng ≤ cap (approvedQty ?? qty đề xuất).
+ *  - SL mỗi pick > 0; tổng pick mỗi dòng ≤ còn lại = cap (approvedQty ?? qty
+ *    đề xuất) − đã xuất ở các đợt trước.
  */
 export function validatePrIssuePicks(
   lines: PrIssueLineState[],
@@ -943,12 +1130,22 @@ export function validatePrIssuePicks(
   for (const [lineId, qty] of qtyByLine) {
     const line = byId.get(lineId)!;
     const cap = line.approvedQty ?? line.qty;
-    if (qty > cap + PR_ISSUE_EPS) {
+    const issued = line.issuedQty ?? 0;
+    const remaining = Math.max(0, cap - issued);
+    if (qty > remaining + PR_ISSUE_EPS) {
       const label = line.sku ?? "Dòng";
       const capLabel = line.approvedQty != null ? "SL đã duyệt" : "SL đề xuất";
+      if (issued > PR_ISSUE_EPS) {
+        return fail(
+          "OVER_ISSUE",
+          remaining <= PR_ISSUE_EPS
+            ? `${label} đã xuất đủ ${fmtQ(cap)} (${capLabel}) — không xuất thêm.`
+            : `${label} chỉ còn được xuất tối đa ${fmtQ(remaining)} (${capLabel} ${fmtQ(cap)}, đã xuất ${fmtQ(issued)}), không xuất ${fmtQ(qty)}.`,
+        );
+      }
       return fail(
         "OVER_ISSUE",
-        `${label} chỉ được xuất tối đa ${Number(cap.toFixed(4)).toLocaleString("vi-VN")} (${capLabel}), không xuất ${Number(qty.toFixed(4)).toLocaleString("vi-VN")}.`,
+        `${label} chỉ được xuất tối đa ${fmtQ(cap)} (${capLabel}), không xuất ${fmtQ(qty)}.`,
       );
     }
   }
@@ -956,19 +1153,53 @@ export function validatePrIssuePicks(
   return { ok: true, picks: resolved };
 }
 
+export interface PrIssueProgress {
+  /** true khi MỌI dòng có vật tư trong danh mục đã xuất đủ (và có ít nhất 1 dòng như vậy). */
+  complete: boolean;
+  /** Số dòng còn thiếu. */
+  pendingLines: number;
+  lines: { id: string; cap: number; issued: number; remaining: number }[];
+}
+
+/**
+ * THUẦN (L8) — tiến độ xuất kho của PR. Dòng nhập tay (không itemId) không trừ tồn
+ * được nên KHÔNG tính vào điều kiện hoàn tất (nếu không phiếu sẽ không bao giờ đủ —
+ * Kho kết thúc thủ công bằng "Kết thúc, không xuất thêm").
+ */
+export function computePrIssueProgress(lines: PrIssueLineState[]): PrIssueProgress {
+  const out = lines.map((l) => {
+    const cap = l.approvedQty ?? l.qty;
+    const issued = l.issuedQty ?? 0;
+    return { id: l.id, cap, issued, remaining: Math.max(0, cap - issued) };
+  });
+  const tracked = lines
+    .map((l, i) => ({ l, o: out[i]! }))
+    .filter((x) => !!x.l.itemId);
+  const pending = tracked.filter((x) => x.o.remaining > PR_ISSUE_EPS).length;
+  return { complete: tracked.length > 0 && pending === 0, pendingLines: pending, lines: out };
+}
+
 export interface MarkPRIssuedInput {
   actorUserId: string;
   picks: PrIssuePickInput[];
-  /** Ghi nhận đã xuất KHÔNG trừ tồn (vật tư mua ngoài giao thẳng). */
+  /** Ghi nhận đã xuất KHÔNG trừ tồn (vật tư mua ngoài giao thẳng) — kết thúc luôn. */
   noStockConfirm?: boolean;
   /** Bắt buộc ≥ 3 ký tự khi noStockConfirm=true. */
   noStockReason?: string | null;
   notes?: string | null;
+  /**
+   * L8 — "Kết thúc, không xuất thêm": đóng quy trình xuất kho dù còn dòng chưa xuất
+   * đủ. Có thể kèm picks (xuất đợt cuối rồi đóng) hoặc không (cần ≥ 1 đợt trước đó).
+   */
+  finish?: boolean;
 }
 
 export interface MarkPRIssuedResult {
   pr: PurchaseRequest;
   goodsIssue: CreatedGoodsIssue | null;
+  /** true = phiếu đã xuất đủ/kết thúc (goods_issued_at + hoàn tất); false = còn đợt sau. */
+  complete: boolean;
+  progress: PrIssueProgress | null;
 }
 
 export async function markPRGoodsIssuedWithStock(
@@ -997,12 +1228,14 @@ export async function markPRGoodsIssuedWithStock(
     if (current.goodsIssuedAt) {
       throw new GoodsIssueError(
         "ALREADY_ISSUED",
-        "Phiếu đã ghi nhận xuất kho trước đó — không xuất lại.",
+        "Phiếu đã xuất kho xong — không xuất thêm.",
         409,
       );
     }
 
     let createdGoodsIssue: CreatedGoodsIssue | null = null;
+    let complete = false;
+    let progress: PrIssueProgress | null = null;
 
     if (input.noStockConfirm) {
       const reason = (input.noStockReason ?? "").trim();
@@ -1013,6 +1246,7 @@ export async function markPRGoodsIssuedWithStock(
           422,
         );
       }
+      complete = true;
     } else {
       const lineRows = await tx
         .select({
@@ -1027,43 +1261,107 @@ export async function markPRGoodsIssuedWithStock(
         .leftJoin(item, eq(item.id, purchaseRequestLine.itemId))
         .where(eq(purchaseRequestLine.prId, id));
 
+      // L8 — tổng đã xuất theo dòng ở các đợt trước (goods_issue_line).
+      const issuedRows = await tx
+        .select({
+          lineId: goodsIssueLine.purchaseRequestLineId,
+          qty: sql<string>`COALESCE(SUM(${goodsIssueLine.qty}), 0)`,
+        })
+        .from(goodsIssueLine)
+        .innerJoin(goodsIssue, eq(goodsIssue.id, goodsIssueLine.goodsIssueId))
+        .where(eq(goodsIssue.purchaseRequestId, id))
+        .groupBy(goodsIssueLine.purchaseRequestLineId);
+      const issuedByLine = new Map<string, number>();
+      for (const r of issuedRows) {
+        if (r.lineId) issuedByLine.set(r.lineId, Number(r.qty) || 0);
+      }
+      const hadEarlierIssue = issuedRows.length > 0;
+
       const lineStates: PrIssueLineState[] = lineRows.map((l) => ({
         id: l.id,
         itemId: l.itemId,
         sku: l.masterSku ?? l.itemSku ?? null,
         qty: Number(l.qty) || 0,
         approvedQty: l.approvedQty != null ? Number(l.approvedQty) : null,
+        issuedQty: issuedByLine.get(l.id) ?? 0,
       }));
 
-      const v = validatePrIssuePicks(lineStates, input.picks);
-      if (!v.ok) throw v.error;
+      if (input.picks.length === 0) {
+        // Chỉ hợp lệ khi "Kết thúc, không xuất thêm" sau ≥ 1 đợt đã xuất.
+        if (!input.finish) {
+          throw new GoodsIssueError("EMPTY_ISSUE", "Chưa chọn lô xuất cho dòng nào.", 400);
+        }
+        if (!hadEarlierIssue) {
+          throw new GoodsIssueError(
+            "EMPTY_ISSUE",
+            'Chưa xuất đợt nào — chọn lô để xuất, hoặc dùng "Ghi nhận đã xuất — không trừ tồn" kèm lý do.',
+            422,
+          );
+        }
+        progress = computePrIssueProgress(lineStates);
+        complete = true;
+      } else {
+        const v = validatePrIssuePicks(lineStates, input.picks);
+        if (!v.ok) throw v.error;
 
-      createdGoodsIssue = await createGoodsIssueTx(tx, {
-        sourceType: "PURCHASE_REQUEST",
-        reason: "manual",
-        purchaseRequestId: id,
-        reference: current.paperFormNo ?? current.code,
-        notes: input.notes ?? null,
-        issuedBy: input.actorUserId,
-        receivedBy: current.requestedBy,
-        picks: v.picks.map((p) => ({
-          itemId: p.itemId,
-          lotSerialId: p.lotSerialId,
-          binId: p.binId,
-          qty: p.qty,
-          purchaseRequestLineId: p.purchaseRequestLineId,
-        })),
-      });
+        createdGoodsIssue = await createGoodsIssueTx(tx, {
+          sourceType: "PURCHASE_REQUEST",
+          reason: "manual",
+          purchaseRequestId: id,
+          reference: current.paperFormNo ?? current.code,
+          notes: input.notes ?? null,
+          issuedBy: input.actorUserId,
+          receivedBy: current.requestedBy,
+          picks: v.picks.map((p) => ({
+            itemId: p.itemId,
+            lotSerialId: p.lotSerialId,
+            binId: p.binId,
+            qty: p.qty,
+            purchaseRequestLineId: p.purchaseRequestLineId,
+          })),
+        });
+
+        // Tính lại tiến độ SAU đợt này.
+        const afterStates = lineStates.map((l) => ({
+          ...l,
+          issuedQty:
+            (l.issuedQty ?? 0) +
+            v.picks
+              .filter((p) => p.purchaseRequestLineId === l.id)
+              .reduce((a, p) => a + p.qty, 0),
+        }));
+        progress = computePrIssueProgress(afterStates);
+        complete = !!input.finish || progress.complete;
+      }
+    }
+
+    const now = new Date();
+    if (!complete) {
+      // Còn đợt sau — chỉ chạm updatedAt, chưa đặt mốc "Đã xuất kho".
+      const [row] = await tx
+        .update(purchaseRequest)
+        .set({ updatedAt: now })
+        .where(eq(purchaseRequest.id, id))
+        .returning();
+      return { pr: row ?? current, goodsIssue: createdGoodsIssue, complete: false, progress };
     }
 
     const [row] = await tx
       .update(purchaseRequest)
       .set({
-        goodsIssuedAt: new Date(),
-        updatedAt: new Date(),
+        goodsIssuedAt: now,
+        // L8 — xuất đủ/kết thúc = hoàn tất (hiển thị "Hoàn tất", không phải "Đã duyệt").
+        completedAt: current.completedAt ?? now,
+        approvalStep: "DONE",
+        updatedAt: now,
         ...(input.noStockConfirm
           ? {
               notes: sql`COALESCE(${purchaseRequest.notes}, '') || ${`\n[Đã xuất kho — KHÔNG trừ tồn: ${(input.noStockReason ?? "").trim()}]`}`,
+            }
+          : {}),
+        ...(input.finish && progress && !progress.complete
+          ? {
+              notes: sql`COALESCE(${purchaseRequest.notes}, '') || ${`\n[Kết thúc xuất kho — còn ${progress.pendingLines} dòng chưa xuất đủ]`}`,
             }
           : {}),
       })
@@ -1076,12 +1374,12 @@ export async function markPRGoodsIssuedWithStock(
       // xảy ra trong cùng transaction đã FOR UPDATE, giữ để an toàn tuyệt đối).
       throw new GoodsIssueError(
         "ALREADY_ISSUED",
-        "Phiếu đã ghi nhận xuất kho trước đó — không xuất lại.",
+        "Phiếu đã xuất kho xong — không xuất thêm.",
         409,
       );
     }
 
-    return { pr: row, goodsIssue: createdGoodsIssue };
+    return { pr: row, goodsIssue: createdGoodsIssue, complete: true, progress };
   });
 }
 
@@ -1187,6 +1485,20 @@ export async function rejectPR(
   return row ?? null;
 }
 
+/** THUẦN — thông báo đúng lý do khi phiếu ở trạng thái không huỷ được (L6). */
+export function cancelBlockedMessage(status: string): string {
+  switch (status) {
+    case "REJECTED":
+      return 'Phiếu đã bị từ chối nên không cần huỷ — dùng "Tạo lại từ phiếu này" nếu muốn đề xuất lại.';
+    case "CANCELLED":
+      return "Phiếu đã huỷ trước đó.";
+    case "CONVERTED":
+      return "Phiếu đã chuyển thành Đơn hàng mua — dùng Huỷ/Đóng PO thay thế.";
+    default:
+      return `Phiếu đang ở trạng thái ${status} — không thể huỷ.`;
+  }
+}
+
 /** V4.4 (Việc 4) — Huỷ phiếu (khác reject: người tạo/admin tự huỷ). */
 export class PrCancelError extends Error {
   constructor(
@@ -1221,10 +1533,7 @@ export async function cancelPR(
 
     const cancellableStatuses: PurchaseRequestStatus[] = ["DRAFT", "SUBMITTED", "APPROVED"];
     if (!cancellableStatuses.includes(pr.status)) {
-      throw new PrCancelError(
-        "INVALID_STATE",
-        `Phiếu đang ở trạng thái ${pr.status} — không thể huỷ.`,
-      );
+      throw new PrCancelError("INVALID_STATE", cancelBlockedMessage(pr.status));
     }
 
     if (pr.status === "APPROVED") {
@@ -1259,6 +1568,102 @@ export async function cancelPR(
     if (!row) throw new PrCancelError("CONFLICT", "Phiếu đã thay đổi trạng thái.");
     return row;
   });
+}
+
+/** L8 — tổng đã xuất theo từng dòng PR (cộng mọi đợt xuất). */
+export async function getPRIssuedQtyByLine(prId: string): Promise<Map<string, number>> {
+  const rows = await db
+    .select({
+      lineId: goodsIssueLine.purchaseRequestLineId,
+      qty: sql<string>`COALESCE(SUM(${goodsIssueLine.qty}), 0)`,
+    })
+    .from(goodsIssueLine)
+    .innerJoin(goodsIssue, eq(goodsIssue.id, goodsIssueLine.goodsIssueId))
+    .where(eq(goodsIssue.purchaseRequestId, prId))
+    .groupBy(goodsIssueLine.purchaseRequestLineId);
+  const out = new Map<string, number>();
+  for (const r of rows) if (r.lineId) out.set(r.lineId, Number(r.qty) || 0);
+  return out;
+}
+
+export interface DuplicatePRResult {
+  pr: PurchaseRequest;
+  /** Số dòng đã chép sang bản nháp mới. */
+  copiedLines: number;
+  /** Các dòng bị bỏ vì vật tư đã vô hiệu hoá / không còn (để báo lại cho người dùng). */
+  skippedLines: { lineNo: number; label: string }[];
+}
+
+/**
+ * L6 — "Tạo lại từ phiếu này": sao chép header + dòng của phiếu REJECTED/CANCELLED
+ * thành 1 phiếu DRAFT mới của `requestedBy`. Dòng gắn vật tư đã vô hiệu hoá bị bỏ
+ * và trả trong `skippedLines`. Không chép các mốc duyệt/xuất kho.
+ */
+export async function duplicatePRAsDraft(
+  sourceId: string,
+  requestedBy: string,
+): Promise<DuplicatePRResult> {
+  const src = await getPR(sourceId);
+  if (!src) throw new PrValidationError("NOT_FOUND", "Không tìm thấy phiếu.", 404);
+  const lines = await getPRLinesEnriched(sourceId);
+  const itemIds = Array.from(
+    new Set(lines.map((l) => l.itemId).filter((x): x is string => !!x)),
+  );
+  const usable = new Set<string>();
+  if (itemIds.length > 0) {
+    const found = await db
+      .select({ id: item.id, status: item.status, isActive: item.isActive })
+      .from(item)
+      .where(inArray(item.id, itemIds));
+    for (const f of found) if (isItemUsableForPR(f)) usable.add(f.id);
+  }
+  const keep: typeof lines = [];
+  const skipped: DuplicatePRResult["skippedLines"] = [];
+  for (const l of lines) {
+    if (l.itemId && !usable.has(l.itemId)) {
+      skipped.push({ lineNo: l.lineNo, label: l.sku ?? l.name ?? `Dòng ${l.lineNo}` });
+    } else {
+      keep.push(l);
+    }
+  }
+  if (keep.length === 0) {
+    throw new PrValidationError(
+      "NO_USABLE_LINES",
+      "Mọi vật tư trong phiếu này đã bị vô hiệu hoá — không tạo lại được.",
+    );
+  }
+  const num = (v: string | null) => (v != null ? Number(v) : null);
+  const pr = await createPR({
+    title: src.title,
+    source: "MANUAL",
+    linkedOrderId: src.linkedOrderId,
+    linkedWoId: src.linkedWoId,
+    requestedBy,
+    notes: src.notes ? src.notes.replace(/\n?\[(REJECTED|CANCELLED)[^\]]*\]/g, "").trim() || null : null,
+    targetDepartment: src.targetDepartment,
+    proposingDepartment: src.proposingDepartment,
+    requestReason: src.requestReason,
+    formType: (src.formType as "MRF" | "DNVT" | null) ?? "MRF",
+    lines: keep.map((l) => ({
+      itemId: l.itemId,
+      itemName: l.itemName,
+      itemSku: l.itemSku,
+      qty: Number(l.qty),
+      preferredSupplierId: l.preferredSupplierId,
+      neededBy: null,
+      notes: l.notes,
+      specification: l.specification,
+      uom: l.uom,
+      priority: (l.priority as "URGENT" | "NORMAL" | "RESERVE" | null) ?? null,
+      category: (l.category as "TOOL" | "CONSUMABLE" | "MATERIAL" | "OTHER" | null) ?? null,
+      estimatedUnitPrice: num(l.estimatedUnitPrice),
+      referenceCode: l.referenceCode,
+      onHandSnapshot: num(l.onHandSnapshot),
+      referenceNote: l.referenceNote,
+      deliveryDate: null,
+    })),
+  });
+  return { pr, copiedLines: keep.length, skippedLines: skipped };
 }
 
 /**

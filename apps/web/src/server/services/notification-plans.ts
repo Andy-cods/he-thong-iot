@@ -184,6 +184,23 @@ export const RESOLVES_STALE: Partial<
     "PR_PENDING_REMINDER",
     "PR_APPROVED_NO_PO_REMINDER",
   ],
+  // L15 — Kho đã xuất đủ / phiếu hoàn tất: mọi việc "chờ duyệt / cần tạo PO /
+  // nhắc" của phiếu này đều hết ý nghĩa; "đã xuất kho" cũng hết khi hoàn tất.
+  PR_GOODS_ISSUED: [
+    "PR_SUBMITTED",
+    "PR_DEPT_APPROVED",
+    "PR_APPROVED",
+    "PR_PENDING_REMINDER",
+    "PR_APPROVED_NO_PO_REMINDER",
+  ],
+  PR_COMPLETED: [
+    "PR_SUBMITTED",
+    "PR_DEPT_APPROVED",
+    "PR_APPROVED",
+    "PR_PENDING_REMINDER",
+    "PR_APPROVED_NO_PO_REMINDER",
+    "PR_GOODS_ISSUED",
+  ],
   // "PR_APPROVED" ("Cần tạo PO") hết hiệu lực khi PO đã lên — PHẢI dùng
   // resolveExtraEntityIds=[prId] ở planPOCreatedFromPR vì entityId của plan
   // này là PO (firstPoId), khác entityId PR_APPROVED (prId) — xác nhận thật

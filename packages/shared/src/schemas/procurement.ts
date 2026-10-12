@@ -56,13 +56,41 @@ export type PRSource = (typeof PR_SOURCES)[number];
 
 const uuid = z.string().uuid("ID không hợp lệ");
 const positiveQty = z.coerce
-  .number()
+  .number({ invalid_type_error: "Số lượng phải là số." })
   .positive("Số lượng phải > 0")
   .max(10_000_000, "Số lượng quá lớn");
 const dateStringOrDate = z
-  .union([z.string().trim().min(1), z.date()])
+  .union([z.string().trim().min(1), z.date()], {
+    errorMap: () => ({ message: "Ngày không hợp lệ." }),
+  })
   .transform((v) => (v instanceof Date ? v : new Date(v)))
   .refine((d) => !Number.isNaN(d.getTime()), "Ngày không hợp lệ");
+
+/** Giới hạn số dòng / số tiền / tồn — khớp UI và cột NUMERIC trong DB (L9/L12/L19). */
+export const PR_MAX_LINES = 20;
+/** Đơn giá dự kiến tối đa (VND) — 10.000 tỷ. */
+export const PR_MAX_UNIT_PRICE = 1e13;
+/** Tồn kho snapshot tối đa. */
+export const PR_MAX_ON_HAND = 1e12;
+/** Thành tiền dòng (SL × đơn giá) tối đa — nhỏ hơn trần NUMERIC(18,2) = 1e16. */
+export const PR_MAX_LINE_TOTAL = 1e15;
+
+/** Ngày YYYY-MM-DD theo giờ Việt Nam (UTC+7) — không phụ thuộc múi giờ máy chủ. */
+export function prTodayVN(now: Date = new Date()): string {
+  return new Date(now.getTime() + 7 * 3600_000).toISOString().slice(0, 10);
+}
+
+/** Ngày cần/ngày giao không được ở quá khứ (cho phép hôm nay, giờ VN). */
+const futureDateStringOrDate = dateStringOrDate.refine(
+  (d) => prTodayVN(d) >= prTodayVN(),
+  "Ngày không được ở quá khứ (chọn hôm nay hoặc sau đó).",
+);
+
+const vText = (label: string, max: number) =>
+  z
+    .string({ invalid_type_error: `${label} không hợp lệ.` })
+    .trim()
+    .max(max, `${label} tối đa ${max} ký tự.`);
 
 /** ==== Purchase Request ==== */
 
@@ -78,49 +106,87 @@ export type PrCategory = (typeof PR_CATEGORIES)[number];
 export const PR_FORM_TYPES = ["MRF", "DNVT"] as const;
 export type PrFormType = (typeof PR_FORM_TYPES)[number];
 
+const prLineShape = {
+  /** V3.7.72 — Nullable: cho phép nhập tay vật tư chưa có trong master. */
+  itemId: uuid.optional().nullable(),
+  /** V3.7.72 YCVT — Tên VT nhập tay khi itemId null. */
+  itemName: vText("Tên vật tư", 255).optional().nullable(),
+  /** V3.7.72 YCVT — Mã VT nhập tay khi itemId null. */
+  itemSku: vText("Mã vật tư", 64).optional().nullable(),
+  qty: positiveQty,
+  preferredSupplierId: uuid.optional().nullable(),
+  snapshotLineId: uuid.optional().nullable(),
+  neededBy: futureDateStringOrDate.optional().nullable(),
+  notes: vText("Ghi chú", 500).optional().nullable(),
+  // V3.7.55 — MRF GTAM fields
+  specification: vText("Quy cách", 512).optional().nullable(),
+  uom: vText("Đơn vị tính", 16).optional().nullable(),
+  priority: z
+    .enum(PR_PRIORITIES, { errorMap: () => ({ message: "Mức ưu tiên không hợp lệ." }) })
+    .optional()
+    .nullable(),
+  category: z
+    .enum(PR_CATEGORIES, { errorMap: () => ({ message: "Phân loại không hợp lệ." }) })
+    .optional()
+    .nullable(),
+  estimatedUnitPrice: z.coerce
+    .number({ invalid_type_error: "Đơn giá phải là số." })
+    .nonnegative("Đơn giá không được âm.")
+    .max(PR_MAX_UNIT_PRICE, "Đơn giá quá lớn (tối đa 10.000 tỷ đồng).")
+    .optional()
+    .nullable(),
+  referenceCode: vText("Mã tham chiếu", 128).optional().nullable(),
+  // V3.7.69 YCVT — Tồn kho snapshot (auto-fill từ client lookup).
+  onHandSnapshot: z.coerce
+    .number({ invalid_type_error: "Tồn kho phải là số." })
+    .nonnegative("Tồn kho không được âm.")
+    .max(PR_MAX_ON_HAND, "Tồn kho quá lớn.")
+    .optional()
+    .nullable(),
+  // V3.10 DNVT — Cột "Tham khảo" (free-text) + "Ngày giao hàng".
+  referenceNote: vText("Tham khảo", 64).optional().nullable(),
+  deliveryDate: futureDateStringOrDate.optional().nullable(),
+};
+
+type PrLineLike = {
+  itemId?: string | null;
+  itemName?: string | null;
+  qty: number;
+  estimatedUnitPrice?: number | null;
+};
+
+const lineHasItem = (l: PrLineLike) =>
+  !!l.itemId || (l.itemName != null && l.itemName.trim().length > 0);
+const lineTotalOk = (l: PrLineLike) =>
+  (l.estimatedUnitPrice ?? 0) * l.qty < PR_MAX_LINE_TOTAL;
+const LINE_NO_ITEM_MSG = "Dòng chưa chọn vật tư (chọn trong danh mục hoặc nhập tên vật tư).";
+const LINE_TOTAL_MSG = "Thành tiền (SL × đơn giá) quá lớn — kiểm tra lại số lượng/đơn giá.";
+
 export const prLineInputSchema = z
-  .object({
-    /** V3.7.72 — Nullable: cho phép nhập tay vật tư chưa có trong master. */
-    itemId: uuid.optional().nullable(),
-    /** V3.7.72 YCVT — Tên VT nhập tay khi itemId null. */
-    itemName: z.string().trim().max(255).optional().nullable(),
-    /** V3.7.72 YCVT — Mã VT nhập tay khi itemId null. */
-    itemSku: z.string().trim().max(64).optional().nullable(),
-    qty: positiveQty,
-    preferredSupplierId: uuid.optional().nullable(),
-    snapshotLineId: uuid.optional().nullable(),
-    neededBy: dateStringOrDate.optional().nullable(),
-    notes: z.string().trim().max(500).optional().nullable(),
-    // V3.7.55 — MRF GTAM fields
-    specification: z.string().trim().max(512).optional().nullable(),
-    uom: z.string().trim().max(16).optional().nullable(),
-    priority: z.enum(PR_PRIORITIES).optional().nullable(),
-    category: z.enum(PR_CATEGORIES).optional().nullable(),
-    estimatedUnitPrice: z.coerce.number().nonnegative().optional().nullable(),
-    referenceCode: z.string().trim().max(128).optional().nullable(),
-    // V3.7.69 YCVT — Tồn kho snapshot (auto-fill từ client lookup).
-    onHandSnapshot: z.coerce.number().nonnegative().optional().nullable(),
-    // V3.10 DNVT — Cột "Tham khảo" (free-text) + "Ngày giao hàng".
-    referenceNote: z.string().trim().max(64).optional().nullable(),
-    deliveryDate: dateStringOrDate.optional().nullable(),
-  })
-  .refine(
-    (l) => !!l.itemId || (l.itemName != null && l.itemName.trim().length > 0),
-    { message: "Mỗi dòng phải có itemId hoặc tên VT (itemName).", path: ["itemName"] },
-  );
+  .object(prLineShape)
+  .refine(lineHasItem, { message: LINE_NO_ITEM_MSG, path: ["itemName"] })
+  .refine(lineTotalOk, { message: LINE_TOTAL_MSG, path: ["estimatedUnitPrice"] });
+
+const prLinesArray = <T extends z.ZodTypeAny>(line: T) =>
+  z
+    .array(line)
+    .min(1, "Phiếu cần ít nhất 1 dòng.")
+    .max(PR_MAX_LINES, `Phiếu tối đa ${PR_MAX_LINES} dòng. Tách nhiều phiếu nếu cần.`);
 
 export const prCreateSchema = z.object({
-  title: z.string().trim().max(255).optional().nullable(),
-  source: z.enum(PR_SOURCES).default("MANUAL"),
+  title: vText("Tiêu đề", 255).optional().nullable(),
+  source: z.enum(PR_SOURCES, { errorMap: () => ({ message: "Nguồn phiếu không hợp lệ." }) }).default("MANUAL"),
   linkedOrderId: uuid.optional().nullable(),
-  notes: z.string().trim().max(2000).optional().nullable(),
-  lines: z.array(prLineInputSchema).min(1, "PR cần ít nhất 1 dòng"),
+  notes: vText("Ghi chú", 2000).optional().nullable(),
+  lines: prLinesArray(prLineInputSchema),
   // V3.7.55 — MRF GTAM header fields
-  targetDepartment: z.string().trim().max(64).optional().nullable(),
-  proposingDepartment: z.string().trim().max(64).optional().nullable(),
-  requestReason: z.string().trim().max(2000).optional().nullable(),
+  targetDepartment: vText("Bộ phận nhận", 64).optional().nullable(),
+  proposingDepartment: vText("Bộ phận đề xuất", 64).optional().nullable(),
+  requestReason: vText("Lý do đề xuất", 2000).optional().nullable(),
   // V3.10 — Loại phiếu trình bày (optional; server default 'MRF' cho backward-compat).
-  formType: z.enum(PR_FORM_TYPES).optional(),
+  formType: z
+    .enum(PR_FORM_TYPES, { errorMap: () => ({ message: "Loại phiếu không hợp lệ." }) })
+    .optional(),
   /**
    * TASK-6VIEC Việc 2 — true = giữ nguyên DRAFT (KHÔNG auto-submit, KHÔNG bắn
    * notification). Mặc định false/omit giữ nguyên hành vi cũ (tạo xong tự
@@ -136,53 +202,33 @@ export const prCreateFromShortageSchema = z.object({
 });
 
 export const prUpdateSchema = z.object({
-  title: z.string().trim().max(255).optional().nullable(),
-  notes: z.string().trim().max(2000).optional().nullable(),
+  title: vText("Tiêu đề", 255).optional().nullable(),
+  notes: vText("Ghi chú", 2000).optional().nullable(),
   // V3.7.55 — MRF GTAM header fields
-  targetDepartment: z.string().trim().max(64).optional().nullable(),
-  proposingDepartment: z.string().trim().max(64).optional().nullable(),
-  requestReason: z.string().trim().max(2000).optional().nullable(),
+  targetDepartment: vText("Bộ phận nhận", 64).optional().nullable(),
+  proposingDepartment: vText("Bộ phận đề xuất", 64).optional().nullable(),
+  requestReason: vText("Lý do đề xuất", 2000).optional().nullable(),
   /**
    * V3.4 — full lines edit (replace toàn bộ lines).
-   * Chỉ allowed khi status DRAFT/SUBMITTED.
+   * L7: chỉ cho sửa khi phiếu còn DRAFT (route PATCH kiểm).
    * Nếu omit → giữ nguyên lines hiện tại.
    */
-  lines: z
-    .array(
-      z
-        .object({
-          /** Existing line id để update (omit → insert mới). */
-          id: uuid.optional(),
-          /** V3.7.72 — Nullable: free-text item. */
-          itemId: uuid.optional().nullable(),
-          itemName: z.string().trim().max(255).optional().nullable(),
-          itemSku: z.string().trim().max(64).optional().nullable(),
-          qty: positiveQty,
-          preferredSupplierId: uuid.optional().nullable(),
-          snapshotLineId: uuid.optional().nullable(),
-          neededBy: dateStringOrDate.optional().nullable(),
-          notes: z.string().trim().max(500).optional().nullable(),
-          // V3.7.55 — MRF GTAM line fields
-          specification: z.string().trim().max(512).optional().nullable(),
-          uom: z.string().trim().max(16).optional().nullable(),
-          priority: z.enum(PR_PRIORITIES).optional().nullable(),
-          category: z.enum(PR_CATEGORIES).optional().nullable(),
-          estimatedUnitPrice: z.coerce.number().nonnegative().optional().nullable(),
-          referenceCode: z.string().trim().max(128).optional().nullable(),
-          approvedQty: z.coerce.number().nonnegative().optional().nullable(),
-          // V3.7.69 YCVT — Tồn kho snapshot.
-          onHandSnapshot: z.coerce.number().nonnegative().optional().nullable(),
-          // V3.10 DNVT — Tham khảo + Ngày giao hàng.
-          referenceNote: z.string().trim().max(64).optional().nullable(),
-          deliveryDate: dateStringOrDate.optional().nullable(),
-        })
-        .refine(
-          (l) => !!l.itemId || (l.itemName != null && l.itemName.trim().length > 0),
-          { message: "Mỗi dòng phải có itemId hoặc itemName.", path: ["itemName"] },
-        ),
-    )
-    .min(1, "PR cần ít nhất 1 dòng")
-    .optional(),
+  lines: prLinesArray(
+    z
+      .object({
+        /** Existing line id để update (omit → insert mới). */
+        id: uuid.optional(),
+        ...prLineShape,
+        approvedQty: z.coerce
+          .number({ invalid_type_error: "SL duyệt phải là số." })
+          .nonnegative("SL duyệt không được âm.")
+          .max(10_000_000, "SL duyệt quá lớn.")
+          .optional()
+          .nullable(),
+      })
+      .refine(lineHasItem, { message: LINE_NO_ITEM_MSG, path: ["itemName"] })
+      .refine(lineTotalOk, { message: LINE_TOTAL_MSG, path: ["estimatedUnitPrice"] }),
+  ).optional(),
 });
 
 export const prApproveSchema = z.object({
@@ -194,7 +240,7 @@ export const prRejectSchema = z.object({
     .string()
     .trim()
     .min(3, "Lý do tối thiểu 3 ký tự")
-    .max(500, "Tối đa 500 ký tự"),
+    .max(500, "Lý do tối đa 500 ký tự"),
 });
 
 /** V4.4 (Việc 4) — Huỷ phiếu (khác reject: người tạo/admin tự huỷ). */
@@ -203,12 +249,15 @@ export const prCancelSchema = z.object({
     .string()
     .trim()
     .min(3, "Lý do tối thiểu 3 ký tự")
-    .max(500, "Tối đa 500 ký tự"),
+    .max(500, "Lý do tối đa 500 ký tự"),
 });
 
-export const prListQuerySchema = z.object({
+export const prListQuerySchema = z
+  .object({
   status: z
-    .union([z.enum(PR_STATUSES), z.array(z.enum(PR_STATUSES))])
+    .union([z.enum(PR_STATUSES), z.array(z.enum(PR_STATUSES))], {
+      errorMap: () => ({ message: "Trạng thái không hợp lệ." }),
+    })
     .optional()
     .transform((v) => (v === undefined ? undefined : Array.isArray(v) ? v : [v])),
   linkedOrderId: uuid.optional(),
@@ -234,7 +283,11 @@ export const prListQuerySchema = z.object({
   q: z.string().trim().max(120).optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(200).default(50),
-});
+  })
+  .refine((v) => !v.from || !v.to || v.from <= v.to, {
+    message: "Từ ngày phải trước hoặc bằng Đến ngày.",
+    path: ["to"],
+  });
 
 /** ==== Purchase Order ==== */
 
@@ -272,7 +325,7 @@ export const poCancelCloseSchema = z.object({
     .string()
     .trim()
     .min(3, "Lý do tối thiểu 3 ký tự")
-    .max(500, "Tối đa 500 ký tự"),
+    .max(500, "Lý do tối đa 500 ký tự"),
 });
 
 export const poApproveSchema = z.object({
@@ -284,7 +337,7 @@ export const poRejectSchema = z.object({
     .string()
     .trim()
     .min(3, "Lý do tối thiểu 3 ký tự")
-    .max(500, "Tối đa 500 ký tự"),
+    .max(500, "Lý do tối đa 500 ký tự"),
 });
 
 export const poExportQuerySchema = z.object({

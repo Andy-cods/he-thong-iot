@@ -1,3 +1,4 @@
+import { contentDispositionAttachment } from "@/lib/content-disposition";
 import { type NextRequest } from "next/server";
 import { inArray } from "drizzle-orm";
 import { userAccount } from "@iot/db/schema";
@@ -5,7 +6,7 @@ import { logger } from "@/lib/logger";
 import { db } from "@/lib/db";
 import { getPR, getPRLinesEnriched } from "@/server/repos/purchaseRequests";
 import { jsonError } from "@/server/http";
-import { canViewAllPRs } from "@/server/services/prAccess";
+import { canAccessPR } from "@/server/services/prAccess";
 import { requireCan } from "@/server/session";
 import {
   renderYcvtPdfBuffer,
@@ -35,10 +36,7 @@ export async function GET(
     if (!pr) return jsonError("NOT_FOUND", "Không tìm thấy phiếu.", 404);
 
     // V3.9 — ownership: operator/qc chỉ tải phiếu mình tạo (404 nếu của người khác).
-    if (
-      !canViewAllPRs(guard.session.roles) &&
-      pr.requestedBy !== guard.session.userId
-    ) {
+    if (!canAccessPR(guard.session, pr)) {
       return jsonError("NOT_FOUND", "Không tìm thấy phiếu.", 404);
     }
 
@@ -178,7 +176,7 @@ export async function GET(
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+        "Content-Disposition": contentDispositionAttachment(filename),
         "Cache-Control": "no-store",
       },
     });

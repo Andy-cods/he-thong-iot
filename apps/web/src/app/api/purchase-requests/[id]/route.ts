@@ -1,11 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { can, prUpdateSchema } from "@iot/shared";
+import { prUpdateSchema } from "@iot/shared";
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { purchaseRequest, userAccount } from "@iot/db/schema";
+import { notification, purchaseRequest, userAccount } from "@iot/db/schema";
 import { logger } from "@/lib/logger";
 import {
+  PrValidationError,
+  assertPrItemsUsable,
   deletePR,
   getPR,
+  computePrIssueProgress,
+  getPRIssuedQtyByLine,
   getPRLinesEnriched,
   replacePRLines,
 } from "@/server/repos/purchaseRequests";
@@ -17,7 +21,7 @@ import {
   validateUuidParam,
 } from "@/server/http";
 import { writeAudit, diffObjects } from "@/server/services/audit";
-import { canViewAllPRs } from "@/server/services/prAccess";
+import { canAccessPR, canEditPRDraft } from "@/server/services/prAccess";
 import { requireCan, requireSession } from "@/server/session";
 import { db } from "@/lib/db";
 
@@ -26,8 +30,9 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/purchase-requests/[id] — detail PR + enriched lines.
- * PATCH /api/purchase-requests/[id] — V3.4: full edit (title/notes/lines)
- *   khi status DRAFT hoặc SUBMITTED. Status APPROVED/CONVERTED/REJECTED → 409.
+ * PATCH /api/purchase-requests/[id] — V3.4: full edit (title/notes/lines).
+ *   L5/L7: CHỈ phiếu DRAFT và CHỈ người lập (hoặc admin) sửa được. Phiếu đã gửi
+ *   (SUBMITTED trở đi) → 409 "Phiếu đã gửi, không sửa được".
  */
 export async function GET(
   _req: NextRequest,
@@ -43,21 +48,34 @@ export async function GET(
   const row = await getPR(params.id);
   if (!row) return jsonError("NOT_FOUND", "Không tìm thấy PR.", 404);
 
-  // V3.9 — ownership: operator/qc chỉ xem phiếu mình tạo. Trả 404 (không 403)
-  // để không lộ sự tồn tại của phiếu người khác.
-  if (
-    !canViewAllPRs(guard.session.roles) &&
-    row.requestedBy !== guard.session.userId
-  ) {
+  // V3.9 — ownership: operator/qc chỉ xem phiếu mình tạo. L5 — phiếu NHÁP chỉ
+  // người lập (và admin) xem. Trả 404 (không 403) để không lộ sự tồn tại.
+  if (!canAccessPR(guard.session, row)) {
     return jsonError("NOT_FOUND", "Không tìm thấy PR.", 404);
   }
 
   const lines = await getPRLinesEnriched(params.id);
   // V4.2 (TASK "Trừ tồn luôn") — hiển thị mã phiếu xuất đã sinh ở mục IV.
   // Thiết kế 1 PR ↔ tối đa 1 phiếu xuất nên mảng này thường có 0 hoặc 1 phần tử.
-  const goodsIssues = row.goodsIssuedAt
-    ? await listGoodsIssuesForPurchaseRequest(params.id)
-    : [];
+  // L8 — xuất nhiều đợt: luôn liệt kê các phiếu xuất đã sinh (kể cả khi chưa đủ).
+  const [goodsIssues, issuedByLine] = await Promise.all([
+    listGoodsIssuesForPurchaseRequest(params.id),
+    getPRIssuedQtyByLine(params.id),
+  ]);
+  const linesWithIssued = lines.map((l) => ({
+    ...l,
+    issuedQty: issuedByLine.get(l.id) ?? 0,
+  }));
+  const issueProgress = computePrIssueProgress(
+    linesWithIssued.map((l) => ({
+      id: l.id,
+      itemId: l.itemId,
+      sku: l.sku,
+      qty: Number(l.qty) || 0,
+      approvedQty: l.approvedQty != null ? Number(l.approvedQty) : null,
+      issuedQty: l.issuedQty,
+    })),
+  );
 
   // V3.7.73 — Resolve full names cho mục III/IV (Người đề xuất / Trưởng BP / Giám đốc / Rejected by)
   const ids = Array.from(
@@ -84,8 +102,9 @@ export async function GET(
   return NextResponse.json({
     data: {
       ...row,
-      lines,
+      lines: linesWithIssued,
       goodsIssues,
+      issueProgress,
       requestedByName: row.requestedBy ? nameMap.get(row.requestedBy) ?? null : null,
       deptApprovedByName: row.deptApprovedBy
         ? nameMap.get(row.deptApprovedBy) ?? null
@@ -98,13 +117,7 @@ export async function GET(
   });
 }
 
-const EDITABLE_STATUSES = ["DRAFT", "SUBMITTED"] as const;
-/**
- * V4.1 TM-11 — status vẫn `SUBMITTED` sau khi Kho duyệt bước 2 (bước nằm ở
- * `approval_step`) → trước đây sửa được phiếu ĐÃ được Kho duyệt. Nay chỉ sửa
- * khi bước là DRAFT/SUBMITTED (chưa ai duyệt).
- */
-const EDITABLE_STEPS = ["DRAFT", "SUBMITTED"] as const;
+const EDITABLE_STATUSES = ["DRAFT"] as const;
 
 export async function PATCH(
   req: NextRequest,
@@ -124,35 +137,27 @@ export async function PATCH(
   const before = await getPR(params.id);
   if (!before) return jsonError("NOT_FOUND", "Không tìm thấy PR.", 404);
 
-  const isOwnDraftEdit =
-    before.status === "DRAFT" && before.requestedBy === guard.session.userId;
-  if (!isOwnDraftEdit && !can(guard.session.roles, "update", "pr")) {
+  // L5 — nháp của người khác: 404 như không tồn tại (không lộ nội dung).
+  if (!canAccessPR(guard.session, before)) {
+    return jsonError("NOT_FOUND", "Không tìm thấy PR.", 404);
+  }
+
+  // L7 — chỉ DRAFT mới sửa nội dung (kể cả người có quyền update:pr như planner:
+  // trước đây PATCH được phiếu đã gửi mà không ai được báo).
+  if (!(EDITABLE_STATUSES as readonly string[]).includes(before.status as string)) {
+    return jsonError(
+      "NOT_EDITABLE",
+      "Phiếu đã gửi, không sửa được. Nếu cần thay đổi, từ chối/huỷ phiếu rồi dùng \"Tạo lại từ phiếu này\".",
+      409,
+    );
+  }
+
+  // L5 — DRAFT chỉ người lập (và admin) sửa.
+  if (!canEditPRDraft(guard.session, before)) {
     return jsonError(
       "FORBIDDEN",
-      "Bạn không có quyền sửa phiếu này.",
+      "Chỉ người lập phiếu (hoặc admin) mới sửa được phiếu nháp này.",
       403,
-    );
-  }
-
-  if (
-    !(EDITABLE_STATUSES as readonly string[]).includes(before.status as string)
-  ) {
-    return jsonError(
-      "NOT_EDITABLE",
-      `PR đang ở trạng thái ${before.status} — chỉ sửa được khi DRAFT hoặc SUBMITTED.`,
-      409,
-    );
-  }
-
-  if (
-    !(EDITABLE_STEPS as readonly string[]).includes(
-      (before.approvalStep as string | null) ?? "DRAFT",
-    )
-  ) {
-    return jsonError(
-      "NOT_EDITABLE",
-      "Phiếu đã được duyệt một phần — không sửa được. Hãy từ chối phiếu để người lập làm lại.",
-      409,
     );
   }
 
@@ -160,6 +165,9 @@ export async function PATCH(
   if ("response" in body) return body.response;
 
   try {
+    // L9/L10 — vật tư phải tồn tại + ACTIVE (422 tiếng Việt, không 500 FK).
+    if (body.data.lines) await assertPrItemsUsable(body.data.lines);
+
     // Update header
     const headerPatch: Record<string, unknown> = { updatedAt: new Date() };
     if (body.data.title !== undefined) headerPatch.title = body.data.title;
@@ -182,7 +190,7 @@ export async function PATCH(
           and(
             eq(purchaseRequest.id, params.id),
             inArray(purchaseRequest.status, [...EDITABLE_STATUSES]),
-            sql`COALESCE(${purchaseRequest.approvalStep}::text, 'DRAFT') IN ('DRAFT','SUBMITTED')`,
+            sql`COALESCE(${purchaseRequest.approvalStep}::text, 'DRAFT') = 'DRAFT'`,
           ),
         )
         .returning();
@@ -249,6 +257,18 @@ export async function PATCH(
 
     return NextResponse.json({ data: after });
   } catch (err) {
+    if (err instanceof PrValidationError) {
+      return jsonError(err.code, err.message, err.status);
+    }
+    const dbCode = (err as { code?: string; cause?: { code?: string } }).code ??
+      (err as { cause?: { code?: string } }).cause?.code;
+    if (dbCode === "23503" || dbCode === "22003") {
+      return jsonError(
+        "VALIDATION",
+        "Dữ liệu tham chiếu không hợp lệ (vật tư/nhà cung cấp không tồn tại hoặc số quá lớn).",
+        422,
+      );
+    }
     logger.error({ err }, "update PR failed");
     return jsonError("INTERNAL", "Không cập nhật được PR.", 500);
   }
@@ -279,9 +299,12 @@ export async function DELETE(
   const before = await getPR(params.id);
   if (!before) return jsonError("NOT_FOUND", "Không tìm thấy phiếu.", 404);
 
-  const isOwnDraftDelete =
-    before.status === "DRAFT" && before.requestedBy === guard.session.userId;
-  if (!isOwnDraftDelete && !can(guard.session.roles, "delete", "pr")) {
+  // L5 — nháp của người khác: 404. Người lập xoá nháp của mình; admin xoá mọi phiếu.
+  if (!canAccessPR(guard.session, before)) {
+    return jsonError("NOT_FOUND", "Không tìm thấy phiếu.", 404);
+  }
+  const isOwnDraftDelete = canEditPRDraft(guard.session, before);
+  if (!isOwnDraftDelete && !guard.session.roles.includes("admin")) {
     return jsonError(
       "FORBIDDEN",
       "Chỉ người lập phiếu (khi còn Nháp) hoặc admin mới xoá được phiếu này.",
@@ -294,6 +317,17 @@ export async function DELETE(
 
   try {
     await deletePR(params.id, { force });
+
+    // L14 — xoá phiếu thì thông báo liên quan phải biến mất (không để link 404).
+    await db
+      .delete(notification)
+      .where(
+        and(
+          eq(notification.entityType, "purchase_request"),
+          eq(notification.entityId, params.id),
+        ),
+      )
+      .catch((e) => logger.warn({ err: e }, "cleanup PR notifications failed"));
 
     const meta = extractRequestMeta(req);
     await writeAudit({

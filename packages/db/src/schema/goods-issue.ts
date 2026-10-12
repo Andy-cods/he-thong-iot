@@ -47,8 +47,8 @@ export const goodsIssue = appSchema.table(
     ),
     /**
      * V4.2 (migration 0067) — nguồn PR khi Kho bấm "Đã xuất kho" trên phiếu
-     * Đề xuất vật tư và chọn lô/bin trừ tồn thật. 1 PR ↔ tối đa 1 phiếu xuất
-     * (không giao từng phần như material_request) — unique index ở 0067.
+     * Đề xuất vật tư và chọn lô/bin trừ tồn thật. L8 (0079): 1 PR có thể
+     * xuất NHIỀU đợt (nhiều phiếu PX) — không còn unique index như 0067.
      */
     purchaseRequestId: uuid("purchase_request_id").references(
       () => purchaseRequest.id,
@@ -79,8 +79,9 @@ export const goodsIssue = appSchema.table(
     mrIdx: index("goods_issue_mr_idx").on(t.materialRequestId),
     issuedAtIdx: index("goods_issue_issued_at_idx").on(t.issuedAt),
     sourceIdx: index("goods_issue_source_idx").on(t.sourceType, t.issuedAt),
-    // Partial unique (WHERE purchase_request_id IS NOT NULL) — khai ở SQL 0067.
-    prUk: uniqueIndex("goods_issue_pr_uk")
+    // L8 (migration 0079) — bỏ unique 0067: 1 PR xuất kho được NHIỀU đợt.
+    // Partial index (WHERE purchase_request_id IS NOT NULL) — khai ở SQL 0079.
+    prIdx: index("goods_issue_pr_idx")
       .on(t.purchaseRequestId)
       .where(sql`${t.purchaseRequestId} IS NOT NULL`),
   }),

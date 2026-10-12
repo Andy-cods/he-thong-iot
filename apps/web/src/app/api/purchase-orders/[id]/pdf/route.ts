@@ -5,6 +5,7 @@
  * Permissions: read po (mọi role). Trả binary PDF + filename.
  */
 
+import { contentDispositionAttachment } from "@/lib/content-disposition";
 import { NextResponse, type NextRequest } from "next/server";
 import { eq } from "drizzle-orm";
 import { supplier as supplierTable, userAccount } from "@iot/db/schema";
@@ -127,7 +128,7 @@ export async function GET(
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Disposition": contentDispositionAttachment(filename),
         "Cache-Control": "private, no-cache",
       },
     });

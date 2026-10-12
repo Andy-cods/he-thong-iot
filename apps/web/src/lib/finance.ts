@@ -186,15 +186,5 @@ export function addDaysIso(iso: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** TC-26 — header Content-Disposition an toàn cho tên file tiếng Việt. */
-export function contentDispositionAttachment(fileName: string): string {
-  const ascii =
-    fileName
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/đ/g, "d")
-      .replace(/Đ/g, "D")
-      .replace(/[^\x20-\x7e]/g, "_")
-      .replace(/["\\]/g, "_") || "file";
-  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
-}
+/** TC-26 — header Content-Disposition an toàn cho tên file tiếng Việt (xem content-disposition.ts). */
+export { contentDispositionAttachment } from "./content-disposition";

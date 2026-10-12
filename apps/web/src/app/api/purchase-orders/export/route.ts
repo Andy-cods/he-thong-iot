@@ -13,6 +13,7 @@
  * decide).
  */
 
+import { contentDispositionAttachment } from "@/lib/content-disposition";
 import ExcelJS from "exceljs";
 import { NextResponse, type NextRequest } from "next/server";
 import { poExportQuerySchema } from "@iot/shared";
@@ -154,7 +155,7 @@ export async function GET(req: NextRequest) {
       headers: {
         "Content-Type":
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Disposition": contentDispositionAttachment(filename),
         "X-Export-Count": String(rows.length),
       },
     });

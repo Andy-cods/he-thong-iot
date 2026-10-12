@@ -47,6 +47,14 @@ export interface MarkPrIssuedLine {
   itemUom?: string | null;
   qty: string;
   approvedQty?: string | null;
+  /** L8 — đã xuất ở các đợt trước. */
+  issuedQty?: number;
+}
+
+/** Còn được xuất = SL duyệt (hoặc đề xuất) − đã xuất ở các đợt trước. */
+function remainingOf(l: MarkPrIssuedLine): number {
+  const cap = l.approvedQty != null ? Number(l.approvedQty) : Number(l.qty);
+  return Math.max(0, cap - (l.issuedQty ?? 0));
 }
 
 interface FifoPick {
@@ -116,7 +124,7 @@ export function MarkPrIssuedDialog({
     setNotes("");
     const init: Record<string, string> = {};
     for (const l of stockLines) {
-      const cap = l.approvedQty != null ? Number(l.approvedQty) : Number(l.qty);
+      const cap = remainingOf(l);
       init[l.id] = cap > 0 ? String(Number(cap.toFixed(4))) : "";
     }
     setQtyByLine(init);
@@ -171,11 +179,7 @@ export function MarkPrIssuedDialog({
     .map((l) => ({ line: l, qty: Number(qtyByLine[l.id] ?? "") || 0 }))
     .filter((x) => x.qty > 0);
 
-  const overCap = wanted.find((x) => {
-    const cap =
-      x.line.approvedQty != null ? Number(x.line.approvedQty) : Number(x.line.qty);
-    return x.qty > cap + EPS;
-  });
+  const overCap = wanted.find((x) => x.qty > remainingOf(x.line) + EPS);
 
   const loadPreview = async () => {
     if (wanted.length === 0) {
@@ -184,7 +188,7 @@ export function MarkPrIssuedDialog({
     }
     if (overCap) {
       toast.error(
-        `${overCap.line.sku ?? "Dòng"}: vượt SL ${overCap.line.approvedQty != null ? "đã duyệt" : "đề xuất"}.`,
+        `${overCap.line.sku ?? "Dòng"}: vượt SL còn được xuất (${fmt(remainingOf(overCap.line))}).`,
       );
       return;
     }
@@ -224,6 +228,22 @@ export function MarkPrIssuedDialog({
 
   const totalPreview = preview?.reduce((s, p) => s + p.covered, 0) ?? 0;
   const shortLines = preview?.filter((p) => p.covered + EPS < p.wanted) ?? [];
+
+  const anyIssued = stockLines.some((l) => (l.issuedQty ?? 0) > EPS);
+
+  // L8 — "Kết thúc, không xuất thêm": đóng quy trình xuất dù còn dòng chưa đủ.
+  const finishNow = () => {
+    markIssued.mutate(
+      { finish: true },
+      {
+        onSuccess: () => {
+          toast.success("Đã kết thúc xuất kho — phiếu hoàn tất.");
+          onOpenChange(false);
+        },
+        onError: (e) => toast.error(`Lỗi: ${(e as Error).message}`),
+      },
+    );
+  };
 
   const confirmIssue = () => {
     if (noStock) {
@@ -269,8 +289,13 @@ export function MarkPrIssuedDialog({
       {
         onSuccess: (res) => {
           const issueNo = res.meta?.goodsIssue?.issueNo;
+          const done = res.meta?.complete !== false;
           toast.success(
-            issueNo ? `Đã xuất kho — sinh phiếu ${issueNo}.` : "Đã ghi nhận xuất kho.",
+            done
+              ? issueNo
+                ? `Đã xuất kho đủ — sinh phiếu ${issueNo}, phiếu hoàn tất.`
+                : "Đã ghi nhận xuất kho."
+              : `Đã xuất một phần — phiếu ${issueNo ?? ""}. Còn dòng chưa đủ, có thể xuất tiếp đợt sau.`,
           );
           onOpenChange(false);
         },
@@ -285,10 +310,11 @@ export function MarkPrIssuedDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="lg" className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Đã xuất kho — {prLabel}</DialogTitle>
+          <DialogTitle>{anyIssued ? "Xuất kho đợt tiếp" : "Đã xuất kho"} — {prLabel}</DialogTitle>
           <DialogDescription>
             Chọn lô/vị trí xuất cho từng dòng — hệ thống trừ tồn thật + sinh
-            phiếu xuất kho ngay, không cần xuất lại ở Sơ đồ kho.
+            phiếu xuất kho ngay, không cần xuất lại ở Sơ đồ kho. Có thể xuất
+            nhiều đợt; phiếu hoàn tất khi mọi dòng đã xuất đủ.
           </DialogDescription>
         </DialogHeader>
 
@@ -306,14 +332,14 @@ export function MarkPrIssuedDialog({
                     <tr className="border-b border-zinc-100 text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
                       <th className="px-3 py-2 text-left">Mã / tên</th>
                       <th className="px-3 py-2 text-right">Đề xuất / Duyệt</th>
+                      <th className="px-3 py-2 text-right">Đã xuất</th>
                       <th className="px-3 py-2 text-right">Khả dụng</th>
                       <th className="px-3 py-2 text-right">Xuất lần này</th>
                     </tr>
                   </thead>
                   <tbody>
                     {stockLines.map((l) => {
-                      const cap =
-                        l.approvedQty != null ? Number(l.approvedQty) : Number(l.qty);
+                      const cap = remainingOf(l);
                       const val = qtyByLine[l.id] ?? "";
                       const over = (Number(val) || 0) > cap + EPS;
                       const avail = availableByItem[l.itemId!];
@@ -343,6 +369,9 @@ export function MarkPrIssuedDialog({
                                 {l.uom ?? l.itemUom}
                               </span>
                             ) : null}
+                          </td>
+                          <td className="px-3 py-2.5 text-right font-mono text-sm text-zinc-600 dark:text-zinc-300">
+                            {(l.issuedQty ?? 0) > EPS ? fmt(l.issuedQty ?? 0) : "—"}
                           </td>
                           <td className="px-3 py-2.5 text-right font-mono text-sm">
                             {avail?.loading ? (
@@ -482,6 +511,16 @@ export function MarkPrIssuedDialog({
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
             Huỷ
           </Button>
+          {!noStock && anyIssued ? (
+            <Button
+              variant="outline"
+              onClick={finishNow}
+              disabled={submitting}
+              title="Đóng quy trình xuất kho dù còn dòng chưa xuất đủ"
+            >
+              Kết thúc, không xuất thêm
+            </Button>
+          ) : null}
           {!noStock ? (
             <Button
               variant="outline"

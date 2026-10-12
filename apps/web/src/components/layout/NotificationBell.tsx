@@ -142,7 +142,8 @@ export function NotificationBell() {
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  const unreadCount = query.data?.meta.unreadCount ?? 0;
+  // L14 — badge + tiêu đề dùng cùng 1 con số: tổng chưa đọc (khớp trang /notifications).
+  const unreadCount = query.data?.meta.unreadTotal ?? query.data?.meta.unreadCount ?? 0;
   const items = query.data?.data ?? [];
   const groups = groupNotificationsByCategory(items);
 

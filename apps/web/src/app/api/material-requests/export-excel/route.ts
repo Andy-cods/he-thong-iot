@@ -1,3 +1,4 @@
+import { contentDispositionAttachment } from "@/lib/content-disposition";
 import { type NextRequest } from "next/server";
 import { logger } from "@/lib/logger";
 import { listMaterialRequestsInRange } from "@/server/repos/materialRequests";
@@ -109,7 +110,7 @@ export async function GET(req: NextRequest) {
       headers: {
         "Content-Type":
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+        "Content-Disposition": contentDispositionAttachment(filename),
         "Cache-Control": "no-store",
       },
     });

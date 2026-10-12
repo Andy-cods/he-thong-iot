@@ -30,3 +30,40 @@ const PR_EXPORT_EXCEL_ROLES: Role[] = ["admin", "purchaser", "accountant"];
 export function canExportPrExcel(roles: Role[]): boolean {
   return roles.some((r) => PR_EXPORT_EXCEL_ROLES.includes(r));
 }
+
+/* ── L5: phiếu NHÁP chỉ thuộc về chủ phiếu (và admin) ─────────────────────── */
+
+interface PrAccessSubject {
+  userId: string;
+  roles: Role[];
+}
+
+interface PrAccessTarget {
+  status: string;
+  requestedBy: string | null;
+}
+
+/**
+ * L5 — quyền XEM 1 phiếu cụ thể.
+ * - DRAFT: chỉ người lập + admin (người khác nhận 404 như không tồn tại).
+ * - Còn lại: role xem-tất-cả (canViewAllPRs) hoặc chính chủ phiếu.
+ */
+export function canAccessPR(subject: PrAccessSubject, pr: PrAccessTarget): boolean {
+  const isOwner = !!pr.requestedBy && pr.requestedBy === subject.userId;
+  if (pr.status === "DRAFT") return isOwner || subject.roles.includes("admin");
+  return canViewAllPRs(subject.roles) || isOwner;
+}
+
+/** L5/L7 — quyền SỬA / GỬI / XOÁ nháp: chỉ DRAFT, chỉ người lập hoặc admin. */
+export function canEditPRDraft(subject: PrAccessSubject, pr: PrAccessTarget): boolean {
+  if (pr.status !== "DRAFT") return false;
+  const isOwner = !!pr.requestedBy && pr.requestedBy === subject.userId;
+  return isOwner || subject.roles.includes("admin");
+}
+
+/** L6 — "Tạo lại từ phiếu này": REJECTED/CANCELLED, người lập hoặc admin. */
+export function canRecreatePR(subject: PrAccessSubject, pr: PrAccessTarget): boolean {
+  if (pr.status !== "REJECTED" && pr.status !== "CANCELLED") return false;
+  const isOwner = !!pr.requestedBy && pr.requestedBy === subject.userId;
+  return isOwner || subject.roles.includes("admin");
+}
