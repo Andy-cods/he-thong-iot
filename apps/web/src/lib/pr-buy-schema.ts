@@ -2,16 +2,19 @@ import { z } from "zod";
 
 /**
  * M3 — SL cần mua do Kho chốt: lineId → số. KHÔNG coerce (null / "" / "abc" trước
- * đây bị ép thành 0 = coi như "không cần mua"); Infinity/NaN bị chặn. Thông báo tiếng Việt.
+ * đây bị ép thành 0 = coi như "không cần mua"); Infinity/NaN bị chặn. Thông báo
+ * tiếng Việt cụ thể (viết bằng superRefine để không bị errorMap chung ghi đè
+ * thành "Bắt buộc nhập").
  */
-export const buyQtysSchema = z.record(
-  z.string().uuid("Mã dòng không hợp lệ."),
-  z
-    .number({
-      invalid_type_error: "SL cần mua phải là số (không để trống).",
-      required_error: "SL cần mua phải là số (không để trống).",
-    })
-    .finite("SL cần mua phải là số hữu hạn.")
-    .min(0, "SL cần mua không được âm.")
-    .max(10_000_000, "SL cần mua quá lớn."),
-);
+const buyQty = z
+  .unknown()
+  .superRefine((v, ctx) => {
+    const bad = (message: string) => ctx.addIssue({ code: z.ZodIssueCode.custom, message });
+    if (typeof v !== "number") return bad("SL cần mua phải là số (không để trống).");
+    if (!Number.isFinite(v)) return bad("SL cần mua phải là số hữu hạn.");
+    if (v < 0) return bad("SL cần mua không được âm.");
+    if (v > 10_000_000) return bad("SL cần mua quá lớn.");
+  })
+  .transform((v) => v as number);
+
+export const buyQtysSchema = z.record(z.string().uuid("Mã dòng không hợp lệ."), buyQty);
