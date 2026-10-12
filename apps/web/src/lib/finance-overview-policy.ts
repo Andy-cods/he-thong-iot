@@ -308,3 +308,180 @@ export function groupPayablesBySupplierAndBucket(
     grandTotal,
   };
 }
+
+/* ══════════════════════════ Kỳ dự trù chung (horizon) ══════════════════════════ */
+
+/** Kỳ dự trù (số ngày tới) cho CẢ Dự trù thu lẫn Dự trù chi. */
+export const HORIZON_OPTIONS = [30, 45, 60, 90] as const;
+export type Horizon = (typeof HORIZON_OPTIONS)[number];
+export const DEFAULT_HORIZON: Horizon = 30;
+
+/** Chuẩn hoá `?horizon=` — giá trị không hợp lệ/thiếu → 30. */
+export function parseHorizon(raw: string | number | null | undefined): Horizon {
+  const n = typeof raw === "number" ? raw : Number(raw);
+  return (HORIZON_OPTIONS as readonly number[]).includes(n) ? (n as Horizon) : DEFAULT_HORIZON;
+}
+
+/** Hạn thuộc kỳ: đã quá hạn hoặc còn ≤ `horizon` ngày; chưa ghi hạn → tính (thận trọng, như `classifyPayableDueBucket`). */
+export function isDueWithinHorizon(dueDate: string | null, today: string, horizon: number): boolean {
+  if (!dueDate) return true;
+  return daysUntil(dueDate, today) <= horizon;
+}
+
+/**
+ * Tổng các mốc nằm trong kỳ: OVERDUE + 0-30 luôn tính; 31-45/46-60/61-90 tính
+ * khi kỳ đủ rộng (ranh giới mốc trùng đúng các kỳ 30/45/60/90).
+ */
+export function sumBucketsWithinHorizon(
+  totalByBucket: Record<PayableDueBucket, number>,
+  horizon: number,
+): number {
+  let sum = totalByBucket.OVERDUE + totalByBucket["0-30"];
+  if (horizon >= 45) sum += totalByBucket["31-45"];
+  if (horizon >= 60) sum += totalByBucket["46-60"];
+  if (horizon >= 90) sum += totalByBucket["61-90"];
+  return sum;
+}
+
+export interface PlannedItemRaw {
+  amount: number | string;
+  dueDate: string;
+}
+
+/** Khoản dự kiến OPEN có hạn ≤ hôm nay + kỳ (quá hạn cũng tính). */
+export function sumPlannedWithinHorizon(
+  items: readonly PlannedItemRaw[],
+  today: string,
+  horizon: number,
+): { value: number; count: number } {
+  let value = 0;
+  let count = 0;
+  for (const it of items) {
+    if (!isDueWithinHorizon(it.dueDate, today, horizon)) continue;
+    value += Number(it.amount) || 0;
+    count += 1;
+  }
+  return { value, count };
+}
+
+/* ══════════════════════════ Dự trù thu: công nợ phải thu ══════════════════════════ */
+
+export interface ReceivableRawRow {
+  customerId: string | null;
+  customerName: string;
+  dueDate: string | null;
+  /** total − đã thu. */
+  outstandingAmount: number | string;
+}
+
+export interface ReceivableBucketRow {
+  customerId: string | null;
+  customerName: string;
+  bucket: PayableDueBucket;
+  amount: number;
+  invoiceCount: number;
+}
+
+export interface ReceivablesByCustomerBucketSummary {
+  rows: ReceivableBucketRow[];
+  totalByCustomer: Array<{
+    customerId: string | null;
+    customerName: string;
+    total: number;
+    invoiceCount: number;
+  }>;
+  totalByBucket: Record<PayableDueBucket, number>;
+  grandTotal: number;
+}
+
+/** Nhóm công nợ phải thu còn nợ theo (KHÁCH HÀNG, mốc hạn) — cùng 6 mốc với phải trả. */
+export function groupReceivablesByCustomerAndBucket(
+  rows: readonly ReceivableRawRow[],
+  today: string,
+): ReceivablesByCustomerBucketSummary {
+  const g = groupPayablesBySupplierAndBucket(
+    rows.map((r) => ({
+      supplierId: r.customerId,
+      supplierName: r.customerName,
+      dueDate: r.dueDate,
+      outstandingAmount: r.outstandingAmount,
+    })),
+    today,
+  );
+  return {
+    rows: g.rows.map((r) => ({
+      customerId: r.supplierId,
+      customerName: r.supplierName,
+      bucket: r.bucket,
+      amount: r.amount,
+      invoiceCount: r.invoiceCount,
+    })),
+    totalByCustomer: g.totalBySupplier.map((s) => ({
+      customerId: s.supplierId,
+      customerName: s.supplierName,
+      total: s.total,
+      invoiceCount: s.invoiceCount,
+    })),
+    totalByBucket: g.totalByBucket,
+    grandTotal: g.grandTotal,
+  };
+}
+
+export interface ExpectedReceivableTotal {
+  /** Bảng sản xuất (không đổi công thức). */
+  boardValue: number;
+  /** Công nợ phải thu quá hạn + đến hạn trong kỳ. */
+  receivableDue: number;
+  /** Khoản thu dự kiến OPEN, hạn ≤ hôm nay + kỳ. */
+  plannedIncomeValue: number;
+  plannedIncomeCount: number;
+  value: number;
+}
+
+/** Tổng thẻ "Dự trù thu" = Bảng SX + công nợ phải thu trong kỳ + khoản thu dự kiến trong kỳ. */
+export function computeExpectedReceivableTotal(input: {
+  boardValue: number;
+  receivables: ReceivablesByCustomerBucketSummary;
+  plannedIncomes: readonly PlannedItemRaw[];
+  today: string;
+  horizon: number;
+}): ExpectedReceivableTotal {
+  const receivableDue = sumBucketsWithinHorizon(input.receivables.totalByBucket, input.horizon);
+  const planned = sumPlannedWithinHorizon(input.plannedIncomes, input.today, input.horizon);
+  return {
+    boardValue: input.boardValue,
+    receivableDue,
+    plannedIncomeValue: planned.value,
+    plannedIncomeCount: planned.count,
+    value: input.boardValue + receivableDue + planned.value,
+  };
+}
+
+export interface ExpectedPayableTotal {
+  /** Công nợ phải trả quá hạn + đến hạn trong kỳ. */
+  payableDue: number;
+  /** PO chưa HĐ + HĐ nháp (không có hạn — luôn tính). */
+  poDraftValue: number;
+  plannedExpenseValue: number;
+  plannedExpenseCount: number;
+  value: number;
+}
+
+/** Tổng thẻ "Dự trù chi" = công nợ phải trả trong kỳ + PO chưa HĐ/HĐ nháp + khoản chi dự kiến trong kỳ. */
+export function computeExpectedPayableTotal(input: {
+  payables: PayablesBySupplierBucketSummary;
+  poDraftValue: number;
+  plannedExpenses: readonly PlannedItemRaw[];
+  today: string;
+  horizon: number;
+}): ExpectedPayableTotal {
+  const payableDue = sumBucketsWithinHorizon(input.payables.totalByBucket, input.horizon);
+  const planned = sumPlannedWithinHorizon(input.plannedExpenses, input.today, input.horizon);
+  return {
+    payableDue,
+    poDraftValue: input.poDraftValue,
+    plannedExpenseValue: planned.value,
+    plannedExpenseCount: planned.count,
+    value: payableDue + input.poDraftValue + planned.value,
+  };
+}

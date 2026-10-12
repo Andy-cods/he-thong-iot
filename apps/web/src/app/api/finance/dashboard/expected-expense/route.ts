@@ -2,7 +2,11 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getPayablesRawForBucketing } from "@/server/repos/finInvoices";
 import { getOpenPoListForExpectedExpense } from "@/server/repos/purchaseOrders";
 import { listFinPlannedExpenses } from "@/server/repos/finPlannedExpense";
-import { groupPayablesBySupplierAndBucket } from "@/lib/finance-overview-policy";
+import {
+  groupPayablesBySupplierAndBucket,
+  parseHorizon,
+  sumBucketsWithinHorizon,
+} from "@/lib/finance-overview-policy";
 import { vnToday } from "@/lib/finance";
 import { requireCan } from "@/server/session";
 
@@ -20,6 +24,7 @@ export async function GET(req: NextRequest) {
   const guard = await requireCan(req, "read", "finance");
   if ("response" in guard) return guard.response;
 
+  const horizon = parseHorizon(req.nextUrl.searchParams.get("horizon"));
   const to = vnToday();
   const [payableRawRows, openPos, plannedExpenses] = await Promise.all([
     getPayablesRawForBucketing(),
@@ -31,6 +36,8 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     data: {
+      horizon,
+      payableDueWithinHorizon: sumBucketsWithinHorizon(payableBySupplierBucket.totalByBucket, horizon),
       payableBySupplierBucket,
       openPos,
       plannedExpenses,

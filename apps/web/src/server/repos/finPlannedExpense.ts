@@ -31,13 +31,13 @@ export async function listFinPlannedExpenses(opts: { status?: string }) {
   return rows;
 }
 
-/** Danh sách OPEN (chưa chi) — dùng trực tiếp cho công thức "Dự trù chi". */
-export async function getOpenPlannedExpenseAmounts(): Promise<number[]> {
+/** Khoản OPEN (chưa chi) — số tiền + hạn dự kiến, đưa vào hàm thuần lọc theo kỳ. */
+export async function getOpenPlannedExpenseItems(): Promise<Array<{ amount: number; dueDate: string }>> {
   const rows = await db
-    .select({ amount: finPlannedExpense.amount })
+    .select({ amount: finPlannedExpense.amount, dueDate: finPlannedExpense.dueDate })
     .from(finPlannedExpense)
     .where(eq(finPlannedExpense.status, "OPEN"));
-  return rows.map((r) => Number(r.amount) || 0);
+  return rows.map((r) => ({ amount: Number(r.amount) || 0, dueDate: r.dueDate }));
 }
 
 export async function getFinPlannedExpenseById(id: string) {

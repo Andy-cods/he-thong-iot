@@ -464,3 +464,39 @@ export const finPlannedExpenseListQuerySchema = z.object({
 export type FinPlannedExpenseCreate = z.infer<typeof finPlannedExpenseCreateSchema>;
 export type FinPlannedExpenseUpdate = z.infer<typeof finPlannedExpenseUpdateSchema>;
 export type FinPlannedExpenseListQuery = z.infer<typeof finPlannedExpenseListQuerySchema>;
+
+/* ── Dự trù thu: khoản thu dự kiến (đối xứng khoản chi dự kiến) ── */
+
+export const FIN_PLANNED_INCOME_STATUSES = ["OPEN", "DONE", "CANCELLED"] as const;
+export type FinPlannedIncomeStatus = (typeof FIN_PLANNED_INCOME_STATUSES)[number];
+
+export const finPlannedIncomeCreateSchema = z.object({
+  description: z.string().trim().min(1, "Bắt buộc").max(500),
+  amount: positiveAmount,
+  dueDate: dateStringOrDate,
+  categoryId: uuid.optional().nullable(),
+  customerId: uuid.optional().nullable(),
+  accountId: uuid.optional().nullable(),
+  notes: optionalTrim(2000),
+});
+
+export const finPlannedIncomeUpdateSchema = z.object({
+  description: z.string().trim().min(1, "Bắt buộc").max(500).optional(),
+  amount: positiveAmount.optional(),
+  dueDate: dateStringOrDate.optional(),
+  categoryId: uuid.optional().nullable(),
+  customerId: uuid.optional().nullable(),
+  accountId: uuid.optional().nullable(),
+  notes: patchTrim(2000),
+  status: z.enum(FIN_PLANNED_INCOME_STATUSES).optional(),
+});
+
+export const finPlannedIncomeListQuerySchema = z.object({
+  status: z.enum(FIN_PLANNED_INCOME_STATUSES).optional(),
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(200).default(100),
+});
+
+export type FinPlannedIncomeCreate = z.infer<typeof finPlannedIncomeCreateSchema>;
+export type FinPlannedIncomeUpdate = z.infer<typeof finPlannedIncomeUpdateSchema>;
+export type FinPlannedIncomeListQuery = z.infer<typeof finPlannedIncomeListQuerySchema>;

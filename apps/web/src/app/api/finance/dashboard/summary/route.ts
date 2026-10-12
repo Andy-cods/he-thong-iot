@@ -5,12 +5,20 @@ import {
   getPayablesAging,
   getPayablesRawForBucketing,
   getReceivablesAging,
+  getReceivablesRawForBucketing,
 } from "@/server/repos/finInvoices";
 import { getBoardValueSummary } from "@/server/repos/productionBoard";
 import { getExpectedPayableSummary } from "@/server/repos/purchaseOrders";
-import { getOpenPlannedExpenseAmounts } from "@/server/repos/finPlannedExpense";
+import { getOpenPlannedExpenseItems } from "@/server/repos/finPlannedExpense";
+import { getOpenPlannedIncomeItems } from "@/server/repos/finPlannedIncome";
 import { addDaysIso, vnToday } from "@/lib/finance";
-import { groupPayablesBySupplierAndBucket } from "@/lib/finance-overview-policy";
+import {
+  computeExpectedPayableTotal,
+  computeExpectedReceivableTotal,
+  groupPayablesBySupplierAndBucket,
+  groupReceivablesByCustomerAndBucket,
+  parseHorizon,
+} from "@/lib/finance-overview-policy";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -35,12 +43,16 @@ export const dynamic = "force-dynamic";
  *     khoản chi dự kiến OPEN (`plannedExpenseOpenValue`). `value` = tổng cả
  *     3 phần — KHÔNG đếm trùng `totalPayable` (chỉ lấy phần ≤30 ngày của
  *     công nợ, không phải toàn bộ — xem lib/finance-overview-policy.ts).
- * Mọi vai đọc `finance` (admin/accountant/shareholder) đều thấy — không cần
+ * Kỳ dự trù chung `?horizon=30|45|60|90` (mặc định 30) áp cho `expectedReceivable`
+ * (Bảng SX + công nợ phải thu quá hạn/trong kỳ + khoản thu dự kiến) và
+ * `expectedPayable` ("≤30 ngày" ở trên = kỳ đang chọn). Mọi vai đọc `finance` (admin/accountant/shareholder) đều thấy — không cần
  * quyền `productionBoard`/`po` riêng vì đây là số TỔNG HỢP phía server.
  */
 export async function GET(req: NextRequest) {
   const guard = await requireCan(req, "read", "finance");
   if ("response" in guard) return guard.response;
+  // Kỳ dự trù chung 30/45/60/90 ngày (mặc định 30; giá trị lạ → 30).
+  const horizon = parseHorizon(req.nextUrl.searchParams.get("horizon"));
 
   // V4.1 TC-13 — "hôm nay" theo giờ VN (trước 7h sáng từng lấy nhầm ngày UTC hôm qua).
   const to = vnToday();
@@ -54,7 +66,9 @@ export async function GET(req: NextRequest) {
     production,
     expectedPayablePoDraft,
     payableRawRows,
-    plannedExpenseOpenAmounts,
+    plannedExpenseOpenItems,
+    receivableRawRows,
+    plannedIncomeOpenItems,
   ] = await Promise.all([
     getCashflowTotals(from, to),
     getAccountsBalanceSummary(),
@@ -63,23 +77,48 @@ export async function GET(req: NextRequest) {
     getBoardValueSummary(),
     getExpectedPayableSummary(),
     getPayablesRawForBucketing(),
-    getOpenPlannedExpenseAmounts(),
+    getOpenPlannedExpenseItems(),
+    getReceivablesRawForBucketing(),
+    getOpenPlannedIncomeItems(),
   ]);
 
   const totalReceivable = receivableBuckets.reduce((s, b) => s + b.outstandingAmount, 0);
   const totalPayable = payableBuckets.reduce((s, b) => s + b.outstandingAmount, 0);
 
   const payableBySupplierBucket = groupPayablesBySupplierAndBucket(payableRawRows, to);
-  const plannedExpenseOpenValue = plannedExpenseOpenAmounts.reduce((s, v) => s + v, 0);
+  const payableTotal = computeExpectedPayableTotal({
+    payables: payableBySupplierBucket,
+    poDraftValue: expectedPayablePoDraft.value,
+    plannedExpenses: plannedExpenseOpenItems,
+    today: to,
+    horizon,
+  });
+  const receivableByCustomerBucket = groupReceivablesByCustomerAndBucket(receivableRawRows, to);
+  const receivableTotal = computeExpectedReceivableTotal({
+    boardValue: production.expectedReceivable.value,
+    receivables: receivableByCustomerBucket,
+    plannedIncomes: plannedIncomeOpenItems,
+    today: to,
+    horizon,
+  });
 
   const expectedPayable = {
     ...expectedPayablePoDraft,
-    payableDueSoon: payableBySupplierBucket.dueSoonAmount,
-    plannedExpenseOpenValue,
-    plannedExpenseOpenCount: plannedExpenseOpenAmounts.length,
-    // Tổng "Dự trù chi" = công nợ sắp đến hạn (≤30 ngày) + PO mở chưa HĐ +
-    // HĐ nháp (expectedPayablePoDraft.value) + khoản chi dự kiến OPEN.
-    value: payableBySupplierBucket.dueSoonAmount + expectedPayablePoDraft.value + plannedExpenseOpenValue,
+    // Công nợ phải trả quá hạn + đến hạn trong kỳ (tên cũ `payableDueSoon` giữ cho UI).
+    payableDueSoon: payableTotal.payableDue,
+    plannedExpenseOpenValue: payableTotal.plannedExpenseValue,
+    plannedExpenseOpenCount: payableTotal.plannedExpenseCount,
+    value: payableTotal.value,
+  };
+
+  // "Dự trù thu" = Bảng SX (`production.expectedReceivable`, công thức không đổi)
+  // + công nợ phải thu quá hạn/trong kỳ + khoản thu dự kiến OPEN hạn ≤ hôm nay + kỳ.
+  const expectedReceivable = {
+    value: receivableTotal.value,
+    boardValue: receivableTotal.boardValue,
+    receivableDue: receivableTotal.receivableDue,
+    plannedIncomeValue: receivableTotal.plannedIncomeValue,
+    plannedIncomeCount: receivableTotal.plannedIncomeCount,
   };
 
   return NextResponse.json({
@@ -92,6 +131,8 @@ export async function GET(req: NextRequest) {
       totalPayable,
       production,
       expectedPayable,
+      expectedReceivable,
+      horizon,
       payableBySupplierBucket,
       period: { from, to },
     },

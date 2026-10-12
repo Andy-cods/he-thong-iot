@@ -721,16 +721,31 @@ export interface FinSummaryResponse {
     plannedExpenseOpenValue: number;
     plannedExpenseOpenCount: number;
   };
+  /**
+   * "Dự trù thu" tổng = Bảng SX (`boardValue`) + công nợ phải thu quá hạn/trong
+   * kỳ (`receivableDue`) + khoản thu dự kiến OPEN hạn ≤ hôm nay + kỳ.
+   */
+  expectedReceivable: {
+    value: number;
+    boardValue: number;
+    receivableDue: number;
+    plannedIncomeValue: number;
+    plannedIncomeCount: number;
+  };
+  /** Kỳ dự trù đang áp dụng (ngày). */
+  horizon: number;
   /** Chi tiết công nợ phải trả theo NCC × mốc hạn — dùng vẽ Sheet chi tiết. */
   payableBySupplierBucket: PayablesBySupplierBucketSummary;
   period: { from: string; to: string };
 }
 
-export function useFinSummary() {
+export function useFinSummary(horizon: number = 30) {
   return useQuery({
-    queryKey: qk.finance.dashboardSummary,
-    queryFn: () => request<{ data: FinSummaryResponse }>("/api/finance/dashboard/summary"),
+    queryKey: [...qk.finance.dashboardSummary, "horizon", horizon],
+    queryFn: () =>
+      request<{ data: FinSummaryResponse }>(`/api/finance/dashboard/summary?horizon=${horizon}`),
     staleTime: 30_000,
+    placeholderData: (prev) => prev,
   });
 }
 
@@ -765,17 +780,21 @@ export interface FinPlannedExpenseRow {
 }
 
 export interface ExpectedExpenseDetail {
+  horizon: number;
+  payableDueWithinHorizon: number;
   payableBySupplierBucket: PayablesBySupplierBucketSummary;
   openPos: OpenPoForExpectedExpense[];
   plannedExpenses: FinPlannedExpenseRow[];
 }
 
 /** Chi tiết ô "Dự trù chi" — gọi khi mở Sheet (không gọi mỗi lần tải Tổng quan). */
-export function useExpectedExpenseDetail(enabled: boolean) {
+export function useExpectedExpenseDetail(enabled: boolean, horizon: number = 30) {
   return useQuery({
-    queryKey: [...qk.finance.dashboardSummary, "expected-expense"],
+    queryKey: [...qk.finance.dashboardSummary, "expected-expense", horizon],
     queryFn: () =>
-      request<{ data: ExpectedExpenseDetail }>("/api/finance/dashboard/expected-expense"),
+      request<{ data: ExpectedExpenseDetail }>(
+        `/api/finance/dashboard/expected-expense?horizon=${horizon}`,
+      ),
     staleTime: 10_000,
     enabled,
   });
@@ -830,6 +849,119 @@ export function useDeletePlannedExpense() {
   return useMutation({
     mutationFn: (id: string) =>
       request<{ ok: true }>(`/api/finance/planned-expenses/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: [...qk.finance.dashboardSummary] });
+    },
+  });
+}
+
+/* ══════════════════════════ Dự trù thu (Sheet chi tiết) ══════════════════════════ */
+
+export type FinPlannedIncomeStatus = "OPEN" | "DONE" | "CANCELLED";
+
+export interface FinPlannedIncomeRow {
+  id: string;
+  description: string;
+  amount: string;
+  dueDate: string;
+  categoryId: string | null;
+  categoryName: string | null;
+  customerId: string | null;
+  customerName: string | null;
+  accountId: string | null;
+  status: FinPlannedIncomeStatus;
+  notes: string | null;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReceivablesByCustomerBucketSummary {
+  rows: Array<{
+    customerId: string | null;
+    customerName: string;
+    bucket: PayableDueBucket;
+    amount: number;
+    invoiceCount: number;
+  }>;
+  totalByCustomer: Array<{
+    customerId: string | null;
+    customerName: string;
+    total: number;
+    invoiceCount: number;
+  }>;
+  totalByBucket: Record<PayableDueBucket, number>;
+  grandTotal: number;
+}
+
+export interface ExpectedIncomeDetail {
+  horizon: number;
+  receivableDueWithinHorizon: number;
+  receivableByCustomerBucket: ReceivablesByCustomerBucketSummary;
+  plannedIncomes: FinPlannedIncomeRow[];
+}
+
+export function useExpectedIncomeDetail(enabled: boolean, horizon: number = 30) {
+  return useQuery({
+    queryKey: [...qk.finance.dashboardSummary, "expected-income", horizon],
+    queryFn: () =>
+      request<{ data: ExpectedIncomeDetail }>(
+        `/api/finance/dashboard/expected-income?horizon=${horizon}`,
+      ),
+    staleTime: 10_000,
+    enabled,
+  });
+}
+
+export interface FinPlannedIncomeCreateInput {
+  description: string;
+  amount: number;
+  dueDate: string;
+  categoryId?: string | null;
+  customerId?: string | null;
+  accountId?: string | null;
+  notes?: string | null;
+}
+
+export function useCreatePlannedIncome() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: FinPlannedIncomeCreateInput) =>
+      request<{ data: FinPlannedIncomeRow }>("/api/finance/planned-incomes", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: [...qk.finance.dashboardSummary] });
+    },
+  });
+}
+
+export function useUpdatePlannedIncome() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: Partial<FinPlannedIncomeCreateInput> & { status?: FinPlannedIncomeStatus };
+    }) =>
+      request<{ data: FinPlannedIncomeRow }>(`/api/finance/planned-incomes/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: [...qk.finance.dashboardSummary] });
+    },
+  });
+}
+
+export function useDeletePlannedIncome() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      request<{ ok: true }>(`/api/finance/planned-incomes/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: [...qk.finance.dashboardSummary] });
     },

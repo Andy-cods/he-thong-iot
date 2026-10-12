@@ -351,6 +351,44 @@ export async function getPayablesRawForBucketing(): Promise<
   }));
 }
 
+/**
+ * Dự trù thu — dữ liệu THÔ công nợ phải thu: HĐ bán (direction=OUT) đã xác nhận
+ * (UNPAID/PARTIAL/OVERDUE, không gồm DRAFT) còn dư nợ (total − paid), kèm khách
+ * hàng (supplier_id → danh bạ đối tác, fallback tên ghi trong notes — cùng quy
+ * tắc `getReceivablesByCustomer`) + hạn thanh toán.
+ */
+export async function getReceivablesRawForBucketing(): Promise<
+  Array<{
+    customerId: string | null;
+    customerName: string;
+    dueDate: string | null;
+    outstandingAmount: number;
+  }>
+> {
+  const rows = (await db.execute(sql`
+    SELECT
+      fi.supplier_id AS customer_id,
+      COALESCE(s.name, NULLIF(TRIM(fi.notes), ''), '(Chưa chọn khách hàng)') AS customer_name,
+      fi.due_date AS due_date,
+      (fi.total_amount - fi.paid_amount) AS outstanding_amount
+    FROM app.fin_invoice fi
+    LEFT JOIN app.supplier s ON s.id = fi.supplier_id
+    WHERE fi.direction = 'OUT' AND fi.status IN ('UNPAID', 'PARTIAL', 'OVERDUE')
+  `)) as unknown as Array<{
+    customer_id: string | null;
+    customer_name: string;
+    due_date: string | null;
+    outstanding_amount: string;
+  }>;
+
+  return rows.map((r) => ({
+    customerId: r.customer_id,
+    customerName: r.customer_name,
+    dueDate: r.due_date,
+    outstandingAmount: Number(r.outstanding_amount ?? 0),
+  }));
+}
+
 export interface PartnerAgingRow {
   /** id đối tác — chỉ có với NCC (supplierId); null khi group theo tên khách trong notes (OUT). */
   partnerId: string | null;

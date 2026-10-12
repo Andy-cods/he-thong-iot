@@ -50,11 +50,14 @@ import { cn } from "@/lib/utils";
 export function ExpectedExpenseSheet({
   open,
   onOpenChange,
+  horizon,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  /** Kỳ dự trù chung (ngày) — dùng cho dòng "trong kỳ". */
+  horizon: number;
 }) {
-  const detailQuery = useExpectedExpenseDetail(open);
+  const detailQuery = useExpectedExpenseDetail(open, horizon);
   const detail = detailQuery.data?.data;
 
   const [createOpen, setCreateOpen] = React.useState(false);
@@ -74,6 +77,20 @@ export function ExpectedExpenseSheet({
             onCancel={() => onOpenChange(false)}
           />
           <SheetBody>
+            <p className="mb-4 rounded-lg bg-zinc-50 px-3 py-2 text-xs leading-relaxed text-zinc-600 dark:bg-zinc-900/60 dark:text-zinc-400">
+              Dự trù chi gồm: công nợ phải trả quá hạn và đến hạn trong {horizon} ngày tới, PO đã gửi/đang nhận
+              chưa có hoá đơn và hoá đơn mua nháp (không có hạn, luôn tính), cùng các khoản chi dự kiến nhập
+              tay chưa chi có ngày dự kiến đến hết {horizon} ngày tới (quá hạn cũng tính).
+              {detail ? (
+                <>
+                  {" "}Công nợ phải trả trong kỳ:{" "}
+                  <span className="font-semibold tabular-nums text-zinc-800 dark:text-zinc-200">
+                    {fmtVND(detail.payableDueWithinHorizon)}
+                  </span>
+                  .
+                </>
+              ) : null}
+            </p>
             {detailQuery.isLoading ? (
               <div className="space-y-4">
                 <Skeleton className="h-40 rounded-xl" />

@@ -349,6 +349,37 @@ export const finPlannedExpense = appSchema.table(
   }),
 );
 
+/**
+ * fin_planned_income — "khoản thu dự kiến" nhập tay (Dự trù thu), đối xứng
+ * `finPlannedExpense`. Khách hàng = `app.supplier` (danh bạ đối tác dùng
+ * chung, giống `fin_invoice.supplier_id` của HĐ bán). Migration 0078.
+ */
+export const finPlannedIncome = appSchema.table(
+  "fin_planned_income",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    description: varchar("description", { length: 500 }).notNull(),
+    amount: numeric("amount", { precision: 18, scale: 2 }).notNull(),
+    dueDate: date("due_date").notNull(),
+    categoryId: uuid("category_id").references(() => finCategory.id),
+    customerId: uuid("customer_id").references(() => supplier.id),
+    accountId: uuid("account_id").references(() => finAccount.id),
+    status: varchar("status", { length: 16 }).notNull().default("OPEN"),
+    notes: text("notes"),
+    createdBy: uuid("created_by").references(() => userAccount.id),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (t) => ({
+    statusIdx: index("fin_planned_income_status_idx").on(t.status),
+    dueDateIdx: index("fin_planned_income_due_date_idx").on(t.dueDate),
+  }),
+);
+
 export type FinAccount = typeof finAccount.$inferSelect;
 export type NewFinAccount = typeof finAccount.$inferInsert;
 export type FinCategory = typeof finCategory.$inferSelect;
@@ -363,3 +394,5 @@ export type FinPaymentAllocation = typeof finPaymentAllocation.$inferSelect;
 export type NewFinPaymentAllocation = typeof finPaymentAllocation.$inferInsert;
 export type FinPlannedExpense = typeof finPlannedExpense.$inferSelect;
 export type NewFinPlannedExpense = typeof finPlannedExpense.$inferInsert;
+export type FinPlannedIncome = typeof finPlannedIncome.$inferSelect;
+export type NewFinPlannedIncome = typeof finPlannedIncome.$inferInsert;

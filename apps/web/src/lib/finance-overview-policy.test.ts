@@ -4,6 +4,13 @@ import {
   classifyPayableDueBucket,
   computeBoardValueSummary,
   computeExpectedPayable,
+  computeExpectedPayableTotal,
+  computeExpectedReceivableTotal,
+  groupReceivablesByCustomerAndBucket,
+  isDueWithinHorizon,
+  parseHorizon,
+  sumBucketsWithinHorizon,
+  sumPlannedWithinHorizon,
   groupPayablesBySupplierAndBucket,
   type BoardValueRow,
   type PayableRawRow,
@@ -217,5 +224,132 @@ describe("groupPayablesBySupplierAndBucket — nhóm NCC × mốc hạn", () => 
     expect(out.totalBySupplier).toEqual([]);
     expect(out.dueSoonAmount).toBe(0);
     expect(out.grandTotal).toBe(0);
+  });
+});
+
+describe("parseHorizon — kỳ dự trù chung", () => {
+  it("chỉ nhận 30/45/60/90, còn lại về 30", () => {
+    expect(parseHorizon("45")).toBe(45);
+    expect(parseHorizon("90")).toBe(90);
+    expect(parseHorizon(60)).toBe(60);
+    expect(parseHorizon("7")).toBe(30);
+    expect(parseHorizon("abc")).toBe(30);
+    expect(parseHorizon(null)).toBe(30);
+    expect(parseHorizon(undefined)).toBe(30);
+  });
+});
+
+describe("isDueWithinHorizon — biên đúng N ngày", () => {
+  const today = "2026-10-12";
+  it("đúng ngày thứ N thì tính, N+1 thì không; quá hạn luôn tính; không hạn tính", () => {
+    expect(isDueWithinHorizon("2026-11-11", today, 30)).toBe(true); // +30
+    expect(isDueWithinHorizon("2026-11-12", today, 30)).toBe(false); // +31
+    expect(isDueWithinHorizon("2026-11-26", today, 45)).toBe(true); // +45
+    expect(isDueWithinHorizon("2026-11-27", today, 45)).toBe(false); // +46
+    expect(isDueWithinHorizon("2026-09-01", today, 30)).toBe(true); // quá hạn
+    expect(isDueWithinHorizon(null, today, 30)).toBe(true);
+  });
+});
+
+describe("groupReceivablesByCustomerAndBucket — bucket phải thu", () => {
+  const today = "2026-10-12";
+  it("nhóm khách × mốc, bỏ dư nợ 0, tổng đúng", () => {
+    const out = groupReceivablesByCustomerAndBucket(
+      [
+        { customerId: "a", customerName: "Khách A", dueDate: "2026-10-01", outstandingAmount: 100 }, // quá hạn
+        { customerId: "a", customerName: "Khách A", dueDate: "2026-10-20", outstandingAmount: "50" }, // 0-30
+        { customerId: "a", customerName: "Khách A", dueDate: "2026-11-26", outstandingAmount: 70 }, // 31-45 (+45)
+        { customerId: null, customerName: "Khách lẻ", dueDate: "2027-03-01", outstandingAmount: 900 }, // 90+
+        { customerId: "b", customerName: "Khách B", dueDate: "2026-10-05", outstandingAmount: 0 }, // bỏ
+      ],
+      today,
+    );
+    expect(out.totalByBucket.OVERDUE).toBe(100);
+    expect(out.totalByBucket["0-30"]).toBe(50);
+    expect(out.totalByBucket["31-45"]).toBe(70);
+    expect(out.totalByBucket["90+"]).toBe(900);
+    expect(out.grandTotal).toBe(1120);
+    expect(out.totalByCustomer[0]).toMatchObject({ customerName: "Khách lẻ", total: 900 });
+    expect(out.totalByCustomer.find((c) => c.customerId === "a")?.total).toBe(220);
+    expect(out.totalByCustomer.some((c) => c.customerId === "b")).toBe(false);
+  });
+});
+
+describe("sumBucketsWithinHorizon — lọc theo kỳ", () => {
+  const total = { OVERDUE: 1, "0-30": 2, "31-45": 4, "46-60": 8, "61-90": 16, "90+": 32 };
+  it("cộng dồn đúng theo kỳ", () => {
+    expect(sumBucketsWithinHorizon(total, 30)).toBe(3);
+    expect(sumBucketsWithinHorizon(total, 45)).toBe(7);
+    expect(sumBucketsWithinHorizon(total, 60)).toBe(15);
+    expect(sumBucketsWithinHorizon(total, 90)).toBe(31);
+  });
+  it("khớp với lọc theo ngày ở biên N", () => {
+    const today = "2026-10-12";
+    const dues = [
+      { dueDate: "2026-11-11", v: 5 }, // +30
+      { dueDate: "2026-11-12", v: 7 }, // +31
+      { dueDate: "2026-11-26", v: 11 }, // +45
+      { dueDate: "2026-11-27", v: 13 }, // +46
+    ];
+    const g = groupReceivablesByCustomerAndBucket(
+      dues.map((d) => ({ customerId: "x", customerName: "X", dueDate: d.dueDate, outstandingAmount: d.v })),
+      today,
+    );
+    expect(sumBucketsWithinHorizon(g.totalByBucket, 30)).toBe(5);
+    expect(sumBucketsWithinHorizon(g.totalByBucket, 45)).toBe(5 + 7 + 11);
+  });
+});
+
+describe("sumPlannedWithinHorizon — khoản dự kiến OPEN theo kỳ", () => {
+  const today = "2026-10-12";
+  const items = [
+    { amount: "1000", dueDate: "2026-10-01" }, // quá hạn → tính
+    { amount: 2000, dueDate: "2026-11-11" }, // +30 → tính ở 30
+    { amount: 4000, dueDate: "2026-11-12" }, // +31 → chỉ từ 45
+    { amount: 8000, dueDate: "2027-02-01" }, // > 90
+  ];
+  it("kỳ 30: quá hạn + đến +30", () => {
+    expect(sumPlannedWithinHorizon(items, today, 30)).toEqual({ value: 3000, count: 2 });
+  });
+  it("kỳ 45 gồm thêm +31; kỳ 90 vẫn loại khoản > 90 ngày", () => {
+    expect(sumPlannedWithinHorizon(items, today, 45)).toEqual({ value: 7000, count: 3 });
+    expect(sumPlannedWithinHorizon(items, today, 90)).toEqual({ value: 7000, count: 3 });
+  });
+});
+
+describe("tổng thẻ Dự trù thu / Dự trù chi", () => {
+  const today = "2026-10-12";
+  it("Dự trù thu = Bảng SX + phải thu trong kỳ + thu dự kiến trong kỳ", () => {
+    const receivables = groupReceivablesByCustomerAndBucket(
+      [
+        { customerId: "a", customerName: "A", dueDate: "2026-10-01", outstandingAmount: 100 },
+        { customerId: "a", customerName: "A", dueDate: "2026-11-20", outstandingAmount: 40 }, // +39
+        { customerId: "a", customerName: "A", dueDate: "2027-01-30", outstandingAmount: 999 }, // ngoài 90
+      ],
+      today,
+    );
+    const plannedIncomes = [
+      { amount: 10, dueDate: "2026-10-05" },
+      { amount: 20, dueDate: "2027-05-05" },
+    ];
+    const at30 = computeExpectedReceivableTotal({ boardValue: 1000, receivables, plannedIncomes, today, horizon: 30 });
+    expect(at30).toMatchObject({ boardValue: 1000, receivableDue: 100, plannedIncomeValue: 10, plannedIncomeCount: 1, value: 1110 });
+    const at45 = computeExpectedReceivableTotal({ boardValue: 1000, receivables, plannedIncomes, today, horizon: 45 });
+    expect(at45.value).toBe(1150);
+  });
+
+  it("Dự trù chi giữ nguyên PO chưa HĐ khi đổi kỳ", () => {
+    const payables = groupPayablesBySupplierAndBucket(
+      [
+        { supplierId: "s", supplierName: "S", dueDate: "2026-10-20", outstandingAmount: 300 },
+        { supplierId: "s", supplierName: "S", dueDate: "2026-12-01", outstandingAmount: 500 }, // +50
+      ],
+      today,
+    );
+    const plannedExpenses = [{ amount: 50, dueDate: "2026-10-30" }];
+    const a = computeExpectedPayableTotal({ payables, poDraftValue: 700, plannedExpenses, today, horizon: 30 });
+    expect(a).toMatchObject({ payableDue: 300, poDraftValue: 700, plannedExpenseValue: 50, value: 1050 });
+    const b = computeExpectedPayableTotal({ payables, poDraftValue: 700, plannedExpenses, today, horizon: 60 });
+    expect(b).toMatchObject({ payableDue: 800, poDraftValue: 700, value: 1550 });
   });
 });

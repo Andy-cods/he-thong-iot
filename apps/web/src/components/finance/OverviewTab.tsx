@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
   ArrowDownRight,
@@ -23,9 +24,11 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SimpleTooltip } from "@/components/ui/tooltip";
 import { CashflowChart } from "@/components/finance/CashflowChart";
 import { ExpectedExpenseSheet } from "@/components/finance/ExpectedExpenseSheet";
+import { ExpectedIncomeSheet } from "@/components/finance/ExpectedIncomeSheet";
 import { fmtVND, fmtVNDShort, toDateInputValue } from "@/components/finance/_format";
 import { useFinCashflow, useFinSummary, type CashflowPoint } from "@/hooks/useFinance";
 import { useSession } from "@/hooks/useSession";
+import { HORIZON_OPTIONS, parseHorizon } from "@/lib/finance-overview-policy";
 import { isRouteAllowed } from "@/lib/route-guard";
 import { cn } from "@/lib/utils";
 
@@ -55,7 +58,18 @@ export function OverviewTab() {
   }, [rangeDays, customFrom, customTo]);
 
   const cashflowQuery = useFinCashflow({ from, to, compareWith: "previous_period" });
-  const summaryQuery = useFinSummary();
+  // Kỳ dự trù chung (30/45/60/90 ngày) cho Dự trù thu + Dự trù chi — giữ qua
+  // query string `?horizon=` để F5/chia sẻ link không mất lựa chọn.
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const horizon = parseHorizon(searchParams.get("horizon"));
+  const setHorizon = (h: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("horizon", String(h));
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+  const summaryQuery = useFinSummary(horizon);
   const session = useSession();
   const roles = session.data?.roles;
   // V4.4.2 — chỉ dẫn link "mở danh sách nguồn" tới trang user THỰC SỰ vào
@@ -64,6 +78,7 @@ export function OverviewTab() {
   const canOpenBoard = isRouteAllowed("/production-board", roles ?? []);
   // TASK-20261001 (việc 3) — Sheet chi tiết ô "Dự trù chi".
   const [expenseDetailOpen, setExpenseDetailOpen] = React.useState(false);
+  const [incomeDetailOpen, setIncomeDetailOpen] = React.useState(false);
 
   const cashflow = cashflowQuery.data?.data;
   const summary = summaryQuery.data?.data;
@@ -74,6 +89,7 @@ export function OverviewTab() {
   // TASK-20261001 — hàng "Kế hoạch" (Dự trù thu GỘP / Dự trù chi).
   const production = summary?.production;
   const expectedPayable = summary?.expectedPayable;
+  const expectedReceivable = summary?.expectedReceivable;
   const missingPriceCount = production?.missingPriceCount ?? 0;
   // V4.5 QA-D P1-01 — dòng giá bất thường (qty × đơn giá vượt ngưỡng hợp lý)
   // bị loại khỏi tổng "Đang sản xuất"/"Dự trù thu" ở server — cảnh báo riêng
@@ -159,32 +175,47 @@ export function OverviewTab() {
                 TÁCH BẠCH khỏi hàng số thực bên dưới (nguồn Bảng sản xuất +
                 công nợ sắp đến hạn + PO mở, không phải sổ quỹ đã ghi nhận). */}
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
-                Kế hoạch (dự trù — chưa phát sinh dòng tiền thực)
-              </p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+                  Kế hoạch (dự trù — chưa phát sinh dòng tiền thực)
+                </p>
+                <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+                  <span>Kỳ dự trù</span>
+                  <Tabs value={String(horizon)} onValueChange={(v) => setHorizon(Number(v))}>
+                    <TabsList variant="segmented">
+                      {HORIZON_OPTIONS.map((h) => (
+                        <TabsTrigger key={h} value={String(h)}>
+                          {h} ngày
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                  </Tabs>
+                </div>
+              </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <PlanKpiCard
                   icon={PackageCheck}
-                  label="Dự trù thu"
-                  amount={summaryFailed ? null : (production?.expectedReceivable.value ?? 0)}
+                  label={`Dự trù thu (trong ${horizon} ngày tới)`}
+                  amount={summaryFailed ? null : (expectedReceivable?.value ?? 0)}
                   sub={
-                    production
-                      ? `Đang gia công ${fmtVND(production.expectedReceivable.inProgress.value)} · Đã xong chờ giao ${fmtVND(production.expectedReceivable.completed.value)}`
+                    expectedReceivable
+                      ? `Bảng SX ${fmtVND(expectedReceivable.boardValue)} · Công nợ phải thu ${fmtVND(expectedReceivable.receivableDue)} · Thu dự kiến ${fmtVND(expectedReceivable.plannedIncomeValue)}`
                       : undefined
                   }
-                  tooltip="Σ(SL kế hoạch × đơn giá) mã hàng Đang gia công/QC + Σ(SL đã đạt × đơn giá) mã hàng Đã xong chờ giao. KHÔNG gồm mã Sắp gia công (chưa bắt đầu) hay Đã giao."
+                  tooltip={`Bảng sản xuất (Σ SL kế hoạch × đơn giá mã Đang gia công/QC + Σ SL đã đạt × đơn giá mã Đã xong chờ giao) + công nợ phải thu quá hạn và đến hạn trong ${horizon} ngày tới + khoản thu dự kiến chưa thu có ngày ≤ ${horizon} ngày tới (quá hạn cũng tính). Bấm thẻ để mở Bảng sản xuất; bấm "Chi tiết" để xem công nợ theo khách hàng và khoản thu dự kiến.`}
                   href={canOpenBoard ? "/production-board" : undefined}
+                  action={{ label: "Chi tiết", onClick: () => setIncomeDetailOpen(true) }}
                 />
                 <PlanKpiCard
                   icon={Wallet}
-                  label="Dự trù chi"
+                  label={`Dự trù chi (trong ${horizon} ngày tới)`}
                   amount={summaryFailed ? null : (expectedPayable?.value ?? 0)}
                   sub={
                     expectedPayable
-                      ? `Công nợ ≤30 ngày ${fmtVND(expectedPayable.payableDueSoon)} · PO chưa HĐ ${fmtVND(expectedPayable.poValue)} · Chi dự kiến ${fmtVND(expectedPayable.plannedExpenseOpenValue)}`
+                      ? `Công nợ ≤${horizon} ngày ${fmtVND(expectedPayable.payableDueSoon)} · PO chưa HĐ ${fmtVND(expectedPayable.poValue)} · Chi dự kiến ${fmtVND(expectedPayable.plannedExpenseOpenValue)}`
                       : undefined
                   }
-                  tooltip="Công nợ phải trả sắp đến hạn (quá hạn + ≤30 ngày) + PO đã gửi/đang nhận CHƯA có hoá đơn + HĐ mua đang NHÁP + khoản chi dự kiến chưa chi. Bấm để xem chi tiết theo NCC × mốc hạn."
+                  tooltip={`Công nợ phải trả quá hạn và đến hạn trong ${horizon} ngày tới + PO đã gửi/đang nhận CHƯA có hoá đơn + HĐ mua đang NHÁP (không có hạn, luôn tính) + khoản chi dự kiến chưa chi có ngày ≤ ${horizon} ngày tới. Bấm để xem chi tiết theo NCC × mốc hạn.`}
                   onClick={() => setExpenseDetailOpen(true)}
                 />
               </div>
@@ -299,7 +330,8 @@ export function OverviewTab() {
       </div>
 
       {/* TASK-20261001 (việc 3) — Sheet chi tiết ô "Dự trù chi". */}
-      <ExpectedExpenseSheet open={expenseDetailOpen} onOpenChange={setExpenseDetailOpen} />
+      <ExpectedExpenseSheet open={expenseDetailOpen} onOpenChange={setExpenseDetailOpen} horizon={horizon} />
+      <ExpectedIncomeSheet open={incomeDetailOpen} onOpenChange={setIncomeDetailOpen} horizon={horizon} />
     </div>
   );
 }
@@ -453,11 +485,14 @@ function PlanKpiCard({
   tooltip,
   href,
   onClick,
+  action,
 }: {
   icon: React.ElementType;
   label: string;
   amount: number | null;
   sub?: string;
+  /** Nút phụ trên thẻ (vd "Chi tiết") — nằm NGOÀI link/nút chính, không lồng <a>/<button>. */
+  action?: { label: string; onClick: () => void };
   tooltip: string;
   href?: string;
   /** TASK-20261001 — mở Sheet chi tiết thay vì điều hướng trang (vd "Dự trù chi"). */
@@ -493,27 +528,39 @@ function PlanKpiCard({
       {amount === null ? (
         <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">Không tải được</p>
       ) : (
-        <p className="truncate text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
+        <p className={cn("truncate text-xs tabular-nums text-zinc-500 dark:text-zinc-400", action && "pr-16")}>
           {sub ?? (fmtVND(amount) !== fmtVNDShort(amount) ? fmtVND(amount) : "")}
         </p>
       )}
     </div>
   );
+  let main: React.ReactNode = body;
   if (href) {
-    return (
+    main = (
       <Link href={href} className="block">
         {body}
       </Link>
     );
-  }
-  if (onClick) {
-    return (
+  } else if (onClick) {
+    main = (
       <button type="button" onClick={onClick} className="block w-full text-left">
         {body}
       </button>
     );
   }
-  return body;
+  if (!action) return main;
+  return (
+    <div className="relative">
+      {main}
+      <button
+        type="button"
+        onClick={action.onClick}
+        className="absolute bottom-2 right-2 rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-xs font-medium text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-indigo-400 dark:hover:bg-indigo-950/30"
+      >
+        {action.label}
+      </button>
+    </div>
+  );
 }
 
 function GrowthPill({ label, pct, inverse }: { label: string; pct: number; inverse?: boolean }) {
