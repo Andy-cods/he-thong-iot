@@ -14,6 +14,7 @@ import {
   notifyPOSent,
 } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
+import { PR_COMPLETED_PO_MESSAGE } from "@/lib/pr-close-policy";
 import { parseDateParam } from "@/lib/procurement-policy";
 
 export const runtime = "nodejs";
@@ -161,6 +162,9 @@ export async function POST(req: NextRequest) {
     // V4.1 TM-01
     if (msg.startsWith("PR_NOT_FOUND")) {
       return jsonError("PR_NOT_FOUND", "Không tìm thấy phiếu đề xuất.", 404);
+    }
+    if (msg.startsWith("PR_COMPLETED")) {
+      return jsonError("PR_COMPLETED", PR_COMPLETED_PO_MESSAGE, 409);
     }
     if (msg.startsWith("PR_NOT_APPROVED")) {
       return jsonError(

@@ -532,6 +532,7 @@ export default function NewDnvtPage() {
                 </span>
               </FieldRow>
               <FieldRow label="Lý do đề xuất:" required wide>
+                <div className="w-full min-w-0">
                 <textarea
                   rows={2}
                   value={requestReason}
@@ -545,6 +546,12 @@ export default function NewDnvtPage() {
                   className="w-full resize-none rounded bg-transparent text-[12px] outline-none placeholder:text-zinc-300 aria-[invalid=true]:bg-red-50 aria-[invalid=true]:ring-1 aria-[invalid=true]:ring-red-400 dark:placeholder:text-zinc-600 dark:aria-[invalid=true]:bg-red-950/30"
                   maxLength={2000}
                 />
+                {reasonError ? (
+                  <p role="alert" className="mt-0.5 text-[11px] font-medium text-red-600 dark:text-red-400">
+                    Cần nhập lý do đề xuất trước khi gửi phiếu.
+                  </p>
+                ) : null}
+                </div>
               </FieldRow>
             </div>
           </section>

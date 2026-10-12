@@ -11,6 +11,7 @@ import {
   computePrIssueProgress,
   getIssuableQtyByItem,
   getPRIssuedQtyByLine,
+  getPrIssueContext,
   getPRLinesEnriched,
   replacePRLines,
 } from "@/server/repos/purchaseRequests";
@@ -74,13 +75,27 @@ export async function GET(
         Array.from(new Set(lines.map((l) => l.itemId).filter((x): x is string => !!x))),
       )
     : new Map<string, number>();
+  // Giai đoạn Kho (đã qua Kho duyệt, chưa duyệt cuối): trần xuất = qty − SL cần mua.
+  const issueStage = isWarehouseIssueStage(row) ? "WAREHOUSE" : "FINAL";
+  // T2/C3 — có PO sống: trần = (đề xuất − cần mua) + đã nhận; còn phần cần mua chưa về → chưa hoàn tất.
+  const issueCtx = await getPrIssueContext(
+    params.id,
+    lines.map((l) => ({
+      id: l.id,
+      itemId: l.itemId,
+      qty: Number(l.qty) || 0,
+      approvedQty: l.approvedQty != null ? Number(l.approvedQty) : null,
+    })),
+    issuedByLine,
+    issueStage,
+  );
   const linesWithIssued = lines.map((l) => ({
     ...l,
     issuedQty: issuedByLine.get(l.id) ?? 0,
+    /** Trần xuất kho của dòng (đã tính giai đoạn + hàng đã về). */
+    issueCap: issueCtx.caps.get(l.id) ?? (Number(l.qty) || 0),
     availableQty: canSeeStock && l.itemId ? availByItem.get(l.itemId) ?? 0 : null,
   }));
-  // Giai đoạn Kho (đã qua Kho duyệt, chưa duyệt cuối): trần xuất = qty − SL cần mua.
-  const issueStage = isWarehouseIssueStage(row) ? "WAREHOUSE" : "FINAL";
   const issueProgress = computePrIssueProgress(
     linesWithIssued.map((l) => ({
       id: l.id,
@@ -89,8 +104,10 @@ export async function GET(
       qty: Number(l.qty) || 0,
       approvedQty: l.approvedQty != null ? Number(l.approvedQty) : null,
       issuedQty: l.issuedQty,
+      cap: l.issueCap,
     })),
     issueStage,
+    issueCtx.outstandingBuy,
   );
   const warehouseRemaining = warehouseIssuableRemaining(
     linesWithIssued.map((l) => ({
@@ -98,6 +115,7 @@ export async function GET(
       approvedQty: l.approvedQty,
       issuedQty: l.issuedQty,
       hasItem: !!l.itemId,
+      cap: l.issueCap,
     })),
     issueStage,
   );

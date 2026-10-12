@@ -340,12 +340,74 @@ export interface BuyDecisionLine {
   id: string;
   qty: number | string;
   available: number | string | null | undefined;
+  /** C3 — dòng KHÔNG có vật tư danh mục (null): SL cần mua bị ép = SL đề xuất. undefined = coi là có. */
+  itemId?: string | null;
+}
+
+/**
+ * C4 — phân bổ tồn khả dụng LŨY KẾ theo vật tư: dòng trước dùng trước. Hai dòng
+ * cùng vật tư không còn cùng "thấy" toàn bộ tồn (tính tồn 2 lần).
+ * Trả `lineId → tồn còn khả dụng cho riêng dòng đó` (trước khi dòng đó lấy phần của mình).
+ */
+export function allocateStockAcrossLines(
+  lines: ReadonlyArray<{ id: string; itemId: string | null; qty: number | string }>,
+  stockByItem: ReadonlyMap<string, number>,
+): Map<string, number> {
+  const left = new Map<string, number>();
+  const out = new Map<string, number>();
+  for (const l of lines) {
+    if (!l.itemId) {
+      out.set(l.id, 0);
+      continue;
+    }
+    const rem = left.has(l.itemId) ? left.get(l.itemId)! : Math.max(0, stockByItem.get(l.itemId) ?? 0);
+    out.set(l.id, Math.round(rem * 1e6) / 1e6);
+    left.set(l.itemId, Math.max(0, rem - Math.max(0, num(l.qty))));
+  }
+  return out;
+}
+
+/**
+ * C4 — kiểm phía server khi Kho duyệt: tổng phần xuất từ kho (đề xuất − cần mua)
+ * theo TỪNG vật tư không vượt tồn khả dụng hiện tại. Trả thông báo tiếng Việt
+ * hoặc null nếu hợp lệ.
+ */
+export function validateStockCommitment(
+  lines: ReadonlyArray<{
+    id: string;
+    itemId: string | null;
+    qty: number | string;
+    label?: string | null;
+  }>,
+  decisions: Readonly<Record<string, number>>,
+  stockByItem: ReadonlyMap<string, number>,
+): string | null {
+  const commit = new Map<string, { total: number; label: string; lines: number }>();
+  for (const l of lines) {
+    if (!l.itemId) continue;
+    const fromStock = Math.max(0, num(l.qty) - (decisions[l.id] ?? num(l.qty)));
+    if (fromStock <= 0) continue;
+    const cur = commit.get(l.itemId) ?? { total: 0, label: l.label ?? "vật tư", lines: 0 };
+    cur.total += fromStock;
+    cur.lines += 1;
+    commit.set(l.itemId, cur);
+  }
+  for (const [itemId, c] of commit) {
+    const avail = Math.max(0, stockByItem.get(itemId) ?? 0);
+    if (c.total > avail + 1e-6) {
+      const f = (n: number) => Number(n.toFixed(4)).toLocaleString("vi-VN");
+      return `Vật tư ${c.label}: chỉ còn ${f(avail)} khả dụng, đang xuất từ kho ${f(c.total)}${
+        c.lines > 1 ? ` (tổng ${c.lines} dòng cùng vật tư)` : ""
+      }.`;
+    }
+  }
+  return null;
 }
 
 /**
  * THUẦN — chốt SL cần mua cho từng dòng: `overrides[lineId]` (Kho nhập) hoặc
  * mặc định theo tồn khả dụng. Lỗi nếu ngoài 0 ≤ x ≤ SL đề xuất, hoặc override
- * trỏ dòng không thuộc phiếu.
+ * trỏ dòng không thuộc phiếu. Dòng không có vật tư danh mục: ép = SL đề xuất (C3).
  */
 export function resolveBuyDecisions(
   lines: readonly BuyDecisionLine[],
@@ -358,6 +420,10 @@ export function resolveBuyDecisions(
   const decisions: Record<string, number> = {};
   for (const [i, l] of lines.entries()) {
     const qty = num(l.qty);
+    if (l.itemId === null) {
+      decisions[l.id] = Math.round(qty * 1e6) / 1e6;
+      continue;
+    }
     const o = overrides?.[l.id];
     const buy = o === undefined ? defaultBuyQty(qty, l.available) : o;
     if (!Number.isFinite(buy) || buy < 0 || buy > qty + 1e-9) {
@@ -392,22 +458,111 @@ export function issueCapForStage(
   stage: "WAREHOUSE" | "FINAL",
   qty: number | string,
   approvedQty: number | string | null | undefined,
+  /**
+   * T2 — SL đã nhận từ PO sống cho dòng này (null/undefined = phiếu chưa có PO →
+   * trần = đề xuất như cũ). Có PO: trần = (đề xuất − cần mua) + đã nhận, tối đa đề xuất.
+   */
+  receivedForLine?: number | null,
 ): number {
   const q = num(qty);
-  if (stage === "FINAL") return q;
+  if (stage === "FINAL") {
+    if (receivedForLine === null || receivedForLine === undefined) return q;
+    const buy = effectiveApprovedQty(qty, approvedQty) ?? q;
+    const fromStock = Math.max(0, q - buy);
+    return Math.min(q, fromStock + Math.max(0, Math.min(buy, num(receivedForLine))));
+  }
   const a = effectiveApprovedQty(qty, approvedQty);
   return Math.max(0, q - (a ?? q));
 }
 
+export interface PrPoSummary {
+  /** Phiếu có ít nhất 1 PO chưa huỷ. */
+  hasLivePo: boolean;
+  /** SL đã nhận ĐẠT (nhận − QC không đạt) theo vật tư, trên các PO sống. */
+  receivedByItem: ReadonlyMap<string, number>;
+  /** Như trên nhưng PO ĐÃ ĐÓNG tính cả phần chưa giao (NCC không giao nữa = hết chờ). */
+  settledByItem: ReadonlyMap<string, number>;
+}
+
+/** Phân bổ một "quỹ" SL theo vật tư lần lượt qua các dòng (dòng trước trước), mỗi dòng tối đa SL cần mua của nó. */
+export function allocatePoolToLines(
+  lines: ReadonlyArray<{ id: string; itemId: string | null; qty: number | string; approvedQty?: number | string | null }>,
+  pool: ReadonlyMap<string, number>,
+): Map<string, number> {
+  const left = new Map<string, number>(pool);
+  const out = new Map<string, number>();
+  for (const l of lines) {
+    if (!l.itemId) {
+      out.set(l.id, 0);
+      continue;
+    }
+    const buy = effectiveApprovedQty(l.qty, l.approvedQty) ?? num(l.qty);
+    const rem = Math.max(0, left.get(l.itemId) ?? 0);
+    const take = Math.min(buy, rem);
+    out.set(l.id, take);
+    left.set(l.itemId, rem - take);
+  }
+  return out;
+}
+
+export interface PrIssueContext {
+  /** Trần xuất kho từng dòng (đã tính giai đoạn + T2). */
+  caps: Map<string, number>;
+  /** Còn dòng CẦN MUA chưa có PO / hàng chưa về → chưa được hoàn tất / kết thúc (C3). */
+  outstandingBuy: boolean;
+}
+
+/** THUẦN — trần xuất + cờ "còn phần cần mua chưa về" của 1 phiếu. `issuedQty` = đã xuất mọi đợt. */
+export function buildIssueContext(
+  stage: "WAREHOUSE" | "FINAL",
+  lines: ReadonlyArray<{
+    id: string;
+    itemId: string | null;
+    qty: number | string;
+    approvedQty?: number | string | null;
+    issuedQty?: number | null;
+  }>,
+  po: PrPoSummary,
+): PrIssueContext {
+  const recvAlloc = stage === "FINAL" && po.hasLivePo ? allocatePoolToLines(lines, po.receivedByItem) : null;
+  const caps = new Map<string, number>();
+  for (const l of lines) {
+    caps.set(
+      l.id,
+      issueCapForStage(stage, l.qty, l.approvedQty, recvAlloc ? recvAlloc.get(l.id) ?? 0 : null),
+    );
+  }
+  const settleAlloc = allocatePoolToLines(lines, po.settledByItem);
+  let outstandingBuy = false;
+  for (const l of lines) {
+    const q = num(l.qty);
+    const buy = effectiveApprovedQty(l.qty, l.approvedQty) ?? q;
+    const need = Math.min(buy, Math.max(0, q - num(l.issuedQty)));
+    if (need > 1e-4 && need - (settleAlloc.get(l.id) ?? 0) > 1e-4) {
+      outstandingBuy = true;
+      break;
+    }
+  }
+  return { caps, outstandingBuy };
+}
+
 /** SL còn có thể xuất từ kho ở giai đoạn Kho (dùng báo Kho/hiện nút). */
 export function warehouseIssuableRemaining(
-  lines: ReadonlyArray<{ qty: number | string; approvedQty?: number | string | null; issuedQty?: number | string | null; hasItem: boolean }>,
+  lines: ReadonlyArray<{
+    qty: number | string;
+    approvedQty?: number | string | null;
+    issuedQty?: number | string | null;
+    hasItem: boolean;
+    /** T2 — trần đã tính sẵn (có PO); không có → tính theo giai đoạn. */
+    cap?: number | null;
+  }>,
   stage: "WAREHOUSE" | "FINAL",
 ): number {
   let total = 0;
   for (const l of lines) {
     if (!l.hasItem) continue;
-    total += Math.max(0, issueCapForStage(stage, l.qty, l.approvedQty) - num(l.issuedQty));
+    const cap = l.cap ?? issueCapForStage(stage, l.qty, l.approvedQty);
+    total += Math.max(0, cap - num(l.issuedQty));
   }
   return Math.round(total * 1e6) / 1e6;
 }
@@ -519,7 +674,10 @@ export function vnToday(now: Date = new Date()): string {
  */
 export function parseDateParam(raw: string | null | undefined): Date | null | "invalid" {
   if (raw === null || raw === undefined || raw.trim() === "") return null;
-  const d = new Date(raw.trim());
+  const t = raw.trim();
+  // N2 — dạng YYYY-MM-DD phải là ngày thật (JS để 2026-02-30 lăn sang 02/03).
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t) && !isRealIsoDate(t)) return "invalid";
+  const d = new Date(t);
   return Number.isNaN(d.getTime()) ? "invalid" : d;
 }
 

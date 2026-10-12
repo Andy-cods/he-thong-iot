@@ -14,6 +14,7 @@ import {
   notifyReceiptQcFailed,
   notifyReceiptQcPassed,
 } from "@/server/services/notifications";
+import { markPrReceivedAndNotifyWarehouse } from "@/server/services/prWarehouseNotify";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -122,6 +123,12 @@ export async function POST(
       } catch (e) {
         logger.warn({ err: e, poId: r.poId }, "recompute PO status after QC failed");
       }
+    }
+
+    // C1 — QC đạt làm hàng THỰC SỰ xuất được: nếu PO của phiếu đã về đủ và hết lô chờ QC
+    // thì báo Kho "cần xuất" (idempotent). Không phụ thuộc PO có đổi trạng thái hay không.
+    if (r.result === "PASS" && po?.prId) {
+      void markPrReceivedAndNotifyWarehouse(po.prId, guard.session).catch(() => {});
     }
 
     const qcCtx = {

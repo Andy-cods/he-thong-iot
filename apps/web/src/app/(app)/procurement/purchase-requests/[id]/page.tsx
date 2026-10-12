@@ -63,6 +63,7 @@ import {
   useRejectPurchaseRequest,
   type PRLineEnriched,
 } from "@/hooks/usePurchaseRequests";
+import { isClosedByPartialReject, REJECTED_PARTIAL_LABEL } from "@/lib/pr-close-policy";
 import { canCancelPR, canRejectAtStep, isSelfApprovalBlocked, isWarehouseIssueStage, prLineToPoLine } from "@/lib/procurement-policy";
 import { canEditPRDraft, canExportPrExcel, canRecreatePR } from "@/server/services/prAccess";
 import { useConvertPRToPOs } from "@/hooks/usePurchaseOrders";
@@ -322,22 +323,32 @@ export default function PurchaseRequestDetailPage() {
       // Giai đoạn Kho (đã qua Kho duyệt, chưa duyệt cuối): chỉ khi còn phần xuất được từ tồn.
       (warehouseStage && (detail.data?.data.warehouseIssuableRemaining ?? 0) > 0));
   const issuedAny = (pr.goodsIssues?.length ?? 0) > 0;
+  // C2 — hoàn tất ở phần đã xuất vì phần mua bị từ chối.
+  const closedByPartialReject = isClosedByPartialReject(pr);
+  // T1 — trạng thái kết thúc (Từ chối / Đã huỷ / Hoàn tất) luôn ưu tiên hơn "Đang xuất kho".
+  const isTerminalState =
+    status === "REJECTED" || status === "CANCELLED" || !!pr.completedAt || step === "DONE";
+  const inIssuing = issuedAny && !pr.goodsIssuedAt && !isTerminalState;
   const canMarkCompleted =
     isAdmin && !!pr.goodsIssuedAt && !pr.completedAt;
   // V3.7.71 — Hard-delete YCVT, admin only.
   // TASK-6VIEC Việc 2 — hoặc người lập phiếu xoá phiếu NHÁP của chính mình
   // (khớp guard server DELETE /api/purchase-requests/[id]).
-  const canDelete = isAdmin || canEditPRDraft(draftSubject, pr);
+  // N6 — đã có phiếu xuất kho (tồn đã trừ) thì không xoá được (server chặn A3).
+  const canDelete = (isAdmin || canEditPRDraft(draftSubject, pr)) && !issuedAny;
   // V4.4 (Việc 4) — Huỷ phiếu: người tạo khi còn Nháp/Chờ duyệt, hoặc admin
   // khi đã duyệt xong (APPROVED) mà chưa có PO (server kiểm lại — đây chỉ để
   // ẩn/hiện nút, không phải nguồn sự thật quyền hạn). Dùng chung
   // `canCancelPR` với route API để 2 nơi không lệch logic.
-  const canCancel = canCancelPR({
-    status,
-    creatorId: pr.requestedBy,
-    actorId: session.data?.id ?? "",
-    actorRoles: roles,
-  });
+  // N6 — đã có phiếu xuất kho thì không huỷ được (server chặn A3).
+  const canCancel =
+    !issuedAny &&
+    canCancelPR({
+      status,
+      creatorId: pr.requestedBy,
+      actorId: session.data?.id ?? "",
+      actorRoles: roles,
+    });
 
   const paperFormNo = pr.paperFormNo ?? "—";
   // A18 — cột Đã xuất / Còn lại chỉ hiện khi đã có xuất kho + API trả issuedQty.
@@ -468,13 +479,21 @@ export default function PurchaseRequestDetailPage() {
                   </Badge>
                 ) : null}
                 <StatusPill
-                  tone={issuedAny && !pr.goodsIssuedAt ? "info" : STEP_TONE[step]}
+                  tone={
+                    closedByPartialReject
+                      ? "warning"
+                      : inIssuing
+                        ? "info"
+                        : STEP_TONE[step]
+                  }
                   label={
-                    issuedAny && !pr.goodsIssuedAt
-                      ? warehouseStage
-                        ? "Kho đang xuất – chờ duyệt mua"
-                        : "Đang xuất kho"
-                      : STEP_LABEL[step]
+                    closedByPartialReject
+                      ? REJECTED_PARTIAL_LABEL
+                      : inIssuing
+                        ? warehouseStage
+                          ? "Kho đang xuất – chờ duyệt mua"
+                          : "Đang xuất kho"
+                        : STEP_LABEL[step]
                   }
                   dot
                 />
@@ -541,15 +560,26 @@ export default function PurchaseRequestDetailPage() {
                   recreate.mutate(undefined, {
                     onSuccess: (res) => {
                       const skipped = res.meta.skippedLines;
+                      const issuedFull = res.meta.issuedFullLines ?? [];
+                      const reduced = res.meta.reducedLines ?? [];
+                      // C2 — liệt kê dòng bị bỏ / giảm SL vì Kho đã xuất.
+                      const notes = [
+                        skipped.length > 0
+                          ? `Bỏ ${skipped.length} dòng vì vật tư đã vô hiệu hoá: ${skipped.map((x) => x.label).join(", ")}`
+                          : null,
+                        issuedFull.length > 0
+                          ? `Bỏ ${issuedFull.length} dòng Kho đã xuất đủ: ${issuedFull.map((x) => x.label).join(", ")}`
+                          : null,
+                        reduced.length > 0
+                          ? `Giảm SL (trừ phần đã xuất): ${reduced
+                              .map((x) => `${x.label} ${x.from} → ${x.to}`)
+                              .join("; ")}`
+                          : null,
+                      ].filter(Boolean);
                       toast.success(
                         `Đã tạo phiếu nháp ${res.data.code} từ ${res.meta.sourceCode} (${res.meta.copiedLines} dòng)`,
-                        skipped.length > 0
-                          ? {
-                              description: `Bỏ ${skipped.length} dòng vì vật tư đã vô hiệu hoá: ${skipped
-                                .map((x) => x.label)
-                                .join(", ")}`,
-                              duration: 10_000,
-                            }
+                        notes.length > 0
+                          ? { description: notes.join(" · "), duration: 12_000 }
                           : undefined,
                       );
                       router.push(
@@ -1058,11 +1088,11 @@ export default function PurchaseRequestDetailPage() {
                         : "—")
                   }
                 />
-                {step === "REJECTED" && pr.rejectionReason ? (
+                {(step === "REJECTED" || closedByPartialReject) && pr.rejectionReason ? (
                   <tr className="border-b border-red-200 bg-red-50/40 dark:border-red-800 dark:bg-red-950/30">
                     <Td>
                       <span className="font-bold text-red-700 dark:text-red-300">
-                        Từ chối
+                        {closedByPartialReject ? "Từ chối phần mua" : "Từ chối"}
                       </span>
                     </Td>
                     <Td>{pr.rejectedByName ?? "—"}</Td>
@@ -1415,6 +1445,7 @@ export default function PurchaseRequestDetailPage() {
           qty: l.qty,
           approvedQty: l.approvedQty,
           issuedQty: l.issuedQty,
+          issueCap: l.issueCap,
         }))}
       />
 

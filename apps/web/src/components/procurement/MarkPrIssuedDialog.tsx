@@ -51,6 +51,8 @@ export interface MarkPrIssuedLine {
   approvedQty?: string | null;
   /** L8 — đã xuất ở các đợt trước. */
   issuedQty?: number;
+  /** T2 — trần xuất do server tính (giai đoạn + hàng PO đã về); không có → tính theo giai đoạn. */
+  issueCap?: number;
 }
 
 /**
@@ -59,7 +61,7 @@ export interface MarkPrIssuedLine {
  * sau duyệt cuối trần = SL đề xuất.
  */
 function remainingOf(l: MarkPrIssuedLine, stage: "WAREHOUSE" | "FINAL" = "FINAL"): number {
-  const cap = issueCapForStage(stage, l.qty, l.approvedQty);
+  const cap = l.issueCap ?? issueCapForStage(stage, l.qty, l.approvedQty);
   return Math.max(0, cap - (l.issuedQty ?? 0));
 }
 
@@ -188,7 +190,7 @@ export function MarkPrIssuedDialog({
     .map((l) => ({ line: l, qty: Number(qtyByLine[l.id] ?? "") || 0 }))
     .filter((x) => x.qty > 0);
 
-  const overCap = wanted.find((x) => x.qty > remainingOf(x.line) + EPS);
+  const overCap = wanted.find((x) => x.qty > remainingOf(x.line, stage) + EPS);
 
   const loadPreview = async () => {
     if (wanted.length === 0) {
@@ -197,7 +199,7 @@ export function MarkPrIssuedDialog({
     }
     if (overCap) {
       toast.error(
-        `${overCap.line.sku ?? "Dòng"}: vượt SL còn được xuất (${fmt(remainingOf(overCap.line))}).`,
+        `${overCap.line.sku ?? "Dòng"}: vượt SL còn được xuất (${fmt(remainingOf(overCap.line, stage))}).`,
       );
       return;
     }
@@ -346,7 +348,7 @@ export function MarkPrIssuedDialog({
               {/* A5 — mobile: mỗi dòng 1 thẻ (bảng 5 cột bị cắt ở 390px). */}
               <ul className="space-y-2 md:hidden">
                 {stockLines.map((l) => {
-                  const cap = remainingOf(l);
+                  const cap = remainingOf(l, stage);
                   const val = qtyByLine[l.id] ?? "";
                   const over = (Number(val) || 0) > cap + EPS;
                   const avail = availableByItem[l.itemId!];
@@ -364,7 +366,7 @@ export function MarkPrIssuedDialog({
                       </div>
                       <dl className="mt-2 grid grid-cols-3 gap-2 text-xs">
                         <div>
-                          <dt className="text-zinc-400">Đề xuất / Duyệt</dt>
+                          <dt className="text-zinc-400">Đề xuất / Cần mua</dt>
                           <dd className="font-mono text-sm text-zinc-800 dark:text-zinc-200">
                             {fmt(Number(l.qty))}
                             {l.approvedQty != null ? (
@@ -430,7 +432,7 @@ export function MarkPrIssuedDialog({
                   <thead>
                     <tr className="border-b border-zinc-100 text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
                       <th className="px-3 py-2 text-left">Mã / tên</th>
-                      <th className="px-3 py-2 text-right">Đề xuất / Duyệt</th>
+                      <th className="px-3 py-2 text-right">Đề xuất / Cần mua</th>
                       <th className="px-3 py-2 text-right">Đã xuất</th>
                       <th className="px-3 py-2 text-right">Khả dụng</th>
                       <th className="px-3 py-2 text-right">Xuất lần này</th>
@@ -457,6 +459,11 @@ export function MarkPrIssuedDialog({
                           </td>
                           <td className="px-3 py-2.5 text-right font-mono text-sm text-zinc-800 dark:text-zinc-200">
                             {fmt(Number(l.qty))}
+                            {l.approvedQty != null ? (
+                              <span className="text-emerald-600 dark:text-emerald-400">
+                                {" "}/ {fmt(Number(l.approvedQty))}
+                              </span>
+                            ) : null}
                             {l.uom ?? l.itemUom ? (
                               <span className="ml-1 text-xs font-normal text-zinc-500">
                                 {l.uom ?? l.itemUom}

@@ -8,6 +8,7 @@ import {
 import { extractRequestMeta, jsonError, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { canAccessPR, canRecreatePR } from "@/server/services/prAccess";
+import { isClosedByPartialReject } from "@/lib/pr-close-policy";
 import { requireSession } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -35,7 +36,8 @@ export async function POST(
   if (!src || !canAccessPR(guard.session, src)) {
     return jsonError("NOT_FOUND", "Không tìm thấy phiếu.", 404);
   }
-  if (src.status !== "REJECTED" && src.status !== "CANCELLED") {
+  // C2 — gồm phiếu đã hoàn tất ở phần đã xuất vì phần mua bị từ chối.
+  if (src.status !== "REJECTED" && src.status !== "CANCELLED" && !isClosedByPartialReject(src)) {
     return jsonError(
       "INVALID_STATE",
       "Chỉ tạo lại được từ phiếu đã bị từ chối hoặc đã huỷ.",
@@ -75,6 +77,8 @@ export async function POST(
         meta: {
           copiedLines: result.copiedLines,
           skippedLines: result.skippedLines,
+          issuedFullLines: result.issuedFullLines,
+          reducedLines: result.reducedLines,
           sourceCode: src.code,
           formType: result.pr.formType,
         },

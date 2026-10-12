@@ -61,11 +61,30 @@ const positiveQty = z.coerce
   // A12 — cột numeric(…,6): giá trị nhỏ hơn 0.000001 làm tròn về 0 vi phạm CHECK.
   .min(0.000001, "Số lượng tối thiểu 0,000001")
   .max(10_000_000, "Số lượng quá lớn");
+/** N2 — "YYYY-MM-DD" có phải ngày lịch thật (loại 2026-02-30, JS tự lăn sang 02/03). */
+export function isRealIsoDateString(v: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+  const d = new Date(`${v}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+}
+
+/** Tham số ngày `YYYY-MM-DD` (query lọc): đúng định dạng + ngày có thật. */
+const isoDateParam = z
+  .string()
+  .refine(isRealIsoDateString, "Ngày không hợp lệ (dùng YYYY-MM-DD, ngày phải có thật).");
+
 const dateStringOrDate = z
   .union([z.string().trim().min(1), z.date()], {
     errorMap: () => ({ message: "Ngày không hợp lệ." }),
   })
-  .transform((v) => (v instanceof Date ? v : new Date(v)))
+  // N2 — chuỗi dạng ngày (YYYY-MM-DD) phải là ngày thật; không thật → Invalid Date.
+  .transform((v) =>
+    v instanceof Date
+      ? v
+      : /^\d{4}-\d{2}-\d{2}$/.test(v) && !isRealIsoDateString(v)
+        ? new Date(Number.NaN)
+        : new Date(v),
+  )
   .refine((d) => !Number.isNaN(d.getTime()), "Ngày không hợp lệ");
 
 /** Giới hạn số dòng / số tiền / tồn — khớp UI và cột NUMERIC trong DB (L9/L12/L19). */
@@ -281,19 +300,10 @@ export const prListQuerySchema = z
   bomTemplateId: uuid.optional(),
   requestedBy: uuid.optional(),
   /** V3.13 — lọc phiếu theo đúng 1 ngày (`YYYY-MM-DD`, giờ Asia/Ho_Chi_Minh). */
-  date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
+  date: isoDateParam.optional(),
   /** V3.16 — lọc khoảng ngày [from, to] (`YYYY-MM-DD`, giờ Asia/Ho_Chi_Minh). */
-  from: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
-  to: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
+  from: isoDateParam.optional(),
+  to: isoDateParam.optional(),
   /** V3.16 — bảng phẳng thay thư mục: sort theo cột "Ngày tạo". */
   sortDir: z.enum(["asc", "desc"]).default("desc"),
   q: z.string().trim().max(120).optional(),

@@ -157,8 +157,11 @@ export async function POST(
       ...meta,
     });
 
-    // Một người Kho đã xử lý → đóng "Cần xuất kho" của những người Kho khác.
-    if (result.goodsIssue || result.complete) void closeReadyToIssue(params.id);
+    // N5 — đóng "Cần xuất kho" của các Kho khác CHỈ khi phiếu không còn phần xuất được ở
+    // giai đoạn hiện tại (xuất xong / hoàn tất). Mới xuất một phần → còn việc, giữ thông báo.
+    if (result.complete || (result.progress?.issuableRemaining ?? 1) <= 1e-6) {
+      void closeReadyToIssue(params.id);
+    }
 
     // TASK-20260927 — báo người lập phiếu mốc tiến độ mới. L8: chỉ báo khi xuất
     // xong (đợt dở không báo — cũng tránh làm hết hiệu lực các việc còn mở).

@@ -5,7 +5,7 @@ import { userAccount } from "@iot/db/schema";
 import { logger } from "@/lib/logger";
 import { db } from "@/lib/db";
 import { getPR, getPRLinesEnriched } from "@/server/repos/purchaseRequests";
-import { jsonError } from "@/server/http";
+import { jsonError, validateUuidParam } from "@/server/http";
 import { canAccessPR } from "@/server/services/prAccess";
 import { requireCan } from "@/server/session";
 import {
@@ -30,6 +30,9 @@ export async function GET(
 ) {
   const guard = await requireCan(req, "read", "pr");
   if ("response" in guard) return guard.response;
+  // N1 — id sai định dạng → 400 sạch (trước đây Postgres ném lỗi cast → 500 lộ SQL).
+  const idCheck = validateUuidParam(params.id);
+  if ("response" in idCheck) return idCheck.response;
 
   try {
     const pr = await getPR(params.id);

@@ -67,6 +67,7 @@ import {
   planWORequestSubmitted,
   planWOStarted,
   staleResolutionEntityIds,
+  staleEventTypesToClose,
   type CandidateUser,
   type NotificationEventType,
   type NotificationSeverity,
@@ -258,11 +259,8 @@ async function resolveStaleNotifications(plan: NotifyPlan): Promise<void> {
       .where(
         and(
           inArray(notification.entityId, entityIds),
-          // A6 — gồm cả bản `_INFO` (người nhận chỉ-để-biết) của mỗi loại.
-          inArray(notification.eventType, [
-            ...staleTypes,
-            ...staleTypes.map((t) => `${t}${INFO_EVENT_SUFFIX}`),
-          ]),
+          // A6 — gồm cả bản `_INFO` (người nhận chỉ-để-biết) của mỗi loại; N5 — trừ khi plan giữ INFO.
+          inArray(notification.eventType, staleEventTypesToClose(plan)),
           isNull(notification.readAt),
         ),
       )

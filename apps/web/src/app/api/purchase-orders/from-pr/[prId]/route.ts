@@ -8,6 +8,7 @@ import {
   jsonError,
   validateUuidParam,
 } from "@/server/http";
+import { PR_COMPLETED_PO_MESSAGE } from "@/lib/pr-close-policy";
 import { canCreatePoFromPr, convertBlockedMessage } from "@/lib/procurement-policy";
 import { writeAudit } from "@/server/services/audit";
 import { notifyPOCreatedFromPR } from "@/server/services/notifications";
@@ -133,6 +134,9 @@ export async function POST(
     const msg = (err as Error).message ?? "";
     if (msg.includes("PR_NOT_FOUND"))
       return jsonError("NOT_FOUND", "Không tìm thấy PR.", 404);
+    if (msg.includes("PR_COMPLETED")) {
+      return jsonError("PR_COMPLETED", PR_COMPLETED_PO_MESSAGE, 409);
+    }
     if (msg.includes("PR_NOT_APPROVED")) {
       // A17 — nêu đúng lý do theo trạng thái (đã lập PO ≠ chưa duyệt).
       const st = /status=([A-Z_]+)/.exec(msg)?.[1] ?? "";

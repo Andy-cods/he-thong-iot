@@ -574,6 +574,8 @@ export async function createPOFromPR(
     if (pr.status !== "APPROVED") {
       throw new Error(`PR_NOT_APPROVED (status=${pr.status})`);
     }
+    // C3(d) — phiếu đã hoàn tất (xuất đủ / chốt ở phần đã xuất) không lập PO được nữa.
+    if (pr.completedAt) throw new Error("PR_COMPLETED");
 
     let lines = await tx
       .select()
@@ -843,7 +845,11 @@ export async function createPO(
     let prToConvert: string | null = null;
     if (input.prId) {
       const [pr] = await tx
-        .select({ id: purchaseRequest.id, status: purchaseRequest.status })
+        .select({
+          id: purchaseRequest.id,
+          status: purchaseRequest.status,
+          completedAt: purchaseRequest.completedAt,
+        })
         .from(purchaseRequest)
         .where(eq(purchaseRequest.id, input.prId))
         .limit(1)
@@ -852,6 +858,8 @@ export async function createPO(
       if (pr.status !== "APPROVED" && pr.status !== "CONVERTED") {
         throw new Error(`PR_NOT_APPROVED (status=${pr.status})`);
       }
+      // C3(d) — phiếu đã hoàn tất (xuất đủ / chốt ở phần đã xuất) không lập PO được nữa.
+      if (pr.completedAt) throw new Error("PR_COMPLETED");
       if (pr.status === "APPROVED") prToConvert = pr.id;
     }
 

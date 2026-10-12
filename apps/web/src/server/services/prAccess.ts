@@ -38,9 +38,13 @@ interface PrAccessSubject {
   roles: Role[];
 }
 
+import { isClosedByPartialReject } from "@/lib/pr-close-policy";
+
 interface PrAccessTarget {
   status: string;
   requestedBy: string | null;
+  completedAt?: unknown;
+  rejectedAt?: unknown;
 }
 
 /**
@@ -63,7 +67,8 @@ export function canEditPRDraft(subject: PrAccessSubject, pr: PrAccessTarget): bo
 
 /** L6 — "Tạo lại từ phiếu này": REJECTED/CANCELLED, người lập hoặc admin. */
 export function canRecreatePR(subject: PrAccessSubject, pr: PrAccessTarget): boolean {
-  if (pr.status !== "REJECTED" && pr.status !== "CANCELLED") return false;
+  // C2 — gồm phiếu hoàn tất ở phần đã xuất vì phần mua bị từ chối.
+  if (pr.status !== "REJECTED" && pr.status !== "CANCELLED" && !isClosedByPartialReject(pr)) return false;
   const isOwner = !!pr.requestedBy && pr.requestedBy === subject.userId;
   return isOwner || subject.roles.includes("admin");
 }

@@ -286,7 +286,7 @@ export async function POST(req: NextRequest) {
           // (trước đây chỉ route duyệt thủ công làm) → nút "Đã xuất kho /
           // Hoàn tất" ở trang PR mới hiện ra.
           // L4 — chỉ khi TẤT CẢ PO của PR (không tính CANCELLED) đã nhận đủ/đóng.
-          void markPrReceivedAndNotifyWarehouse(po.prId).catch(() => {});
+          void markPrReceivedAndNotifyWarehouse(po.prId, guard.session).catch(() => {});
         }
         // P2 (PO_FLOW_E2E.md bước 10) — PO đã có HĐ active thì không báo lại
         // Kế toán "có thể tạo HĐ mua" (gây hiểu nhầm chưa làm).

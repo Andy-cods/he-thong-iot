@@ -95,10 +95,20 @@ export function PrStockCheckPanel({
                     }
                   >
                     {l.itemId ? fmtNumVN(l.available) : "—"}
+                    {l.itemId && l.stockTotal != null && l.stockTotal !== l.available ? (
+                      <div className="text-[11px] font-normal text-zinc-500">
+                        (tồn kho {fmtNumVN(l.stockTotal)}, dòng trên đã dùng)
+                      </div>
+                    ) : null}
                   </td>
                   <td className="px-2 py-1.5 text-right">
+                    {/* C3 — dòng nhập tay (chưa có vật tư danh mục) không xuất kho được: phải mua đủ. */}
+                    {!l.itemId ? (
+                      <div className="mb-0.5 text-[11px] text-zinc-500">Dòng nhập tay — mua đủ</div>
+                    ) : null}
                     <Input
                       inputMode="decimal"
+                      disabled={!l.itemId}
                       value={raw}
                       onChange={(e) => setValues((v) => ({ ...v, [l.id]: e.target.value }))}
                       aria-label={`SL cần mua dòng ${l.lineNo}`}

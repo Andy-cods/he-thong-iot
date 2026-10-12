@@ -1,7 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
-import { deptApprovePR, getPR, getPrStockCheck } from "@/server/repos/purchaseRequests";
+import {
+  checkStockCommitment,
+  deptApprovePR,
+  getPR,
+  getPrStockCheck,
+} from "@/server/repos/purchaseRequests";
+import { buyQtysSchema } from "@/lib/pr-buy-schema";
 import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { notifyPRDeptApproved, notifyPRStockCovered } from "@/server/services/notifications";
@@ -23,7 +29,7 @@ const inputSchema = z.object({
    * max(0, đề xuất − tồn khả dụng hiện tại). CHỈ endpoint này và quick-approve
    * (admin) được ghi approved_qty.
    */
-  buyQtys: z.record(z.string().uuid(), z.coerce.number().finite()).optional(),
+  buyQtys: buyQtysSchema.optional(),
 });
 
 /**
@@ -93,6 +99,9 @@ export async function POST(
     const stock = await getPrStockCheck(params.id);
     const resolved = resolveBuyDecisions(stock, body.data.buyQtys);
     if (!resolved.ok) return jsonError("VALIDATION", resolved.message, 422);
+    // C4 — tổng phần xuất từ kho theo vật tư không vượt tồn khả dụng hiện tại.
+    const overCommit = checkStockCommitment(stock, resolved.decisions);
+    if (overCommit) return jsonError("STOCK_SHORT", overCommit, 422);
     const summary = summarizeBuyDecisions(resolved.decisions);
 
     const row = await deptApprovePR(
@@ -133,7 +142,7 @@ export async function POST(
         actorUsername: guard.session.fullName,
         creatorUserId: before.requestedBy,
       });
-      void notifyReadyToIssueIfAny(params.id, "approved", guard.session);
+      void notifyReadyToIssueIfAny(params.id, "stock_covered", guard.session);
     } else {
       // Người duyệt cuối nhận kèm tóm tắt "có sẵn X dòng, cần mua Y dòng".
       void notifyPRDeptApproved({

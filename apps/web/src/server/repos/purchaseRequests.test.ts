@@ -143,7 +143,7 @@ describe("L8 — xuất kho nhiều đợt", () => {
     expect(r.error.message).toContain("đã xuất đủ");
   });
 
-  it("computePrIssueProgress: đủ khi mọi dòng có vật tư đã xuất đủ; dòng nhập tay không tính", async () => {
+  it("computePrIssueProgress (C3): dòng nhập tay chưa gắn vật tư luôn tính là còn thiếu — chưa hoàn tất sớm", async () => {
     const { computePrIssueProgress } = await load();
     const part = computePrIssueProgress([
       { id: "l1", itemId: "i1", sku: "A", qty: 6, approvedQty: null, issuedQty: 2 },
@@ -151,14 +151,28 @@ describe("L8 — xuất kho nhiều đợt", () => {
       { id: "l3", itemId: null, sku: "C", qty: 9, approvedQty: null, issuedQty: 0 },
     ]);
     expect(part.complete).toBe(false);
-    expect(part.pendingLines).toBe(1);
+    expect(part.pendingLines).toBe(2);
     expect(part.lines[0]).toMatchObject({ cap: 6, issued: 2, remaining: 4 });
 
-    const done = computePrIssueProgress([
+    const stillPending = computePrIssueProgress([
       { id: "l1", itemId: "i1", sku: "A", qty: 5, approvedQty: 2, issuedQty: 5 },
       { id: "l3", itemId: null, sku: "C", qty: 9, approvedQty: null },
     ]);
+    expect(stillPending.complete).toBe(false);
+    // Sau khi PO gắn vật tư cho dòng nhập tay và Kho xuất đủ → mới hoàn tất.
+    const done = computePrIssueProgress([
+      { id: "l1", itemId: "i1", sku: "A", qty: 5, approvedQty: 2, issuedQty: 5 },
+      { id: "l3", itemId: "i3", sku: "C", qty: 9, approvedQty: null, issuedQty: 9 },
+    ]);
     expect(done.complete).toBe(true);
+    // Còn phần cần mua chưa về → không hoàn tất dù đã xuất đủ trần.
+    expect(
+      computePrIssueProgress(
+        [{ id: "l1", itemId: "i1", sku: "A", qty: 5, approvedQty: 2, issuedQty: 3, cap: 3 }],
+        "FINAL",
+        true,
+      ).complete,
+    ).toBe(false);
   });
 
   it("computePrIssueProgress: không có dòng gắn vật tư nào → không tự hoàn tất", async () => {

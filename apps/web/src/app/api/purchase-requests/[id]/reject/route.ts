@@ -85,8 +85,10 @@ export async function POST(
       objectType: "purchase_request",
       objectId: params.id,
       before: { status: before.status },
-      after: { status: row.status },
-      notes: body.data.reason,
+      after: { status: row.status, closedAtIssued: row.closedAtIssued },
+      notes: row.closedAtIssued
+        ? `Từ chối phần cần mua (đã xuất phần có sẵn — phiếu hoàn tất): ${body.data.reason}`
+        : body.data.reason,
       ...meta,
     });
 
@@ -98,6 +100,7 @@ export async function POST(
       actorUsername: guard.session.fullName,
       creatorUserId: before.requestedBy,
       reason: body.data.reason,
+      closedAtIssued: row.closedAtIssued,
     });
 
     return NextResponse.json({ data: row });

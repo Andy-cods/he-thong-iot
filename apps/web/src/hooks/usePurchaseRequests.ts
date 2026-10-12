@@ -104,6 +104,8 @@ export interface PRLineEnriched {
   lineRefCode?: string | null;
   /** L8 — tổng đã xuất (cộng mọi đợt xuất kho). */
   issuedQty?: number;
+  /** T2 — trần xuất kho của dòng (server tính: giai đoạn + hàng PO đã về). */
+  issueCap?: number;
   /** Tồn KHẢ DỤNG hiện tại của vật tư (chỉ trả cho admin/Kho/Mua hàng; null = không có quyền/dòng nhập tay). */
   availableQty?: number | null;
   // V3.10 DNVT — Tham khảo (free-text) + Ngày giao hàng. Server đã trả 2 cột
@@ -188,6 +190,8 @@ export interface PRStockCheckLine {
   qty: number;
   /** Tồn khả dụng HIỆN TẠI (AVAILABLE trừ giữ chỗ, không tính HOLD). */
   available: number;
+  /** C4 — tồn khả dụng toàn kho của vật tư (chưa trừ các dòng cùng vật tư phía trên). */
+  stockTotal?: number;
   defaultBuyQty: number;
 }
 
@@ -513,6 +517,10 @@ export interface RecreatePRResponse {
   meta: {
     copiedLines: number;
     skippedLines: { lineNo: number; label: string }[];
+    /** C2 — dòng bị bỏ vì Kho đã xuất đủ. */
+    issuedFullLines?: { lineNo: number; label: string }[];
+    /** C2 — dòng giảm SL vì đã xuất một phần. */
+    reducedLines?: { lineNo: number; label: string; from: number; to: number }[];
     sourceCode: string;
     formType?: "MRF" | "DNVT";
   };

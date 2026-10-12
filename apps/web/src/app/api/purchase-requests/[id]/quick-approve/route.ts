@@ -3,6 +3,8 @@ import { z } from "zod";
 import { logger } from "@/lib/logger";
 import { getPR, getPrStockCheck, quickApprovePR } from "@/server/repos/purchaseRequests";
 import { resolveBuyDecisions, summarizeBuyDecisions } from "@/lib/procurement-policy";
+import { buyQtysSchema } from "@/lib/pr-buy-schema";
+import { checkStockCommitment } from "@/server/repos/purchaseRequests";
 import { notifyReadyToIssueIfAny } from "@/server/services/prWarehouseNotify";
 import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
@@ -18,7 +20,7 @@ export const dynamic = "force-dynamic";
 const inputSchema = z.object({
   note: z.string().trim().max(2000).optional().nullable(),
   /** lineId → SL cần mua (xem dept-approve). Bỏ trống → mặc định theo tồn khả dụng. */
-  buyQtys: z.record(z.string().uuid(), z.coerce.number().finite()).optional(),
+  buyQtys: buyQtysSchema.optional(),
 });
 
 /**
@@ -61,6 +63,9 @@ export async function POST(
     const stock = await getPrStockCheck(params.id);
     const resolved = resolveBuyDecisions(stock, body.data.buyQtys);
     if (!resolved.ok) return jsonError("VALIDATION", resolved.message, 422);
+    // C4 — tổng phần xuất từ kho theo vật tư không vượt tồn khả dụng hiện tại.
+    const overCommit = checkStockCommitment(stock, resolved.decisions);
+    if (overCommit) return jsonError("STOCK_SHORT", overCommit, 422);
     const summary = summarizeBuyDecisions(resolved.decisions);
 
     const row = await quickApprovePR(
@@ -106,9 +111,15 @@ export async function POST(
         actorUserId: guard.session.userId,
         actorUsername: guard.session.fullName,
         creatorUserId: before.requestedBy,
+        coveredLines: summary.coveredLines,
+        buyLines: summary.buyLines,
       });
     }
-    void notifyReadyToIssueIfAny(params.id, "approved", guard.session);
+    void notifyReadyToIssueIfAny(
+      params.id,
+      summary.allCovered ? "stock_covered" : "approved",
+      guard.session,
+    );
 
     return NextResponse.json({ data: row });
   } catch (err) {
