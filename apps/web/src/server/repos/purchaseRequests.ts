@@ -1224,6 +1224,7 @@ function buildPoSummary(rows: PoSummaryRow[]): PrPoSummary {
   const settled = new Map<string, number>();
   const pending = new Map<string, number>();
   for (const r of rows) {
+    // 'rejected' = lô QC không đạt + lô CHỜ QC: hàng chưa đạt QC chưa vào tồn khả dụng nên chưa tính 'đã nhận đạt'.
     const got = Math.max(0, (Number(r.received) || 0) - (Number(r.rejected) || 0));
     received.set(r.item_id, (received.get(r.item_id) ?? 0) + got);
     // PO đã đóng: phần NCC không giao nữa coi là "hết chờ".
@@ -1255,7 +1256,7 @@ export async function getPrPoSummaries(
            COALESCE((
              SELECT SUM(rl.received_qty)
              FROM app.inbound_receipt_line rl
-             WHERE rl.po_line_id = pol.id AND rl.qc_status = 'FAIL'
+             WHERE rl.po_line_id = pol.id AND rl.qc_status IN ('FAIL', 'PENDING')
            ), 0)::text AS rejected
     FROM app.purchase_order_line pol
     JOIN app.purchase_order po ON po.id = pol.po_id
