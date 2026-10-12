@@ -5,7 +5,7 @@ import { POTransitionError, cancelPO } from "@/server/repos/purchaseOrders";
 import { getPR } from "@/server/repos/purchaseRequests";
 import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
-import { notifyPOCancelled } from "@/server/services/notifications";
+import { notifyPOCancelled, notifyPRReopenedForPO } from "@/server/services/notifications";
 import { forbidden, hasRole, requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -63,6 +63,18 @@ export async function POST(
       actorUserId: guard.session.userId,
       actorUsername: guard.session.fullName,
     });
+    // A2 — huỷ hết PO của PR → PR về "đã duyệt, chưa lập PO": báo Thu mua tạo lại.
+    if (row.prRevertedToApproved && row.prId && pr) {
+      void notifyPRReopenedForPO({
+        prId: row.prId,
+        prNo: pr.paperFormNo ?? pr.code,
+        title: pr.title ?? null,
+        poNo: row.poNo,
+        actorUserId: guard.session.userId,
+        actorUsername: guard.session.fullName,
+        creatorUserId: pr.requestedBy,
+      });
+    }
     return NextResponse.json({ data: row });
   } catch (err) {
     if (err instanceof POTransitionError) {

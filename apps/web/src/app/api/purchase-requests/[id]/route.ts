@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prUpdateSchema } from "@iot/shared";
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { notification, purchaseRequest, userAccount } from "@iot/db/schema";
+import { notification, purchaseOrder, purchaseRequest, userAccount } from "@iot/db/schema";
 import { logger } from "@/lib/logger";
 import {
   PrValidationError,
@@ -9,6 +9,7 @@ import {
   deletePR,
   getPR,
   computePrIssueProgress,
+  getIssuableQtyByItem,
   getPRIssuedQtyByLine,
   getPRLinesEnriched,
   replacePRLines,
@@ -24,6 +25,7 @@ import { writeAudit, diffObjects } from "@/server/services/audit";
 import { canAccessPR, canEditPRDraft } from "@/server/services/prAccess";
 import { requireCan, requireSession } from "@/server/session";
 import { db } from "@/lib/db";
+import { isWarehouseIssueStage, warehouseIssuableRemaining } from "@/lib/procurement-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,10 +64,23 @@ export async function GET(
     listGoodsIssuesForPurchaseRequest(params.id),
     getPRIssuedQtyByLine(params.id),
   ]);
+  // Tồn khả dụng HIỆN TẠI (không phải snapshot lúc lập phiếu) — chỉ Kho/admin/Mua hàng
+  // xem (người lập/QC… không cần và không nên thấy tồn kho).
+  const canSeeStock = guard.session.roles.some((r) =>
+    ["admin", "warehouse", "purchaser"].includes(r),
+  );
+  const availByItem = canSeeStock
+    ? await getIssuableQtyByItem(
+        Array.from(new Set(lines.map((l) => l.itemId).filter((x): x is string => !!x))),
+      )
+    : new Map<string, number>();
   const linesWithIssued = lines.map((l) => ({
     ...l,
     issuedQty: issuedByLine.get(l.id) ?? 0,
+    availableQty: canSeeStock && l.itemId ? availByItem.get(l.itemId) ?? 0 : null,
   }));
+  // Giai đoạn Kho (đã qua Kho duyệt, chưa duyệt cuối): trần xuất = qty − SL cần mua.
+  const issueStage = isWarehouseIssueStage(row) ? "WAREHOUSE" : "FINAL";
   const issueProgress = computePrIssueProgress(
     linesWithIssued.map((l) => ({
       id: l.id,
@@ -75,7 +90,22 @@ export async function GET(
       approvedQty: l.approvedQty != null ? Number(l.approvedQty) : null,
       issuedQty: l.issuedQty,
     })),
+    issueStage,
   );
+  const warehouseRemaining = warehouseIssuableRemaining(
+    linesWithIssued.map((l) => ({
+      qty: l.qty,
+      approvedQty: l.approvedQty,
+      issuedQty: l.issuedQty,
+      hasItem: !!l.itemId,
+    })),
+    issueStage,
+  );
+  // A18 — trạng thái PO THẬT của phiếu (mục IV không tick "Đã tạo đơn mua" khi PO đã huỷ).
+  const purchaseOrders = await db
+    .select({ id: purchaseOrder.id, poNo: purchaseOrder.poNo, status: purchaseOrder.status })
+    .from(purchaseOrder)
+    .where(eq(purchaseOrder.prId, params.id));
 
   // V3.7.73 — Resolve full names cho mục III/IV (Người đề xuất / Trưởng BP / Giám đốc / Rejected by)
   const ids = Array.from(
@@ -105,6 +135,9 @@ export async function GET(
       lines: linesWithIssued,
       goodsIssues,
       issueProgress,
+      issueStage,
+      warehouseIssuableRemaining: warehouseRemaining,
+      purchaseOrders,
       requestedByName: row.requestedBy ? nameMap.get(row.requestedBy) ?? null : null,
       deptApprovedByName: row.deptApprovedBy
         ? nameMap.get(row.deptApprovedBy) ?? null
@@ -219,10 +252,10 @@ export async function PATCH(
             referenceCode: l.referenceCode ?? null,
             // V3.7.69 YCVT
             onHandSnapshot: l.onHandSnapshot ?? null,
-            // V4.1 TM-12 — trước đây bỏ mất cột "Tham khảo" / "Ngày giao" / SL duyệt.
+            // V4.1 TM-12 — trước đây bỏ mất cột "Tham khảo" / "Ngày giao".
             referenceNote: l.referenceNote ?? null,
             deliveryDate: l.deliveryDate ? new Date(l.deliveryDate) : null,
-            approvedQty: l.approvedQty ?? null,
+            // A1 — không bao giờ nhận SL duyệt từ client (schema đã strip).
           })),
           tx,
         );
@@ -361,6 +394,23 @@ export async function DELETE(
     }
     if (msg === "PR_NOT_FOUND") {
       return jsonError("NOT_FOUND", "Không tìm thấy phiếu.", 404);
+    }
+    if (msg.startsWith("PR_HAS_GOODS_ISSUE")) {
+      return jsonError(
+        "HAS_GOODS_ISSUE",
+        msg.replace("PR_HAS_GOODS_ISSUE: ", ""),
+        409,
+      );
+    }
+    // A3 — lưới cuối: FK từ phiếu xuất kho/bảng khác → 409 thay vì 500.
+    const fk =
+      (err as { code?: string }).code ?? (err as { cause?: { code?: string } }).cause?.code;
+    if (fk === "23503") {
+      return jsonError(
+        "HAS_REFERENCES",
+        "Phiếu đã có chứng từ liên quan (phiếu xuất kho/đơn mua…) — không xoá được.",
+        409,
+      );
     }
     logger.error({ err }, "delete PR failed");
     return jsonError("INTERNAL", "Không xoá được phiếu.", 500);

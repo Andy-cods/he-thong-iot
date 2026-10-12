@@ -33,6 +33,8 @@ export const NOTIFICATION_EVENT_ICON: Record<string, React.ElementType> = {
   PR_SUBMITTED: ShoppingCart,
   PR_DEPT_APPROVED: ClipboardCheck,
   PR_APPROVED: CheckCircle2,
+  PR_STOCK_COVERED: PackageCheck,
+  PR_READY_TO_ISSUE: Package,
   PR_REJECTED: XCircle,
   PR_CANCELLED: XCircle,
   PR_PENDING_REMINDER: AlarmClock,
@@ -84,5 +86,6 @@ export const NOTIFICATION_EVENT_ICON: Record<string, React.ElementType> = {
 };
 
 export function notificationIcon(eventType: string): React.ElementType {
-  return NOTIFICATION_EVENT_ICON[eventType] ?? Bell;
+  // A6 — bản `_INFO` (chỉ-để-biết) dùng icon của event gốc.
+  return NOTIFICATION_EVENT_ICON[eventType.replace(/_INFO$/, "")] ?? Bell;
 }

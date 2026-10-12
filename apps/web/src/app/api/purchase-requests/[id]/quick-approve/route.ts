@@ -1,11 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
-import { getPR, quickApprovePR } from "@/server/repos/purchaseRequests";
+import { getPR, getPrStockCheck, quickApprovePR } from "@/server/repos/purchaseRequests";
+import { resolveBuyDecisions, summarizeBuyDecisions } from "@/lib/procurement-policy";
+import { notifyReadyToIssueIfAny } from "@/server/services/prWarehouseNotify";
 import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import {
   notifyPRApproved,
+  notifyPRStockCovered,
 } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 
@@ -14,6 +17,8 @@ export const dynamic = "force-dynamic";
 
 const inputSchema = z.object({
   note: z.string().trim().max(2000).optional().nullable(),
+  /** lineId → SL cần mua (xem dept-approve). Bỏ trống → mặc định theo tồn khả dụng. */
+  buyQtys: z.record(z.string().uuid(), z.coerce.number().finite()).optional(),
 });
 
 /**
@@ -53,10 +58,16 @@ export async function POST(
   if ("response" in body) return body.response;
 
   try {
+    const stock = await getPrStockCheck(params.id);
+    const resolved = resolveBuyDecisions(stock, body.data.buyQtys);
+    if (!resolved.ok) return jsonError("VALIDATION", resolved.message, 422);
+    const summary = summarizeBuyDecisions(resolved.decisions);
+
     const row = await quickApprovePR(
       params.id,
       guard.session.userId,
       body.data.note ?? null,
+      resolved.decisions,
     );
     if (!row) return jsonError("CONFLICT", "Phiếu đã thay đổi trạng thái.", 409);
 
@@ -76,16 +87,28 @@ export async function POST(
       ...meta,
     });
 
-    // TASK-20260927 — 1 lần gửi: Thu mua (tạo PO) + người lập + Kế toán (PDF),
-    // người giữ nhiều vai trò chỉ nhận 1 thông báo.
-    void notifyPRApproved({
-      prId: params.id,
-      prNo: before.paperFormNo ?? before.code,
-      title: before.title ?? null,
-      actorUserId: guard.session.userId,
-      actorUsername: guard.session.fullName,
-      creatorUserId: before.requestedBy,
-    });
+    if (summary.allCovered) {
+      // Không cần mua → không báo Thu mua "Cần tạo PO"; báo người lập.
+      void notifyPRStockCovered({
+        prId: params.id,
+        prNo: before.paperFormNo ?? before.code,
+        title: before.title ?? null,
+        actorUserId: guard.session.userId,
+        actorUsername: guard.session.fullName,
+        creatorUserId: before.requestedBy,
+      });
+    } else {
+      // TASK-20260927 — 1 lần gửi: Thu mua (tạo PO) + người lập + Kế toán (PDF).
+      void notifyPRApproved({
+        prId: params.id,
+        prNo: before.paperFormNo ?? before.code,
+        title: before.title ?? null,
+        actorUserId: guard.session.userId,
+        actorUsername: guard.session.fullName,
+        creatorUserId: before.requestedBy,
+      });
+    }
+    void notifyReadyToIssueIfAny(params.id, "approved", guard.session);
 
     return NextResponse.json({ data: row });
   } catch (err) {

@@ -11,7 +11,7 @@ import {
 import { writeAudit } from "@/server/services/audit";
 import { notifyPRRejected } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
-import { isSelfApprovalBlocked } from "@/lib/procurement-policy";
+import { canRejectAtStep, isSelfApprovalBlocked } from "@/lib/procurement-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,6 +41,17 @@ export async function POST(
       "INVALID_STATE",
       "Chỉ phiếu đang chờ phê duyệt mới có thể bị từ chối.",
       409,
+    );
+  }
+
+  // A8 — khoá đúng bước: SUBMITTED → Kho/admin; DEPT_APPROVED → Mua hàng/admin.
+  if (!canRejectAtStep(before.approvalStep, guard.session.roles)) {
+    return jsonError(
+      "FORBIDDEN",
+      before.approvalStep === "SUBMITTED"
+        ? "Phiếu đang chờ Kho duyệt — chỉ Kho hoặc Admin được từ chối ở bước này."
+        : "Phiếu đang chờ duyệt cuối — chỉ Mua hàng hoặc Admin được từ chối ở bước này.",
+      403,
     );
   }
 

@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
 import { POTransitionError, cancelPO, getPO } from "@/server/repos/purchaseOrders";
+import { getPR } from "@/server/repos/purchaseRequests";
+import { notifyPRReopenedForPO } from "@/server/services/notifications";
 import {
   extractRequestMeta,
   jsonError,
@@ -90,6 +92,22 @@ export async function POST(
       notes: `Receiving rejected: ${body.data.reason}`,
       ...meta,
     });
+
+    // A2 — huỷ hết PO của PR → báo Thu mua tạo lại PO.
+    if (row.prRevertedToApproved && row.prId) {
+      const pr = await getPR(row.prId).catch(() => null);
+      if (pr) {
+        void notifyPRReopenedForPO({
+          prId: row.prId,
+          prNo: pr.paperFormNo ?? pr.code,
+          title: pr.title ?? null,
+          poNo: row.poNo,
+          actorUserId: guard.session.userId,
+          actorUsername: guard.session.fullName,
+          creatorUserId: pr.requestedBy,
+        });
+      }
+    }
 
     return NextResponse.json({
       ok: true,

@@ -53,6 +53,51 @@ export function canCancelPR(input: {
   return !!input.creatorId && input.creatorId === input.actorId;
 }
 
+/** A17 — thông báo đúng lý do khi PR không tạo PO được vì trạng thái. THUẦN. */
+export function convertBlockedMessage(status: string): string {
+  switch (status) {
+    case "CONVERTED":
+      return "Phiếu đã được lập PO — không tạo thêm. Xem các PO ở mục IV của phiếu.";
+    case "REJECTED":
+      return "Phiếu đã bị từ chối — không tạo PO được.";
+    case "CANCELLED":
+      return "Phiếu đã huỷ — không tạo PO được.";
+    default:
+      return "PR chưa được duyệt — không thể convert PO.";
+  }
+}
+
+/** A19 — chỉ Thu mua/admin được tạo PO từ PR (planner có create:po nhưng không phải việc của họ). */
+export function canCreatePoFromPr(roles: readonly string[]): boolean {
+  return roles.includes("admin") || roles.includes("purchaser");
+}
+
+/** A3 — thông báo chặn huỷ/xoá PR đã có phiếu xuất kho (tồn đã trừ). THUẦN. */
+export function prHasGoodsIssueMessage(
+  issueNos: readonly string[],
+  action: "cancel" | "delete",
+): string {
+  const list = issueNos.slice(0, 5).join(", ") + (issueNos.length > 5 ? ", …" : "");
+  return action === "cancel"
+    ? `Phiếu đã có phiếu xuất kho (${list}) — tồn đã bị trừ nên không huỷ được. Nếu xuất nhầm, tạo phiếu nhập trả kho rồi nhờ Giám đốc xử lý.`
+    : `Phiếu đã có phiếu xuất kho (${list}) — không xoá được vì sẽ mất dấu vết xuất kho.`;
+}
+
+/**
+ * A8 — ai được từ chối phiếu ở bước nào: SUBMITTED (chờ Kho) → admin/warehouse;
+ * DEPT_APPROVED (chờ duyệt cuối) → admin/purchaser. Bước khác → không ai.
+ */
+export function canRejectAtStep(
+  approvalStep: string | null | undefined,
+  roles: readonly string[],
+): boolean {
+  if (approvalStep !== "SUBMITTED" && approvalStep !== "DEPT_APPROVED") return false;
+  if (roles.includes("admin")) return true;
+  return approvalStep === "SUBMITTED"
+    ? roles.includes("warehouse")
+    : roles.includes("purchaser");
+}
+
 export interface PoPriceLine {
   itemId: string;
   unitPrice: number | string | null | undefined;
@@ -237,19 +282,134 @@ export function checkOverDelivery(
  * V4.1 TM-10 — dòng PO sinh từ dòng PR mang SL duyệt (nếu có) + đơn giá dự kiến.
  * `approvedQty = 0` → Kho/duyệt đã gạch dòng → trả null (không đưa vào PO).
  */
-export function prLineToPoLine(l: {
-  qty: number | string;
-  approvedQty?: number | string | null;
-  estimatedUnitPrice?: number | string | null;
-}): { orderedQty: number; unitPrice: number } | null {
-  const approved =
-    l.approvedQty === null || l.approvedQty === undefined || l.approvedQty === ""
-      ? null
-      : num(l.approvedQty);
-  if (approved !== null && approved <= 0) return null;
-  const orderedQty = approved ?? num(l.qty);
+/**
+ * A1 — SL duyệt hợp lệ: không bao giờ vượt SL đề xuất (dữ liệu cũ bị ghi sai
+ * như qty 5 / duyệt 500 sẽ bị kẹp về qty). null/không hợp lệ → null.
+ */
+export function effectiveApprovedQty(
+  qty: number | string,
+  approvedQty: number | string | null | undefined,
+): number | null {
+  if (approvedQty === null || approvedQty === undefined || approvedQty === "") return null;
+  const a = num(approvedQty);
+  if (!Number.isFinite(a)) return null;
+  return Math.min(a, num(qty));
+}
+
+/**
+ * A2 — PR đang CONVERTED nhưng MỌI PO của nó đã CANCELLED (không còn PO sống)
+ * → đưa PR về "đã duyệt cuối, chưa lập PO" để Thu mua lập lại được.
+ * `poStatuses` = trạng thái của TẤT CẢ PO gắn PR (sau khi huỷ PO hiện tại).
+ */
+export function shouldRevertPrAfterPoCancel(
+  prStatus: string,
+  poStatuses: readonly string[],
+): boolean {
+  if (prStatus !== "CONVERTED") return false;
+  return poStatuses.every((s) => s === "CANCELLED");
+}
+
+export function prLineToPoLine(
+  l: {
+    qty: number | string;
+    approvedQty?: number | string | null;
+    estimatedUnitPrice?: number | string | null;
+  },
+  /** SL Kho đã xuất cho dòng này (từ tồn) — chỉ mua phần còn thiếu. */
+  issuedQty: number | string | null = 0,
+): { orderedQty: number; unitPrice: number } | null {
+  const qty = num(l.qty);
+  const approved = effectiveApprovedQty(l.qty, l.approvedQty);
+  // approved = SL CẦN MUA do Kho chốt (đã trừ phần có sẵn trong kho); chưa chốt
+  // (phiếu cũ) → mua cả qty. Phần Kho đã xuất cũng không mua lại: min với qty − đã xuất.
+  const remaining = Math.max(0, qty - Math.max(0, num(issuedQty)));
+  const orderedQty = Math.round(Math.min(approved ?? qty, remaining) * 1e6) / 1e6;
   if (orderedQty <= 0) return null;
   return { orderedQty, unitPrice: Math.max(0, num(l.estimatedUnitPrice)) };
+}
+
+/* ── Kho kiểm tồn ở bước duyệt Kho (approved_qty = SL CẦN MUA) ─────────────── */
+
+/** SL cần mua mặc định = max(0, đề xuất − tồn khả dụng hiện tại), 6 số lẻ. */
+export function defaultBuyQty(qty: number | string, available: number | string | null | undefined): number {
+  const v = Math.max(0, num(qty) - Math.max(0, num(available)));
+  return Math.round(v * 1e6) / 1e6;
+}
+
+export interface BuyDecisionLine {
+  id: string;
+  qty: number | string;
+  available: number | string | null | undefined;
+}
+
+/**
+ * THUẦN — chốt SL cần mua cho từng dòng: `overrides[lineId]` (Kho nhập) hoặc
+ * mặc định theo tồn khả dụng. Lỗi nếu ngoài 0 ≤ x ≤ SL đề xuất, hoặc override
+ * trỏ dòng không thuộc phiếu.
+ */
+export function resolveBuyDecisions(
+  lines: readonly BuyDecisionLine[],
+  overrides: Readonly<Record<string, number>> | undefined,
+): { ok: true; decisions: Record<string, number> } | { ok: false; message: string } {
+  const ids = new Set(lines.map((l) => l.id));
+  for (const k of Object.keys(overrides ?? {})) {
+    if (!ids.has(k)) return { ok: false, message: "Có dòng không thuộc phiếu này — tải lại trang rồi thử lại." };
+  }
+  const decisions: Record<string, number> = {};
+  for (const [i, l] of lines.entries()) {
+    const qty = num(l.qty);
+    const o = overrides?.[l.id];
+    const buy = o === undefined ? defaultBuyQty(qty, l.available) : o;
+    if (!Number.isFinite(buy) || buy < 0 || buy > qty + 1e-9) {
+      return { ok: false, message: `Dòng ${i + 1}: SL cần mua phải từ 0 đến SL đề xuất (${qty}).` };
+    }
+    decisions[l.id] = Math.round(buy * 1e6) / 1e6;
+  }
+  return { ok: true, decisions };
+}
+
+/** Tóm tắt cho thông báo: dòng "có sẵn" (cần mua = 0) vs dòng cần mua. */
+export function summarizeBuyDecisions(decisions: Readonly<Record<string, number>>): {
+  coveredLines: number;
+  buyLines: number;
+  allCovered: boolean;
+} {
+  const vals = Object.values(decisions);
+  const coveredLines = vals.filter((v) => v <= 0).length;
+  return { coveredLines, buyLines: vals.length - coveredLines, allCovered: vals.length > 0 && coveredLines === vals.length };
+}
+
+/** Phiếu đã qua Kho (DEPT_APPROVED) nhưng chưa duyệt cuối — Kho được xuất phần có sẵn. */
+export function isWarehouseIssueStage(pr: { status: string; approvalStep: string | null | undefined }): boolean {
+  return pr.status === "SUBMITTED" && pr.approvalStep === "DEPT_APPROVED";
+}
+
+/**
+ * Trần xuất kho mỗi dòng: giai đoạn Kho (chưa duyệt cuối) = qty − approved
+ * (phần xuất từ kho); sau duyệt cuối = qty (đề xuất).
+ */
+export function issueCapForStage(
+  stage: "WAREHOUSE" | "FINAL",
+  qty: number | string,
+  approvedQty: number | string | null | undefined,
+): number {
+  const q = num(qty);
+  if (stage === "FINAL") return q;
+  const a = effectiveApprovedQty(qty, approvedQty);
+  return Math.max(0, q - (a ?? q));
+}
+
+/** SL còn có thể xuất từ kho ở giai đoạn Kho (dùng báo Kho/hiện nút). */
+export function warehouseIssuableRemaining(
+  lines: ReadonlyArray<{ qty: number | string; approvedQty?: number | string | null; issuedQty?: number | string | null; hasItem: boolean }>,
+  stage: "WAREHOUSE" | "FINAL",
+): number {
+  let total = 0;
+  for (const l of lines) {
+    if (!l.hasItem) continue;
+    total += Math.max(0, issueCapForStage(stage, l.qty, l.approvedQty) - num(l.issuedQty));
+  }
+  return Math.round(total * 1e6) / 1e6;
 }
 
 /** line_total = qty × price × (1 + VAT/100), làm tròn 2 số lẻ (giống purchaseOrders.ts). */
@@ -361,6 +521,36 @@ export function parseDateParam(raw: string | null | undefined): Date | null | "i
   if (raw === null || raw === undefined || raw.trim() === "") return null;
   const d = new Date(raw.trim());
   return Number.isNaN(d.getTime()) ? "invalid" : d;
+}
+
+/** A16 — "Lý do đề xuất" bắt buộc khi GỬI phiếu (nháp được để trống). */
+export const REQUEST_REASON_REQUIRED_MSG = "Cần nhập “Lý do đề xuất” trước khi gửi phiếu.";
+export function isRequestReasonMissing(reason: string | null | undefined): boolean {
+  return !reason || reason.trim().length === 0;
+}
+
+/** YYYY-MM-DD có phải ngày lịch thật (loại 2026-02-30)? THUẦN. */
+export function isRealIsoDate(v: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+  const d = new Date(`${v}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+}
+
+/**
+ * A12 — kiểm khoảng ngày xuất Excel hàng loạt: đúng định dạng + ngày thật,
+ * from ≤ to, to không quá ~5 năm tới. Trả thông báo lỗi tiếng Việt hoặc null.
+ */
+export function validateExportRange(from: string, to: string, today: string = vnToday()): string | null {
+  if (!isRealIsoDate(from) || !isRealIsoDate(to)) {
+    return "Thiếu hoặc sai ngày from/to (YYYY-MM-DD, phải là ngày có thật).";
+  }
+  if (from > to) return "Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.";
+  const limit = new Date(`${today}T00:00:00Z`);
+  limit.setUTCFullYear(limit.getUTCFullYear() + 5);
+  if (to > limit.toISOString().slice(0, 10) || from < "2000-01-01") {
+    return "Khoảng ngày không hợp lệ (từ năm 2000 đến tối đa 5 năm tới).";
+  }
+  return null;
 }
 
 /* ── V4.1 PO-UI: điều chỉnh giá PO sau khi rời DRAFT ─────────────────────── */

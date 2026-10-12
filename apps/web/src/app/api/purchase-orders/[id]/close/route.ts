@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { poCancelCloseSchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import { POTransitionError, closePO } from "@/server/repos/purchaseOrders";
-import { getPR, markPRGoodsReceivedIfAllPOsDone } from "@/server/repos/purchaseRequests";
+import { getPR } from "@/server/repos/purchaseRequests";
+import { markPrReceivedAndNotifyWarehouse } from "@/server/services/prWarehouseNotify";
 import { findActiveInvoiceForPo } from "@/server/repos/poInvoice";
 import { db } from "@/lib/db";
 import { notifyPOClosed } from "@/server/services/notifications";
@@ -50,7 +51,8 @@ export async function POST(
       notes: `Đóng PO: ${body.data.reason}`,
       ...extractRequestMeta(req),
     });
-    if (row.prId) void markPRGoodsReceivedIfAllPOsDone(row.prId).catch(() => {});
+    if (row.prId)
+      void markPrReceivedAndNotifyWarehouse(row.prId, guard.session).catch(() => {});
     const [pr, invoice] = await Promise.all([
       row.prId ? getPR(row.prId).catch(() => null) : null,
       findActiveInvoiceForPo(db, row.id).catch(() => null),

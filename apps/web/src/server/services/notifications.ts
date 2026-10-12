@@ -13,7 +13,13 @@ import {
   EMAIL_EVENTS,
   RESOLVES_STALE,
   assignRecipients,
+  INFO_EVENT_SUFFIX,
+  baseEventType,
   categoryForEventType,
+  planPRReadyToIssue,
+  planPRReopenedForPO,
+  planPRStockCovered,
+  storedEventType,
   planDeliveryNoteConfirmed,
   planDeliveryNoteCreated,
   planDeliveryNoteRejected,
@@ -108,7 +114,7 @@ const truncateActorName = (s: string | null | undefined): string | null =>
  */
 async function maybeEmail(notifId: string, input: EmitInput): Promise<void> {
   if (!env.MAIL_ENABLED) return;
-  if (!input.email || !EMAIL_EVENTS.has(input.eventType)) return;
+  if (!input.email || !EMAIL_EVENTS.has(baseEventType(input.eventType) as NotificationEventType)) return;
   try {
     const recipients = await db
       .select({ id: userAccount.id, email: sql<string>`${userAccount.email}` })
@@ -124,7 +130,7 @@ async function maybeEmail(notifId: string, input: EmitInput): Promise<void> {
       recipients.map((r) =>
         enqueueEmailSend(`${notifId}:${r.id}`, {
           to: r.email,
-          eventType: input.eventType,
+          eventType: baseEventType(input.eventType),
           title: input.title,
           message: input.message,
           entityCode: input.entityCode,
@@ -196,7 +202,7 @@ async function emitNotification(input: EmitInput): Promise<string | null> {
           message: input.message ?? null,
           link: input.link ?? null,
           severity: input.severity ?? "info",
-        })
+            })
         .returning({ id: notification.id });
       notifId = row?.id ?? null;
     }
@@ -252,7 +258,11 @@ async function resolveStaleNotifications(plan: NotifyPlan): Promise<void> {
       .where(
         and(
           inArray(notification.entityId, entityIds),
-          inArray(notification.eventType, [...staleTypes]),
+          // A6 — gồm cả bản `_INFO` (người nhận chỉ-để-biết) của mỗi loại.
+          inArray(notification.eventType, [
+            ...staleTypes,
+            ...staleTypes.map((t) => `${t}${INFO_EVENT_SUFFIX}`),
+          ]),
           isNull(notification.readAt),
         ),
       )
@@ -318,7 +328,7 @@ export async function dispatchNotification(plan: NotifyPlan): Promise<number> {
           recipientUser: d.userId,
           actorUserId: plan.actorUserId ?? null,
           actorUsername: plan.actorUsername ?? null,
-          eventType: plan.eventType,
+          eventType: storedEventType(plan.eventType, d.content) as NotificationEventType,
           entityType: d.content.entityType ?? plan.entityType,
           entityId: d.content.entityId ?? plan.entityId,
           entityCode: d.content.entityCode ?? plan.entityCode,
@@ -376,6 +386,43 @@ export const notifyPRSubmitted = (ctx: Arg<typeof planPRSubmitted>) => run(planP
 export const notifyPRDeptApproved = (ctx: Arg<typeof planPRDeptApproved>) =>
   run(planPRDeptApproved(ctx));
 /** Duyệt cuối (director-approve / quick-approve): Thu mua + người lập + Kế toán — 1 dòng / người. */
+export const notifyPRStockCovered = (ctx: Arg<typeof planPRStockCovered>) =>
+  run(planPRStockCovered(ctx));
+export const notifyPRReadyToIssue = (ctx: Arg<typeof planPRReadyToIssue>) =>
+  run(planPRReadyToIssue(ctx));
+
+/**
+ * Một người Kho đã xử lý (xuất đợt đầu / kết thúc) → đóng "Cần xuất kho" của
+ * những người Kho khác (kể cả bản _INFO).
+ */
+export async function closeReadyToIssue(prId: string): Promise<void> {
+  try {
+    const closed = await db
+      .update(notification)
+      .set({ readAt: new Date() })
+      .where(
+        and(
+          eq(notification.entityId, prId),
+          inArray(notification.eventType, [
+            "PR_READY_TO_ISSUE",
+            `PR_READY_TO_ISSUE${INFO_EVENT_SUFFIX}`,
+          ]),
+          isNull(notification.readAt),
+        ),
+      )
+      .returning({ id: notification.id, recipientUser: notification.recipientUser });
+    for (const r of closed) {
+      if (!r.recipientUser) continue;
+      publishNotifyEvent({ kind: "read", userIds: [r.recipientUser], notificationId: r.id });
+      void invalidateActionItemsCache(r.recipientUser);
+    }
+  } catch (err) {
+    logger.warn({ err, prId }, "closeReadyToIssue failed");
+  }
+}
+
+export const notifyPRReopenedForPO = (ctx: Arg<typeof planPRReopenedForPO>) =>
+  run(planPRReopenedForPO(ctx));
 export const notifyPRApproved = (ctx: Arg<typeof planPRApproved>) => run(planPRApproved(ctx));
 export const notifyPRRejected = (ctx: Arg<typeof planPRRejected>) => run(planPRRejected(ctx));
 export const notifyPRCancelled = (ctx: Arg<typeof planPRCancelled>) => run(planPRCancelled(ctx));

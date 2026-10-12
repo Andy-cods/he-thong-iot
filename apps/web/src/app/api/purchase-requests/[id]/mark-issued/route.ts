@@ -9,7 +9,8 @@ import { GoodsIssueError } from "@/server/repos/goodsIssues";
 import { mapDbGuardError } from "@/server/repos/stockGuard";
 import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
-import { notifyPRProgress } from "@/server/services/notifications";
+import { closeReadyToIssue, notifyPRProgress } from "@/server/services/notifications";
+import { isWarehouseIssueStage } from "@/lib/procurement-policy";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -42,7 +43,8 @@ const pickSchema = z.object({
   prLineId: z.string().uuid(),
   lotSerialId: z.string().uuid(),
   binId: z.string().uuid(),
-  qty: z.coerce.number().positive(),
+  // A12 — goods_issue_line.qty có 4 số lẻ + CHECK > 0: dưới 0,0001 làm tròn về 0 → 500.
+  qty: z.coerce.number().min(0.0001, "Số lượng xuất tối thiểu 0,0001.").max(10_000_000),
 });
 
 const bodySchema = z.object({
@@ -85,7 +87,12 @@ export async function POST(
   if (!before) return jsonError("NOT_FOUND", "Không tìm thấy phiếu.", 404);
 
   // V4.1 TM-13 — chỉ phiếu đã duyệt cuối / đã lên PO mới có mốc xuất kho.
-  if (before.status !== "APPROVED" && before.status !== "CONVERTED") {
+  // Giai đoạn Kho (đã qua Kho duyệt, chưa duyệt cuối): được xuất phần có sẵn trong kho.
+  if (
+    before.status !== "APPROVED" &&
+    before.status !== "CONVERTED" &&
+    !isWarehouseIssueStage(before)
+  ) {
     return jsonError(
       "INVALID_STATE",
       "Phiếu chưa được duyệt xong — chưa ghi nhận xuất kho được.",
@@ -141,10 +148,17 @@ export async function POST(
       notes: result.goodsIssue
         ? `YCVT timeline IV → ${result.complete ? "Đã xuất kho xong" : "Xuất kho một phần"}, trừ tồn qua phiếu ${result.goodsIssue.issueNo}`
         : result.complete && !noStockConfirm
-          ? "YCVT timeline IV → Kết thúc xuất kho (không xuất thêm)"
+          ? `YCVT timeline IV → Kết thúc xuất kho (không xuất thêm)${
+              result.progress && !result.progress.complete
+                ? ` — còn ${result.progress.pendingLines} dòng chưa xuất đủ`
+                : ""
+            }`
           : `YCVT timeline IV → Đã xuất kho (KHÔNG trừ tồn): ${noStockReason ?? ""}`,
       ...meta,
     });
+
+    // Một người Kho đã xử lý → đóng "Cần xuất kho" của những người Kho khác.
+    if (result.goodsIssue || result.complete) void closeReadyToIssue(params.id);
 
     // TASK-20260927 — báo người lập phiếu mốc tiến độ mới. L8: chỉ báo khi xuất
     // xong (đợt dở không báo — cũng tránh làm hết hiệu lực các việc còn mở).

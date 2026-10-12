@@ -121,6 +121,9 @@ export interface PRListResponse {
     counts?: {
       byStatus: Partial<Record<PRStatus, number>>;
       bySubmittedStep: { SUBMITTED: number; DEPT_APPROVED: number };
+      /** A14 — phiếu Hoàn tất (tách khỏi Đã duyệt) + số theo status không tính Hoàn tất. */
+      completed?: number;
+      byStatusActive?: Partial<Record<string, number>>;
       all: number;
     };
   };

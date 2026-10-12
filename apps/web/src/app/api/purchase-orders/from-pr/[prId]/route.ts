@@ -6,8 +6,9 @@ import { getPR } from "@/server/repos/purchaseRequests";
 import {
   extractRequestMeta,
   jsonError,
-  parseJson,
+  validateUuidParam,
 } from "@/server/http";
+import { canCreatePoFromPr, convertBlockedMessage } from "@/lib/procurement-policy";
 import { writeAudit } from "@/server/services/audit";
 import { notifyPOCreatedFromPR } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
@@ -40,6 +41,15 @@ export async function POST(
 ) {
   const guard = await requireCan(req, "create", "po");
   if ("response" in guard) return guard.response;
+
+  // A12 — id sai định dạng → 400 sạch (trước đây Postgres ném lỗi cast → 500).
+  const idCheck = validateUuidParam(params.prId, "prId");
+  if ("response" in idCheck) return idCheck.response;
+
+  // A19 — chặn ở API theo vai (UI đã ẩn nút nhưng planner có create:po vẫn gọi được).
+  if (!canCreatePoFromPr(guard.session.roles)) {
+    return jsonError("FORBIDDEN", "Chỉ Mua hàng hoặc Admin được tạo PO từ đề xuất.", 403);
+  }
 
   // Body optional — POST không body cũng OK (legacy)
   // V4.1 TM-09 — body SAI trước đây bị nuốt → convert "im lặng" bỏ mất NCC người
@@ -123,11 +133,16 @@ export async function POST(
     const msg = (err as Error).message ?? "";
     if (msg.includes("PR_NOT_FOUND"))
       return jsonError("NOT_FOUND", "Không tìm thấy PR.", 404);
-    if (msg.includes("PR_NOT_APPROVED"))
+    if (msg.includes("PR_NOT_APPROVED")) {
+      // A17 — nêu đúng lý do theo trạng thái (đã lập PO ≠ chưa duyệt).
+      const st = /status=([A-Z_]+)/.exec(msg)?.[1] ?? "";
+      return jsonError("INVALID_STATE", convertBlockedMessage(st), 409);
+    }
+    if (msg.includes("PR_ALL_COVERED"))
       return jsonError(
-        "INVALID_STATE",
-        "PR chưa được duyệt — không thể convert PO.",
-        409,
+        "NOTHING_TO_BUY",
+        "Kho đã đáp ứng đủ, không cần mua — không tạo PO.",
+        422,
       );
     if (msg.includes("MISSING_PREFERRED_SUPPLIER"))
       return jsonError(

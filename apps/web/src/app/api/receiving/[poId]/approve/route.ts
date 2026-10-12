@@ -17,8 +17,8 @@ import { notifyPOReceivedFull } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 import {
   getPR,
-  markPRGoodsReceivedIfAllPOsDone,
 } from "@/server/repos/purchaseRequests";
+import { markPrReceivedAndNotifyWarehouse } from "@/server/services/prWarehouseNotify";
 import { findActiveInvoiceForPo } from "@/server/repos/poInvoice";
 import { db } from "@/lib/db";
 
@@ -144,7 +144,7 @@ export async function POST(
       prCreatorUserId = pr?.requestedBy ?? null;
       // Auto-hook: PR.goodsReceivedAt = now (idempotent — chỉ set lần đầu)
       // L4 — chỉ khi TẤT CẢ PO của PR (không tính CANCELLED) đã nhận đủ/đóng.
-      void markPRGoodsReceivedIfAllPOsDone(before.prId).catch(() => {});
+      void markPrReceivedAndNotifyWarehouse(before.prId, guard.session).catch(() => {});
     }
     // P2 (PO_FLOW_E2E.md bước 10) — đã có HĐ active thì không báo lại Kế toán
     // "có thể tạo HĐ mua" (gây hiểu nhầm chưa làm).

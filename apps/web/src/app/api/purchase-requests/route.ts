@@ -21,6 +21,7 @@ import { IdempotencyInProgressError, withIdempotency } from "@/server/services/i
 import { notifyPRSubmitted } from "@/server/services/notifications";
 import { canViewAllPRs } from "@/server/services/prAccess";
 import { requireCan } from "@/server/session";
+import { REQUEST_REASON_REQUIRED_MSG, isRequestReasonMissing } from "@/lib/procurement-policy";
 
 /** V4.5 QA-E P2 — TTL khoá idempotency tạo PR (10 phút theo yêu cầu). */
 const PR_CREATE_IDEMPOTENCY_TTL_SECONDS = 600;
@@ -60,6 +61,7 @@ export async function GET(req: NextRequest) {
 
     const result = await listPRs({
       status: q.data.status,
+      completed: q.data.completed,
       linkedOrderId: q.data.linkedOrderId,
       bomTemplateId: q.data.bomTemplateId,
       requestedBy: scopedRequestedBy,
@@ -94,6 +96,13 @@ export async function POST(req: NextRequest) {
 
   const body = await parseJson(req, prCreateSchema);
   if ("response" in body) return body.response;
+
+  // A16 — gửi ngay (không phải lưu nháp) thì "Lý do đề xuất" là bắt buộc (UI đã bắt, API cũng phải).
+  if (!body.data.saveAsDraft && isRequestReasonMissing(body.data.requestReason)) {
+    return jsonError("VALIDATION", REQUEST_REASON_REQUIRED_MSG, 422, {
+      fields: { requestReason: REQUEST_REASON_REQUIRED_MSG },
+    });
+  }
 
   // V4.5 QA-E P2 — chặn double-submit (bấm 2 lần liên tiếp/mạng chậm retry
   // tạo 2 phiếu trùng nội dung). Client gửi header `Idempotency-Key` sinh 1

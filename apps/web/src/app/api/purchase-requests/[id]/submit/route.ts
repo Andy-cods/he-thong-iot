@@ -5,6 +5,7 @@ import { extractRequestMeta, jsonError, validateUuidParam } from "@/server/http"
 import { writeAudit } from "@/server/services/audit";
 import { canAccessPR, canEditPRDraft } from "@/server/services/prAccess";
 import { requireCan } from "@/server/session";
+import { REQUEST_REASON_REQUIRED_MSG, isRequestReasonMissing } from "@/lib/procurement-policy";
 import { notifyPRSubmitted } from "@/server/services/notifications";
 
 export const runtime = "nodejs";
@@ -49,6 +50,13 @@ export async function POST(
       "Chỉ người lập phiếu (hoặc admin) mới gửi được phiếu nháp này.",
       403,
     );
+  }
+
+  // A16 — Lý do đề xuất bắt buộc khi gửi (nháp có thể để trống).
+  if (isRequestReasonMissing(before.requestReason)) {
+    return jsonError("VALIDATION", REQUEST_REASON_REQUIRED_MSG, 422, {
+      fields: { requestReason: REQUEST_REASON_REQUIRED_MSG },
+    });
   }
 
   try {

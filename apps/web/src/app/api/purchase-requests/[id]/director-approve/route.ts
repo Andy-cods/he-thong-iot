@@ -8,6 +8,7 @@ import {
   notifyPRApproved,
 } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
+import { notifyReadyToIssueIfAny } from "@/server/services/prWarehouseNotify";
 import { isSelfApprovalBlocked } from "@/lib/procurement-policy";
 
 export const runtime = "nodejs";
@@ -109,6 +110,9 @@ export async function POST(
       actorUsername: guard.session.fullName,
       creatorUserId: before.requestedBy,
     });
+
+    // Báo Kho nếu còn phần xuất được từ tồn (approved_qty < qty).
+    void notifyReadyToIssueIfAny(params.id, "approved", guard.session);
 
     return NextResponse.json({ data: row });
   } catch (err) {

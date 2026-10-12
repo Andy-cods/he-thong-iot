@@ -50,7 +50,23 @@ export async function parseJson<S extends z.ZodTypeAny>(
   req: NextRequest,
   schema: S,
 ): Promise<{ data: z.output<S> } | { response: NextResponse }> {
-  const raw = await req.json().catch(() => null);
+  // A17 — JSON hỏng (có nội dung nhưng không parse được) → 400 rõ ràng, không
+  // để zod báo "Bắt buộc nhập" gây hiểu nhầm. Body rỗng giữ hành vi cũ (null).
+  const text = await req.text().catch(() => "");
+  let raw: unknown = null;
+  if (text.trim().length > 0) {
+    try {
+      raw = JSON.parse(text);
+    } catch {
+      return {
+        response: jsonError(
+          "INVALID_JSON",
+          "Dữ liệu gửi lên không hợp lệ (không đọc được JSON).",
+          400,
+        ),
+      };
+    }
+  }
   const parsed = schema.safeParse(raw, { errorMap: viErrorMap });
   if (!parsed.success) return { response: zodErrorResponse(parsed.error) };
   return { data: parsed.data };

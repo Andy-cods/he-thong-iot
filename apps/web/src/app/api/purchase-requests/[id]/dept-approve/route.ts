@@ -1,18 +1,29 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
-import { deptApprovePR, getPR } from "@/server/repos/purchaseRequests";
+import { deptApprovePR, getPR, getPrStockCheck } from "@/server/repos/purchaseRequests";
 import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
-import { notifyPRDeptApproved } from "@/server/services/notifications";
+import { notifyPRDeptApproved, notifyPRStockCovered } from "@/server/services/notifications";
+import { notifyReadyToIssueIfAny } from "@/server/services/prWarehouseNotify";
 import { requireCan } from "@/server/session";
-import { isSelfApprovalBlocked } from "@/lib/procurement-policy";
+import {
+  isSelfApprovalBlocked,
+  resolveBuyDecisions,
+  summarizeBuyDecisions,
+} from "@/lib/procurement-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const inputSchema = z.object({
   note: z.string().trim().max(2000).optional().nullable(),
+  /**
+   * Kho kiểm tồn: lineId → SL CẦN MUA (0 ≤ x ≤ SL đề xuất). Bỏ trống → mặc định
+   * max(0, đề xuất − tồn khả dụng hiện tại). CHỈ endpoint này và quick-approve
+   * (admin) được ghi approved_qty.
+   */
+  buyQtys: z.record(z.string().uuid(), z.coerce.number().finite()).optional(),
 });
 
 /**
@@ -79,10 +90,16 @@ export async function POST(
   if ("response" in body) return body.response;
 
   try {
+    const stock = await getPrStockCheck(params.id);
+    const resolved = resolveBuyDecisions(stock, body.data.buyQtys);
+    if (!resolved.ok) return jsonError("VALIDATION", resolved.message, 422);
+    const summary = summarizeBuyDecisions(resolved.decisions);
+
     const row = await deptApprovePR(
       params.id,
       guard.session.userId,
       body.data.note ?? null,
+      resolved.decisions,
     );
     if (!row) return jsonError("CONFLICT", "Phiếu đã thay đổi trạng thái.", 409);
 
@@ -93,20 +110,43 @@ export async function POST(
       objectType: "purchase_request",
       objectId: params.id,
       before: { approvalStep: before.approvalStep },
-      after: { approvalStep: row.approvalStep, deptApprovedBy: row.deptApprovedBy },
+      after: {
+        approvalStep: row.approvalStep,
+        deptApprovedBy: row.deptApprovedBy,
+        buyQtys: resolved.decisions,
+        coveredLines: summary.coveredLines,
+        buyLines: summary.buyLines,
+      },
       notes: body.data.note ?? "Trưởng bộ phận duyệt",
       ...meta,
     });
 
-    // V3.7.69 YCVT — bắn notification cho purchaser (chờ duyệt cuối) + creator (báo tiến độ)
-    void notifyPRDeptApproved({
-      prId: params.id,
-      prNo: before.paperFormNo ?? before.code,
-      title: before.title ?? null,
-      actorUserId: guard.session.userId,
-      actorUsername: guard.session.fullName,
-      creatorUserId: before.requestedBy,
-    });
+    const prNo = before.paperFormNo ?? before.code;
+    if (row.autoFinal) {
+      // Kho đáp ứng đủ từ tồn → bỏ qua duyệt cuối: KHÔNG báo người duyệt cuối,
+      // báo người lập; báo Kho khác có phiếu cần xuất.
+      void notifyPRStockCovered({
+        prId: params.id,
+        prNo,
+        title: before.title ?? null,
+        actorUserId: guard.session.userId,
+        actorUsername: guard.session.fullName,
+        creatorUserId: before.requestedBy,
+      });
+      void notifyReadyToIssueIfAny(params.id, "approved", guard.session);
+    } else {
+      // Người duyệt cuối nhận kèm tóm tắt "có sẵn X dòng, cần mua Y dòng".
+      void notifyPRDeptApproved({
+        prId: params.id,
+        prNo,
+        title: before.title ?? null,
+        actorUserId: guard.session.userId,
+        actorUsername: guard.session.fullName,
+        creatorUserId: before.requestedBy,
+        coveredLines: summary.coveredLines,
+        buyLines: summary.buyLines,
+      });
+    }
 
     return NextResponse.json({ data: row });
   } catch (err) {

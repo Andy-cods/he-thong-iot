@@ -16,7 +16,14 @@ import type {
   PurchaseRequestStatus,
 } from "@iot/db/schema";
 import { db } from "@/lib/db";
-import { vnToday } from "../../lib/procurement-policy";
+import {
+  effectiveApprovedQty,
+  issueCapForStage,
+  isWarehouseIssueStage,
+  prHasGoodsIssueMessage,
+  summarizeBuyDecisions,
+  vnToday,
+} from "../../lib/procurement-policy";
 import { deriveDisplayLabel } from "@/lib/pr-display-label";
 import { currentYymm, genDocNoBatch } from "./_docNumber";
 import { uuidArray } from "./stockGuard";
@@ -35,6 +42,8 @@ import {
 
 export interface ListPRsQuery {
   status?: PurchaseRequestStatus[];
+  /** A14 — true: chỉ phiếu Hoàn tất (approval_step DONE); false: loại phiếu Hoàn tất. */
+  completed?: boolean;
   linkedOrderId?: string;
   /** V1.8 — filter PR theo BOM (JOIN qua sales_order.bom_template_id). */
   bomTemplateId?: string;
@@ -65,6 +74,10 @@ export interface PRStatusCounts {
   byStatus: Partial<Record<PurchaseRequestStatus, number>>;
   /** Phiếu SUBMITTED tách theo bước: chờ Kho (SUBMITTED) / chờ duyệt cuối (DEPT_APPROVED). */
   bySubmittedStep: { SUBMITTED: number; DEPT_APPROVED: number };
+  /** A14 — số phiếu Hoàn tất (approval_step DONE), tách khỏi "Đã duyệt". */
+  completed: number;
+  /** A14 — như byStatus nhưng KHÔNG tính phiếu Hoàn tất (số cho tab "Đã duyệt"/"Đã chuyển PO"). */
+  byStatusActive: Partial<Record<PurchaseRequestStatus, number>>;
   all: number;
 }
 
@@ -120,35 +133,45 @@ const lineCountExpr = sql<number>`(
 
 export async function listPRs(q: ListPRsQuery): Promise<ListPRsResult> {
   const where: SQL[] = [];
-  const statusCond =
+  const statusOnly =
     q.status && q.status.length > 0
       ? inArray(
           purchaseRequest.status,
           q.status as unknown as (typeof purchaseRequest.status.enumValues)[number][],
         )
       : undefined;
+  const completedCond =
+    q.completed === undefined
+      ? undefined
+      : q.completed
+        ? sql`COALESCE(${purchaseRequest.approvalStep}::text, '') = 'DONE'`
+        : sql`COALESCE(${purchaseRequest.approvalStep}::text, '') <> 'DONE'`;
+  const statusCond =
+    statusOnly && completedCond ? and(statusOnly, completedCond) : statusOnly ?? completedCond;
   const draftCond = draftVisibilityCondition(q.viewer);
   if (draftCond) where.push(draftCond);
   const term = q.q?.trim();
   if (term) {
     const like = `%${escapeLike(term)}%`;
+    // A14 — tìm KHÔNG DẤU ("vat tu" ra "Vật tư"): so khớp public.f_unaccent (0002c) 2 vế.
+    const ci = (col: unknown) => sql`public.f_unaccent(${col}::text) ILIKE public.f_unaccent(${like})`;
     where.push(sql`(
-      ${purchaseRequest.code} ILIKE ${like}
-      OR COALESCE(${purchaseRequest.paperFormNo}, '') ILIKE ${like}
-      OR COALESCE(${purchaseRequest.title}, '') ILIKE ${like}
+      ${ci(purchaseRequest.code)}
+      OR ${ci(sql`COALESCE(${purchaseRequest.paperFormNo}, '')`)}
+      OR ${ci(sql`COALESCE(${purchaseRequest.title}, '')`)}
       OR EXISTS (
         SELECT 1 FROM ${purchaseRequestLine} qpl
         LEFT JOIN ${item} qit ON qit.id = qpl.item_id
         WHERE qpl.pr_id = ${purchaseRequest.id}
           AND (
-            COALESCE(qit.name, qpl.item_name, '') ILIKE ${like}
-            OR COALESCE(qit.sku, qpl.item_sku, '') ILIKE ${like}
+            ${ci(sql`COALESCE(qit.name, qpl.item_name, '')`)}
+            OR ${ci(sql`COALESCE(qit.sku, qpl.item_sku, '')`)}
           )
       )
       OR EXISTS (
         SELECT 1 FROM ${userAccount} qu
         WHERE qu.id = ${purchaseRequest.requestedBy}
-          AND (COALESCE(qu.full_name, '') ILIKE ${like} OR qu.username ILIKE ${like})
+          AND (${ci(sql`COALESCE(qu.full_name, '')`)} OR ${ci(sql`qu.username`)})
       )
     )`);
   }
@@ -231,11 +254,15 @@ export async function listPRs(q: ListPRsQuery): Promise<ListPRsResult> {
   const counts: PRStatusCounts = {
     byStatus: {},
     bySubmittedStep: { SUBMITTED: 0, DEPT_APPROVED: 0 },
+    completed: 0,
+    byStatusActive: {},
     all: 0,
   };
   for (const c of countRows) {
     const st = c.status as PurchaseRequestStatus;
     counts.byStatus[st] = (counts.byStatus[st] ?? 0) + c.count;
+    if (c.step === "DONE") counts.completed += c.count;
+    else counts.byStatusActive[st] = (counts.byStatusActive[st] ?? 0) + c.count;
     counts.all += c.count;
     if (st === "SUBMITTED") {
       if (c.step === "DEPT_APPROVED") counts.bySubmittedStep.DEPT_APPROVED += c.count;
@@ -837,7 +864,11 @@ export async function replacePRLines(
         // V4.0 Wave 3 Phase B
         lineRefCode: lineRefCodes[idx],
         // V4.1 TM-12 — không làm mất SL duyệt khi sửa phiếu.
-        approvedQty: l.approvedQty != null ? String(l.approvedQty) : null,
+        // A1 — kẹp ≤ SL đề xuất (đường gọi duy nhất hiện tại không truyền).
+        approvedQty:
+          effectiveApprovedQty(l.qty, l.approvedQty) != null
+            ? String(effectiveApprovedQty(l.qty, l.approvedQty))
+            : null,
       })),
     );
   };
@@ -888,24 +919,87 @@ export async function deptApprovePR(
   id: string,
   approverId: string,
   note?: string | null,
-): Promise<PurchaseRequest | null> {
-  const [row] = await db
-    .update(purchaseRequest)
-    .set({
-      approvalStep: "DEPT_APPROVED",
-      deptApprovedBy: approverId,
-      deptApprovedAt: new Date(),
-      deptApprovalNote: note ?? null,
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(purchaseRequest.id, id),
-        eq(purchaseRequest.approvalStep, "SUBMITTED"),
-      ),
-    )
-    .returning();
-  return row ?? null;
+  /**
+   * Kho kiểm tồn: lineId → SL CẦN MUA (approved_qty). CHỈ đường duyệt Kho
+   * (và quick-approve của admin) được ghi trường này (A1). Mọi dòng = 0 →
+   * không còn gì để mua → bỏ qua duyệt cuối (status APPROVED luôn).
+   */
+  decisions?: Record<string, number>,
+): Promise<(PurchaseRequest & { autoFinal: boolean }) | null> {
+  return db.transaction(async (tx) => {
+    const now = new Date();
+    const autoFinal = !!decisions && summarizeBuyDecisions(decisions).allCovered;
+    const [row] = await tx
+      .update(purchaseRequest)
+      .set({
+        approvalStep: autoFinal ? "DIRECTOR_APPROVED" : "DEPT_APPROVED",
+        deptApprovedBy: approverId,
+        deptApprovedAt: now,
+        deptApprovalNote: note ?? null,
+        ...(autoFinal
+          ? {
+              status: "APPROVED" as const,
+              approvedBy: approverId,
+              approvedAt: now,
+              directorApprovalNote: "Tự động: Kho đáp ứng đủ từ tồn — không cần mua",
+            }
+          : {}),
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(purchaseRequest.id, id),
+          eq(purchaseRequest.approvalStep, "SUBMITTED"),
+        ),
+      )
+      .returning();
+    if (!row) return null;
+    if (decisions) await writeBuyDecisions(tx, id, decisions);
+    return Object.assign(row, { autoFinal });
+  });
+}
+
+/** Ghi approved_qty (SL cần mua) cho các dòng của PR — chỉ gọi từ duyệt Kho / quick-approve. */
+async function writeBuyDecisions(
+  tx: PrTx,
+  prId: string,
+  decisions: Record<string, number>,
+): Promise<void> {
+  for (const [lineId, buy] of Object.entries(decisions)) {
+    await tx
+      .update(purchaseRequestLine)
+      .set({ approvedQty: String(buy) })
+      .where(and(eq(purchaseRequestLine.id, lineId), eq(purchaseRequestLine.prId, prId)));
+  }
+}
+
+/** Dòng PR + tồn khả dụng HIỆN TẠI của vật tư (app.v_item_stock.issuable_qty: AVAILABLE, trừ giữ chỗ, không tính HOLD). */
+export async function getPrStockCheck(prId: string) {
+  const lines = await getPRLinesEnriched(prId);
+  const itemIds = Array.from(new Set(lines.map((l) => l.itemId).filter((x): x is string => !!x)));
+  const avail = await getIssuableQtyByItem(itemIds);
+  return lines.map((l) => ({
+    id: l.id,
+    lineNo: l.lineNo,
+    itemId: l.itemId,
+    sku: l.sku,
+    name: l.name,
+    uom: l.uom ?? l.itemUom,
+    qty: Number(l.qty) || 0,
+    available: l.itemId ? avail.get(l.itemId) ?? 0 : 0,
+  }));
+}
+
+export async function getIssuableQtyByItem(itemIds: string[]): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  if (itemIds.length === 0) return out;
+  const rows = (await db.execute(sql`
+    SELECT item_id::text AS item_id, issuable_qty::text AS qty
+    FROM app.v_item_stock
+    WHERE item_id = ANY(${uuidArray(itemIds)})
+  `)) as unknown as Array<{ item_id: string; qty: string }>;
+  for (const r of rows) out.set(r.item_id, Number(r.qty) || 0);
+  return out;
 }
 
 /**
@@ -949,32 +1043,37 @@ export async function quickApprovePR(
   id: string,
   approverId: string,
   note?: string | null,
+  decisions?: Record<string, number>,
 ): Promise<PurchaseRequest | null> {
-  const now = new Date();
-  const quickNote = note ?? "Duyệt nhanh (Admin)";
-  const [row] = await db
-    .update(purchaseRequest)
-    .set({
-      status: "APPROVED",
-      approvalStep: "DIRECTOR_APPROVED",
-      deptApprovedBy: approverId,
-      deptApprovedAt: now,
-      deptApprovalNote: quickNote,
-      directorApprovedBy: approverId,
-      directorApprovedAt: now,
-      directorApprovalNote: quickNote,
-      approvedBy: approverId, // back-compat
-      approvedAt: now,
-      updatedAt: now,
-    })
-    .where(
-      and(
-        eq(purchaseRequest.id, id),
-        eq(purchaseRequest.approvalStep, "SUBMITTED"),
-      ),
-    )
-    .returning();
-  return row ?? null;
+  return db.transaction(async (tx) => {
+    const now = new Date();
+    const quickNote = note ?? "Duyệt nhanh (Admin)";
+    const [row] = await tx
+      .update(purchaseRequest)
+      .set({
+        status: "APPROVED",
+        approvalStep: "DIRECTOR_APPROVED",
+        deptApprovedBy: approverId,
+        deptApprovedAt: now,
+        deptApprovalNote: quickNote,
+        directorApprovedBy: approverId,
+        directorApprovedAt: now,
+        directorApprovalNote: quickNote,
+        approvedBy: approverId, // back-compat
+        approvedAt: now,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(purchaseRequest.id, id),
+          eq(purchaseRequest.approvalStep, "SUBMITTED"),
+        ),
+      )
+      .returning();
+    if (!row) return null;
+    if (decisions) await writeBuyDecisions(tx, id, decisions);
+    return row;
+  });
 }
 
 /**
@@ -1086,6 +1185,8 @@ const fmtQ = (n: number) => Number(n.toFixed(4)).toLocaleString("vi-VN");
 export function validatePrIssuePicks(
   lines: PrIssueLineState[],
   picks: PrIssuePickInput[],
+  /** WAREHOUSE = sau Kho duyệt, chưa duyệt cuối: trần = qty − SL cần mua. FINAL: trần = qty. */
+  stage: "WAREHOUSE" | "FINAL" = "FINAL",
 ): ValidatePrIssueResult {
   const fail = (code: string, msg: string, status = 422): ValidatePrIssueResult => ({
     ok: false,
@@ -1130,12 +1231,13 @@ export function validatePrIssuePicks(
 
   for (const [lineId, qty] of qtyByLine) {
     const line = byId.get(lineId)!;
-    const cap = line.approvedQty ?? line.qty;
+    // approved_qty = SL CẦN MUA (Kho kiểm tồn) — trần xuất kho: xem issueCapForStage.
+    const cap = issueCapForStage(stage, line.qty, line.approvedQty);
     const issued = line.issuedQty ?? 0;
     const remaining = Math.max(0, cap - issued);
     if (qty > remaining + PR_ISSUE_EPS) {
       const label = line.sku ?? "Dòng";
-      const capLabel = line.approvedQty != null ? "SL đã duyệt" : "SL đề xuất";
+      const capLabel = stage === "WAREHOUSE" ? "phần xuất từ kho" : "SL đề xuất";
       if (issued > PR_ISSUE_EPS) {
         return fail(
           "OVER_ISSUE",
@@ -1167,9 +1269,12 @@ export interface PrIssueProgress {
  * được nên KHÔNG tính vào điều kiện hoàn tất (nếu không phiếu sẽ không bao giờ đủ —
  * Kho kết thúc thủ công bằng "Kết thúc, không xuất thêm").
  */
-export function computePrIssueProgress(lines: PrIssueLineState[]): PrIssueProgress {
+export function computePrIssueProgress(
+  lines: PrIssueLineState[],
+  stage: "WAREHOUSE" | "FINAL" = "FINAL",
+): PrIssueProgress {
   const out = lines.map((l) => {
-    const cap = l.approvedQty ?? l.qty;
+    const cap = issueCapForStage(stage, l.qty, l.approvedQty);
     const issued = l.issuedQty ?? 0;
     return { id: l.id, cap, issued, remaining: Math.max(0, cap - issued) };
   });
@@ -1219,10 +1324,20 @@ export async function markPRGoodsIssuedWithStock(
     if (!current) {
       throw new GoodsIssueError("NOT_FOUND", "Không tìm thấy phiếu.", 404);
     }
-    if (current.status !== "APPROVED" && current.status !== "CONVERTED") {
+    // Giai đoạn Kho: đã qua Kho duyệt (DEPT_APPROVED), chưa duyệt cuối → Kho được
+    // xuất phần có sẵn trong kho (qty − SL cần mua), KHÔNG hoàn tất phiếu.
+    const stage: "WAREHOUSE" | "FINAL" = isWarehouseIssueStage(current) ? "WAREHOUSE" : "FINAL";
+    if (stage === "FINAL" && current.status !== "APPROVED" && current.status !== "CONVERTED") {
       throw new GoodsIssueError(
         "INVALID_STATE",
         "Phiếu chưa được duyệt xong — chưa ghi nhận xuất kho được.",
+        409,
+      );
+    }
+    if (stage === "WAREHOUSE" && (input.noStockConfirm || input.finish)) {
+      throw new GoodsIssueError(
+        "INVALID_STATE",
+        "Phiếu còn chờ duyệt mua — chỉ xuất phần có sẵn trong kho được, chưa kết thúc/ghi nhận không trừ tồn.",
         409,
       );
     }
@@ -1299,10 +1414,10 @@ export async function markPRGoodsIssuedWithStock(
             422,
           );
         }
-        progress = computePrIssueProgress(lineStates);
+        progress = computePrIssueProgress(lineStates, stage);
         complete = true;
       } else {
-        const v = validatePrIssuePicks(lineStates, input.picks);
+        const v = validatePrIssuePicks(lineStates, input.picks, stage);
         if (!v.ok) throw v.error;
 
         createdGoodsIssue = await createGoodsIssueTx(tx, {
@@ -1331,8 +1446,9 @@ export async function markPRGoodsIssuedWithStock(
               .filter((p) => p.purchaseRequestLineId === l.id)
               .reduce((a, p) => a + p.qty, 0),
         }));
-        progress = computePrIssueProgress(afterStates);
-        complete = !!input.finish || progress.complete;
+        progress = computePrIssueProgress(afterStates, stage);
+        // Giai đoạn Kho không bao giờ hoàn tất (còn phần cần mua chờ duyệt cuối).
+        complete = stage === "FINAL" && (!!input.finish || progress.complete);
       }
     }
 
@@ -1355,16 +1471,8 @@ export async function markPRGoodsIssuedWithStock(
         completedAt: current.completedAt ?? now,
         approvalStep: "DONE",
         updatedAt: now,
-        ...(input.noStockConfirm
-          ? {
-              notes: sql`COALESCE(${purchaseRequest.notes}, '') || ${`\n[Đã xuất kho — KHÔNG trừ tồn: ${(input.noStockReason ?? "").trim()}]`}`,
-            }
-          : {}),
-        ...(input.finish && progress && !progress.complete
-          ? {
-              notes: sql`COALESCE(${purchaseRequest.notes}, '') || ${`\n[Kết thúc xuất kho — còn ${progress.pendingLines} dòng chưa xuất đủ]`}`,
-            }
-          : {}),
+        // A18 — ghi chú hệ thống ("không trừ tồn: lý do", "kết thúc xuất kho…") KHÔNG
+        // nối vào notes người dùng nữa: đã nằm trong audit log (mark-issued route).
       })
       .where(
         and(eq(purchaseRequest.id, id), sql`${purchaseRequest.goodsIssuedAt} IS NULL`),
@@ -1423,6 +1531,16 @@ export async function deletePR(
   options: { force?: boolean } = {},
 ): Promise<boolean> {
   return db.transaction(async (tx) => {
+    // A3 — đã có phiếu xuất kho → chặn (FK goods_issue_purchase_request_id_fkey).
+    const issues = await tx
+      .select({ issueNo: goodsIssue.issueNo })
+      .from(goodsIssue)
+      .where(eq(goodsIssue.purchaseRequestId, id));
+    if (issues.length > 0) {
+      throw new Error(
+        `PR_HAS_GOODS_ISSUE: ${prHasGoodsIssueMessage(issues.map((i) => i.issueNo), "delete")}`,
+      );
+    }
     // Check PO link
     const linkedPOs = await tx.execute(sql`
       SELECT id, po_no FROM app.purchase_order WHERE pr_id = ${id}
@@ -1468,9 +1586,7 @@ export async function rejectPR(
       rejectedBy: userId,
       rejectedAt: new Date(),
       rejectionReason: reason ?? null,
-      notes: sql`COALESCE(${purchaseRequest.notes}, '') || ${
-        reason ? `\n[REJECTED: ${reason}]` : "\n[REJECTED]"
-      }`,
+      // A18 — lý do nằm ở rejection_reason + audit, KHÔNG nối vào ghi chú người dùng.
       updatedAt: new Date(),
     })
     .where(
@@ -1537,6 +1653,18 @@ export async function cancelPR(
       throw new PrCancelError("INVALID_STATE", cancelBlockedMessage(pr.status));
     }
 
+    // A3 — đã có phiếu xuất kho (tồn đã trừ) → không huỷ.
+    const issues = await tx
+      .select({ issueNo: goodsIssue.issueNo })
+      .from(goodsIssue)
+      .where(eq(goodsIssue.purchaseRequestId, id));
+    if (issues.length > 0) {
+      throw new PrCancelError(
+        "HAS_GOODS_ISSUE",
+        prHasGoodsIssueMessage(issues.map((i) => i.issueNo), "cancel"),
+      );
+    }
+
     if (pr.status === "APPROVED") {
       const [po] = await tx
         .select({ id: purchaseOrder.id, poNo: purchaseOrder.poNo })
@@ -1559,7 +1687,7 @@ export async function cancelPR(
         cancelledBy: userId,
         cancelledAt: new Date(),
         cancellationReason: reason,
-        notes: sql`COALESCE(${purchaseRequest.notes}, '') || ${`\n[CANCELLED: ${reason}]`}`,
+        // A18 — lý do nằm ở cancellation_reason + audit, KHÔNG nối vào ghi chú người dùng.
         updatedAt: new Date(),
       })
       .where(

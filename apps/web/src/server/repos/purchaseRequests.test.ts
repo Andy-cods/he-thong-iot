@@ -23,7 +23,7 @@ const lines = [
 ];
 
 describe("validatePrIssuePicks", () => {
-  it("hợp lệ: cộng dồn theo dòng, cap = approvedQty khi có", async () => {
+  it("hợp lệ: cộng dồn theo dòng, cap = SL đề xuất (approvedQty là SL cần mua, không phải trần)", async () => {
     const { validatePrIssuePicks } = await load();
     const r = validatePrIssuePicks(lines, [
       { prLineId: "l1", lotSerialId: "lot-1", binId: "bin-1", qty: 3 },
@@ -39,17 +39,17 @@ describe("validatePrIssuePicks", () => {
     );
   });
 
-  it("vượt SL đã duyệt (approvedQty) → OVER_ISSUE (422)", async () => {
+  it("vượt SL đề xuất → OVER_ISSUE (422)", async () => {
     const { validatePrIssuePicks } = await load();
     const r = validatePrIssuePicks(lines, [
-      { prLineId: "l1", lotSerialId: "x", binId: "b", qty: 9 },
+      { prLineId: "l1", lotSerialId: "x", binId: "b", qty: 11 },
     ]);
     expect(r.ok).toBe(false);
     if (r.ok) return;
     expect(r.error.code).toBe("OVER_ISSUE");
     expect(r.error.status).toBe(422);
     expect(r.error.message).toContain("A-01");
-    expect(r.error.message).toContain("8");
+    expect(r.error.message).toContain("10");
   });
 
   it("vượt SL đề xuất khi chưa có approvedQty → OVER_ISSUE", async () => {
@@ -66,7 +66,7 @@ describe("validatePrIssuePicks", () => {
     const { validatePrIssuePicks } = await load();
     const r = validatePrIssuePicks(lines, [
       { prLineId: "l1", lotSerialId: "x", binId: "b", qty: 5 },
-      { prLineId: "l1", lotSerialId: "y", binId: "b", qty: 4 },
+      { prLineId: "l1", lotSerialId: "y", binId: "b", qty: 6 },
     ]);
     expect(r.ok).toBe(false);
     if (r.ok) return;
@@ -135,7 +135,7 @@ describe("L8 — xuất kho nhiều đợt", () => {
   it("dòng đã xuất đủ → không xuất thêm", async () => {
     const { validatePrIssuePicks } = await load();
     const r = validatePrIssuePicks(
-      [{ id: "l1", itemId: "i", sku: "A-01", qty: 6, approvedQty: 5, issuedQty: 5 }],
+      [{ id: "l1", itemId: "i", sku: "A-01", qty: 5, approvedQty: 2, issuedQty: 5 }],
       [{ prLineId: "l1", lotSerialId: "x", binId: "b", qty: 1 }],
     );
     expect(r.ok).toBe(false);
@@ -155,7 +155,7 @@ describe("L8 — xuất kho nhiều đợt", () => {
     expect(part.lines[0]).toMatchObject({ cap: 6, issued: 2, remaining: 4 });
 
     const done = computePrIssueProgress([
-      { id: "l1", itemId: "i1", sku: "A", qty: 6, approvedQty: 5, issuedQty: 5 },
+      { id: "l1", itemId: "i1", sku: "A", qty: 5, approvedQty: 2, issuedQty: 5 },
       { id: "l3", itemId: null, sku: "C", qty: 9, approvedQty: null },
     ]);
     expect(done.complete).toBe(true);

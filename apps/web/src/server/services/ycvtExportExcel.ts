@@ -149,7 +149,11 @@ async function loadLogoBuffer(): Promise<Buffer | null> {
  */
 function setDateCell(cell: ExcelJS.Cell, d: Date | string | null | undefined): void {
   const dt = toExcelVnDate(d);
-  if (!dt) return;
+  // A9 — không có ngày: xoá công thức mẫu (=TODAY()) thay vì để nguyên.
+  if (!dt) {
+    cell.value = null;
+    return;
+  }
   cell.value = dt;
   cell.numFmt = "dd/mm/yyyy";
 }

@@ -33,6 +33,8 @@ export const NOTIFICATION_EVENT_TYPES = [
   "PR_GOODS_ISSUED",
   "PR_COMPLETED",
   "PR_APPROVED_NO_PO_REMINDER", // worker prApprovedNoPoScan.ts insert trực tiếp
+  "PR_STOCK_COVERED", // Kho đáp ứng đủ từ tồn — bỏ qua duyệt cuối, báo người lập
+  "PR_READY_TO_ISSUE", // Kho có phiếu cần xuất (duyệt cuối xong / PO về đủ hàng)
   // Đơn mua hàng (PO)
   "PO_CREATED_FROM_PR",
   "PO_SUBCONTRACT_DRAFT",
@@ -131,6 +133,45 @@ export function categoryForEventType(eventType: string): NotifyCategory {
   return "update";
 }
 
+/**
+ * A6 — một event có thể gửi cho nhiều người với sắc thái khác nhau (PR_APPROVED:
+ * Thu mua = "cần tạo PO", người lập/Kế toán = chỉ để biết). Nhóm hiển thị suy
+ * từ event_type nên với người nhận CHỈ-ĐỂ-BIẾT của một event thuộc
+ * ACTION_EVENT_TYPES ta lưu event_type = `<TYPE>_INFO` (không thuộc ACTION →
+ * "update", không vào badge/"Cần bạn duyệt"). Không cần cột/DDL mới (xem ghi
+ * chú migration 0070); chuông, /notifications và dashboard đều đọc event_type
+ * nên tự đúng.
+ */
+export const INFO_EVENT_SUFFIX = "_INFO";
+
+/** Target tự khai category; không khai → "update" (reminder nếu event là nhắc hạn). */
+export function categoryForDelivery(
+  content: { category?: NotifyCategory },
+  eventType: string,
+): NotifyCategory {
+  if (content.category) return content.category;
+  return REMINDER_EVENT_TYPES.has(eventType as NotificationEventType) ? "reminder" : "update";
+}
+
+/** event_type lưu DB cho 1 lần giao: người nhận chỉ-để-biết của event "action" → `_INFO`. */
+export function storedEventType(
+  eventType: string,
+  content: { category?: NotifyCategory },
+): string {
+  if (
+    ACTION_EVENT_TYPES.has(eventType as NotificationEventType) &&
+    categoryForDelivery(content, eventType) === "update"
+  ) {
+    return `${eventType}${INFO_EVENT_SUFFIX}`;
+  }
+  return eventType;
+}
+
+/** Bỏ hậu tố `_INFO` để tra icon/nhãn/RESOLVES_STALE theo event gốc. */
+export function baseEventType(stored: string): string {
+  return stored.endsWith(INFO_EVENT_SUFFIX) ? stored.slice(0, -INFO_EVENT_SUFFIX.length) : stored;
+}
+
 /** Worker phát định kỳ (không qua NotifyPlan) — luôn là "Nhắc hạn". */
 export const REMINDER_EVENT_TYPES: ReadonlySet<NotificationEventType> = new Set<NotificationEventType>([
   "PR_PENDING_REMINDER",
@@ -146,6 +187,7 @@ export const REMINDER_EVENT_TYPES: ReadonlySet<NotificationEventType> = new Set<
  * planXxx() bên dưới (xem test notification-plans.test.ts đối chiếu 2 nguồn).
  */
 export const ACTION_EVENT_TYPES: ReadonlySet<NotificationEventType> = new Set<NotificationEventType>([
+  "PR_READY_TO_ISSUE",
   "PR_SUBMITTED",
   "PR_DEPT_APPROVED",
   "PR_APPROVED",
@@ -175,9 +217,11 @@ export const RESOLVES_STALE: Partial<
   Record<NotificationEventType, readonly NotificationEventType[]>
 > = {
   PR_DEPT_APPROVED: ["PR_SUBMITTED", "PR_PENDING_REMINDER"],
+  PR_STOCK_COVERED: ["PR_SUBMITTED", "PR_PENDING_REMINDER"],
   PR_APPROVED: ["PR_SUBMITTED", "PR_DEPT_APPROVED", "PR_PENDING_REMINDER"],
-  PR_REJECTED: ["PR_SUBMITTED", "PR_DEPT_APPROVED", "PR_PENDING_REMINDER"],
+  PR_REJECTED: ["PR_SUBMITTED", "PR_DEPT_APPROVED", "PR_PENDING_REMINDER", "PR_READY_TO_ISSUE"],
   PR_CANCELLED: [
+    "PR_READY_TO_ISSUE",
     "PR_SUBMITTED",
     "PR_DEPT_APPROVED",
     "PR_APPROVED",
@@ -187,6 +231,7 @@ export const RESOLVES_STALE: Partial<
   // L15 — Kho đã xuất đủ / phiếu hoàn tất: mọi việc "chờ duyệt / cần tạo PO /
   // nhắc" của phiếu này đều hết ý nghĩa; "đã xuất kho" cũng hết khi hoàn tất.
   PR_GOODS_ISSUED: [
+    "PR_READY_TO_ISSUE",
     "PR_SUBMITTED",
     "PR_DEPT_APPROVED",
     "PR_APPROVED",
@@ -194,6 +239,7 @@ export const RESOLVES_STALE: Partial<
     "PR_APPROVED_NO_PO_REMINDER",
   ],
   PR_COMPLETED: [
+    "PR_READY_TO_ISSUE",
     "PR_SUBMITTED",
     "PR_DEPT_APPROVED",
     "PR_APPROVED",
@@ -476,8 +522,15 @@ export function planPRSubmitted(ctx: PRCtx): NotifyPlan {
 }
 
 /** Bước 2 — Kho duyệt → Giám đốc + Thu mua duyệt cuối; người lập biết tiến độ (không email). */
-export function planPRDeptApproved(ctx: PRCtx): NotifyPlan {
+export function planPRDeptApproved(
+  ctx: PRCtx & { coveredLines?: number; buyLines?: number },
+): NotifyPlan {
   const link = [L.pr(ctx.prId)];
+  // Kho đã kiểm tồn: nêu tóm tắt "có sẵn X dòng, cần mua Y dòng" cho người duyệt cuối.
+  const stock =
+    ctx.coveredLines != null && ctx.buyLines != null
+      ? ` Có sẵn ${ctx.coveredLines} dòng, cần mua ${ctx.buyLines} dòng.`
+      : "";
   return {
     eventType: "PR_DEPT_APPROVED",
     entityType: "purchase_request",
@@ -489,8 +542,8 @@ export function planPRDeptApproved(ctx: PRCtx): NotifyPlan {
       role("admin", {
         title: `${ctx.prNo} chờ Giám đốc duyệt cuối`,
         message: ctx.title
-          ? `"${ctx.title}" — Kho đã kiểm tồn và duyệt`
-          : "Kho đã kiểm tồn và duyệt — chờ duyệt cuối",
+          ? `"${ctx.title}" — Kho đã kiểm tồn và duyệt.${stock}`
+          : `Kho đã kiểm tồn và duyệt — chờ duyệt cuối.${stock}`,
         links: link,
         email: true,
         category: "action",
@@ -499,8 +552,8 @@ export function planPRDeptApproved(ctx: PRCtx): NotifyPlan {
       role("purchaser", {
         title: `${ctx.prNo} đã qua Kho — chờ duyệt cuối`,
         message: ctx.title
-          ? `"${ctx.title}" — chờ Giám đốc/Thu mua duyệt cuối`
-          : "Chờ Giám đốc/Thu mua duyệt cuối",
+          ? `"${ctx.title}" — chờ Giám đốc/Thu mua duyệt cuối.${stock}`
+          : `Chờ Giám đốc/Thu mua duyệt cuối.${stock}`,
         links: link,
         email: true,
         category: "action",
@@ -508,10 +561,62 @@ export function planPRDeptApproved(ctx: PRCtx): NotifyPlan {
       }),
       user(ctx.creatorUserId, PR_CREATOR_ROLES, {
         title: `${ctx.prNo} đã qua bước 2/3`,
-        message: "Kho đã kiểm tồn và duyệt — đang chờ duyệt cuối.",
+        message: `Kho đã kiểm tồn và duyệt — đang chờ duyệt cuối.${stock}`,
         links: link,
         severity: "success",
         email: false,
+      }),
+    ],
+  };
+}
+
+/** Kho duyệt và đáp ứng đủ từ tồn (không cần mua): bỏ qua duyệt cuối — chỉ báo người lập. */
+export function planPRStockCovered(ctx: PRCtx): NotifyPlan {
+  return {
+    eventType: "PR_STOCK_COVERED",
+    entityType: "purchase_request",
+    entityId: ctx.prId,
+    entityCode: ctx.prNo,
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    targets: [
+      user(ctx.creatorUserId, PR_CREATOR_ROLES, {
+        title: `${ctx.prNo}: Kho đáp ứng đủ từ tồn`,
+        message: "Kho đã kiểm tồn — không cần mua. Kho sẽ xuất vật tư cho bạn.",
+        links: [L.pr(ctx.prId)],
+        severity: "success",
+      }),
+    ],
+  };
+}
+
+/**
+ * Báo Kho có phiếu cần xuất: (a) duyệt cuối xong và còn phần xuất từ tồn,
+ * (b) PO của phiếu về đủ hàng. Người Kho đầu tiên xuất → các thông báo khác tự đóng.
+ */
+export function planPRReadyToIssue(
+  ctx: PRCtx & { reason: "approved" | "goods_received" },
+): NotifyPlan {
+  return {
+    eventType: "PR_READY_TO_ISSUE",
+    entityType: "purchase_request",
+    entityId: ctx.prId,
+    entityCode: ctx.prNo,
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    targets: [
+      role("warehouse", {
+        title:
+          ctx.reason === "approved"
+            ? `Cần xuất kho: ${ctx.prNo} đã duyệt`
+            : `Cần xuất kho: ${ctx.prNo} — hàng mua đã về đủ`,
+        message:
+          ctx.reason === "approved"
+            ? "Phiếu đã duyệt cuối, có vật tư xuất được từ tồn — mở phiếu và bấm “Đã xuất kho”."
+            : "PO của phiếu đã nhận đủ hàng — mở phiếu và xuất vật tư cho người đề xuất.",
+        links: [L.pr(ctx.prId)],
+        category: "action",
+        push: true,
       }),
     ],
   };
@@ -550,6 +655,30 @@ export function planPRApproved(ctx: PRCtx): NotifyPlan {
           : "Mở phiếu để tải bản PDF/Excel.",
         links: link,
         severity: "success",
+      }),
+    ],
+  };
+}
+
+/**
+ * A2 — Huỷ hết PO của PR → PR quay về "đã duyệt cuối, chưa lập PO": báo lại
+ * Thu mua (chỉ họ; người lập/Kế toán đã nhận PO_CANCELLED riêng).
+ */
+export function planPRReopenedForPO(ctx: PRCtx & { poNo?: string | null }): NotifyPlan {
+  return {
+    eventType: "PR_APPROVED",
+    entityType: "purchase_request",
+    entityId: ctx.prId,
+    entityCode: ctx.prNo,
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    targets: [
+      role("purchaser", {
+        title: `Cần tạo lại PO: ${ctx.prNo} (đơn mua ${ctx.poNo ?? ""} đã huỷ)`.replace("  ", " "),
+        message: "Mọi PO của phiếu đã bị huỷ — mở phiếu và bấm “Tạo PO” để lập lại.",
+        links: [L.pr(ctx.prId)],
+        category: "action",
+        push: true,
       }),
     ],
   };
@@ -1009,6 +1138,9 @@ export function planPOCancelled(
     entityCode: ctx.poNo,
     actorUserId: ctx.actorUserId,
     actorUsername: ctx.actorUsername,
+    // A6 — thông báo "PO đã tạo từ PR" của người lập PR gắn entityId=PR (không
+    // phải PO) nên phải đối chiếu thêm id PR mới đóng được khi PO bị huỷ.
+    resolveExtraEntityIds: ctx.prId ? [ctx.prId] : undefined,
     targets,
   };
 }

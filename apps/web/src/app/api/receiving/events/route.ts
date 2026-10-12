@@ -17,7 +17,8 @@ import {
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { insertActivityLog } from "@/server/repos/activityLogs";
-import { getPR, markPRGoodsReceivedIfAllPOsDone } from "@/server/repos/purchaseRequests";
+import { getPR } from "@/server/repos/purchaseRequests";
+import { markPrReceivedAndNotifyWarehouse } from "@/server/services/prWarehouseNotify";
 import { findActiveInvoiceForPo } from "@/server/repos/poInvoice";
 import {
   notifyPOReceivedFull,
@@ -285,7 +286,7 @@ export async function POST(req: NextRequest) {
           // (trước đây chỉ route duyệt thủ công làm) → nút "Đã xuất kho /
           // Hoàn tất" ở trang PR mới hiện ra.
           // L4 — chỉ khi TẤT CẢ PO của PR (không tính CANCELLED) đã nhận đủ/đóng.
-          void markPRGoodsReceivedIfAllPOsDone(po.prId).catch(() => {});
+          void markPrReceivedAndNotifyWarehouse(po.prId).catch(() => {});
         }
         // P2 (PO_FLOW_E2E.md bước 10) — PO đã có HĐ active thì không báo lại
         // Kế toán "có thể tạo HĐ mua" (gây hiểu nhầm chưa làm).

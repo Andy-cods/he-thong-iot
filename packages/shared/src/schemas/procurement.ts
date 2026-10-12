@@ -58,6 +58,8 @@ const uuid = z.string().uuid("ID không hợp lệ");
 const positiveQty = z.coerce
   .number({ invalid_type_error: "Số lượng phải là số." })
   .positive("Số lượng phải > 0")
+  // A12 — cột numeric(…,6): giá trị nhỏ hơn 0.000001 làm tròn về 0 vi phạm CHECK.
+  .min(0.000001, "Số lượng tối thiểu 0,000001")
   .max(10_000_000, "Số lượng quá lớn");
 const dateStringOrDate = z
   .union([z.string().trim().min(1), z.date()], {
@@ -75,16 +77,26 @@ export const PR_MAX_ON_HAND = 1e12;
 /** Thành tiền dòng (SL × đơn giá) tối đa — nhỏ hơn trần NUMERIC(18,2) = 1e16. */
 export const PR_MAX_LINE_TOTAL = 1e15;
 
+/** A12 — ngày cần/ngày giao tối đa ~5 năm tới. */
+export const PR_MAX_DATE_AHEAD_DAYS = 365 * 5;
+
 /** Ngày YYYY-MM-DD theo giờ Việt Nam (UTC+7) — không phụ thuộc múi giờ máy chủ. */
 export function prTodayVN(now: Date = new Date()): string {
   return new Date(now.getTime() + 7 * 3600_000).toISOString().slice(0, 10);
 }
 
 /** Ngày cần/ngày giao không được ở quá khứ (cho phép hôm nay, giờ VN). */
-const futureDateStringOrDate = dateStringOrDate.refine(
-  (d) => prTodayVN(d) >= prTodayVN(),
-  "Ngày không được ở quá khứ (chọn hôm nay hoặc sau đó).",
-);
+const futureDateStringOrDate = dateStringOrDate
+  .refine(
+    // A12 — Date không hợp lệ đã bị refine trên báo lỗi; ở đây chỉ tránh ném
+    // RangeError (toISOString) → 500.
+    (d) => Number.isNaN(d.getTime()) || prTodayVN(d) >= prTodayVN(),
+    "Ngày không được ở quá khứ (chọn hôm nay hoặc sau đó).",
+  )
+  .refine(
+    (d) => Number.isNaN(d.getTime()) || d.getTime() <= Date.now() + PR_MAX_DATE_AHEAD_DAYS * 86_400_000,
+    "Ngày quá xa (tối đa 5 năm tới).",
+  );
 
 const vText = (label: string, max: number) =>
   z
@@ -219,12 +231,8 @@ export const prUpdateSchema = z.object({
         /** Existing line id để update (omit → insert mới). */
         id: uuid.optional(),
         ...prLineShape,
-        approvedQty: z.coerce
-          .number({ invalid_type_error: "SL duyệt phải là số." })
-          .nonnegative("SL duyệt không được âm.")
-          .max(10_000_000, "SL duyệt quá lớn.")
-          .optional()
-          .nullable(),
+        // A1 — KHÔNG nhận approvedQty từ client: người lập không được tự ghi SL
+        // duyệt (zod strip khoá lạ). SL duyệt chỉ ghi ở bước duyệt Kho (chưa có luồng).
       })
       .refine(lineHasItem, { message: LINE_NO_ITEM_MSG, path: ["itemName"] })
       .refine(lineTotalOk, { message: LINE_TOTAL_MSG, path: ["estimatedUnitPrice"] }),
@@ -260,6 +268,14 @@ export const prListQuerySchema = z
     })
     .optional()
     .transform((v) => (v === undefined ? undefined : Array.isArray(v) ? v : [v])),
+  /**
+   * A14 — tab "Hoàn tất" tách khỏi "Đã duyệt": completed=1 → chỉ phiếu đã hoàn tất
+   * (approval_step DONE); completed=0 → loại phiếu hoàn tất.
+   */
+  completed: z
+    .enum(["0", "1"])
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v === "1")),
   linkedOrderId: uuid.optional(),
   /** V1.8 — filter PR theo BOM (JOIN qua sales_order.bom_template_id). */
   bomTemplateId: uuid.optional(),

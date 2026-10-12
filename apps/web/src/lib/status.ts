@@ -448,6 +448,8 @@ export const NOTIF_TYPE_LABELS: Record<string, string> = {
   PR_SUBMITTED: "Đề xuất mới",
   PR_DEPT_APPROVED: "Kho đã duyệt",
   PR_APPROVED: "Đề xuất được duyệt",
+  PR_STOCK_COVERED: "Kho đáp ứng đủ",
+  PR_READY_TO_ISSUE: "Cần xuất kho",
   PR_REJECTED: "Đề xuất bị từ chối",
   PR_CANCELLED: "Đề xuất đã huỷ",
   PR_PENDING_REMINDER: "Nhắc duyệt",
@@ -501,5 +503,5 @@ export const NOTIF_TYPE_LABELS: Record<string, string> = {
 /** Mã lạ → "Thông báo" (không bao giờ lộ mã thô kiểu `PR_PENDING_REMINDER`). */
 export function notifTypeLabel(code: string | null | undefined): string {
   if (!code) return "Thông báo";
-  return NOTIF_TYPE_LABELS[code] ?? "Thông báo";
+  return NOTIF_TYPE_LABELS[code.replace(/_INFO$/, "")] ?? "Thông báo";
 }

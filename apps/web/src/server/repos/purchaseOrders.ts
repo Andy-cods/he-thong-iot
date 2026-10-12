@@ -17,6 +17,7 @@ import {
   computePoLineTotal,
   nextPoStatusAfterReceipt,
   prLineToPoLine,
+  shouldRevertPrAfterPoCancel,
   type PoReceiptLine,
 } from "../../lib/procurement-policy";
 import {
@@ -453,7 +454,8 @@ async function findOrCreateItemForLine(
     const [bySku] = await tx
       .select({ id: item.id })
       .from(item)
-      .where(eq(item.sku, sku))
+      // A7 — chỉ gắn vào vật tư đang dùng (ACTIVE + is_active), bỏ qua vô hiệu.
+      .where(and(eq(item.sku, sku), eq(item.status, "ACTIVE"), eq(item.isActive, true)))
       .limit(1);
     if (bySku) return bySku.id;
   }
@@ -462,7 +464,13 @@ async function findOrCreateItemForLine(
   const [byName] = await tx
     .select({ id: item.id })
     .from(item)
-    .where(sql`lower(${item.name}) = lower(${name})`)
+    .where(
+      and(
+        sql`lower(${item.name}) = lower(${name})`,
+        eq(item.status, "ACTIVE"),
+        eq(item.isActive, true),
+      ),
+    )
     .limit(1);
   if (byName) return byName.id;
 
@@ -573,6 +581,21 @@ export async function createPOFromPR(
       .where(eq(purchaseRequestLine.prId, prId));
     if (lines.length === 0) throw new Error("PR_EMPTY");
 
+    // Chỉ mua PHẦN CÒN THIẾU: min(SL cần mua Kho chốt, SL đề xuất − đã xuất từ kho).
+    const issuedRows = (await tx.execute(sql`
+      SELECT gil.purchase_request_line_id::text AS line_id, COALESCE(SUM(gil.qty), 0)::text AS qty
+      FROM app.goods_issue_line gil
+      JOIN app.goods_issue gi ON gi.id = gil.goods_issue_id
+      WHERE gi.purchase_request_id = ${prId}
+      GROUP BY gil.purchase_request_line_id
+    `)) as unknown as Array<{ line_id: string | null; qty: string }>;
+    const issuedByLine = new Map<string, number>();
+    for (const r of issuedRows) if (r.line_id) issuedByLine.set(r.line_id, Number(r.qty) || 0);
+    // Mọi dòng đã được Kho đáp ứng đủ → không có gì để mua (trước khi tạo vật tư/NCC phụ).
+    if (lines.every((l) => prLineToPoLine(l, issuedByLine.get(l.id) ?? 0) === null)) {
+      throw new Error("PR_ALL_COVERED");
+    }
+
     // V3.10.2 — Dòng vật tư nhập tay (itemId NULL) → tự động tạo/tìm item master
     // rồi gán vào line (thay vì reject). Cho phép tạo PO trực tiếp từ phiếu DNVT.
     const freetext = lines.filter((l) => !l.itemId);
@@ -668,7 +691,7 @@ export async function createPOFromPR(
     }
 
     // V4.1 TM-10 — dòng bị gạch (SL duyệt = 0) không đưa vào PO.
-    lines = lines.filter((l) => prLineToPoLine(l) !== null);
+    lines = lines.filter((l) => prLineToPoLine(l, issuedByLine.get(l.id) ?? 0) !== null);
     if (lines.length === 0) throw new Error("PR_EMPTY");
 
     // Guard: toàn bộ line phải có preferred_supplier_id
@@ -724,7 +747,7 @@ export async function createPOFromPR(
       // dùng `qty` đề xuất), VAT mặc định 8, tính line_total + tổng PO.
       let poTotal = 0;
       const poLines = supplierLines.map((l, idx) => {
-        const mapped = prLineToPoLine(l)!;
+        const mapped = prLineToPoLine(l, issuedByLine.get(l.id) ?? 0)!;
         const lineTotal = computePoLineTotal(mapped.orderedQty, mapped.unitPrice, 8);
         poTotal += lineTotal;
         return {
@@ -1345,7 +1368,7 @@ export async function cancelPO(
   id: string,
   userId: string | null,
   reason: string,
-): Promise<PurchaseOrder> {
+): Promise<PurchaseOrder & { prRevertedToApproved: boolean }> {
   return db.transaction(async (tx) => {
     const [po] = await tx
       .select()
@@ -1389,7 +1412,44 @@ export async function cancelPO(
       .where(eq(purchaseOrder.id, id))
       .returning();
     if (!row) throw new Error("PO_UPDATE_FAILED");
-    return row;
+
+    // A2 — huỷ hết PO của PR → PR về APPROVED (như sau bước duyệt cuối), bỏ mốc
+    // "đã tạo đơn mua" để tạo lại PO được (trước đây kẹt CONVERTED vĩnh viễn).
+    let prRevertedToApproved = false;
+    if (row.prId) {
+      const [pr] = await tx
+        .select({ id: purchaseRequest.id, status: purchaseRequest.status })
+        .from(purchaseRequest)
+        .where(eq(purchaseRequest.id, row.prId))
+        .limit(1)
+        .for("update");
+      if (pr) {
+        const pos = await tx
+          .select({ status: purchaseOrder.status })
+          .from(purchaseOrder)
+          .where(eq(purchaseOrder.prId, row.prId));
+        if (
+          shouldRevertPrAfterPoCancel(
+            pr.status,
+            pos.map((x) => x.status),
+          )
+        ) {
+          await tx
+            .update(purchaseRequest)
+            .set({
+              status: "APPROVED",
+              approvalStep: "DIRECTOR_APPROVED",
+              poCreatedAt: null,
+              updatedAt: new Date(),
+            })
+            .where(
+              and(eq(purchaseRequest.id, pr.id), eq(purchaseRequest.status, "CONVERTED")),
+            );
+          prRevertedToApproved = true;
+        }
+      }
+    }
+    return Object.assign(row, { prRevertedToApproved });
   });
 }
 

@@ -4,6 +4,7 @@ import { logger } from "@/lib/logger";
 import { statusLabel } from "@/lib/status";
 import { listPRsInRange, type PRSlip } from "@/server/repos/purchaseRequests";
 import { jsonError } from "@/server/http";
+import { validateExportRange } from "@/lib/procurement-policy";
 import { canExportPrExcel, canViewAllPRs } from "@/server/services/prAccess";
 import { requireCan } from "@/server/session";
 import { deriveDisplayLabel, NO_LINE_LABEL } from "@/lib/pr-display-label";
@@ -116,6 +117,10 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const from = url.searchParams.get("from") ?? "";
   const to = url.searchParams.get("to") ?? "";
+  const rangeError = validateExportRange(from, to);
+  if (rangeError) {
+    return jsonError("VALIDATION", rangeError, 422);
+  }
   if (!DATE_RE.test(from) || !DATE_RE.test(to)) {
     return jsonError(
       "VALIDATION",
