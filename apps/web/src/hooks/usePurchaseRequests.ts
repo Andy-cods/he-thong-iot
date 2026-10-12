@@ -106,6 +106,8 @@ export interface PRLineEnriched {
   issuedQty?: number;
   /** T2 — trần xuất kho của dòng (server tính: giai đoạn + hàng PO đã về). */
   issueCap?: number;
+  /** Còn xuất được (= phần giữ chỗ) — server tính từ prIssueRight. */
+  issueRemaining?: number;
   /** Tồn KHẢ DỤNG hiện tại của vật tư (chỉ trả cho admin/Kho/Mua hàng; null = không có quyền/dòng nhập tay). */
   availableQty?: number | null;
   // V3.10 DNVT — Tham khảo (free-text) + Ngày giao hàng. Server đã trả 2 cột
@@ -178,6 +180,8 @@ export interface PRDetailResponse {
     issueStage?: "WAREHOUSE" | "FINAL";
     /** SL còn xuất được từ kho ở giai đoạn hiện tại (0 = ẩn nút "Đã xuất kho" ở giai đoạn Kho). */
     warehouseIssuableRemaining?: number;
+    /** Tổng cam kết (phần giữ + của phiếu khác) vượt tồn thực → cảnh báo Kiểm tồn lại. */
+    shortOfCommitment?: boolean;
   };
 }
 
@@ -368,6 +372,7 @@ export function useRejectPurchaseRequest(id: string) {
     mutationFn: (data: PRRejectInput) =>
       request<{ data: PRRow }>(`/api/purchase-requests/${id}/reject`, {
         method: "POST",
+        // M1 — gửi kèm bước đang thấy trên màn hình (data.expectedStep).
         body: JSON.stringify(data),
       }),
     onSuccess: () => {

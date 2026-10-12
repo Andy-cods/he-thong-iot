@@ -13,6 +13,7 @@
  */
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { roundQty } from "@/lib/procurement-policy";
 
 export interface InventoryBalanceRow {
   itemId: string;
@@ -128,10 +129,10 @@ export async function getInventoryBalance(
       uom: r.uom,
       category: r.category,
       minStockQty: Number(r.min_stock_qty) || 0,
-      onHand,
-      reserved,
-      holdQty,
-      available: Math.max(0, Number(r.issuable) || 0),
+      onHand: roundQty(onHand),
+      reserved: roundQty(reserved),
+      holdQty: roundQty(holdQty),
+      available: roundQty(Math.max(0, Number(r.issuable) || 0)),
     };
   });
 

@@ -2,13 +2,19 @@ import { and, eq, inArray, like, sql } from "drizzle-orm";
 import { notification, purchaseOrder } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import { isWarehouseIssueStage, warehouseIssuableRemaining } from "@/lib/procurement-policy";
+import {
+  allocatePoolToLines,
+  effectiveApprovedQty,
+  prIssuePhaseOf,
+  warehouseIssuableRemaining,
+} from "@/lib/procurement-policy";
 import { GOODS_RECEIVED_TITLE_MARK, shouldNotifyReadyToIssue } from "@/lib/pr-close-policy";
 import {
   getPR,
   getPRIssuedQtyByLine,
   getPRLinesEnriched,
   getPrIssueContext,
+  getPrPoSummary,
   markPRGoodsReceivedIfAllPOsDone,
 } from "@/server/repos/purchaseRequests";
 import { INFO_EVENT_SUFFIX } from "@/server/services/notification-plans";
@@ -81,6 +87,21 @@ export async function notifyReadyToIssueIfAny(
     ]);
 
     let remaining: number;
+    // m4 — SL cần mua mà hàng đạt QC từ PO chưa đủ (PO đóng thiếu / có lô không đạt).
+    let shortQty = 0;
+    if (reason === "goods_received") {
+      const poSum = await getPrPoSummary(prId);
+      const got = allocatePoolToLines(
+        lines.map((l) => ({ id: l.id, itemId: l.itemId, qty: l.qty, approvedQty: l.approvedQty })),
+        poSum.receivedByItem,
+      );
+      for (const l of lines) {
+        if (!l.itemId) continue;
+        const q = Number(l.qty) || 0;
+        const buy = effectiveApprovedQty(l.qty, l.approvedQty) ?? q;
+        shortQty += Math.max(0, buy - (got.get(l.id) ?? 0));
+      }
+    }
     if (reason === "goods_received") {
       const ctx = await getPrIssueContext(
         prId,
@@ -91,18 +112,13 @@ export async function notifyReadyToIssueIfAny(
           approvedQty: l.approvedQty,
         })),
         issued,
-        isWarehouseIssueStage(pr) ? "WAREHOUSE" : "FINAL",
+        prIssuePhaseOf(pr),
       );
-      remaining = warehouseIssuableRemaining(
-        lines.map((l) => ({
-          qty: l.qty,
-          approvedQty: l.approvedQty,
-          issuedQty: issued.get(l.id) ?? 0,
-          hasItem: !!l.itemId,
-          cap: ctx.caps.get(l.id) ?? null,
-        })),
-        "FINAL",
-      );
+      // Cùng hàm prIssueRight với trần xuất/giữ chỗ: Σ phần còn xuất được theo vật tư.
+      remaining =
+        Math.round(
+          Array.from(ctx.remainingByItem.values()).reduce((x, y) => x + y, 0) * 1e6,
+        ) / 1e6;
     } else {
       // Phần xuất từ tồn = qty − SL cần mua → trần kiểu WAREHOUSE.
       remaining = warehouseIssuableRemaining(
@@ -137,6 +153,7 @@ export async function notifyReadyToIssueIfAny(
       actorUserId: reason === "goods_received" ? null : actor?.userId ?? null,
       actorUsername: reason === "goods_received" ? null : actor?.fullName ?? null,
       reason,
+      shortQty,
     });
   } catch (err) {
     logger.warn({ err, prId }, "notifyReadyToIssueIfAny failed");

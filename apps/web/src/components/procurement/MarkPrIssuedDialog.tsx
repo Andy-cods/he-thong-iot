@@ -53,6 +53,10 @@ export interface MarkPrIssuedLine {
   issuedQty?: number;
   /** T2 — trần xuất do server tính (giai đoạn + hàng PO đã về); không có → tính theo giai đoạn. */
   issueCap?: number;
+  /** Phần còn xuất được do server tính từ `prIssueRight` (= cap − đã xuất, 0 nếu không giữ chỗ). */
+  issueRemaining?: number;
+  /** Tồn KHẢ DỤNG sau giữ chỗ phiếu khác, lũy kế theo vật tư (không phải tồn thô). */
+  availableQty?: number | null;
 }
 
 /**
@@ -61,6 +65,7 @@ export interface MarkPrIssuedLine {
  * sau duyệt cuối trần = SL đề xuất.
  */
 function remainingOf(l: MarkPrIssuedLine, stage: "WAREHOUSE" | "FINAL" = "FINAL"): number {
+  if (l.issueRemaining != null) return l.issueRemaining;
   const cap = l.issueCap ?? issueCapForStage(stage, l.qty, l.approvedQty);
   return Math.max(0, cap - (l.issuedQty ?? 0));
 }
@@ -138,46 +143,19 @@ export function MarkPrIssuedDialog({
       const cap = remainingOf(l, stage);
       init[l.id] = cap > 0 ? String(Number(cap.toFixed(4))) : "";
     }
-    setQtyByLine(init);
-
-    const itemIds = Array.from(
-      new Set(stockLines.map((l) => l.itemId!).filter(Boolean)),
-    );
-    setAvailableByItem(
-      Object.fromEntries(itemIds.map((id) => [id, { loading: true, qty: null }])),
-    );
-    for (const itemId of itemIds) {
-      void fetch(`/api/items/${itemId}/inventory-summary`, {
-        credentials: "include",
-      })
-        .then((res) => (res.ok ? res.json() : null))
-        .then((json: { data?: { summary?: { availableQty?: number } } } | null) => {
-          const qty = json?.data?.summary?.availableQty ?? null;
-          setAvailableByItem((prev) => ({
-            ...prev,
-            [itemId]: { loading: false, qty },
-          }));
-          // Mặc định SL xuất = min(cap đề xuất/duyệt, khả dụng) — chỉ hạ khi
-          // khả dụng thấp hơn giá trị mặc định ban đầu.
-          if (qty != null) {
-            setQtyByLine((prev) => {
-              const line = stockLines.find((l) => l.itemId === itemId);
-              if (!line) return prev;
-              const current = Number(prev[line.id] ?? 0) || 0;
-              if (current > qty + EPS) {
-                return { ...prev, [line.id]: qty > 0 ? String(Number(qty.toFixed(4))) : "" };
-              }
-              return prev;
-            });
-          }
-        })
-        .catch(() => {
-          setAvailableByItem((prev) => ({
-            ...prev,
-            [itemId]: { loading: false, qty: null },
-          }));
-        });
+    // "Khả dụng" = tồn khả dụng SAU giữ chỗ cho phiếu khác (server tính, lũy kế theo vật tư) — không tồn thô.
+    const avail: Record<string, AvailableState> = {};
+    for (const l of stockLines) {
+      const q = l.availableQty ?? null;
+      avail[l.id] = { loading: false, qty: q };
+      if (q != null) {
+        const cap = remainingOf(l, stage);
+        const v = Math.min(cap, q);
+        init[l.id] = v > 0 ? String(Number(v.toFixed(4))) : "";
+      }
     }
+    setQtyByLine(init);
+    setAvailableByItem(avail);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, prId]);
 
@@ -351,7 +329,7 @@ export function MarkPrIssuedDialog({
                   const cap = remainingOf(l, stage);
                   const val = qtyByLine[l.id] ?? "";
                   const over = (Number(val) || 0) > cap + EPS;
-                  const avail = availableByItem[l.itemId!];
+                  const avail = availableByItem[l.id];
                   const uom = l.uom ?? l.itemUom;
                   return (
                     <li
@@ -443,7 +421,7 @@ export function MarkPrIssuedDialog({
                       const cap = remainingOf(l, stage);
                       const val = qtyByLine[l.id] ?? "";
                       const over = (Number(val) || 0) > cap + EPS;
-                      const avail = availableByItem[l.itemId!];
+                      const avail = availableByItem[l.id];
                       return (
                         <tr
                           key={l.id}

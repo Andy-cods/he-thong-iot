@@ -92,10 +92,10 @@ describe("Xuất kho theo giai đoạn", () => {
     expect(isWarehouseIssueStage({ status: "SUBMITTED", approvalStep: "SUBMITTED" })).toBe(false);
     expect(isWarehouseIssueStage({ status: "APPROVED", approvalStep: "DIRECTOR_APPROVED" })).toBe(false);
   });
-  it("trần: Kho = qty − cần mua; sau duyệt cuối = qty", () => {
+  it("trần nền = qty − cần mua (B2: sau duyệt cuối chưa có PO vẫn thế)", () => {
     expect(issueCapForStage("WAREHOUSE", 10, 4)).toBe(6);
     expect(issueCapForStage("WAREHOUSE", 10, null)).toBe(0);
-    expect(issueCapForStage("FINAL", 10, 4)).toBe(10);
+    expect(issueCapForStage("FINAL", 10, 4)).toBe(6);
   });
   const states = [{ id: "l1", itemId: "i", sku: "S", qty: 10, approvedQty: 4, issuedQty: 0 }];
   const pick = (qty: number) => [{ prLineId: "l1", lotSerialId: "x", binId: "y", qty }];
@@ -103,13 +103,14 @@ describe("Xuất kho theo giai đoạn", () => {
     expect(validatePrIssuePicks(states, pick(6), "WAREHOUSE").ok).toBe(true);
     expect(validatePrIssuePicks(states, pick(7), "WAREHOUSE").ok).toBe(false);
   });
-  it("sau duyệt cuối: trần là qty (không phải approved)", () => {
-    expect(validatePrIssuePicks(states, pick(10), "FINAL").ok).toBe(true);
-    expect(validatePrIssuePicks(states, pick(11), "FINAL").ok).toBe(false);
+  it("B2 — sau duyệt cuối chưa có PO: trần vẫn qty − cần mua (6), không phải qty", () => {
+    expect(validatePrIssuePicks(states, pick(6), "FINAL").ok).toBe(true);
+    expect(validatePrIssuePicks(states, pick(7), "FINAL").ok).toBe(false);
   });
   it("tiến độ giai đoạn Kho hoàn tất khi xuất đủ phần từ kho", () => {
     expect(computePrIssueProgress([{ ...states[0]!, issuedQty: 6 }], "WAREHOUSE").complete).toBe(true);
-    expect(computePrIssueProgress([{ ...states[0]!, issuedQty: 6 }], "FINAL").complete).toBe(false);
+    // sau duyệt cuối còn phần cần mua chưa về (outstandingBuy) → chưa hoàn tất
+    expect(computePrIssueProgress([{ ...states[0]!, issuedQty: 6 }], "FINAL", true).complete).toBe(false);
   });
   it("phần còn xuất được (thông báo Kho)", () => {
     const mk = (approvedQty: number | null, issuedQty = 0, hasItem = true) => ({ qty: 10, approvedQty, issuedQty, hasItem });
@@ -237,6 +238,6 @@ describe("Thông báo Kho / Kho đáp ứng đủ", () => {
   });
   it("PR_DEPT_APPROVED nêu 'có sẵn X dòng, cần mua Y dòng'", () => {
     const plan = planPRDeptApproved({ ...ctx, coveredLines: 2, buyLines: 3 });
-    expect(plan.targets[0]!.message).toContain("Có sẵn 2 dòng, cần mua 3 dòng");
+    expect(plan.targets[0]!.message).toContain("Có sẵn 2 dòng · cần mua 3 dòng");
   });
 });

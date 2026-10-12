@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import {
   getPR,
   getPRIssuedQtyByLine,
+  getPrShortOfCommitment,
   getPrStockCheck,
 } from "@/server/repos/purchaseRequests";
 import { jsonError, validateUuidParam } from "@/server/http";
@@ -41,8 +42,11 @@ export async function GET(
   }
   const issued = recheck ? await getPRIssuedQtyByLine(params.id) : undefined;
   const lines = await getPrStockCheck(params.id, undefined, issued);
+  const short = await getPrShortOfCommitment(pr);
   return NextResponse.json({
     data: {
+      shortOfCommitment: short.length > 0,
+      shortOfCommitmentItems: short,
       approvalStep: pr.approvalStep,
       recheck,
       lines: lines.map((l) => ({ ...l, defaultBuyQty: defaultBuyQty(l.qty, l.available) })),

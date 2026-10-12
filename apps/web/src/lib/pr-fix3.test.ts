@@ -212,9 +212,9 @@ describe("C4 — phân bổ tồn lũy kế theo vật tư", () => {
 });
 
 describe("T2 — trần xuất khi đã có PO sống", () => {
-  it("không có PO → trần = đề xuất như cũ", () => {
-    expect(issueCapForStage("FINAL", 10, 6)).toBe(10);
-    expect(buildIssueContext("FINAL", [{ id: "a", itemId: "i", qty: 10, approvedQty: 6 }], noPo).caps.get("a")).toBe(10);
+  it("B2 — chưa có PO → trần = qty − cần mua (phần cần mua chưa mua thì chưa xuất từ tồn)", () => {
+    expect(issueCapForStage("FINAL", 10, 6)).toBe(4);
+    expect(buildIssueContext("FINAL", [{ id: "a", itemId: "i", qty: 10, approvedQty: 6 }], noPo).caps.get("a")).toBe(4);
   });
   it("L3: qty 10, cần mua 6, PO 6 chưa về → trần 4", () => {
     const c = buildIssueContext("FINAL", [{ id: "a", itemId: "i", qty: 10, approvedQty: 6 }], po({}));
@@ -229,17 +229,14 @@ describe("T2 — trần xuất khi đã có PO sống", () => {
     expect(buildIssueContext("FINAL", [line], po({}, undefined, { i: 3 })).caps.get("a")).toBe(7);
     expect(buildIssueContext("FINAL", [line], po({ i: 3 }, undefined, { i: 3 })).caps.get("a")).toBe(10);
   });
-  it("L3: PO đã đóng không còn chờ → trần = đề xuất; không có PO sống → qty", () => {
+  it("PO đã đóng mà chưa nhận gì → trần = qty − cần mua (chỉ hàng đã về đạt QC mới mở thêm trần)", () => {
     const closed: PrPoSummary = {
       hasLivePo: true,
       receivedByItem: new Map(),
       settledByItem: new Map([["i", 6]]),
       pendingByItem: new Map([["i", 0]]),
     };
-    expect(buildIssueContext("FINAL", [{ id: "a", itemId: "i", qty: 10, approvedQty: 6 }], closed).caps.get("a")).toBe(10);
-    expect(issueCapForStage("FINAL", 10, 6, null)).toBe(10);
-    expect(issueCapForStage("FINAL", 10, 6, 99)).toBe(0);
-    expect(issueCapForStage("FINAL", 10, 6, -5)).toBe(10);
+    expect(buildIssueContext("FINAL", [{ id: "a", itemId: "i", qty: 10, approvedQty: 6 }], closed).caps.get("a")).toBe(4);
   });
   it("PO về đủ/vượt → trần tối đa = đề xuất", () => {
     const c = buildIssueContext("FINAL", [{ id: "a", itemId: "i", qty: 10, approvedQty: 6 }], po({ i: 9 }, undefined, { i: 6 }));

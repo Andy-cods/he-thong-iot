@@ -11,7 +11,7 @@ import {
 import { writeAudit } from "@/server/services/audit";
 import { notifyPRRejected } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
-import { canRejectAtStep, isSelfApprovalBlocked } from "@/lib/procurement-policy";
+import { canRejectAtStep, isExpectedStepStale, isSelfApprovalBlocked } from "@/lib/procurement-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,6 +42,16 @@ export async function POST(
       "Chỉ phiếu đang chờ phê duyệt mới có thể bị từ chối.",
       409,
     );
+  }
+
+  // M1 — client gửi bước nó đang thấy; phiếu đã sang bước khác → 409 (không từ chối nhầm bước).
+  // Đọc body sớm chỉ để lấy expectedStep (parseJson ở dưới kiểm hợp lệ đầy đủ).
+  const peek = (await req.clone().json().catch(() => null)) as { expectedStep?: unknown } | null;
+  if (
+    typeof peek?.expectedStep === "string" &&
+    isExpectedStepStale(before.approvalStep, peek.expectedStep)
+  ) {
+    return jsonError("STEP_CHANGED", "Phiếu đã đổi bước, tải lại trang.", 409);
   }
 
   // A8 — khoá đúng bước: SUBMITTED → Kho/admin; DEPT_APPROVED → Mua hàng/admin.

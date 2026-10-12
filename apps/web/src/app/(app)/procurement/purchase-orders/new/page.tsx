@@ -61,9 +61,10 @@ export default function NewPurchaseOrderPage() {
         <div className="mt-4 flex items-start gap-2 rounded-lg border border-blue-100 bg-blue-50/60 px-4 py-2.5 text-xs text-blue-900 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300">
           <FileText className="mt-0.5 h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
           <p>
-            <strong>Mẹo:</strong> chọn từ Đề xuất vật tư (PR) đã duyệt để pre-fill
-            tự động hoặc tạo mới từ đầu. Sau khi gửi PO (status SENT), đơn sẽ
-            tự động xuất hiện ở Bộ phận Kho để nhận hàng.
+            <strong>Mẹo:</strong> muốn đặt hàng theo Đề xuất vật tư (PR) đã duyệt,
+            hãy mở phiếu và bấm “Tạo PO” — PO tạo từ phiếu chỉ gồm phần còn cần mua
+            và gắn với phiếu. Trang này dùng để tạo PO mới từ đầu.
+            Sau khi gửi PO (status SENT), đơn sẽ tự động xuất hiện ở Bộ phận Kho để nhận hàng.
           </p>
         </div>
       </header>

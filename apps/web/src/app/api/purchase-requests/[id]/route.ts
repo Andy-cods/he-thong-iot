@@ -9,7 +9,9 @@ import {
   deletePR,
   getPR,
   computePrIssueProgress,
+  getCommittedByItem,
   getIssuableQtyByItem,
+  getShortOfCommitment,
   getPRIssuedQtyByLine,
   getPrIssueContext,
   getPRLinesEnriched,
@@ -26,7 +28,13 @@ import { writeAudit, diffObjects } from "@/server/services/audit";
 import { canAccessPR, canEditPRDraft } from "@/server/services/prAccess";
 import { requireCan, requireSession } from "@/server/session";
 import { db } from "@/lib/db";
-import { isWarehouseIssueStage, warehouseIssuableRemaining } from "@/lib/procurement-policy";
+import {
+  allocateStockAcrossLines,
+  isWarehouseIssueStage,
+  netIssuableByItem,
+  prIssuePhaseOf,
+  roundQty,
+} from "@/lib/procurement-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,13 +78,17 @@ export async function GET(
   const canSeeStock = guard.session.roles.some((r) =>
     ["admin", "warehouse", "purchaser"].includes(r),
   );
-  const availByItem = canSeeStock
-    ? await getIssuableQtyByItem(
-        Array.from(new Set(lines.map((l) => l.itemId).filter((x): x is string => !!x))),
-      )
-    : new Map<string, number>();
+  const itemIdsAll = Array.from(new Set(lines.map((l) => l.itemId).filter((x): x is string => !!x)));
+  const [issuableByItem, heldByOthers] = canSeeStock
+    ? await Promise.all([
+        getIssuableQtyByItem(itemIdsAll),
+        getCommittedByItem(itemIdsAll, params.id),
+      ])
+    : [new Map<string, number>(), new Map<string, number>()];
   // Giai đoạn Kho (đã qua Kho duyệt, chưa duyệt cuối): trần xuất = qty − SL cần mua.
   const issueStage = isWarehouseIssueStage(row) ? "WAREHOUSE" : "FINAL";
+  // B1-B3 — phần phiếu này đang GIỮ CHỖ chỉ tính khi phiếu ở giai đoạn giữ chỗ (đã qua Kho, chưa hoàn tất).
+  const holdPhase = prIssuePhaseOf(row);
   // T2/C3 — có PO sống: trần = (đề xuất − cần mua) + đã nhận; còn phần cần mua chưa về → chưa hoàn tất.
   const issueCtx = await getPrIssueContext(
     params.id,
@@ -87,15 +99,33 @@ export async function GET(
       approvedQty: l.approvedQty != null ? Number(l.approvedQty) : null,
     })),
     issuedByLine,
-    issueStage,
+    holdPhase,
+  );
+  // m5 — TỒN KHẢ DỤNG sau giữ chỗ phiếu khác, LŨY KẾ theo vật tư (dòng trước dùng trước), mỗi dòng
+  // "tiêu" phần còn xuất được của nó (phiếu chưa vào giai đoạn giữ chỗ: tiêu theo SL đề xuất).
+  const availAfterHold = allocateStockAcrossLines(
+    lines.map((l) => ({
+      id: l.id,
+      itemId: l.itemId,
+      qty: holdPhase === "NONE" ? Number(l.qty) || 0 : issueCtx.remaining.get(l.id) ?? 0,
+    })),
+    netIssuableByItem(issuableByItem, heldByOthers),
   );
   const linesWithIssued = lines.map((l) => ({
     ...l,
     issuedQty: issuedByLine.get(l.id) ?? 0,
     /** Trần xuất kho của dòng (đã tính giai đoạn + hàng đã về). */
     issueCap: issueCtx.caps.get(l.id) ?? (Number(l.qty) || 0),
-    availableQty: canSeeStock && l.itemId ? availByItem.get(l.itemId) ?? 0 : null,
+    /** Còn xuất được (= phần phiếu giữ chỗ cho dòng). */
+    issueRemaining: issueCtx.remaining.get(l.id) ?? 0,
+    availableQty: canSeeStock && l.itemId ? roundQty(availAfterHold.get(l.id) ?? 0) : null,
+    /** Tồn thô (chưa trừ giữ chỗ) — chỉ để tham chiếu. */
+    stockRawQty: canSeeStock && l.itemId ? roundQty(issuableByItem.get(l.itemId) ?? 0) : null,
   }));
+  const shortOfCommitment =
+    canSeeStock && holdPhase !== "NONE"
+      ? await getShortOfCommitment(params.id, issueCtx.remainingByItem)
+      : [];
   const issueProgress = computePrIssueProgress(
     linesWithIssued.map((l) => ({
       id: l.id,
@@ -109,15 +139,9 @@ export async function GET(
     issueStage,
     issueCtx.outstandingBuy,
   );
-  const warehouseRemaining = warehouseIssuableRemaining(
-    linesWithIssued.map((l) => ({
-      qty: l.qty,
-      approvedQty: l.approvedQty,
-      issuedQty: l.issuedQty,
-      hasItem: !!l.itemId,
-      cap: l.issueCap,
-    })),
-    issueStage,
+  // Σ remaining theo vật tư (phiếu không ở giai đoạn giữ chỗ → 0): quyết định hiện nút "Đã xuất kho".
+  const warehouseRemaining = roundQty(
+    Array.from(issueCtx.remainingByItem.values()).reduce((x, y) => x + y, 0),
   );
   // A18 — trạng thái PO THẬT của phiếu (mục IV không tick "Đã tạo đơn mua" khi PO đã huỷ).
   const purchaseOrders = await db
@@ -155,6 +179,8 @@ export async function GET(
       issueProgress,
       issueStage,
       warehouseIssuableRemaining: warehouseRemaining,
+      shortOfCommitment: shortOfCommitment.length > 0,
+      shortOfCommitmentItems: shortOfCommitment,
       purchaseOrders,
       requestedByName: row.requestedBy ? nameMap.get(row.requestedBy) ?? null : null,
       deptApprovedByName: row.deptApprovedBy

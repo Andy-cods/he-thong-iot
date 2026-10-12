@@ -1,14 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
-import { deptApprovePR, getPR, PrApprovalError } from "@/server/repos/purchaseRequests";
+import { deptApprovePR, getPR, getPRLines, PrApprovalError } from "@/server/repos/purchaseRequests";
 import { buyQtysSchema } from "@/lib/pr-buy-schema";
 import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { notifyPRDeptApproved, notifyPRStockCovered } from "@/server/services/notifications";
 import { notifyReadyToIssueIfAny } from "@/server/services/prWarehouseNotify";
 import { requireCan } from "@/server/session";
-import { isSelfApprovalBlocked } from "@/lib/procurement-policy";
+import { isSelfApprovalBlocked, summarizeLineCoverage } from "@/lib/procurement-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -128,7 +128,8 @@ export async function POST(
       });
       void notifyReadyToIssueIfAny(params.id, "stock_covered", guard.session);
     } else {
-      // Người duyệt cuối nhận kèm tóm tắt "có sẵn X dòng, cần mua Y dòng".
+      // Người duyệt cuối nhận kèm tóm tắt "có sẵn X dòng · cần mua Y dòng (Z dòng có sẵn một phần)" (m5).
+      const cover = summarizeLineCoverage(await getPRLines(params.id));
       void notifyPRDeptApproved({
         prId: params.id,
         prNo,
@@ -136,8 +137,9 @@ export async function POST(
         actorUserId: guard.session.userId,
         actorUsername: guard.session.fullName,
         creatorUserId: before.requestedBy,
-        coveredLines: row.summary.coveredLines,
-        buyLines: row.summary.buyLines,
+        coveredLines: cover.coveredLines,
+        buyLines: cover.buyLines,
+        partialLines: cover.partialLines,
       });
     }
 

@@ -1,5 +1,6 @@
 import type { Role } from "@iot/shared";
 import { isRouteAllowed } from "@/lib/route-guard";
+import { formatCoverageSummary } from "@/lib/procurement-policy";
 
 /**
  * TASK-20260927 — "Kế hoạch thông báo" THUẦN (không đụng DB) cho mọi sự kiện.
@@ -216,7 +217,9 @@ export const ACTION_EVENT_TYPES: ReadonlySet<NotificationEventType> = new Set<No
 export const RESOLVES_STALE: Partial<
   Record<NotificationEventType, readonly NotificationEventType[]>
 > = {
-  PR_DEPT_APPROVED: ["PR_SUBMITTED", "PR_PENDING_REMINDER"],
+  // m3 — "Kiểm tồn lại" làm tăng cần mua → phiếu về chờ duyệt cuối: đóng các thông báo mâu thuẫn
+  // ("Kho đáp ứng đủ", "Cần xuất kho" bản đáp ứng đủ) còn treo.
+  PR_DEPT_APPROVED: ["PR_SUBMITTED", "PR_PENDING_REMINDER", "PR_READY_TO_ISSUE", "PR_STOCK_COVERED"],
   PR_STOCK_COVERED: ["PR_SUBMITTED", "PR_PENDING_REMINDER"],
   PR_APPROVED: ["PR_SUBMITTED", "PR_DEPT_APPROVED", "PR_PENDING_REMINDER"],
   PR_REJECTED: ["PR_SUBMITTED", "PR_DEPT_APPROVED", "PR_PENDING_REMINDER", "PR_READY_TO_ISSUE"],
@@ -535,13 +538,17 @@ export function planPRSubmitted(ctx: PRCtx): NotifyPlan {
 
 /** Bước 2 — Kho duyệt → Giám đốc + Thu mua duyệt cuối; người lập biết tiến độ (không email). */
 export function planPRDeptApproved(
-  ctx: PRCtx & { coveredLines?: number; buyLines?: number },
+  ctx: PRCtx & { coveredLines?: number; buyLines?: number; partialLines?: number },
 ): NotifyPlan {
   const link = [L.pr(ctx.prId)];
-  // Kho đã kiểm tồn: nêu tóm tắt "có sẵn X dòng, cần mua Y dòng" cho người duyệt cuối.
+  // Kho đã kiểm tồn: nêu tóm tắt "Có sẵn X dòng · cần mua Y dòng (Z dòng có sẵn một phần)" (m5).
   const stock =
     ctx.coveredLines != null && ctx.buyLines != null
-      ? ` Có sẵn ${ctx.coveredLines} dòng, cần mua ${ctx.buyLines} dòng.`
+      ? ` ${formatCoverageSummary({
+          coveredLines: ctx.coveredLines,
+          buyLines: ctx.buyLines,
+          partialLines: ctx.partialLines ?? 0,
+        })}.`
       : "";
   return {
     eventType: "PR_DEPT_APPROVED",
@@ -607,7 +614,11 @@ export function planPRStockCovered(ctx: PRCtx): NotifyPlan {
  * (b) PO của phiếu về đủ hàng. Người Kho đầu tiên xuất → các thông báo khác tự đóng.
  */
 export function planPRReadyToIssue(
-  ctx: PRCtx & { reason: "approved" | "goods_received" | "stock_covered" },
+  ctx: PRCtx & {
+    reason: "approved" | "goods_received" | "stock_covered";
+    /** m4 — SL mua chưa về đủ (PO đóng thiếu / QC không đạt). > 0 → tiêu đề "(thiếu N)". */
+    shortQty?: number;
+  },
 ): NotifyPlan {
   const title =
     ctx.reason === "approved"
@@ -615,13 +626,17 @@ export function planPRReadyToIssue(
       : ctx.reason === "stock_covered"
         ? `Cần xuất kho: ${ctx.prNo} — Kho đáp ứng đủ từ tồn`
         // Dấu hiệu "hàng mua đã về" được dùng để chống báo trùng (GOODS_RECEIVED_TITLE_MARK).
-        : `Cần xuất kho: ${ctx.prNo} — hàng mua đã về đủ`;
+        : (ctx.shortQty ?? 0) > 1e-6
+          ? `Cần xuất kho: ${ctx.prNo} — hàng mua đã về (thiếu ${Number((ctx.shortQty ?? 0).toFixed(4)).toLocaleString("vi-VN")})`
+          : `Cần xuất kho: ${ctx.prNo} — hàng mua đã về đủ`;
   const message =
     ctx.reason === "approved"
       ? "Phiếu đã duyệt cuối, có vật tư xuất được từ tồn — mở phiếu và bấm “Đã xuất kho”."
       : ctx.reason === "stock_covered"
         ? "Kho đã kiểm tồn: đủ hàng, không cần mua — mở phiếu và xuất vật tư cho người đề xuất."
-        : "PO của phiếu đã nhận đủ hàng và QC đạt — mở phiếu và xuất vật tư cho người đề xuất.";
+        : (ctx.shortQty ?? 0) > 1e-6
+          ? "PO của phiếu đã đóng/nhận nhưng chưa đủ số lượng cần mua (thiếu hàng hoặc có lô QC không đạt) — mở phiếu và xuất phần hàng đạt cho người đề xuất."
+          : "PO của phiếu đã nhận đủ hàng và QC đạt — mở phiếu và xuất vật tư cho người đề xuất.";
   return {
     eventType: "PR_READY_TO_ISSUE",
     entityType: "purchase_request",

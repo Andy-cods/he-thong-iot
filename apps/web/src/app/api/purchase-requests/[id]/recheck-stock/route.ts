@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
-import { getPR, PrApprovalError, recheckPrStock } from "@/server/repos/purchaseRequests";
+import { summarizeLineCoverage } from "@/lib/procurement-policy";
+import { getPR, getPRLines, PrApprovalError, recheckPrStock } from "@/server/repos/purchaseRequests";
 import { buyQtysSchema } from "@/lib/pr-buy-schema";
 import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
@@ -64,6 +65,7 @@ export async function POST(
       ...meta,
     });
     if (r.increased) {
+      const cover = summarizeLineCoverage(await getPRLines(params.id));
       void notifyPRDeptApproved({
         prId: params.id,
         prNo: before.paperFormNo ?? before.code,
@@ -71,8 +73,9 @@ export async function POST(
         actorUserId: guard.session.userId,
         actorUsername: guard.session.fullName,
         creatorUserId: before.requestedBy,
-        coveredLines: r.summary.coveredLines,
-        buyLines: r.summary.buyLines,
+        coveredLines: cover.coveredLines,
+        buyLines: cover.buyLines,
+        partialLines: cover.partialLines,
       });
     }
     return NextResponse.json({

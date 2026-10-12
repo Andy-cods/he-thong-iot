@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { jsonError } from "@/server/http";
 import { requireCan } from "@/server/session";
+import { roundQty } from "@/lib/procurement-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -96,20 +97,20 @@ export async function GET(
       data: {
         summary: {
           // V4.1 — "Khả dụng" = issuable (lô AVAILABLE − giữ chỗ ACTIVE).
-          availableQty: Number(s.issuable),
-          availableOnHandQty: Number(s.available_on_hand),
-          holdQty: Number(s.hold),
-          consumedQty: Number(s.consumed),
-          expiredQty: Number(s.expired),
-          totalQty: Number(s.total),
-          reservedQty: Number(s.reserved),
+          availableQty: roundQty(Number(s.issuable)),
+          availableOnHandQty: roundQty(Number(s.available_on_hand)),
+          holdQty: roundQty(Number(s.hold)),
+          consumedQty: roundQty(Number(s.consumed)),
+          expiredQty: roundQty(Number(s.expired)),
+          totalQty: roundQty(Number(s.total)),
+          reservedQty: roundQty(Number(s.reserved)),
         },
         lots: lotsRows.map((r) => ({
           id: r.id,
           lotCode: r.lot_code,
           serialCode: r.serial_code,
           status: r.status,
-          onHandQty: Number(r.on_hand),
+          onHandQty: roundQty(Number(r.on_hand)),
           expDate: r.exp_date,
           createdAt: r.created_at,
         })),

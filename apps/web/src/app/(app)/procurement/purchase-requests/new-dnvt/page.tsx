@@ -1,5 +1,6 @@
 "use client";
 
+import { AutoGrowTextarea } from "@/components/procurement/AutoGrowTextarea";
 import * as React from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -656,7 +657,7 @@ export default function NewDnvtPage() {
                         </span>
                       </Td>
                       <Td>
-                        <textarea
+                        <AutoGrowTextarea
                           value={l.specification}
                           onChange={(e) =>
                             updateLine(l.localId, {
@@ -664,9 +665,7 @@ export default function NewDnvtPage() {
                             })
                           }
                           placeholder="VD: 445X365X15"
-                          rows={1}
-                          className="w-full resize-none bg-transparent text-[16px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600 sm:text-md print:text-[11px]"
-                          style={{ minHeight: 18 }}
+                          className="w-full resize-none whitespace-pre-wrap bg-transparent text-[16px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600 sm:text-md print:text-[11px]"
                         />
                       </Td>
                       <Td>

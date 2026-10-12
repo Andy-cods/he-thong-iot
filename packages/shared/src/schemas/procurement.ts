@@ -268,6 +268,8 @@ export const prRejectSchema = z.object({
     .trim()
     .min(3, "Lý do tối thiểu 3 ký tự")
     .max(500, "Lý do tối đa 500 ký tự"),
+  /** M1 — bước client đang thấy; khác bước hiện tại → 409. Thiếu (client cũ) → bỏ qua. */
+  expectedStep: z.enum(["SUBMITTED", "DEPT_APPROVED"]).optional(),
 });
 
 /** V4.4 (Việc 4) — Huỷ phiếu (khác reject: người tạo/admin tự huỷ). */

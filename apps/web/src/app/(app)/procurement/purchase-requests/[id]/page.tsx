@@ -21,6 +21,7 @@ import {
   Pencil,
   Printer,
   RotateCcw,
+  AlertTriangle,
   Trash2,
   Truck,
   X,
@@ -65,7 +66,7 @@ import {
   type PRLineEnriched,
 } from "@/hooks/usePurchaseRequests";
 import { isClosedByPartialReject, REJECTED_PARTIAL_LABEL } from "@/lib/pr-close-policy";
-import { canCancelPR, canRejectAtStep, isSelfApprovalBlocked, isStockRecheckableState, isWarehouseIssueStage, prLineToPoLine } from "@/lib/procurement-policy";
+import { canCancelPR, canRejectAtStep, formatCoverageSummary, summarizeLineCoverage, isSelfApprovalBlocked, isStockRecheckableState, isWarehouseIssueStage, prLineToPoLine } from "@/lib/procurement-policy";
 import { canEditPRDraft, canExportPrExcel, canRecreatePR } from "@/server/services/prAccess";
 import { useConvertPRToPOs } from "@/hooks/usePurchaseOrders";
 import { formatDate, formatMoney, formatQty } from "@/lib/format";
@@ -436,7 +437,11 @@ export default function PurchaseRequestDetailPage() {
       return;
     }
     try {
-      await reject.mutateAsync({ reason: rejectReason.trim() });
+      await reject.mutateAsync({
+        reason: rejectReason.trim(),
+        // M1 — bước đang thấy; phiếu đã sang bước khác → server 409 "tải lại trang".
+        ...(step === "SUBMITTED" || step === "DEPT_APPROVED" ? { expectedStep: step } : {}),
+      });
       toast.success(`Đã từ chối phiếu ${formLabel}`);
       setRejectOpen(false);
       setRejectReason("");
@@ -539,6 +544,15 @@ export default function PurchaseRequestDetailPage() {
               <h1 className="mt-1 line-clamp-2 min-w-0 [overflow-wrap:anywhere] text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
                 {pr.title || (pr.formType === "DNVT" ? "Phiếu DNVT" : "Phiếu MRF")}
               </h1>
+              {detail.data?.data.shortOfCommitment && (isAdmin || isWarehouse || isPurchaser) ? (
+                <p
+                  role="alert"
+                  className="mt-1.5 flex items-start gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                >
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span>Tồn không đủ cho phần đã cam kết — bấm “Kiểm tồn lại”.</span>
+                </p>
+              ) : null}
             </div>
           </div>
 
@@ -1348,6 +1362,11 @@ export default function PurchaseRequestDetailPage() {
           {(approveOpen === "dept" || approveOpen === "quick") && (
             <PrStockCheckPanel prId={id} onChange={onStockBuyChange} />
           )}
+          {approveOpen === "director" && (
+            <p className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-200">
+              {formatCoverageSummary(summarizeLineCoverage(pr.lines))}
+            </p>
+          )}
           <div className="space-y-2">
             <Label htmlFor="approve-note">Ghi chú (tùy chọn)</Label>
             <Textarea
@@ -1525,6 +1544,8 @@ export default function PurchaseRequestDetailPage() {
           approvedQty: l.approvedQty,
           issuedQty: l.issuedQty,
           issueCap: l.issueCap,
+          issueRemaining: l.issueRemaining,
+          availableQty: l.availableQty,
         }))}
       />
 

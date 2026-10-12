@@ -17,13 +17,13 @@ async function load() {
 }
 
 const lines = [
-  { id: "l1", itemId: "item-A", sku: "A-01", qty: 10, approvedQty: 8 },
+  { id: "l1", itemId: "item-A", sku: "A-01", qty: 10, approvedQty: 0 },
   { id: "l2", itemId: "item-B", sku: "B-01", qty: 5, approvedQty: null },
   { id: "l3", itemId: null, sku: "C-01", qty: 3, approvedQty: null },
 ];
 
 describe("validatePrIssuePicks", () => {
-  it("hợp lệ: cộng dồn theo dòng, cap = SL đề xuất (approvedQty là SL cần mua, không phải trần)", async () => {
+  it("hợp lệ: cộng dồn theo dòng, cap = qty − SL cần mua (B2: đủ từ kho khi cần mua = 0)", async () => {
     const { validatePrIssuePicks } = await load();
     const r = validatePrIssuePicks(lines, [
       { prLineId: "l1", lotSerialId: "lot-1", binId: "bin-1", qty: 3 },

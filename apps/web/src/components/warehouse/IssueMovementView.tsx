@@ -189,11 +189,13 @@ export function IssueMovementView() {
           issueNo?: string;
         };
         error?: { message?: string };
+        warning?: string;
       };
       if (!res.ok || !json.data) {
         toast.error(json.error?.message ?? "Lỗi xuất hàng");
         return;
       }
+      if (json.warning) toast.warning(json.warning, { duration: 12000 });
       toast.success(
         `${json.data.issueNo ? `Phiếu xuất ${json.data.issueNo}: ` : ""}Đã xuất ${formatQty(json.data.totalQty)} đơn vị từ ${json.data.txnIds.length} ô kệ · ${totalLines} mã vật tư.`,
       );

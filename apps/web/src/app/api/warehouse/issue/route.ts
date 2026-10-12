@@ -8,6 +8,7 @@ import {
   GoodsIssueError,
   type GoodsIssuePickInput,
 } from "@/server/repos/goodsIssues";
+import { getCommittedByItem, getIssuableQtyByItem } from "@/server/repos/purchaseRequests";
 import { mapDbGuardError } from "@/server/repos/stockGuard";
 import { writeAudit } from "@/server/services/audit";
 import { canForUser } from "@/server/services/rbac";
@@ -143,7 +144,23 @@ export async function POST(req: NextRequest) {
         `${result.issueNo} · xuất ${result.txnIds.length} pick · ${lines.length} SKU · ${result.totalQty} qty · ${reason}`,
     });
 
-    return NextResponse.json({ data: result });
+    // B-fix — cảnh báo (KHÔNG chặn) nếu lượt xuất nhanh làm tồn còn lại < phần đã giữ cho phiếu đề xuất vật tư.
+    let warning: string | null = null;
+    try {
+      const itemIds = Array.from(new Set(lines.map((l) => l.itemId)));
+      const [left, held] = await Promise.all([
+        getIssuableQtyByItem(itemIds),
+        getCommittedByItem(itemIds, "00000000-0000-0000-0000-000000000000"),
+      ]);
+      const short = itemIds.filter((id) => (held.get(id) ?? 0) > (left.get(id) ?? 0) + 1e-6);
+      if (short.length > 0) {
+        warning = `Đã xuất, nhưng tồn còn lại không đủ cho phần đã giữ cho phiếu đề xuất vật tư (${short.length} vật tư) — phiếu đó có thể thiếu hàng, Kho cần "Kiểm tồn lại" phiếu.`;
+      }
+    } catch (err) {
+      logger.warn({ err }, "quick-issue commitment warning failed");
+    }
+
+    return NextResponse.json({ data: result, ...(warning ? { warning } : {}) });
   } catch (err) {
     if (err instanceof GoodsIssueError) {
       return jsonError(err.code, err.message, err.status);

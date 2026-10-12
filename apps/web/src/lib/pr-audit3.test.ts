@@ -11,6 +11,7 @@ import {
   isStockRecheckableState,
   netIssuableByItem,
   planStockRecheck,
+  prIssueRight,
   resolveBuyDecisions,
   summarizeLineCoverage,
   validateStockCommitment,
@@ -18,18 +19,22 @@ import {
 } from "./procurement-policy";
 
 describe("L1 — giữ chỗ mềm tồn kho giữa các phiếu", () => {
-  it("cam kết = Σ max(0, (qty − cần mua) − đã xuất) theo vật tư", () => {
+  it("cam kết = Σ remainingByItem của prIssueRight (một nguồn với trần xuất)", () => {
+    const right = (lines: Parameters<typeof prIssueRight>[0]) =>
+      prIssueRight(lines, { phase: "FINAL", receivedByItem: new Map() }).remainingByItem;
     const m = computeCommittedByItem([
-      { itemId: "i", qty: 10, approvedQty: 4, issuedQty: 0 }, // 6
-      { itemId: "i", qty: 5, approvedQty: 5, issuedQty: 0 }, // 0 (mua đủ)
-      { itemId: "i", qty: 8, approvedQty: 2, issuedQty: 4 }, // 6 − 4 = 2
-      { itemId: "j", qty: 3, approvedQty: 0, issuedQty: 5 }, // đã xuất vượt → 0
-      { itemId: null, qty: 9, approvedQty: 0, issuedQty: 0 }, // dòng nhập tay bỏ qua
-      { itemId: "k", qty: 7, approvedQty: null, issuedQty: 0 }, // chưa chốt → coi mua đủ
+      right([
+        { id: "1", itemId: "i", qty: 10, approvedQty: 4, issuedQty: 0 }, // 6
+        { id: "2", itemId: "i", qty: 5, approvedQty: 5, issuedQty: 0 }, // 0 (mua đủ)
+        { id: "3", itemId: "i", qty: 8, approvedQty: 2, issuedQty: 4 }, // 6 − 4 = 2
+        { id: "4", itemId: "j", qty: 3, approvedQty: 0, issuedQty: 5 }, // đã xuất vượt → 0
+        { id: "5", itemId: null, qty: 9, approvedQty: 0, issuedQty: 0 }, // dòng nhập tay bỏ qua
+        { id: "6", itemId: "k", qty: 7, approvedQty: null, issuedQty: 0 }, // phiếu cũ chưa chốt: sau duyệt cuối coi xuất đủ → 7
+      ]),
     ]);
     expect(m.get("i")).toBe(8);
     expect(m.has("j")).toBe(false);
-    expect(m.has("k")).toBe(false);
+    expect(m.get("k")).toBe(7);
   });
 
   it("tồn khả dụng = issuable − cam kết, không âm", () => {
@@ -51,7 +56,12 @@ describe("L1 — giữ chỗ mềm tồn kho giữa các phiếu", () => {
 
   it("hai phiếu cùng vật tư: phiếu A giữ 8/10 → phiếu B đòi 5 từ kho bị chặn, đòi 2 thì được", () => {
     // Phiếu A đã duyệt, giữ 8. Tồn thô 10 → phiếu B thấy 2.
-    const committed = computeCommittedByItem([{ itemId: "i", qty: 8, approvedQty: 0, issuedQty: 0 }]);
+    const committed = computeCommittedByItem([
+      prIssueRight([{ id: "a1", itemId: "i", qty: 8, approvedQty: 0, issuedQty: 0 }], {
+        phase: "FINAL",
+        receivedByItem: new Map(),
+      }).remainingByItem,
+    ]);
     const net = netIssuableByItem(new Map([["i", 10]]), committed);
     const lines = [{ id: "b1", itemId: "i", qty: 5, label: "VT-01" }];
     // mặc định theo tồn khả dụng còn 2 → cần mua 3
