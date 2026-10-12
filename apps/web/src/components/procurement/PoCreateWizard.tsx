@@ -141,7 +141,7 @@ export function PoCreateWizard() {
       // duyệt nếu có, đơn giá = đơn giá dự kiến trên phiếu (trước đây luôn 0).
       const next: PoLineDraft[] = prLines
         .filter((l): l is typeof l & { itemId: string } => !!l.itemId)
-        .filter((l) => prLineToPoLine(l) !== null)
+        .filter((l) => prLineToPoLine(l, l.issuedQty ?? 0) !== null)
         .map((l) => ({
         localId: crypto.randomUUID(),
         item: {
@@ -150,8 +150,8 @@ export function PoCreateWizard() {
           name: l.name ?? "",
           uom: undefined,
         },
-        qty: String(prLineToPoLine(l)!.orderedQty),
-        unitPrice: String(prLineToPoLine(l)!.unitPrice),
+        qty: String(prLineToPoLine(l, l.issuedQty ?? 0)!.orderedQty),
+        unitPrice: String(prLineToPoLine(l, l.issuedQty ?? 0)!.unitPrice),
         taxRate: "8",
         neededBy: l.neededBy ?? null,
         notes: l.notes ?? null,

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { issueCapForStage } from "@/lib/procurement-policy";
 import { AlertTriangle, Loader2, PackageCheck, Truck, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -52,9 +53,13 @@ export interface MarkPrIssuedLine {
   issuedQty?: number;
 }
 
-/** Còn được xuất = SL duyệt (hoặc đề xuất) − đã xuất ở các đợt trước. */
-function remainingOf(l: MarkPrIssuedLine): number {
-  const cap = l.approvedQty != null ? Number(l.approvedQty) : Number(l.qty);
+/**
+ * Còn được xuất − đã xuất ở các đợt trước. approvedQty = SL CẦN MUA (Kho chốt):
+ * giai đoạn Kho (chưa duyệt cuối) trần = đề xuất − cần mua (phần có sẵn trong kho);
+ * sau duyệt cuối trần = SL đề xuất.
+ */
+function remainingOf(l: MarkPrIssuedLine, stage: "WAREHOUSE" | "FINAL" = "FINAL"): number {
+  const cap = issueCapForStage(stage, l.qty, l.approvedQty);
   return Math.max(0, cap - (l.issuedQty ?? 0));
 }
 
@@ -88,12 +93,15 @@ export function MarkPrIssuedDialog({
   prId,
   prLabel,
   lines,
+  stage = "FINAL",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   prId: string;
   prLabel: string;
   lines: MarkPrIssuedLine[];
+  /** WAREHOUSE = đã qua Kho duyệt, chưa duyệt cuối: chỉ xuất phần có sẵn, không kết thúc/không-trừ-tồn. */
+  stage?: "WAREHOUSE" | "FINAL";
 }) {
   const markIssued = useMarkPRIssued(prId);
 
@@ -125,7 +133,7 @@ export function MarkPrIssuedDialog({
     setNotes("");
     const init: Record<string, string> = {};
     for (const l of stockLines) {
-      const cap = remainingOf(l);
+      const cap = remainingOf(l, stage);
       init[l.id] = cap > 0 ? String(Number(cap.toFixed(4))) : "";
     }
     setQtyByLine(init);
@@ -347,7 +355,7 @@ export function MarkPrIssuedDialog({
                   </thead>
                   <tbody>
                     {stockLines.map((l) => {
-                      const cap = remainingOf(l);
+                      const cap = remainingOf(l, stage);
                       const val = qtyByLine[l.id] ?? "";
                       const over = (Number(val) || 0) > cap + EPS;
                       const avail = availableByItem[l.itemId!];
@@ -366,12 +374,6 @@ export function MarkPrIssuedDialog({
                           </td>
                           <td className="px-3 py-2.5 text-right font-mono text-sm text-zinc-800 dark:text-zinc-200">
                             {fmt(Number(l.qty))}
-                            {l.approvedQty != null ? (
-                              <span className="text-emerald-600 dark:text-emerald-400">
-                                {" "}
-                                / {fmt(Number(l.approvedQty))}
-                              </span>
-                            ) : null}
                             {l.uom ?? l.itemUom ? (
                               <span className="ml-1 text-xs font-normal text-zinc-500">
                                 {l.uom ?? l.itemUom}
@@ -487,7 +489,18 @@ export function MarkPrIssuedDialog({
           </div>
         ) : null}
 
-        <div className="flex items-start gap-2 rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-800/40">
+        {stage === "WAREHOUSE" ? (
+          <p className="rounded-md border border-sky-200 bg-sky-50 p-3 text-xs text-sky-800 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-200">
+            Phiếu còn chờ duyệt mua — bạn chỉ xuất phần CÓ SẴN trong kho (đề xuất − SL cần mua).
+            Phiếu chưa hoàn tất; phần cần mua sẽ xuất sau khi duyệt cuối và hàng về.
+          </p>
+        ) : null}
+        <div
+          className={
+            "flex items-start gap-2 rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-800/40" +
+            (stage === "WAREHOUSE" ? " hidden" : "")
+          }
+        >
           <Checkbox
             id="pr-issue-no-stock"
             checked={noStock}
@@ -519,7 +532,7 @@ export function MarkPrIssuedDialog({
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
             Huỷ
           </Button>
-          {!noStock && anyIssued ? (
+          {stage !== "WAREHOUSE" && !noStock && anyIssued ? (
             <Button
               variant="outline"
               onClick={finishNow}

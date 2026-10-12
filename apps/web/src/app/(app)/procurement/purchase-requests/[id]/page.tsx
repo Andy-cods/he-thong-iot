@@ -63,7 +63,7 @@ import {
   useRejectPurchaseRequest,
   type PRLineEnriched,
 } from "@/hooks/usePurchaseRequests";
-import { canCancelPR, isSelfApprovalBlocked } from "@/lib/procurement-policy";
+import { canCancelPR, isSelfApprovalBlocked, isWarehouseIssueStage, prLineToPoLine } from "@/lib/procurement-policy";
 import { canEditPRDraft, canExportPrExcel, canRecreatePR } from "@/server/services/prAccess";
 import { useConvertPRToPOs } from "@/hooks/usePurchaseOrders";
 import { formatDate, formatMoney, formatQty } from "@/lib/format";
@@ -71,6 +71,7 @@ import type { StatusTone } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { ConvertPRToPODialog } from "@/components/procurement/ConvertPRToPODialog";
 import { MarkPrIssuedDialog } from "@/components/procurement/MarkPrIssuedDialog";
+import { PrStockCheckPanel } from "@/components/procurement/PrStockCheckPanel";
 import {
   DnvtDetailBody,
   type DnvtDetailPr,
@@ -200,6 +201,15 @@ export default function PurchaseRequestDetailPage() {
   // V4.4 (Việc 4) — Huỷ phiếu (khác reject).
   const [cancelOpen, setCancelOpen] = React.useState(false);
   const [cancelReason, setCancelReason] = React.useState("");
+  // Kho kiểm tồn: SL cần mua từng dòng (panel trong hộp thoại duyệt Kho / duyệt nhanh).
+  const [stockBuy, setStockBuy] = React.useState<{ qtys: Record<string, number>; valid: boolean }>({
+    qtys: {},
+    valid: true,
+  });
+  const onStockBuyChange = React.useCallback(
+    (qtys: Record<string, number>, valid: boolean) => setStockBuy({ qtys, valid }),
+    [],
+  );
   const [approveOpen, setApproveOpen] = React.useState<
     null | "dept" | "director" | "quick"
   >(null);
@@ -294,14 +304,20 @@ export default function PurchaseRequestDetailPage() {
     (isAdmin || isWarehouse || isPurchaser) &&
     (step === "SUBMITTED" || step === "DEPT_APPROVED");
   // Phiếu đã xuất đủ/kết thúc (completedAt) không cần lên PO nữa.
-  const canConvert = (isAdmin || isPurchaser) && status === "APPROVED" && !pr.completedAt;
+  // Chỉ mua PHẦN CÒN THIẾU: mọi dòng đã được Kho đáp ứng đủ → không có gì để mua.
+  const needsBuy = pr.lines.some((l) => prLineToPoLine(l, l.issuedQty ?? 0) !== null);
+  const canConvert =
+    (isAdmin || isPurchaser) && status === "APPROVED" && !pr.completedAt && needsBuy;
   // V3.7.70 — Manual timeline events
   // L3 — Kho xuất được ngay khi phiếu đã duyệt (APPROVED/CONVERTED) còn tồn khả
   // dụng, KHÔNG cần chờ nhận hàng PO. L8 — còn xuất tiếp nhiều đợt tới khi đủ.
+  const warehouseStage = isWarehouseIssueStage({ status, approvalStep: step });
   const canMarkIssued =
     (isAdmin || isWarehouse) &&
-    (status === "APPROVED" || status === "CONVERTED") &&
-    !pr.goodsIssuedAt;
+    !pr.goodsIssuedAt &&
+    ((status === "APPROVED" || status === "CONVERTED") ||
+      // Giai đoạn Kho (đã qua Kho duyệt, chưa duyệt cuối): chỉ khi còn phần xuất được từ tồn.
+      (warehouseStage && (detail.data?.data.warehouseIssuableRemaining ?? 0) > 0));
   const issuedAny = (pr.goodsIssues?.length ?? 0) > 0;
   const canMarkCompleted =
     isAdmin && !!pr.goodsIssuedAt && !pr.completedAt;
@@ -326,13 +342,19 @@ export default function PurchaseRequestDetailPage() {
   const handleApproveSubmit = async () => {
     try {
       if (approveOpen === "dept") {
-        await deptApprove.mutateAsync({ note: approveNote.trim() || null });
+        await deptApprove.mutateAsync({
+          note: approveNote.trim() || null,
+          buyQtys: stockBuy.valid ? stockBuy.qtys : undefined,
+        });
         toast.success("Đã duyệt bước Trưởng bộ phận");
       } else if (approveOpen === "director") {
         await directorApprove.mutateAsync({ note: approveNote.trim() || null });
         toast.success("Đã duyệt cuối — phiếu hoàn tất phê duyệt");
       } else if (approveOpen === "quick") {
-        await quickApprove.mutateAsync({ note: approveNote.trim() || null });
+        await quickApprove.mutateAsync({
+          note: approveNote.trim() || null,
+          buyQtys: stockBuy.valid ? stockBuy.qtys : undefined,
+        });
         toast.success("Đã duyệt nhanh 2 cấp — phiếu sẵn sàng tạo PO");
       }
       setApproveOpen(null);
@@ -430,7 +452,13 @@ export default function PurchaseRequestDetailPage() {
                 ) : null}
                 <StatusPill
                   tone={issuedAny && !pr.goodsIssuedAt ? "info" : STEP_TONE[step]}
-                  label={issuedAny && !pr.goodsIssuedAt ? "Đang xuất kho" : STEP_LABEL[step]}
+                  label={
+                    issuedAny && !pr.goodsIssuedAt
+                      ? warehouseStage
+                        ? "Kho đang xuất – chờ duyệt mua"
+                        : "Đang xuất kho"
+                      : STEP_LABEL[step]
+                  }
                   dot
                 />
               </div>
@@ -805,7 +833,7 @@ export default function PurchaseRequestDetailPage() {
                     <Th w="w-14">ĐVT</Th>
                     <Th w="w-14" align="right">SL</Th>
                     <Th w="w-16" align="right">Tồn kho</Th>
-                    <Th w="w-14" align="right">Duyệt</Th>
+                    <Th w="w-14" align="right">Cần mua</Th>
                     <Th w="w-28">Ngày cần</Th>
                     <Th w="w-28">Ưu tiên</Th>
                     <Th w="w-28">Phân loại</Th>
@@ -820,9 +848,11 @@ export default function PurchaseRequestDetailPage() {
                   {pr.lines.map((l, idx) => {
                     const qty = Number(l.qty) || 0;
                     const onHand =
-                      l.onHandSnapshot != null
-                        ? Number(l.onHandSnapshot)
-                        : null;
+                      l.availableQty != null
+        ? Number(l.availableQty)
+        : l.onHandSnapshot != null
+          ? Number(l.onHandSnapshot)
+          : null;
                     const approvedQty =
                       l.approvedQty != null ? Number(l.approvedQty) : null;
                     const lowStock =
@@ -1192,12 +1222,15 @@ export default function PurchaseRequestDetailPage() {
             </DialogTitle>
             <DialogDescription>
               {approveOpen === "dept"
-                ? "Sau khi duyệt, phiếu sẽ chuyển sang chờ Giám đốc/Mua hàng duyệt cuối."
+                ? "Kiểm tồn rồi nhập SL cần mua từng dòng. Nếu mọi dòng cần mua = 0 (Kho đáp ứng đủ), phiếu bỏ qua duyệt cuối; ngược lại chuyển sang chờ Giám đốc/Mua hàng duyệt cuối."
                 : approveOpen === "quick"
                   ? "Tên bạn sẽ hiện ở CẢ 2 ô ký (Trưởng bộ phận + Giám đốc). Phiếu chuyển thẳng sang Đã duyệt, sẵn sàng tạo PO. Kế toán sẽ nhận thông báo tải PDF/Excel."
                   : "Sau khi duyệt cuối, phiếu sẵn sàng để tạo PO. Bộ phận Mua hàng sẽ nhận thông báo."}
             </DialogDescription>
           </DialogHeader>
+          {(approveOpen === "dept" || approveOpen === "quick") && (
+            <PrStockCheckPanel prId={id} onChange={onStockBuyChange} />
+          )}
           <div className="space-y-2">
             <Label htmlFor="approve-note">Ghi chú (tùy chọn)</Label>
             <Textarea
@@ -1218,7 +1251,8 @@ export default function PurchaseRequestDetailPage() {
               disabled={
                 deptApprove.isPending ||
                 directorApprove.isPending ||
-                quickApprove.isPending
+                quickApprove.isPending ||
+                ((approveOpen === "dept" || approveOpen === "quick") && !stockBuy.valid)
               }
               className={
                 approveOpen === "dept"
@@ -1331,6 +1365,7 @@ export default function PurchaseRequestDetailPage() {
         onOpenChange={setIssueDialogOpen}
         prId={id}
         prLabel={paperFormNo !== "—" ? paperFormNo : pr.code}
+        stage={warehouseStage ? "WAREHOUSE" : "FINAL"}
         lines={pr.lines.map((l) => ({
           id: l.id,
           lineNo: l.lineNo,
@@ -1375,7 +1410,11 @@ export default function PurchaseRequestDetailPage() {
  */
 function LineItemCard({ line: l, idx }: { line: PRLineEnriched; idx: number }) {
   const qty = Number(l.qty) || 0;
-  const onHand = l.onHandSnapshot != null ? Number(l.onHandSnapshot) : null;
+  const onHand = l.availableQty != null
+        ? Number(l.availableQty)
+        : l.onHandSnapshot != null
+          ? Number(l.onHandSnapshot)
+          : null;
   const approvedQty = l.approvedQty != null ? Number(l.approvedQty) : null;
   const lowStock = onHand != null && qty > 0 ? onHand < qty : false;
   const lineTotal =
@@ -1413,7 +1452,7 @@ function LineItemCard({ line: l, idx }: { line: PRLineEnriched; idx: number }) {
           }
         />
         <Metric
-          label="Đã duyệt"
+          label="Cần mua"
           value={approvedQty != null ? fmtNum(approvedQty) : "—"}
           className={
             approvedQty != null

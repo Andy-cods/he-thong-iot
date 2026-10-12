@@ -42,7 +42,7 @@ import {
 
 export interface ListPRsQuery {
   status?: PurchaseRequestStatus[];
-  /** A14 — true: chỉ phiếu Hoàn tất (approval_step DONE); false: loại phiếu Hoàn tất. */
+  /** A14 — true: chỉ phiếu Hoàn tất (completed_at IS NOT NULL); false: loại phiếu Hoàn tất. */
   completed?: boolean;
   linkedOrderId?: string;
   /** V1.8 — filter PR theo BOM (JOIN qua sales_order.bom_template_id). */
@@ -140,12 +140,16 @@ export async function listPRs(q: ListPRsQuery): Promise<ListPRsResult> {
           q.status as unknown as (typeof purchaseRequest.status.enumValues)[number][],
         )
       : undefined;
+  // Tab "Đã duyệt" (chỉ APPROVED) KHÔNG chứa phiếu đã Hoàn tất (completed_at) — các phiếu đó
+  // thuộc tab "Hoàn tất" (completed=1). Chỉ ép khi chưa truyền `completed` tường minh.
+  const onlyApprovedTab = q.status?.length === 1 && q.status[0] === "APPROVED";
+  const completedWanted = q.completed ?? (onlyApprovedTab ? false : undefined);
   const completedCond =
-    q.completed === undefined
+    completedWanted === undefined
       ? undefined
-      : q.completed
-        ? sql`COALESCE(${purchaseRequest.approvalStep}::text, '') = 'DONE'`
-        : sql`COALESCE(${purchaseRequest.approvalStep}::text, '') <> 'DONE'`;
+      : completedWanted
+        ? sql`${purchaseRequest.completedAt} IS NOT NULL`
+        : sql`${purchaseRequest.completedAt} IS NULL`;
   const statusCond =
     statusOnly && completedCond ? and(statusOnly, completedCond) : statusOnly ?? completedCond;
   const draftCond = draftVisibilityCondition(q.viewer);
@@ -243,12 +247,17 @@ export async function listPRs(q: ListPRsQuery): Promise<ListPRsResult> {
       .select({
         status: purchaseRequest.status,
         step: purchaseRequest.approvalStep,
+        done: sql<boolean>`(${purchaseRequest.completedAt} IS NOT NULL)`,
         count: sql<number>`count(*)::int`,
       })
       .from(purchaseRequest)
       .leftJoin(salesOrder, eq(salesOrder.id, purchaseRequest.linkedOrderId))
       .where(whereBase)
-      .groupBy(purchaseRequest.status, purchaseRequest.approvalStep),
+      .groupBy(
+        purchaseRequest.status,
+        purchaseRequest.approvalStep,
+        sql`(${purchaseRequest.completedAt} IS NOT NULL)`,
+      ),
   ]);
 
   const counts: PRStatusCounts = {
@@ -260,9 +269,12 @@ export async function listPRs(q: ListPRsQuery): Promise<ListPRsResult> {
   };
   for (const c of countRows) {
     const st = c.status as PurchaseRequestStatus;
-    counts.byStatus[st] = (counts.byStatus[st] ?? 0) + c.count;
-    if (c.step === "DONE") counts.completed += c.count;
-    else counts.byStatusActive[st] = (counts.byStatusActive[st] ?? 0) + c.count;
+    // Phiếu Hoàn tất (completed_at) tách khỏi tab trạng thái của nó: byStatus KHÔNG tính chúng.
+    if (c.done) counts.completed += c.count;
+    else {
+      counts.byStatus[st] = (counts.byStatus[st] ?? 0) + c.count;
+      counts.byStatusActive[st] = (counts.byStatusActive[st] ?? 0) + c.count;
+    }
     counts.all += c.count;
     if (st === "SUBMITTED") {
       if (c.step === "DEPT_APPROVED") counts.bySubmittedStep.DEPT_APPROVED += c.count;

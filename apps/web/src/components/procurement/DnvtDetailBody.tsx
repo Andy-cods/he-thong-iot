@@ -17,6 +17,7 @@ interface DnvtDetailLine {
   qty: string | number;
   onHandSnapshot?: string | number | null;
   approvedQty?: string | number | null;
+  availableQty?: number | null;
   neededBy?: string | Date | null;
   priority?: string | null;
   category?: string | null;
@@ -153,7 +154,7 @@ export function DnvtDetailBody({ pr }: { pr: DnvtDetailPr }) {
                 <Th w="w-14">ĐVT</Th>
                 <Th w="w-14" align="right">SL YC</Th>
                 <Th w="w-16" align="right">Tồn kho</Th>
-                <Th w="w-14" align="right">Duyệt</Th>
+                <Th w="w-14" align="right">Cần mua</Th>
                 <Th w="w-28">Ngày cần</Th>
                 <Th w="w-28">Ưu tiên</Th>
                 <Th w="w-28">Phân loại</Th>
@@ -167,7 +168,11 @@ export function DnvtDetailBody({ pr }: { pr: DnvtDetailPr }) {
               {pr.lines.map((l, idx) => {
                 const qty = Number(l.qty) || 0;
                 const onHand =
-                  l.onHandSnapshot != null ? Number(l.onHandSnapshot) : null;
+                  l.availableQty != null
+        ? Number(l.availableQty)
+        : l.onHandSnapshot != null
+          ? Number(l.onHandSnapshot)
+          : null;
                 const approvedQty =
                   l.approvedQty != null ? Number(l.approvedQty) : null;
                 const lowStock =
@@ -395,7 +400,11 @@ function Td({
  * không có 2 cột đó). */
 function DnvtLineItemCard({ line: l, idx }: { line: DnvtDetailLine; idx: number }) {
   const qty = Number(l.qty) || 0;
-  const onHand = l.onHandSnapshot != null ? Number(l.onHandSnapshot) : null;
+  const onHand = l.availableQty != null
+        ? Number(l.availableQty)
+        : l.onHandSnapshot != null
+          ? Number(l.onHandSnapshot)
+          : null;
   const approvedQty = l.approvedQty != null ? Number(l.approvedQty) : null;
   const lowStock = onHand != null && qty > 0 ? onHand < qty : false;
   return (
@@ -424,7 +433,7 @@ function DnvtLineItemCard({ line: l, idx }: { line: DnvtDetailLine; idx: number 
           }
         />
         <Metric
-          label="Duyệt"
+          label="Cần mua"
           value={approvedQty != null ? fmtNum(approvedQty) : "—"}
           className={
             approvedQty != null

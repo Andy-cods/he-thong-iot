@@ -104,6 +104,8 @@ export interface PRLineEnriched {
   lineRefCode?: string | null;
   /** L8 — tổng đã xuất (cộng mọi đợt xuất kho). */
   issuedQty?: number;
+  /** Tồn KHẢ DỤNG hiện tại của vật tư (chỉ trả cho admin/Kho/Mua hàng; null = không có quyền/dòng nhập tay). */
+  availableQty?: number | null;
   // V3.10 DNVT — Tham khảo (free-text) + Ngày giao hàng. Server đã trả 2 cột
   // này từ lâu (xem server/repos/purchaseRequests.ts) nhưng interface này
   // thiếu khai báo — TASK-6VIEC Việc 2 cần đọc lại khi "mở phiếu nháp để sửa".
@@ -162,7 +164,40 @@ export interface PRDetailResponse {
       pendingLines: number;
       lines: { id: string; cap: number; issued: number; remaining: number }[];
     };
+    /** WAREHOUSE = đã qua Kho duyệt, chưa duyệt cuối (Kho xuất phần có sẵn); FINAL = sau duyệt cuối. */
+    issueStage?: "WAREHOUSE" | "FINAL";
+    /** SL còn xuất được từ kho ở giai đoạn hiện tại (0 = ẩn nút "Đã xuất kho" ở giai đoạn Kho). */
+    warehouseIssuableRemaining?: number;
+    /** A18 — mọi PO của phiếu (kể cả CANCELLED) với trạng thái thật. */
+    purchaseOrders?: { id: string; poNo: string; status: string }[];
   };
+}
+
+export interface PRStockCheckLine {
+  id: string;
+  lineNo: number;
+  itemId: string | null;
+  sku: string | null;
+  name: string | null;
+  uom: string | null;
+  qty: number;
+  /** Tồn khả dụng HIỆN TẠI (AVAILABLE trừ giữ chỗ, không tính HOLD). */
+  available: number;
+  defaultBuyQty: number;
+}
+
+/** Kho kiểm tồn khi duyệt: dòng + tồn khả dụng + SL cần mua mặc định. */
+export function usePrStockCheck(id: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: ["procurement", "requests", "stock-check", id ?? "__none__"],
+    queryFn: () =>
+      request<{ data: { approvalStep: string | null; lines: PRStockCheckLine[] } }>(
+        `/api/purchase-requests/${id}/stock-check`,
+      ),
+    enabled: !!id && enabled,
+    staleTime: 0,
+    gcTime: 0,
+  });
 }
 
 interface RequestError extends Error {
@@ -299,7 +334,7 @@ export function useUpdatePurchaseRequest(id: string) {
 export function useQuickApprovePR(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { note?: string | null }) =>
+    mutationFn: (data: { note?: string | null; buyQtys?: Record<string, number> }) =>
       request<{ data: PRRow }>(`/api/purchase-requests/${id}/quick-approve`, {
         method: "POST",
         body: JSON.stringify(data),
@@ -411,7 +446,7 @@ export function useSubmitPR(id: string) {
 export function useDeptApprovePR(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { note?: string | null }) =>
+    mutationFn: (data: { note?: string | null; buyQtys?: Record<string, number> }) =>
       request<{ data: PRRow }>(
         `/api/purchase-requests/${id}/dept-approve`,
         { method: "POST", body: JSON.stringify(data) },
