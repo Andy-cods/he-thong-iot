@@ -1519,9 +1519,12 @@ export async function quickApprovePR(
  * đang về / lô chờ QC (`ledger.noWaiting`). Kho nhập "SL cần mua THÊM" `add` cho phần chưa đáp ứng
  * (mặc định = phần thiếu sau khi trừ tồn khả dụng); lưu buy_new = orderedEffective + add (cơ sở toàn
  * phiếu → hàng đã về không bị đếm lại).
- *  - Có dòng add > 0 → phiếu về chờ duyệt cuối (SUBMITTED/DEPT_APPROVED) cho phần mua thêm.
- *  - Không add, sau kiểm không còn gì phải đặt: đang chờ duyệt cuối → như "Kho đáp ứng đủ";
- *    đã duyệt cuối mà trước đó còn phần chờ lập PO → `coveredAfterFinal` (route báo STOCK_COVERED).
+ *  - Tổng SL cần mua (buy_new) VƯỢT mức đã duyệt (buy cũ) → phần mua THÊM cần duyệt: phiếu về chờ
+ *    duyệt cuối (SUBMITTED/DEPT_APPROVED). Mua thêm trong mức đã duyệt (VD PO cũ đóng thiếu, đặt lại
+ *    phần thiếu) không cần duyệt lại.
+ *  - Không vượt: sau kiểm không còn gì phải đặt mà đang chờ duyệt cuối → như "Kho đáp ứng đủ";
+ *    đã duyệt cuối mà trước đó còn phần chờ lập PO → `coveredAfterFinal` (route báo STOCK_COVERED);
+ *    phiếu đã lập PO (CONVERTED) mà còn phần phải đặt → về "đã duyệt, cần lập PO" (`reopenedForPo`).
  *  - Cuối cùng: finalizeIfComplete.
  */
 export async function recheckPrStock(
@@ -1537,6 +1540,8 @@ export async function recheckPrStock(
   coveredAfterFinal: boolean;
   /** Nên báo "chờ duyệt cuối" (mới về bước này hoặc tổng cần mua tăng). */
   notifyDeptApproved: boolean;
+  /** Phiếu đã lập PO, còn phần phải đặt (trong mức đã duyệt) → về APPROVED để Thu mua "Tạo PO". */
+  reopenedForPo: boolean;
   summary: ReturnType<typeof summarizeBuyDecisions>;
   decisions: Record<string, number>;
   adds: Record<string, number>;
@@ -1585,7 +1590,7 @@ export async function recheckPrStock(
     const inDeptStep = cur.status === "SUBMITTED" && cur.approvalStep === "DEPT_APPROVED";
     const now = new Date();
 
-    if (plan.addTotal > 1e-9) {
+    if (plan.buyIncreased) {
       let pr: PurchaseRequest = cur;
       const [row] = await tx
         .update(purchaseRequest)
@@ -1612,7 +1617,8 @@ export async function recheckPrStock(
         autoFinal: false,
         finalized: false,
         coveredAfterFinal: false,
-        notifyDeptApproved: !inDeptStep || plan.buyIncreased,
+        notifyDeptApproved: true,
+        reopenedForPo: false,
         summary,
         decisions: plan.newBuy,
         adds: plan.adds,
@@ -1647,6 +1653,18 @@ export async function recheckPrStock(
       pr = row;
       autoFinal = true;
     }
+    let reopenedForPo = false;
+    if (cur.status === "CONVERTED" && after.ledger.toOrder > 1e-6) {
+      const [row] = await tx
+        .update(purchaseRequest)
+        .set({ status: "APPROVED", approvalStep: "DIRECTOR_APPROVED", updatedAt: now })
+        .where(and(eq(purchaseRequest.id, id), eq(purchaseRequest.status, "CONVERTED")))
+        .returning();
+      if (row) {
+        pr = row;
+        reopenedForPo = true;
+      }
+    }
     const coveredAfterFinal =
       !autoFinal &&
       (cur.status === "APPROVED" || cur.status === "CONVERTED") &&
@@ -1660,6 +1678,7 @@ export async function recheckPrStock(
       finalized: !!done,
       coveredAfterFinal,
       notifyDeptApproved: false,
+      reopenedForPo,
       summary,
       decisions: plan.newBuy,
       adds: plan.adds,

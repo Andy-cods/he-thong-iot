@@ -6,7 +6,7 @@ import { getPR, getPRLines, PrApprovalError, recheckPrStock } from "@/server/rep
 import { buyQtysSchema } from "@/lib/pr-buy-schema";
 import { extractRequestMeta, isDbConcurrencyError, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
-import { notifyPRDeptApproved, notifyPRStockCovered } from "@/server/services/notifications";
+import { notifyPRApproved, notifyPRDeptApproved, notifyPRStockCovered } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 import { notifyPrAutoFinalized, notifyReadyToIssueIfAny } from "@/server/services/prWarehouseNotify";
 import { canAccessPR } from "@/server/services/prAccess";
@@ -71,7 +71,7 @@ export async function POST(
         buyLines: r.summary.buyLines,
       },
       notes: r.increased
-        ? "Kho kiểm tồn lại: cần mua thêm — phiếu về chờ duyệt cuối"
+        ? "Kho kiểm tồn lại: cần mua vượt mức đã duyệt — phiếu về chờ duyệt cuối"
         : r.autoFinal
           ? "Kho kiểm tồn lại: đáp ứng đủ từ tồn — bỏ qua duyệt cuối"
           : "Kho kiểm tồn lại: không phải mua thêm — giữ nguyên",
@@ -91,6 +91,21 @@ export async function POST(
     }
     if (r.finalized) void notifyPrAutoFinalized(before, guard.session);
     else if (r.autoFinal || r.coveredAfterFinal) void notifyReadyToIssueIfAny(params.id, "stock_covered", guard.session);
+    if (r.reopenedForPo) {
+      // Phiếu đã lập PO, PO cũ đóng thiếu: phần còn phải đặt (trong mức đã duyệt) → "Cần tạo PO".
+      const cover = summarizeLineCoverage(await getPRLines(params.id));
+      void notifyPRApproved({
+        prId: params.id,
+        prNo: before.paperFormNo ?? before.code,
+        title: before.title ?? null,
+        actorUserId: guard.session.userId,
+        actorUsername: guard.session.fullName,
+        creatorUserId: before.requestedBy,
+        coveredLines: cover.coveredLines,
+        buyLines: cover.buyLines,
+        partialLines: cover.partialLines,
+      });
+    }
     if (r.increased && r.notifyDeptApproved) {
       const cover = summarizeLineCoverage(await getPRLines(params.id));
       void notifyPRDeptApproved({
@@ -111,6 +126,7 @@ export async function POST(
         autoFinal: r.autoFinal,
         finalized: r.finalized,
         coveredAfterFinal: r.coveredAfterFinal,
+        reopenedForPo: r.reopenedForPo,
         approvalStep: r.pr.approvalStep,
         status: r.pr.status,
       },
@@ -118,7 +134,7 @@ export async function POST(
   } catch (err) {
     if (err instanceof PrApprovalError) {
       // N8 — lỗi nghiệp vụ: warn, không stack.
-      logger.warn({ prId: params.id, code: err.code, msg: err.message }, "recheck-stock PR rejected");
+      logger.warn({ prId: params.id, code: err.code, detail: err.message }, "recheck-stock PR rejected");
       return jsonError(err.code, err.message, err.httpStatus);
     }
     if (isDbConcurrencyError(err)) {

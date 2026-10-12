@@ -533,6 +533,7 @@ export function useRecheckPrStock(id: string) {
           autoFinal?: boolean;
           finalized?: boolean;
           coveredAfterFinal?: boolean;
+          reopenedForPo?: boolean;
           approvalStep: string | null;
           status: string;
         };

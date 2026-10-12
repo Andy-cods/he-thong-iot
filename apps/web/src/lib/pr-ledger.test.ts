@@ -194,6 +194,26 @@ describe("S1-B — q10, nhận 4, xuất 4, đóng PO, tồn 2 → Kiểm tồn 
   });
 });
 
+describe("Kiểm tồn lại — khi nào phải duyệt lại (buyIncreased)", () => {
+  it("S1-B: mua lại phần PO đóng thiếu trong mức đã duyệt (10 → 8) → KHÔNG duyệt lại", () => {
+    const l = line(10, 10, 4);
+    const r = applyRecheck(l, L(l, po(["CLOSED", 10, 4])), 2);
+    expect(r.plan.ok && r.plan.buyIncreased).toBe(false);
+  });
+  it("đã duyệt cuối, chưa PO, kiểm lại không đổi (mua 3) → KHÔNG duyệt lại", () => {
+    const l = line(8, 3);
+    const r = applyRecheck(l, L(l), 5);
+    expect(r.line.approvedQty).toBe(3);
+    expect(r.plan.ok && r.plan.buyIncreased).toBe(false);
+  });
+  it("tồn bị lấy mất → cần mua 3 → 6 → phải duyệt lại", () => {
+    const l = line(8, 3);
+    const r = applyRecheck(l, L(l), 2);
+    expect(r.line.approvedQty).toBe(6);
+    expect(r.plan.ok && r.plan.buyIncreased).toBe(true);
+  });
+});
+
 describe("S4-E1 — xuất ngoài phiếu → Kiểm tồn lại → xuất hết → hết banner", () => {
   it("đủ chuỗi theo sổ + tồn mô phỏng", () => {
     // Kho duyệt: tồn 4 → mua 6 (fromStock 4).

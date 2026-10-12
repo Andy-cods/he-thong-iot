@@ -434,8 +434,10 @@ export default function PurchaseRequestDetailPage() {
       });
       toast.success(
         r.data.increased
-          ? "Cần mua thêm — phiếu đã quay về chờ duyệt cuối cho phần mua thêm."
-          : r.data.finalized
+          ? "Cần mua vượt mức đã duyệt — phiếu đã quay về chờ duyệt cuối cho phần mua thêm."
+          : r.data.reopenedForPo
+            ? "Đã kiểm tồn lại: còn phần cần lập PO — Thu mua đã được báo “Tạo PO”."
+            : r.data.finalized
             ? "Đã kiểm tồn lại: phiếu đủ điều kiện — đã Hoàn tất."
             : r.data.autoFinal || r.data.coveredAfterFinal
               ? "Đã kiểm tồn lại: Kho đáp ứng đủ từ tồn, không cần mua."
@@ -1472,8 +1474,8 @@ export default function PurchaseRequestDetailPage() {
             <DialogTitle>Kiểm tồn lại</DialogTitle>
             <DialogDescription>
               Theo sổ của từng dòng: đề xuất, đã xuất, đã mua/đã về và tồn khả dụng hiện tại (đã trừ
-              phần dành cho phiếu khác). Nhập “SL cần mua thêm” cho phần chưa đáp ứng; nếu &gt; 0, phiếu
-              quay về chờ duyệt cuối cho phần mua thêm.
+              phần dành cho phiếu khác). Nhập “SL cần mua thêm” cho phần chưa đáp ứng. Nếu tổng cần mua
+              vượt mức đã duyệt, phiếu quay về chờ duyệt cuối cho phần vượt.
             </DialogDescription>
           </DialogHeader>
           {recheckOpen && <PrStockCheckPanel prId={id} recheck onChange={onStockBuyChange} />}
