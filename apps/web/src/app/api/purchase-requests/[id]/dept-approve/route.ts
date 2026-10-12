@@ -1,23 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
-import {
-  checkStockCommitment,
-  deptApprovePR,
-  getPR,
-  getPrStockCheck,
-} from "@/server/repos/purchaseRequests";
+import { deptApprovePR, getPR, PrApprovalError } from "@/server/repos/purchaseRequests";
 import { buyQtysSchema } from "@/lib/pr-buy-schema";
 import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { notifyPRDeptApproved, notifyPRStockCovered } from "@/server/services/notifications";
 import { notifyReadyToIssueIfAny } from "@/server/services/prWarehouseNotify";
 import { requireCan } from "@/server/session";
-import {
-  isSelfApprovalBlocked,
-  resolveBuyDecisions,
-  summarizeBuyDecisions,
-} from "@/lib/procurement-policy";
+import { isSelfApprovalBlocked } from "@/lib/procurement-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -96,19 +87,12 @@ export async function POST(
   if ("response" in body) return body.response;
 
   try {
-    const stock = await getPrStockCheck(params.id);
-    const resolved = resolveBuyDecisions(stock, body.data.buyQtys);
-    if (!resolved.ok) return jsonError("VALIDATION", resolved.message, 422);
-    // C4 — tổng phần xuất từ kho theo vật tư không vượt tồn khả dụng hiện tại.
-    const overCommit = checkStockCommitment(stock, resolved.decisions);
-    if (overCommit) return jsonError("STOCK_SHORT", overCommit, 422);
-    const summary = summarizeBuyDecisions(resolved.decisions);
-
+    // L1 — kiểm tồn (đã trừ phần giữ chỗ cho phiếu khác) + ghi trong CÙNG transaction, khoá theo vật tư.
     const row = await deptApprovePR(
       params.id,
       guard.session.userId,
       body.data.note ?? null,
-      resolved.decisions,
+      body.data.buyQtys,
     );
     if (!row) return jsonError("CONFLICT", "Phiếu đã thay đổi trạng thái.", 409);
 
@@ -122,9 +106,9 @@ export async function POST(
       after: {
         approvalStep: row.approvalStep,
         deptApprovedBy: row.deptApprovedBy,
-        buyQtys: resolved.decisions,
-        coveredLines: summary.coveredLines,
-        buyLines: summary.buyLines,
+        buyQtys: row.decisions,
+        coveredLines: row.summary.coveredLines,
+        buyLines: row.summary.buyLines,
       },
       notes: body.data.note ?? "Trưởng bộ phận duyệt",
       ...meta,
@@ -152,13 +136,14 @@ export async function POST(
         actorUserId: guard.session.userId,
         actorUsername: guard.session.fullName,
         creatorUserId: before.requestedBy,
-        coveredLines: summary.coveredLines,
-        buyLines: summary.buyLines,
+        coveredLines: row.summary.coveredLines,
+        buyLines: row.summary.buyLines,
       });
     }
 
     return NextResponse.json({ data: row });
   } catch (err) {
+    if (err instanceof PrApprovalError) return jsonError(err.code, err.message, err.httpStatus);
     logger.error({ err }, "dept-approve PR failed");
     return jsonError("INTERNAL", "Không duyệt được phiếu.", 500);
   }

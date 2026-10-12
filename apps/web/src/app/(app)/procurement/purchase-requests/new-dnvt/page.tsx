@@ -591,23 +591,23 @@ export default function NewDnvtPage() {
                     <Th w="w-8">STT</Th>
                     <Th w="min-w-[280px] print:min-w-[150px] print:w-auto">Tên vật tư</Th>
                     <Th w="min-w-[140px] print:min-w-[120px] print:w-auto">Quy cách chi tiết</Th>
-                    <Th w="min-w-[72px] print:w-14 print:min-w-0">ĐVT</Th>
+                    <Th w="min-w-[96px] print:w-14 print:min-w-0">ĐVT</Th>
                     <Th w="min-w-[96px] print:w-16 print:min-w-0" align="center">
                       SL YC
                     </Th>
-                    <Th w="min-w-[72px] print:w-16 print:min-w-0" align="right">
+                    <Th w="min-w-[80px] print:w-16 print:min-w-0" align="right">
                       Tồn kho
                     </Th>
-                    <Th w="min-w-[64px] print:w-14 print:min-w-0" align="right">
+                    <Th w="min-w-[80px] print:w-14 print:min-w-0" align="right">
                       Duyệt
                     </Th>
-                    <Th w="min-w-[136px] print:w-28 print:min-w-0">Ngày cần</Th>
-                    <Th w="min-w-[130px] print:w-28 print:min-w-0">Ưu tiên</Th>
-                    <Th w="min-w-[150px] print:w-28 print:min-w-0">Phân loại</Th>
-                    <Th w="min-w-[96px] print:w-24 print:min-w-0">Mã tham chiếu</Th>
-                    <Th w="min-w-[88px] print:w-20 print:min-w-0">Tham khảo</Th>
-                    <Th w="min-w-[140px] print:min-w-[110px] print:w-auto">Ghi chú</Th>
-                    <Th w="min-w-[136px] print:w-28 print:min-w-0">Ngày giao hàng</Th>
+                    <Th w="min-w-[172px] print:w-28 print:min-w-0">Ngày cần</Th>
+                    <Th w="min-w-[150px] print:w-28 print:min-w-0">Ưu tiên</Th>
+                    <Th w="min-w-[160px] print:w-28 print:min-w-0">Phân loại</Th>
+                    <Th w="min-w-[120px] print:w-24 print:min-w-0">Mã tham chiếu</Th>
+                    <Th w="min-w-[112px] print:w-20 print:min-w-0">Tham khảo</Th>
+                    <Th w="min-w-[160px] print:min-w-[110px] print:w-auto">Ghi chú</Th>
+                    <Th w="min-w-[172px] print:w-28 print:min-w-0">Ngày giao hàng</Th>
                     <Th w="w-8" hideOnPrint>
                       &nbsp;
                     </Th>
@@ -711,7 +711,7 @@ export default function NewDnvtPage() {
  min={toLocalDateInput()}
  onChange={(v) => updateLine(l.localId, { neededBy: v })}
  aria-label="Ngày cần"
- className="min-w-[132px]"
+ className="min-w-[164px]"
  />
                       </Td>
                       <Td>
@@ -793,7 +793,7 @@ export default function NewDnvtPage() {
  min={toLocalDateInput()}
  onChange={(v) => updateLine(l.localId, { deliveryDate: v })}
  aria-label="Ngày giao hàng"
- className="min-w-[132px]"
+ className="min-w-[164px]"
  />
                       </Td>
                       <Td hideOnPrint>

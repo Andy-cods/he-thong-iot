@@ -643,13 +643,17 @@ export function planPRReadyToIssue(
 
 /** Bước 3 (director-approve / quick-approve) → Thu mua tạo PO + người lập + Kế toán tải PDF. */
 export function planPRApproved(
-  ctx: PRCtx & { coveredLines?: number; buyLines?: number },
+  ctx: PRCtx & { coveredLines?: number; buyLines?: number; partialLines?: number },
 ): NotifyPlan {
   const link = [L.pr(ctx.prId)];
   // N7 — admin duyệt nhanh còn phần cần mua: nêu "có sẵn X / cần mua Y" như đường 2 bước.
+  // N3 — dòng có sẵn một phần được ghi rõ (đã đếm trong "cần mua").
+  const partial = ctx.partialLines ?? 0;
   const stock =
-    ctx.coveredLines != null && ctx.buyLines != null && ctx.coveredLines > 0
-      ? ` Có sẵn ${ctx.coveredLines} dòng, cần mua ${ctx.buyLines} dòng.`
+    ctx.coveredLines != null && ctx.buyLines != null && (ctx.coveredLines > 0 || partial > 0)
+      ? ` Có sẵn ${ctx.coveredLines} dòng, cần mua ${ctx.buyLines} dòng${
+          partial > 0 ? ` (trong đó ${partial} dòng có sẵn một phần)` : ""
+        }.`
       : "";
   return {
     eventType: "PR_APPROVED",

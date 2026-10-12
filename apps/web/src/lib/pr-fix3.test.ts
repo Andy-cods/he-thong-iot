@@ -24,11 +24,24 @@ import { buyQtysSchema } from "./pr-buy-schema";
 import { prListQuerySchema } from "@iot/shared";
 import { planPRReadyToIssue, staleEventTypesToClose } from "@/server/services/notification-plans";
 
-const noPo: PrPoSummary = { hasLivePo: false, receivedByItem: new Map(), settledByItem: new Map() };
-const po = (received: Record<string, number>, settled?: Record<string, number>): PrPoSummary => ({
+const noPo: PrPoSummary = {
+  hasLivePo: false,
+  receivedByItem: new Map(),
+  settledByItem: new Map(),
+  pendingByItem: new Map(),
+};
+/** `ordered` = SL đã đặt theo vật tư trên PO sống (mặc định = mọi vật tư đang test đặt 6). */
+const po = (
+  received: Record<string, number>,
+  settled?: Record<string, number>,
+  ordered: Record<string, number> = { i: 6 },
+): PrPoSummary => ({
   hasLivePo: true,
   receivedByItem: new Map(Object.entries(received)),
   settledByItem: new Map(Object.entries(settled ?? received)),
+  pendingByItem: new Map(
+    Object.entries(ordered).map(([k, v]) => [k, Math.max(0, v - (received[k] ?? 0))]),
+  ),
 });
 
 describe("C1 — shouldNotifyReadyToIssue", () => {
@@ -203,16 +216,33 @@ describe("T2 — trần xuất khi đã có PO sống", () => {
     expect(issueCapForStage("FINAL", 10, 6)).toBe(10);
     expect(buildIssueContext("FINAL", [{ id: "a", itemId: "i", qty: 10, approvedQty: 6 }], noPo).caps.get("a")).toBe(10);
   });
-  it("có PO, chưa về → trần = phần có sẵn (đề xuất − cần mua)", () => {
+  it("L3: qty 10, cần mua 6, PO 6 chưa về → trần 4", () => {
     const c = buildIssueContext("FINAL", [{ id: "a", itemId: "i", qty: 10, approvedQty: 6 }], po({}));
     expect(c.caps.get("a")).toBe(4);
   });
-  it("có PO, về một phần → trần = có sẵn + đã nhận", () => {
+  it("L3: PO về một phần (2/6) → trần = 10 − 4 chờ = 6", () => {
     const c = buildIssueContext("FINAL", [{ id: "a", itemId: "i", qty: 10, approvedQty: 6 }], po({ i: 2 }));
     expect(c.caps.get("a")).toBe(6);
   });
+  it("L3: Kho đã xuất vượt phần có sẵn (7), PO 3 chưa về → trần 7; về 3 → 10", () => {
+    const line = { id: "a", itemId: "i", qty: 10, approvedQty: 3, issuedQty: 7 };
+    expect(buildIssueContext("FINAL", [line], po({}, undefined, { i: 3 })).caps.get("a")).toBe(7);
+    expect(buildIssueContext("FINAL", [line], po({ i: 3 }, undefined, { i: 3 })).caps.get("a")).toBe(10);
+  });
+  it("L3: PO đã đóng không còn chờ → trần = đề xuất; không có PO sống → qty", () => {
+    const closed: PrPoSummary = {
+      hasLivePo: true,
+      receivedByItem: new Map(),
+      settledByItem: new Map([["i", 6]]),
+      pendingByItem: new Map([["i", 0]]),
+    };
+    expect(buildIssueContext("FINAL", [{ id: "a", itemId: "i", qty: 10, approvedQty: 6 }], closed).caps.get("a")).toBe(10);
+    expect(issueCapForStage("FINAL", 10, 6, null)).toBe(10);
+    expect(issueCapForStage("FINAL", 10, 6, 99)).toBe(0);
+    expect(issueCapForStage("FINAL", 10, 6, -5)).toBe(10);
+  });
   it("PO về đủ/vượt → trần tối đa = đề xuất", () => {
-    const c = buildIssueContext("FINAL", [{ id: "a", itemId: "i", qty: 10, approvedQty: 6 }], po({ i: 9 }));
+    const c = buildIssueContext("FINAL", [{ id: "a", itemId: "i", qty: 10, approvedQty: 6 }], po({ i: 9 }, undefined, { i: 6 }));
     expect(c.caps.get("a")).toBe(10);
   });
   it("hai dòng cùng vật tư: hàng đã nhận phân bổ lần lượt theo dòng", () => {

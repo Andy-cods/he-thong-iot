@@ -1,10 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
-import { getPR, getPrStockCheck, quickApprovePR } from "@/server/repos/purchaseRequests";
-import { resolveBuyDecisions, summarizeBuyDecisions } from "@/lib/procurement-policy";
+import { getPR, PrApprovalError, quickApprovePR } from "@/server/repos/purchaseRequests";
 import { buyQtysSchema } from "@/lib/pr-buy-schema";
-import { checkStockCommitment } from "@/server/repos/purchaseRequests";
 import { notifyReadyToIssueIfAny } from "@/server/services/prWarehouseNotify";
 import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
@@ -60,21 +58,15 @@ export async function POST(
   if ("response" in body) return body.response;
 
   try {
-    const stock = await getPrStockCheck(params.id);
-    const resolved = resolveBuyDecisions(stock, body.data.buyQtys);
-    if (!resolved.ok) return jsonError("VALIDATION", resolved.message, 422);
-    // C4 — tổng phần xuất từ kho theo vật tư không vượt tồn khả dụng hiện tại.
-    const overCommit = checkStockCommitment(stock, resolved.decisions);
-    if (overCommit) return jsonError("STOCK_SHORT", overCommit, 422);
-    const summary = summarizeBuyDecisions(resolved.decisions);
-
+    // L1 — kiểm tồn (đã trừ phần giữ chỗ cho phiếu khác) + ghi trong CÙNG transaction, khoá theo vật tư.
     const row = await quickApprovePR(
       params.id,
       guard.session.userId,
       body.data.note ?? null,
-      resolved.decisions,
+      body.data.buyQtys,
     );
     if (!row) return jsonError("CONFLICT", "Phiếu đã thay đổi trạng thái.", 409);
+    const summary = row.summary;
 
     const meta = extractRequestMeta(req);
     await writeAudit({
@@ -123,6 +115,7 @@ export async function POST(
 
     return NextResponse.json({ data: row });
   } catch (err) {
+    if (err instanceof PrApprovalError) return jsonError(err.code, err.message, err.httpStatus);
     logger.error({ err }, "quick-approve PR failed");
     return jsonError("INTERNAL", "Không duyệt nhanh được phiếu.", 500);
   }

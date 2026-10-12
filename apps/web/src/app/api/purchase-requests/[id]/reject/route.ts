@@ -75,8 +75,13 @@ export async function POST(
   if ("response" in body) return body.response;
 
   try {
-    const row = await rejectPR(params.id, guard.session.userId, body.data.reason);
-    if (!row) return jsonError("CONFLICT", "PR đã thay đổi trạng thái.", 409);
+    const row = await rejectPR(
+      params.id,
+      guard.session.userId,
+      body.data.reason,
+      before.approvalStep as "SUBMITTED" | "DEPT_APPROVED",
+    );
+    if (!row) return jsonError("CONFLICT", "Phiếu đã đổi bước duyệt trong lúc bạn thao tác — tải lại trang rồi thử lại.", 409);
 
     const meta = extractRequestMeta(req);
     await writeAudit({

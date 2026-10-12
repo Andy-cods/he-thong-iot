@@ -624,29 +624,29 @@ export default function NewMRFPage() {
                 <thead>
                   <tr className="bg-[#F5F5F5] text-xs font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
                     <Th w="w-8">STT</Th>
-                    <Th w="min-w-[220px]">Vật tư (Mã · Tên)</Th>
-                    <Th w="min-w-[104px] print:min-w-[120px] print:w-auto">Quy cách</Th>
-                    <Th w="min-w-[56px] print:w-14 print:min-w-0">ĐVT</Th>
-                    <Th w="min-w-[72px] print:w-14 print:min-w-0" align="right">
+                    <Th w="min-w-[260px]">Vật tư (Mã · Tên)</Th>
+                    <Th w="min-w-[140px] print:min-w-[120px] print:w-auto">Quy cách</Th>
+                    <Th w="min-w-[88px] print:w-14 print:min-w-0">ĐVT</Th>
+                    <Th w="min-w-[96px] print:w-14 print:min-w-0" align="right">
                       SL
                     </Th>
-                    <Th w="min-w-[60px] print:w-16 print:min-w-0" align="right">
+                    <Th w="min-w-[80px] print:w-16 print:min-w-0" align="right">
                       Tồn kho
                     </Th>
-                    <Th w="min-w-[56px] print:w-14 print:min-w-0" align="right">
+                    <Th w="min-w-[80px] print:w-14 print:min-w-0" align="right">
                       Duyệt
                     </Th>
-                    <Th w="min-w-[120px] print:w-28 print:min-w-0">Ngày cần</Th>
-                    <Th w="min-w-[92px] print:w-28 print:min-w-0">Ưu tiên</Th>
-                    <Th w="min-w-[104px] print:w-28 print:min-w-0">Phân loại</Th>
-                    <Th w="min-w-[96px] print:w-28 print:min-w-0" align="right">
+                    <Th w="min-w-[168px] print:w-28 print:min-w-0">Ngày cần</Th>
+                    <Th w="min-w-[136px] print:w-28 print:min-w-0">Ưu tiên</Th>
+                    <Th w="min-w-[148px] print:w-28 print:min-w-0">Phân loại</Th>
+                    <Th w="min-w-[120px] print:w-28 print:min-w-0" align="right">
                       Đơn giá DK
                     </Th>
-                    <Th w="min-w-[100px] print:w-32 print:min-w-0" align="right">
+                    <Th w="min-w-[120px] print:w-32 print:min-w-0" align="right">
                       Tổng tiền
                     </Th>
-                    <Th w="min-w-[72px] print:w-24 print:min-w-0">Mã ref</Th>
-                    <Th w="min-w-[104px] print:min-w-[120px] print:w-auto">Ghi chú</Th>
+                    <Th w="min-w-[104px] print:w-24 print:min-w-0">Mã ref</Th>
+                    <Th w="min-w-[160px] print:min-w-[120px] print:w-auto">Ghi chú</Th>
                     <Th w="w-8" hideOnPrint>
                       &nbsp;
                     </Th>
@@ -754,7 +754,7 @@ export default function NewMRFPage() {
  min={toLocalDateInput()}
  onChange={(v) => updateLine(l.localId, { neededBy: v })}
  aria-label="Ngày cần"
- className="min-w-[112px]"
+ className="min-w-[152px]"
  />
                         </Td>
                         <Td>

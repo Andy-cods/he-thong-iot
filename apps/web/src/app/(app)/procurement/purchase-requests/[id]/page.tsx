@@ -56,6 +56,7 @@ import {
   useDeptApprovePR,
   useDirectorApprovePR,
   useMarkPRCompleted,
+  useRecheckPrStock,
   useRecreatePR,
   useSubmitPR,
   usePurchaseRequestDetail,
@@ -64,7 +65,7 @@ import {
   type PRLineEnriched,
 } from "@/hooks/usePurchaseRequests";
 import { isClosedByPartialReject, REJECTED_PARTIAL_LABEL } from "@/lib/pr-close-policy";
-import { canCancelPR, canRejectAtStep, isSelfApprovalBlocked, isWarehouseIssueStage, prLineToPoLine } from "@/lib/procurement-policy";
+import { canCancelPR, canRejectAtStep, isSelfApprovalBlocked, isStockRecheckableState, isWarehouseIssueStage, prLineToPoLine } from "@/lib/procurement-policy";
 import { canEditPRDraft, canExportPrExcel, canRecreatePR } from "@/server/services/prAccess";
 import { useConvertPRToPOs } from "@/hooks/usePurchaseOrders";
 import { formatDate, formatMoney, formatQty } from "@/lib/format";
@@ -183,6 +184,8 @@ export default function PurchaseRequestDetailPage() {
   const router = useRouter();
   const detail = usePurchaseRequestDetail(id);
   const deptApprove = useDeptApprovePR(id);
+  const recheckStock = useRecheckPrStock(id);
+  const [recheckOpen, setRecheckOpen] = React.useState(false);
   const directorApprove = useDirectorApprovePR(id);
   const quickApprove = useQuickApprovePR(id);
   const reject = useRejectPurchaseRequest(id);
@@ -316,13 +319,32 @@ export default function PurchaseRequestDetailPage() {
   // L3 — Kho xuất được ngay khi phiếu đã duyệt (APPROVED/CONVERTED) còn tồn khả
   // dụng, KHÔNG cần chờ nhận hàng PO. L8 — còn xuất tiếp nhiều đợt tới khi đủ.
   const warehouseStage = isWarehouseIssueStage({ status, approvalStep: step });
+  const issuedAny = (pr.goodsIssues?.length ?? 0) > 0;
+  // N5 — chỉ hiện nút khi còn SL xuất được theo trần (gồm trần theo PO chưa về). Ngoại lệ: đã xuất
+  // ≥ 1 đợt, không còn phần cần mua chờ về mà còn dòng chưa đủ → vẫn mở hộp thoại để "Kết thúc".
+  const issuableLeft = detail.data?.data.warehouseIssuableRemaining ?? 0;
+  const canFinishOnly =
+    issuedAny &&
+    !pr.issueProgress?.outstandingBuy &&
+    (pr.issueProgress?.pendingLines ?? 0) > 0;
   const canMarkIssued =
     (isAdmin || isWarehouse) &&
     !pr.goodsIssuedAt &&
-    ((status === "APPROVED" || status === "CONVERTED") ||
+    (((status === "APPROVED" || status === "CONVERTED") && (issuableLeft > 0 || canFinishOnly)) ||
       // Giai đoạn Kho (đã qua Kho duyệt, chưa duyệt cuối): chỉ khi còn phần xuất được từ tồn.
-      (warehouseStage && (detail.data?.data.warehouseIssuableRemaining ?? 0) > 0));
-  const issuedAny = (pr.goodsIssues?.length ?? 0) > 0;
+      (warehouseStage && issuableLeft > 0));
+  // L1 — Kho "Kiểm tồn lại": phiếu đã duyệt, chưa hoàn tất, chưa có PO sống (phiếu có thể bị kẹt
+  // vì tồn đã giao cho phiếu khác). Server kiểm lại trạng thái + PO.
+  const hasLivePo = (pr.purchaseOrders ?? []).some((p) => p.status !== "CANCELLED");
+  const canRecheckStock =
+    (isAdmin || isWarehouse) &&
+    !hasLivePo &&
+    isStockRecheckableState({
+      status,
+      approvalStep: step,
+      completedAt: pr.completedAt,
+      goodsIssuedAt: pr.goodsIssuedAt,
+    });
   // C2 — hoàn tất ở phần đã xuất vì phần mua bị từ chối.
   const closedByPartialReject = isClosedByPartialReject(pr);
   // T1 — trạng thái kết thúc (Từ chối / Đã huỷ / Hoàn tất) luôn ưu tiên hơn "Đang xuất kho".
@@ -389,6 +411,22 @@ export default function PurchaseRequestDetailPage() {
       setApproveNote("");
     } catch (err) {
       toast.error(`Duyệt thất bại: ${(err as Error).message}`);
+    }
+  };
+
+  const handleRecheck = async () => {
+    try {
+      const r = await recheckStock.mutateAsync({
+        buyQtys: stockBuy.valid ? stockBuy.qtys : undefined,
+      });
+      toast.success(
+        r.data.increased
+          ? "Cần mua thêm — phiếu đã quay về chờ duyệt cuối cho phần cần mua."
+          : "Đã kiểm tồn lại: không phải mua thêm, phiếu giữ nguyên.",
+      );
+      setRecheckOpen(false);
+    } catch (err) {
+      toast.error(`Kiểm tồn lại thất bại: ${(err as Error).message}`);
     }
   };
 
@@ -717,6 +755,17 @@ export default function PurchaseRequestDetailPage() {
                   <ArrowRight className="h-3.5 w-3.5" />
                 )}
                 Tạo PO
+              </Button>
+            )}
+            {canRecheckStock && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setRecheckOpen(true)}
+                className="border-sky-300 text-sky-700 hover:bg-sky-50 dark:border-sky-700 dark:text-sky-300 dark:hover:bg-sky-950/40"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Kiểm tồn lại
               </Button>
             )}
             {canMarkIssued && (
@@ -1341,6 +1390,36 @@ export default function PurchaseRequestDetailPage() {
         </DialogContent>
       </Dialog>
 
+      {/* L1 — Kiểm tồn lại (phiếu đã duyệt, chưa có PO) */}
+      <Dialog open={recheckOpen} onOpenChange={setRecheckOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Kiểm tồn lại</DialogTitle>
+            <DialogDescription>
+              Tính lại SL cần mua theo tồn khả dụng hiện tại (đã trừ phần dành cho phiếu khác). Nếu
+              phải mua thêm, phiếu quay về chờ duyệt cuối cho phần cần mua; nếu không, giữ nguyên.
+            </DialogDescription>
+          </DialogHeader>
+          {recheckOpen && <PrStockCheckPanel prId={id} recheck onChange={onStockBuyChange} />}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRecheckOpen(false)}>
+              Huỷ
+            </Button>
+            <Button
+              onClick={() => void handleRecheck()}
+              disabled={recheckStock.isPending || !stockBuy.valid}
+            >
+              {recheckStock.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-3.5 w-3.5" />
+              )}
+              Xác nhận kiểm tồn lại
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* V3.7.71 — Delete confirmation dialog */}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent>
@@ -1590,6 +1669,7 @@ function Metric({
         {value}
         {unit ? (
           <span className="ml-1 text-[11px] font-normal text-zinc-400">
+            {" "}
             {unit}
           </span>
         ) : null}

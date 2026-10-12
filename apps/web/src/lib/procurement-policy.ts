@@ -328,6 +328,60 @@ export function prLineToPoLine(
   return { orderedQty, unitPrice: Math.max(0, num(l.estimatedUnitPrice)) };
 }
 
+/**
+ * L2 — kiểm PO tạo từ phiếu (wizard/`POST /purchase-orders` kèm prId) theo ĐÚNG quy tắc của from-pr:
+ *  - vật tư phải thuộc phiếu;
+ *  - với mỗi vật tư: Σ SL đặt (PO mới + các PO sống của phiếu) ≤ Σ SL cần mua còn lại (prLineToPoLine);
+ *  - mọi dòng PO mới = 0 → 422.
+ * Trả mã lỗi + thông báo tiếng Việt, hoặc null nếu hợp lệ.
+ */
+export function checkPoLinesAgainstPr(
+  prLines: ReadonlyArray<{
+    itemId: string | null;
+    qty: number | string;
+    approvedQty?: number | string | null;
+    issuedQty?: number | string | null;
+    label?: string | null;
+  }>,
+  livePoOrderedByItem: ReadonlyMap<string, number>,
+  newLines: ReadonlyArray<{ itemId: string; orderedQty: number | string }>,
+): { code: "ITEM_NOT_IN_PR" | "OVER_QTY" | "NOTHING_TO_BUY"; message: string } | null {
+  const allowed = new Map<string, { cap: number; label: string }>();
+  for (const l of prLines) {
+    if (!l.itemId) continue;
+    const r = prLineToPoLine(l, l.issuedQty ?? 0);
+    const cur = allowed.get(l.itemId) ?? { cap: 0, label: l.label ?? "vật tư" };
+    cur.cap += r?.orderedQty ?? 0;
+    allowed.set(l.itemId, cur);
+  }
+  const total = newLines.reduce((a, l) => a + Math.max(0, num(l.orderedQty)), 0);
+  if (total <= 0) {
+    return { code: "NOTHING_TO_BUY", message: "PO phải có ít nhất 1 dòng với SL lớn hơn 0." };
+  }
+  const newByItem = new Map<string, number>();
+  for (const l of newLines) {
+    if (!allowed.has(l.itemId)) {
+      return {
+        code: "ITEM_NOT_IN_PR",
+        message: "Có vật tư không thuộc phiếu đề xuất này — chỉ đặt được vật tư có trong phiếu.",
+      };
+    }
+    newByItem.set(l.itemId, (newByItem.get(l.itemId) ?? 0) + Math.max(0, num(l.orderedQty)));
+  }
+  const f = (n: number) => Number(n.toFixed(4)).toLocaleString("vi-VN");
+  for (const [itemId, qty] of newByItem) {
+    const a = allowed.get(itemId)!;
+    const live = livePoOrderedByItem.get(itemId) ?? 0;
+    if (live + qty > a.cap + 1e-6) {
+      return {
+        code: "OVER_QTY",
+        message: `Vật tư ${a.label}: chỉ còn được đặt thêm ${f(Math.max(0, a.cap - live))} (cần mua ${f(a.cap)}, các PO khác của phiếu đã đặt ${f(live)}), đang đặt ${f(qty)}.`,
+      };
+    }
+  }
+  return null;
+}
+
 /* ── Kho kiểm tồn ở bước duyệt Kho (approved_qty = SL CẦN MUA) ─────────────── */
 
 /** SL cần mua mặc định = max(0, đề xuất − tồn khả dụng hiện tại), 6 số lẻ. */
@@ -342,6 +396,107 @@ export interface BuyDecisionLine {
   available: number | string | null | undefined;
   /** C3 — dòng KHÔNG có vật tư danh mục (null): SL cần mua bị ép = SL đề xuất. undefined = coi là có. */
   itemId?: string | null;
+}
+
+/* ── L1 — giữ chỗ mềm tồn kho giữa các phiếu ─────────────────────────────── */
+
+export interface CommitmentLine {
+  itemId: string | null;
+  qty: number | string;
+  /** SL cần mua đã chốt (null = chưa chốt → coi như mua đủ, không giữ chỗ tồn). */
+  approvedQty?: number | string | null;
+  /** Đã xuất kho cho dòng này (mọi đợt). */
+  issuedQty?: number | string | null;
+}
+
+/**
+ * THUẦN — SL đã "cam kết xuất từ kho" theo vật tư của các phiếu đã qua Kho duyệt
+ * mà chưa hoàn tất: Σ max(0, (qty − cần mua) − đã xuất). Hàng đã xuất thì
+ * v_item_stock.issuable_qty đã trừ rồi nên không tính lại.
+ */
+export function computeCommittedByItem(lines: ReadonlyArray<CommitmentLine>): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const l of lines) {
+    if (!l.itemId) continue;
+    const q = num(l.qty);
+    const buy = effectiveApprovedQty(l.qty, l.approvedQty) ?? q;
+    const rem = Math.max(0, q - buy - num(l.issuedQty));
+    if (rem <= 0) continue;
+    out.set(l.itemId, (out.get(l.itemId) ?? 0) + rem);
+  }
+  return out;
+}
+
+/** THUẦN — tồn khả dụng cho một phiếu = issuable − đã cam kết cho phiếu KHÁC (≥ 0). */
+export function netIssuableByItem(
+  issuable: ReadonlyMap<string, number>,
+  committed: ReadonlyMap<string, number>,
+): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const [id, v] of issuable) out.set(id, Math.max(0, v - (committed.get(id) ?? 0)));
+  return out;
+}
+
+export interface StockRecheckLine {
+  id: string;
+  itemId: string | null;
+  /** SL đề xuất ban đầu. */
+  qty: number | string;
+  /** SL cần mua hiện đang chốt (null = chưa chốt → mua đủ). */
+  approvedQty?: number | string | null;
+  issuedQty?: number | string | null;
+}
+
+/**
+ * THUẦN — kết quả "Kiểm tồn lại": so SL cần mua mới (theo tồn hiện tại / Kho chỉnh)
+ * với SL cần mua đang chốt. `increased` = có dòng phải mua THÊM → phiếu về chờ duyệt cuối.
+ */
+export function planStockRecheck(
+  lines: ReadonlyArray<StockRecheckLine>,
+  newBuys: Readonly<Record<string, number>>,
+): {
+  increased: boolean;
+  changedLineIds: string[];
+  increasedLines: number;
+  coveredLines: number;
+  buyLines: number;
+} {
+  let increased = false;
+  let increasedLines = 0;
+  const changed: string[] = [];
+  const vals: number[] = [];
+  for (const l of lines) {
+    const q = num(l.qty);
+    const oldBuy = effectiveApprovedQty(l.qty, l.approvedQty) ?? q;
+    const nb = newBuys[l.id] ?? oldBuy;
+    vals.push(nb);
+    if (Math.abs(nb - oldBuy) > 1e-9) changed.push(l.id);
+    if (nb > oldBuy + 1e-9) {
+      increased = true;
+      increasedLines += 1;
+    }
+  }
+  const sum = summarizeBuyDecisions(Object.fromEntries(vals.map((v, i) => [String(i), v])));
+  return {
+    increased,
+    changedLineIds: changed,
+    increasedLines,
+    coveredLines: sum.coveredLines,
+    buyLines: sum.buyLines,
+  };
+}
+
+/** Phiếu ở trạng thái Kho còn kiểm tồn lại được (đã qua Kho duyệt, chưa hoàn tất/xuất xong). */
+export function isStockRecheckableState(pr: {
+  status: string;
+  approvalStep: string | null | undefined;
+  completedAt: Date | string | null | undefined;
+  goodsIssuedAt: Date | string | null | undefined;
+}): boolean {
+  if (pr.completedAt || pr.goodsIssuedAt) return false;
+  if (pr.approvalStep === "DEPT_APPROVED") return pr.status === "SUBMITTED";
+  if (pr.approvalStep === "DIRECTOR_APPROVED") return pr.status === "APPROVED" || pr.status === "CONVERTED";
+  return false;
 }
 
 /**
@@ -445,6 +600,36 @@ export function summarizeBuyDecisions(decisions: Readonly<Record<string, number>
   return { coveredLines, buyLines: vals.length - coveredLines, allCovered: vals.length > 0 && coveredLines === vals.length };
 }
 
+/**
+ * N3 — tóm tắt cho thông báo duyệt cuối từ SL đã chốt của từng dòng: "có sẵn" (cần mua = 0),
+ * "có sẵn một phần" (0 < cần mua < đề xuất, đếm vào CẢ HAI nhóm có sẵn/cần mua), cần mua.
+ */
+export function summarizeLineCoverage(
+  lines: ReadonlyArray<{ qty: number | string; approvedQty?: number | string | null }>,
+): { coveredLines: number; partialLines: number; buyLines: number } {
+  let coveredLines = 0;
+  let partialLines = 0;
+  let buyLines = 0;
+  for (const l of lines) {
+    const q = num(l.qty);
+    const buy = effectiveApprovedQty(l.qty, l.approvedQty) ?? q;
+    if (buy <= 1e-9) coveredLines += 1;
+    else {
+      buyLines += 1;
+      if (buy < q - 1e-9) partialLines += 1;
+    }
+  }
+  return { coveredLines, partialLines, buyLines };
+}
+
+/** THUẦN (N7) — phiếu vẫn đang ở đúng bước mà người từ chối đã thấy? */
+export function isRejectStepCurrent(
+  current: string | null | undefined,
+  expected: "SUBMITTED" | "DEPT_APPROVED",
+): boolean {
+  return current === expected;
+}
+
 /** Phiếu đã qua Kho (DEPT_APPROVED) nhưng chưa duyệt cuối — Kho được xuất phần có sẵn. */
 export function isWarehouseIssueStage(pr: { status: string; approvalStep: string | null | undefined }): boolean {
   return pr.status === "SUBMITTED" && pr.approvalStep === "DEPT_APPROVED";
@@ -452,24 +637,23 @@ export function isWarehouseIssueStage(pr: { status: string; approvalStep: string
 
 /**
  * Trần xuất kho mỗi dòng: giai đoạn Kho (chưa duyệt cuối) = qty − approved
- * (phần xuất từ kho); sau duyệt cuối = qty (đề xuất).
+ * (phần xuất từ kho); sau duyệt cuối (L3) = qty − phần PO sống còn CHỜ HÀNG VỀ
+ * của dòng (kẹp 0..qty). Không có PO sống → trần = qty (đề xuất).
  */
 export function issueCapForStage(
   stage: "WAREHOUSE" | "FINAL",
   qty: number | string,
   approvedQty: number | string | null | undefined,
   /**
-   * T2 — SL đã nhận từ PO sống cho dòng này (null/undefined = phiếu chưa có PO →
-   * trần = đề xuất như cũ). Có PO: trần = (đề xuất − cần mua) + đã nhận, tối đa đề xuất.
+   * L3 — SL còn chờ về của PO sống cho dòng này = Σ(đặt − đã nhận đạt QC); PO đã
+   * đóng không còn chờ. null/undefined = phiếu chưa có PO → trần = đề xuất.
    */
-  receivedForLine?: number | null,
+  pendingForLine?: number | null,
 ): number {
   const q = num(qty);
   if (stage === "FINAL") {
-    if (receivedForLine === null || receivedForLine === undefined) return q;
-    const buy = effectiveApprovedQty(qty, approvedQty) ?? q;
-    const fromStock = Math.max(0, q - buy);
-    return Math.min(q, fromStock + Math.max(0, Math.min(buy, num(receivedForLine))));
+    if (pendingForLine === null || pendingForLine === undefined) return q;
+    return Math.max(0, Math.min(q, q - Math.max(0, num(pendingForLine))));
   }
   const a = effectiveApprovedQty(qty, approvedQty);
   return Math.max(0, q - (a ?? q));
@@ -482,6 +666,8 @@ export interface PrPoSummary {
   receivedByItem: ReadonlyMap<string, number>;
   /** Như trên nhưng PO ĐÃ ĐÓNG tính cả phần chưa giao (NCC không giao nữa = hết chờ). */
   settledByItem: ReadonlyMap<string, number>;
+  /** L3 — SL còn chờ về theo vật tư: Σ max(0, đặt − nhận đạt) trên PO sống chưa đóng. */
+  pendingByItem: ReadonlyMap<string, number>;
 }
 
 /** Phân bổ một "quỹ" SL theo vật tư lần lượt qua các dòng (dòng trước trước), mỗi dòng tối đa SL cần mua của nó. */
@@ -524,12 +710,12 @@ export function buildIssueContext(
   }>,
   po: PrPoSummary,
 ): PrIssueContext {
-  const recvAlloc = stage === "FINAL" && po.hasLivePo ? allocatePoolToLines(lines, po.receivedByItem) : null;
+  const pendAlloc = stage === "FINAL" && po.hasLivePo ? allocatePoolToLines(lines, po.pendingByItem) : null;
   const caps = new Map<string, number>();
   for (const l of lines) {
     caps.set(
       l.id,
-      issueCapForStage(stage, l.qty, l.approvedQty, recvAlloc ? recvAlloc.get(l.id) ?? 0 : null),
+      issueCapForStage(stage, l.qty, l.approvedQty, pendAlloc ? pendAlloc.get(l.id) ?? 0 : null),
     );
   }
   const settleAlloc = allocatePoolToLines(lines, po.settledByItem);

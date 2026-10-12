@@ -15,7 +15,7 @@ import {
 } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 import { PR_COMPLETED_PO_MESSAGE } from "@/lib/pr-close-policy";
-import { parseDateParam } from "@/lib/procurement-policy";
+import { canCreatePoFromPr, parseDateParam } from "@/lib/procurement-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -72,6 +72,11 @@ export async function POST(req: NextRequest) {
 
   const body = await parseJson(req, poCreateSchema);
   if ("response" in body) return body.response;
+
+  // L2 — PO gắn phiếu đề xuất = đường from-pr: chỉ Mua hàng/Admin (như from-pr).
+  if (body.data.prId && !canCreatePoFromPr(guard.session.roles)) {
+    return jsonError("FORBIDDEN", "Chỉ Mua hàng hoặc Admin được tạo PO từ đề xuất.", 403);
+  }
 
   // V1.9-P9: auto-approve chỉ được phép khi user có quyền "approve", "po".
   const canApprove =
@@ -155,6 +160,13 @@ export async function POST(req: NextRequest) {
         "PO còn dòng chưa có đơn giá — lưu nháp rồi nhập giá trước khi gửi duyệt/duyệt.",
         409,
       );
+    }
+    // L2 — kiểm SL/vật tư theo phiếu
+    if (msg.startsWith("ITEM_NOT_IN_PR") || msg.startsWith("OVER_QTY")) {
+      return jsonError(msg.split(":")[0]!, msg.slice(msg.indexOf(":") + 1).trim(), 422);
+    }
+    if (msg.startsWith("NOTHING_TO_BUY")) {
+      return jsonError("NOTHING_TO_BUY", msg.slice(msg.indexOf(":") + 1).trim(), 422);
     }
     if (msg.includes("PO_MUST_HAVE_LINES")) {
       return jsonError("VALIDATION", "PO phải có ít nhất 1 dòng.", 422);

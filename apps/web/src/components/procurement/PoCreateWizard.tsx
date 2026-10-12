@@ -21,7 +21,6 @@ import {
 } from "@/hooks/usePurchaseRequests";
 import { formatQty } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { prLineToPoLine } from "@/lib/procurement-policy";
 import {
   SupplierPicker,
   type SupplierPickerValue,
@@ -123,45 +122,8 @@ export function PoCreateWizard() {
     return () => window.removeEventListener("beforeunload", handler);
   }, [step, state.supplier, state.lines, create.isSuccess]);
 
-  // Auto-fill lines khi chọn PR.
-  React.useEffect(() => {
-    if (state.source === "FROM_PR" && prDetail.data?.data.lines) {
-      const prLines = prDetail.data.data.lines;
-      // V4.1 TM-01: trước đây bỏ IM LẶNG các dòng vật tư nhập tay (chưa có mã)
-      // → PO thiếu hàng mà người dùng không biết. Giờ báo rõ số dòng bị bỏ.
-      const skipped = prLines.filter((l) => !l.itemId).length;
-      if (skipped > 0) {
-        toast.warning(
-          `${skipped} dòng trong phiếu đề xuất chưa có mã vật tư nên không đưa vào PO được. ` +
-            "Hãy dùng nút “Tạo PO” ở trang chi tiết phiếu (tự tạo mã cho dòng nhập tay).",
-        );
-      }
-      // V3.7.72 — filter lines có itemId (bỏ free-text lines chưa link master)
-      // V4.1 TM-10 — dòng bị gạch (SL duyệt = 0) không đưa vào PO; SL = SL
-      // duyệt nếu có, đơn giá = đơn giá dự kiến trên phiếu (trước đây luôn 0).
-      const next: PoLineDraft[] = prLines
-        .filter((l): l is typeof l & { itemId: string } => !!l.itemId)
-        .filter((l) => prLineToPoLine(l, l.issuedQty ?? 0) !== null)
-        .map((l) => ({
-        localId: crypto.randomUUID(),
-        item: {
-          id: l.itemId,
-          sku: l.sku ?? "",
-          name: l.name ?? "",
-          uom: undefined,
-        },
-        qty: String(prLineToPoLine(l, l.issuedQty ?? 0)!.orderedQty),
-        unitPrice: String(prLineToPoLine(l, l.issuedQty ?? 0)!.unitPrice),
-        taxRate: "8",
-        neededBy: l.neededBy ?? null,
-        notes: l.notes ?? null,
-        snapshotLineId: l.snapshotLineId ?? null,
-        // cột purchase_order_line.spec là varchar(255)
-        spec: l.specification ? l.specification.slice(0, 255) : null,
-      }));
-      setState((s) => ({ ...s, lines: next }));
-    }
-  }, [prDetail.data, state.source]);
+  // L2 — KHÔNG còn auto-fill/sửa dòng từ PR trong wizard: chọn phiếu thì chuyển sang luồng
+  // “Tạo PO” có sẵn ở trang chi tiết phiếu (server kiểm SL cần mua/vật tư theo phiếu).
 
   const canNext1 = state.source === "MANUAL" || !!state.prId;
   const canNext2 = !!state.supplier && state.lines.some((l) => l.item);
@@ -187,7 +149,7 @@ export function PoCreateWizard() {
 
     const payload: POCreateInput = {
       supplierId: state.supplier.id,
-      prId: state.prId,
+      prId: null, // L2 — PO từ phiếu đi qua luồng from-pr, không qua wizard
       linkedOrderId: null,
       expectedEta: state.expectedEta ? new Date(state.expectedEta) : null,
       currency: "VND",
@@ -325,7 +287,7 @@ export function PoCreateWizard() {
                   Từ PR đã duyệt
                 </div>
                 <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">
-                  Auto-fill toàn bộ dòng hàng từ Purchase Request đã được duyệt.
+                  Mở phiếu đã duyệt để lập PO theo SL cần mua (dùng nút “Tạo PO” trên phiếu).
                 </p>
               </div>
             </label>
@@ -524,10 +486,16 @@ export function PoCreateWizard() {
           <Button
             type="button"
             size="sm"
-            onClick={() => setStep((s) => (s < 3 ? ((s + 1) as Step) : s))}
+            onClick={() => {
+              if (step === 1 && state.source === "FROM_PR" && state.prId) {
+                router.push(`/procurement/purchase-requests/${state.prId}`);
+                return;
+              }
+              setStep((s) => (s < 3 ? ((s + 1) as Step) : s));
+            }}
             disabled={(step === 1 && !canNext1) || (step === 2 && !canNext2)}
           >
-            Tiếp
+            {step === 1 && state.source === "FROM_PR" ? "Mở phiếu để tạo PO" : "Tiếp"}
             <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
           </Button>
         ) : (

@@ -171,6 +171,7 @@ export interface PRDetailResponse {
     issueProgress?: {
       complete: boolean;
       pendingLines: number;
+      outstandingBuy?: boolean;
       lines: { id: string; cap: number; issued: number; remaining: number }[];
     };
     /** WAREHOUSE = đã qua Kho duyệt, chưa duyệt cuối (Kho xuất phần có sẵn); FINAL = sau duyệt cuối. */
@@ -190,18 +191,23 @@ export interface PRStockCheckLine {
   qty: number;
   /** Tồn khả dụng HIỆN TẠI (AVAILABLE trừ giữ chỗ, không tính HOLD). */
   available: number;
-  /** C4 — tồn khả dụng toàn kho của vật tư (chưa trừ các dòng cùng vật tư phía trên). */
+  /** C4/L1 — tồn khả dụng của vật tư SAU khi trừ phần giữ chỗ cho phiếu khác (chưa trừ các dòng cùng vật tư phía trên). */
   stockTotal?: number;
+  /** L1 — phần tồn đang giữ chỗ cho phiếu KHÁC đã qua Kho duyệt. */
+  reservedByOthers?: number;
+  /** L1 — Kiểm tồn lại: SL đề xuất ban đầu / đã xuất. */
+  qtyTotal?: number;
+  issuedQty?: number;
   defaultBuyQty: number;
 }
 
 /** Kho kiểm tồn khi duyệt: dòng + tồn khả dụng + SL cần mua mặc định. */
-export function usePrStockCheck(id: string | null, enabled: boolean) {
+export function usePrStockCheck(id: string | null, enabled: boolean, recheck = false) {
   return useQuery({
-    queryKey: ["procurement", "requests", "stock-check", id ?? "__none__"],
+    queryKey: ["procurement", "requests", "stock-check", id ?? "__none__", recheck],
     queryFn: () =>
       request<{ data: { approvalStep: string | null; lines: PRStockCheckLine[] } }>(
-        `/api/purchase-requests/${id}/stock-check`,
+        `/api/purchase-requests/${id}/stock-check${recheck ? "?recheck=1" : ""}`,
       ),
     enabled: !!id && enabled,
     staleTime: 0,
@@ -459,6 +465,22 @@ export function useDeptApprovePR(id: string) {
     mutationFn: (data: { note?: string | null; buyQtys?: Record<string, number> }) =>
       request<{ data: PRRow }>(
         `/api/purchase-requests/${id}/dept-approve`,
+        { method: "POST", body: JSON.stringify(data) },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.procurement.requests.all });
+      qc.invalidateQueries({ queryKey: qk.procurement.requests.detail(id) });
+    },
+  });
+}
+
+/** L1 — Kho "Kiểm tồn lại" phiếu đã duyệt chưa hoàn tất / chưa có PO. */
+export function useRecheckPrStock(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { buyQtys?: Record<string, number> }) =>
+      request<{ data: { increased: boolean; approvalStep: string | null; status: string } }>(
+        `/api/purchase-requests/${id}/recheck-stock`,
         { method: "POST", body: JSON.stringify(data) },
       ),
     onSuccess: () => {

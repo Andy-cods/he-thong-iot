@@ -15,12 +15,15 @@ import { fmtNumVN } from "@/components/procurement/prStockFormat";
 export function PrStockCheckPanel({
   prId,
   onChange,
+  recheck = false,
 }: {
   prId: string;
+  /** L1 — Kiểm tồn lại phiếu đã duyệt: dòng chỉ còn (đề xuất − đã xuất) cần đáp ứng. */
+  recheck?: boolean;
   /** buyQtys = lineId → SL cần mua; valid=false khi có ô ngoài khoảng cho phép. */
   onChange: (buyQtys: Record<string, number>, valid: boolean) => void;
 }) {
-  const q = usePrStockCheck(prId, true);
+  const q = usePrStockCheck(prId, true, recheck);
   const lines = q.data?.data.lines;
   const [values, setValues] = React.useState<Record<string, string>>({});
 
@@ -29,19 +32,48 @@ export function PrStockCheckPanel({
     setValues(Object.fromEntries(lines.map((l) => [l.id, String(l.defaultBuyQty)])));
   }, [lines]);
 
+  const parsed = React.useCallback(
+    (raw: string | undefined) =>
+      raw === undefined || raw.trim() === "" ? NaN : Number(raw.replace(",", ".")),
+    [],
+  );
+
+  // N4 — tồn LŨY KẾ tính lại theo giá trị đang nhập: dòng sau thấy tồn đã trừ phần Kho xuất
+  // cho các dòng trước cùng vật tư (theo SL cần mua vừa sửa). Vượt tồn → không cho xác nhận.
+  const calc = React.useMemo(() => {
+    const rows = new Map<string, { left: number; over: boolean; fromStock: number }>();
+    if (!lines) return { rows, overMsg: null as string | null };
+    const used = new Map<string, number>();
+    let overMsg: string | null = null;
+    for (const l of lines) {
+      const n = parsed(values[l.id]);
+      const buy = Number.isFinite(n) ? n : l.qty;
+      const fromStock = l.itemId ? Math.max(0, l.qty - buy) : 0;
+      const total = l.stockTotal ?? l.available;
+      const left = l.itemId ? Math.max(0, total - (used.get(l.itemId) ?? 0)) : 0;
+      const over = fromStock > left + 1e-6;
+      if (l.itemId) used.set(l.itemId, (used.get(l.itemId) ?? 0) + fromStock);
+      rows.set(l.id, { left, over, fromStock });
+      if (over && !overMsg) {
+        overMsg = `Dòng ${l.lineNo}: xuất từ kho ${fmtNumVN(fromStock)} nhưng tồn khả dụng chỉ còn ${fmtNumVN(left)} — tăng SL cần mua hoặc giảm phần xuất.`;
+      }
+    }
+    return { rows, overMsg };
+  }, [lines, values, parsed]);
+
   React.useEffect(() => {
     if (!lines) return;
     const out: Record<string, number> = {};
     let valid = true;
     for (const l of lines) {
-      const raw = values[l.id];
-      const n = raw === undefined || raw.trim() === "" ? NaN : Number(raw.replace(",", "."));
+      const n = parsed(values[l.id]);
       if (!Number.isFinite(n) || n < 0 || n > l.qty + 1e-9) valid = false;
+      if (calc.rows.get(l.id)?.over) valid = false;
       out[l.id] = Number.isFinite(n) ? n : 0;
     }
     onChange(out, valid);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [values, lines]);
+  }, [values, lines, calc]);
 
   if (q.isLoading) {
     return (
@@ -61,8 +93,12 @@ export function PrStockCheckPanel({
   return (
     <div className="space-y-2">
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        Tồn khả dụng là số TẠI THỜI ĐIỂM NÀY (đã trừ hàng giữ chỗ/HOLD). Ô “SL cần mua” là phần
-        phải mua thêm; phần còn lại Kho xuất từ tồn.
+        Tồn khả dụng là số TẠI THỜI ĐIỂM NÀY (đã trừ hàng giữ chỗ/HOLD và phần đã dành cho các
+        phiếu khác đã qua Kho duyệt). Ô “SL cần mua” là phần phải mua thêm; phần còn lại Kho xuất
+        từ tồn.
+        {recheck
+          ? " Kiểm tồn lại: cột Đề xuất đã trừ phần Kho đã xuất; nếu phải mua thêm, phiếu quay về chờ duyệt cuối."
+          : ""}
       </p>
       <div className="max-h-[50vh] overflow-auto rounded-md border border-zinc-200 dark:border-zinc-800">
         <table className="w-full text-sm">
@@ -78,7 +114,13 @@ export function PrStockCheckPanel({
             {lines.map((l) => {
               const raw = values[l.id] ?? "";
               const n = Number(raw.replace(",", "."));
-              const bad = raw.trim() === "" || !Number.isFinite(n) || n < 0 || n > l.qty + 1e-9;
+              const row = calc.rows.get(l.id);
+              const bad =
+                raw.trim() === "" ||
+                !Number.isFinite(n) ||
+                n < 0 ||
+                n > l.qty + 1e-9 ||
+                !!row?.over;
               return (
                 <tr key={l.id} className="border-t border-zinc-100 dark:border-zinc-800">
                   <td className="px-2 py-1.5">
@@ -91,13 +133,18 @@ export function PrStockCheckPanel({
                   <td
                     className={
                       "px-2 py-1.5 text-right tabular-nums " +
-                      (l.available < l.qty ? "text-rose-600" : "text-emerald-600")
+                      (row?.over || (row?.left ?? 0) < l.qty ? "text-rose-600" : "text-emerald-600")
                     }
                   >
-                    {l.itemId ? fmtNumVN(l.available) : "—"}
-                    {l.itemId && l.stockTotal != null && l.stockTotal !== l.available ? (
+                    {l.itemId ? fmtNumVN(row?.left ?? l.available) : "—"}
+                    {l.itemId && l.stockTotal != null && l.stockTotal !== (row?.left ?? l.available) ? (
                       <div className="text-[11px] font-normal text-zinc-500">
-                        (tồn kho {fmtNumVN(l.stockTotal)}, dòng trên đã dùng)
+                        (tồn khả dụng {fmtNumVN(l.stockTotal)}, dòng trên đã dùng)
+                      </div>
+                    ) : null}
+                    {l.itemId && (l.reservedByOthers ?? 0) > 0 ? (
+                      <div className="text-[11px] font-normal text-amber-600">
+                        đã dành cho phiếu khác: {fmtNumVN(l.reservedByOthers)}
                       </div>
                     ) : null}
                   </td>
@@ -122,6 +169,11 @@ export function PrStockCheckPanel({
           </tbody>
         </table>
       </div>
+      {calc.overMsg ? (
+        <p role="alert" className="text-sm text-rose-600">
+          {calc.overMsg}
+        </p>
+      ) : null}
     </div>
   );
 }

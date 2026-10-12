@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
-import { directorApprovePR, getPR } from "@/server/repos/purchaseRequests";
+import { directorApprovePR, getPR, getPRLines } from "@/server/repos/purchaseRequests";
 import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import {
@@ -9,7 +9,7 @@ import {
 } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 import { notifyReadyToIssueIfAny } from "@/server/services/prWarehouseNotify";
-import { isSelfApprovalBlocked } from "@/lib/procurement-policy";
+import { isSelfApprovalBlocked, summarizeLineCoverage } from "@/lib/procurement-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -102,6 +102,8 @@ export async function POST(
 
     // TASK-20260927 — 1 lần gửi: Thu mua (tạo PO) + người lập + Kế toán (PDF),
     // người giữ nhiều vai trò chỉ nhận 1 thông báo.
+    // N3 — kèm tóm tắt có sẵn / cần mua từ SL Kho đã chốt.
+    const cover = summarizeLineCoverage(await getPRLines(params.id));
     void notifyPRApproved({
       prId: params.id,
       prNo: before.paperFormNo ?? before.code,
@@ -109,6 +111,9 @@ export async function POST(
       actorUserId: guard.session.userId,
       actorUsername: guard.session.fullName,
       creatorUserId: before.requestedBy,
+      coveredLines: cover.coveredLines,
+      buyLines: cover.buyLines,
+      partialLines: cover.partialLines,
     });
 
     // Báo Kho nếu còn phần xuất được từ tồn (approved_qty < qty).

@@ -14,6 +14,7 @@ import type {
 } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import {
+  checkPoLinesAgainstPr,
   computePoLineTotal,
   nextPoStatusAfterReceipt,
   prLineToPoLine,
@@ -861,6 +862,51 @@ export async function createPO(
       // C3(d) — phiếu đã hoàn tất (xuất đủ / chốt ở phần đã xuất) không lập PO được nữa.
       if (pr.completedAt) throw new Error("PR_COMPLETED");
       if (pr.status === "APPROVED") prToConvert = pr.id;
+
+      // L2 — áp ĐÚNG quy tắc của from-pr: vật tư thuộc phiếu, tổng SL đặt (PO mới + PO sống
+      // của phiếu) ≤ SL cần mua còn lại, không dòng nào = 0 hết.
+      const prLines = await tx
+        .select({
+          id: purchaseRequestLine.id,
+          itemId: purchaseRequestLine.itemId,
+          qty: purchaseRequestLine.qty,
+          approvedQty: purchaseRequestLine.approvedQty,
+          itemSku: purchaseRequestLine.itemSku,
+          masterSku: item.sku,
+        })
+        .from(purchaseRequestLine)
+        .leftJoin(item, eq(item.id, purchaseRequestLine.itemId))
+        .where(eq(purchaseRequestLine.prId, input.prId));
+      const issuedRows = (await tx.execute(sql`
+        SELECT gil.purchase_request_line_id::text AS line_id, COALESCE(SUM(gil.qty), 0)::text AS qty
+        FROM app.goods_issue_line gil
+        JOIN app.goods_issue gi ON gi.id = gil.goods_issue_id
+        WHERE gi.purchase_request_id = ${input.prId}
+        GROUP BY gil.purchase_request_line_id
+      `)) as unknown as Array<{ line_id: string | null; qty: string }>;
+      const issuedByLine = new Map<string, number>();
+      for (const r of issuedRows) if (r.line_id) issuedByLine.set(r.line_id, Number(r.qty) || 0);
+      const liveRows = (await tx.execute(sql`
+        SELECT pol.item_id::text AS item_id, COALESCE(SUM(pol.ordered_qty), 0)::text AS qty
+        FROM app.purchase_order_line pol
+        JOIN app.purchase_order po ON po.id = pol.po_id
+        WHERE po.pr_id = ${input.prId} AND po.status <> 'CANCELLED'
+        GROUP BY pol.item_id
+      `)) as unknown as Array<{ item_id: string; qty: string }>;
+      const liveByItem = new Map<string, number>();
+      for (const r of liveRows) liveByItem.set(r.item_id, Number(r.qty) || 0);
+      const bad = checkPoLinesAgainstPr(
+        prLines.map((l) => ({
+          itemId: l.itemId,
+          qty: l.qty,
+          approvedQty: l.approvedQty,
+          issuedQty: issuedByLine.get(l.id) ?? 0,
+          label: l.masterSku ?? l.itemSku ?? null,
+        })),
+        liveByItem,
+        input.lines.map((l) => ({ itemId: l.itemId, orderedQty: l.orderedQty })),
+      );
+      if (bad) throw new Error(`${bad.code}: ${bad.message}`);
     }
 
     // V3.11.4 (audit 1.21) — genDocNo: advisory lock + MAX(seq)+1 (thay COUNT+1

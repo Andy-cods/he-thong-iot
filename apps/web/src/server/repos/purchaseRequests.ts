@@ -19,7 +19,13 @@ import { db } from "@/lib/db";
 import {
   allocateStockAcrossLines,
   buildIssueContext,
+  computeCommittedByItem,
   effectiveApprovedQty,
+  isRejectStepCurrent,
+  isStockRecheckableState,
+  netIssuableByItem,
+  planStockRecheck,
+  resolveBuyDecisions,
   issueCapForStage,
   isWarehouseIssueStage,
   prHasGoodsIssueMessage,
@@ -928,24 +934,75 @@ export async function submitPR(id: string): Promise<PurchaseRequest | null> {
   });
 }
 
+/** L1 — lỗi nghiệp vụ khi duyệt Kho / kiểm tồn lại (route map ra HTTP). */
+export class PrApprovalError extends Error {
+  constructor(
+    public readonly code: "VALIDATION" | "STOCK_SHORT" | "INVALID_STATE",
+    message: string,
+    public readonly httpStatus: number,
+  ) {
+    super(message);
+    this.name = "PrApprovalError";
+  }
+}
+
+/**
+ * L1 — khoá advisory theo TỪNG vật tư của phiếu (theo thứ tự id để tránh deadlock)
+ * trong transaction: hai phiếu cùng vật tư duyệt đồng thời xếp hàng, phiếu sau thấy
+ * phần giữ chỗ của phiếu trước.
+ */
+async function lockPrItemsForStock(tx: PrTx, prId: string): Promise<void> {
+  const rows = await tx
+    .select({ itemId: purchaseRequestLine.itemId })
+    .from(purchaseRequestLine)
+    .where(eq(purchaseRequestLine.prId, prId));
+  const ids = Array.from(new Set(rows.map((r) => r.itemId).filter((x): x is string => !!x))).sort();
+  for (const itemId of ids) {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${"pr-stock:" + itemId}, 0))`);
+  }
+}
+
+/** L1 — trong transaction + đã khoá: tính SL cần mua rồi kiểm không vượt tồn khả dụng (sau giữ chỗ). */
+async function resolveAndCheckDecisions(
+  tx: PrTx,
+  prId: string,
+  buyQtys: Record<string, number> | undefined,
+): Promise<Record<string, number>> {
+  const stock = await getPrStockCheck(prId, tx);
+  const resolved = resolveBuyDecisions(stock, buyQtys);
+  if (!resolved.ok) throw new PrApprovalError("VALIDATION", resolved.message, 422);
+  const over = checkStockCommitment(stock, resolved.decisions);
+  if (over) throw new PrApprovalError("STOCK_SHORT", over, 422);
+  return resolved.decisions;
+}
+
 /**
  * V3.7.69 YCVT — Step 2: Trưởng bộ phận duyệt.
  * SUBMITTED → DEPT_APPROVED.
+ *
+ * L1 — kiểm tồn + UPDATE trong CÙNG transaction, có khoá advisory theo vật tư.
+ * `buyQtys` = Kho nhập (lineId → SL CẦN MUA); bỏ trống → mặc định theo tồn khả dụng.
+ * Mọi dòng cần mua = 0 → bỏ qua duyệt cuối (status APPROVED luôn).
  */
 export async function deptApprovePR(
   id: string,
   approverId: string,
   note?: string | null,
-  /**
-   * Kho kiểm tồn: lineId → SL CẦN MUA (approved_qty). CHỈ đường duyệt Kho
-   * (và quick-approve của admin) được ghi trường này (A1). Mọi dòng = 0 →
-   * không còn gì để mua → bỏ qua duyệt cuối (status APPROVED luôn).
-   */
-  decisions?: Record<string, number>,
-): Promise<(PurchaseRequest & { autoFinal: boolean }) | null> {
+  buyQtys?: Record<string, number>,
+): Promise<
+  | (PurchaseRequest & {
+      autoFinal: boolean;
+      decisions: Record<string, number>;
+      summary: ReturnType<typeof summarizeBuyDecisions>;
+    })
+  | null
+> {
   return db.transaction(async (tx) => {
     const now = new Date();
-    const autoFinal = !!decisions && summarizeBuyDecisions(decisions).allCovered;
+    await lockPrItemsForStock(tx, id);
+    const decisions = await resolveAndCheckDecisions(tx, id, buyQtys);
+    const summary = summarizeBuyDecisions(decisions);
+    const autoFinal = summary.allCovered;
     const [row] = await tx
       .update(purchaseRequest)
       .set({
@@ -971,8 +1028,8 @@ export async function deptApprovePR(
       )
       .returning();
     if (!row) return null;
-    if (decisions) await writeBuyDecisions(tx, id, decisions);
-    return Object.assign(row, { autoFinal });
+    await writeBuyDecisions(tx, id, decisions);
+    return Object.assign(row, { autoFinal, decisions, summary });
   });
 }
 
@@ -990,15 +1047,60 @@ async function writeBuyDecisions(
   }
 }
 
-/** Dòng PR + tồn khả dụng HIỆN TẠI của vật tư (app.v_item_stock.issuable_qty: AVAILABLE, trừ giữ chỗ, không tính HOLD). */
-export async function getPrStockCheck(prId: string) {
-  const lines = await getPRLinesEnriched(prId);
+/**
+ * L1 — SL đã "giữ chỗ mềm" theo vật tư bởi các phiếu KHÁC: phiếu đã qua Kho duyệt
+ * (DEPT_APPROVED / APPROVED / CONVERTED) mà chưa hoàn tất, phần xuất từ kho
+ * (qty − cần mua) còn chưa xuất. Tính động, không có bảng riêng.
+ */
+export async function getCommittedByItem(
+  itemIds: string[],
+  excludePrId: string,
+  exec: Executor = db,
+): Promise<Map<string, number>> {
+  if (itemIds.length === 0) return new Map();
+  const rows = (await exec.execute(sql`
+    SELECT l.item_id::text AS "itemId", l.qty::text AS qty,
+           l.approved_qty::text AS "approvedQty",
+           COALESCE((SELECT SUM(gil.qty) FROM app.goods_issue_line gil
+                     WHERE gil.purchase_request_line_id = l.id), 0)::text AS "issuedQty"
+    FROM app.purchase_request_line l
+    JOIN app.purchase_request pr ON pr.id = l.pr_id
+    WHERE l.item_id = ANY(${uuidArray(itemIds)})
+      AND pr.id <> ${excludePrId}
+      AND pr.status IN ('SUBMITTED', 'APPROVED', 'CONVERTED')
+      AND pr.approval_step IN ('DEPT_APPROVED', 'DIRECTOR_APPROVED')
+      AND pr.completed_at IS NULL
+      AND pr.goods_issued_at IS NULL
+  `)) as unknown as Array<{
+    itemId: string;
+    qty: string;
+    approvedQty: string | null;
+    issuedQty: string;
+  }>;
+  return computeCommittedByItem(rows);
+}
+
+/**
+ * Dòng PR + tồn khả dụng HIỆN TẠI của vật tư (app.v_item_stock.issuable_qty:
+ * AVAILABLE, trừ giữ chỗ, không tính HOLD) TRỪ phần đã giữ chỗ mềm cho phiếu khác (L1).
+ * `issuedByLine` (Kiểm tồn lại): dòng chỉ còn "qty − đã xuất" cần được đáp ứng.
+ */
+export async function getPrStockCheck(
+  prId: string,
+  exec: Executor & Pick<typeof db, "select"> = db,
+  issuedByLine?: ReadonlyMap<string, number>,
+) {
+  const lines = await getPRLinesEnriched(prId, exec);
   const itemIds = Array.from(new Set(lines.map((l) => l.itemId).filter((x): x is string => !!x)));
-  const avail = await getIssuableQtyByItem(itemIds);
+  const issuable = await getIssuableQtyByItem(itemIds, exec);
+  const committed = await getCommittedByItem(itemIds, prId, exec);
+  const avail = netIssuableByItem(issuable, committed);
+  const eff = (l: (typeof lines)[number]) =>
+    Math.max(0, (Number(l.qty) || 0) - (issuedByLine?.get(l.id) ?? 0));
   // C4 — phân bổ tồn LŨY KẾ theo vật tư (dòng trước dùng trước): hai dòng cùng
   // vật tư không còn cùng "thấy" toàn bộ tồn.
   const alloc = allocateStockAcrossLines(
-    lines.map((l) => ({ id: l.id, itemId: l.itemId, qty: Number(l.qty) || 0 })),
+    lines.map((l) => ({ id: l.id, itemId: l.itemId, qty: eff(l) })),
     avail,
   );
   return lines.map((l) => ({
@@ -1008,11 +1110,20 @@ export async function getPrStockCheck(prId: string) {
     sku: l.sku,
     name: l.name,
     uom: l.uom ?? l.itemUom,
-    qty: Number(l.qty) || 0,
+    /** SL cần đáp ứng (đề xuất; khi Kiểm tồn lại = đề xuất − đã xuất). */
+    qty: eff(l),
+    qtyTotal: Number(l.qty) || 0,
+    issuedQty: issuedByLine?.get(l.id) ?? 0,
+    /** SL cần mua đang chốt (null = chưa chốt). */
+    approvedQty: l.approvedQty != null ? Number(l.approvedQty) : null,
     /** Tồn còn lại cho RIÊNG dòng này sau khi các dòng trước (cùng vật tư) đã dùng. */
     available: alloc.get(l.id) ?? 0,
-    /** Tồn khả dụng toàn kho của vật tư (chưa trừ các dòng trước). */
+    /** Tồn khả dụng của vật tư SAU khi trừ phần giữ chỗ cho phiếu khác (chưa trừ các dòng trước). */
     stockTotal: l.itemId ? avail.get(l.itemId) ?? 0 : 0,
+    /** Phần đang giữ chỗ cho phiếu khác. */
+    reservedByOthers: l.itemId ? committed.get(l.itemId) ?? 0 : 0,
+    /** Tồn khả dụng thô của vật tư (chưa trừ giữ chỗ phiếu khác). */
+    stockRaw: l.itemId ? issuable.get(l.itemId) ?? 0 : 0,
   }));
 }
 
@@ -1058,14 +1169,23 @@ export async function getPrPoSummary(prId: string, exec: Executor = db): Promise
   }>;
   const received = new Map<string, number>();
   const settled = new Map<string, number>();
+  const pending = new Map<string, number>();
   for (const r of rows) {
     const got = Math.max(0, (Number(r.received) || 0) - (Number(r.rejected) || 0));
     received.set(r.item_id, (received.get(r.item_id) ?? 0) + got);
     // PO đã đóng: phần NCC không giao nữa coi là "hết chờ".
     const done = r.status === "CLOSED" ? Math.max(got, Number(r.ordered) || 0) : got;
     settled.set(r.item_id, (settled.get(r.item_id) ?? 0) + done);
+    // L3 — còn chờ về: PO đã đóng thì không chờ nữa.
+    const wait = r.status === "CLOSED" ? 0 : Math.max(0, (Number(r.ordered) || 0) - got);
+    pending.set(r.item_id, (pending.get(r.item_id) ?? 0) + wait);
   }
-  return { hasLivePo: rows.length > 0, receivedByItem: received, settledByItem: settled };
+  return {
+    hasLivePo: rows.length > 0,
+    receivedByItem: received,
+    settledByItem: settled,
+    pendingByItem: pending,
+  };
 }
 
 /**
@@ -1092,10 +1212,13 @@ export async function getPrIssueContext(
   );
 }
 
-export async function getIssuableQtyByItem(itemIds: string[]): Promise<Map<string, number>> {
+export async function getIssuableQtyByItem(
+  itemIds: string[],
+  exec: Executor = db,
+): Promise<Map<string, number>> {
   const out = new Map<string, number>();
   if (itemIds.length === 0) return out;
-  const rows = (await db.execute(sql`
+  const rows = (await exec.execute(sql`
     SELECT item_id::text AS item_id, issuable_qty::text AS qty
     FROM app.v_item_stock
     WHERE item_id = ANY(${uuidArray(itemIds)})
@@ -1145,11 +1268,20 @@ export async function quickApprovePR(
   id: string,
   approverId: string,
   note?: string | null,
-  decisions?: Record<string, number>,
-): Promise<PurchaseRequest | null> {
+  buyQtys?: Record<string, number>,
+): Promise<
+  | (PurchaseRequest & {
+      decisions: Record<string, number>;
+      summary: ReturnType<typeof summarizeBuyDecisions>;
+    })
+  | null
+> {
   return db.transaction(async (tx) => {
     const now = new Date();
     const quickNote = note ?? "Duyệt nhanh (Admin)";
+    await lockPrItemsForStock(tx, id);
+    const decisions = await resolveAndCheckDecisions(tx, id, buyQtys);
+    const summary = summarizeBuyDecisions(decisions);
     const [row] = await tx
       .update(purchaseRequest)
       .set({
@@ -1173,8 +1305,97 @@ export async function quickApprovePR(
       )
       .returning();
     if (!row) return null;
-    if (decisions) await writeBuyDecisions(tx, id, decisions);
-    return row;
+    await writeBuyDecisions(tx, id, decisions);
+    return Object.assign(row, { decisions, summary });
+  });
+}
+
+/**
+ * L1 — "Kiểm tồn lại" (Kho/admin): phiếu đã qua Kho duyệt, chưa hoàn tất, chưa có PO
+ * sống → tính lại SL cần mua theo tồn khả dụng hiện tại (sau giữ chỗ phiếu khác;
+ * Kho có thể chỉnh qua `buyQtys`). Có dòng phải mua THÊM → ghi approved_qty mới và
+ * đưa phiếu về chờ duyệt cuối (SUBMITTED/DEPT_APPROVED). Không tăng → giữ nguyên.
+ */
+export async function recheckPrStock(
+  id: string,
+  actorId: string,
+  buyQtys?: Record<string, number>,
+): Promise<{
+  pr: PurchaseRequest;
+  increased: boolean;
+  summary: ReturnType<typeof summarizeBuyDecisions>;
+  decisions: Record<string, number>;
+  prevStep: string | null;
+}> {
+  return db.transaction(async (tx) => {
+    const [cur] = await tx
+      .select()
+      .from(purchaseRequest)
+      .where(eq(purchaseRequest.id, id))
+      .for("update")
+      .limit(1);
+    if (!cur) throw new PrApprovalError("INVALID_STATE", "Không tìm thấy phiếu.", 404);
+    if (
+      !isStockRecheckableState({
+        status: cur.status,
+        approvalStep: cur.approvalStep,
+        completedAt: cur.completedAt,
+        goodsIssuedAt: cur.goodsIssuedAt,
+      })
+    ) {
+      throw new PrApprovalError(
+        "INVALID_STATE",
+        "Chỉ kiểm tồn lại được phiếu đã qua Kho duyệt và chưa hoàn tất.",
+        409,
+      );
+    }
+    const po = await getPrPoSummary(id, tx);
+    if (po.hasLivePo) {
+      throw new PrApprovalError(
+        "INVALID_STATE",
+        "Phiếu đã có PO — huỷ/đóng PO trước khi kiểm tồn lại.",
+        409,
+      );
+    }
+    await lockPrItemsForStock(tx, id);
+    const issuedByLine = await getPRIssuedQtyByLine(id, tx);
+    const stock = await getPrStockCheck(id, tx, issuedByLine);
+    const resolved = resolveBuyDecisions(stock, buyQtys);
+    if (!resolved.ok) throw new PrApprovalError("VALIDATION", resolved.message, 422);
+    const over = checkStockCommitment(stock, resolved.decisions);
+    if (over) throw new PrApprovalError("STOCK_SHORT", over, 422);
+
+    // stock[].qty = phần còn phải đáp ứng (đề xuất − đã xuất); SL cần mua mới tính trên cùng cơ sở.
+    const plan = planStockRecheck(
+      stock.map((l) => ({ id: l.id, itemId: l.itemId, qty: l.qty, approvedQty: l.approvedQty })),
+      resolved.decisions,
+    );
+    const summary = summarizeBuyDecisions(resolved.decisions);
+    const prevStep = cur.approvalStep;
+    if (!plan.increased) {
+      return { pr: cur, increased: false, summary, decisions: resolved.decisions, prevStep };
+    }
+    await writeBuyDecisions(tx, id, resolved.decisions);
+    const now = new Date();
+    const [row] = await tx
+      .update(purchaseRequest)
+      .set({
+        status: "SUBMITTED",
+        approvalStep: "DEPT_APPROVED",
+        deptApprovedBy: actorId,
+        deptApprovedAt: now,
+        deptApprovalNote: "Kho kiểm tồn lại: tồn không đủ, cần mua thêm",
+        directorApprovedBy: null,
+        directorApprovedAt: null,
+        directorApprovalNote: null,
+        approvedBy: null,
+        approvedAt: null,
+        updatedAt: now,
+      })
+      .where(and(eq(purchaseRequest.id, id), sql`${purchaseRequest.completedAt} IS NULL`))
+      .returning();
+    if (!row) throw new PrApprovalError("INVALID_STATE", "Phiếu đã thay đổi trạng thái.", 409);
+    return { pr: row, increased: true, summary, decisions: resolved.decisions, prevStep };
   });
 }
 
@@ -1474,6 +1695,52 @@ export async function markPRGoodsIssuedWithStock(
     let complete = false;
     let progress: PrIssueProgress | null = null;
 
+    const lineRows = await tx
+      .select({
+        id: purchaseRequestLine.id,
+        itemId: purchaseRequestLine.itemId,
+        qty: purchaseRequestLine.qty,
+        approvedQty: purchaseRequestLine.approvedQty,
+        masterSku: item.sku,
+        itemSku: purchaseRequestLine.itemSku,
+      })
+      .from(purchaseRequestLine)
+      .leftJoin(item, eq(item.id, purchaseRequestLine.itemId))
+      .where(eq(purchaseRequestLine.prId, id));
+
+    // L8 — tổng đã xuất theo dòng ở các đợt trước (goods_issue_line).
+    const issuedRows = await tx
+      .select({
+        lineId: goodsIssueLine.purchaseRequestLineId,
+        qty: sql<string>`COALESCE(SUM(${goodsIssueLine.qty}), 0)`,
+      })
+      .from(goodsIssueLine)
+      .innerJoin(goodsIssue, eq(goodsIssue.id, goodsIssueLine.goodsIssueId))
+      .where(eq(goodsIssue.purchaseRequestId, id))
+      .groupBy(goodsIssueLine.purchaseRequestLineId);
+    const issuedByLine = new Map<string, number>();
+    for (const r of issuedRows) {
+      if (r.lineId) issuedByLine.set(r.lineId, Number(r.qty) || 0);
+    }
+    const hadEarlierIssue = issuedRows.length > 0;
+
+    // T2 — có PO sống: trần = (đề xuất − cần mua) + đã nhận; C3 — cờ còn phần cần mua chưa về.
+    const poSummary = await getPrPoSummary(id, tx);
+    const ctxOf = (issued: ReadonlyMap<string, number>) =>
+      buildIssueContext(
+        stage,
+        lineRows.map((l) => ({
+          id: l.id,
+          itemId: l.itemId,
+          qty: Number(l.qty) || 0,
+          approvedQty: l.approvedQty != null ? Number(l.approvedQty) : null,
+          issuedQty: issued.get(l.id) ?? 0,
+        })),
+        poSummary,
+      );
+    const ctxBefore = ctxOf(issuedByLine);
+
+
     if (input.noStockConfirm) {
       const reason = (input.noStockReason ?? "").trim();
       if (reason.length < 3) {
@@ -1483,53 +1750,16 @@ export async function markPRGoodsIssuedWithStock(
           422,
         );
       }
+      // L4 — "không trừ tồn" cũng không được lách chặn còn phần mua chưa về.
+      if (ctxBefore.outstandingBuy) {
+        throw new GoodsIssueError(
+          "OUTSTANDING_PURCHASE",
+          "Còn PO chưa về — huỷ/đóng PO trước khi ghi nhận.",
+          409,
+        );
+      }
       complete = true;
     } else {
-      const lineRows = await tx
-        .select({
-          id: purchaseRequestLine.id,
-          itemId: purchaseRequestLine.itemId,
-          qty: purchaseRequestLine.qty,
-          approvedQty: purchaseRequestLine.approvedQty,
-          masterSku: item.sku,
-          itemSku: purchaseRequestLine.itemSku,
-        })
-        .from(purchaseRequestLine)
-        .leftJoin(item, eq(item.id, purchaseRequestLine.itemId))
-        .where(eq(purchaseRequestLine.prId, id));
-
-      // L8 — tổng đã xuất theo dòng ở các đợt trước (goods_issue_line).
-      const issuedRows = await tx
-        .select({
-          lineId: goodsIssueLine.purchaseRequestLineId,
-          qty: sql<string>`COALESCE(SUM(${goodsIssueLine.qty}), 0)`,
-        })
-        .from(goodsIssueLine)
-        .innerJoin(goodsIssue, eq(goodsIssue.id, goodsIssueLine.goodsIssueId))
-        .where(eq(goodsIssue.purchaseRequestId, id))
-        .groupBy(goodsIssueLine.purchaseRequestLineId);
-      const issuedByLine = new Map<string, number>();
-      for (const r of issuedRows) {
-        if (r.lineId) issuedByLine.set(r.lineId, Number(r.qty) || 0);
-      }
-      const hadEarlierIssue = issuedRows.length > 0;
-
-      // T2 — có PO sống: trần = (đề xuất − cần mua) + đã nhận; C3 — cờ còn phần cần mua chưa về.
-      const poSummary = await getPrPoSummary(id, tx);
-      const ctxOf = (issued: ReadonlyMap<string, number>) =>
-        buildIssueContext(
-          stage,
-          lineRows.map((l) => ({
-            id: l.id,
-            itemId: l.itemId,
-            qty: Number(l.qty) || 0,
-            approvedQty: l.approvedQty != null ? Number(l.approvedQty) : null,
-            issuedQty: issued.get(l.id) ?? 0,
-          })),
-          poSummary,
-        );
-      const ctxBefore = ctxOf(issuedByLine);
-
       const lineStates: PrIssueLineState[] = lineRows.map((l) => ({
         id: l.id,
         itemId: l.itemId,
@@ -1550,7 +1780,7 @@ export async function markPRGoodsIssuedWithStock(
         if (!hadEarlierIssue) {
           throw new GoodsIssueError(
             "EMPTY_ISSUE",
-            'Chưa xuất đợt nào — chọn lô để xuất, hoặc dùng "Ghi nhận đã xuất — không trừ tồn" kèm lý do.',
+            "Chưa xuất đợt nào — chọn lô để xuất trước khi kết thúc.",
             422,
           );
         }
@@ -1737,7 +1967,9 @@ export async function deletePR(
 export async function rejectPR(
   id: string,
   userId: string | null,
-  reason?: string | null,
+  reason: string | null | undefined,
+  /** N7 — bước người từ chối THẤY khi bấm; phiếu đã đổi bước giữa chừng → null (route trả 409). */
+  expectedStep: "SUBMITTED" | "DEPT_APPROVED",
 ): Promise<(PurchaseRequest & { closedAtIssued: boolean }) | null> {
   return db.transaction(async (tx) => {
     const [cur] = await tx
@@ -1747,7 +1979,7 @@ export async function rejectPR(
       .for("update")
       .limit(1);
     if (!cur) return null;
-    if (cur.approvalStep !== "SUBMITTED" && cur.approvalStep !== "DEPT_APPROVED") return null;
+    if (!isRejectStepCurrent(cur.approvalStep, expectedStep)) return null;
 
     const issues = await tx
       .select({ id: goodsIssue.id })
@@ -1890,8 +2122,11 @@ export async function cancelPR(
 }
 
 /** L8 — tổng đã xuất theo từng dòng PR (cộng mọi đợt xuất). */
-export async function getPRIssuedQtyByLine(prId: string): Promise<Map<string, number>> {
-  const rows = await db
+export async function getPRIssuedQtyByLine(
+  prId: string,
+  exec: Pick<typeof db, "select"> = db,
+): Promise<Map<string, number>> {
+  const rows = await exec
     .select({
       lineId: goodsIssueLine.purchaseRequestLineId,
       qty: sql<string>`COALESCE(SUM(${goodsIssueLine.qty}), 0)`,
@@ -2023,8 +2258,8 @@ export async function duplicatePRAsDraft(
  * V3.7.72 — LEFT JOIN item (vì itemId nullable). Fallback hiển thị name/sku
  * lấy từ item master nếu có itemId, else dùng itemName/itemSku free-text.
  */
-export async function getPRLinesEnriched(prId: string) {
-  const rows = await db
+export async function getPRLinesEnriched(prId: string, exec: Pick<typeof db, "select"> = db) {
+  const rows = await exec
     .select({
       id: purchaseRequestLine.id,
       lineNo: purchaseRequestLine.lineNo,
