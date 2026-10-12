@@ -18,7 +18,17 @@ import {
 } from "@/hooks/usePurchaseRequests";
 import { useSession } from "@/hooks/useSession";
 import { cn } from "@/lib/utils";
-import { formatDate } from "@/lib/format";
+import { DateField } from "@/components/ui/date-field";
+import { VnNumberInput } from "@/components/procurement/VnNumberInput";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import {
+  DEFAULT_PROPOSING_DEPARTMENT,
+  normalizeNumStr,
+  proposingDepartmentForRoles,
+  validatePrLines,
+  type LineError,
+} from "@/lib/pr-form";
+import { toLocalDateInput, formatDate } from "@/lib/format";
 
 /**
  * V3.10 — `/procurement/purchase-requests/new-dnvt` —
@@ -123,26 +133,23 @@ export default function NewDnvtPage() {
     "Bộ phận Mua hàng",
   );
   const [proposingDepartment, setProposingDepartment] = React.useState(
-    "Bộ phận Gia công",
+    DEFAULT_PROPOSING_DEPARTMENT,
   );
   const [requestReason, setRequestReason] = React.useState("");
 
   // Auto-fill proposing department theo role user
   React.useEffect(() => {
-    const roles = session.data?.roles ?? [];
-    if (roles.includes("operator")) setProposingDepartment("Bộ phận Lắp ráp");
-    else if (roles.includes("planner"))
-      setProposingDepartment("Bộ phận Thiết kế");
-    else if (roles.includes("warehouse")) setProposingDepartment("Bộ phận Kho");
-    else if (roles.includes("purchaser"))
-      setProposingDepartment("Bộ phận Thu mua");
-    else if (roles.includes("qc")) setProposingDepartment("Tổ QC/KCS");
-    else if (roles.includes("accountant"))
-      setProposingDepartment("Bộ phận Kế toán");
+    const dept = proposingDepartmentForRoles(session.data?.roles ?? []);
+    if (dept) setProposingDepartment(dept);
   }, [session.data?.roles]);
 
   // Lines (II. Danh mục vật tư)
   const [lines, setLines] = React.useState<DnvtLineDraft[]>(() => [blankLine()]);
+  // L11: cờ "có thay đổi chưa lưu" (chỉ bật khi người dùng tác động, không bật khi prefill nháp).
+  const [dirty, setDirty] = React.useState(false);
+  const guard = useUnsavedChangesGuard(dirty);
+  // L12: lỗi theo dòng (tô đỏ dòng + nêu rõ "Dòng X ...").
+  const [lineErrors, setLineErrors] = React.useState<LineError[]>([]);
 
   // TASK-6VIEC Việc 2 — prefill form từ phiếu NHÁP khi mở qua ?draftId=.
   React.useEffect(() => {
@@ -167,7 +174,7 @@ export default function NewDnvtPage() {
             : null,
           specification: l.specification ?? "",
           uom: l.uom ?? l.itemUom ?? "",
-          qty: l.qty ?? "1",
+          qty: normalizeNumStr(l.qty) || "1",
           neededBy: l.neededBy ? l.neededBy.slice(0, 10) : "",
           priority: l.priority ?? "NORMAL",
           category: l.category ?? "CONSUMABLE",
@@ -187,12 +194,15 @@ export default function NewDnvtPage() {
   );
 
   const updateLine = (id: string, patch: Partial<DnvtLineDraft>) => {
+    setDirty(true);
+    setLineErrors((prev) => prev.filter((e) => e.localId !== id));
     setLines((prev) =>
       prev.map((l) => (l.localId === id ? { ...l, ...patch } : l)),
     );
   };
 
   const addLine = () => {
+    setDirty(true);
     if (lines.length >= 20) {
       toast.warning("Phiếu tối đa 20 dòng. Tách nhiều phiếu nếu cần.");
       return;
@@ -201,10 +211,23 @@ export default function NewDnvtPage() {
   };
 
   const removeLine = (id: string) => {
+    setDirty(true);
+    setLineErrors((prev) => prev.filter((e) => e.localId !== id));
     setLines((prev) => {
       const next = prev.filter((l) => l.localId !== id);
       return next.length === 0 ? [blankLine()] : next;
     });
+  };
+
+  /** L12: kiểm dòng; có lỗi → tô đỏ dòng, toast liệt kê, trả false. */
+  const checkLines = (): boolean => {
+    const errs = validatePrLines(lines, toLocalDateInput());
+    setLineErrors(errs);
+    if (errs.length > 0) {
+      toast.error(errs.slice(0, 3).map((e) => e.message).join("\n") + (errs.length > 3 ? `\n… và ${errs.length - 3} lỗi khác` : ""));
+      return false;
+    }
+    return true;
   };
 
   // TASK-6VIEC Việc 2 — dựng lines/header payload dùng chung cho "Lưu nháp"
@@ -243,6 +266,7 @@ export default function NewDnvtPage() {
   /** TASK-6VIEC Việc 2 — "Lưu nháp": giữ status DRAFT, KHÔNG gửi thông báo. */
   const handleSaveDraft = async () => {
     if (submittingRef.current) return;
+    if (!checkLines()) return;
     if (validLines.length === 0) {
       toast.error("Cần ít nhất 1 dòng đã chọn vật tư + số lượng > 0.");
       return;
@@ -253,6 +277,7 @@ export default function NewDnvtPage() {
         const patch: PRUpdateInput = { ...buildHeader(), lines: buildLinesPayload() };
         await updatePR.mutateAsync(patch);
         toast.success("Đã lưu nháp");
+        guard.release();
         router.push(`/procurement/purchase-requests/${draftId}`);
       } else {
         const payload: PRCreateInput = {
@@ -269,6 +294,7 @@ export default function NewDnvtPage() {
           idempotencyKey: idempotencyKeyRef.current,
         });
         toast.success("Đã lưu nháp");
+        guard.release();
         router.push(`/procurement/purchase-requests/${res.data.id}`);
       }
     } catch (err) {
@@ -281,6 +307,7 @@ export default function NewDnvtPage() {
   const handleSubmit = async () => {
     // V4.5 QA-E P2 — khoá đồng bộ NGAY đầu hàm, trước mọi validate/await.
     if (submittingRef.current) return;
+    if (!checkLines()) return;
     if (validLines.length === 0) {
       toast.error("Cần ít nhất 1 dòng đã chọn vật tư + số lượng > 0.");
       return;
@@ -299,6 +326,7 @@ export default function NewDnvtPage() {
         const submitted = await submitDraft.mutateAsync();
         const formNo = submitted.data.paperFormNo ?? submitted.data.code;
         toast.success(`Đã gửi phiếu đề xuất vật tư ${formNo}`);
+        guard.release();
         router.push(`/procurement/purchase-requests/${draftId}`);
         return;
       }
@@ -318,7 +346,8 @@ export default function NewDnvtPage() {
       });
       const formNo = res.data.paperFormNo ?? res.data.code;
       toast.success(`Đã gửi phiếu đề xuất vật tư ${formNo}`);
-      router.push(`/procurement/purchase-requests/${res.data.id}`);
+      guard.release();
+        router.push(`/procurement/purchase-requests/${res.data.id}`);
     } catch (err) {
       toast.error((err as Error).message ?? "Không tạo được phiếu");
       submittingRef.current = false;
@@ -338,9 +367,9 @@ export default function NewDnvtPage() {
   const todayStr = formatDateVN(new Date());
 
   return (
-    <div className="flex h-full flex-col overflow-auto bg-zinc-100 dark:bg-zinc-950 print:bg-white">
+    <div className="flex h-full flex-col overflow-auto bg-zinc-100 pb-16 md:pb-0 dark:bg-zinc-950 print:bg-white">
       {/* Toolbar (no print) */}
-      <header className="border-b border-zinc-200 bg-white px-6 py-3 print:hidden dark:border-zinc-800 dark:bg-zinc-900">
+      <header className="border-b border-zinc-200 bg-white px-4 py-3 md:px-6 print:hidden dark:border-zinc-800 dark:bg-zinc-900">
         <nav aria-label="Breadcrumb" className="text-xs text-zinc-500 dark:text-zinc-400">
           <Link href="/" className="hover:text-zinc-900 hover:underline dark:hover:text-zinc-50">
             Tổng quan
@@ -354,14 +383,14 @@ export default function NewDnvtPage() {
           </Link>
           <span className="mx-1.5 text-zinc-300 dark:text-zinc-600">›</span>
           <span className="font-medium text-zinc-900 dark:text-zinc-50">
-            Tạo phiếu đề xuất vật tư (DNVT)
+            Tạo phiếu DNVT
           </span>
         </nav>
-        <div className="mt-1.5 flex items-center justify-between">
-          <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+        <div className="mt-1.5 flex items-center justify-between gap-2">
+          <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 break-words min-w-0">
             Phiếu đề xuất vật tư (DNVT)
           </h1>
-          <div className="flex items-center gap-2">
+          <div className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-end gap-2 border-t border-zinc-200 bg-white/95 px-3 py-2 backdrop-blur md:static md:z-auto md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none dark:border-zinc-800 dark:bg-zinc-900/95">
             <Button variant="ghost" size="sm" onClick={handlePrint} disabled={pending}>
               <Printer className="h-3.5 w-3.5" />
               In phiếu
@@ -388,9 +417,10 @@ export default function NewDnvtPage() {
       {/* Form sheet — print-friendly A4 landscape.
           Mobile: cuộn ngang như tài liệu (min-w giữ tỉ lệ A4, không vỡ layout). */}
       <div className="mx-auto w-full max-w-[1440px] overflow-x-auto p-2 sm:p-6 print:overflow-visible print:p-0 print:max-w-none">
-        <article className="min-w-[760px] border-2 border-zinc-900 bg-white text-zinc-900 shadow-md print:min-w-0 print:border print:border-zinc-900 print:shadow-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 print:dark:border-zinc-900 print:dark:bg-white print:dark:text-zinc-900">
+        <article onInput={() => setDirty(true)}
+          className="min-w-0 md:min-w-[760px] border-2 border-zinc-900 bg-white text-zinc-900 shadow-md print:min-w-0 print:border print:border-zinc-900 print:shadow-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 print:dark:border-zinc-900 print:dark:bg-white print:dark:text-zinc-900">
           {/* ===== HEADER ===== */}
-          <div className="grid grid-cols-[1fr_2fr_1fr] items-center gap-2 border-b-2 border-zinc-900 px-4 py-3 text-[12px] print:dark:border-zinc-900">
+          <div className="grid grid-cols-1 items-center gap-2 md:grid-cols-[1fr_2fr_1fr] print:grid-cols-[1fr_2fr_1fr] border-b-2 border-zinc-900 px-4 py-3 text-[12px] print:dark:border-zinc-900">
             <div className="flex items-center gap-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -407,7 +437,7 @@ export default function NewDnvtPage() {
               <br />
               CÔNG NGHỆ TOÀN CẦU
             </div>
-            <div className="space-y-1 text-right text-[12px]">
+            <div className="space-y-1 text-left text-[12px] md:text-right print:text-right">
               <div>
                 {/* V4.1 TM-21 — số hiện ở đây chỉ là DỰ KIẾN; số thật cấp khi gửi
                     phiếu (người khác gửi trước sẽ lấy số này). */}
@@ -436,7 +466,7 @@ export default function NewDnvtPage() {
           {/* ===== I. Thông tin chung ===== */}
           <section className="border-b border-zinc-300 print:dark:border-zinc-300">
             <SectionTitle>I. Thông tin chung</SectionTitle>
-            <div className="grid grid-cols-1 md:grid-cols-2">
+            <div className="grid grid-cols-[minmax(0,1fr)] md:grid-cols-2">
               <FieldRow label="Kính gửi:">
                 <input
                   value={targetDepartment}
@@ -500,6 +530,13 @@ export default function NewDnvtPage() {
 
             {/* V4.4 UI nhóm C-PR — chỉ báo cuộn ngang mobile (bảng nhiều cột
                 bị cắt cụt ở 390px nhưng không có gợi ý còn nội dung). */}
+            {lineErrors.length > 0 && (
+              <ul role="alert" className="mx-2 mb-1 space-y-0.5 rounded border border-red-300 bg-red-50 px-3 py-1.5 text-[12px] text-red-700 print:hidden dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
+                {lineErrors.map((e) => (
+                  <li key={e.localId}>{e.message}</li>
+                ))}
+              </ul>
+            )}
             <p className="mb-1 text-[11px] text-zinc-400 md:hidden print:hidden" aria-hidden="true">
               ← Vuốt ngang để xem đủ cột →
             </p>
@@ -511,7 +548,7 @@ export default function NewDnvtPage() {
                     <Th w="min-w-[220px] print:min-w-[150px] print:w-auto">Tên vật tư</Th>
                     <Th w="min-w-[160px] print:min-w-[120px] print:w-auto">Quy cách chi tiết</Th>
                     <Th w="min-w-[72px] print:w-14 print:min-w-0">ĐVT</Th>
-                    <Th w="min-w-[96px] print:w-16 print:min-w-0" align="center">
+                    <Th w="min-w-[150px] print:w-16 print:min-w-0" align="center">
                       SL YC
                     </Th>
                     <Th w="min-w-[72px] print:w-16 print:min-w-0" align="right">
@@ -520,13 +557,13 @@ export default function NewDnvtPage() {
                     <Th w="min-w-[64px] print:w-14 print:min-w-0" align="right">
                       Duyệt
                     </Th>
-                    <Th w="min-w-[140px] print:w-28 print:min-w-0">Ngày cần</Th>
-                    <Th w="min-w-[110px] print:w-28 print:min-w-0">Ưu tiên</Th>
-                    <Th w="min-w-[110px] print:w-28 print:min-w-0">Phân loại</Th>
+                    <Th w="min-w-[150px] print:w-28 print:min-w-0">Ngày cần</Th>
+                    <Th w="min-w-[130px] print:w-28 print:min-w-0">Ưu tiên</Th>
+                    <Th w="min-w-[170px] print:w-28 print:min-w-0">Phân loại</Th>
                     <Th w="min-w-[96px] print:w-24 print:min-w-0">Mã tham chiếu</Th>
                     <Th w="min-w-[88px] print:w-20 print:min-w-0">Tham khảo</Th>
                     <Th w="min-w-[140px] print:min-w-[110px] print:w-auto">Ghi chú</Th>
-                    <Th w="min-w-[140px] print:w-28 print:min-w-0">Ngày giao hàng</Th>
+                    <Th w="min-w-[150px] print:w-28 print:min-w-0">Ngày giao hàng</Th>
                     <Th w="w-8" hideOnPrint>
                       &nbsp;
                     </Th>
@@ -536,7 +573,10 @@ export default function NewDnvtPage() {
                   {lines.map((l, idx) => (
                     <tr
                       key={l.localId}
+                      aria-invalid={lineErrors.some((e) => e.localId === l.localId) || undefined}
                       className={cn(
+                        lineErrors.some((e) => e.localId === l.localId) &&
+                          "bg-red-50 outline outline-1 -outline-offset-1 outline-red-400 dark:bg-red-950/30",
                         "border-b border-zinc-200 align-top dark:border-zinc-700 print:dark:border-zinc-300",
                         idx % 2 === 1
                           ? "bg-zinc-50/40 dark:bg-zinc-800/30 print:dark:bg-zinc-50/40"
@@ -591,16 +631,13 @@ export default function NewDnvtPage() {
                         />
                       </Td>
                       <Td align="center">
-                        <input
-                          type="number"
-                          step="0.001"
-                          min="0"
-                          value={l.qty}
-                          onChange={(e) =>
-                            updateLine(l.localId, { qty: e.target.value })
-                          }
-                          className="w-full bg-transparent text-center font-mono text-[16px] tabular-nums outline-none [appearance:textfield] sm:text-md print:text-[11px] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                        />
+                        <VnNumberInput
+ value={l.qty}
+ onValueChange={(v) => updateLine(l.localId, { qty: v })}
+ maxDecimals={3}
+ aria-label="Số lượng"
+ className="w-full bg-transparent text-center font-mono text-[16px] tabular-nums outline-none sm:text-md print:text-[11px]"
+ />
                       </Td>
                       <Td align="right">
                         <span
@@ -619,14 +656,13 @@ export default function NewDnvtPage() {
                         </span>
                       </Td>
                       <Td>
-                        <input
-                          type="date"
-                          value={l.neededBy}
-                          onChange={(e) =>
-                            updateLine(l.localId, { neededBy: e.target.value })
-                          }
-                          className="w-full bg-transparent text-[16px] outline-none sm:text-md print:text-[11px]"
-                        />
+                        <DateField
+ value={l.neededBy}
+ min={toLocalDateInput()}
+ onChange={(v) => updateLine(l.localId, { neededBy: v })}
+ aria-label="Ngày cần"
+ className="min-w-[132px]"
+ />
                       </Td>
                       <Td>
                         <select
@@ -702,16 +738,13 @@ export default function NewDnvtPage() {
                         />
                       </Td>
                       <Td>
-                        <input
-                          type="date"
-                          value={l.deliveryDate}
-                          onChange={(e) =>
-                            updateLine(l.localId, {
-                              deliveryDate: e.target.value,
-                            })
-                          }
-                          className="w-full bg-transparent text-[16px] outline-none sm:text-md print:text-[11px]"
-                        />
+                        <DateField
+ value={l.deliveryDate}
+ min={toLocalDateInput()}
+ onChange={(v) => updateLine(l.localId, { deliveryDate: v })}
+ aria-label="Ngày giao hàng"
+ className="min-w-[132px]"
+ />
                       </Td>
                       <Td hideOnPrint>
                         <button
@@ -738,8 +771,8 @@ export default function NewDnvtPage() {
             <table className="w-full border-collapse text-[11px]">
               <thead>
                 <tr className="bg-[#F5F5F5] text-xs font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
-                  <Th w="w-48">Vai trò</Th>
-                  <Th w="w-56">Họ tên</Th>
+                  <Th w="md:w-48">Vai trò</Th>
+                  <Th w="md:w-56">Họ tên</Th>
                   <Th>Ký tên / Ngày</Th>
                 </tr>
               </thead>
@@ -809,7 +842,7 @@ function FieldRow({
   return (
     <div
       className={cn(
-        "grid grid-cols-[140px_1fr] border-b border-zinc-200 dark:border-zinc-700 print:dark:border-zinc-300",
+        "grid grid-cols-[120px_minmax(0,1fr)] md:grid-cols-[140px_minmax(0,1fr)] border-b border-zinc-200 dark:border-zinc-700 print:dark:border-zinc-300",
         wide ? "md:col-span-2" : "",
       )}
     >
@@ -817,7 +850,7 @@ function FieldRow({
         {label}
         {required ? <span className="ml-0.5 text-red-500">*</span> : null}
       </div>
-      <div className="flex min-h-[28px] items-center px-3 py-1">{children}</div>
+      <div className="flex min-h-[28px] min-w-0 items-center px-3 py-1">{children}</div>
     </div>
   );
 }
