@@ -14,13 +14,13 @@ import type {
 } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import {
-  checkPoLinesAgainstPr,
   computePoLineTotal,
   nextPoStatusAfterReceipt,
-  prLineToPoLine,
   shouldRevertPrAfterPoCancel,
   type PoReceiptLine,
 } from "../../lib/procurement-policy";
+import { checkNewPoAgainstLedger, r6 } from "../../lib/pr-ledger";
+import { getPrLedger } from "./purchaseRequests";
 import {
   computeExpectedPayable,
   type ExpectedPayableSummary,
@@ -584,18 +584,10 @@ export async function createPOFromPR(
       .where(eq(purchaseRequestLine.prId, prId));
     if (lines.length === 0) throw new Error("PR_EMPTY");
 
-    // Chỉ mua PHẦN CÒN THIẾU: min(SL cần mua Kho chốt, SL đề xuất − đã xuất từ kho).
-    const issuedRows = (await tx.execute(sql`
-      SELECT gil.purchase_request_line_id::text AS line_id, COALESCE(SUM(gil.qty), 0)::text AS qty
-      FROM app.goods_issue_line gil
-      JOIN app.goods_issue gi ON gi.id = gil.goods_issue_id
-      WHERE gi.purchase_request_id = ${prId}
-      GROUP BY gil.purchase_request_line_id
-    `)) as unknown as Array<{ line_id: string | null; qty: string }>;
-    const issuedByLine = new Map<string, number>();
-    for (const r of issuedRows) if (r.line_id) issuedByLine.set(r.line_id, Number(r.qty) || 0);
-    // Mọi dòng đã được Kho đáp ứng đủ → không có gì để mua (trước khi tạo vật tư/NCC phụ).
-    if (lines.every((l) => prLineToPoLine(l, issuedByLine.get(l.id) ?? 0) === null)) {
+    // SỔ DÒNG — chỉ mua phần còn được lập PO: toOrder = max(0, cần mua − đã đặt/đã về).
+    // (PO đang mở tính theo SL đặt; PO đã đóng/nhận đủ chỉ tính hàng đã nhận chưa bị QC loại.)
+    let led = (await getPrLedger(prId, tx, pr))!;
+    if (led.ledger.toOrder <= 1e-6) {
       throw new Error("PR_ALL_COVERED");
     }
 
@@ -693,8 +685,10 @@ export async function createPOFromPR(
         .where(eq(purchaseRequestLine.prId, prId));
     }
 
-    // V4.1 TM-10 — dòng bị gạch (SL duyệt = 0) không đưa vào PO.
-    lines = lines.filter((l) => prLineToPoLine(l, issuedByLine.get(l.id) ?? 0) !== null);
+    // Sổ dòng tính lại sau khi gán vật tư cho dòng nhập tay; dòng toOrder = 0 không đưa vào PO.
+    led = (await getPrLedger(prId, tx, pr))!;
+    const toOrderOf = (lineId: string) => led.ledger.byId.get(lineId)?.toOrder ?? 0;
+    lines = lines.filter((l) => toOrderOf(l.id) > 1e-6);
     if (lines.length === 0) throw new Error("PR_EMPTY");
 
     // Guard: toàn bộ line phải có preferred_supplier_id
@@ -750,7 +744,10 @@ export async function createPOFromPR(
       // dùng `qty` đề xuất), VAT mặc định 8, tính line_total + tổng PO.
       let poTotal = 0;
       const poLines = supplierLines.map((l, idx) => {
-        const mapped = prLineToPoLine(l, issuedByLine.get(l.id) ?? 0)!;
+        const mapped = {
+          orderedQty: r6(toOrderOf(l.id)),
+          unitPrice: Math.max(0, Number(l.estimatedUnitPrice) || 0),
+        };
         const lineTotal = computePoLineTotal(mapped.orderedQty, mapped.unitPrice, 8);
         poTotal += lineTotal;
         return {
@@ -863,47 +860,17 @@ export async function createPO(
       if (pr.completedAt) throw new Error("PR_COMPLETED");
       if (pr.status === "APPROVED") prToConvert = pr.id;
 
-      // L2 — áp ĐÚNG quy tắc của from-pr: vật tư thuộc phiếu, tổng SL đặt (PO mới + PO sống
-      // của phiếu) ≤ SL cần mua còn lại, không dòng nào = 0 hết.
-      const prLines = await tx
-        .select({
-          id: purchaseRequestLine.id,
-          itemId: purchaseRequestLine.itemId,
-          qty: purchaseRequestLine.qty,
-          approvedQty: purchaseRequestLine.approvedQty,
-          itemSku: purchaseRequestLine.itemSku,
-          masterSku: item.sku,
-        })
-        .from(purchaseRequestLine)
-        .leftJoin(item, eq(item.id, purchaseRequestLine.itemId))
-        .where(eq(purchaseRequestLine.prId, input.prId));
-      const issuedRows = (await tx.execute(sql`
-        SELECT gil.purchase_request_line_id::text AS line_id, COALESCE(SUM(gil.qty), 0)::text AS qty
-        FROM app.goods_issue_line gil
-        JOIN app.goods_issue gi ON gi.id = gil.goods_issue_id
-        WHERE gi.purchase_request_id = ${input.prId}
-        GROUP BY gil.purchase_request_line_id
-      `)) as unknown as Array<{ line_id: string | null; qty: string }>;
-      const issuedByLine = new Map<string, number>();
-      for (const r of issuedRows) if (r.line_id) issuedByLine.set(r.line_id, Number(r.qty) || 0);
-      const liveRows = (await tx.execute(sql`
-        SELECT pol.item_id::text AS item_id, COALESCE(SUM(pol.ordered_qty), 0)::text AS qty
-        FROM app.purchase_order_line pol
-        JOIN app.purchase_order po ON po.id = pol.po_id
-        WHERE po.pr_id = ${input.prId} AND po.status <> 'CANCELLED'
-        GROUP BY pol.item_id
-      `)) as unknown as Array<{ item_id: string; qty: string }>;
-      const liveByItem = new Map<string, number>();
-      for (const r of liveRows) liveByItem.set(r.item_id, Number(r.qty) || 0);
-      const bad = checkPoLinesAgainstPr(
-        prLines.map((l) => ({
-          itemId: l.itemId,
-          qty: l.qty,
-          approvedQty: l.approvedQty,
-          issuedQty: issuedByLine.get(l.id) ?? 0,
-          label: l.masterSku ?? l.itemSku ?? null,
-        })),
-        liveByItem,
+      // SỔ DÒNG — cùng quy tắc với from-pr: vật tư thuộc phiếu, theo từng vật tư Σ SL đặt mới
+      // ≤ toOrder (PO đã đóng chỉ tính hàng đã nhận → không chặn nhầm phần NCC không giao).
+      const led = await getPrLedger(input.prId, tx);
+      if (!led) throw new Error("PR_NOT_FOUND");
+      const labelOf = (itemId: string) => {
+        const l = led.lines.find((x) => x.itemId === itemId);
+        return l?.sku ?? l?.name ?? "vật tư";
+      };
+      const bad = checkNewPoAgainstLedger(
+        led.ledger,
+        labelOf,
         input.lines.map((l) => ({ itemId: l.itemId, orderedQty: l.orderedQty })),
       );
       if (bad) throw new Error(`${bad.code}: ${bad.message}`);

@@ -8,18 +8,40 @@ import { describe, expect, it } from "vitest";
 import {
   checkIssueAgainstHold,
   computeCommittedByItem,
-  buildIssueContext,
   formatCoverageSummary,
   isExpectedStepStale,
   isStockRecheckableState,
   netIssuableByItem,
   prIssuePhaseOf,
-  prIssueRight,
   roundQty,
-  type PrPoSummary,
 } from "./procurement-policy";
+import { buildPrLedger, summarizePrPos, type PrIssuePhase, type PrPoSummary } from "./pr-ledger";
 import { RESOLVES_STALE, planPRReadyToIssue } from "@/server/services/notification-plans";
 
+// Lần 7 — prIssueRight đã thay bằng SỔ DÒNG (buildPrLedger). Bộ chuyển đổi giữ nguyên các kỳ vọng cũ:
+// "hàng đạt QC đã nhận" = PO đã nhận đủ (không còn đang về) với SL nhận = SL đặt.
+const receivedPo = (received: Record<string, number>): PrPoSummary =>
+  summarizePrPos(
+    Object.entries(received).map(([itemId, n]) => ({
+      itemId,
+      poStatus: "RECEIVED",
+      ordered: n,
+      received: n,
+      pendingQc: 0,
+      failQc: 0,
+    })),
+  );
+const view = (led: ReturnType<typeof buildPrLedger>) => ({
+  caps: new Map(led.lines.map((l) => [l.id, l.cap])),
+  remaining: new Map(led.lines.map((l) => [l.id, l.remaining])),
+  remainingByItem: led.remainingByItem,
+  heldByItem: led.heldByItem,
+  total: led.totalRemaining,
+});
+const prIssueRight = (
+  lines: Array<{ id: string; itemId: string | null; qty: number; approvedQty: number | null; issuedQty?: number }>,
+  ctx: { phase: PrIssuePhase; receivedByItem: Map<string, number> },
+) => view(buildPrLedger(lines, receivedPo(Object.fromEntries(ctx.receivedByItem)), ctx.phase));
 const none = new Map<string, number>();
 const right = (
   lines: Array<{ id: string; itemId: string | null; qty: number; approvedQty: number | null; issuedQty?: number }>,
@@ -143,24 +165,23 @@ describe("Cam kết = Σ remainingByItem — khớp trần xuất của từng p
   });
 });
 
-describe("T8 — PO đóng thiếu, một phần QC không đạt", () => {
-  const livePo = (ordered: number, got: number, closed = false): PrPoSummary => ({
-    hasLivePo: true,
-    receivedByItem: new Map([["H", got]]),
-    settledByItem: new Map([["H", closed ? Math.max(got, ordered) : got]]),
-    pendingByItem: new Map([["H", closed ? 0 : Math.max(0, ordered - got)]]),
-  });
+describe("T8 — PO đóng thiếu, một phần QC không đạt (sổ dòng)", () => {
+  const po = (ordered: number, pass: number, fail: number, status: string) =>
+    summarizePrPos([{ itemId: "H", poStatus: status, ordered, received: pass + fail, pendingQc: 0, failQc: fail }]);
   const line = { id: "h", itemId: "H", qty: 6, approvedQty: 6 };
-  it("đặt 6, nhận 4 nhưng chỉ 2 đạt QC: cap 2; chưa đóng → còn chờ, chưa hoàn tất", () => {
-    const c = buildIssueContext("FINAL", [line], livePo(6, 2));
-    expect(c.caps.get("h")).toBe(2);
-    expect(c.outstandingBuy).toBe(true);
+  it("đặt 6, nhận 4 nhưng chỉ 2 đạt QC: cap 2; PO còn mở → còn chờ 4, chưa hoàn tất", () => {
+    const c = buildPrLedger([line], po(6, 2, 2, "PARTIAL"), "FINAL");
+    expect(c.byId.get("h")!.cap).toBe(2);
+    expect(c.waiting).toBe(4);
+    expect(c.complete).toBe(false);
   });
-  it("đóng PO thiếu: cap vẫn 2 (không mở thêm), hết chờ → hoàn tất được sau khi xuất 2", () => {
-    const c = buildIssueContext("FINAL", [{ ...line, issuedQty: 2 }], livePo(6, 2, true));
-    expect(c.caps.get("h")).toBe(2);
-    expect(c.remaining.get("h")).toBe(0);
-    expect(c.outstandingBuy).toBe(false);
+  it("ĐỔI KỲ VỌNG (lần 7): đóng PO thiếu không còn tự coi là xong — phần thiếu thành 'còn phải đặt' (toOrder 4)", () => {
+    const c = buildPrLedger([{ ...line, issuedQty: 2 }], po(6, 2, 2, "CLOSED"), "FINAL");
+    expect(c.byId.get("h")!.cap).toBe(2);
+    expect(c.byId.get("h")!.remaining).toBe(0);
+    expect(c.waiting).toBe(0);
+    expect(c.toOrder).toBe(4);
+    expect(c.complete).toBe(false);
   });
 });
 

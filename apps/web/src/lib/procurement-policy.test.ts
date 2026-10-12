@@ -16,10 +16,10 @@ import {
   parseDateParam,
   parsePaymentTermDays,
   planPoPriceEdit,
-  prLineToPoLine,
   summarizePoLines,
   vnToday,
 } from "./procurement-policy";
+import { buildPrLedger, EMPTY_PO_SUMMARY } from "./pr-ledger";
 
 describe("V4.1 D8 — người tạo không tự duyệt", () => {
   it("chặn khi người duyệt = người lập (không phải admin)", () => {
@@ -88,16 +88,12 @@ describe("V4.1 TM-10 — dòng chưa có giá + PR → PO", () => {
     ).toEqual([2, 3]);
     expect(findUnpricedPoLines([{ unitPrice: 5 }])).toEqual([]);
   });
-  it("dùng SL duyệt + đơn giá dự kiến; SL duyệt 0 → bỏ dòng", () => {
-    expect(prLineToPoLine({ qty: "10", approvedQty: "8", estimatedUnitPrice: "1500" })).toEqual({
-      orderedQty: 8,
-      unitPrice: 1500,
-    });
-    expect(prLineToPoLine({ qty: "10", approvedQty: null, estimatedUnitPrice: null })).toEqual({
-      orderedQty: 10,
-      unitPrice: 0,
-    });
-    expect(prLineToPoLine({ qty: "10", approvedQty: "0", estimatedUnitPrice: "5" })).toBeNull();
+  it("PR → PO theo sổ dòng (toOrder): SL cần mua; phiếu cũ NULL chưa PO → mua đủ; SL cần mua 0 → bỏ dòng", () => {
+    const t = (approvedQty: string | null) =>
+      buildPrLedger([{ id: "x", itemId: "i", qty: "10", approvedQty }], EMPTY_PO_SUMMARY, "FINAL").byId.get("x")!.toOrder;
+    expect(t("8")).toBe(8);
+    expect(t(null)).toBe(10);
+    expect(t("0")).toBe(0);
   });
 });
 

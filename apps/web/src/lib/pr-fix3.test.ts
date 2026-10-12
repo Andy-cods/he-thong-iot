@@ -4,16 +4,12 @@
  */
 import { describe, expect, it } from "vitest";
 import {
-  allocatePoolToLines,
   allocateStockAcrossLines,
-  buildIssueContext,
-  issueCapForStage,
   parseDateParam,
   resolveBuyDecisions,
   validateStockCommitment,
-  warehouseIssuableRemaining,
-  type PrPoSummary,
 } from "./procurement-policy";
+import { allocatePoToLines, buildPrLedger, EMPTY_PO_SUMMARY, summarizePrPos, type PrPoSummary } from "./pr-ledger";
 import {
   isClosedByPartialReject,
   recreateQuantities,
@@ -24,25 +20,32 @@ import { buyQtysSchema } from "./pr-buy-schema";
 import { prListQuerySchema } from "@iot/shared";
 import { planPRReadyToIssue, staleEventTypesToClose } from "@/server/services/notification-plans";
 
-const noPo: PrPoSummary = {
-  hasLivePo: false,
-  receivedByItem: new Map(),
-  settledByItem: new Map(),
-  pendingByItem: new Map(),
-};
-/** `ordered` = SL đã đặt theo vật tư trên PO sống (mặc định = mọi vật tư đang test đặt 6). */
+// Lần 7 — buildIssueContext/issueCapForStage/allocatePoolToLines thay bằng SỔ DÒNG (buildPrLedger).
+const noPo: PrPoSummary = EMPTY_PO_SUMMARY;
+/** PO của phiếu: `received` = đã nhận đạt; `ordered` = SL đặt (mặc định 6); `closed` = PO đã đóng. */
 const po = (
   received: Record<string, number>,
-  settled?: Record<string, number>,
+  closed = false,
   ordered: Record<string, number> = { i: 6 },
-): PrPoSummary => ({
-  hasLivePo: true,
-  receivedByItem: new Map(Object.entries(received)),
-  settledByItem: new Map(Object.entries(settled ?? received)),
-  pendingByItem: new Map(
-    Object.entries(ordered).map(([k, v]) => [k, Math.max(0, v - (received[k] ?? 0))]),
-  ),
-});
+): PrPoSummary =>
+  summarizePrPos(
+    Array.from(new Set([...Object.keys(ordered), ...Object.keys(received)])).map((k) => ({
+      itemId: k,
+      poStatus: closed ? "CLOSED" : (received[k] ?? 0) >= (ordered[k] ?? 0) ? "RECEIVED" : "PARTIAL",
+      ordered: ordered[k] ?? 0,
+      received: received[k] ?? 0,
+      pendingQc: 0,
+      failQc: 0,
+    })),
+  );
+const ctx = (
+  stage: "WAREHOUSE" | "FINAL",
+  lines: Array<{ id: string; itemId: string | null; qty: number; approvedQty: number | null; issuedQty?: number }>,
+  p: PrPoSummary,
+) => {
+  const led = buildPrLedger(lines, p, stage);
+  return { caps: new Map(led.lines.map((l) => [l.id, l.cap])), outstandingBuy: led.outstandingBuy > 1e-4, led };
+};
 
 describe("C1 — shouldNotifyReadyToIssue", () => {
   const base = {
@@ -149,26 +152,29 @@ describe("C3 — dòng nhập tay & điều kiện hoàn tất", () => {
     );
     expect(r).toEqual({ ok: true, decisions: { a: 0, b: 5 } });
   });
-  it("buildIssueContext: dòng cần mua chưa có PO → outstandingBuy (không hoàn tất)", () => {
+  it("sổ dòng: dòng cần mua chưa có PO → outstandingBuy (không hoàn tất)", () => {
     const lines = [{ id: "a", itemId: "i1", qty: 10, approvedQty: 6, issuedQty: 4 }];
-    expect(buildIssueContext("FINAL", lines, noPo).outstandingBuy).toBe(true);
+    expect(ctx("FINAL", lines, noPo).outstandingBuy).toBe(true);
   });
   it("PO đã về đủ → hết outstanding; PO chưa về → còn", () => {
     const lines = [{ id: "a", itemId: "i1", qty: 10, approvedQty: 6, issuedQty: 4 }];
-    expect(buildIssueContext("FINAL", lines, po({ i1: 6 })).outstandingBuy).toBe(false);
-    expect(buildIssueContext("FINAL", lines, po({ i1: 2 })).outstandingBuy).toBe(true);
+    expect(ctx("FINAL", lines, po({ i1: 6 }, false, { i1: 6 })).outstandingBuy).toBe(false);
+    expect(ctx("FINAL", lines, po({ i1: 2 }, false, { i1: 6 })).outstandingBuy).toBe(true);
   });
-  it("PO đã đóng (NCC không giao nữa) tính là hết chờ", () => {
+  it("ĐỔI KỲ VỌNG (lần 7): PO đóng thiếu KHÔNG còn coi là hết việc — phần thiếu thành 'còn phải đặt'", () => {
     const lines = [{ id: "a", itemId: "i1", qty: 10, approvedQty: 6, issuedQty: 4 }];
-    expect(buildIssueContext("FINAL", lines, po({ i1: 2 }, { i1: 6 })).outstandingBuy).toBe(false);
+    const c = ctx("FINAL", lines, po({ i1: 2 }, true, { i1: 6 }));
+    expect(c.led.waiting).toBe(0);
+    expect(c.led.toOrder).toBe(4);
+    expect(c.outstandingBuy).toBe(true);
   });
   it("dòng nhập tay chưa gắn vật tư (buy = qty) → còn outstanding", () => {
     const lines = [{ id: "x", itemId: null, qty: 3, approvedQty: 3, issuedQty: 0 }];
-    expect(buildIssueContext("FINAL", lines, po({})).outstandingBuy).toBe(true);
+    expect(ctx("FINAL", lines, po({})).outstandingBuy).toBe(true);
   });
-  it("đã xuất đủ đề xuất từ tồn → không cần mua nữa", () => {
-    const lines = [{ id: "a", itemId: "i1", qty: 10, approvedQty: 6, issuedQty: 10 }];
-    expect(buildIssueContext("FINAL", lines, noPo).outstandingBuy).toBe(false);
+  it("Kho đáp ứng đủ (buy 0), đã xuất đủ → không cần mua nữa", () => {
+    const lines = [{ id: "a", itemId: "i1", qty: 10, approvedQty: 0, issuedQty: 10 }];
+    expect(ctx("FINAL", lines, noPo).outstandingBuy).toBe(false);
   });
 });
 
@@ -211,56 +217,39 @@ describe("C4 — phân bổ tồn lũy kế theo vật tư", () => {
   });
 });
 
-describe("T2 — trần xuất khi đã có PO sống", () => {
-  it("B2 — chưa có PO → trần = qty − cần mua (phần cần mua chưa mua thì chưa xuất từ tồn)", () => {
-    expect(issueCapForStage("FINAL", 10, 6)).toBe(4);
-    expect(buildIssueContext("FINAL", [{ id: "a", itemId: "i", qty: 10, approvedQty: 6 }], noPo).caps.get("a")).toBe(4);
+describe("T2 — trần xuất khi đã có PO (sổ dòng)", () => {
+  const L = [{ id: "a", itemId: "i", qty: 10, approvedQty: 6 }];
+  it("B2 — chưa có PO → trần = qty − cần mua", () => {
+    expect(ctx("FINAL", L, noPo).caps.get("a")).toBe(4);
   });
-  it("L3: qty 10, cần mua 6, PO 6 chưa về → trần 4", () => {
-    const c = buildIssueContext("FINAL", [{ id: "a", itemId: "i", qty: 10, approvedQty: 6 }], po({}));
-    expect(c.caps.get("a")).toBe(4);
+  it("L3: PO 6 chưa về → trần 4", () => {
+    expect(ctx("FINAL", L, po({})).caps.get("a")).toBe(4);
   });
-  it("L3: PO về một phần (2/6) → trần = 10 − 4 chờ = 6", () => {
-    const c = buildIssueContext("FINAL", [{ id: "a", itemId: "i", qty: 10, approvedQty: 6 }], po({ i: 2 }));
-    expect(c.caps.get("a")).toBe(6);
+  it("L3: PO về một phần (2/6) → trần 6", () => {
+    expect(ctx("FINAL", L, po({ i: 2 })).caps.get("a")).toBe(6);
   });
   it("L3: Kho đã xuất vượt phần có sẵn (7), PO 3 chưa về → trần 7; về 3 → 10", () => {
     const line = { id: "a", itemId: "i", qty: 10, approvedQty: 3, issuedQty: 7 };
-    expect(buildIssueContext("FINAL", [line], po({}, undefined, { i: 3 })).caps.get("a")).toBe(7);
-    expect(buildIssueContext("FINAL", [line], po({ i: 3 }, undefined, { i: 3 })).caps.get("a")).toBe(10);
+    expect(ctx("FINAL", [line], po({}, false, { i: 3 })).caps.get("a")).toBe(7);
+    expect(ctx("FINAL", [line], po({ i: 3 }, false, { i: 3 })).caps.get("a")).toBe(10);
   });
-  it("PO đã đóng mà chưa nhận gì → trần = qty − cần mua (chỉ hàng đã về đạt QC mới mở thêm trần)", () => {
-    const closed: PrPoSummary = {
-      hasLivePo: true,
-      receivedByItem: new Map(),
-      settledByItem: new Map([["i", 6]]),
-      pendingByItem: new Map([["i", 0]]),
-    };
-    expect(buildIssueContext("FINAL", [{ id: "a", itemId: "i", qty: 10, approvedQty: 6 }], closed).caps.get("a")).toBe(4);
+  it("PO đã đóng mà chưa nhận gì → trần = qty − cần mua", () => {
+    expect(ctx("FINAL", L, po({}, true)).caps.get("a")).toBe(4);
   });
   it("PO về đủ/vượt → trần tối đa = đề xuất", () => {
-    const c = buildIssueContext("FINAL", [{ id: "a", itemId: "i", qty: 10, approvedQty: 6 }], po({ i: 9 }, undefined, { i: 6 }));
-    expect(c.caps.get("a")).toBe(10);
+    expect(ctx("FINAL", L, po({ i: 9 }, false, { i: 6 })).caps.get("a")).toBe(10);
   });
   it("hai dòng cùng vật tư: hàng đã nhận phân bổ lần lượt theo dòng", () => {
     const lines = [
       { id: "a", itemId: "i", qty: 5, approvedQty: 5 },
       { id: "b", itemId: "i", qty: 5, approvedQty: 5 },
     ];
-    const alloc = allocatePoolToLines(lines, new Map([["i", 7]]));
-    expect(alloc.get("a")).toBe(5);
-    expect(alloc.get("b")).toBe(2);
+    const alloc = allocatePoToLines(lines, po({ i: 7 }, true, { i: 10 }));
+    expect(alloc.get("a")!.receivedOk).toBe(5);
+    expect(alloc.get("b")!.receivedOk).toBe(2);
   });
-  it("warehouseIssuableRemaining dùng trần truyền vào", () => {
-    expect(
-      warehouseIssuableRemaining(
-        [{ qty: 10, approvedQty: 6, issuedQty: 4, hasItem: true, cap: 4 }],
-        "FINAL",
-      ),
-    ).toBe(0);
-  });
-  it("giai đoạn Kho không đổi", () => {
-    expect(issueCapForStage("WAREHOUSE", 10, 6)).toBe(4);
+  it("giai đoạn Kho: trần = qty − cần mua", () => {
+    expect(ctx("WAREHOUSE", L, noPo).caps.get("a")).toBe(4);
   });
 });
 

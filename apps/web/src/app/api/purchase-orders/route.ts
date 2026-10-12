@@ -151,8 +151,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ data: row }, { status: 201 });
   } catch (err) {
-    logger.error({ err }, "create PO failed");
     const msg = (err as Error).message ?? "";
+    // N8 — lỗi nghiệp vụ (đã biết mã) chỉ warn, không stack; lỗi bất ngờ mới error.
+    const known = /^(UNPRICED_LINES|ITEM_NOT_IN_PR|OVER_QTY|NOTHING_TO_BUY|PR_NOT_FOUND|PR_COMPLETED|PR_NOT_APPROVED)/.test(msg) || msg.includes("PO_MUST_HAVE_LINES");
+    if (known) logger.warn({ code: msg.split(":")[0], msg }, "create PO rejected");
+    else logger.error({ err }, "create PO failed");
     // V4.1 TM-10
     if (msg.startsWith("UNPRICED_LINES")) {
       return jsonError(

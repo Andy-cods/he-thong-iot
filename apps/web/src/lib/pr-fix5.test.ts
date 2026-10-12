@@ -7,111 +7,38 @@ import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/db", () => ({ db: {} }));
-import {
-  buildIssueContext,
-  computeCommittedByItem,
-  effectiveBuy,
-  hasPendingPo,
-  issueCapForStage,
-  planStockRecheck,
-  prIssueRight,
-  prLineToPoLine,
-  resolveBuyDecisions,
-  summarizeBuyDecisions,
-  type PrPoSummary,
-} from "./procurement-policy";
+import { computeCommittedByItem, resolveBuyDecisions } from "./procurement-policy";
+import { buildPrLedger, EMPTY_PO_SUMMARY, summarizePrPos } from "./pr-ledger";
 import { buyQtysSchema } from "./pr-buy-schema";
 import { buildBreadcrumbItems } from "./breadcrumb-items";
 import { RESOLVES_STALE } from "@/server/services/notification-plans";
-import { computePrIssueProgress, validatePrIssuePicks } from "@/server/repos/purchaseRequests";
+import { validatePrIssuePicks } from "@/server/repos/purchaseRequests";
 
-const L = [{ id: "a", itemId: "i", qty: 10, approvedQty: null as number | null }];
-const rcv = (n: number) => new Map([["i", n]]);
+// Lần 7: các kỳ vọng L1/L2/L4 (prIssueRight/buildIssueContext/hasPendingPo/planStockRecheck…) chuyển sang
+// pr-ledger.test.ts (sổ dòng). Ở đây giữ các bất biến còn nguyên nghĩa.
+const L = [{ id: "a", itemId: "i", qty: 10, approvedQty: null as number | null, issuedQty: 0 }];
+const po = (ordered: number, received: number, status = "SENT") =>
+  summarizePrPos([{ itemId: "i", poStatus: status, ordered, received, pendingQc: 0, failQc: 0 }]);
 
-describe("L1 — phiếu cũ approved_qty NULL", () => {
-  it("NULL có PO chưa nhận: cap 0, giữ chỗ 0", () => {
-    const r = prIssueRight(L, { phase: "FINAL", receivedByItem: rcv(0), hasPo: true });
-    expect(r.caps.get("a")).toBe(0);
-    expect(r.remaining.get("a")).toBe(0);
+describe("L1 — phiếu cũ approved_qty NULL (sổ dòng)", () => {
+  it("NULL có PO chưa nhận: cap 0, không giữ chỗ", () => {
+    const r = buildPrLedger(L, po(10, 0), "FINAL");
+    expect(r.byId.get("a")!.cap).toBe(0);
     expect(r.heldByItem.size).toBe(0);
   });
-  it("NULL có PO nhận 5 đạt: cap 5 (xuất được), nhưng KHÔNG giữ chỗ", () => {
-    const r = prIssueRight(L, { phase: "FINAL", receivedByItem: rcv(5), hasPo: true });
-    expect(r.caps.get("a")).toBe(5);
-    expect(r.remaining.get("a")).toBe(5);
-    expect(r.remainingByItem.get("i")).toBe(5);
-    expect(r.heldByItem.size).toBe(0);
-  });
-  it("NULL không PO: cap = đề xuất (hành vi cũ), giữ chỗ 0", () => {
-    const r = prIssueRight(L, { phase: "FINAL", receivedByItem: rcv(0), hasPo: false });
-    expect(r.caps.get("a")).toBe(10);
-    expect(r.remaining.get("a")).toBe(10);
+  it("NULL có PO nhận 5 đạt: cap 5 xuất được, nhưng KHÔNG giữ chỗ", () => {
+    const r = buildPrLedger(L, po(10, 5), "FINAL");
+    expect(r.byId.get("a")!.remaining).toBe(5);
     expect(r.heldByItem.size).toBe(0);
   });
   it("cam kết của phiếu cũ = 0; phiếu mới vẫn giữ chỗ", () => {
-    const legacy = prIssueRight(L, { phase: "FINAL", receivedByItem: rcv(0), hasPo: false });
-    const fresh = prIssueRight([{ id: "b", itemId: "i", qty: 10, approvedQty: 4 }], {
-      phase: "FINAL",
-      receivedByItem: rcv(0),
-      hasPo: false,
-    });
+    const legacy = buildPrLedger(L, EMPTY_PO_SUMMARY, "FINAL");
+    const fresh = buildPrLedger([{ id: "b", itemId: "i", qty: 10, approvedQty: 4 }], EMPTY_PO_SUMMARY, "FINAL");
     expect(computeCommittedByItem([legacy.heldByItem, fresh.heldByItem]).get("i")).toBe(6);
-  });
-  it("một nghĩa duy nhất: effectiveBuy(NULL) = qty; prLineToPoLine mua đủ; issueCapForStage khớp", () => {
-    expect(effectiveBuy(10, null)).toBe(10);
-    expect(prLineToPoLine({ qty: 10, approvedQty: null }, 0)?.orderedQty).toBe(10);
-    expect(issueCapForStage("FINAL", 10, null, true)).toBe(0);
-    expect(issueCapForStage("FINAL", 10, null, false)).toBe(10);
-  });
-  it("buildIssueContext: NULL + PO đã đặt → cap 0, outstandingBuy, không giữ chỗ", () => {
-    const po: PrPoSummary = {
-      hasLivePo: true,
-      receivedByItem: new Map(),
-      settledByItem: new Map(),
-      pendingByItem: new Map([["i", 10]]),
-    };
-    const c = buildIssueContext("FINAL", [{ ...L[0]!, issuedQty: 0 }], po);
-    expect(c.caps.get("a")).toBe(0);
-    expect(c.outstandingBuy).toBe(true);
-    expect(c.hasPendingPo).toBe(true);
-    expect(c.heldByItem.size).toBe(0);
   });
 });
 
-describe("L2 — Kiểm tồn lại hạ về 0 + điều kiện Hoàn tất", () => {
-  const noPo: PrPoSummary = {
-    hasLivePo: false,
-    receivedByItem: new Map(),
-    settledByItem: new Map(),
-    pendingByItem: new Map(),
-  };
-  it("hạ hết cần mua về 0 → allCovered (bỏ duyệt cuối), không 'increased'", () => {
-    const plan = planStockRecheck([{ id: "a", itemId: "i", qty: 10, approvedQty: 4 }], { a: 0 });
-    expect(plan.increased).toBe(false);
-    expect(summarizeBuyDecisions({ a: 0 }).allCovered).toBe(true);
-  });
-  it("điều kiện Hoàn tất: xuất đủ cap + không còn mua chưa về", () => {
-    const done = [{ id: "a", itemId: "i", qty: 10, approvedQty: 0, issuedQty: 10 }];
-    const ctx = buildIssueContext("FINAL", done, noPo);
-    expect(ctx.outstandingBuy).toBe(false);
-    const p = computePrIssueProgress(
-      done.map((l) => ({ ...l, sku: null, cap: ctx.caps.get(l.id) })),
-      "FINAL",
-      ctx.outstandingBuy,
-    );
-    expect(p.complete).toBe(true);
-  });
-  it("còn phần mua chưa có PO → chưa Hoàn tất", () => {
-    const open = [{ id: "a", itemId: "i", qty: 10, approvedQty: 4, issuedQty: 6 }];
-    const ctx = buildIssueContext("FINAL", open, noPo);
-    expect(ctx.outstandingBuy).toBe(true);
-    const p = computePrIssueProgress(
-      open.map((l) => ({ ...l, sku: null, cap: ctx.caps.get(l.id) })),
-      "FINAL",
-      ctx.outstandingBuy,
-    );
-    expect(p.complete).toBe(false);
-  });
+describe("L2 — khoá + thông báo", () => {
   it("PR_STOCK_COVERED đóng 'chờ duyệt cuối' và 'Cần tạo PO'", () => {
     expect(RESOLVES_STALE.PR_STOCK_COVERED).toEqual(
       expect.arrayContaining(["PR_DEPT_APPROVED", "PR_APPROVED", "PR_APPROVED_NO_PO_REMINDER"]),
@@ -124,26 +51,14 @@ describe("L2 — Kiểm tồn lại hạ về 0 + điều kiện Hoàn tất", (
     expect(body.indexOf("lockPrItemsForStock")).toBeGreaterThan(-1);
     expect(body.indexOf("lockPrItemsForStock")).toBeLessThan(body.indexOf('.for("update")'));
   });
-});
-
-describe("L4 — PO sống = còn chờ hàng về", () => {
-  const mk = (pending: Record<string, number>) => ({ pendingByItem: new Map(Object.entries(pending)) });
-  it("PO đã đóng/nhận đủ (pending 0) không chặn", () => {
-    expect(hasPendingPo(mk({ i: 0 }))).toBe(false);
-    expect(hasPendingPo(mk({}))).toBe(false);
-  });
-  it("còn chờ về → chặn", () => {
-    expect(hasPendingPo(mk({ i: 3 }))).toBe(true);
-  });
-  it("GET và POST dùng cùng một điều kiện (đọc mã nguồn)", () => {
+  it("GET stock-check?recheck=1 và POST recheck dùng cùng điều kiện sổ dòng (đọc mã nguồn)", () => {
     const get = readFileSync(
       join(__dirname, "../app/api/purchase-requests/[id]/stock-check/route.ts"),
       "utf8",
     );
     const repo = readFileSync(join(__dirname, "../server/repos/purchaseRequests.ts"), "utf8");
-    expect(get).toContain("getRecheckPendingPoBlock");
-    expect(repo).toMatch(/hasPendingPo\(po\)/);
-    expect(repo).toMatch(/hasPendingPo\(await getPrPoSummary/);
+    expect(get).toContain("recheckBlockReason(loaded.ledger)");
+    expect(repo).toContain("recheckBlockReason(loaded.ledger)");
   });
 });
 

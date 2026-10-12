@@ -145,7 +145,7 @@ export async function POST(
     if (msg.includes("PR_ALL_COVERED"))
       return jsonError(
         "NOTHING_TO_BUY",
-        "Kho đã đáp ứng đủ, không cần mua — không tạo PO.",
+        "Không còn phần nào cần lập PO (Kho đã đáp ứng đủ hoặc các PO đã đặt/đã về đủ) — không tạo PO.",
         422,
       );
     if (msg.includes("MISSING_PREFERRED_SUPPLIER"))

@@ -110,11 +110,33 @@ export interface PRLineEnriched {
   issueRemaining?: number;
   /** Tồn KHẢ DỤNG hiện tại của vật tư (chỉ trả cho admin/Kho/Mua hàng; null = không có quyền/dòng nhập tay). */
   availableQty?: number | null;
+  /** N9 — tồn sau cam kết phiếu khác (chưa trừ dòng trước). */
+  freeQty?: number | null;
+  /** Sổ dòng do server tính (đề xuất, cần mua, đã về, đang về, chờ QC, đã xuất, trần, còn phải đặt…). */
+  ledger?: PRLineLedger | null;
   // V3.10 DNVT — Tham khảo (free-text) + Ngày giao hàng. Server đã trả 2 cột
   // này từ lâu (xem server/repos/purchaseRequests.ts) nhưng interface này
   // thiếu khai báo — TASK-6VIEC Việc 2 cần đọc lại khi "mở phiếu nháp để sửa".
   referenceNote?: string | null;
   deliveryDate?: string | null;
+}
+
+/** Sổ dòng (server `LineLedger`). */
+export interface PRLineLedger {
+  req: number;
+  buy: number;
+  fromStock: number;
+  receivedOk: number;
+  pendingQc: number;
+  inbound: number;
+  orderedEffective: number;
+  issued: number;
+  cap: number;
+  remaining: number;
+  toOrder: number;
+  waiting: number;
+  legacy: boolean;
+  hasItem: boolean;
 }
 
 export interface PRListResponse {
@@ -182,8 +204,22 @@ export interface PRDetailResponse {
     warehouseIssuableRemaining?: number;
     /** Tổng cam kết (phần giữ + của phiếu khác) vượt tồn thực → cảnh báo Kiểm tồn lại. */
     shortOfCommitment?: boolean;
-    /** L4 — còn PO đang chờ hàng về (chưa Kiểm tồn lại được). */
+    /** Còn hàng đang về / lô chờ QC (chưa Kiểm tồn lại / Kết thúc được). */
     hasPendingPo?: boolean;
+    /** N9 — còn phần xuất được THẬT (phiếu cũ chỉ khi tồn sau cam kết > 0). */
+    issuableNow?: boolean;
+    /** N9 — phiếu cũ còn phần xuất được nhưng tồn đã bị phiếu mới giữ hết. */
+    legacyBlockedByHold?: boolean;
+    /** Tổng sổ dòng của phiếu. */
+    ledgerSummary?: {
+      phase: "NONE" | "WAREHOUSE" | "FINAL";
+      toOrder: number;
+      waiting: number;
+      outstandingBuy: number;
+      complete: boolean;
+      noWaiting: boolean;
+      pendingLines: number;
+    };
   };
 }
 
@@ -201,10 +237,15 @@ export interface PRStockCheckLine {
   stockTotal?: number;
   /** L1 — phần tồn đang giữ chỗ cho phiếu KHÁC đã qua Kho duyệt. */
   reservedByOthers?: number;
-  /** L1 — Kiểm tồn lại: SL đề xuất ban đầu / đã xuất. */
-  qtyTotal?: number;
+  /** Duyệt Kho: SL cần mua mặc định. */
+  defaultBuyQty?: number;
+  /** Kiểm tồn lại (sổ dòng). */
   issuedQty?: number;
-  defaultBuyQty: number;
+  receivedOk?: number;
+  orderedEffective?: number;
+  stillNeeded?: number;
+  defaultAddQty?: number;
+  buyBefore?: number;
 }
 
 /** Kho kiểm tồn khi duyệt: dòng + tồn khả dụng + SL cần mua mặc định. */
@@ -485,8 +526,17 @@ export function useDeptApprovePR(id: string) {
 export function useRecheckPrStock(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { buyQtys?: Record<string, number> }) =>
-      request<{ data: { increased: boolean; approvalStep: string | null; status: string } }>(
+    mutationFn: (data: { addQtys?: Record<string, number> }) =>
+      request<{
+        data: {
+          increased: boolean;
+          autoFinal?: boolean;
+          finalized?: boolean;
+          coveredAfterFinal?: boolean;
+          approvalStep: string | null;
+          status: string;
+        };
+      }>(
         `/api/purchase-requests/${id}/recheck-stock`,
         { method: "POST", body: JSON.stringify(data) },
       ),
@@ -529,6 +579,8 @@ export interface MarkPRIssuedInput {
   notes?: string | null;
   /** L8 — "Kết thúc, không xuất thêm" (đóng quy trình xuất dù còn dòng chưa đủ). */
   finish?: boolean;
+  /** N2 — lý do khi kết thúc mà còn phần chưa đặt mua. */
+  finishReason?: string | null;
 }
 
 export interface MarkPRIssuedResponse {
@@ -600,6 +652,22 @@ export function useMarkPRCompleted(id: string) {
         `/api/purchase-requests/${id}/mark-completed`,
         { method: "POST", body: "{}" },
       ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.procurement.requests.all });
+      qc.invalidateQueries({ queryKey: qk.procurement.requests.detail(id) });
+    },
+  });
+}
+
+/** N6 — Kho/admin chốt "Hoàn tất" khi sổ dòng đã đủ điều kiện mà phiếu chưa tự chốt (dữ liệu cũ). */
+export function useFinalizePR(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      request<{ data: PRRow }>(`/api/purchase-requests/${id}/finalize`, {
+        method: "POST",
+        body: "{}",
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.procurement.requests.all });
       qc.invalidateQueries({ queryKey: qk.procurement.requests.detail(id) });

@@ -54,6 +54,8 @@ const bodySchema = z.object({
    * xuất đủ. Không bật → phiếu chỉ hoàn tất khi MỌI dòng đã xuất đủ (xuất nhiều đợt).
    */
   finish: z.boolean().default(false),
+  /** N2 — lý do khi kết thúc mà còn phần chưa đặt mua (bỏ phần đó). */
+  finishReason: z.string().trim().max(500).nullable().optional(),
   noStockConfirm: z.boolean().default(false),
   noStockReason: z.string().trim().max(500).nullable().optional(),
   notes: z.string().trim().max(500).nullable().optional(),
@@ -112,7 +114,7 @@ export async function POST(
 
   const parsed = await parseJson(req, bodySchema);
   if ("response" in parsed) return parsed.response;
-  const { picks, noStockConfirm, noStockReason, notes, finish } = parsed.data;
+  const { picks, noStockConfirm, noStockReason, notes, finish, finishReason } = parsed.data;
 
   // Không có picks: chỉ hợp lệ khi "Kết thúc" (repo kiểm thêm đã có ≥ 1 đợt) hoặc ghi nhận không trừ tồn.
   if (!noStockConfirm && picks.length === 0 && !finish) {
@@ -131,6 +133,7 @@ export async function POST(
       noStockReason: noStockReason ?? null,
       notes: notes ?? null,
       finish,
+      finishReason: finishReason ?? null,
     });
 
     const meta = extractRequestMeta(req);
@@ -144,6 +147,9 @@ export async function POST(
         goodsIssuedAt: result.pr.goodsIssuedAt,
         goodsIssueNo: result.goodsIssue?.issueNo ?? null,
         complete: result.complete,
+        ...(result.droppedUnordered > 0
+          ? { droppedUnordered: result.droppedUnordered, dropReason: finishReason ?? noStockReason ?? null }
+          : {}),
       },
       notes: result.goodsIssue
         ? `YCVT timeline IV → ${result.complete ? "Đã xuất kho xong" : "Xuất kho một phần"}, trừ tồn qua phiếu ${result.goodsIssue.issueNo}`

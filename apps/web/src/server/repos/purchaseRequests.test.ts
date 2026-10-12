@@ -16,10 +16,11 @@ async function load() {
   return import("./purchaseRequests");
 }
 
+// Lần 7 — trần xuất (cap) LẤY TỪ SỔ DÒNG, truyền vào bắt buộc.
 const lines = [
-  { id: "l1", itemId: "item-A", sku: "A-01", qty: 10, approvedQty: 0 },
-  { id: "l2", itemId: "item-B", sku: "B-01", qty: 5, approvedQty: null },
-  { id: "l3", itemId: null, sku: "C-01", qty: 3, approvedQty: null },
+  { id: "l1", itemId: "item-A", sku: "A-01", qty: 10, approvedQty: 0, cap: 10 },
+  { id: "l2", itemId: "item-B", sku: "B-01", qty: 5, approvedQty: null, cap: 5 },
+  { id: "l3", itemId: null, sku: "C-01", qty: 3, approvedQty: null, cap: 0 },
 ];
 
 describe("validatePrIssuePicks", () => {
@@ -109,7 +110,7 @@ describe("validatePrIssuePicks", () => {
   it("đúng bằng cap (sai số thập phân) vẫn hợp lệ", async () => {
     const { validatePrIssuePicks } = await load();
     const r = validatePrIssuePicks(
-      [{ id: "l1", itemId: "i", sku: null, qty: 0.3, approvedQty: null }],
+      [{ id: "l1", itemId: "i", sku: null, qty: 0.3, approvedQty: null, cap: 0.3 }],
       [
         { prLineId: "l1", lotSerialId: "x", binId: "b", qty: 0.1 },
         { prLineId: "l1", lotSerialId: "y", binId: "b", qty: 0.2 },
@@ -122,7 +123,7 @@ describe("validatePrIssuePicks", () => {
 describe("L8 — xuất kho nhiều đợt", () => {
   it("trừ phần đã xuất ở đợt trước khỏi cap (còn lại)", async () => {
     const { validatePrIssuePicks } = await load();
-    const ls = [{ id: "l1", itemId: "i", sku: "A-01", qty: 6, approvedQty: null, issuedQty: 2 }];
+    const ls = [{ id: "l1", itemId: "i", sku: "A-01", qty: 6, approvedQty: null, issuedQty: 2, cap: 6 }];
     const ok = validatePrIssuePicks(ls, [{ prLineId: "l1", lotSerialId: "x", binId: "b", qty: 4 }]);
     expect(ok.ok).toBe(true);
     const over = validatePrIssuePicks(ls, [{ prLineId: "l1", lotSerialId: "x", binId: "b", qty: 4.5 }]);
@@ -135,7 +136,7 @@ describe("L8 — xuất kho nhiều đợt", () => {
   it("dòng đã xuất đủ → không xuất thêm", async () => {
     const { validatePrIssuePicks } = await load();
     const r = validatePrIssuePicks(
-      [{ id: "l1", itemId: "i", sku: "A-01", qty: 5, approvedQty: 2, issuedQty: 5 }],
+      [{ id: "l1", itemId: "i", sku: "A-01", qty: 5, approvedQty: 2, issuedQty: 5, cap: 3 }],
       [{ prLineId: "l1", lotSerialId: "x", binId: "b", qty: 1 }],
     );
     expect(r.ok).toBe(false);
@@ -143,51 +144,48 @@ describe("L8 — xuất kho nhiều đợt", () => {
     expect(r.error.message).toContain("đã xuất đủ");
   });
 
-  it("computePrIssueProgress (C3): dòng nhập tay chưa gắn vật tư luôn tính là còn thiếu — chưa hoàn tất sớm", async () => {
-    const { computePrIssueProgress } = await load();
-    const part = computePrIssueProgress([
-      { id: "l1", itemId: "i1", sku: "A", qty: 6, approvedQty: null, issuedQty: 2 },
-      { id: "l2", itemId: "i2", sku: "B", qty: 3, approvedQty: null, issuedQty: 3 },
-      { id: "l3", itemId: null, sku: "C", qty: 9, approvedQty: null, issuedQty: 0 },
+  // Lần 7 — computePrIssueProgress thay bằng sổ dòng (buildPrLedger / ledgerIssueProgress).
+  it("sổ dòng (C3): dòng nhập tay chưa gắn vật tư là 'còn phải đặt' → chưa hoàn tất sớm", async () => {
+    const { buildPrLedger, EMPTY_PO_SUMMARY } = await import("../../lib/pr-ledger");
+    const P = (ls: Parameters<typeof buildPrLedger>[0]) => buildPrLedger(ls, EMPTY_PO_SUMMARY, "FINAL");
+    const part = P([
+      { id: "l1", itemId: "i1", qty: 6, approvedQty: null, issuedQty: 2 },
+      { id: "l2", itemId: "i2", qty: 3, approvedQty: null, issuedQty: 3 },
+      { id: "l3", itemId: null, qty: 9, approvedQty: null, issuedQty: 0 },
     ]);
     expect(part.complete).toBe(false);
-    expect(part.pendingLines).toBe(2);
-    expect(part.lines[0]).toMatchObject({ cap: 6, issued: 2, remaining: 4 });
+    // ĐỔI KỲ VỌNG: dòng nhập tay không còn đếm vào "dòng chưa xuất đủ" mà nằm ở toOrder (theo dõi PO).
+    expect(part.pendingLines).toBe(1);
+    expect(part.byId.get("l1")).toMatchObject({ cap: 6, issued: 2, remaining: 4 });
+    expect(part.byId.get("l3")!.toOrder).toBe(9);
 
-    const stillPending = computePrIssueProgress([
-      { id: "l1", itemId: "i1", sku: "A", qty: 5, approvedQty: 2, issuedQty: 5 },
-      { id: "l3", itemId: null, sku: "C", qty: 9, approvedQty: null },
-    ]);
-    expect(stillPending.complete).toBe(false);
-    // Sau khi PO gắn vật tư cho dòng nhập tay và Kho xuất đủ → mới hoàn tất.
-    const done = computePrIssueProgress([
-      { id: "l1", itemId: "i1", sku: "A", qty: 5, approvedQty: 2, issuedQty: 5 },
-      { id: "l3", itemId: "i3", sku: "C", qty: 9, approvedQty: null, issuedQty: 9 },
-    ]);
-    expect(done.complete).toBe(true);
-    // Còn phần cần mua chưa về → không hoàn tất dù đã xuất đủ trần.
     expect(
-      computePrIssueProgress(
-        [{ id: "l1", itemId: "i1", sku: "A", qty: 5, approvedQty: 2, issuedQty: 3, cap: 3 }],
-        "FINAL",
-        true,
-      ).complete,
+      P([
+        { id: "l1", itemId: "i1", qty: 5, approvedQty: 2, issuedQty: 5 },
+        { id: "l3", itemId: null, qty: 9, approvedQty: null },
+      ]).complete,
     ).toBe(false);
+    // Sau khi PO gắn vật tư cho dòng nhập tay và Kho xuất đủ → mới hoàn tất.
+    expect(
+      P([
+        { id: "l1", itemId: "i1", qty: 5, approvedQty: 2, issuedQty: 5 },
+        { id: "l3", itemId: "i3", qty: 9, approvedQty: null, issuedQty: 9 },
+      ]).complete,
+    ).toBe(true);
+    // Còn phần cần mua chưa đặt → không hoàn tất dù đã xuất đủ trần.
+    expect(P([{ id: "l1", itemId: "i1", qty: 5, approvedQty: 2, issuedQty: 3 }]).complete).toBe(false);
   });
 
-  it("computePrIssueProgress: không có dòng gắn vật tư nào → không tự hoàn tất", async () => {
-    const { computePrIssueProgress } = await load();
-    expect(
-      computePrIssueProgress([{ id: "l3", itemId: null, sku: null, qty: 1, approvedQty: null }]).complete,
-    ).toBe(false);
+  it("sổ dòng: không có dòng gắn vật tư nào → không tự hoàn tất", async () => {
+    const { buildPrLedger, EMPTY_PO_SUMMARY } = await import("../../lib/pr-ledger");
+    expect(buildPrLedger([{ id: "l3", itemId: null, qty: 1, approvedQty: null }], EMPTY_PO_SUMMARY, "FINAL").complete).toBe(false);
   });
 
   it("sai số làm tròn 4 số lẻ không chặn hoàn tất", async () => {
-    const { computePrIssueProgress } = await load();
+    const { buildPrLedger, EMPTY_PO_SUMMARY } = await import("../../lib/pr-ledger");
     expect(
-      computePrIssueProgress([
-        { id: "l1", itemId: "i", sku: "A", qty: 0.333333, approvedQty: null, issuedQty: 0.3333 },
-      ]).complete,
+      buildPrLedger([{ id: "l1", itemId: "i", qty: 0.333333, approvedQty: null, issuedQty: 0.3333 }], EMPTY_PO_SUMMARY, "FINAL")
+        .complete,
     ).toBe(true);
   });
 });

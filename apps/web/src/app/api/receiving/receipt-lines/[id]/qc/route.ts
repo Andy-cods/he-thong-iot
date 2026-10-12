@@ -14,7 +14,7 @@ import {
   notifyReceiptQcFailed,
   notifyReceiptQcPassed,
 } from "@/server/services/notifications";
-import { markPrReceivedAndNotifyWarehouse } from "@/server/services/prWarehouseNotify";
+import { finalizePrAndNotify, markPrReceivedAndNotifyWarehouse } from "@/server/services/prWarehouseNotify";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -129,6 +129,9 @@ export async function POST(
     // thì báo Kho "cần xuất" (idempotent). Không phụ thuộc PO có đổi trạng thái hay không.
     if (r.result === "PASS" && po?.prId) {
       void markPrReceivedAndNotifyWarehouse(po.prId, guard.session).catch(() => {});
+    } else if (po?.prId) {
+      // N6 — QC không đạt cũng đổi sổ dòng (hàng chờ QC → bị loại): kiểm lại điều kiện Hoàn tất.
+      void finalizePrAndNotify(po.prId, guard.session).catch(() => {});
     }
 
     const qcCtx = {

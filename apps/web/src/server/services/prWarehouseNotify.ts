@@ -2,19 +2,10 @@ import { and, eq, inArray, like, sql } from "drizzle-orm";
 import { notification, purchaseOrder } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import {
-  allocatePoolToLines,
-  effectiveApprovedQty,
-  prIssuePhaseOf,
-  warehouseIssuableRemaining,
-} from "@/lib/procurement-policy";
 import { GOODS_RECEIVED_TITLE_MARK, shouldNotifyReadyToIssue } from "@/lib/pr-close-policy";
 import {
-  getPR,
-  getPRIssuedQtyByLine,
-  getPRLinesEnriched,
-  getPrIssueContext,
-  getPrPoSummary,
+  finalizePrIfComplete,
+  getPrLedger,
   markPRGoodsReceivedIfAllPOsDone,
 } from "@/server/repos/purchaseRequests";
 import { INFO_EVENT_SUFFIX } from "@/server/services/notification-plans";
@@ -75,61 +66,22 @@ export async function notifyReadyToIssueIfAny(
   actor?: ActorLike | null,
 ): Promise<void> {
   try {
-    const pr = await getPR(prId);
-    if (!pr) return;
-    const [lines, issued, pos] = await Promise.all([
-      getPRLinesEnriched(prId),
-      getPRIssuedQtyByLine(prId),
-      db
-        .select({ status: purchaseOrder.status })
-        .from(purchaseOrder)
-        .where(eq(purchaseOrder.prId, prId)),
-    ]);
-
-    let remaining: number;
+    const loaded = await getPrLedger(prId);
+    if (!loaded) return;
+    const pr = loaded.pr;
+    const pos = await db
+      .select({ status: purchaseOrder.status })
+      .from(purchaseOrder)
+      .where(eq(purchaseOrder.prId, prId));
+    // SỔ DÒNG — phần còn xuất được của phiếu (cùng nguồn với trần xuất/giữ chỗ).
+    const remaining = loaded.ledger.totalRemaining;
     // m4 — SL cần mua mà hàng đạt QC từ PO chưa đủ (PO đóng thiếu / có lô không đạt).
     let shortQty = 0;
     if (reason === "goods_received") {
-      const poSum = await getPrPoSummary(prId);
-      const got = allocatePoolToLines(
-        lines.map((l) => ({ id: l.id, itemId: l.itemId, qty: l.qty, approvedQty: l.approvedQty })),
-        poSum.receivedByItem,
-      );
-      for (const l of lines) {
+      for (const l of loaded.ledger.lines) {
         if (!l.itemId) continue;
-        const q = Number(l.qty) || 0;
-        const buy = effectiveApprovedQty(l.qty, l.approvedQty) ?? q;
-        shortQty += Math.max(0, buy - (got.get(l.id) ?? 0));
+        shortQty += Math.max(0, l.buy - l.receivedOk);
       }
-    }
-    if (reason === "goods_received") {
-      const ctx = await getPrIssueContext(
-        prId,
-        lines.map((l) => ({
-          id: l.id,
-          itemId: l.itemId,
-          qty: l.qty,
-          approvedQty: l.approvedQty,
-        })),
-        issued,
-        prIssuePhaseOf(pr),
-      );
-      // Cùng hàm prIssueRight với trần xuất/giữ chỗ: Σ phần còn xuất được theo vật tư.
-      remaining =
-        Math.round(
-          Array.from(ctx.remainingByItem.values()).reduce((x, y) => x + y, 0) * 1e6,
-        ) / 1e6;
-    } else {
-      // Phần xuất từ tồn = qty − SL cần mua → trần kiểu WAREHOUSE.
-      remaining = warehouseIssuableRemaining(
-        lines.map((l) => ({
-          qty: l.qty,
-          approvedQty: l.approvedQty,
-          issuedQty: issued.get(l.id) ?? 0,
-          hasItem: !!l.itemId,
-        })),
-        "WAREHOUSE",
-      );
     }
 
     const ok = shouldNotifyReadyToIssue({
@@ -174,7 +126,28 @@ export async function markPrReceivedAndNotifyWarehouse(
   } catch (err) {
     logger.warn({ err, prId }, "markPRGoodsReceivedIfAllPOsDone failed");
   }
+  // N6 — sau nhận hàng / QC / đóng PO: sổ dòng có thể đã đủ điều kiện Hoàn tất.
+  if (await finalizePrAndNotify(prId, actor)) return;
   await notifyReadyToIssueIfAny(prId, "goods_received", actor);
+}
+
+/**
+ * N6 — chạy finalizeIfComplete (giao dịch riêng, khoá vật tư → PR); nếu phiếu vừa Hoàn tất thì
+ * đóng "Cần xuất kho" + báo người lập. Trả true nếu đã hoàn tất. Lỗi chỉ log.
+ */
+export async function finalizePrAndNotify(
+  prId: string,
+  actor?: ActorLike | null,
+): Promise<boolean> {
+  try {
+    const done = await finalizePrIfComplete(prId);
+    if (!done) return false;
+    await notifyPrAutoFinalized(done, actor);
+    return true;
+  } catch (err) {
+    logger.warn({ err, prId }, "finalizePrAndNotify failed");
+    return false;
+  }
 }
 
 /**

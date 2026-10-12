@@ -8,13 +8,10 @@ import {
   assertPrItemsUsable,
   deletePR,
   getPR,
-  computePrIssueProgress,
   getCommittedByItem,
   getIssuableQtyByItem,
   getShortOfCommitment,
-  getPRIssuedQtyByLine,
-  getPrIssueContext,
-  getPRLinesEnriched,
+  getPrLedger,
   replacePRLines,
 } from "@/server/repos/purchaseRequests";
 import { listGoodsIssuesForPurchaseRequest } from "@/server/repos/goodsIssues";
@@ -32,9 +29,9 @@ import {
   allocateStockAcrossLines,
   isWarehouseIssueStage,
   netIssuableByItem,
-  prIssuePhaseOf,
   roundQty,
 } from "@/lib/procurement-policy";
+import { ledgerIssueProgress } from "@/lib/pr-ledger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -65,16 +62,14 @@ export async function GET(
     return jsonError("NOT_FOUND", "Không tìm thấy PR.", 404);
   }
 
-  const lines = await getPRLinesEnriched(params.id);
-  // V4.2 (TASK "Trừ tồn luôn") — hiển thị mã phiếu xuất đã sinh ở mục IV.
-  // Thiết kế 1 PR ↔ tối đa 1 phiếu xuất nên mảng này thường có 0 hoặc 1 phần tử.
-  // L8 — xuất nhiều đợt: luôn liệt kê các phiếu xuất đã sinh (kể cả khi chưa đủ).
-  const [goodsIssues, issuedByLine] = await Promise.all([
+  // SỔ DÒNG — nguồn duy nhất cho trần xuất / giữ chỗ / còn phải mua / hoàn tất.
+  const [loaded, goodsIssues] = await Promise.all([
+    getPrLedger(params.id, db, row),
     listGoodsIssuesForPurchaseRequest(params.id),
-    getPRIssuedQtyByLine(params.id),
   ]);
-  // Tồn khả dụng HIỆN TẠI (không phải snapshot lúc lập phiếu) — chỉ Kho/admin/Mua hàng
-  // xem (người lập/QC… không cần và không nên thấy tồn kho).
+  if (!loaded) return jsonError("NOT_FOUND", "Không tìm thấy PR.", 404);
+  const { lines, issuedByLine, ledger } = loaded;
+  // Tồn khả dụng HIỆN TẠI — chỉ Kho/admin/Mua hàng xem (người lập/QC… không cần và không nên thấy tồn kho).
   const canSeeStock = guard.session.roles.some((r) =>
     ["admin", "warehouse", "purchaser"].includes(r),
   );
@@ -85,64 +80,56 @@ export async function GET(
         getCommittedByItem(itemIdsAll, params.id),
       ])
     : [new Map<string, number>(), new Map<string, number>()];
-  // Giai đoạn Kho (đã qua Kho duyệt, chưa duyệt cuối): trần xuất = qty − SL cần mua.
+  // Giai đoạn Kho (đã qua Kho duyệt, chưa duyệt cuối).
   const issueStage = isWarehouseIssueStage(row) ? "WAREHOUSE" : "FINAL";
-  // B1-B3 — phần phiếu này đang GIỮ CHỖ chỉ tính khi phiếu ở giai đoạn giữ chỗ (đã qua Kho, chưa hoàn tất).
-  const holdPhase = prIssuePhaseOf(row);
-  // T2/C3 — có PO sống: trần = (đề xuất − cần mua) + đã nhận; còn phần cần mua chưa về → chưa hoàn tất.
-  const issueCtx = await getPrIssueContext(
-    params.id,
-    lines.map((l) => ({
-      id: l.id,
-      itemId: l.itemId,
-      qty: Number(l.qty) || 0,
-      approvedQty: l.approvedQty != null ? Number(l.approvedQty) : null,
-    })),
-    issuedByLine,
-    holdPhase,
-  );
+  const holdPhase = ledger.phase;
   // m5 — TỒN KHẢ DỤNG sau giữ chỗ phiếu khác, LŨY KẾ theo vật tư (dòng trước dùng trước), mỗi dòng
   // "tiêu" phần còn xuất được của nó (phiếu chưa vào giai đoạn giữ chỗ: tiêu theo SL đề xuất).
   const availAfterHold = allocateStockAcrossLines(
     lines.map((l) => ({
       id: l.id,
       itemId: l.itemId,
-      qty: holdPhase === "NONE" ? Number(l.qty) || 0 : issueCtx.remaining.get(l.id) ?? 0,
+      qty: holdPhase === "NONE" ? Number(l.qty) || 0 : ledger.byId.get(l.id)?.remaining ?? 0,
     })),
     netIssuableByItem(issuableByItem, heldByOthers),
   );
-  const linesWithIssued = lines.map((l) => ({
-    ...l,
-    issuedQty: issuedByLine.get(l.id) ?? 0,
-    /** Trần xuất kho của dòng (đã tính giai đoạn + hàng đã về). */
-    issueCap: issueCtx.caps.get(l.id) ?? (Number(l.qty) || 0),
-    /** Còn xuất được (= phần phiếu giữ chỗ cho dòng). */
-    issueRemaining: issueCtx.remaining.get(l.id) ?? 0,
-    availableQty: canSeeStock && l.itemId ? roundQty(availAfterHold.get(l.id) ?? 0) : null,
-    /** Tồn thô (chưa trừ giữ chỗ) — chỉ để tham chiếu. */
-    stockRawQty: canSeeStock && l.itemId ? roundQty(issuableByItem.get(l.itemId) ?? 0) : null,
-  }));
+  // N9 — tồn khả dụng SAU cam kết phiếu khác (chưa trừ phần của chính phiếu) theo vật tư.
+  const freeByItem = netIssuableByItem(issuableByItem, heldByOthers);
+  const linesWithIssued = lines.map((l) => {
+    const led = ledger.byId.get(l.id);
+    return {
+      ...l,
+      issuedQty: issuedByLine.get(l.id) ?? 0,
+      /** Trần xuất kho của dòng (sổ dòng). */
+      issueCap: led?.cap ?? 0,
+      /** Còn xuất được (= phần phiếu giữ chỗ cho dòng). */
+      issueRemaining: led?.remaining ?? 0,
+      availableQty: canSeeStock && l.itemId ? roundQty(availAfterHold.get(l.id) ?? 0) : null,
+      /** Tồn sau cam kết phiếu khác (chưa trừ dòng trước) — N9. */
+      freeQty: canSeeStock && l.itemId ? roundQty(freeByItem.get(l.itemId) ?? 0) : null,
+      /** Tồn thô (chưa trừ giữ chỗ) — chỉ để tham chiếu. */
+      stockRawQty: canSeeStock && l.itemId ? roundQty(issuableByItem.get(l.itemId) ?? 0) : null,
+      /** Sổ dòng (đề xuất, cần mua, đã về, đang về, chờ QC, đã xuất, còn phải đặt…). */
+      ledger: led ?? null,
+    };
+  });
   const shortOfCommitment =
     canSeeStock && holdPhase !== "NONE"
-      ? await getShortOfCommitment(params.id, issueCtx.heldByItem)
+      ? await getShortOfCommitment(params.id, ledger.heldByItem)
       : [];
-  const issueProgress = computePrIssueProgress(
-    linesWithIssued.map((l) => ({
-      id: l.id,
-      itemId: l.itemId,
-      sku: l.sku,
-      qty: Number(l.qty) || 0,
-      approvedQty: l.approvedQty != null ? Number(l.approvedQty) : null,
-      issuedQty: l.issuedQty,
-      cap: l.issueCap,
-    })),
-    issueStage,
-    issueCtx.outstandingBuy,
+  const issueProgress = ledgerIssueProgress(ledger);
+  // Σ remaining (phiếu không ở giai đoạn giữ chỗ → 0): quyết định hiện nút "Đã xuất kho".
+  const warehouseRemaining = ledger.totalRemaining;
+  // N9 — phiếu cũ (dòng NULL không giữ chỗ): phần còn xuất được nhưng tồn đã bị phiếu mới giữ hết.
+  const legacyBlockedByHold =
+    canSeeStock &&
+    ledger.lines.some(
+      (l) => l.legacy && l.itemId && l.remaining > 1e-6 && (freeByItem.get(l.itemId) ?? 0) <= 1e-6,
+    );
+  const legacyIssuable = ledger.lines.some(
+    (l) => l.legacy && l.itemId && l.remaining > 1e-6 && (freeByItem.get(l.itemId) ?? 0) > 1e-6,
   );
-  // Σ remaining theo vật tư (phiếu không ở giai đoạn giữ chỗ → 0): quyết định hiện nút "Đã xuất kho".
-  const warehouseRemaining = roundQty(
-    Array.from(issueCtx.remainingByItem.values()).reduce((x, y) => x + y, 0),
-  );
+  const nonLegacyRemaining = ledger.lines.reduce((a, l) => a + (l.legacy ? 0 : l.remaining), 0);
   // A18 — trạng thái PO THẬT của phiếu (mục IV không tick "Đã tạo đơn mua" khi PO đã huỷ).
   const purchaseOrders = await db
     .select({ id: purchaseOrder.id, poNo: purchaseOrder.poNo, status: purchaseOrder.status })
@@ -179,9 +166,22 @@ export async function GET(
       issueProgress,
       issueStage,
       warehouseIssuableRemaining: warehouseRemaining,
+      /** N9 — còn phần xuất được THẬT (phiếu cũ chỉ tính khi tồn sau cam kết > 0). */
+      issuableNow: nonLegacyRemaining > 1e-6 || legacyIssuable,
+      legacyBlockedByHold,
       shortOfCommitment: shortOfCommitment.length > 0,
       shortOfCommitmentItems: shortOfCommitment,
-      hasPendingPo: issueCtx.hasPendingPo,
+      hasPendingPo: !ledger.noWaiting,
+      /** Tổng sổ của phiếu. */
+      ledgerSummary: {
+        phase: ledger.phase,
+        toOrder: ledger.toOrder,
+        waiting: ledger.waiting,
+        outstandingBuy: ledger.outstandingBuy,
+        complete: ledger.complete,
+        noWaiting: ledger.noWaiting,
+        pendingLines: ledger.pendingLines,
+      },
       purchaseOrders,
       requestedByName: row.requestedBy ? nameMap.get(row.requestedBy) ?? null : null,
       deptApprovedByName: row.deptApprovedBy

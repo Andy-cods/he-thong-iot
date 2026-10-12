@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { issueCapForStage } from "@/lib/procurement-policy";
 import { AlertTriangle, Loader2, PackageCheck, Truck, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -59,15 +58,11 @@ export interface MarkPrIssuedLine {
   availableQty?: number | null;
 }
 
-/**
- * Còn được xuất − đã xuất ở các đợt trước. approvedQty = SL CẦN MUA (Kho chốt):
- * giai đoạn Kho (chưa duyệt cuối) trần = đề xuất − cần mua (phần có sẵn trong kho);
- * sau duyệt cuối trần = SL đề xuất.
- */
-function remainingOf(l: MarkPrIssuedLine, stage: "WAREHOUSE" | "FINAL" = "FINAL"): number {
+/** Còn được xuất — server tính từ SỔ DÒNG (cap − đã xuất). Không có số server → 0 (không đoán phía client). */
+function remainingOf(l: MarkPrIssuedLine, _stage: "WAREHOUSE" | "FINAL" = "FINAL"): number {
   if (l.issueRemaining != null) return l.issueRemaining;
-  const cap = l.issueCap ?? issueCapForStage(stage, l.qty, l.approvedQty);
-  return Math.max(0, cap - (l.issuedQty ?? 0));
+  if (l.issueCap != null) return Math.max(0, l.issueCap - (l.issuedQty ?? 0));
+  return 0;
 }
 
 interface FifoPick {
@@ -101,6 +96,8 @@ export function MarkPrIssuedDialog({
   prLabel,
   lines,
   stage = "FINAL",
+  toOrder = 0,
+  noWaiting = true,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -109,6 +106,10 @@ export function MarkPrIssuedDialog({
   lines: MarkPrIssuedLine[];
   /** WAREHOUSE = đã qua Kho duyệt, chưa duyệt cuối: chỉ xuất phần có sẵn, không kết thúc/không-trừ-tồn. */
   stage?: "WAREHOUSE" | "FINAL";
+  /** Sổ dòng: SL còn chưa đặt mua của phiếu — kết thúc sẽ BỎ phần này (cần lý do). */
+  toOrder?: number;
+  /** Sổ dòng: không còn hàng đang về / chờ QC → được kết thúc / ghi nhận không trừ tồn. */
+  noWaiting?: boolean;
 }) {
   const markIssued = useMarkPRIssued(prId);
 
@@ -130,6 +131,8 @@ export function MarkPrIssuedDialog({
   const [noStock, setNoStock] = React.useState(false);
   const [noStockReason, setNoStockReason] = React.useState("");
   const [notes, setNotes] = React.useState("");
+  const [finishReason, setFinishReason] = React.useState("");
+  const dropsUnordered = toOrder > 1e-6;
 
   // Reset + tải "Khả dụng" mỗi lần mở dialog.
   React.useEffect(() => {
@@ -138,6 +141,7 @@ export function MarkPrIssuedDialog({
     setNoStock(false);
     setNoStockReason("");
     setNotes("");
+    setFinishReason("");
     const init: Record<string, string> = {};
     for (const l of stockLines) {
       const cap = remainingOf(l, stage);
@@ -223,14 +227,20 @@ export function MarkPrIssuedDialog({
   // L8 — "Kết thúc, không xuất thêm": đóng quy trình xuất dù còn dòng chưa đủ.
   const askConfirm = useConfirm();
   const finishNow = async () => {
+    if (dropsUnordered && finishReason.trim().length < 3) {
+      toast.error("Còn phần chưa đặt mua — nhập lý do bỏ phần này (tối thiểu 3 ký tự).");
+      return;
+    }
     const ok = await askConfirm({
       title: "Kết thúc xuất kho?",
-      description: "Các dòng chưa xuất đủ sẽ được chốt ở số đã xuất. Phiếu chuyển \"Hoàn tất\" và KHÔNG xuất thêm được nữa.",
+      description: dropsUnordered
+        ? `Còn ${fmt(toOrder)} chưa đặt mua — kết thúc sẽ BỎ phần này. Các dòng chưa xuất đủ được chốt ở số đã xuất; phiếu chuyển "Hoàn tất".`
+        : "Các dòng chưa xuất đủ sẽ được chốt ở số đã xuất. Phiếu chuyển \"Hoàn tất\" và KHÔNG xuất thêm được nữa.",
       confirmLabel: "Kết thúc",
     });
     if (!ok) return;
     markIssued.mutate(
-      { finish: true },
+      { finish: true, finishReason: finishReason.trim() || null },
       {
         onSuccess: () => {
           toast.success("Đã kết thúc xuất kho — phiếu hoàn tất.");
@@ -567,7 +577,7 @@ export function MarkPrIssuedDialog({
         <div
           className={
             "flex items-start gap-2 rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-800/40" +
-            (stage === "WAREHOUSE" ? " hidden" : "")
+            (stage === "WAREHOUSE" || !noWaiting ? " hidden" : "")
           }
         >
           <Checkbox
@@ -597,11 +607,27 @@ export function MarkPrIssuedDialog({
           </div>
         </div>
 
+        {stage !== "WAREHOUSE" && !noStock && anyIssued && noWaiting && dropsUnordered ? (
+          <div className="space-y-1 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+            <Label htmlFor="pr-finish-reason" className="text-xs font-medium">
+              Còn {fmt(toOrder)} chưa đặt mua — nếu “Kết thúc”, phần này bị bỏ. Lý do:
+            </Label>
+            <Textarea
+              id="pr-finish-reason"
+              value={finishReason}
+              onChange={(e) => setFinishReason(e.target.value)}
+              rows={2}
+              maxLength={500}
+              placeholder="VD: NCC ngừng cung cấp, bộ phận đề xuất không cần nữa…"
+            />
+          </div>
+        ) : null}
+
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
             Huỷ
           </Button>
-          {stage !== "WAREHOUSE" && !noStock && anyIssued ? (
+          {stage !== "WAREHOUSE" && !noStock && anyIssued && noWaiting ? (
             <Button
               variant="outline"
               onClick={finishNow}

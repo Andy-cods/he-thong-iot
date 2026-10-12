@@ -1,11 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import {
   getPR,
-  getRecheckPendingPoBlock,
-  getPRIssuedQtyByLine,
+  getPrLedger,
+  getPrRecheckRows,
   getPrShortOfCommitment,
   getPrStockCheck,
 } from "@/server/repos/purchaseRequests";
+import { recheckBlockReason } from "@/lib/pr-ledger";
 import { jsonError, validateUuidParam } from "@/server/http";
 import { requireCan } from "@/server/session";
 import { canAccessPR } from "@/server/services/prAccess";
@@ -42,19 +43,58 @@ export async function GET(
     return jsonError("INVALID_STATE", "Phiếu này không kiểm tồn lại được.", 409);
   }
   if (recheck) {
-    // L4 — CÙNG điều kiện với POST recheck-stock: chỉ chặn khi còn PO đang chờ hàng về.
-    const block = await getRecheckPendingPoBlock(params.id);
+    // SỔ DÒNG — CÙNG điều kiện với POST recheck-stock: chặn khi còn hàng đang về / lô chờ QC.
+    const loaded = await getPrLedger(params.id, undefined, pr);
+    if (!loaded) return jsonError("NOT_FOUND", "Không tìm thấy phiếu.", 404);
+    const block = recheckBlockReason(loaded.ledger);
     if (block) return jsonError("INVALID_STATE", block, 409);
+    const [rows, short] = await Promise.all([
+      getPrRecheckRows(loaded),
+      getPrShortOfCommitment(pr, undefined, loaded),
+    ]);
+    const byId = new Map(loaded.lines.map((l) => [l.id, l]));
+    return NextResponse.json({
+      data: {
+        shortOfCommitment: short.length > 0,
+        shortOfCommitmentItems: short,
+        approvalStep: pr.approvalStep,
+        recheck: true,
+        lines: rows.map((r) => {
+          const l = byId.get(r.id)!;
+          return {
+            id: r.id,
+            lineNo: l.lineNo,
+            itemId: r.itemId,
+            sku: l.sku,
+            name: l.name,
+            uom: l.uom ?? l.itemUom,
+            /** Đề xuất (cả phiếu). */
+            qty: r.req,
+            issuedQty: r.issued,
+            /** Đã nhận đạt QC từ PO của phiếu. */
+            receivedOk: r.receivedOk,
+            /** Đã đặt/đã về (PO đang mở theo SL đặt, PO đã đóng theo hàng đã nhận). */
+            orderedEffective: r.orderedEffective,
+            /** Phần còn phải đáp ứng = đề xuất − max(đã xuất, đã về). */
+            stillNeeded: r.stillNeeded,
+            /** Tồn khả dụng cho dòng (sau cam kết phiếu khác, trừ hàng PO của phiếu chưa xuất, lũy kế). */
+            available: r.available,
+            /** SL cần mua THÊM mặc định. */
+            defaultAddQty: r.defaultAdd,
+            buyBefore: r.buyBefore,
+          };
+        }),
+      },
+    });
   }
-  const issued = recheck ? await getPRIssuedQtyByLine(params.id) : undefined;
-  const lines = await getPrStockCheck(params.id, undefined, issued);
+  const lines = await getPrStockCheck(params.id);
   const short = await getPrShortOfCommitment(pr);
   return NextResponse.json({
     data: {
       shortOfCommitment: short.length > 0,
       shortOfCommitmentItems: short,
       approvalStep: pr.approvalStep,
-      recheck,
+      recheck: false,
       lines: lines.map((l) => ({ ...l, defaultBuyQty: defaultBuyQty(l.qty, l.available) })),
     },
   });

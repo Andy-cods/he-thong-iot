@@ -15,8 +15,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const inputSchema = z.object({
-  /** lineId → SL cần mua mới (tính trên phần còn lại = đề xuất − đã xuất). Bỏ trống → theo tồn hiện tại. */
-  buyQtys: buyQtysSchema.optional(),
+  /** lineId → SL cần mua THÊM (sổ dòng). Bỏ trống → mặc định theo tồn khả dụng hiện tại. */
+  addQtys: buyQtysSchema.optional(),
+  /** Client cũ gửi SL cần mua tổng — nghĩa đã đổi, không nhận nữa. */
+  buyQtys: z.unknown().optional(),
 });
 
 /**
@@ -42,9 +44,16 @@ export async function POST(
   }
   const body = await parseJson(req, inputSchema);
   if ("response" in body) return body.response;
+  if (body.data.buyQtys !== undefined) {
+    return jsonError(
+      "VALIDATION",
+      "Hộp thoại Kiểm tồn lại đã đổi sang nhập “SL cần mua thêm” — tải lại trang rồi thử lại.",
+      422,
+    );
+  }
 
   try {
-    const r = await recheckPrStock(params.id, guard.session.userId, body.data.buyQtys);
+    const r = await recheckPrStock(params.id, guard.session.userId, body.data.addQtys);
     const meta = extractRequestMeta(req);
     await writeAudit({
       actor: guard.session,
@@ -57,6 +66,7 @@ export async function POST(
         status: r.pr.status,
         increased: r.increased,
         buyQtys: r.decisions,
+        addQtys: r.adds,
         coveredLines: r.summary.coveredLines,
         buyLines: r.summary.buyLines,
       },
@@ -67,8 +77,9 @@ export async function POST(
           : "Kho kiểm tồn lại: không phải mua thêm — giữ nguyên",
       ...meta,
     });
-    if (r.autoFinal) {
-      // L2 — Kiểm tồn lại về 0 khi đang chờ duyệt cuối = "Kho đáp ứng đủ": báo người lập, đóng thông báo chờ duyệt cuối.
+    if (r.autoFinal || r.coveredAfterFinal) {
+      // L2 — Kiểm tồn lại về 0 khi đang chờ duyệt cuối = "Kho đáp ứng đủ"; N7b — đã duyệt cuối mà nay không
+      // còn gì phải lập PO: cũng báo người lập + đóng "Cần tạo PO"/nhắc lập PO (RESOLVES_STALE của PR_STOCK_COVERED).
       void notifyPRStockCovered({
         prId: params.id,
         prNo: before.paperFormNo ?? before.code,
@@ -79,8 +90,8 @@ export async function POST(
       });
     }
     if (r.finalized) void notifyPrAutoFinalized(before, guard.session);
-    else if (r.autoFinal) void notifyReadyToIssueIfAny(params.id, "stock_covered", guard.session);
-    if (r.increased) {
+    else if (r.autoFinal || r.coveredAfterFinal) void notifyReadyToIssueIfAny(params.id, "stock_covered", guard.session);
+    if (r.increased && r.notifyDeptApproved) {
       const cover = summarizeLineCoverage(await getPRLines(params.id));
       void notifyPRDeptApproved({
         prId: params.id,
@@ -95,10 +106,21 @@ export async function POST(
       });
     }
     return NextResponse.json({
-      data: { increased: r.increased, autoFinal: r.autoFinal, finalized: r.finalized, approvalStep: r.pr.approvalStep, status: r.pr.status },
+      data: {
+        increased: r.increased,
+        autoFinal: r.autoFinal,
+        finalized: r.finalized,
+        coveredAfterFinal: r.coveredAfterFinal,
+        approvalStep: r.pr.approvalStep,
+        status: r.pr.status,
+      },
     });
   } catch (err) {
-    if (err instanceof PrApprovalError) return jsonError(err.code, err.message, err.httpStatus);
+    if (err instanceof PrApprovalError) {
+      // N8 — lỗi nghiệp vụ: warn, không stack.
+      logger.warn({ prId: params.id, code: err.code, msg: err.message }, "recheck-stock PR rejected");
+      return jsonError(err.code, err.message, err.httpStatus);
+    }
     if (isDbConcurrencyError(err)) {
       return jsonError("CONFLICT", "Đang có thao tác khác trên phiếu — thử lại.", 409);
     }

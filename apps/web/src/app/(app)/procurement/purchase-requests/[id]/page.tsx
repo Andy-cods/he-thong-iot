@@ -57,6 +57,7 @@ import {
   useDeptApprovePR,
   useDirectorApprovePR,
   useMarkPRCompleted,
+  useFinalizePR,
   useRecheckPrStock,
   useRecreatePR,
   useSubmitPR,
@@ -66,7 +67,7 @@ import {
   type PRLineEnriched,
 } from "@/hooks/usePurchaseRequests";
 import { isClosedByPartialReject, REJECTED_PARTIAL_LABEL } from "@/lib/pr-close-policy";
-import { canCancelPR, canRejectAtStep, formatCoverageSummary, summarizeLineCoverage, isSelfApprovalBlocked, isStockRecheckableState, isWarehouseIssueStage, prLineToPoLine } from "@/lib/procurement-policy";
+import { canCancelPR, canRejectAtStep, formatCoverageSummary, summarizeLineCoverage, isSelfApprovalBlocked, isStockRecheckableState, isWarehouseIssueStage } from "@/lib/procurement-policy";
 import { canEditPRDraft, canExportPrExcel, canRecreatePR } from "@/server/services/prAccess";
 import { useConvertPRToPOs } from "@/hooks/usePurchaseOrders";
 import { formatDate, formatMoney, formatQty } from "@/lib/format";
@@ -193,6 +194,7 @@ export default function PurchaseRequestDetailPage() {
   const cancel = useCancelPurchaseRequest(id);
   const convert = useConvertPRToPOs();
   const markCompleted = useMarkPRCompleted(id);
+  const finalizePr = useFinalizePR(id);
   const recreate = useRecreatePR(id);
   const submitPr = useSubmitPR(id);
   const deletePR = useDeletePR(id);
@@ -313,7 +315,9 @@ export default function PurchaseRequestDetailPage() {
   ]);
   // Phiếu đã xuất đủ/kết thúc (completedAt) không cần lên PO nữa.
   // Chỉ mua PHẦN CÒN THIẾU: mọi dòng đã được Kho đáp ứng đủ → không có gì để mua.
-  const needsBuy = pr.lines.some((l) => prLineToPoLine(l, l.issuedQty ?? 0) !== null);
+  // SỔ DÒNG — còn phần được lập PO (toOrder > 0).
+  const ledgerSum = detail.data?.data.ledgerSummary;
+  const needsBuy = (ledgerSum?.toOrder ?? 0) > 1e-6;
   const canConvert =
     (isAdmin || isPurchaser) && status === "APPROVED" && !pr.completedAt && needsBuy;
   // V3.7.70 — Manual timeline events
@@ -323,11 +327,15 @@ export default function PurchaseRequestDetailPage() {
   const issuedAny = (pr.goodsIssues?.length ?? 0) > 0;
   // N5 — chỉ hiện nút khi còn SL xuất được theo trần (gồm trần theo PO chưa về). Ngoại lệ: đã xuất
   // ≥ 1 đợt, không còn phần cần mua chờ về mà còn dòng chưa đủ → vẫn mở hộp thoại để "Kết thúc".
-  const issuableLeft = detail.data?.data.warehouseIssuableRemaining ?? 0;
+  // N9 — phiếu cũ (NULL) chỉ tính phần xuất được khi tồn sau cam kết phiếu khác > 0.
+  const issuableLeft =
+    detail.data?.data.issuableNow === false ? 0 : detail.data?.data.warehouseIssuableRemaining ?? 0;
+  const noWaiting = ledgerSum?.noWaiting ?? true;
+  // "Kết thúc" chỉ khi không còn hàng đang về / chờ QC (sổ dòng); còn dòng chưa đủ hoặc còn phần chưa đặt.
   const canFinishOnly =
     issuedAny &&
-    !pr.issueProgress?.outstandingBuy &&
-    (pr.issueProgress?.pendingLines ?? 0) > 0;
+    noWaiting &&
+    ((pr.issueProgress?.pendingLines ?? 0) > 0 || (ledgerSum?.toOrder ?? 0) > 1e-6);
   const canMarkIssued =
     (isAdmin || isWarehouse) &&
     !pr.goodsIssuedAt &&
@@ -337,7 +345,7 @@ export default function PurchaseRequestDetailPage() {
   // L1 — Kho "Kiểm tồn lại": phiếu đã duyệt, chưa hoàn tất, chưa có PO sống (phiếu có thể bị kẹt
   // vì tồn đã giao cho phiếu khác). Server kiểm lại trạng thái + PO.
   // L4 — "PO sống" = còn PO ĐANG CHỜ hàng về (server tính: chưa huỷ, chưa đóng/nhận đủ).
-  const hasPendingPo = detail.data?.data.hasPendingPo ?? false;
+  const hasPendingPo = !noWaiting;
   const canRecheckStock =
     (isAdmin || isWarehouse) &&
     !hasPendingPo &&
@@ -355,6 +363,9 @@ export default function PurchaseRequestDetailPage() {
   const inIssuing = issuedAny && !pr.goodsIssuedAt && !isTerminalState;
   const canMarkCompleted =
     isAdmin && !!pr.goodsIssuedAt && !pr.completedAt;
+  // N6 — sổ dòng đã đủ điều kiện Hoàn tất nhưng phiếu chưa tự chốt (dữ liệu cũ) → Kho/admin chốt.
+  const canFinalize =
+    (isAdmin || isWarehouse) && !pr.goodsIssuedAt && !pr.completedAt && !!ledgerSum?.complete;
   // V3.7.71 — Hard-delete YCVT, admin only.
   // TASK-6VIEC Việc 2 — hoặc người lập phiếu xoá phiếu NHÁP của chính mình
   // (khớp guard server DELETE /api/purchase-requests/[id]).
@@ -419,12 +430,16 @@ export default function PurchaseRequestDetailPage() {
   const handleRecheck = async () => {
     try {
       const r = await recheckStock.mutateAsync({
-        buyQtys: stockBuy.valid ? stockBuy.qtys : undefined,
+        addQtys: stockBuy.valid ? stockBuy.qtys : undefined,
       });
       toast.success(
         r.data.increased
-          ? "Cần mua thêm — phiếu đã quay về chờ duyệt cuối cho phần cần mua."
-          : "Đã kiểm tồn lại: không phải mua thêm, phiếu giữ nguyên.",
+          ? "Cần mua thêm — phiếu đã quay về chờ duyệt cuối cho phần mua thêm."
+          : r.data.finalized
+            ? "Đã kiểm tồn lại: phiếu đủ điều kiện — đã Hoàn tất."
+            : r.data.autoFinal || r.data.coveredAfterFinal
+              ? "Đã kiểm tồn lại: Kho đáp ứng đủ từ tồn, không cần mua."
+              : "Đã kiểm tồn lại: không phải mua thêm.",
       );
       setRecheckOpen(false);
     } catch (err) {
@@ -545,6 +560,12 @@ export default function PurchaseRequestDetailPage() {
               <h1 className="mt-1 line-clamp-2 min-w-0 [overflow-wrap:anywhere] text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
                 {pr.title || (pr.formType === "DNVT" ? "Phiếu DNVT" : "Phiếu MRF")}
               </h1>
+              {detail.data?.data.legacyBlockedByHold && (isAdmin || isWarehouse) && !pr.goodsIssuedAt ? (
+                <p className="mt-1.5 flex items-start gap-1.5 rounded-md border border-zinc-300 bg-zinc-50 px-2.5 py-1.5 text-xs text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span>Tồn đang được giữ cho phiếu mới — phiếu cũ này chưa xuất được phần còn lại.</span>
+                </p>
+              ) : null}
               {detail.data?.data.shortOfCommitment && (isAdmin || isWarehouse || isPurchaser) ? (
                 <p
                   role="alert"
@@ -820,6 +841,36 @@ export default function PurchaseRequestDetailPage() {
                 className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
               >
                 {markCompleted.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Flag className="h-3.5 w-3.5" />
+                )}
+                Hoàn tất
+              </Button>
+            )}
+
+            {canFinalize && (
+              <Button
+                size="sm"
+                onClick={() =>
+                  void (async () => {
+                    const ok = await askConfirm({
+                      title: `Chốt hoàn tất phiếu ${formLabel}?`,
+                      description:
+                        "Mọi dòng đã xuất đủ và không còn phần phải mua / đang về. Sau khi chốt không xuất thêm được.",
+                      confirmLabel: "Hoàn tất",
+                    });
+                    if (!ok) return;
+                    finalizePr.mutate(undefined, {
+                      onSuccess: () => toast.success("Phiếu đã hoàn tất"),
+                      onError: (e) => toast.error(`Lỗi: ${(e as Error).message}`),
+                    });
+                  })()
+                }
+                disabled={finalizePr.isPending}
+                className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+              >
+                {finalizePr.isPending ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
                   <Flag className="h-3.5 w-3.5" />
@@ -1416,12 +1467,13 @@ export default function PurchaseRequestDetailPage() {
 
       {/* L1 — Kiểm tồn lại (phiếu đã duyệt, chưa có PO) */}
       <Dialog open={recheckOpen} onOpenChange={setRecheckOpen}>
-        <DialogContent>
+        <DialogContent size="lg" className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>Kiểm tồn lại</DialogTitle>
             <DialogDescription>
-              Tính lại SL cần mua theo tồn khả dụng hiện tại (đã trừ phần dành cho phiếu khác). Nếu
-              phải mua thêm, phiếu quay về chờ duyệt cuối cho phần cần mua; nếu không, giữ nguyên.
+              Theo sổ của từng dòng: đề xuất, đã xuất, đã mua/đã về và tồn khả dụng hiện tại (đã trừ
+              phần dành cho phiếu khác). Nhập “SL cần mua thêm” cho phần chưa đáp ứng; nếu &gt; 0, phiếu
+              quay về chờ duyệt cuối cho phần mua thêm.
             </DialogDescription>
           </DialogHeader>
           {recheckOpen && <PrStockCheckPanel prId={id} recheck onChange={onStockBuyChange} />}
@@ -1552,6 +1604,8 @@ export default function PurchaseRequestDetailPage() {
           issueRemaining: l.issueRemaining,
           availableQty: l.availableQty,
         }))}
+        toOrder={ledgerSum?.toOrder ?? 0}
+        noWaiting={noWaiting}
       />
 
       {/* Print A4 landscape */}

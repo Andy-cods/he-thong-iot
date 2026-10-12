@@ -11,15 +11,24 @@ import {
   isRealIsoDate,
   isRequestReasonMissing,
   isWarehouseIssueStage,
-  issueCapForStage,
   prHasGoodsIssueMessage,
-  prLineToPoLine,
   resolveBuyDecisions,
   shouldRevertPrAfterPoCancel,
   summarizeBuyDecisions,
   validateExportRange,
-  warehouseIssuableRemaining,
 } from "./procurement-policy";
+import { buildPrLedger, EMPTY_PO_SUMMARY, type PrIssuePhase } from "./pr-ledger";
+
+// Lần 7 — prLineToPoLine / issueCapForStage / warehouseIssuableRemaining / computePrIssueProgress thay bằng
+// SỔ DÒNG. Bộ chuyển đổi: phiếu chưa có PO.
+const led = (
+  l: { qty: number; approvedQty: number | null; issuedQty?: number; itemId?: string | null },
+  phase: PrIssuePhase = "FINAL",
+) => buildPrLedger([{ id: "x", itemId: l.itemId === undefined ? "i" : l.itemId, ...l }], EMPTY_PO_SUMMARY, phase);
+const toOrder = (l: { qty: number; approvedQty: number | null }, issued = 0) =>
+  led({ ...l, issuedQty: issued }).byId.get("x")!.toOrder;
+const capOf = (phase: PrIssuePhase, qty: number, approvedQty: number | null) =>
+  led({ qty, approvedQty }, phase).byId.get("x")!.cap;
 import {
   INFO_EVENT_SUFFIX,
   ACTION_EVENT_TYPES,
@@ -34,7 +43,7 @@ import {
   planPOCancelled,
   storedEventType,
 } from "../server/services/notification-plans";
-import { computePrIssueProgress, validatePrIssuePicks } from "../server/repos/purchaseRequests";
+import { validatePrIssuePicks } from "../server/repos/purchaseRequests";
 
 const tomorrow = () => new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
 const line = { itemName: "Ốc vít", qty: 5 };
@@ -47,17 +56,17 @@ describe("A1 — approvedQty", () => {
   it("kẹp approvedQty ≤ qty (dữ liệu cũ qty 5 / duyệt 500)", () => {
     expect(effectiveApprovedQty(5, 500)).toBe(5);
     expect(effectiveApprovedQty(5, null)).toBeNull();
-    expect(prLineToPoLine({ qty: 5, approvedQty: 500 })?.orderedQty).toBe(5);
+    expect(toOrder({ qty: 5, approvedQty: 500 })).toBe(5);
   });
 });
 
 describe("PO chỉ mua phần còn thiếu", () => {
-  it("min(SL cần mua, đề xuất − đã xuất)", () => {
-    expect(prLineToPoLine({ qty: 10, approvedQty: 4 }, 6)?.orderedQty).toBe(4);
-    expect(prLineToPoLine({ qty: 10, approvedQty: 4 }, 8)?.orderedQty).toBe(2);
-    expect(prLineToPoLine({ qty: 10, approvedQty: null }, 3)?.orderedQty).toBe(7);
-    expect(prLineToPoLine({ qty: 10, approvedQty: 0 }, 0)).toBeNull();
-    expect(prLineToPoLine({ qty: 10, approvedQty: null }, 10)).toBeNull();
+  it("toOrder = min(SL cần mua − đã đặt, đề xuất − đã xuất)", () => {
+    expect(toOrder({ qty: 10, approvedQty: 4 }, 6)).toBe(4);
+    expect(toOrder({ qty: 10, approvedQty: 4 }, 8)).toBe(2);
+    expect(toOrder({ qty: 10, approvedQty: null }, 3)).toBe(7);
+    expect(toOrder({ qty: 10, approvedQty: 0 }, 0)).toBe(0);
+    expect(toOrder({ qty: 10, approvedQty: null }, 10)).toBe(0);
   });
 });
 
@@ -93,11 +102,11 @@ describe("Xuất kho theo giai đoạn", () => {
     expect(isWarehouseIssueStage({ status: "APPROVED", approvalStep: "DIRECTOR_APPROVED" })).toBe(false);
   });
   it("trần nền = qty − cần mua (B2: sau duyệt cuối chưa có PO vẫn thế)", () => {
-    expect(issueCapForStage("WAREHOUSE", 10, 4)).toBe(6);
-    expect(issueCapForStage("WAREHOUSE", 10, null)).toBe(0);
-    expect(issueCapForStage("FINAL", 10, 4)).toBe(6);
+    expect(capOf("WAREHOUSE", 10, 4)).toBe(6);
+    expect(capOf("WAREHOUSE", 10, null)).toBe(0);
+    expect(capOf("FINAL", 10, 4)).toBe(6);
   });
-  const states = [{ id: "l1", itemId: "i", sku: "S", qty: 10, approvedQty: 4, issuedQty: 0 }];
+  const states = [{ id: "l1", itemId: "i", sku: "S", qty: 10, approvedQty: 4, issuedQty: 0, cap: 6 }];
   const pick = (qty: number) => [{ prLineId: "l1", lotSerialId: "x", binId: "y", qty }];
   it("giai đoạn Kho: xuất ≤ 6 ok, 7 vượt", () => {
     expect(validatePrIssuePicks(states, pick(6), "WAREHOUSE").ok).toBe(true);
@@ -107,18 +116,21 @@ describe("Xuất kho theo giai đoạn", () => {
     expect(validatePrIssuePicks(states, pick(6), "FINAL").ok).toBe(true);
     expect(validatePrIssuePicks(states, pick(7), "FINAL").ok).toBe(false);
   });
-  it("tiến độ giai đoạn Kho hoàn tất khi xuất đủ phần từ kho", () => {
-    expect(computePrIssueProgress([{ ...states[0]!, issuedQty: 6 }], "WAREHOUSE").complete).toBe(true);
-    // sau duyệt cuối còn phần cần mua chưa về (outstandingBuy) → chưa hoàn tất
-    expect(computePrIssueProgress([{ ...states[0]!, issuedQty: 6 }], "FINAL", true).complete).toBe(false);
+  it("giai đoạn Kho: xuất đủ phần từ kho → hết dòng chờ xuất nhưng phiếu KHÔNG hoàn tất", () => {
+    const w = led({ qty: 10, approvedQty: 4, issuedQty: 6 }, "WAREHOUSE");
+    expect(w.pendingLines).toBe(0);
+    expect(w.complete).toBe(false);
+    // sau duyệt cuối còn phần cần mua chưa đặt (toOrder 4) → chưa hoàn tất
+    expect(led({ qty: 10, approvedQty: 4, issuedQty: 6 }, "FINAL").complete).toBe(false);
   });
   it("phần còn xuất được (thông báo Kho)", () => {
-    const mk = (approvedQty: number | null, issuedQty = 0, hasItem = true) => ({ qty: 10, approvedQty, issuedQty, hasItem });
-    expect(warehouseIssuableRemaining([mk(4)], "WAREHOUSE")).toBe(6);
-    expect(warehouseIssuableRemaining([mk(10)], "WAREHOUSE")).toBe(0);
-    expect(warehouseIssuableRemaining([mk(4, 6)], "WAREHOUSE")).toBe(0);
-    expect(warehouseIssuableRemaining([mk(4, 0, false)], "WAREHOUSE")).toBe(0);
-    expect(warehouseIssuableRemaining([mk(null, 3)], "FINAL")).toBe(7);
+    const rem = (approvedQty: number | null, issuedQty = 0, hasItem = true, phase: PrIssuePhase = "WAREHOUSE") =>
+      led({ qty: 10, approvedQty, issuedQty, itemId: hasItem ? "i" : null }, phase).totalRemaining;
+    expect(rem(4)).toBe(6);
+    expect(rem(10)).toBe(0);
+    expect(rem(4, 6)).toBe(0);
+    expect(rem(4, 0, false)).toBe(0);
+    expect(rem(null, 3, true, "FINAL")).toBe(7);
   });
 });
 

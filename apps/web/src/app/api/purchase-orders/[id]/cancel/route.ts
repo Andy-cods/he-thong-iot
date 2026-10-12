@@ -7,6 +7,7 @@ import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/s
 import { writeAudit } from "@/server/services/audit";
 import { notifyPOCancelled, notifyPRReopenedForPO } from "@/server/services/notifications";
 import { forbidden, hasRole, requireCan } from "@/server/session";
+import { finalizePrAndNotify } from "@/server/services/prWarehouseNotify";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -74,6 +75,10 @@ export async function POST(
         actorUsername: guard.session.fullName,
         creatorUserId: pr.requestedBy,
       });
+    }
+    // N6 — sổ dòng có thể đã đủ điều kiện Hoàn tất (thống nhất với đóng PO / nhận hàng / QC).
+    if (row.prId && !row.prRevertedToApproved) {
+      void finalizePrAndNotify(row.prId, guard.session).catch(() => {});
     }
     return NextResponse.json({ data: row });
   } catch (err) {
