@@ -122,6 +122,8 @@ export interface PRListResponse {
       byStatus: Partial<Record<PRStatus, number>>;
       bySubmittedStep: { SUBMITTED: number; DEPT_APPROVED: number };
       all: number;
+      /** A14 — số phiếu "Hoàn tất" (nếu server trả) → hiện tab riêng. */
+      completed?: number;
     };
   };
 }
@@ -153,6 +155,13 @@ export interface PRDetailResponse {
   data: PRRow & {
     lines: PRLineEnriched[];
     goodsIssues?: PRGoodsIssueRow[];
+    /** A18 — các PO sinh từ phiếu này (nếu server trả) để mục IV hiện trạng thái PO thật. */
+    purchaseOrders?: Array<{
+      id?: string;
+      poNo?: string | null;
+      code?: string | null;
+      status: string;
+    }>;
     /** L8 — tiến độ xuất kho nhiều đợt. */
     issueProgress?: {
       complete: boolean;
@@ -202,6 +211,7 @@ function buildListUrl(f: PRFilter): string {
   if (f.from) p.set("from", f.from);
   if (f.to) p.set("to", f.to);
   if (f.sortDir) p.set("sortDir", f.sortDir);
+  if (f.completed) p.set("completed", "1");
   if (f.page) p.set("page", String(f.page));
   if (f.pageSize) p.set("pageSize", String(f.pageSize));
   for (const s of f.status ?? []) p.append("status", s);

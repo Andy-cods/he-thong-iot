@@ -91,6 +91,56 @@ export function validatePrLines<T extends PrLineLike & { localId: string }>(
   return errors;
 }
 
+/**
+ * A16 — khi bấm Gửi mà không có dòng hợp lệ nào: tô đỏ đúng dòng thiếu
+ * (dòng chưa chọn vật tư / SL không dương), kể cả dòng còn nguyên trạng.
+ */
+export function missingLineErrors<T extends PrLineLike & { localId: string }>(
+  lines: T[],
+): LineError[] {
+  const errors: LineError[] = [];
+  lines.forEach((l, i) => {
+    const row = i + 1;
+    if (!l.item) errors.push({ localId: l.localId, row, message: `Dòng ${row} chưa chọn vật tư` });
+    else if (!(Number(l.qty) > 0))
+      errors.push({ localId: l.localId, row, message: `Dòng ${row}: số lượng phải lớn hơn 0` });
+  });
+  return errors;
+}
+
+/**
+ * A19 — các dòng trùng vật tư (cùng item.id). Map localId -> số dòng (1-based)
+ * của dòng đầu đã dùng vật tư đó (chỉ chứa dòng thứ 2 trở đi). Chỉ cảnh báo.
+ */
+export function duplicateItemLines<T extends { localId: string; item: unknown | null }>(
+  lines: T[],
+): Map<string, number> {
+  const first = new Map<string, number>();
+  const dup = new Map<string, number>();
+  lines.forEach((l, i) => {
+    const id = (l.item as { id?: string } | null)?.id;
+    if (!id) return;
+    const seen = first.get(id);
+    if (seen === undefined) first.set(id, i + 1);
+    else dup.set(l.localId, seen);
+  });
+  return dup;
+}
+
+/** Cuộn tới phần tử đầu tiên khớp selector và focus ô nhập đầu tiên bên trong. */
+export function scrollToFirst(selector: string): void {
+  if (typeof document === "undefined") return;
+  requestAnimationFrame(() => {
+    const el = document.querySelector<HTMLElement>(selector);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+    const focusable = el.matches("input,textarea,select,button")
+      ? el
+      : el.querySelector<HTMLElement>("input,textarea,select,button");
+    focusable?.focus({ preventScroll: true });
+  });
+}
+
 /** Bộ phận đề xuất mặc định (khi user không có role ứng với bộ phận nào) — dùng chung DNVT + MRF. */
 export const DEFAULT_PROPOSING_DEPARTMENT = "Bộ phận Lắp ráp";
 

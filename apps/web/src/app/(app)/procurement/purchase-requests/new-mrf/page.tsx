@@ -29,6 +29,9 @@ import {
   normalizeNumStr,
   proposingDepartmentForRoles,
   validatePrLines,
+  missingLineErrors,
+  duplicateItemLines,
+  scrollToFirst,
   type LineError,
 } from "@/lib/pr-form";
 import { toLocalDateInput, formatDate, formatMoney } from "@/lib/format";
@@ -159,6 +162,8 @@ export default function NewMRFPage() {
   const guard = useUnsavedChangesGuard(dirty);
   // L12: lỗi theo dòng (tô đỏ dòng + nêu rõ "Dòng X ...").
   const [lineErrors, setLineErrors] = React.useState<LineError[]>([]);
+  // A16 - Ly do de xuat trong khi Gui: to do o + cuon toi.
+  const [reasonError, setReasonError] = React.useState(false);
 
   // TASK-6VIEC Việc 2 — prefill form từ phiếu NHÁP khi mở qua ?draftId=.
   // Chỉ chạy 1 lần (prefilledRef) để không ghi đè thao tác user đang gõ dở
@@ -198,6 +203,9 @@ export default function NewMRFPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftId, draftDetail.data]);
+
+  // A19 - dong trung vat tu: chi canh bao, van cho gui.
+  const dupMap = React.useMemo(() => duplicateItemLines(lines), [lines]);
 
   const validLines = React.useMemo(
     () => lines.filter((l) => !!l.item && Number(l.qty) > 0),
@@ -245,6 +253,7 @@ export default function NewMRFPage() {
     const errs = validatePrLines(lines, toLocalDateInput());
     setLineErrors(errs);
     if (errs.length > 0) {
+      scrollToFirst('[data-line-error="true"]');
       toast.error(errs.slice(0, 3).map((e) => e.message).join("\n") + (errs.length > 3 ? `\n… và ${errs.length - 3} lỗi khác` : ""));
       return false;
     }
@@ -288,6 +297,8 @@ export default function NewMRFPage() {
     if (submittingRef.current) return;
     if (!checkLines()) return;
     if (validLines.length === 0) {
+      setLineErrors(missingLineErrors(lines));
+      scrollToFirst('[data-line-error="true"]');
       toast.error("Cần ít nhất 1 dòng đã chọn vật tư + số lượng > 0.");
       return;
     }
@@ -329,10 +340,14 @@ export default function NewMRFPage() {
     if (submittingRef.current) return;
     if (!checkLines()) return;
     if (validLines.length === 0) {
+      setLineErrors(missingLineErrors(lines));
+      scrollToFirst('[data-line-error="true"]');
       toast.error("Cần ít nhất 1 dòng đã chọn vật tư + số lượng > 0.");
       return;
     }
     if (!requestReason.trim()) {
+      setReasonError(true);
+      scrollToFirst('[data-reason-field="true"]');
       toast.error("Vui lòng nhập lý do đề xuất.");
       return;
     }
@@ -555,9 +570,14 @@ export default function NewMRFPage() {
                 <textarea
                   rows={2}
                   value={requestReason}
-                  onChange={(e) => setRequestReason(e.target.value)}
+                  onChange={(e) => {
+                    setRequestReason(e.target.value);
+                    if (e.target.value.trim()) setReasonError(false);
+                  }}
+                  data-reason-field="true"
+                  aria-invalid={reasonError || undefined}
                   placeholder="VD: Mua vật tư để lắp ráp hàng hóa cho lệnh sản xuất WO-2026-001"
-                  className="w-full resize-none bg-transparent text-[12px] outline-none placeholder:text-zinc-300 dark:placeholder:text-zinc-600"
+                  className="w-full resize-none rounded bg-transparent text-[12px] outline-none placeholder:text-zinc-300 aria-[invalid=true]:bg-red-50 aria-[invalid=true]:ring-1 aria-[invalid=true]:ring-red-400 dark:placeholder:text-zinc-600 dark:aria-[invalid=true]:bg-red-950/30"
                   maxLength={2000}
                 />
               </FieldRow>
@@ -597,10 +617,10 @@ export default function NewMRFPage() {
                 <thead>
                   <tr className="bg-[#F5F5F5] text-xs font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
                     <Th w="w-8">STT</Th>
-                    <Th w="min-w-[220px]">Vật tư (Mã · Tên)</Th>
-                    <Th w="min-w-[160px] print:min-w-[120px] print:w-auto">Quy cách</Th>
+                    <Th w="min-w-[280px]">Vật tư (Mã · Tên)</Th>
+                    <Th w="min-w-[140px] print:min-w-[120px] print:w-auto">Quy cách</Th>
                     <Th w="min-w-[72px] print:w-14 print:min-w-0">ĐVT</Th>
-                    <Th w="min-w-[150px] print:w-14 print:min-w-0" align="right">
+                    <Th w="min-w-[96px] print:w-14 print:min-w-0" align="right">
                       SL
                     </Th>
                     <Th w="min-w-[72px] print:w-16 print:min-w-0" align="right">
@@ -609,10 +629,10 @@ export default function NewMRFPage() {
                     <Th w="min-w-[64px] print:w-14 print:min-w-0" align="right">
                       Duyệt
                     </Th>
-                    <Th w="min-w-[150px] print:w-28 print:min-w-0">Ngày cần</Th>
+                    <Th w="min-w-[136px] print:w-28 print:min-w-0">Ngày cần</Th>
                     <Th w="min-w-[130px] print:w-28 print:min-w-0">Ưu tiên</Th>
-                    <Th w="min-w-[220px] print:w-28 print:min-w-0">Phân loại</Th>
-                    <Th w="min-w-[170px] print:w-28 print:min-w-0" align="right">
+                    <Th w="min-w-[150px] print:w-28 print:min-w-0">Phân loại</Th>
+                    <Th w="min-w-[130px] print:w-28 print:min-w-0" align="right">
                       Đơn giá DK
                     </Th>
                     <Th w="min-w-[140px] print:w-32 print:min-w-0" align="right">
@@ -634,6 +654,7 @@ export default function NewMRFPage() {
                       <tr
                         key={l.localId}
                         aria-invalid={lineErrors.some((e) => e.localId === l.localId) || undefined}
+                      data-line-error={lineErrors.some((e) => e.localId === l.localId) ? "true" : undefined}
                         className={cn(
                           lineErrors.some((e) => e.localId === l.localId) &&
                             "bg-red-50 outline outline-1 -outline-offset-1 outline-red-400 dark:bg-red-950/30",
@@ -649,7 +670,7 @@ export default function NewMRFPage() {
                           </span>
                         </Td>
                         <Td>
-                          <div className="min-w-[220px] print:hidden">
+                          <div className="min-w-[260px] print:hidden">
                             <ItemPickerField
                               value={l.item}
                               onChange={(item) =>
@@ -660,6 +681,11 @@ export default function NewMRFPage() {
                               }
                               placeholder="Tìm hoặc tạo vật tư..."
                             />
+                            {dupMap.has(l.localId) ? (
+                              <p className="mt-1 text-[11px] leading-snug text-amber-700 dark:text-amber-400" role="status">
+                                Trùng vật tư với dòng {dupMap.get(l.localId)} — vẫn gửi được nếu cố ý.
+                              </p>
+                            ) : null}
                           </div>
                           <span className="hidden text-[11px] print:inline">
                             {l.item ? `${l.item.sku} — ${l.item.name}` : "—"}

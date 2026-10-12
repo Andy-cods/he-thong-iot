@@ -334,7 +334,90 @@ export function MarkPrIssuedDialog({
                 "Ghi nhận đã xuất — không trừ tồn" bên dưới.
               </p>
             ) : (
-              <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
+              <>
+              {/* A5 — mobile: mỗi dòng 1 thẻ (bảng 5 cột bị cắt ở 390px). */}
+              <ul className="space-y-2 md:hidden">
+                {stockLines.map((l) => {
+                  const cap = remainingOf(l);
+                  const val = qtyByLine[l.id] ?? "";
+                  const over = (Number(val) || 0) > cap + EPS;
+                  const avail = availableByItem[l.itemId!];
+                  const uom = l.uom ?? l.itemUom;
+                  return (
+                    <li
+                      key={l.id}
+                      className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-700"
+                    >
+                      <div className="font-mono text-sm font-semibold text-indigo-600 dark:text-indigo-400">
+                        {l.sku ?? "—"}
+                      </div>
+                      <div className="break-words text-xs text-zinc-500 dark:text-zinc-400">
+                        {l.name ?? ""}
+                      </div>
+                      <dl className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                        <div>
+                          <dt className="text-zinc-400">Đề xuất / Duyệt</dt>
+                          <dd className="font-mono text-sm text-zinc-800 dark:text-zinc-200">
+                            {fmt(Number(l.qty))}
+                            {l.approvedQty != null ? (
+                              <span className="text-emerald-600 dark:text-emerald-400">
+                                {" "}/ {fmt(Number(l.approvedQty))}
+                              </span>
+                            ) : null}
+                            {uom ? <span className="ml-1 text-xs text-zinc-500">{uom}</span> : null}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-zinc-400">Đã xuất</dt>
+                          <dd className="font-mono text-sm text-zinc-600 dark:text-zinc-300">
+                            {(l.issuedQty ?? 0) > EPS ? fmt(l.issuedQty ?? 0) : "—"}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-zinc-400">Khả dụng</dt>
+                          <dd className="font-mono text-sm">
+                            {avail?.loading ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-400" aria-hidden />
+                            ) : avail?.qty != null ? (
+                              <span
+                                className={cn(
+                                  avail.qty + EPS < cap
+                                    ? "text-amber-700 dark:text-amber-400"
+                                    : "text-emerald-700 dark:text-emerald-400",
+                                )}
+                              >
+                                {fmt(avail.qty)}
+                              </span>
+                            ) : (
+                              <span className="text-zinc-400">—</span>
+                            )}
+                          </dd>
+                        </div>
+                      </dl>
+                      <label className="mt-2 flex items-center justify-between gap-3 text-xs text-zinc-500">
+                        <span>Xuất lần này (còn {fmt(cap)})</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          inputMode="decimal"
+                          value={val}
+                          onChange={(e) => setQty(l.id, e.target.value)}
+                          placeholder="0"
+                          className={cn(
+                            "h-10 w-28 rounded-md border bg-white px-2 text-right font-mono text-sm focus:outline-none focus:ring-1 dark:bg-zinc-900 dark:text-zinc-50",
+                            over
+                              ? "border-red-400 focus:border-red-500 focus:ring-red-500"
+                              : "border-zinc-200 focus:border-indigo-500 focus:ring-indigo-500 dark:border-zinc-700",
+                          )}
+                          aria-label={`SL xuất ${l.sku ?? ""} (mobile)`}
+                        />
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="hidden overflow-x-auto rounded-lg border border-zinc-200 md:block dark:border-zinc-700">
                 <table className="w-full min-w-[560px] text-sm">
                   <thead>
                     <tr className="border-b border-zinc-100 text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
@@ -425,6 +508,7 @@ export function MarkPrIssuedDialog({
                   </tbody>
                 </table>
               </div>
+              </>
             )}
 
             {noItemLines.length > 0 ? (

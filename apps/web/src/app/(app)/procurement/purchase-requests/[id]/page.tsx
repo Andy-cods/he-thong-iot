@@ -67,7 +67,7 @@ import { canCancelPR, isSelfApprovalBlocked } from "@/lib/procurement-policy";
 import { canEditPRDraft, canExportPrExcel, canRecreatePR } from "@/server/services/prAccess";
 import { useConvertPRToPOs } from "@/hooks/usePurchaseOrders";
 import { formatDate, formatMoney, formatQty } from "@/lib/format";
-import type { StatusTone } from "@/lib/status";
+import { statusLabel, type StatusTone } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { ConvertPRToPODialog } from "@/components/procurement/ConvertPRToPODialog";
 import { MarkPrIssuedDialog } from "@/components/procurement/MarkPrIssuedDialog";
@@ -321,6 +321,20 @@ export default function PurchaseRequestDetailPage() {
   });
 
   const paperFormNo = pr.paperFormNo ?? "—";
+  // A18 — cột Đã xuất / Còn lại chỉ hiện khi đã có xuất kho + API trả issuedQty.
+  const showIssued = issuedAny && pr.lines.some((l) => l.issuedQty != null);
+  const remainingOfLine = (l: PRLineEnriched): number => {
+    const p = pr.issueProgress?.lines.find((x) => x.id === l.id);
+    if (p) return p.remaining;
+    const cap = Math.min(Number(l.qty) || 0, l.approvedQty != null ? Number(l.approvedQty) : Infinity);
+    return Math.max(0, cap - (l.issuedQty ?? 0));
+  };
+  // A18 — trạng thái PO thật (nếu server trả danh sách PO).
+  const poList = pr.purchaseOrders;
+  const poAllCancelled = !!poList && poList.length > 0 && poList.every((p) => p.status === "CANCELLED");
+  const poTracking = poList && poList.length > 0
+    ? poList.map((p) => `${p.poNo ?? p.code ?? "PO"}: ${statusLabel("po", p.status)}`).join(", ")
+    : null;
   const todayStr = fmtDateVN(pr.createdAt);
 
   const handleApproveSubmit = async () => {
@@ -414,9 +428,9 @@ export default function PurchaseRequestDetailPage() {
           Đề xuất vật tư
         </Link>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
+          <div className="flex min-w-0 max-w-full items-center gap-3">
+            <div className="min-w-0 max-w-full">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="font-mono text-xs font-medium text-zinc-500 dark:text-zinc-400">
                   {pr.code}
                 </span>
@@ -726,7 +740,7 @@ export default function PurchaseRequestDetailPage() {
         ) : (
         <article className="border-2 border-zinc-900 bg-white text-zinc-900 shadow-md print:border print:border-zinc-900 print:shadow-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 print:dark:border-zinc-900 print:dark:bg-white print:dark:text-zinc-900">
           {/* Header */}
-          <div className="grid grid-cols-[1fr_2fr_1fr] items-center gap-2 border-b-2 border-zinc-900 px-4 py-3 text-[12px] print:dark:border-zinc-900">
+          <div className="grid grid-cols-1 items-center gap-2 border-b-2 border-zinc-900 px-4 py-3 text-[12px] md:grid-cols-[1fr_2fr_1fr] print:grid-cols-[1fr_2fr_1fr] print:dark:border-zinc-900">
             <div className="flex items-center gap-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -743,7 +757,7 @@ export default function PurchaseRequestDetailPage() {
               <br />
               CÔNG NGHỆ TOÀN CẦU
             </div>
-            <div className="space-y-1 text-right text-[12px]">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[12px] md:block md:space-y-1 md:text-right print:block print:space-y-1 print:text-right">
               <div>
                 <span className="font-bold">Số phiếu: </span>
                 <span className="rounded bg-[#005D9F] px-2 py-0.5 font-mono text-[12px] text-white">
@@ -778,10 +792,10 @@ export default function PurchaseRequestDetailPage() {
                 <span className="font-medium">{pr.requestedByName ?? "—"}</span>
               </FieldRow>
               <FieldRow label="Tiêu đề:">
-                <span>{pr.title ?? "—"}</span>
+                <span className="min-w-0 [overflow-wrap:anywhere]">{pr.title ?? "—"}</span>
               </FieldRow>
               <FieldRow label="Lý do đề xuất:" wide>
-                <span className="whitespace-pre-line">
+                <span className="min-w-0 whitespace-pre-line [overflow-wrap:anywhere]">
                   {pr.requestReason ?? "—"}
                 </span>
               </FieldRow>
@@ -806,6 +820,8 @@ export default function PurchaseRequestDetailPage() {
                     <Th w="w-14" align="right">SL</Th>
                     <Th w="w-16" align="right">Tồn kho</Th>
                     <Th w="w-14" align="right">Duyệt</Th>
+                    {showIssued ? <Th w="w-16" align="right">Đã xuất</Th> : null}
+                    {showIssued ? <Th w="w-16" align="right">Còn lại</Th> : null}
                     <Th w="w-28">Ngày cần</Th>
                     <Th w="w-28">Ưu tiên</Th>
                     <Th w="w-28">Phân loại</Th>
@@ -886,9 +902,19 @@ export default function PurchaseRequestDetailPage() {
                             <span className="text-zinc-400">—</span>
                           )}
                         </Td>
+                        {showIssued ? (
+                          <Td align="right">
+                            <span className="font-mono">{(l.issuedQty ?? 0) > 0 ? fmtNum(l.issuedQty ?? 0) : "—"}</span>
+                          </Td>
+                        ) : null}
+                        {showIssued ? (
+                          <Td align="right">
+                            <span className="font-mono">{fmtNum(remainingOfLine(l))}</span>
+                          </Td>
+                        ) : null}
                         <Td>{fmtDateVN(l.neededBy)}</Td>
                         <Td>{PRIORITY_LABELS[l.priority ?? "NORMAL"] ?? "—"}</Td>
-                        <Td>{CATEGORY_LABELS[l.category ?? "OTHER"] ?? "—"}</Td>
+                        <Td>{(l.category ? CATEGORY_LABELS[l.category] : null) ?? "—"}</Td>
                         <Td align="right">
                           <span className="tabular-nums">
                             {fmtMoney(l.estimatedUnitPrice)}
@@ -916,7 +942,7 @@ export default function PurchaseRequestDetailPage() {
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 border-zinc-700 bg-[#F5F5F5] font-semibold dark:bg-zinc-800 print:dark:bg-zinc-100">
-                    <td colSpan={13} className="px-2 py-2 text-right text-[11px]">
+                    <td colSpan={showIssued ? 15 : 13} className="px-2 py-2 text-right text-[11px]">
                       Tổng tiền dự kiến (VNĐ):
                     </td>
                     <td className="px-2 py-2 text-right text-[12px] text-[#005D9F] tabular-nums">
@@ -931,7 +957,12 @@ export default function PurchaseRequestDetailPage() {
             {/* Mobile: card-list thay bảng (ẩn khi IN — bản in dùng bảng ở trên) */}
             <div className="space-y-2 p-2 md:hidden print:hidden">
               {pr.lines.map((l, idx) => (
-                <LineItemCard key={l.id} line={l} idx={idx} />
+                <LineItemCard
+                  key={l.id}
+                  line={l}
+                  idx={idx}
+                  remaining={showIssued ? remainingOfLine(l) : null}
+                />
               ))}
               {/* tfoot bị ẩn theo bảng → render lại tổng tiền cho mobile */}
               <div className="mt-2 flex items-center justify-between rounded-lg border-2 border-zinc-700 bg-zinc-50 px-3 py-2.5 dark:border-zinc-500 dark:bg-zinc-800">
@@ -949,12 +980,12 @@ export default function PurchaseRequestDetailPage() {
           <section className="border-b border-zinc-300 print:dark:border-zinc-300">
             <SectionTitle>III. Kiểm tra &amp; Phê duyệt</SectionTitle>
             <div className="overflow-x-auto print:overflow-visible">
-            <table className="w-full min-w-[520px] border-collapse text-[11px] print:min-w-0">
+            <table className="w-full border-collapse text-[11px]">
               <thead>
                 <tr className="bg-[#F5F5F5] text-xs font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
-                  <Th w="w-44">Vai trò</Th>
-                  <Th w="w-48">Họ tên</Th>
-                  <Th w="w-40">Ký tên / Ngày</Th>
+                  <Th w="md:w-44">Vai trò</Th>
+                  <Th w="md:w-48">Họ tên</Th>
+                  <Th w="md:w-40">Ký tên / Ngày</Th>
                   <Th>Ghi chú</Th>
                 </tr>
               </thead>
@@ -963,8 +994,8 @@ export default function PurchaseRequestDetailPage() {
                   role="Người đề xuất"
                   name={pr.requestedByName ?? "—"}
                   date={fmtDateTimeVN(pr.createdAt)}
-                  signed
-                  note="Đã ký khi gửi phiếu"
+                  signed={status !== "DRAFT"}
+                  note={status !== "DRAFT" ? "Đã ký khi gửi phiếu" : "Chưa gửi phiếu"}
                 />
                 <ApprovalRow
                   role="Trưởng bộ phận"
@@ -1019,12 +1050,12 @@ export default function PurchaseRequestDetailPage() {
           <section className="border-b border-zinc-300 print:dark:border-zinc-300">
             <SectionTitle>IV. Theo dõi</SectionTitle>
             <div className="overflow-x-auto print:overflow-visible">
-            <table className="w-full min-w-[520px] border-collapse text-[11px] print:min-w-0">
+            <table className="w-full border-collapse text-[11px]">
               <thead>
                 <tr className="bg-[#F5F5F5] text-xs font-bold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:bg-zinc-100 print:dark:text-zinc-700">
-                  <Th w="w-52">Trạng thái</Th>
-                  <Th w="w-44">Người phụ trách</Th>
-                  <Th w="w-40">Ngày thực hiện</Th>
+                  <Th w="md:w-52">Trạng thái</Th>
+                  <Th w="md:w-44">Người phụ trách</Th>
+                  <Th w="md:w-40">Ngày thực hiện</Th>
                   <Th>Ghi chú</Th>
                 </tr>
               </thead>
@@ -1037,10 +1068,14 @@ export default function PurchaseRequestDetailPage() {
                 />
                 <TrackingRow
                   label="Đã tạo đơn mua (PR/PO)"
-                  date={pr.poCreatedAt ?? null}
+                  date={poAllCancelled ? null : (pr.poCreatedAt ?? null)}
                   who={null}
                   note={
-                    pr.poCreatedAt
+                    poTracking
+                      ? poAllCancelled
+                        ? `Tất cả PO đã huỷ (${poTracking})`
+                        : poTracking
+                      : pr.poCreatedAt
                       ? "Đã tạo PO từ phiếu này"
                       : status === "APPROVED"
                         ? "Sẵn sàng tạo PO"
@@ -1373,7 +1408,15 @@ export default function PurchaseRequestDetailPage() {
  * desktop + IN; card này chỉ hiện <md. Tính lại qty/onHand/approvedQty/lineTotal
  * 1 lần (DRY với <tr> bảng). Giữ tín hiệu màu lowStock (rose) + approvedQty (emerald).
  */
-function LineItemCard({ line: l, idx }: { line: PRLineEnriched; idx: number }) {
+function LineItemCard({
+  line: l,
+  idx,
+  remaining,
+}: {
+  line: PRLineEnriched;
+  idx: number;
+  remaining?: number | null;
+}) {
   const qty = Number(l.qty) || 0;
   const onHand = l.onHandSnapshot != null ? Number(l.onHandSnapshot) : null;
   const approvedQty = l.approvedQty != null ? Number(l.approvedQty) : null;
@@ -1395,7 +1438,7 @@ function LineItemCard({ line: l, idx }: { line: PRLineEnriched; idx: number }) {
           </div>
         </div>
         <span className="shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-          #{idx + 1} · {CATEGORY_LABELS[l.category ?? "OTHER"] ?? "—"}
+          #{idx + 1} · {(l.category ? CATEGORY_LABELS[l.category] : null) ?? "—"}
         </span>
       </div>
       {/* Cấp 2 — khối số quyết định */}
@@ -1422,6 +1465,12 @@ function LineItemCard({ line: l, idx }: { line: PRLineEnriched; idx: number }) {
           }
         />
       </div>
+      {remaining != null ? (
+        <div className="mt-2 grid grid-cols-2 gap-2 rounded-md bg-zinc-50 p-2 dark:bg-zinc-800/50">
+          <Metric label="Đã xuất" value={(l.issuedQty ?? 0) > 0 ? fmtNum(l.issuedQty ?? 0) : "—"} />
+          <Metric label="Còn lại" value={fmtNum(remaining)} />
+        </div>
+      ) : null}
       {/* Cấp 2b — tiền */}
       <div className="mt-2 grid grid-cols-2 gap-2">
         <Metric
@@ -1517,14 +1566,14 @@ function FieldRow({
   return (
     <div
       className={cn(
-        "grid grid-cols-[140px_1fr] border-b border-zinc-200 dark:border-zinc-700 print:dark:border-zinc-300",
+        "grid grid-cols-[110px_minmax(0,1fr)] border-b border-zinc-200 md:grid-cols-[140px_minmax(0,1fr)] dark:border-zinc-700 print:dark:border-zinc-300",
         wide ? "md:col-span-2" : "",
       )}
     >
       <div className="border-r border-zinc-200 bg-[#F5F5F5] px-3 py-2 text-[12px] font-bold text-zinc-800 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 print:dark:border-zinc-300 print:dark:bg-zinc-100 print:dark:text-zinc-800">
         {label}
       </div>
-      <div className="flex min-h-[28px] items-center px-3 py-1 text-[12px]">
+      <div className="flex min-h-[28px] min-w-0 items-center px-3 py-1 text-[12px] [overflow-wrap:anywhere]">
         {children}
       </div>
     </div>
