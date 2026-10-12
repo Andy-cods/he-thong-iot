@@ -18,7 +18,7 @@ import {
   markPRGoodsReceivedIfAllPOsDone,
 } from "@/server/repos/purchaseRequests";
 import { INFO_EVENT_SUFFIX } from "@/server/services/notification-plans";
-import { notifyPRReadyToIssue } from "@/server/services/notifications";
+import { closeReadyToIssue, notifyPRProgress, notifyPRReadyToIssue } from "@/server/services/notifications";
 
 interface ActorLike {
   userId: string;
@@ -175,4 +175,28 @@ export async function markPrReceivedAndNotifyWarehouse(
     logger.warn({ err, prId }, "markPRGoodsReceivedIfAllPOsDone failed");
   }
   await notifyReadyToIssueIfAny(prId, "goods_received", actor);
+}
+
+/**
+ * L2(b) — phiếu vừa được `finalizeIfComplete` tự Hoàn tất (sau duyệt cuối / Kiểm tồn lại): đóng
+ * "Cần xuất kho" của Kho + báo người lập mốc "đã xuất". Lỗi chỉ log.
+ */
+export async function notifyPrAutoFinalized(
+  pr: { id: string; paperFormNo?: string | null; code: string; title?: string | null; requestedBy: string | null },
+  actor?: ActorLike | null,
+): Promise<void> {
+  try {
+    await closeReadyToIssue(pr.id);
+    await notifyPRProgress({
+      stage: "issued",
+      prId: pr.id,
+      prNo: pr.paperFormNo ?? pr.code,
+      title: pr.title ?? null,
+      creatorUserId: pr.requestedBy,
+      actorUserId: actor?.userId ?? null,
+      actorUsername: actor?.fullName ?? null,
+    });
+  } catch (err) {
+    logger.warn({ err, prId: pr.id }, "notifyPrAutoFinalized failed");
+  }
 }

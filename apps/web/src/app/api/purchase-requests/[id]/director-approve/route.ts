@@ -2,13 +2,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
 import { directorApprovePR, getPR, getPRLines } from "@/server/repos/purchaseRequests";
-import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
+import { extractRequestMeta, isDbConcurrencyError, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import {
   notifyPRApproved,
+  notifyPRStockCovered,
 } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
-import { notifyReadyToIssueIfAny } from "@/server/services/prWarehouseNotify";
+import { notifyPrAutoFinalized, notifyReadyToIssueIfAny } from "@/server/services/prWarehouseNotify";
 import { isSelfApprovalBlocked, summarizeLineCoverage } from "@/lib/procurement-policy";
 
 export const runtime = "nodejs";
@@ -104,23 +105,39 @@ export async function POST(
     // người giữ nhiều vai trò chỉ nhận 1 thông báo.
     // N3 — kèm tóm tắt có sẵn / cần mua từ SL Kho đã chốt.
     const cover = summarizeLineCoverage(await getPRLines(params.id));
-    void notifyPRApproved({
-      prId: params.id,
-      prNo: before.paperFormNo ?? before.code,
-      title: before.title ?? null,
-      actorUserId: guard.session.userId,
-      actorUsername: guard.session.fullName,
-      creatorUserId: before.requestedBy,
-      coveredLines: cover.coveredLines,
-      buyLines: cover.buyLines,
-      partialLines: cover.partialLines,
-    });
+    if (cover.buyLines === 0) {
+      // Không còn gì để mua → KHÔNG gửi "Cần tạo PO"; báo người lập (Kho đáp ứng đủ).
+      void notifyPRStockCovered({
+        prId: params.id,
+        prNo: before.paperFormNo ?? before.code,
+        title: before.title ?? null,
+        actorUserId: guard.session.userId,
+        actorUsername: guard.session.fullName,
+        creatorUserId: before.requestedBy,
+      });
+    } else {
+      void notifyPRApproved({
+        prId: params.id,
+        prNo: before.paperFormNo ?? before.code,
+        title: before.title ?? null,
+        actorUserId: guard.session.userId,
+        actorUsername: guard.session.fullName,
+        creatorUserId: before.requestedBy,
+        coveredLines: cover.coveredLines,
+        buyLines: cover.buyLines,
+        partialLines: cover.partialLines,
+      });
+    }
 
-    // Báo Kho nếu còn phần xuất được từ tồn (approved_qty < qty).
-    void notifyReadyToIssueIfAny(params.id, "approved", guard.session);
+    // L2(b) — đã xuất đủ + không còn gì mua → tự Hoàn tất; ngược lại báo Kho nếu còn phần xuất được.
+    if (row.finalized) void notifyPrAutoFinalized(before, guard.session);
+    else void notifyReadyToIssueIfAny(params.id, cover.buyLines === 0 ? "stock_covered" : "approved", guard.session);
 
     return NextResponse.json({ data: row });
   } catch (err) {
+    if (isDbConcurrencyError(err)) {
+      return jsonError("CONFLICT", "Đang có thao tác khác trên phiếu — thử lại.", 409);
+    }
     logger.error({ err }, "director-approve PR failed");
     return jsonError("INTERNAL", "Không duyệt được phiếu.", 500);
   }

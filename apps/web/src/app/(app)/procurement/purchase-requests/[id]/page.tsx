@@ -336,10 +336,11 @@ export default function PurchaseRequestDetailPage() {
       (warehouseStage && issuableLeft > 0));
   // L1 — Kho "Kiểm tồn lại": phiếu đã duyệt, chưa hoàn tất, chưa có PO sống (phiếu có thể bị kẹt
   // vì tồn đã giao cho phiếu khác). Server kiểm lại trạng thái + PO.
-  const hasLivePo = (pr.purchaseOrders ?? []).some((p) => p.status !== "CANCELLED");
+  // L4 — "PO sống" = còn PO ĐANG CHỜ hàng về (server tính: chưa huỷ, chưa đóng/nhận đủ).
+  const hasPendingPo = detail.data?.data.hasPendingPo ?? false;
   const canRecheckStock =
     (isAdmin || isWarehouse) &&
-    !hasLivePo &&
+    !hasPendingPo &&
     isStockRecheckableState({
       status,
       approvalStep: step,
@@ -550,7 +551,11 @@ export default function PurchaseRequestDetailPage() {
                   className="mt-1.5 flex items-start gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
                 >
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-                  <span>Tồn không đủ cho phần đã cam kết — bấm “Kiểm tồn lại”.</span>
+                  <span>
+                    {canRecheckStock
+                      ? "Tồn không đủ cho phần đã cam kết — bấm “Kiểm tồn lại”."
+                      : "Tồn đang thiếu so với phần đã giữ — liên hệ Kho kiểm tồn lại các phiếu cùng vật tư."}
+                  </span>
                 </p>
               ) : null}
             </div>

@@ -220,7 +220,14 @@ export const RESOLVES_STALE: Partial<
   // m3 — "Kiểm tồn lại" làm tăng cần mua → phiếu về chờ duyệt cuối: đóng các thông báo mâu thuẫn
   // ("Kho đáp ứng đủ", "Cần xuất kho" bản đáp ứng đủ) còn treo.
   PR_DEPT_APPROVED: ["PR_SUBMITTED", "PR_PENDING_REMINDER", "PR_READY_TO_ISSUE", "PR_STOCK_COVERED"],
-  PR_STOCK_COVERED: ["PR_SUBMITTED", "PR_PENDING_REMINDER"],
+  // L2 — "Kiểm tồn lại" về 0 khi đang chờ duyệt cuối: đóng cả "chờ duyệt cuối" và "Cần tạo PO" còn treo.
+  PR_STOCK_COVERED: [
+    "PR_SUBMITTED",
+    "PR_PENDING_REMINDER",
+    "PR_DEPT_APPROVED",
+    "PR_APPROVED",
+    "PR_APPROVED_NO_PO_REMINDER",
+  ],
   PR_APPROVED: ["PR_SUBMITTED", "PR_DEPT_APPROVED", "PR_PENDING_REMINDER"],
   PR_REJECTED: ["PR_SUBMITTED", "PR_DEPT_APPROVED", "PR_PENDING_REMINDER", "PR_READY_TO_ISSUE"],
   PR_CANCELLED: [

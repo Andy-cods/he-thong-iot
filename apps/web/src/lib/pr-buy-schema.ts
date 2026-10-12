@@ -13,6 +13,8 @@ const buyQty = z
     if (typeof v !== "number") return bad("SL cần mua phải là số (không để trống).");
     if (!Number.isFinite(v)) return bad("SL cần mua phải là số hữu hạn.");
     if (v < 0) return bad("SL cần mua không được âm.");
+    // m-a — nhỏ hơn 6 số lẻ (độ chính xác cột) mà > 0: không âm thầm làm tròn về 0 (= "không cần mua").
+    if (v > 0 && v < 0.000001) return bad("SL cần mua tối thiểu 0,000001 (hoặc nhập 0 nếu không cần mua).");
     if (v > 10_000_000) return bad("SL cần mua quá lớn.");
   })
   .transform((v) => v as number);

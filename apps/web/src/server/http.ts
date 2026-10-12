@@ -124,6 +124,14 @@ export function validateUuidParam(
   };
 }
 
+/** L3 — deadlock (40P01) / serialization failure (40001) của Postgres, kể cả khi bọc trong `cause`. */
+export function isDbConcurrencyError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const e = err as { code?: unknown; cause?: { code?: unknown } | null };
+  const code = String(e.code ?? e.cause?.code ?? "");
+  return code === "40P01" || code === "40001";
+}
+
 export function jsonError(
   code: string,
   message: string,

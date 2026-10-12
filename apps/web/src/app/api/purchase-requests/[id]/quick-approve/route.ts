@@ -3,8 +3,8 @@ import { z } from "zod";
 import { logger } from "@/lib/logger";
 import { getPR, PrApprovalError, quickApprovePR } from "@/server/repos/purchaseRequests";
 import { buyQtysSchema } from "@/lib/pr-buy-schema";
-import { notifyReadyToIssueIfAny } from "@/server/services/prWarehouseNotify";
-import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
+import { notifyPrAutoFinalized, notifyReadyToIssueIfAny } from "@/server/services/prWarehouseNotify";
+import { extractRequestMeta, isDbConcurrencyError, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import {
   notifyPRApproved,
@@ -107,15 +107,21 @@ export async function POST(
         buyLines: summary.buyLines,
       });
     }
-    void notifyReadyToIssueIfAny(
-      params.id,
-      summary.allCovered ? "stock_covered" : "approved",
-      guard.session,
-    );
+    if (row.finalized) void notifyPrAutoFinalized(before, guard.session);
+    else {
+      void notifyReadyToIssueIfAny(
+        params.id,
+        summary.allCovered ? "stock_covered" : "approved",
+        guard.session,
+      );
+    }
 
     return NextResponse.json({ data: row });
   } catch (err) {
     if (err instanceof PrApprovalError) return jsonError(err.code, err.message, err.httpStatus);
+    if (isDbConcurrencyError(err)) {
+      return jsonError("CONFLICT", "Đang có thao tác khác trên phiếu — thử lại.", 409);
+    }
     logger.error({ err }, "quick-approve PR failed");
     return jsonError("INTERNAL", "Không duyệt nhanh được phiếu.", 500);
   }

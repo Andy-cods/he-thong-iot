@@ -182,6 +182,8 @@ export interface PRDetailResponse {
     warehouseIssuableRemaining?: number;
     /** Tổng cam kết (phần giữ + của phiếu khác) vượt tồn thực → cảnh báo Kiểm tồn lại. */
     shortOfCommitment?: boolean;
+    /** L4 — còn PO đang chờ hàng về (chưa Kiểm tồn lại được). */
+    hasPendingPo?: boolean;
   };
 }
 

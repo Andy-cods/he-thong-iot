@@ -4,10 +4,11 @@ import { logger } from "@/lib/logger";
 import { summarizeLineCoverage } from "@/lib/procurement-policy";
 import { getPR, getPRLines, PrApprovalError, recheckPrStock } from "@/server/repos/purchaseRequests";
 import { buyQtysSchema } from "@/lib/pr-buy-schema";
-import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
+import { extractRequestMeta, isDbConcurrencyError, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
-import { notifyPRDeptApproved } from "@/server/services/notifications";
+import { notifyPRDeptApproved, notifyPRStockCovered } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
+import { notifyPrAutoFinalized, notifyReadyToIssueIfAny } from "@/server/services/prWarehouseNotify";
 import { canAccessPR } from "@/server/services/prAccess";
 
 export const runtime = "nodejs";
@@ -61,9 +62,24 @@ export async function POST(
       },
       notes: r.increased
         ? "Kho kiểm tồn lại: cần mua thêm — phiếu về chờ duyệt cuối"
-        : "Kho kiểm tồn lại: không phải mua thêm — giữ nguyên",
+        : r.autoFinal
+          ? "Kho kiểm tồn lại: đáp ứng đủ từ tồn — bỏ qua duyệt cuối"
+          : "Kho kiểm tồn lại: không phải mua thêm — giữ nguyên",
       ...meta,
     });
+    if (r.autoFinal) {
+      // L2 — Kiểm tồn lại về 0 khi đang chờ duyệt cuối = "Kho đáp ứng đủ": báo người lập, đóng thông báo chờ duyệt cuối.
+      void notifyPRStockCovered({
+        prId: params.id,
+        prNo: before.paperFormNo ?? before.code,
+        title: before.title ?? null,
+        actorUserId: guard.session.userId,
+        actorUsername: guard.session.fullName,
+        creatorUserId: before.requestedBy,
+      });
+    }
+    if (r.finalized) void notifyPrAutoFinalized(before, guard.session);
+    else if (r.autoFinal) void notifyReadyToIssueIfAny(params.id, "stock_covered", guard.session);
     if (r.increased) {
       const cover = summarizeLineCoverage(await getPRLines(params.id));
       void notifyPRDeptApproved({
@@ -79,10 +95,13 @@ export async function POST(
       });
     }
     return NextResponse.json({
-      data: { increased: r.increased, approvalStep: r.pr.approvalStep, status: r.pr.status },
+      data: { increased: r.increased, autoFinal: r.autoFinal, finalized: r.finalized, approvalStep: r.pr.approvalStep, status: r.pr.status },
     });
   } catch (err) {
     if (err instanceof PrApprovalError) return jsonError(err.code, err.message, err.httpStatus);
+    if (isDbConcurrencyError(err)) {
+      return jsonError("CONFLICT", "Đang có thao tác khác trên phiếu — thử lại.", 409);
+    }
     logger.error({ err }, "recheck-stock PR failed");
     return jsonError("INTERNAL", "Không kiểm tồn lại được.", 500);
   }

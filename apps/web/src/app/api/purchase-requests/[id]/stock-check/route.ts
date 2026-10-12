@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import {
   getPR,
+  getRecheckPendingPoBlock,
   getPRIssuedQtyByLine,
   getPrShortOfCommitment,
   getPrStockCheck,
@@ -39,6 +40,11 @@ export async function GET(
   const recheck = req.nextUrl.searchParams.get("recheck") === "1";
   if (recheck && !isStockRecheckableState(pr)) {
     return jsonError("INVALID_STATE", "Phiếu này không kiểm tồn lại được.", 409);
+  }
+  if (recheck) {
+    // L4 — CÙNG điều kiện với POST recheck-stock: chỉ chặn khi còn PO đang chờ hàng về.
+    const block = await getRecheckPendingPoBlock(params.id);
+    if (block) return jsonError("INVALID_STATE", block, 409);
   }
   const issued = recheck ? await getPRIssuedQtyByLine(params.id) : undefined;
   const lines = await getPrStockCheck(params.id, undefined, issued);

@@ -3,10 +3,10 @@ import { z } from "zod";
 import { logger } from "@/lib/logger";
 import { deptApprovePR, getPR, getPRLines, PrApprovalError } from "@/server/repos/purchaseRequests";
 import { buyQtysSchema } from "@/lib/pr-buy-schema";
-import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
+import { extractRequestMeta, isDbConcurrencyError, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { notifyPRDeptApproved, notifyPRStockCovered } from "@/server/services/notifications";
-import { notifyReadyToIssueIfAny } from "@/server/services/prWarehouseNotify";
+import { notifyPrAutoFinalized, notifyReadyToIssueIfAny } from "@/server/services/prWarehouseNotify";
 import { requireCan } from "@/server/session";
 import { isSelfApprovalBlocked, summarizeLineCoverage } from "@/lib/procurement-policy";
 
@@ -126,7 +126,8 @@ export async function POST(
         actorUsername: guard.session.fullName,
         creatorUserId: before.requestedBy,
       });
-      void notifyReadyToIssueIfAny(params.id, "stock_covered", guard.session);
+      if (row.finalized) void notifyPrAutoFinalized(before, guard.session);
+      else void notifyReadyToIssueIfAny(params.id, "stock_covered", guard.session);
     } else {
       // Người duyệt cuối nhận kèm tóm tắt "có sẵn X dòng · cần mua Y dòng (Z dòng có sẵn một phần)" (m5).
       const cover = summarizeLineCoverage(await getPRLines(params.id));
@@ -146,6 +147,9 @@ export async function POST(
     return NextResponse.json({ data: row });
   } catch (err) {
     if (err instanceof PrApprovalError) return jsonError(err.code, err.message, err.httpStatus);
+    if (isDbConcurrencyError(err)) {
+      return jsonError("CONFLICT", "Đang có thao tác khác trên phiếu — thử lại.", 409);
+    }
     logger.error({ err }, "dept-approve PR failed");
     return jsonError("INTERNAL", "Không duyệt được phiếu.", 500);
   }

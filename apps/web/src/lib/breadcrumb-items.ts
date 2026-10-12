@@ -172,6 +172,14 @@ function safeDecode(seg: string): string {
   }
 }
 
+/**
+ * m-c — đoạn đường dẫn KHÔNG có trang riêng → crumb trỏ tới trang hub hiện có
+ * (`/procurement` không có page → 404; hub Bộ phận Thu mua nằm ở `/sales`).
+ */
+export const BREADCRUMB_HREF_OVERRIDES: Record<string, string> = {
+  "/procurement": "/sales",
+};
+
 export function buildBreadcrumbItems(
   pathname: string,
   segmentLabels?: Record<string, string | undefined>,
@@ -186,7 +194,7 @@ export function buildBreadcrumbItems(
       segmentLabels?.[seg] ??
       SEGMENT_LABELS[seg] ??
       (UUID_RE.test(seg) ? "Chi tiết" : safeDecode(seg));
-    items.push({ label: normalizeLabel(label), href: acc });
+    items.push({ label: normalizeLabel(label), href: BREADCRUMB_HREF_OVERRIDES[acc] ?? acc });
   }
   // V4.1 X6: hub `?tab=` → crumb cuối là nhãn tab, crumb hub giữ link.
   const tabLabel = hubTabLabel(pathname, tab);

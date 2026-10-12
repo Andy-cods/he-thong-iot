@@ -7,7 +7,7 @@ import {
 } from "@/server/repos/purchaseRequests";
 import { GoodsIssueError } from "@/server/repos/goodsIssues";
 import { mapDbGuardError } from "@/server/repos/stockGuard";
-import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
+import { extractRequestMeta, isDbConcurrencyError, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { closeReadyToIssue, notifyPRProgress } from "@/server/services/notifications";
 import { isWarehouseIssueStage } from "@/lib/procurement-policy";
@@ -194,6 +194,9 @@ export async function POST(
     // pattern route material-requests/[id]/goods-issue.
     const g = mapDbGuardError(err);
     if (g) return jsonError(g.code, g.message, g.status);
+    if (isDbConcurrencyError(err)) {
+      return jsonError("CONFLICT", "Đang có thao tác khác trên phiếu — thử lại.", 409);
+    }
     logger.error({ err }, "mark-issued PR failed");
     return jsonError("INTERNAL", "Không cập nhật được trạng thái.", 500);
   }

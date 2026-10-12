@@ -124,7 +124,7 @@ export async function GET(
   }));
   const shortOfCommitment =
     canSeeStock && holdPhase !== "NONE"
-      ? await getShortOfCommitment(params.id, issueCtx.remainingByItem)
+      ? await getShortOfCommitment(params.id, issueCtx.heldByItem)
       : [];
   const issueProgress = computePrIssueProgress(
     linesWithIssued.map((l) => ({
@@ -181,6 +181,7 @@ export async function GET(
       warehouseIssuableRemaining: warehouseRemaining,
       shortOfCommitment: shortOfCommitment.length > 0,
       shortOfCommitmentItems: shortOfCommitment,
+      hasPendingPo: issueCtx.hasPendingPo,
       purchaseOrders,
       requestedByName: row.requestedBy ? nameMap.get(row.requestedBy) ?? null : null,
       deptApprovedByName: row.deptApprovedBy
