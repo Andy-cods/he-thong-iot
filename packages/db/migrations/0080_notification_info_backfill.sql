@@ -13,7 +13,7 @@
 --     - Người lập (để biết)    : "<mã> đã được duyệt"
 --     - Kế toán (để biết)      : "Phiếu <mã> đã duyệt — tải PDF/Excel"
 --   PO_CREATED_FROM_PR
---     - Thu mua (CẦN LÀM)      : "<n> PO nháp mới từ phiếu <mã>"
+--     - Thu mua (CẦN LÀM)      : "<n> PO nháp mới từ phiếu <mã>" (bản cũ: "<n> PO mới từ phiếu <mã>")
 --     - Người lập (để biết)    : "Phiếu <mã> đã được lập <n> đơn mua hàng (PO)"
 -- => đổi event_type của các dòng KHÔNG phải tiêu đề "cần làm" thành `<TYPE>_INFO`.
 -- Vì xác định được chắc nên KHÔNG cần fallback "đánh đã đọc các bản > 7 ngày".
@@ -33,4 +33,4 @@ WHERE event_type = 'PR_APPROVED'
 UPDATE app.notification
 SET event_type = 'PO_CREATED_FROM_PR_INFO'
 WHERE event_type = 'PO_CREATED_FROM_PR'
-  AND title NOT LIKE '% PO nháp mới từ phiếu %';
+  AND title NOT LIKE '% PO % từ phiếu %';
