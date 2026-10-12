@@ -153,11 +153,10 @@ export async function POST(req: NextRequest) {
     }
 
     // m3 — PO thủ công kèm prId cũng là "đã lập PO từ phiếu": báo như from-pr (đóng "Cần tạo PO").
-    if (row.prId) {
-      // Đã đặt đủ phần còn phải đặt → "Cần tạo PO" hết hiệu lực; còn thiếu thì giữ thông báo.
-      const led = await getPrLedger(row.prId).catch(() => null);
-      if (led && led.ledger.toOrder <= 1e-6) void closePrNeedsPo(row.prId);
-    }
+    // N5 — đã đặt đủ phần còn phải đặt → "Cần tạo PO" hết hiệu lực; đặt một phần thì giữ thông báo.
+    const led = row.prId ? await getPrLedger(row.prId).catch(() => null) : null;
+    const prFullyOrdered = !!led && led.ledger.toOrder <= 5e-5;
+    if (row.prId && prFullyOrdered) void closePrNeedsPo(row.prId);
     if (row.prId && row.status === "DRAFT" && approvalStatus !== "pending") {
       const pr = await getPR(row.prId).catch(() => null);
       void notifyPOCreatedFromPR({
@@ -166,6 +165,7 @@ export async function POST(req: NextRequest) {
         prCreatorUserId: pr?.requestedBy ?? null,
         poCount: 1,
         firstPoId: row.id,
+        prFullyOrdered,
         actorUserId: guard.session.userId,
         actorUsername: guard.session.fullName,
       });

@@ -43,6 +43,7 @@ import {
   planRecheckRows,
   recheckBlockReason,
   summarizePrPos,
+  WAITING_BLOCK_MESSAGE,
   type LedgerLineInput,
   type LedgerPoLineRow,
   type PrLedger,
@@ -1186,7 +1187,7 @@ export async function getShortOfCommitment(
   for (const id of itemIds) {
     const committed = (ownRemainingByItem.get(id) ?? 0) + (others.get(id) ?? 0);
     const have = issuable.get(id) ?? 0;
-    if (committed > have + 1e-6) out.push({ itemId: id, issuable: roundQty(have), committed: roundQty(committed) });
+    if (committed > have + 5e-5) out.push({ itemId: id, issuable: roundQty(have), committed: roundQty(committed) });
   }
   return out;
 }
@@ -1472,6 +1473,11 @@ export async function directorApprovePR(
       )
       .returning();
     if (!row) return null;
+    // N3 — phần mua thêm đã được duyệt: bỏ bản lưu trước Kiểm tồn lại.
+    await tx
+      .update(purchaseRequestLine)
+      .set({ approvedQtyPrev: null })
+      .where(eq(purchaseRequestLine.prId, id));
     const done = await finalizeIfComplete(tx, id);
     return Object.assign(done ?? row, { finalized: !!done });
   });
@@ -1600,6 +1606,13 @@ export async function recheckPrStock(
     if (!plan.ok) throw new PrApprovalError(plan.code, plan.message, 422);
 
     const toOrderBefore = loaded.ledger.toOrder;
+    if (plan.buyIncreased && (cur.status === "APPROVED" || cur.status === "CONVERTED")) {
+      // N3 — lưu SL cần mua ĐÃ DUYỆT CUỐI (chỉ lần đầu, giữ nguyên qua các lần kiểm lại trước khi duyệt).
+      await tx
+        .update(purchaseRequestLine)
+        .set({ approvedQtyPrev: sql`COALESCE(${purchaseRequestLine.approvedQtyPrev}, ${purchaseRequestLine.approvedQty})` })
+        .where(eq(purchaseRequestLine.prId, id));
+    }
     await writeBuyDecisions(tx, id, plan.newBuy);
     const summary = summarizeBuyDecisions(plan.newBuy);
     const prevStep = cur.approvalStep;
@@ -1646,7 +1659,7 @@ export async function recheckPrStock(
     const after = (await getPrLedger(id, tx, cur))!;
     let pr: PurchaseRequest = cur;
     let autoFinal = false;
-    if (inDeptStep && after.ledger.toOrder <= 1e-6) {
+    if (inDeptStep && after.ledger.toOrder <= 5e-5) {
       const [row] = await tx
         .update(purchaseRequest)
         .set({
@@ -1670,12 +1683,12 @@ export async function recheckPrStock(
       autoFinal = true;
     }
     // B2 — phiếu đã lập PO còn phần phải đặt (trong mức đã duyệt): Thu mua lập PO bổ sung thẳng từ phiếu.
-    const reopenedForPo = cur.status === "CONVERTED" && after.ledger.toOrder > 1e-6;
+    const reopenedForPo = cur.status === "CONVERTED" && after.ledger.toOrder > 5e-5;
     const coveredAfterFinal =
       !autoFinal &&
       (cur.status === "APPROVED" || cur.status === "CONVERTED") &&
-      toOrderBefore > 1e-6 &&
-      after.ledger.toOrder <= 1e-6;
+      toOrderBefore > 5e-5 &&
+      after.ledger.toOrder <= 5e-5;
     const done = await finalizeIfComplete(tx, id);
     return {
       pr: done ?? pr,
@@ -1796,9 +1809,9 @@ export type ValidatePrIssueResult =
   | { ok: false; error: GoodsIssueError };
 
 /** Sai số khi so sánh SL (goods_issue_line.qty chỉ 4 số lẻ, PR line 6 số lẻ). */
-const PR_ISSUE_EPS = 1e-4;
+const PR_ISSUE_EPS = 5e-5;
 
-const fmtQ = (n: number) => Number(n.toFixed(4)).toLocaleString("vi-VN");
+const fmtQ = (n: number) => Number(n.toFixed(4)).toLocaleString("vi-VN", { maximumFractionDigits: 4 });
 
 /**
  * THUẦN — kiểm picks xuất kho cho 1 PR (L8: xuất NHIỀU ĐỢT):
@@ -2051,7 +2064,11 @@ export async function markPRGoodsIssuedWithStock(
         if (!input.finish) {
           throw new GoodsIssueError("EMPTY_ISSUE", "Chưa chọn lô xuất cho dòng nào.", 400);
         }
-        const dropOnly = before.noWaiting && before.toOrder > 1e-4;
+        const dropOnly = before.noWaiting && before.toOrder > 5e-5;
+        if (!hadEarlierIssue && !before.noWaiting) {
+          // N6 — câu đúng lý do: còn hàng đang về / chờ QC.
+          throw new GoodsIssueError("OUTSTANDING_PURCHASE", WAITING_BLOCK_MESSAGE, 409);
+        }
         if (!hadEarlierIssue && !dropOnly) {
           throw new GoodsIssueError(
             "EMPTY_ISSUE",
@@ -2082,7 +2099,7 @@ export async function markPRGoodsIssuedWithStock(
           // m-c — nêu tối đa 3 phiếu đang giữ vật tư để Kho biết kiểm tồn lại phiếu nào.
           const holders = await getHolderCodes(pickItemIds, id, tx);
           const heldItem = pickItemIds.find(
-            (itemId) => (pickByItem.get(itemId) ?? 0) > Math.max(0, (issuableNow.get(itemId) ?? 0) - (heldByOthers.get(itemId) ?? 0)) + 1e-4,
+            (itemId) => (pickByItem.get(itemId) ?? 0) > Math.max(0, (issuableNow.get(itemId) ?? 0) - (heldByOthers.get(itemId) ?? 0)) + 5e-5,
           );
           const codes = (heldItem ? holders.get(heldItem) : undefined) ?? [];
           const list = codes.slice(0, 3).join(", ") + (codes.length > 3 ? ` và ${codes.length - 3} phiếu khác` : "");
@@ -2259,8 +2276,10 @@ export async function rejectPR(
   reason: string | null | undefined,
   /** N7 — bước người từ chối THẤY khi bấm; phiếu đã đổi bước giữa chừng → null (route trả 409). */
   expectedStep: "SUBMITTED" | "DEPT_APPROVED",
-): Promise<(PurchaseRequest & { closedAtIssued: boolean }) | null> {
+): Promise<(PurchaseRequest & { closedAtIssued: boolean; extraOnly: boolean }) | null> {
   return db.transaction(async (tx) => {
+    // Thứ tự khoá thống nhất: vật tư → hàng PR.
+    await lockPrItemsForStock(tx, id);
     const [cur] = await tx
       .select()
       .from(purchaseRequest)
@@ -2275,6 +2294,46 @@ export async function rejectPR(
       .from(goodsIssue)
       .where(eq(goodsIssue.purchaseRequestId, id));
     const now = new Date();
+
+    // N3 — từ chối ở bước duyệt cuối khi phiếu ĐÃ có PO (không huỷ) hoặc đã được duyệt cuối trước lần
+    // Kiểm tồn lại: chỉ bỏ PHẦN MUA THÊM — khôi phục SL cần mua đã duyệt, phiếu về APPROVED/CONVERTED.
+    if (expectedStep === "DEPT_APPROVED") {
+      const [po] = await tx
+        .select({ id: purchaseOrder.id })
+        .from(purchaseOrder)
+        .where(and(eq(purchaseOrder.prId, id), sql`${purchaseOrder.status} <> 'CANCELLED'`))
+        .limit(1);
+      const prevRows = await tx
+        .select({ id: purchaseRequestLine.id })
+        .from(purchaseRequestLine)
+        .where(and(eq(purchaseRequestLine.prId, id), sql`${purchaseRequestLine.approvedQtyPrev} IS NOT NULL`));
+      if (po || prevRows.length > 0) {
+        await tx
+          .update(purchaseRequestLine)
+          .set({
+            approvedQty: sql`COALESCE(${purchaseRequestLine.approvedQtyPrev}, ${purchaseRequestLine.approvedQty})`,
+            approvedQtyPrev: null,
+          })
+          .where(eq(purchaseRequestLine.prId, id));
+        const [row] = await tx
+          .update(purchaseRequest)
+          .set({
+            status: po ? "CONVERTED" : "APPROVED",
+            approvalStep: po ? "CONVERTED" : "DIRECTOR_APPROVED",
+            approvedBy: userId,
+            approvedAt: now,
+            directorApprovedBy: userId,
+            directorApprovedAt: now,
+            directorApprovalNote: `Từ chối phần mua thêm${reason ? `: ${reason}` : ""} — giữ phần đã duyệt trước`,
+            updatedAt: now,
+          })
+          .where(eq(purchaseRequest.id, id))
+          .returning();
+        if (!row) return null;
+        const done = await finalizeIfComplete(tx, id);
+        return Object.assign(done ?? row, { closedAtIssued: false, extraOnly: true });
+      }
+    }
 
     if (rejectOutcome(issues.length) === "CLOSE_AT_ISSUED") {
       const [row] = await tx
@@ -2293,7 +2352,7 @@ export async function rejectPR(
         })
         .where(eq(purchaseRequest.id, id))
         .returning();
-      return row ? Object.assign(row, { closedAtIssued: true }) : null;
+      return row ? Object.assign(row, { closedAtIssued: true, extraOnly: false }) : null;
     }
 
     const [row] = await tx
@@ -2309,7 +2368,7 @@ export async function rejectPR(
       })
       .where(eq(purchaseRequest.id, id))
       .returning();
-    return row ? Object.assign(row, { closedAtIssued: false }) : null;
+    return row ? Object.assign(row, { closedAtIssued: false, extraOnly: false }) : null;
   });
 }
 
@@ -2376,7 +2435,8 @@ export async function cancelPR(
       );
     }
 
-    if (pr.status === "APPROVED") {
+    // N3 — còn PO không huỷ thì KHÔNG huỷ phiếu, ở MỌI trạng thái (VD đã về chờ duyệt cuối sau Kiểm tồn lại).
+    {
       const [po] = await tx
         .select({ id: purchaseOrder.id, poNo: purchaseOrder.poNo })
         .from(purchaseOrder)

@@ -62,12 +62,14 @@ describe("L2 — khoá + thông báo", () => {
   });
 });
 
-describe("m-a — buyQtys nhỏ hơn 6 số lẻ", () => {
+// ĐỔI KỲ VỌNG (lần 9, N4): SL tối đa 4 số lẻ → ngưỡng 0,0001 (thay 0,000001).
+describe("m-a — buyQtys nhỏ hơn 4 số lẻ", () => {
   const id = "11111111-1111-4111-8111-111111111111";
-  it("0 < v < 0,000001 → lỗi; 0 và ≥ 0,000001 hợp lệ", () => {
-    expect(buyQtysSchema.safeParse({ [id]: 0.0000001 }).success).toBe(false);
+  it("0 < v < 0,0001 → lỗi; 0 và ≥ 0,0001 hợp lệ", () => {
+    expect(buyQtysSchema.safeParse({ [id]: 0.00005 }).success).toBe(false);
     expect(buyQtysSchema.safeParse({ [id]: 0 }).success).toBe(true);
-    expect(buyQtysSchema.safeParse({ [id]: 0.000001 }).success).toBe(true);
+    expect(buyQtysSchema.safeParse({ [id]: 0.0001 }).success).toBe(true);
+    expect(buyQtysSchema.safeParse({ [id]: 0.000001 }).success).toBe(false);
     expect(resolveBuyDecisions([{ id: "a", qty: 5, available: 0, itemId: "i" }], { a: 1e-7 }).ok).toBe(false);
   });
 });

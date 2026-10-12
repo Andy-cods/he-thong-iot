@@ -289,7 +289,7 @@ export function validateMrIssue(
         "OVER_ISSUE",
         remaining <= EPS
           ? `${label} đã giao đủ — không xuất thêm.`
-          : `${label} chỉ còn ${Number(remaining.toFixed(4)).toLocaleString("vi-VN")} chưa giao, không xuất ${Number(qty.toFixed(4)).toLocaleString("vi-VN")}.`,
+          : `${label} chỉ còn ${Number(remaining.toFixed(4)).toLocaleString("vi-VN", { maximumFractionDigits: 4 })} chưa giao, không xuất ${Number(qty.toFixed(4)).toLocaleString("vi-VN", { maximumFractionDigits: 4 })}.`,
       );
     }
   }

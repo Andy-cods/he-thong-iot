@@ -81,7 +81,7 @@ export interface EvaluateIssuableInput {
 const EPS = 1e-6;
 
 function fmtQty(n: number): string {
-  return Number(n.toFixed(4)).toLocaleString("vi-VN");
+  return Number(n.toFixed(4)).toLocaleString("vi-VN", { maximumFractionDigits: 4 });
 }
 
 function lotLabel(lot: GuardLotRow | undefined, id: string): string {

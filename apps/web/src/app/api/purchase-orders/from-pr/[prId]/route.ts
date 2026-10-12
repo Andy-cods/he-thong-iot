@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
 import { createPOFromPR } from "@/server/repos/purchaseOrders";
-import { getPR } from "@/server/repos/purchaseRequests";
+import { getPR, getPrLedger } from "@/server/repos/purchaseRequests";
 import {
   extractRequestMeta,
   jsonError,
@@ -110,6 +110,9 @@ export async function POST(
     // không chặn response nếu lookup/notify lỗi.
     if (result.createdPOs.length > 0) {
       const pr = await getPR(params.prId).catch(() => null);
+      // N5 — chỉ đóng "Cần tạo PO" khi phiếu đã đặt đủ.
+      const led = await getPrLedger(params.prId).catch(() => null);
+      const prFullyOrdered = !led || led.ledger.toOrder <= 5e-5;
       const firstPo = result.createdPOs[0];
       if (firstPo) {
         void notifyPOCreatedFromPR({
@@ -118,6 +121,7 @@ export async function POST(
           prCreatorUserId: pr?.requestedBy ?? null,
           poCount: result.createdPOs.length,
           firstPoId: firstPo.id,
+          prFullyOrdered,
           actorUserId: guard.session.userId,
           actorUsername: guard.session.fullName,
         });

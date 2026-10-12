@@ -294,6 +294,8 @@ export const purchaseRequestLine = appSchema.table(
     referenceCode: varchar("reference_code", { length: 128 }),
     /** V3.7.55 MRF — SL được duyệt sau review (≤ qty). NULL = chưa duyệt. */
     approvedQty: numeric("approved_qty", { precision: 18, scale: 6 }),
+    /** Lần 8 (N3) — SL cần mua ĐÃ DUYỆT CUỐI trước lần Kiểm tồn lại làm tăng mua (khôi phục khi từ chối phần mua thêm). */
+    approvedQtyPrev: numeric("approved_qty_prev", { precision: 18, scale: 6 }),
     /** V3.7.69 YCVT — Tồn kho snapshot lúc tạo phiếu (auto-fill từ inventory_balance). */
     onHandSnapshot: numeric("on_hand_snapshot", { precision: 18, scale: 4 }),
     /** V3.10 DNVT — Cột "Tham khảo" (free-text ngắn, VD EC/VH). */

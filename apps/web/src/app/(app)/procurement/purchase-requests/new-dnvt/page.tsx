@@ -683,7 +683,7 @@ export default function NewDnvtPage() {
                         <VnNumberInput
  value={l.qty}
  onValueChange={(v) => updateLine(l.localId, { qty: v })}
- maxDecimals={3}
+ maxDecimals={4}
  aria-label="Số lượng"
  className="w-full bg-transparent text-center font-mono text-[16px] tabular-nums outline-none sm:text-md print:text-[11px]"
  />

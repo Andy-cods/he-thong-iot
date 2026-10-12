@@ -116,7 +116,7 @@ export async function notifyReadyToIssueIfAny(
     // phiếu đã hết phần xuất được / đã xuất xong → đóng ngay. Thao tác xuất commit sau lần đọc này thì
     // chính route xuất đóng thông báo (closeReadyToIssue chạy sau commit của nó, tức sau lần chèn này).
     const again = await getPrLedger(prId);
-    if (!again || again.pr.goodsIssuedAt || again.pr.completedAt || again.ledger.totalRemaining <= 1e-6) {
+    if (!again || again.pr.goodsIssuedAt || again.pr.completedAt || again.ledger.totalRemaining <= 5e-5) {
       await closeReadyToIssue(prId);
     }
   } catch (err) {
@@ -195,12 +195,12 @@ export async function notifyPrAutoFinalized(
  * (from-pr nhận CONVERTED khi toOrder > 0). Thông báo tự đóng khi có PO mới / Kho kiểm tồn về 0 /
  * phiếu hoàn tất-huỷ. Lỗi chỉ log.
  */
-export async function notifyPoTopUpIfNeeded(prId: string, actor?: ActorLike | null): Promise<void> {
+export async function notifyPoTopUpIfNeeded(prId: string, actor?: ActorLike | null): Promise<boolean> {
   try {
     const loaded = await getPrLedger(prId);
-    if (!loaded) return;
+    if (!loaded) return false;
     const { pr, ledger } = loaded;
-    if (pr.status !== "CONVERTED" || ledger.phase !== "FINAL" || ledger.toOrder <= 1e-6) return;
+    if (pr.status !== "CONVERTED" || ledger.phase !== "FINAL" || ledger.toOrder <= 5e-5) return false;
     const [open] = await db
       .select({ id: notification.id })
       .from(notification)
@@ -212,7 +212,7 @@ export async function notifyPoTopUpIfNeeded(prId: string, actor?: ActorLike | nu
         ),
       )
       .limit(1);
-    if (open) return;
+    if (open) return false;
     await notifyPRApproved({
       prId,
       prNo: pr.paperFormNo ?? pr.code,
@@ -223,7 +223,9 @@ export async function notifyPoTopUpIfNeeded(prId: string, actor?: ActorLike | nu
       actorUsername: actor?.fullName ?? null,
       topUp: ledger.toOrder,
     });
+    return true;
   } catch (err) {
     logger.warn({ err, prId }, "notifyPoTopUpIfNeeded failed");
+    return false;
   }
 }

@@ -6,6 +6,9 @@ import { Input } from "@/components/ui/input";
 import { usePrStockCheck } from "@/hooks/usePurchaseRequests";
 import { fmtNumVN } from "@/components/procurement/prStockFormat";
 
+/** N4 — SL tối đa 4 chữ số thập phân. */
+const dec4 = (n: number) => Math.abs(Math.round(n * 1e4) / 1e4 - n) < 1e-9;
+
 /**
  * Kho kiểm tồn ở bước duyệt: mỗi dòng hiện SL đề xuất, tồn KHẢ DỤNG HIỆN TẠI
  * (lô AVAILABLE trừ giữ chỗ, không tính HOLD) và ô "SL cần mua"
@@ -63,7 +66,7 @@ function DeptStockPanel({
       const fromStock = l.itemId ? Math.max(0, l.qty - buy) : 0;
       const total = l.stockTotal ?? l.available;
       const left = l.itemId ? Math.max(0, total - (used.get(l.itemId) ?? 0)) : 0;
-      const over = fromStock > left + 1e-6;
+      const over = fromStock > left + 5e-5;
       if (l.itemId) used.set(l.itemId, (used.get(l.itemId) ?? 0) + fromStock);
       rows.set(l.id, { left, over, fromStock });
       if (over && !overMsg) {
@@ -79,7 +82,7 @@ function DeptStockPanel({
     let valid = true;
     for (const l of lines) {
       const n = parsed(values[l.id]);
-      if (!Number.isFinite(n) || n < 0 || n > l.qty + 1e-9) valid = false;
+      if (!Number.isFinite(n) || n < 0 || n > l.qty + 1e-9 || !dec4(n)) valid = false;
       if (calc.rows.get(l.id)?.over) valid = false;
       out[l.id] = Number.isFinite(n) ? n : 0;
     }
@@ -229,7 +232,7 @@ function RecheckLedgerPanel({
       const add = Number.isFinite(n) ? n : 0;
       const fromStock = Math.max(0, (l.stillNeeded ?? 0) - add);
       const left = Math.max(0, (firstAvail.get(l.itemId) ?? 0) - (used.get(l.itemId) ?? 0));
-      const over = fromStock > left + 1e-6;
+      const over = fromStock > left + 5e-5;
       used.set(l.itemId, (used.get(l.itemId) ?? 0) + fromStock);
       rows.set(l.id, { left, over, fromStock });
       if (over && !overMsg) {
@@ -246,7 +249,7 @@ function RecheckLedgerPanel({
     for (const l of lines) {
       if (!l.itemId) continue;
       const n = parse(values[l.id]);
-      if (!Number.isFinite(n) || n < 0 || n > (l.stillNeeded ?? 0) + 1e-9) valid = false;
+      if (!Number.isFinite(n) || n < 0 || n > (l.stillNeeded ?? 0) + 1e-9 || !dec4(n)) valid = false;
       if (calc.rows.get(l.id)?.over) valid = false;
       out[l.id] = Number.isFinite(n) ? n : 0;
     }

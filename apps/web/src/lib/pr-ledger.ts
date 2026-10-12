@@ -32,7 +32,8 @@
  * với tồn khả dụng (lô FAIL không xuất được).
  *
  * Phiếu cũ (approved_qty NULL — chưa có quyết định mua):
- *  - có PO: buy = req − SL đã xuất từ tồn (đã xuất vượt hàng PO đạt) → trần = hàng PO đạt + phần đã cấp;
+ *  - có PO: buy = phần "đặt hiệu lực" của dòng (min(req, orderedEffective)) — không phụ thuộc thứ tự
+ *    xuất/nhận (N1); migration 0081 đã chốt approved_qty cho phiếu đang mở, nhánh này chỉ là dự phòng;
  *  - không PO: sau duyệt cuối xuất đủ từ tồn (cap = req) HOẶC mua phần chưa xuất (toOrder = req − issued);
  *    giai đoạn Kho chưa chốt → cap 0;
  *  - KHÔNG BAO GIỜ giữ chỗ tồn của phiếu khác (held = 0).
@@ -48,10 +49,13 @@ function num(v: number | string | null | undefined, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
-/** Làm tròn 6 số lẻ (bỏ đuôi dấu phẩy động). */
-export function r6(n: number): number {
-  return Math.round(n * 1e6) / 1e6;
+/** N4 — SL làm tròn 4 số lẻ (khớp PO / nhận / xuất kho numeric(…,4)). */
+export function r4(n: number): number {
+  return Math.round(n * 1e4) / 1e4;
 }
+
+/** Ngưỡng so sánh SL (SL 4 số lẻ → nửa bước 0,0001: vượt 0,0001 vẫn bị bắt). */
+export const QTY_EPS = 5e-5;
 
 /** Dòng phiếu cũ: approved_qty NULL / không hợp lệ (chưa có quyết định mua). */
 export function isLegacyBuy(approvedQty: number | string | null | undefined): boolean {
@@ -77,7 +81,7 @@ export function decidedBuy(
 export function buyTotalOf(
   lines: ReadonlyArray<{ qty: number | string; approvedQty?: number | string | null }>,
 ): number {
-  return r6(lines.reduce((a, l) => a + decidedBuy(l.qty, l.approvedQty), 0));
+  return r4(lines.reduce((a, l) => a + decidedBuy(l.qty, l.approvedQty), 0));
 }
 
 /** m5 — người duyệt cuối đã thấy Σ cần mua khác hiện tại (Kho vừa kiểm tồn lại)? Bỏ trống = không kiểm. */
@@ -86,7 +90,36 @@ export function isBuyTotalStale(
   expected: number | null | undefined,
 ): boolean {
   if (expected === null || expected === undefined) return false;
-  return Math.abs(buyTotalOf(lines) - expected) > 1e-4;
+  return Math.abs(buyTotalOf(lines) - expected) > 5e-5;
+}
+
+/**
+ * N1 — hàm thuần TƯƠNG ĐƯƠNG migration 0081: chốt approved_qty cho các dòng phiếu cũ (NULL) của MỘT phiếu.
+ *  - dòng nhập tay → qty; phiếu không có PO → 0 (xuất từ tồn);
+ *  - có PO → đặt hiệu lực của vật tư rót lần lượt theo dòng, mỗi dòng ≤ qty − đã xuất TRƯỚC PO đầu tiên.
+ */
+export function legacyBackfillApproved(
+  lines: ReadonlyArray<{ id: string; itemId: string | null; qty: number; issuedBeforeFirstPo?: number }>,
+  hasPo: boolean,
+  oeByItem: ReadonlyMap<string, number>,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  const used = new Map<string, number>();
+  for (const l of lines) {
+    if (!l.itemId) {
+      out[l.id] = r4(l.qty);
+      continue;
+    }
+    if (!hasPo) {
+      out[l.id] = 0;
+      continue;
+    }
+    const room = Math.max(0, l.qty - (l.issuedBeforeFirstPo ?? 0));
+    const before = used.get(l.itemId) ?? 0;
+    out[l.id] = r4(Math.min(room, Math.max(0, (oeByItem.get(l.itemId) ?? 0) - before)));
+    used.set(l.itemId, before + room);
+  }
+  return out;
 }
 
 /* ── Dữ liệu PO của phiếu ─────────────────────────────────────────────────── */
@@ -257,18 +290,18 @@ export function buildItemLedger(
         itemId: null,
         hasItem: false,
         legacy,
-        req: r6(req),
-        buy: r6(buy),
+        req: r4(req),
+        buy: r4(buy),
         fromStock: 0,
         receivedOk: 0,
         pendingQc: 0,
         inbound: 0,
         orderedEffective: 0,
-        issued: r6(Math.max(0, num(l.issuedQty))),
+        issued: r4(Math.max(0, num(l.issuedQty))),
         cap: 0,
         remaining: 0,
         held: 0,
-        toOrder: r6(buy),
+        toOrder: r4(buy),
         waiting: 0,
       } satisfies LineLedger;
     });
@@ -284,7 +317,10 @@ export function buildItemLedger(
   // Sức chứa PO của dòng (phiếu cũ = req) và phần "đã xuất vượt fromStock" cần hàng PO phủ.
   const room = ls.map((_, i) => (legacy[i] ? req[i]! : decided[i]!));
   const fsPrelim = ls.map((_, i) => (legacy[i] ? 0 : req[i]! - decided[i]!));
-  const needCover = ls.map((_, i) => Math.min(room[i]!, Math.max(0, iss[i]! - fsPrelim[i]!)));
+  // Phiếu cũ: không suy "đã xuất từ tồn" theo thời điểm → không phủ phần đã xuất bằng hàng PO.
+  const needCover = ls.map((_, i) =>
+    legacy[i] ? 0 : Math.min(room[i]!, Math.max(0, iss[i]! - fsPrelim[i]!)),
+  );
   const shOk = pour(rOk, needCover, room);
   const roomAfterOk = room.map((v, i) => Math.max(0, v - shOk[i]!));
   const shPq = pour(pq, roomAfterOk);
@@ -297,8 +333,10 @@ export function buildItemLedger(
       buy.push(Math.max(0, req[i]! - iss[i]!));
       fs.push(phase === "WAREHOUSE" ? 0 : req[i]!);
     } else if (legacy[i]) {
-      const ifs = Math.max(0, iss[i]! - shOk[i]!);
-      const b = req[i]! - Math.min(req[i]!, ifs);
+      // N1 — phiếu cũ có PO: SL cần mua = phần "đặt hiệu lực" của dòng (không đổi khi hàng về / khi xuất),
+      // phần còn lại là từ tồn. Migration 0081 đã chốt approved_qty cho phiếu đang mở; nhánh này chỉ là
+      // dự phòng đọc cho dữ liệu sót.
+      const b = Math.min(req[i]!, shOk[i]! + shPq[i]! + shInb[i]!);
       buy.push(b);
       fs.push(req[i]! - b);
     } else {
@@ -330,37 +368,37 @@ export function buildItemLedger(
       itemId,
       hasItem: true,
       legacy: legacy[i]!,
-      req: r6(req[i]!),
-      buy: r6(buy[i]!),
-      fromStock: r6(fs[i]!),
-      receivedOk: r6(shOk[i]!),
-      pendingQc: r6(shPq[i]!),
-      inbound: r6(shInb[i]!),
-      orderedEffective: r6(shOk[i]! + shPq[i]! + shInb[i]!),
-      issued: r6(iss[i]!),
-      cap: r6(iss[i]! + rem[i]!),
-      remaining: r6(remaining),
-      held: legacy[i] ? 0 : r6(remaining),
-      toOrder: r6(to[i]!),
-      waiting: r6(shPq[i]! + shInb[i]!),
+      req: r4(req[i]!),
+      buy: r4(buy[i]!),
+      fromStock: r4(fs[i]!),
+      receivedOk: r4(shOk[i]!),
+      pendingQc: r4(shPq[i]!),
+      inbound: r4(shInb[i]!),
+      orderedEffective: r4(shOk[i]! + shPq[i]! + shInb[i]!),
+      issued: r4(iss[i]!),
+      cap: r4(iss[i]! + rem[i]!),
+      remaining: r4(remaining),
+      held: legacy[i] ? 0 : r4(remaining),
+      toOrder: r4(to[i]!),
+      waiting: r4(shPq[i]! + shInb[i]!),
     };
   });
   const item: ItemLedger = {
     itemId,
-    req: r6(reqI),
-    buy: r6(buyI),
-    fromStock: r6(fsI),
-    receivedOk: r6(rOk),
-    pendingQc: r6(pq),
-    inbound: r6(inb),
-    orderedEffective: r6(oeI),
-    issued: r6(issI),
-    cap: r6(capI),
-    capLeft: r6(capLeft),
-    remaining: r6(remI),
-    held: r6(lines.reduce((a, l) => a + l.held, 0)),
-    toOrder: r6(toOrderI),
-    waiting: r6(pq + inb),
+    req: r4(reqI),
+    buy: r4(buyI),
+    fromStock: r4(fsI),
+    receivedOk: r4(rOk),
+    pendingQc: r4(pq),
+    inbound: r4(inb),
+    orderedEffective: r4(oeI),
+    issued: r4(issI),
+    cap: r4(capI),
+    capLeft: r4(capLeft),
+    remaining: r4(remI),
+    held: r4(lines.reduce((a, l) => a + l.held, 0)),
+    toOrder: r4(toOrderI),
+    waiting: r4(pq + inb),
   };
   return { item, lines };
 }
@@ -446,11 +484,11 @@ export function buildPrLedger(
     totalRemaining += it.remaining;
     toOrder += it.toOrder;
     waiting += it.waiting;
-    if (it.capLeft > 1e-4) itemsOpen += 1;
+    if (it.capLeft > 5e-5) itemsOpen += 1;
   }
   for (const l of out) if (!l.hasItem) toOrder += l.toOrder;
-  const pendingLines = out.filter((l) => l.hasItem && l.cap - l.issued > 1e-4).length;
-  const outstandingBuy = r6((phase === "WAREHOUSE" ? 0 : toOrder) + waiting);
+  const pendingLines = out.filter((l) => l.hasItem && l.cap - l.issued > 5e-5).length;
+  const outstandingBuy = r4((phase === "WAREHOUSE" ? 0 : toOrder) + waiting);
   return {
     phase,
     hasPo: po.hasPo,
@@ -459,13 +497,13 @@ export function buildPrLedger(
     items,
     remainingByItem,
     heldByItem,
-    totalRemaining: r6(totalRemaining),
-    toOrder: r6(toOrder),
-    waiting: r6(waiting),
+    totalRemaining: r4(totalRemaining),
+    toOrder: r4(toOrder),
+    waiting: r4(waiting),
     outstandingBuy,
     pendingLines,
-    complete: phase === "FINAL" && out.length > 0 && itemsOpen === 0 && outstandingBuy <= 1e-4,
-    noWaiting: waiting <= 1e-4,
+    complete: phase === "FINAL" && out.length > 0 && itemsOpen === 0 && outstandingBuy <= 5e-5,
+    noWaiting: waiting <= 5e-5,
   };
 }
 
@@ -496,7 +534,7 @@ export function decideFinish(led: PrLedger, reason: string | null | undefined): 
   if (!led.noWaiting) {
     return { ok: false, code: "OUTSTANDING_PURCHASE", message: WAITING_BLOCK_MESSAGE };
   }
-  if (led.toOrder > 1e-4 && (reason ?? "").trim().length < DROP_REASON_MIN_LEN) {
+  if (led.toOrder > 5e-5 && (reason ?? "").trim().length < DROP_REASON_MIN_LEN) {
     return {
       ok: false,
       code: "UNORDERED_REASON_REQUIRED",
@@ -506,7 +544,7 @@ export function decideFinish(led: PrLedger, reason: string | null | undefined): 
   return { ok: true, dropsUnordered: led.toOrder };
 }
 
-const fmtQ = (n: number) => Number(n.toFixed(4)).toLocaleString("vi-VN");
+const fmtQ = (n: number) => Number(n.toFixed(4)).toLocaleString("vi-VN", { maximumFractionDigits: 4 });
 
 /** Tiến độ xuất kho cho giao diện (hình dạng cũ `issueProgress`), suy ra từ sổ. */
 export function ledgerIssueProgress(led: PrLedger): {
@@ -520,14 +558,14 @@ export function ledgerIssueProgress(led: PrLedger): {
   return {
     complete: led.complete,
     pendingLines: led.pendingLines,
-    outstandingBuy: led.outstandingBuy > 1e-4,
+    outstandingBuy: led.outstandingBuy > 5e-5,
     outstandingQty: led.outstandingBuy,
     issuableRemaining: led.totalRemaining,
     lines: led.lines.map((l) => ({
       id: l.id,
       cap: l.cap,
       issued: l.issued,
-      remaining: Math.max(0, r6(l.cap - l.issued)),
+      remaining: Math.max(0, r4(l.cap - l.issued)),
     })),
   };
 }
@@ -568,7 +606,7 @@ export function checkNewPoAgainstLedger(
   }
   for (const [itemId, qty] of newByItem) {
     const cap = allowed.get(itemId) ?? 0;
-    if (qty > cap + 1e-6) {
+    if (qty > cap + QTY_EPS) {
       const it = led.items.get(itemId)!;
       const buy = it.buy;
       const eff = it.orderedEffective;
@@ -650,10 +688,10 @@ export function planRecheckRows(
         issued: l.issued,
         receivedOk: l.receivedOk,
         orderedEffective: l.orderedEffective,
-        receivedUnissued: r6(ru[i]!),
-        stillNeeded: r6(need[i]!),
-        available: r6(left),
-        defaultAdd: r6(add[i]!),
+        receivedUnissued: r4(ru[i]!),
+        stillNeeded: r4(need[i]!),
+        available: r4(left),
+        defaultAdd: r4(add[i]!),
         buyBefore: l.buy,
       });
       left = Math.max(0, left - Math.max(0, need[i]! - add[i]!));
@@ -733,11 +771,14 @@ export function planRecheck(
           message: `${labelOf(l.id)}: SL cần mua thêm phải từ 0 đến ${fmtQ(l.req)}.`,
         };
       }
-      if (add > 0 && add < 0.000001) {
-        return { ok: false, code: "VALIDATION", message: `${labelOf(l.id)}: SL cần mua thêm tối thiểu 0,000001 (hoặc nhập 0).` };
+      if (add > 0 && add < 0.0001) {
+        return { ok: false, code: "VALIDATION", message: `${labelOf(l.id)}: SL cần mua thêm tối thiểu 0,0001 (hoặc nhập 0).` };
+      }
+      if (Math.abs(r4(add) - add) > 1e-9) {
+        return { ok: false, code: "VALIDATION", message: `${labelOf(l.id)}: SL cần mua thêm tối đa 4 chữ số thập phân.` };
       }
       lineAdds.push(add);
-      adds[l.id] = r6(add);
+      adds[l.id] = r4(add);
     }
     const addI = lineAdds.reduce((a, b) => a + b, 0);
     const first = rowById.get(ls[0]!.id)!;
@@ -751,7 +792,7 @@ export function planRecheck(
         message: `${label}: tổng SL cần mua thêm của vật tư phải từ 0 đến ${fmtQ(stillNeeded)} (phần còn phải đáp ứng).`,
       };
     }
-    if (stillNeeded - addI > available + 1e-6) {
+    if (stillNeeded - addI > available + QTY_EPS) {
       return {
         ok: false,
         code: "STOCK_SHORT",
@@ -776,9 +817,9 @@ export function planRecheck(
         diff += t;
       }
     }
-    ls.forEach((l, i) => (newBuy[l.id] = r6(target[i]!)));
+    ls.forEach((l, i) => (newBuy[l.id] = r4(target[i]!)));
     addTotal += addI;
-    if (buyNewI > it.buy + 1e-6) buyIncreased = true;
+    if (buyNewI > it.buy + QTY_EPS) buyIncreased = true;
   }
-  return { ok: true, newBuy, adds, addTotal: r6(addTotal), buyIncreased };
+  return { ok: true, newBuy, adds, addTotal: r4(addTotal), buyIncreased };
 }

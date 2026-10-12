@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatQty } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { splitPicksAcrossLines } from "@/lib/pr-issue-split";
 import {
   useMarkPRIssued,
   type MarkPRIssuedPick,
@@ -132,7 +133,7 @@ export function MarkPrIssuedDialog({
   const [noStockReason, setNoStockReason] = React.useState("");
   const [notes, setNotes] = React.useState("");
   const [finishReason, setFinishReason] = React.useState("");
-  const dropsUnordered = toOrder > 1e-6;
+  const dropsUnordered = toOrder > 5e-5;
 
   // Reset + tải "Khả dụng" mỗi lần mở dialog.
   React.useEffect(() => {
@@ -187,13 +188,20 @@ export function MarkPrIssuedDialog({
     }
     setLoadingPreview(true);
     try {
-      const out: PreviewLine[] = [];
+      // N2 — gộp SL theo VẬT TƯ, gọi FIFO MỘT lần cho tổng rồi chia lô xuống các dòng (theo thứ tự dòng).
+      const byItem = new Map<string, typeof wanted>();
       for (const w of wanted) {
+        const k = w.line.itemId!;
+        byItem.set(k, [...(byItem.get(k) ?? []), w]);
+      }
+      const split = new Map<string, FifoPick[]>();
+      for (const [itemId, ws] of byItem) {
+        const total = Math.round(ws.reduce((a, w) => a + w.qty, 0) * 1e4) / 1e4;
         const res = await fetch("/api/warehouse/fifo-pick", {
           method: "POST",
           credentials: "include",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ itemId: w.line.itemId, qty: w.qty }),
+          body: JSON.stringify({ itemId, qty: total }),
         });
         const json = (await res.json().catch(() => ({}))) as {
           data?: { picks: FifoPick[]; covered: number };
@@ -201,18 +209,26 @@ export function MarkPrIssuedDialog({
         };
         if (!res.ok || !json.data) {
           toast.error(
-            json.error?.message ?? `Không gợi ý được lô cho ${w.line.sku ?? "dòng"}.`,
+            json.error?.message ?? `Không gợi ý được lô cho ${ws[0]!.line.sku ?? "dòng"}.`,
           );
           return;
         }
-        out.push({
+        const parts = splitPicksAcrossLines(
+          ws.map((w) => ({ lineId: w.line.id, qty: w.qty })),
+          json.data.picks,
+        );
+        for (const [lineId, ps] of parts) split.set(lineId, ps);
+      }
+      const out: PreviewLine[] = wanted.map((w) => {
+        const ps = split.get(w.line.id) ?? [];
+        return {
           prLineId: w.line.id,
           sku: w.line.sku ?? "—",
           wanted: w.qty,
-          picks: json.data.picks,
-          covered: json.data.covered,
-        });
-      }
+          picks: ps,
+          covered: Math.round(ps.reduce((a, p) => a + p.qty, 0) * 1e4) / 1e4,
+        };
+      });
       setPreview(out);
     } finally {
       setLoadingPreview(false);
@@ -223,6 +239,13 @@ export function MarkPrIssuedDialog({
   const shortLines = preview?.filter((p) => p.covered + EPS < p.wanted) ?? [];
 
   const anyIssued = stockLines.some((l) => (l.issuedQty ?? 0) > EPS);
+  // N6 — chưa xuất đợt nào, không còn gì xuất được, chỉ còn bỏ phần chưa mua → hộp thoại "Kết thúc phiếu".
+  const dropMode =
+    stage !== "WAREHOUSE" &&
+    !anyIssued &&
+    dropsUnordered &&
+    noWaiting &&
+    stockLines.every((l) => remainingOf(l, stage) <= EPS);
 
   // L8 — "Kết thúc, không xuất thêm": đóng quy trình xuất dù còn dòng chưa đủ.
   const askConfirm = useConfirm();
@@ -316,15 +339,15 @@ export function MarkPrIssuedDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="lg" className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{anyIssued ? "Xuất kho đợt tiếp" : "Đã xuất kho"} — {prLabel}</DialogTitle>
+          <DialogTitle>{dropMode ? "Kết thúc phiếu — bỏ phần chưa mua" : anyIssued ? "Xuất kho đợt tiếp" : "Đã xuất kho"} — {prLabel}</DialogTitle>
           <DialogDescription>
-            Chọn lô/vị trí xuất cho từng dòng — hệ thống trừ tồn thật + sinh
-            phiếu xuất kho ngay, không cần xuất lại ở Sơ đồ kho. Có thể xuất
-            nhiều đợt; phiếu hoàn tất khi mọi dòng đã xuất đủ.
+            {dropMode
+              ? "Không còn hàng đang về và chưa có gì để xuất. Kết thúc phiếu sẽ BỎ phần chưa đặt mua — nhập lý do để xác nhận."
+              : "Chọn lô/vị trí xuất cho từng dòng — hệ thống trừ tồn thật + sinh phiếu xuất kho ngay, không cần xuất lại ở Sơ đồ kho. Có thể xuất nhiều đợt; phiếu hoàn tất khi mọi dòng đã xuất đủ."}
           </DialogDescription>
         </DialogHeader>
 
-        {!noStock ? (
+        {!noStock && !dropMode ? (
           <div className="space-y-3">
             {stockLines.length === 0 ? (
               <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
@@ -577,7 +600,7 @@ export function MarkPrIssuedDialog({
         <div
           className={
             "flex items-start gap-2 rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-800/40" +
-            (stage === "WAREHOUSE" || !noWaiting ? " hidden" : "")
+            (stage === "WAREHOUSE" || !noWaiting || dropMode ? " hidden" : "")
           }
         >
           <Checkbox
@@ -637,7 +660,7 @@ export function MarkPrIssuedDialog({
               {anyIssued ? "Kết thúc, không xuất thêm" : "Kết thúc – bỏ phần mua"}
             </Button>
           ) : null}
-          {!noStock ? (
+          {!noStock && !dropMode ? (
             <Button
               variant="outline"
               onClick={() => void loadPreview()}
@@ -653,6 +676,7 @@ export function MarkPrIssuedDialog({
               {preview ? "Gợi ý lại" : "Gợi ý lô (FIFO)"}
             </Button>
           ) : null}
+          {dropMode ? null : (
           <Button
             className="bg-violet-600 text-white hover:bg-violet-700 dark:bg-violet-500 dark:hover:bg-violet-400"
             onClick={confirmIssue}
@@ -674,6 +698,7 @@ export function MarkPrIssuedDialog({
               ? "Xác nhận (không trừ tồn)"
               : `Xác nhận xuất kho${preview && totalPreview > 0 ? ` (${fmt(totalPreview)})` : ""}`}
           </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

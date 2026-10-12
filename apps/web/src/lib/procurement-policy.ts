@@ -316,7 +316,8 @@ export function shouldRevertPrAfterPoCancel(
 /** SL cần mua mặc định = max(0, đề xuất − tồn khả dụng hiện tại), 6 số lẻ. */
 export function defaultBuyQty(qty: number | string, available: number | string | null | undefined): number {
   const v = Math.max(0, num(qty) - Math.max(0, num(available)));
-  return Math.round(v * 1e6) / 1e6;
+  // N4 — 4 số lẻ, làm tròn LÊN để phần lấy từ tồn không vượt tồn khả dụng.
+  return Math.ceil(v * 1e4 - 1e-9) / 1e4 || 0;
 }
 
 export interface BuyDecisionLine {
@@ -423,7 +424,7 @@ export function validateStockCommitment(
   for (const [itemId, c] of commit) {
     const avail = Math.max(0, stockByItem.get(itemId) ?? 0);
     if (c.total > avail + 1e-6) {
-      const f = (n: number) => Number(n.toFixed(4)).toLocaleString("vi-VN");
+      const f = (n: number) => Number(n.toFixed(4)).toLocaleString("vi-VN", { maximumFractionDigits: 4 });
       return `Vật tư ${c.label}: chỉ còn ${f(avail)} khả dụng, đang xuất từ kho ${f(c.total)}${
         c.lines > 1 ? ` (tổng ${c.lines} dòng cùng vật tư)` : ""
       }.`;
@@ -449,18 +450,18 @@ export function resolveBuyDecisions(
   for (const [i, l] of lines.entries()) {
     const qty = num(l.qty);
     if (l.itemId === null) {
-      decisions[l.id] = Math.round(qty * 1e6) / 1e6;
+      decisions[l.id] = Math.round(qty * 1e4) / 1e4;
       continue;
     }
     const o = overrides?.[l.id];
     const buy = o === undefined ? defaultBuyQty(qty, l.available) : o;
-    if (o !== undefined && o > 0 && o < 0.000001) {
-      return { ok: false, message: `Dòng ${i + 1}: SL cần mua tối thiểu 0,000001 (hoặc nhập 0 nếu không cần mua).` };
+    if (o !== undefined && o > 0 && o < 0.0001) {
+      return { ok: false, message: `Dòng ${i + 1}: SL cần mua tối thiểu 0,0001 (hoặc nhập 0 nếu không cần mua).` };
     }
     if (!Number.isFinite(buy) || buy < 0 || buy > qty + 1e-9) {
       return { ok: false, message: `Dòng ${i + 1}: SL cần mua phải từ 0 đến SL đề xuất (${qty}).` };
     }
-    decisions[l.id] = Math.round(buy * 1e6) / 1e6;
+    decisions[l.id] = Math.round(buy * 1e4) / 1e4;
   }
   return { ok: true, decisions };
 }
@@ -562,12 +563,12 @@ export function checkIssueAgainstHold(
   heldByOthers: ReadonlyMap<string, number>,
   labelOf: (itemId: string) => string = () => "Vật tư",
 ): string | null {
-  const f = (n: number) => Number(n.toFixed(4)).toLocaleString("vi-VN");
+  const f = (n: number) => Number(n.toFixed(4)).toLocaleString("vi-VN", { maximumFractionDigits: 4 });
   for (const [itemId, qty] of pickByItem) {
     const have = issuable.get(itemId) ?? 0;
     const held = heldByOthers.get(itemId) ?? 0;
     const free = Math.max(0, have - held);
-    if (qty > free + 1e-4) {
+    if (qty > free + 5e-5) {
       return `${labelOf(itemId)}: tồn khả dụng ${f(have)}, trong đó ${f(held)} đã giữ cho phiếu khác — chỉ xuất được tối đa ${f(free)}, không xuất ${f(qty)}. Kho kiểm lại tồn rồi xuất phần còn được.`;
     }
   }

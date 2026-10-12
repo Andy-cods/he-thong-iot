@@ -19,7 +19,7 @@ import {
   shouldRevertPrAfterPoCancel,
   type PoReceiptLine,
 } from "../../lib/procurement-policy";
-import { checkNewPoAgainstLedger, r6 } from "../../lib/pr-ledger";
+import { checkNewPoAgainstLedger, QTY_EPS, r4 } from "../../lib/pr-ledger";
 import { getPrLedger } from "./purchaseRequests";
 import {
   computeExpectedPayable,
@@ -588,7 +588,7 @@ export async function createPOFromPR(
     // SỔ DÒNG — chỉ mua phần còn được lập PO: toOrder = max(0, cần mua − đã đặt/đã về).
     // (PO đang mở tính theo SL đặt; PO đã đóng/nhận đủ chỉ tính hàng đã nhận chưa bị QC loại.)
     let led = (await getPrLedger(prId, tx, pr))!;
-    if (led.ledger.toOrder <= 1e-6) {
+    if (led.ledger.toOrder <= QTY_EPS) {
       throw new Error("PR_ALL_COVERED");
     }
 
@@ -689,7 +689,9 @@ export async function createPOFromPR(
     // Sổ dòng tính lại sau khi gán vật tư cho dòng nhập tay; dòng toOrder = 0 không đưa vào PO.
     led = (await getPrLedger(prId, tx, pr))!;
     const toOrderOf = (lineId: string) => led.ledger.byId.get(lineId)?.toOrder ?? 0;
-    lines = lines.filter((l) => toOrderOf(l.id) > 1e-6);
+    // N4 — không bao giờ tạo dòng PO SL 0 (≤ 0,0001 bỏ qua; tất cả bỏ → PR_ALL_COVERED 422).
+    lines = lines.filter((l) => r4(toOrderOf(l.id)) >= 0.0001);
+    if (lines.length === 0) throw new Error("PR_ALL_COVERED");
     if (lines.length === 0) throw new Error("PR_EMPTY");
 
     // Guard: toàn bộ line phải có preferred_supplier_id
@@ -746,7 +748,7 @@ export async function createPOFromPR(
       let poTotal = 0;
       const poLines = supplierLines.map((l, idx) => {
         const mapped = {
-          orderedQty: r6(toOrderOf(l.id)),
+          orderedQty: r4(toOrderOf(l.id)),
           unitPrice: Math.max(0, Number(l.estimatedUnitPrice) || 0),
         };
         const lineTotal = computePoLineTotal(mapped.orderedQty, mapped.unitPrice, 8);

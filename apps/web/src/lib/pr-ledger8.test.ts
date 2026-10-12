@@ -122,7 +122,7 @@ describe("B2 — PO đóng vì QC hỏng hết, chưa xuất đợt nào: 'Kết
   });
   it("API kết thúc không picks cho phép khi noWaiting ∧ toOrder > 0 (đọc mã nguồn)", () => {
     const src = readFileSync(join(__dirname, "../server/repos/purchaseRequests.ts"), "utf8");
-    expect(src).toContain("const dropOnly = before.noWaiting && before.toOrder > 1e-4;");
+    expect(src).toContain("const dropOnly = before.noWaiting && before.toOrder > 5e-5;");
     expect(src).toContain("if (!hadEarlierIssue && !dropOnly)");
   });
   it("from-pr nhận phiếu CONVERTED (PO bổ sung) (đọc mã nguồn)", () => {

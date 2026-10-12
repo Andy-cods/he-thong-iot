@@ -642,7 +642,7 @@ export function planPRReadyToIssue(
         ? `Cần xuất kho: ${ctx.prNo} — Kho đáp ứng đủ từ tồn`
         // Dấu hiệu "hàng mua đã về" được dùng để chống báo trùng (GOODS_RECEIVED_TITLE_MARK).
         : (ctx.shortQty ?? 0) > 1e-6
-          ? `Cần xuất kho: ${ctx.prNo} — hàng mua đã về (thiếu ${Number((ctx.shortQty ?? 0).toFixed(4)).toLocaleString("vi-VN")})`
+          ? `Cần xuất kho: ${ctx.prNo} — hàng mua đã về (thiếu ${Number((ctx.shortQty ?? 0).toFixed(4)).toLocaleString("vi-VN", { maximumFractionDigits: 4 })})`
           : `Cần xuất kho: ${ctx.prNo} — hàng mua đã về đủ`;
   const message =
     ctx.reason === "approved"
@@ -704,7 +704,7 @@ export function planPRApproved(
           ? `Cần tạo PO bổ sung: ${ctx.prNo}`
           : `Cần tạo PO: ${ctx.prNo} đã duyệt cuối`,
         message: ctx.topUp
-          ? `PO trước đóng thiếu / hàng QC không đạt — còn ${Number(ctx.topUp.toFixed(4)).toLocaleString("vi-VN")} chưa đặt. Mở phiếu và bấm “Tạo PO”.`
+          ? `PO trước đóng thiếu / hàng QC không đạt — còn ${Number(ctx.topUp.toFixed(4)).toLocaleString("vi-VN", { maximumFractionDigits: 4 })} chưa đặt. Mở phiếu và bấm “Tạo PO”.`
           : ctx.title
             ? `"${ctx.title}" — mở phiếu và bấm “Tạo PO”.${stock}`
             : `Mở phiếu và bấm “Tạo PO”.${stock}`,
@@ -759,8 +759,27 @@ export function planPRReopenedForPO(ctx: PRCtx & { poNo?: string | null }): Noti
 }
 
 export function planPRRejected(
-  ctx: PRCtx & { reason?: string | null; closedAtIssued?: boolean },
+  ctx: PRCtx & { reason?: string | null; closedAtIssued?: boolean; extraOnly?: boolean },
 ): NotifyPlan {
+  // N3 — chỉ phần mua thêm (sau Kiểm tồn lại) bị từ chối; phiếu giữ phần đã duyệt trước.
+  if (ctx.extraOnly) {
+    return {
+      eventType: "PR_REJECTED",
+      entityType: "purchase_request",
+      entityId: ctx.prId,
+      entityCode: ctx.prNo,
+      actorUserId: ctx.actorUserId,
+      actorUsername: ctx.actorUsername,
+      targets: [
+        user(ctx.creatorUserId, PR_CREATOR_ROLES, {
+          title: `${ctx.prNo}: phần mua thêm bị từ chối`,
+          message: `Phần mua thêm bị từ chối${ctx.reason ? `: ${ctx.reason}` : ""}. Phiếu giữ phần đã duyệt trước đó.`,
+          links: [L.pr(ctx.prId)],
+          severity: "warning",
+        }),
+      ],
+    };
+  }
   // C2 — đã xuất phần có sẵn rồi mới bị từ chối phần mua: phiếu hoàn tất ở phần đã xuất.
   if (ctx.closedAtIssued) {
     return {
@@ -868,6 +887,11 @@ export function planPOCreatedFromPR(
     prCreatorUserId?: string | null;
     poCount: number;
     firstPoId: string;
+    /**
+     * N5 — phiếu đã đặt ĐỦ sau PO mới (toOrder = 0)? false → GIỮ "Cần tạo PO" (đặt một phần).
+     * Mặc định true (from-pr luôn đặt hết phần còn phải đặt).
+     */
+    prFullyOrdered?: boolean;
   },
 ): NotifyPlan {
   return {
@@ -879,7 +903,7 @@ export function planPOCreatedFromPR(
     actorUsername: ctx.actorUsername,
     // Hết hiệu lực PR_APPROVED/PR_APPROVED_NO_PO_REMINDER của CHÍNH PR nguồn
     // (entityId=prId, khác entityId=firstPoId của notification mới này).
-    resolveExtraEntityIds: [ctx.prId],
+    resolveExtraEntityIds: ctx.prFullyOrdered === false ? [] : [ctx.prId],
     keepInfoOnResolve: true,
     targets: [
       role("purchaser", {

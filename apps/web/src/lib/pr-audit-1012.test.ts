@@ -173,7 +173,9 @@ describe("A12 — kiểm đầu vào", () => {
   });
   it("qty làm tròn về 0 bị từ chối", () => {
     expect(prCreateSchema.safeParse({ lines: [{ itemName: "x", qty: 0.0000001 }] }).success).toBe(false);
-    expect(prCreateSchema.safeParse({ lines: [{ itemName: "x", qty: 0.000001 }] }).success).toBe(true);
+    // ĐỔI KỲ VỌNG (lần 9, N4): tối thiểu 0,0001 (4 số lẻ).
+    expect(prCreateSchema.safeParse({ lines: [{ itemName: "x", qty: 0.0001 }] }).success).toBe(true);
+    expect(prCreateSchema.safeParse({ lines: [{ itemName: "x", qty: 0.000001 }] }).success).toBe(false);
   });
   it("khoảng ngày Excel", () => {
     expect(isRealIsoDate("2026-02-30")).toBe(false);

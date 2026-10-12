@@ -127,18 +127,18 @@ export async function GET(
       (l) =>
         l.legacy &&
         l.itemId &&
-        l.remaining > 1e-6 &&
-        (freeByItem.get(l.itemId) ?? 0) <= 1e-6 &&
-        (issuableByItem.get(l.itemId) ?? 0) > 1e-6,
+        l.remaining > 5e-5 &&
+        (freeByItem.get(l.itemId) ?? 0) <= 5e-5 &&
+        (issuableByItem.get(l.itemId) ?? 0) > 5e-5,
     );
   // m2 — tồn THẬT = 0 thì không phải "bị phiếu mới giữ" mà là hết tồn.
   const legacyNoStock =
     canSeeStock &&
     ledger.lines.some(
-      (l) => l.legacy && l.itemId && l.remaining > 1e-6 && (issuableByItem.get(l.itemId) ?? 0) <= 1e-6,
+      (l) => l.legacy && l.itemId && l.remaining > 5e-5 && (issuableByItem.get(l.itemId) ?? 0) <= 5e-5,
     );
   const legacyIssuable = ledger.lines.some(
-    (l) => l.legacy && l.itemId && l.remaining > 1e-6 && (freeByItem.get(l.itemId) ?? 0) > 1e-6,
+    (l) => l.legacy && l.itemId && l.remaining > 5e-5 && (freeByItem.get(l.itemId) ?? 0) > 5e-5,
   );
   const nonLegacyRemaining = ledger.lines.reduce((a, l) => a + (l.legacy ? 0 : l.remaining), 0);
   // A18 — trạng thái PO THẬT của phiếu (mục IV không tick "Đã tạo đơn mua" khi PO đã huỷ).
@@ -178,18 +178,19 @@ export async function GET(
       issueStage,
       warehouseIssuableRemaining: warehouseRemaining,
       /** N9 — còn phần xuất được THẬT (phiếu cũ chỉ tính khi tồn sau cam kết > 0). */
-      issuableNow: nonLegacyRemaining > 1e-6 || legacyIssuable,
+      issuableNow: nonLegacyRemaining > 5e-5 || legacyIssuable,
       legacyBlockedByHold,
       legacyNoStock,
       shortOfCommitment: shortOfCommitment.length > 0,
       shortOfCommitmentItems: shortOfCommitment,
       hasPendingPo: !ledger.noWaiting,
       /** Tổng sổ của phiếu. */
+      // N6 — phiếu đã hoàn tất / xuất xong: không còn gì phải mua.
       ledgerSummary: {
         phase: ledger.phase,
-        toOrder: ledger.toOrder,
+        toOrder: row.completedAt || row.goodsIssuedAt ? 0 : ledger.toOrder,
         waiting: ledger.waiting,
-        outstandingBuy: ledger.outstandingBuy,
+        outstandingBuy: row.completedAt || row.goodsIssuedAt ? 0 : ledger.outstandingBuy,
         complete: ledger.complete,
         noWaiting: ledger.noWaiting,
         pendingLines: ledger.pendingLines,

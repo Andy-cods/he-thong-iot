@@ -318,7 +318,7 @@ export default function PurchaseRequestDetailPage() {
   // Chỉ mua PHẦN CÒN THIẾU: mọi dòng đã được Kho đáp ứng đủ → không có gì để mua.
   // SỔ DÒNG — còn phần được lập PO (toOrder > 0).
   const ledgerSum = detail.data?.data.ledgerSummary;
-  const needsBuy = (ledgerSum?.toOrder ?? 0) > 1e-6;
+  const needsBuy = (ledgerSum?.toOrder ?? 0) > 5e-5;
   // B2 — CONVERTED vẫn "Tạo PO" (bổ sung) khi sổ còn phần phải đặt (PO trước đóng thiếu / QC hỏng).
   const canConvert =
     (isAdmin || isPurchaser) &&
@@ -339,7 +339,7 @@ export default function PurchaseRequestDetailPage() {
   const noWaiting = ledgerSum?.noWaiting ?? true;
   // "Kết thúc" chỉ khi không còn hàng đang về / chờ QC (sổ dòng); còn dòng chưa đủ hoặc còn phần chưa đặt.
   // B2 — còn phần chưa đặt mà không còn gì đang về: "Kết thúc – bỏ phần mua" kể cả khi chưa xuất đợt nào.
-  const dropOnly = noWaiting && (ledgerSum?.toOrder ?? 0) > 1e-6 && ledgerSum?.phase === "FINAL";
+  const dropOnly = noWaiting && (ledgerSum?.toOrder ?? 0) > 5e-5 && ledgerSum?.phase === "FINAL";
   const canFinishOnly =
     (issuedAny && noWaiting && (pr.issueProgress?.pendingLines ?? 0) > 0) || dropOnly;
   const canMarkIssued =
@@ -415,7 +415,7 @@ export default function PurchaseRequestDetailPage() {
           note: approveNote.trim() || null,
           buyQtys: stockBuy.valid ? stockBuy.qtys : undefined,
         });
-        toast.success("Đã duyệt bước Trưởng bộ phận");
+        toast.success("Kho đã kiểm tồn và duyệt");
       } else if (approveOpen === "director") {
         await directorApprove.mutateAsync({
           note: approveNote.trim() || null,
@@ -780,7 +780,7 @@ export default function PurchaseRequestDetailPage() {
                 ) : (
                   <CheckCircle2 className="h-3.5 w-3.5" />
                 )}
-                Duyệt (Trưởng bộ phận)
+                Kho kiểm tồn
               </Button>
             )}
             {canDirectorApprove && (
@@ -834,7 +834,13 @@ export default function PurchaseRequestDetailPage() {
                 className="border-violet-300 text-violet-700 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-300 dark:hover:bg-violet-950/40"
               >
                 <Truck className="h-3.5 w-3.5" />
-                {issuedAny ? "Xuất kho đợt tiếp" : issuableLeft > 0 ? "Đã xuất kho" : "Kết thúc – bỏ phần mua"}
+                {issuableLeft > 0
+                  ? issuedAny
+                    ? "Xuất kho đợt tiếp"
+                    : "Đã xuất kho"
+                  : dropOnly
+                    ? "Kết thúc – bỏ phần mua"
+                    : "Kết thúc xuất kho"}
               </Button>
             )}
             {canMarkCompleted && (
@@ -1420,7 +1426,7 @@ export default function PurchaseRequestDetailPage() {
           <DialogHeader>
             <DialogTitle>
               {approveOpen === "dept"
-                ? "Duyệt — Trưởng bộ phận"
+                ? "Kho kiểm tồn — duyệt bước 2"
                 : approveOpen === "quick"
                   ? "Duyệt nhanh — gộp 2 cấp"
                   : "Duyệt cuối — Giám đốc / Mua hàng"}

@@ -41,9 +41,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           ? "Phiếu chưa duyệt cuối — chưa hoàn tất được."
           : l.pendingLines > 0
             ? `Còn ${l.pendingLines} dòng chưa xuất đủ.`
-            : l.waiting > 1e-4
+            : l.waiting > 5e-5
               ? "Còn hàng đang về hoặc lô chờ QC."
-              : l.toOrder > 1e-4
+              : l.toOrder > 5e-5
                 ? "Còn phần cần mua chưa lập PO — lập PO, Kiểm tồn lại hoặc dùng “Kết thúc” (bỏ phần chưa đặt)."
                 : "Phiếu chưa đủ điều kiện hoàn tất.";
       logger.warn({ prId: params.id, why }, "finalize PR rejected");

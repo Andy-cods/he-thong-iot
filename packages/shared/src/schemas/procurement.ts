@@ -58,9 +58,10 @@ const uuid = z.string().uuid("ID không hợp lệ");
 const positiveQty = z.coerce
   .number({ invalid_type_error: "Số lượng phải là số." })
   .positive("Số lượng phải > 0")
-  // A12 — cột numeric(…,6): giá trị nhỏ hơn 0.000001 làm tròn về 0 vi phạm CHECK.
-  .min(0.000001, "Số lượng tối thiểu 0,000001")
-  .max(10_000_000, "Số lượng quá lớn");
+  // N4 — SL tối đa 4 chữ số thập phân (khớp PO / nhận / xuất kho numeric(…,4)).
+  .min(0.0001, "Số lượng tối thiểu 0,0001")
+  .max(10_000_000, "Số lượng quá lớn")
+  .refine((v) => Math.abs(Math.round(v * 1e4) / 1e4 - v) < 1e-9, "Số lượng tối đa 4 chữ số thập phân");
 /** N2 — "YYYY-MM-DD" có phải ngày lịch thật (loại 2026-02-30, JS tự lăn sang 02/03). */
 export function isRealIsoDateString(v: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;

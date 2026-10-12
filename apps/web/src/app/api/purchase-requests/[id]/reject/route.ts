@@ -100,8 +100,10 @@ export async function POST(
       objectType: "purchase_request",
       objectId: params.id,
       before: { status: before.status },
-      after: { status: row.status, closedAtIssued: row.closedAtIssued },
-      notes: row.closedAtIssued
+      after: { status: row.status, closedAtIssued: row.closedAtIssued, extraOnly: row.extraOnly },
+      notes: row.extraOnly
+        ? `Từ chối phần mua thêm (giữ phần đã duyệt trước): ${body.data.reason}`
+        : row.closedAtIssued
         ? `Từ chối phần cần mua (đã xuất phần có sẵn — phiếu hoàn tất): ${body.data.reason}`
         : body.data.reason,
       ...meta,
@@ -116,6 +118,7 @@ export async function POST(
       creatorUserId: before.requestedBy,
       reason: body.data.reason,
       closedAtIssued: row.closedAtIssued,
+      extraOnly: row.extraOnly,
     });
 
     return NextResponse.json({ data: row });
