@@ -414,7 +414,7 @@ export default function PurchaseRequestDetailPage() {
         </Link>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span className="font-mono text-xs font-medium text-zinc-500 dark:text-zinc-400">
                   {pr.code}
@@ -429,7 +429,7 @@ export default function PurchaseRequestDetailPage() {
                 ) : null}
                 <StatusPill tone={STEP_TONE[step]} label={STEP_LABEL[step]} dot />
               </div>
-              <h1 className="mt-1 truncate text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+              <h1 className="mt-1 line-clamp-2 min-w-0 [overflow-wrap:anywhere] text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
                 {pr.title || (pr.formType === "DNVT" ? "Phiếu DNVT" : "Phiếu MRF")}
               </h1>
             </div>
@@ -804,7 +804,7 @@ export default function PurchaseRequestDetailPage() {
                           </span>
                         </Td>
                         <Td>
-                          <span className="block break-words font-medium">
+                          <span className="block [overflow-wrap:anywhere] font-medium">
                             {l.name ?? "—"}
                           </span>
                         </Td>
@@ -813,7 +813,7 @@ export default function PurchaseRequestDetailPage() {
                             {l.sku ?? "—"}
                           </span>
                         </Td>
-                        <Td>{l.specification ?? "—"}</Td>
+                        <Td><span className="block [overflow-wrap:anywhere]">{l.specification ?? "—"}</span></Td>
                         <Td align="center">{l.uom ?? l.itemUom ?? "—"}</Td>
                         <Td align="right">
                           <span className="font-mono">{fmtNum(qty)}</span>
@@ -1056,7 +1056,7 @@ export default function PurchaseRequestDetailPage() {
           <DialogHeader>
             <DialogTitle>Từ chối phiếu {formLabel}</DialogTitle>
             <DialogDescription>
-              Phiếu sẽ chuyển sang trạng thái REJECTED. Người đề xuất sẽ nhận
+              Phiếu sẽ chuyển sang trạng thái "Từ chối". Người đề xuất sẽ nhận
               thông báo và có thể tạo phiếu mới.
             </DialogDescription>
           </DialogHeader>
@@ -1446,7 +1446,7 @@ function Meta({
   return (
     <div className={cn("min-w-0", wide ? "col-span-2" : "")}>
       <span className="text-zinc-400">{label}: </span>
-      <span className="break-words text-zinc-700 dark:text-zinc-300">
+      <span className="[overflow-wrap:anywhere] text-zinc-700 dark:text-zinc-300">
         {value}
       </span>
     </div>

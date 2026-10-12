@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import {
   parseAsInteger,
   parseAsString,
@@ -27,6 +27,7 @@ import type { PRFilter } from "@/lib/query-keys";
 import { statusLabel } from "@/lib/status";
 import { formatNumber } from "@/lib/format";
 import { DateField } from "@/components/ui/date-field";
+import { Input } from "@/components/ui/input";
 
 /**
  * V3.16 — Đề xuất mua vật tư (YCVT/MRF) dạng BẢNG PHẲNG.
@@ -54,6 +55,23 @@ export function PRTab() {
   // V3.16 — Khoảng ngày mặc định cho dialog xuất Excel: theo bộ lọc from/to
   // hiện tại của trang (nếu user đã chọn), else để rỗng (dialog tự tính
   // "hôm nay" lúc mở, client-only, tránh hydration mismatch).
+  // L13: ô tìm kiếm — debounce 300ms rồi mới ghi vào ?q= (lọc server-side).
+  const [qInput, setQInput] = React.useState(urlState.q);
+  React.useEffect(() => {
+    setQInput(urlState.q);
+  }, [urlState.q]);
+  React.useEffect(() => {
+    const t = setTimeout(() => {
+      const next = qInput.trim();
+      if (next !== urlState.q) void setUrlState({ q: next, page: 1 });
+    }, 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qInput]);
+  // L13: khoảng ngày ngược (từ > đến) → báo nhẹ thay vì ra 0 phiếu im lặng.
+  const dateRangeInvalid =
+    !!urlState.from && !!urlState.to && urlState.from > urlState.to;
+
   const exportRange = React.useMemo(
     () => ({ from: urlState.from, to: urlState.to }),
     [urlState.from, urlState.to],
@@ -160,6 +178,22 @@ export function PRTab() {
 
       {/* Thanh filter: trạng thái (segmented) + khoảng ngày */}
       <div className="flex flex-wrap items-center gap-2 px-4 pb-3 md:px-6">
+        <div className="relative w-full sm:w-64">
+          <Search
+            className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
+            aria-hidden="true"
+          />
+          <Input
+            type="search"
+            value={qInput}
+            onChange={(e) => setQInput(e.target.value)}
+            placeholder="Tìm mã phiếu, vật tư, người lập…"
+            aria-label="Tìm phiếu đề xuất"
+            className="h-8 pl-8 text-sm"
+          />
+        </div>
+        {/* L17: dải tab cuộn ngang trong chính nó, không đẩy tràn cả trang. */}
+        <div className="-mx-1 max-w-full overflow-x-auto px-1 pb-0.5">
         <Tabs
           value={urlState.status}
           onValueChange={(v) => void setUrlState({ status: v as typeof urlState.status, page: 1 })}
@@ -173,8 +207,9 @@ export function PRTab() {
             ))}
           </TabsList>
         </Tabs>
+        </div>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
           <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
             <span className="text-zinc-500 dark:text-zinc-400">Từ</span>
             <DateField
@@ -202,6 +237,12 @@ export function PRTab() {
           )}
         </div>
       </div>
+
+      {dateRangeInvalid && (
+        <p role="alert" className="px-4 pb-2 text-sm text-red-600 md:px-6">
+          Khoảng ngày không hợp lệ: "Từ ngày" đang sau "Đến ngày".
+        </p>
+      )}
 
       {/* Nội dung */}
       <div className="flex-1 p-4 md:overflow-hidden">

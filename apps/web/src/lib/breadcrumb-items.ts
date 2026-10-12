@@ -80,7 +80,7 @@ export const SEGMENT_LABELS: Record<string, string> = {
   targets: "Mục tiêu KPI",
   department: "Bộ phận",
   "employee-productivity": "Năng suất nhân viên",
-  "new-dnvt": "Tạo phiếu ĐNVT",
+  "new-dnvt": "Tạo phiếu DNVT",
   "new-mrf": "Tạo phiếu MRF",
   "new-lsx": "Tạo lệnh sản xuất",
 };

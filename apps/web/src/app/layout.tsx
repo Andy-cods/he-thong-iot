@@ -96,7 +96,7 @@ export default function RootLayout({
           Bỏ qua, đến nội dung chính
         </a>
         <Providers>
-          <main id="main">{children}</main>
+          <div>{children}</div>
         </Providers>
       </body>
     </html>
