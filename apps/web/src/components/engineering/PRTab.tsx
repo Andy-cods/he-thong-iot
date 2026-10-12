@@ -86,8 +86,9 @@ export function PRTab() {
       page: urlState.page,
       pageSize: urlState.pageSize,
       q: urlState.q || undefined,
-      from: urlState.from || undefined,
-      to: urlState.to || undefined,
+      // from > to: không gửi lên API (sẽ 422) — chỉ báo lỗi nhẹ ở UI.
+      from: dateRangeInvalid ? undefined : urlState.from || undefined,
+      to: dateRangeInvalid ? undefined : urlState.to || undefined,
       sortDir: urlState.sortDir as "asc" | "desc",
     }),
     [
@@ -98,6 +99,7 @@ export function PRTab() {
       urlState.from,
       urlState.to,
       urlState.sortDir,
+      dateRangeInvalid,
     ],
   );
   const query = usePurchaseRequestsList(filter);
@@ -105,8 +107,15 @@ export function PRTab() {
   const rows = query.data?.data ?? [];
   const pageCount = Math.max(1, Math.ceil(total / urlState.pageSize));
   // V4.1 UI-05: tách lỗi khỏi rỗng — lỗi API không hiện "Chưa có phiếu".
-  const showError = query.isError && rows.length === 0;
-  const isEmpty = !query.isLoading && !query.isError && rows.length === 0;
+  const showError = query.isError && rows.length === 0 && !dateRangeInvalid;
+  const isEmpty =
+    !query.isLoading && !query.isError && rows.length === 0 && !dateRangeInvalid;
+  const counts = query.data?.meta.counts;
+  const tabCount = (s: string): number | undefined => {
+    if (!counts) return undefined;
+    if (s === "all") return counts.all;
+    return counts.byStatus[s as PRStatus] ?? 0;
+  };
   const hasFilter =
     urlState.status !== "all" ||
     urlState.q !== "" ||
@@ -203,6 +212,11 @@ export function PRTab() {
               <TabsTrigger key={s} value={s}>
                 {/* V4.1 UI-07: nhãn chip lọc từ lib/status.ts (khớp badge danh sách). */}
                 {s === "all" ? "Tất cả" : statusLabel("pr", s)}
+                {tabCount(s) !== undefined ? (
+                  <span className="ml-1.5 tabular-nums text-zinc-400 dark:text-zinc-500">
+                    {formatNumber(tabCount(s))}
+                  </span>
+                ) : null}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -238,6 +252,13 @@ export function PRTab() {
         </div>
       </div>
 
+      {counts && urlState.status === "SUBMITTED" && (
+        <p className="px-4 pb-2 text-sm text-zinc-500 md:px-6">
+          Chờ Kho kiểm tồn: <b className="tabular-nums">{counts.bySubmittedStep.SUBMITTED}</b>
+          {" · "}Chờ duyệt cuối:{" "}
+          <b className="tabular-nums">{counts.bySubmittedStep.DEPT_APPROVED}</b>
+        </p>
+      )}
       {dateRangeInvalid && (
         <p role="alert" className="px-4 pb-2 text-sm text-red-600 md:px-6">
           Khoảng ngày không hợp lệ: "Từ ngày" đang sau "Đến ngày".
@@ -246,7 +267,7 @@ export function PRTab() {
 
       {/* Nội dung */}
       <div className="flex-1 p-4 md:overflow-hidden">
-        {showError ? (
+        {dateRangeInvalid ? null : showError ? (
           <QueryError
             error={query.error}
             onRetry={() => void query.refetch()}

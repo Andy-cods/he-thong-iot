@@ -365,6 +365,23 @@ export default function NewDnvtPage() {
     (!!draftId && !prefilledRef.current && draftDetail.isLoading);
   const paperFormNoPreview = previewNo.data?.data.paperFormNo ?? "—/PRD-MRF/—";
   const todayStr = formatDateVN(new Date());
+  // Phiếu mở bằng ?draftId= nhưng đã gửi (không còn DRAFT) → API trả 409, không cho sửa.
+  const loadedStatus = draftId ? draftDetail.data?.data?.status : undefined;
+  if (draftId && loadedStatus && loadedStatus !== "DRAFT") {
+    return (
+      <div className="mx-auto mt-10 max-w-md rounded-lg border border-amber-300 bg-amber-50 p-5 text-center dark:border-amber-800 dark:bg-amber-950/30">
+        <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+          Phiếu đã gửi, không sửa được
+        </h1>
+        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+          Chỉ phiếu nháp mới được chỉnh sửa. Bạn có thể xem phiếu ở trang chi tiết.
+        </p>
+        <Button asChild className="mt-4">
+          <Link href={`/procurement/purchase-requests/${draftId}`}>Về trang chi tiết phiếu</Link>
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full flex-col overflow-auto bg-zinc-100 pb-16 md:pb-0 dark:bg-zinc-950 print:bg-white">

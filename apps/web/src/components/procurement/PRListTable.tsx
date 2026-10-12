@@ -83,7 +83,16 @@ export function PRListTable({ rows, loading, sortDir, onSortDateClick }: PRListT
         header: "Trạng thái",
         kind: "status",
         width: 140,
-        cell: (r) => <StatusPill domain="pr" code={r.status} />,
+        cell: (r) =>
+          r.completedAt ? (
+            <StatusPill domain="pr" code={r.status} tone="success" label="Hoàn tất" />
+          ) : r.status === "SUBMITTED" && r.approvalStep === "DEPT_APPROVED" ? (
+            <StatusPill domain="pr" code={r.status} label="Chờ Giám đốc" />
+          ) : r.status === "SUBMITTED" ? (
+            <StatusPill domain="pr" code={r.status} label="Chờ Kho kiểm tồn" />
+          ) : (
+            <StatusPill domain="pr" code={r.status} />
+          ),
       },
       {
         id: "created",
