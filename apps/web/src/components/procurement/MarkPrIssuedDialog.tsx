@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatQty } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   useMarkPRIssued,
   type MarkPRIssuedPick,
@@ -232,7 +233,14 @@ export function MarkPrIssuedDialog({
   const anyIssued = stockLines.some((l) => (l.issuedQty ?? 0) > EPS);
 
   // L8 — "Kết thúc, không xuất thêm": đóng quy trình xuất dù còn dòng chưa đủ.
-  const finishNow = () => {
+  const askConfirm = useConfirm();
+  const finishNow = async () => {
+    const ok = await askConfirm({
+      title: "Kết thúc xuất kho?",
+      description: "Các dòng chưa xuất đủ sẽ được chốt ở số đã xuất. Phiếu chuyển \"Hoàn tất\" và KHÔNG xuất thêm được nữa.",
+      confirmLabel: "Kết thúc",
+    });
+    if (!ok) return;
     markIssued.mutate(
       { finish: true },
       {

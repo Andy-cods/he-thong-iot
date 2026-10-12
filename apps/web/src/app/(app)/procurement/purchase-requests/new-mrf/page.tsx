@@ -611,7 +611,7 @@ export default function NewMRFPage() {
                     </Th>
                     <Th w="min-w-[150px] print:w-28 print:min-w-0">Ngày cần</Th>
                     <Th w="min-w-[130px] print:w-28 print:min-w-0">Ưu tiên</Th>
-                    <Th w="min-w-[170px] print:w-28 print:min-w-0">Phân loại</Th>
+                    <Th w="min-w-[220px] print:w-28 print:min-w-0">Phân loại</Th>
                     <Th w="min-w-[170px] print:w-28 print:min-w-0" align="right">
                       Đơn giá DK
                     </Th>

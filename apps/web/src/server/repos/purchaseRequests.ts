@@ -19,6 +19,7 @@ import { db } from "@/lib/db";
 import { vnToday } from "../../lib/procurement-policy";
 import { deriveDisplayLabel } from "@/lib/pr-display-label";
 import { currentYymm, genDocNoBatch } from "./_docNumber";
+import { uuidArray } from "./stockGuard";
 import {
   createGoodsIssueTx,
   GoodsIssueError,
@@ -713,7 +714,7 @@ export async function createPRFromShortage(
       (array_agg(bsl.id ORDER BY bsl.id))[1] AS sample_line_id,
       (array_agg(bsl.order_id ORDER BY bsl.order_id))[1] AS linked_order_id
     FROM app.bom_snapshot_line bsl
-    WHERE bsl.component_item_id = ANY(${itemIds})
+    WHERE bsl.component_item_id = ANY(${uuidArray(itemIds)})
       AND bsl.state IN ('PLANNED', 'PURCHASING')
       AND bsl.remaining_short_qty > 0
     GROUP BY bsl.component_item_id

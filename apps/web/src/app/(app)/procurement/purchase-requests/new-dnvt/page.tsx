@@ -576,7 +576,7 @@ export default function NewDnvtPage() {
                     </Th>
                     <Th w="min-w-[150px] print:w-28 print:min-w-0">Ngày cần</Th>
                     <Th w="min-w-[130px] print:w-28 print:min-w-0">Ưu tiên</Th>
-                    <Th w="min-w-[170px] print:w-28 print:min-w-0">Phân loại</Th>
+                    <Th w="min-w-[220px] print:w-28 print:min-w-0">Phân loại</Th>
                     <Th w="min-w-[96px] print:w-24 print:min-w-0">Mã tham chiếu</Th>
                     <Th w="min-w-[88px] print:w-20 print:min-w-0">Tham khảo</Th>
                     <Th w="min-w-[140px] print:min-w-[110px] print:w-auto">Ghi chú</Th>
