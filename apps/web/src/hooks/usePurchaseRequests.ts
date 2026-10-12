@@ -102,6 +102,8 @@ export interface PRLineEnriched {
   lineTotal?: string | null;
   // V4.0 Wave 3 Phase B — mã ID hệ thống duy nhất (khác referenceCode free-text).
   lineRefCode?: string | null;
+  /** L8 — tổng đã xuất (cộng mọi đợt xuất kho). */
+  issuedQty?: number;
   // V3.10 DNVT — Tham khảo (free-text) + Ngày giao hàng. Server đã trả 2 cột
   // này từ lâu (xem server/repos/purchaseRequests.ts) nhưng interface này
   // thiếu khai báo — TASK-6VIEC Việc 2 cần đọc lại khi "mở phiếu nháp để sửa".
@@ -111,7 +113,17 @@ export interface PRLineEnriched {
 
 export interface PRListResponse {
   data: PRRow[];
-  meta: { page: number; pageSize: number; total: number };
+  meta: {
+    page: number;
+    pageSize: number;
+    total: number;
+    /** L13 — số phiếu theo trạng thái (áp mọi bộ lọc trừ status). */
+    counts?: {
+      byStatus: Partial<Record<PRStatus, number>>;
+      bySubmittedStep: { SUBMITTED: number; DEPT_APPROVED: number };
+      all: number;
+    };
+  };
 }
 
 /** V4.2 (TASK "Trừ tồn luôn") — phiếu xuất kho sinh ra khi PR "Đã xuất kho". */
@@ -138,7 +150,16 @@ export interface PRGoodsIssueRow {
 }
 
 export interface PRDetailResponse {
-  data: PRRow & { lines: PRLineEnriched[]; goodsIssues?: PRGoodsIssueRow[] };
+  data: PRRow & {
+    lines: PRLineEnriched[];
+    goodsIssues?: PRGoodsIssueRow[];
+    /** L8 — tiến độ xuất kho nhiều đợt. */
+    issueProgress?: {
+      complete: boolean;
+      pendingLines: number;
+      lines: { id: string; cap: number; issued: number; remaining: number }[];
+    };
+  };
 }
 
 interface RequestError extends Error {
@@ -429,13 +450,42 @@ export interface MarkPRIssuedInput {
   noStockConfirm?: boolean;
   noStockReason?: string | null;
   notes?: string | null;
+  /** L8 — "Kết thúc, không xuất thêm" (đóng quy trình xuất dù còn dòng chưa đủ). */
+  finish?: boolean;
 }
 
 export interface MarkPRIssuedResponse {
   data: PRRow;
   meta?: {
     goodsIssue?: { id: string; issueNo: string; totalQty: number } | null;
+    /** true = đã xuất đủ/kết thúc; false = còn đợt sau. */
+    complete?: boolean;
   };
+}
+
+/** L6 — "Tạo lại từ phiếu này" (REJECTED/CANCELLED → PR DRAFT mới). */
+export interface RecreatePRResponse {
+  data: PRRow;
+  meta: {
+    copiedLines: number;
+    skippedLines: { lineNo: number; label: string }[];
+    sourceCode: string;
+    formType?: "MRF" | "DNVT";
+  };
+}
+
+export function useRecreatePR(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      request<RecreatePRResponse>(`/api/purchase-requests/${id}/recreate`, {
+        method: "POST",
+        body: "{}",
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.procurement.requests.all });
+    },
+  });
 }
 
 /**

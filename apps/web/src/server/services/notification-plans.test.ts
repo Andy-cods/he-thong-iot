@@ -432,3 +432,18 @@ describe("P2 (PO_FLOW_E2E.md bước 10) — planPOReceivedFull không báo lạ
     expect(plan.targets.find((t) => t.kind === "role" && t.role === "purchaser")).toBeDefined();
   });
 });
+
+describe("L15 — xuất kho / hoàn tất PR làm hết hiệu lực việc cũ", () => {
+  it("PR_GOODS_ISSUED và PR_COMPLETED có trong RESOLVES_STALE", () => {
+    for (const t of ["PR_GOODS_ISSUED", "PR_COMPLETED"] as const) {
+      const stale = RESOLVES_STALE[t] ?? [];
+      expect(stale, t).toContain("PR_SUBMITTED");
+      expect(stale, t).toContain("PR_DEPT_APPROVED");
+      expect(stale, t).toContain("PR_APPROVED");
+      expect(stale, t).toContain("PR_PENDING_REMINDER");
+      expect(stale, t).toContain("PR_APPROVED_NO_PO_REMINDER");
+    }
+    // Hoàn tất cũng dọn luôn "đã xuất kho".
+    expect(RESOLVES_STALE.PR_COMPLETED).toContain("PR_GOODS_ISSUED");
+  });
+});

@@ -1,3 +1,4 @@
+import { contentDispositionAttachment } from "@/lib/content-disposition";
 import { type NextRequest } from "next/server";
 import { z } from "zod";
 import ExcelJS from "exceljs";
@@ -167,7 +168,7 @@ export async function GET(
       headers: {
         "Content-Type":
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Disposition": contentDispositionAttachment(filename),
         "Content-Length": String(buf.byteLength),
       },
     });

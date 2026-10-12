@@ -29,9 +29,14 @@ export const dynamic = "force-dynamic";
  *   KHÔNG trừ tồn (vật tư mua ngoài giao thẳng, không qua kho — giữ tương
  *   thích hành vi cũ, bắt buộc xác nhận rõ lý do).
  *
- * Idempotent theo đúng nghĩa "chống bấm 2 lần": đã xuất rồi → 409
- * ALREADY_ISSUED (không phải 200 im lặng như route cũ) — client hiển thị lỗi
- * rõ thay vì tưởng nhầm vừa xuất thành công lần nữa.
+ * L8 — XUẤT NHIỀU ĐỢT: mỗi lần gọi sinh 1 phiếu xuất (trừ tồn thật) cho phần
+ * Kho chọn, cộng dồn theo dòng. Chỉ khi MỌI dòng (có vật tư trong danh mục) đã
+ * xuất đủ — hoặc Kho chọn `finish: true` ("Kết thúc, không xuất thêm") — phiếu
+ * mới set goods_issued_at + Hoàn tất. Giữa chừng phiếu vẫn APPROVED/CONVERTED
+ * và còn xuất tiếp được.
+ *
+ * Chống bấm 2 lần: sau khi phiếu đã đóng (xuất đủ/kết thúc) → 409
+ * ALREADY_ISSUED; còn trong lúc xuất dở, vượt SL còn lại → 422 OVER_ISSUE.
  */
 const pickSchema = z.object({
   prLineId: z.string().uuid(),
@@ -42,6 +47,11 @@ const pickSchema = z.object({
 
 const bodySchema = z.object({
   picks: z.array(pickSchema).max(200).default([]),
+  /**
+   * L8 — "Kết thúc, không xuất thêm": đóng quy trình xuất kho dù còn dòng chưa
+   * xuất đủ. Không bật → phiếu chỉ hoàn tất khi MỌI dòng đã xuất đủ (xuất nhiều đợt).
+   */
+  finish: z.boolean().default(false),
   noStockConfirm: z.boolean().default(false),
   noStockReason: z.string().trim().max(500).nullable().optional(),
   notes: z.string().trim().max(500).nullable().optional(),
@@ -88,16 +98,17 @@ export async function POST(
   if (before.goodsIssuedAt) {
     return jsonError(
       "ALREADY_ISSUED",
-      "Phiếu đã ghi nhận xuất kho trước đó — không xuất lại.",
+      "Phiếu đã xuất kho xong — không xuất thêm.",
       409,
     );
   }
 
   const parsed = await parseJson(req, bodySchema);
   if ("response" in parsed) return parsed.response;
-  const { picks, noStockConfirm, noStockReason, notes } = parsed.data;
+  const { picks, noStockConfirm, noStockReason, notes, finish } = parsed.data;
 
-  if (!noStockConfirm && picks.length === 0) {
+  // Không có picks: chỉ hợp lệ khi "Kết thúc" (repo kiểm thêm đã có ≥ 1 đợt) hoặc ghi nhận không trừ tồn.
+  if (!noStockConfirm && picks.length === 0 && !finish) {
     return jsonError(
       "EMPTY_ISSUE",
       'Chọn lô/bin để xuất cho ít nhất 1 dòng, hoặc tick "Ghi nhận đã xuất — không trừ tồn" kèm lý do.',
@@ -112,6 +123,7 @@ export async function POST(
       noStockConfirm,
       noStockReason: noStockReason ?? null,
       notes: notes ?? null,
+      finish,
     });
 
     const meta = extractRequestMeta(req);
@@ -124,27 +136,37 @@ export async function POST(
       after: {
         goodsIssuedAt: result.pr.goodsIssuedAt,
         goodsIssueNo: result.goodsIssue?.issueNo ?? null,
+        complete: result.complete,
       },
       notes: result.goodsIssue
-        ? `YCVT timeline IV → Đã xuất kho, trừ tồn qua phiếu ${result.goodsIssue.issueNo}`
-        : `YCVT timeline IV → Đã xuất kho (KHÔNG trừ tồn): ${noStockReason ?? ""}`,
+        ? `YCVT timeline IV → ${result.complete ? "Đã xuất kho xong" : "Xuất kho một phần"}, trừ tồn qua phiếu ${result.goodsIssue.issueNo}`
+        : result.complete && !noStockConfirm
+          ? "YCVT timeline IV → Kết thúc xuất kho (không xuất thêm)"
+          : `YCVT timeline IV → Đã xuất kho (KHÔNG trừ tồn): ${noStockReason ?? ""}`,
       ...meta,
     });
 
-    // TASK-20260927 — báo người lập phiếu mốc tiến độ mới.
-    void notifyPRProgress({
-      stage: "issued",
-      prId: params.id,
-      prNo: before.paperFormNo ?? before.code,
-      title: before.title ?? null,
-      creatorUserId: before.requestedBy,
-      actorUserId: guard.session.userId,
-      actorUsername: guard.session.fullName,
-    });
+    // TASK-20260927 — báo người lập phiếu mốc tiến độ mới. L8: chỉ báo khi xuất
+    // xong (đợt dở không báo — cũng tránh làm hết hiệu lực các việc còn mở).
+    if (result.complete) {
+      void notifyPRProgress({
+        stage: "issued",
+        prId: params.id,
+        prNo: before.paperFormNo ?? before.code,
+        title: before.title ?? null,
+        creatorUserId: before.requestedBy,
+        actorUserId: guard.session.userId,
+        actorUsername: guard.session.fullName,
+      });
+    }
 
     return NextResponse.json({
       data: result.pr,
-      meta: { goodsIssue: result.goodsIssue },
+      meta: {
+        goodsIssue: result.goodsIssue,
+        complete: result.complete,
+        progress: result.progress,
+      },
     });
   } catch (err) {
     if (err instanceof GoodsIssueError) {

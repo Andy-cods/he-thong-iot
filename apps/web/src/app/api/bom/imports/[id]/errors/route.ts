@@ -1,3 +1,4 @@
+import { contentDispositionAttachment } from "@/lib/content-disposition";
 import { type NextRequest } from "next/server";
 import { jsonError } from "@/server/http";
 import { getImportBatch } from "@/server/repos/importBatch";
@@ -34,7 +35,7 @@ export async function GET(
     headers: {
       "Content-Type":
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="${safeName}-bom-errors.xlsx"`,
+      "Content-Disposition": contentDispositionAttachment(`${safeName}-bom-errors.xlsx`),
       "Cache-Control": "no-store",
     },
   });

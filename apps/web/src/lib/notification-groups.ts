@@ -16,6 +16,8 @@ export const NOTIFY_GROUP_LABEL: Record<NotifyCategory, string> = {
 
 export interface Groupable {
   category?: NotifyCategory | string;
+  /** Đã đọc/đã xử lý (kể cả hệ thống tự resolve) → không còn là việc đang mở. */
+  readAt?: string | null;
 }
 
 export interface NotifyGroup<T> {
@@ -28,7 +30,10 @@ export interface NotifyGroup<T> {
 export function groupNotificationsByCategory<T extends Groupable>(items: T[]): NotifyGroup<T>[] {
   const buckets: Record<NotifyCategory, T[]> = { action: [], update: [], reminder: [] };
   for (const item of items) {
-    const cat = (item.category as NotifyCategory) ?? "update";
+    let cat = (item.category as NotifyCategory) ?? "update";
+    // L14 — "Cần bạn duyệt"/"Nhắc hạn" chỉ gồm việc còn mở; việc đã đọc/đã xử lý
+    // (kể cả bị hệ thống tự resolve) chuyển xuống "Cập nhật" như lịch sử.
+    if ((cat === "action" || cat === "reminder") && item.readAt) cat = "update";
     (buckets[cat] ?? buckets.update).push(item);
   }
   return NOTIFY_GROUP_ORDER.filter((k) => buckets[k].length > 0).map((k) => ({

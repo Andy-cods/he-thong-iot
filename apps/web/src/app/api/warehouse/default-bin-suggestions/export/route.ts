@@ -1,3 +1,4 @@
+import { contentDispositionAttachment } from "@/lib/content-disposition";
 import { NextResponse, type NextRequest } from "next/server";
 import { jsonError } from "@/server/http";
 import { requireCan } from "@/server/session";
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
       status: 200,
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Disposition": contentDispositionAttachment(filename),
         "X-Export-Count": String(rows.length),
       },
     });

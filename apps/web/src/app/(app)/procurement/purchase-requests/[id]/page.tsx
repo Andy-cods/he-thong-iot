@@ -20,6 +20,7 @@ import {
   PackageCheck,
   Pencil,
   Printer,
+  RotateCcw,
   Trash2,
   Truck,
   X,
@@ -27,7 +28,7 @@ import {
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { downloadFromUrl } from "@/lib/download";
-import { can, type PRStatus } from "@iot/shared";
+import type { PRStatus } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
@@ -55,6 +56,7 @@ import {
   useDeptApprovePR,
   useDirectorApprovePR,
   useMarkPRCompleted,
+  useRecreatePR,
   useSubmitPR,
   usePurchaseRequestDetail,
   useQuickApprovePR,
@@ -62,7 +64,7 @@ import {
   type PRLineEnriched,
 } from "@/hooks/usePurchaseRequests";
 import { canCancelPR, isSelfApprovalBlocked } from "@/lib/procurement-policy";
-import { canExportPrExcel } from "@/server/services/prAccess";
+import { canEditPRDraft, canExportPrExcel, canRecreatePR } from "@/server/services/prAccess";
 import { useConvertPRToPOs } from "@/hooks/usePurchaseOrders";
 import { formatDate, formatMoney, formatQty } from "@/lib/format";
 import type { StatusTone } from "@/lib/status";
@@ -185,6 +187,7 @@ export default function PurchaseRequestDetailPage() {
   const cancel = useCancelPurchaseRequest(id);
   const convert = useConvertPRToPOs();
   const markCompleted = useMarkPRCompleted(id);
+  const recreate = useRecreatePR(id);
   const submitPr = useSubmitPR(id);
   const deletePR = useDeletePR(id);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
@@ -270,20 +273,15 @@ export default function PurchaseRequestDetailPage() {
     (((isWarehouse) && step === "SUBMITTED") ||
       (isPurchaser && step === "DEPT_APPROVED"));
   // V4.1 TM-06 — phiếu DRAFT (VD tạo từ thiếu hụt) có nút Gửi cho người lập.
-  const canSubmit =
-    status === "DRAFT" &&
-    (pr.requestedBy === session.data?.id ||
-      isAdmin ||
-      isPurchaser ||
-      isWarehouse ||
-      roles.includes("planner") ||
-      roles.includes("accountant"));
+  // L5 — nháp chỉ người lập (hoặc admin) gửi/sửa/xoá — khớp guard server.
+  const draftSubject = { userId: session.data?.id ?? "", roles };
+  const canSubmit = canEditPRDraft(draftSubject, pr);
   // TASK-6VIEC Việc 2 — "Sửa phiếu" (mở lại form tạo ở chế độ sửa nháp) chỉ
   // cho người lập (bất kể role) hoặc vai có update:pr trong RBAC matrix —
   // khớp guard server PATCH /api/purchase-requests/[id].
-  const canEditDraft =
-    status === "DRAFT" &&
-    (pr.requestedBy === session.data?.id || can(roles, "update", "pr"));
+  const canEditDraft = canEditPRDraft(draftSubject, pr);
+  // L6 — "Tạo lại từ phiếu này" cho phiếu bị từ chối/đã huỷ (người lập hoặc admin).
+  const canRecreate = canRecreatePR(draftSubject, pr);
   const editDraftHref =
     pr.formType === "DNVT"
       ? `/procurement/purchase-requests/new-dnvt?draftId=${pr.id}`
@@ -295,19 +293,22 @@ export default function PurchaseRequestDetailPage() {
   const canReject =
     (isAdmin || isWarehouse || isPurchaser) &&
     (step === "SUBMITTED" || step === "DEPT_APPROVED");
-  const canConvert = (isAdmin || isPurchaser) && status === "APPROVED";
+  // Phiếu đã xuất đủ/kết thúc (completedAt) không cần lên PO nữa.
+  const canConvert = (isAdmin || isPurchaser) && status === "APPROVED" && !pr.completedAt;
   // V3.7.70 — Manual timeline events
+  // L3 — Kho xuất được ngay khi phiếu đã duyệt (APPROVED/CONVERTED) còn tồn khả
+  // dụng, KHÔNG cần chờ nhận hàng PO. L8 — còn xuất tiếp nhiều đợt tới khi đủ.
   const canMarkIssued =
     (isAdmin || isWarehouse) &&
-    !!pr.goodsReceivedAt &&
+    (status === "APPROVED" || status === "CONVERTED") &&
     !pr.goodsIssuedAt;
+  const issuedAny = (pr.goodsIssues?.length ?? 0) > 0;
   const canMarkCompleted =
     isAdmin && !!pr.goodsIssuedAt && !pr.completedAt;
   // V3.7.71 — Hard-delete YCVT, admin only.
   // TASK-6VIEC Việc 2 — hoặc người lập phiếu xoá phiếu NHÁP của chính mình
   // (khớp guard server DELETE /api/purchase-requests/[id]).
-  const canDelete =
-    isAdmin || (status === "DRAFT" && pr.requestedBy === session.data?.id);
+  const canDelete = isAdmin || canEditPRDraft(draftSubject, pr);
   // V4.4 (Việc 4) — Huỷ phiếu: người tạo khi còn Nháp/Chờ duyệt, hoặc admin
   // khi đã duyệt xong (APPROVED) mà chưa có PO (server kiểm lại — đây chỉ để
   // ẩn/hiện nút, không phải nguồn sự thật quyền hạn). Dùng chung
@@ -427,7 +428,11 @@ export default function PurchaseRequestDetailPage() {
                     {paperFormNo}
                   </Badge>
                 ) : null}
-                <StatusPill tone={STEP_TONE[step]} label={STEP_LABEL[step]} dot />
+                <StatusPill
+                  tone={issuedAny && !pr.goodsIssuedAt ? "info" : STEP_TONE[step]}
+                  label={issuedAny && !pr.goodsIssuedAt ? "Đang xuất kho" : STEP_LABEL[step]}
+                  dot
+                />
               </div>
               <h1 className="mt-1 line-clamp-2 min-w-0 [overflow-wrap:anywhere] text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
                 {pr.title || (pr.formType === "DNVT" ? "Phiếu DNVT" : "Phiếu MRF")}
@@ -480,6 +485,44 @@ export default function PurchaseRequestDetailPage() {
                   <Pencil className="h-3.5 w-3.5" aria-hidden />
                   Sửa phiếu
                 </Link>
+              </Button>
+            )}
+            {canRecreate && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={recreate.isPending}
+                onClick={() =>
+                  recreate.mutate(undefined, {
+                    onSuccess: (res) => {
+                      const skipped = res.meta.skippedLines;
+                      toast.success(
+                        `Đã tạo phiếu nháp ${res.data.code} từ ${res.meta.sourceCode} (${res.meta.copiedLines} dòng)`,
+                        skipped.length > 0
+                          ? {
+                              description: `Bỏ ${skipped.length} dòng vì vật tư đã vô hiệu hoá: ${skipped
+                                .map((x) => x.label)
+                                .join(", ")}`,
+                              duration: 10_000,
+                            }
+                          : undefined,
+                      );
+                      router.push(
+                        res.data.formType === "DNVT"
+                          ? `/procurement/purchase-requests/new-dnvt?draftId=${res.data.id}`
+                          : `/procurement/purchase-requests/new-mrf?draftId=${res.data.id}`,
+                      );
+                    },
+                    onError: (e) => toast.error(`Không tạo lại được: ${(e as Error).message}`),
+                  })
+                }
+              >
+                {recreate.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+                )}
+                Tạo lại từ phiếu này
               </Button>
             )}
             {canSubmit && (
@@ -609,7 +652,7 @@ export default function PurchaseRequestDetailPage() {
                 className="border-violet-300 text-violet-700 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-300 dark:hover:bg-violet-950/40"
               >
                 <Truck className="h-3.5 w-3.5" />
-                Đã xuất kho
+                {issuedAny ? "Xuất kho đợt tiếp" : "Đã xuất kho"}
               </Button>
             )}
             {canMarkCompleted && (
@@ -1016,7 +1059,7 @@ export default function PurchaseRequestDetailPage() {
                   who={null}
                   note={
                     pr.goodsIssues && pr.goodsIssues.length > 0
-                      ? `Phiếu xuất ${pr.goodsIssues.map((g) => g.issueNo).join(", ")}`
+                      ? `${pr.goodsIssuedAt ? "" : "Đã xuất một phần — "}Phiếu xuất ${pr.goodsIssues.map((g) => g.issueNo).join(", ")}`
                       : pr.goodsIssuedAt
                         ? "Đã xuất (không trừ tồn)"
                         : "—"
@@ -1298,6 +1341,7 @@ export default function PurchaseRequestDetailPage() {
           itemUom: l.itemUom,
           qty: l.qty,
           approvedQty: l.approvedQty,
+          issuedQty: l.issuedQty,
         }))}
       />
 

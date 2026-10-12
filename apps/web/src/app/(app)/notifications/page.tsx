@@ -169,7 +169,7 @@ export default function NotificationsPage() {
   if (filter === "broadcast") items = items.filter((i) => !i.isDirect);
   const groups = groupNotificationsByCategory(items);
 
-  const unreadCount = query.data?.meta.unreadCount ?? 0;
+  const unreadCount = query.data?.meta.unreadTotal ?? query.data?.meta.unreadCount ?? 0;
 
   return (
     <div className="flex flex-col bg-zinc-50/30 md:h-full dark:bg-zinc-950">

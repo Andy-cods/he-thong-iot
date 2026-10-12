@@ -1,3 +1,4 @@
+import { contentDispositionAttachment } from "@/lib/content-disposition";
 import { type NextRequest } from "next/server";
 import { logger } from "@/lib/logger";
 import { statusLabel } from "@/lib/status";
@@ -127,7 +128,16 @@ export async function GET(req: NextRequest) {
   const requestedBy = viewAll ? undefined : guard.session.userId;
 
   try {
-    const slipsData = await listPRsInRange({ from, to, requestedBy });
+    const slipsData = await listPRsInRange({
+      from,
+      to,
+      requestedBy,
+      // L5 — không xuất nháp của người khác (admin xuất được tất cả).
+      viewer: {
+        userId: guard.session.userId,
+        isAdmin: guard.session.roles.includes("admin"),
+      },
+    });
 
     const summary: PrSummary = {
       columns: [
@@ -183,7 +193,7 @@ export async function GET(req: NextRequest) {
       headers: {
         "Content-Type":
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+        "Content-Disposition": contentDispositionAttachment(filename),
         "Cache-Control": "no-store",
       },
     });

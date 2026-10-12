@@ -6,6 +6,10 @@ import {
   poPriceUpdateSchema,
   poUpdateSchema,
   prCreateSchema,
+  prListQuerySchema,
+  prTodayVN,
+  prUpdateSchema,
+  PR_MAX_LINES,
 } from "./procurement";
 
 const uuidA = "00000000-0000-4000-8000-000000000001";
@@ -104,5 +108,81 @@ describe("V4.1 PO-UI — schema điều chỉnh giá PO", () => {
       poPriceUpdateSchema.parse({ lines: [{ lineId: uuidA, unitPrice: 1, taxRate: 8, orderedQty: 5 }] }),
     ).toThrow();
     expect(() => poPriceUpdateSchema.parse({ lines: [{ lineId: uuidB, unitPrice: 1, taxRate: 101 }] })).toThrow();
+  });
+});
+
+describe("QA PR 12/10 — zod trần + thông báo tiếng Việt (L9/L10/L12/L19)", () => {
+  const msgs = (r: { success: boolean; error?: { issues: { message: string }[] } }) =>
+    r.success ? [] : (r.error?.issues.map((i) => i.message) ?? []);
+  const base = { lines: [{ itemId: uuidA, qty: 1 }] };
+
+  it("đơn giá >= 1e16 bị chặn 422 (trước đây 500 tràn NUMERIC)", () => {
+    const r = prCreateSchema.safeParse({ lines: [{ itemId: uuidA, qty: 1, estimatedUnitPrice: 1e16 }] });
+    expect(r.success).toBe(false);
+    expect(msgs(r).join(" ")).toContain("Đơn giá quá lớn");
+  });
+
+  it("tồn kho snapshot 1e15 bị chặn", () => {
+    const r = prCreateSchema.safeParse({ lines: [{ itemId: uuidA, qty: 1, onHandSnapshot: 1e15 }] });
+    expect(r.success).toBe(false);
+    expect(msgs(r).join(" ")).toContain("Tồn kho quá lớn");
+  });
+
+  it("SL × đơn giá tràn NUMERIC(18,2) bị chặn dù từng số hợp lệ", () => {
+    const r = prCreateSchema.safeParse({
+      lines: [{ itemId: uuidA, qty: 9_000_000, estimatedUnitPrice: 9e12 }],
+    });
+    expect(r.success).toBe(false);
+    expect(msgs(r).join(" ")).toContain("Thành tiền");
+  });
+
+  it("giá trị lớn nhưng hợp lệ vẫn qua", () => {
+    const r = prCreateSchema.safeParse({
+      lines: [{ itemId: uuidA, qty: 100, estimatedUnitPrice: 5_000_000_000 }],
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("dòng thiếu vật tư → thông báo rõ", () => {
+    const r = prCreateSchema.safeParse({ lines: [{ qty: 5 }] });
+    expect(r.success).toBe(false);
+    expect(msgs(r).join(" ")).toContain("chưa chọn vật tư");
+  });
+
+  it("tối đa 20 dòng (khớp UI) ở cả create lẫn update", () => {
+    const lines = Array.from({ length: PR_MAX_LINES + 1 }, () => ({ itemId: uuidA, qty: 1 }));
+    expect(prCreateSchema.safeParse({ lines }).success).toBe(false);
+    expect(prUpdateSchema.safeParse({ lines }).success).toBe(false);
+    expect(prCreateSchema.safeParse({ lines: lines.slice(0, PR_MAX_LINES) }).success).toBe(true);
+  });
+
+  it("ngày cần quá khứ bị chặn, hôm nay và tương lai được", () => {
+    const today = prTodayVN();
+    const d = new Date(`${today}T00:00:00Z`);
+    const yesterday = new Date(d.getTime() - 86_400_000).toISOString().slice(0, 10);
+    const tomorrow = new Date(d.getTime() + 86_400_000).toISOString().slice(0, 10);
+    const mk = (neededBy: string) =>
+      prCreateSchema.safeParse({ lines: [{ itemId: uuidA, qty: 1, neededBy }] });
+    expect(mk(yesterday).success).toBe(false);
+    expect(msgs(mk(yesterday)).join(" ")).toContain("quá khứ");
+    expect(mk(today).success).toBe(true);
+    expect(mk(tomorrow).success).toBe(true);
+  });
+
+  it("thông báo lỗi chuẩn là tiếng Việt, có tên trường", () => {
+    const r = prCreateSchema.safeParse({ ...base, title: "x".repeat(300) });
+    expect(msgs(r)).toEqual(["Tiêu đề tối đa 255 ký tự."]);
+    const r2 = prCreateSchema.safeParse({ lines: [{ itemId: uuidA, qty: 1, estimatedUnitPrice: -5 }] });
+    expect(msgs(r2)).toEqual(["Đơn giá không được âm."]);
+    const r3 = prCreateSchema.safeParse({ lines: [{ itemId: uuidA, qty: 1, priority: "HOT" }] });
+    expect(msgs(r3)).toEqual(["Mức ưu tiên không hợp lệ."]);
+    const r4 = prCreateSchema.safeParse({ lines: [] });
+    expect(msgs(r4)).toEqual(["Phiếu cần ít nhất 1 dòng."]);
+  });
+
+  it("lọc danh sách: from > to bị từ chối, from <= to ổn", () => {
+    expect(prListQuerySchema.safeParse({ from: "2026-10-10", to: "2026-10-01" }).success).toBe(false);
+    expect(prListQuerySchema.safeParse({ from: "2026-10-01", to: "2026-10-10" }).success).toBe(true);
+    expect(prListQuerySchema.safeParse({ from: "2026-10-01" }).success).toBe(true);
   });
 });

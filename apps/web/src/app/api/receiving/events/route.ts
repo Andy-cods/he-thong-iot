@@ -17,7 +17,7 @@ import {
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { insertActivityLog } from "@/server/repos/activityLogs";
-import { getPR, markPRGoodsReceived } from "@/server/repos/purchaseRequests";
+import { getPR, markPRGoodsReceivedIfAllPOsDone } from "@/server/repos/purchaseRequests";
 import { findActiveInvoiceForPo } from "@/server/repos/poInvoice";
 import {
   notifyPOReceivedFull,
@@ -284,7 +284,8 @@ export async function POST(req: NextRequest) {
           // V4.1 TM-14 — nhận nhanh đủ hàng cũng ghi mốc "Đã nhận hàng" của PR
           // (trước đây chỉ route duyệt thủ công làm) → nút "Đã xuất kho /
           // Hoàn tất" ở trang PR mới hiện ra.
-          void markPRGoodsReceived(po.prId).catch(() => {});
+          // L4 — chỉ khi TẤT CẢ PO của PR (không tính CANCELLED) đã nhận đủ/đóng.
+          void markPRGoodsReceivedIfAllPOsDone(po.prId).catch(() => {});
         }
         // P2 (PO_FLOW_E2E.md bước 10) — PO đã có HĐ active thì không báo lại
         // Kế toán "có thể tạo HĐ mua" (gây hiểu nhầm chưa làm).

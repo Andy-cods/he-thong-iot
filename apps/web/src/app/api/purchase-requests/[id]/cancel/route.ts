@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prCancelSchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import { canCancelPR } from "@/lib/procurement-policy";
+import { canAccessPR } from "@/server/services/prAccess";
+import { cancelBlockedMessage } from "@/server/repos/purchaseRequests";
 import { PrCancelError, cancelPR, getPR } from "@/server/repos/purchaseRequests";
 import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { requireSession } from "@/server/session";
@@ -35,6 +37,11 @@ export async function POST(
   const before = await getPR(params.id);
   if (!before) return jsonError("NOT_FOUND", "Không tìm thấy PR.", 404);
 
+  // L5 — nháp của người khác: 404.
+  if (!canAccessPR(guard.session, before)) {
+    return jsonError("NOT_FOUND", "Không tìm thấy PR.", 404);
+  }
+
   const isCreator = before.requestedBy === guard.session.userId;
   const allowed = canCancelPR({
     status: before.status,
@@ -43,6 +50,11 @@ export async function POST(
     actorRoles: guard.session.roles,
   });
   if (!allowed) {
+    // L6 — thông báo đúng lý do: trạng thái không huỷ được (REJECTED/CANCELLED/
+    // CONVERTED) là lỗi trạng thái (409), không phải thiếu quyền (403).
+    if (!["DRAFT", "SUBMITTED", "APPROVED"].includes(before.status)) {
+      return jsonError("INVALID_STATE", cancelBlockedMessage(before.status), 409);
+    }
     return jsonError(
       "FORBIDDEN",
       before.status === "APPROVED"

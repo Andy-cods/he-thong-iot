@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { ZodError, type z } from "zod";
+import { viErrorMap } from "@/lib/zod-vi";
 
 /** Trích metadata chuẩn (requestId, IP, UA) từ Next request. */
 export function extractRequestMeta(req: NextRequest) {
@@ -24,11 +25,20 @@ export function zodErrorResponse(err: ZodError) {
     const path = issue.path.join(".") || "_";
     if (!fields[path]) fields[path] = issue.message;
   }
+  // L19 — nêu lỗi đầu tiên ngay trong `message` (kèm "Dòng N" khi lỗi nằm trong
+  // mảng `lines`) để người dùng biết sai ở đâu, không chỉ "Dữ liệu không hợp lệ.".
+  const first = err.issues[0];
+  let detail = "";
+  if (first) {
+    const idx = first.path.findIndex((seg) => typeof seg === "number");
+    const rowNo = idx >= 0 ? Number(first.path[idx]) + 1 : null;
+    detail = ` ${rowNo != null ? `Dòng ${rowNo}: ` : ""}${first.message}`;
+  }
   return NextResponse.json(
     {
       error: {
         code: "VALIDATION_ERROR",
-        message: "Dữ liệu không hợp lệ.",
+        message: `Dữ liệu không hợp lệ.${detail}`,
         fields,
       },
     },
@@ -41,7 +51,7 @@ export async function parseJson<S extends z.ZodTypeAny>(
   schema: S,
 ): Promise<{ data: z.output<S> } | { response: NextResponse }> {
   const raw = await req.json().catch(() => null);
-  const parsed = schema.safeParse(raw);
+  const parsed = schema.safeParse(raw, { errorMap: viErrorMap });
   if (!parsed.success) return { response: zodErrorResponse(parsed.error) };
   return { data: parsed.data };
 }
@@ -61,7 +71,7 @@ export function parseSearchParams<S extends z.ZodTypeAny>(
       entries[k] = [existing, v];
     }
   }
-  const parsed = schema.safeParse(entries);
+  const parsed = schema.safeParse(entries, { errorMap: viErrorMap });
   if (!parsed.success) return { response: zodErrorResponse(parsed.error) };
   return { data: parsed.data };
 }

@@ -1,7 +1,10 @@
+import { createHash } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { prCreateSchema, prListQuerySchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import {
+  PrValidationError,
+  assertPrItemsUsable,
   createPR,
   listPRs,
   listPRDayBuckets,
@@ -43,10 +46,15 @@ export async function GET(req: NextRequest) {
     // purchaser/warehouse/accountant (canViewAllPRs) xem tất cả.
     const viewAll = canViewAllPRs(guard.session.roles);
     const scopedRequestedBy = viewAll ? q.data.requestedBy : guard.session.userId;
+    // L5 — phiếu NHÁP của người khác không hiện trong danh sách (admin thấy tất cả).
+    const viewer = {
+      userId: guard.session.userId,
+      isAdmin: guard.session.roles.includes("admin"),
+    };
 
     // V3.13 — nhánh "thư mục ngày": trả các bucket theo ngày (giờ +07).
     if (new URL(req.url).searchParams.get("view") === "calendar") {
-      const days = await listPRDayBuckets({ requestedBy: scopedRequestedBy });
+      const days = await listPRDayBuckets({ requestedBy: scopedRequestedBy, viewer });
       return NextResponse.json({ days });
     }
 
@@ -59,6 +67,8 @@ export async function GET(req: NextRequest) {
       from: q.data.from,
       to: q.data.to,
       sortDir: q.data.sortDir,
+      q: q.data.q,
+      viewer,
       page: q.data.page,
       pageSize: q.data.pageSize,
     });
@@ -68,6 +78,8 @@ export async function GET(req: NextRequest) {
         page: q.data.page,
         pageSize: q.data.pageSize,
         total: result.total,
+        // L13 — số phiếu theo từng trạng thái (áp mọi bộ lọc trừ status) để hiện số trên tab.
+        counts: result.counts,
       },
     });
   } catch (err) {
@@ -92,13 +104,20 @@ export async function POST(req: NextRequest) {
   const idempotencyKey = idempotencyKeyHeader
     ? `${guard.session.userId}:${idempotencyKeyHeader}`
     : null;
+  // L19 — dấu vân tay nội dung: cùng Idempotency-Key nhưng nội dung KHÁC phải bị
+  // từ chối (trước đây im lặng trả lại phiếu cũ → người dùng tưởng đã lưu bản mới).
+  const fingerprint = createHash("sha256")
+    .update(JSON.stringify(body.data))
+    .digest("hex");
 
   try {
-    const { replayed, data: finalRow } = await withIdempotency(
+    const { replayed, data: cached } = await withIdempotency(
       "pr-create",
       idempotencyKey,
       PR_CREATE_IDEMPOTENCY_TTL_SECONDS,
       async () => {
+        // L9/L10 — kiểm vật tư tồn tại + ACTIVE TRƯỚC khi cấp mã PR.
+        await assertPrItemsUsable(body.data.lines);
         const row = await createPR({
           title: body.data.title ?? null,
           source: body.data.source,
@@ -175,9 +194,25 @@ export async function POST(req: NextRequest) {
           });
         }
 
-        return finalRow;
+        return { fingerprint, row: finalRow };
       },
     );
+    // Khoá cũ (cache trước khi có fingerprint) là chính hàng PR — bỏ qua so khớp.
+    const legacyCached = replayed && !("fingerprint" in (cached as object));
+    if (legacyCached) {
+      return NextResponse.json(
+        { data: cached as unknown, meta: { idempotentReplay: true } },
+        { status: 201 },
+      );
+    }
+    if (replayed && cached.fingerprint !== fingerprint) {
+      return jsonError(
+        "IDEMPOTENCY_KEY_REUSED",
+        "Khoá chống gửi trùng đã dùng cho một phiếu có nội dung khác — tải lại trang rồi gửi lại.",
+        409,
+      );
+    }
+    const finalRow = cached.row;
 
     return NextResponse.json(
       { data: finalRow, ...(replayed ? { meta: { idempotentReplay: true } } : {}) },
@@ -186,6 +221,20 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     if (err instanceof IdempotencyInProgressError) {
       return jsonError("IDEMPOTENCY_IN_PROGRESS", err.message, 409);
+    }
+    if (err instanceof PrValidationError) {
+      return jsonError(err.code, err.message, err.status);
+    }
+    // FK/giá trị ngoài miền từ DB (itemId/supplier/snapshot lạ, số tràn NUMERIC) → 422, không 500.
+    const dbCode = (err as { code?: string; cause?: { code?: string } }).code ??
+      (err as { cause?: { code?: string } }).cause?.code;
+    if (dbCode === "23503" || dbCode === "22003") {
+      logger.warn({ err }, "create PR rejected by DB constraint");
+      return jsonError(
+        "VALIDATION",
+        "Dữ liệu tham chiếu không hợp lệ (vật tư/nhà cung cấp không tồn tại hoặc số quá lớn).",
+        422,
+      );
     }
     logger.error({ err }, "create PR failed");
     const msg = (err as Error).message ?? "";
