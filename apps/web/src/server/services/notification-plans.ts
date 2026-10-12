@@ -673,7 +673,13 @@ export function planPRReadyToIssue(
 
 /** Bước 3 (director-approve / quick-approve) → Thu mua tạo PO + người lập + Kế toán tải PDF. */
 export function planPRApproved(
-  ctx: PRCtx & { coveredLines?: number; buyLines?: number; partialLines?: number },
+  ctx: PRCtx & {
+    coveredLines?: number;
+    buyLines?: number;
+    partialLines?: number;
+    /** B2 — phiếu đã lập PO nhưng PO đóng thiếu / QC hỏng: còn `topUp` chưa đặt → "Cần tạo PO bổ sung". */
+    topUp?: number;
+  },
 ): NotifyPlan {
   const link = [L.pr(ctx.prId)];
   // N7 — admin duyệt nhanh còn phần cần mua: nêu "có sẵn X / cần mua Y" như đường 2 bước.
@@ -694,28 +700,36 @@ export function planPRApproved(
     actorUsername: ctx.actorUsername,
     targets: [
       role("purchaser", {
-        title: `Cần tạo PO: ${ctx.prNo} đã duyệt cuối`,
-        message: ctx.title
-          ? `"${ctx.title}" — mở phiếu và bấm “Tạo PO”.${stock}`
-          : `Mở phiếu và bấm “Tạo PO”.${stock}`,
+        title: ctx.topUp
+          ? `Cần tạo PO bổ sung: ${ctx.prNo}`
+          : `Cần tạo PO: ${ctx.prNo} đã duyệt cuối`,
+        message: ctx.topUp
+          ? `PO trước đóng thiếu / hàng QC không đạt — còn ${Number(ctx.topUp.toFixed(4)).toLocaleString("vi-VN")} chưa đặt. Mở phiếu và bấm “Tạo PO”.`
+          : ctx.title
+            ? `"${ctx.title}" — mở phiếu và bấm “Tạo PO”.${stock}`
+            : `Mở phiếu và bấm “Tạo PO”.${stock}`,
         links: link,
         category: "action",
         push: true,
       }),
-      user(ctx.creatorUserId, PR_CREATOR_ROLES, {
-        title: `${ctx.prNo} đã được duyệt`,
-        message: `Bộ phận Thu mua đang tiến hành tạo PO.${stock}`,
-        links: link,
-        severity: "success",
-      }),
-      role("accountant", {
-        title: `Phiếu ${ctx.prNo} đã duyệt — tải PDF/Excel`,
-        message: ctx.title
-          ? `"${ctx.title}" — mở phiếu để tải bản PDF/Excel gửi thanh toán.`
-          : "Mở phiếu để tải bản PDF/Excel.",
-        links: link,
-        severity: "success",
-      }),
+      ...(ctx.topUp
+        ? []
+        : [
+          user(ctx.creatorUserId, PR_CREATOR_ROLES, {
+            title: `${ctx.prNo} đã được duyệt`,
+            message: `Bộ phận Thu mua đang tiến hành tạo PO.${stock}`,
+            links: link,
+            severity: "success",
+          }),
+          role("accountant", {
+            title: `Phiếu ${ctx.prNo} đã duyệt — tải PDF/Excel`,
+            message: ctx.title
+              ? `"${ctx.title}" — mở phiếu để tải bản PDF/Excel gửi thanh toán.`
+              : "Mở phiếu để tải bản PDF/Excel.",
+            links: link,
+            severity: "success",
+          }),
+          ]),
     ],
   };
 }
@@ -759,7 +773,7 @@ export function planPRRejected(
       targets: [
         user(ctx.creatorUserId, PR_CREATOR_ROLES, {
           title: `${ctx.prNo}: phần cần mua bị từ chối`,
-          message: `Phần cần mua bị từ chối${ctx.reason ? `: ${ctx.reason}` : ""}; đã nhận phần có sẵn.`,
+          message: `Phần cần mua bị từ chối${ctx.reason ? `: ${ctx.reason}` : ""}. Phiếu đóng ở phần đã xuất — phần lấy từ tồn chưa xuất (nếu có) cũng đóng theo; cần thêm thì dùng “Tạo lại từ phiếu này”.`,
           links: [L.pr(ctx.prId)],
           severity: "warning",
         }),

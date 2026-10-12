@@ -9,7 +9,12 @@ import {
   markPRGoodsReceivedIfAllPOsDone,
 } from "@/server/repos/purchaseRequests";
 import { INFO_EVENT_SUFFIX } from "@/server/services/notification-plans";
-import { closeReadyToIssue, notifyPRProgress, notifyPRReadyToIssue } from "@/server/services/notifications";
+import {
+  closeReadyToIssue,
+  notifyPRApproved,
+  notifyPRProgress,
+  notifyPRReadyToIssue,
+} from "@/server/services/notifications";
 
 interface ActorLike {
   userId: string;
@@ -107,6 +112,13 @@ export async function notifyReadyToIssueIfAny(
       reason,
       shortQty,
     });
+    // m4 — chống "Cần xuất kho" treo do race (đóng PO/nhận hàng ‖ xuất kho): đọc lại sổ SAU khi chèn;
+    // phiếu đã hết phần xuất được / đã xuất xong → đóng ngay. Thao tác xuất commit sau lần đọc này thì
+    // chính route xuất đóng thông báo (closeReadyToIssue chạy sau commit của nó, tức sau lần chèn này).
+    const again = await getPrLedger(prId);
+    if (!again || again.pr.goodsIssuedAt || again.pr.completedAt || again.ledger.totalRemaining <= 1e-6) {
+      await closeReadyToIssue(prId);
+    }
   } catch (err) {
     logger.warn({ err, prId }, "notifyReadyToIssueIfAny failed");
   }
@@ -141,7 +153,10 @@ export async function finalizePrAndNotify(
 ): Promise<boolean> {
   try {
     const done = await finalizePrIfComplete(prId);
-    if (!done) return false;
+    if (!done) {
+      await notifyPoTopUpIfNeeded(prId, actor);
+      return false;
+    }
     await notifyPrAutoFinalized(done, actor);
     return true;
   } catch (err) {
@@ -171,5 +186,44 @@ export async function notifyPrAutoFinalized(
     });
   } catch (err) {
     logger.warn({ err, prId: pr.id }, "notifyPrAutoFinalized failed");
+  }
+}
+
+/**
+ * B2 — phiếu đã lập PO (CONVERTED) mà còn phần phải đặt (PO đóng thiếu / QC hỏng, PO bị huỷ…) →
+ * báo Thu mua "Cần tạo PO bổ sung" (1 thông báo chưa đọc / phiếu). Thu mua lập PO thẳng từ phiếu
+ * (from-pr nhận CONVERTED khi toOrder > 0). Thông báo tự đóng khi có PO mới / Kho kiểm tồn về 0 /
+ * phiếu hoàn tất-huỷ. Lỗi chỉ log.
+ */
+export async function notifyPoTopUpIfNeeded(prId: string, actor?: ActorLike | null): Promise<void> {
+  try {
+    const loaded = await getPrLedger(prId);
+    if (!loaded) return;
+    const { pr, ledger } = loaded;
+    if (pr.status !== "CONVERTED" || ledger.phase !== "FINAL" || ledger.toOrder <= 1e-6) return;
+    const [open] = await db
+      .select({ id: notification.id })
+      .from(notification)
+      .where(
+        and(
+          eq(notification.entityId, prId),
+          eq(notification.eventType, "PR_APPROVED"),
+          sql`${notification.readAt} IS NULL`,
+        ),
+      )
+      .limit(1);
+    if (open) return;
+    await notifyPRApproved({
+      prId,
+      prNo: pr.paperFormNo ?? pr.code,
+      title: pr.title ?? null,
+      creatorUserId: pr.requestedBy,
+      // Việc của Thu mua nói chung — không loại người vừa đóng PO khỏi danh sách nhận.
+      actorUserId: null,
+      actorUsername: actor?.fullName ?? null,
+      topUp: ledger.toOrder,
+    });
+  } catch (err) {
+    logger.warn({ err, prId }, "notifyPoTopUpIfNeeded failed");
   }
 }

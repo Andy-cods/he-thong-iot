@@ -210,6 +210,8 @@ export interface PRDetailResponse {
     issuableNow?: boolean;
     /** N9 — phiếu cũ còn phần xuất được nhưng tồn đã bị phiếu mới giữ hết. */
     legacyBlockedByHold?: boolean;
+    /** m2 — phiếu cũ còn phần xuất được nhưng tồn thật = 0. */
+    legacyNoStock?: boolean;
     /** Tổng sổ dòng của phiếu. */
     ledgerSummary?: {
       phase: "NONE" | "WAREHOUSE" | "FINAL";
@@ -552,7 +554,7 @@ export function useRecheckPrStock(id: string) {
 export function useDirectorApprovePR(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { note?: string | null }) =>
+    mutationFn: (data: { note?: string | null; expectedBuyTotal?: number | null }) =>
       request<{ data: PRRow }>(
         `/api/purchase-requests/${id}/director-approve`,
         { method: "POST", body: JSON.stringify(data) },

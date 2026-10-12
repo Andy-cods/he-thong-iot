@@ -269,13 +269,66 @@ function RecheckLedgerPanel({
     );
   }
 
+  const badOf = (l: (typeof lines)[number]) => {
+    const raw = values[l.id] ?? "";
+    const n = Number(raw.replace(",", "."));
+    return (
+      !!l.itemId &&
+      (raw.trim() === "" || !Number.isFinite(n) || n < 0 || n > (l.stillNeeded ?? 0) + 1e-9 || !!calc.rows.get(l.id)?.over)
+    );
+  };
+
   return (
-    <div className="space-y-2">
+    <div className="min-w-0 max-w-full space-y-2">
+      {/* m1 — mobile (390px): mỗi dòng một thẻ, không tràn ngang. */}
+      <ul className="space-y-2 md:hidden">
+        {lines.map((l) => {
+          const row = calc.rows.get(l.id);
+          const bad = badOf(l);
+          return (
+            <li key={l.id} className="min-w-0 rounded-md border border-zinc-200 p-2 text-sm dark:border-zinc-800">
+              <div className="min-w-0 font-medium [overflow-wrap:anywhere]">{l.name ?? l.sku ?? `Dòng ${l.lineNo}`}</div>
+              {l.sku ? <div className="font-mono text-xs text-zinc-500 [overflow-wrap:anywhere]">{l.sku}</div> : null}
+              <dl className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 text-xs tabular-nums">
+                <dt className="text-zinc-500">Đề xuất</dt>
+                <dd className="text-right">{fmtNumVN(l.qty)} {l.uom ?? ""}</dd>
+                <dt className="text-zinc-500">Đã xuất</dt>
+                <dd className="text-right">{fmtNumVN(l.issuedQty ?? 0)}</dd>
+                <dt className="text-zinc-500">Đã mua / đã về</dt>
+                <dd className="text-right">
+                  {fmtNumVN(l.orderedEffective ?? 0)} / {fmtNumVN(l.receivedOk ?? 0)}
+                </dd>
+                <dt className="text-zinc-500">Còn phải đáp ứng</dt>
+                <dd className="text-right font-medium">{l.itemId ? fmtNumVN(l.stillNeeded ?? 0) : "—"}</dd>
+                <dt className="text-zinc-500">Khả dụng</dt>
+                <dd className={"text-right " + (row?.over ? "text-rose-600" : "text-emerald-600")}>
+                  {l.itemId ? fmtNumVN(row?.left ?? l.available) : "—"}
+                </dd>
+              </dl>
+              {!l.itemId ? (
+                <div className="mt-1 text-[11px] text-zinc-500">Dòng nhập tay (chưa có vật tư) — theo dõi PO</div>
+              ) : (
+                <label className="mt-1.5 flex items-center justify-between gap-2 text-xs">
+                  <span className="text-zinc-600 dark:text-zinc-400">Cần mua thêm</span>
+                  <Input
+                    inputMode="decimal"
+                    value={values[l.id] ?? ""}
+                    onChange={(e) => setValues((v) => ({ ...v, [l.id]: e.target.value }))}
+                    aria-label={`SL cần mua thêm dòng ${l.lineNo}`}
+                    aria-invalid={bad}
+                    className={"h-8 w-28 text-right tabular-nums " + (bad ? "border-rose-500" : "")}
+                  />
+                </label>
+              )}
+            </li>
+          );
+        })}
+      </ul>
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
         “Còn phải đáp ứng” = Đề xuất − max(Đã xuất, Đã về đạt QC). Hàng PO đã về được tính một lần —
         không mua lại. Phần không mua thêm sẽ do Kho xuất từ tồn khả dụng.
       </p>
-      <div className="max-h-[50vh] overflow-auto rounded-md border border-zinc-200 dark:border-zinc-800">
+      <div className="hidden max-h-[50vh] overflow-auto rounded-md border border-zinc-200 md:block dark:border-zinc-800">
         <table className="w-full text-sm">
           <thead className="bg-zinc-50 text-xs text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
             <tr>
@@ -326,7 +379,7 @@ function RecheckLedgerPanel({
                   </td>
                   <td className="px-2 py-1.5 text-right">
                     {!l.itemId ? (
-                      <div className="text-[11px] text-zinc-500">Dòng nhập tay — theo dõi PO</div>
+                      <div className="text-[11px] text-zinc-500">Dòng nhập tay (chưa có vật tư) — theo dõi PO</div>
                     ) : (
                       <Input
                         inputMode="decimal"

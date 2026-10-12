@@ -572,7 +572,8 @@ export async function createPOFromPR(
       .limit(1)
       .for("update");
     if (!pr) throw new Error("PR_NOT_FOUND");
-    if (pr.status !== "APPROVED") {
+    // B2 — CONVERTED vẫn lập PO bổ sung được khi sổ còn phần phải đặt (PO trước đóng thiếu / QC hỏng).
+    if (pr.status !== "APPROVED" && pr.status !== "CONVERTED") {
       throw new Error(`PR_NOT_APPROVED (status=${pr.status})`);
     }
     // C3(d) — phiếu đã hoàn tất (xuất đủ / chốt ở phần đã xuất) không lập PO được nữa.
@@ -785,7 +786,7 @@ export async function createPOFromPR(
       .set({
         status: "CONVERTED",
         approvalStep: "CONVERTED",
-        poCreatedAt: new Date(),
+        poCreatedAt: pr.poCreatedAt ?? new Date(),
         updatedAt: new Date(),
       })
       .where(eq(purchaseRequest.id, prId));

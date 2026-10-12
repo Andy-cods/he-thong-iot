@@ -6,9 +6,9 @@ import { getPR, getPRLines, PrApprovalError, recheckPrStock } from "@/server/rep
 import { buyQtysSchema } from "@/lib/pr-buy-schema";
 import { extractRequestMeta, isDbConcurrencyError, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
-import { notifyPRApproved, notifyPRDeptApproved, notifyPRStockCovered } from "@/server/services/notifications";
+import { notifyPRDeptApproved, notifyPRStockCovered } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
-import { notifyPrAutoFinalized, notifyReadyToIssueIfAny } from "@/server/services/prWarehouseNotify";
+import { notifyPoTopUpIfNeeded, notifyPrAutoFinalized, notifyReadyToIssueIfAny } from "@/server/services/prWarehouseNotify";
 import { canAccessPR } from "@/server/services/prAccess";
 
 export const runtime = "nodejs";
@@ -92,19 +92,8 @@ export async function POST(
     if (r.finalized) void notifyPrAutoFinalized(before, guard.session);
     else if (r.autoFinal || r.coveredAfterFinal) void notifyReadyToIssueIfAny(params.id, "stock_covered", guard.session);
     if (r.reopenedForPo) {
-      // Phiếu đã lập PO, PO cũ đóng thiếu: phần còn phải đặt (trong mức đã duyệt) → "Cần tạo PO".
-      const cover = summarizeLineCoverage(await getPRLines(params.id));
-      void notifyPRApproved({
-        prId: params.id,
-        prNo: before.paperFormNo ?? before.code,
-        title: before.title ?? null,
-        actorUserId: guard.session.userId,
-        actorUsername: guard.session.fullName,
-        creatorUserId: before.requestedBy,
-        coveredLines: cover.coveredLines,
-        buyLines: cover.buyLines,
-        partialLines: cover.partialLines,
-      });
+      // Phiếu đã lập PO, PO cũ đóng thiếu: phần còn phải đặt (trong mức đã duyệt) → "Cần tạo PO bổ sung".
+      void notifyPoTopUpIfNeeded(params.id, guard.session);
     }
     if (r.increased && r.notifyDeptApproved) {
       const cover = summarizeLineCoverage(await getPRLines(params.id));

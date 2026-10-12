@@ -124,7 +124,18 @@ export async function GET(
   const legacyBlockedByHold =
     canSeeStock &&
     ledger.lines.some(
-      (l) => l.legacy && l.itemId && l.remaining > 1e-6 && (freeByItem.get(l.itemId) ?? 0) <= 1e-6,
+      (l) =>
+        l.legacy &&
+        l.itemId &&
+        l.remaining > 1e-6 &&
+        (freeByItem.get(l.itemId) ?? 0) <= 1e-6 &&
+        (issuableByItem.get(l.itemId) ?? 0) > 1e-6,
+    );
+  // m2 — tồn THẬT = 0 thì không phải "bị phiếu mới giữ" mà là hết tồn.
+  const legacyNoStock =
+    canSeeStock &&
+    ledger.lines.some(
+      (l) => l.legacy && l.itemId && l.remaining > 1e-6 && (issuableByItem.get(l.itemId) ?? 0) <= 1e-6,
     );
   const legacyIssuable = ledger.lines.some(
     (l) => l.legacy && l.itemId && l.remaining > 1e-6 && (freeByItem.get(l.itemId) ?? 0) > 1e-6,
@@ -169,6 +180,7 @@ export async function GET(
       /** N9 — còn phần xuất được THẬT (phiếu cũ chỉ tính khi tồn sau cam kết > 0). */
       issuableNow: nonLegacyRemaining > 1e-6 || legacyIssuable,
       legacyBlockedByHold,
+      legacyNoStock,
       shortOfCommitment: shortOfCommitment.length > 0,
       shortOfCommitmentItems: shortOfCommitment,
       hasPendingPo: !ledger.noWaiting,

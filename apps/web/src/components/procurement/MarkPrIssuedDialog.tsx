@@ -607,7 +607,7 @@ export function MarkPrIssuedDialog({
           </div>
         </div>
 
-        {stage !== "WAREHOUSE" && !noStock && anyIssued && noWaiting && dropsUnordered ? (
+        {stage !== "WAREHOUSE" && !noStock && noWaiting && dropsUnordered ? (
           <div className="space-y-1 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
             <Label htmlFor="pr-finish-reason" className="text-xs font-medium">
               Còn {fmt(toOrder)} chưa đặt mua — nếu “Kết thúc”, phần này bị bỏ. Lý do:
@@ -627,14 +627,14 @@ export function MarkPrIssuedDialog({
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
             Huỷ
           </Button>
-          {stage !== "WAREHOUSE" && !noStock && anyIssued && noWaiting ? (
+          {stage !== "WAREHOUSE" && !noStock && noWaiting && (anyIssued || dropsUnordered) ? (
             <Button
               variant="outline"
               onClick={finishNow}
               disabled={submitting}
-              title="Đóng quy trình xuất kho dù còn dòng chưa xuất đủ"
+              title={anyIssued ? "Đóng quy trình xuất kho dù còn dòng chưa xuất đủ" : "Bỏ phần chưa đặt mua và đóng phiếu"}
             >
-              Kết thúc, không xuất thêm
+              {anyIssued ? "Kết thúc, không xuất thêm" : "Kết thúc – bỏ phần mua"}
             </Button>
           ) : null}
           {!noStock ? (

@@ -75,6 +75,7 @@ import { statusLabel, type StatusTone } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { ConvertPRToPODialog } from "@/components/procurement/ConvertPRToPODialog";
 import { MarkPrIssuedDialog } from "@/components/procurement/MarkPrIssuedDialog";
+import { buyTotalOf } from "@/lib/pr-ledger";
 import { PrStockCheckPanel } from "@/components/procurement/PrStockCheckPanel";
 import {
   DnvtDetailBody,
@@ -318,8 +319,13 @@ export default function PurchaseRequestDetailPage() {
   // SỔ DÒNG — còn phần được lập PO (toOrder > 0).
   const ledgerSum = detail.data?.data.ledgerSummary;
   const needsBuy = (ledgerSum?.toOrder ?? 0) > 1e-6;
+  // B2 — CONVERTED vẫn "Tạo PO" (bổ sung) khi sổ còn phần phải đặt (PO trước đóng thiếu / QC hỏng).
   const canConvert =
-    (isAdmin || isPurchaser) && status === "APPROVED" && !pr.completedAt && needsBuy;
+    (isAdmin || isPurchaser) &&
+    (status === "APPROVED" || status === "CONVERTED") &&
+    ledgerSum?.phase === "FINAL" &&
+    !pr.completedAt &&
+    needsBuy;
   // V3.7.70 — Manual timeline events
   // L3 — Kho xuất được ngay khi phiếu đã duyệt (APPROVED/CONVERTED) còn tồn khả
   // dụng, KHÔNG cần chờ nhận hàng PO. L8 — còn xuất tiếp nhiều đợt tới khi đủ.
@@ -332,10 +338,10 @@ export default function PurchaseRequestDetailPage() {
     detail.data?.data.issuableNow === false ? 0 : detail.data?.data.warehouseIssuableRemaining ?? 0;
   const noWaiting = ledgerSum?.noWaiting ?? true;
   // "Kết thúc" chỉ khi không còn hàng đang về / chờ QC (sổ dòng); còn dòng chưa đủ hoặc còn phần chưa đặt.
+  // B2 — còn phần chưa đặt mà không còn gì đang về: "Kết thúc – bỏ phần mua" kể cả khi chưa xuất đợt nào.
+  const dropOnly = noWaiting && (ledgerSum?.toOrder ?? 0) > 1e-6 && ledgerSum?.phase === "FINAL";
   const canFinishOnly =
-    issuedAny &&
-    noWaiting &&
-    ((pr.issueProgress?.pendingLines ?? 0) > 0 || (ledgerSum?.toOrder ?? 0) > 1e-6);
+    (issuedAny && noWaiting && (pr.issueProgress?.pendingLines ?? 0) > 0) || dropOnly;
   const canMarkIssued =
     (isAdmin || isWarehouse) &&
     !pr.goodsIssuedAt &&
@@ -411,7 +417,11 @@ export default function PurchaseRequestDetailPage() {
         });
         toast.success("Đã duyệt bước Trưởng bộ phận");
       } else if (approveOpen === "director") {
-        await directorApprove.mutateAsync({ note: approveNote.trim() || null });
+        await directorApprove.mutateAsync({
+          note: approveNote.trim() || null,
+          // m5 — Σ SL cần mua đang thấy; Kho vừa kiểm tồn lại → server 409 "tải lại trang".
+          expectedBuyTotal: buyTotalOf(pr.lines),
+        });
         toast.success("Đã duyệt cuối — phiếu hoàn tất phê duyệt");
       } else if (approveOpen === "quick") {
         await quickApprove.mutateAsync({
@@ -436,7 +446,7 @@ export default function PurchaseRequestDetailPage() {
         r.data.increased
           ? "Cần mua vượt mức đã duyệt — phiếu đã quay về chờ duyệt cuối cho phần mua thêm."
           : r.data.reopenedForPo
-            ? "Đã kiểm tồn lại: còn phần cần lập PO — Thu mua đã được báo “Tạo PO”."
+            ? "Đã kiểm tồn lại: còn phần cần lập PO — Thu mua đã được báo “Cần tạo PO bổ sung”."
             : r.data.finalized
             ? "Đã kiểm tồn lại: phiếu đủ điều kiện — đã Hoàn tất."
             : r.data.autoFinal || r.data.coveredAfterFinal
@@ -562,10 +572,16 @@ export default function PurchaseRequestDetailPage() {
               <h1 className="mt-1 line-clamp-2 min-w-0 [overflow-wrap:anywhere] text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
                 {pr.title || (pr.formType === "DNVT" ? "Phiếu DNVT" : "Phiếu MRF")}
               </h1>
-              {detail.data?.data.legacyBlockedByHold && (isAdmin || isWarehouse) && !pr.goodsIssuedAt ? (
+              {(detail.data?.data.legacyBlockedByHold || detail.data?.data.legacyNoStock) &&
+              (isAdmin || isWarehouse) &&
+              !pr.goodsIssuedAt ? (
                 <p className="mt-1.5 flex items-start gap-1.5 rounded-md border border-zinc-300 bg-zinc-50 px-2.5 py-1.5 text-xs text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-                  <span>Tồn đang được giữ cho phiếu mới — phiếu cũ này chưa xuất được phần còn lại.</span>
+                  <span>
+                    {detail.data?.data.legacyBlockedByHold
+                      ? "Tồn đang được giữ cho phiếu mới — phiếu cũ này chưa xuất được phần còn lại."
+                      : "Hết tồn — phiếu cũ này chưa xuất được phần còn lại."}
+                  </span>
                 </p>
               ) : null}
               {detail.data?.data.shortOfCommitment && (isAdmin || isWarehouse || isPurchaser) ? (
@@ -796,7 +812,7 @@ export default function PurchaseRequestDetailPage() {
                 ) : (
                   <ArrowRight className="h-3.5 w-3.5" />
                 )}
-                Tạo PO
+                {status === "CONVERTED" ? "Tạo PO bổ sung" : "Tạo PO"}
               </Button>
             )}
             {canRecheckStock && (
@@ -818,7 +834,7 @@ export default function PurchaseRequestDetailPage() {
                 className="border-violet-300 text-violet-700 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-300 dark:hover:bg-violet-950/40"
               >
                 <Truck className="h-3.5 w-3.5" />
-                {issuedAny ? "Xuất kho đợt tiếp" : "Đã xuất kho"}
+                {issuedAny ? "Xuất kho đợt tiếp" : issuableLeft > 0 ? "Đã xuất kho" : "Kết thúc – bỏ phần mua"}
               </Button>
             )}
             {canMarkCompleted && (

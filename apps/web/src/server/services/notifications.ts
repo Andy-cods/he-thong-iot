@@ -419,6 +419,30 @@ export async function closeReadyToIssue(prId: string): Promise<void> {
   }
 }
 
+/** "Cần tạo PO" / nhắc lập PO của phiếu hết hiệu lực (đã có PO lập theo đường khác) → đánh dấu đã đọc. */
+export async function closePrNeedsPo(prId: string): Promise<void> {
+  try {
+    const closed = await db
+      .update(notification)
+      .set({ readAt: new Date() })
+      .where(
+        and(
+          eq(notification.entityId, prId),
+          inArray(notification.eventType, ["PR_APPROVED", "PR_APPROVED_NO_PO_REMINDER"]),
+          isNull(notification.readAt),
+        ),
+      )
+      .returning({ id: notification.id, recipientUser: notification.recipientUser });
+    for (const r of closed) {
+      if (!r.recipientUser) continue;
+      publishNotifyEvent({ kind: "read", userIds: [r.recipientUser], notificationId: r.id });
+      void invalidateActionItemsCache(r.recipientUser);
+    }
+  } catch (err) {
+    logger.warn({ err, prId }, "closePrNeedsPo failed");
+  }
+}
+
 export const notifyPRReopenedForPO = (ctx: Arg<typeof planPRReopenedForPO>) =>
   run(planPRReopenedForPO(ctx));
 export const notifyPRApproved = (ctx: Arg<typeof planPRApproved>) => run(planPRApproved(ctx));

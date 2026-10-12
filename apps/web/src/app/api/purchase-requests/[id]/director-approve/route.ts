@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
-import { directorApprovePR, getPR, getPRLines } from "@/server/repos/purchaseRequests";
+import { directorApprovePR, getPR, getPRLines, PrApprovalError } from "@/server/repos/purchaseRequests";
 import { extractRequestMeta, isDbConcurrencyError, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import {
@@ -17,6 +17,8 @@ export const dynamic = "force-dynamic";
 
 const inputSchema = z.object({
   note: z.string().trim().max(2000).optional().nullable(),
+  /** m5 — Σ SL cần mua client đã thấy (bỏ trống = client cũ, không kiểm). */
+  expectedBuyTotal: z.number().nonnegative().finite().optional().nullable(),
 });
 
 /**
@@ -82,6 +84,7 @@ export async function POST(
       params.id,
       guard.session.userId,
       body.data.note ?? null,
+      body.data.expectedBuyTotal ?? null,
     );
     if (!row) return jsonError("CONFLICT", "Phiếu đã thay đổi trạng thái.", 409);
 
@@ -135,6 +138,10 @@ export async function POST(
 
     return NextResponse.json({ data: row });
   } catch (err) {
+    if (err instanceof PrApprovalError) {
+      logger.warn({ prId: params.id, code: err.code, detail: err.message }, "director-approve PR rejected");
+      return jsonError(err.code, err.message, err.httpStatus);
+    }
     if (isDbConcurrencyError(err)) {
       return jsonError("CONFLICT", "Đang có thao tác khác trên phiếu — thử lại.", 409);
     }

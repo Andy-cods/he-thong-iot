@@ -36,6 +36,7 @@ import {
 import {
   buildPrLedger,
   decideFinish,
+  isBuyTotalStale,
   EMPTY_PO_SUMMARY,
   ledgerIssueProgress,
   planRecheck,
@@ -951,7 +952,7 @@ export async function submitPR(id: string): Promise<PurchaseRequest | null> {
 /** L1 — lỗi nghiệp vụ khi duyệt Kho / kiểm tồn lại (route map ra HTTP). */
 export class PrApprovalError extends Error {
   constructor(
-    public readonly code: "VALIDATION" | "STOCK_SHORT" | "INVALID_STATE",
+    public readonly code: "VALIDATION" | "STOCK_SHORT" | "INVALID_STATE" | "STALE",
     message: string,
     public readonly httpStatus: number,
   ) {
@@ -1432,10 +1433,25 @@ export async function directorApprovePR(
   id: string,
   approverId: string,
   note?: string | null,
+  /** m5 — Σ SL cần mua người duyệt đã thấy; khác hiện tại (Kho vừa kiểm tồn lại) → 409 STALE. */
+  expectedBuyTotal?: number | null,
 ): Promise<(PurchaseRequest & { finalized: boolean }) | null> {
   return db.transaction(async (tx) => {
     // L3 — thứ tự khoá thống nhất: vật tư (advisory, đã sắp xếp) → hàng PR.
     await lockPrItemsForStock(tx, id);
+    if (expectedBuyTotal != null) {
+      const cur = await tx
+        .select({ qty: purchaseRequestLine.qty, approvedQty: purchaseRequestLine.approvedQty })
+        .from(purchaseRequestLine)
+        .where(eq(purchaseRequestLine.prId, id));
+      if (isBuyTotalStale(cur, expectedBuyTotal)) {
+        throw new PrApprovalError(
+          "STALE",
+          "Phiếu vừa được Kho kiểm tồn lại (SL cần mua đã đổi) — tải lại trang rồi duyệt.",
+          409,
+        );
+      }
+    }
     const [row] = await tx
       .update(purchaseRequest)
       .set({
@@ -1524,7 +1540,7 @@ export async function quickApprovePR(
  *    phần thiếu) không cần duyệt lại.
  *  - Không vượt: sau kiểm không còn gì phải đặt mà đang chờ duyệt cuối → như "Kho đáp ứng đủ";
  *    đã duyệt cuối mà trước đó còn phần chờ lập PO → `coveredAfterFinal` (route báo STOCK_COVERED);
- *    phiếu đã lập PO (CONVERTED) mà còn phần phải đặt → về "đã duyệt, cần lập PO" (`reopenedForPo`).
+ *    phiếu đã lập PO (CONVERTED) mà còn phần phải đặt → báo "Cần tạo PO bổ sung" (`reopenedForPo`).
  *  - Cuối cùng: finalizeIfComplete.
  */
 export async function recheckPrStock(
@@ -1540,7 +1556,7 @@ export async function recheckPrStock(
   coveredAfterFinal: boolean;
   /** Nên báo "chờ duyệt cuối" (mới về bước này hoặc tổng cần mua tăng). */
   notifyDeptApproved: boolean;
-  /** Phiếu đã lập PO, còn phần phải đặt (trong mức đã duyệt) → về APPROVED để Thu mua "Tạo PO". */
+  /** Phiếu đã lập PO, còn phần phải đặt (trong mức đã duyệt) → báo Thu mua "Cần tạo PO bổ sung". */
   reopenedForPo: boolean;
   summary: ReturnType<typeof summarizeBuyDecisions>;
   decisions: Record<string, number>;
@@ -1653,18 +1669,8 @@ export async function recheckPrStock(
       pr = row;
       autoFinal = true;
     }
-    let reopenedForPo = false;
-    if (cur.status === "CONVERTED" && after.ledger.toOrder > 1e-6) {
-      const [row] = await tx
-        .update(purchaseRequest)
-        .set({ status: "APPROVED", approvalStep: "DIRECTOR_APPROVED", updatedAt: now })
-        .where(and(eq(purchaseRequest.id, id), eq(purchaseRequest.status, "CONVERTED")))
-        .returning();
-      if (row) {
-        pr = row;
-        reopenedForPo = true;
-      }
-    }
+    // B2 — phiếu đã lập PO còn phần phải đặt (trong mức đã duyệt): Thu mua lập PO bổ sung thẳng từ phiếu.
+    const reopenedForPo = cur.status === "CONVERTED" && after.ledger.toOrder > 1e-6;
     const coveredAfterFinal =
       !autoFinal &&
       (cur.status === "APPROVED" || cur.status === "CONVERTED") &&
@@ -1806,6 +1812,11 @@ export function validatePrIssuePicks(
   /** Chỉ để chọn câu chữ OVER_ISSUE. */
   stage: "WAREHOUSE" | "FINAL" = "FINAL",
   hasPo = false,
+  /**
+   * B1 — trần THEO VẬT TƯ (sổ: cap_item − Σ đã xuất). Có thì mỗi dòng chỉ cần ≤ đề xuất − đã xuất,
+   * còn tổng theo vật tư ≤ phần này; không có → kiểm theo `cap` từng dòng (cách cũ).
+   */
+  itemLeft?: ReadonlyMap<string, number>,
 ): ValidatePrIssueResult {
   const fail = (code: string, msg: string, status = 422): ValidatePrIssueResult => ({
     ok: false,
@@ -1846,6 +1857,38 @@ export function validatePrIssuePicks(
       qty: p.qty,
       purchaseRequestLineId: line.id,
     });
+  }
+
+  if (itemLeft) {
+    const byItem = new Map<string, number>();
+    for (const [lineId, qty] of qtyByLine) {
+      const line = byId.get(lineId)!;
+      const issued = line.issuedQty ?? 0;
+      const left = Math.max(0, line.qty - issued);
+      if (qty > left + PR_ISSUE_EPS) {
+        return fail(
+          "OVER_ISSUE",
+          left <= PR_ISSUE_EPS
+            ? `${line.sku ?? "Dòng"} đã xuất đủ SL đề xuất — không xuất thêm.`
+            : `${line.sku ?? "Dòng"} chỉ còn ${fmtQ(left)} theo SL đề xuất (đã xuất ${fmtQ(issued)}), không xuất ${fmtQ(qty)}.`,
+        );
+      }
+      byItem.set(line.itemId!, (byItem.get(line.itemId!) ?? 0) + qty);
+    }
+    for (const [itemId, qty] of byItem) {
+      const left = itemLeft.get(itemId) ?? 0;
+      if (qty > left + PR_ISSUE_EPS) {
+        const label = lines.find((l) => l.itemId === itemId)?.sku ?? "Vật tư";
+        const capLabel = stage === "WAREHOUSE" || !hasPo ? "phần xuất từ kho" : "phần có sẵn + hàng đã về";
+        return fail(
+          "OVER_ISSUE",
+          left <= PR_ISSUE_EPS
+            ? `${label} đã xuất đủ ${capLabel} của vật tư trong phiếu — không xuất thêm.`
+            : `${label} chỉ còn được xuất tối đa ${fmtQ(left)} (${capLabel} của vật tư trong phiếu), không xuất ${fmtQ(qty)}.`,
+        );
+      }
+    }
+    return { ok: true, picks: resolved };
   }
 
   for (const [lineId, qty] of qtyByLine) {
@@ -2003,11 +2046,13 @@ export async function markPRGoodsIssuedWithStock(
       }));
 
       if (input.picks.length === 0) {
-        // Chỉ hợp lệ khi "Kết thúc, không xuất thêm" sau ≥ 1 đợt đã xuất.
+        // Chỉ hợp lệ khi "Kết thúc, không xuất thêm" sau ≥ 1 đợt đã xuất — hoặc (B2) "Kết thúc – bỏ phần mua":
+        // không còn hàng đang về mà còn phần chưa đặt (VD PO đóng vì QC hỏng hết), dù chưa xuất đợt nào.
         if (!input.finish) {
           throw new GoodsIssueError("EMPTY_ISSUE", "Chưa chọn lô xuất cho dòng nào.", 400);
         }
-        if (!hadEarlierIssue) {
+        const dropOnly = before.noWaiting && before.toOrder > 1e-4;
+        if (!hadEarlierIssue && !dropOnly) {
           throw new GoodsIssueError(
             "EMPTY_ISSUE",
             "Chưa xuất đợt nào — chọn lô để xuất trước khi kết thúc.",
@@ -2018,7 +2063,8 @@ export async function markPRGoodsIssuedWithStock(
         progress = ledgerIssueProgress(before);
         complete = true;
       } else {
-        const v = validatePrIssuePicks(lineStates, input.picks, stage, loaded.po.hasPo);
+        const itemLeft = new Map(Array.from(before.items.values()).map((it) => [it.itemId, it.capLeft]));
+        const v = validatePrIssuePicks(lineStates, input.picks, stage, loaded.po.hasPo, itemLeft);
         if (!v.ok) throw v.error;
 
         // B1-B3 — tổng xuất theo vật tư ≤ tồn khả dụng − phần ĐÃ GIỮ CHỖ cho phiếu khác.

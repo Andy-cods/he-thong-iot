@@ -11,8 +11,11 @@ import {
 import { writeAudit } from "@/server/services/audit";
 import {
   notifyPOApprovalRequested,
+  closePrNeedsPo,
+  notifyPOCreatedFromPR,
   notifyPOSent,
 } from "@/server/services/notifications";
+import { getPR, getPrLedger } from "@/server/repos/purchaseRequests";
 import { requireCan } from "@/server/session";
 import { PR_COMPLETED_PO_MESSAGE } from "@/lib/pr-close-policy";
 import { canCreatePoFromPr, parseDateParam } from "@/lib/procurement-policy";
@@ -144,6 +147,25 @@ export async function POST(req: NextRequest) {
         poId: row.id,
         poNo: row.poNo,
         totalAmount: row.totalAmount,
+        actorUserId: guard.session.userId,
+        actorUsername: guard.session.fullName,
+      });
+    }
+
+    // m3 — PO thủ công kèm prId cũng là "đã lập PO từ phiếu": báo như from-pr (đóng "Cần tạo PO").
+    if (row.prId) {
+      // Đã đặt đủ phần còn phải đặt → "Cần tạo PO" hết hiệu lực; còn thiếu thì giữ thông báo.
+      const led = await getPrLedger(row.prId).catch(() => null);
+      if (led && led.ledger.toOrder <= 1e-6) void closePrNeedsPo(row.prId);
+    }
+    if (row.prId && row.status === "DRAFT" && approvalStatus !== "pending") {
+      const pr = await getPR(row.prId).catch(() => null);
+      void notifyPOCreatedFromPR({
+        prId: row.prId,
+        prNo: pr?.paperFormNo ?? pr?.code ?? row.prId,
+        prCreatorUserId: pr?.requestedBy ?? null,
+        poCount: 1,
+        firstPoId: row.id,
         actorUserId: guard.session.userId,
         actorUsername: guard.session.fullName,
       });
