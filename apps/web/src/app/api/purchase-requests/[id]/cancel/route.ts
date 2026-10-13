@@ -43,12 +43,15 @@ export async function POST(
   }
 
   const isCreator = before.requestedBy === guard.session.userId;
-  const allowed = canCancelPR({
-    status: before.status,
-    creatorId: before.requestedBy,
-    actorId: guard.session.userId,
-    actorRoles: guard.session.roles,
-  });
+  const allowed =
+    canCancelPR({
+      status: before.status,
+      creatorId: before.requestedBy,
+      actorId: guard.session.userId,
+      actorRoles: guard.session.roles,
+    }) ||
+    // N-c — CONVERTED: admin được huỷ khi mọi PO đã huỷ (repo kiểm HAS_PO, báo đúng lý do).
+    (before.status === "CONVERTED" && guard.session.roles.includes("admin"));
   if (!allowed) {
     // L6 — thông báo đúng lý do: trạng thái không huỷ được (REJECTED/CANCELLED/
     // CONVERTED) là lỗi trạng thái (409), không phải thiếu quyền (403).

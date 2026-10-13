@@ -28,7 +28,12 @@ export const receivingEventSchema = z.object({
   scanId: z.string().uuid("scanId phải là UUIDv7"),
   poCode: z.string().trim().min(1).max(64),
   sku: z.string().trim().min(1).max(128),
-  qty: z.coerce.number().positive("Số lượng phải > 0"),
+  // N-a — khớp numeric(…,4) của dòng phiếu nhập: tối thiểu 0,0001, tối đa 4 chữ số thập phân.
+  qty: z.coerce
+    .number()
+    .positive("Số lượng phải > 0")
+    .min(0.0001, "Số lượng tối thiểu 0,0001")
+    .refine((v) => Math.abs(Math.round(v * 1e4) / 1e4 - v) < 1e-9, "Số lượng tối đa 4 chữ số thập phân."),
   // V4.1 KHO-30 — cột lot_code chỉ 64 ký tự; chừa chỗ hậu tố tách lô "-N"
   // (D5: nhận trùng mã lô → LOT-A-2, LOT-A-3…) nên giới hạn 56.
   lotNo: z.string().trim().max(56, "Mã lô tối đa 56 ký tự").optional().nullable(),

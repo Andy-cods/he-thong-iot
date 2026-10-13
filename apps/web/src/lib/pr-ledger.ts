@@ -94,9 +94,34 @@ export function isBuyTotalStale(
 }
 
 /**
+ * M2 — hàm thuần TƯƠNG ĐƯƠNG migration 0081 (dòng phiếu cũ KHÔNG PO): phân tồn khả dụng (đã trừ giữ chỗ
+ * của các phiếu có approved) cho các dòng theo thứ tự phiếu tạo trước, theo vật tư.
+ * give = min(qty − đã xuất, tồn còn lại); approved = qty − đã xuất − give.
+ */
+export function legacyStockAllocation(
+  lines: ReadonlyArray<{ id: string; itemId: string; qty: number; issued: number; prCreatedAt: string | number; lineNo: number }>,
+  poolByItem: ReadonlyMap<string, number>,
+): Record<string, { give: number; approved: number }> {
+  const sorted = [...lines].sort((a, b) =>
+    a.prCreatedAt === b.prCreatedAt ? a.lineNo - b.lineNo : a.prCreatedAt < b.prCreatedAt ? -1 : 1,
+  );
+  const left = new Map(poolByItem);
+  const out: Record<string, { give: number; approved: number }> = {};
+  for (const l of sorted) {
+    const need = Math.max(0, l.qty - l.issued);
+    const pool = Math.max(0, left.get(l.itemId) ?? 0);
+    const give = Math.min(need, pool);
+    left.set(l.itemId, pool - give);
+    out[l.id] = { give: r4(give), approved: r4(Math.max(0, need - give)) };
+  }
+  return out;
+}
+
+/**
  * N1 — hàm thuần TƯƠNG ĐƯƠNG migration 0081: chốt approved_qty cho các dòng phiếu cũ (NULL) của MỘT phiếu.
  *  - dòng nhập tay → qty; phiếu không có PO → 0 (xuất từ tồn);
- *  - có PO → đặt hiệu lực của vật tư rót lần lượt theo dòng, mỗi dòng ≤ qty − đã xuất TRƯỚC PO đầu tiên.
+ *  - có PO (M1) → Σ SL ĐẶT của mọi PO không huỷ của vật tư rót lần lượt theo dòng, mỗi dòng ≤ qty − đã
+ *    xuất TRƯỚC PO đầu tiên. (`oeByItem` = Σ SL đặt.) Không PO → xem `legacyStockAllocation` (M2).
  */
 export function legacyBackfillApproved(
   lines: ReadonlyArray<{ id: string; itemId: string | null; qty: number; issuedBeforeFirstPo?: number }>,
@@ -143,6 +168,8 @@ export interface ItemPoAgg {
   inbound: number;
   /** Σ đặt của PO đang mở (thông tin). */
   orderedOpen: number;
+  /** Σ đặt của MỌI PO không huỷ (kể cả đã đóng / QC hỏng) — SL cần mua của dòng phiếu cũ (M1). */
+  orderedAll?: number;
 }
 
 export interface PrPoSummary {
@@ -168,7 +195,8 @@ export function summarizePrPos(rows: ReadonlyArray<LedgerPoLineRow>): PrPoSummar
     const fail = Math.max(0, num(r.failQc));
     // Nhận không có dòng phiếu nhập (dữ liệu cũ) coi như đạt.
     const pass = Math.max(0, num(r.received) - pending - fail);
-    const a = byItem.get(r.itemId) ?? { receivedOk: 0, pendingQc: 0, inbound: 0, orderedOpen: 0 };
+    const a = byItem.get(r.itemId) ?? { receivedOk: 0, pendingQc: 0, inbound: 0, orderedOpen: 0, orderedAll: 0 };
+    a.orderedAll = (a.orderedAll ?? 0) + ordered;
     a.receivedOk += pass;
     a.pendingQc += pending;
     if (isOpenPoStatus(r.poStatus)) {
@@ -274,7 +302,7 @@ function pour(total: number, first: number[], second?: number[]): number[] {
  */
 export function buildItemLedger(
   ls: ReadonlyArray<LedgerLineInput>,
-  agg: Pick<ItemPoAgg, "receivedOk" | "pendingQc" | "inbound"> | undefined,
+  agg: (Pick<ItemPoAgg, "receivedOk" | "pendingQc" | "inbound"> & { orderedAll?: number }) | undefined,
   phase: PrIssuePhase,
   hasPo: boolean,
 ): { item: ItemLedger | null; lines: LineLedger[] } {
@@ -325,6 +353,11 @@ export function buildItemLedger(
   const roomAfterOk = room.map((v, i) => Math.max(0, v - shOk[i]!));
   const shPq = pour(pq, roomAfterOk);
   const shInb = pour(inb, roomAfterOk.map((v, i) => Math.max(0, v - shPq[i]!)));
+  // Phiếu cũ có PO (M1, giống migration 0081): SL cần mua = Σ SL ĐẶT của mọi PO không huỷ, rót theo dòng.
+  const legacyBuy = pour(
+    agg?.orderedAll ?? rOk + pq + inb,
+    ls.map((_, i) => (legacy[i] ? req[i]! : 0)),
+  );
   // SL cần mua / phần từ tồn của từng dòng.
   const buy: number[] = [];
   const fs: number[] = [];
@@ -336,7 +369,7 @@ export function buildItemLedger(
       // N1 — phiếu cũ có PO: SL cần mua = phần "đặt hiệu lực" của dòng (không đổi khi hàng về / khi xuất),
       // phần còn lại là từ tồn. Migration 0081 đã chốt approved_qty cho phiếu đang mở; nhánh này chỉ là
       // dự phòng đọc cho dữ liệu sót.
-      const b = Math.min(req[i]!, shOk[i]! + shPq[i]! + shInb[i]!);
+      const b = Math.min(req[i]!, legacyBuy[i]!);
       buy.push(b);
       fs.push(req[i]! - b);
     } else {

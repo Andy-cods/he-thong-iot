@@ -2418,8 +2418,12 @@ export async function cancelPR(
       .limit(1);
     if (!pr) throw new PrCancelError("NOT_FOUND", "Không tìm thấy PR.", 404);
 
-    const cancellableStatuses: PurchaseRequestStatus[] = ["DRAFT", "SUBMITTED", "APPROVED"];
+    const cancellableStatuses: PurchaseRequestStatus[] = ["DRAFT", "SUBMITTED", "APPROVED", "CONVERTED"];
     if (!cancellableStatuses.includes(pr.status)) {
+      throw new PrCancelError("INVALID_STATE", cancelBlockedMessage(pr.status));
+    }
+    // N-c — CONVERTED chỉ huỷ được khi MỌI PO đã huỷ (kiểm HAS_PO bên dưới); đã hoàn tất thì không.
+    if (pr.status === "CONVERTED" && (pr.completedAt || pr.goodsIssuedAt)) {
       throw new PrCancelError("INVALID_STATE", cancelBlockedMessage(pr.status));
     }
 

@@ -67,8 +67,9 @@ describe("N1 — phiếu cũ (130/PRD-MRF/1026): q2, đã xuất 1 từ tồn, r
   it("SQL 0081 idempotent: chỉ chạm dòng approved_qty IS NULL; làm tròn so khác mới ghi (đọc mã nguồn)", () => {
     const sqlText = readFileSync(join(__dirname, "../../../../packages/db/migrations/0081_pr_legacy_buy_backfill.sql"), "utf8");
     expect(sqlText).toContain("ADD COLUMN IF NOT EXISTS approved_qty_prev");
-    expect(sqlText).toContain("WHERE l.id = c.id AND l.approved_qty IS NULL");
-    expect(sqlText).toContain("AND l.qty <> GREATEST(ROUND(l.qty, 4), 0.0001)");
+    // Lần 10: 0081 viết lại (bảng tạm _bf0081 + bảng audit) — vẫn chỉ chạm dòng NULL, làm tròn khi khác.
+    expect(sqlText).toContain("WHERE l.id = b.id AND l.approved_qty IS NULL");
+    expect(sqlText).toContain("WHERE old_qty <> new_qty OR (old_appr IS NOT NULL AND old_appr <> new_appr)");
   });
 });
 

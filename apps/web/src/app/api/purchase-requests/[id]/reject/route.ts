@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prRejectSchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
-import { getPR, rejectPR } from "@/server/repos/purchaseRequests";
+import { getPR, getPrLedger, rejectPR } from "@/server/repos/purchaseRequests";
+import { notifyPoTopUpIfNeeded, notifyPrAutoFinalized, notifyReadyToIssueIfAny } from "@/server/services/prWarehouseNotify";
 import {
   extractRequestMeta,
   jsonError,
@@ -9,7 +10,7 @@ import {
   validateUuidParam,
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
-import { notifyPRRejected } from "@/server/services/notifications";
+import { notifyPRApproved, notifyPRRejected } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 import { canRejectAtStep, isExpectedStepStale, isSelfApprovalBlocked } from "@/lib/procurement-policy";
 
@@ -120,6 +121,28 @@ export async function POST(
       closedAtIssued: row.closedAtIssued,
       extraOnly: row.extraOnly,
     });
+
+    // N-b — chỉ bỏ phần mua thêm: phiếu vẫn còn việc → gửi lại "Cần tạo PO" / "Cần xuất kho" khi còn.
+    if (row.extraOnly) {
+      if (row.completedAt || row.goodsIssuedAt) {
+        void notifyPrAutoFinalized(before, guard.session);
+      } else {
+        const led = await getPrLedger(params.id).catch(() => null);
+        if (led && led.ledger.toOrder > 5e-5) {
+          if (row.status === "CONVERTED") void notifyPoTopUpIfNeeded(params.id, guard.session);
+          else
+            void notifyPRApproved({
+              prId: params.id,
+              prNo: before.paperFormNo ?? before.code,
+              title: before.title ?? null,
+              actorUserId: guard.session.userId,
+              actorUsername: guard.session.fullName,
+              creatorUserId: before.requestedBy,
+            });
+        }
+        void notifyReadyToIssueIfAny(params.id, "approved", guard.session);
+      }
+    }
 
     return NextResponse.json({ data: row });
   } catch (err) {

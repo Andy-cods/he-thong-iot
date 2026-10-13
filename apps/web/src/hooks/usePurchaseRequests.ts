@@ -212,6 +212,8 @@ export interface PRDetailResponse {
     legacyBlockedByHold?: boolean;
     /** m2 — phiếu cũ còn phần xuất được nhưng tồn thật = 0. */
     legacyNoStock?: boolean;
+    /** N-e — vật tư còn xuất được nhưng tồn bị phiếu khác giữ hết. */
+    heldByOthersBlock?: Array<{ sku: string | null; holders: string[] }>;
     /** Tổng sổ dòng của phiếu. */
     ledgerSummary?: {
       phase: "NONE" | "WAREHOUSE" | "FINAL";

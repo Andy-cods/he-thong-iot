@@ -384,12 +384,17 @@ export default function PurchaseRequestDetailPage() {
   // N6 — đã có phiếu xuất kho thì không huỷ được (server chặn A3).
   const canCancel =
     !issuedAny &&
-    canCancelPR({
+    (canCancelPR({
       status,
       creatorId: pr.requestedBy,
       actorId: session.data?.id ?? "",
       actorRoles: roles,
-    });
+    }) ||
+      // N-c — phiếu CONVERTED mà MỌI PO đã huỷ: admin huỷ được phiếu.
+      (isAdmin &&
+        status === "CONVERTED" &&
+        !pr.completedAt &&
+        (pr.purchaseOrders ?? []).every((p) => p.status === "CANCELLED")));
 
   const paperFormNo = pr.paperFormNo ?? "—";
   // A18 — cột Đã xuất / Còn lại chỉ hiện khi đã có xuất kho + API trả issuedQty.
@@ -581,6 +586,18 @@ export default function PurchaseRequestDetailPage() {
                     {detail.data?.data.legacyBlockedByHold
                       ? "Tồn đang được giữ cho phiếu mới — phiếu cũ này chưa xuất được phần còn lại."
                       : "Hết tồn — phiếu cũ này chưa xuất được phần còn lại."}
+                  </span>
+                </p>
+              ) : null}
+              {(detail.data?.data.heldByOthersBlock?.length ?? 0) > 0 && (isAdmin || isWarehouse) && !pr.goodsIssuedAt ? (
+                <p className="mt-1.5 flex items-start gap-1.5 rounded-md border border-zinc-300 bg-zinc-50 px-2.5 py-1.5 text-xs text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span>
+                    Phần còn xuất đang bị phiếu khác giữ hết:{" "}
+                    {detail.data?.data.heldByOthersBlock
+                      ?.map((b) => `${b.sku ?? "vật tư"}${b.holders.length ? ` (${b.holders.join(", ")})` : ""}`)
+                      .join("; ")}
+                    .
                   </span>
                 </p>
               ) : null}

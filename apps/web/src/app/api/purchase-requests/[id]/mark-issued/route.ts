@@ -44,7 +44,13 @@ const pickSchema = z.object({
   lotSerialId: z.string().uuid(),
   binId: z.string().uuid(),
   // A12 — goods_issue_line.qty có 4 số lẻ + CHECK > 0: dưới 0,0001 làm tròn về 0 → 500.
-  qty: z.coerce.number().min(0.0001, "Số lượng xuất tối thiểu 0,0001.").max(10_000_000),
+  qty: z.coerce
+    .number()
+    .min(0.0001, "Số lượng xuất tối thiểu 0,0001.")
+    .max(10_000_000)
+    // N-a — 4 chữ số thập phân (goods_issue_line.qty numeric(…,4)); tổng theo dòng/vật tư kiểm ở repo
+    // trên chính các số này (không làm tròn ngầm) nên tổng sau làm tròn không vượt trần.
+    .refine((v) => Math.abs(Math.round(v * 1e4) / 1e4 - v) < 1e-9, "Số lượng tối đa 4 chữ số thập phân."),
 });
 
 const bodySchema = z.object({

@@ -11,6 +11,7 @@ import {
   getCommittedByItem,
   getIssuableQtyByItem,
   getShortOfCommitment,
+  getHolderCodes,
   getPrLedger,
   replacePRLines,
 } from "@/server/repos/purchaseRequests";
@@ -109,8 +110,8 @@ export async function GET(
       freeQty: canSeeStock && l.itemId ? roundQty(freeByItem.get(l.itemId) ?? 0) : null,
       /** Tồn thô (chưa trừ giữ chỗ) — chỉ để tham chiếu. */
       stockRawQty: canSeeStock && l.itemId ? roundQty(issuableByItem.get(l.itemId) ?? 0) : null,
-      /** Sổ dòng (đề xuất, cần mua, đã về, đang về, chờ QC, đã xuất, còn phải đặt…). */
-      ledger: led ?? null,
+      /** Sổ dòng (đề xuất, cần mua, đã về, đang về, chờ QC, đã xuất, còn phải đặt…). N-d: phiếu xong → to = 0. */
+      ledger: led ? (row.completedAt || row.goodsIssuedAt ? { ...led, toOrder: 0 } : led) : null,
     };
   });
   const shortOfCommitment =
@@ -140,7 +141,23 @@ export async function GET(
   const legacyIssuable = ledger.lines.some(
     (l) => l.legacy && l.itemId && l.remaining > 5e-5 && (freeByItem.get(l.itemId) ?? 0) > 5e-5,
   );
-  const nonLegacyRemaining = ledger.lines.reduce((a, l) => a + (l.legacy ? 0 : l.remaining), 0);
+  // N-e — phần còn xuất được bị phiếu KHÁC giữ hết (tồn sau cam kết = 0) → không coi là "xuất được".
+  const nonLegacyRemaining = ledger.lines.reduce(
+    (a, l) =>
+      a +
+      (l.legacy || !l.itemId || (canSeeStock && (freeByItem.get(l.itemId) ?? 0) <= 5e-5) ? 0 : l.remaining),
+    0,
+  );
+  const blockedItemIds = canSeeStock
+    ? Array.from(ledger.items.values())
+        .filter((it) => it.remaining > 5e-5 && (freeByItem.get(it.itemId) ?? 0) <= 5e-5 && (heldByOthers.get(it.itemId) ?? 0) > 5e-5)
+        .map((it) => it.itemId)
+    : [];
+  const holderCodes = blockedItemIds.length > 0 ? await getHolderCodes(blockedItemIds, params.id) : new Map<string, string[]>();
+  const heldByOthersBlock = blockedItemIds.map((itemId) => ({
+    sku: lines.find((l) => l.itemId === itemId)?.sku ?? null,
+    holders: (holderCodes.get(itemId) ?? []).slice(0, 3),
+  }));
   // A18 — trạng thái PO THẬT của phiếu (mục IV không tick "Đã tạo đơn mua" khi PO đã huỷ).
   const purchaseOrders = await db
     .select({ id: purchaseOrder.id, poNo: purchaseOrder.poNo, status: purchaseOrder.status })
@@ -181,6 +198,8 @@ export async function GET(
       issuableNow: nonLegacyRemaining > 5e-5 || legacyIssuable,
       legacyBlockedByHold,
       legacyNoStock,
+      /** N-e — vật tư còn xuất được nhưng tồn đang bị phiếu khác giữ hết (kèm mã phiếu đang giữ). */
+      heldByOthersBlock,
       shortOfCommitment: shortOfCommitment.length > 0,
       shortOfCommitmentItems: shortOfCommitment,
       hasPendingPo: !ledger.noWaiting,
