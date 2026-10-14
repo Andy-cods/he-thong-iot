@@ -32,6 +32,8 @@ export interface OrderFormInput {
   productItemId: string;
   bomTemplateId?: string | null;
   orderQty: number;
+  /** V4.7 — đơn giá bán (VND/đơn vị); null = chưa nhập. */
+  unitPrice?: number | null;
   dueDate?: string | Date | null;
   priority: "LOW" | "NORMAL" | "HIGH" | "URGENT";
   notes?: string | null;
@@ -75,6 +77,7 @@ export function OrderForm({
       productItemId: "",
       bomTemplateId: null,
       orderQty: 1,
+      unitPrice: null,
       dueDate: null,
       priority: "NORMAL",
       notes: "",
@@ -194,7 +197,7 @@ export function OrderForm({
       </Section>
 
       <Section title="Chi tiết" defaultOpen>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-[160px_200px]">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[160px_200px_200px]">
           <Field>
             <Label htmlFor="orderQty" uppercase required>
               Số lượng
@@ -211,6 +214,30 @@ export function OrderForm({
             />
             <HelperText tone={errors.orderQty ? "error" : "muted"}>
               {errors.orderQty?.message ?? "Số lượng đặt hàng"}
+            </HelperText>
+          </Field>
+
+          <Field>
+            <Label htmlFor="unitPrice" uppercase>
+              Đơn giá bán (₫)
+            </Label>
+            <Input
+              id="unitPrice"
+              type="number"
+              step="0.01"
+              min={0}
+              disabled={readOnly}
+              className="tabular-nums"
+              placeholder="VD: 150000"
+              aria-invalid={!!errors.unitPrice}
+              {...form.register("unitPrice", {
+                // Empty → null (đếm "chưa có giá"), không về 0. Zod .nullable() nhận null.
+                setValueAs: (v) =>
+                  v === "" || v === null || v === undefined ? null : Number(v),
+              })}
+            />
+            <HelperText tone={errors.unitPrice ? "error" : "muted"}>
+              {errors.unitPrice?.message ?? "Nguồn cho Dự trù thu (tuỳ chọn)"}
             </HelperText>
           </Field>
 
