@@ -7,7 +7,7 @@ import {
   getReceivablesAging,
   getReceivablesRawForBucketing,
 } from "@/server/repos/finInvoices";
-import { getBoardValueSummary } from "@/server/repos/productionBoard";
+import { getOpenOrdersValueSummary } from "@/server/repos/orders";
 import { getExpectedPayableSummary } from "@/server/repos/purchaseOrders";
 import { getOpenPlannedExpenseItems } from "@/server/repos/finPlannedExpense";
 import { getOpenPlannedIncomeItems } from "@/server/repos/finPlannedIncome";
@@ -32,11 +32,12 @@ export const dynamic = "force-dynamic";
  *
  * V4.4.2 (Việc 2) / TASK-20261001 (việc 2+3) — bổ sung hàng "Kế hoạch" (khác
  * hàng số thực ở trên):
- *   - `production.expectedReceivable` — "Dự trù thu" GỘP: Σ(qty_planned ×
- *     đơn giá) mã hàng đang gia công (IN_PROGRESS/QC) + Σ(qty_done × đơn giá)
- *     mã hàng COMPLETED (hoàn thành, chưa giao) — KHÔNG gồm QUEUED/DELIVERED,
+ *   - `orders.expectedReceivable` — "Dự trù thu" từ ĐƠN HÀNG BÁN (V4.7):
+ *     Σ(order_qty × unit_price) các đơn CONFIRMED/SNAPSHOTTED/IN_PROGRESS
+ *     (đang SX chưa giao) — KHÔNG gồm DRAFT/FULFILLED/CLOSED/CANCELLED,
  *     KHÔNG trùng `totalReceivable` (công nợ phải thu từ hoá đơn bán).
- *   - `production.missingPriceCount` — mã hàng (2 nhóm trên) chưa nhập giá.
+ *     Thay nguồn cũ Bảng sản xuất TV.
+ *   - `orders.missingPriceCount` — số đơn (phạm vi trên) chưa nhập đơn giá.
  *   - `expectedPayable` — "Dự trù chi": (a) công nợ phải trả SẮP ĐẾN HẠN
  *     (`payableDueSoon` = OVERDUE + ≤30 ngày, chi tiết theo NCC × mốc hạn ở
  *     `payableBySupplierBucket`) + (b) PO mở chưa có HĐ + HĐ mua NHÁP + (c)
@@ -44,7 +45,7 @@ export const dynamic = "force-dynamic";
  *     3 phần — KHÔNG đếm trùng `totalPayable` (chỉ lấy phần ≤30 ngày của
  *     công nợ, không phải toàn bộ — xem lib/finance-overview-policy.ts).
  * Kỳ dự trù chung `?horizon=30|45|60|90` (mặc định 30) áp cho `expectedReceivable`
- * (Bảng SX + công nợ phải thu quá hạn/trong kỳ + khoản thu dự kiến) và
+ * (Đơn hàng bán + công nợ phải thu quá hạn/trong kỳ + khoản thu dự kiến) và
  * `expectedPayable` ("≤30 ngày" ở trên = kỳ đang chọn). Mọi vai đọc `finance` (admin/accountant/shareholder) đều thấy — không cần
  * quyền `productionBoard`/`po` riêng vì đây là số TỔNG HỢP phía server.
  */
@@ -63,7 +64,7 @@ export async function GET(req: NextRequest) {
     totalBalance,
     receivableBuckets,
     payableBuckets,
-    production,
+    orders,
     expectedPayablePoDraft,
     payableRawRows,
     plannedExpenseOpenItems,
@@ -74,7 +75,7 @@ export async function GET(req: NextRequest) {
     getAccountsBalanceSummary(),
     getReceivablesAging(),
     getPayablesAging(),
-    getBoardValueSummary(),
+    getOpenOrdersValueSummary(),
     getExpectedPayableSummary(),
     getPayablesRawForBucketing(),
     getOpenPlannedExpenseItems(),
@@ -95,7 +96,7 @@ export async function GET(req: NextRequest) {
   });
   const receivableByCustomerBucket = groupReceivablesByCustomerAndBucket(receivableRawRows, to);
   const receivableTotal = computeExpectedReceivableTotal({
-    boardValue: production.expectedReceivable.value,
+    orderValue: orders.expectedReceivable.value,
     receivables: receivableByCustomerBucket,
     plannedIncomes: plannedIncomeOpenItems,
     today: to,
@@ -111,11 +112,11 @@ export async function GET(req: NextRequest) {
     value: payableTotal.value,
   };
 
-  // "Dự trù thu" = Bảng SX (`production.expectedReceivable`, công thức không đổi)
-  // + công nợ phải thu quá hạn/trong kỳ + khoản thu dự kiến OPEN hạn ≤ hôm nay + kỳ.
+  // V4.7 — "Dự trù thu" = Đơn hàng bán (`orders.expectedReceivable`) + công nợ
+  // phải thu quá hạn/trong kỳ + khoản thu dự kiến OPEN hạn ≤ hôm nay + kỳ.
   const expectedReceivable = {
     value: receivableTotal.value,
-    boardValue: receivableTotal.boardValue,
+    orderValue: receivableTotal.orderValue,
     receivableDue: receivableTotal.receivableDue,
     plannedIncomeValue: receivableTotal.plannedIncomeValue,
     plannedIncomeCount: receivableTotal.plannedIncomeCount,
@@ -129,7 +130,7 @@ export async function GET(req: NextRequest) {
       totalBalance,
       totalReceivable,
       totalPayable,
-      production,
+      orders,
       expectedPayable,
       expectedReceivable,
       horizon,

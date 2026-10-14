@@ -11,8 +11,14 @@
  * client component và vitest.
  */
 export const HIDDEN_FEATURES = {
-  /** Q4 — Đơn hàng bán (`/orders*`, tab/chip "Đơn hàng"). */
-  salesOrder: true,
+  /**
+   * Q4 — Đơn hàng bán (`/orders*`, tab/chip "Đơn hàng").
+   * V4.7 — BẬT LẠI: đơn hàng bán nay là nguồn cho "Dự trù thu" ở Tổng quan
+   * Tài chính (Σ order_qty × unit_price các đơn đang SX chưa giao), thay cho
+   * đơn giá nhập trên Bảng sản xuất TV. Tạo đơn qua tab "Đơn hàng" trong BOM
+   * workspace (CreateOrderDialog, có ô Đơn giá bán).
+   */
+  salesOrder: false,
   /** Q4 — ECO. */
   eco: true,
   /** Q4 — Thiếu vật tư (shortage). */

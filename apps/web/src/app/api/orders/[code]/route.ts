@@ -52,6 +52,7 @@ export async function PATCH(
       customerRef: body.data.customerRef ?? undefined,
       bomTemplateId: body.data.bomTemplateId ?? undefined,
       orderQty: body.data.orderQty,
+      unitPrice: body.data.unitPrice,
       dueDate: body.data.dueDate ?? undefined,
       priority: body.data.priority,
       notes: body.data.notes ?? undefined,

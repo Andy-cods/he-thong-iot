@@ -7,9 +7,8 @@ import {
   AlertTriangle,
   ArrowDownRight,
   ArrowUpRight,
-  BarChart3,
+  ClipboardList,
   Landmark,
-  PackageCheck,
   ReceiptText,
   TrendingDown,
   TrendingUp,
@@ -33,9 +32,10 @@ import { isRouteAllowed } from "@/lib/route-guard";
 import { cn } from "@/lib/utils";
 
 /**
- * Tab "Tổng quan" — KPI (thu/chi/chênh lệch/công nợ/số dư) + biểu đồ dòng
- * tiền theo ngày + so sánh tăng trưởng kỳ này vs kỳ trước. Cho chọn khoảng
- * thời gian (mặc định 30 ngày gần nhất theo API).
+ * Tab "Tổng quan" — thiết kế lại V4.7 theo hướng Apple: thang bậc rõ (hero →
+ * kế hoạch → số thực → biểu đồ), thẻ bo tròn mềm (rounded-2xl), bóng rất nhẹ,
+ * khoảng thở rộng, số tabular-nums. Nguồn "Dự trù thu" nay là ĐƠN HÀNG BÁN
+ * (sales_order) thay cho Bảng sản xuất TV.
  */
 
 const RANGE_PRESETS = [
@@ -51,15 +51,12 @@ export function OverviewTab() {
 
   const { from, to } = React.useMemo(() => {
     if (customFrom && customTo) return { from: customFrom, to: customTo };
-    // V4.1 TC-13 — mốc ngày theo giờ VN.
     const today = new Date();
     const start = new Date(today.getTime() - (rangeDays - 1) * 24 * 60 * 60 * 1000);
     return { from: toDateInputValue(start), to: toDateInputValue(today) };
   }, [rangeDays, customFrom, customTo]);
 
   const cashflowQuery = useFinCashflow({ from, to, compareWith: "previous_period" });
-  // Kỳ dự trù chung (30/45/60/90 ngày) cho Dự trù thu + Dự trù chi — giữ qua
-  // query string `?horizon=` để F5/chia sẻ link không mất lựa chọn.
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -72,49 +69,39 @@ export function OverviewTab() {
   const summaryQuery = useFinSummary(horizon);
   const session = useSession();
   const roles = session.data?.roles;
-  // V4.4.2 — chỉ dẫn link "mở danh sách nguồn" tới trang user THỰC SỰ vào
-  // được (vd accountant không có quyền entity `productionBoard` nên không
-  // vào được /production-board — card vẫn hiện số nhưng không phải link).
-  const canOpenBoard = isRouteAllowed("/production-board", roles ?? []);
-  // TASK-20261001 (việc 3) — Sheet chi tiết ô "Dự trù chi".
+  // V4.7 — "Dự trù thu" nguồn từ Đơn hàng bán; đơn quản lý trong BOM workspace.
+  // Link "xem đơn" chỉ hiện khi user vào được /bom.
+  const canOpenOrders = isRouteAllowed("/bom", roles ?? []);
   const [expenseDetailOpen, setExpenseDetailOpen] = React.useState(false);
   const [incomeDetailOpen, setIncomeDetailOpen] = React.useState(false);
 
   const cashflow = cashflowQuery.data?.data;
   const summary = summaryQuery.data?.data;
-  // TASK-20260922 — totalReceivable/totalPayable lấy trực tiếp từ dashboard
-  // summary (đã bổ sung server-side) thay vì gọi lại API aging riêng.
   const totalReceivable = summary?.totalReceivable ?? 0;
   const totalPayable = summary?.totalPayable ?? 0;
-  // TASK-20261001 — hàng "Kế hoạch" (Dự trù thu GỘP / Dự trù chi).
-  const production = summary?.production;
+  const orders = summary?.orders;
   const expectedPayable = summary?.expectedPayable;
   const expectedReceivable = summary?.expectedReceivable;
-  const missingPriceCount = production?.missingPriceCount ?? 0;
-  // V4.5 QA-D P1-01 — dòng giá bất thường (qty × đơn giá vượt ngưỡng hợp lý)
-  // bị loại khỏi tổng "Đang sản xuất"/"Dự trù thu" ở server — cảnh báo riêng
-  // thay vì im lặng bỏ qua (tránh người xem tưởng số liệu đã đủ).
-  const abnormalCount = production?.abnormalCount ?? 0;
+  const missingPriceCount = orders?.missingPriceCount ?? 0;
+  const abnormalCount = orders?.abnormalCount ?? 0;
 
   const isLoading = cashflowQuery.isLoading || summaryQuery.isLoading;
   const hasData = (cashflow?.series.length ?? 0) > 0;
-  // V4.1 UI-05: query lỗi → KPI hiện "—" (null) thay vì 0.
   const cashflowFailed = cashflowQuery.isError && !cashflow;
   const summaryFailed = summaryQuery.isError && !summary;
 
   return (
-    <div className="flex h-full flex-col overflow-auto bg-zinc-50/30 dark:bg-zinc-950/30">
-      <header className="flex flex-col gap-3 border-b border-zinc-200 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900 md:flex-row md:items-center md:justify-between md:px-6">
+    <div className="flex h-full flex-col overflow-auto bg-zinc-50/60 dark:bg-zinc-950/40">
+      <header className="sticky top-0 z-10 flex flex-col gap-4 border-b border-zinc-200/70 bg-white/80 px-5 py-5 backdrop-blur-xl dark:border-zinc-800/70 dark:bg-zinc-900/70 md:flex-row md:items-center md:justify-between md:px-8">
         <div>
-          {/* V4.1 UI-09 (X6): bỏ breadcrumb thân trang — topbar đã hiện cùng đường dẫn (+ nhãn tab). */}
-          <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-            Tổng quan Tài chính
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-400 dark:text-zinc-500">
+            Tài chính · Kế toán
+          </p>
+          <h1 className="mt-0.5 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 md:text-[28px]">
+            Tổng quan
           </h1>
         </div>
 
-        {/* Date range picker — segmented control dùng chung (V4.4 A12), nút
-            active nền đen/zinc-900 khớp mẫu chuẩn toàn hệ (khác 3 kiểu tô màu
-            trước đây, xem plans/v4.4-ui/UI_INVENTORY.md §A12). */}
         <div className="flex flex-wrap items-center gap-2">
           <Tabs
             value={customFrom ? "" : String(rangeDays)}
@@ -134,51 +121,41 @@ export function OverviewTab() {
           </Tabs>
           <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
             <span>Từ</span>
-            <DateField
-              value={customFrom}
-              onChange={setCustomFrom}
-              aria-label="Từ ngày"
-              className="w-32"
-            />
+            <DateField value={customFrom} onChange={setCustomFrom} aria-label="Từ ngày" className="w-32" />
           </label>
           <label className="flex items-center gap-1.5 text-sm text-zinc-600 dark:text-zinc-400">
             <span>Đến</span>
-            <DateField
-              value={customTo}
-              onChange={setCustomTo}
-              aria-label="Đến ngày"
-              className="w-32"
-            />
+            <DateField value={customTo} onChange={setCustomTo} aria-label="Đến ngày" className="w-32" />
           </label>
         </div>
       </header>
 
-      <div className="flex-1 p-4 md:p-6">
+      <div className="mx-auto w-full max-w-[1400px] flex-1 p-5 md:p-8">
         {isLoading ? (
-          <div className="space-y-4">
-            <Skeleton className="h-28 rounded-xl" />
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
+          <div className="space-y-6">
+            <Skeleton className="h-32 rounded-2xl" />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Skeleton className="h-28 rounded-2xl" />
+              <Skeleton className="h-28 rounded-2xl" />
             </div>
-            <Skeleton className="h-80 rounded-xl" />
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-28 rounded-2xl" />)}
+            </div>
+            <Skeleton className="h-80 rounded-2xl" />
           </div>
         ) : (
-          <div className="space-y-6">
-            {/* Hero KPI — số quan trọng nhất nổi bật (§3.1) */}
+          <div className="space-y-8">
+            {/* Hero — chênh lệch thu–chi */}
             <HeroKpi
               label="Chênh lệch thu–chi kỳ này"
               amount={cashflowFailed ? null : (cashflow?.summary.netCashflow ?? 0)}
               series={cashflow?.series}
             />
 
-            {/* TASK-20261001 — hàng "Kế hoạch" (Dự trù thu GỘP / Dự trù chi),
-                TÁCH BẠCH khỏi hàng số thực bên dưới (nguồn Bảng sản xuất +
-                công nợ sắp đến hạn + PO mở, không phải sổ quỹ đã ghi nhận). */}
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
-                  Kế hoạch (dự trù — chưa phát sinh dòng tiền thực)
-                </p>
+            {/* Kế hoạch (dự trù) */}
+            <section className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
+                <SectionLabel>Kế hoạch · dự trù (chưa phát sinh dòng tiền)</SectionLabel>
                 <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
                   <span>Kỳ dự trù</span>
                   <Tabs value={String(horizon)} onValueChange={(v) => setHorizon(Number(v))}>
@@ -192,115 +169,98 @@ export function OverviewTab() {
                   </Tabs>
                 </div>
               </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <PlanKpiCard
-                  icon={PackageCheck}
-                  label={`Dự trù thu (trong ${horizon} ngày tới)`}
+                  icon={ClipboardList}
+                  tone="emerald"
+                  label={`Dự trù thu · ${horizon} ngày tới`}
                   amount={summaryFailed ? null : (expectedReceivable?.value ?? 0)}
                   sub={
                     expectedReceivable
-                      ? `Bảng SX ${fmtVND(expectedReceivable.boardValue)} · Công nợ phải thu ${fmtVND(expectedReceivable.receivableDue)} · Thu dự kiến ${fmtVND(expectedReceivable.plannedIncomeValue)}`
+                      ? `Đơn hàng ${fmtVND(expectedReceivable.orderValue)} · Phải thu ${fmtVND(expectedReceivable.receivableDue)} · Thu dự kiến ${fmtVND(expectedReceivable.plannedIncomeValue)}`
                       : undefined
                   }
-                  tooltip={`Bảng sản xuất (Σ SL kế hoạch × đơn giá mã Đang gia công/QC + Σ SL đã đạt × đơn giá mã Đã xong chờ giao) + công nợ phải thu quá hạn và đến hạn trong ${horizon} ngày tới + khoản thu dự kiến chưa thu có ngày ≤ ${horizon} ngày tới (quá hạn cũng tính). Bấm thẻ để mở Bảng sản xuất; bấm "Chi tiết" để xem công nợ theo khách hàng và khoản thu dự kiến.`}
-                  href={canOpenBoard ? "/production-board" : undefined}
+                  tooltip={`Σ giá trị ĐƠN HÀNG BÁN đang sản xuất chưa giao (SL × đơn giá bán, trạng thái Đã xác nhận/Đã chốt BOM/Đang SX) + công nợ phải thu quá hạn và đến hạn trong ${horizon} ngày tới + khoản thu dự kiến chưa thu có hạn ≤ ${horizon} ngày tới. Bấm "Chi tiết" để xem theo khách hàng.`}
                   action={{ label: "Chi tiết", onClick: () => setIncomeDetailOpen(true) }}
                 />
                 <PlanKpiCard
                   icon={Wallet}
-                  label={`Dự trù chi (trong ${horizon} ngày tới)`}
+                  tone="rose"
+                  label={`Dự trù chi · ${horizon} ngày tới`}
                   amount={summaryFailed ? null : (expectedPayable?.value ?? 0)}
                   sub={
                     expectedPayable
-                      ? `Công nợ ≤${horizon} ngày ${fmtVND(expectedPayable.payableDueSoon)} · PO chưa HĐ ${fmtVND(expectedPayable.poValue)} · Chi dự kiến ${fmtVND(expectedPayable.plannedExpenseOpenValue)}`
+                      ? `Công nợ ≤${horizon}ng ${fmtVND(expectedPayable.payableDueSoon)} · PO chưa HĐ ${fmtVND(expectedPayable.poValue)} · Chi dự kiến ${fmtVND(expectedPayable.plannedExpenseOpenValue)}`
                       : undefined
                   }
-                  tooltip={`Công nợ phải trả quá hạn và đến hạn trong ${horizon} ngày tới + PO đã gửi/đang nhận CHƯA có hoá đơn + HĐ mua đang NHÁP (không có hạn, luôn tính) + khoản chi dự kiến chưa chi có ngày ≤ ${horizon} ngày tới. Bấm để xem chi tiết theo NCC × mốc hạn.`}
+                  tooltip={`Công nợ phải trả quá hạn và đến hạn trong ${horizon} ngày tới + PO đã gửi/đang nhận CHƯA có hoá đơn + HĐ mua đang nháp + khoản chi dự kiến có hạn ≤ ${horizon} ngày tới. Bấm để xem theo NCC × mốc hạn.`}
                   onClick={() => setExpenseDetailOpen(true)}
                 />
               </div>
               {missingPriceCount > 0 && (
-                <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
-                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                  <span>{missingPriceCount} mã hàng chưa có đơn giá — số liệu "Dự trù thu" chưa đủ.</span>
-                  {canOpenBoard && (
-                    <Link
-                      href="/production-board?missingPrice=1"
-                      className="ml-auto shrink-0 font-semibold underline hover:no-underline"
-                    >
-                      Xem danh sách
-                    </Link>
-                  )}
-                </div>
+                <NoticeBar
+                  tone="amber"
+                  text={`${missingPriceCount} đơn hàng chưa nhập đơn giá bán — số "Dự trù thu" chưa đủ.`}
+                  link={canOpenOrders ? { href: "/bom", label: "Mở BOM" } : undefined}
+                />
               )}
               {abnormalCount > 0 && (
-                <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
-                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                  <span>
-                    {abnormalCount} dòng có giá bất thường (SL × đơn giá quá lớn) — đã loại khỏi
-                    tổng "Dự trù thu" để không làm sai số liệu. Kiểm tra lại đơn giá trên Bảng sản xuất.
-                  </span>
-                  {canOpenBoard && (
-                    <Link
-                      href="/production-board"
-                      className="ml-auto shrink-0 font-semibold underline hover:no-underline"
-                    >
-                      Xem danh sách
-                    </Link>
-                  )}
-                </div>
+                <NoticeBar
+                  tone="rose"
+                  text={`${abnormalCount} đơn có giá trị bất thường (SL × đơn giá quá lớn) — đã loại khỏi tổng. Kiểm tra lại đơn giá bán.`}
+                  link={canOpenOrders ? { href: "/bom", label: "Mở BOM" } : undefined}
+                />
               )}
-            </div>
+            </section>
 
-            {/* 5 KPI phụ — grid responsive để nhãn dài ("Công nợ phải thu/trả")
-                không bị cắt trên mobile (§1.1 P0). */}
-            <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
-              Số thực (đã ghi nhận)
-            </p>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-              <KpiCard
-                icon={TrendingUp}
-                label="Tổng thu"
-                amount={cashflowFailed ? null : (cashflow?.summary.totalIn ?? 0)}
-                growth={cashflow?.growth?.inPct}
-                accent="emerald"
-              />
-              <KpiCard
-                icon={TrendingDown}
-                label="Tổng chi"
-                amount={cashflowFailed ? null : (cashflow?.summary.totalOut ?? 0)}
-                growth={cashflow?.growth?.outPct}
-                growthInverse
-                accent="rose"
-              />
-              <KpiCard
-                icon={ReceiptText}
-                label="Công nợ phải thu"
-                amount={summaryFailed ? null : totalReceivable}
-                accent="amber"
-              />
-              <KpiCard
-                icon={ReceiptText}
-                label="Công nợ phải trả"
-                amount={summaryFailed ? null : totalPayable}
-                accent="rose"
-              />
-              <KpiCard
-                icon={Landmark}
-                label="Số dư tài khoản"
-                amount={summaryFailed ? null : (summary?.totalBalance ?? 0)}
-                accent="zinc"
-              />
-            </div>
-            </div>
+            {/* Số thực (đã ghi nhận) */}
+            <section className="space-y-3">
+              <SectionLabel>Số thực · đã ghi nhận ở Sổ quỹ</SectionLabel>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+                <KpiCard
+                  icon={TrendingUp}
+                  label="Tổng thu"
+                  amount={cashflowFailed ? null : (cashflow?.summary.totalIn ?? 0)}
+                  growth={cashflow?.growth?.inPct}
+                  dot="emerald"
+                />
+                <KpiCard
+                  icon={TrendingDown}
+                  label="Tổng chi"
+                  amount={cashflowFailed ? null : (cashflow?.summary.totalOut ?? 0)}
+                  growth={cashflow?.growth?.outPct}
+                  growthInverse
+                  dot="rose"
+                />
+                <KpiCard
+                  icon={ReceiptText}
+                  label="Công nợ phải thu"
+                  amount={summaryFailed ? null : totalReceivable}
+                  dot="amber"
+                />
+                <KpiCard
+                  icon={ReceiptText}
+                  label="Công nợ phải trả"
+                  amount={summaryFailed ? null : totalPayable}
+                  dot="rose"
+                />
+                <KpiCard
+                  icon={Landmark}
+                  label="Số dư tài khoản"
+                  amount={summaryFailed ? null : (summary?.totalBalance ?? 0)}
+                  dot={null}
+                />
+              </div>
+            </section>
 
-            {/* Chart */}
-            <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-              <div className="mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Wallet className="h-4 w-4 text-zinc-400 dark:text-zinc-500" aria-hidden="true" />
-                  <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+            {/* Biểu đồ dòng tiền */}
+            <section className="rounded-2xl border border-zinc-200/70 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:border-zinc-800/70 dark:bg-zinc-900 md:p-6">
+              <div className="mb-5 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800">
+                    <Wallet className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" aria-hidden="true" />
+                  </span>
+                  <p className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-200">
                     Dòng tiền theo ngày
                   </p>
                 </div>
@@ -308,7 +268,7 @@ export function OverviewTab() {
                   <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
                     <GrowthPill label="Thu" pct={cashflow.growth.inPct} />
                     <GrowthPill label="Chi" pct={cashflow.growth.outPct} inverse />
-                    <span>{cashflow.growth.vsLabel}</span>
+                    <span className="hidden sm:inline">{cashflow.growth.vsLabel}</span>
                   </div>
                 )}
               </div>
@@ -324,22 +284,28 @@ export function OverviewTab() {
               ) : (
                 <CashflowChart data={cashflow!.series} />
               )}
-            </div>
+            </section>
           </div>
         )}
       </div>
 
-      {/* TASK-20261001 (việc 3) — Sheet chi tiết ô "Dự trù chi". */}
       <ExpectedExpenseSheet open={expenseDetailOpen} onOpenChange={setExpenseDetailOpen} horizon={horizon} />
       <ExpectedIncomeSheet open={incomeDetailOpen} onOpenChange={setIncomeDetailOpen} horizon={horizon} />
     </div>
   );
 }
 
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-zinc-400 dark:text-zinc-500">
+      {children}
+    </p>
+  );
+}
+
 /**
- * Hero KPI — số quan trọng nhất trang (chênh lệch thu–chi), to nổi bật hơn
- * hẳn 5 thẻ phụ (§2.1: text-3xl vs text-xl) + sparkline mini tái dùng cùng
- * dữ liệu `cashflow.series` (§3.1) — không trục/tooltip, chỉ đường xu hướng.
+ * Hero — số quan trọng nhất (chênh lệch thu–chi), kích thước nổi bật + sparkline
+ * tích luỹ. Bề mặt lớn, bo 3xl, bóng nhẹ (phong cách Apple summary card).
  */
 function HeroKpi({
   label,
@@ -361,37 +327,34 @@ function HeroKpi({
   }, [series]);
 
   return (
-    <div className="min-w-0 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="min-w-0 overflow-hidden rounded-3xl border border-zinc-200/70 bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:border-zinc-800/70 dark:bg-zinc-900 sm:p-8">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4 shrink-0 text-zinc-400 dark:text-zinc-500" aria-hidden="true" />
-            <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">{label}</p>
-          </div>
+          <p className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400">{label}</p>
           <p
             className={cn(
-              "mt-1.5 text-3xl font-bold tabular-nums",
+              "mt-2 text-4xl font-semibold tracking-tight tabular-nums sm:text-5xl",
               amount === null
                 ? "text-zinc-400 dark:text-zinc-500"
                 : amount === 0
                   ? "text-zinc-900 dark:text-zinc-100"
                   : isPositive
-                  ? "text-emerald-700 dark:text-emerald-400"
-                  : "text-rose-600 dark:text-rose-400",
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-rose-600 dark:text-rose-400",
             )}
           >
             {amount === null ? "—" : fmtVND(amount)}
           </p>
         </div>
         {sparkData.length > 1 && (
-          <div className="h-14 w-full shrink-0 sm:w-32">
+          <div className="h-16 w-full shrink-0 sm:w-40">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={sparkData} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
+              <LineChart data={sparkData} margin={{ top: 4, right: 4, bottom: 4, left: 4 }}>
                 <Line
                   type="monotone"
                   dataKey="v"
                   stroke={isPositive ? "#059669" : "#e11d48"}
-                  strokeWidth={2}
+                  strokeWidth={2.5}
                   dot={false}
                   isAnimationActive={false}
                 />
@@ -404,49 +367,44 @@ function HeroKpi({
   );
 }
 
+const DOT_CLASS = {
+  emerald: "bg-emerald-500",
+  rose: "bg-rose-500",
+  amber: "bg-amber-500",
+} as const;
+
 function KpiCard({
   icon: Icon,
   label,
   amount,
   growth,
   growthInverse,
-  accent,
+  dot,
 }: {
   icon: React.ElementType;
   label: string;
-  /** V4.1 (UI) — thẻ KPI hiện số rút gọn (dấu phẩy) + số đủ ngay bên dưới.
-   *  V4.1 UI-05: null = không tải được → hiện "—". */
   amount: number | null;
   growth?: number;
   growthInverse?: boolean;
-  accent: "emerald" | "rose" | "indigo" | "amber" | "zinc";
+  dot: keyof typeof DOT_CLASS | null;
 }) {
-  // V4.1 UI-24 (X8): 6 thẻ 6 màu → thẻ trung tính (trắng, viền zinc, số đen, icon zinc).
-  // `accent` chỉ còn là CHẤM nhỏ cạnh nhãn (thu = lục, chi/nợ = hồng, phải trả = amber).
-  const dot: Record<typeof accent, string | null> = {
-    emerald: "bg-emerald-500",
-    rose: "bg-rose-500",
-    amber: "bg-amber-500",
-    indigo: null,
-    zinc: null,
-  };
-  const accentDot = dot[accent];
   const isGood = growth !== undefined && (growthInverse ? growth <= 0 : growth >= 0);
-
   return (
-    <div className="min-w-0 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="group min-w-0 rounded-2xl border border-zinc-200/70 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-shadow hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)] dark:border-zinc-800/70 dark:bg-zinc-900">
       <div className="flex items-start justify-between gap-2">
-        {/* Nhãn KHÔNG truncate — trước đây cắt "Công nợ phải ..." trên mobile khiến
-            2 thẻ công nợ khác chiều hiện giống hệt nhau (§1.1 P0). Cho wrap 2 dòng. */}
-        <div className="flex min-w-0 items-start gap-1.5">
-          <Icon className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
-          <p className="text-xs font-medium leading-snug text-zinc-500 dark:text-zinc-400">{label}</p>
-          {accentDot ? <span className={cn("mt-1 h-2 w-2 shrink-0 rounded-full", accentDot)} aria-hidden /> : null}
+        <div className="flex min-w-0 items-start gap-2">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800">
+            <Icon className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" aria-hidden />
+          </span>
+          <div className="flex min-w-0 items-center gap-1.5 pt-0.5">
+            <p className="text-xs font-medium leading-snug text-zinc-500 dark:text-zinc-400">{label}</p>
+            {dot ? <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", DOT_CLASS[dot])} aria-hidden /> : null}
+          </div>
         </div>
         {growth !== undefined && (
           <span
             className={cn(
-              "inline-flex whitespace-nowrap items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-semibold",
+              "inline-flex whitespace-nowrap items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-semibold",
               isGood
                 ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
                 : "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400",
@@ -457,59 +415,60 @@ function KpiCard({
           </span>
         )}
       </div>
-      <p className="mt-1 truncate text-xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50" title={amount === null ? undefined : fmtVND(amount)}>
+      <p className="mt-2.5 truncate text-[22px] font-semibold tracking-tight tabular-nums text-zinc-900 dark:text-zinc-50" title={amount === null ? undefined : fmtVND(amount)}>
         {amount === null ? "—" : fmtVNDShort(amount)}
       </p>
-      {/* Dòng phụ = số đủ — chỉ hiện khi khác số rút gọn (trước lặp "0 ₫" 2 lần). */}
       {amount === null ? (
-        <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">Không tải được</p>
+        <p className="truncate text-xs text-zinc-400 dark:text-zinc-500">Không tải được</p>
       ) : fmtVND(amount) !== fmtVNDShort(amount) ? (
-        <p className="truncate text-xs tabular-nums text-zinc-500 dark:text-zinc-400">{fmtVND(amount)}</p>
+        <p className="truncate text-xs tabular-nums text-zinc-400 dark:text-zinc-500">{fmtVND(amount)}</p>
       ) : null}
     </div>
   );
 }
 
 /**
- * V4.4.2 — Thẻ KPI hàng "Kế hoạch" (Đang sản xuất / Dự trù thu / Dự trù chi).
- * Khác `KpiCard` (hàng "Số thực"): có tooltip giải thích công thức tiếng
- * Việt (`SimpleTooltip`) + dòng phụ `sub` (số mã hàng/PO) + click mở trang
- * nguồn khi user có quyền vào (`href`); không có `growth` (số kế hoạch,
- * không so kỳ trước).
+ * Thẻ KPI "Kế hoạch" (Dự trù thu / Dự trù chi): có viền trái tông màu nhẹ,
+ * tooltip công thức, dòng phụ chi tiết nguồn, click mở Sheet chi tiết.
  */
 function PlanKpiCard({
   icon: Icon,
+  tone,
   label,
   amount,
   sub,
   tooltip,
-  href,
   onClick,
   action,
 }: {
   icon: React.ElementType;
+  tone: "emerald" | "rose";
   label: string;
   amount: number | null;
   sub?: string;
-  /** Nút phụ trên thẻ (vd "Chi tiết") — nằm NGOÀI link/nút chính, không lồng <a>/<button>. */
   action?: { label: string; onClick: () => void };
   tooltip: string;
-  href?: string;
-  /** TASK-20261001 — mở Sheet chi tiết thay vì điều hướng trang (vd "Dự trù chi"). */
   onClick?: () => void;
 }) {
-  const clickable = !!href || !!onClick;
+  const toneBar = tone === "emerald" ? "bg-emerald-400/70" : "bg-rose-400/70";
+  const toneIcon =
+    tone === "emerald"
+      ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
+      : "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400";
   const body = (
     <div
       className={cn(
-        "min-w-0 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900",
-        clickable && "transition-colors hover:border-indigo-300 hover:bg-indigo-50/40 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/20",
+        "relative min-w-0 overflow-hidden rounded-2xl border border-zinc-200/70 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:border-zinc-800/70 dark:bg-zinc-900",
+        onClick && "transition-shadow hover:shadow-[0_2px_10px_rgba(0,0,0,0.07)]",
       )}
     >
+      <span className={cn("absolute inset-y-0 left-0 w-1", toneBar)} aria-hidden />
       <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-start gap-1.5">
-          <Icon className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
-          <p className="text-xs font-medium leading-snug text-zinc-500 dark:text-zinc-400">{label}</p>
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-xl", toneIcon)}>
+            <Icon className="h-4 w-4" aria-hidden />
+          </span>
+          <p className="text-[13px] font-medium text-zinc-600 dark:text-zinc-300">{label}</p>
         </div>
         <SimpleTooltip content={tooltip}>
           <span
@@ -522,32 +481,25 @@ function PlanKpiCard({
           </span>
         </SimpleTooltip>
       </div>
-      <p className="mt-1 truncate text-xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50" title={amount === null ? undefined : fmtVND(amount)}>
+      <p className="mt-3 truncate text-[28px] font-semibold tracking-tight tabular-nums text-zinc-900 dark:text-zinc-50" title={amount === null ? undefined : fmtVND(amount)}>
         {amount === null ? "—" : fmtVNDShort(amount)}
       </p>
       {amount === null ? (
-        <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">Không tải được</p>
+        <p className="truncate text-xs text-zinc-400 dark:text-zinc-500">Không tải được</p>
       ) : (
-        <p className={cn("truncate text-xs tabular-nums text-zinc-500 dark:text-zinc-400", action && "pr-16")}>
+        <p className={cn("truncate text-xs tabular-nums text-zinc-400 dark:text-zinc-500", action && "pr-20")}>
           {sub ?? (fmtVND(amount) !== fmtVNDShort(amount) ? fmtVND(amount) : "")}
         </p>
       )}
     </div>
   );
-  let main: React.ReactNode = body;
-  if (href) {
-    main = (
-      <Link href={href} className="block">
-        {body}
-      </Link>
-    );
-  } else if (onClick) {
-    main = (
-      <button type="button" onClick={onClick} className="block w-full text-left">
-        {body}
-      </button>
-    );
-  }
+  const main = onClick ? (
+    <button type="button" onClick={onClick} className="block w-full text-left">
+      {body}
+    </button>
+  ) : (
+    body
+  );
   if (!action) return main;
   return (
     <div className="relative">
@@ -555,10 +507,36 @@ function PlanKpiCard({
       <button
         type="button"
         onClick={action.onClick}
-        className="absolute bottom-2 right-2 rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-xs font-medium text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-indigo-400 dark:hover:bg-indigo-950/30"
+        className="absolute bottom-3 right-3 rounded-lg border border-zinc-200 bg-white/90 px-2.5 py-1 text-xs font-medium text-zinc-700 backdrop-blur transition-colors hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900/90 dark:text-zinc-200 dark:hover:bg-zinc-800"
       >
         {action.label}
       </button>
+    </div>
+  );
+}
+
+function NoticeBar({
+  tone,
+  text,
+  link,
+}: {
+  tone: "amber" | "rose";
+  text: string;
+  link?: { href: string; label: string };
+}) {
+  const cls =
+    tone === "amber"
+      ? "border-amber-200/70 bg-amber-50 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300"
+      : "border-rose-200/70 bg-rose-50 text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300";
+  return (
+    <div className={cn("flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-xs", cls)}>
+      <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <span>{text}</span>
+      {link && (
+        <Link href={link.href} className="ml-auto shrink-0 font-semibold underline hover:no-underline">
+          {link.label}
+        </Link>
+      )}
     </div>
   );
 }
@@ -570,8 +548,8 @@ function GrowthPill({ label, pct, inverse }: { label: string; pct: number; inver
       className={cn(
         "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-semibold",
         isGood
-          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
-          : "bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400",
+          ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+          : "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400",
       )}
     >
       {pct >= 0 ? <ArrowUpRight className="h-2.5 w-2.5" /> : <ArrowDownRight className="h-2.5 w-2.5" />}

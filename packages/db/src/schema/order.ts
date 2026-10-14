@@ -41,6 +41,13 @@ export const salesOrder = appSchema.table(
     // V1.1-alpha: bom_revision removed → trỏ thẳng bom_template
     bomTemplateId: uuid("bom_template_id").references(() => bomTemplate.id),
     orderQty: numeric("order_qty", { precision: 18, scale: 4 }).notNull(),
+    /**
+     * V4.7 — Đơn giá BÁN (VND/đơn vị) của đơn hàng. Nguồn MỚI cho "Dự trù thu"
+     * ở Tổng quan Tài chính (thay cho đơn giá nhập trên Bảng sản xuất TV).
+     * Giá trị đơn = order_qty × unit_price (tính ở query, không lưu dư thừa).
+     * NULL = chưa nhập giá → đếm vào "N đơn chưa có giá" cảnh báo ở dashboard.
+     */
+    unitPrice: numeric("unit_price", { precision: 18, scale: 4 }),
     dueDate: date("due_date"),
     priority: varchar("priority", { length: 16 }).notNull().default("NORMAL"),
     notes: text("notes"),

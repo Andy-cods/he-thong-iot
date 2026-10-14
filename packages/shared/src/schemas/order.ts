@@ -60,6 +60,13 @@ export const orderCreateSchema = z.object({
     .number()
     .positive("Số lượng phải > 0")
     .max(10_000_000, "Số lượng quá lớn"),
+  /** V4.7 — đơn giá BÁN (VND/đơn vị), nguồn cho "Dự trù thu". Tuỳ chọn. */
+  unitPrice: z.coerce
+    .number()
+    .nonnegative("Đơn giá không được âm")
+    .max(100_000_000_000, "Đơn giá quá lớn")
+    .optional()
+    .nullable(),
   dueDate: dateStringOrDate.optional().nullable(),
   priority: orderPrioritySchema.default("NORMAL"),
   notes: z.string().trim().max(2000).optional().nullable(),

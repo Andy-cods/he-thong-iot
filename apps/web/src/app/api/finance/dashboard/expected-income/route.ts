@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 /**
  * Chi tiết ô "Dự trù thu" (mở từ Sheet ở Tổng quan Tài chính): bảng công nợ
  * phải thu theo KHÁCH HÀNG x mốc hạn + danh sách khoản thu dự kiến
- * (OPEN/DONE/CANCELLED). Phần Bảng sản xuất đã có ở trang /production-board
+ * (OPEN/DONE/CANCELLED). Phần Đơn hàng bán quản lý trong BOM workspace
  * nên không lặp lại ở đây. `?horizon=30|45|60|90` chỉ ảnh hưởng số tổng
  * `receivableDueWithinHorizon`; bảng hiện đủ mọi mốc.
  */

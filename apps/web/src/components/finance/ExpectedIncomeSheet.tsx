@@ -77,7 +77,7 @@ export function ExpectedIncomeSheet({
           />
           <SheetBody>
             <p className="mb-4 rounded-lg bg-zinc-50 px-3 py-2 text-xs leading-relaxed text-zinc-600 dark:bg-zinc-900/60 dark:text-zinc-400">
-              Dự trù thu gồm 3 phần: (1) giá trị Bảng sản xuất (mã hàng đang gia công + đã xong chờ giao),
+              Dự trù thu gồm 3 phần: (1) giá trị ĐƠN HÀNG BÁN đang sản xuất chưa giao (SL × đơn giá bán),
               (2) công nợ phải thu quá hạn và đến hạn trong {horizon} ngày tới (hoá đơn bán còn nợ), và
               (3) các khoản thu dự kiến nhập tay chưa thu có ngày dự kiến đến hết {horizon} ngày tới
               (quá hạn cũng tính).
