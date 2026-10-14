@@ -274,9 +274,15 @@ export async function reopenOrder(id: string): Promise<SalesOrder | null> {
 
 /**
  * V4.7 — Nguồn MỚI cho ô "Dự trù thu" ở Tổng quan Tài chính: tổng giá trị
- * các đơn hàng bán đang sản xuất chưa giao (CONFIRMED/SNAPSHOTTED/IN_PROGRESS)
- * = Σ(order_qty × unit_price). Thay cho `getBoardValueSummary` (Bảng SX TV).
- * Logic tính tách ở hàm thuần `computeOrderValueSummary` (có vitest).
+ * các đơn hàng bán đang mở chưa giao = Σ(order_qty × unit_price). Thay cho
+ * `getBoardValueSummary` (Bảng SX TV). Logic tính tách ở hàm thuần
+ * `computeOrderValueSummary` (có vitest).
+ *
+ * Phạm vi: status DRAFT/CONFIRMED/SNAPSHOTTED/IN_PROGRESS (gồm DRAFT vì
+ * workflow lean không có bước xác nhận — xem OPEN_ORDER_STATUSES), và CHỐNG
+ * ĐẾM TRÙNG công nợ phải thu bằng cách LOẠI đơn đã có hoá đơn bán active
+ * (fin_invoice direction=OUT, status ∉ DRAFT/CANCELLED) — vì phần đó đã tính
+ * trong `totalReceivable`/`receivableDue`.
  */
 export async function getOpenOrdersValueSummary(): Promise<OrderValueSummary> {
   const rows = await db
@@ -287,7 +293,15 @@ export async function getOpenOrdersValueSummary(): Promise<OrderValueSummary> {
     })
     .from(salesOrder)
     .where(
-      inArray(salesOrder.status, ["CONFIRMED", "SNAPSHOTTED", "IN_PROGRESS"]),
+      and(
+        inArray(salesOrder.status, ["DRAFT", "CONFIRMED", "SNAPSHOTTED", "IN_PROGRESS"]),
+        sql`NOT EXISTS (
+          SELECT 1 FROM app.fin_invoice fi
+          WHERE fi.sales_order_id = ${salesOrder.id}
+            AND fi.direction = 'OUT'
+            AND fi.status NOT IN ('DRAFT', 'CANCELLED')
+        )`,
+      ),
     );
   return computeOrderValueSummary(rows);
 }

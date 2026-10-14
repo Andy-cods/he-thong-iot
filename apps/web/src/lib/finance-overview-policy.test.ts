@@ -24,20 +24,20 @@ import {
  */
 
 describe("computeOrderValueSummary — Dự trù thu từ ĐƠN HÀNG BÁN (V4.7)", () => {
-  it("Σ(order_qty × unit_price) các đơn CONFIRMED/SNAPSHOTTED/IN_PROGRESS", () => {
+  it("Σ(order_qty × unit_price) các đơn DRAFT/CONFIRMED/SNAPSHOTTED/IN_PROGRESS", () => {
     const rows: OrderValueRow[] = [
+      { status: "DRAFT", orderQty: "4", unitPrice: "1000" },
       { status: "CONFIRMED", orderQty: "5", unitPrice: "2000" },
       { status: "SNAPSHOTTED", orderQty: "3", unitPrice: "1000" },
       { status: "IN_PROGRESS", orderQty: "2", unitPrice: "500" },
     ];
     const out = computeOrderValueSummary(rows);
-    expect(out.expectedReceivable).toEqual({ value: 10000 + 3000 + 1000, itemCount: 3 });
+    expect(out.expectedReceivable).toEqual({ value: 4000 + 10000 + 3000 + 1000, itemCount: 4 });
     expect(out.missingPriceCount).toBe(0);
   });
 
-  it("DRAFT/FULFILLED/CLOSED/CANCELLED KHÔNG tính (chưa chắc / đã giao → thành công nợ)", () => {
+  it("FULFILLED/CLOSED/CANCELLED KHÔNG tính (đã giao → thành công nợ / đã đóng / đã huỷ)", () => {
     const rows: OrderValueRow[] = [
-      { status: "DRAFT", orderQty: "10", unitPrice: "9999" },
       { status: "FULFILLED", orderQty: "10", unitPrice: "9999" },
       { status: "CLOSED", orderQty: "10", unitPrice: "9999" },
       { status: "CANCELLED", orderQty: "10", unitPrice: "9999" },

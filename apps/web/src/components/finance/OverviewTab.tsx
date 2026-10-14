@@ -180,7 +180,7 @@ export function OverviewTab() {
                       ? `Đơn hàng ${fmtVND(expectedReceivable.orderValue)} · Phải thu ${fmtVND(expectedReceivable.receivableDue)} · Thu dự kiến ${fmtVND(expectedReceivable.plannedIncomeValue)}`
                       : undefined
                   }
-                  tooltip={`Σ giá trị ĐƠN HÀNG BÁN đang sản xuất chưa giao (SL × đơn giá bán, trạng thái Đã xác nhận/Đã chốt BOM/Đang SX) + công nợ phải thu quá hạn và đến hạn trong ${horizon} ngày tới + khoản thu dự kiến chưa thu có hạn ≤ ${horizon} ngày tới. Bấm "Chi tiết" để xem theo khách hàng.`}
+                  tooltip={`Σ giá trị ĐƠN HÀNG BÁN đang mở chưa giao (SL × đơn giá bán; gồm đơn Nháp/Đã xác nhận/Đã chốt BOM/Đang SX, đã loại đơn đã có hoá đơn bán để không đếm trùng) + công nợ phải thu quá hạn và đến hạn trong ${horizon} ngày tới + khoản thu dự kiến chưa thu có hạn ≤ ${horizon} ngày tới. Bấm "Chi tiết" để xem theo khách hàng.`}
                   action={{ label: "Chi tiết", onClick: () => setIncomeDetailOpen(true) }}
                 />
                 <PlanKpiCard

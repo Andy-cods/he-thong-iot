@@ -33,10 +33,10 @@ export const dynamic = "force-dynamic";
  * V4.4.2 (Việc 2) / TASK-20261001 (việc 2+3) — bổ sung hàng "Kế hoạch" (khác
  * hàng số thực ở trên):
  *   - `orders.expectedReceivable` — "Dự trù thu" từ ĐƠN HÀNG BÁN (V4.7):
- *     Σ(order_qty × unit_price) các đơn CONFIRMED/SNAPSHOTTED/IN_PROGRESS
- *     (đang SX chưa giao) — KHÔNG gồm DRAFT/FULFILLED/CLOSED/CANCELLED,
- *     KHÔNG trùng `totalReceivable` (công nợ phải thu từ hoá đơn bán).
- *     Thay nguồn cũ Bảng sản xuất TV.
+ *     Σ(order_qty × unit_price) các đơn đang mở chưa giao (DRAFT/CONFIRMED/
+ *     SNAPSHOTTED/IN_PROGRESS — gồm DRAFT vì workflow lean không có bước xác
+ *     nhận). KHÔNG đếm trùng `totalReceivable`: loại đơn đã có hoá đơn bán
+ *     active (xem getOpenOrdersValueSummary). Thay nguồn cũ Bảng sản xuất TV.
  *   - `orders.missingPriceCount` — số đơn (phạm vi trên) chưa nhập đơn giá.
  *   - `expectedPayable` — "Dự trù chi": (a) công nợ phải trả SẮP ĐẾN HẠN
  *     (`payableDueSoon` = OVERDUE + ≤30 ngày, chi tiết theo NCC × mốc hạn ở

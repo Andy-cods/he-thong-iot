@@ -122,12 +122,20 @@ export function computeBoardValueSummary(rows: readonly BoardValueRow[]): BoardV
 /* ══════════════════════════ Dự trù thu: Đơn hàng bán (V4.7) ══════════════════════════ */
 
 /**
- * V4.7 — Trạng thái đơn hàng bán coi là "đang sản xuất, chưa giao" cho ô Dự
- * trù thu. KHÔNG gồm DRAFT (chưa xác nhận — chưa chắc chắn), FULFILLED (đã
- * giao → chuyển thành công nợ phải thu qua hoá đơn, tránh đếm trùng), CLOSED,
- * CANCELLED. Thay thế nguồn cũ `computeBoardValueSummary` (Bảng sản xuất TV).
+ * V4.7 — Trạng thái đơn hàng bán coi là "đang mở, chưa giao" cho ô Dự trù thu.
+ * GỒM DRAFT: workflow lean hiện tại KHÔNG có bước xác nhận đơn (đơn tạo qua
+ * BOM workspace nằm ở DRAFT và đó là trạng thái làm việc thực tế) — nếu loại
+ * DRAFT thì Dự trù thu luôn = 0. Loại FULFILLED (đã giao → thành công nợ phải
+ * thu qua hoá đơn), CLOSED, CANCELLED. Chống đếm TRÙNG với công nợ phải thu:
+ * ở repo còn loại thêm đơn đã có hoá đơn bán active (xem getOpenOrdersValueSummary).
+ * Thay nguồn cũ `computeBoardValueSummary` (Bảng sản xuất TV).
  */
-export const OPEN_ORDER_STATUSES = new Set(["CONFIRMED", "SNAPSHOTTED", "IN_PROGRESS"]);
+export const OPEN_ORDER_STATUSES = new Set([
+  "DRAFT",
+  "CONFIRMED",
+  "SNAPSHOTTED",
+  "IN_PROGRESS",
+]);
 
 export interface OrderValueRow {
   status: string;
