@@ -2,6 +2,10 @@ import { and, desc, eq, gte, ilike, inArray, lte, or, sql, type SQL } from "driz
 import { salesOrder } from "@iot/db/schema";
 import type { SalesOrder } from "@iot/db/schema";
 import { db } from "@/lib/db";
+import {
+  computeOrderValueSummary,
+  type OrderValueSummary,
+} from "@/lib/finance-overview-policy";
 
 /**
  * Repository sales_order — V1.2.
@@ -105,6 +109,8 @@ export interface CreateOrderInput {
   productItemId: string;
   bomTemplateId?: string | null;
   orderQty: number;
+  /** V4.7 — đơn giá bán (VND/đơn vị); null = chưa nhập. */
+  unitPrice?: number | null;
   dueDate?: Date | null;
   priority?: "LOW" | "NORMAL" | "HIGH" | "URGENT";
   notes?: string | null;
@@ -130,6 +136,10 @@ export async function createOrder(input: CreateOrderInput): Promise<SalesOrder> 
       productItemId: input.productItemId,
       bomTemplateId: input.bomTemplateId ?? null,
       orderQty: String(input.orderQty),
+      unitPrice:
+        input.unitPrice === undefined || input.unitPrice === null
+          ? null
+          : String(input.unitPrice),
       dueDate: input.dueDate ? input.dueDate.toISOString().slice(0, 10) : null,
       priority: input.priority ?? "NORMAL",
       notes: input.notes ?? null,
@@ -147,6 +157,8 @@ export interface UpdateOrderInput {
   customerRef?: string | null;
   bomTemplateId?: string | null;
   orderQty?: number;
+  /** V4.7 — đơn giá bán; null = xoá giá. */
+  unitPrice?: number | null;
   dueDate?: Date | null;
   priority?: "LOW" | "NORMAL" | "HIGH" | "URGENT";
   notes?: string | null;
@@ -179,6 +191,8 @@ export async function updateOrder(
   if (patch.customerRef !== undefined) values.customerRef = patch.customerRef;
   if (patch.bomTemplateId !== undefined) values.bomTemplateId = patch.bomTemplateId;
   if (patch.orderQty !== undefined) values.orderQty = String(patch.orderQty);
+  if (patch.unitPrice !== undefined)
+    values.unitPrice = patch.unitPrice === null ? null : String(patch.unitPrice);
   if (patch.dueDate !== undefined)
     values.dueDate = patch.dueDate ? patch.dueDate.toISOString().slice(0, 10) : null;
   if (patch.priority !== undefined) values.priority = patch.priority;
@@ -256,6 +270,26 @@ export async function reopenOrder(id: string): Promise<SalesOrder | null> {
     .where(and(eq(salesOrder.id, id), eq(salesOrder.status, "CLOSED")))
     .returning();
   return row ?? null;
+}
+
+/**
+ * V4.7 — Nguồn MỚI cho ô "Dự trù thu" ở Tổng quan Tài chính: tổng giá trị
+ * các đơn hàng bán đang sản xuất chưa giao (CONFIRMED/SNAPSHOTTED/IN_PROGRESS)
+ * = Σ(order_qty × unit_price). Thay cho `getBoardValueSummary` (Bảng SX TV).
+ * Logic tính tách ở hàm thuần `computeOrderValueSummary` (có vitest).
+ */
+export async function getOpenOrdersValueSummary(): Promise<OrderValueSummary> {
+  const rows = await db
+    .select({
+      status: salesOrder.status,
+      orderQty: salesOrder.orderQty,
+      unitPrice: salesOrder.unitPrice,
+    })
+    .from(salesOrder)
+    .where(
+      inArray(salesOrder.status, ["CONFIRMED", "SNAPSHOTTED", "IN_PROGRESS"]),
+    );
+  return computeOrderValueSummary(rows);
 }
 
 export async function confirmOrder(id: string): Promise<SalesOrder | null> {

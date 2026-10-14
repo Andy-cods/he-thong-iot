@@ -691,19 +691,17 @@ export interface FinSummaryResponse {
   totalReceivable: number;
   totalPayable: number;
   /**
-   * TASK-20261001 — "Dự trù thu" GỘP (Đang gia công IN_PROGRESS/QC dùng
-   * qty_planned + Đã xong chờ giao COMPLETED dùng qty_done). Thay thế ô
-   * "Đang sản xuất" riêng trước đây (V4.4.2).
+   * V4.7 — "Dự trù thu" nay lấy từ ĐƠN HÀNG BÁN (sales_order) đang sản xuất
+   * chưa giao (CONFIRMED/SNAPSHOTTED/IN_PROGRESS), Σ(order_qty × unit_price).
+   * Thay nguồn cũ Bảng sản xuất TV (TASK-20261001).
    */
-  production: {
+  orders: {
     expectedReceivable: {
       value: number;
       itemCount: number;
-      inProgress: { value: number; itemCount: number };
-      completed: { value: number; itemCount: number };
     };
     missingPriceCount: number;
-    /** V4.5 QA-D P1-01 — số dòng giá bất thường, bị loại khỏi tổng trên. */
+    /** V4.5 QA-D P1-01 — số đơn có giá bất thường, bị loại khỏi tổng trên. */
     abnormalCount: number;
   };
   /**
@@ -722,12 +720,12 @@ export interface FinSummaryResponse {
     plannedExpenseOpenCount: number;
   };
   /**
-   * "Dự trù thu" tổng = Bảng SX (`boardValue`) + công nợ phải thu quá hạn/trong
-   * kỳ (`receivableDue`) + khoản thu dự kiến OPEN hạn ≤ hôm nay + kỳ.
+   * V4.7 — "Dự trù thu" tổng = Đơn hàng bán (`orderValue`) + công nợ phải thu
+   * quá hạn/trong kỳ (`receivableDue`) + khoản thu dự kiến OPEN hạn ≤ hôm nay + kỳ.
    */
   expectedReceivable: {
     value: number;
-    boardValue: number;
+    orderValue: number;
     receivableDue: number;
     plannedIncomeValue: number;
     plannedIncomeCount: number;

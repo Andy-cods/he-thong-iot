@@ -57,6 +57,7 @@ export function CreateOrderDialog({
   const [productItem, setProductItem] =
     React.useState<ItemPickerValue | null>(defaultProductItem);
   const [orderQty, setOrderQty] = React.useState<string>("1");
+  const [unitPrice, setUnitPrice] = React.useState<string>("");
   const [dueDate, setDueDate] = React.useState<string>("");
   const [priority, setPriority] = React.useState<OrderPriority>("NORMAL");
   const [notes, setNotes] = React.useState<string>("");
@@ -72,6 +73,7 @@ export function CreateOrderDialog({
       setCustomerRef("");
       setProductItem(defaultProductItem ?? null);
       setOrderQty("1");
+      setUnitPrice("");
       setDueDate("");
       setPriority("NORMAL");
       setNotes(`Tạo từ BOM ${bomTemplateCode}`);
@@ -100,12 +102,14 @@ export function CreateOrderDialog({
     if (!validate()) return;
     try {
       const dueDateValue = dueDate ? new Date(dueDate) : null;
+      const priceTrim = unitPrice.trim();
       await createOrder.mutateAsync({
         customerName: customerName.trim(),
         customerRef: customerRef.trim() || null,
         productItemId: productItem!.id,
         bomTemplateId,
         orderQty: Number(orderQty),
+        unitPrice: priceTrim === "" ? null : Number(priceTrim),
         dueDate: dueDateValue,
         priority,
         notes: notes.trim() || null,
@@ -184,7 +188,7 @@ export function CreateOrderDialog({
             )}
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <Label htmlFor="co-qty" required>
                 Số lượng
@@ -202,6 +206,32 @@ export function CreateOrderDialog({
               {errors.orderQty ? (
                 <p className="text-[11px] text-red-600 dark:text-red-400">{errors.orderQty}</p>
               ) : null}
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="co-price">Đơn giá bán (₫)</Label>
+              <Input
+                id="co-price"
+                type="number"
+                step="0.01"
+                min={0}
+                value={unitPrice}
+                onChange={(e) => setUnitPrice(e.target.value)}
+                placeholder="VD: 150000"
+                className="tabular-nums"
+              />
+              {(() => {
+                const q = Number(orderQty);
+                const p = Number(unitPrice);
+                const valid = Number.isFinite(q) && q > 0 && Number.isFinite(p) && p > 0;
+                return (
+                  <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
+                    {valid
+                      ? `Giá trị đơn ≈ ${(q * p).toLocaleString("vi-VN")} ₫ — tính vào Dự trù thu`
+                      : "Nguồn cho Dự trù thu (tuỳ chọn)"}
+                  </p>
+                );
+              })()}
             </div>
 
             <div className="space-y-1">

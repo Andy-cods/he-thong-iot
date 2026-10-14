@@ -3,6 +3,7 @@ import {
   ABNORMAL_LINE_VALUE_THRESHOLD,
   classifyPayableDueBucket,
   computeBoardValueSummary,
+  computeOrderValueSummary,
   computeExpectedPayable,
   computeExpectedPayableTotal,
   computeExpectedReceivableTotal,
@@ -13,6 +14,7 @@ import {
   sumPlannedWithinHorizon,
   groupPayablesBySupplierAndBucket,
   type BoardValueRow,
+  type OrderValueRow,
   type PayableRawRow,
 } from "./finance-overview-policy";
 
@@ -20,6 +22,58 @@ import {
  * TASK-20261001 — vitest cho công thức THUẦN của Tổng quan Tài chính
  * ("Dự trù thu" gộp, "Dự trù chi" phần (a) công nợ sắp đến hạn + phần (b)).
  */
+
+describe("computeOrderValueSummary — Dự trù thu từ ĐƠN HÀNG BÁN (V4.7)", () => {
+  it("Σ(order_qty × unit_price) các đơn CONFIRMED/SNAPSHOTTED/IN_PROGRESS", () => {
+    const rows: OrderValueRow[] = [
+      { status: "CONFIRMED", orderQty: "5", unitPrice: "2000" },
+      { status: "SNAPSHOTTED", orderQty: "3", unitPrice: "1000" },
+      { status: "IN_PROGRESS", orderQty: "2", unitPrice: "500" },
+    ];
+    const out = computeOrderValueSummary(rows);
+    expect(out.expectedReceivable).toEqual({ value: 10000 + 3000 + 1000, itemCount: 3 });
+    expect(out.missingPriceCount).toBe(0);
+  });
+
+  it("DRAFT/FULFILLED/CLOSED/CANCELLED KHÔNG tính (chưa chắc / đã giao → thành công nợ)", () => {
+    const rows: OrderValueRow[] = [
+      { status: "DRAFT", orderQty: "10", unitPrice: "9999" },
+      { status: "FULFILLED", orderQty: "10", unitPrice: "9999" },
+      { status: "CLOSED", orderQty: "10", unitPrice: "9999" },
+      { status: "CANCELLED", orderQty: "10", unitPrice: "9999" },
+    ];
+    const out = computeOrderValueSummary(rows);
+    expect(out.expectedReceivable).toEqual({ value: 0, itemCount: 0 });
+  });
+
+  it("unit_price NULL → giá trị 0 nhưng đếm vào missingPriceCount", () => {
+    const rows: OrderValueRow[] = [
+      { status: "CONFIRMED", orderQty: "10", unitPrice: null },
+      { status: "IN_PROGRESS", orderQty: "4", unitPrice: "250" },
+    ];
+    const out = computeOrderValueSummary(rows);
+    expect(out.expectedReceivable).toEqual({ value: 1000, itemCount: 2 });
+    expect(out.missingPriceCount).toBe(1);
+  });
+
+  it("dòng giá trị vượt ngưỡng bất thường bị loại khỏi tổng, đếm riêng", () => {
+    const rows: OrderValueRow[] = [
+      { status: "CONFIRMED", orderQty: "1", unitPrice: String(ABNORMAL_LINE_VALUE_THRESHOLD + 1) },
+      { status: "CONFIRMED", orderQty: "2", unitPrice: "1000" },
+    ];
+    const out = computeOrderValueSummary(rows);
+    expect(out.expectedReceivable).toEqual({ value: 2000, itemCount: 1 });
+    expect(out.abnormalCount).toBe(1);
+  });
+
+  it("mảng rỗng → tất cả 0", () => {
+    expect(computeOrderValueSummary([])).toEqual({
+      expectedReceivable: { value: 0, itemCount: 0 },
+      missingPriceCount: 0,
+      abnormalCount: 0,
+    });
+  });
+});
 
 describe("computeBoardValueSummary — Dự trù thu (gộp Đang gia công + Đã xong chờ giao)", () => {
   it("Đang gia công = Σ(qty_planned × unit_price) các mã IN_PROGRESS/QC (KHÔNG gồm QUEUED)", () => {
@@ -332,9 +386,9 @@ describe("tổng thẻ Dự trù thu / Dự trù chi", () => {
       { amount: 10, dueDate: "2026-10-05" },
       { amount: 20, dueDate: "2027-05-05" },
     ];
-    const at30 = computeExpectedReceivableTotal({ boardValue: 1000, receivables, plannedIncomes, today, horizon: 30 });
-    expect(at30).toMatchObject({ boardValue: 1000, receivableDue: 100, plannedIncomeValue: 10, plannedIncomeCount: 1, value: 1110 });
-    const at45 = computeExpectedReceivableTotal({ boardValue: 1000, receivables, plannedIncomes, today, horizon: 45 });
+    const at30 = computeExpectedReceivableTotal({ orderValue: 1000, receivables, plannedIncomes, today, horizon: 30 });
+    expect(at30).toMatchObject({ orderValue: 1000, receivableDue: 100, plannedIncomeValue: 10, plannedIncomeCount: 1, value: 1110 });
+    const at45 = computeExpectedReceivableTotal({ orderValue: 1000, receivables, plannedIncomes, today, horizon: 45 });
     expect(at45.value).toBe(1150);
   });
 

@@ -72,6 +72,7 @@ export async function POST(req: NextRequest) {
       productItemId: body.data.productItemId,
       bomTemplateId: body.data.bomTemplateId ?? null,
       orderQty: body.data.orderQty,
+      unitPrice: body.data.unitPrice ?? null,
       dueDate: body.data.dueDate ?? null,
       priority: body.data.priority,
       notes: body.data.notes ?? null,

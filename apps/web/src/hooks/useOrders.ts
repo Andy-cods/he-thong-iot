@@ -36,6 +36,8 @@ export interface SalesOrderRow {
   productItemId: string;
   bomTemplateId: string | null;
   orderQty: string;
+  /** V4.7 — đơn giá bán (VND/đơn vị); null = chưa nhập. */
+  unitPrice: string | null;
   dueDate: string | null;
   priority: "LOW" | "NORMAL" | "HIGH" | "URGENT";
   notes: string | null;
@@ -153,6 +155,8 @@ export function useUpdateOrder(code: string) {
           nextData.customerRef = patch.customerRef ?? null;
         if (patch.orderQty !== undefined)
           nextData.orderQty = String(patch.orderQty);
+        if (patch.unitPrice !== undefined)
+          nextData.unitPrice = patch.unitPrice === null ? null : String(patch.unitPrice);
         if (patch.priority !== undefined)
           nextData.priority = patch.priority;
         if (patch.notes !== undefined) nextData.notes = patch.notes ?? null;

@@ -119,6 +119,68 @@ export function computeBoardValueSummary(rows: readonly BoardValueRow[]): BoardV
   };
 }
 
+/* ══════════════════════════ Dự trù thu: Đơn hàng bán (V4.7) ══════════════════════════ */
+
+/**
+ * V4.7 — Trạng thái đơn hàng bán coi là "đang sản xuất, chưa giao" cho ô Dự
+ * trù thu. KHÔNG gồm DRAFT (chưa xác nhận — chưa chắc chắn), FULFILLED (đã
+ * giao → chuyển thành công nợ phải thu qua hoá đơn, tránh đếm trùng), CLOSED,
+ * CANCELLED. Thay thế nguồn cũ `computeBoardValueSummary` (Bảng sản xuất TV).
+ */
+export const OPEN_ORDER_STATUSES = new Set(["CONFIRMED", "SNAPSHOTTED", "IN_PROGRESS"]);
+
+export interface OrderValueRow {
+  status: string;
+  orderQty: number | string;
+  /** Đơn giá bán; NULL = chưa nhập → giá trị 0 nhưng đếm vào missingPriceCount. */
+  unitPrice: number | string | null;
+}
+
+export interface OrderValueSummary {
+  /** Σ(order_qty × unit_price) các đơn đang sản xuất chưa giao. */
+  expectedReceivable: BoardValueBucket;
+  /** Số đơn (trong phạm vi trên) CHƯA nhập đơn giá — số liệu chưa đủ. */
+  missingPriceCount: number;
+  /** Số đơn có giá trị vượt ngưỡng bất thường, bị loại khỏi tổng. */
+  abnormalCount: number;
+}
+
+/**
+ * "Dự trù thu" từ ĐƠN HÀNG BÁN — Σ giá trị các đơn CONFIRMED/SNAPSHOTTED/
+ * IN_PROGRESS (đang sản xuất, chưa giao). `unit_price` NULL → giá trị 0 +
+ * đếm cảnh báo. Dòng vượt ngưỡng bất thường (gõ nhầm số 0) bị loại, đếm riêng.
+ * Hàm THUẦN — repo chỉ fetch rồi gọi; test bằng vitest không cần DB.
+ */
+export function computeOrderValueSummary(rows: readonly OrderValueRow[]): OrderValueSummary {
+  let value = 0;
+  let itemCount = 0;
+  let missingPriceCount = 0;
+  let abnormalCount = 0;
+
+  for (const r of rows) {
+    if (!OPEN_ORDER_STATUSES.has(r.status)) continue;
+
+    const hasPrice = r.unitPrice !== null && r.unitPrice !== undefined;
+    if (!hasPrice) missingPriceCount += 1;
+    const price = hasPrice ? Number(r.unitPrice) || 0 : 0;
+    const qty = Number(r.orderQty) || 0;
+    const lineValue = qty * price;
+
+    if (lineValue > ABNORMAL_LINE_VALUE_THRESHOLD) {
+      abnormalCount += 1;
+      continue;
+    }
+    value += lineValue;
+    itemCount += 1;
+  }
+
+  return {
+    expectedReceivable: { value, itemCount },
+    missingPriceCount,
+    abnormalCount,
+  };
+}
+
 export interface ExpectedPayableInput {
   /** `total_amount` của PO SENT/PARTIAL/RECEIVED CHƯA có hoá đơn mua active. */
   openPoAmounts: ReadonlyArray<number | string>;
@@ -428,8 +490,8 @@ export function groupReceivablesByCustomerAndBucket(
 }
 
 export interface ExpectedReceivableTotal {
-  /** Bảng sản xuất (không đổi công thức). */
-  boardValue: number;
+  /** V4.7 — Đơn hàng bán đang sản xuất chưa giao (thay Bảng SX). */
+  orderValue: number;
   /** Công nợ phải thu quá hạn + đến hạn trong kỳ. */
   receivableDue: number;
   /** Khoản thu dự kiến OPEN, hạn ≤ hôm nay + kỳ. */
@@ -438,9 +500,9 @@ export interface ExpectedReceivableTotal {
   value: number;
 }
 
-/** Tổng thẻ "Dự trù thu" = Bảng SX + công nợ phải thu trong kỳ + khoản thu dự kiến trong kỳ. */
+/** Tổng thẻ "Dự trù thu" = Đơn hàng bán + công nợ phải thu trong kỳ + khoản thu dự kiến trong kỳ. */
 export function computeExpectedReceivableTotal(input: {
-  boardValue: number;
+  orderValue: number;
   receivables: ReceivablesByCustomerBucketSummary;
   plannedIncomes: readonly PlannedItemRaw[];
   today: string;
@@ -449,11 +511,11 @@ export function computeExpectedReceivableTotal(input: {
   const receivableDue = sumBucketsWithinHorizon(input.receivables.totalByBucket, input.horizon);
   const planned = sumPlannedWithinHorizon(input.plannedIncomes, input.today, input.horizon);
   return {
-    boardValue: input.boardValue,
+    orderValue: input.orderValue,
     receivableDue,
     plannedIncomeValue: planned.value,
     plannedIncomeCount: planned.count,
-    value: input.boardValue + receivableDue + planned.value,
+    value: input.orderValue + receivableDue + planned.value,
   };
 }
 
