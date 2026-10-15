@@ -88,6 +88,7 @@ const PLANS: Array<[string, NotifyPlan]> = [
   ["PO subcontract", planPOSubcontractDraft({ ...PO, sku: "S", qty: 1 })],
   ["PO approval requested", planPOApprovalRequested({ ...PO, totalAmount: 1000 })],
   ["PO approved", planPOApproved(POA)],
+  ["PO auto-approved", planPOApproved({ ...POA, auto: true, autoApproveLimit: 20_000_000 })],
   ["PO approved (no PR)", planPOApproved({ ...POA, prId: null })],
   ["PO rejected", planPOApprovalRejected({ ...POA, reason: "đắt" })],
   ["PO sent", planPOSent(PO)],

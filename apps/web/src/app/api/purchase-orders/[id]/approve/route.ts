@@ -19,6 +19,8 @@ export const dynamic = "force-dynamic";
  *
  * V1.9-P9: duyệt PO DRAFT → metadata.approvalStatus = "approved".
  * Role: admin (approve permission).
+ * V4.9 — PO dưới ngưỡng tiền được tự duyệt lúc gửi duyệt (submit-approval); route này
+ * chỉ còn việc của Giám đốc với PO từ ngưỡng trở lên.
  */
 export async function POST(
   req: NextRequest,
@@ -31,7 +33,7 @@ export async function POST(
     if (guard.response.status === 403) {
       return jsonError(
         "FORBIDDEN",
-        "Đơn mua (PO) cần Giám đốc (admin) duyệt.",
+        "Đơn mua (PO) từ ngưỡng tự duyệt trở lên cần Giám đốc (admin) duyệt.",
         403,
       );
     }

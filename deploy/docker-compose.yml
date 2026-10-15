@@ -95,6 +95,7 @@ services:
       LOG_LEVEL: info
       # V3.12 — bật enqueue email "cần duyệt" (worker mới là bên gửi SMTP)
       MAIL_ENABLED: ${MAIL_ENABLED:-false}
+      PO_AUTO_APPROVE_LIMIT_VND: ${PO_AUTO_APPROVE_LIMIT_VND:-20000000}
       DB_PASSWORD_FILE: /run/secrets/db_password
       JWT_SECRET_FILE: /run/secrets/jwt_secret
       # V4.1 D1: phiên 4 tiếng (1 ca)

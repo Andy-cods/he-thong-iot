@@ -15,6 +15,7 @@ import type {
 import { db } from "@/lib/db";
 import {
   computePoLineTotal,
+  decidePoAutoApproval,
   nextPoStatusAfterReceipt,
   shouldRevertPrAfterPoCancel,
   type PoReceiptLine,
@@ -810,6 +811,8 @@ export interface CreatePOManualInput {
   notes?: string | null;
   autoApprove?: boolean;
   submitForApproval?: boolean;
+  /** V4.9 — ngưỡng tự duyệt (VND) khi gửi duyệt; không truyền = 0 (tắt). */
+  autoApproveLimit?: number;
   createdBy: string | null;
   /** V4.1 Đợt 2 — metadata bổ sung (VD PO từ dòng BOM: bomTemplateId/bomLineId). */
   extraMetadata?: Record<string, unknown>;
@@ -926,11 +929,33 @@ export async function createPO(
           autoApproved: true,
         }
       : submit
-        ? {
-            approvalStatus: "pending",
-            submittedBy: input.createdBy ?? undefined,
-            submittedAt: now.toISOString(),
-          }
+        ? (() => {
+            // V4.9 — dưới ngưỡng + đủ điều kiện → tự duyệt (status vẫn DRAFT).
+            const limit = input.autoApproveLimit ?? 0;
+            const d = decidePoAutoApproval({
+              prId: input.prId,
+              currency: input.currency ?? "VND",
+              totalAmount: total,
+              lines: linesPrepared,
+              limit,
+            });
+            return d.auto
+              ? {
+                  approvalStatus: "approved",
+                  approvedBy: input.createdBy ?? undefined,
+                  approvedAt: now.toISOString(),
+                  autoApproved: true,
+                  autoApproveReason: "UNDER_LIMIT",
+                  autoApproveLimit: limit,
+                  submittedBy: input.createdBy ?? undefined,
+                  submittedAt: now.toISOString(),
+                }
+              : {
+                  approvalStatus: "pending",
+                  submittedBy: input.createdBy ?? undefined,
+                  submittedAt: now.toISOString(),
+                };
+          })()
         : {};
     if (input.extraMetadata) Object.assign(metadata, input.extraMetadata);
 
@@ -1002,15 +1027,63 @@ export async function sendPO(id: string): Promise<PurchaseOrder | null> {
 
 /**
  * V1.9-P9: submit PO DRAFT → pending approval (metadata.approvalStatus).
+ * V4.9: nếu truyền `opts.autoApproveLimit` > 0 và PO đủ điều kiện (gắn PR, đủ giá,
+ * VND, tổng < ngưỡng) → TỰ DUYỆT (approvalStatus="approved", status vẫn DRAFT).
+ * Không truyền ngưỡng = 0 = tắt (hành vi cũ).
  */
 export async function submitPOForApproval(
   id: string,
   userId: string | null,
+  opts?: { autoApproveLimit?: number },
 ): Promise<PurchaseOrder | null> {
-  const [row] = await db
-    .update(purchaseOrder)
-    .set({
-      metadata: sql`
+  const limit = opts?.autoApproveLimit ?? 0;
+  const nowIso = new Date().toISOString();
+
+  let auto = false;
+  if (limit > 0) {
+    const [po] = await db
+      .select({
+        prId: purchaseOrder.prId,
+        currency: purchaseOrder.currency,
+        totalAmount: purchaseOrder.totalAmount,
+      })
+      .from(purchaseOrder)
+      .where(eq(purchaseOrder.id, id))
+      .limit(1);
+    if (po) {
+      const lines = await db
+        .select({ unitPrice: purchaseOrderLine.unitPrice })
+        .from(purchaseOrderLine)
+        .where(eq(purchaseOrderLine.poId, id));
+      auto = decidePoAutoApproval({
+        prId: po.prId,
+        currency: po.currency,
+        totalAmount: po.totalAmount ?? 0,
+        lines,
+        limit,
+      }).auto;
+    }
+  }
+
+  const metadataExpr = auto
+    ? sql`
+        (${purchaseOrder.metadata}
+          - 'rejectedBy'
+          - 'rejectedAt'
+          - 'rejectedReason'
+          - 'approvalNotes')
+        || jsonb_strip_nulls(jsonb_build_object(
+          'approvalStatus', 'approved',
+          'approvedBy', ${userId}::text,
+          'approvedAt', ${nowIso}::text,
+          'autoApproved', true,
+          'autoApproveReason', 'UNDER_LIMIT',
+          'autoApproveLimit', ${limit}::numeric,
+          'submittedBy', ${userId}::text,
+          'submittedAt', ${nowIso}::text
+        ))
+      `
+    : sql`
         (${purchaseOrder.metadata}
           - 'rejectedBy'
           - 'rejectedAt'
@@ -1021,10 +1094,13 @@ export async function submitPOForApproval(
         || jsonb_strip_nulls(jsonb_build_object(
           'approvalStatus', 'pending',
           'submittedBy', ${userId}::text,
-          'submittedAt', ${new Date().toISOString()}::text
+          'submittedAt', ${nowIso}::text
         ))
-      `,
-    })
+      `;
+
+  const [row] = await db
+    .update(purchaseOrder)
+    .set({ metadata: metadataExpr })
     .where(
       and(
         eq(purchaseOrder.id, id),
@@ -1035,6 +1111,39 @@ export async function submitPOForApproval(
     .returning();
   if (row) return row;
   return transitionMiss(id, "NOT_SUBMITTABLE");
+}
+
+/**
+ * V4.9 — PO đã tự duyệt dưới ngưỡng mà giá sửa vượt ngưỡng → hạ về "pending" (Giám đốc duyệt).
+ * Giữ submittedBy/submittedAt. Trả row, hoặc null nếu PO không còn ở trạng thái đó (không throw).
+ */
+export async function revertPoAutoApprovalToPending(
+  id: string,
+): Promise<PurchaseOrder | null> {
+  const [row] = await db
+    .update(purchaseOrder)
+    .set({
+      metadata: sql`
+        (${purchaseOrder.metadata}
+          - 'approvedBy'
+          - 'approvedAt'
+          - 'autoApproved'
+          - 'autoApproveReason'
+          - 'autoApproveLimit'
+          - 'approvalNotes')
+        || jsonb_build_object('approvalStatus', 'pending')
+      `,
+    })
+    .where(
+      and(
+        eq(purchaseOrder.id, id),
+        eq(purchaseOrder.status, "DRAFT"),
+        sql`${purchaseOrder.metadata} ->> 'approvalStatus' = 'approved'`,
+        sql`${purchaseOrder.metadata} ->> 'autoApproveReason' = 'UNDER_LIMIT'`,
+      ),
+    )
+    .returning();
+  return row ?? null;
 }
 
 export interface UpdatePOHeaderPatch {

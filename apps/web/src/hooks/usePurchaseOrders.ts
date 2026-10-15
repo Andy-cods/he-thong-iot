@@ -315,7 +315,8 @@ export function useSubmitPOApproval(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () =>
-      request<{ data: PORow }>(
+      // V4.9 — `approval`: PO có được tự duyệt dưới ngưỡng không (+ lý do nếu phải chờ Giám đốc).
+      request<{ data: PORow; approval?: { auto: boolean; reason: string; message: string } }>(
         `/api/purchase-orders/${id}/submit-approval`,
         { method: "POST" },
       ),

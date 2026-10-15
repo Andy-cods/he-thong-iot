@@ -39,6 +39,8 @@ export interface PoPriceUpdateResult {
   status: string;
   /** metadata.approvalStatus (pending/approved/rejected) — null nếu chưa gửi duyệt. */
   approvalStatus: string | null;
+  /** V4.9 — metadata.autoApproveReason ("UNDER_LIMIT" nếu PO được tự duyệt dưới ngưỡng). */
+  autoApproveReason: string | null;
   changes: PoPriceChange[];
   totalBefore: string;
   totalAfter: string;
@@ -114,6 +116,8 @@ export async function updatePoLinePrices(
       status: po.status,
       approvalStatus:
         (po.metadata as { approvalStatus?: string } | null)?.approvalStatus ?? null,
+      autoApproveReason:
+        (po.metadata as { autoApproveReason?: string } | null)?.autoApproveReason ?? null,
       changes: plan.changes,
       totalBefore: po.totalAmount,
     };

@@ -27,6 +27,9 @@ const inputSchema = z.object({
  * Đồng thời set status = APPROVED để chuyển sang flow tạo PO existing.
  *
  * Authorization: admin OR purchaser ("giám đốc"/"trưởng mua hàng").
+ *
+ * V4.9 (M4) — "2 bước = 2 người": người đã duyệt bước Kho (deptApprovedBy) không
+ * được tự duyệt cuối (trừ admin) → 403 SAME_APPROVER.
  */
 export async function POST(
   req: NextRequest,
@@ -56,7 +59,7 @@ export async function POST(
   if (before.approvalStep !== "DEPT_APPROVED") {
     return jsonError(
       "INVALID_STATE",
-      `Phiếu đang ở bước ${before.approvalStep} — chỉ Giám đốc duyệt được khi đã qua Trưởng bộ phận.`,
+      `Phiếu đang ở bước ${before.approvalStep} — chỉ duyệt cuối được khi đã qua bước Kho kiểm tồn.`,
       409,
     );
   }
@@ -72,6 +75,21 @@ export async function POST(
     return jsonError(
       "SELF_APPROVAL",
       "Bạn là người lập phiếu này — cần người khác duyệt.",
+      403,
+    );
+  }
+
+  // V4.9 — người đã duyệt bước Kho không duyệt cuối nữa (người mang cả 2 vai warehouse+purchaser).
+  if (
+    isSelfApprovalBlocked({
+      creatorId: before.deptApprovedBy,
+      actorId: guard.session.userId,
+      actorRoles: guard.session.roles,
+    })
+  ) {
+    return jsonError(
+      "SAME_APPROVER",
+      "Bạn đã duyệt bước Kho của phiếu này — bước duyệt cuối cần người khác.",
       403,
     );
   }

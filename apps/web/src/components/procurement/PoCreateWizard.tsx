@@ -177,7 +177,11 @@ export function PoCreateWizard() {
         submit: `Đã gửi duyệt PO ${res.data.poNo}.`,
         approve: `Đã tạo + duyệt PO ${res.data.poNo}.`,
       };
-      toast.success(msgMap[mode]);
+      // V4.9 — tạo kèm gửi duyệt mà được tự duyệt dưới ngưỡng.
+      const autoApproved =
+        mode === "submit" &&
+        (res.data.metadata as { approvalStatus?: string } | null | undefined)?.approvalStatus === "approved";
+      toast.success(autoApproved ? `Đã tạo PO ${res.data.poNo} — dưới ngưỡng, tự duyệt.` : msgMap[mode]);
       router.push(`/procurement/purchase-orders/${res.data.id}`);
     } catch (err) {
       toast.error(`Tạo PO thất bại: ${(err as Error).message}`);
@@ -455,8 +459,9 @@ export function PoCreateWizard() {
                 <strong>Lưu nháp:</strong> tạo PO status DRAFT, chưa gửi duyệt.
               </li>
               <li>
-                <strong>Gửi duyệt:</strong> tạo + mark pending approval (cần
-                admin duyệt tiếp).
+                <strong>Gửi duyệt:</strong> tạo + gửi duyệt. PO gắn phiếu đề xuất,
+                đủ giá, VND, dưới ngưỡng tự duyệt (mặc định 20 triệu) sẽ được duyệt
+                ngay; còn lại chờ Giám đốc.
               </li>
               {isAdmin && (
                 <li>

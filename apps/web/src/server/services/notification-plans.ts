@@ -990,6 +990,9 @@ export interface POApprovalCtx extends POCtx {
   submitterUserId?: string | null;
   prId?: string | null;
   prRequesterUserId?: string | null;
+  /** V4.9 — PO được hệ thống tự duyệt (dưới ngưỡng tiền), không phải Giám đốc duyệt tay. */
+  auto?: boolean;
+  autoApproveLimit?: number | null;
 }
 
 const poOrPr = (ctx: POApprovalCtx): string[] =>
@@ -1000,12 +1003,22 @@ const prRequester = (ctx: { prId?: string | null; prRequesterUserId?: string | n
 
 /** Giám đốc duyệt PO → người lập/gửi duyệt + Thu mua (gửi NCC) + người đề xuất + Kho. */
 export function planPOApproved(ctx: POApprovalCtx): NotifyPlan {
-  const mine: NotifyContent = {
-    title: `${ctx.poNo} đã được Giám đốc duyệt`,
-    message: "PO bạn lập/gửi duyệt đã được duyệt — có thể gửi NCC.",
-    links: [L.po(ctx.poId)],
-    severity: "success",
-  };
+  // V4.9 — tự duyệt dưới ngưỡng: đổi wording, báo thêm admin (chỉ để biết, không email/push).
+  const auto = ctx.auto === true;
+  const limit = vnd(ctx.autoApproveLimit ?? 0);
+  const mine: NotifyContent = auto
+    ? {
+        title: `${ctx.poNo} tự duyệt (dưới ngưỡng ${limit})`,
+        message: "PO bạn lập/gửi duyệt đã được duyệt (tự động, dưới ngưỡng) — có thể gửi NCC.",
+        links: [L.po(ctx.poId)],
+        severity: "success",
+      }
+    : {
+        title: `${ctx.poNo} đã được Giám đốc duyệt`,
+        message: "PO bạn lập/gửi duyệt đã được duyệt — có thể gửi NCC.",
+        links: [L.po(ctx.poId)],
+        severity: "success",
+      };
   return {
     eventType: "PO_APPROVED",
     entityType: "purchase_order",
@@ -1017,14 +1030,18 @@ export function planPOApproved(ctx: POApprovalCtx): NotifyPlan {
       user(ctx.submitterUserId, PO_CREATOR_ROLES, mine),
       user(ctx.creatorUserId, PO_CREATOR_ROLES, mine),
       role("purchaser", {
-        title: `${ctx.poNo} đã được Giám đốc duyệt`,
-        message: "Có thể gửi NCC.",
+        title: auto ? `${ctx.poNo} tự duyệt (dưới ngưỡng ${limit})` : `${ctx.poNo} đã được Giám đốc duyệt`,
+        message: auto
+          ? "PO gắn phiếu đề xuất, dưới ngưỡng — đã tự duyệt, có thể gửi NCC."
+          : "Có thể gửi NCC.",
         links: [L.po(ctx.poId), L.salesPo],
         severity: "success",
       }),
       user(prRequester(ctx), PR_CREATOR_ROLES, {
         title: "Đơn mua cho đề xuất của bạn đã duyệt",
-        message: `${ctx.poNo} đã được Giám đốc duyệt.`,
+        message: auto
+          ? `${ctx.poNo} đã được duyệt (tự động, dưới ngưỡng).`
+          : `${ctx.poNo} đã được Giám đốc duyệt.`,
         links: poOrPr(ctx),
         severity: "success",
       }),
@@ -1033,6 +1050,16 @@ export function planPOApproved(ctx: POApprovalCtx): NotifyPlan {
         message: "Thu mua sẽ gửi NCC; hàng về nhận ở màn Nhập kho.",
         links: [L.po(ctx.poId), L.whIn],
       }),
+      ...(auto
+        ? [
+            role("admin", {
+              title: `${ctx.poNo} tự duyệt dưới ngưỡng`,
+              message: `Giá trị PO dưới ${limit} — hệ thống tự duyệt. Mở PO nếu muốn kiểm tra/huỷ.`,
+              links: [L.po(ctx.poId)],
+              severity: "info",
+            }),
+          ]
+        : []),
     ],
   };
 }
