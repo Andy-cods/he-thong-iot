@@ -124,7 +124,19 @@ export function PoDetailHeader({
     }
   };
 
-  const handleSubmit = () => void run(() => submit.mutateAsync(), "Đã gửi PO để duyệt.", "Gửi duyệt thất bại");
+  // V4.9 — thông báo theo kết quả: dưới ngưỡng → tự duyệt; ngược lại chờ Giám đốc (kèm lý do).
+  const handleSubmit = async () => {
+    try {
+      const res = await submit.mutateAsync();
+      if (res.approval?.auto) {
+        toast.success("PO dưới ngưỡng — đã tự duyệt, có thể gửi NCC.");
+      } else {
+        toast.success(`Đã gửi PO để Giám đốc duyệt. ${res.approval?.message ?? ""}`.trim());
+      }
+    } catch (err) {
+      toast.error(`Gửi duyệt thất bại: ${(err as Error).message}`);
+    }
+  };
   const handleApprove = () =>
     void run(() => approve.mutateAsync({ notes: null }), "Đã duyệt PO.", "Duyệt thất bại");
   const handleReject = async () => {

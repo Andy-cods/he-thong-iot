@@ -139,7 +139,12 @@ export function buildPoSteps(input: PoStepInput): PoStep[] {
   } else {
     steps.push({
       key: "approved",
-      label: m.autoApproved ? "Duyệt (tự động)" : "Duyệt",
+      label:
+        m.autoApproveReason === "UNDER_LIMIT"
+          ? "Tự duyệt (dưới ngưỡng)"
+          : m.autoApproved
+            ? "Duyệt (tự động)"
+            : "Duyệt",
       state:
         approval === "approved"
           ? "done"

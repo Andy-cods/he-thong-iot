@@ -52,6 +52,23 @@ describe("V4.1 PO-UI — tiến trình PO", () => {
     ]);
   });
 
+  it("V4.9 — PO tự duyệt dưới ngưỡng: nhãn bước Duyệt rõ ràng, trạng thái done", () => {
+    const steps = buildPoSteps({
+      status: "DRAFT",
+      createdAt: "2026-09-01T00:00:00Z",
+      metadata: {
+        approvalStatus: "approved",
+        autoApproved: true,
+        autoApproveReason: "UNDER_LIMIT",
+        submittedAt: "2026-09-02T00:00:00Z",
+        approvedAt: "2026-09-02T00:00:00Z",
+      },
+    });
+    const approved = steps.find((s) => s.key === "approved")!;
+    expect(approved.label).toBe("Tự duyệt (dưới ngưỡng)");
+    expect(approved.state).toBe("done");
+  });
+
   it("PO cũ gửi NCC không qua duyệt → bỏ qua; nhận một phần ghi %", () => {
     const steps = buildPoSteps({
       status: "PARTIAL",

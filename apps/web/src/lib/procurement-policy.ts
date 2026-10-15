@@ -912,3 +912,88 @@ export function summarizePoLines(
   }
   return { subtotal: round2(subtotal), vat: round2(vat), total: round2(subtotal + vat), unpriced };
 }
+
+/* ── V4.9: duyệt PO theo ngưỡng tiền ─────────────────────────────────────── */
+
+/**
+ * V4.9 — ngưỡng tự duyệt PO mặc định: 20 triệu VND. Mốc 20 triệu = mốc hoá đơn
+ * phải thanh toán chuyển khoản theo luật thuế VN, chủ xưởng quen với mốc này.
+ * Đổi bằng env `PO_AUTO_APPROVE_LIMIT_VND`; đặt 0 để tắt (mọi PO về Giám đốc).
+ */
+export const PO_AUTO_APPROVE_LIMIT_VND_DEFAULT = 20_000_000;
+
+/** V4.9 — đọc env ngưỡng: rỗng → mặc định; số hữu hạn ≥ 0 → số đó (0 = tắt); NaN/âm → mặc định. */
+export function resolvePoAutoApproveLimit(raw: string | undefined | null): number {
+  if (raw === undefined || raw === null || raw.trim() === "") return PO_AUTO_APPROVE_LIMIT_VND_DEFAULT;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return PO_AUTO_APPROVE_LIMIT_VND_DEFAULT;
+  return n;
+}
+
+export type PoAutoApproveReason =
+  | "UNDER_LIMIT"
+  | "DISABLED"
+  | "NO_PR"
+  | "UNPRICED"
+  | "CURRENCY"
+  | "OVER_LIMIT";
+
+/**
+ * V4.9 — PO có tự duyệt khi gửi duyệt không? Thứ tự kiểm:
+ * DISABLED → NO_PR → UNPRICED → CURRENCY → OVER_LIMIT → UNDER_LIMIT (tự duyệt).
+ */
+export function decidePoAutoApproval(input: {
+  prId: string | null | undefined;
+  currency: string | null | undefined;
+  totalAmount: number | string;
+  lines: ReadonlyArray<{ unitPrice: number | string | null | undefined }>;
+  limit: number;
+}):
+  | { auto: true; reason: "UNDER_LIMIT" }
+  | { auto: false; reason: Exclude<PoAutoApproveReason, "UNDER_LIMIT"> } {
+  if (!(input.limit > 0)) return { auto: false, reason: "DISABLED" };
+  if (!input.prId) return { auto: false, reason: "NO_PR" };
+  if (input.lines.length === 0 || input.lines.some((l) => num(l.unitPrice) <= 0)) {
+    return { auto: false, reason: "UNPRICED" };
+  }
+  const cur = (input.currency ?? "").trim().toUpperCase();
+  if (cur !== "" && cur !== "VND") return { auto: false, reason: "CURRENCY" };
+  if (!(num(input.totalAmount) < input.limit)) return { auto: false, reason: "OVER_LIMIT" };
+  return { auto: true, reason: "UNDER_LIMIT" };
+}
+
+/** V4.9 — PO đã tự duyệt (DRAFT) mà sửa giá làm tổng vượt ngưỡng → phải hạ về chờ Giám đốc. */
+export function shouldRevertPoAutoApproval(input: {
+  status: string;
+  approvalStatus: string | null | undefined;
+  autoApproveReason: string | null | undefined;
+  totalAfter: number | string;
+  limit: number;
+}): boolean {
+  return (
+    input.status === "DRAFT" &&
+    input.approvalStatus === "approved" &&
+    input.autoApproveReason === "UNDER_LIMIT" &&
+    input.limit > 0 &&
+    num(input.totalAfter) >= input.limit
+  );
+}
+
+/** V4.9 — câu ngắn giải thích vì sao PO phải chờ Giám đốc. */
+export function poAutoApproveBlockedMessage(reason: PoAutoApproveReason, limit: number): string {
+  const vnd = (n: number) => n.toLocaleString("vi-VN") + " ₫";
+  switch (reason) {
+    case "OVER_LIMIT":
+      return `Giá trị từ ${vnd(limit)} trở lên — cần Giám đốc duyệt.`;
+    case "NO_PR":
+      return "PO không gắn phiếu đề xuất — cần Giám đốc duyệt.";
+    case "UNPRICED":
+      return "Còn dòng chưa có đơn giá — cần Giám đốc duyệt.";
+    case "CURRENCY":
+      return "PO không phải VND — cần Giám đốc duyệt.";
+    case "DISABLED":
+      return "Tự duyệt dưới ngưỡng đang tắt — cần Giám đốc duyệt.";
+    default:
+      return "";
+  }
+}

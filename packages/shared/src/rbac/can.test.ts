@@ -114,7 +114,10 @@ describe("can() — assert 48+ cell từ matrix (§4 brainstorm)", () => {
     // PO
     ["admin", "approve", "po", true],
     ["planner", "approve", "po", false],
+    // V4.9 — Thu mua KHÔNG có approve:po (tự duyệt theo ngưỡng tiền ở submit-approval, không qua matrix).
     ["purchaser", "approve", "po", false],
+    ["warehouse", "approve", "po", false],
+    ["accountant", "approve", "po", false],
     ["warehouse", "transition", "po", true],
     ["warehouse", "update", "po", true],
     ["operator", "update", "po", false],

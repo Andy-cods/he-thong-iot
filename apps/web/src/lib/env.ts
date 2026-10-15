@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { buildDsn } from "./dsn";
+import { resolvePoAutoApproveLimit } from "./procurement-policy";
 
 /**
  * Đọc secret: ưu tiên {VAR}_FILE (docker compose secret mount),
@@ -59,6 +60,9 @@ export const env = {
   VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY ?? "",
   VAPID_PRIVATE_KEY: readSecret("VAPID_PRIVATE_KEY", false) ?? "",
   VAPID_SUBJECT: process.env.VAPID_SUBJECT ?? "mailto:admin@songchau.vn",
+  // V4.9 — ngưỡng tự duyệt PO (VND). PO gắn phiếu đề xuất, đủ giá, VND, tổng < ngưỡng
+  // → tự duyệt khi gửi duyệt. 0 = tắt. Mặc định 20 triệu.
+  PO_AUTO_APPROVE_LIMIT_VND: resolvePoAutoApproveLimit(process.env.PO_AUTO_APPROVE_LIMIT_VND),
   R2: {
     accountId: process.env.R2_ACCOUNT_ID ?? "",
     bucket: process.env.R2_BUCKET ?? "",

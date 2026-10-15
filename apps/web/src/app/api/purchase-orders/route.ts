@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { poCreateSchema, poListQuerySchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
+import { env } from "@/lib/env";
 import { createPO, listPOs } from "@/server/repos/purchaseOrders";
 import {
   extractRequestMeta,
@@ -11,6 +12,7 @@ import {
 import { writeAudit } from "@/server/services/audit";
 import {
   notifyPOApprovalRequested,
+  notifyPOApproved,
   closePrNeedsPo,
   notifyPOCreatedFromPR,
   notifyPOSent,
@@ -98,6 +100,8 @@ export async function POST(req: NextRequest) {
       notes: body.data.notes ?? null,
       autoApprove: canApprove,
       submitForApproval: body.data.submitForApproval,
+      // V4.9 — ngưỡng tự duyệt khi tạo kèm gửi duyệt.
+      autoApproveLimit: env.PO_AUTO_APPROVE_LIMIT_VND,
       createdBy: guard.session.userId,
       lines: body.data.lines.map((l) => ({
         itemId: l.itemId,
@@ -126,6 +130,10 @@ export async function POST(req: NextRequest) {
           "approvalStatus" in row.metadata
             ? row.metadata.approvalStatus
             : undefined,
+        ...(row.status === "DRAFT" &&
+        (row.metadata as { autoApproved?: boolean } | null)?.autoApproved === true
+          ? { autoApproved: true }
+          : {}),
       },
       ...meta,
     });
@@ -141,6 +149,21 @@ export async function POST(req: NextRequest) {
         supplierName: null,
         actorUserId: guard.session.userId,
         actorUsername: guard.session.fullName,
+      });
+    } else if (approvalStatus === "approved") {
+      // V4.9 — tạo kèm gửi duyệt và được tự duyệt dưới ngưỡng (status vẫn DRAFT).
+      const pr = row.prId ? await getPR(row.prId).catch(() => null) : null;
+      void notifyPOApproved({
+        poId: row.id,
+        poNo: row.poNo,
+        actorUserId: guard.session.userId,
+        actorUsername: guard.session.fullName,
+        creatorUserId: row.createdBy,
+        submitterUserId: guard.session.userId,
+        prId: row.prId,
+        prRequesterUserId: pr?.requestedBy ?? null,
+        auto: true,
+        autoApproveLimit: env.PO_AUTO_APPROVE_LIMIT_VND,
       });
     } else if (approvalStatus === "pending") {
       void notifyPOApprovalRequested({

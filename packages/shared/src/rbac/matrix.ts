@@ -198,7 +198,9 @@ export const RBAC_MATRIX: Matrix = {
     salesOrder: ["read"],
     bomSnapshot: ["read"],
     // V3.9 — Thu mua cũng tự đề xuất mua vật tư (create) ngoài duyệt PR.
+    // V4.9 — duyệt cuối PR (director-approve) chặn người đã duyệt bước Kho (2 bước = 2 người).
     pr: ["create", "read", "update", "approve"],
+    // V4.9 — KHÔNG cấp `approve`: xưởng 1 người mua nên cấp quyền = tự duyệt; thay bằng tự duyệt theo ngưỡng tiền khi gửi duyệt (lib/procurement-policy.ts decidePoAutoApproval), PO từ ngưỡng trở lên vẫn chỉ admin.
     po: ["create", "read", "update", "transition"],
     wo: ["read"],
     reservation: ["read"],

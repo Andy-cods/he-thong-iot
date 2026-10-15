@@ -1,11 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { poPriceUpdateSchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
-import { canEditPoPrices } from "@/lib/procurement-policy";
+import { env } from "@/lib/env";
+import { canEditPoPrices, shouldRevertPoAutoApproval } from "@/lib/procurement-policy";
+import { revertPoAutoApprovalToPending } from "@/server/repos/purchaseOrders";
 import { PoPriceError, updatePoLinePrices } from "@/server/repos/poPrices";
 import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
-import { notifyPOPriceUpdated } from "@/server/services/notifications";
+import { notifyPOApprovalRequested, notifyPOPriceUpdated } from "@/server/services/notifications";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -59,6 +61,7 @@ export async function PATCH(
 
   try {
     const result = await updatePoLinePrices(params.id, body.data.lines);
+    let reverted = false;
 
     if (result.changes.length > 0) {
       await writeAudit({
@@ -92,9 +95,45 @@ export async function PATCH(
       // Giá đổi SAU khi Giám đốc đã duyệt (DRAFT đã duyệt) hoặc đã gửi NCC trở
       // đi → Kho (đối chiếu nhận hàng) + Giám đốc + Kế toán (HĐ mua nháp tự
       // tính lại). PO nháp chưa duyệt: không báo (chưa ai phụ thuộc giá này).
+      // V4.9 — PO tự duyệt dưới ngưỡng mà giá mới vượt ngưỡng → hạ về chờ Giám đốc
+      // (chống "gửi giá thấp rồi sửa giá cao"). Khi đó chỉ báo "cần duyệt", bỏ báo đổi giá.
+      if (
+        shouldRevertPoAutoApproval({
+          status: result.status,
+          approvalStatus: result.approvalStatus,
+          autoApproveReason: result.autoApproveReason,
+          totalAfter: result.totalAfter,
+          limit: env.PO_AUTO_APPROVE_LIMIT_VND,
+        })
+      ) {
+        const back = await revertPoAutoApprovalToPending(result.poId);
+        if (back) {
+          reverted = true;
+          await writeAudit({
+            actor: guard.session,
+            action: "UPDATE",
+            objectType: "purchase_order",
+            objectId: result.poId,
+            after: {
+              approvalStatus: "pending",
+              reason: "PRICE_OVER_LIMIT",
+              totalAmount: result.totalAfter,
+            },
+            notes: "Giá mới vượt ngưỡng tự duyệt — chuyển Giám đốc duyệt",
+            ...extractRequestMeta(req),
+          });
+          void notifyPOApprovalRequested({
+            poId: result.poId,
+            poNo: result.poNo,
+            totalAmount: result.totalAfter,
+            actorUserId: guard.session.userId,
+            actorUsername: guard.session.fullName,
+          });
+        }
+      }
       const afterApproval =
         result.status !== "DRAFT" || result.approvalStatus === "approved";
-      if (afterApproval) {
+      if (afterApproval && !reverted) {
         void notifyPOPriceUpdated({
           poId: result.poId,
           poNo: result.poNo,
@@ -113,6 +152,7 @@ export async function PATCH(
         changedLines: result.changes.length,
         totalAmount: result.totalAfter,
         invoiceRefreshed: result.invoiceRefreshed,
+        reverted,
       },
     });
   } catch (err) {
