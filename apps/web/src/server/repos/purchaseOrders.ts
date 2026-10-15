@@ -698,7 +698,7 @@ export async function createPOFromPR(
     const missing = lines.filter((l) => !l.preferredSupplierId);
     if (missing.length > 0) {
       throw new Error(
-        `MISSING_PREFERRED_SUPPLIER: ${missing.length} line chưa gán supplier`,
+        `MISSING_PREFERRED_SUPPLIER: ${missing.length} line chưa gán supplier|lineIds=${missing.map((l) => l.id).join(",")}`,
       );
     }
 

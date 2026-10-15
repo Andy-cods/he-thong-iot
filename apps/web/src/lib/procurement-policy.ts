@@ -243,7 +243,21 @@ export interface OverDeliveryCheckInput {
 export type OverDeliveryCheckResult =
   | { ok: true; over: false; overQty: 0 }
   | { ok: true; over: true; overQty: number }
-  | { ok: false; over: true; overQty: number; lineNo: number; message: string };
+  | {
+      ok: false;
+      over: true;
+      overQty: number;
+      lineNo: number;
+      message: string;
+      code: "OVER_DELIVERY_REJECTED" | "OVER_DELIVERY_RATIO_TOO_HIGH";
+    };
+
+/**
+ * Trần cứng CHỐNG GÕ NHẦM (không phải chính sách trần 120% cũ, đã bỏ ở V4.3):
+ * tổng SL nhận > 10 lần SL đặt của dòng → chặn, kể cả khi đã tick xác nhận.
+ * Nhận vượt hợp lý (110%, 150%…) vẫn đi theo luồng tick + lý do.
+ */
+export const OVER_DELIVERY_HARD_RATIO = 10;
 
 /**
  * V4.3 fix LOOP_E2E P1 — THUẦN: nhận hàng vượt SL đặt (ordered_qty) của MỘT
@@ -262,6 +276,17 @@ export function checkOverDelivery(
   const isOver = ordered > 0 && overQty > 1e-9;
   if (!isOver) return { ok: true, over: false, overQty: 0 };
 
+  if (projected > ordered * OVER_DELIVERY_HARD_RATIO + 1e-9) {
+    return {
+      ok: false,
+      over: true,
+      overQty,
+      lineNo: input.lineNo,
+      code: "OVER_DELIVERY_RATIO_TOO_HIGH",
+      message: "Số lượng nhận vượt 10 lần số đặt — kiểm tra lại, có thể gõ nhầm.",
+    };
+  }
+
   const reasonOk =
     (input.overDeliveryReason ?? "").trim().length >= OVER_DELIVERY_REASON_MIN_LEN;
   if (input.allowOverDelivery && reasonOk) {
@@ -272,6 +297,7 @@ export function checkOverDelivery(
     over: true,
     overQty,
     lineNo: input.lineNo,
+    code: "OVER_DELIVERY_REJECTED",
     message:
       `Dòng ${input.lineNo}: nhận ${projected.toFixed(2)} vượt ${overQty.toFixed(2)} so với ` +
       `SL đặt ${ordered.toFixed(2)}. Tick "Xác nhận nhận vượt" và nhập lý do (≥ ${OVER_DELIVERY_REASON_MIN_LEN} ký tự) để tiếp tục.`,

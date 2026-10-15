@@ -25,7 +25,18 @@ export async function POST(
   { params }: { params: { id: string } },
 ) {
   const guard = await requireCan(req, "approve", "po");
-  if ("response" in guard) return guard.response;
+  if ("response" in guard) {
+    // UX — 403 chung khó hiểu: nói rõ PO do Giám đốc (admin) duyệt. Giữ nguyên
+    // mã 403; 401/429 trả nguyên như cũ.
+    if (guard.response.status === 403) {
+      return jsonError(
+        "FORBIDDEN",
+        "Đơn mua (PO) cần Giám đốc (admin) duyệt.",
+        403,
+      );
+    }
+    return guard.response;
+  }
 
   // V4.5 QA-C P2-6 — chặn id sai định dạng TRƯỚC khi query DB.
   const idCheck = validateUuidParam(params.id);

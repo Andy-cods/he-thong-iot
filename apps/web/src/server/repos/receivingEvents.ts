@@ -26,11 +26,17 @@ import { getPOLineReceiptStats } from "./purchaseOrders";
  * thay vì gộp vào `rejected[]` như các lỗi khác.
  */
 export class OverDeliveryRejectedError extends Error {
-  readonly code = "OVER_DELIVERY_REJECTED" as const;
+  readonly code: "OVER_DELIVERY_REJECTED" | "OVER_DELIVERY_RATIO_TOO_HIGH";
   readonly lineNo: number;
   readonly overQty: number;
-  constructor(message: string, lineNo: number, overQty: number) {
+  constructor(
+    message: string,
+    lineNo: number,
+    overQty: number,
+    code: "OVER_DELIVERY_REJECTED" | "OVER_DELIVERY_RATIO_TOO_HIGH" = "OVER_DELIVERY_REJECTED",
+  ) {
     super(message);
+    this.code = code;
     this.name = "OverDeliveryRejectedError";
     this.lineNo = lineNo;
     this.overQty = overQty;
@@ -394,6 +400,7 @@ export async function postReceivingAtomic(
         overCheck.message,
         overCheck.lineNo,
         overCheck.overQty,
+        overCheck.code,
       );
     }
 

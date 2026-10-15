@@ -152,12 +152,16 @@ export async function POST(
         "Không còn phần nào cần lập PO (Kho đã đáp ứng đủ hoặc các PO đã đặt/đã về đủ) — không tạo PO.",
         422,
       );
-    if (msg.includes("MISSING_PREFERRED_SUPPLIER"))
+    if (msg.includes("MISSING_PREFERRED_SUPPLIER")) {
+      const idsRaw = /lineIds=([\w,-]+)/.exec(msg)?.[1] ?? "";
+      const lineIds = idsRaw ? idsRaw.split(",") : [];
       return jsonError(
         "MISSING_SUPPLIER",
         "Có dòng PR chưa gán nhà cung cấp ưu tiên. Vui lòng chọn NCC cho từng dòng để tiếp tục.",
         422,
+        { lineIds },
       );
+    }
     if (msg.includes("PR_HAS_FREETEXT_LINES")) {
       const detail = msg.replace("PR_HAS_FREETEXT_LINES: ", "");
       return jsonError(
