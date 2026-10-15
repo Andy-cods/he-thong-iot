@@ -114,7 +114,7 @@ export function PRListTable({ rows, loading, sortDir, onSortDateClick }: PRListT
           r.completedAt ? (
             <StatusPill domain="pr" code={r.status} tone="success" label="Hoàn tất" />
           ) : r.status === "SUBMITTED" && r.approvalStep === "DEPT_APPROVED" ? (
-            <StatusPill domain="pr" code={r.status} label="Chờ Giám đốc" />
+            <StatusPill domain="pr" code={r.status} label="Chờ Mua hàng duyệt" />
           ) : r.status === "SUBMITTED" ? (
             <StatusPill domain="pr" code={r.status} label="Chờ Kho kiểm tồn" />
           ) : (

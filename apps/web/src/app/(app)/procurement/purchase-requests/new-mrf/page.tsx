@@ -887,13 +887,13 @@ export default function NewMRFPage() {
                   note="Tự động ký khi gửi phiếu"
                 />
                 <ApprovalRow
-                  role="Trưởng bộ phận"
+                  role="Kho duyệt (kiểm tồn & chốt SL mua)"
                   name="—"
                   date="—"
                   note="Chờ duyệt sau khi gửi"
                 />
                 <ApprovalRow
-                  role="Giám đốc / Mua hàng"
+                  role="Mua hàng duyệt"
                   name="—"
                   date="—"
                   note="Chờ duyệt cuối"

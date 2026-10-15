@@ -185,6 +185,46 @@ describe("V4.3 LOOP_E2E P1 — chặn nhận vượt SL đặt của dòng PO", 
     expect(r).toEqual({ ok: true, over: true, overQty: 20 });
   });
 
+  it("nhận > 10 lần SL đặt (gõ nhầm 100 thay 5) → chặn cứng dù đã tick + lý do", () => {
+    const r = checkOverDelivery({
+      lineNo: 1,
+      orderedQty: 5,
+      alreadyAcceptedQty: 0,
+      qty: 100,
+      allowOverDelivery: true,
+      overDeliveryReason: "NCC giao dư",
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.code).toBe("OVER_DELIVERY_RATIO_TOO_HIGH");
+      expect(r.message).toContain("vượt 10 lần");
+    }
+  });
+
+  it("nhận đúng 10× → vẫn qua hạn mức cứng (chỉ chặn khi > 10×)", () => {
+    const r = checkOverDelivery({
+      lineNo: 1,
+      orderedQty: 10,
+      alreadyAcceptedQty: 0,
+      qty: 100,
+      allowOverDelivery: true,
+      overDeliveryReason: "NCC giao dư",
+    });
+    expect(r.ok).toBe(true);
+  });
+
+  it("nhận 1.5× + có tick & lý do → cho qua như cũ", () => {
+    const r = checkOverDelivery({
+      lineNo: 1,
+      orderedQty: 100,
+      alreadyAcceptedQty: 0,
+      qty: 150,
+      allowOverDelivery: true,
+      overDeliveryReason: "NCC giao dư, xưởng đồng ý nhận",
+    });
+    expect(r).toEqual({ ok: true, over: true, overQty: 50 });
+  });
+
   it("orderedQty = 0 (dòng lỗi dữ liệu) → không coi là vượt", () => {
     const r = checkOverDelivery({
       lineNo: 1,

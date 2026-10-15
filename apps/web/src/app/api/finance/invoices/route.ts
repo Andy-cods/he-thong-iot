@@ -3,6 +3,7 @@ import { finInvoiceCreateSchema, finInvoiceListQuerySchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import {
   createFinInvoice,
+  FinInvoiceDirectionMismatchError,
   FinInvoiceDuplicateError,
   listFinInvoices,
 } from "@/server/repos/finInvoices";
@@ -51,6 +52,13 @@ export async function POST(req: NextRequest) {
         "FIN_INVOICE_DUPLICATE",
         `Số hoá đơn "${err.invoiceNo}" đã tồn tại cho đối tác này.`,
         409,
+      );
+    }
+    if (err instanceof FinInvoiceDirectionMismatchError) {
+      return jsonError(
+        "FIN_INVOICE_DIRECTION_MISMATCH",
+        "Hoá đơn mua (chiều IN) không được gắn đơn hàng bán.",
+        422,
       );
     }
     const pgCode =

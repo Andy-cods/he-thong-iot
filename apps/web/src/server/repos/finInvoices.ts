@@ -92,6 +92,13 @@ export class FinInvoiceDuplicateError extends Error {
   }
 }
 
+/** HĐ mua (IN) không được gắn đơn hàng bán — route map 422. */
+export class FinInvoiceDirectionMismatchError extends Error {
+  constructor() {
+    super("FIN_INVOICE_DIRECTION_MISMATCH");
+  }
+}
+
 /** Lịch sử allocation (join fin_payment_allocation) cho 1 invoice. */
 export async function getInvoiceAllocations(invoiceId: string) {
   return db
@@ -102,6 +109,10 @@ export async function getInvoiceAllocations(invoiceId: string) {
 }
 
 export async function createFinInvoice(input: FinInvoiceCreate, actorId: string | null) {
+  // M2 — salesOrderId chỉ hợp lệ với HĐ bán (OUT); HĐ mua (IN) gắn đơn bán là sai chiều sổ.
+  if (input.direction === "IN" && input.salesOrderId) {
+    throw new FinInvoiceDirectionMismatchError();
+  }
   return db.transaction(async (tx) => {
     // V4.1 TC-10 — unique index (direction, invoice_no, supplier_id) KHÔNG chặn
     // khi supplier_id NULL (NULL ≠ NULL) → HĐ đầu ra không chọn khách trùng số

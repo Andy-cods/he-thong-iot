@@ -24,8 +24,9 @@ import {
  * TASK-notify-realtime: ưu tiên SSE `/api/notifications/stream` (xem
  * `useNotificationStream.ts`) — có thông báo mới/đã đọc là server đẩy ngay,
  * component chỉ cần invalidate query này để refetch. Poll 60s (V4.2
- * PERF_REDUNDANCY.md #7) vẫn giữ làm LƯỚI AN TOÀN: khi SSE đang kết nối giãn
- * ra 5 phút, SSE rớt/chưa kết nối thì về lại 60s như cũ.
+ * PERF_REDUNDANCY.md #7) vẫn giữ làm LƯỚI AN TOÀN, chạy CỐ ĐỊNH 60s kể cả khi
+ * SSE đang kết nối (V4.8 QA-M3: phòng Redis publish lỗi → row DB có nhưng SSE
+ * không đẩy, chuông vẫn cập nhật trong ≤60s thay vì 5 phút).
  * `refetchIntervalInBackground: false` (mặc định của TanStack Query, khai báo
  * tường minh) — dừng poll khi tab không hiển thị. Bù lại bật
  * `refetchOnWindowFocus: "always"` riêng cho query này (ghi đè default tắt ở
@@ -71,9 +72,10 @@ export function NotificationBell() {
   const wrapRef = React.useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
 
-  // SSE kết nối → nhận tin tức thời, hạ poll xuống làm lưới an toàn (5 phút).
-  // SSE hỏng/chưa kết nối → giữ nguyên poll 60s như trước.
-  const sseConnected = useNotificationStreamInvalidate(true);
+  // SSE kết nối → nhận tin tức thời (hook tự invalidate query khi có event).
+  // Poll 60s cố định bên dưới làm LƯỚI AN TOÀN kể cả khi SSE đang nối (phòng
+  // Redis publish lỗi: row đã ghi DB vẫn lên chuông trong ≤60s).
+  useNotificationStreamInvalidate(true);
 
   // "Cần bạn duyệt" tới NGAY lúc đang mở app khác tab → toast nhẹ, không cần
   // mở dropdown. Không toast cho "update"/"reminder" (tránh làm phiền).
@@ -98,7 +100,8 @@ export function NotificationBell() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.json();
     },
-    refetchInterval: sseConnected ? 5 * 60_000 : 60_000,
+    // 60s kể cả khi SSE đang nối: nếu Redis publish lỗi, row đã có ở DB vẫn lên chuông trong ≤60s.
+    refetchInterval: 60_000,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: "always",
     staleTime: 55_000,

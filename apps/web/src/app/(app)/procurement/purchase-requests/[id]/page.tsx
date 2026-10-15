@@ -119,7 +119,7 @@ const STEP_LABEL: Record<ApprovalStep, string> = {
   DRAFT: "Nháp",
   // V4.0 — bước 2 do Kho đảm nhiệm (kiểm lượng tồn rồi duyệt).
   SUBMITTED: "Chờ Kho kiểm tồn",
-  DEPT_APPROVED: "Chờ Giám đốc",
+  DEPT_APPROVED: "Chờ Mua hàng duyệt",
   DIRECTOR_APPROVED: "Đã duyệt",
   CONVERTED: "Đã tạo PO",
   DONE: "Hoàn tất",
@@ -1221,7 +1221,7 @@ export default function PurchaseRequestDetailPage() {
                   note={status !== "DRAFT" ? "Đã ký khi gửi phiếu" : "Chưa gửi phiếu"}
                 />
                 <ApprovalRow
-                  role="Trưởng bộ phận"
+                  role="Kho duyệt (kiểm tồn & chốt SL mua)"
                   name={pr.deptApprovedByName ?? null}
                   date={fmtDateTimeVN(pr.deptApprovedAt)}
                   signed={!!pr.deptApprovedAt}
@@ -1235,7 +1235,7 @@ export default function PurchaseRequestDetailPage() {
                   }
                 />
                 <ApprovalRow
-                  role="Giám đốc / Mua hàng"
+                  role="Mua hàng duyệt"
                   name={pr.directorApprovedByName ?? null}
                   date={fmtDateTimeVN(pr.directorApprovedAt)}
                   signed={!!pr.directorApprovedAt}
@@ -1446,13 +1446,13 @@ export default function PurchaseRequestDetailPage() {
                 ? "Kho kiểm tồn — duyệt bước 2"
                 : approveOpen === "quick"
                   ? "Duyệt nhanh — gộp 2 cấp"
-                  : "Duyệt cuối — Giám đốc / Mua hàng"}
+                  : "Mua hàng duyệt (duyệt cuối)"}
             </DialogTitle>
             <DialogDescription>
               {approveOpen === "dept"
-                ? "Kiểm tồn rồi nhập SL cần mua từng dòng. Nếu mọi dòng cần mua = 0 (Kho đáp ứng đủ), phiếu bỏ qua duyệt cuối; ngược lại chuyển sang chờ Giám đốc/Mua hàng duyệt cuối."
+                ? "Kiểm tồn rồi nhập SL cần mua từng dòng. Nếu mọi dòng cần mua = 0 (Kho đáp ứng đủ), phiếu bỏ qua duyệt cuối; ngược lại chuyển sang chờ Mua hàng duyệt cuối."
                 : approveOpen === "quick"
-                  ? "Tên bạn sẽ hiện ở CẢ 2 ô ký (Trưởng bộ phận + Giám đốc). Phiếu chuyển thẳng sang Đã duyệt, sẵn sàng tạo PO. Kế toán sẽ nhận thông báo tải PDF/Excel."
+                  ? "Tên bạn sẽ hiện ở CẢ 2 ô ký (Kho duyệt + Mua hàng duyệt). Phiếu chuyển thẳng sang Đã duyệt, sẵn sàng tạo PO. Kế toán sẽ nhận thông báo tải PDF/Excel."
                   : "Sau khi duyệt cuối, phiếu sẵn sàng để tạo PO. Bộ phận Mua hàng sẽ nhận thông báo."}
             </DialogDescription>
           </DialogHeader>
