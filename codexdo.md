@@ -123,6 +123,13 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
+### TASK-20261102-001 — Website TVT (in 3D theo yêu cầu / POD), dự án riêng ngoài MES
+- **Trạng thái:** DONE · **Bắt đầu:** 2026-11-02 10:30 (+07) · **Hoàn thành:** 2026-11-02 11:20 (+07) · **Ưu tiên:** P2
+- Không liên quan hệ thống MES. Đặt riêng trong `sites/tvt-web/` (không thuộc pnpm workspace, không ảnh hưởng CI/deploy).
+- Site tĩnh 35 trang sinh từ `src/data.mjs` bằng `node src/build.mjs`; deploy = upload `public/`.
+- Kiểm: 0 link nội bộ hỏng; 35/35 trang không lỗi JS, không tràn ngang ở 390px và 1280px (Playwright).
+- Còn chờ user: logo, giá thật, hotline/Zalo/email/địa chỉ, ảnh sản phẩm thật, tên miền.
+
 ### TASK-20260927-001 — V4.1 Đợt 2–7 (Thu mua, Tài chính nguồn thu/chi, Sản xuất, Quản trị, Giao diện, Dọn dẹp)
 - **Trạng thái:** DONE · **Hoàn thành:** 2026-09-27 02:45 (+07) · **Ưu tiên:** P1
 - Thang giao tự quyết D7-D10 theo khuyến nghị và tự chạy đến hết Đợt 7 (E2E trên prod rồi xoá dữ liệu test).

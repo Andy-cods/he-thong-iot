@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://tvt3d.vn/sitemap.xml
