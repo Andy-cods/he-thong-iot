@@ -35,6 +35,10 @@ import {
 import { ActionsCell } from "./ActionsCell";
 import { BomLineSheet } from "./BomLineSheet";
 import { SupplierCell } from "./SupplierCell";
+import { StageJourneyCell } from "./StageJourneyCell";
+import { StageMoveDialog, type StageMoveTarget } from "./StageMoveDialog";
+import { useBomStages } from "@/hooks/useBomStages";
+import { buildJourney, type JourneyView } from "@/lib/bom-stage-journey";
 import { lineSupplierLabel, lineSupplierSearchText } from "@/lib/bom-line-supplier";
 import { PRQuickDialog } from "./PRQuickDialog";
 import { WOQuickDialog } from "./WOQuickDialog";
@@ -142,8 +146,8 @@ const STICKY_LEFT = {
   img: COL_SEL_W + COL_ID_W,
   name: COL_SEL_W + COL_ID_W + COL_IMG_W,
 } as const;
-/** WP6 sẽ bật cột "Hành trình" (chuỗi bước) — đã chừa chỗ giữa Tên và NCC. */
-const SHOW_JOURNEY_COL = false;
+/** WP6: cột "Hành trình · số lượng" (5 bước) giữa Tên và NCC. */
+const SHOW_JOURNEY_COL = true;
 const JOURNEY_COL_W = 220;
 /** Ảo hoá dòng khi vượt ngưỡng này. */
 const VIRTUALIZE_THRESHOLD = 40;
@@ -545,6 +549,32 @@ export function BomGridPro({
 
   // BOM V5 WP5 — chọn dòng (nền cho thao tác hàng loạt của WP6).
   const [selected, setSelected] = React.useState<Set<string>>(() => new Set());
+  // BOM V5 WP6 — hành trình theo SL (sổ bước), cache react-query, invalidate sau khi chuyển.
+  const stagesQuery = useBomStages(templateId);
+  const stageLines = stagesQuery.data?.data.lines;
+  const journeyOf = React.useCallback(
+    (lineId: string): JourneyView | null => {
+      const st = stageLines?.[lineId];
+      return st ? buildJourney(st.category, st.required, st.buckets) : null;
+    },
+    [stageLines],
+  );
+  const [stageMoveOpen, setStageMoveOpen] = React.useState(false);
+  const stageTargets = React.useMemo<StageMoveTarget[]>(() => {
+    const out: StageMoveTarget[] = [];
+    for (const r of flat) {
+      if (r.isGroup || !selected.has(r.id)) continue;
+      const st = stageLines?.[r.id];
+      out.push({
+        id: r.id,
+        name: lineNameText(r.node) || r.node.componentName || r.id,
+        category: st?.category ?? lineCategory(r.node),
+        buckets: st?.buckets ?? null,
+      });
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flat, selected, stageLines, stageMoveOpen]);
   const toggleSelected = React.useCallback((id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -929,8 +959,12 @@ export function BomGridPro({
             </Link>
           ) : null}
         </td>
-        {/* WP6: cột "Hành trình" (chuỗi bước) sẽ chèn tại đây. */}
-        {SHOW_JOURNEY_COL && <td className="px-2">{dash}</td>}
+        {/* WP6: Hành trình · số lượng */}
+        {SHOW_JOURNEY_COL && (
+          <td className="px-2">
+            <StageJourneyCell journey={journeyOf(row.id)} />
+          </td>
+        )}
         {/* NCC — SupplierCell bấm sửa trực tiếp */}
         <td className="px-2" onClick={(e) => e.stopPropagation()}>
           <SupplierCell
@@ -1322,7 +1356,7 @@ export function BomGridPro({
               <th className={cn(TH, "max-md:left-0 max-md:z-30 md:left-[200px] md:z-30 border-r border-zinc-200 dark:border-zinc-700")}>
                 Tên chi tiết
               </th>
-              {SHOW_JOURNEY_COL && <th className={TH}>Hành trình</th>}
+              {SHOW_JOURNEY_COL && <th className={TH}>Hành trình · số lượng</th>}
               <th className={TH}>
                 <div className="relative inline-flex items-center gap-1">
                   <span>NCC</span>
@@ -1581,6 +1615,40 @@ export function BomGridPro({
         actionLabel="Xoá"
         loading={deleteLine.isPending}
         onConfirm={handleDelete}
+      />
+
+      {/* BOM V5 WP6 — thanh hành động nổi khi chọn dòng + dialog chuyển bước. */}
+      {selected.size > 0 && !readOnly && (
+        <div
+          role="toolbar"
+          aria-label="Thao tác trên dòng đã chọn"
+          className="fixed bottom-5 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-xl bg-zinc-900 px-4 py-2.5 text-sm text-white shadow-lg dark:bg-zinc-100 dark:text-zinc-900"
+        >
+          <span>
+            <b className="font-semibold">{selected.size}</b> dòng đã chọn
+          </span>
+          <button
+            type="button"
+            onClick={() => setSelected(new Set())}
+            className="rounded-md px-2 py-1 text-zinc-300 hover:bg-white/10 dark:text-zinc-600 dark:hover:bg-black/10"
+          >
+            Bỏ chọn
+          </button>
+          <button
+            type="button"
+            onClick={() => setStageMoveOpen(true)}
+            className="rounded-md bg-indigo-500 px-3 py-1 font-medium text-white hover:bg-indigo-400"
+          >
+            Chuyển bước…
+          </button>
+        </div>
+      )}
+      <StageMoveDialog
+        open={stageMoveOpen}
+        onOpenChange={setStageMoveOpen}
+        templateId={templateId}
+        targets={stageTargets}
+        onDone={() => setSelected(new Set())}
       />
 
       {/* V1.7-beta.2 Phase C1 — Sheet sửa line (internal mặc định). */}

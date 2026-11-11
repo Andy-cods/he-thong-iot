@@ -38,6 +38,7 @@ import {
   useUpdateBomLine,
 } from "@/hooks/useBom";
 import { SupplierCell } from "./SupplierCell";
+import { StageJourneySection } from "./StageJourneySection";
 import { resolveLineSupplier } from "@/lib/bom-line-supplier";
 import { buildBomEditWoWarning } from "@/lib/bom-wo-warning";
 import type { BomFlatRow } from "@/lib/bom-grid/flatten-tree";
@@ -948,6 +949,11 @@ export function BomLineSheet({
                     </div>
                   </div>
                 </div>
+              </Section>
+            )}
+            {line && (
+              <Section title="Hành trình">
+                <StageJourneySection templateId={templateId} lineId={line.id} open={open} />
               </Section>
             )}
             <Section title="Lịch sử đổi NCC">
