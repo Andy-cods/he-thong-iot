@@ -90,6 +90,11 @@ export async function processBomImportTrienKhai(
   const rows = tk.rows;
 
   const { plan, undecided } = planTrienKhaiRows(rows, decisions);
+  // item.material_code có FK → app.material_master; chỉ gán mã đã có trong danh mục.
+  const mmRows = await db.execute(sql`SELECT upper(code) AS code FROM app.material_master`);
+  const knownMaterialCodes = new Set(
+    (mmRows as unknown as Array<{ code: string }>).map((r) => r.code),
+  );
   if (undecided.length > 0) {
     throw new Error(`Còn dòng chưa quyết định vật tư: ${undecided.slice(0, 10).join(", ")}`);
   }
@@ -234,7 +239,7 @@ export async function processBomImportTrienKhai(
           takenSku.add(sku.toUpperCase());
           const [ins] = await tx
             .insert(item)
-            .values({ ...buildNewItemValues(row, sku), createdBy: actorId, updatedBy: actorId })
+            .values({ ...buildNewItemValues(row, sku, knownMaterialCodes), createdBy: actorId, updatedBy: actorId })
             .returning({ id: item.id });
           if (!ins) throw new Error(`Không tạo được item ${sku}`);
           itemId = ins.id;

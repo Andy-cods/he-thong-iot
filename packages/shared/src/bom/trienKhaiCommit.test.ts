@@ -86,7 +86,7 @@ describe("item mới / sku", () => {
     expect(s.endsWith("-2")).toBe(true);
   });
   it("buildNewItemValues: sku, vật liệu, kích thước, ảnh", () => {
-    const v = buildNewItemValues(row(), "STOPPER_AL");
+    const v = buildNewItemValues(row(), "STOPPER_AL", new Set(["AL6061"]));
     expect(v).toMatchObject({
       sku: "STOPPER_AL",
       itemType: "FABRICATED",
@@ -94,6 +94,11 @@ describe("item mới / sku", () => {
       imageUrl: "/api/bom/assets/asset-1?size=full",
       dimensions: { length: 56, width: 26.5, height: 18, unit: "mm" },
     });
+  });
+  it("buildNewItemValues: mã vật liệu chưa có trong material_master → NULL (FK), mã ghi vào description", () => {
+    const v = buildNewItemValues(row(), "STOPPER_AL");
+    expect(v.materialCode).toBeNull();
+    expect(v.description?.toUpperCase()).toContain("AL6061");
   });
   it("newItemKey: cùng tên chuẩn hoá nhưng khác vật liệu → khác key", () => {
     expect(newItemKey(row())).toBe(newItemKey(row({ file3dName: "STOPPER_AL_9" })));

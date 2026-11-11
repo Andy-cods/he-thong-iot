@@ -153,8 +153,22 @@ export function newItemKey(
   );
 }
 
-export function buildNewItemValues(row: CommitRow, sku: string) {
+/**
+ * `knownMaterialCodes`: mã có trong app.material_master (item.material_code có FK tới đó).
+ * Mã chưa có trong danh mục → để NULL ở item, ghi mã vào đầu description để lần
+ * import sau bomMatch vẫn kiểm vật liệu được (bom_line.material_code không có FK, giữ nguyên).
+ */
+export function buildNewItemValues(
+  row: CommitRow,
+  sku: string,
+  knownMaterialCodes: ReadonlySet<string> = new Set(),
+) {
   const processed = row.category === "GTAM" || row.category === "OUTSOURCED";
+  const mat = row.materialCode?.trim() || null;
+  const matKnown = mat !== null && knownMaterialCodes.has(mat.toUpperCase());
+  const note = row.materialNote?.trim() || "";
+  const desc =
+    mat && !note.toUpperCase().includes(mat.toUpperCase()) ? (note ? `${mat} · ${note}` : mat) : note;
   return {
     sku,
     name: row.file3dName.trim().slice(0, 255),
@@ -162,8 +176,8 @@ export function buildNewItemValues(row: CommitRow, sku: string) {
     uom: "PCS" as const,
     status: "ACTIVE" as const,
     isActive: true,
-    description: row.materialNote ? row.materialNote.slice(0, 2000) : null,
-    materialCode: row.materialCode ? row.materialCode.slice(0, 64) : null,
+    description: desc ? desc.slice(0, 2000) : null,
+    materialCode: matKnown && mat ? mat.slice(0, 64) : null,
     dimensions: dimsToItemJson(row.dims),
     imageUrl: row.fullUrl ?? null,
   };
