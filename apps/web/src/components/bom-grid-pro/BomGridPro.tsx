@@ -6,9 +6,11 @@ import { useSearchParams } from "next/navigation";
 import {
   ChevronDown,
   ChevronRight,
-  Package,
+  ImageOff,
   Plus,
+  X,
 } from "lucide-react";
+import type { BomCategory } from "@iot/shared";
 import { toast } from "sonner";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { BomTreeNodeRaw } from "@/hooks/useBom";
@@ -37,8 +39,18 @@ import { lineSupplierLabel, lineSupplierSearchText } from "@/lib/bom-line-suppli
 import { PRQuickDialog } from "./PRQuickDialog";
 import { WOQuickDialog } from "./WOQuickDialog";
 import { SubcontractPOQuickDialog } from "./SubcontractPOQuickDialog";
-import { CategoryBadge } from "./CategoryBadge";
 import { AddBomLineDialog } from "./AddBomLineDialog";
+import {
+  CATEGORY_GROUP_LABEL,
+  CATEGORY_ORDER,
+  lineCategory,
+  lineCoef,
+  lineIdText,
+  lineImageSrc,
+  lineNameText,
+  linePics,
+  picInitial,
+} from "@/lib/bom-grid/line-view";
 
 /**
  * V1.7-beta.2 — Pro BOM Grid (thay Univer).
@@ -118,10 +130,27 @@ export interface BomGridProProps {
 
 const DEFAULT_STATUS: MaterialStatus = "PLANNED";
 
-/** V4.1 UI-BOM: bề rộng cột Thao tác (sticky phải) — đủ chỗ 4 nút. */
-const ACTIONS_COL_W = 132;
+/** BOM V5 WP5: cột Thao tác chỉ còn 1 nút "…". */
+const ACTIONS_COL_W = 56;
+/** Bề rộng 4 cột dính trái (md+): chọn/STT · ID · Ảnh · Tên. */
+const COL_SEL_W = 64;
+const COL_ID_W = 72;
+const COL_IMG_W = 64;
+const COL_NAME_W = 220;
+const STICKY_LEFT = {
+  id: COL_SEL_W,
+  img: COL_SEL_W + COL_ID_W,
+  name: COL_SEL_W + COL_ID_W + COL_IMG_W,
+} as const;
+/** WP6 sẽ bật cột "Hành trình" (chuỗi bước) — đã chừa chỗ giữa Tên và NCC. */
+const SHOW_JOURNEY_COL = false;
+const JOURNEY_COL_W = 220;
+/** Ảo hoá dòng khi vượt ngưỡng này. */
+const VIRTUALIZE_THRESHOLD = 40;
 /** V4.1 UI-04: cột PIC 110 → 140px để pill tên không bị cắt. */
 const PIC_COL_W = 140;
+const TH =
+  "sticky top-0 z-20 border-b border-zinc-200 bg-zinc-50 px-2 text-left dark:border-zinc-700 dark:bg-zinc-800";
 /** V4.1 UI-BOM: chiều cao thead (h-8) — offset đầu cho virtualizer. */
 const GRID_HEADER_H = 32;
 
@@ -129,6 +158,71 @@ const GRID_HEADER_H = 32;
  * V3.8.3 — Tổng SL cần của 1 dòng: ưu tiên metadata.totalQty (raw Excel),
  * fallback qtyPerParent × parentQty. Khớp logic cell "SL" (đã có).
  */
+type ListItem =
+  | { type: "row"; row: BomFlatRow; stt: number }
+  | { type: "cat"; cat: BomCategory; count: number };
+
+/** Quy cách D×R×C: metadata.size → item.dimensions → spec_json.dimensionText. */
+function lineDimsText(node: BomTreeNodeRaw): string | null {
+  const md = node.metadata as { size?: string } | null;
+  if (md?.size && md.size.trim()) return md.size;
+  const dim = node.itemDimensions as {
+    length?: number | string;
+    width?: number | string;
+    height?: number | string;
+    unit?: string;
+  } | null;
+  if (dim) {
+    const parts = [dim.length, dim.width, dim.height]
+      .map((v) => (v === 0 || v === "0" ? null : v))
+      .filter((v): v is number | string => v != null && v !== "");
+    if (parts.length > 0) {
+      return `${parts.join("×")}${dim.unit ? ` ${dim.unit}` : ""}`;
+    }
+  }
+  const rawSpec = node.itemSpecJson;
+  if (rawSpec && rawSpec.trim()) {
+    try {
+      const parsed = JSON.parse(rawSpec) as { dimensionText?: unknown };
+      if (typeof parsed.dimensionText === "string" && parsed.dimensionText.trim()) {
+        return parsed.dimensionText;
+      }
+    } catch {
+      return rawSpec;
+    }
+  }
+  return null;
+}
+
+/** Ảnh 3D thumb 44px, lazy; lỗi tải / không có → ô "chưa có ảnh". */
+function LineThumb({ src }: { src: string | null }) {
+  const [failed, setFailed] = React.useState(false);
+  if (!src || failed) {
+    return (
+      <div
+        className="flex h-11 w-11 flex-col items-center justify-center gap-0.5 rounded-xl bg-zinc-100 text-[9px] leading-none text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500"
+        title="Chưa có ảnh"
+      >
+        <ImageOff className="h-3.5 w-3.5" aria-hidden />
+        chưa có ảnh
+      </div>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt=""
+      width={44}
+      height={44}
+      loading="lazy"
+      decoding="async"
+      onError={() => setFailed(true)}
+      className="h-11 w-11 rounded-xl bg-zinc-100 object-cover ring-1 ring-inset ring-zinc-200 dark:bg-zinc-800 dark:ring-zinc-700"
+    />
+  );
+}
+
 function lineTotalQty(node: BomTreeNodeRaw, parentQty: number): number {
   const meta = node.metadata as { totalQty?: string | number } | null;
   const fromExcel = meta?.totalQty != null ? Number(meta.totalQty) : NaN;
@@ -297,8 +391,7 @@ export function BomGridPro({
   const picOptions = React.useMemo(() => {
     const set = new Set<string>();
     for (const r of flat) {
-      const p = r.node.assignedToFullName ?? r.node.assignedToName;
-      if (p && p.trim()) set.add(p.trim());
+      for (const p of linePics(r.node)) set.add(p);
     }
     return Array.from(set).sort();
   }, [flat]);
@@ -315,11 +408,12 @@ export function BomGridPro({
       const matchIds = new Set<string>();
       for (const r of flat) {
         const s = lineSupplierSearchText(r.node).toLowerCase();
-        const p = (
-          r.node.assignedToFullName ??
-          r.node.assignedToName ??
-          ""
-        ).toLowerCase();
+        const p = [
+          r.node.assignedToFullName ?? r.node.assignedToName ?? "",
+          ...(r.node.picNames ?? []),
+        ]
+          .join(" ")
+          .toLowerCase();
         const supOk = !supNeedle || s.includes(supNeedle);
         const picOk = !picNeedle || p.includes(picNeedle);
         // V3.8.3 — ETA urgent filter: chỉ dòng quá hạn / sắp tới hạn (≤7 ngày).
@@ -361,30 +455,30 @@ export function BomGridPro({
     return result;
   }, [flat, expanded, supplierFilter, picFilter, etaUrgentOnly, parentQty]);
 
-  // V3.7.21 — Auto-hide empty columns: cột nào không có data thì ẩn,
-  // user có thể toggle để hiện lại tất cả.
-  // V3.7.33 — positionCode auto-show khi có metadata.seq (Excel ID Number AB01...).
+  // V3.7.21 — Auto-hide empty columns: cột phụ nào không có data thì ẩn,
+  // user có thể toggle để hiện lại tất cả. BOM V5 WP5: ID/Ảnh/Tên/NCC/PIC/
+  // Hệ số/SL luôn hiện; chỉ ẩn cột phụ rỗng (BOM cũ NULL không vỡ layout).
   const [showAllColumns, setShowAllColumns] = React.useState(false);
   const colHasData = React.useMemo(() => {
     const has = {
-      positionCode: false,
       dimensions: false,
-      supplier: false,
-      pic: false,
+      processMethod: false,
+      materialCode: false,
+      surfaceTreatment: false,
+      blankSpec: false,
       notes: false,
       scrap: false,
       progress: false, // Tiến độ
     };
     for (const r of visibleRows) {
       if (r.isGroup) continue;
-      const meta = r.node.metadata as
-        | { notes?: string; note?: string; size?: string; seq?: string; category?: string }
-        | undefined;
-      if (r.node.positionCode || meta?.seq) has.positionCode = true;
-      if (lineSupplierLabel(r.node)) has.supplier = true;
-      if (r.node.assignedToFullName || r.node.assignedToName) has.pic = true;
+      const meta = r.node.metadata as { notes?: string; note?: string } | undefined;
       if (meta?.notes || meta?.note) has.notes = true;
-      if (meta?.size || r.node.itemDimensions) has.dimensions = true;
+      if (lineDimsText(r.node)) has.dimensions = true;
+      if (r.node.processMethod) has.processMethod = true;
+      if (r.node.materialCode) has.materialCode = true;
+      if (r.node.surfaceTreatment) has.surfaceTreatment = true;
+      if (r.node.blankSpec) has.blankSpec = true;
       if (Number(r.node.scrapPercent) > 0) has.scrap = true;
       if (r.node.receivedQty || r.node.expectedEta || r.node.statusNote) {
         has.progress = true;
@@ -397,18 +491,19 @@ export function BomGridPro({
   const showCol = (key: keyof typeof colHasData) =>
     showAllColumns || colHasData[key];
 
-  // V3.8.3 — Cột "Dự kiến nhận" LUÔN hiện (không auto-hide như cột data khác):
-  // đây là cột nhập-liệu chủ động cho Thu mua — phải thấy mới bấm vào nhập ngày
-  // được. Nếu auto-hide khi rỗng → vô hình → không ai bắt đầu nhập được.
+  // V3.8.3 — Cột "Dự kiến nhận" LUÔN hiện (cột nhập-liệu chủ động cho Thu mua).
   const showEtaCol = true;
 
-  // V4.1 UI-03: tổng độ rộng <col> (khớp colgroup bên dưới) làm min-width bảng.
+  // Tổng độ rộng <col> (khớp colgroup) làm min-width bảng.
   const tableMinWidth =
-    40 + 52 + 70 + 180 + 200 + 120 + 60 + ACTIONS_COL_W +
-    (showCol("positionCode") ? 70 : 0) +
+    COL_SEL_W + COL_ID_W + COL_IMG_W + COL_NAME_W + 150 + 200 + 140 + 64 + 64 +
+    ACTIONS_COL_W +
+    (SHOW_JOURNEY_COL ? JOURNEY_COL_W : 0) +
     (showCol("dimensions") ? 130 : 0) +
-    (showCol("supplier") ? 110 : 0) +
-    (showCol("pic") ? PIC_COL_W : 0) +
+    (showCol("processMethod") ? 120 : 0) +
+    (showCol("materialCode") ? 110 : 0) +
+    (showCol("surfaceTreatment") ? 110 : 0) +
+    (showCol("blankSpec") ? 150 : 0) +
     (showCol("notes") ? 120 : 0) +
     (showCol("scrap") ? 60 : 0) +
     (showCol("progress") ? 150 : 0) +
@@ -431,56 +526,112 @@ export function BomGridPro({
     return { overdue, dueSoon };
   }, [visibleRows, parentQty]);
 
-  // V4.1 UI-BOM: tổng số cột đang hiển thị — dùng cho colSpan của dòng nhóm,
-  // dòng rỗng và 2 dòng đệm (spacer) của virtualizer. Trước đây colSpan cứng
-  // 14/16 → khi "Tự ẩn cột rỗng" bật, dòng nhóm sinh thêm cột ảo ở bên phải,
-  // cột Thao tác của dòng nhóm lệch so với dòng thường (+ khối trắng thừa).
+  // Tổng số cột đang hiển thị — colSpan cho dòng nhóm / rỗng / đệm virtualizer.
   const colCount =
-    2 + // # + Image
-    (showCol("positionCode") ? 1 : 0) +
-    4 + // Quantity + BOM gốc + Ghi chú + Category
+    4 + // chọn/STT + ID + Ảnh + Tên
+    (SHOW_JOURNEY_COL ? 1 : 0) +
+    2 + // NCC + Vật liệu/Ghi chú
     (showCol("dimensions") ? 1 : 0) +
-    (showCol("supplier") ? 1 : 0) +
-    (showCol("pic") ? 1 : 0) +
-    1 + // SL
+    (showCol("processMethod") ? 1 : 0) +
+    (showCol("materialCode") ? 1 : 0) +
+    (showCol("surfaceTreatment") ? 1 : 0) +
+    (showCol("blankSpec") ? 1 : 0) +
+    3 + // PIC + Hệ số + SL
     (showCol("notes") ? 1 : 0) +
     (showCol("scrap") ? 1 : 0) +
     (showCol("progress") ? 1 : 0) +
     (showEtaCol ? 1 : 0) +
     1; // Thao tác
 
-  // Virtualizer setup
-  // V4.1 UI-BOM: GỐC RỄ lỗi dòng chồng nhau / header nằm giữa danh sách /
-  // tab bar đè lên dòng (BOM > 80 dòng). Bản cũ render mỗi <tr> với
-  // `position:absolute; transform:translateY(...)` ngay trong <tbody> mà KHÔNG
-  // có phần tử cha `position:relative` và KHÔNG có khối đệm chiều cao tổng:
-  //   - <tr> absolute thoát khỏi vùng cuộn, định vị theo tổ tiên positioned xa
-  //     (trang) → đè lên tab bar, thead nằm lại giữa danh sách;
-  //   - vùng cuộn chỉ cao bằng thead → virtualizer chỉ render ~14 dòng đầu;
-  //   - <tr> absolute bị ép display:block → mỗi dòng tự tính độ rộng cột riêng,
-  //     không theo <colgroup> → ô lệch ngang, cột Thao tác lệch từng dòng;
-  //   - chiều cao cố định 36px trong khi ô Tiến độ (pill + thanh + "0 / 2 · còn
-  //     2") cao ~50px → nội dung tràn đè dòng trên/dưới.
-  // Cách sửa: dòng ảo nằm TRONG luồng bảng bình thường (không absolute), 2 dòng
-  // đệm trên/dưới giữ chiều cao cuộn, mỗi dòng được đo thật (measureElement)
-  // → chiều cao biến thiên vẫn đúng, cột dùng chung <colgroup>.
+  // BOM V5 WP5 — chọn dòng (nền cho thao tác hàng loạt của WP6).
+  const [selected, setSelected] = React.useState<Set<string>>(() => new Set());
+  const toggleSelected = React.useCallback((id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  // BOM V5 WP5 — nhóm theo Category khi BOM phẳng (không có cụm lắp). BOM cũ
+  // có cây cụm lắp vẫn render dạng cây như trước.
+  const categoryMode = React.useMemo(
+    () => flat.length > 0 && flat.every((r) => !r.isGroup),
+    [flat],
+  );
+  const [collapsedCats, setCollapsedCats] = React.useState<Set<BomCategory>>(
+    () => new Set(),
+  );
+  const toggleCat = React.useCallback((cat: BomCategory) => {
+    setCollapsedCats((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  }, []);
+
+  const listItems = React.useMemo<ListItem[]>(() => {
+    const out: ListItem[] = [];
+    if (!categoryMode) {
+      visibleRows.forEach((row, i) => out.push({ type: "row", row, stt: i + 1 }));
+      return out;
+    }
+    const buckets = new Map<BomCategory, BomFlatRow[]>();
+    for (const row of visibleRows) {
+      const c = lineCategory(row.node);
+      const arr = buckets.get(c);
+      if (arr) arr.push(row);
+      else buckets.set(c, [row]);
+    }
+    let stt = 0;
+    for (const cat of CATEGORY_ORDER) {
+      const rows = buckets.get(cat);
+      if (!rows || rows.length === 0) continue;
+      out.push({ type: "cat", cat, count: rows.length });
+      if (collapsedCats.has(cat)) continue;
+      for (const row of rows) out.push({ type: "row", row, stt: ++stt });
+    }
+    return out;
+  }, [visibleRows, categoryMode, collapsedCats]);
+
+  const allSelected =
+    visibleRows.length > 0 &&
+    visibleRows.every((r) => r.isGroup || selected.has(r.id));
+  const toggleSelectAll = () => {
+    setSelected(
+      allSelected
+        ? new Set()
+        : new Set(visibleRows.filter((r) => !r.isGroup).map((r) => r.id)),
+    );
+  };
+
+  // Virtualizer — dòng ảo nằm TRONG luồng bảng + 2 dòng đệm (V4.1 UI-BOM): mỗi
+  // dòng đo thật (measureElement), cột dùng chung <colgroup>, không absolute.
   const parentRef = React.useRef<HTMLDivElement>(null);
-  const useVirtualize = visibleRows.length > 80;
+  const useVirtualize = listItems.length > VIRTUALIZE_THRESHOLD;
   const hasProgressCol = showCol("progress");
   const virt = useVirtualizer({
-    count: visibleRows.length,
+    count: listItems.length,
     getScrollElement: () => parentRef.current,
-    // Ước lượng ban đầu; chiều cao thật đo qua measureElement.
-    estimateSize: (i) =>
-      visibleRows[i]?.isGroup ? 36 : hasProgressCol ? 52 : 38,
+    // Ước lượng ban đầu (ảnh 44px → ~56px); chiều cao thật đo qua measureElement.
+    estimateSize: (i) => {
+      const it = listItems[i];
+      if (!it || it.type === "cat" || it.row.isGroup) return 36;
+      return hasProgressCol ? 60 : 56;
+    },
     // thead (h-8) nằm trong vùng cuộn, trước dòng đầu tiên.
     paddingStart: GRID_HEADER_H,
     overscan: 12,
     enabled: useVirtualize,
-    getItemKey: (i) => visibleRows[i]?.id ?? i,
+    getItemKey: (i) => {
+      const it = listItems[i];
+      return it ? (it.type === "cat" ? `cat-${it.cat}` : it.row.id) : i;
+    },
   });
-  const visibleRowsRef = React.useRef(visibleRows);
-  visibleRowsRef.current = visibleRows;
+  const listItemsRef = React.useRef(listItems);
+  listItemsRef.current = listItems;
 
   // V4.5 QA-C P2-3: lưới tràn ngang trên điện thoại (390px) nhưng không có
   // chỉ báo cuộn — người dùng không biết còn cột (Tiến độ/SL/Dự kiến nhận)
@@ -528,6 +679,7 @@ export function BomGridPro({
       if (parent) idsToExpand.add(parent);
       cursor = parent ?? null;
     }
+    setCollapsedCats((prev) => (prev.size ? new Set() : prev));
     if (idsToExpand.size) {
       setExpanded((prev) => {
         const next = new Set(prev);
@@ -546,8 +698,8 @@ export function BomGridPro({
       }
       // V4.1 UI-BOM: chế độ ảo hoá — dòng đích có thể chưa được render,
       // cuộn theo index qua virtualizer.
-      const targetIdx = visibleRowsRef.current.findIndex(
-        (r) => r.id === highlightParam,
+      const targetIdx = listItemsRef.current.findIndex(
+        (it) => it.type === "row" && it.row.id === highlightParam,
       );
       if (targetIdx >= 0) virt.scrollToIndex(targetIdx, { align: "center" });
     }, 80);
@@ -580,9 +732,44 @@ export function BomGridPro({
     );
   };
 
-  // V4.1 UI-BOM: `virtualIndex` (khi ảo hoá) → gắn ref đo chiều cao thật +
-  // data-index cho virtualizer. Không còn truyền style absolute.
-  const renderRow = (row: BomFlatRow, idx: number, virtualIndex?: number) => {
+  // `virtualIndex` (khi ảo hoá) → gắn ref đo chiều cao thật + data-index.
+  const renderCatRow = (
+    item: Extract<ListItem, { type: "cat" }>,
+    virtualIndex?: number,
+  ) => {
+    const measureProps =
+      virtualIndex !== undefined
+        ? { ref: virt.measureElement, "data-index": virtualIndex }
+        : {};
+    const collapsed = collapsedCats.has(item.cat);
+    return (
+      <tr key={`cat-${item.cat}`} {...measureProps}>
+        <td
+          colSpan={colCount}
+          className="sticky top-8 z-10 border-b border-zinc-200 bg-zinc-100 px-0 py-1.5 dark:border-zinc-700 dark:bg-zinc-800"
+        >
+          <button
+            type="button"
+            onClick={() => toggleCat(item.cat)}
+            className="sticky left-0 inline-flex items-center gap-2 px-3 text-[13px] font-semibold text-zinc-800 dark:text-zinc-100"
+            aria-expanded={!collapsed}
+          >
+            {collapsed ? (
+              <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+            ) : (
+              <ChevronDown className="h-3.5 w-3.5" aria-hidden />
+            )}
+            {CATEGORY_GROUP_LABEL[item.cat]}
+            <span className="rounded-full bg-white px-2 py-0.5 text-xs font-medium tabular-nums text-zinc-500 ring-1 ring-inset ring-zinc-200 dark:bg-zinc-900 dark:text-zinc-400 dark:ring-zinc-700">
+              {item.count} dòng
+            </span>
+          </button>
+        </td>
+      </tr>
+    );
+  };
+
+  const renderRow = (row: BomFlatRow, stt: number, virtualIndex?: number) => {
     const measureProps =
       virtualIndex !== undefined
         ? { ref: virt.measureElement, "data-index": virtualIndex }
@@ -610,9 +797,9 @@ export function BomGridPro({
           )}
         >
           <td className="w-10 px-2 text-xs font-mono text-indigo-400 tabular-nums dark:text-indigo-500">
-            {idx + 1}
+            {stt}
           </td>
-          <td colSpan={colCount - 2} className="px-2 py-1.5">{/* V4.1 UI-BOM: colSpan theo số cột thực tế */}
+          <td colSpan={colCount - 2} className="px-2 py-1.5">
             <button
               type="button"
               onClick={() => toggleExpand(row.id)}
@@ -633,11 +820,7 @@ export function BomGridPro({
               </span>
             </button>
           </td>
-          {/* V4.1 UI-BOM: nền ĐẶC (không /40) — ô sticky trong suốt để lộ
-              nội dung cuộn ngang bên dưới. V4.4 D1-P0: sticky-right CHỈ từ
-              md — dưới 390px cột này đè lên nội dung "BOM gốc" vì viewport
-              hẹp hơn tổng độ rộng bảng; dưới md để nó cuộn theo dòng bình
-              thường (vẫn tới được bằng cuộn ngang). */}
+          {/* Nền ĐẶC — ô sticky trong suốt sẽ lộ nội dung cuộn ngang. */}
           <td className="md:sticky md:right-0 z-10 border-l border-indigo-100 bg-indigo-50 px-1 group-hover:bg-indigo-100 dark:border-indigo-900 dark:bg-indigo-950 dark:group-hover:bg-indigo-900">
             <ActionsCell
               row={row}
@@ -650,279 +833,248 @@ export function BomGridPro({
       );
     }
 
+    const node = row.node;
+    const pics = linePics(node);
+    const picMatched = !!node.assignedToFullName || (node.picNames?.length ?? 0) > 0;
+    const canEditPic =
+      isAdmin ||
+      isPurchaser || // V3.8.3 — Thu mua sửa được ETA nhận hàng
+      (!!currentUserId && node.assignedToUserId === currentUserId);
+    const idText = lineIdText(node);
+    const nameText = lineNameText(node);
+    const dimsText = lineDimsText(node);
+    const meta = node.metadata as { notes?: string; totalQty?: string | number } | null;
+    const stickyBg =
+      "bg-white group-hover:bg-zinc-50 dark:bg-zinc-900 dark:group-hover:bg-zinc-800";
+    const dash = <span className="text-zinc-300 dark:text-zinc-600">—</span>;
+    const textCell = (v: string | null | undefined) =>
+      v && v.trim() ? (
+        <span title={v}>{v}</span>
+      ) : (
+        dash
+      );
+
     return (
       <tr
         key={row.id}
         id={`bom-line-${row.id}`}
         {...measureProps}
+        onClick={(e) => {
+          // Bấm dòng → mở BomLineSheet; bỏ qua nút/link/ô nhập và popover portal.
+          if (readOnly && !onEditLine) return;
+          const t = e.target as HTMLElement;
+          if (!e.currentTarget.contains(t)) return;
+          if (t.closest("button, a, input, select, textarea, [role='combobox']")) return;
+          handleEditRow(row);
+        }}
         className={cn(
-          "group border-b border-zinc-100 bg-white transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800/60",
+          "group cursor-pointer border-b border-zinc-100 bg-white transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800/60",
+          selected.has(row.id) && "!bg-indigo-50/60 dark:!bg-indigo-950/30",
           isHighlighted &&
             "!bg-yellow-100 ring-2 ring-inset ring-yellow-400 dark:!bg-yellow-900/40",
         )}
       >
-        {/* V3.7.33 — Excel order: # | Image | ID Number | Quantity | BOM gốc | Ghi chú | Category | ... */}
-        {/* # */}
-        <td className="px-2 text-xs font-mono tabular-nums text-zinc-400 dark:text-zinc-500">
-          {idx + 1}
+        {/* ☐ + STT (dính trái md+) */}
+        <td
+          className={cn("px-2 md:sticky md:left-0 md:z-10", stickyBg)}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <label className="flex cursor-pointer items-center gap-1.5">
+            <input
+              type="checkbox"
+              checked={selected.has(row.id)}
+              onChange={() => toggleSelected(row.id)}
+              aria-label={`Chọn dòng ${stt}`}
+              className="h-3.5 w-3.5 rounded border-zinc-300 accent-indigo-600"
+            />
+            <span className="font-mono text-xs tabular-nums text-zinc-400 dark:text-zinc-500">
+              {stt}
+            </span>
+          </label>
         </td>
-        {/* Image */}
-        <td className="px-1">
-          <div className="flex h-7 w-7 items-center justify-center rounded bg-zinc-50 ring-1 ring-inset ring-zinc-200 dark:bg-zinc-800 dark:ring-zinc-700">
-            <Package className="h-3.5 w-3.5 text-zinc-300 dark:text-zinc-600" aria-hidden />
+        {/* ID — positionCode (BL1..) → metadata.seq (ID Number cũ) */}
+        <td
+          className={cn(
+            "truncate px-2 font-mono text-xs font-medium text-indigo-700 dark:text-indigo-400 md:sticky md:left-[64px] md:z-10",
+            stickyBg,
+          )}
+        >
+          {idText ?? dash}
+        </td>
+        {/* Ảnh 3D */}
+        <td className={cn("px-2 py-1 md:sticky md:left-[136px] md:z-10", stickyBg)}>
+          <LineThumb src={lineImageSrc(node, "thumb")} />
+        </td>
+        {/* Tên chi tiết — dính trái cả trên điện thoại */}
+        <td
+          className={cn(
+            "border-r border-zinc-100 px-2 max-md:sticky max-md:left-0 max-md:z-10 md:sticky md:left-[200px] md:z-10 dark:border-zinc-800",
+            stickyBg,
+          )}
+        >
+          <div
+            className="truncate text-[13px] font-semibold text-zinc-900 dark:text-zinc-50"
+            title={nameText ?? undefined}
+          >
+            {nameText ?? dash}
           </div>
-        </td>
-        {/* ID Number — Excel "ID Number" cột AB01..AB40, fallback positionCode */}
-        {showCol("positionCode") && (
-          <td className="px-2 font-mono text-xs font-medium text-indigo-700 truncate dark:text-indigo-400">
-            {row.node.positionCode ??
-              (row.node.metadata as { seq?: string } | null)?.seq ?? (
-                <span className="text-zinc-300 dark:text-zinc-600">—</span>
-              )}
-          </td>
-        )}
-        {/* Quantity (hệ số) — Excel "Quantity (hệ số)" = qtyPerParent */}
-        <td className="px-2 text-right font-mono text-xs tabular-nums text-zinc-700 dark:text-zinc-300">
-          {formatNumber(qty)}
-        </td>
-        {/* BOM gốc — Excel "BOM gốc" = SKU/mã linh kiện.
-            V4.4 D1-P0: cố định (sticky-left) DƯỚI md — đây là thông tin quan
-            trọng nhất mỗi dòng, giữ nguyên vị trí khi cuộn ngang xem các cột
-            còn lại trên điện thoại ("cuộn ngang có cột mã cố định"). Nền đặc
-            để không lộ nội dung cuộn phía dưới. */}
-        <td className="px-2 font-mono text-xs font-medium text-zinc-800 truncate dark:text-zinc-200 max-md:sticky max-md:left-0 max-md:z-10 max-md:border-r max-md:border-zinc-200 max-md:bg-white max-md:group-hover:bg-zinc-50 dark:max-md:border-zinc-700 dark:max-md:bg-zinc-900 dark:max-md:group-hover:bg-zinc-800/60">
-          {row.node.componentItemId ? (
+          {node.componentItemId && node.componentSku && node.file3dName ? (
             <Link
-              href={`/items/${row.node.componentItemId}`}
-              className="tabular-nums text-zinc-800 underline-offset-2 hover:text-indigo-700 hover:underline dark:text-zinc-200 dark:hover:text-indigo-400"
-              title={`Xem chi tiết vật tư ${row.node.componentSku ?? ""}`}
+              href={`/items/${node.componentItemId}`}
+              className="block truncate font-mono text-[11px] text-zinc-500 underline-offset-2 hover:text-indigo-700 hover:underline dark:text-zinc-400 dark:hover:text-indigo-400"
+              title={`Xem chi tiết vật tư ${node.componentSku}`}
               onClick={(e) => e.stopPropagation()}
             >
-              {row.indentedSku.trimStart() || "—"}
+              {node.componentSku}
             </Link>
-          ) : (
-            <span className="tabular-nums">
-              {row.indentedSku.trimStart() || "—"}
-            </span>
-          )}
+          ) : null}
         </td>
-        {/* Ghi chú — Excel "Ghi chú" = description */}
-        <td className="px-2 text-sm text-zinc-700 truncate dark:text-zinc-300">
-          {row.node.description ?? row.node.componentName ?? (
-            <span className="italic text-zinc-400 dark:text-zinc-500">—</span>
-          )}
+        {/* WP6: cột "Hành trình" (chuỗi bước) sẽ chèn tại đây. */}
+        {SHOW_JOURNEY_COL && <td className="px-2">{dash}</td>}
+        {/* NCC — SupplierCell bấm sửa trực tiếp */}
+        <td className="px-2" onClick={(e) => e.stopPropagation()}>
+          <SupplierCell
+            templateId={templateId}
+            lineId={row.id}
+            line={node}
+            rowVersion={node.rowVersion}
+          />
         </td>
-        {/* Category — Excel "Category" = display badge từ metadata.category.
-            V3.7.37: thay KindDropdown — hiển thị raw text (Thương mại / GTAM /
-            Đặt gia công ngoài) màu phân biệt. Edit qua BomLineSheet. */}
-        <td className="px-2">
-          <CategoryBadge row={row} />
+        {/* Vật liệu / Ghi chú (bom_line.description) */}
+        <td className="truncate px-2 text-sm text-zinc-700 dark:text-zinc-300">
+          {textCell(node.description)}
         </td>
-        {/* Kích thước (Visible Part Size) — TASK-20260427-024 fallback chain.
-            1. metadata.size  (set qua form Material/Process / sheet edit)
-            2. item.dimensions  (jsonb {length,width,height,unit} từ Excel import)
-            3. item.specJson.dimensionText (chuỗi raw "601 X 21 X 20" từ import)
-            4. "—" */}
         {showCol("dimensions") && (
-        <td className="px-2 font-mono text-sm text-zinc-600 truncate dark:text-zinc-400">
-          {(() => {
-            // (1) metadata.size override
-            const md = row.node.metadata as { size?: string } | null;
-            if (md?.size && md.size.trim()) return md.size;
-
-            // (2) item.dimensions jsonb
-            const dim = row.node.itemDimensions as
-              | {
-                  length?: number | string;
-                  width?: number | string;
-                  height?: number | string;
-                  unit?: string;
-                }
-              | null;
-            if (dim) {
-              const parts = [dim.length, dim.width, dim.height]
-                .map((v) => (v === 0 || v === "0" ? null : v))
-                .filter((v): v is number | string => v != null && v !== "");
-              if (parts.length > 0) {
-                const unit = dim.unit ? ` ${dim.unit}` : "";
-                return `${parts.join("×")}${unit}`;
-              }
-            }
-
-            // (3) item.specJson.dimensionText (raw text từ Excel import)
-            const rawSpec = row.node.itemSpecJson;
-            if (rawSpec && rawSpec.trim()) {
-              try {
-                const parsed = JSON.parse(rawSpec) as {
-                  dimensionText?: unknown;
-                };
-                if (
-                  typeof parsed.dimensionText === "string" &&
-                  parsed.dimensionText.trim()
-                ) {
-                  return parsed.dimensionText;
-                }
-              } catch {
-                // specJson không phải JSON hợp lệ — coi như text thuần.
-                return rawSpec;
-              }
-            }
-
-            return "—";
-          })()}
-        </td>
+          <td className="truncate px-2 font-mono text-sm text-zinc-600 dark:text-zinc-400">
+            {textCell(dimsText)}
+          </td>
         )}
-        {/* NCC / Vật tư */}
-        {showCol("supplier") && (
-        <td className="px-2 truncate">
-          {row.isGroup ? (
-            <span className="text-zinc-400">—</span>
+        {showCol("processMethod") && (
+          <td className="truncate px-2 text-sm text-zinc-700 dark:text-zinc-300">
+            {textCell(node.processMethod)}
+          </td>
+        )}
+        {showCol("materialCode") && (
+          <td className="truncate px-2 font-mono text-xs text-zinc-700 dark:text-zinc-300">
+            {textCell(node.materialCode)}
+          </td>
+        )}
+        {showCol("surfaceTreatment") && (
+          <td className="truncate px-2 text-sm text-zinc-700 dark:text-zinc-300">
+            {textCell(node.surfaceTreatment)}
+          </td>
+        )}
+        {showCol("blankSpec") && (
+          <td className="truncate px-2 text-sm text-zinc-700 dark:text-zinc-300">
+            {textCell(node.blankSpec)}
+          </td>
+        )}
+        {/* PIC — avatar tròn (picNames[] → assignedToName) */}
+        <td className="px-2">
+          {pics.length === 0 ? (
+            dash
           ) : (
-            <SupplierCell
-              templateId={templateId}
-              lineId={row.id}
-              line={row.node}
-              rowVersion={row.node.rowVersion}
-            />
+            <button
+              type="button"
+              onClick={canEditPic ? () => setPicEditTarget(row) : undefined}
+              disabled={!canEditPic}
+              className={cn(
+                "inline-flex max-w-full items-center gap-1.5 rounded-full py-0.5 pr-2 text-sm",
+                canEditPic ? "cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800" : "cursor-default",
+              )}
+              title={
+                (canEditPic ? "Bấm để cập nhật tiến độ · " : "") +
+                `PIC: ${pics.join(", ")}` +
+                (picMatched ? "" : " (chưa khớp tài khoản)")
+              }
+            >
+              <span className="flex shrink-0 -space-x-1.5">
+                {pics.slice(0, 3).map((n, i) => (
+                  <span
+                    key={`${n}-${i}`}
+                    className={cn(
+                      "flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold ring-2 ring-white dark:ring-zinc-900",
+                      picMatched
+                        ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
+                        : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+                    )}
+                  >
+                    {picInitial(n)}
+                  </span>
+                ))}
+              </span>
+              <span className="min-w-0 truncate text-zinc-700 dark:text-zinc-300">
+                {pics.length === 1 ? pics[0] : `${pics[0]} +${pics.length - 1}`}
+              </span>
+            </button>
           )}
         </td>
-        )}
-        {/* PIC — V3.7.19/20 */}
-        {showCol("pic") && (
-        <td className="px-2 truncate">
-          {(() => {
-            const canEdit =
-              isAdmin ||
-              isPurchaser || // V3.8.3 — Thu mua sửa được ETA nhận hàng
-              (!!currentUserId &&
-                row.node.assignedToUserId === currentUserId);
-            if (row.node.assignedToFullName) {
-              return (
-                <button
-                  type="button"
-                  onClick={canEdit ? () => setPicEditTarget(row) : undefined}
-                  disabled={!canEdit}
-                  // V4.1 UI-04: pill co theo cột, tên truncate; hiện TÊN NGẮN
-                  // (phần trước " — "), đầy đủ + bộ phận trong title.
-                  className={cn(
-                    "inline-flex whitespace-nowrap max-w-full items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-sm font-medium text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400",
-                    canEdit && "cursor-pointer hover:bg-indigo-100 hover:ring-1 hover:ring-indigo-300 dark:hover:bg-indigo-900/40 dark:hover:ring-indigo-700",
-                    !canEdit && "cursor-default",
-                  )}
-                  title={
-                    canEdit
-                      ? `Bấm để cập nhật tiến độ (PIC: ${row.node.assignedToFullName})`
-                      : `PIC: ${row.node.assignedToFullName}`
-                  }
-                >
-                  <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-500" />
-                  <span className="min-w-0 truncate">
-                    {row.node.assignedToFullName.split(" — ")[0]}
-                  </span>
-                  {canEdit && <span className="ml-0.5 shrink-0 text-xs">✎</span>}
-                </button>
-              );
-            }
-            if (row.node.assignedToName) {
-              return (
-                <button
-                  type="button"
-                  onClick={isAdmin ? () => setPicEditTarget(row) : undefined}
-                  disabled={!isAdmin}
-                  className={cn(
-                    "inline-flex whitespace-nowrap max-w-full items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-sm font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
-                    isAdmin && "cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/40",
-                  )}
-                  title={`Chưa match user: "${row.node.assignedToName}"`}
-                >
-                  <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
-                  <span className="min-w-0 truncate">{row.node.assignedToName}</span>
-                </button>
-              );
-            }
-            return <span className="text-xs text-zinc-300 dark:text-zinc-600">—</span>;
-          })()}
+        {/* Hệ số (coef V5 → qtyPerParent) */}
+        <td className="px-2 text-right font-mono text-xs tabular-nums text-zinc-700 dark:text-zinc-300">
+          {formatNumber(lineCoef(node))}
         </td>
-        )}
-        {/* SL — Excel "SL" = số lượng đặt thực tế (totalQty từ Excel).
-            V3.7.37: Lấy từ metadata.totalQty (raw từ Excel) thay vì tính
-            qty × parentQty. Vì SL Excel thường = qty × số set khách đặt
-            (ví dụ 14 set băng tải) — không cố định bằng parentQty hệ thống.
-            Fallback qty × parentQty nếu metadata.totalQty rỗng (manual added). */}
+        {/* SL — metadata.totalQty (raw Excel) → qty × parentQty */}
         <td className="px-2 text-right font-mono text-xs font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
           {(() => {
-            const meta = row.node.metadata as { totalQty?: string | number } | null;
             const fromExcel = meta?.totalQty != null ? Number(meta.totalQty) : NaN;
             if (Number.isFinite(fromExcel) && fromExcel > 0) return formatNumber(fromExcel);
             return formatNumber(qty * parentQty);
           })()}
         </td>
-        {/* Note phụ (metadata.notes — V3.7.33 hiếm khi có data) */}
         {showCol("notes") && (
-        <td className="px-2 text-xs italic text-zinc-500 truncate dark:text-zinc-400">
-          {row.node.metadata && (row.node.metadata as { notes?: string }).notes
-            ? (row.node.metadata as { notes: string }).notes
-            : ""}
-        </td>
+          <td className="truncate px-2 text-xs italic text-zinc-500 dark:text-zinc-400">
+            {meta?.notes ?? ""}
+          </td>
         )}
-        {/* Hao hụt */}
         {showCol("scrap") && (
-        <td className="px-2 text-right font-mono text-xs tabular-nums text-orange-600 dark:text-orange-400">
-          {scrap > 0 ? `${scrap.toFixed(1)}%` : "—"}
-        </td>
+          <td className="px-2 text-right font-mono text-xs tabular-nums text-orange-600 dark:text-orange-400">
+            {scrap > 0 ? `${scrap.toFixed(1)}%` : "—"}
+          </td>
         )}
-        {/* Tiến độ — V1.7-beta.2.6: kind-aware (fab → WO progress, com → material status)
-            V1.9 Phase 2 — bar + milestone tooltip + qty sub-label */}
+        {/* Tiến độ — kind-aware (fab → WO progress, com → material status) */}
         {showCol("progress") && (
-        <td className="px-0">
-          {row.kind === "fab" ? (
-            (() => {
-              const fab = fabProgressMap?.[row.id];
-              const fabStatus = mapWoStatusToFab(fab?.status);
-              return (
-                <FabProgressCell
-                  status={fabStatus}
-                  goodQty={fab ? Number(fab.goodQty) : undefined}
-                  plannedQty={fab ? Number(fab.plannedQty) : undefined}
-                  scrapQty={fab ? Number(fab.scrapQty) : undefined}
-                  woNo={fab?.woNo}
-                  pct={fab?.pct}
-                  milestones={fab?.milestones}
-                />
-              );
-            })()
-          ) : (
-            (() => {
-              const com = comProgressMap?.[row.node.componentItemId];
-              return (
-                <ProgressCell
-                  status={status}
-                  pct={com?.pct}
-                  milestones={com?.milestones}
-                  requiredQty={com?.requiredQty}
-                  purchasedQty={com?.purchasedQty}
-                  uom={row.node.componentUom ?? undefined}
-                />
-              );
-            })()
-          )}
-        </td>
+          <td className="px-0">
+            {row.kind === "fab" ? (
+              (() => {
+                const fab = fabProgressMap?.[row.id];
+                const fabStatus = mapWoStatusToFab(fab?.status);
+                return (
+                  <FabProgressCell
+                    status={fabStatus}
+                    goodQty={fab ? Number(fab.goodQty) : undefined}
+                    plannedQty={fab ? Number(fab.plannedQty) : undefined}
+                    scrapQty={fab ? Number(fab.scrapQty) : undefined}
+                    woNo={fab?.woNo}
+                    pct={fab?.pct}
+                    milestones={fab?.milestones}
+                  />
+                );
+              })()
+            ) : (
+              (() => {
+                const com = comProgressMap?.[node.componentItemId];
+                return (
+                  <ProgressCell
+                    status={status}
+                    pct={com?.pct}
+                    milestones={com?.milestones}
+                    requiredQty={com?.requiredQty}
+                    purchasedQty={com?.purchasedQty}
+                    uom={node.componentUom ?? undefined}
+                  />
+                );
+              })()
+            )}
+          </td>
         )}
-        {/* Dự kiến nhận — V3.8.3: ETA + màu khẩn cấp (3 kênh: màu/icon/chữ).
-            Bấm để sửa ngày (admin / Thu mua / PIC dòng) qua PicEditDialog.
-            LUÔN hiện (không auto-hide) để Thu mua chủ động nhập ngày. */}
+        {/* Dự kiến nhận — V3.8.3: ETA + màu khẩn cấp; luôn hiện. */}
         {showEtaCol && (() => {
           const b = getEtaBucket(
-            row.node.expectedEta,
-            Number(row.node.receivedQty ?? 0),
-            lineTotalQty(row.node, parentQty),
+            node.expectedEta,
+            Number(node.receivedQty ?? 0),
+            lineTotalQty(node, parentQty),
           );
-          const canEditEta =
-            !readOnly &&
-            (isAdmin ||
-              isPurchaser ||
-              (!!currentUserId &&
-                row.node.assignedToUserId === currentUserId));
+          const canEditEta = !readOnly && canEditPic;
           const inner = (
             <>
               {b.Icon && <b.Icon className="h-3 w-3 shrink-0" aria-hidden />}
@@ -957,9 +1109,11 @@ export function BomGridPro({
             </td>
           );
         })()}
-        {/* Actions — sticky right. V1.7-beta.2.2: phân nhánh com/fab.
-            V4.4 D1-P0: sticky-right CHỈ từ md (xem giải thích ở dòng nhóm). */}
-        <td className="md:sticky md:right-0 z-10 border-l border-zinc-100 bg-white px-1 group-hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:group-hover:bg-zinc-800/60">
+        {/* Thao tác — 1 nút "…" (sticky phải từ md) */}
+        <td
+          className="md:sticky md:right-0 z-10 border-l border-zinc-100 bg-white px-1 group-hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:group-hover:bg-zinc-800/60"
+          onClick={(e) => e.stopPropagation()}
+        >
           <ActionsCell
             row={row}
             onEdit={readOnly ? undefined : handleEditRow}
@@ -977,6 +1131,11 @@ export function BomGridPro({
       </tr>
     );
   };
+
+  const renderItem = (it: ListItem, virtualIndex?: number) =>
+    it.type === "cat"
+      ? renderCatRow(it, virtualIndex)
+      : renderRow(it.row, it.stt, virtualIndex);
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-md border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
@@ -1007,6 +1166,17 @@ export function BomGridPro({
         <span className="hidden whitespace-nowrap text-xs text-zinc-500 dark:text-zinc-400 lg:inline">
           Tổng SL = SL/bộ × SL thành phẩm
         </span>
+        {selected.size > 0 && (
+          <button
+            type="button"
+            onClick={() => setSelected(new Set())}
+            className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md bg-zinc-900 px-2 py-0.5 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900"
+            title="Bỏ chọn tất cả"
+          >
+            Đã chọn {selected.size}
+            <X className="h-3 w-3" aria-hidden />
+          </button>
+        )}
         {/* V3.7.21 — Auto-hide empty columns toggle */}
         <button
           type="button"
@@ -1112,71 +1282,48 @@ export function BomGridPro({
           style={{ minWidth: tableMinWidth }}
         >
           <colgroup>
-            <col style={{ width: "40px" }} />   {/* # */}
-            <col style={{ width: "52px" }} />   {/* Image */}
-            {showCol("positionCode") && <col style={{ width: "70px" }} />}{/* ID Number */}
-            <col style={{ width: "70px" }} />   {/* Quantity (hệ số) */}
-            <col style={{ width: "180px" }} />  {/* BOM gốc */}
-            <col style={{ width: "200px" }} />  {/* Ghi chú */}
-            <col style={{ width: "120px" }} />  {/* Category */}
-            {showCol("dimensions") && <col style={{ width: "130px" }} />}{/* Quy cách */}
-            {showCol("supplier") && <col style={{ width: "110px" }} />}{/* NCC */}
-            {showCol("pic") && <col style={{ width: `${PIC_COL_W}px` }} />}{/* PIC — V4.1 UI-04: 110 → 140 */}
-            <col style={{ width: "60px" }} />   {/* SL (total) */}
+            <col style={{ width: `${COL_SEL_W}px` }} />{/* ☐/STT */}
+            <col style={{ width: `${COL_ID_W}px` }} />{/* ID */}
+            <col style={{ width: `${COL_IMG_W}px` }} />{/* Ảnh 3D */}
+            <col style={{ width: `${COL_NAME_W}px` }} />{/* Tên chi tiết */}
+            {SHOW_JOURNEY_COL && <col style={{ width: `${JOURNEY_COL_W}px` }} />}{/* Hành trình (WP6) */}
+            <col style={{ width: "150px" }} />{/* NCC */}
+            <col style={{ width: "200px" }} />{/* Vật liệu/Ghi chú */}
+            {showCol("dimensions") && <col style={{ width: "130px" }} />}{/* Quy cách D×R×C */}
+            {showCol("processMethod") && <col style={{ width: "120px" }} />}{/* PP gia công */}
+            {showCol("materialCode") && <col style={{ width: "110px" }} />}{/* Mã vật liệu */}
+            {showCol("surfaceTreatment") && <col style={{ width: "110px" }} />}{/* Xử lý bề mặt */}
+            {showCol("blankSpec") && <col style={{ width: "150px" }} />}{/* Phôi/Mã đặt hàng */}
+            <col style={{ width: `${PIC_COL_W}px` }} />{/* PIC */}
+            <col style={{ width: "64px" }} />{/* Hệ số */}
+            <col style={{ width: "64px" }} />{/* SL */}
             {showCol("notes") && <col style={{ width: "120px" }} />}{/* Ghi chú phụ */}
             {showCol("scrap") && <col style={{ width: "60px" }} />}{/* Hao hụt */}
             {showCol("progress") && <col style={{ width: "150px" }} />}{/* Tiến độ */}
-            {showEtaCol && <col style={{ width: "172px" }} />}{/* V3.8.3 Dự kiến nhận (luôn hiện, đủ rộng cho "dd/MM · quá NN ngày") */}
-            {/* V4.1 UI-BOM: 100px → 132px. Tối đa 4 nút 24px + gap + padding
-                ≈ 118px; 100px làm nút tràn sang cột/dòng bên cạnh.
-                V4.4 D1-P0: nút icon nay dùng size="icon-sm" (to hơn khi
-                pointer:coarse, 36px, cho đủ vùng chạm) — dưới md nới rộng
-                cột này để 4 nút 36px không tràn (đã bỏ sticky nên không đè
-                cột khác, chỉ cần đủ chỗ khi cuộn tới). */}
-            <col
-              style={{ width: `${ACTIONS_COL_W}px` }}
-              className="max-md:!w-[168px]"
-            />  {/* Thao tác */}
+            {showEtaCol && <col style={{ width: "172px" }} />}{/* V3.8.3 Dự kiến nhận */}
+            <col style={{ width: `${ACTIONS_COL_W}px` }} />{/* Thao tác (1 nút …) */}
           </colgroup>
           <thead>
-            <tr className="h-8 text-xs font-medium uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
-              {/* # */}
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-right">#</th>
-              {/* Image */}
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-center">
-                Image
+            <tr className="h-8 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              <th className={cn(TH, "md:left-0 md:z-30 md:sticky")}>
+                <label className="flex items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    aria-label="Chọn tất cả"
+                    className="h-3.5 w-3.5 rounded border-zinc-300 accent-indigo-600"
+                  />
+                  STT
+                </label>
               </th>
-              {/* ID Number */}
-              {showCol("positionCode") && (
-                <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-left">
-                  ID Number
-                </th>
-              )}
-              {/* Quantity (hệ số) */}
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-right" title="Quantity (hệ số) — số lượng linh kiện trên 1 sản phẩm">
-                Quantity
+              <th className={cn(TH, "md:left-[64px] md:z-30")}>ID</th>
+              <th className={cn(TH, "md:left-[136px] md:z-30")}>Ảnh 3D</th>
+              <th className={cn(TH, "max-md:left-0 max-md:z-30 md:left-[200px] md:z-30 border-r border-zinc-200 dark:border-zinc-700")}>
+                Tên chi tiết
               </th>
-              {/* BOM gốc — V4.4 D1-P0: cố định thêm bên trái dưới md, khớp
-                  ô dữ liệu cùng cột (xem giải thích ở <td> tương ứng). */}
-              <th className="sticky top-0 z-20 max-md:left-0 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-left">
-                BOM gốc
-              </th>
-              {/* Ghi chú */}
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-left">
-                Ghi chú
-              </th>
-              {/* Category — was Loại */}
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-left">
-                Category
-              </th>
-              {/* Quy cách (tham khảo) */}
-              {showCol("dimensions") && (
-                <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-left" title="Quy cách (tham khảo)">
-                  Quy cách
-                </th>
-              )}
-              {showCol("supplier") && (
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-left">
+              {SHOW_JOURNEY_COL && <th className={TH}>Hành trình</th>}
+              <th className={TH}>
                 <div className="relative inline-flex items-center gap-1">
                   <span>NCC</span>
                   <button
@@ -1201,7 +1348,7 @@ export function BomGridPro({
                   </button>
                   {supplierFilterOpen && (
                     <div
-                      className="absolute left-0 top-full z-30 mt-1 w-56 rounded-md border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
+                      className="absolute left-0 top-full z-30 mt-1 w-56 rounded-md border border-zinc-200 bg-white p-2 normal-case shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
                       onMouseLeave={() => setSupplierFilterOpen(false)}
                     >
                       <input
@@ -1237,110 +1384,99 @@ export function BomGridPro({
                   )}
                 </div>
               </th>
+              <th className={TH}>Vật liệu / Ghi chú</th>
+              {showCol("dimensions") && (
+                <th className={TH} title="Quy cách Dài × Rộng × Cao">Quy cách D×R×C</th>
               )}
-              {showCol("pic") && (
-                <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-left">
-                  <div className="relative inline-flex items-center gap-1">
-                    <span>PIC</span>
-                    <button
-                      type="button"
-                      onClick={() => setPicFilterOpen((o) => !o)}
-                      className={cn(
-                        "inline-flex h-4 w-4 items-center justify-center rounded text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-300",
-                        picFilter && "bg-indigo-600 text-white hover:bg-indigo-700",
-                      )}
-                      title="Lọc theo PIC"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                        className="h-3 w-3"
-                      >
-                        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-                      </svg>
-                    </button>
-                    {picFilterOpen && (
-                      <div
-                        className="absolute left-0 top-full z-30 mt-1 w-56 rounded-md border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
-                        onMouseLeave={() => setPicFilterOpen(false)}
-                      >
-                        <input
-                          type="text"
-                          value={picFilter}
-                          onChange={(e) => setPicFilter(e.target.value)}
-                          placeholder="Tìm PIC…"
-                          autoFocus
-                          list="pic-options"
-                          className="block w-full rounded border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500"
-                        />
-                        <datalist id="pic-options">
-                          {picOptions.map((p) => (
-                            <option key={p} value={p} />
-                          ))}
-                        </datalist>
-                        {picFilter && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setPicFilter("");
-                              setPicFilterOpen(false);
-                            }}
-                            className="mt-1 w-full rounded text-xs text-rose-600 hover:bg-rose-50 px-2 py-1 text-left dark:text-rose-400 dark:hover:bg-rose-950/40"
-                          >
-                            ✕ Xoá filter
-                          </button>
-                        )}
-                        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                          {picOptions.length} PIC trong BOM
-                        </p>
-                      </div>
+              {showCol("processMethod") && <th className={TH}>PP gia công</th>}
+              {showCol("materialCode") && <th className={TH}>Mã vật liệu</th>}
+              {showCol("surfaceTreatment") && <th className={TH}>Xử lý bề mặt</th>}
+              {showCol("blankSpec") && (
+                <th className={TH} title="Quy cách phôi / Mã đặt hàng">Phôi / Mã ĐH</th>
+              )}
+              <th className={TH}>
+                <div className="relative inline-flex items-center gap-1">
+                  <span>PIC</span>
+                  <button
+                    type="button"
+                    onClick={() => setPicFilterOpen((o) => !o)}
+                    className={cn(
+                      "inline-flex h-4 w-4 items-center justify-center rounded text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-300",
+                      picFilter && "bg-indigo-600 text-white hover:bg-indigo-700",
                     )}
-                  </div>
-                </th>
-              )}
-              {/* SL (total) — Quantity (hệ số) × parentQty. V3.7.33 column theo Excel. */}
-              <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-right" title={`SL = Quantity × ${parentQty} (số lượng parent)`}>
-                SL
+                    title="Lọc theo PIC"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      className="h-3 w-3"
+                    >
+                      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                    </svg>
+                  </button>
+                  {picFilterOpen && (
+                    <div
+                      className="absolute left-0 top-full z-30 mt-1 w-56 rounded-md border border-zinc-200 bg-white p-2 normal-case shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
+                      onMouseLeave={() => setPicFilterOpen(false)}
+                    >
+                      <input
+                        type="text"
+                        value={picFilter}
+                        onChange={(e) => setPicFilter(e.target.value)}
+                        placeholder="Tìm PIC…"
+                        autoFocus
+                        list="pic-options"
+                        className="block w-full rounded border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500"
+                      />
+                      <datalist id="pic-options">
+                        {picOptions.map((p) => (
+                          <option key={p} value={p} />
+                        ))}
+                      </datalist>
+                      {picFilter && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPicFilter("");
+                            setPicFilterOpen(false);
+                          }}
+                          className="mt-1 w-full rounded text-xs text-rose-600 hover:bg-rose-50 px-2 py-1 text-left dark:text-rose-400 dark:hover:bg-rose-950/40"
+                        >
+                          ✕ Xoá filter
+                        </button>
+                      )}
+                      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                        {picOptions.length} PIC trong BOM
+                      </p>
+                    </div>
+                  )}
+                </div>
               </th>
+              <th className={cn(TH, "text-right")} title="Hệ số — số lượng chi tiết trên 1 sản phẩm">Hệ số</th>
+              <th className={cn(TH, "text-right")} title={`SL = Hệ số × ${parentQty} (số lượng thành phẩm)`}>SL</th>
               {showCol("notes") && (
-                <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-left" title="Ghi chú phụ từ metadata.notes">
-                  Note phụ
-                </th>
+                <th className={TH} title="Ghi chú phụ từ metadata.notes">Note phụ</th>
               )}
-              {showCol("scrap") && (
-                <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-right">
-                  Hao hụt
-                </th>
-              )}
-              {showCol("progress") && (
-                <th className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-left">
-                  Tiến độ
-                </th>
-              )}
-              {/* V3.8.3 — Dự kiến nhận hàng (tô đỏ dần theo độ khẩn) — luôn hiện */}
+              {showCol("scrap") && <th className={cn(TH, "text-right")}>Hao hụt</th>}
+              {showCol("progress") && <th className={TH}>Tiến độ</th>}
               {showEtaCol && (
                 <th
-                  className="sticky top-0 z-20 border-b-2 border-zinc-900 bg-zinc-50 dark:border-zinc-50 dark:bg-zinc-800 px-2 text-left"
+                  className={TH}
                   title="Ngày dự kiến nhận hàng từ NCC — tô đỏ dần khi gần/quá hạn để chủ động giục."
                 >
                   Dự kiến nhận
                 </th>
               )}
-              {/* V4.4 D1-P0: sticky-right CHỈ từ md (giữ nguyên desktop) —
-                  dưới md cột "Thao tác" đè lên "BOM gốc" vì bảng rộng hơn
-                  nhiều so với 390px, trong khi cột mã đã tự cố định bên
-                  trái (xem <th>/<td> "BOM gốc"). */}
-              <th className="sticky top-0 md:right-0 z-30 border-b-2 border-l border-zinc-900 bg-zinc-50 px-2 text-center dark:border-zinc-50 dark:bg-zinc-800">
-                Thao tác
+              <th className={cn(TH, "md:right-0 z-30 border-l border-zinc-200 text-center dark:border-zinc-700")}>
+                <span className="sr-only">Thao tác</span>
               </th>
             </tr>
           </thead>
           <tbody>
-            {!useVirtualize &&
-              visibleRows.map((row, idx) => renderRow(row, idx))}
+            {!useVirtualize && listItems.map((it) => renderItem(it))}
             {useVirtualize &&
               (() => {
                 // V4.1 UI-BOM: dòng ảo trong luồng bảng + 2 dòng đệm.
@@ -1364,9 +1500,9 @@ export function BomGridPro({
                       </tr>
                     )}
                     {items.map((v) => {
-                      const row = visibleRows[v.index];
-                      if (!row) return null;
-                      return renderRow(row, v.index, v.index);
+                      const it = listItems[v.index];
+                      if (!it) return null;
+                      return renderItem(it, v.index);
                     })}
                     {padBottom > 0 && (
                       <tr aria-hidden>
@@ -1379,7 +1515,7 @@ export function BomGridPro({
                   </>
                 );
               })()}
-            {visibleRows.length === 0 && (
+            {listItems.length === 0 && (
               <tr>
                 <td colSpan={colCount} className="py-8 text-center text-xs text-zinc-400 dark:text-zinc-500">
                   BOM chưa có linh kiện nào.

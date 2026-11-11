@@ -1,5 +1,6 @@
 "use client";
 
+import { lineImageSrc } from "@/lib/bom-grid/line-view";
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -541,6 +542,18 @@ export function BomLineSheet({
           className="flex min-h-0 flex-1 flex-col"
         >
           <SheetBody className="space-y-5">
+            {/* BOM V5 WP5 — ảnh 3D lớn (kho ảnh BOM, size=full; fallback item.imageUrl). */}
+            {line && lineImageSrc(line.node, "full") ? (
+              <div className="flex justify-center rounded-xl bg-zinc-50 p-2 dark:bg-zinc-800/40">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={lineImageSrc(line.node, "full") ?? undefined}
+                  alt={line.node.file3dName ?? line.node.componentName ?? "Ảnh chi tiết"}
+                  loading="lazy"
+                  className="max-h-64 w-auto max-w-full rounded-lg object-contain"
+                />
+              </div>
+            ) : null}
             {/* Kind toggle — pin top */}
             <div className="space-y-1.5">
               <Label>Loại linh kiện</Label>

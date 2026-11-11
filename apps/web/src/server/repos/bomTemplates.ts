@@ -421,6 +421,18 @@ export interface BomTreeNode {
    * fallback cuối khi chưa có `dimensions` jsonb. TASK-20260427-024.
    */
   itemSpecJson: string | null;
+  /** BOM V5 — cột theo mẫu triển khai (NULL với BOM cũ). */
+  category: string | null;
+  processMethod: string | null;
+  surfaceTreatment: string | null;
+  blankSpec: string | null;
+  materialCode: string | null;
+  file3dName: string | null;
+  imageAssetId: string | null;
+  /** item.image_url — fallback khi dòng chưa có ảnh trong kho BOM. */
+  itemImageUrl: string | null;
+  coef: string | null;
+  picNames: string[] | null;
   childCount: number;
 }
 
@@ -449,6 +461,9 @@ export async function loadTree(
       t.level, t.position, t.position_code, t.qty_per_parent, t.scrap_percent,
       t.uom, t.description, t.supplier_item_code, t.metadata,
       t.supplier_id, t.supplier_pending, t.row_version,
+      t.category, t.process_method, t.surface_treatment, t.blank_spec,
+      t.material_code, t.file3d_name, t.image_asset_id, t.coef, t.pic_names,
+      i.image_url AS item_image_url,
       sup.name AS supplier_name, sup.code AS supplier_code,
       lsup.name AS legacy_supplier_name, lsup.code AS legacy_supplier_code,
       t.assigned_to_user_id, t.assigned_to_name,
@@ -504,6 +519,16 @@ export async function loadTree(
     itemDimensions:
       (r.item_dimensions as Record<string, unknown> | null) ?? null,
     itemSpecJson: (r.item_spec_json as string | null) ?? null,
+    category: (r.category as string | null) ?? null,
+    processMethod: (r.process_method as string | null) ?? null,
+    surfaceTreatment: (r.surface_treatment as string | null) ?? null,
+    blankSpec: (r.blank_spec as string | null) ?? null,
+    materialCode: (r.material_code as string | null) ?? null,
+    file3dName: (r.file3d_name as string | null) ?? null,
+    imageAssetId: (r.image_asset_id as string | null) ?? null,
+    itemImageUrl: (r.item_image_url as string | null) ?? null,
+    coef: r.coef != null ? String(r.coef) : null,
+    picNames: (r.pic_names as string[] | null) ?? null,
     childCount: Number(r.child_count ?? 0),
   }));
 }

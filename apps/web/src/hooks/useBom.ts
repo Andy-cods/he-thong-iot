@@ -87,6 +87,17 @@ export interface BomTreeNodeRaw {
    * parse client-side để fallback render Kích thước. TASK-20260427-024.
    */
   itemSpecJson: string | null;
+  /** BOM V5 — NULL với BOM cũ. */
+  category?: string | null;
+  processMethod?: string | null;
+  surfaceTreatment?: string | null;
+  blankSpec?: string | null;
+  materialCode?: string | null;
+  file3dName?: string | null;
+  imageAssetId?: string | null;
+  itemImageUrl?: string | null;
+  coef?: string | null;
+  picNames?: string[] | null;
   childCount: number;
 }
 
