@@ -59,6 +59,14 @@ export interface BomTreeNodeRaw {
   uom: string | null;
   description: string | null;
   supplierItemCode: string | null;
+  /** BOM V5 — xem resolveLineSupplier (lib/bom-line-supplier.ts). */
+  supplierId: string | null;
+  supplierName: string | null;
+  supplierCode: string | null;
+  legacySupplierName: string | null;
+  legacySupplierCode: string | null;
+  supplierPending: string | null;
+  rowVersion: number;
   /** V3.7.18 — PIC user matched từ Excel "PIC" column. NULL nếu không match. */
   assignedToUserId: string | null;
   assignedToFullName: string | null;
@@ -330,6 +338,64 @@ export function useUpdateBomLine(templateId: string) {
       qc.invalidateQueries({ queryKey: qk.bom.detail(templateId) });
       qc.invalidateQueries({ queryKey: qk.bom.tree(templateId) });
     },
+  });
+}
+
+/** BOM V5 / WP2 — đổi NCC 1 dòng (khoá phiên bản, tạo NCC nhanh). */
+export interface ChangeLineSupplierVars {
+  lineId: string;
+  /** string = chọn; null = bỏ chọn. Bỏ trống khi dùng newSupplier. */
+  supplierId?: string | null;
+  newSupplier?: { name: string; phone?: string | null };
+  expectedVersion?: number;
+}
+export interface ChangeLineSupplierData {
+  line: {
+    id: string;
+    rowVersion: number;
+    supplierId: string | null;
+    supplierPending: string | null;
+  };
+  supplier: { id: string; name: string; code: string; needsReview: boolean } | null;
+  createdSupplier: boolean;
+  changed: boolean;
+}
+
+export function useChangeLineSupplier(templateId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ lineId, ...body }: ChangeLineSupplierVars) =>
+      request<{ data: ChangeLineSupplierData }>(
+        `/api/bom/templates/${templateId}/lines/${lineId}/supplier`,
+        { method: "PATCH", body: JSON.stringify(body) },
+      ),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: qk.bom.tree(templateId) });
+      if (res.data.createdSupplier) qc.invalidateQueries({ queryKey: ["suppliers"] });
+    },
+  });
+}
+
+export interface BomLineChangeRow {
+  id: number;
+  field: string;
+  oldValue: { id?: string | null; name?: string | null; pending?: string } | null;
+  newValue: { id?: string | null; name?: string | null } | null;
+  actorId: string | null;
+  actorName: string | null;
+  at: string;
+}
+
+export function useBomLineHistory(
+  templateId: string,
+  lineId: string | null,
+  enabled = true,
+) {
+  return useQuery<{ data: BomLineChangeRow[] }>({
+    queryKey: ["bom", "line-history", templateId, lineId],
+    enabled: enabled && !!lineId,
+    queryFn: () =>
+      request(`/api/bom/templates/${templateId}/lines/${lineId}/history`),
   });
 }
 

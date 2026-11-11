@@ -32,6 +32,8 @@ import {
 } from "./ProgressCell";
 import { ActionsCell } from "./ActionsCell";
 import { BomLineSheet } from "./BomLineSheet";
+import { SupplierCell } from "./SupplierCell";
+import { lineSupplierLabel, lineSupplierSearchText } from "@/lib/bom-line-supplier";
 import { PRQuickDialog } from "./PRQuickDialog";
 import { WOQuickDialog } from "./WOQuickDialog";
 import { SubcontractPOQuickDialog } from "./SubcontractPOQuickDialog";
@@ -285,7 +287,7 @@ export function BomGridPro({
   const supplierOptions = React.useMemo(() => {
     const set = new Set<string>();
     for (const r of flat) {
-      const s = r.node.supplierItemCode;
+      const s = lineSupplierLabel(r.node);
       if (s && s.trim()) set.add(s.trim());
     }
     return Array.from(set).sort();
@@ -312,7 +314,7 @@ export function BomGridPro({
     if (supNeedle || picNeedle || etaUrgentOnly) {
       const matchIds = new Set<string>();
       for (const r of flat) {
-        const s = (r.node.supplierItemCode ?? "").toLowerCase();
+        const s = lineSupplierSearchText(r.node).toLowerCase();
         const p = (
           r.node.assignedToFullName ??
           r.node.assignedToName ??
@@ -379,7 +381,7 @@ export function BomGridPro({
         | { notes?: string; note?: string; size?: string; seq?: string; category?: string }
         | undefined;
       if (r.node.positionCode || meta?.seq) has.positionCode = true;
-      if (r.node.supplierItemCode) has.supplier = true;
+      if (lineSupplierLabel(r.node)) has.supplier = true;
       if (r.node.assignedToFullName || r.node.assignedToName) has.pic = true;
       if (meta?.notes || meta?.note) has.notes = true;
       if (meta?.size || r.node.itemDimensions) has.dimensions = true;
@@ -772,8 +774,17 @@ export function BomGridPro({
         )}
         {/* NCC / Vật tư */}
         {showCol("supplier") && (
-        <td className="px-2 font-mono text-xs text-zinc-600 truncate dark:text-zinc-400">
-          {row.node.supplierItemCode ?? "—"}
+        <td className="px-2 truncate">
+          {row.isGroup ? (
+            <span className="text-zinc-400">—</span>
+          ) : (
+            <SupplierCell
+              templateId={templateId}
+              lineId={row.id}
+              line={row.node}
+              rowVersion={row.node.rowVersion}
+            />
+          )}
         </td>
         )}
         {/* PIC — V3.7.19/20 */}

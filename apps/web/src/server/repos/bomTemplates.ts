@@ -390,6 +390,17 @@ export interface BomTreeNode {
   uom: string | null;
   description: string | null;
   supplierItemCode: string | null;
+  /** BOM V5 — NCC chuẩn (cột supplier_id) + tên/mã join; dùng qua resolveLineSupplier. */
+  supplierId: string | null;
+  supplierName: string | null;
+  supplierCode: string | null;
+  /** Tên/mã NCC join theo id nằm trong metadata (dòng chưa có supplier_id). */
+  legacySupplierName: string | null;
+  legacySupplierCode: string | null;
+  /** Text gốc từ Excel cần chốt 1 NCC. */
+  supplierPending: string | null;
+  /** Khoá phiên bản dòng (gửi lại làm expectedVersion khi PATCH). */
+  rowVersion: number;
   /** V3.7.18 — PIC user matched từ Excel */
   assignedToUserId: string | null;
   assignedToFullName: string | null;
@@ -437,6 +448,9 @@ export async function loadTree(
       t.id, t.parent_line_id, t.template_id, t.component_item_id,
       t.level, t.position, t.position_code, t.qty_per_parent, t.scrap_percent,
       t.uom, t.description, t.supplier_item_code, t.metadata,
+      t.supplier_id, t.supplier_pending, t.row_version,
+      sup.name AS supplier_name, sup.code AS supplier_code,
+      lsup.name AS legacy_supplier_name, lsup.code AS legacy_supplier_code,
       t.assigned_to_user_id, t.assigned_to_name,
       t.received_qty, t.expected_eta, t.status_note,
       pic.full_name AS assigned_to_full_name,
@@ -447,6 +461,9 @@ export async function loadTree(
     FROM tree t
     LEFT JOIN app.item i ON i.id = t.component_item_id
     LEFT JOIN app.user_account pic ON pic.id = t.assigned_to_user_id
+    LEFT JOIN app.supplier sup ON sup.id = t.supplier_id
+    LEFT JOIN app.supplier lsup ON t.supplier_id IS NULL
+      AND lsup.id::text = COALESCE(t.metadata #>> '{sourcing,supplierId}', t.metadata ->> 'supplierId')
     ORDER BY t.level, t.position
   `);
 
@@ -470,6 +487,13 @@ export async function loadTree(
     uom: (r.uom as string | null) ?? null,
     description: (r.description as string | null) ?? null,
     supplierItemCode: (r.supplier_item_code as string | null) ?? null,
+    supplierId: (r.supplier_id as string | null) ?? null,
+    supplierName: (r.supplier_name as string | null) ?? null,
+    supplierCode: (r.supplier_code as string | null) ?? null,
+    legacySupplierName: (r.legacy_supplier_name as string | null) ?? null,
+    legacySupplierCode: (r.legacy_supplier_code as string | null) ?? null,
+    supplierPending: (r.supplier_pending as string | null) ?? null,
+    rowVersion: Number(r.row_version ?? 1),
     assignedToUserId: (r.assigned_to_user_id as string | null) ?? null,
     assignedToFullName: (r.assigned_to_full_name as string | null) ?? null,
     assignedToName: (r.assigned_to_name as string | null) ?? null,
@@ -614,6 +638,8 @@ export async function cloneTemplate(
           uom: line.uom,
           description: line.description,
           supplierItemCode: line.supplierItemCode,
+          supplierId: line.supplierId,
+          supplierPending: line.supplierPending,
           metadata: line.metadata,
         };
       });

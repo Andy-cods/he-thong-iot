@@ -155,8 +155,20 @@ export interface BomLineUpdateInput {
   metadata?: Record<string, unknown> | null;
 }
 
-export async function updateLine(lineId: string, patch: BomLineUpdateInput) {
-  const values: Record<string, unknown> = { updatedAt: new Date() };
+/**
+ * `expectedVersion` (BOM V5): UPDATE có điều kiện `row_version = expected` —
+ * nguyên tử trong 1 câu lệnh; không khớp → trả null (caller phân biệt với
+ * "không tồn tại" bằng getLineById). Mọi lần ghi đều tăng `row_version`.
+ */
+export async function updateLine(
+  lineId: string,
+  patch: BomLineUpdateInput,
+  expectedVersion?: number,
+) {
+  const values: Record<string, unknown> = {
+    updatedAt: new Date(),
+    rowVersion: sql`${bomLine.rowVersion} + 1`,
+  };
   if (patch.qtyPerParent !== undefined)
     values.qtyPerParent = String(patch.qtyPerParent);
   if (patch.scrapPercent !== undefined)
@@ -170,7 +182,11 @@ export async function updateLine(lineId: string, patch: BomLineUpdateInput) {
   const [row] = await db
     .update(bomLine)
     .set(values)
-    .where(eq(bomLine.id, lineId))
+    .where(
+      expectedVersion === undefined
+        ? eq(bomLine.id, lineId)
+        : and(eq(bomLine.id, lineId), eq(bomLine.rowVersion, expectedVersion)),
+    )
     .returning();
   return row ?? null;
 }

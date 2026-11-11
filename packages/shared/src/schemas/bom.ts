@@ -149,7 +149,28 @@ export const bomLineUpdateSchema = z.object({
   supplierItemCode: z.string().trim().max(128).optional().nullable(),
   /** V1.7-beta.2 — metadata tự do (vd: `{ size: "50x50x10" }`). */
   metadata: z.record(z.string(), z.unknown()).optional().nullable(),
+  /** BOM V5 — khoá phiên bản; lệch `row_version` → 409 VERSION_CONFLICT. Bỏ trống = client cũ. */
+  expectedVersion: z.coerce.number().int().positive().optional(),
 });
+
+/** BOM V5 / WP2 — đổi NCC 1 dòng: chọn có sẵn / bỏ chọn (null) / tạo nhanh. */
+export const bomLineSupplierChangeSchema = z
+  .object({
+    supplierId: z.string().uuid().nullable().optional(),
+    newSupplier: z
+      .object({
+        name: z.string().trim().min(2).max(255),
+        phone: z.string().trim().max(32).optional().nullable(),
+      })
+      .optional(),
+    expectedVersion: z.coerce.number().int().positive().optional(),
+  })
+  .refine((v) => v.newSupplier !== undefined || v.supplierId !== undefined, {
+    message: "Cần supplierId (hoặc null để bỏ chọn) hoặc newSupplier.",
+  })
+  .refine((v) => !(v.newSupplier && v.supplierId), {
+    message: "Chỉ gửi supplierId HOẶC newSupplier.",
+  });
 
 export const bomLineMoveSchema = z.object({
   newParentLineId: z.string().uuid().optional().nullable(),
@@ -185,6 +206,7 @@ export type BomTemplateUpdate = z.infer<typeof bomTemplateUpdateSchema>;
 export type BomTemplateListQuery = z.infer<typeof bomTemplateListQuerySchema>;
 export type BomTemplateClone = z.infer<typeof bomTemplateCloneSchema>;
 export type BomLineCreate = z.infer<typeof bomLineCreateSchema>;
+export type BomLineSupplierChange = z.infer<typeof bomLineSupplierChangeSchema>;
 export type BomLineUpdate = z.infer<typeof bomLineUpdateSchema>;
 export type BomLineMove = z.infer<typeof bomLineMoveSchema>;
 export type BomImportCommit = z.infer<typeof bomImportCommitSchema>;

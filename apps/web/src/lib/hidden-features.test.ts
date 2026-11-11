@@ -5,17 +5,17 @@ import { Factory } from "lucide-react";
 
 describe("V4.1 Q4/D10 — hiddenRouteRedirect", () => {
   it("cờ ẩn đang bật", () => {
-    expect(HIDDEN_FEATURES.salesOrder).toBe(true);
+    // V4.7 — Đơn hàng bán đã bật lại (nguồn Dự trù thu).
+    expect(HIDDEN_FEATURES.salesOrder).toBe(false);
     expect(HIDDEN_FEATURES.legacyAssembly).toBe(true);
   });
   // V4.3 Q2 — nhập kho thành phẩm đã bật lại (completeWO ghi PROD_IN thật).
   it("fgReceipt đã bật lại (V4.3)", () => {
     expect(HIDDEN_FEATURES.fgReceipt).toBe(false);
   });
-  it("đơn hàng bán → /bom", () => {
-    expect(hiddenRouteRedirect("/orders")).toBe("/bom");
-    expect(hiddenRouteRedirect("/orders/SO-2609-0001")).toBe("/bom");
-    expect(hiddenRouteRedirect("/orders/new")).toBe("/bom");
+  it("đơn hàng bán đã bật lại (V4.7) → không redirect", () => {
+    expect(hiddenRouteRedirect("/orders")).toBeNull();
+    expect(hiddenRouteRedirect("/orders/SO-2609-0001")).toBeNull();
   });
   it("ECO / Thiếu vật tư → /bom", () => {
     expect(hiddenRouteRedirect("/eco/ECO-1")).toBe("/bom");
@@ -44,13 +44,13 @@ describe("V4.1 Q4 — nav lọc tính năng ẩn", () => {
   ];
   it("admin không thấy mục ẩn", () => {
     const out = filterNavByRoles(extra, ["admin"]).map((i) => i.href);
-    expect(out).not.toContain("/orders");
+    expect(out).toContain("/orders");
     expect(out).not.toContain("/assembly");
     expect(out).toContain("/engineering");
   });
   it("không có roles (fallback) cũng lọc mục ẩn", () => {
     const out = filterNavByRoles(extra, undefined).map((i) => i.href);
-    expect(out).not.toContain("/orders");
-    expect(out.length).toBe(NAV_ITEMS.length);
+    expect(out).not.toContain("/assembly");
+    expect(out.length).toBe(NAV_ITEMS.length + 1);
   });
 });
