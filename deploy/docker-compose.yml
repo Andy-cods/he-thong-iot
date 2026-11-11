@@ -96,6 +96,8 @@ services:
       # V3.12 — bật enqueue email "cần duyệt" (worker mới là bên gửi SMTP)
       MAIL_ENABLED: ${MAIL_ENABLED:-false}
       PO_AUTO_APPROVE_LIMIT_VND: ${PO_AUTO_APPROVE_LIMIT_VND:-20000000}
+      # BOM V5 WP4b — mẫu BOM triển khai; prod mặc định tắt, staging đặt true
+      BOM_IMPORT_V5: ${BOM_IMPORT_V5:-false}
       DB_PASSWORD_FILE: /run/secrets/db_password
       JWT_SECRET_FILE: /run/secrets/jwt_secret
       # V4.1 D1: phiên 4 tiếng (1 ca)

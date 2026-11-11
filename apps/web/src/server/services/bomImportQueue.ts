@@ -48,3 +48,16 @@ export async function enqueueBomImportCommit(payload: BomImportCommitPayload) {
   const q = getBomImportQueue();
   return q.add("commit", payload, { jobId: payload.batchId });
 }
+
+/** V5 WP4b — commit mẫu "BOM triển khai" (cùng queue, job name riêng). */
+export interface BomImportTrienKhaiPayload {
+  batchId: string;
+  actorId: string;
+  duplicateMode: "skip" | "upsert" | "error";
+  decisions: Array<{ position: string; action: "USE_ITEM" | "NEW"; itemId?: string }>;
+}
+
+export async function enqueueBomImportTrienKhai(payload: BomImportTrienKhaiPayload) {
+  const q = getBomImportQueue();
+  return q.add("commit-trien-khai", payload, { jobId: payload.batchId });
+}

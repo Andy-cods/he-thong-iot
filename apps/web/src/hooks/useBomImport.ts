@@ -50,6 +50,58 @@ export interface BomUploadResult {
   duplicateMode: string;
   /** V3 — nhận diện template "Bản chính thức". Optional vì server cũ chưa trả. */
   officialFormat?: OfficialFormatInfo;
+  /** V5 — "TRIEN_KHAI" khi nhận diện mẫu BOM triển khai. */
+  template?: "TRIEN_KHAI";
+  trienKhai?: TrienKhaiPreview;
+}
+
+/** V5 WP4b — preview bước "Khớp" của mẫu BOM triển khai. */
+export interface TkMatchCandidate {
+  itemId: string;
+  sku: string;
+  reason: string;
+}
+export interface TkRowMatch {
+  status: "MATCH" | "CONFIRM" | "NEW";
+  itemId?: string;
+  candidates: TkMatchCandidate[];
+  reasons: string[];
+  warnings: Array<{ code: string; text: string; itemId: string }>;
+  supplier: { state: "NONE" | "MATCHED" | "MISSING" | "PENDING"; supplierId?: string };
+}
+export interface TkPreviewRow {
+  rowNumber: number;
+  position: string;
+  file3dName: string;
+  materialCode: string | null;
+  dimsText: string | null;
+  blankSpec: string | null;
+  category: string;
+  supplierText: string | null;
+  thumbUrl: string | null;
+  match: TkRowMatch;
+}
+export interface TkMatchStats {
+  total: number;
+  match: number;
+  confirm: number;
+  new: number;
+  supplierPending: number;
+  suppliersMissing: string[];
+}
+export interface TrienKhaiPreview {
+  sheetName: string;
+  projectCode: string | null;
+  title: string | null;
+  setCount: number | null;
+  warnings: string[];
+  matchStats: TkMatchStats;
+  rows: TkPreviewRow[];
+}
+export interface BomImportDecisionInput {
+  position: string;
+  action: "USE_ITEM" | "NEW";
+  itemId?: string;
 }
 
 export interface BomImportErrorPreview {
@@ -143,7 +195,7 @@ export function useCommitBomImport() {
   return useMutation({
     mutationFn: async (input: {
       batchId: string;
-      body: BomImportCommit;
+      body: BomImportCommit & { decisions?: BomImportDecisionInput[] };
     }) => {
       const res = await apiFetch<{ batchId: string; status: string }>(
         `/api/bom/imports/${input.batchId}/commit`,

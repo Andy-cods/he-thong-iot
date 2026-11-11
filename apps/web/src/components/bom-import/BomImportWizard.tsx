@@ -33,11 +33,13 @@ import {
   useBomImportStatus,
   useCommitBomImport,
   useUploadBomImport,
+  type BomImportDecisionInput,
   type BomImportErrorPreview,
   type BomImportSheet,
   type BomUploadResult,
 } from "@/hooks/useBomImport";
 import { BomColumnMapperStep } from "./BomColumnMapperStep";
+import { BomImportMatchStep } from "./BomImportMatchStep";
 import { cn } from "@/lib/utils";
 
 /**
@@ -219,6 +221,27 @@ export function BomImportWizard() {
     }
   };
 
+  // V5 WP4b — mẫu BOM triển khai: commit kèm quyết định khớp vật tư.
+  const handleCommitTrienKhai = async (decisions: BomImportDecisionInput[]) => {
+    if (!uploadData?.trienKhai) return;
+    try {
+      await commit.mutateAsync({
+        batchId: uploadData.batchId,
+        body: {
+          selectedSheets: [uploadData.trienKhai.sheetName],
+          mappings: {},
+          autoCreateMissingItems: false,
+          duplicateMode,
+          decisions,
+        },
+      });
+      toast.info("Đang tạo BOM nền — theo dõi tiến độ ở đây.");
+      setStep("result");
+    } catch (err) {
+      toast.error(`Commit thất bại: ${(err as Error).message}`);
+    }
+  };
+
   const activeSheetName = selectedSheets[activeSheetIdx] ?? "";
   const activeSheet: BomImportSheet | undefined = uploadData?.sheets?.find(
     (s) => s.sheetName === activeSheetName,
@@ -264,7 +287,16 @@ export function BomImportWizard() {
         />
       )}
 
-      {step === "review" && uploadData && (
+      {step === "review" && uploadData?.template === "TRIEN_KHAI" && uploadData.trienKhai && (
+        <BomImportMatchStep
+          data={uploadData.trienKhai}
+          committing={commit.isPending}
+          onBack={() => setStep("upload")}
+          onCommit={(d) => void handleCommitTrienKhai(d)}
+        />
+      )}
+
+      {step === "review" && uploadData && uploadData.template !== "TRIEN_KHAI" && (
         <ReviewStep
           uploadData={uploadData}
           selectedSheets={selectedSheets}

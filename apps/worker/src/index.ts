@@ -19,6 +19,10 @@ import {
   type BomImportCommitJob,
 } from "./jobs/bomImport.js";
 import {
+  processBomImportTrienKhai,
+  type BomImportTrienKhaiJob,
+} from "./jobs/bomImportTrienKhai.js";
+import {
   processEcoApplyBatch,
   type EcoApplyBatchJob,
 } from "./jobs/ecoApply.js";
@@ -90,14 +94,21 @@ const itemImportCommitWorker = new Worker<ItemImportCommitJob>(
   },
 );
 
-const bomImportCommitWorker = new Worker<BomImportCommitJob>(
+const bomImportCommitWorker = new Worker<BomImportCommitJob | BomImportTrienKhaiJob>(
   QUEUE_NAMES.BOM_IMPORT_COMMIT,
   async (job) => {
+    // V5 WP4b — mẫu BOM triển khai: job name riêng, cùng queue.
+    if (job.name === "commit-trien-khai") {
+      const res = await processBomImportTrienKhai(job as Job<BomImportTrienKhaiJob>);
+      logger.info({ jobId: job.id, batchId: job.data.batchId, res }, "bom-import-trien-khai: done");
+      return res;
+    }
+    const jobOld = job as Job<BomImportCommitJob>;
     logger.info(
       { jobId: job.id, batchId: job.data.batchId },
       "bom-import-commit: start",
     );
-    const res = await processBomImportCommit(job);
+    const res = await processBomImportCommit(jobOld);
     logger.info(
       { jobId: job.id, batchId: job.data.batchId, res },
       "bom-import-commit: done",

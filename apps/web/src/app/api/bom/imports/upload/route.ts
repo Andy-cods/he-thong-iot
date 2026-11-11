@@ -10,6 +10,12 @@ import {
 import { autoMapHeaders, parseBomImport } from "@/server/services/bomImportParser";
 import { ImportTooManyRowsError } from "@/server/services/importLimits";
 import { saveImage } from "@/server/services/bomAssets";
+import { loadMatchCatalog } from "@/server/services/bomImportCatalog";
+import {
+  buildTrienKhaiMatchPreview,
+  guardTrienKhaiEnabled,
+} from "@/server/services/bomImportTrienKhaiPreview";
+import { env } from "@/lib/env";
 import { writeAudit } from "@/server/services/audit";
 import { requireCan } from "@/server/session";
 
@@ -66,6 +72,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // V5 WP4b — feature flag: tắt thì mẫu mới bị từ chối, đường cũ không ảnh hưởng.
+  if (parsed.trienKhai) {
+    const off = guardTrienKhaiEnabled(env.BOM_IMPORT_V5);
+    if (off) return jsonError(off.code, off.message, off.status);
+  }
+
   // Idempotency check: file_hash + kind=bom trong 60 phút
   const existing = await findRecentByHash(parsed.fileHash, "bom", 60);
   if (existing && existing.status !== "failed" && existing.status !== "done") {
@@ -109,21 +121,26 @@ export async function POST(req: NextRequest) {
       }
       const { images: _images, rows, ...tkMeta } = tk;
       void _images;
+      // V5 WP4b — khớp với danh mục item (nạp 1 lần) + NCC.
+      const catalog = await loadMatchCatalog();
+      const mp = buildTrienKhaiMatchPreview(rows, catalog.items, catalog.suppliers);
       trienKhaiPreview = {
         ...tkMeta,
-        rows: rows.map((r) => {
+        matchStats: mp.stats,
+        rows: rows.map((r, i) => {
           const a = r.imageIndex === null ? null : saved.get(r.imageIndex) ?? null;
           return {
             ...r,
             assetId: a?.id ?? null,
             thumbUrl: a?.thumbUrl ?? null,
             fullUrl: a?.fullUrl ?? null,
+            match: mp.matches[i],
           };
         }),
       };
     } catch (err) {
-      logger.error({ err }, "saveImage failed (bom trien khai)");
-      return jsonError("ASSET_SAVE_FAILED", "Không lưu được ảnh trong file.", 500);
+      logger.error({ err }, "saveImage/match failed (bom trien khai)");
+      return jsonError("ASSET_SAVE_FAILED", "Không lưu được ảnh hoặc không khớp được danh mục.", 500);
     }
   }
 

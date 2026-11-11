@@ -289,7 +289,7 @@ export async function processBomImportCommit(
  * giống manual createTemplate (apps/web/src/server/repos/bomTemplates.ts).
  * Idempotent: nếu sheet MATERIAL đã có, skip.
  */
-async function ensureMaterialSheetWithCatalog(
+export async function ensureMaterialSheetWithCatalog(
   templateId: string,
   actorId: string,
 ): Promise<void> {
