@@ -153,6 +153,8 @@ export interface BomLineUpdateInput {
   supplierItemCode?: string | null;
   /** V1.7-beta.2 — metadata tự do (vd: `{ size: "50x50x10" }`). */
   metadata?: Record<string, unknown> | null;
+  /** BOM V5 — cột category chuẩn. */
+  category?: "GTAM" | "OUTSOURCED" | "COMMERCIAL" | "OTHER" | null;
 }
 
 /**
@@ -178,6 +180,7 @@ export async function updateLine(
   if (patch.supplierItemCode !== undefined)
     values.supplierItemCode = patch.supplierItemCode;
   if (patch.metadata !== undefined) values.metadata = patch.metadata ?? {};
+  if (patch.category !== undefined) values.category = patch.category;
 
   const [row] = await db
     .update(bomLine)

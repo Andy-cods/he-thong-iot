@@ -76,6 +76,7 @@ export async function PATCH(
         description: body.data.description ?? undefined,
         supplierItemCode: body.data.supplierItemCode ?? undefined,
         metadata: nextMetadata,
+        category: body.data.category,
       },
       expected,
     );

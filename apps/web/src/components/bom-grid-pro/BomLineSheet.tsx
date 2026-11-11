@@ -141,6 +141,18 @@ function deriveDefaultKind(line: BomFlatRow | null): KindMode {
   return "com";
 }
 
+/** V5 — cột category chuẩn ↔ nhãn Excel trong ô chọn. */
+const CATEGORY_TO_LABEL: Record<string, string> = {
+  GTAM: "GTAM",
+  OUTSOURCED: "Đặt gia công ngoài",
+  COMMERCIAL: "Thương mại",
+};
+const LABEL_TO_CATEGORY: Record<string, "GTAM" | "OUTSOURCED" | "COMMERCIAL"> = {
+  GTAM: "GTAM",
+  "Đặt gia công ngoài": "OUTSOURCED",
+  "Thương mại": "COMMERCIAL",
+};
+
 function toStr(v: unknown): string {
   if (typeof v === "string") return v;
   if (typeof v === "number") return String(v);
@@ -204,10 +216,12 @@ function buildInitial(line: BomFlatRow | null): FormState {
 
   return {
     kind: deriveDefaultKind(line),
+    // V5: ưu tiên cột category chuẩn (import mẫu triển khai), rồi metadata cũ.
     category:
-      typeof meta.category === "string" && meta.category.trim()
+      (line.node.category && CATEGORY_TO_LABEL[line.node.category]) ||
+      (typeof meta.category === "string" && meta.category.trim()
         ? meta.category.trim()
-        : "Thương mại",
+        : "Thương mại"),
     qtyPerParent: String(line.node.qtyPerParent ?? "1"),
     scrapPercent: String(line.node.scrapPercent ?? "0"),
     uom: line.node.uom ?? "",
@@ -459,6 +473,7 @@ export function BomLineSheet({
           description: form.description.trim() || null,
           supplierItemCode: nextSupplierItemCode,
           metadata: nextMeta,
+          category: LABEL_TO_CATEGORY[form.category.trim()] ?? undefined,
           expectedVersion: liveVersion,
         },
       });

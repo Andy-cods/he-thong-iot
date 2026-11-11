@@ -149,6 +149,8 @@ export const bomLineUpdateSchema = z.object({
   supplierItemCode: z.string().trim().max(128).optional().nullable(),
   /** V1.7-beta.2 — metadata tự do (vd: `{ size: "50x50x10" }`). */
   metadata: z.record(z.string(), z.unknown()).optional().nullable(),
+  /** BOM V5 — cột category chuẩn (nhóm lưới + bước). */
+  category: z.enum(["GTAM", "OUTSOURCED", "COMMERCIAL", "OTHER"]).optional().nullable(),
   /** BOM V5 — khoá phiên bản; lệch `row_version` → 409 VERSION_CONFLICT. Bỏ trống = client cũ. */
   expectedVersion: z.coerce.number().int().positive().optional(),
 });
