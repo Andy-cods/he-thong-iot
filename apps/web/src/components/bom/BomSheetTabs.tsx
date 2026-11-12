@@ -3,6 +3,8 @@
 import * as React from "react";
 import {
   Plus,
+  Check,
+  ChevronDown,
   FileText,
   Beaker,
   Layers,
@@ -70,6 +72,8 @@ export interface BomSheetTabsProps {
   onSheetDeleted?: (deletedId: string, fallbackId: string | null) => void;
   /** Callback ref của vùng bên phải hàng sheet (SL thành phẩm / tự ẩn cột… do lưới đặt vào). */
   rightSlotRef?: (el: HTMLDivElement | null) => void;
+  /** Gọn 1 hàng: nút dropdown chọn sheet + ⋮ + Thêm sheet (dùng trong header gộp). */
+  compact?: boolean;
 }
 
 const KIND_ICON: Record<BomSheetKind, React.ElementType> = {
@@ -110,6 +114,7 @@ export function BomSheetTabs({
   readOnly = false,
   onSheetDeleted,
   rightSlotRef,
+  compact = false,
 }: BomSheetTabsProps) {
   const [renameTarget, setRenameTarget] = React.useState<BomSheetRow | null>(
     null,
@@ -117,6 +122,16 @@ export function BomSheetTabs({
   const [deleteTarget, setDeleteTarget] = React.useState<BomSheetRow | null>(
     null,
   );
+
+  if (compact && (loading || sheets.length === 0)) {
+    return loading ? (
+      <div className="h-7 w-28 shrink-0 animate-pulse rounded-md bg-zinc-100 dark:bg-zinc-800" aria-busy="true" />
+    ) : onAddSheet && canAddSheet ? (
+      <Button size="sm" variant="outline" className="h-7 shrink-0" onClick={onAddSheet}>
+        <Plus className="mr-1 h-3 w-3" /> Tạo sheet đầu tiên
+      </Button>
+    ) : null;
+  }
 
   if (loading) {
     return (
@@ -153,6 +168,112 @@ export function BomSheetTabs({
 
   const canManage = !readOnly && !!templateId;
   const isLastSheet = sheets.length <= 1;
+
+  if (compact) {
+    const active = sheets.find((s) => s.id === activeSheetId) ?? sheets[0]!;
+    const ActiveIcon = KIND_ICON[active.kind];
+    return (
+      <>
+        <div className={cn("flex shrink-0 items-center gap-0.5", className)}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label="Chọn sheet"
+                title={`Sheet: ${displaySheetName(active.name)} — bấm để đổi sheet`}
+                className="inline-flex h-7 items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                <ActiveIcon className={cn("h-3.5 w-3.5 shrink-0", KIND_COLOR[active.kind])} aria-hidden="true" />
+                <span className="max-w-[140px] truncate">{displaySheetName(active.name)}</span>
+                <ChevronDown className="h-3 w-3 shrink-0 text-zinc-400" aria-hidden="true" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="min-w-52">
+              {sheets.map((sheet) => {
+                const Icon = KIND_ICON[sheet.kind];
+                const isActive = sheet.id === active.id;
+                return (
+                  <DropdownMenuItem key={sheet.id} onSelect={() => onChange(sheet.id)}>
+                    <Icon className={cn("mr-2 h-3.5 w-3.5 shrink-0", KIND_COLOR[sheet.kind])} aria-hidden="true" />
+                    <span className="min-w-0 flex-1 truncate">{displaySheetName(sheet.name)}</span>
+                    {sheet.kind === "PROJECT" && sheet.lineCount > 0 ? (
+                      <span className="ml-2 text-xs tabular-nums text-zinc-400">{sheet.lineCount}</span>
+                    ) : null}
+                    {isActive ? <Check className="ml-2 h-3.5 w-3.5 text-indigo-600" aria-hidden="true" /> : null}
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {canManage ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex h-7 w-6 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                  aria-label={`Tuỳ chọn sheet ${displaySheetName(active.name)}`}
+                  title="Đổi tên / xoá sheet hiện tại"
+                >
+                  <MoreVertical className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem onSelect={() => setRenameTarget(active)}>
+                  <Pencil className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
+                  Đổi tên
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  disabled={isLastSheet}
+                  className="text-red-700 dark:text-red-400"
+                  onSelect={() => {
+                    if (!isLastSheet) setDeleteTarget(active);
+                  }}
+                >
+                  <Trash2 className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
+                  {isLastSheet ? "Phải còn ≥1 sheet" : "Xoá sheet"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+
+          {onAddSheet && canAddSheet ? (
+            <button
+              type="button"
+              onClick={onAddSheet}
+              className="inline-flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-2 text-xs font-medium text-zinc-500 transition-colors hover:bg-indigo-50 hover:text-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-zinc-400 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-300"
+              aria-label="Thêm sheet mới"
+              title="Thêm sheet Vật liệu / Quy trình / Tuỳ chỉnh"
+            >
+              <Plus className="h-3 w-3" aria-hidden="true" />
+              <span className="hidden xl:inline">Thêm sheet</span>
+            </button>
+          ) : null}
+        </div>
+
+        {templateId && renameTarget ? (
+          <RenameSheetDialog
+            templateId={templateId}
+            sheet={renameTarget}
+            existingNames={sheets.filter((s) => s.id !== renameTarget.id).map((s) => s.name)}
+            onClose={() => setRenameTarget(null)}
+          />
+        ) : null}
+        {templateId && deleteTarget ? (
+          <DeleteSheetDialog
+            templateId={templateId}
+            sheet={deleteTarget}
+            onClose={() => setDeleteTarget(null)}
+            onDeleted={(deletedId) => {
+              const remaining = sheets.filter((s) => s.id !== deletedId);
+              onSheetDeleted?.(deletedId, remaining[0]?.id ?? null);
+            }}
+          />
+        ) : null}
+      </>
+    );
+  }
 
   return (
     <>

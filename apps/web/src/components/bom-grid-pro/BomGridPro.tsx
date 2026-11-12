@@ -1174,9 +1174,9 @@ export function BomGridPro({
     <>
       <span
         className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md bg-indigo-50 px-2 py-0.5 text-sm font-medium text-indigo-700 ring-1 ring-inset ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-800"
-        title="Tổng SL = SL/bộ × SL thành phẩm"
+        title="SL thành phẩm — Tổng SL = SL/bộ × SL thành phẩm"
       >
-        SL thành phẩm
+        SL TP
         <span className="font-mono text-sm font-semibold tabular-nums">
           {formatNumber(parentQty)}
         </span>
@@ -1217,7 +1217,9 @@ export function BomGridPro({
               </>
             )}
           </svg>
-          {showAllColumns ? "Tất cả cột" : "Tự ẩn cột rỗng"}
+          <span className={toolbarSlot ? "sr-only" : undefined}>
+            {showAllColumns ? "Tất cả cột" : "Tự ẩn cột rỗng"}
+          </span>
         </button>
 
     </>
