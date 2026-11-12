@@ -81,6 +81,7 @@ async function req<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export const slipExportUrl = (slipId: string) => `/api/delivery-slips/${slipId}/export`;
+export const slipPdfUrl = (slipId: string) => `/api/delivery-slips/${slipId}/pdf`;
 
 const listKey = (templateId: string) => ["bom", "delivery-slips", templateId] as const;
 

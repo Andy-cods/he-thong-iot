@@ -86,6 +86,8 @@ export const NOTIFICATION_EVENT_TYPES = [
   "STOCKTAKE_SUBMITTED",
   "STOCKTAKE_APPROVED",
   "STOCKTAKE_REJECTED",
+  // BOM V5 — bàn giao bước (sổ bước / phiếu giao) cho bộ phận phụ trách bước kế tiếp.
+  "BOM_STAGE_HANDOFF",
 ] as const;
 
 export type NotificationEventType = (typeof NOTIFICATION_EVENT_TYPES)[number];
@@ -204,6 +206,7 @@ export const ACTION_EVENT_TYPES: ReadonlySet<NotificationEventType> = new Set<No
   "PO_RECEIVED_FULL",
   "STOCKTAKE_SUBMITTED",
   "STOCKTAKE_REJECTED",
+  "BOM_STAGE_HANDOFF",
 ]);
 
 /**

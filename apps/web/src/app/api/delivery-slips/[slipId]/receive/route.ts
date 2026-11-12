@@ -5,6 +5,7 @@ import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/s
 import { writeAudit } from "@/server/services/audit";
 import { slipErrorResponse } from "@/server/deliverySlipHttp";
 import { receiveDeliverySlip } from "@/server/repos/deliverySlips";
+import { notifySlipReceived } from "@/server/services/bom-stage-notify-send";
 import { publishBomEvent } from "@/server/services/bom-events";
 import { requireCan } from "@/server/session";
 
@@ -52,6 +53,11 @@ export async function POST(req: NextRequest, { params }: { params: { slipId: str
       lineIds: r.lines.map((l) => l.lineId),
       kind: "slip",
       actorId: guard.session.userId,
+    });
+    void notifySlipReceived(r.slip, r.lines, body.data.lines, {
+      userId: guard.session.userId,
+      fullName: guard.session.fullName,
+      username: guard.session.username,
     });
     return NextResponse.json({ data: { slip: r.slip, lines: r.lines } });
   } catch (err) {
