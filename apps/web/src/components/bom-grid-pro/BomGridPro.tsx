@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -132,6 +133,8 @@ export interface BomGridProProps {
   onHistoryLine?: (row: BomFlatRow) => void;
   /** Read-only mode (OBSOLETE BOM). */
   readOnly?: boolean;
+  /** Phần tử (trên hàng sheet tab) để đặt "SL thành phẩm" + "Tự ẩn cột rỗng". Null → hiện ngay trong khung lưới. */
+  toolbarSlot?: HTMLElement | null;
 }
 
 const DEFAULT_STATUS: MaterialStatus = "PLANNED";
@@ -153,6 +156,9 @@ const SHOW_JOURNEY_COL = true;
 const JOURNEY_COL_W = 220;
 /** Ảo hoá dòng khi vượt ngưỡng này. */
 const VIRTUALIZE_THRESHOLD = 40;
+
+/** Cột "Tiến độ" cũ đã thay bằng cột Hành trình (WP6) — đặt true để bật lại. */
+const SHOW_PROGRESS_COL = false;
 /** V4.1 UI-04: cột PIC 110 → 140px để pill tên không bị cắt. */
 const PIC_COL_W = 140;
 const TH =
@@ -250,6 +256,7 @@ export function BomGridPro({
   onInventoryLine,
   onHistoryLine,
   readOnly,
+  toolbarSlot,
 }: BomGridProProps) {
   const flat = React.useMemo(() => flattenBomTree(tree), [tree]);
   const [expanded, setExpanded] = React.useState<Set<string>>(() => {
@@ -512,7 +519,7 @@ export function BomGridPro({
     (showCol("blankSpec") ? 150 : 0) +
     (showCol("notes") ? 120 : 0) +
     (showCol("scrap") ? 60 : 0) +
-    (showCol("progress") ? 150 : 0) +
+    (SHOW_PROGRESS_COL ? 150 : 0) +
     (showEtaCol ? 172 : 0);
 
   // V3.8.3 — Đếm dòng quá hạn / sắp tới hạn cho badge cảnh báo Thu mua.
@@ -545,7 +552,7 @@ export function BomGridPro({
     3 + // PIC + Hệ số + SL
     (showCol("notes") ? 1 : 0) +
     (showCol("scrap") ? 1 : 0) +
-    (showCol("progress") ? 1 : 0) +
+    (SHOW_PROGRESS_COL ? 1 : 0) +
     (showEtaCol ? 1 : 0) +
     1; // Thao tác
 
@@ -664,7 +671,7 @@ export function BomGridPro({
   // dòng đo thật (measureElement), cột dùng chung <colgroup>, không absolute.
   const parentRef = React.useRef<HTMLDivElement>(null);
   const useVirtualize = listItems.length > VIRTUALIZE_THRESHOLD;
-  const hasProgressCol = showCol("progress");
+  const hasProgressCol = SHOW_PROGRESS_COL;
   const virt = useVirtualizer({
     count: listItems.length,
     getScrollElement: () => parentRef.current,
@@ -1089,7 +1096,7 @@ export function BomGridPro({
           </td>
         )}
         {/* Tiến độ — kind-aware (fab → WO progress, com → material status) */}
-        {showCol("progress") && (
+        {SHOW_PROGRESS_COL && (
           <td className="px-0">
             {row.kind === "fab" ? (
               (() => {
@@ -1194,46 +1201,17 @@ export function BomGridPro({
       ? renderCatRow(it, virtualIndex)
       : renderRow(it.row, it.stt, virtualIndex);
 
-  return (
-    <div className="flex h-full flex-col overflow-hidden rounded-md border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-      {/* Header meta — BOM title + parent qty */}
-      {/* V4.1 UI-03: thanh công cụ tự xuống dòng (trước đây h-10 cố định →
-          chip bị bóp 3 dòng trên điện thoại); bỏ nền gradient. */}
-      <div className="flex min-h-10 shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-zinc-200 bg-zinc-50 px-3 py-1.5 dark:border-zinc-800 dark:bg-zinc-800/40 md:px-4">
-        {/* Mã/tên đã có ở topbar → điện thoại ẩn cho gọn. */}
-        <div className="hidden min-w-0 items-center gap-3 md:flex">
-          <span className="shrink-0 font-mono text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-            {templateCode}
-          </span>
-          <span className="text-xs text-zinc-400 dark:text-zinc-500">/</span>
-          <span className="min-w-0 truncate text-sm font-medium text-zinc-900 dark:text-zinc-50" title={templateName}>
-            {templateName}
-          </span>
-        </div>
-        <div className="hidden flex-1 md:block" />
-        <span
-          className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md bg-indigo-50 px-2 py-0.5 text-sm font-medium text-indigo-700 ring-1 ring-inset ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-800"
-          title="Tổng SL = SL/bộ × SL thành phẩm"
-        >
-          SL thành phẩm
-          <span className="font-mono text-sm font-semibold tabular-nums">
-            {formatNumber(parentQty)}
-          </span>
+  const qtyAndToggle = (
+    <>
+      <span
+        className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md bg-indigo-50 px-2 py-0.5 text-sm font-medium text-indigo-700 ring-1 ring-inset ring-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:ring-indigo-800"
+        title="Tổng SL = SL/bộ × SL thành phẩm"
+      >
+        SL thành phẩm
+        <span className="font-mono text-sm font-semibold tabular-nums">
+          {formatNumber(parentQty)}
         </span>
-        <span className="hidden whitespace-nowrap text-xs text-zinc-500 dark:text-zinc-400 lg:inline">
-          Tổng SL = SL/bộ × SL thành phẩm
-        </span>
-        {selected.size > 0 && (
-          <button
-            type="button"
-            onClick={() => setSelected(new Set())}
-            className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md bg-zinc-900 px-2 py-0.5 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900"
-            title="Bỏ chọn tất cả"
-          >
-            Đã chọn {selected.size}
-            <X className="h-3 w-3" aria-hidden />
-          </button>
-        )}
+      </span>
         {/* V3.7.21 — Auto-hide empty columns toggle */}
         <button
           type="button"
@@ -1273,6 +1251,27 @@ export function BomGridPro({
           {showAllColumns ? "Tất cả cột" : "Tự ẩn cột rỗng"}
         </button>
 
+    </>
+  );
+
+  return (
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-md border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+      {toolbarSlot ? createPortal(qtyAndToggle, toolbarSlot) : null}
+      {/* Thanh công cụ phụ: chỉ hiện khi có nội dung (chọn dòng / cảnh báo nhận hàng) hoặc chưa có slot trên hàng sheet. */}
+      {(!toolbarSlot || selected.size > 0 || etaSummary.overdue > 0 || etaSummary.dueSoon > 0 || etaUrgentOnly) && (
+      <div className="flex min-h-9 shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-zinc-200 bg-zinc-50 px-3 py-1 dark:border-zinc-800 dark:bg-zinc-800/40 md:px-4">
+        {!toolbarSlot && qtyAndToggle}
+        {selected.size > 0 && (
+          <button
+            type="button"
+            onClick={() => setSelected(new Set())}
+            className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md bg-zinc-900 px-2 py-0.5 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900"
+            title="Bỏ chọn tất cả"
+          >
+            Đã chọn {selected.size}
+            <X className="h-3 w-3" aria-hidden />
+          </button>
+        )}
         {/* V3.8.3 — Badge cảnh báo nhận hàng + filter nhanh cho Thu mua. */}
         {(etaSummary.overdue > 0 || etaSummary.dueSoon > 0) && (
           <button
@@ -1324,14 +1323,16 @@ export function BomGridPro({
           </button>
         )}
       </div>
+      )}
 
       {/* Table — V3.7.33: Column order match Excel "Bản chính thức" CHÍNH XÁC.
           # | Image | ID Number | Quantity (hệ số) | BOM gốc | Ghi chú |
           Category | Quy cách (tham khảo) | NCC | PIC | SL | Tiến độ | Thao tác.
           Header label tiếng Việt khớp Excel. Cột Hao hụt/notes phụ chỉ hiện
           khi showAllColumns=true. */}
-      <div className="relative min-w-0 flex-1">
-      <div ref={parentRef} onScroll={updateBomScrollFade} className="h-full overflow-auto">
+      <div className="relative min-h-0 min-w-0 flex-1">
+      {/* Gốc lỗi không cuộn: wrapper flex-1 thiếu min-h-0 → cao theo nội dung (5000px+), khung ngoài overflow-hidden cắt. absolute inset-0 buộc vùng cuộn = đúng khung còn lại. */}
+      <div ref={parentRef} onScroll={updateBomScrollFade} className="absolute inset-0 overflow-auto">
         {/* V4.1 UI-03: min-width = tổng độ rộng cột → điện thoại cuộn ngang
             thay vì bóp cột (cột "BOM gốc" từng còn 1 ký tự). */}
         <table
@@ -1356,7 +1357,7 @@ export function BomGridPro({
             <col style={{ width: "64px" }} />{/* SL */}
             {showCol("notes") && <col style={{ width: "120px" }} />}{/* Ghi chú phụ */}
             {showCol("scrap") && <col style={{ width: "60px" }} />}{/* Hao hụt */}
-            {showCol("progress") && <col style={{ width: "150px" }} />}{/* Tiến độ */}
+            {SHOW_PROGRESS_COL && <col style={{ width: "150px" }} />}{/* Tiến độ */}
             {showEtaCol && <col style={{ width: "172px" }} />}{/* V3.8.3 Dự kiến nhận */}
             <col style={{ width: `${ACTIONS_COL_W}px` }} />{/* Thao tác (1 nút …) */}
           </colgroup>
@@ -1518,7 +1519,7 @@ export function BomGridPro({
                 <th className={TH} title="Ghi chú phụ từ metadata.notes">Note phụ</th>
               )}
               {showCol("scrap") && <th className={cn(TH, "text-right")}>Hao hụt</th>}
-              {showCol("progress") && <th className={TH}>Tiến độ</th>}
+              {SHOW_PROGRESS_COL && <th className={TH}>Tiến độ</th>}
               {showEtaCol && (
                 <th
                   className={TH}

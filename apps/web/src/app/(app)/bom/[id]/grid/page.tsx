@@ -78,6 +78,8 @@ export default function BomGridPage() {
   const sheets = sheetsQuery.data?.data ?? [];
   const [activeSheetId, setActiveSheetId] = React.useState<string | null>(null);
   const [addSheetOpen, setAddSheetOpen] = React.useState(false);
+  // Vùng bên phải hàng sheet tab — BomGridPro portal "SL thành phẩm"/"Tự ẩn cột" vào đây.
+  const [toolbarSlot, setToolbarSlot] = React.useState<HTMLElement | null>(null);
 
   // Tự active sheet đầu tiên (PROJECT) khi sheets load xong.
   React.useEffect(() => {
@@ -174,6 +176,7 @@ export default function BomGridPage() {
             onAddSheet={() => setAddSheetOpen(true)}
             loading={sheetsQuery.isLoading}
             canAddSheet={!readOnly}
+            rightSlotRef={setToolbarSlot}
             templateId={id}
             readOnly={readOnly}
             onSheetDeleted={(deletedId, fallbackId) => {
@@ -181,7 +184,7 @@ export default function BomGridPage() {
             }}
           />
           <div className="flex min-h-0 flex-1 overflow-hidden">
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-hidden">
               {isLoading ? (
                 <div className="flex h-full items-center justify-center bg-white text-sm text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -215,7 +218,7 @@ export default function BomGridPage() {
                   }
                   // PROJECT (default) — BomGridPro
                   return (
-                    <div className="h-full p-1.5">
+                    <div className="h-full min-h-0 p-1.5">
                       <BomGridPro
                         templateId={template.id}
                         templateName={template.name}
@@ -230,6 +233,7 @@ export default function BomGridPage() {
                         )}
                         fabProgressMap={fabProgressQuery.data?.data.progress}
                         readOnly={readOnly}
+                        toolbarSlot={toolbarSlot}
                         onHistoryLine={() => tabs.setDrawerHistory(true)}
                       />
                     </div>
@@ -262,18 +266,15 @@ export default function BomGridPage() {
       {template && (
         <BomWorkspaceTopbar
           template={template}
-          onOpenTab={tabs.setActiveTab}
-          onOpenHistory={() => tabs.setDrawerHistory(true)}
           onOpenScan={() => setScanOpen(true)}
         />
       )}
-
-      <BomPresence viewers={live.viewers} connected={live.connected} />
 
       <TopTabBar
         activeTab={tabs.activeTab}
         onSelect={tabs.setActiveTab}
         counts={tabCounts}
+        right={<BomPresence viewers={live.viewers} connected={live.connected} />}
       />
 
       <div className="flex min-h-0 flex-1 overflow-hidden bg-zinc-50 dark:bg-zinc-800">

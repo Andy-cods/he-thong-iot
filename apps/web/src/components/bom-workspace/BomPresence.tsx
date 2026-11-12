@@ -41,14 +41,14 @@ export function BomPresence({
   const rest = viewers.length - shown.length;
   return (
     <div
-      className="flex items-center gap-1 border-b border-zinc-200 bg-white px-3 py-1 text-xs text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400"
+      className="flex items-center gap-1"
       aria-label="Đang xem BOM này"
+      title="Đang xem BOM này"
     >
       <span
         className={`mr-1 inline-block h-2 w-2 rounded-full ${connected ? "bg-emerald-500" : "bg-zinc-400"}`}
         title={connected ? "Đang đồng bộ trực tiếp" : "Mất kết nối trực tiếp — đang tự thử lại"}
       />
-      <span className="mr-1">Đang xem:</span>
       <div className="flex -space-x-1.5">
         {shown.map((v) => (
           <span

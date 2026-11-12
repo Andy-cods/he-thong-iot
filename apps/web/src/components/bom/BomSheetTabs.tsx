@@ -68,6 +68,8 @@ export interface BomSheetTabsProps {
   readOnly?: boolean;
   /** Khi sheet active bị xoá → parent tự switch sang sheet khác. */
   onSheetDeleted?: (deletedId: string, fallbackId: string | null) => void;
+  /** Callback ref của vùng bên phải hàng sheet (SL thành phẩm / tự ẩn cột… do lưới đặt vào). */
+  rightSlotRef?: (el: HTMLDivElement | null) => void;
 }
 
 const KIND_ICON: Record<BomSheetKind, React.ElementType> = {
@@ -107,6 +109,7 @@ export function BomSheetTabs({
   templateId,
   readOnly = false,
   onSheetDeleted,
+  rightSlotRef,
 }: BomSheetTabsProps) {
   const [renameTarget, setRenameTarget] = React.useState<BomSheetRow | null>(
     null,
@@ -285,6 +288,9 @@ export function BomSheetTabs({
             <Sparkles className="h-3 w-3" aria-hidden="true" />
             <span>Thêm sheet "Vật liệu" để theo dõi giá + phôi cho BOM này</span>
           </span>
+        ) : null}
+        {rightSlotRef ? (
+          <div ref={rightSlotRef} className="ml-auto flex shrink-0 items-center gap-2 pl-3" />
         ) : null}
       </div>
 
