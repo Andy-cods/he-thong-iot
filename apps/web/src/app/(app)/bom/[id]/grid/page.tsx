@@ -168,21 +168,6 @@ export default function BomGridPage() {
       // Default tab — BOM grid (PROJECT sheet) hoặc Material&Process sheet.
       return (
         <div className="flex h-full min-h-0 flex-col bg-zinc-50 dark:bg-zinc-800">
-          {/* Sheet tabs (PROJECT / MATERIAL / PROCESS / CUSTOM) */}
-          <BomSheetTabs
-            sheets={sheets}
-            activeSheetId={activeSheetId}
-            onChange={setActiveSheetId}
-            onAddSheet={() => setAddSheetOpen(true)}
-            loading={sheetsQuery.isLoading}
-            canAddSheet={!readOnly}
-            rightSlotRef={setToolbarSlot}
-            templateId={id}
-            readOnly={readOnly}
-            onSheetDeleted={(deletedId, fallbackId) => {
-              if (activeSheetId === deletedId) setActiveSheetId(fallbackId);
-            }}
-          />
           <div className="flex min-h-0 flex-1 overflow-hidden">
             <div className="flex-1 min-h-0 overflow-hidden">
               {isLoading ? (
@@ -263,19 +248,40 @@ export default function BomGridPage() {
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+      {/* Header gộp 1 hàng h-12: ← mã tên pill │ tab │ sheet … presence · SL TP · ẩn cột · Kích hoạt · ⋯ */}
       {template && (
         <BomWorkspaceTopbar
           template={template}
           onOpenScan={() => setScanOpen(true)}
+          toolbarSlotRef={setToolbarSlot}
+          presence={<BomPresence viewers={live.viewers} connected={live.connected} />}
+          middle={
+            <>
+              <TopTabBar
+                activeTab={tabs.activeTab}
+                onSelect={tabs.setActiveTab}
+                counts={tabCounts}
+              />
+              {tabs.activeTab === "materials" && (
+                <BomSheetTabs
+                  compact
+                  sheets={sheets}
+                  activeSheetId={activeSheetId}
+                  onChange={setActiveSheetId}
+                  onAddSheet={() => setAddSheetOpen(true)}
+                  loading={sheetsQuery.isLoading}
+                  canAddSheet={!readOnly}
+                  templateId={id}
+                  readOnly={readOnly}
+                  onSheetDeleted={(deletedId, fallbackId) => {
+                    if (activeSheetId === deletedId) setActiveSheetId(fallbackId);
+                  }}
+                />
+              )}
+            </>
+          }
         />
       )}
-
-      <TopTabBar
-        activeTab={tabs.activeTab}
-        onSelect={tabs.setActiveTab}
-        counts={tabCounts}
-        right={<BomPresence viewers={live.viewers} connected={live.connected} />}
-      />
 
       <div className="flex min-h-0 flex-1 overflow-hidden bg-zinc-50 dark:bg-zinc-800">
         <div

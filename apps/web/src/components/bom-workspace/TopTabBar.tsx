@@ -35,7 +35,7 @@ export function TopTabBar({ activeTab, onSelect, counts, right }: TopTabBarProps
       // lưới (flex-col shrink-0) nên không cần sticky; khi trang bị cuộn cả
       // tài liệu, sticky z-20 khiến thanh tab "trôi" đè lên các dòng lưới.
       // V4.1 UI-X6: ẩn thanh cuộn + nowrap để cuộn ngang gọn trên điện thoại.
-      className="flex h-11 min-w-0 shrink-0 items-center gap-0.5 overflow-x-auto border-b border-zinc-200 bg-white px-2 [scrollbar-width:none] dark:border-zinc-800 dark:bg-zinc-900 md:px-3 [&::-webkit-scrollbar]:hidden"
+      className="flex h-8 min-w-0 shrink-0 items-center gap-0.5 overflow-x-auto rounded-lg bg-zinc-100 p-0.5 [scrollbar-width:none] dark:bg-zinc-800 [&::-webkit-scrollbar]:hidden"
     >
       {TOP_TAB_KEYS.map((key, idx) => {
         const isActive = activeTab === key;
@@ -50,18 +50,17 @@ export function TopTabBar({ activeTab, onSelect, counts, right }: TopTabBarProps
             onClick={() => onSelect(key)}
             onKeyDown={(e) => handleKeyDown(e, idx)}
             className={cn(
-              "relative inline-flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-2.5 text-sm font-medium transition-colors duration-100 md:px-3.5",
-              "after:absolute after:bottom-[-4px] after:left-0 after:right-0 after:h-0.5 after:rounded-t-full after:transition-all",
+              "relative inline-flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 text-[13px] font-medium transition-colors duration-100",
               isActive
-                ? "bg-indigo-50 text-indigo-700 after:bg-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400"
-                : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800 after:bg-transparent dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-200",
+                ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-50"
+                : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200",
             )}
           >
             <span>{TOP_TAB_LABELS[key]}</span>
             {count !== undefined && count !== null && count > 0 && (
               <span
                 className={cn(
-                  "inline-flex whitespace-nowrap min-w-[20px] items-center justify-center rounded-full px-1.5 py-0.5 text-xs tabular-nums font-semibold",
+                  "inline-flex whitespace-nowrap min-w-[18px] items-center justify-center rounded-full px-1.5 text-[11px] leading-[18px] tabular-nums font-semibold",
                   isActive
                     ? "bg-indigo-600 text-white"
                     : "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",

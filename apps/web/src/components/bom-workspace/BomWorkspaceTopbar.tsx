@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
-  ChevronDown,
   Copy,
   MoreHorizontal,
   Pencil,
@@ -52,6 +51,12 @@ export interface BomWorkspaceTopbarProps {
   onOpenHistory?: () => void;
   /** Click ScanLine button → mở BomBarcodeSearchDialog (V1.8 Batch 7). */
   onOpenScan?: () => void;
+  /** Giữa header: tab + chọn sheet (gộp 1 hàng). */
+  middle?: React.ReactNode;
+  /** Avatar đang xem (trước nút thao tác). */
+  presence?: React.ReactNode;
+  /** Ref vùng slot toolbar (BomGridPro portal SL TP + ẩn cột rỗng). */
+  toolbarSlotRef?: (el: HTMLDivElement | null) => void;
 }
 
 /**
@@ -71,6 +76,9 @@ export interface BomWorkspaceTopbarProps {
 export function BomWorkspaceTopbar({
   template,
   onOpenScan,
+  middle,
+  presence,
+  toolbarSlotRef,
 }: BomWorkspaceTopbarProps) {
   const router = useRouter();
   const revisionsQuery = useBomRevisions(template.id);
@@ -184,46 +192,52 @@ export function BomWorkspaceTopbar({
   const normalize = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, "");
   const nameDupCode = normalize(template.name) === normalize(template.code);
 
-  // V4.1 UI-02: điện thoại — vùng chạm 36px, desktop giữ 28px compact.
-  const tapBtn = "h-9 min-w-9 px-2 md:h-7 md:min-w-0 md:px-2.5";
+  // Header gộp 1 hàng (h-12): vùng chạm gọn 28px; <768px hàng cuộn ngang.
+  const tapBtn = "h-7 min-w-7 px-2";
+  const divider = (
+    <span className="hidden h-5 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700 md:block" aria-hidden />
+  );
 
   return (
-    <header className="flex min-h-12 shrink-0 items-center gap-1.5 border-b border-zinc-200 bg-white px-2 py-1 dark:border-zinc-800 dark:bg-zinc-900 md:gap-2">
-      {/* Left: back + mã + tên + trạng thái — V4.1 UI-02: khối co giãn, mã truncate
-          (trước đây mã font-mono gãy 3 dòng trên 390px). */}
-      <div className="flex min-w-0 flex-1 items-center gap-1.5 md:gap-2">
-        <Link
-          href="/bom"
-          className="inline-flex h-9 shrink-0 items-center gap-1 rounded-md px-1.5 text-xs font-medium text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50 md:h-7"
-          title="Thoát workspace về danh sách BOM"
-          aria-label="Về danh sách BOM"
-        >
-          <ArrowLeft className="h-3.5 w-3.5 md:h-3 md:w-3" aria-hidden />
-          <span className="hidden md:inline">BOM</span>
-        </Link>
-        <span className="hidden text-xs text-zinc-300 dark:text-zinc-600 md:inline" aria-hidden>
-          ·
-        </span>
-        <span
-          className="min-w-0 truncate font-mono text-[13px] font-medium text-zinc-800 dark:text-zinc-200"
-          title={nameDupCode ? template.code : `${template.code} · ${template.name}`}
-        >
+    <header className="flex h-12 shrink-0 items-center gap-2 overflow-x-auto border-b border-zinc-200 bg-white px-2 [scrollbar-width:none] dark:border-zinc-800 dark:bg-zinc-900 md:px-3 [&::-webkit-scrollbar]:hidden">
+      {/* Trái: ← + mã (mono) + tên rút gọn (tooltip tên đầy đủ) + pill trạng thái. */}
+      <Link
+        href="/bom"
+        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
+        title="Thoát workspace về danh sách BOM"
+        aria-label="Về danh sách BOM"
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden />
+      </Link>
+      <div
+        className="flex min-w-0 max-w-[140px] shrink items-baseline gap-1.5 md:max-w-[200px] xl:max-w-[320px]"
+        title={nameDupCode ? template.code : `${template.code} · ${template.name}`}
+      >
+        <span className="shrink-0 font-mono text-xs font-semibold text-zinc-800 dark:text-zinc-200">
           {template.code}
         </span>
         {!nameDupCode && (
-          <>
-            <span className="hidden text-xs text-zinc-300 dark:text-zinc-600 md:inline" aria-hidden>
-              ·
-            </span>
-            <h1 className="hidden min-w-0 truncate text-sm font-normal text-zinc-700 dark:text-zinc-300 md:block">
-              {template.name}
-            </h1>
-          </>
+          <h1 className="hidden min-w-0 truncate text-xs font-normal text-zinc-500 dark:text-zinc-400 md:block">
+            {template.name}
+          </h1>
         )}
         {nameDupCode && <h1 className="sr-only">{template.name}</h1>}
-        {/* V4.1 UI-07: 1 badge duy nhất (trước đây OBSOLETE hiện thêm chip đỏ "Ngừng dùng" trùng). */}
-        <StatusPill domain="bom" code={template.status} dot />
       </div>
+      {/* V4.1 UI-07: 1 badge duy nhất. */}
+      <StatusPill domain="bom" code={template.status} dot className="shrink-0 scale-90" />
+
+      {middle ? (
+        <>
+          {divider}
+          {middle}
+        </>
+      ) : null}
+
+      <div className="min-w-2 flex-1" aria-hidden />
+
+      {presence}
+      {/* Slot: BomGridPro portal "SL TP" + nút ẩn cột rỗng vào đây. */}
+      <div ref={toolbarSlotRef} className="flex shrink-0 items-center gap-1.5" />
 
       {/* V3.7.54 — Nút "Kích hoạt BOM" hiển thị rõ khi BOM đang DRAFT.
           V3.7.57 — chỉ admin/planner thấy. Các role khác xem read-only.
@@ -237,8 +251,8 @@ export function BomWorkspaceTopbar({
           aria-label="Kích hoạt BOM"
           className={cn("shrink-0", tapBtn)}
         >
-          <Rocket className="h-4 w-4 md:h-3.5 md:w-3.5" aria-hidden />
-          <span className="hidden whitespace-nowrap md:inline">Kích hoạt BOM</span>
+          <Rocket className="h-3.5 w-3.5" aria-hidden />
+          <span className="hidden whitespace-nowrap text-xs md:inline">Kích hoạt BOM</span>
         </Button>
       )}
 
@@ -252,8 +266,7 @@ export function BomWorkspaceTopbar({
             title="Thao tác khác"
             className={cn("shrink-0", tapBtn)}
           >
-            <MoreHorizontal className="h-4 w-4 md:h-3.5 md:w-3.5" aria-hidden />
-            <ChevronDown className="hidden h-3 w-3 md:block" aria-hidden />
+            <MoreHorizontal className="h-4 w-4" aria-hidden />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
