@@ -12,9 +12,11 @@ export interface TopTabBarProps {
   activeTab: TopTabKey;
   onSelect: (tab: TopTabKey) => void;
   counts?: Partial<Record<TopTabKey, number>>;
+  /** Nội dung căn phải cùng hàng (vd avatar đang xem). */
+  right?: React.ReactNode;
 }
 
-export function TopTabBar({ activeTab, onSelect, counts }: TopTabBarProps) {
+export function TopTabBar({ activeTab, onSelect, counts, right }: TopTabBarProps) {
   const handleKeyDown = (e: React.KeyboardEvent, idx: number) => {
     if (e.key === "ArrowRight") {
       e.preventDefault();
@@ -56,23 +58,22 @@ export function TopTabBar({ activeTab, onSelect, counts }: TopTabBarProps) {
             )}
           >
             <span>{TOP_TAB_LABELS[key]}</span>
-            {count !== undefined && count !== null && (
+            {count !== undefined && count !== null && count > 0 && (
               <span
                 className={cn(
                   "inline-flex whitespace-nowrap min-w-[20px] items-center justify-center rounded-full px-1.5 py-0.5 text-xs tabular-nums font-semibold",
                   isActive
                     ? "bg-indigo-600 text-white"
-                    : count > 0
-                      ? "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
-                      : "text-zinc-300 dark:text-zinc-600",
+                    : "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
                 )}
               >
-                {count > 0 ? count : "—"}
+                {count}
               </span>
             )}
           </button>
         );
       })}
+      {right ? <div className="ml-auto flex shrink-0 items-center pl-2">{right}</div> : null}
     </div>
   );
 }

@@ -39,6 +39,11 @@ export type TopTabKey = (typeof ALL_TOP_TAB_KEYS)[number];
 /** V4.1 Q4/D10 — tab đang ẩn (xem lib/hidden-features.ts). */
 export const HIDDEN_TOP_TAB_KEYS: readonly TopTabKey[] = [
   ...(HIDDEN_FEATURES.salesOrder ? (["orders"] as const) : []),
+  // Prod 60 ngày: 0 đơn bán / 0 lệnh SX mới → ẩn "Sản xuất" + "Lệnh SX" +
+  // "Đơn hàng" cho gọn. Code panel vẫn còn; bật lại bằng cách bỏ khỏi mảng này.
+  "orders",
+  "production",
+  "work-orders",
 ];
 
 export const TOP_TAB_KEYS: readonly TopTabKey[] = ALL_TOP_TAB_KEYS.filter(
