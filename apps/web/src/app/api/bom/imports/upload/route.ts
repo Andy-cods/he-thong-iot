@@ -9,6 +9,13 @@ import {
 } from "@/server/repos/importBatch";
 import { autoMapHeaders, parseBomImport } from "@/server/services/bomImportParser";
 import { ImportTooManyRowsError } from "@/server/services/importLimits";
+import { saveImage } from "@/server/services/bomAssets";
+import { loadMatchCatalog } from "@/server/services/bomImportCatalog";
+import {
+  buildTrienKhaiMatchPreview,
+  guardTrienKhaiEnabled,
+} from "@/server/services/bomImportTrienKhaiPreview";
+import { env } from "@/lib/env";
 import { writeAudit } from "@/server/services/audit";
 import { requireCan } from "@/server/session";
 
@@ -65,6 +72,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // V5 WP4b — feature flag: tắt thì mẫu mới bị từ chối, đường cũ không ảnh hưởng.
+  if (parsed.trienKhai) {
+    const off = guardTrienKhaiEnabled(env.BOM_IMPORT_V5);
+    if (off) return jsonError(off.code, off.message, off.status);
+  }
+
   // Idempotency check: file_hash + kind=bom trong 60 phút
   const existing = await findRecentByHash(parsed.fileHash, "bom", 60);
   if (existing && existing.status !== "failed" && existing.status !== "done") {
@@ -74,6 +87,7 @@ export async function POST(req: NextRequest) {
     const preview = (existing.previewJson ?? {}) as {
       sheets?: typeof parsed.sheets;
       autoMappings?: Record<string, Record<string, string | null>>;
+      trienKhai?: unknown;
     };
     return NextResponse.json(
       {
@@ -86,6 +100,7 @@ export async function POST(req: NextRequest) {
           autoMappings: preview.autoMappings ?? {},
           duplicateMode,
           officialFormat: parsed.officialFormat,
+          ...(preview.trienKhai ? { template: "TRIEN_KHAI", trienKhai: preview.trienKhai } : {}),
         },
       },
       { status: 200 },
@@ -93,6 +108,41 @@ export async function POST(req: NextRequest) {
   }
   // Nếu existing.status === "done" → tạo batch mới (cho phép re-import file
   // đã commit lần trước với mapping mới).
+
+  // V5 WP3 — mẫu "BOM triển khai": lưu ảnh vào kho (app có UPLOAD_DIR, worker
+  // không) + preview có thumbUrl từng dòng. KHÔNG ghi bom_line ở bước này.
+  let trienKhaiPreview: Record<string, unknown> | null = null;
+  if (parsed.trienKhai) {
+    const tk = parsed.trienKhai;
+    try {
+      const saved = new Map<number, Awaited<ReturnType<typeof saveImage>>>();
+      for (const img of tk.images) {
+        if (img.rowNumber !== null) saved.set(img.index, await saveImage(img.buffer));
+      }
+      const { images: _images, rows, ...tkMeta } = tk;
+      void _images;
+      // V5 WP4b — khớp với danh mục item (nạp 1 lần) + NCC.
+      const catalog = await loadMatchCatalog();
+      const mp = buildTrienKhaiMatchPreview(rows, catalog.items, catalog.suppliers);
+      trienKhaiPreview = {
+        ...tkMeta,
+        matchStats: mp.stats,
+        rows: rows.map((r, i) => {
+          const a = r.imageIndex === null ? null : saved.get(r.imageIndex) ?? null;
+          return {
+            ...r,
+            assetId: a?.id ?? null,
+            thumbUrl: a?.thumbUrl ?? null,
+            fullUrl: a?.fullUrl ?? null,
+            match: mp.matches[i],
+          };
+        }),
+      };
+    } catch (err) {
+      logger.error({ err }, "saveImage/match failed (bom trien khai)");
+      return jsonError("ASSET_SAVE_FAILED", "Không lưu được ảnh hoặc không khớp được danh mục.", 500);
+    }
+  }
 
   // Tạo auto-mapping cho mỗi sheet
   const autoMappings: Record<string, Record<string, string | null>> = {};
@@ -121,6 +171,7 @@ export async function POST(req: NextRequest) {
       sheets: parsed.sheets,
       allRowsBySheet: parsed.allRowsBySheet,
       autoMappings,
+      ...(trienKhaiPreview ? { template: "TRIEN_KHAI", trienKhai: trienKhaiPreview } : {}),
     },
   });
 
@@ -153,6 +204,7 @@ export async function POST(req: NextRequest) {
         duplicateMode,
         // V3: nhận diện format chính thức (Bản chính thức Z0000002-...).
         officialFormat: parsed.officialFormat,
+        ...(trienKhaiPreview ? { template: "TRIEN_KHAI", trienKhai: trienKhaiPreview } : {}),
       },
     },
     { status: 201 },

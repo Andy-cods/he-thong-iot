@@ -14,6 +14,7 @@ import {
   Trash2,
   Wrench,
 } from "lucide-react";
+import { parseBomCategory } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -52,18 +53,14 @@ export interface ActionsCellProps {
  */
 type CategoryKind = "thuong-mai" | "gtam" | "gia-cong-ngoai";
 function classifyAction(row: BomFlatRow): CategoryKind {
+  // BOM V5: cột category (GTAM/OUTSOURCED/COMMERCIAL) ưu tiên, rồi metadata cũ.
   const meta = (row.node.metadata ?? {}) as { category?: unknown };
   const raw =
-    typeof meta.category === "string" ? meta.category.trim().toLowerCase() : "";
-  if (raw === "gtam") return "gtam";
-  if (
-    raw.includes("đặt gia công ngoài") ||
-    raw.includes("dat gia cong ngoai") ||
-    raw.includes("gia công ngoài") ||
-    raw === "out" ||
-    raw === "outsource"
-  )
-    return "gia-cong-ngoai";
+    row.node.category ??
+    (typeof meta.category === "string" ? meta.category : "");
+  const cat = parseBomCategory(raw);
+  if (cat === "GTAM") return "gtam";
+  if (cat === "OUTSOURCED") return "gia-cong-ngoai";
   // Default Thương mại + fallback (legacy line không có category)
   return "thuong-mai";
 }
@@ -71,12 +68,9 @@ function classifyAction(row: BomFlatRow): CategoryKind {
 /**
  * V1.7-beta.2.2 — Actions cell phân nhánh theo row.kind.
  *
- * Thương mại (com) hiện:
- *   🛒 Đặt mua (PR nhanh) · 📦 Xem tồn · ✏️ Sửa · ⋯ More (Lịch sử / Nhân bản / Xoá)
- *
- * Gia công (fab) hiện:
- *   📐 Quy trình (mở tab Routing BomLineSheet) · 📦 Xem tồn phôi · ✏️ Sửa ·
- *   ⋯ More (Lịch sử / Nhân bản / Xoá)
+ * BOM V5 WP5: mỗi dòng chỉ 1 nút "…" — menu gom Sửa / Xem tồn / hành động
+ * theo category (Đặt mua · Yêu cầu SX · PO gia công ngoài · Quy trình) /
+ * Lịch sử / Nhân bản / Xoá. WP10 sẽ dọn tiếp.
  *
  * Group (cụm lắp) → không render action (div rỗng giữ chỗ sticky).
  *
@@ -95,145 +89,52 @@ export function ActionsCell({
   onDelete,
   onHistory,
 }: ActionsCellProps) {
+  const [invOpen, setInvOpen] = React.useState(false);
   if (row.isGroup) {
     return <div className="h-full w-full" />;
   }
 
   const showInventoryAction = useInventoryPopover || !!onInventory;
   const isFab = row.kind === "fab";
-  // V3.7.43 — Action button theo Category (metadata.category từ Excel).
   const category = classifyAction(row);
 
-  const inventoryLabel = isFab ? "Xem tồn phôi vật liệu" : "Xem tồn kho";
-  const inventoryButton = showInventoryAction ? (
-    <Button
-      size="icon-sm"
-      variant="ghost"
-      title={inventoryLabel}
-      aria-label={inventoryLabel}
-      onClick={(e) => {
-        e.stopPropagation();
-        if (!useInventoryPopover) onInventory?.(row);
-      }}
-    >
-      <Package className="h-3.5 w-3.5" aria-hidden />
-    </Button>
-  ) : null;
-
   return (
-    <div className="flex h-full items-center justify-end gap-0.5 px-1">
-      {/* V2.0 Sprint 6 — icons always visible (user feedback). Trước đây
-          opacity-0 group-hover:opacity-100 để gọn UI nhưng user muốn rõ ngay. */}
-      {/* V3.7.43 — Category-specific primary action.
-          Thương mại → 🛒 PR Quick (existing flow)
-          GTAM       → 🏭 Tạo Đơn gia công SX (NEW)
-          Đặt gia công ngoài → 📤 Tạo PO Subcontract (NEW) */}
-      {category === "thuong-mai" && !isFab && onOrder && (
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:text-blue-400 dark:hover:bg-blue-950/40"
-          title="Đặt mua nhanh (Thương mại)"
-          aria-label="Đặt mua nhanh (Thương mại)"
-          onClick={(e) => {
-            e.stopPropagation();
-            onOrder(row);
-          }}
+    <div className="relative flex h-full items-center justify-end px-1">
+      {/* Popover tồn kho neo vào ô, mở từ mục menu bên dưới. */}
+      {useInventoryPopover && (
+        <InventoryPopover
+          componentItemId={row.node.componentItemId}
+          componentSku={row.node.componentSku ?? ""}
+          componentName={row.node.componentName ?? ""}
+          open={invOpen}
+          onOpenChange={setInvOpen}
         >
-          <ShoppingCart className="h-3.5 w-3.5" aria-hidden />
-        </Button>
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 right-0 w-6"
+          />
+        </InventoryPopover>
       )}
-      {category === "gtam" && onCreateWO && (
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          className="text-purple-600 hover:bg-purple-50 hover:text-purple-700 dark:text-purple-400 dark:hover:bg-purple-950/40"
-          title="Gửi yêu cầu sản xuất GTAM (chờ Gia công duyệt)"
-          aria-label="Gửi yêu cầu sản xuất GTAM (chờ Gia công duyệt)"
-          onClick={(e) => {
-            e.stopPropagation();
-            onCreateWO(row);
-          }}
-        >
-          <Factory className="h-3.5 w-3.5" aria-hidden />
-        </Button>
-      )}
-      {category === "gia-cong-ngoai" && onCreateSubcontract && (
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          className="text-orange-600 hover:bg-orange-50 hover:text-orange-700 dark:text-orange-400 dark:hover:bg-orange-950/40"
-          title="Tạo PO Đặt gia công ngoài (sẽ có DDH PDF)"
-          aria-label="Tạo PO Đặt gia công ngoài (sẽ có DDH PDF)"
-          onClick={(e) => {
-            e.stopPropagation();
-            onCreateSubcontract(row);
-          }}
-        >
-          <Send className="h-3.5 w-3.5" aria-hidden />
-        </Button>
-      )}
-      {isFab && onViewRoute && category === "thuong-mai" && (
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
-          title="Xem quy trình gia công"
-          aria-label="Xem quy trình gia công"
-          onClick={(e) => {
-            e.stopPropagation();
-            onViewRoute(row);
-          }}
-        >
-          <Route className="h-3.5 w-3.5" aria-hidden />
-        </Button>
-      )}
-
-      {/* Inventory — cả 2 kind đều có (thương mại xem tồn mua, gia công xem tồn phôi) */}
-      {inventoryButton ? (
-        useInventoryPopover ? (
-          <InventoryPopover
-            componentItemId={row.node.componentItemId}
-            componentSku={row.node.componentSku ?? ""}
-            componentName={row.node.componentName ?? ""}
-          >
-            {inventoryButton}
-          </InventoryPopover>
-        ) : (
-          inventoryButton
-        )
-      ) : null}
-
-      {/* Edit — cả 2 kind */}
-      {onEdit && (
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          title="Chỉnh sửa chi tiết"
-          aria-label="Chỉnh sửa chi tiết"
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit(row);
-          }}
-        >
-          <Pencil className="h-3.5 w-3.5" aria-hidden />
-        </Button>
-      )}
-
-      {/* More dropdown */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             size="icon-sm"
             variant="ghost"
-            title="Thao tác khác"
-            aria-label="Thao tác khác"
+            title="Thao tác"
+            aria-label="Thao tác"
             onClick={(e) => e.stopPropagation()}
           >
-            <MoreHorizontal className="h-3.5 w-3.5" aria-hidden />
+            <MoreHorizontal className="h-4 w-4" aria-hidden />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuContent
+          align="end"
+          className="w-56"
+          onClick={(e) => e.stopPropagation()}
+          onCloseAutoFocus={(e) => {
+            if (invOpen) e.preventDefault();
+          }}
+        >
           <DropdownMenuLabel>
             {isFab ? (
               <span className="inline-flex items-center gap-1 text-emerald-700">
@@ -247,6 +148,23 @@ export function ActionsCell({
               </span>
             )}
           </DropdownMenuLabel>
+          {onEdit && (
+            <DropdownMenuItem onClick={() => onEdit(row)}>
+              <Pencil className="h-3 w-3" aria-hidden />
+              Chỉnh sửa chi tiết
+            </DropdownMenuItem>
+          )}
+          {showInventoryAction && (
+            <DropdownMenuItem
+              onSelect={() => {
+                if (useInventoryPopover) setTimeout(() => setInvOpen(true), 0);
+                else onInventory?.(row);
+              }}
+            >
+              <Package className="h-3 w-3" aria-hidden />
+              {isFab ? "Xem tồn phôi vật liệu" : "Xem tồn kho"}
+            </DropdownMenuItem>
+          )}
           {isFab && onViewRoute && (
             <DropdownMenuItem onClick={() => onViewRoute(row)}>
               <Route className="h-3 w-3" aria-hidden />

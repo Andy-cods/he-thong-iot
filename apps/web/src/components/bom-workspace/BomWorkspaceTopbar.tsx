@@ -49,7 +49,7 @@ const DRAFT_LABEL = statusLabel("bom", "DRAFT");
 
 export interface BomWorkspaceTopbarProps {
   template: BomTemplateDetail;
-  /** Click KPI chip → mở top tab tương ứng (orders/work-orders/shortage/eco). */
+  /** Click KPI chip → mở top tab tương ứng (orders/work-orders). */
   onOpenTab: (tab: TopTabKey) => void;
   /** Click History button → mở right drawer timeline. */
   onOpenHistory: () => void;
@@ -66,7 +66,7 @@ export interface BomWorkspaceTopbarProps {
  *   └─────────────────────────────────────────────────────────────┘
  *
  * - Breadcrumb + title compact
- * - KPI chips: Đơn hàng·N / WO·N / Thiếu·N / ECO·N (click = mở panel)
+ * - KPI chips: Đơn hàng·N / WO·N (click = mở panel)
  * - Actions: History + DropdownMenu (Release / Clone / Xoá)
  *
  * Brainstorm §3 Option 3 — bỏ ContextualSidebar, global sidebar giữ full 220px.

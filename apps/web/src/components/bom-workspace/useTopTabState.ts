@@ -21,17 +21,16 @@ import { HIDDEN_FEATURES } from "@/lib/hidden-features";
 // Legacy URL `?tab=snapshot|shortage|eco` rớt vào fallback `materials` (logic
 // `useTopTabState` bên dưới — invalid key → `materials`).
 //
-// V4.1 Q4/D10 — ẩn tab "Đơn hàng" (Đơn hàng bán) + "Lắp ráp" (lắp ráp kiểu
-// cũ). Kiểu `TopTabKey` giữ đủ key (panel còn code, bật lại được); chỉ danh
-// sách HIỂN THỊ `TOP_TAB_KEYS` lọc bỏ. URL cũ `?tab=orders|assembly` rơi về
-// `materials` như tab đã retire.
+// V4.1 Q4/D10 — ẩn tab "Đơn hàng" (Đơn hàng bán): `TopTabKey` giữ key, chỉ
+// danh sách HIỂN THỊ `TOP_TAB_KEYS` lọc bỏ. Tab "Lắp ráp" đã gỡ hẳn (WP10);
+// URL cũ `?tab=orders|assembly` rơi về `materials`.
 const ALL_TOP_TAB_KEYS = [
   "materials",
   "orders",
   "production",
   "work-orders",
+  "delivery-slips",
   "procurement",
-  "assembly",
   "audit",
 ] as const;
 
@@ -40,7 +39,6 @@ export type TopTabKey = (typeof ALL_TOP_TAB_KEYS)[number];
 /** V4.1 Q4/D10 — tab đang ẩn (xem lib/hidden-features.ts). */
 export const HIDDEN_TOP_TAB_KEYS: readonly TopTabKey[] = [
   ...(HIDDEN_FEATURES.salesOrder ? (["orders"] as const) : []),
-  ...(HIDDEN_FEATURES.legacyAssembly ? (["assembly"] as const) : []),
 ];
 
 export const TOP_TAB_KEYS: readonly TopTabKey[] = ALL_TOP_TAB_KEYS.filter(
@@ -52,8 +50,8 @@ export const TOP_TAB_LABELS: Record<TopTabKey, string> = {
   orders: "Đơn hàng",
   production: "Sản xuất",
   "work-orders": "Lệnh SX",
+  "delivery-slips": "Phiếu giao",
   procurement: "Mua sắm",
-  assembly: "Lắp ráp",
   audit: "Lịch sử",
 };
 

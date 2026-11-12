@@ -57,6 +57,10 @@ const nextConfig = {
     // Next.js standalone chỉ trace files được `import`/`require`; binary assets
     // load runtime qua fs.readFile cần khai báo manual ở đây.
     outputFileTracingIncludes: {
+      // BOM V5 WP8c - template phieu giao hang (doc runtime bang fs).
+      "/api/delivery-slips/[slipId]/export/**": [
+        "./src/server/templates/delivery-slip-template.xlsx",
+      ],
       "/api/purchase-requests/[id]/export-excel/**": [
         "./src/server/templates/ycvt-mrf-template.xlsx",
         "./public/img/logo-gtam.png",
@@ -98,7 +102,7 @@ const nextConfig = {
     ];
   },
   // V1.8 Batch 1 — backward-compat redirects:
-  // - /eco + /shortage gộp vào BOM workspace BottomPanel → redirect về /bom.
+  // - /eco + /shortage đã gỡ khỏi BOM workspace → redirect về /bom.
   // - /product-lines gộp vào /items (Danh mục vật tư).
   //
   // V4.1 Đợt 7 (Q6 — dọn trang cũ): các trang chỉ còn làm nhiệm vụ chuyển

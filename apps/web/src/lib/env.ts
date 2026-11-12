@@ -63,6 +63,9 @@ export const env = {
   // V4.9 — ngưỡng tự duyệt PO (VND). PO gắn phiếu đề xuất, đủ giá, VND, tổng < ngưỡng
   // → tự duyệt khi gửi duyệt. 0 = tắt. Mặc định 20 triệu.
   PO_AUTO_APPROVE_LIMIT_VND: resolvePoAutoApproveLimit(process.env.PO_AUTO_APPROVE_LIMIT_VND),
+  // BOM V5 WP4b — bật nhận mẫu "BOM triển khai" (preview khớp + commit mới).
+  // Mặc định tắt; chỉ staging đặt BOM_IMPORT_V5=true cho đến khi nghiệm thu.
+  BOM_IMPORT_V5: process.env.BOM_IMPORT_V5 === "true" || process.env.BOM_IMPORT_V5 === "1",
   R2: {
     accountId: process.env.R2_ACCOUNT_ID ?? "",
     bucket: process.env.R2_BUCKET ?? "",

@@ -3,6 +3,10 @@ export * from "./master";
 export * from "./master-data";
 export * from "./bom";
 export * from "./bom-sheet";
+// BOM V5 (0083-0086)
+export * from "./bom-asset";
+export * from "./bom-stage";
+export * from "./delivery-slip";
 export * from "./bom-sheet-row";
 export * from "./product-line";
 export * from "./order";

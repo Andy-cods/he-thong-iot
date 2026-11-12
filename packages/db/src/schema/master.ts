@@ -170,6 +170,8 @@ export const supplier = appSchema.table(
     paymentTerms: varchar("payment_terms", { length: 100 }),
     contactPersons: jsonb("contact_persons"),
     internalNotes: text("internal_notes"),
+    /** BOM V5 (0083) — NCC tạo nhanh từ BOM, chờ rà soát. */
+    needsReview: boolean("needs_review").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),

@@ -1,0 +1,68 @@
+name: Build & Deploy Staging
+
+# Nhánh tính năng (feat/**) → image :staging → CHỈ cập nhật staging (/opt/hethong-iot-staging,
+# 127.0.0.1:3100, DB hethong_iot_staging). KHÔNG đụng prod (prod chỉ deploy từ main ở deploy.yml).
+on:
+  push:
+    branches: ["feat/**"]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: andy-cods/hethong-iot
+
+concurrency:
+  group: staging-deploy
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy-staging:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          target: runtime
+          platforms: linux/amd64
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
+      - name: Deploy to staging
+        uses: appleboy/ssh-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: GH_TOKEN
+          script: |
+            echo "$GH_TOKEN" | docker login ghcr.io -u andy-cods --password-stdin
+            cd /opt/hethong-iot-staging
+            docker pull ghcr.io/andy-cods/hethong-iot:staging
+            docker compose up -d --force-recreate
+            echo "Staging deploy done: $(date)"

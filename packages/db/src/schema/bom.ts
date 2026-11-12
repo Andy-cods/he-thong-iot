@@ -16,7 +16,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { appSchema } from "./_schema";
 import { userAccount } from "./auth";
-import { item } from "./master";
+import { item, supplier } from "./master";
 
 /**
  * V1.1-alpha BOM schema (rewrite):
@@ -129,6 +129,24 @@ export const bomLine = appSchema.table(
     /** V3.7.19 — Audit khi PIC update lần cuối. */
     picUpdatedAt: timestamp("pic_updated_at", { withTimezone: true }),
     picUpdatedBy: uuid("pic_updated_by"),
+    // ---- BOM V5 (migration 0083) ----
+    /** NCC chuẩn (FK app.supplier). NULL → fallback metadata cũ. */
+    supplierId: uuid("supplier_id").references(() => supplier.id),
+    /** Text NCC chưa chốt (vd "Tân Tiến/Phạm Gia"). */
+    supplierPending: text("supplier_pending"),
+    /** Khoá phiên bản lạc quan; tăng khi sửa trường dòng. */
+    rowVersion: integer("row_version").notNull().default(1),
+    /** GTAM | OUTSOURCED | COMMERCIAL. */
+    category: text("category"),
+    processMethod: text("process_method"),
+    surfaceTreatment: text("surface_treatment"),
+    blankSpec: text("blank_spec"),
+    materialCode: text("material_code"),
+    file3dName: text("file3d_name"),
+    /** FK mềm tới bom_asset.id. */
+    imageAssetId: uuid("image_asset_id"),
+    coef: numeric("coef", { precision: 10, scale: 4 }),
+    picNames: text("pic_names").array(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -154,6 +172,7 @@ export const bomLine = appSchema.table(
       t.positionCode,
     ),
     sheetIdx: index("bom_line_sheet_idx").on(t.sheetId, t.position),
+    supplierIdx: index("bom_line_supplier_idx").on(t.supplierId),
   }),
 );
 

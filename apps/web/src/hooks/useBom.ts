@@ -14,6 +14,7 @@ import type {
   BomTemplateUpdate,
 } from "@iot/shared";
 import { qk, type BomFilter } from "@/lib/query-keys";
+import { bomPollMs } from "@/lib/bom-live";
 
 /**
  * BOM TanStack Query hooks — theo pattern useItems.ts (brainstorm-deep §1).
@@ -59,6 +60,14 @@ export interface BomTreeNodeRaw {
   uom: string | null;
   description: string | null;
   supplierItemCode: string | null;
+  /** BOM V5 — xem resolveLineSupplier (lib/bom-line-supplier.ts). */
+  supplierId: string | null;
+  supplierName: string | null;
+  supplierCode: string | null;
+  legacySupplierName: string | null;
+  legacySupplierCode: string | null;
+  supplierPending: string | null;
+  rowVersion: number;
   /** V3.7.18 — PIC user matched từ Excel "PIC" column. NULL nếu không match. */
   assignedToUserId: string | null;
   assignedToFullName: string | null;
@@ -79,6 +88,17 @@ export interface BomTreeNodeRaw {
    * parse client-side để fallback render Kích thước. TASK-20260427-024.
    */
   itemSpecJson: string | null;
+  /** BOM V5 — NULL với BOM cũ. */
+  category?: string | null;
+  processMethod?: string | null;
+  surfaceTreatment?: string | null;
+  blankSpec?: string | null;
+  materialCode?: string | null;
+  file3dName?: string | null;
+  imageAssetId?: string | null;
+  itemImageUrl?: string | null;
+  coef?: string | null;
+  picNames?: string[] | null;
   childCount: number;
 }
 
@@ -202,6 +222,8 @@ export function useBomTree(
     // fetch lại theo sheet (gây "flash" duplicate rows trên UI).
     enabled: !!id,
     staleTime: 5_000,
+    // WP9 — lưới an toàn: 5 phút khi SSE khoẻ, 60s khi SSE rớt.
+    refetchInterval: bomPollMs,
   });
 }
 
@@ -333,6 +355,64 @@ export function useUpdateBomLine(templateId: string) {
   });
 }
 
+/** BOM V5 / WP2 — đổi NCC 1 dòng (khoá phiên bản, tạo NCC nhanh). */
+export interface ChangeLineSupplierVars {
+  lineId: string;
+  /** string = chọn; null = bỏ chọn. Bỏ trống khi dùng newSupplier. */
+  supplierId?: string | null;
+  newSupplier?: { name: string; phone?: string | null };
+  expectedVersion?: number;
+}
+export interface ChangeLineSupplierData {
+  line: {
+    id: string;
+    rowVersion: number;
+    supplierId: string | null;
+    supplierPending: string | null;
+  };
+  supplier: { id: string; name: string; code: string; needsReview: boolean } | null;
+  createdSupplier: boolean;
+  changed: boolean;
+}
+
+export function useChangeLineSupplier(templateId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ lineId, ...body }: ChangeLineSupplierVars) =>
+      request<{ data: ChangeLineSupplierData }>(
+        `/api/bom/templates/${templateId}/lines/${lineId}/supplier`,
+        { method: "PATCH", body: JSON.stringify(body) },
+      ),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: qk.bom.tree(templateId) });
+      if (res.data.createdSupplier) qc.invalidateQueries({ queryKey: ["suppliers"] });
+    },
+  });
+}
+
+export interface BomLineChangeRow {
+  id: number;
+  field: string;
+  oldValue: { id?: string | null; name?: string | null; pending?: string } | null;
+  newValue: { id?: string | null; name?: string | null } | null;
+  actorId: string | null;
+  actorName: string | null;
+  at: string;
+}
+
+export function useBomLineHistory(
+  templateId: string,
+  lineId: string | null,
+  enabled = true,
+) {
+  return useQuery<{ data: BomLineChangeRow[] }>({
+    queryKey: ["bom", "line-history", templateId, lineId],
+    enabled: enabled && !!lineId,
+    queryFn: () =>
+      request(`/api/bom/templates/${templateId}/lines/${lineId}/history`),
+  });
+}
+
 export function useDeleteBomLine(templateId: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -436,7 +516,7 @@ export function useBomWorkspaceSummary(
     },
     enabled: enabled && !!bomId,
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: bomPollMs,
   });
 }
 
@@ -511,7 +591,7 @@ export function useBomDerivedStatus(templateId: string, enabled = true) {
     },
     // V3.7.50 — auto refresh giống fab-progress để bắt PO/Stock mới mà không cần reload.
     staleTime: 15_000,
-    refetchInterval: 60_000,
+    refetchInterval: bomPollMs,
     refetchOnWindowFocus: true,
     enabled: enabled && !!templateId,
   });
@@ -560,7 +640,7 @@ export function useBomFabProgress(templateId: string, enabled = true) {
       return (await res.json()) as FabProgressResponse;
     },
     staleTime: 15_000,
-    refetchInterval: 60_000,
+    refetchInterval: bomPollMs,
     enabled: enabled && !!templateId,
   });
 }
@@ -614,7 +694,7 @@ export function useBomProductionSummary(
       ),
     enabled: enabled && !!bomId,
     staleTime: 15_000,
-    refetchInterval: 60_000,
+    refetchInterval: bomPollMs,
   });
 }
 

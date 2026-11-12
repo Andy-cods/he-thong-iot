@@ -67,6 +67,18 @@
 		}
 	}
 
+	# BOM V5 WP9 — SSE realtime theo BOM (/api/bom/templates/<id>/live). Cùng cơ chế
+	# với notifications stream: flush ngay, không buffer.
+	@bomLive path_regexp bomlive ^/api/bom/templates/[^/]+/live$
+	handle @bomLive {
+		reverse_proxy app:3001 {
+			flush_interval -1
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
 	# Mặc định: proxy hết về Next.js
 	handle {
 		reverse_proxy app:3001 {

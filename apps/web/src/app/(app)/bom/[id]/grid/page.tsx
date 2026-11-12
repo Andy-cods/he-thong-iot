@@ -3,7 +3,6 @@
 import * as React from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
 import {
   useBomDerivedStatus,
   useBomDetail,
@@ -12,6 +11,8 @@ import {
   useBomWorkspaceSummary,
 } from "@/hooks/useBom";
 import { useSession } from "@/hooks/useSession";
+import { useBomLive } from "@/hooks/useBomLive";
+import { BomPresence } from "@/components/bom-workspace/BomPresence";
 import { useBomSheetsList } from "@/hooks/useBomSheets";
 import { BomSheetTabs } from "@/components/bom/BomSheetTabs";
 import { QueryError } from "@/components/ui/query-error";
@@ -23,11 +24,11 @@ import {
   type MaterialStatus,
 } from "@/components/bom-grid-pro";
 import {
-  AssemblyPanel,
   BomAuditPanel,
   BomBarcodeSearchDialog,
   BomProductionPanel,
   BomWorkspaceTopbar,
+  DeliverySlipsPanel,
   HistoryDrawer,
   OrdersPanel,
   ProcurementPanel,
@@ -59,6 +60,7 @@ export default function BomGridPage() {
   const searchParams = useSearchParams();
 
   const detailQuery = useBomDetail(id);
+  const live = useBomLive(id);
   const summaryQuery = useBomWorkspaceSummary(id);
   const derivedStatusQuery = useBomDerivedStatus(id, !!id);
   const fabProgressQuery = useBomFabProgress(id, !!id);
@@ -106,16 +108,9 @@ export default function BomGridPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scanParam]);
 
-  // Hotkeys: Ctrl+Shift+A (V1.7-beta.2.3 placeholder) + Alt+S (barcode scan).
+  // Hotkey: Alt+S (barcode scan).
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.shiftKey && (e.key === "A" || e.key === "a")) {
-        e.preventDefault();
-        toast.info(
-          "Thêm linh kiện: dùng Actions cell trên dòng hiện có (Nhân bản) để tạo bản sao, hoặc chờ V1.8 có AddComponentDialog riêng.",
-        );
-        return;
-      }
       if (
         e.altKey &&
         !e.ctrlKey &&
@@ -162,7 +157,6 @@ export default function BomGridPage() {
         production: summary.workOrdersActive,
         "work-orders": summary.workOrdersTotal,
         procurement: summary.procurementActive,
-        assembly: summary.assemblyInProgress,
       }
     : {};
 
@@ -254,10 +248,10 @@ export default function BomGridPage() {
         return <BomProductionPanel bomId={id} />;
       case "work-orders":
         return <WorkOrdersPanel bomId={id} />;
+      case "delivery-slips":
+        return <DeliverySlipsPanel bomId={id} />;
       case "procurement":
         return <ProcurementPanel bomId={id} bomCode={template.code} />;
-      case "assembly":
-        return <AssemblyPanel bomId={id} />;
       case "audit":
         return <BomAuditPanel bomId={id} />;
     }
@@ -273,6 +267,8 @@ export default function BomGridPage() {
           onOpenScan={() => setScanOpen(true)}
         />
       )}
+
+      <BomPresence viewers={live.viewers} connected={live.connected} />
 
       <TopTabBar
         activeTab={tabs.activeTab}

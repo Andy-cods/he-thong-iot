@@ -1,5 +1,6 @@
 "use client";
 
+import { resolveLineSupplier } from "@/lib/bom-line-supplier";
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -85,9 +86,11 @@ function readSourcing(line: BomFlatRow | null): SourcingMeta {
   const meta = (line.node.metadata ?? {}) as { sourcing?: Record<string, unknown> };
   const s = meta.sourcing ?? {};
   const out: SourcingMeta = {};
-  if (typeof s.supplierId === "string") out.supplierId = s.supplierId;
-  if (typeof s.supplierCode === "string") out.supplierCode = s.supplierCode;
-  if (typeof s.supplierName === "string") out.supplierName = s.supplierName;
+  // V5: NCC đọc qua resolveLineSupplier (supplier_id → metadata → pending).
+  const rs = resolveLineSupplier(line.node);
+  if (rs.id) out.supplierId = rs.id;
+  if (rs.code) out.supplierCode = rs.code;
+  if (rs.name) out.supplierName = rs.name;
   if (typeof s.supplierPartNumber === "string")
     out.supplierPartNumber = s.supplierPartNumber;
   if (typeof s.leadTimeDays === "number") out.leadTimeDays = s.leadTimeDays;

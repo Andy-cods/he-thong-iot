@@ -390,6 +390,17 @@ export interface BomTreeNode {
   uom: string | null;
   description: string | null;
   supplierItemCode: string | null;
+  /** BOM V5 — NCC chuẩn (cột supplier_id) + tên/mã join; dùng qua resolveLineSupplier. */
+  supplierId: string | null;
+  supplierName: string | null;
+  supplierCode: string | null;
+  /** Tên/mã NCC join theo id nằm trong metadata (dòng chưa có supplier_id). */
+  legacySupplierName: string | null;
+  legacySupplierCode: string | null;
+  /** Text gốc từ Excel cần chốt 1 NCC. */
+  supplierPending: string | null;
+  /** Khoá phiên bản dòng (gửi lại làm expectedVersion khi PATCH). */
+  rowVersion: number;
   /** V3.7.18 — PIC user matched từ Excel */
   assignedToUserId: string | null;
   assignedToFullName: string | null;
@@ -410,7 +421,106 @@ export interface BomTreeNode {
    * fallback cuối khi chưa có `dimensions` jsonb. TASK-20260427-024.
    */
   itemSpecJson: string | null;
+  /** BOM V5 — cột theo mẫu triển khai (NULL với BOM cũ). */
+  category: string | null;
+  processMethod: string | null;
+  surfaceTreatment: string | null;
+  blankSpec: string | null;
+  materialCode: string | null;
+  file3dName: string | null;
+  imageAssetId: string | null;
+  /** item.image_url — fallback khi dòng chưa có ảnh trong kho BOM. */
+  itemImageUrl: string | null;
+  coef: string | null;
+  picNames: string[] | null;
   childCount: number;
+}
+
+const LINE_SELECT = sql.raw(`      t.id, t.parent_line_id, t.template_id, t.component_item_id,
+      t.level, t.position, t.position_code, t.qty_per_parent, t.scrap_percent,
+      t.uom, t.description, t.supplier_item_code, t.metadata,
+      t.supplier_id, t.supplier_pending, t.row_version,
+      t.category, t.process_method, t.surface_treatment, t.blank_spec,
+      t.material_code, t.file3d_name, t.image_asset_id, t.coef, t.pic_names,
+      i.image_url AS item_image_url,
+      sup.name AS supplier_name, sup.code AS supplier_code,
+      lsup.name AS legacy_supplier_name, lsup.code AS legacy_supplier_code,
+      t.assigned_to_user_id, t.assigned_to_name,
+      t.received_qty, t.expected_eta, t.status_note,
+      pic.full_name AS assigned_to_full_name,
+      i.sku AS component_sku, i.name AS component_name, i.uom AS component_uom,
+      i.category AS component_category, i.item_type AS component_item_type,
+      i.dimensions AS item_dimensions, i.spec_json AS item_spec_json,
+      (SELECT count(*)::int FROM app.bom_line c WHERE c.parent_line_id = t.id) AS child_count`);
+const LINE_JOINS = sql.raw(`    LEFT JOIN app.item i ON i.id = t.component_item_id
+    LEFT JOIN app.user_account pic ON pic.id = t.assigned_to_user_id
+    LEFT JOIN app.supplier sup ON sup.id = t.supplier_id
+    LEFT JOIN app.supplier lsup ON t.supplier_id IS NULL
+      AND lsup.id::text = COALESCE(t.metadata #>> '{sourcing,supplierId}', t.metadata ->> 'supplierId')`);
+
+function mapTreeRow(r: Record<string, unknown>): BomTreeNode {
+  return {
+    id: r.id as string,
+    parentLineId: (r.parent_line_id as string | null) ?? null,
+    templateId: r.template_id as string,
+    componentItemId: r.component_item_id as string,
+    componentSku: (r.component_sku as string | null) ?? null,
+    componentName: (r.component_name as string | null) ?? null,
+    componentUom: (r.component_uom as string | null) ?? null,
+    componentCategory: (r.component_category as string | null) ?? null,
+    componentItemType: (r.component_item_type as string | null) ?? null,
+    level: Number(r.level),
+    position: Number(r.position),
+    positionCode: (r.position_code as string | null) ?? null,
+    qtyPerParent: String(r.qty_per_parent),
+    scrapPercent: String(r.scrap_percent),
+    uom: (r.uom as string | null) ?? null,
+    description: (r.description as string | null) ?? null,
+    supplierItemCode: (r.supplier_item_code as string | null) ?? null,
+    supplierId: (r.supplier_id as string | null) ?? null,
+    supplierName: (r.supplier_name as string | null) ?? null,
+    supplierCode: (r.supplier_code as string | null) ?? null,
+    legacySupplierName: (r.legacy_supplier_name as string | null) ?? null,
+    legacySupplierCode: (r.legacy_supplier_code as string | null) ?? null,
+    supplierPending: (r.supplier_pending as string | null) ?? null,
+    rowVersion: Number(r.row_version ?? 1),
+    assignedToUserId: (r.assigned_to_user_id as string | null) ?? null,
+    assignedToFullName: (r.assigned_to_full_name as string | null) ?? null,
+    assignedToName: (r.assigned_to_name as string | null) ?? null,
+    receivedQty: r.received_qty != null ? String(r.received_qty) : null,
+    expectedEta: (r.expected_eta as string | null) ?? null,
+    statusNote: (r.status_note as string | null) ?? null,
+    metadata: (r.metadata as Record<string, unknown>) ?? {},
+    itemDimensions:
+      (r.item_dimensions as Record<string, unknown> | null) ?? null,
+    itemSpecJson: (r.item_spec_json as string | null) ?? null,
+    category: (r.category as string | null) ?? null,
+    processMethod: (r.process_method as string | null) ?? null,
+    surfaceTreatment: (r.surface_treatment as string | null) ?? null,
+    blankSpec: (r.blank_spec as string | null) ?? null,
+    materialCode: (r.material_code as string | null) ?? null,
+    file3dName: (r.file3d_name as string | null) ?? null,
+    imageAssetId: (r.image_asset_id as string | null) ?? null,
+    itemImageUrl: (r.item_image_url as string | null) ?? null,
+    coef: r.coef != null ? String(r.coef) : null,
+    picNames: (r.pic_names as string[] | null) ?? null,
+    childCount: Number(r.child_count ?? 0),
+  };
+}
+
+/** BOM V5 WP9 — nạp lại đúng các dòng đổi (cùng shape loadTree, không đệ quy). */
+export async function loadLinesByIds(templateId: string, ids: string[]): Promise<BomTreeNode[]> {
+  if (ids.length === 0) return [];
+  const rows = await db.execute(sql`
+    SELECT ${LINE_SELECT}
+    FROM app.bom_line t
+    ${LINE_JOINS}
+    WHERE t.template_id = ${templateId}
+      AND t.id IN (${sql.join(ids.map((i) => sql`${i}::uuid`), sql`, `)})
+    ORDER BY t.level, t.position
+  `);
+  const list = (rows as unknown as Array<Record<string, unknown>>) ?? [];
+  return list.map(mapTreeRow);
 }
 
 export async function loadTree(
@@ -433,55 +543,14 @@ export async function loadTree(
       INNER JOIN tree t ON l.parent_line_id = t.id
       WHERE t.depth < 5
     )
-    SELECT
-      t.id, t.parent_line_id, t.template_id, t.component_item_id,
-      t.level, t.position, t.position_code, t.qty_per_parent, t.scrap_percent,
-      t.uom, t.description, t.supplier_item_code, t.metadata,
-      t.assigned_to_user_id, t.assigned_to_name,
-      t.received_qty, t.expected_eta, t.status_note,
-      pic.full_name AS assigned_to_full_name,
-      i.sku AS component_sku, i.name AS component_name, i.uom AS component_uom,
-      i.category AS component_category, i.item_type AS component_item_type,
-      i.dimensions AS item_dimensions, i.spec_json AS item_spec_json,
-      (SELECT count(*)::int FROM app.bom_line c WHERE c.parent_line_id = t.id) AS child_count
+    SELECT ${LINE_SELECT}
     FROM tree t
-    LEFT JOIN app.item i ON i.id = t.component_item_id
-    LEFT JOIN app.user_account pic ON pic.id = t.assigned_to_user_id
+    ${LINE_JOINS}
     ORDER BY t.level, t.position
   `);
 
-  // postgres-js trả rows array
   const list = (rows as unknown as Array<Record<string, unknown>>) ?? [];
-  return list.map((r) => ({
-    id: r.id as string,
-    parentLineId: (r.parent_line_id as string | null) ?? null,
-    templateId: r.template_id as string,
-    componentItemId: r.component_item_id as string,
-    componentSku: (r.component_sku as string | null) ?? null,
-    componentName: (r.component_name as string | null) ?? null,
-    componentUom: (r.component_uom as string | null) ?? null,
-    componentCategory: (r.component_category as string | null) ?? null,
-    componentItemType: (r.component_item_type as string | null) ?? null,
-    level: Number(r.level),
-    position: Number(r.position),
-    positionCode: (r.position_code as string | null) ?? null,
-    qtyPerParent: String(r.qty_per_parent),
-    scrapPercent: String(r.scrap_percent),
-    uom: (r.uom as string | null) ?? null,
-    description: (r.description as string | null) ?? null,
-    supplierItemCode: (r.supplier_item_code as string | null) ?? null,
-    assignedToUserId: (r.assigned_to_user_id as string | null) ?? null,
-    assignedToFullName: (r.assigned_to_full_name as string | null) ?? null,
-    assignedToName: (r.assigned_to_name as string | null) ?? null,
-    receivedQty: r.received_qty != null ? String(r.received_qty) : null,
-    expectedEta: (r.expected_eta as string | null) ?? null,
-    statusNote: (r.status_note as string | null) ?? null,
-    metadata: (r.metadata as Record<string, unknown>) ?? {},
-    itemDimensions:
-      (r.item_dimensions as Record<string, unknown> | null) ?? null,
-    itemSpecJson: (r.item_spec_json as string | null) ?? null,
-    childCount: Number(r.child_count ?? 0),
-  }));
+  return list.map(mapTreeRow);
 }
 
 /**
@@ -614,6 +683,8 @@ export async function cloneTemplate(
           uom: line.uom,
           description: line.description,
           supplierItemCode: line.supplierItemCode,
+          supplierId: line.supplierId,
+          supplierPending: line.supplierPending,
           metadata: line.metadata,
         };
       });

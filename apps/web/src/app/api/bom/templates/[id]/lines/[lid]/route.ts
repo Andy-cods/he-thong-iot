@@ -14,7 +14,9 @@ import {
   parseSearchParams,
 } from "@/server/http";
 import { writeAudit, diffObjects } from "@/server/services/audit";
+import { versionConflictResponse } from "@/server/bomVersion";
 import { requireCan } from "@/server/session";
+import { publishBomEvent } from "@/server/services/bom-events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,15 +37,51 @@ export async function PATCH(
   const before = await getLineById(params.lid);
   if (!before) return jsonError("NOT_FOUND", "Không tìm thấy linh kiện.", 404);
 
-  try {
-    const after = await updateLine(params.lid, {
-      qtyPerParent: body.data.qtyPerParent,
-      scrapPercent: body.data.scrapPercent,
-      uom: body.data.uom ?? undefined,
-      description: body.data.description ?? undefined,
-      supplierItemCode: body.data.supplierItemCode ?? undefined,
-      metadata: body.data.metadata ?? undefined,
+  const expected = body.data.expectedVersion;
+  const conflict = async () => {
+    const cur = await getLineById(params.lid);
+    return versionConflictResponse({
+      rowVersion: cur?.rowVersion ?? null,
+      supplierId: cur?.supplierId ?? null,
+      pending: cur?.supplierPending ?? null,
     });
+  };
+  if (expected !== undefined && before.rowVersion !== expected) return conflict();
+
+  // NCC chỉ đổi qua .../supplier (có lịch sử + khoá phiên bản): giữ nguyên các
+  // khoá NCC trong metadata.sourcing, không để form cũ ghi đè.
+  let nextMetadata = body.data.metadata ?? undefined;
+  if (nextMetadata) {
+    const old = ((before.metadata ?? {}) as Record<string, unknown>).sourcing as
+      | Record<string, unknown>
+      | undefined;
+    const sourcing = {
+      ...((nextMetadata.sourcing as Record<string, unknown> | undefined) ?? {}),
+    };
+    for (const k of ["supplierId", "supplierName", "supplierCode"]) {
+      if (old && old[k] !== undefined) sourcing[k] = old[k];
+      else delete sourcing[k];
+    }
+    nextMetadata = { ...nextMetadata };
+    if (Object.keys(sourcing).length > 0) nextMetadata.sourcing = sourcing;
+    else delete nextMetadata.sourcing;
+  }
+
+  try {
+    const after = await updateLine(
+      params.lid,
+      {
+        qtyPerParent: body.data.qtyPerParent,
+        scrapPercent: body.data.scrapPercent,
+        uom: body.data.uom ?? undefined,
+        description: body.data.description ?? undefined,
+        supplierItemCode: body.data.supplierItemCode ?? undefined,
+        metadata: nextMetadata,
+        category: body.data.category,
+      },
+      expected,
+    );
+    if (!after && expected !== undefined) return conflict();
     if (!after) return jsonError("NOT_FOUND", "Không tìm thấy linh kiện.", 404);
 
     const meta = extractRequestMeta(req);
@@ -59,6 +97,12 @@ export async function PATCH(
       before: diff.before,
       after: diff.after,
       ...meta,
+    });
+    publishBomEvent({
+      templateId: params.id,
+      lineIds: [params.lid],
+      kind: "line",
+      actorId: guard.session.userId,
     });
     return NextResponse.json({ data: after });
   } catch (err) {
@@ -112,6 +156,12 @@ export async function DELETE(
       });
     }
 
+    publishBomEvent({
+      templateId: params.id,
+      lineIds: result.deletedIds,
+      kind: "line",
+      actorId: guard.session.userId,
+    });
     return NextResponse.json({
       data: {
         deletedIds: result.deletedIds,

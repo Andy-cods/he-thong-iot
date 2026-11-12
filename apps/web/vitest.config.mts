@@ -13,4 +13,9 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  // BOM V5 — test route dùng FakeDb nạp cả cây route (import nặng); khi chạy
+  // song song toàn bộ suite trên máy bận, 5s mặc định hay timeout giả.
+  test: {
+    testTimeout: 30_000,
+  },
 });

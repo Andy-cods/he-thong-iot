@@ -1,5 +1,6 @@
 "use client";
 
+import { lineImageSrc } from "@/lib/bom-grid/line-view";
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -31,8 +32,14 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useConfirm } from "@/components/ui/confirm-dialog";
-import { useBomLineWoImpact, useUpdateBomLine } from "@/hooks/useBom";
-import { useSuppliersList, type SupplierRow } from "@/hooks/useSuppliers";
+import {
+  useBomLineHistory,
+  useBomLineWoImpact,
+  useUpdateBomLine,
+} from "@/hooks/useBom";
+import { SupplierCell } from "./SupplierCell";
+import { StageJourneySection } from "./StageJourneySection";
+import { resolveLineSupplier } from "@/lib/bom-line-supplier";
 import { buildBomEditWoWarning } from "@/lib/bom-wo-warning";
 import type { BomFlatRow } from "@/lib/bom-grid/flatten-tree";
 import { cn } from "@/lib/utils";
@@ -112,9 +119,6 @@ interface FormState {
   uom: string;
   description: string;
   // Commercial (com) — enriched
-  supplierId: string;
-  supplierCode: string;
-  supplierName: string;
   supplierPartNumber: string;
   leadTimeDays: string;
   moq: string;
@@ -138,6 +142,18 @@ function deriveDefaultKind(line: BomFlatRow | null): KindMode {
   return "com";
 }
 
+/** V5 — cột category chuẩn ↔ nhãn Excel trong ô chọn. */
+const CATEGORY_TO_LABEL: Record<string, string> = {
+  GTAM: "GTAM",
+  OUTSOURCED: "Đặt gia công ngoài",
+  COMMERCIAL: "Thương mại",
+};
+const LABEL_TO_CATEGORY: Record<string, "GTAM" | "OUTSOURCED" | "COMMERCIAL"> = {
+  GTAM: "GTAM",
+  "Đặt gia công ngoài": "OUTSOURCED",
+  "Thương mại": "COMMERCIAL",
+};
+
 function toStr(v: unknown): string {
   if (typeof v === "string") return v;
   if (typeof v === "number") return String(v);
@@ -153,9 +169,6 @@ function buildInitial(line: BomFlatRow | null): FormState {
       scrapPercent: "0",
       uom: "",
       description: "",
-      supplierId: "",
-      supplierCode: "",
-      supplierName: "",
       supplierPartNumber: "",
       leadTimeDays: "",
       moq: "",
@@ -204,21 +217,21 @@ function buildInitial(line: BomFlatRow | null): FormState {
 
   return {
     kind: deriveDefaultKind(line),
+    // V5: ưu tiên cột category chuẩn (import mẫu triển khai), rồi metadata cũ.
     category:
-      typeof meta.category === "string" && meta.category.trim()
+      (line.node.category && CATEGORY_TO_LABEL[line.node.category]) ||
+      (typeof meta.category === "string" && meta.category.trim()
         ? meta.category.trim()
-        : "Thương mại",
+        : "Thương mại"),
     qtyPerParent: String(line.node.qtyPerParent ?? "1"),
     scrapPercent: String(line.node.scrapPercent ?? "0"),
     uom: line.node.uom ?? "",
     description: line.node.description ?? "",
-    supplierId: toStr(sourcing.supplierId),
-    supplierCode:
-      toStr(sourcing.supplierCode) || (line.node.supplierItemCode ?? ""),
-    supplierName: toStr(sourcing.supplierName),
+    // V5: supplier_item_code = part number NCC. Dòng cũ có thể còn chứa TÊN NCC
+    // (import cũ) → không hiện tên đó như part number.
     supplierPartNumber:
       toStr(sourcing.supplierPartNumber) ||
-      (line.node.supplierItemCode ?? ""),
+      partNumberFromLegacy(line.node),
     leadTimeDays: toStr(sourcing.leadTimeDays),
     moq: toStr(sourcing.moq),
     estimatedPrice: toStr(sourcing.estimatedPrice),
@@ -235,6 +248,16 @@ function buildInitial(line: BomFlatRow | null): FormState {
   };
 }
 
+function partNumberFromLegacy(node: BomFlatRow["node"]): string {
+  const raw = (node.supplierItemCode ?? "").trim();
+  if (!raw) return "";
+  const r = resolveLineSupplier(node);
+  const same = [r.name, r.code, r.pending].some(
+    (v) => v && v.trim().toLowerCase() === raw.toLowerCase(),
+  );
+  return same ? "" : raw;
+}
+
 export function BomLineSheet({
   open,
   onOpenChange,
@@ -248,6 +271,12 @@ export function BomLineSheet({
     Partial<Record<keyof FormState, string>>
   >({});
   const mutation = useUpdateBomLine(templateId);
+  // row_version mới nhất của dòng: sheet giữ snapshot `line`, nên sau khi đổi NCC
+  // (SupplierCell lưu ngay) phải theo dõi version cục bộ để lần Lưu form không 409 oan.
+  const [liveVersion, setLiveVersion] = React.useState<number>(
+    line?.node.rowVersion ?? 1,
+  );
+  const history = useBomLineHistory(templateId, line?.id ?? null, open);
   // TASK-6VIEC Việc 5 — cảnh báo nếu có lệnh SX chưa hoàn thành đang dùng
   // dòng BOM này (xác nhận trước khi lưu, không chặn).
   const woImpact = useBomLineWoImpact(templateId, open ? (line?.id ?? null) : null);
@@ -257,6 +286,7 @@ export function BomLineSheet({
     if (open && line) {
       setForm(buildInitial(line));
       setErrors({});
+      setLiveVersion(line.node.rowVersion ?? 1);
     }
   }, [open, line]);
 
@@ -269,15 +299,6 @@ export function BomLineSheet({
 
   const setKind = (next: KindMode) => {
     setForm((prev) => ({ ...prev, kind: next }));
-  };
-
-  const setSupplier = (s: SupplierRow | null) => {
-    setForm((prev) => ({
-      ...prev,
-      supplierId: s?.id ?? "",
-      supplierCode: s?.code ?? "",
-      supplierName: s?.name ?? "",
-    }));
   };
 
   const setMaterial = (code: string, name: string) => {
@@ -328,8 +349,6 @@ export function BomLineSheet({
       next.description = "Mô tả tối đa 500 ký tự";
 
     if (form.kind === "com") {
-      if (form.supplierCode.length > 64)
-        next.supplierCode = "Mã NCC tối đa 64 ký tự";
       if (form.supplierPartNumber.length > 64)
         next.supplierPartNumber = "Mã NCC tối đa 64 ký tự";
       if (form.leadTimeDays !== "") {
@@ -392,7 +411,7 @@ export function BomLineSheet({
     const existingMeta = (line.node.metadata ?? {}) as Record<string, unknown>;
     const nextMeta: Record<string, unknown> = { ...existingMeta };
     nextMeta.kind = form.kind;
-    // V3.7.45 — Save category (Excel column) → grid CategoryBadge + ActionsCell
+    // V3.7.45 — Save category (Excel column) → grid + ActionsCell
     // tự update icon (cart/factory/send) khi user chọn 1 trong 3 option.
     if (form.category && form.category.trim()) {
       nextMeta.category = form.category.trim();
@@ -402,11 +421,8 @@ export function BomLineSheet({
 
     if (form.kind === "com") {
       const sourcing: Record<string, unknown> = {};
-      if (form.supplierId) sourcing.supplierId = form.supplierId;
-      if (form.supplierCode.trim())
-        sourcing.supplierCode = form.supplierCode.trim();
-      if (form.supplierName.trim())
-        sourcing.supplierName = form.supplierName.trim();
+      // NCC (supplierId/Name/Code) KHÔNG ghi từ form: đổi qua SupplierCell →
+      // PATCH .../supplier; server giữ nguyên các khoá này trong sourcing.
       if (form.supplierPartNumber.trim())
         sourcing.supplierPartNumber = form.supplierPartNumber.trim();
       if (form.leadTimeDays !== "")
@@ -445,9 +461,7 @@ export function BomLineSheet({
     // fallback supplierCode nếu trống.
     const nextSupplierItemCode =
       form.kind === "com"
-        ? form.supplierPartNumber.trim() ||
-          form.supplierCode.trim() ||
-          null
+        ? form.supplierPartNumber.trim() || null
         : (line.node.supplierItemCode ?? null);
 
     try {
@@ -460,6 +474,8 @@ export function BomLineSheet({
           description: form.description.trim() || null,
           supplierItemCode: nextSupplierItemCode,
           metadata: nextMeta,
+          category: LABEL_TO_CATEGORY[form.category.trim()] ?? undefined,
+          expectedVersion: liveVersion,
         },
       });
       onOpenChange(false);
@@ -508,6 +524,12 @@ export function BomLineSheet({
         toast.success("Đã lưu thay đổi");
       }
     } catch (err) {
+      const e = err as Error & { status?: number; code?: string };
+      if (e.status === 409 && e.code === "VERSION_CONFLICT") {
+        toast.error("Dòng này vừa được người khác sửa — đã tải lại, kiểm tra rồi lưu lại.");
+        onOpenChange(false);
+        return;
+      }
       toast.error((err as Error)?.message ?? "Không cập nhật được linh kiện");
     }
   };
@@ -536,6 +558,18 @@ export function BomLineSheet({
           className="flex min-h-0 flex-1 flex-col"
         >
           <SheetBody className="space-y-5">
+            {/* BOM V5 WP5 — ảnh 3D lớn (kho ảnh BOM, size=full; fallback item.imageUrl). */}
+            {line && lineImageSrc(line.node, "full") ? (
+              <div className="flex justify-center rounded-xl bg-zinc-50 p-2 dark:bg-zinc-800/40">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={lineImageSrc(line.node, "full") ?? undefined}
+                  alt={line.node.file3dName ?? line.node.componentName ?? "Ảnh chi tiết"}
+                  loading="lazy"
+                  className="max-h-64 w-auto max-w-full rounded-lg object-contain"
+                />
+              </div>
+            ) : null}
             {/* Kind toggle — pin top */}
             <div className="space-y-1.5">
               <Label>Loại linh kiện</Label>
@@ -691,16 +725,21 @@ export function BomLineSheet({
                 <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2 space-y-1">
                     <Label>NCC (Excel: cột NCC)</Label>
-                    <SupplierCombobox
-                      value={{
-                        id: form.supplierId,
-                        code: form.supplierCode,
-                        name: form.supplierName,
-                      }}
-                      onChange={setSupplier}
-                    />
+                    {line ? (
+                      <SupplierCell
+                        variant="field"
+                        templateId={templateId}
+                        lineId={line.id}
+                        line={line.node}
+                        rowVersion={liveVersion}
+                        onChanged={(n) => {
+                          setLiveVersion(n.rowVersion);
+                          void history.refetch();
+                        }}
+                      />
+                    ) : null}
                     <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
-                      Chọn từ danh mục NCC · hoặc để trống nếu chưa xác định.
+                      Chọn từ danh mục · gõ tên mới để tạo NCC · lưu ngay khi chọn.
                     </p>
                   </div>
 
@@ -912,6 +951,37 @@ export function BomLineSheet({
                 </div>
               </Section>
             )}
+            {line && (
+              <Section title="Hành trình">
+                <StageJourneySection templateId={templateId} lineId={line.id} open={open} />
+              </Section>
+            )}
+            <Section title="Lịch sử đổi NCC">
+              {history.isLoading ? (
+                <p className="text-[12px] text-zinc-400">Đang tải…</p>
+              ) : (history.data?.data ?? []).length === 0 ? (
+                <p className="text-[12px] text-zinc-400 dark:text-zinc-500">
+                  Chưa có thay đổi nào.
+                </p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {(history.data?.data ?? []).map((h) => (
+                    <li
+                      key={h.id}
+                      className="rounded-xl bg-zinc-50 px-3 py-2 text-[12px] dark:bg-zinc-800/50"
+                    >
+                      <div className="text-zinc-800 dark:text-zinc-200">
+                        {h.oldValue?.name ?? h.oldValue?.pending ?? "(trống)"} →{" "}
+                        <span className="font-medium">{h.newValue?.name ?? "(trống)"}</span>
+                      </div>
+                      <div className="text-[11px] text-zinc-400 dark:text-zinc-500">
+                        {h.actorName ?? "—"} · {new Date(h.at).toLocaleString("vi-VN")}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Section>
           </SheetBody>
           <SheetFooter>
             <Button
@@ -1017,127 +1087,6 @@ function KindRadio({
       <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-50">{label}</span>
       <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{hint}</span>
     </button>
-  );
-}
-
-/* ─────────────────────────── Supplier combobox ─────────────────────────── */
-
-interface SupplierComboboxProps {
-  value: { id: string; code: string; name: string };
-  onChange: (s: SupplierRow | null) => void;
-}
-
-function SupplierCombobox({ value, onChange }: SupplierComboboxProps) {
-  const [open, setOpen] = React.useState(false);
-  const [query, setQuery] = React.useState("");
-  const suppliersQuery = useSuppliersList({
-    q: query,
-    pageSize: 50,
-    isActive: true,
-  });
-  const suppliers = suppliersQuery.data?.data ?? [];
-
-  const display = value.code
-    ? `${value.code}${value.name ? ` — ${value.name}` : ""}`
-    : "";
-
-  return (
-    <div className="flex items-center gap-1.5">
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            className={cn(
-              "flex h-9 w-full items-center justify-between gap-2 rounded-md border border-zinc-200 bg-white px-3 text-left text-[13px] transition-colors dark:border-zinc-700 dark:bg-zinc-900",
-              "hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 dark:hover:bg-zinc-800/60 dark:focus-visible:ring-indigo-600",
-            )}
-          >
-            <span
-              className={cn(
-                "truncate",
-                display ? "text-zinc-800 dark:text-zinc-200" : "text-zinc-400 dark:text-zinc-500",
-              )}
-            >
-              {display || "Chọn nhà cung cấp…"}
-            </span>
-            <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-zinc-400 dark:text-zinc-500" />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent
-          align="start"
-          className="w-[440px] p-0"
-          sideOffset={4}
-        >
-          <CommandPrimitive shouldFilter={false} className="flex flex-col" loop>
-            <div className="flex items-center border-b border-zinc-200 px-3 py-2 dark:border-zinc-700">
-              <Search className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" aria-hidden />
-              <CommandPrimitive.Input
-                autoFocus
-                value={query}
-                onValueChange={setQuery}
-                placeholder="Tìm NCC theo mã / tên…"
-                className="flex-1 bg-transparent px-2 text-[13px] outline-none placeholder:text-zinc-400 dark:text-zinc-50 dark:placeholder:text-zinc-500"
-              />
-            </div>
-            <CommandPrimitive.List className="max-h-[280px] overflow-y-auto p-1">
-              {suppliersQuery.isLoading ? (
-                <div className="px-3 py-4 text-center text-xs text-zinc-500 dark:text-zinc-400">
-                  Đang tải…
-                </div>
-              ) : suppliers.length === 0 ? (
-                <CommandPrimitive.Empty className="px-3 py-4 text-center text-xs text-zinc-500 dark:text-zinc-400">
-                  {query
-                    ? `Không tìm thấy "${query}".`
-                    : "Chưa có NCC trong danh mục."}
-                </CommandPrimitive.Empty>
-              ) : (
-                <CommandPrimitive.Group>
-                  {suppliers.map((s) => (
-                    <CommandPrimitive.Item
-                      key={s.id}
-                      value={`${s.code} ${s.name}`}
-                      onSelect={() => {
-                        onChange(s);
-                        setOpen(false);
-                        setQuery("");
-                      }}
-                      className={cn(
-                        "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-[13px]",
-                        "aria-selected:bg-zinc-100 dark:aria-selected:bg-zinc-800",
-                      )}
-                    >
-                      <Check
-                        className={cn(
-                          "h-3.5 w-3.5 shrink-0",
-                          s.id === value.id
-                            ? "text-indigo-600 dark:text-indigo-400"
-                            : "text-transparent",
-                        )}
-                      />
-                      <span className="font-mono text-xs font-medium text-zinc-800 dark:text-zinc-200">
-                        {s.code}
-                      </span>
-                      <span className="truncate text-zinc-700 dark:text-zinc-300">{s.name}</span>
-                    </CommandPrimitive.Item>
-                  ))}
-                </CommandPrimitive.Group>
-              )}
-            </CommandPrimitive.List>
-          </CommandPrimitive>
-        </PopoverContent>
-      </Popover>
-      {value.id || value.code ? (
-        <button
-          type="button"
-          onClick={() => onChange(null)}
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-zinc-200 text-zinc-400 transition-colors hover:bg-zinc-50 hover:text-zinc-700 dark:border-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-300"
-          title="Bỏ chọn NCC"
-          aria-label="Bỏ chọn NCC"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
-      ) : null}
-    </div>
   );
 }
 

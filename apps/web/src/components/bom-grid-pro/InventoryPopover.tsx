@@ -31,6 +31,9 @@ export interface InventoryPopoverProps {
   componentSku: string;
   componentName: string;
   children: React.ReactNode;
+  /** Điều khiển ngoài (vd mở từ menu "…"). Bỏ qua → tự quản. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 interface InventorySummaryResponse {
@@ -63,8 +66,12 @@ export function InventoryPopover({
   componentSku,
   componentName,
   children,
+  open: openProp,
+  onOpenChange,
 }: InventoryPopoverProps) {
-  const [open, setOpen] = React.useState(false);
+  const [openState, setOpenState] = React.useState(false);
+  const open = openProp ?? openState;
+  const setOpen = onOpenChange ?? setOpenState;
   const [adjustOpen, setAdjustOpen] = React.useState(false);
 
   const session = useSession();

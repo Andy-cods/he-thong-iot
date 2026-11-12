@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import ExcelJS from "exceljs";
 import { assertImportRowLimit } from "./importLimits";
+import { parseTrienKhai, type TrienKhaiParse } from "./bomTrienKhaiParser";
 
 /**
  * Parser BOM Excel multi-sheet (V1.1-alpha + fix smart header detect).
@@ -55,6 +56,8 @@ export interface BomParseResult {
   allRowsBySheet: Record<string, Array<{ rowNumber: number; data: Record<string, unknown> }>>;
   /** V3: nhận diện format chính thức (Bản chính thức Z0000002-...). */
   officialFormat: OfficialFormatInfo;
+  /** V5 WP3: có khi file là mẫu "BOM triển khai" (đường cũ không set). */
+  trienKhai?: TrienKhaiParse;
 }
 
 export async function computeSha256(buffer: Uint8Array): Promise<string> {
@@ -260,6 +263,31 @@ export async function parseBomImport(buffer: Buffer): Promise<BomParseResult> {
   // V4.2 audit S15 — chặn xử lý tiếp nếu tổng số dòng (mọi sheet) quá lớn.
   const totalRows = wb.worksheets.reduce((acc, ws) => acc + ws.rowCount, 0);
   assertImportRowLimit(totalRows);
+
+  // V5 WP3 — nhánh mẫu "BOM triển khai" chạy TRƯỚC đường "Bản chính thức".
+  const trienKhai = parseTrienKhai(wb);
+  if (trienKhai) {
+    return {
+      fileHash,
+      sheets: [
+        {
+          sheetName: trienKhai.sheetName,
+          rowCount: trienKhai.rows.length,
+          headerRow: trienKhai.headerRow,
+          headersDetected: [],
+          previewRows: [],
+          topTitle: trienKhai.title,
+        },
+      ],
+      allRowsBySheet: {},
+      officialFormat: {
+        isOfficial: false,
+        reason: "Mẫu BOM triển khai (TRIEN_KHAI)",
+        sheetKinds: { [trienKhai.sheetName]: "UNKNOWN" },
+      },
+      trienKhai,
+    };
+  }
 
   const sheets: BomSheetMeta[] = [];
   const allRowsBySheet: BomParseResult["allRowsBySheet"] = {};

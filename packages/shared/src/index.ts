@@ -15,4 +15,6 @@ export * from "./schemas/finance";
 export * from "./schemas/master-data";
 export * from "./schemas/bom-sheet";
 export * from "./schemas/bom-sheet-row";
+export * from "./schemas/bomImportV5";
 export * from "./rbac";
+export * from "./bom";
