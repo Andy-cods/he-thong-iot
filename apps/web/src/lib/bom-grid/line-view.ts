@@ -78,3 +78,35 @@ export function picInitial(name: string): string {
   const last = parts[parts.length - 1] ?? "";
   return (last[0] ?? "?").toUpperCase();
 }
+
+/** Quy cách D×R×C: metadata.size → item.dimensions → spec_json.dimensionText. */
+export function lineDimsText(node: BomTreeNodeRaw): string | null {
+  const md = node.metadata as { size?: string } | null;
+  if (md?.size && md.size.trim()) return md.size;
+  const dim = node.itemDimensions as {
+    length?: number | string;
+    width?: number | string;
+    height?: number | string;
+    unit?: string;
+  } | null;
+  if (dim) {
+    const parts = [dim.length, dim.width, dim.height]
+      .map((v) => (v === 0 || v === "0" ? null : v))
+      .filter((v): v is number | string => v != null && v !== "");
+    if (parts.length > 0) {
+      return `${parts.join("×")}${dim.unit ? ` ${dim.unit}` : ""}`;
+    }
+  }
+  const rawSpec = node.itemSpecJson;
+  if (rawSpec && rawSpec.trim()) {
+    try {
+      const parsed = JSON.parse(rawSpec) as { dimensionText?: unknown };
+      if (typeof parsed.dimensionText === "string" && parsed.dimensionText.trim()) {
+        return parsed.dimensionText;
+      }
+    } catch {
+      return rawSpec;
+    }
+  }
+  return null;
+}
