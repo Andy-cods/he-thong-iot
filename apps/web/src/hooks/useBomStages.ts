@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { BomCategory } from "@iot/shared";
 import type { StageBuckets } from "@/lib/bom-stage-ledger";
+import { bomPollMs } from "@/lib/bom-live";
 
 /** BOM V5 WP6 — sổ bước: bucket theo dòng, lịch sử, chuyển/đảo. */
 
@@ -70,6 +71,7 @@ export function useBomStages(templateId: string) {
   return useQuery<{ data: BomStagesData }>({
     queryKey: stagesKey(templateId),
     staleTime: 30_000,
+    refetchInterval: bomPollMs,
     queryFn: () => req(`/api/bom/templates/${templateId}/stages`),
   });
 }

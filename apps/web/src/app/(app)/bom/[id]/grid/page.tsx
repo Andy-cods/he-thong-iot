@@ -12,6 +12,8 @@ import {
   useBomWorkspaceSummary,
 } from "@/hooks/useBom";
 import { useSession } from "@/hooks/useSession";
+import { useBomLive } from "@/hooks/useBomLive";
+import { BomPresence } from "@/components/bom-workspace/BomPresence";
 import { useBomSheetsList } from "@/hooks/useBomSheets";
 import { BomSheetTabs } from "@/components/bom/BomSheetTabs";
 import { QueryError } from "@/components/ui/query-error";
@@ -28,6 +30,7 @@ import {
   BomBarcodeSearchDialog,
   BomProductionPanel,
   BomWorkspaceTopbar,
+  DeliverySlipsPanel,
   HistoryDrawer,
   OrdersPanel,
   ProcurementPanel,
@@ -59,6 +62,7 @@ export default function BomGridPage() {
   const searchParams = useSearchParams();
 
   const detailQuery = useBomDetail(id);
+  const live = useBomLive(id);
   const summaryQuery = useBomWorkspaceSummary(id);
   const derivedStatusQuery = useBomDerivedStatus(id, !!id);
   const fabProgressQuery = useBomFabProgress(id, !!id);
@@ -254,6 +258,8 @@ export default function BomGridPage() {
         return <BomProductionPanel bomId={id} />;
       case "work-orders":
         return <WorkOrdersPanel bomId={id} />;
+      case "delivery-slips":
+        return <DeliverySlipsPanel bomId={id} />;
       case "procurement":
         return <ProcurementPanel bomId={id} bomCode={template.code} />;
       case "assembly":
@@ -273,6 +279,8 @@ export default function BomGridPage() {
           onOpenScan={() => setScanOpen(true)}
         />
       )}
+
+      <BomPresence viewers={live.viewers} connected={live.connected} />
 
       <TopTabBar
         activeTab={tabs.activeTab}

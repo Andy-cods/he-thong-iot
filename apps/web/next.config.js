@@ -57,6 +57,10 @@ const nextConfig = {
     // Next.js standalone chỉ trace files được `import`/`require`; binary assets
     // load runtime qua fs.readFile cần khai báo manual ở đây.
     outputFileTracingIncludes: {
+      // BOM V5 WP8c - template phieu giao hang (doc runtime bang fs).
+      "/api/delivery-slips/[slipId]/export/**": [
+        "./src/server/templates/delivery-slip-template.xlsx",
+      ],
       "/api/purchase-requests/[id]/export-excel/**": [
         "./src/server/templates/ycvt-mrf-template.xlsx",
         "./public/img/logo-gtam.png",

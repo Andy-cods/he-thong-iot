@@ -10,6 +10,7 @@ import { writeAudit } from "@/server/services/audit";
 import { changeLineSupplier } from "@/server/services/bomLineSupplier";
 import { versionConflictResponse } from "@/server/bomVersion";
 import { requireCan } from "@/server/session";
+import { publishBomEvent } from "@/server/services/bom-events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -72,6 +73,14 @@ export async function PATCH(
       });
     }
 
+    if (result.changed) {
+      publishBomEvent({
+        templateId: params.id,
+        lineIds: [params.lid],
+        kind: "supplier",
+        actorId: guard.session.userId,
+      });
+    }
     return NextResponse.json({
       data: {
         line: result.line,

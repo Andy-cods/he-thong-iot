@@ -5,6 +5,7 @@ import { stageErrorResponse } from "@/server/bomStageHttp";
 import { writeAudit } from "@/server/services/audit";
 import { reverseMove } from "@/server/repos/bomStageMoves";
 import { requireCan } from "@/server/session";
+import { publishBomEvent } from "@/server/services/bom-events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,6 +32,13 @@ export async function POST(
       objectId: String(r.move?.id ?? ""),
       notes: `Đảo bút toán #${moveId}`,
       ...extractRequestMeta(req),
+    });
+    const rl = (r.move as { lineId?: string } | null | undefined)?.lineId;
+    publishBomEvent({
+      templateId: params.id,
+      lineIds: rl ? [rl] : undefined,
+      kind: "stage",
+      actorId: guard.session.userId,
     });
     return NextResponse.json({ data: { move: r.move, buckets: r.buckets } });
   } catch (err) {

@@ -12,6 +12,7 @@ export {
 } from "./useTopTabState";
 export { OrdersPanel } from "./panels/OrdersPanel";
 export { WorkOrdersPanel } from "./panels/WorkOrdersPanel";
+export { DeliverySlipsPanel } from "./panels/DeliverySlipsPanel";
 // TASK-20260427-016 — `ShortagePanel`, `EcoPanel`, `BomSnapshotPanel` retired khỏi
 // BOM tabs. File panel vẫn giữ trong source tree (dead code) để dễ restore — chỉ bỏ
 // re-export ở barrel này.

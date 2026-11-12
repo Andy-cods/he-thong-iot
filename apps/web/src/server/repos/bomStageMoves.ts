@@ -17,7 +17,7 @@ import { lineRequiredQty } from "@/lib/bom-stage-journey";
  * thức cột "SL" của lưới).
  */
 
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export type StageErrorCode =
   | "BAD_QTY"
@@ -104,7 +104,7 @@ export type MoveResult =
   | { ok: true; move: MoveRow | null; duplicate: boolean; buckets: StageBuckets }
   | { ok: false; code: StageErrorCode };
 
-async function loadLineState(tx: Tx, templateId: string, lineId: string) {
+export async function loadLineState(tx: Tx, templateId: string, lineId: string) {
   const [line] = await tx
     .select()
     .from(bomLine)
@@ -132,7 +132,7 @@ async function loadLineState(tx: Tx, templateId: string, lineId: string) {
   return { category, required, buckets: buildStageBuckets(category, required, moves) };
 }
 
-interface ApplyInput extends MoveInput {
+export interface ApplyInput extends MoveInput {
   templateId: string;
   docType: string;
   docId?: string | null;
@@ -142,7 +142,7 @@ interface ApplyInput extends MoveInput {
 }
 
 /** Lõi: dòng phải đang được khoá bởi caller? Không — hàm này tự khoá. */
-async function applyMove(tx: Tx, input: ApplyInput): Promise<MoveResult> {
+export async function applyMove(tx: Tx, input: ApplyInput): Promise<MoveResult> {
   const st = await loadLineState(tx, input.templateId, input.lineId);
   if (!st) return { ok: false, code: "NOT_FOUND" };
   const chk = canMove(st.category, st.buckets, input.from, input.to, input.qty, {

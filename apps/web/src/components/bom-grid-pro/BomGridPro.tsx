@@ -37,6 +37,8 @@ import { BomLineSheet } from "./BomLineSheet";
 import { SupplierCell } from "./SupplierCell";
 import { StageJourneyCell } from "./StageJourneyCell";
 import { StageMoveDialog, type StageMoveTarget } from "./StageMoveDialog";
+import { DeliverySlipDialog, type SlipTarget } from "./DeliverySlipDialog";
+import type { SlipKind } from "@/hooks/useDeliverySlips";
 import { useBomStages } from "@/hooks/useBomStages";
 import { buildJourney, type JourneyView } from "@/lib/bom-stage-journey";
 import { lineSupplierLabel, lineSupplierSearchText } from "@/lib/bom-line-supplier";
@@ -575,6 +577,27 @@ export function BomGridPro({
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flat, selected, stageLines, stageMoveOpen]);
+  // BOM V5 WP8 — phiếu giao (Gửi nhà thầu phụ / Giao lắp ráp) từ các dòng đã chọn.
+  const [slipKind, setSlipKind] = React.useState<SlipKind | null>(null);
+  const slipTargets = React.useMemo<SlipTarget[]>(() => {
+    if (!slipKind) return [];
+    const out: SlipTarget[] = [];
+    for (const r of flat) {
+      if (r.isGroup || !selected.has(r.id)) continue;
+      const st = stageLines?.[r.id];
+      out.push({
+        id: r.id,
+        name: lineNameText(r.node) || r.node.componentName || r.id,
+        category: st?.category ?? lineCategory(r.node),
+        buckets: st?.buckets ?? null,
+        positionCode: r.node.positionCode ?? null,
+        surfaceTreatment: r.node.surfaceTreatment ?? null,
+        dimsText: lineDimsText(r.node),
+      });
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flat, selected, stageLines, slipKind]);
   const toggleSelected = React.useCallback((id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -1641,6 +1664,20 @@ export function BomGridPro({
           >
             Chuyển bước…
           </button>
+          <button
+            type="button"
+            onClick={() => setSlipKind("SURFACE")}
+            className="rounded-md bg-white/10 px-3 py-1 font-medium hover:bg-white/20 dark:bg-black/10 dark:hover:bg-black/20"
+          >
+            Gửi nhà thầu phụ
+          </button>
+          <button
+            type="button"
+            onClick={() => setSlipKind("ASSEMBLY")}
+            className="rounded-md bg-white/10 px-3 py-1 font-medium hover:bg-white/20 dark:bg-black/10 dark:hover:bg-black/20"
+          >
+            Giao lắp ráp
+          </button>
         </div>
       )}
       <StageMoveDialog
@@ -1648,6 +1685,15 @@ export function BomGridPro({
         onOpenChange={setStageMoveOpen}
         templateId={templateId}
         targets={stageTargets}
+        onDone={() => setSelected(new Set())}
+      />
+      <DeliverySlipDialog
+        open={slipKind !== null}
+        onOpenChange={(v) => !v && setSlipKind(null)}
+        kind={slipKind ?? "SURFACE"}
+        templateId={templateId}
+        templateCode={templateCode}
+        targets={slipTargets}
         onDone={() => setSelected(new Set())}
       />
 

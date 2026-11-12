@@ -436,28 +436,7 @@ export interface BomTreeNode {
   childCount: number;
 }
 
-export async function loadTree(
-  templateId: string,
-  sheetId?: string,
-): Promise<BomTreeNode[]> {
-  // V2.0 Sprint 6 — filter optional theo sheet_id. Khi user mở tab sheet
-  // PROJECT cụ thể, frontend pass activeSheetId → grid chỉ render lines
-  // của sheet đó. KHÔNG truyền sheetId = legacy fallback (toàn template).
-  const rows = await db.execute(sql`
-    WITH RECURSIVE tree AS (
-      SELECT l.*, 1::int AS depth
-      FROM app.bom_line l
-      WHERE l.template_id = ${templateId}
-        AND l.parent_line_id IS NULL
-        ${sheetId ? sql`AND l.sheet_id = ${sheetId}` : sql``}
-      UNION ALL
-      SELECT l.*, t.depth + 1
-      FROM app.bom_line l
-      INNER JOIN tree t ON l.parent_line_id = t.id
-      WHERE t.depth < 5
-    )
-    SELECT
-      t.id, t.parent_line_id, t.template_id, t.component_item_id,
+const LINE_SELECT = sql.raw(`      t.id, t.parent_line_id, t.template_id, t.component_item_id,
       t.level, t.position, t.position_code, t.qty_per_parent, t.scrap_percent,
       t.uom, t.description, t.supplier_item_code, t.metadata,
       t.supplier_id, t.supplier_pending, t.row_version,
@@ -472,19 +451,15 @@ export async function loadTree(
       i.sku AS component_sku, i.name AS component_name, i.uom AS component_uom,
       i.category AS component_category, i.item_type AS component_item_type,
       i.dimensions AS item_dimensions, i.spec_json AS item_spec_json,
-      (SELECT count(*)::int FROM app.bom_line c WHERE c.parent_line_id = t.id) AS child_count
-    FROM tree t
-    LEFT JOIN app.item i ON i.id = t.component_item_id
+      (SELECT count(*)::int FROM app.bom_line c WHERE c.parent_line_id = t.id) AS child_count`);
+const LINE_JOINS = sql.raw(`    LEFT JOIN app.item i ON i.id = t.component_item_id
     LEFT JOIN app.user_account pic ON pic.id = t.assigned_to_user_id
     LEFT JOIN app.supplier sup ON sup.id = t.supplier_id
     LEFT JOIN app.supplier lsup ON t.supplier_id IS NULL
-      AND lsup.id::text = COALESCE(t.metadata #>> '{sourcing,supplierId}', t.metadata ->> 'supplierId')
-    ORDER BY t.level, t.position
-  `);
+      AND lsup.id::text = COALESCE(t.metadata #>> '{sourcing,supplierId}', t.metadata ->> 'supplierId')`);
 
-  // postgres-js trả rows array
-  const list = (rows as unknown as Array<Record<string, unknown>>) ?? [];
-  return list.map((r) => ({
+function mapTreeRow(r: Record<string, unknown>): BomTreeNode {
+  return {
     id: r.id as string,
     parentLineId: (r.parent_line_id as string | null) ?? null,
     templateId: r.template_id as string,
@@ -530,7 +505,52 @@ export async function loadTree(
     coef: r.coef != null ? String(r.coef) : null,
     picNames: (r.pic_names as string[] | null) ?? null,
     childCount: Number(r.child_count ?? 0),
-  }));
+  };
+}
+
+/** BOM V5 WP9 — nạp lại đúng các dòng đổi (cùng shape loadTree, không đệ quy). */
+export async function loadLinesByIds(templateId: string, ids: string[]): Promise<BomTreeNode[]> {
+  if (ids.length === 0) return [];
+  const rows = await db.execute(sql`
+    SELECT ${LINE_SELECT}
+    FROM app.bom_line t
+    ${LINE_JOINS}
+    WHERE t.template_id = ${templateId}
+      AND t.id IN (${sql.join(ids.map((i) => sql`${i}::uuid`), sql`, `)})
+    ORDER BY t.level, t.position
+  `);
+  const list = (rows as unknown as Array<Record<string, unknown>>) ?? [];
+  return list.map(mapTreeRow);
+}
+
+export async function loadTree(
+  templateId: string,
+  sheetId?: string,
+): Promise<BomTreeNode[]> {
+  // V2.0 Sprint 6 — filter optional theo sheet_id. Khi user mở tab sheet
+  // PROJECT cụ thể, frontend pass activeSheetId → grid chỉ render lines
+  // của sheet đó. KHÔNG truyền sheetId = legacy fallback (toàn template).
+  const rows = await db.execute(sql`
+    WITH RECURSIVE tree AS (
+      SELECT l.*, 1::int AS depth
+      FROM app.bom_line l
+      WHERE l.template_id = ${templateId}
+        AND l.parent_line_id IS NULL
+        ${sheetId ? sql`AND l.sheet_id = ${sheetId}` : sql``}
+      UNION ALL
+      SELECT l.*, t.depth + 1
+      FROM app.bom_line l
+      INNER JOIN tree t ON l.parent_line_id = t.id
+      WHERE t.depth < 5
+    )
+    SELECT ${LINE_SELECT}
+    FROM tree t
+    ${LINE_JOINS}
+    ORDER BY t.level, t.position
+  `);
+
+  const list = (rows as unknown as Array<Record<string, unknown>>) ?? [];
+  return list.map(mapTreeRow);
 }
 
 /**

@@ -14,6 +14,7 @@ import type {
   BomTemplateUpdate,
 } from "@iot/shared";
 import { qk, type BomFilter } from "@/lib/query-keys";
+import { bomPollMs } from "@/lib/bom-live";
 
 /**
  * BOM TanStack Query hooks — theo pattern useItems.ts (brainstorm-deep §1).
@@ -221,6 +222,8 @@ export function useBomTree(
     // fetch lại theo sheet (gây "flash" duplicate rows trên UI).
     enabled: !!id,
     staleTime: 5_000,
+    // WP9 — lưới an toàn: 5 phút khi SSE khoẻ, 60s khi SSE rớt.
+    refetchInterval: bomPollMs,
   });
 }
 
@@ -513,7 +516,7 @@ export function useBomWorkspaceSummary(
     },
     enabled: enabled && !!bomId,
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: bomPollMs,
   });
 }
 
@@ -588,7 +591,7 @@ export function useBomDerivedStatus(templateId: string, enabled = true) {
     },
     // V3.7.50 — auto refresh giống fab-progress để bắt PO/Stock mới mà không cần reload.
     staleTime: 15_000,
-    refetchInterval: 60_000,
+    refetchInterval: bomPollMs,
     refetchOnWindowFocus: true,
     enabled: enabled && !!templateId,
   });
@@ -637,7 +640,7 @@ export function useBomFabProgress(templateId: string, enabled = true) {
       return (await res.json()) as FabProgressResponse;
     },
     staleTime: 15_000,
-    refetchInterval: 60_000,
+    refetchInterval: bomPollMs,
     enabled: enabled && !!templateId,
   });
 }
@@ -691,7 +694,7 @@ export function useBomProductionSummary(
       ),
     enabled: enabled && !!bomId,
     staleTime: 15_000,
-    refetchInterval: 60_000,
+    refetchInterval: bomPollMs,
   });
 }
 

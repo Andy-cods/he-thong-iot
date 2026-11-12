@@ -23,6 +23,7 @@ import {
 } from "@iot/shared";
 import { db } from "../db.js";
 import { ensureMaterialSheetWithCatalog } from "./bomImport.js";
+import { publishBomEvent } from "../bomEvents.js";
 
 /**
  * BOM V5 WP4b — commit mẫu "BOM triển khai". Worker KHÔNG đọc/ghi file ảnh:
@@ -273,6 +274,7 @@ export async function processBomImportTrienKhai(
     .set({ status: "done", finishedAt: new Date(), rowSuccess: rows.length, rowFail: 0, errorJson: [] })
     .where(eq(importBatch.id, batchId));
   await job.updateProgress(100);
+  publishBomEvent({ templateId, kind: "import", actorId });
 
   return { success: rows.length, fail: 0, templatesCreated, itemsCreated };
 }

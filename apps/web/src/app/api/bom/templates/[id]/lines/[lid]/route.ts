@@ -16,6 +16,7 @@ import {
 import { writeAudit, diffObjects } from "@/server/services/audit";
 import { versionConflictResponse } from "@/server/bomVersion";
 import { requireCan } from "@/server/session";
+import { publishBomEvent } from "@/server/services/bom-events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -97,6 +98,12 @@ export async function PATCH(
       after: diff.after,
       ...meta,
     });
+    publishBomEvent({
+      templateId: params.id,
+      lineIds: [params.lid],
+      kind: "line",
+      actorId: guard.session.userId,
+    });
     return NextResponse.json({ data: after });
   } catch (err) {
     logger.error({ err, lid: params.lid }, "update bom line failed");
@@ -149,6 +156,12 @@ export async function DELETE(
       });
     }
 
+    publishBomEvent({
+      templateId: params.id,
+      lineIds: result.deletedIds,
+      kind: "line",
+      actorId: guard.session.userId,
+    });
     return NextResponse.json({
       data: {
         deletedIds: result.deletedIds,
