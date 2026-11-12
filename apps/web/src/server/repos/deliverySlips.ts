@@ -234,7 +234,7 @@ export async function createDeliverySlip(input: CreateSlipInput): Promise<Create
         for (let i = ti; i < codes.length; i++) reached += mv.buckets[codes[i]!] ?? 0;
         const remaining = Math.max(0, r4(st.required - reached));
         const userNote = l.note?.trim();
-        const note = `Đợt ${batch} · còn ${remaining}${userNote ? ` · ${userNote}` : ""}`.slice(0, 500);
+        const note = `Đợt ${batch}${remaining > 0 ? ` · còn ${remaining}` : ""}${userNote ? ` · ${userNote}` : ""}`.slice(0, 500);
 
         const it = itemById.get(line.componentItemId);
         const md = (line.metadata ?? {}) as { size?: string };

@@ -3,7 +3,6 @@
 import * as React from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
 import {
   useBomDerivedStatus,
   useBomDetail,
@@ -25,7 +24,6 @@ import {
   type MaterialStatus,
 } from "@/components/bom-grid-pro";
 import {
-  AssemblyPanel,
   BomAuditPanel,
   BomBarcodeSearchDialog,
   BomProductionPanel,
@@ -110,16 +108,9 @@ export default function BomGridPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scanParam]);
 
-  // Hotkeys: Ctrl+Shift+A (V1.7-beta.2.3 placeholder) + Alt+S (barcode scan).
+  // Hotkey: Alt+S (barcode scan).
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.shiftKey && (e.key === "A" || e.key === "a")) {
-        e.preventDefault();
-        toast.info(
-          "Thêm linh kiện: dùng Actions cell trên dòng hiện có (Nhân bản) để tạo bản sao, hoặc chờ V1.8 có AddComponentDialog riêng.",
-        );
-        return;
-      }
       if (
         e.altKey &&
         !e.ctrlKey &&
@@ -166,7 +157,6 @@ export default function BomGridPage() {
         production: summary.workOrdersActive,
         "work-orders": summary.workOrdersTotal,
         procurement: summary.procurementActive,
-        assembly: summary.assemblyInProgress,
       }
     : {};
 
@@ -262,8 +252,6 @@ export default function BomGridPage() {
         return <DeliverySlipsPanel bomId={id} />;
       case "procurement":
         return <ProcurementPanel bomId={id} bomCode={template.code} />;
-      case "assembly":
-        return <AssemblyPanel bomId={id} />;
       case "audit":
         return <BomAuditPanel bomId={id} />;
     }

@@ -411,7 +411,7 @@ export function BomLineSheet({
     const existingMeta = (line.node.metadata ?? {}) as Record<string, unknown>;
     const nextMeta: Record<string, unknown> = { ...existingMeta };
     nextMeta.kind = form.kind;
-    // V3.7.45 — Save category (Excel column) → grid CategoryBadge + ActionsCell
+    // V3.7.45 — Save category (Excel column) → grid + ActionsCell
     // tự update icon (cart/factory/send) khi user chọn 1 trong 3 option.
     if (form.category && form.category.trim()) {
       nextMeta.category = form.category.trim();

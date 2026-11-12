@@ -102,7 +102,7 @@ const nextConfig = {
     ];
   },
   // V1.8 Batch 1 — backward-compat redirects:
-  // - /eco + /shortage gộp vào BOM workspace BottomPanel → redirect về /bom.
+  // - /eco + /shortage đã gỡ khỏi BOM workspace → redirect về /bom.
   // - /product-lines gộp vào /items (Danh mục vật tư).
   //
   // V4.1 Đợt 7 (Q6 — dọn trang cũ): các trang chỉ còn làm nhiệm vụ chuyển

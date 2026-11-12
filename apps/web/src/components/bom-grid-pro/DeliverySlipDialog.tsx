@@ -147,7 +147,7 @@ export function DeliverySlipDialog({
       qty,
       recv: null,
       price: kind === "SURFACE" ? price : null,
-      note: `Đợt n · còn ${formatNumber(remaining)}`,
+      note: remaining > 0 ? `Đợt n · còn ${formatNumber(remaining)}` : "Đợt n",
     };
   });
 

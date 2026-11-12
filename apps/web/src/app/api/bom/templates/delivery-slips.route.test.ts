@@ -327,7 +327,7 @@ describe("POST delivery-slips — SURFACE", () => {
     expect((await r1.json()).data.lines[0].note).toBe("Đợt 1 · còn 12");
     const r2 = await postSlip(m, { kind: "SURFACE", supplierId: SUP, lines: [{ lineId: L1, qty: 12, note: "gấp" }] });
     const l2 = (await r2.json()).data.lines[0];
-    expect(l2.note).toBe("Đợt 2 · còn 0 · gấp");
+    expect(l2.note).toBe("Đợt 2 · gấp");
     expect(m.tables.deliverySlip!.map((s) => s.batchNo)).toEqual([1, 2]);
     // hết hàng ở MACHINING → mặc định không còn gì để giao
     const r3 = await postSlip(m, { kind: "SURFACE", supplierId: SUP, lines: [{ lineId: L1 }] });
