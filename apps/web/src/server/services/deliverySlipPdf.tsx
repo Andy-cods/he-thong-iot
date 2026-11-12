@@ -52,7 +52,7 @@ const COMPANY = {
 
 const SIGNATURES = ["NGƯỜI LẬP PHIẾU", "NGƯỜI NHẬN HÀNG", "P.QLSX", "GIÁM ĐỐC"];
 
-const W = { stt: 28, name: 150, d: 34, spec: 110, code: 70, mgmt: 90, uom: 34, qty: 44, price: 56, note: 66 };
+const W = { stt: 28, name: 138, d: 34, spec: 110, code: 70, mgmt: 90, uom: 34, qty: 50, price: 56, note: 66 };
 const BORDER = "#000";
 
 const s = StyleSheet.create({
