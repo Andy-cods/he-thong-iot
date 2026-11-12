@@ -83,6 +83,7 @@ export const NOTIFICATION_EVENT_ICON: Record<string, React.ElementType> = {
   STOCKTAKE_SUBMITTED: ClipboardList,
   STOCKTAKE_APPROVED: ClipboardCheck,
   STOCKTAKE_REJECTED: ClipboardX,
+  BOM_STAGE_HANDOFF: Truck,
 };
 
 export function notificationIcon(eventType: string): React.ElementType {

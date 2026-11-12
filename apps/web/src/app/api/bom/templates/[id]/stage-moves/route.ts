@@ -6,7 +6,14 @@ import { stageErrorResponse } from "@/server/bomStageHttp";
 import { writeAudit } from "@/server/services/audit";
 import { moveStage, moveStagesBulk } from "@/server/repos/bomStageMoves";
 import { requireCan } from "@/server/session";
+import { notifyBomStageMoved } from "@/server/services/bom-stage-notify-send";
 import { publishBomEvent } from "@/server/services/bom-events";
+
+const ACTOR = (s: { userId: string; fullName: string; username: string }) => ({
+  userId: s.userId,
+  fullName: s.fullName,
+  username: s.username,
+});
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -57,6 +64,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         kind: "stage",
         actorId,
       });
+      void notifyBomStageMoved(params.id, d.items, ACTOR(guard.session));
       return NextResponse.json({ data: { moves: r.moves } });
     }
     const r = await moveStage({ ...d, templateId: params.id, actorId });
@@ -70,6 +78,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       ...extractRequestMeta(req),
     });
     publishBomEvent({ templateId: params.id, lineIds: [d.lineId], kind: "stage", actorId });
+    if (r.move) void notifyBomStageMoved(params.id, [d], ACTOR(guard.session));
     return NextResponse.json({ data: { move: r.move, buckets: r.buckets } });
   } catch (err) {
     logger.error({ err, templateId: params.id }, "bom stage move failed");

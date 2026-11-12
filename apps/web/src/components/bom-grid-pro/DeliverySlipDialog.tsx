@@ -18,6 +18,7 @@ import type { StageBuckets } from "@/lib/bom-stage-ledger";
 import { useSuppliersList } from "@/hooks/useSuppliers";
 import {
   slipExportUrl,
+  slipPdfUrl,
   useCreateDeliverySlip,
   type SlipKind,
 } from "@/hooks/useDeliverySlips";
@@ -175,6 +176,10 @@ export function DeliverySlipDialog({
         action: {
           label: "Tải Excel",
           onClick: () => window.open(slipExportUrl(slip.id), "_blank"),
+        },
+        cancel: {
+          label: "In PDF",
+          onClick: () => window.open(slipPdfUrl(slip.id), "_blank"),
         },
       });
       onOpenChange(false);

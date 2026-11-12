@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Download, Loader2 } from "lucide-react";
+import { Download, Loader2, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,6 +9,7 @@ import { QueryError } from "@/components/ui/query-error";
 import { formatDate, formatNumber } from "@/lib/format";
 import {
   slipExportUrl,
+  slipPdfUrl,
   useDeliverySlip,
   useDeliverySlips,
   useReceiveDeliverySlip,
@@ -74,6 +75,14 @@ function SlipDetail({ templateId, slipId }: { templateId: string; slipId: string
 
   return (
     <div className="space-y-3">
+      <div className="flex justify-end gap-2">
+        <a href={slipExportUrl(slip.id)} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-indigo-950/40">
+          <Download className="h-3.5 w-3.5" aria-hidden /> Excel
+        </a>
+        <a href={slipPdfUrl(slip.id)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-indigo-950/40">
+          <Printer className="h-3.5 w-3.5" aria-hidden /> In PDF
+        </a>
+      </div>
       <DeliverySlipPaper
         slipNo={slip.slipNo}
         dateText={vnDateText(slip.createdAt)}
@@ -166,6 +175,14 @@ export function DeliverySlipsPanel({ bomId }: { bomId: string }) {
                     className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-indigo-950/40"
                   >
                     <Download className="h-3.5 w-3.5" aria-hidden /> Excel
+                  </a>
+                  <a
+                    href={slipPdfUrl(s.id)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-indigo-950/40"
+                  >
+                    <Printer className="h-3.5 w-3.5" aria-hidden /> In PDF
                   </a>
                 </div>
                 {open && (

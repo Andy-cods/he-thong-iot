@@ -168,6 +168,11 @@ async function setup(opts: { roles?: string[] } = {}) {
   }));
   vi.doMock("@/lib/db", () => ({ db: fakeDb }));
   vi.doMock("@/server/session", () => ({ requireCan }));
+  vi.doMock("@/server/services/bom-stage-notify-send", () => ({
+    notifyBomStageMoved: vi.fn(async () => undefined),
+    notifySlipCreated: vi.fn(async () => undefined),
+    notifySlipReceived: vi.fn(async () => undefined),
+  }));
   vi.doMock("@/server/services/audit", () => ({ writeAudit: vi.fn(async () => undefined) }));
   vi.doMock("drizzle-orm", async () => {
     const actual = await vi.importActual<typeof import("drizzle-orm")>("drizzle-orm");
