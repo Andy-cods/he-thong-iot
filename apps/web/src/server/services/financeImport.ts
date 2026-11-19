@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import ExcelJS from "exceljs";
+import { normalizeXlsxRels } from "./xlsxNormalize";
 import { eq, sql } from "drizzle-orm";
 import { finAccount, finCategory, finTransaction, supplier } from "@iot/db/schema";
 import { db } from "@/lib/db";
@@ -351,7 +352,7 @@ export async function parseFinanceWorkbook(
   const warnings: FinanceImportWarning[] = [];
 
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(Uint8Array.from(buffer).buffer);
+  await workbook.xlsx.load(Uint8Array.from(await normalizeXlsxRels(buffer)).buffer);
 
   const picked = selectDataSheet(workbook);
   if (!picked.sheet) {

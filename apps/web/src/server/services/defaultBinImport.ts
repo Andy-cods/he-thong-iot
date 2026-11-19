@@ -1,4 +1,5 @@
 import ExcelJS from "exceljs";
+import { normalizeXlsxRels } from "./xlsxNormalize";
 import { sanitizeExcelCellValue } from "./excelSafety";
 import { assertImportRowLimit } from "./importLimits";
 
@@ -216,7 +217,7 @@ export async function parseDefaultBinImportFile(
   refs: DefaultBinImportRefs,
 ): Promise<DefaultBinImportParseResult> {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(Uint8Array.from(buffer).buffer);
+  await workbook.xlsx.load(Uint8Array.from(await normalizeXlsxRels(buffer)).buffer);
   return parseDefaultBinWorkbook(workbook, refs);
 }
 
