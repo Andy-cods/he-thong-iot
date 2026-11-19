@@ -236,7 +236,8 @@ export async function POST(req: NextRequest) {
   // sẽ chuyển sang refresh token thật.
   // V3.8.2 — Tài khoản kiosk TV (role "display") được phiên 24h để TV không
   // bị đăng xuất; tài khoản thường giữ TTL ngắn mặc định cho an toàn.
-  const isKiosk = roleCodes.includes("display");
+  // V4.10 — tài khoản chung xưởng vệ tinh (workshop) cũng phiên 24h (Q1).
+  const isKiosk = roleCodes.includes("display") || roleCodes.includes("workshop");
   const sessionTtl = isKiosk ? env.JWT_KIOSK_TTL : env.JWT_ACCESS_TTL;
 
   const meta = extractRequestMeta(req);

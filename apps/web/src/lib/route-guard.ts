@@ -1,5 +1,6 @@
 import type { RbacEntity, Role } from "@iot/shared";
 import { canWithOverrides, type PermissionOverrideLite } from "./permissions";
+import { isModuleLockedRoles, isWorkshopPathAllowed } from "./shift-output/access";
 
 /**
  * V3.3 — Route → quyền truy cập trang (guard phía server trong `(app)/layout.tsx`).
@@ -99,6 +100,12 @@ export const ROUTE_GUARDS: RouteGuardRule[] = [
   // kế toán từ Đợt 3…) đều vào được — khớp API /api/suppliers/* (read:supplier).
   // Trước đây không có guard nên người không có quyền vào trang trắng lỗi 403.
   { prefix: "/suppliers", entities: ["supplier"] },
+  // V4.10 (TASK-20261118-001) — Sản lượng ca xưởng vệ tinh. Chỉ gate theo entity
+  // (không `roles`) để quản lý Song Châu mở được qua override GRANT (PLAN §3, Q3).
+  // Mục cụ thể trước: Báo cáo cần `shiftOutputReport`, Cài đặt cần `shiftOutputSetup`.
+  { prefix: "/san-luong/bao-cao", entities: ["shiftOutputReport"] },
+  { prefix: "/san-luong/cai-dat", entities: ["shiftOutputSetup"] },
+  { prefix: "/san-luong", entities: ["shiftOutput", "shiftOutputReport"] },
   // /notifications, /items, /orders, /, /me → không guard
 ];
 
@@ -117,6 +124,8 @@ export function isRouteAllowed(
   overrides: readonly PermissionOverrideLite[] = [],
 ): boolean {
   if (roles.includes("admin")) return true;
+  // V4.10 — tài khoản xưởng: allowlist cứng /san-luong + /me (trước cả guard thường).
+  if (isModuleLockedRoles(roles) && !isWorkshopPathAllowed(path)) return false;
   const g = findRouteGuard(path);
   if (!g) return true;
   if (g.roles && !g.roles.some((r) => roles.includes(r))) return false;

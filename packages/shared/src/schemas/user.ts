@@ -6,6 +6,23 @@ export const PASSWORD_MIN_LENGTH = 8;
 
 export const roleSchema = z.enum(ROLES);
 
+/**
+ * V4.10 (TASK-20261118-001) — tài khoản `workshop` (xưởng vệ tinh) là tài khoản
+ * CHUNG khoá vào 1 module + 1 site: KHÔNG được kiêm vai khác và BẮT BUỘC gắn site.
+ * Dùng chung cho tạo user (schema) và sửa user (route ghép trạng thái cũ + mới).
+ */
+export function workshopRoleIssue(
+  roles: readonly string[] | undefined,
+  siteId: string | null | undefined,
+): { path: "roles" | "siteId"; message: string } | null {
+  if (!roles || !roles.includes("workshop")) return null;
+  if (roles.length > 1) {
+    return { path: "roles", message: "Tài khoản xưởng (workshop) không được kiêm vai trò khác" };
+  }
+  if (!siteId) return { path: "siteId", message: "Tài khoản xưởng phải chọn xưởng (site)" };
+  return null;
+}
+
 export const userCreateSchema = z.object({
   username: z
     .string()
@@ -23,6 +40,11 @@ export const userCreateSchema = z.object({
     .min(PASSWORD_MIN_LENGTH, `Mật khẩu tối thiểu ${PASSWORD_MIN_LENGTH} ký tự`)
     .max(128),
   roles: z.array(roleSchema).min(1, "Phải chọn ít nhất 1 vai trò"),
+  /** V4.10 — xưởng (site) gắn với user; bắt buộc với vai `workshop`. */
+  siteId: z.string().uuid("Xưởng không hợp lệ").nullish(),
+}).superRefine((v, ctx) => {
+  const issue = workshopRoleIssue(v.roles, v.siteId);
+  if (issue) ctx.addIssue({ code: z.ZodIssueCode.custom, path: [issue.path], message: issue.message });
 });
 
 export const userUpdateSchema = z.object({
@@ -30,6 +52,8 @@ export const userUpdateSchema = z.object({
   email: z.string().trim().email().optional().nullable().or(z.literal("")),
   isActive: z.coerce.boolean().optional(),
   roles: z.array(roleSchema).optional(),
+  /** V4.10 — undefined = giữ nguyên; null = gỡ site; uuid = gán/đổi site. */
+  siteId: z.string().uuid("Xưởng không hợp lệ").nullable().optional(),
 });
 
 export const userListQuerySchema = z.object({
@@ -125,6 +149,10 @@ export const rbacEntitySchema = z.enum([
   "audit",
   "user",
   "session",
+  // V4.10 — mở Sản lượng ca cho quản lý Song Châu qua override (PLAN §3, Q3).
+  "shiftOutput",
+  "shiftOutputSetup",
+  "shiftOutputReport",
 ]);
 
 export const rbacActionSchema = z.enum([

@@ -35,6 +35,8 @@ const ROLE_PRIORITY: Record<Role, number> = {
   accountant: 1,
   // V4.0 — shareholder (Cổ đông) read-only hoàn toàn; ưu tiên thấp như display.
   shareholder: 0,
+  // V4.10 — workshop (xưởng vệ tinh): chỉ module Sản lượng ca, ưu tiên thấp nhất.
+  workshop: 0,
 };
 
 const ROLE_TO_PG: Record<Role, string> = {
@@ -54,6 +56,9 @@ const ROLE_TO_PG: Record<Role, string> = {
   // V4.0 — shareholder chưa có PG role riêng; map iot_operator (read-only).
   // Phân hệ Tài chính không gắn RLS policy — app-level RBAC là chính.
   shareholder: "iot_operator",
+  // V4.10 — workshop chưa có PG role riêng; bảng Sản lượng ca không gắn RLS —
+  // cô lập site ở app-level (server/shiftOutputScope.ts).
+  workshop: "iot_operator",
 };
 
 function pickHighestRole(roles: Role[] | null | undefined): Role | null {

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useQuery } from "@tanstack/react-query";
 import { AlertCircle } from "lucide-react";
 import type { Role } from "@iot/shared";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -19,6 +20,8 @@ export interface UserFormState {
   email: string;
   roles: Role[];
   isActive: boolean;
+  /** V4.10 — xưởng (site) cho vai `workshop` (Sản lượng ca). */
+  siteId?: string | null;
 }
 
 /**
@@ -61,6 +64,12 @@ export const ALL_ROLES: { code: Role; label: string; desc: string }[] = [
     label: "Cổ đông",
     desc: "Chỉ xem Tài chính (thu chi, công nợ) + tiến độ sản xuất",
   },
+  // V4.10 — Xưởng vệ tinh: tài khoản CHUNG của xưởng gia công (vd Đông Anh).
+  {
+    code: "workshop",
+    label: "Xưởng vệ tinh",
+    desc: "Tài khoản chung của xưởng gia công — chỉ Sản lượng ca của xưởng được chọn, phiên 24h. Không kiêm vai trò khác.",
+  },
 ];
 
 /** Tra nhãn Việt hoá theo mã vai trò — dùng chung cho badge ở list/detail user. */
@@ -83,7 +92,29 @@ export const ROLE_BADGE_CLASSES: Record<Role, string> = {
   display: "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:ring-sky-800",
   accountant: "bg-lime-50 text-lime-700 ring-lime-200 dark:bg-lime-950/40 dark:text-lime-400 dark:ring-lime-800",
   shareholder: "bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-200 dark:bg-fuchsia-950/40 dark:text-fuchsia-400 dark:ring-fuchsia-800",
+  workshop: "bg-stone-100 text-stone-700 ring-stone-300 dark:bg-stone-800 dark:text-stone-300 dark:ring-stone-700",
 };
+
+interface SiteOption {
+  id: string;
+  code: string;
+  name: string;
+  isActive: boolean;
+}
+
+/** V4.10 — danh sách xưởng cho ô chọn site của tài khoản xưởng. */
+function useSiteOptions(enabled: boolean) {
+  return useQuery<SiteOption[]>({
+    queryKey: ["shift-output", "sites"],
+    queryFn: async () => {
+      const res = await fetch("/api/shift-output/sites", { credentials: "include" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return ((await res.json()) as { data: SiteOption[] }).data;
+    },
+    enabled,
+    staleTime: 60_000,
+  });
+}
 
 export interface UserFormProps {
   mode: "create" | "edit";
@@ -101,11 +132,18 @@ export function UserForm({
   disabled,
 }: UserFormProps) {
   const toggleRole = (r: Role) => {
-    const next = value.roles.includes(r)
+    let next = value.roles.includes(r)
       ? value.roles.filter((x) => x !== r)
       : [...value.roles, r];
+    // V4.10 — tài khoản xưởng KHÔNG kiêm vai khác: chọn workshop → chỉ còn
+    // workshop; chọn vai khác khi đang là workshop → bỏ workshop.
+    if (!value.roles.includes(r)) {
+      next = r === "workshop" ? ["workshop"] : next.filter((x) => x !== "workshop");
+    }
     onChange({ roles: next });
   };
+  const isWorkshop = value.roles.includes("workshop");
+  const sites = useSiteOptions(isWorkshop);
 
   return (
     <div className="space-y-6">
@@ -264,6 +302,34 @@ export function UserForm({
             <AlertCircle className="h-3 w-3" aria-hidden="true" />
             {errors.roles}
           </p>
+        ) : null}
+        {isWorkshop ? (
+          <div className="mt-4 max-w-sm">
+            <FieldShell label="Xưởng" required error={errors.siteId} htmlFor="user-site">
+              <select
+                id="user-site"
+                value={value.siteId ?? ""}
+                onChange={(e) => onChange({ siteId: e.target.value || null })}
+                disabled={disabled || sites.isLoading}
+                className={cn(
+                  "h-9 w-full rounded-md border bg-white px-3 text-sm text-zinc-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:bg-zinc-900 dark:text-zinc-50",
+                  errors.siteId ? "border-rose-400" : "border-zinc-200 dark:border-zinc-700",
+                )}
+              >
+                <option value="">{sites.isLoading ? "Đang tải…" : "— Chọn xưởng —"}</option>
+                {(sites.data ?? [])
+                  .filter((s) => s.isActive || s.id === value.siteId)
+                  .map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.code} — {s.name}
+                    </option>
+                  ))}
+              </select>
+            </FieldShell>
+            {sites.isError ? (
+              <p className="mt-1 text-[11px] text-rose-600 dark:text-rose-400">Không tải được danh sách xưởng.</p>
+            ) : null}
+          </div>
         ) : null}
       </Section>
     </div>

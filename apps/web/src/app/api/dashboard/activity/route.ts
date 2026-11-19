@@ -4,7 +4,7 @@ import { auditEvent, userAccount } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { jsonError } from "@/server/http";
-import { forbidden, getSession, isDisplayKiosk, unauthorized } from "@/server/session";
+import { forbidden, getSession, isDisplayKiosk, isModuleLockedAccount, unauthorized } from "@/server/session";
 import { cacheGetJson, cacheSetJson } from "@/server/services/redis";
 
 export const runtime = "nodejs";
@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getSession(req);
     if (!session) return unauthorized();
-    if (isDisplayKiosk(session)) return forbidden(); // V3.11.4 (audit S.8)
+    if (isDisplayKiosk(session) || isModuleLockedAccount(session)) return forbidden(); // V3.11.4 (audit S.8) + V4.10 tài khoản xưởng
 
     const limitRaw = Number(req.nextUrl.searchParams.get("limit") ?? "10");
     const limit = Number.isFinite(limitRaw)

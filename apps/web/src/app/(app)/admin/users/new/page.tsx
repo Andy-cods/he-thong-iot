@@ -30,6 +30,7 @@ export default function AdminUsersNewPage() {
     email: "",
     roles: ["operator"],
     isActive: true,
+    siteId: null,
   });
 
   const [password, setPassword] = React.useState<string>(() =>
@@ -61,9 +62,12 @@ export default function AdminUsersNewPage() {
   const validateStep2 = (): boolean => {
     const e: Partial<Record<keyof UserFormState, string>> = { ...errors };
     delete e.roles;
+    delete e.siteId;
     if (form.roles.length === 0) e.roles = "Phải chọn ít nhất 1 vai trò";
+    // V4.10 — tài khoản xưởng bắt buộc chọn xưởng.
+    if (form.roles.includes("workshop") && !form.siteId) e.siteId = "Chọn xưởng cho tài khoản xưởng";
     setErrors(e);
-    return !e.roles;
+    return !e.roles && !e.siteId;
   };
 
   const handleNext = () => {
@@ -85,6 +89,7 @@ export default function AdminUsersNewPage() {
         email: form.email.trim() || undefined,
         password,
         roles: form.roles,
+        siteId: form.roles.includes("workshop") ? (form.siteId ?? null) : null,
       });
       toast.success(
         `Tạo user ${res.data.username} thành công — mật khẩu tạm: ${password}`,

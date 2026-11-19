@@ -54,6 +54,11 @@ const ENTITY_LABELS: Record<RbacEntityKey, string> = {
   qcInspection: "QC nhập kho",
   // V4.1 Đợt 1b.
   materialRequest: "Yêu cầu vật tư",
+  stocktake: "Kiểm kê kho",
+  // V4.10 — Sản lượng ca xưởng vệ tinh (mở cho quản lý qua override).
+  shiftOutput: "Sản lượng ca",
+  shiftOutputSetup: "Sản lượng ca — Cài đặt",
+  shiftOutputReport: "Sản lượng ca — Báo cáo",
 };
 
 const ACTION_LABELS: Record<RbacActionKey, string> = {

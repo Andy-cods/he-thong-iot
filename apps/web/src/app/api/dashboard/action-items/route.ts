@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { logger } from "@/lib/logger";
 import { bucketActionItemsByEntityType } from "@/lib/dashboard-action-items";
 import { jsonError } from "@/server/http";
-import { forbidden, getSession, isDisplayKiosk, unauthorized } from "@/server/session";
+import { forbidden, getSession, isDisplayKiosk, isModuleLockedAccount, unauthorized } from "@/server/session";
 import { cacheGetJson, cacheSetJson } from "@/server/services/redis";
 import { actionItemsCacheKey } from "@/server/services/dashboard-cache";
 import { getActionItemsForUser } from "@/server/services/notifications";
@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getSession(req);
     if (!session) return unauthorized();
-    if (isDisplayKiosk(session)) return forbidden(); // V3.11.4 (audit S.8)
+    if (isDisplayKiosk(session) || isModuleLockedAccount(session)) return forbidden(); // V3.11.4 (audit S.8) + V4.10 tài khoản xưởng
 
     const cacheKey = actionItemsCacheKey(session.userId);
     const fresh = req.nextUrl.searchParams.get("fresh") === "1";

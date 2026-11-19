@@ -1,4 +1,5 @@
 import {
+  ClipboardList,
   Factory,
   Landmark,
   LayoutDashboard,
@@ -16,6 +17,7 @@ import { canAny } from "@iot/shared";
 import type { PermissionOverrideLite } from "./permissions";
 import { isRouteAllowed } from "./route-guard";
 import { isHiddenHref } from "./hidden-features";
+import { isModuleLockedRoles, WORKSHOP_HOME } from "./shift-output/access";
 
 /**
  * Redesign V3 — nav-items registry.
@@ -184,6 +186,16 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ["qc"],
     section: "operations",
   },
+  // V4.10 (TASK-20261118-001) — Sản lượng ca xưởng vệ tinh (Đông Anh). Gate
+  // theo entity: admin + workshop mặc định; quản lý khác mở qua override.
+  // Tài khoản xưởng (workshop) CHỈ thấy đúng mục này (filterNavByRoles).
+  {
+    href: WORKSHOP_HOME,
+    label: "Sản lượng ca",
+    icon: ClipboardList,
+    entities: ["shiftOutput", "shiftOutputReport"],
+    section: "operations",
+  },
   // --- Bộ phận Thu mua — PO + Nhà cung cấp (Tài chính đã tách hub riêng) ---
   // TASK-20261001 — bỏ accountant/shareholder khỏi `roles` (trước đây để họ
   // vào /sales xem tab Tài chính con — nay dùng /finance). CỐ Ý dùng `roles`
@@ -255,6 +267,8 @@ export function filterNavByRoles(
   // ráp kiểu cũ) không bao giờ hiện trong nav / command palette.
   const visible = items.filter((it) => !isHiddenHref(it.href));
   if (!userRoles || userRoles.length === 0) return visible;
+  // V4.10 — tài khoản xưởng chỉ thấy "Sản lượng ca" (kể cả không thấy Tổng quan).
+  if (isModuleLockedRoles(userRoles)) return visible.filter((it) => it.href === WORKSHOP_HOME);
   return visible.filter((it) => {
     if (it.entities && it.entities.length > 0) {
       const anyEntity = it.entities.some((e) => canAny(userRoles, e));

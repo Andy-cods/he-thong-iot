@@ -10,7 +10,7 @@ import {
 } from "./matrix";
 
 describe("RBAC matrix — shape + consistency", () => {
-  it("có đủ 9 role × 23 entity × 6 action (V4.1 Đợt 1a goodsIssue + qcInspection, 1b materialRequest, V4.3 stocktake)", () => {
+  it("có đủ 10 role × 26 entity × 6 action (V4.1 Đợt 1a goodsIssue + qcInspection, 1b materialRequest, V4.3 stocktake, V4.10 workshop + 3 entity Sản lượng ca)", () => {
     expect(Object.keys(RBAC_MATRIX)).toEqual([
       "admin",
       "planner",
@@ -21,8 +21,9 @@ describe("RBAC matrix — shape + consistency", () => {
       "display",
       "accountant",
       "shareholder",
+      "workshop",
     ]);
-    expect(RBAC_ENTITIES).toHaveLength(23);
+    expect(RBAC_ENTITIES).toHaveLength(26);
     expect(RBAC_ACTIONS).toHaveLength(6);
   });
 
@@ -267,6 +268,41 @@ describe("can() — assert 48+ cell từ matrix (§4 brainstorm)", () => {
   });
 });
 
+describe("V4.10 — workshop (Xưởng vệ tinh) chỉ có 3 entity Sản lượng ca", () => {
+  const SHIFT_ENTITIES: RbacEntity[] = ["shiftOutput", "shiftOutputSetup", "shiftOutputReport"];
+
+  it("workshop KHÔNG có quyền nào ngoài 3 entity Sản lượng ca", () => {
+    for (const e of RBAC_ENTITIES) {
+      expect({ e, any: canAny(["workshop"], e) }).toEqual({ e, any: SHIFT_ENTITIES.includes(e) });
+    }
+  });
+
+  it.each([
+    ["create", "shiftOutput", true],
+    ["read", "shiftOutput", true],
+    ["update", "shiftOutput", true],
+    ["delete", "shiftOutput", true],
+    ["approve", "shiftOutput", false], // không chốt ca / sửa dòng khoá
+    ["read", "shiftOutputSetup", true],
+    ["create", "shiftOutputSetup", true],
+    ["update", "shiftOutputSetup", false],
+    ["delete", "shiftOutputSetup", false],
+    ["read", "shiftOutputReport", true],
+  ] as Array<[RbacAction, RbacEntity, boolean]>)("can([workshop], %s, %s) === %s", (action, entity, expected) => {
+    expect(can(["workshop"], action, entity)).toBe(expected);
+  });
+
+  it("admin toàn quyền Sản lượng ca (kể cả approve); vai khác mặc định không có", () => {
+    expect(can(["admin"], "approve", "shiftOutput")).toBe(true);
+    expect(can(["admin"], "delete", "shiftOutputSetup")).toBe(true);
+    expect(can(["admin"], "read", "shiftOutputReport")).toBe(true);
+    const others = Object.keys(RBAC_MATRIX).filter((r) => r !== "admin" && r !== "workshop") as Role[];
+    for (const r of others) {
+      for (const e of SHIFT_ENTITIES) expect({ r, e, any: canAny([r], e) }).toEqual({ r, e, any: false });
+    }
+  });
+});
+
 describe("canAny() — nav filter shortcut", () => {
   it("admin luôn true cho entity bất kỳ", () => {
     for (const e of RBAC_ENTITIES) {
@@ -294,6 +330,10 @@ describe("canAny() — nav filter shortcut", () => {
       "session",
       // V4.3 Việc 2 — kiểm kê kho thuộc Kho + Giám đốc, planner không đụng.
       "stocktake",
+      // V4.10 — Sản lượng ca xưởng vệ tinh: chỉ admin + workshop (khác mở qua override).
+      "shiftOutput",
+      "shiftOutputSetup",
+      "shiftOutputReport",
     ];
     for (const e of RBAC_ENTITIES) {
       if (plannerExcluded.includes(e)) {

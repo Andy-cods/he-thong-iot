@@ -62,6 +62,13 @@ export const SEGMENT_LABELS: Record<string, string> = {
   // như đã làm cho `bomCode` — ngoài phạm vi UI nhóm D, xem status-D.md).
   "lot-serial": "Vật tư",
   finance: "Tài chính",
+  // V4.10 — Sản lượng ca xưởng vệ tinh.
+  "san-luong": "Sản lượng ca",
+  "hom-nay": "Hôm nay",
+  nhap: "Nhập ca",
+  "lich-su": "Lịch sử",
+  "bao-cao": "Báo cáo",
+  "cai-dat": "Cài đặt",
   notifications: "Thông báo",
   me: "Cá nhân",
   profile: "Hồ sơ",

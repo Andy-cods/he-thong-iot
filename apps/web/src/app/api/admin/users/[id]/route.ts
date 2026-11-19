@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { userUpdateSchema } from "@iot/shared";
+import { userUpdateSchema, workshopRoleIssue } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import { getUserById, updateUser } from "@/server/repos/userAccounts";
 import { revokeAllUserSessions } from "@/server/repos/sessions";
@@ -11,6 +11,7 @@ import {
 import { writeAudit, diffObjects } from "@/server/services/audit";
 import { requireCan } from "@/server/session";
 import { isSelfAdminDemotion } from "@/lib/admin-guards";
+import { getSiteById } from "@/server/repos/shiftOutputSetup";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -69,6 +70,17 @@ export async function PATCH(
     );
   }
 
+  // V4.10 — tài khoản xưởng: không kiêm vai khác + bắt buộc có xưởng (ghép
+  // trạng thái cũ với patch: đổi vai/site riêng lẻ vẫn phải giữ đúng luật).
+  const nextRoles = body.data.roles ?? before.roles;
+  const nextSiteId = body.data.siteId !== undefined ? body.data.siteId : before.siteId;
+  const wsIssue = workshopRoleIssue(nextRoles, nextSiteId);
+  if (wsIssue) return jsonError("VALIDATION_ERROR", wsIssue.message, 422, { field: wsIssue.path });
+  if (body.data.siteId) {
+    const site = await getSiteById(body.data.siteId);
+    if (!site || !site.isActive) return jsonError("SITE_NOT_FOUND", "Xưởng không tồn tại hoặc đã ngừng.", 422);
+  }
+
   try {
     const updated = await updateUser(params.id, {
       fullName: body.data.fullName,
@@ -81,7 +93,8 @@ export async function PATCH(
       isActive:
         typeof body.data.isActive === "boolean" ? body.data.isActive : undefined,
       roles: body.data.roles,
-    });
+      siteId: body.data.siteId,
+    }, guard.session.userId);
     if (!updated) return jsonError("NOT_FOUND", "Không tìm thấy user.", 404);
 
     // V4.1 AD-04: khoá tài khoản / đổi vai trò phải có hiệu lực ngay — trước đây
@@ -92,7 +105,9 @@ export async function PATCH(
     const rolesChanged =
       body.data.roles !== undefined &&
       [...body.data.roles].sort().join(",") !== [...before.roles].sort().join(",");
-    if ((deactivated || rolesChanged) && guard.session.userId !== params.id) {
+    // V4.10 — đổi xưởng của tài khoản xưởng cũng thu hồi phiên (phạm vi đổi ngay).
+    const siteChanged = body.data.siteId !== undefined && body.data.siteId !== before.siteId;
+    if ((deactivated || rolesChanged || siteChanged) && guard.session.userId !== params.id) {
       const revoked = await revokeAllUserSessions(params.id);
       logger.info(
         { id: params.id, revoked, deactivated, rolesChanged },

@@ -13,6 +13,7 @@ import {
   parseSearchParams,
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
+import { getSiteById } from "@/server/repos/shiftOutputSetup";
 import { requireCan } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -53,6 +54,12 @@ export async function POST(req: NextRequest) {
   const body = await parseJson(req, userCreateSchema);
   if ("response" in body) return body.response;
 
+  // V4.10 — xưởng phải tồn tại + đang hoạt động (workshop bắt buộc có — schema).
+  if (body.data.siteId) {
+    const site = await getSiteById(body.data.siteId);
+    if (!site || !site.isActive) return jsonError("SITE_NOT_FOUND", "Xưởng không tồn tại hoặc đã ngừng.", 422);
+  }
+
   const available = await checkUsernameAvailable(body.data.username);
   if (!available) {
     return jsonError(
@@ -70,6 +77,7 @@ export async function POST(req: NextRequest) {
         email: body.data.email || null,
         password: body.data.password,
         roles: body.data.roles,
+        siteId: body.data.siteId ?? null,
       },
       guard.session.userId,
     );
@@ -86,6 +94,7 @@ export async function POST(req: NextRequest) {
         fullName: row.fullName,
         email: row.email,
         roles: body.data.roles,
+        siteId: body.data.siteId ?? null,
       },
       ...meta,
     });

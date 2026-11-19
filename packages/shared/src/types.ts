@@ -5,6 +5,8 @@
  * V3.8.2: thêm "display" — tài khoản kiosk TV, CHỈ xem /board (read-only), phiên 24h.
  * V3.9: thêm "accountant" (Bộ phận Kế toán) — nhận phiếu YCVT đã duyệt, tải PDF/Excel.
  * V4.0: thêm "shareholder" (Cổ đông) — READ-ONLY báo cáo Tài chính + tiến độ sản xuất.
+ * V4.10 (TASK-20261118-001): thêm "workshop" (Xưởng vệ tinh) — tài khoản CHUNG của xưởng gia công
+ *       (vd Đông Anh), CHỈ vào module Sản lượng ca (/san-luong) + /me, gắn đúng 1 site, phiên 24h.
  *       Giám đốc KHÔNG có role riêng: dùng "admin" sẵn có.
  * Mapping bộ phận:
  *   - planner    → engineer (Bộ phận Thiết kế)
@@ -17,7 +19,7 @@
  *   - shareholder→ Cổ đông (xem báo cáo Tài chính + tiến độ sản xuất, read-only)
  *   - admin      → toàn quyền (bao gồm vai trò Giám đốc)
  */
-export const ROLES = ["admin", "planner", "warehouse", "operator", "purchaser", "qc", "display", "accountant", "shareholder"] as const;
+export const ROLES = ["admin", "planner", "warehouse", "operator", "purchaser", "qc", "display", "accountant", "shareholder", "workshop"] as const;
 export type Role = (typeof ROLES)[number];
 
 /** JWT access token payload (tối thiểu). */

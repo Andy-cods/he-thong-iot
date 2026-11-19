@@ -99,6 +99,8 @@ describe("NAV_ITEMS V3.1 cấu trúc 7 section", () => {
       "/operations",
       "/production-board",
       "/warehouse?tab=movement&mode=qc",
+      // V4.10 — Sản lượng ca xưởng vệ tinh.
+      "/san-luong",
     ]);
   });
 

@@ -76,6 +76,7 @@ export default function AdminUserDetailPage({
         email: query.data.data.email ?? "",
         roles: query.data.data.roles,
         isActive: query.data.data.isActive,
+        siteId: query.data.data.siteId ?? null,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -131,6 +132,7 @@ export default function AdminUserDetailPage({
     form.fullName !== user.fullName ||
     form.email !== (user.email ?? "") ||
     form.isActive !== user.isActive ||
+    (form.siteId ?? null) !== (user.siteId ?? null) ||
     JSON.stringify([...form.roles].sort()) !==
       JSON.stringify([...user.roles].sort());
 
@@ -149,12 +151,19 @@ export default function AdminUserDetailPage({
       );
       return;
     }
+    // V4.10 — tài khoản xưởng bắt buộc có xưởng.
+    if (form.roles.includes("workshop") && !form.siteId) {
+      toast.error("Chọn xưởng cho tài khoản xưởng.");
+      return;
+    }
     try {
       await update.mutateAsync({
         fullName: form.fullName.trim(),
         email: form.email.trim() || null,
         isActive: form.isActive,
         roles: form.roles,
+        // Bỏ vai xưởng → gỡ site; còn vai xưởng → gửi site đang chọn.
+        siteId: form.roles.includes("workshop") ? (form.siteId ?? null) : user.siteId ? null : undefined,
       });
       toast.success("Đã lưu thay đổi.");
     } catch (err) {

@@ -31,4 +31,6 @@ export * from "./delivery-note";
 export * from "./goods-issue";
 // V4.3 Việc 2 — kiểm kê kho.
 export * from "./stocktake";
+// V4.10 (TASK-20261118-001) — Sản lượng ca xưởng vệ tinh.
+export * from "./shift-output";
 export { appSchema } from "./_schema";
