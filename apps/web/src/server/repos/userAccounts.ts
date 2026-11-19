@@ -1,8 +1,9 @@
 import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
-import { role, userAccount, userRole } from "@iot/db/schema";
+import { role, userAccount, userRole, userSite } from "@iot/db/schema";
 import type { Role } from "@iot/shared";
 import { hashPassword, verifyPassword } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { setUserSite } from "./shiftOutputSetup";
 
 export interface UserListQuery {
   q?: string;
@@ -125,7 +126,14 @@ export async function getUserById(id: string) {
     .innerJoin(role, eq(role.id, userRole.roleId))
     .where(eq(userRole.userId, id));
 
-  return { ...row, roles: roles.map((r) => r.code as Role) };
+  // V4.10 — xưởng (site) gắn với user (Sản lượng ca). Bảng có từ 0087b.
+  const [siteRow] = await db
+    .select({ siteId: userSite.siteId })
+    .from(userSite)
+    .where(eq(userSite.userId, id))
+    .limit(1);
+
+  return { ...row, roles: roles.map((r) => r.code as Role), siteId: siteRow?.siteId ?? null };
 }
 
 export interface UserCreateInput {
@@ -134,6 +142,8 @@ export interface UserCreateInput {
   email?: string | null;
   password: string;
   roles: Role[];
+  /** V4.10 — xưởng gắn với user (bắt buộc với workshop — schema đã kiểm). */
+  siteId?: string | null;
 }
 
 export async function createUser(input: UserCreateInput, actorId: string | null) {
@@ -172,6 +182,8 @@ export async function createUser(input: UserCreateInput, actorId: string | null)
       }
     }
 
+    if (input.siteId) await setUserSite(tx, row.id, input.siteId, actorId);
+
     return row;
   });
 }
@@ -181,9 +193,11 @@ export interface UserUpdateInput {
   email?: string | null;
   isActive?: boolean;
   roles?: Role[];
+  /** V4.10 — undefined giữ nguyên; null gỡ; uuid gán/đổi xưởng. */
+  siteId?: string | null;
 }
 
-export async function updateUser(id: string, patch: UserUpdateInput) {
+export async function updateUser(id: string, patch: UserUpdateInput, actorId: string | null = null) {
   return await db.transaction(async (tx) => {
     const values: Record<string, unknown> = { updatedAt: new Date() };
     if (patch.fullName !== undefined) values.fullName = patch.fullName;
@@ -225,6 +239,8 @@ export async function updateUser(id: string, patch: UserUpdateInput) {
         }
       }
     }
+
+    if (patch.siteId !== undefined) await setUserSite(tx, id, patch.siteId, actorId);
 
     return updated;
   });

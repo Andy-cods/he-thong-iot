@@ -123,6 +123,29 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
+### TASK-20261118-001 — Sản lượng ca Đông Anh P1
+- **Trạng thái:** IN_PROGRESS (code xong trên nhánh, CHƯA deploy — chờ Thang duyệt + áp migration tay)
+- **Tạo:** 2026-11-18 (+07) bởi Claude (planner) · **Phụ trách:** Claude · **Ưu tiên:** P1
+- **Bắt đầu:** 2026-11-18 (+07) — nhánh `feat/shift-output-p1` (worktree `C:/dev/he-thong-iot-shift-output`)
+- **Kế hoạch:** `plans/shift-output-dongan/PLAN.md` (thư mục tài liệu ERP), mặc định §8.
+
+**Mô tả:** Module "Sản lượng ca" cho xưởng tiện CNC Đông Anh trong MES: site nhẹ + role `workshop`
+(tài khoản chung khoá vào /san-luong + site của mình), Nhập ca mobile ≤30s/dòng + hàng đợi offline,
+Hôm nay, Lịch sử (sửa/xoá mềm có audit, chốt ca), Báo cáo + Excel, Cài đặt danh mục.
+
+**Acceptance criteria (DoD):**
+- [x] Migrations 0087a (enum, ngoài transaction) + 0087b (11 bảng + seed DONGAN) + smoke ROLLBACK chạy được (Postgres 16 local, smoke 24 OK)
+- [x] RBAC `shiftOutput`/`shiftOutputSetup`/`shiftOutputReport`; workshop chỉ 3 entity, khoá /san-luong + /me, 403 API khác, 404 khác site
+- [x] API `/api/shift-output/*` (context, entries, bulk, history, locks, board, reports, export, setup, sites)
+- [x] UI 5 tab, mobile-first, hàng đợi offline "Chờ gửi"
+- [x] Typecheck 3 package + test shared/web + build env CI PASS
+- [ ] Deploy prod (backup → 0087a → 0087b → smoke → push → E2E prod) — CHƯA làm
+
+**Output / log:** 2026-11-19 (+07) — nhánh `feat/shift-output-p1`. shared 431 test PASS, web 1337 test PASS (95 file),
+typecheck 3 package PASS, build env CI PASS. E2E API trên app local + Postgres local: 59/59 PASS (replay, 409, offline bulk,
+khoá tài khoản xưởng 307/403, cô lập site 404, chốt ca, sửa dòng khoá cần lý do, Excel 2 sheet). Ảnh: plans/shift-output-dongan/screens/p1/
+(thư mục tài liệu ERP). Báo cáo: plans/shift-output-dongan/reports/P1_REPORT.md.
+
 ### TASK-20260927-001 — V4.1 Đợt 2–7 (Thu mua, Tài chính nguồn thu/chi, Sản xuất, Quản trị, Giao diện, Dọn dẹp)
 - **Trạng thái:** DONE · **Hoàn thành:** 2026-09-27 02:45 (+07) · **Ưu tiên:** P1
 - Thang giao tự quyết D7-D10 theo khuyến nghị và tự chạy đến hết Đợt 7 (E2E trên prod rồi xoá dữ liệu test).

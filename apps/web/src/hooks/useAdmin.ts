@@ -27,6 +27,8 @@ export interface AdminUserListRow {
 
 export interface AdminUserDetail extends AdminUserListRow {
   updatedAt: string;
+  /** V4.10 — xưởng (site) gắn với user — Sản lượng ca. */
+  siteId?: string | null;
 }
 
 export interface AuditRow {
@@ -146,6 +148,7 @@ export function useUpdateUser(id: string) {
                 ? patch.isActive
                 : prev.data.isActive,
             roles: patch.roles ?? prev.data.roles,
+            siteId: patch.siteId === undefined ? prev.data.siteId : patch.siteId,
           },
         });
       }
@@ -218,7 +221,12 @@ export type RbacEntityKey =
   | "goodsIssue"
   | "qcInspection"
   // V4.1 Đợt 1b — phiếu yêu cầu vật tư.
-  | "materialRequest";
+  | "materialRequest"
+  // V4.3 — kiểm kê kho; V4.10 — Sản lượng ca xưởng vệ tinh.
+  | "stocktake"
+  | "shiftOutput"
+  | "shiftOutputSetup"
+  | "shiftOutputReport";
 
 export type OverrideKind = "GRANT" | "DENY" | null;
 export type EffectiveSource = "role" | "override-grant" | "override-deny";

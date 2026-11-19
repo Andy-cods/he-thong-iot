@@ -37,6 +37,8 @@ phải apply thủ công qua `psql` bằng script
 | `0059_qc_hold.sql`                 | `hethong_app`| **V4.1 Đợt 1a** — QC HOLD hàng nhận (`inventory_lot_serial.hold_code`), QC theo dòng phiếu nhập (`inbound_receipt_line.lot_serial_id/qc_*`), view tồn chuẩn `app.v_lot_stock`/`app.v_item_stock`, trigger `inventory_txn_lot_guard` chặn xuất lô không AVAILABLE. Apply TRƯỚC khi deploy code 1a |
 | `0060_goods_issue.sql`             | `hethong_app`| **V4.1 Đợt 1b** — Phiếu xuất kho `app.goods_issue`/`goods_issue_line` (PX-YYMM-NNNN, unique 1 phiếu/ISR), `material_request.status` thêm `PARTIAL` (thay CHECK cũ của 0033), CHECK `inventory_txn_out_requires_bin` NOT VALID (txn xuất phải có bin). Apply SAU khi code 1a chạy prod, TRƯỚC khi deploy code 1b |
 | `0067_pr_goods_issue_link.sql`     | `hethong_app`| **V4.2 "Trừ tồn luôn"** — `goods_issue.purchase_request_id` + `goods_issue_line.purchase_request_line_id` (nguồn PR khi Kho "Đã xuất kho" chọn lô/bin trừ tồn thật), unique 1 phiếu xuất/PR (`goods_issue_pr_uk`), `source_type` CHECK thêm `'PURCHASE_REQUEST'`. Apply SAU 0059+0060 |
+| `0087a_shift_output_role.sql`     | `hethong_app`| **V4.10 Sản lượng ca** — ADD VALUE `workshop` vào enum `role_code` (lặp `app` + `public`). **NGOÀI transaction** (không `--single-transaction`), chạy TRƯỚC 0087b |
+| `0087b_shift_output.sql`           | `hethong_app`| **V4.10 Sản lượng ca** — 11 bảng (`site`, `user_site`, `site_*` danh mục, `shift_output_entry/defect/downtime`), FK ghép theo site, CHECK, role `workshop`, seed site `DONGAN` (CNC-01/02, CA1 08–12, CA2 13–17, CA3 18–22, 10 lý do lỗi, 10 lý do dừng). Smoke: `0087b_shift_output_smoke.sql` (ROLLBACK). Apply TRƯỚC khi deploy code |
 
 ### Flow apply V1.1-alpha
 

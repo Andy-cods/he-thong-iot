@@ -38,6 +38,8 @@ const PROTECTED_PREFIXES = [
   // /reservations, /qc-checks; /eco, /shortage, /import chuyển hướng ở next.config.js).
   "/me",
   "/finance",
+  // V4.10 (TASK-20261118-001) — Sản lượng ca xưởng vệ tinh.
+  "/san-luong",
 ];
 
 function isProtected(pathname: string): boolean {
@@ -123,5 +125,7 @@ export const config = {
     // V4.1 Đợt 7 — /qc-inbound có trong PROTECTED_PREFIXES (Đợt 1a) nhưng thiếu
     // ở matcher → middleware không chạy (không x-pathname cho guard role).
     "/qc-inbound/:path*",
+    // V4.10 — Sản lượng ca: cần x-pathname để layout khoá tài khoản xưởng + guard.
+    "/san-luong/:path*",
   ],
 };

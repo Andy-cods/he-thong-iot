@@ -14,6 +14,7 @@ const ALL_ROLES: Role[] = [
   "qc",
   "accountant",
   "shareholder",
+  "workshop",
 ];
 
 describe("V4.1 AD-19 — canWithOverrides (deny > role > grant)", () => {
@@ -177,5 +178,45 @@ describe("V4.1 AD-02 — phạm vi nhật ký cho người không phải admin",
     for (const t of ["user_account", "session", "login_failed", "user_permission_override", "không_rõ"]) {
       expect(auditObjectEntity(t)).toBeNull();
     }
+  });
+});
+
+
+/* V4.10 (TASK-20261118-001) — tài khoản CHUNG xưởng vệ tinh (workshop). */
+describe("V4.10 — workshop khoá vào /san-luong + /me", () => {
+  it("menu workshop CHỈ có 'Sản lượng ca' (không cả Tổng quan); Ctrl+K cũng vậy", () => {
+    const nav = filterNavForUser(NAV_ITEMS, ["workshop"]);
+    expect(nav.map((i) => i.href)).toEqual(["/san-luong"]);
+    expect(navToCommandItems(nav).map((c) => c.href)).toEqual(["/san-luong"]);
+  });
+
+  it("route-guard: chỉ /san-luong/* + /me/* vào được", () => {
+    for (const p of ["/san-luong", "/san-luong/nhap", "/san-luong/bao-cao", "/me", "/me/change-password"]) {
+      expect({ p, ok: isRouteAllowed(p, ["workshop"]) }).toEqual({ p, ok: true });
+    }
+    for (const p of ["/", "/items", "/orders", "/notifications", "/engineering", "/production-board", "/admin", "/finance"]) {
+      expect({ p, ok: isRouteAllowed(p, ["workshop"]) }).toEqual({ p, ok: false });
+    }
+  });
+
+  it("workshop KHÔNG vào được Cài đặt nếu bị DENY override; admin kiêm workshop không bị khoá", () => {
+    expect(isRouteAllowed("/san-luong/cai-dat", ["workshop"])).toBe(true);
+    expect(
+      isRouteAllowed("/san-luong/cai-dat", ["workshop"], [{ entity: "shiftOutputSetup", action: "read", granted: false }]),
+    ).toBe(false);
+    expect(isRouteAllowed("/", ["admin", "workshop"])).toBe(true);
+    expect(filterNavForUser(NAV_ITEMS, ["admin", "workshop"]).map((i) => i.href)).toContain("/");
+  });
+
+  it("vai khác không thấy/không vào Sản lượng ca trừ khi được GRANT", () => {
+    for (const r of ["planner", "operator", "warehouse", "purchaser", "qc", "accountant", "shareholder"] as Role[]) {
+      expect(filterNavForUser(NAV_ITEMS, [r]).map((i) => i.href)).not.toContain("/san-luong");
+      expect(isRouteAllowed("/san-luong", [r])).toBe(false);
+    }
+    const grant = [{ entity: "shiftOutputReport" as const, action: "read" as const, granted: true }];
+    expect(isRouteAllowed("/san-luong/bao-cao", ["planner"], grant)).toBe(true);
+    expect(isRouteAllowed("/san-luong", ["planner"], grant)).toBe(true);
+    expect(isRouteAllowed("/san-luong/cai-dat", ["planner"], grant)).toBe(false);
+    expect(filterNavForUser(NAV_ITEMS, ["admin"]).map((i) => i.href)).toContain("/san-luong");
   });
 });

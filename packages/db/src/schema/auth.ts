@@ -18,6 +18,7 @@ import { appSchema } from "./_schema";
  * V3.8.2 thêm "display" (kiosk TV — chỉ xem bảng).
  * V3.9 thêm "accountant" (Bộ phận Kế toán — nhận YCVT đã duyệt, tải PDF/Excel).
  * V4.0 thêm "shareholder" (Cổ đông — read-only Tài chính + tiến độ sản xuất).
+ * V4.10 thêm "workshop" (Xưởng vệ tinh — tài khoản chung, chỉ Sản lượng ca; 0087a).
  * Khớp với ROLES trong @iot/shared.
  */
 export const roleCodeEnum = pgEnum("role_code", [
@@ -30,6 +31,7 @@ export const roleCodeEnum = pgEnum("role_code", [
   "display",
   "accountant",
   "shareholder",
+  "workshop",
 ]);
 
 /** Bảng 1: user_account */

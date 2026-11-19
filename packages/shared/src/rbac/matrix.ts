@@ -60,7 +60,15 @@ export type RbacEntity =
   // đếm sau khi bị trả (REJECTED→DRAFT); `approve` = CHỈ Giám đốc (admin) chốt
   // ghi điều chỉnh tồn HOẶC trả lại kèm lý do — quyết định nghiệp vụ cứng
   // (chốt 2026-09-30), kiểm cả RBAC lẫn hard-check role ở route như deliveryNote.
-  | "stocktake";
+  | "stocktake"
+  // V4.10 (TASK-20261118-001) — Sản lượng ca xưởng vệ tinh (Đông Anh).
+  // `shiftOutput`: dòng sản lượng ca (create/read/update/delete; `approve` =
+  // sửa/xoá dòng đã KHOÁ + Chốt ca/ngày + nhập lùi quá hạn). `shiftOutputSetup`:
+  // danh mục máy/ca/mã hàng/người/lý do + thiết lập xưởng. `shiftOutputReport`:
+  // báo cáo + xuất Excel. Ngoài admin + workshop, vai khác mở qua override.
+  | "shiftOutput"
+  | "shiftOutputSetup"
+  | "shiftOutputReport";
 
 /** Partial vì không phải role nào cũng có action trên mọi entity. */
 type Matrix = Record<Role, Partial<Record<RbacEntity, RbacAction[]>>>;
@@ -110,6 +118,10 @@ export const RBAC_MATRIX: Matrix = {
     materialRequest: ["create", "read", "update", "delete", "transition"],
     // V4.3 Việc 2 — Giám đốc chốt/trả lại phiếu kiểm kê (approve) + toàn quyền còn lại.
     stocktake: ["create", "read", "update", "delete", "approve", "transition"],
+    // V4.10 — Sản lượng ca: admin toàn quyền (gồm chốt ca + sửa dòng khoá).
+    shiftOutput: ["create", "read", "update", "delete", "approve"],
+    shiftOutputSetup: ["create", "read", "update", "delete"],
+    shiftOutputReport: ["read"],
   },
   planner: {
     item: ["create", "read", "update"],
@@ -256,6 +268,15 @@ export const RBAC_MATRIX: Matrix = {
     finance: ["read"],
     productionBoard: ["read"],
   },
+  // V4.10 — Workshop (Xưởng vệ tinh, tài khoản CHUNG cả xưởng): CHỈ module Sản
+  // lượng ca của site mình. Nhập/sửa/xoá dòng CHƯA khoá (không `approve`);
+  // danh mục chỉ đọc + thêm mới (route giới hạn: chỉ Mã hàng + Người phụ trách);
+  // xem báo cáo. Bị khoá vào /san-luong + /me (layout + requireSession).
+  workshop: {
+    shiftOutput: ["create", "read", "update", "delete"],
+    shiftOutputSetup: ["create", "read"],
+    shiftOutputReport: ["read"],
+  },
 };
 
 /** Danh sách entity/action để iterate khi build test hoặc UI. */
@@ -283,6 +304,9 @@ export const RBAC_ENTITIES: RbacEntity[] = [
   "qcInspection",
   "materialRequest",
   "stocktake",
+  "shiftOutput",
+  "shiftOutputSetup",
+  "shiftOutputReport",
 ];
 
 export const RBAC_ACTIONS: RbacAction[] = [

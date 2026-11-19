@@ -12,6 +12,7 @@ import { isSessionValid } from "@/server/repos/sessions";
 import { listActiveOverridesByUser } from "@/server/repos/userPermissionOverrides";
 import { isRouteAllowed } from "@/lib/route-guard";
 import { resolveLegacySalesFinRedirect } from "@/lib/legacy-redirects";
+import { isModuleLockedRoles, isWorkshopPathAllowed, WORKSHOP_HOME } from "@/lib/shift-output/access";
 import type { PermissionOverrideLite } from "@/lib/permissions";
 import { logger } from "@/lib/logger";
 
@@ -93,6 +94,13 @@ export default async function AppLayout({
   // xem /board (ngoài (app) group). Mọi truy cập vào (app)/* → đẩy ra /board.
   if (roleCodes.includes("display") && !roleCodes.includes("admin")) {
     redirect("/board");
+  }
+
+  // V4.10 (TASK-20261118-001) — tài khoản CHUNG xưởng vệ tinh (role "workshop",
+  // không kèm admin) CHỈ được /san-luong + /me. Mọi trang khác (kể cả "/" Tổng
+  // quan, /items, /orders vốn không có trong route-guard) → về /san-luong.
+  if (isModuleLockedRoles(roleCodes) && !isWorkshopPathAllowed(currentPath)) {
+    redirect(WORKSHOP_HOME);
   }
 
   // V4.1 AD-19 — override quyền riêng từng user (còn hiệu lực) áp cho cả menu +

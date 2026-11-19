@@ -12,6 +12,7 @@ import { tooManyRequests } from "./http";
 import { findActiveOverride } from "./repos/userPermissionOverrides";
 import { isSessionValid } from "./repos/sessions";
 import { logger } from "@/lib/logger";
+import { isModuleLockedRoles, isWorkshopApiAllowed } from "@/lib/shift-output/access";
 
 export interface Session {
   userId: string;
@@ -86,6 +87,15 @@ export function isDisplayKiosk(session: Session): boolean {
 }
 
 /**
+ * V4.10 (TASK-20261118-001) — tài khoản CHUNG của xưởng vệ tinh (role `workshop`
+ * thuần, không kèm admin): khoá vào module Sản lượng ca giống kiosk `display`.
+ * Route chỉ check getSession (dashboard…) phải chặn thêm bằng hàm này.
+ */
+export function isModuleLockedAccount(session: Session): boolean {
+  return isModuleLockedRoles(session.roles);
+}
+
+/**
  * Helper guard dùng đầu mỗi route handler.
  *
  * @deprecated V1.4 — dùng `requireCan(req, action, entity)` để match
@@ -109,6 +119,12 @@ export async function requireSession(
   // requireSession() đều là chức năng nghiệp vụ (kho/dashboard/…) không dành cho
   // kiosk → chặn tại đây để display không lọt qua các guard không-matrix.
   if (session.roles.includes("display") && !session.roles.includes("admin")) {
+    return { response: forbidden() };
+  }
+
+  // V4.10 — tài khoản xưởng: chỉ allowlist /api/me, /api/notifications*,
+  // /api/push* (chuông + hồ sơ). API Sản lượng ca đi qua requireCan (matrix).
+  if (isModuleLockedAccount(session) && !isWorkshopApiAllowed(req.nextUrl?.pathname ?? "")) {
     return { response: forbidden() };
   }
 
