@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import ExcelJS from "exceljs";
+import { normalizeXlsxRels } from "./xlsxNormalize";
 import { itemImportRowSchema, type ItemImportRow } from "@iot/shared";
 import { assertImportRowLimit } from "./importLimits";
 
@@ -67,7 +68,7 @@ export async function parseItemImport(
   // endpoint already enforces a 20MB cap, so the document reader is deterministic
   // here and avoids rejecting valid supplier/item workbooks.
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(Uint8Array.from(buffer).buffer);
+  await workbook.xlsx.load(Uint8Array.from(await normalizeXlsxRels(buffer)).buffer);
 
   // V4.2 audit S15 — chặn xử lý tiếp nếu tổng số dòng (mọi sheet) quá lớn.
   const totalRows = workbook.worksheets.reduce((acc, ws) => acc + ws.rowCount, 0);
