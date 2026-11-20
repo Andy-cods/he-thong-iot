@@ -1,10 +1,15 @@
 import type ExcelJS from "exceljs";
 import {
+  buildTrienKhaiQtyCheck,
+  inferSetCount,
   parseBomCategory,
   parseDims,
+  setCountNoticeText,
   stripDiacritics,
+  trienKhaiQtyWarningText,
   type BomCategory,
   type Dims,
+  type SetCountSource,
 } from "@iot/shared";
 
 /**
@@ -34,7 +39,9 @@ export interface TrienKhaiRow {
   supplierPending: boolean;
   supplierNames: string[];
   picNames: string[];
+  /** Cột "Hệ số" = SL cho 1 bộ. */
   coef: number | null;
+  /** Cột "SL" = Hệ số × Số bộ (giá trị tĩnh trong file) — KHÔNG phải SL/bộ. */
   qty: number | null;
   /** Chỉ số trong TrienKhaiParse.images, hoặc null nếu dòng không có ảnh. */
   imageIndex: number | null;
@@ -54,7 +61,13 @@ export interface TrienKhaiParse {
   headerRow: number;
   projectCode: string | null;
   title: string | null;
-  setCount: number | null;
+  /** Số bộ dùng cho BOM (≥ 1): ghi chú → suy từ SL ÷ Hệ số → 1. */
+  setCount: number;
+  /** Giá trị "Số bộ = N" đọc được ở dòng 2 (null = không có). */
+  setCountNote: number | null;
+  setCountSource: SetCountSource;
+  /** Dòng có SL file ≠ Hệ số × Số bộ (không chặn — hệ thống dùng Hệ số). */
+  qtyWarnings: string[];
   rows: TrienKhaiRow[];
   images: TrienKhaiImage[];
   warnings: string[];
@@ -174,8 +187,8 @@ function parseSheet(
   const title = cellText(ws.getRow(1).getCell(1).value).trim() || null;
   const projectCode = title?.match(/Z\d{6,}(?:-\d+)?/)?.[0] ?? null;
   const note = stripDiacritics(cellText(ws.getRow(2).getCell(1).value));
-  const sm = note.match(/so bo\s*=\s*(\d+)/i);
-  const setCount = sm ? Number(sm[1]) : null;
+  const sm = note.match(/so bo\s*[=:]\s*(\d+)/i);
+  const setCountNote = sm ? Number(sm[1]) : null;
 
   const rows: TrienKhaiRow[] = [];
   for (let rn = hdr.row + 1; rn <= ws.rowCount; rn++) {
@@ -264,13 +277,22 @@ function parseSheet(
   const noImg = rows.filter((r) => r.imageIndex === null).map((r) => r.position);
   if (noImg.length) warnings.push(`Dòng không có ảnh: ${noImg.join(", ")}.`);
 
+  const sc = inferSetCount(setCountNote, rows);
+  const scNotice = setCountNoticeText(sc);
+  if (scNotice) warnings.unshift(scNotice);
+  const qc = buildTrienKhaiQtyCheck(rows, sc.setCount);
+  const qtyWarnings = qc.mismatches.map((r) => trienKhaiQtyWarningText(r, sc.setCount));
+
   return {
     template: "TRIEN_KHAI",
     sheetName: ws.name,
     headerRow: hdr.row,
     projectCode,
     title,
-    setCount,
+    setCount: sc.setCount,
+    setCountNote,
+    setCountSource: sc.source,
+    qtyWarnings,
     rows,
     images,
     warnings,

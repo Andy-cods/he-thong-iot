@@ -1,5 +1,6 @@
 import { and, asc, eq, sql } from "drizzle-orm";
-import { bomLine, bomSheet } from "@iot/db/schema";
+import { bomLine, bomSheet, bomTemplate } from "@iot/db/schema";
+import { bomLineTotalQty } from "@iot/shared";
 import { db } from "@/lib/db";
 
 export interface BomLineInsertInput {
@@ -171,8 +172,12 @@ export async function updateLine(
     updatedAt: new Date(),
     rowVersion: sql`${bomLine.rowVersion} + 1`,
   };
-  if (patch.qtyPerParent !== undefined)
+  if (patch.qtyPerParent !== undefined) {
     values.qtyPerParent = String(patch.qtyPerParent);
+    // Dòng mẫu TRIỂN KHAI có cột coef (= Hệ số = SL/bộ) mà lưới ưu tiên hiển thị —
+    // sửa SL/bộ phải đồng bộ coef, nếu không cột "Hệ số" và "SL" lệch nhau.
+    values.coef = sql`CASE WHEN ${bomLine.coef} IS NULL THEN NULL ELSE ${String(patch.qtyPerParent)}::numeric END`;
+  }
   if (patch.scrapPercent !== undefined)
     values.scrapPercent = String(patch.scrapPercent);
   if (patch.uom !== undefined) values.uom = patch.uom;
@@ -201,6 +206,23 @@ export async function getLineById(lineId: string) {
     .where(eq(bomLine.id, lineId))
     .limit(1);
   return row ?? null;
+}
+
+/**
+ * SL mặc định khi tạo YCSX / PO gia công từ 1 dòng: = cột "SL" của lưới
+ * (SL/bộ × số bộ của BOM; BOM mẫu cũ: metadata.totalQty).
+ */
+export async function lineDefaultTotalQty(line: {
+  templateId: string;
+  qtyPerParent: string | number | null;
+  metadata: unknown;
+}): Promise<number> {
+  const [tpl] = await db
+    .select({ targetQty: bomTemplate.targetQty })
+    .from(bomTemplate)
+    .where(eq(bomTemplate.id, line.templateId))
+    .limit(1);
+  return bomLineTotalQty(line.metadata, line.qtyPerParent, tpl ? Number(tpl.targetQty) || 1 : 1);
 }
 
 /** Đếm tất cả descendants của 1 line (recursive). */

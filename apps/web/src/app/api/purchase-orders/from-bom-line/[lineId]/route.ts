@@ -4,7 +4,7 @@
  *
  * Body:
  *   - supplierId: required UUID (NCC gia công)
- *   - orderedQty: positive number (default = bom_line.metadata.totalQty)
+ *   - orderedQty: positive number (default = SL dòng = SL/bộ × số bộ BOM)
  *   - unitPrice: optional (default 0 — TM-A chốt sau)
  *   - spec: optional string (Vật liệu/Quy cách)
  *   - expectedEta: optional ISO date
@@ -20,7 +20,7 @@ import { item as itemTable } from "@iot/db/schema";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
-import { getLineById } from "@/server/repos/bomLines";
+import { getLineById, lineDefaultTotalQty } from "@/server/repos/bomLines";
 import { createPO } from "@/server/repos/purchaseOrders";
 import { writeAudit } from "@/server/services/audit";
 import { notifyPOSubcontractDraft } from "@/server/services/notifications";
@@ -59,17 +59,15 @@ export async function POST(
 
   // Lấy metadata để default qty + spec
   const meta = (line.metadata ?? {}) as {
-    totalQty?: string | number;
     size?: string;
     category?: string;
   };
   const defaultQty =
-    body.data.orderedQty ??
-    (Number(meta.totalQty ?? 0) || Number(line.qtyPerParent ?? 0));
+    body.data.orderedQty ?? (await lineDefaultTotalQty(line));
   if (defaultQty <= 0) {
     return jsonError(
       "INVALID_QTY",
-      "Số lượng phải > 0 (cung cấp orderedQty hoặc set metadata.totalQty).",
+      "Số lượng phải > 0 (cung cấp orderedQty).",
       400,
     );
   }

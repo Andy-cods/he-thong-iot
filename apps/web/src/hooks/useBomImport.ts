@@ -94,6 +94,10 @@ export interface TkPreviewRow {
   category: string;
   supplierText: string | null;
   thumbUrl: string | null;
+  /** Cột "Hệ số" (SL / 1 bộ). */
+  coef?: number | null;
+  /** Cột "SL" trong file (= Hệ số × Số bộ). */
+  qty?: number | null;
   match: TkRowMatch;
 }
 export interface TkMatchStats {
@@ -109,6 +113,11 @@ export interface TrienKhaiPreview {
   projectCode: string | null;
   title: string | null;
   setCount: number | null;
+  /** "Số bộ = N" đọc ở dòng 2 (preview cũ không có). */
+  setCountNote?: number | null;
+  setCountSource?: "NOTE" | "INFERRED" | "DEFAULT";
+  /** Dòng SL file ≠ Hệ số × Số bộ (preview cũ không có). */
+  qtyWarnings?: string[];
   warnings: string[];
   matchStats: TkMatchStats;
   rows: TkPreviewRow[];

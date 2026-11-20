@@ -3,6 +3,7 @@
  * Dùng chung cho server (tính SL cần) và UI (thanh 5 bước, dialog chuyển bước).
  */
 import {
+  bomLineTotalQty,
   STAGE_LABELS_BY_CATEGORY,
   stagesFor,
   type BomCategory,
@@ -11,19 +12,16 @@ import { QTY_EPS, r4 } from "@/lib/pr-ledger";
 import type { StageBuckets } from "@/lib/bom-stage-ledger";
 
 /**
- * SL cần của dòng — ĐÚNG công thức cột "SL" của lưới BomGridPro:
- * metadata.totalQty (raw Excel, > 0) → qty_per_parent × target_qty của template.
+ * SL cần của dòng — ĐÚNG công thức cột "SL" của lưới BomGridPro
+ * (bomLineTotalQty @iot/shared): qty_per_parent (SL/bộ) × target_qty;
+ * BOM mẫu cũ có metadata.totalQty (> 0) → dùng giá trị đó.
  */
 export function lineRequiredQty(
   metadata: unknown,
   qtyPerParent: unknown,
   targetQty: unknown,
 ): number {
-  const md = (metadata ?? null) as { totalQty?: string | number } | null;
-  const fromExcel = md?.totalQty != null ? Number(md.totalQty) : NaN;
-  if (Number.isFinite(fromExcel) && fromExcel > 0) return r4(fromExcel);
-  const q = (Number(qtyPerParent) || 0) * (Number(targetQty) || 0);
-  return r4(q);
+  return r4(bomLineTotalQty(metadata, qtyPerParent, targetQty));
 }
 
 export interface JourneyStage {

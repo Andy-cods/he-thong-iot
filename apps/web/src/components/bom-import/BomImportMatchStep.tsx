@@ -2,12 +2,27 @@
 
 import * as React from "react";
 import { AlertTriangle, ArrowLeft, Loader2, Play } from "lucide-react";
+import {
+  buildTrienKhaiQtyCheck,
+  inferSetCount,
+  trienKhaiQtyWarningText,
+  type TrienKhaiQtyRow,
+} from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import type { BomImportDecisionInput, TkPreviewRow, TrienKhaiPreview } from "@/hooks/useBomImport";
 import { cn } from "@/lib/utils";
 import { buildDecisions, reasonText, undecidedPositions, type MatchChoice } from "./matchDecisions";
 
 type Filter = "ALL" | "MATCH" | "CONFIRM" | "NEW";
+
+const SET_SOURCE_LABEL = {
+  NOTE: "đọc từ ghi chú dòng 2",
+  INFERRED: "suy ra từ SL ÷ Hệ số",
+  DEFAULT: "mặc định — file không ghi số bộ",
+} as const;
+
+const fmtQty = (n: number | null | undefined) =>
+  n === null || n === undefined ? "—" : n.toLocaleString("vi-VN", { maximumFractionDigits: 4 });
 
 const PILL: Record<"MATCH" | "CONFIRM" | "NEW", { label: string; cls: string }> = {
   MATCH: { label: "Khớp", cls: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300" },
@@ -48,6 +63,23 @@ export function BomImportMatchStep({
   const undecided = undecidedPositions(rows, choice);
   const shown = filter === "ALL" ? rows : rows.filter((r) => r.match.status === filter);
 
+  // Số lượng: cùng hàm với worker → preview khớp đúng số sẽ ghi.
+  const qty = React.useMemo(() => {
+    const input = rows.map((r) => ({
+      rowNumber: r.rowNumber,
+      position: r.position,
+      coef: r.coef ?? null,
+      qty: r.qty ?? null,
+    }));
+    const sc = inferSetCount(data.setCount, input);
+    const check = buildTrienKhaiQtyCheck(input, sc.setCount);
+    return {
+      sc,
+      byRow: new Map(check.rows.map((q) => [q.rowNumber, q])),
+      warnings: check.mismatches.map((q) => trienKhaiQtyWarningText(q, sc.setCount)),
+    };
+  }, [rows, data.setCount]);
+
   const cards: Array<{ key: Filter | "SUP"; label: string; value: number; tone: string }> = [
     { key: "MATCH", label: "Khớp", value: st.match, tone: "text-emerald-700 dark:text-emerald-300" },
     { key: "CONFIRM", label: "Cần xác nhận", value: st.confirm, tone: "text-amber-700 dark:text-amber-300" },
@@ -68,6 +100,38 @@ export function BomImportMatchStep({
           {st.total} dòng · kiểm tra khớp vật tư trước khi tạo BOM
         </p>
       </div>
+
+      <div
+        className={cn(
+          "rounded-xl px-4 py-3 text-sm",
+          qty.sc.source === "DEFAULT"
+            ? "bg-amber-50 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
+            : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-200",
+        )}
+      >
+        <div>
+          Số bộ: <span className="font-semibold tabular-nums">{qty.sc.setCount}</span>{" "}
+          <span className="text-zinc-500 dark:text-zinc-400">({SET_SOURCE_LABEL[qty.sc.source]})</span>
+        </div>
+        <div className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+          Hệ thống lưu SL cho 1 bộ = cột &quot;Hệ số&quot;; SL tổng = Hệ số × Số bộ. Cột &quot;SL&quot;
+          của file chỉ dùng để đối chiếu.
+        </div>
+      </div>
+
+      {qty.warnings.length > 0 && (
+        <div className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+          <div className="flex items-center gap-1 font-medium">
+            <AlertTriangle className="h-4 w-4" aria-hidden />
+            {qty.warnings.length} dòng có SL file khác Hệ số × Số bộ (không chặn tạo BOM)
+          </div>
+          <ul className="mt-1 max-h-40 list-disc space-y-0.5 overflow-y-auto pl-5">
+            {qty.warnings.map((w, i) => (
+              <li key={i}>{w}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {topSlot}
 
@@ -110,7 +174,7 @@ export function BomImportMatchStep({
       )}
 
       <div className="overflow-x-auto rounded-2xl bg-zinc-50 dark:bg-zinc-900/60">
-        <table className="w-full min-w-[960px] text-sm">
+        <table className="w-full min-w-[1180px] text-sm">
           <thead>
             <tr className="text-left text-xs font-medium text-zinc-500">
               <th className="px-3 py-3">Ảnh</th>
@@ -118,6 +182,11 @@ export function BomImportMatchStep({
               <th className="px-3 py-3">Tên 3D</th>
               <th className="px-3 py-3">Mã vật liệu</th>
               <th className="px-3 py-3">Quy cách</th>
+              <th className="px-3 py-3 text-right">Hệ số</th>
+              <th className="px-3 py-3 text-right">SL file</th>
+              <th className="px-3 py-3 text-right" title={`Hệ số × Số bộ (${qty.sc.setCount})`}>
+                SL hệ thống
+              </th>
               <th className="px-3 py-3">Trạng thái</th>
               <th className="px-3 py-3">Vật tư hệ thống</th>
             </tr>
@@ -127,6 +196,7 @@ export function BomImportMatchStep({
               <MatchRow
                 key={r.position}
                 row={r}
+                qty={qty.byRow.get(r.rowNumber)}
                 value={choice[r.position]}
                 onChange={(v) => setChoice((c) => ({ ...c, [r.position]: v }))}
               />
@@ -172,10 +242,12 @@ export function BomImportMatchStep({
 
 function MatchRow({
   row,
+  qty,
   value,
   onChange,
 }: {
   row: TkPreviewRow;
+  qty: TrienKhaiQtyRow | undefined;
   value: string | undefined;
   onChange: (v: string) => void;
 }) {
@@ -204,6 +276,16 @@ function MatchRow({
       <td className="max-w-[260px] px-3 py-2 break-words">{row.file3dName}</td>
       <td className="px-3 py-2">{row.materialCode ?? "—"}</td>
       <td className="px-3 py-2 tabular-nums">{row.dimsText ?? row.blankSpec ?? "—"}</td>
+      <td className="px-3 py-2 text-right tabular-nums">{fmtQty(qty?.coef)}</td>
+      <td
+        className={cn(
+          "px-3 py-2 text-right tabular-nums",
+          qty?.mismatch && "font-semibold text-amber-700 dark:text-amber-300",
+        )}
+      >
+        {fmtQty(qty?.fileQty)}
+      </td>
+      <td className="px-3 py-2 text-right font-semibold tabular-nums">{fmtQty(qty?.systemQty)}</td>
       <td className="px-3 py-2">
         <span className={cn("inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium", pill.cls)}>
           {pill.label}

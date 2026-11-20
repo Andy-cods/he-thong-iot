@@ -118,7 +118,8 @@ describe("buildBomLineValues", () => {
     const v = buildBomLineValues(row({ supplierText: "Tân Tiến/Phạm Gia", supplierPending: true }), ctx);
     expect(v).toMatchObject({
       positionCode: "BL1",
-      qtyPerParent: "4",
+      // qty_per_parent = Hệ số (SL/bộ), KHÔNG phải cột SL (= Hệ số × số bộ)
+      qtyPerParent: "2",
       coef: "2",
       category: "GTAM",
       supplierId: null,
@@ -128,7 +129,19 @@ describe("buildBomLineValues", () => {
       materialCode: "AL6061",
       file3dName: "(bổ sung) Stopper_AL_2",
     });
-    expect(v.metadata).toMatchObject({ seq: "BL1", importedFromBatch: "b1" });
+    expect(v.metadata).toMatchObject({ seq: "BL1", importedFromBatch: "b1", fileQty: 4 });
+  });
+  it("618824 dòng 7: Hệ số 6, SL 24, 4 bộ → qty_per_parent 6, fileQty 24", () => {
+    const v = buildBomLineValues(row({ coef: 6, qty: 24 }), { ...ctx, setCount: 4 });
+    expect(v.qtyPerParent).toBe("6");
+    expect(v.coef).toBe("6");
+    expect(v.metadata.fileQty).toBe(24);
+    expect(v.metadata).not.toHaveProperty("totalQty");
+  });
+  it("thiếu Hệ số → SL ÷ số bộ", () => {
+    const v = buildBomLineValues(row({ coef: null, qty: 24 }), { ...ctx, setCount: 4 });
+    expect(v.qtyPerParent).toBe("6");
+    expect(v.coef).toBeNull();
   });
   it("NCC chốt chắc → supplierId, không pending; qty rỗng → 1", () => {
     const v = buildBomLineValues(row({ qty: null, coef: null, picNames: [] }), { ...ctx, supplierId: "s1" });
@@ -137,6 +150,7 @@ describe("buildBomLineValues", () => {
     expect(v.qtyPerParent).toBe("1");
     expect(v.coef).toBeNull();
     expect(v.picNames).toBeNull();
+    expect(v.metadata).not.toHaveProperty("fileQty");
   });
   it("idempotent: cùng đầu vào → cùng giá trị (không sinh id ngẫu nhiên)", () => {
     expect(buildBomLineValues(row(), ctx)).toEqual(buildBomLineValues(row(), ctx));

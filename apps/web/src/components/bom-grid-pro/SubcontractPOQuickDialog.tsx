@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { bomLineTotalQty } from "@iot/shared";
 import type { BomFlatRow } from "@/lib/bom-grid/flatten-tree";
 import { qk } from "@/lib/query-keys";
 
@@ -51,7 +52,7 @@ async function apiRequest<T>(input: string, init?: RequestInit): Promise<T> {
  *
  * Inputs:
  *   - supplierId (required, autocomplete NCC gia công)
- *   - orderedQty (auto từ metadata.totalQty SL Excel)
+ *   - orderedQty (mặc định = SL dòng BOM: SL/bộ × số bộ)
  *   - unitPrice (optional, default 0)
  *   - spec (auto từ metadata.size, editable)
  *   - expectedEta (optional ISO date)
@@ -68,6 +69,8 @@ export interface SubcontractPOQuickDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   templateCode: string;
+  /** Số bộ của BOM (target_qty) — SL mặc định = SL/bộ × số bộ. */
+  parentQty: number;
   line: BomFlatRow | null;
 }
 
@@ -75,17 +78,20 @@ export function SubcontractPOQuickDialog({
   open,
   onOpenChange,
   templateCode,
+  parentQty,
   line,
 }: SubcontractPOQuickDialogProps) {
   const router = useRouter();
   const qc = useQueryClient();
 
   const meta = (line?.node.metadata ?? {}) as {
-    totalQty?: string | number;
     size?: string;
     supplierId?: string;
   };
-  const defaultQty = meta.totalQty ? Number(meta.totalQty) : 1;
+  // = cột "SL" của lưới (SL/bộ × số bộ; BOM mẫu cũ: metadata.totalQty).
+  const defaultQty = line
+    ? bomLineTotalQty(line.node.metadata, line.node.qtyPerParent, parentQty) || 1
+    : 1;
   const defaultSpec = meta.size ? `Quy cách: ${meta.size}` : "";
 
   const [supplierId, setSupplierId] = React.useState<string>("");
@@ -112,7 +118,7 @@ export function SubcontractPOQuickDialog({
 
   React.useEffect(() => {
     if (open && line) {
-      const qty = (meta.totalQty ? Number(meta.totalQty) : null) ?? 1;
+      const qty = defaultQty;
       setOrderedQty(String(qty));
       setUnitPrice("");
       setSpec(meta.size ? `Quy cách: ${meta.size}` : "");
@@ -236,7 +242,7 @@ export function SubcontractPOQuickDialog({
                 onChange={(e) => setOrderedQty(e.target.value)}
               />
               <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                Default = SL Excel ({defaultQty})
+                Mặc định = SL của dòng BOM ({defaultQty})
               </p>
             </div>
             <div className="space-y-1.5">

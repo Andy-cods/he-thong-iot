@@ -11,7 +11,7 @@ import {
   Plus,
   X,
 } from "lucide-react";
-import type { BomCategory } from "@iot/shared";
+import { bomLineTotalQty, type BomCategory } from "@iot/shared";
 import { toast } from "sonner";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { BomTreeNodeRaw } from "@/hooks/useBom";
@@ -168,10 +168,6 @@ const TH =
 /** V4.1 UI-BOM: chiều cao thead (h-8) — offset đầu cho virtualizer. */
 const GRID_HEADER_H = 32;
 
-/**
- * V3.8.3 — Tổng SL cần của 1 dòng: ưu tiên metadata.totalQty (raw Excel),
- * fallback qtyPerParent × parentQty. Khớp logic cell "SL" (đã có).
- */
 type ListItem =
   | { type: "row"; row: BomFlatRow; stt: number }
   | { type: "cat"; cat: BomCategory; count: number };
@@ -212,11 +208,9 @@ function LineThumb({ src, fullSrc }: { src: string | null; fullSrc?: string | nu
   );
 }
 
+/** Tổng SL cần của dòng — CÙNG công thức server (bomLineTotalQty, @iot/shared). */
 function lineTotalQty(node: BomTreeNodeRaw, parentQty: number): number {
-  const meta = node.metadata as { totalQty?: string | number } | null;
-  const fromExcel = meta?.totalQty != null ? Number(meta.totalQty) : NaN;
-  if (Number.isFinite(fromExcel) && fromExcel > 0) return fromExcel;
-  return (Number(node.qtyPerParent) || 0) * parentQty;
+  return bomLineTotalQty(node.metadata, node.qtyPerParent, parentQty);
 }
 
 export function BomGridPro({
@@ -816,7 +810,6 @@ export function BomGridPro({
     const status =
       statusMap?.[row.node.componentItemId] ?? DEFAULT_STATUS;
     const scrap = Number(row.node.scrapPercent);
-    const qty = Number(row.node.qtyPerParent) || 0;
 
     const isHighlighted = highlightedLineId === row.id;
 
@@ -880,7 +873,7 @@ export function BomGridPro({
     const idText = lineIdText(node);
     const nameText = lineNameText(node);
     const dimsText = lineDimsText(node);
-    const meta = node.metadata as { notes?: string; totalQty?: string | number } | null;
+    const meta = node.metadata as { notes?: string } | null;
     const stickyBg =
       "bg-white group-hover:bg-zinc-50 dark:bg-zinc-900 dark:group-hover:bg-zinc-800";
     const dash = <span className="text-zinc-300 dark:text-zinc-600">—</span>;
@@ -1054,13 +1047,9 @@ export function BomGridPro({
         <td className="px-2 text-right font-mono text-xs tabular-nums text-zinc-700 dark:text-zinc-300">
           {formatNumber(lineCoef(node))}
         </td>
-        {/* SL — metadata.totalQty (raw Excel) → qty × parentQty */}
+        {/* SL = Hệ số (SL/bộ) × số bộ; BOM mẫu cũ: metadata.totalQty */}
         <td className="px-2 text-right font-mono text-xs font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
-          {(() => {
-            const fromExcel = meta?.totalQty != null ? Number(meta.totalQty) : NaN;
-            if (Number.isFinite(fromExcel) && fromExcel > 0) return formatNumber(fromExcel);
-            return formatNumber(qty * parentQty);
-          })()}
+          {formatNumber(lineTotalQty(node, parentQty))}
         </td>
         {showCol("notes") && (
           <td className="truncate px-2 text-xs italic text-zinc-500 dark:text-zinc-400">
@@ -1717,6 +1706,7 @@ export function BomGridPro({
         open={!!woTarget}
         onOpenChange={(o) => !o && setWoTarget(null)}
         templateCode={templateCode}
+        parentQty={parentQty}
         line={woTarget}
       />
 
@@ -1725,6 +1715,7 @@ export function BomGridPro({
         open={!!subcontractTarget}
         onOpenChange={(o) => !o && setSubcontractTarget(null)}
         templateCode={templateCode}
+        parentQty={parentQty}
         line={subcontractTarget}
       />
 
@@ -1740,13 +1731,7 @@ export function BomGridPro({
             qtyPerParent: picEditTarget.node.qtyPerParent,
             // V3.7.49 — Truyền SL Excel (totalQty) để dialog hiển thị "X cần"
             // theo số lượng đặt thực tế (vd 14 set), không phải hệ số (1).
-            totalQty: (() => {
-              const meta = picEditTarget.node.metadata as { totalQty?: string | number } | null;
-              const fromExcel = meta?.totalQty != null ? Number(meta.totalQty) : NaN;
-              if (Number.isFinite(fromExcel) && fromExcel > 0) return fromExcel;
-              // Fallback: qtyPerParent × parentQty (legacy)
-              return Number(picEditTarget.node.qtyPerParent ?? 1) * parentQty;
-            })(),
+            totalQty: lineTotalQty(picEditTarget.node, parentQty),
             assignedToFullName: picEditTarget.node.assignedToFullName ?? null,
             receivedQty: picEditTarget.node.receivedQty ?? null,
             expectedEta: picEditTarget.node.expectedEta ?? null,

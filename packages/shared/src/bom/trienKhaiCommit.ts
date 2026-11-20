@@ -4,6 +4,7 @@
  */
 import { normName, stripDiacritics, type Dims } from "./normName";
 import type { BomCategory } from "./stages";
+import { resolveQtyPerSet } from "./qty";
 
 export interface SupplierRef {
   id: string;
@@ -191,11 +192,17 @@ export interface LineCtx {
   position: number;
   batchId: string;
   supplierId: string | null;
+  /** Số bộ của BOM (= target_qty). Thiếu → 1. */
+  setCount?: number | null;
 }
 
-/** Giá trị insert bom_line (đủ cột V5). NCC không chốt chắc → supplierPending = text gốc. */
+/**
+ * Giá trị insert bom_line (đủ cột V5). NCC không chốt chắc → supplierPending = text gốc.
+ * qty_per_parent = SL / 1 BỘ (Hệ số) — KHÔNG phải cột "SL" (đã nhân số bộ).
+ * SL gốc trong file lưu metadata.fileQty để truy vết (không dùng hiển thị).
+ */
 export function buildBomLineValues(row: CommitRow, ctx: LineCtx) {
-  const qty = row.qty !== null && row.qty > 0 ? row.qty : 1;
+  const { qtyPerSet: qty } = resolveQtyPerSet(row, ctx.setCount);
   const pendingText = ctx.supplierId ? null : row.supplierText?.trim() || null;
   return {
     templateId: ctx.templateId,
@@ -225,6 +232,7 @@ export function buildBomLineValues(row: CommitRow, ctx: LineCtx) {
       importedFromSheet: "TRIEN_KHAI",
       importedRow: row.rowNumber,
       importedFromBatch: ctx.batchId,
+      ...(row.qty !== null ? { fileQty: row.qty } : {}),
     } as Record<string, unknown>,
   };
 }

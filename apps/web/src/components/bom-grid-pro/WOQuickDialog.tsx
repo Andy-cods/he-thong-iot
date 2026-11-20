@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { bomLineTotalQty } from "@iot/shared";
 import type { BomFlatRow } from "@/lib/bom-grid/flatten-tree";
 import { qk } from "@/lib/query-keys";
 
@@ -50,7 +51,7 @@ async function apiRequest<T>(input: string, init?: RequestInit): Promise<T> {
  * VH-A duyệt mới chuyển sang LỆNH SX (RELEASED) bắt đầu sản xuất.
  *
  * Inputs:
- *   - plannedQty (auto từ metadata.totalQty SL Excel, override được)
+ *   - plannedQty (mặc định = SL dòng BOM: SL/bộ × số bộ, override được)
  *   - priority (LOW/NORMAL/HIGH/URGENT)
  *   - plannedStart / plannedEnd (optional)
  *   - notes
@@ -67,6 +68,8 @@ export interface WOQuickDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   templateCode: string;
+  /** Số bộ của BOM (target_qty) — SL mặc định = SL/bộ × số bộ. */
+  parentQty: number;
   line: BomFlatRow | null;
 }
 
@@ -74,17 +77,20 @@ export function WOQuickDialog({
   open,
   onOpenChange,
   templateCode,
+  parentQty,
   line,
 }: WOQuickDialogProps) {
   const router = useRouter();
   const qc = useQueryClient();
 
   const meta = (line?.node.metadata ?? {}) as {
-    totalQty?: string | number;
     size?: string;
     routing?: { materialCode?: string; processRoute?: string[] };
   };
-  const defaultQty = meta.totalQty ? Number(meta.totalQty) : 1;
+  // = cột "SL" của lưới (SL/bộ × số bộ; BOM mẫu cũ: metadata.totalQty).
+  const defaultQty = line
+    ? bomLineTotalQty(line.node.metadata, line.node.qtyPerParent, parentQty) || 1
+    : 1;
 
   const [plannedQty, setPlannedQty] = React.useState(String(defaultQty));
   const [priority, setPriority] = React.useState<string>("NORMAL");
@@ -95,7 +101,7 @@ export function WOQuickDialog({
 
   React.useEffect(() => {
     if (open && line) {
-      const qty = (meta.totalQty ? Number(meta.totalQty) : null) ?? 1;
+      const qty = defaultQty;
       setPlannedQty(String(qty));
       setPriority("NORMAL");
       setPlannedStart("");
@@ -214,7 +220,7 @@ export function WOQuickDialog({
                 onChange={(e) => setPlannedQty(e.target.value)}
               />
               <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                Default = SL Excel ({defaultQty})
+                Mặc định = SL của dòng BOM ({defaultQty})
               </p>
             </div>
             <div className="space-y-1.5">

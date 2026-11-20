@@ -16,7 +16,7 @@
  *     → notify TK-A "WO_REJECTED"
  *
  * Body:
- *   - plannedQty (default metadata.totalQty)
+ *   - plannedQty (default = SL dòng = SL/bộ × số bộ BOM)
  *   - priority (default NORMAL)
  *   - plannedStart / plannedEnd (optional)
  *   - notes (optional)
@@ -30,7 +30,7 @@ import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { checkPlannedDates } from "@/lib/wo-guards";
 import { extractRequestMeta, jsonError, parseJson } from "@/server/http";
-import { getLineById } from "@/server/repos/bomLines";
+import { getLineById, lineDefaultTotalQty } from "@/server/repos/bomLines";
 import {
   WoDuplicateRequestError,
   createFromBomLine,
@@ -70,19 +70,17 @@ export async function POST(
     return jsonError("INVALID_LINE", "BOM line chưa link item.", 400);
   }
 
-  // Default qty từ metadata.totalQty (Excel SL column)
+  // Default qty = SL dòng (lineDefaultTotalQty)
   const meta = (line.metadata ?? {}) as {
-    totalQty?: string | number;
     routing?: Record<string, unknown>;
     size?: string;
   };
   const plannedQty =
-    body.data.plannedQty ??
-    (Number(meta.totalQty ?? 0) || Number(line.qtyPerParent ?? 0));
+    body.data.plannedQty ?? (await lineDefaultTotalQty(line));
   if (plannedQty <= 0) {
     return jsonError(
       "INVALID_QTY",
-      "Số lượng kế hoạch phải > 0 (cung cấp plannedQty hoặc set metadata.totalQty).",
+      "Số lượng kế hoạch phải > 0 (cung cấp plannedQty).",
       400,
     );
   }

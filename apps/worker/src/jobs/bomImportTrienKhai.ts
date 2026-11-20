@@ -13,6 +13,7 @@ import {
   buildBomLineValues,
   buildNewItemValues,
   effectiveDuplicateMode,
+  inferSetCount,
   makeBomImportOutcome,
   newItemKey,
   newItemSkuBase,
@@ -137,7 +138,10 @@ export async function processBomImportTrienKhai(
   // --- Template (idempotent theo importedFromBatch, rồi theo code) ---
   const baseCode = trienKhaiTemplateCode(tk.projectCode, batchId);
   const title = (tk.title ?? baseCode).slice(0, 250);
-  const targetQty = String(tk.setCount && tk.setCount > 0 ? tk.setCount : 1);
+  // Số bộ: ghi chú "Số bộ = N" (parser) → suy từ SL ÷ Hệ số → 1. Preview cũ
+  // (trước bản sửa) có thể thiếu → suy lại ở đây, cùng hàm với parser.
+  const setCount = inferSetCount(tk.setCount, rows).setCount;
+  const targetQty = String(setCount);
 
   let templateId: string;
   let templateCode = baseCode;
@@ -374,7 +378,7 @@ export async function processBomImportTrienKhai(
 
         await tx
           .insert(bomLine)
-          .values(buildBomLineValues(row, { templateId, sheetId, componentItemId: itemId, position: position++, batchId, supplierId }));
+          .values(buildBomLineValues(row, { templateId, sheetId, componentItemId: itemId, position: position++, batchId, supplierId, setCount }));
       }
 
       if (last.action === "replaced") {

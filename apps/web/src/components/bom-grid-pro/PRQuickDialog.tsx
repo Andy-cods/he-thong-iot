@@ -34,6 +34,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useCreatePurchaseRequest } from "@/hooks/usePurchaseRequests";
 import { useSuppliersList, type SupplierRow } from "@/hooks/useSuppliers";
+import { bomLineTotalQty } from "@iot/shared";
 import type { BomFlatRow } from "@/lib/bom-grid/flatten-tree";
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/format";
@@ -45,7 +46,7 @@ import { formatNumber } from "@/lib/format";
  * Prefill:
  *  - itemId = line.componentItemId
  *  - supplierId = metadata.sourcing.supplierId (hoặc null, user chọn)
- *  - qty = max(qtyPerParent × parentQty × 1.1, moq nếu có)
+ *  - qty = max(SL dòng (bomLineTotalQty) × 1.1, moq nếu có)
  *  - notes = "Từ BOM {code} dòng {sku}" + lead time hint
  * Submit → POST /api/purchase-requests với `preferredSupplierId` (schema V1.2
  * đã có field này per-line). `estimatedPrice` không có trong schema PR V1.2 →
@@ -108,7 +109,8 @@ function computeSuggestedQty(
 ): number {
   if (!line) return 1;
   const perParent = Number(line.node.qtyPerParent) || 0;
-  const total = perParent * (parentQty || 1) * 1.1;
+  // = cột "SL" của lưới (SL/bộ × số bộ; BOM mẫu cũ: metadata.totalQty) + 10% dự phòng.
+  const total = bomLineTotalQty(line.node.metadata, perParent, parentQty || 1) * 1.1;
   const rounded = Math.max(Math.ceil(total * 1000) / 1000, perParent || 1);
   if (moq && moq > rounded) return moq;
   return rounded;
