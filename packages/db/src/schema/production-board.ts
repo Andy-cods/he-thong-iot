@@ -13,6 +13,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { appSchema } from "./_schema";
 import { userAccount } from "./auth";
+import { bomTemplate } from "./bom";
 
 /**
  * V3.8 — Bảng điều hành sản xuất (Production Board).
@@ -72,6 +73,13 @@ export const productionBoardItem = appSchema.table(
     /** Ghim lên đầu board (mã ưu tiên / khẩn). */
     isPinned: boolean("is_pinned").notNull().default(false),
     completedAt: timestamp("completed_at", { withTimezone: true }),
+    /**
+     * Migration 0088 — BOM nguồn (tự tạo khi BOM được kích hoạt). NULL = dòng
+     * nhập tay / BOM đã xoá vĩnh viễn (ON DELETE SET NULL).
+     */
+    bomTemplateId: uuid("bom_template_id").references(() => bomTemplate.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -89,6 +97,7 @@ export const productionBoardItem = appSchema.table(
     statusIdx: index("production_board_status_idx").on(t.status),
     seqIdx: index("production_board_seq_idx").on(t.seq),
     codeIdx: index("production_board_code_idx").on(t.productCode),
+    bomTemplateIdx: index("production_board_bom_template_idx").on(t.bomTemplateId),
   }),
 );
 
