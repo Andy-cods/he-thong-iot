@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { QueryError } from "@/components/ui/query-error";
 import { cn } from "@/lib/utils";
 import { CONFIRM_WARNING_CODES, validateEntry } from "@/lib/shift-output/policy";
-import { addDays } from "@/lib/shift-output/shift-window";
+import { addDays, workRangeLabel, workWindowMinutes } from "@/lib/shift-output/shift-window";
 import {
   newClientUuid,
   ShiftApiError,
@@ -26,6 +26,8 @@ import { Chip, FieldLabel, fmtDay, fmtInt, Panel, TouchInput, weekday } from "./
 import { emptyQty, qtyToPayload, QuantitySection, sumValues, type QtyState } from "./QuantitySection";
 import { EntryEditSheet } from "./EntryEditSheet";
 import { OfflineQueuePanel } from "./OfflineQueuePanel";
+import { PartImage } from "./PartImage";
+import { WorkTimeSection, workTimeFromShift, type WorkTime } from "./WorkTimeSection";
 
 /**
  * V4.10 (TASK-20261118-001) — màn "Nhập ca" (mặc định cho tài khoản xưởng).
@@ -104,6 +106,20 @@ function EntryFormInner({ ctx, stale }: { ctx: ShiftContext; stale: boolean }) {
   const machine = ctx.machines.find((m) => m.id === slot.machineId) ?? null;
   const part = parts.find((p) => p.id === partId) ?? null;
 
+  // P2 — giờ chạy thực tế: mặc định giờ ca, sửa tay được; ĐỔI CA → về giờ của ca
+  // mới (giờ sửa tay thuộc ca cũ). Lưu xong vẫn giữ giờ cho mã kế tiếp cùng ca.
+  const [work, setWork] = React.useState<WorkTime>(() => workTimeFromShift(shift));
+  const shiftKey = shift ? `${shift.id}|${shift.startTime}|${shift.endTime}` : "";
+  const lastShiftKey = React.useRef(shiftKey);
+  React.useEffect(() => {
+    if (lastShiftKey.current === shiftKey) return;
+    lastShiftKey.current = shiftKey;
+    setWork(workTimeFromShift(shift));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ khi đổi ca / giờ ca
+  }, [shiftKey]);
+  const workMinutes = work.start && work.end ? workWindowMinutes(work.start, work.end) : null;
+  const runMinutes = workMinutes ?? shift?.minutes ?? 240;
+
   // Dòng đã nhập của ngày + ca đang chọn (hiện ngay dưới form, chạm để sửa).
   const slotEntries = useShiftEntries(
     { from: slot.prodDate, to: slot.prodDate, shiftId: slot.shiftId, siteId: ctx.site.id },
@@ -150,7 +166,7 @@ function EntryFormInner({ ctx, stale }: { ctx: ShiftContext; stale: boolean }) {
     return validateEntry(
       { prodDate: slot.prodDate, ...p, defects: p.defects, downtimes: p.downtimes },
       {
-        shiftMinutes: shift?.minutes ?? 240,
+        shiftMinutes: runMinutes,
         today: ctx.today,
         backdateDays: ctx.site.backdateDays,
         canApprove: ctx.permissions.approve,
@@ -158,12 +174,13 @@ function EntryFormInner({ ctx, stale }: { ctx: ShiftContext; stale: boolean }) {
         avgOk30: slot.machineId && partId ? (ctx.avgOk30[`${slot.machineId}:${partId}`] ?? null) : null,
       },
     );
-  }, [qty, slot, shift, ctx, partId]);
+  }, [qty, slot, runMinutes, ctx, partId]);
 
   const missing: string[] = [];
   if (!slot.shiftId) missing.push("ca");
   if (!slot.machineId) missing.push("máy");
   if (!partId) missing.push("mã hàng");
+  if (workMinutes == null) missing.push("giờ chạy hợp lệ");
   const blocking = policy.errors.filter((e) => e.code !== "NO_OUTPUT" || qty.qtyOk + qty.qtyNg > 0 || qty.showDowntime);
   const canSave = missing.length === 0 && policy.errors.length === 0;
 
@@ -191,6 +208,8 @@ function EntryFormInner({ ctx, stale }: { ctx: ShiftContext; stale: boolean }) {
       operatorId: who.custom ? null : who.operatorId,
       operatorName: who.custom ? who.operatorName.trim() || null : null,
       ...p,
+      workStart: work.start,
+      workEnd: work.end,
       materialLot: lot.trim() || null,
       notes: notes.trim() || null,
     };
@@ -397,7 +416,7 @@ function EntryFormInner({ ctx, stale }: { ctx: ShiftContext; stale: boolean }) {
               </Chip>
             ))}
           </div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className={cn("grid gap-2", ctx.shifts.length <= 2 ? "grid-cols-2" : "grid-cols-3")}>
             {ctx.shifts.map((s) => (
               <Chip
                 key={s.id}
@@ -411,6 +430,8 @@ function EntryFormInner({ ctx, stale }: { ctx: ShiftContext; stale: boolean }) {
             ))}
           </div>
         </Panel>
+
+        <WorkTimeSection value={work} onChange={setWork} shift={shift} />
 
         <Panel title="Máy">
           <div className="grid grid-cols-2 gap-2">
@@ -430,7 +451,11 @@ function EntryFormInner({ ctx, stale }: { ctx: ShiftContext; stale: boolean }) {
         </Panel>
 
         <div id="so-part" className="scroll-mt-16" />
-        <Panel title="Mã hàng" hint={part ? `${part.code} — ${part.name}` : undefined}>
+        <Panel
+          title="Mã hàng"
+          hint={part ? `${part.code} — ${part.name}` : undefined}
+          right={part?.imageAssetId ? <PartImage partId={part.id} assetId={part.imageAssetId} size={56} alt={`${part.code} — ${part.name}`} /> : undefined}
+        >
           {suggestedParts.length > 0 ? (
             <div className="mb-3 flex flex-wrap gap-2">
               {suggestedParts.map((p) => (
@@ -441,7 +466,10 @@ function EntryFormInner({ ctx, stale }: { ctx: ShiftContext; stale: boolean }) {
                   sub={p.id === lastPartId ? "ca trước" : p.name}
                   className="max-w-full"
                 >
-                  {p.code}
+                  <span className="inline-flex items-center gap-2">
+                    <PartImage partId={p.id} assetId={p.imageAssetId} size={28} alt={p.code ?? ""} zoomable={false} placeholder={false} />
+                    {p.code}
+                  </span>
                 </Chip>
               ))}
             </div>
@@ -473,6 +501,7 @@ function EntryFormInner({ ctx, stale }: { ctx: ShiftContext; stale: boolean }) {
                       partId === p.id && "bg-indigo-50 dark:bg-indigo-950/40",
                     )}
                   >
+                    <PartImage partId={p.id} assetId={p.imageAssetId} size={36} alt={p.code ?? ""} zoomable={false} />
                     <span className="font-mono font-semibold">{p.code}</span>
                     <span className="truncate text-zinc-500 dark:text-zinc-400">{p.name}</span>
                   </button>
@@ -566,7 +595,7 @@ function EntryFormInner({ ctx, stale }: { ctx: ShiftContext; stale: boolean }) {
           onChange={(p) => setQty((q) => ({ ...q, ...p }))}
           defectReasons={ctx.defectReasons}
           downtimeReasons={ctx.downtimeReasons}
-          shiftMinutes={shift?.minutes ?? 240}
+          shiftMinutes={runMinutes}
         />
 
         <Panel
@@ -656,7 +685,12 @@ function SlotEntriesList({
               className="flex min-h-12 w-full items-center gap-3 rounded-lg px-1 text-left hover:bg-zinc-50 dark:hover:bg-zinc-800"
             >
               <span className="w-16 shrink-0 font-mono text-sm font-semibold text-zinc-700 dark:text-zinc-300">{r.machineCode}</span>
-              <span className="min-w-0 flex-1 truncate text-md">{r.partCode}</span>
+              <span className="min-w-0 flex-1 truncate text-md">
+                {r.partCode}
+                {workRangeLabel(r.workStart, r.workEnd, r.shiftStart, r.shiftEnd) ? (
+                  <span className="ml-1.5 text-sm text-zinc-500">{workRangeLabel(r.workStart, r.workEnd, r.shiftStart, r.shiftEnd)}</span>
+                ) : null}
+              </span>
               <span className="shrink-0 text-md tabular-nums">
                 <span className="font-semibold text-zinc-900 dark:text-zinc-50">{fmtInt(r.qtyOk)}</span>
                 {r.qtyNg ? <span className="ml-1.5 text-red-600 dark:text-red-400">NG {r.qtyNg}</span> : null}

@@ -65,6 +65,9 @@ export interface EntryView {
   qtyRework: number | null;
   downtimeMin: number | null;
   shiftMinutes: number;
+  /** P2 — giờ chạy thực tế "HH:MM:SS" (null = dòng P1, phút theo ca). */
+  workStart: string | null;
+  workEnd: string | null;
   materialLot: string | null;
   notes: string | null;
   status: string;
@@ -109,6 +112,8 @@ function baseSelect() {
       qtyRework: e.qtyRework,
       downtimeMin: e.downtimeMin,
       shiftMinutes: e.shiftMinutes,
+      workStart: e.workStart,
+      workEnd: e.workEnd,
       materialLot: e.materialLot,
       notes: e.notes,
       status: e.status,
@@ -243,6 +248,8 @@ export interface EntryWrite {
   qtyRework: number | null;
   downtimeMin: number | null;
   shiftMinutes: number;
+  workStart: string | null;
+  workEnd: string | null;
   materialLot: string | null;
   notes: string | null;
   defects: Array<{ reasonId: string; qty: number }>;

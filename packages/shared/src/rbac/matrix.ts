@@ -270,11 +270,12 @@ export const RBAC_MATRIX: Matrix = {
   },
   // V4.10 — Workshop (Xưởng vệ tinh, tài khoản CHUNG cả xưởng): CHỈ module Sản
   // lượng ca của site mình. Nhập/sửa/xoá dòng CHƯA khoá (không `approve`);
-  // danh mục chỉ đọc + thêm mới (route giới hạn: chỉ Mã hàng + Người phụ trách);
-  // xem báo cáo. Bị khoá vào /san-luong + /me (layout + requireSession).
+  // danh mục: P2 (0089) thêm/sửa/ngừng dùng — route giới hạn CHỈ Mã hàng,
+  // Người phụ trách, Ca làm việc (SHIFT_SETUP_WORKSHOP_KINDS); máy, lý do,
+  // thiết lập xưởng vẫn admin. Xem báo cáo. Bị khoá vào /san-luong + /me.
   workshop: {
     shiftOutput: ["create", "read", "update", "delete"],
-    shiftOutputSetup: ["create", "read"],
+    shiftOutputSetup: ["create", "read", "update", "delete"],
     shiftOutputReport: ["read"],
   },
 };

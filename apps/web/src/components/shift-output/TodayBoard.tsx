@@ -10,6 +10,7 @@ import { addDays } from "@/lib/shift-output/shift-window";
 import type { BoardCell } from "@/lib/shift-output/board";
 import { useShiftBoard } from "@/hooks/useShiftOutput";
 import { fmtDay, fmtInt, fmtPct, KpiTile, weekday } from "./primitives";
+import { PartImage } from "./PartImage";
 
 /**
  * V4.10 — "Hôm nay": KPI ngày + lưới Máy × Ca. Ô đỏ "Chưa nhập" = ca đã kết
@@ -146,10 +147,12 @@ export function TodayBoard({ siteId }: { siteId: string | null }) {
                   <span className="font-mono text-lg font-semibold">{m.code}</span>
                   <span className="truncate text-sm text-zinc-500">{m.name}</span>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className={cn("grid gap-2", data.shifts.length <= 2 ? "grid-cols-2" : "grid-cols-3")}>
                   {data.shifts.map((s) => (
                     <div key={s.id}>
-                      <div className="mb-1 text-sm font-medium text-zinc-500">{s.name}</div>
+                      <div className="mb-1 truncate text-sm font-medium text-zinc-500">
+                        {s.name} <span className="font-normal">{s.startTime}–{s.endTime}</span>
+                      </div>
                       <Cell cell={cellOf(m.id, s.id)} date={data.date} compact />
                     </div>
                   ))}
@@ -191,12 +194,28 @@ function Cell({ cell, date, compact }: { cell: BoardCell | undefined; date: stri
         href={`/san-luong/lich-su?from=${date}&to=${date}&machineId=${cell.machineId}`}
         className={cn(base, "bg-zinc-50 ring-1 ring-zinc-200 hover:ring-indigo-300 dark:bg-zinc-800 dark:ring-zinc-700")}
       >
-        <div className="flex items-center gap-1">
-          <span className={cn("font-semibold tabular-nums text-zinc-900 dark:text-zinc-50", compact ? "text-lg" : "text-xl")}>{fmtInt(cell.ok)}</span>
-          {cell.locked ? <Lock className="ml-auto h-3.5 w-3.5 text-zinc-400" aria-label="Đã khoá" /> : null}
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1">
+              <span className={cn("font-semibold tabular-nums text-zinc-900 dark:text-zinc-50", compact ? "text-lg" : "text-xl")}>{fmtInt(cell.ok)}</span>
+              {cell.locked ? <Lock className="ml-auto h-3.5 w-3.5 shrink-0 text-zinc-400" aria-label="Đã khoá" /> : null}
+            </div>
+            {cell.ng > 0 ? <div className="text-sm font-medium tabular-nums text-red-600 dark:text-red-400">NG {fmtInt(cell.ng)}</div> : null}
+          </div>
+          {(cell.images ?? []).length > 0 ? (
+            <span className="flex shrink-0 gap-1">
+              {(cell.images ?? []).slice(0, compact ? 1 : 2).map((im) => (
+                <PartImage key={im.partId} partId={im.partId} assetId={im.assetId} size={compact ? 32 : 40} alt={im.partCode} zoomable={false} />
+              ))}
+            </span>
+          ) : null}
         </div>
-        {cell.ng > 0 ? <div className="text-sm font-medium tabular-nums text-red-600 dark:text-red-400">NG {fmtInt(cell.ng)}</div> : null}
         <div className="truncate text-sm text-zinc-500">{cell.partCodes.join(", ")}</div>
+        {(cell.workRanges ?? []).length > 0 ? (
+          <div className="truncate text-sm text-amber-700 dark:text-amber-400" title="Giờ chạy thực tế (khác giờ ca)">
+            {(cell.workRanges ?? []).join(", ")}
+          </div>
+        ) : null}
       </Link>
     );
   }

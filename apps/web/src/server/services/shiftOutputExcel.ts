@@ -2,6 +2,7 @@ import ExcelJS from "exceljs";
 import { sanitizeExcelCellValue } from "./excelSafety";
 import { computeKpis } from "@/lib/shift-output/kpi";
 import { paretoFor, summarize, type ReportEntryLike } from "@/lib/shift-output/report";
+import { hhmm } from "@/lib/shift-output/shift-window";
 
 /**
  * V4.10 (TASK-20261118-001) — Xuất Excel Sản lượng ca: 2 sheet "Chi tiết" (mọi
@@ -11,6 +12,7 @@ import { paretoFor, summarize, type ReportEntryLike } from "@/lib/shift-output/r
  */
 
 export interface ExcelEntryRow extends ReportEntryLike {
+  shiftEnd: string;
   customerName: string | null;
   qtyRework: number | null;
   materialLot: string | null;
@@ -51,10 +53,10 @@ export async function buildShiftOutputWorkbook(input: {
 
   /* ── Sheet 1: Chi tiết ── */
   const ws = wb.addWorksheet("Chi tiết");
-  ws.mergeCells("A1:P1");
+  ws.mergeCells("A1:R1");
   ws.getCell("A1").value = s(`SẢN LƯỢNG CA — ${input.siteName}`);
   ws.getCell("A1").font = { bold: true, size: 14 };
-  ws.mergeCells("A2:P2");
+  ws.mergeCells("A2:R2");
   ws.getCell("A2").value = `Từ ${ddmmyyyy(input.from)} đến ${ddmmyyyy(input.to)} · ${input.entries.length} dòng`;
   ws.addRow([]);
   headerRow(ws, [
@@ -74,6 +76,8 @@ export async function buildShiftOutputWorkbook(input: {
     "Chi tiết lỗi",
     "Chi tiết dừng máy",
     "Lô phôi / Ghi chú",
+    "Giờ chạy",
+    "Phút chạy",
   ]);
   ws.views = [{ state: "frozen", ySplit: 4 }];
   ws.columns = [
@@ -93,6 +97,8 @@ export async function buildShiftOutputWorkbook(input: {
     { width: 32 },
     { width: 32 },
     { width: 30 },
+    { width: 13 },
+    { width: 10 },
   ];
   const detailText = (list: ExcelDetail[], id: string, unit: string) =>
     list
@@ -118,8 +124,13 @@ export async function buildShiftOutputWorkbook(input: {
       s(detailText(input.defects, r.id, "")),
       s(detailText(input.downtimes, r.id, "'")),
       s([r.materialLot, r.notes].filter(Boolean).join(" · ")),
+      // P2 — giờ chạy thực tế (dòng cũ: giờ ca) + phút khả dụng của dòng.
+      r.workStart && r.workEnd
+        ? `${hhmm(r.workStart)}–${hhmm(r.workEnd)}`
+        : `${hhmm(r.shiftStart)}–${hhmm(r.shiftEnd)}`,
+      r.shiftMinutes,
     ]);
-    for (const c of [8, 9, 10, 12, 13]) row.getCell(c).numFmt = "#,##0";
+    for (const c of [8, 9, 10, 12, 13, 18]) row.getCell(c).numFmt = "#,##0";
     row.getCell(11).numFmt = "0.0%";
   }
 
@@ -139,6 +150,7 @@ export async function buildShiftOutputWorkbook(input: {
     ["Tổng NG", total.ng],
     ["% NG", pct(total.ngPct)],
     ["% đạt kế hoạch", pct(total.planPct)],
+    ["Phút chạy (máy-ca)", total.availableMin],
     ["Phút dừng máy", total.downtimeMin ?? ""],
     ["% khả dụng", pct(total.availabilityPct)],
   ];

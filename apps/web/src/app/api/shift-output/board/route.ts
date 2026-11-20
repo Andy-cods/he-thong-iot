@@ -25,12 +25,15 @@ export async function GET(req: NextRequest) {
     const now = new Date();
     const date = q.data.date ?? todayInTz(now, site.timezone);
     const [machinesRaw, shiftsRaw, data] = await Promise.all([
-      listSetup("machines", site.id),
-      listSetup("shifts", site.id),
+      listSetup("machines", site.id, true),
+      listSetup("shifts", site.id, true),
       loadReportData(site.id, { from: date, to: date }),
     ]);
-    const machines = machinesRaw.map((m) => ({ id: m.id, code: String(m.code), name: String(m.name) }));
-    const shifts = shiftsRaw.map((s) => ({
+    // P2 — mục đã ngừng dùng vẫn hiện nếu NGÀY ĐÓ có dòng (đổi cấu hình ca không làm "mất" ngày cũ).
+    const used = new Set(data.entries.flatMap((e) => [e.machineId, e.shiftId]));
+    const visible = <T extends { id: string; isActive: boolean }>(rows: T[]) => rows.filter((r) => r.isActive || used.has(r.id));
+    const machines = visible(machinesRaw).map((m) => ({ id: m.id, code: String(m.code), name: String(m.name) }));
+    const shifts = visible(shiftsRaw).map((s) => ({
       id: s.id,
       code: String(s.code),
       name: String(s.name),

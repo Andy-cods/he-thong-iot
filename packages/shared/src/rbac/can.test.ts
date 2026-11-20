@@ -285,8 +285,10 @@ describe("V4.10 — workshop (Xưởng vệ tinh) chỉ có 3 entity Sản lư�
     ["approve", "shiftOutput", false], // không chốt ca / sửa dòng khoá
     ["read", "shiftOutputSetup", true],
     ["create", "shiftOutputSetup", true],
-    ["update", "shiftOutputSetup", false],
-    ["delete", "shiftOutputSetup", false],
+    // P2 — xưởng tự sửa / ngừng dùng Mã hàng, Người, Ca (route giới hạn loại danh mục).
+    ["update", "shiftOutputSetup", true],
+    ["delete", "shiftOutputSetup", true],
+    ["approve", "shiftOutputSetup", false],
     ["read", "shiftOutputReport", true],
   ] as Array<[RbacAction, RbacEntity, boolean]>)("can([workshop], %s, %s) === %s", (action, entity, expected) => {
     expect(can(["workshop"], action, entity)).toBe(expected);

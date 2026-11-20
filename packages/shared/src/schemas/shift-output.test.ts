@@ -55,6 +55,27 @@ describe("shiftEntryCreateSchema", () => {
   });
 });
 
+describe("P2 — giờ chạy thực tế", () => {
+  it("không gửi (bản cũ) / gửi đủ 2 giờ / qua nửa đêm đều hợp lệ", () => {
+    expect(shiftEntryCreateSchema.safeParse(base).success).toBe(true);
+    expect(shiftEntryCreateSchema.safeParse({ ...base, workStart: "07:00", workEnd: "19:00" }).success).toBe(true);
+    expect(shiftEntryCreateSchema.safeParse({ ...base, workStart: "19:00", workEnd: "07:00" }).success).toBe(true);
+    expect(shiftEntryCreateSchema.safeParse({ ...base, workStart: null, workEnd: null }).success).toBe(true);
+  });
+  it("thiếu 1 trong 2 giờ, giờ bằng nhau, sai định dạng → lỗi", () => {
+    expect(shiftEntryCreateSchema.safeParse({ ...base, workStart: "07:00" }).success).toBe(false);
+    expect(shiftEntryCreateSchema.safeParse({ ...base, workEnd: "19:00", workStart: null }).success).toBe(false);
+    expect(shiftEntryCreateSchema.safeParse({ ...base, workStart: "07:00", workEnd: "07:00" }).success).toBe(false);
+    expect(shiftEntryCreateSchema.safeParse({ ...base, workStart: "7:00", workEnd: "19:00" }).success).toBe(false);
+    expect(shiftEntryCreateSchema.safeParse({ ...base, workStart: "24:00", workEnd: "19:00" }).success).toBe(false);
+  });
+  it("PATCH: cả 2 hoặc không; null + null = về giờ ca", () => {
+    expect(shiftEntryPatchSchema.safeParse({ version: 1, workStart: "06:30", workEnd: "18:30" }).success).toBe(true);
+    expect(shiftEntryPatchSchema.safeParse({ version: 1, workStart: null, workEnd: null }).success).toBe(true);
+    expect(shiftEntryPatchSchema.safeParse({ version: 1, workStart: "06:30" }).success).toBe(false);
+  });
+});
+
 describe("bulk / patch / delete", () => {
   it(`bulk tối đa ${SHIFT_BULK_MAX} dòng`, () => {
     expect(shiftEntryBulkSchema.safeParse({ entries: Array(SHIFT_BULK_MAX).fill({}) }).success).toBe(true);
@@ -78,12 +99,17 @@ describe("danh mục", () => {
     expect(shiftSetupSchemas.parts.parse({ code: "truc-d20", name: "Trục D20" }).code).toBe("TRUC-D20");
     expect(shiftSetupSchemas.parts.safeParse({ code: "trục 20", name: "x" }).success).toBe(false);
   });
-  it("ca: kết thúc phải sau bắt đầu trừ khi qua nửa đêm", () => {
-    expect(shiftSetupSchemas.shifts.safeParse({ code: "CA1", name: "Ca 1", startTime: "08:00", endTime: "12:00" }).success).toBe(true);
-    expect(shiftSetupSchemas.shifts.safeParse({ code: "CA1", name: "Ca 1", startTime: "12:00", endTime: "08:00" }).success).toBe(false);
+  it("ca (P2): 'qua nửa đêm' TỰ SUY từ giờ; bắt đầu = kết thúc → lỗi", () => {
+    const day = shiftSetupSchemas.shifts.parse({ code: "CA1", name: "Ca ngày", startTime: "07:00", endTime: "19:00" });
+    expect(day.crossesMidnight).toBe(false);
+    const night = shiftSetupSchemas.shifts.parse({ code: "CA2", name: "Ca đêm", startTime: "19:00", endTime: "07:00" });
+    expect(night.crossesMidnight).toBe(true);
+    // client gửi sai cờ → server ghi đè theo giờ
     expect(
-      shiftSetupSchemas.shifts.safeParse({ code: "CA3", name: "Ca 3", startTime: "22:00", endTime: "06:00", crossesMidnight: true }).success,
-    ).toBe(true);
+      shiftSetupSchemas.shifts.parse({ code: "CA3", name: "Ca 3", startTime: "08:00", endTime: "12:00", crossesMidnight: true })
+        .crossesMidnight,
+    ).toBe(false);
+    expect(shiftSetupSchemas.shifts.safeParse({ code: "CA4", name: "Ca 4", startTime: "07:00", endTime: "07:00" }).success).toBe(false);
   });
 });
 

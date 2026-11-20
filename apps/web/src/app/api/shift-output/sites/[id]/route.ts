@@ -3,6 +3,7 @@ import { shiftSiteUpdateSchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { diffObjects, writeAudit } from "@/server/services/audit";
+import { WORKSHOP_SETUP_DENIED_MESSAGE, workshopSetupDenied } from "@/server/shiftOutputAccess";
 import { requireShiftOutput, scopeAllows } from "@/server/shiftOutputScope";
 import { getSiteById, updateSite } from "@/server/repos/shiftOutputSetup";
 
@@ -13,6 +14,8 @@ export const dynamic = "force-dynamic";
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const guard = await requireShiftOutput(req, "update", "shiftOutputSetup");
   if ("response" in guard) return guard.response;
+  // P2 — xưởng có update danh mục nhưng KHÔNG được nới giờ tự khoá / lùi ngày / %NG.
+  if (workshopSetupDenied(guard.session, "site")) return jsonError("FORBIDDEN", WORKSHOP_SETUP_DENIED_MESSAGE, 403);
   const idCheck = validateUuidParam(params.id);
   if ("response" in idCheck) return idCheck.response;
   const body = await parseJson(req, shiftSiteUpdateSchema);

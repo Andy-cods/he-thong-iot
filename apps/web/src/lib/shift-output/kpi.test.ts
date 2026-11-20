@@ -94,3 +94,58 @@ describe("buildBoard — lưới Hôm nay", () => {
     expect(b.kpi.ok).toBe(100);
   });
 });
+
+describe("P2 — KPI theo giờ chạy thực tế", () => {
+  const actual = (ws: string, we: string, minutes: number, p: Partial<KpiRow> = {}) =>
+    row({ workStart: ws, workEnd: we, shiftMinutes: minutes, shiftStart: "07:00", ...p });
+
+  it("1 dòng chạy 07–19 → 720' khả dụng (không phải 240' của ca)", () => {
+    const k = computeKpis([actual("07:00", "19:00", 720, { downtimeMin: 72 })]);
+    expect(k.availableMin).toBe(720);
+    expect(k.availabilityPct).toBeCloseTo(90, 6);
+  });
+  it("2 mã nối tiếp cùng máy-ca 07–12 + 12–19 → hợp 720'", () => {
+    const k = computeKpis([actual("07:00", "12:00", 300), actual("12:00", "19:00", 420, { qtyOk: 5 })]);
+    expect(k.availableMin).toBe(720);
+  });
+  it("2 mã cùng khung giờ (mặc định giờ ca) → tính 1 lần", () => {
+    const k = computeKpis([actual("07:00", "19:00", 720), actual("07:00", "19:00", 720, { qtyOk: 1 })]);
+    expect(k.availableMin).toBe(720);
+  });
+  it("ca đêm 19–07: 19:00–00:30 + 00:30–07:00 neo đúng sau nửa đêm → 720'", () => {
+    const night = { shiftStart: "19:00", shiftId: "dem" };
+    const k = computeKpis([actual("19:00", "00:30", 330, night), actual("00:30", "07:00", 390, { ...night, qtyOk: 2 })]);
+    expect(k.availableMin).toBe(720);
+    expect(k.machineShifts).toBe(1);
+  });
+  it("giờ thực tế bắt đầu SỚM hơn ca (06:30 cho ca 07:00) vẫn neo đúng", () => {
+    const k = computeKpis([actual("06:30", "07:30", 60), actual("07:00", "08:00", 60, { qtyOk: 1 })]);
+    expect(k.availableMin).toBe(90);
+  });
+  it("trộn dòng cũ (không giờ thực tế) + dòng mới cùng máy-ca → lấy lớn hơn", () => {
+    const k = computeKpis([row({ shiftMinutes: 240 }), actual("07:00", "19:00", 720, { qtyOk: 1 })]);
+    expect(k.availableMin).toBe(720);
+    const k2 = computeKpis([row({ shiftMinutes: 240 }), actual("08:00", "09:00", 60, { qtyOk: 1 })]);
+    expect(k2.availableMin).toBe(240);
+  });
+  it("dòng demo cũ giữ nguyên hành vi P1", () => {
+    const k = computeKpis([row({ downtimeMin: 30 }), row({ machineId: "m2" })]);
+    expect(k.availableMin).toBe(480);
+  });
+  it("board: ô hiện giờ thực tế khi khác giờ ca + ảnh mã hàng", () => {
+    const b = buildBoard({
+      date: "2026-11-18",
+      now: new Date("2026-11-19T10:00:00+07:00"),
+      machines: [{ id: "m1" }],
+      shifts: [{ id: "ca1", startTime: "08:00", endTime: "12:00" }],
+      entries: [
+        { ...row({ workStart: "07:00:00", workEnd: "19:00:00", shiftMinutes: 720 }), id: "e1", partId: "p1", partCode: "TRUC", partImageAssetId: "a1", locked: false },
+        { ...row({ workStart: "08:00", workEnd: "12:00" }), id: "e2", partId: "p2", partCode: "BAC", partImageAssetId: null, locked: false },
+      ],
+    });
+    const c = b.cells[0]!;
+    expect(c.workRanges).toEqual(["07:00–19:00"]);
+    expect(c.images).toEqual([{ partId: "p1", partCode: "TRUC", assetId: "a1" }]);
+    expect(b.kpi.availableMin).toBe(720);
+  });
+});

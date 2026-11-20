@@ -35,6 +35,53 @@ export function shiftMinutes(s: Pick<ShiftWindowLike, "startTime" | "endTime" | 
   return s.crossesMidnight ? et + 1440 - st : et - st;
 }
 
+/** P2 — ca TỰ nhận "qua nửa đêm" khi giờ kết thúc < giờ bắt đầu (bỏ checkbox). */
+export function isOvernight(startTime: string, endTime: string): boolean {
+  return timeToMinutes(endTime) < timeToMinutes(startTime);
+}
+
+/**
+ * P2 — số phút của khoảng giờ chạy thực tế "HH:MM"→"HH:MM". Kết thúc < bắt đầu
+ * = qua nửa đêm (+24h). Bằng nhau → `null` (không hợp lệ). VN không có DST nên
+ * phút = hiệu giờ đồng hồ, không cần đi qua Date. Kết quả 1…1439.
+ */
+export function workWindowMinutes(startTime: string, endTime: string): number | null {
+  const st = timeToMinutes(startTime);
+  const et = timeToMinutes(endTime);
+  if (!Number.isFinite(st) || !Number.isFinite(et) || st === et) return null;
+  return et > st ? et - st : et + 1440 - st;
+}
+
+/**
+ * P2 — phút khả dụng của 1 dòng (ghi vào `shift_minutes`): có giờ thực tế →
+ * phút thực tế; không (dòng P1 / hàng đợi offline bản cũ) → độ dài ca.
+ */
+export function entryMinutes(
+  shift: Pick<ShiftWindowLike, "startTime" | "endTime" | "crossesMidnight">,
+  workStart?: string | null,
+  workEnd?: string | null,
+): number {
+  if (workStart && workEnd) {
+    const m = workWindowMinutes(workStart, workEnd);
+    if (m != null) return m;
+  }
+  return shiftMinutes(shift);
+}
+
+/** "07:00–19:00" nếu giờ thực tế KHÁC giờ ca; null khi trùng / không có. */
+export function workRangeLabel(
+  workStart: string | null | undefined,
+  workEnd: string | null | undefined,
+  shiftStart: string,
+  shiftEnd: string,
+): string | null {
+  if (!workStart || !workEnd) return null;
+  const ws = hhmm(workStart);
+  const we = hhmm(workEnd);
+  if (ws === hhmm(shiftStart) && we === hhmm(shiftEnd)) return null;
+  return `${ws}–${we}`;
+}
+
 /** "YYYY-MM-DD" ± n ngày (lịch, không phụ thuộc múi giờ). */
 export function addDays(date: string, n: number): string {
   const [y, m, d] = date.split("-").map(Number);

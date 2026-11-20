@@ -9,7 +9,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/ui/query-error";
 import { useConfirm } from "@/components/ui/confirm-dialog";
-import { addDays, diffDays } from "@/lib/shift-output/shift-window";
+import { addDays, diffDays, workRangeLabel } from "@/lib/shift-output/shift-window";
 import { useLockShift, useShiftContext, useShiftEntries, type EntryRow } from "@/hooks/useShiftOutput";
 import { fmtDay, fmtInt, fmtPct } from "./primitives";
 import { EntryEditSheet } from "./EntryEditSheet";
@@ -70,6 +70,11 @@ export function HistoryView({ siteId }: { siteId: string | null }) {
       cell: (r) => (
         <span>
           <span className="font-medium">{fmtDay(r.prodDate)}</span> <span className="text-zinc-500">{r.shiftName}</span>
+          {workRangeLabel(r.workStart, r.workEnd, r.shiftStart, r.shiftEnd) ? (
+            <span className="block text-sm text-zinc-500" title="Giờ chạy thực tế (khác giờ ca)">
+              {workRangeLabel(r.workStart, r.workEnd, r.shiftStart, r.shiftEnd)}
+            </span>
+          ) : null}
         </span>
       ),
     },

@@ -2,11 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   addDays,
   diffDays,
+  entryMinutes,
+  isOvernight,
   localParts,
   shiftMinutes,
   shiftPhase,
   shiftStartEnd,
   suggestCurrentShift,
+  workRangeLabel,
+  workWindowMinutes,
   zonedToUtc,
 } from "./shift-window";
 
@@ -66,5 +70,45 @@ describe("suggestCurrentShift", () => {
   });
   it("không có ca → null", () => {
     expect(suggestCurrentShift(new Date(), [])).toBeNull();
+  });
+});
+
+describe("P2 — giờ chạy thực tế", () => {
+  it("workWindowMinutes: thường, qua nửa đêm, bằng nhau → null", () => {
+    expect(workWindowMinutes("07:00", "19:00")).toBe(720);
+    expect(workWindowMinutes("08:00:00", "12:00:00")).toBe(240);
+    expect(workWindowMinutes("19:00", "07:00")).toBe(720);
+    expect(workWindowMinutes("23:00", "01:30")).toBe(150);
+    expect(workWindowMinutes("00:00", "23:59")).toBe(1439);
+    expect(workWindowMinutes("23:59", "00:00")).toBe(1);
+    expect(workWindowMinutes("07:00", "07:00")).toBeNull();
+  });
+  it("entryMinutes: có giờ thực tế → phút thực tế; không → độ dài ca", () => {
+    expect(entryMinutes(CA1, "07:00", "19:00")).toBe(720);
+    expect(entryMinutes(CA1, null, null)).toBe(240);
+    expect(entryMinutes(CA1, "07:00", null)).toBe(240);
+    expect(entryMinutes({ startTime: "19:00", endTime: "07:00", crossesMidnight: true })).toBe(720);
+  });
+  it("isOvernight tự nhận ca qua nửa đêm", () => {
+    expect(isOvernight("19:00", "07:00")).toBe(true);
+    expect(isOvernight("07:00", "19:00")).toBe(false);
+  });
+  it("workRangeLabel chỉ hiện khi khác giờ ca", () => {
+    expect(workRangeLabel("08:00:00", "12:00:00", "08:00", "12:00")).toBeNull();
+    expect(workRangeLabel("07:00", "19:00", "08:00:00", "12:00:00")).toBe("07:00–19:00");
+    expect(workRangeLabel(null, null, "08:00", "12:00")).toBeNull();
+  });
+  it("2 ca 12 giờ phủ 24h: gợi ý đúng ca + ngày", () => {
+    const day = { id: "d", code: "NGAY", startTime: "07:00", endTime: "19:00", crossesMidnight: false };
+    const night = { id: "n", code: "DEM", startTime: "19:00", endTime: "07:00", crossesMidnight: true };
+    const at = (t: string) => {
+      const r = suggestCurrentShift(vn("2026-11-18", t), [day, night]);
+      return `${r?.prodDate} ${r?.shift.code}`;
+    };
+    expect(at("10:00")).toBe("2026-11-18 NGAY");
+    expect(at("20:00")).toBe("2026-11-18 DEM");
+    expect(at("03:00")).toBe("2026-11-17 DEM");
+    expect(at("06:59")).toBe("2026-11-17 DEM");
+    expect(at("07:00")).toBe("2026-11-18 NGAY");
   });
 });

@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import {
   site,
   siteDefectReason,
@@ -185,6 +185,31 @@ export async function listSetup(kind: ShiftSetupKind, siteId: string, includeIna
     : and(eq(t.siteId, siteId), eq(t.isActive, true));
   const rows = await db.select().from(t).where(where).orderBy(...orderFor(kind));
   return rows as unknown as SetupRow[];
+}
+
+/** Số mục ĐANG DÙNG của 1 danh mục trong site (vd chặn ngừng dùng ca cuối cùng). */
+export async function countActiveSetup(kind: ShiftSetupKind, siteId: string): Promise<number> {
+  const t = TABLES[kind] as SetupTable;
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(t)
+    .where(and(eq(t.siteId, siteId), eq(t.isActive, true)));
+  return Number(row?.n ?? 0);
+}
+
+/** P2 — gắn / gỡ ảnh mã hàng (asset do server tạo qua saveImage). */
+export async function setPartImage(
+  siteId: string,
+  partId: string,
+  imageAssetId: string | null,
+  userId: string,
+): Promise<SetupRow | null> {
+  const [row] = await db
+    .update(sitePart)
+    .set({ imageAssetId, updatedAt: new Date(), updatedBy: userId })
+    .where(and(eq(sitePart.id, partId), eq(sitePart.siteId, siteId)))
+    .returning();
+  return (row as unknown as SetupRow) ?? null;
 }
 
 export async function getSetupById(kind: ShiftSetupKind, siteId: string, id: string): Promise<SetupRow | null> {

@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { shiftEntryDeleteSchema, shiftEntryPatchSchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import { checkLockedWrite, validateEntry } from "@/lib/shift-output/policy";
-import { shiftMinutes, todayInTz } from "@/lib/shift-output/shift-window";
+import { entryMinutes, hhmm, todayInTz } from "@/lib/shift-output/shift-window";
 import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { diffObjects, writeAudit } from "@/server/services/audit";
 import { canWithOverride } from "@/server/shiftOutputAccess";
@@ -38,6 +38,8 @@ function toWrite(e: EntryView): EntryWrite {
     qtyRework: e.qtyRework,
     downtimeMin: e.downtimeMin,
     shiftMinutes: e.shiftMinutes,
+    workStart: e.workStart ? hhmm(e.workStart) : null,
+    workEnd: e.workEnd ? hhmm(e.workEnd) : null,
     materialLot: e.materialLot,
     notes: e.notes,
     defects: e.defects.map((d) => ({ reasonId: d.reasonId, qty: d.qty })),
@@ -123,8 +125,19 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         fields: refs.invalid,
       });
     }
-    if (next.shiftId !== entry.shiftId) {
-      next.shiftMinutes = shiftMinutes(refs.shift as unknown as { startTime: string; endTime: string; crossesMidnight: boolean });
+    // P2 — giờ chạy thực tế: gửi cả 2 = đổi; null = về giờ ca; không gửi = giữ.
+    const workChanged = p.workStart !== undefined || p.workEnd !== undefined;
+    if (workChanged) {
+      next.workStart = p.workStart && p.workEnd ? p.workStart : null;
+      next.workEnd = next.workStart ? p.workEnd! : null;
+    }
+    if (workChanged || next.shiftId !== entry.shiftId) {
+      // Có giờ thực tế → phút thực tế (đổi ca vẫn giữ); không → độ dài ca (mới).
+      next.shiftMinutes = entryMinutes(
+        refs.shift as unknown as { startTime: string; endTime: string; crossesMidnight: boolean },
+        next.workStart,
+        next.workEnd,
+      );
     }
     // Không gửi chi tiết dừng mới nhưng có sẵn chi tiết → tổng vẫn = Σ chi tiết.
     const today = todayInTz(now, site.timezone);

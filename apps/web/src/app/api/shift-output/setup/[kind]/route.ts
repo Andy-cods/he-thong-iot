@@ -4,7 +4,7 @@ import { SHIFT_SETUP_WORKSHOP_KINDS, shiftSetupSchemas } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import { extractRequestMeta, jsonError, parseJson, parseSearchParams } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
-import { canWithOverride } from "@/server/shiftOutputAccess";
+import { canWithOverride, WORKSHOP_SETUP_DENIED_MESSAGE, workshopSetupDenied } from "@/server/shiftOutputAccess";
 import { pickSite, requireShiftOutput } from "@/server/shiftOutputScope";
 import {
   createSetup,
@@ -42,20 +42,22 @@ export async function GET(req: NextRequest, { params }: { params: { kind: string
 }
 
 /**
- * POST /api/shift-output/setup/[kind] — thêm mục. Tài khoản xưởng (có `create`
- * nhưng không `update` danh mục) chỉ thêm được Mã hàng + Người phụ trách
- * ("+ Thêm mã mới" ngay trong form Nhập ca); máy/ca/lý do do quản trị.
+ * POST /api/shift-output/setup/[kind] — thêm mục. P2: tài khoản xưởng thêm được
+ * Mã hàng, Người phụ trách, Ca làm việc (SHIFT_SETUP_WORKSHOP_KINDS); máy / lý
+ * do do quản trị. Vai khác: ngoài 3 loại này cần thêm `update:shiftOutputSetup`.
+ * Ca: `crossesMidnight` server tự suy từ giờ (schema transform).
  */
 export async function POST(req: NextRequest, { params }: { params: { kind: string } }) {
   const kind = parseSetupKind(params.kind);
   if (!kind) return jsonError("NOT_FOUND", "Danh mục không tồn tại.", 404);
   const guard = await requireShiftOutput(req, "create", "shiftOutputSetup");
   if ("response" in guard) return guard.response;
+  if (workshopSetupDenied(guard.session, kind)) return jsonError("FORBIDDEN", WORKSHOP_SETUP_DENIED_MESSAGE, 403);
   if (
     !SHIFT_SETUP_WORKSHOP_KINDS.includes(kind) &&
     !(await canWithOverride(guard.session, "update", "shiftOutputSetup"))
   ) {
-    return jsonError("FORBIDDEN", "Tài khoản xưởng chỉ thêm được Mã hàng và Người phụ trách.", 403);
+    return jsonError("FORBIDDEN", "Chỉ quản trị thêm được danh mục này.", 403);
   }
   const body = await parseJson(req, shiftSetupSchemas[kind].and(z.object({ siteId: z.string().uuid().nullish() })));
   if ("response" in body) return body.response;
