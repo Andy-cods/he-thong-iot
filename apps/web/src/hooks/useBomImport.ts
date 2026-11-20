@@ -6,7 +6,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import type { BomImportCommit } from "@iot/shared";
+import type { BomDuplicateMode, BomImportCommit, BomImportOutcome, BomRefKind } from "@iot/shared";
 import { qk } from "@/lib/query-keys";
 
 /**
@@ -53,6 +53,21 @@ export interface BomUploadResult {
   /** V5 — "TRIEN_KHAI" khi nhận diện mẫu BOM triển khai. */
   template?: "TRIEN_KHAI";
   trienKhai?: TrienKhaiPreview;
+  /** Mã BOM trong file đã tồn tại → phải chọn Ghi đè / Mã mới / Huỷ. */
+  conflicts?: BomCodeConflict[];
+}
+
+/** Khớp `BomCodeConflict` ở server/repos/bomImportConflicts.ts. */
+export interface BomCodeConflict {
+  code: string;
+  sheetName: string | null;
+  templateId: string;
+  name: string;
+  status: "DRAFT" | "ACTIVE" | "OBSOLETE";
+  lineCount: number;
+  blockers: Array<{ kind: BomRefKind; count: number; label: string }>;
+  replaceBlockedReason: string | null;
+  suggestedNewCode: string;
 }
 
 /** V5 WP4b — preview bước "Khớp" của mẫu BOM triển khai. */
@@ -119,6 +134,8 @@ export interface BomImportStatus {
   rowFail: number;
   errorMessage: string | null;
   errorPreview?: BomImportErrorPreview[];
+  /** Việc đã làm với từng BOM (worker ghi) — rỗng khi đang chạy / server cũ. */
+  outcomes?: BomImportOutcome[];
   startedAt: string | null;
   finishedAt: string | null;
 }
@@ -144,7 +161,7 @@ export function useUploadBomImport() {
   return useMutation({
     mutationFn: async (input: {
       file: File;
-      duplicateMode: "skip" | "upsert" | "error";
+      duplicateMode: BomDuplicateMode;
     }): Promise<BomUploadResult> => {
       const fd = new FormData();
       fd.append("file", input.file);

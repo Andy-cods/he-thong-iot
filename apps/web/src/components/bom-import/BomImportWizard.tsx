@@ -16,17 +16,9 @@ import {
   Table as TableIcon,
   UploadCloud,
 } from "lucide-react";
-import { LIMITS } from "@iot/shared";
+import { LIMITS, sanitizeNewBomCode, type BomImportOutcome } from "@iot/shared";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   downloadBomImportErrorsUrl,
@@ -40,6 +32,11 @@ import {
 } from "@/hooks/useBomImport";
 import { BomColumnMapperStep } from "./BomColumnMapperStep";
 import { BomImportMatchStep } from "./BomImportMatchStep";
+import {
+  BomDuplicatePanel,
+  defaultDuplicateChoice,
+  type DuplicateChoice,
+} from "./BomDuplicatePanel";
 import { cn } from "@/lib/utils";
 
 /**
@@ -66,7 +63,6 @@ import { cn } from "@/lib/utils";
  */
 
 type Step = "upload" | "review" | "result";
-type DuplicateMode = "skip" | "upsert" | "error";
 
 const STEP_ORDER: Step[] = ["upload", "review", "result"];
 const STEP_LABELS: Record<Step, string> = {
@@ -75,10 +71,9 @@ const STEP_LABELS: Record<Step, string> = {
   result: "Kết quả",
 };
 
-const DUP_LABEL: Record<DuplicateMode, string> = {
-  skip: "Bỏ qua BOM code đã tồn tại",
-  upsert: "Cập nhật BOM code đã tồn tại",
-  error: "Báo lỗi nếu trùng",
+const DUP_SUMMARY: Record<DuplicateChoice, string> = {
+  replace: "ghi đè BOM trùng mã",
+  new_code: "BOM trùng mã tạo mã mới",
 };
 
 // Mapping target → Vietnamese label cho preview header
@@ -98,8 +93,9 @@ const TARGET_LABELS: Record<string, string> = {
 export function BomImportWizard() {
   const [step, setStep] = React.useState<Step>("upload");
   const [file, setFile] = React.useState<File | null>(null);
-  const [duplicateMode, setDuplicateMode] =
-    React.useState<DuplicateMode>("skip");
+  // Nhập lại BOM: chọn ở bước xem trước khi mã trong file đã tồn tại.
+  const [dupChoice, setDupChoice] = React.useState<DuplicateChoice>("replace");
+  const [newCode, setNewCode] = React.useState("");
   const [uploadData, setUploadData] = React.useState<BomUploadResult | null>(
     null,
   );
@@ -142,8 +138,11 @@ export function BomImportWizard() {
   const handleUpload = async () => {
     if (!file) return;
     try {
-      const res = await upload.mutateAsync({ file, duplicateMode });
+      const res = await upload.mutateAsync({ file, duplicateMode: "skip" });
       setUploadData(res);
+      const conflicts = res.conflicts ?? [];
+      setDupChoice(defaultDuplicateChoice(conflicts));
+      setNewCode(conflicts[0]?.suggestedNewCode ?? "");
       const kinds = res.officialFormat?.sheetKinds ?? {};
       const isOfficial = res.officialFormat?.isOfficial === true;
       const sheets = res.sheets ?? [];
@@ -174,8 +173,50 @@ export function BomImportWizard() {
     }
   };
 
+  // Mã trùng liên quan tới lần commit này (cổ điển: chỉ sheet đang chọn).
+  const relevantConflicts = React.useMemo(() => {
+    const all = uploadData?.conflicts ?? [];
+    if (uploadData?.template === "TRIEN_KHAI") return all;
+    return all.filter((c) => c.sheetName === null || selectedSheets.includes(c.sheetName));
+  }, [uploadData, selectedSheets]);
+  const hasConflict = relevantConflicts.length > 0;
+  // Không trùng → "error": nếu ai đó tạo trùng mã ngay lúc này thì báo lỗi rõ,
+  // KHÔNG âm thầm bỏ qua như trước.
+  const commitMode = hasConflict ? dupChoice : "error";
+  const isTrienKhai = uploadData?.template === "TRIEN_KHAI";
+  const cleanNewCode = sanitizeNewBomCode(newCode);
+  const commitBlockedReason = !hasConflict
+    ? null
+    : dupChoice === "replace" && relevantConflicts.some((c) => c.replaceBlockedReason)
+      ? "BOM trùng không ghi đè được — chọn Tạo BOM mới với mã khác"
+      : dupChoice === "new_code" && isTrienKhai &&
+          (!cleanNewCode || cleanNewCode === relevantConflicts[0]?.code)
+        ? "Nhập mã BOM mới khác mã đang có"
+        : null;
+  const commitLabel = !hasConflict
+    ? "Tạo BOM"
+    : dupChoice === "replace"
+      ? "Thay BOM bằng bản mới"
+      : "Tạo BOM mới";
+
+  const duplicatePanel = hasConflict ? (
+    <BomDuplicatePanel
+      conflicts={relevantConflicts}
+      choice={dupChoice}
+      onChoice={setDupChoice}
+      newCode={isTrienKhai ? newCode : undefined}
+      onNewCode={isTrienKhai ? setNewCode : undefined}
+      onCancel={() => resetAll()}
+      disabled={commit.isPending}
+    />
+  ) : null;
+
   const handleCommit = async () => {
     if (!uploadData) return;
+    if (commitBlockedReason) {
+      toast.error(commitBlockedReason);
+      return;
+    }
     // Validate required mappings
     for (const sheet of selectedSheets) {
       const m = mappings[sheet] ?? {};
@@ -211,7 +252,7 @@ export function BomImportWizard() {
             >
           >,
           autoCreateMissingItems,
-          duplicateMode,
+          duplicateMode: commitMode,
         },
       });
       toast.info("Đang import nền — theo dõi tiến độ ở đây.");
@@ -231,7 +272,8 @@ export function BomImportWizard() {
           selectedSheets: [uploadData.trienKhai.sheetName],
           mappings: {},
           autoCreateMissingItems: false,
-          duplicateMode,
+          duplicateMode: commitMode,
+          ...(commitMode === "new_code" && cleanNewCode ? { newCode: cleanNewCode } : {}),
           decisions,
         },
       });
@@ -260,15 +302,17 @@ export function BomImportWizard() {
     return Math.round(((d.rowSuccess + d.rowFail) / d.rowTotal) * 100);
   }, [statusQuery.data]);
 
-  const resetAll = () => {
+  function resetAll() {
     setStep("upload");
     setFile(null);
     setUploadData(null);
     setSelectedSheets([]);
     setMappings({});
+    setDupChoice("replace");
+    setNewCode("");
     upload.reset();
     commit.reset();
-  };
+  }
 
   return (
     <div className="space-y-5">
@@ -277,8 +321,6 @@ export function BomImportWizard() {
       {step === "upload" && (
         <UploadStep
           file={file}
-          duplicateMode={duplicateMode}
-          setDuplicateMode={setDuplicateMode}
           getRootProps={getRootProps}
           getInputProps={getInputProps}
           isDragActive={isDragActive}
@@ -293,6 +335,9 @@ export function BomImportWizard() {
           committing={commit.isPending}
           onBack={() => setStep("upload")}
           onCommit={(d) => void handleCommitTrienKhai(d)}
+          topSlot={duplicatePanel}
+          commitLabel={commitLabel}
+          commitBlockedReason={commitBlockedReason}
         />
       )}
 
@@ -308,7 +353,10 @@ export function BomImportWizard() {
           setMappings={setMappings}
           autoCreateMissingItems={autoCreateMissingItems}
           setAutoCreateMissingItems={setAutoCreateMissingItems}
-          duplicateMode={duplicateMode}
+          duplicateSummary={hasConflict ? DUP_SUMMARY[dupChoice] : null}
+          topSlot={duplicatePanel}
+          commitLabel={hasConflict ? commitLabel : "Xác nhận import"}
+          commitBlocked={!!commitBlockedReason}
           totalSelectedRows={totalSelectedRows}
           onBack={() => setStep("upload")}
           onCommit={() => void handleCommit()}
@@ -325,6 +373,7 @@ export function BomImportWizard() {
           rowTotal={statusQuery.data?.rowTotal ?? totalSelectedRows}
           errorMessage={statusQuery.data?.errorMessage ?? null}
           errorPreview={statusQuery.data?.errorPreview ?? []}
+          outcomes={statusQuery.data?.outcomes ?? []}
           batchId={uploadData.batchId}
           onReset={resetAll}
         />
@@ -339,8 +388,6 @@ export function BomImportWizard() {
 
 interface UploadStepProps {
   file: File | null;
-  duplicateMode: DuplicateMode;
-  setDuplicateMode: (m: DuplicateMode) => void;
   getRootProps: ReturnType<typeof useDropzone>["getRootProps"];
   getInputProps: ReturnType<typeof useDropzone>["getInputProps"];
   isDragActive: boolean;
@@ -350,8 +397,6 @@ interface UploadStepProps {
 
 function UploadStep({
   file,
-  duplicateMode,
-  setDuplicateMode,
   getRootProps,
   getInputProps,
   isDragActive,
@@ -428,30 +473,10 @@ function UploadStep({
           )}
         </div>
 
-        {/* Duplicate mode */}
-        <div className="space-y-1.5">
-          <Label htmlFor="dup" uppercase>
-            Xử lý BOM code trùng
-          </Label>
-          <Select
-            value={duplicateMode}
-            onValueChange={(v) => setDuplicateMode(v as DuplicateMode)}
-          >
-            <SelectTrigger id="dup">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(["skip", "upsert", "error"] as DuplicateMode[]).map((m) => (
-                <SelectItem key={m} value={m}>
-                  {DUP_LABEL[m]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-            Nếu sheet có BOM code (sanitized từ tên sheet) đã tồn tại trong DB.
-          </p>
-        </div>
+        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+          Nếu mã BOM trong file đã có trong hệ thống, bước sau sẽ hỏi bạn ghi đè
+          bằng bản mới hay tạo BOM mới với mã khác.
+        </p>
       </div>
 
       {/* Footer */}
@@ -491,7 +516,11 @@ interface ReviewStepProps {
   >;
   autoCreateMissingItems: boolean;
   setAutoCreateMissingItems: (v: boolean) => void;
-  duplicateMode: DuplicateMode;
+  /** Có BOM trùng mã → mô tả cách xử lý đã chọn (dòng tóm tắt cuối). */
+  duplicateSummary: string | null;
+  topSlot?: React.ReactNode;
+  commitLabel: string;
+  commitBlocked: boolean;
   totalSelectedRows: number;
   onBack: () => void;
   onCommit: () => void;
@@ -509,7 +538,10 @@ function ReviewStep({
   setMappings,
   autoCreateMissingItems,
   setAutoCreateMissingItems,
-  duplicateMode,
+  duplicateSummary,
+  topSlot,
+  commitLabel,
+  commitBlocked,
   totalSelectedRows,
   onBack,
   onCommit,
@@ -562,6 +594,8 @@ function ReviewStep({
           </div>
         </div>
       )}
+
+      {topSlot}
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -741,11 +775,12 @@ function ReviewStep({
           <div className="flex items-center gap-3">
             <span className="text-xs text-zinc-500 dark:text-zinc-400">
               Sẽ import <strong className="text-zinc-900 tabular-nums dark:text-zinc-50">{totalSelectedRows.toLocaleString("vi-VN")}</strong> dòng từ{" "}
-              <strong className="text-zinc-900 dark:text-zinc-50">{selectedSheets.length}</strong> sheet · {DUP_LABEL[duplicateMode]}
+              <strong className="text-zinc-900 dark:text-zinc-50">{selectedSheets.length}</strong> sheet
+              {duplicateSummary ? ` · ${duplicateSummary}` : ""}
             </span>
             <Button
               onClick={onCommit}
-              disabled={committing || !requiredOk || selectedSheets.length === 0}
+              disabled={committing || !requiredOk || selectedSheets.length === 0 || commitBlocked}
               size="lg"
             >
               {committing ? (
@@ -756,7 +791,7 @@ function ReviewStep({
               ) : (
                 <>
                   <Check className="h-4 w-4" aria-hidden />
-                  Xác nhận import
+                  {commitLabel}
                 </>
               )}
             </Button>
@@ -857,6 +892,7 @@ function ResultStep({
   rowTotal,
   errorMessage,
   errorPreview,
+  outcomes,
   batchId,
   onReset,
 }: {
@@ -867,13 +903,25 @@ function ResultStep({
   rowTotal: number;
   errorMessage: string | null;
   errorPreview: BomImportErrorPreview[];
+  outcomes: BomImportOutcome[];
   batchId: string;
   onReset: () => void;
 }) {
-  const isDone = status === "done";
   const isFailed = status === "failed";
+  // Hoàn tất nhưng MỌI BOM đều bị bỏ qua → không phải "thành công" (trước đây
+  // màn này báo 🎉 dù không ghi dòng nào).
+  const allSkipped =
+    status === "done" && outcomes.length > 0 && outcomes.every((o) => o.action === "skipped");
+  const isDone = status === "done" && !allSkipped;
+  const written = outcomes.filter((o) => o.action !== "skipped");
+  const doneTitle =
+    rowFail > 0
+      ? `Hoàn tất với ${rowFail} dòng lỗi`
+      : written.length === 1
+        ? OUTCOME_TITLE[written[0]!.action]
+        : "Import BOM thành công";
 
-  if (isDone && rowTotal === 0) {
+  if (status === "done" && rowTotal === 0 && outcomes.length === 0) {
     return (
       <section className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
         <EmptyState
@@ -896,7 +944,9 @@ function ResultStep({
       <div
         className={cn(
           "overflow-hidden rounded-xl border shadow-sm",
-          isDone
+          allSkipped
+            ? "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40"
+            : isDone
             ? "border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40"
             : isFailed
               ? "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/40"
@@ -904,7 +954,11 @@ function ResultStep({
         )}
       >
         <div className="flex items-center gap-4 p-6">
-          {isDone ? (
+          {allSkipped ? (
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-amber-100 ring-4 ring-amber-50 dark:bg-amber-950/40 dark:ring-amber-950/20">
+              <AlertTriangle className="h-8 w-8 text-amber-600" aria-hidden />
+            </div>
+          ) : isDone ? (
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-emerald-100 ring-4 ring-emerald-50 dark:bg-emerald-950/40 dark:ring-emerald-950/20">
               <CheckCircle2 className="h-8 w-8 text-emerald-600" aria-hidden />
             </div>
@@ -919,10 +973,10 @@ function ResultStep({
           )}
           <div className="min-w-0">
             <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-              {isDone
-                ? rowFail > 0
-                  ? `Hoàn tất với ${rowFail} dòng lỗi`
-                  : "🎉 Import BOM thành công"
+              {allSkipped
+                ? "Không ghi dòng nào — đã bỏ qua"
+                : isDone
+                ? doneTitle
                 : isFailed
                   ? "Import thất bại"
                   : "Đang import nền…"}
@@ -933,7 +987,26 @@ function ResultStep({
             </p>
           </div>
         </div>
-        {!isFailed && (
+        {outcomes.length > 0 && !isFailed && (
+          <ul className="space-y-1.5 border-t border-white/60 bg-white/50 px-6 py-3 text-sm dark:border-zinc-700/60 dark:bg-zinc-900/40">
+            {outcomes.map((o, i) => (
+              <li key={`${o.templateCode}-${i}`} className="flex flex-wrap items-baseline gap-x-2">
+                <span className={cn("text-zinc-800 dark:text-zinc-200", o.action === "skipped" && "text-amber-800 dark:text-amber-300")}>
+                  {o.message}
+                </span>
+                {o.templateId && o.action !== "skipped" && (
+                  <a
+                    href={`/bom/${o.templateId}`}
+                    className="text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+                  >
+                    Mở BOM {o.templateCode} →
+                  </a>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        {!isFailed && !allSkipped && (
           <div className="border-t border-white/60 bg-white/40 px-6 py-3 dark:border-zinc-700/60 dark:bg-zinc-900/40">
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-200/60 dark:bg-zinc-700/60">
               <div
@@ -1048,6 +1121,14 @@ function ResultStep({
     </section>
   );
 }
+
+const OUTCOME_TITLE: Record<BomImportOutcome["action"], string> = {
+  created: "Đã tạo BOM mới",
+  filled: "Đã ghi dòng vào BOM",
+  replaced: "Đã thay BOM bằng bản mới",
+  new_code: "Đã tạo BOM mới với mã khác",
+  skipped: "Đã bỏ qua",
+};
 
 // =====================================================================
 // SHARED COMPONENTS

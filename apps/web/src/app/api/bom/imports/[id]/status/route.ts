@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import type { BomImportOutcome } from "@iot/shared";
 import { jsonError } from "@/server/http";
 import { getImportBatch } from "@/server/repos/importBatch";
 import { requireCan } from "@/server/session";
@@ -36,8 +37,15 @@ export async function GET(
     reason: e.reason,
   }));
 
+  // Kết quả từng BOM do worker ghi (preview_json.outcomes) — màn Kết quả nói
+  // chính xác việc đã làm ("Đã thay 63 dòng…" / "Bỏ qua vì…").
+  const outcomes = Array.isArray((batch.previewJson as { outcomes?: unknown } | null)?.outcomes)
+    ? ((batch.previewJson as { outcomes: BomImportOutcome[] }).outcomes)
+    : [];
+
   return NextResponse.json({
     data: {
+      outcomes,
       batchId: batch.id,
       status: batch.status,
       rowTotal: batch.rowTotal,
