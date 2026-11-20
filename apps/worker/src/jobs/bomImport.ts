@@ -27,6 +27,8 @@ import {
   ReplaceBlockedError,
   assertReplaceAllowed,
   backupTemplateLines,
+  hasReleasedRevision,
+  rereleaseAfterReplace,
   deleteTemplateLines,
   resolveNewCode,
   saveOutcomes,
@@ -50,6 +52,9 @@ interface SheetLastImport {
   action: BomImportOutcome["action"];
   linesRemoved?: number;
   backupRevisionNo?: string | null;
+  /** BOM có RELEASED trước khi ghi đè → cần phát hành lại sau khi ghi xong dòng. */
+  needsRerelease?: boolean;
+  rereleasedRevisionNo?: string | null;
   previousStatus?: string | null;
   newStatus?: string | null;
   conflictCode?: string | null;
@@ -76,6 +81,7 @@ async function prepareSheetReplace(input: {
       .for("update");
     if (!locked) throw new Error(`BOM ${input.code} không còn tồn tại`);
     await assertReplaceAllowed(tx, input.templateId, input.code);
+    const needsRerelease = await hasReleasedRevision(tx, input.templateId);
     const backup = await backupTemplateLines(
       tx,
       input.templateId,
@@ -92,6 +98,7 @@ async function prepareSheetReplace(input: {
       newStatus,
       linesRemoved: backup?.lineCount ?? 0,
       backupRevisionNo: backup?.revisionNo ?? null,
+      needsRerelease,
     };
     await tx
       .update(bomTemplate)
@@ -398,6 +405,27 @@ export async function processBomImportCommit(
       );
     }
 
+    // Ghi đè BOM đang có bản RELEASED: dòng mới đã ghi xong → phát hành lại (idempotent khi retry).
+    if (last.action === "replaced" && last.needsRerelease && !last.rereleasedRevisionNo) {
+      const rr = await db.transaction((tx) =>
+        rereleaseAfterReplace(
+          tx,
+          templateId,
+          actorId,
+          `Tự phát hành lại sau khi ghi đè từ file "${batch.fileName}" (sheet "${sheetName}", batch ${batchId.slice(0, 8)}).`,
+        ),
+      );
+      if (rr) {
+        last = { ...last, rereleasedRevisionNo: rr.revisionNo };
+        await db
+          .update(bomTemplate)
+          .set({
+            metadata: sql`jsonb_set(COALESCE(${bomTemplate.metadata}, '{}'::jsonb), '{lastImport,rereleasedRevisionNo}', to_jsonb(${rr.revisionNo}::text))`,
+          })
+          .where(eq(bomTemplate.id, templateId));
+      }
+    }
+
     outcomes.push(
       makeBomImportOutcome({
         action: last.action,
@@ -407,6 +435,7 @@ export async function processBomImportCommit(
         linesWritten: totalSuccess - sheetSuccessBefore,
         linesRemoved: last.linesRemoved,
         backupRevisionNo: last.backupRevisionNo,
+        rereleasedRevisionNo: last.rereleasedRevisionNo,
         previousStatus: last.previousStatus,
         newStatus: last.newStatus,
         conflictCode: last.conflictCode,
