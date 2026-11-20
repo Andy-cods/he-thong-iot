@@ -199,7 +199,7 @@ export function BomWorkspaceTopbar({
   );
 
   return (
-    <header className="flex h-12 shrink-0 items-center gap-2 overflow-x-auto border-b border-zinc-200 bg-white px-2 [scrollbar-width:none] dark:border-zinc-800 dark:bg-zinc-900 md:px-3 [&::-webkit-scrollbar]:hidden">
+    <header className="flex min-w-0 max-w-full shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-zinc-200 bg-white px-2 py-1.5 [scrollbar-width:none] dark:border-zinc-800 dark:bg-zinc-900 md:h-12 md:flex-nowrap md:overflow-x-auto md:px-3 md:py-0 [&::-webkit-scrollbar]:hidden">
       {/* Trái: ← + mã (mono) + tên rút gọn (tooltip tên đầy đủ) + pill trạng thái. */}
       <Link
         href="/bom"
@@ -210,10 +210,10 @@ export function BomWorkspaceTopbar({
         <ArrowLeft className="h-4 w-4" aria-hidden />
       </Link>
       <div
-        className="flex min-w-0 max-w-[140px] shrink items-baseline gap-1.5 md:max-w-[200px] xl:max-w-[320px]"
+        className="flex min-w-0 max-w-[calc(100vw-13rem)] shrink items-baseline gap-1.5 md:max-w-[200px] xl:max-w-[320px]"
         title={nameDupCode ? template.code : `${template.code} · ${template.name}`}
       >
-        <span className="shrink-0 font-mono text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+        <span className="min-w-0 truncate font-mono text-xs font-semibold text-zinc-800 dark:text-zinc-200 md:shrink-0">
           {template.code}
         </span>
         {!nameDupCode && (
@@ -227,17 +227,18 @@ export function BomWorkspaceTopbar({
       <StatusPill domain="bom" code={template.status} dot className="shrink-0 scale-90" />
 
       {middle ? (
-        <>
+        // Điện thoại: xuống hàng riêng, tự cuộn ngang TRONG khối (không làm cả trang tràn).
+        <div className="order-last flex min-w-0 max-w-full basis-full items-center gap-2 overflow-x-auto md:order-none md:basis-auto md:overflow-visible">
           {divider}
           {middle}
-        </>
+        </div>
       ) : null}
 
       <div className="min-w-2 flex-1" aria-hidden />
 
       {presence}
       {/* Slot: BomGridPro portal "SL TP" + nút ẩn cột rỗng vào đây. */}
-      <div ref={toolbarSlotRef} className="flex shrink-0 items-center gap-1.5" />
+      <div ref={toolbarSlotRef} className="flex shrink-0 items-center gap-1.5 max-md:order-last max-md:max-w-full max-md:basis-full max-md:overflow-x-auto empty:hidden" />
 
       {/* V3.7.54 — Nút "Kích hoạt BOM" hiển thị rõ khi BOM đang DRAFT.
           V3.7.57 — chỉ admin/planner thấy. Các role khác xem read-only.
@@ -279,6 +280,12 @@ export function BomWorkspaceTopbar({
           {canEditBom && (
             <>
               <DropdownMenuSeparator />
+              {template.status === "ACTIVE" && (
+                <DropdownMenuItem onClick={() => setReleaseOpen(true)}>
+                  <Rocket className="h-3.5 w-3.5" aria-hidden />
+                  Phát hành lại / đơn mới
+                </DropdownMenuItem>
+              )}
               {!isObsolete && (
                 <DropdownMenuItem onClick={() => void handleRename()}>
                   <Pencil className="h-3.5 w-3.5" aria-hidden />
@@ -315,6 +322,7 @@ export function BomWorkspaceTopbar({
         templateCode={template.code}
         nextRevisionNoHint={nextRevisionNoHint}
         activates={template.status === "DRAFT"}
+        reissue={template.status === "ACTIVE"}
       />
 
       <DialogConfirm

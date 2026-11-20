@@ -31,6 +31,7 @@ export function ImageLightbox({
   src,
   fallbackSrc,
   alt,
+  returnFocusRef,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -38,6 +39,8 @@ export function ImageLightbox({
   /** Ảnh dự phòng (thumb) khi ảnh đầy đủ lỗi. */
   fallbackSrc?: string;
   alt: string;
+  /** Phần tử nhận lại focus khi đóng (nút mở). Không truyền → Radix tự trả về phần tử đang focus lúc mở. */
+  returnFocusRef?: React.RefObject<HTMLElement>;
 }) {
   const [stage, setStage] = React.useState<LightboxStage>("full");
   React.useEffect(() => {
@@ -48,7 +51,18 @@ export function ImageLightbox({
   return (
     <span className="contents" onClick={(e) => e.stopPropagation()}>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent size="lg" className="p-3" aria-describedby={undefined}>
+        <DialogContent
+          size="lg"
+          className="p-3"
+          aria-describedby={undefined}
+          onCloseAutoFocus={(e) => {
+            const el = returnFocusRef?.current;
+            if (el) {
+              e.preventDefault();
+              el.focus();
+            }
+          }}
+        >
           <DialogTitle className="pr-8 text-md">{alt}</DialogTitle>
           <div className="flex h-[min(80dvh,720px)] w-full items-center justify-center overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800">
             {stage !== "failed" && current ? (
@@ -92,9 +106,11 @@ export function ZoomableThumb({
   children?: React.ReactNode;
 }) {
   const [open, setOpen] = React.useState(false);
+  const btnRef = React.useRef<HTMLButtonElement>(null);
   return (
     <>
       <button
+        ref={btnRef}
         type="button"
         onClick={(e) => {
           e.stopPropagation();
@@ -113,7 +129,7 @@ export function ZoomableThumb({
             <img src={thumbSrc} alt={alt} loading="lazy" draggable={false} className="h-full w-full object-contain" />
           ) : null)}
       </button>
-      <ImageLightbox open={open} onOpenChange={setOpen} src={fullSrc} fallbackSrc={thumbSrc} alt={alt} />
+      <ImageLightbox open={open} onOpenChange={setOpen} src={fullSrc} fallbackSrc={thumbSrc} alt={alt} returnFocusRef={btnRef} />
     </>
   );
 }

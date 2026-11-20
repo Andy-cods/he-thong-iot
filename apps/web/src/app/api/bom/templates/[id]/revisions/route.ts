@@ -16,6 +16,7 @@ import {
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { requireCan } from "@/server/session";
+import { hasBoardExtras } from "@/lib/production-board-policy";
 import { onBomActivatedWithStatus } from "@/server/services/boardFromBom";
 
 export const runtime = "nodejs";
@@ -77,8 +78,11 @@ export async function POST(
     // tự đưa lên Bảng sản xuất (kèm hạn/RFQ/khách nếu nhập ở hộp kích hoạt).
     let board = null;
     let boardError: string | null = null;
-    if (template.status === "DRAFT") {
-      await updateTemplate(params.id, { status: "ACTIVE" });
+    // BOM ĐANG DÙNG phát hành lại: CHỈ đồng bộ board khi có nhập extras (đơn mới/QT mới) —
+    // không extras thì board giữ nguyên như trước.
+    const syncActive = template.status === "ACTIVE" && hasBoardExtras(body.data.board);
+    if (template.status === "DRAFT" || syncActive) {
+      if (template.status === "DRAFT") await updateTemplate(params.id, { status: "ACTIVE" });
       const outcome = await onBomActivatedWithStatus({
         templateId: params.id,
         templateCode: template.code,

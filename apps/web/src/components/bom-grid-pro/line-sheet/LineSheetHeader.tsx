@@ -39,6 +39,7 @@ export function LineSheetHeader({
   onCreateWorkOrder,
 }: LineSheetHeaderProps) {
   const [zoom, setZoom] = React.useState(false);
+  const zoomBtnRef = React.useRef<HTMLButtonElement>(null);
   const [imgFailed, setImgFailed] = React.useState(false);
   const src = lineImageSrc(node, "full");
   const id = lineIdText(node);
@@ -100,6 +101,7 @@ export function LineSheetHeader({
 
       {src && !imgFailed ? (
         <button
+          ref={zoomBtnRef}
           type="button"
           onClick={() => setZoom(true)}
           aria-label="Phóng to ảnh"
@@ -149,6 +151,7 @@ export function LineSheetHeader({
           src={src}
           fallbackSrc={lineImageSrc(node, "thumb") ?? undefined}
           alt={name}
+          returnFocusRef={zoomBtnRef}
         />
       ) : null}
     </header>

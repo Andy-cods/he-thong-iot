@@ -171,6 +171,12 @@ const clean = (v: string | null | undefined): string | null => {
   return t ? t : null;
 };
 
+/** Có ít nhất 1 trường extras (hạn / RFQ / khách) khác rỗng? */
+export function hasBoardExtras(extras: BoardActivationExtras | null | undefined): boolean {
+  if (!extras) return false;
+  return !!(extras.deadline?.trim() || extras.rfqNo?.trim() || extras.customer?.trim());
+}
+
 /**
  * THUẦN — quyết định tạo mới / gắn liên kết / cập nhật dòng board cho BOM vừa
  * kích hoạt. `candidates` = dòng có thể liên quan (repo lọc thô theo mã), sắp
@@ -198,7 +204,17 @@ export function planBoardSyncFromBom(
       c.status !== "DELIVERED" &&
       (c.bomTemplateId === bom.id || normalizeBoardProductCode(c.productCode) === norm),
   );
-  const row = open.find((c) => c.bomTemplateId === bom.id) ?? open[0];
+  const linked = open.find((c) => c.bomTemplateId === bom.id) ?? open[0];
+  // Q3 (chủ sở hữu chốt "QT khác → dòng mới"): có nhập Số QT/RFQ ở hộp kích hoạt →
+  // dùng lại dòng mở CÙNG RFQ (so khớp trim/hoa-thường); không có dòng cùng RFQ mà còn
+  // dòng mở CHƯA có RFQ → điền RFQ vào dòng đó (như cũ); còn lại (mọi dòng mở đã có RFQ
+  // khác) → tạo dòng MỚI, không ghi đè. Không nhập RFQ → dùng dòng mở như trước.
+  const rfqKey = (v: string | null | undefined) => clean(v)?.toUpperCase() ?? null;
+  const row = rfqNo
+    ? (open.find((c) => rfqKey(c.rfqNo) === rfqKey(rfqNo)) ??
+      open.find((c) => c.bomTemplateId === bom.id && !clean(c.rfqNo)) ??
+      open.find((c) => !clean(c.rfqNo)))
+    : linked;
 
   if (!row) {
     return {
@@ -236,7 +252,7 @@ export function planBoardSyncFromBom(
     patch.deadline = deadline;
     history.push({ field: "deadline", oldValue: row.deadline, newValue: deadline });
   }
-  if (rfqNo && rfqNo !== row.rfqNo) {
+  if (rfqNo && !clean(row.rfqNo)) {
     patch.rfqNo = rfqNo;
     history.push({ field: "rfq_no", oldValue: row.rfqNo, newValue: rfqNo });
   }

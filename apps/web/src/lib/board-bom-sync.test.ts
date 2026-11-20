@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { daysUntil, deadlineCountdown, vnTodayYmd } from "./board-deadline";
 import {
   compareOpenBoardRows,
+  hasBoardExtras,
   planBoardSyncFromBom,
   type BoardRowLite,
   type BomForBoard,
@@ -208,5 +209,58 @@ describe("§5.4 — đếm ngược: ranh giới & biên", () => {
       { id: "pinned", ...base, isPinned: true },
     ];
     expect([...rows].sort(compareOpenBoardRows).map((x) => x.id)).toEqual(["pinned", "overdue"]);
+  });
+});
+
+describe("Q3 — QT khác → dòng mới", () => {
+  const bom: BomForBoard = { id: "b1", code: "Z9999999-990011", name: "Tấm A", targetQty: "10", metadata: null } as unknown as BomForBoard;
+  const row = (o: Partial<BoardRowLite>): BoardRowLite =>
+    ({
+      id: "r1",
+      productCode: "Z9999999-990011",
+      rfqNo: "QT-A",
+      productName: "Tấm A",
+      customer: null,
+      qtyPlanned: 10,
+      status: "QUEUED",
+      deadline: null,
+      bomTemplateId: "b1",
+      ...o,
+    }) as BoardRowLite;
+
+  it("RFQ khác dòng mở đã có RFQ → tạo dòng MỚI với RFQ + hạn + khách", () => {
+    const p = planBoardSyncFromBom(bom, [row({})], { rfqNo: "QT-B", deadline: "2026-12-05", customer: "SEC" });
+    expect(p.action).toBe("create");
+    if (p.action === "create") expect(p.values).toMatchObject({ rfqNo: "QT-B", deadline: "2026-12-05", customer: "SEC" });
+  });
+  it("cùng RFQ (khác hoa/thường, thừa khoảng trắng) → dùng lại dòng, không tạo", () => {
+    const p = planBoardSyncFromBom(bom, [row({})], { rfqNo: "  qt-a " });
+    expect(p.action).toBe("none");
+  });
+  it("dòng mở chưa có RFQ → điền RFQ vào dòng đó", () => {
+    const p = planBoardSyncFromBom(bom, [row({ rfqNo: null })], { rfqNo: "QT-B" });
+    expect(p.action).toBe("update");
+    if (p.action === "update") expect(p.patch.rfqNo).toBe("QT-B");
+  });
+  it("không nhập RFQ → dùng dòng mở như cũ (không tạo)", () => {
+    const p = planBoardSyncFromBom(bom, [row({})], { deadline: "2026-12-05" });
+    expect(p.action).toBe("update");
+  });
+  it("nhiều dòng mở: có dòng cùng RFQ thì dùng dòng đó", () => {
+    const p = planBoardSyncFromBom(bom, [row({ id: "r1", rfqNo: "QT-A" }), row({ id: "r2", rfqNo: "QT-B", bomTemplateId: null })], {
+      rfqNo: "QT-B",
+      customer: "X",
+    });
+    expect(p.action).toBe("update");
+    if (p.action === "update") expect(p.itemId).toBe("r2");
+  });
+  it("dòng cùng RFQ đã GIAO không tính là dòng mở → tạo mới (repo sẽ báo skipped do trùng)", () => {
+    const p = planBoardSyncFromBom(bom, [row({ status: "DELIVERED" })], { rfqNo: "QT-A" });
+    expect(p.action).toBe("create");
+  });
+  it("hasBoardExtras", () => {
+    expect(hasBoardExtras(null)).toBe(false);
+    expect(hasBoardExtras({ deadline: " ", rfqNo: "", customer: null })).toBe(false);
+    expect(hasBoardExtras({ rfqNo: "QT" })).toBe(true);
   });
 });

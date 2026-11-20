@@ -264,7 +264,7 @@ export default function ProductionBoardAdminPage() {
         >
           <SelectTrigger
             aria-label={`Trạng thái ${it.productCode}`}
-            className={cn("h-8 w-32 border-0 text-sm font-semibold", boardPillClass(it.status))}
+            className={cn("h-8 w-32 border-0 text-sm font-semibold [@media(pointer:coarse)]:h-11", boardPillClass(it.status))}
           >
             <SelectValue />
           </SelectTrigger>

@@ -124,7 +124,7 @@ export function BomFilterBarPlus({
     <div className="border-b border-zinc-200 bg-white px-4 py-2.5 dark:border-zinc-800 dark:bg-zinc-900">
       <div className="flex flex-wrap items-center gap-2">
         {/* Search */}
-        <div className="relative">
+        <div className="relative max-md:basis-full">
           <Search
             className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400 dark:text-zinc-500"
             aria-hidden="true"
@@ -134,7 +134,7 @@ export function BomFilterBarPlus({
             type="search"
             size="sm"
             placeholder="Tìm mã, tên, mô tả..."
-            className="h-8 w-full pl-8 md:w-[260px]"
+            className="h-8 [@media(pointer:coarse)]:h-11 w-full pl-8 md:w-[260px]"
             aria-label="Tìm kiếm BOM"
             value={state.q}
             onChange={(e) => onSearchInput(e.target.value)}
@@ -151,7 +151,7 @@ export function BomFilterBarPlus({
             type="button"
             onClick={() => onChange({ statuses: [] })}
             className={cn(
-              "inline-flex h-8 items-center rounded-full border px-3 text-sm font-medium transition-colors",
+              "inline-flex h-8 [@media(pointer:coarse)]:h-11 items-center rounded-full border px-3 text-sm font-medium transition-colors",
               state.statuses.length === 0
                 ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
                 : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800",
@@ -171,7 +171,7 @@ export function BomFilterBarPlus({
                 onClick={() => toggleStatus(opt.v)}
                 aria-pressed={active}
                 className={cn(
-                  "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors",
+                  "inline-flex h-8 [@media(pointer:coarse)]:h-11 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors",
                   active
                     ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
                     : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800",
@@ -197,7 +197,7 @@ export function BomFilterBarPlus({
               variant="outline"
               size="sm"
               className={cn(
-                "h-8 gap-1.5",
+                "h-8 [@media(pointer:coarse)]:h-11 gap-1.5",
                 advancedCount > 0 && "border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300",
               )}
               aria-label="Bộ lọc nâng cao"
@@ -312,12 +312,12 @@ export function BomFilterBarPlus({
         </Popover>
 
         {/* Sort dropdown (native select, hợp với pattern V2 ở app này). */}
-        <label className="relative inline-flex h-8 items-center">
+        <label className="relative inline-flex h-8 min-w-0 max-w-full items-center [@media(pointer:coarse)]:h-11">
           <span className="sr-only">Sắp xếp</span>
           <select
             value={sort}
             onChange={(e) => onSortChange(e.target.value as BomSortKey)}
-            className="h-8 rounded-md border border-zinc-200 bg-white pl-7 pr-8 text-sm text-zinc-700 transition-colors hover:border-zinc-300 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:border-zinc-600"
+            className="h-8 [@media(pointer:coarse)]:h-11 min-w-0 max-w-full rounded-md border border-zinc-200 bg-white pl-7 pr-8 text-sm text-zinc-700 transition-colors hover:border-zinc-300 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:border-zinc-600"
           >
             {SORT_OPTIONS.map((opt) => (
               <option key={opt.v} value={opt.v}>
@@ -347,7 +347,7 @@ export function BomFilterBarPlus({
             <button
               type="button"
               onClick={onReset}
-              className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-sm font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
+              className="inline-flex h-8 [@media(pointer:coarse)]:h-11 items-center gap-1 rounded-md px-2 text-sm font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
             >
               <X className="h-3.5 w-3.5" aria-hidden="true" />
               Xoá bộ lọc
@@ -358,7 +358,7 @@ export function BomFilterBarPlus({
           <div
             role="radiogroup"
             aria-label="Chế độ hiển thị"
-            className="inline-flex h-8 items-center rounded-md border border-zinc-200 bg-white p-0.5 dark:border-zinc-700 dark:bg-zinc-900"
+            className="inline-flex h-8 [@media(pointer:coarse)]:h-11 items-center rounded-md border border-zinc-200 bg-white p-0.5 dark:border-zinc-700 dark:bg-zinc-900"
           >
             <button
               type="button"

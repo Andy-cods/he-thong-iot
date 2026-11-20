@@ -31,6 +31,7 @@ import {
 } from "@/components/bom/BomListTable";
 import { BomCardGrid, type BomCardItem } from "@/components/bom/BomCardGrid";
 import { useBomList, useDeleteBomTemplate, useUpdateBomTemplate } from "@/hooks/useBom";
+import { can, type Role } from "@iot/shared";
 import { useSession } from "@/hooks/useSession";
 import { formatNumber } from "@/lib/format";
 import {
@@ -84,8 +85,9 @@ export function BomTab() {
   // V3.7.57 — chỉ admin/planner sửa BOM. Các role khác xem read-only.
   const session = useSession();
   const sessionRoles = session.data?.roles ?? [];
-  const canEditBom =
-    sessionRoles.includes("admin") || sessionRoles.includes("planner");
+  // Cùng quyền API enforce (RBAC matrix bomTemplate): update → sửa/đổi tên/nhân bản; delete → chọn nhiều + xoá.
+  const canEditBom = can(sessionRoles as Role[], "update", "bomTemplate");
+  const canDeleteBom = can(sessionRoles as Role[], "delete", "bomTemplate");
   // BOM đã Ngừng dùng chỉ admin xoá vĩnh viễn được (API ?hard=true).
   const isAdmin = sessionRoles.includes("admin");
 
@@ -498,7 +500,7 @@ export function BomTab() {
               bomDeleteKind(r.status, isAdmin) === "forbidden" ? bomDeleteForbiddenReason(r.status) : null
             }
             onDelete={
-              canEditBom
+              canDeleteBom
                 ? (r) => {
                     const match = rows.find((x) => x.id === r.id);
                     if (match) requestSingleDelete(match);
@@ -516,7 +518,9 @@ export function BomTab() {
               onTogglePage={(ids) => selectionActions.togglePage(ids)}
               onEdit={(row) => router.push(`/bom/${row.id}`)}
               onPreview={(row) => router.push(`/bom/${row.id}`)}
-              onDelete={canEditBom ? requestSingleDelete : undefined}
+              onDelete={canDeleteBom ? requestSingleDelete : undefined}
+              canEdit={canEditBom}
+              selectable={canDeleteBom}
               canHardDelete={isAdmin}
               isAdmin={isAdmin}
               onRename={canEditBom ? handleRename : undefined}
@@ -590,17 +594,19 @@ export function BomTab() {
         </div>
       </footer>
 
-      <BulkActionBar
-        count={selCount}
-        totalMatching={total}
-        mode={selection.mode}
-        // B6: KHÔNG cho "chọn tất cả N khớp" — xoá chỉ hành động trên các dòng của
-        // TRANG đang xem nên số "N" sẽ nói sai. Chọn theo trang là đủ (BOM ít).
-        onSelectAllMatching={undefined}
-        onDelete={() => setBulkDeleteOpen(true)}
-        onExport={handleExportStub}
-        onClear={() => selectionActions.clear()}
-      />
+      {canDeleteBom && (
+        <BulkActionBar
+          count={selCount}
+          totalMatching={total}
+          mode={selection.mode}
+          // B6: KHÔNG cho "chọn tất cả N khớp" — xoá chỉ hành động trên các dòng của
+          // TRANG đang xem nên số "N" sẽ nói sai. Chọn theo trang là đủ (BOM ít).
+          onSelectAllMatching={undefined}
+          onDelete={() => setBulkDeleteOpen(true)}
+          onExport={handleExportStub}
+          onClear={() => selectionActions.clear()}
+        />
+      )}
 
       <DialogConfirm
         open={bulkDeleteOpen}

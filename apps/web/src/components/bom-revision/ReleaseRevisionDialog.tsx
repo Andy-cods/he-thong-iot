@@ -37,6 +37,8 @@ export interface ReleaseRevisionDialogProps {
    * thêm dòng lên Bảng sản xuất: hiện thêm 3 ô tuỳ chọn (hạn / RFQ / khách).
    */
   activates?: boolean;
+  /** BOM đang dùng phát hành lại: hiện ô "Đơn mới (tuỳ chọn)" — có nhập mới đồng bộ Bảng sản xuất. */
+  reissue?: boolean;
   onReleased?: (revisionId: string, revisionNo: string) => void;
 }
 
@@ -49,6 +51,7 @@ export function ReleaseRevisionDialog({
   templateCode,
   nextRevisionNoHint,
   activates = false,
+  reissue = false,
   onReleased,
 }: ReleaseRevisionDialogProps) {
   const [typed, setTyped] = React.useState("");
@@ -72,14 +75,14 @@ export function ReleaseRevisionDialog({
 
   const handleSubmit = async () => {
     if (disabled) return;
-    if (activates && deadline && !isValidYmd(deadline)) {
+    if ((activates || reissue) && deadline && !isValidYmd(deadline)) {
       toast.error("Ngày cần giao không hợp lệ (cần ngày có thật).");
       return;
     }
     try {
       const res = await release.mutateAsync({
         notes: notes.trim().length > 0 ? notes.trim() : null,
-        ...(activates
+        ...(activates || reissue
           ? {
               board: {
                 deadline: deadline || null,
@@ -100,7 +103,11 @@ export function ReleaseRevisionDialog({
           `Đã thêm ${b.productCode} lên Bảng sản xuất (Chờ GC)${b.hasDeadline ? "." : " — QC sẽ điền ngày giao."}`,
         );
       } else if (b && (b.action === "linked" || b.action === "updated")) {
-        toast.info(`Bảng sản xuất đã có ${b.productCode} — đã liên kết với BOM này.`);
+        toast.info(
+          b.action === "updated"
+            ? `Đã cập nhật dòng ${b.productCode} trên Bảng sản xuất.`
+            : `Bảng sản xuất đã có ${b.productCode} — đã liên kết với BOM này.`,
+        );
       } else if (b && b.action === "skipped") {
         toast.warning(b.reason);
       }
@@ -164,13 +171,15 @@ export function ReleaseRevisionDialog({
             />
           </div>
 
-          {activates && (
+          {(activates || reissue) && (
             <fieldset className="space-y-2 rounded-md border border-zinc-200 p-3 dark:border-zinc-700">
               <legend className="px-1 text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                Bảng sản xuất (tuỳ chọn)
+                {reissue ? "Đơn mới (tuỳ chọn)" : "Bảng sản xuất (tuỳ chọn)"}
               </legend>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                BOM sẽ tự lên Bảng sản xuất ở trạng thái Chờ GC. Bỏ trống được — Tổ QC điền sau.
+                {reissue
+                  ? "Bỏ trống: Bảng sản xuất giữ nguyên. Nhập Số QT/RFQ khác đơn đang chạy: tạo thêm dòng mới Chờ GC; trùng QT: cập nhật dòng đó."
+                  : "BOM sẽ tự lên Bảng sản xuất ở trạng thái Chờ GC. Bỏ trống được — Tổ QC điền sau."}
               </p>
               <div className="grid gap-2 sm:grid-cols-3">
                 <div className="space-y-1">

@@ -16,7 +16,6 @@ import {
 } from "@/server/http";
 import { writeAudit, diffObjects } from "@/server/services/audit";
 import { requireCan } from "@/server/session";
-import { onBomActivatedWithStatus } from "@/server/services/boardFromBom";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -76,6 +75,23 @@ export async function PATCH(
     }
     // Pass-through — allow OBSOLETE → DRAFT revive.
   }
+  // Chủ sở hữu chốt: BOM chỉ lên "Đang dùng" qua nút Kích hoạt (phát hành revision)
+  // → luôn có snapshot RELEASED + đồng bộ Bảng sản xuất. PATCH trực tiếp bị chặn (mọi vai).
+  if (before.status !== "ACTIVE" && body.data.status === "ACTIVE") {
+    return jsonError(
+      "USE_RELEASE",
+      "Dùng nút Kích hoạt (phát hành phiên bản) để chuyển BOM sang Đang dùng.",
+      409,
+    );
+  }
+  // ACTIVE → DRAFT chỉ admin (planner không được lách luật ACTIVE → OBSOLETE qua Nháp)
+  if (
+    before.status === "ACTIVE" &&
+    body.data.status === "DRAFT" &&
+    !guard.session.roles.includes("admin")
+  ) {
+    return jsonError("FORBIDDEN", "Chỉ admin được đưa BOM đang dùng về Nháp.", 403);
+  }
   // ACTIVE → OBSOLETE chỉ admin
   if (
     before.status === "ACTIVE" &&
@@ -113,18 +129,7 @@ export async function PATCH(
       after: diff.after,
       ...meta,
     });
-    // BOM vừa chuyển "Đang dùng" → tự đưa lên Bảng sản xuất (không nhân đôi).
-    // Chuyển Ngừng dùng → board giữ nguyên.
-    const outcome =
-      before.status !== "ACTIVE" && after.status === "ACTIVE"
-        ? await onBomActivatedWithStatus({
-            templateId: params.id,
-            templateCode: after.code,
-            session: guard.session,
-            meta,
-          })
-        : { board: null, boardError: null };
-    return NextResponse.json({ data: after, board: outcome.board, boardError: outcome.boardError });
+    return NextResponse.json({ data: after, board: null, boardError: null });
   } catch (err) {
     logger.error({ err, id: params.id }, "update bom template failed");
     return jsonError("INTERNAL", "Không cập nhật được BOM.", 500);

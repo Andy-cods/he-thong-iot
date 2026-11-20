@@ -67,6 +67,10 @@ export interface BomListTableProps {
   canHardDelete?: boolean;
   /** Admin: được xoá/chuyển Ngừng dùng BOM Đang dùng. Khác admin → mục "Xoá BOM" của dòng Đang dùng bị vô hiệu hoá + nêu lý do. */
   isAdmin?: boolean;
+  /** false → ẩn ô chọn dòng (vai chỉ xem không có thao tác hàng loạt). */
+  selectable?: boolean;
+  /** false → ẩn "Sửa" trong menu dòng (vai chỉ xem). */
+  canEdit?: boolean;
   onRename?: (row: BomRow, newName: string) => Promise<void>;
   focusedIndex?: number;
   /** V2.1 — sort state for header click. */
@@ -183,7 +187,7 @@ function InlineRenameCell({
 
   return (
     <span className="group/name flex items-center gap-1 min-w-0">
-      <span className={cn("truncate", saving && "opacity-50")}>{row.name}</span>
+      <span className={cn("line-clamp-2 break-words md:truncate", saving && "opacity-50")}>{row.name}</span>
       {onRename && (
         <button
           type="button"
@@ -219,6 +223,8 @@ export function BomListTable({
   onDelete,
   canHardDelete = false,
   isAdmin = false,
+  selectable = true,
+  canEdit = true,
   onRename,
   focusedIndex,
   sortField,
@@ -226,7 +232,16 @@ export function BomListTable({
   onSortChange,
 }: BomListTableProps) {
   const parentRef = React.useRef<HTMLDivElement>(null);
-  const rowHeight = 36;
+  // Điện thoại: dòng cao hơn để hiện đủ mã (xuống dòng) + tên 2 dòng, không cắt "Z9999999-992…".
+  const [narrow, setNarrow] = React.useState(false);
+  React.useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const apply = () => setNarrow(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+  const rowHeight = narrow ? 60 : 36;
 
   const visibleIds = React.useMemo(() => rows.map((r) => r.id), [rows]);
   const pageState = pageSelectState(selection, visibleIds);
@@ -237,6 +252,11 @@ export function BomListTable({
     estimateSize: () => rowHeight,
     overscan: 8,
   });
+
+  React.useEffect(() => {
+    virt.measure();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rowHeight]);
 
   React.useEffect(() => {
     if (focusedIndex !== undefined && focusedIndex >= 0) {
@@ -265,7 +285,7 @@ export function BomListTable({
   // md+: full (thêm [parent nếu có data]/lines/target/updated/actions).
   // V4.1 UI-11 (Đợt 6C): gap-x giữa cột — trước dính "SL MỤC TIÊUTRẠNG THÁI" / số sát pill.
   const gridCols = cn(
-    "grid-cols-[32px_96px_minmax(0,1fr)_88px] gap-x-2",
+    "grid-cols-[32px_112px_minmax(0,1fr)_88px] gap-x-2",
     hasParentItem
       ? "md:grid-cols-[32px_128px_minmax(0,1fr)_128px_72px_88px_112px_104px_104px] md:gap-x-3"
       : "md:grid-cols-[32px_128px_minmax(0,1fr)_72px_88px_112px_104px_104px] md:gap-x-3",
@@ -292,7 +312,7 @@ export function BomListTable({
         role="row"
       >
         <div className="flex items-center justify-center" role="columnheader">
-          <Checkbox
+          {selectable && <Checkbox
             aria-label="Chọn tất cả trong trang"
             checked={
               pageState === "indeterminate"
@@ -300,7 +320,7 @@ export function BomListTable({
                 : pageState === "checked"
             }
             onCheckedChange={() => onTogglePage(visibleIds)}
-          />
+          />}
         </div>
         <div role="columnheader">
           <SortHeader
@@ -421,18 +441,20 @@ export function BomListTable({
               tabIndex={-1}
             >
               <div className="flex items-center justify-center" role="cell">
-                <Checkbox
-                  checked={checked}
-                  onCheckedChange={() => onToggleRow(row.id)}
-                  aria-label={`Chọn BOM ${row.code}`}
-                />
+                {selectable && (
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={() => onToggleRow(row.id)}
+                    aria-label={`Chọn BOM ${row.code}`}
+                  />
+                )}
               </div>
 
               <Link
                 href={`/bom/${row.id}`}
                 role="cell"
                 className={cn(
-                  "sticky left-0 truncate border-r border-zinc-100 bg-white pr-2 font-mono text-sm text-zinc-700 hover:text-indigo-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:text-indigo-300",
+                  "sticky left-0 border-r border-zinc-100 bg-white pr-2 font-mono text-xs leading-tight text-zinc-700 max-md:break-all md:truncate md:text-sm hover:text-indigo-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:text-indigo-300",
                   checked && "bg-indigo-50 dark:bg-indigo-950/40",
                   isFocused && !checked && "bg-zinc-50 dark:bg-zinc-800/60",
                 )}
@@ -447,7 +469,7 @@ export function BomListTable({
                 ) : (
                   <Link
                     href={`/bom/${row.id}`}
-                    className="truncate text-zinc-900 hover:text-indigo-600 focus-visible:outline-none focus-visible:text-indigo-600 dark:text-zinc-100 dark:hover:text-indigo-300 dark:focus-visible:text-indigo-300"
+                    className="line-clamp-2 break-words text-zinc-900 md:truncate hover:text-indigo-600 focus-visible:outline-none focus-visible:text-indigo-600 dark:text-zinc-100 dark:hover:text-indigo-300 dark:focus-visible:text-indigo-300"
                     title={row.name}
                   >
                     {row.name}
@@ -509,7 +531,7 @@ export function BomListTable({
                 <RowActionsMenu
                   label={`Thao tác ${row.code}`}
                   actions={[
-                    { label: "Sửa", icon: Pencil, onSelect: () => onEdit(row) },
+                    { label: "Sửa", icon: Pencil, onSelect: () => onEdit(row), hidden: !canEdit },
                     { label: "Sao chép mã", icon: Copy, onSelect: () => copyCode(row.code) },
                     { label: "Nhân bản", icon: GitBranch, onSelect: () => onClone?.(row), hidden: !onClone },
                     row.status === "OBSOLETE"
