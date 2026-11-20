@@ -103,6 +103,8 @@ export interface BomImportOutcome {
   linesWritten: number;
   linesRemoved?: number;
   backupRevisionNo?: string | null;
+  /** Phiên bản RELEASED mới tự phát hành lại theo dòng mới (BOM đang dùng được ghi đè). */
+  rereleasedRevisionNo?: string | null;
   previousStatus?: string | null;
   newStatus?: string | null;
   /** Mã gốc đã tồn tại (khi action = new_code). */
@@ -138,7 +140,8 @@ export function describeBomImportOutcome(o: Omit<BomImportOutcome, "message">): 
       const st = o.previousStatus && o.newStatus && o.previousStatus !== o.newStatus
         ? ` Trạng thái: ${bomStatusVi(o.previousStatus)} → ${bomStatusVi(o.newStatus)}.`
         : "";
-      return `Đã thay ${o.linesWritten} dòng của BOM ${code}${backup}.${st}`;
+      const rr = o.rereleasedRevisionNo ? ` Đã phát hành lại phiên bản ${o.rereleasedRevisionNo} theo dòng mới.` : "";
+      return `Đã thay ${o.linesWritten} dòng của BOM ${code}${backup}.${st}${rr}`;
     }
     case "skipped":
       return `Bỏ qua BOM ${code}: ${o.reason ?? "mã đã tồn tại"} — không ghi dòng nào.`;

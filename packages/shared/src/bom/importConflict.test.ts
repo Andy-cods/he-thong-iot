@@ -97,6 +97,19 @@ describe("kết quả import & chặn ghi đè", () => {
       "Đã thay 63 dòng của BOM Z0000002-622582 (bản cũ 58 dòng đã lưu ở phiên bản R02). Trạng thái: Ngừng dùng → Nháp.",
     );
     expect(
+      describeBomImportOutcome({
+        action: "replaced",
+        templateId: "t",
+        templateCode: "X",
+        linesWritten: 5,
+        linesRemoved: 4,
+        backupRevisionNo: "R02",
+        rereleasedRevisionNo: "R03",
+      }),
+    ).toBe(
+      "Đã thay 5 dòng của BOM X (bản cũ 4 dòng đã lưu ở phiên bản R02). Đã phát hành lại phiên bản R03 theo dòng mới.",
+    );
+    expect(
       describeBomImportOutcome({ action: "skipped", templateId: "t", templateCode: "X", linesWritten: 0, reason: "mã đã tồn tại" }),
     ).toContain("không ghi dòng nào");
     expect(

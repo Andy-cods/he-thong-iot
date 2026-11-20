@@ -34,6 +34,8 @@ import {
   ReplaceBlockedError,
   assertReplaceAllowed,
   backupTemplateLines,
+  hasReleasedRevision,
+  rereleaseAfterReplace,
   deleteTemplateLines,
   resolveNewCode,
   saveOutcomes,
@@ -85,6 +87,7 @@ interface LastImportMeta {
   action: BomImportOutcome["action"];
   linesRemoved?: number;
   backupRevisionNo?: string | null;
+  rereleasedRevisionNo?: string | null;
   previousStatus?: string | null;
   newStatus?: string | null;
   conflictCode?: string | null;
@@ -259,6 +262,7 @@ export async function processBomImportTrienKhai(
   let itemsCreated = 0;
   try {
     await db.transaction(async (tx) => {
+      let hadReleased = false;
       if (replacing) {
         // Ghi đè: khoá BOM → chặn nếu dòng đã có tham chiếu sản xuất → lưu bản
         // cũ thành revision SUPERSEDED → xoá dòng cũ → cập nhật đầu BOM.
@@ -269,6 +273,7 @@ export async function processBomImportTrienKhai(
           .for("update");
         if (!locked) throw new Error(`BOM ${templateCode} không còn tồn tại`);
         await assertReplaceAllowed(tx, templateId, templateCode);
+        hadReleased = await hasReleasedRevision(tx, templateId);
         const backup = await backupTemplateLines(
           tx,
           templateId,
@@ -374,6 +379,16 @@ export async function processBomImportTrienKhai(
 
       if (last.action === "replaced") {
         await syncBoardAfterReplace(tx, { templateId, code: templateCode, name: title, targetQty, actorId });
+        // BOM đang có bản RELEASED (snapshot dòng cũ) → phát hành lại theo dòng mới.
+        if (hadReleased) {
+          const rr = await rereleaseAfterReplace(
+            tx,
+            templateId,
+            actorId,
+            `Tự phát hành lại sau khi ghi đè từ file "${batch.fileName}" (batch ${batchId.slice(0, 8)}).`,
+          );
+          last = { ...last, rereleasedRevisionNo: rr?.revisionNo ?? null };
+        }
       }
     });
   } catch (err) {
@@ -403,6 +418,7 @@ export async function processBomImportTrienKhai(
       linesWritten: rows.length,
       linesRemoved: last.linesRemoved,
       backupRevisionNo: last.backupRevisionNo,
+      rereleasedRevisionNo: last.rereleasedRevisionNo,
       previousStatus: last.previousStatus,
       newStatus: last.newStatus,
       conflictCode: last.conflictCode,

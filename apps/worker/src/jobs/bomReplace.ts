@@ -1,4 +1,4 @@
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { bomLine, bomRevision, bomTemplate, importBatch } from "@iot/db/schema";
 import { countBomLineRefs } from "@iot/db/bom-refs";
 import {
@@ -45,17 +45,11 @@ function nextRevisionNo(existing: string[]): string {
   return `R${(max + 1).toString().padStart(2, "0")}`;
 }
 
-/**
- * Lưu cây dòng hiện tại thành 1 revision SUPERSEDED (cùng format frozen_snapshot
- * của releaseRevision ở web) — chỉ để xem lại/khôi phục tay, KHÔNG dùng explode
- * đơn hàng (chỉ RELEASED mới explode được). Trả null nếu BOM chưa có dòng.
- */
-export async function backupTemplateLines(
+/** Snapshot đóng băng cây dòng hiện tại — cùng format với releaseRevision (web). Null nếu chưa có dòng. */
+async function buildFrozenSnapshot(
   tx: Tx,
   templateId: string,
-  actorId: string,
-  note: string,
-): Promise<{ revisionNo: string; lineCount: number } | null> {
+): Promise<{ frozen: Record<string, unknown>; lineCount: number } | null> {
   const [tpl] = await tx
     .select({ id: bomTemplate.id, code: bomTemplate.code, name: bomTemplate.name })
     .from(bomTemplate)
@@ -68,13 +62,6 @@ export async function backupTemplateLines(
     .where(eq(bomLine.templateId, templateId))
     .orderBy(asc(bomLine.level), asc(bomLine.position));
   if (lines.length === 0) return null;
-
-  const existing = await tx
-    .select({ revisionNo: bomRevision.revisionNo })
-    .from(bomRevision)
-    .where(eq(bomRevision.templateId, templateId));
-  const revisionNo = nextRevisionNo(existing.map((r) => r.revisionNo));
-
   const frozen = {
     templateId: tpl.id,
     templateCode: tpl.code,
@@ -82,7 +69,6 @@ export async function backupTemplateLines(
     capturedAt: new Date().toISOString(),
     totalLines: lines.length,
     maxDepth: lines.reduce((m, l) => Math.max(m, l.level), 0),
-    backupBeforeReplace: true,
     lines: lines.map((l) => ({
       id: l.id,
       parentLineId: l.parentLineId,
@@ -96,17 +82,86 @@ export async function backupTemplateLines(
       metadata: l.metadata as Record<string, unknown>,
     })),
   };
+  return { frozen, lineCount: lines.length };
+}
 
+async function nextRevisionNoFor(tx: Tx, templateId: string): Promise<string> {
+  const existing = await tx
+    .select({ revisionNo: bomRevision.revisionNo })
+    .from(bomRevision)
+    .where(eq(bomRevision.templateId, templateId));
+  return nextRevisionNo(existing.map((r) => r.revisionNo));
+}
+
+/**
+ * Lưu cây dòng hiện tại thành 1 revision SUPERSEDED (cùng format frozen_snapshot
+ * của releaseRevision ở web) — chỉ để xem lại/khôi phục tay, KHÔNG dùng explode
+ * đơn hàng (chỉ RELEASED mới explode được). Trả null nếu BOM chưa có dòng.
+ */
+export async function backupTemplateLines(
+  tx: Tx,
+  templateId: string,
+  actorId: string,
+  note: string,
+): Promise<{ revisionNo: string; lineCount: number } | null> {
+  const snap = await buildFrozenSnapshot(tx, templateId);
+  if (!snap) return null;
+  const revisionNo = await nextRevisionNoFor(tx, templateId);
   await tx.insert(bomRevision).values({
     templateId,
     revisionNo,
     status: "SUPERSEDED",
-    frozenSnapshot: frozen as unknown as Record<string, unknown>,
+    frozenSnapshot: { ...snap.frozen, backupBeforeReplace: true },
     releasedAt: null,
     releasedBy: actorId,
     notes: note.slice(0, 2000),
   });
-  return { revisionNo, lineCount: lines.length };
+  return { revisionNo, lineCount: snap.lineCount };
+}
+
+/** BOM có đang giữ revision RELEASED (đã kích hoạt) không — gọi TRƯỚC khi ghi đè. */
+export async function hasReleasedRevision(tx: Tx, templateId: string): Promise<boolean> {
+  const rows = await tx
+    .select({ id: bomRevision.id })
+    .from(bomRevision)
+    .where(and(eq(bomRevision.templateId, templateId), eq(bomRevision.status, "RELEASED")))
+    .limit(1);
+  return rows.length > 0;
+}
+
+/**
+ * Sau khi dòng mới đã ghi xong: các revision RELEASED (snapshot dòng CŨ) → SUPERSEDED
+ * rồi phát hành revision RELEASED mới từ dòng mới, để explode đơn hàng dùng đúng bản mới.
+ * Gọi chỉ khi BOM đã có RELEASED trước khi ghi đè. Trả null nếu không có dòng mới.
+ */
+export async function rereleaseAfterReplace(
+  tx: Tx,
+  templateId: string,
+  actorId: string,
+  note: string,
+): Promise<{ revisionNo: string } | null> {
+  const snap = await buildFrozenSnapshot(tx, templateId);
+  if (!snap) return null;
+  const revisionNo = await nextRevisionNoFor(tx, templateId);
+  const now = new Date();
+  await tx
+    .update(bomRevision)
+    .set({
+      status: "SUPERSEDED",
+      notes: sql`COALESCE(${bomRevision.notes}, '') || ${`
+[SUPERSEDED bởi ${revisionNo} lúc ${now.toISOString()}]`}`,
+    })
+    .where(and(eq(bomRevision.templateId, templateId), eq(bomRevision.status, "RELEASED")));
+  await tx.insert(bomRevision).values({
+    templateId,
+    revisionNo,
+    status: "RELEASED",
+    frozenSnapshot: snap.frozen,
+    releasedAt: now,
+    releasedBy: actorId,
+    notes: note.slice(0, 2000),
+  });
+  return { revisionNo };
 }
 
 /** Xoá toàn bộ dòng của template (con trước nhờ parent_line_id CASCADE). */
