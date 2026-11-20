@@ -247,3 +247,99 @@ export function planBoardSyncFromBom(
   if (history.length === 0) return { action: "none", itemId: row.id };
   return { action: "update", itemId: row.id, patch, history };
 }
+
+
+// ---------------------------------------------------------------------------
+// Hàm THUẦN cho repo Bảng sản xuất (test vitest, repo chỉ fetch + ghép).
+// ---------------------------------------------------------------------------
+
+/** B12 — `completedLimit` từ query: số hợp lệ (kể cả 0) giữ nguyên, kẹp 0..20; rỗng/không phải số → 5. */
+export function parseCompletedLimit(raw: string | null | undefined): number {
+  if (raw === null || raw === undefined || raw.trim() === "") return 5;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return 5;
+  return Math.min(20, Math.max(0, Math.floor(n)));
+}
+
+/**
+ * B8 — dòng đã xong (COMPLETED/DELIVERED): sắp `completedAt` giảm dần; cắt còn
+ * `limit` dòng, trừ khi `includeAll` (trang quản lý `?all=1`) thì trả đủ.
+ */
+export function selectCompletedRows<T extends { completedAt: Date | string | null }>(
+  completed: readonly T[],
+  limit: number,
+  includeAll: boolean,
+): T[] {
+  const sorted = [...completed].sort((a, b) => {
+    const ta = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+    const tb = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+    return tb - ta;
+  });
+  return includeAll ? sorted : sorted.slice(0, limit);
+}
+
+/**
+ * B11 — đổi thẳng sang DELIVERED khi chưa có `completed_at` (trigger DB chỉ set
+ * khi →COMPLETED) thì app tự đóng dấu, để dòng không bị xếp cuối + cắt khỏi TV.
+ */
+export function shouldStampCompletedAt(
+  before: { status: string; completedAt: Date | string | null },
+  inputStatus: string | undefined,
+): boolean {
+  return inputStatus === "DELIVERED" && before.status !== "DELIVERED" && !before.completedAt;
+}
+
+export interface BoardHistoryEntry {
+  field: string;
+  oldV: string;
+  newV: string;
+}
+
+type BoardDiffBefore = {
+  status: string;
+  qtyDone: unknown;
+  qtyPlanned: unknown;
+  unitPrice: unknown;
+  deadline: unknown;
+  productName: string;
+  rfqNo: string | null;
+  customer: string | null;
+  isPinned: boolean;
+};
+
+type BoardDiffInput = {
+  status?: string;
+  qtyDone?: number;
+  qtyPlanned?: number;
+  unitPrice?: number | null;
+  deadline?: string | null;
+  productName?: string;
+  rfqNo?: string | null;
+  customer?: string | null;
+  isPinned?: boolean;
+};
+
+const nz = (v: unknown): string => (v === null || v === undefined || v === "" ? "—" : String(v));
+const numStr = (v: unknown): string => (v === null || v === undefined ? "—" : String(Number(v)));
+
+/**
+ * B10 — các dòng lịch sử cho 1 lần PATCH: chỉ field có gửi lên VÀ giá trị đổi.
+ * Tên field ≤ 32 ký tự (cột varchar(32)). Số so sánh theo giá trị số
+ * (`"100.000"` ≡ `100`), rỗng/null hiển thị "—".
+ */
+export function diffBoardHistory(before: BoardDiffBefore, input: BoardDiffInput): BoardHistoryEntry[] {
+  const out: BoardHistoryEntry[] = [];
+  const push = (field: string, oldV: string, newV: string) => {
+    if (oldV !== newV) out.push({ field, oldV, newV });
+  };
+  if (input.status !== undefined) push("status", before.status, input.status);
+  if (input.qtyDone !== undefined) push("qty_done", numStr(before.qtyDone), numStr(input.qtyDone));
+  if (input.qtyPlanned !== undefined) push("qty_planned", numStr(before.qtyPlanned), numStr(input.qtyPlanned));
+  if (input.unitPrice !== undefined) push("unit_price", numStr(before.unitPrice), numStr(input.unitPrice));
+  if (input.deadline !== undefined) push("deadline", nz(before.deadline), nz(input.deadline));
+  if (input.productName !== undefined) push("product_name", nz(before.productName), nz(input.productName));
+  if (input.rfqNo !== undefined) push("rfq_no", nz(before.rfqNo), nz(input.rfqNo));
+  if (input.customer !== undefined) push("customer", nz(before.customer), nz(input.customer));
+  if (input.isPinned !== undefined) push("is_pinned", before.isPinned ? "true" : "false", input.isPinned ? "true" : "false");
+  return out;
+}

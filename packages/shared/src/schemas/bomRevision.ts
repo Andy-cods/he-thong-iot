@@ -20,15 +20,33 @@ export const BOM_REVISION_STATUS_LABELS: Record<BomRevisionStatus, string> = {
 export const bomRevisionStatusSchema = z.enum(BOM_REVISION_STATUSES);
 
 /**
+ * Ngày thật dạng `YYYY-MM-DD`: đúng định dạng VÀ tồn tại trên lịch (từ chối
+ * `2026-02-31`, `2026-13-01`; `2028-02-29` hợp lệ). Hàm thuần — dùng chung cho
+ * schema Bảng sản xuất (POST/PATCH) và hộp Kích hoạt BOM.
+ */
+export function isValidYmd(s: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return false;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d;
+}
+
+export const INVALID_YMD_MESSAGE = "Ngày không hợp lệ (cần ngày có thật, dạng YYYY-MM-DD).";
+
+/** zod: chuỗi ngày thật YYYY-MM-DD. */
+export function ymdSchema(message: string = INVALID_YMD_MESSAGE) {
+  return z.string().refine(isValidYmd, message);
+}
+
+/**
  * Thông tin tuỳ chọn đưa lên Bảng sản xuất khi KÍCH HOẠT BOM (Nháp → Đang
  * dùng). Mọi trường đều có thể bỏ trống — QC điền sau trên /production-board.
  */
 export const boardActivationSchema = z.object({
-  deadline: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Ngày cần giao không hợp lệ")
-    .optional()
-    .nullable(),
+  deadline: ymdSchema("Ngày cần giao không hợp lệ").optional().nullable(),
   rfqNo: z.string().trim().max(64, "Số QT/RFQ tối đa 64 ký tự").optional().nullable(),
   customer: z.string().trim().max(64, "Khách hàng tối đa 64 ký tự").optional().nullable(),
 });

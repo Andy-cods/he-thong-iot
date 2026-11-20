@@ -125,3 +125,88 @@ describe("isSameBoardItemIdentity / findDuplicateBoardItem", () => {
     expect(findDuplicateBoardItem({ productCode: "ABC", rfqNo: "RFQ-99" }, candidates)).toBeNull();
   });
 });
+
+import {
+  diffBoardHistory,
+  parseCompletedLimit,
+  selectCompletedRows,
+  shouldStampCompletedAt,
+} from "./production-board-policy";
+
+describe("B12 parseCompletedLimit", () => {
+  it("0 được giữ nguyên; rỗng/rác → 5; kẹp 0..20", () => {
+    expect(parseCompletedLimit("0")).toBe(0);
+    expect(parseCompletedLimit(null)).toBe(5);
+    expect(parseCompletedLimit("")).toBe(5);
+    expect(parseCompletedLimit("abc")).toBe(5);
+    expect(parseCompletedLimit("8")).toBe(8);
+    expect(parseCompletedLimit("99")).toBe(20);
+    expect(parseCompletedLimit("-3")).toBe(0);
+  });
+});
+
+describe("B8 selectCompletedRows", () => {
+  const rows = Array.from({ length: 25 }, (_, i) => ({ id: i, completedAt: new Date(2026, 0, i + 1) }));
+  it("không includeAll: cắt theo limit, mới nhất trước", () => {
+    const r = selectCompletedRows(rows, 20, false);
+    expect(r).toHaveLength(20);
+    expect(r[0]!.id).toBe(24);
+  });
+  it("includeAll (?all=1): đủ 25 dòng", () => {
+    expect(selectCompletedRows(rows, 20, true)).toHaveLength(25);
+  });
+  it("limit 0 → rỗng; completedAt null xếp cuối", () => {
+    expect(selectCompletedRows(rows, 0, false)).toHaveLength(0);
+    const r = selectCompletedRows([{ completedAt: null }, { completedAt: new Date(2026, 1, 1) }], 5, false);
+    expect(r[1]!.completedAt).toBeNull();
+  });
+});
+
+describe("B11 shouldStampCompletedAt", () => {
+  it("nhảy thẳng sang DELIVERED khi chưa có completed_at → đóng dấu", () => {
+    expect(shouldStampCompletedAt({ status: "QUEUED", completedAt: null }, "DELIVERED")).toBe(true);
+    expect(shouldStampCompletedAt({ status: "QC", completedAt: null }, "DELIVERED")).toBe(true);
+  });
+  it("đã có completed_at (COMPLETED→DELIVERED) / không đổi sang DELIVERED → không đụng", () => {
+    expect(shouldStampCompletedAt({ status: "COMPLETED", completedAt: new Date() }, "DELIVERED")).toBe(false);
+    expect(shouldStampCompletedAt({ status: "QUEUED", completedAt: null }, "COMPLETED")).toBe(false);
+    expect(shouldStampCompletedAt({ status: "QUEUED", completedAt: null }, undefined)).toBe(false);
+    expect(shouldStampCompletedAt({ status: "DELIVERED", completedAt: null }, "DELIVERED")).toBe(false);
+  });
+});
+
+describe("B10 diffBoardHistory", () => {
+  const before = {
+    status: "QUEUED",
+    qtyDone: "0.000",
+    qtyPlanned: "100.000",
+    unitPrice: null,
+    deadline: null as string | null,
+    productName: "A",
+    rfqNo: null as string | null,
+    customer: "SEC",
+    isPinned: false,
+  };
+  it("đổi deadline → 1 dòng 'deadline' (— → ngày)", () => {
+    expect(diffBoardHistory(before, { deadline: "2026-12-01" })).toEqual([{ field: "deadline", oldV: "—", newV: "2026-12-01" }]);
+  });
+  it("giá trị không đổi (so số theo giá trị) → không ghi", () => {
+    expect(diffBoardHistory(before, { qtyPlanned: 100, qtyDone: 0, customer: "SEC", status: "QUEUED" })).toEqual([]);
+  });
+  it("nhiều field + tên field ≤ 32 ký tự", () => {
+    const h = diffBoardHistory(before, {
+      qtyPlanned: 150,
+      productName: "B",
+      rfqNo: "RFQ1",
+      customer: null,
+      isPinned: true,
+      status: "IN_PROGRESS",
+      unitPrice: 5,
+    });
+    expect(h.map((x) => x.field).sort()).toEqual(
+      ["customer", "is_pinned", "product_name", "qty_planned", "rfq_no", "status", "unit_price"].sort(),
+    );
+    expect(h.every((x) => x.field.length <= 32)).toBe(true);
+    expect(h.find((x) => x.field === "customer")).toEqual({ field: "customer", oldV: "SEC", newV: "—" });
+  });
+});

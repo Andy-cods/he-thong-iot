@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
+import { ymdSchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import {
   BoardItemDuplicateError,
@@ -8,8 +9,9 @@ import {
   getBoardItemById,
   updateBoardItem,
 } from "@/server/repos/productionBoard";
-import { jsonError, parseJson, validateUuidParam } from "@/server/http";
+import { extractRequestMeta, jsonError, parseJson, validateUuidParam } from "@/server/http";
 import { requireCan } from "@/server/session";
+import { writeAudit } from "@/server/services/audit";
 import {
   BOARD_QTY_MAX,
   BOARD_QTY_MAX_MESSAGE,
@@ -38,7 +40,7 @@ const patchSchema = z.object({
   qtyDone: z.number().nonnegative().max(BOARD_QTY_MAX, BOARD_QTY_MAX_MESSAGE).optional(),
   uom: z.string().max(24).nullish(),
   status: z.enum(BOARD_STATUSES).optional(),
-  deadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
+  deadline: ymdSchema().nullish(),
   currentStage: z.string().max(128).nullish(),
   notes: z.string().max(2000).nullish(),
   isPinned: z.boolean().optional(),
@@ -137,7 +139,20 @@ export async function DELETE(
   if ("response" in idCheck) return idCheck.response;
 
   try {
-    await deleteBoardItem(params.id, guard.session.userId);
+    const removed = await deleteBoardItem(params.id, guard.session.userId);
+    // B13: lịch sử dòng bị xoá theo (CASCADE) → để lại vết trong audit.
+    await writeAudit({
+      actor: guard.session,
+      action: "DELETE",
+      objectType: "production_board_item",
+      objectId: params.id,
+      before: removed
+        ? { productCode: removed.productCode, status: removed.status, bomTemplateId: removed.bomTemplateId }
+        : undefined,
+      after: null,
+      notes: "Xoá dòng Bảng sản xuất",
+      ...extractRequestMeta(req),
+    });
     return NextResponse.json({ ok: true });
   } catch (err) {
     if (err instanceof BoardItemNotFoundError) {

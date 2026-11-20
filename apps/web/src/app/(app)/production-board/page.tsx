@@ -94,7 +94,8 @@ export default function ProductionBoardAdminPage() {
   const { data, isLoading, isError, error, isFetching, refetch } = useProductionBoard({
     all: true,
     completedLimit: 20,
-    refetchInterval: 0,
+    // B14: tự làm mới 60s (+ khi focus) để nhãn "Còn N ngày/Hôm nay" đúng sau 0h.
+    refetchInterval: 60_000,
     missingPrice: missingPriceFilter,
   });
   const updateMut = useUpdateBoardItem();

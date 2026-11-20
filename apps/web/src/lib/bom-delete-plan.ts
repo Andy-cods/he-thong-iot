@@ -23,6 +23,45 @@ export function bomDeleteForbiddenReason(status: string): string {
   return status === "ACTIVE" ? FORBIDDEN_OBSOLETE_ACTIVE_REASON : FORBIDDEN_HARD_DELETE_REASON;
 }
 
+export interface BulkDeleteCounts {
+  soft: number;
+  hard: number;
+  /** Dòng Đang dùng mà không phải admin (không được chuyển Ngừng dùng). */
+  forbiddenActive: number;
+  /** Dòng Ngừng dùng mà không phải admin (không được xoá vĩnh viễn). */
+  forbiddenObsolete: number;
+}
+
+/** B7 — đếm từng nhóm cho hộp xoá nhiều (tách lý do cấm theo trạng thái). */
+export function countBulkDelete(rows: readonly { status: string }[], isAdmin: boolean): BulkDeleteCounts {
+  const c: BulkDeleteCounts = { soft: 0, hard: 0, forbiddenActive: 0, forbiddenObsolete: 0 };
+  for (const r of rows) {
+    const k = bomDeleteKind(r.status, isAdmin);
+    if (k === "soft") c.soft++;
+    else if (k === "hard") c.hard++;
+    else if (r.status === "ACTIVE") c.forbiddenActive++;
+    else c.forbiddenObsolete++;
+  }
+  return c;
+}
+
+/** Mô tả hộp xác nhận xoá nhiều — câu cấm khớp ĐÚNG trạng thái dòng bị cấm (B7). */
+export function bulkDeleteDescription(c: BulkDeleteCounts, obsoleteLabel: string): string {
+  return [
+    c.soft > 0 ? `${c.soft} BOM sẽ chuyển sang “${obsoleteLabel}” (khôi phục được).` : null,
+    c.hard > 0 ? `${c.hard} BOM đã ngừng dùng sẽ bị XOÁ VĨNH VIỄN — không hoàn tác được.` : null,
+    c.forbiddenActive > 0
+      ? `${c.forbiddenActive} BOM đang dùng sẽ được bỏ qua (chỉ admin được chuyển Ngừng dùng).`
+      : null,
+    c.forbiddenObsolete > 0
+      ? `${c.forbiddenObsolete} BOM đã ngừng dùng sẽ được bỏ qua (chỉ admin xoá vĩnh viễn).`
+      : null,
+    'Gõ "XOA" để xác nhận.',
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 export interface BomDeleteResult {
   code: string;
   kind: BomDeleteKind;

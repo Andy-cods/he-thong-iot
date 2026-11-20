@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
+import { ymdSchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import {
   BoardItemDuplicateError,
@@ -15,6 +16,7 @@ import {
   BOARD_UNIT_PRICE_MAX,
   BOARD_UNIT_PRICE_MAX_MESSAGE,
   canSeeOrderValue,
+  parseCompletedLimit,
 } from "@/lib/production-board-policy";
 
 export const runtime = "nodejs";
@@ -45,10 +47,8 @@ export async function GET(req: NextRequest) {
 
   try {
     const url = new URL(req.url);
-    const completedLimit = Math.min(
-      20,
-      Math.max(0, Number(url.searchParams.get("completedLimit") ?? "5") || 5),
-    );
+    // B12: 0 là giá trị hợp lệ (không còn bị đổi thành 5).
+    const completedLimit = parseCompletedLimit(url.searchParams.get("completedLimit"));
     const includeDelivered = url.searchParams.get("all") === "1";
 
     const [items, counts] = await Promise.all([
@@ -82,7 +82,7 @@ const createSchema = z.object({
   qtyDone: z.number().nonnegative().max(BOARD_QTY_MAX, BOARD_QTY_MAX_MESSAGE).optional().default(0),
   uom: z.string().max(24).nullish(),
   status: z.enum(BOARD_STATUSES).optional().default("QUEUED"),
-  deadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
+  deadline: ymdSchema().nullish(),
   currentStage: z.string().max(128).nullish(),
   notes: z.string().max(2000).nullish(),
   isPinned: z.boolean().optional().default(false),

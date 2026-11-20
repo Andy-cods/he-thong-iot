@@ -16,7 +16,7 @@ import {
 } from "@/server/http";
 import { writeAudit, diffObjects } from "@/server/services/audit";
 import { requireCan } from "@/server/session";
-import { onBomActivated } from "@/server/services/boardFromBom";
+import { onBomActivatedWithStatus } from "@/server/services/boardFromBom";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -115,16 +115,16 @@ export async function PATCH(
     });
     // BOM vừa chuyển "Đang dùng" → tự đưa lên Bảng sản xuất (không nhân đôi).
     // Chuyển Ngừng dùng → board giữ nguyên.
-    const board =
+    const outcome =
       before.status !== "ACTIVE" && after.status === "ACTIVE"
-        ? await onBomActivated({
+        ? await onBomActivatedWithStatus({
             templateId: params.id,
             templateCode: after.code,
             session: guard.session,
             meta,
           })
-        : null;
-    return NextResponse.json({ data: after, board });
+        : { board: null, boardError: null };
+    return NextResponse.json({ data: after, board: outcome.board, boardError: outcome.boardError });
   } catch (err) {
     logger.error({ err, id: params.id }, "update bom template failed");
     return jsonError("INTERNAL", "Không cập nhật được BOM.", 500);

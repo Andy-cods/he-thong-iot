@@ -180,3 +180,33 @@ describe("xoá BOM từ danh sách", () => {
     expect(s.failureLines.at(-1)).toBe("… và 3 BOM khác");
   });
 });
+
+describe("§5.4 — đếm ngược: ranh giới & biên", () => {
+  it("vnTodayYmd ở ranh giới 0h VN (17:00Z)", () => {
+    expect(vnTodayYmd(new Date("2026-11-20T16:59:59Z"))).toBe("2026-11-20");
+    expect(vnTodayYmd(new Date("2026-11-20T17:00:00Z"))).toBe("2026-11-21");
+  });
+  it("daysUntil qua tháng / năm nhuận / năm", () => {
+    expect(daysUntil("2026-12-01", "2026-11-30")).toBe(1);
+    expect(daysUntil("2028-03-01", "2028-02-28")).toBe(2);
+    expect(daysUntil("2027-01-01", "2026-12-31")).toBe(1);
+  });
+  it("còn 3 ngày = soon, còn 4 ngày = normal", () => {
+    expect(deadlineCountdown("2026-11-23", "QUEUED", "2026-11-20")).toMatchObject({ tone: "soon", label: "Còn 3 ngày" });
+    expect(deadlineCountdown("2026-11-24", "QUEUED", "2026-11-20")).toMatchObject({ tone: "normal", label: "Còn 4 ngày" });
+  });
+  it("quá hạn 1 ngày (QC) / xong thì không đếm / ngày rác = missing", () => {
+    expect(deadlineCountdown("2026-11-19", "QC", "2026-11-20")).toMatchObject({ tone: "overdue", label: "Quá 1 ngày" });
+    expect(deadlineCountdown("2026-11-19", "COMPLETED", "2026-11-20")).toMatchObject({ tone: "done", label: null });
+    expect(deadlineCountdown("2026-11-19", "DELIVERED", "2026-11-20")).toMatchObject({ tone: "done", label: null });
+    expect(deadlineCountdown("abc", "QUEUED", "2026-11-20").tone).toBe("missing");
+  });
+  it("compareOpenBoardRows: ghim không hạn đứng trước không ghim quá hạn", () => {
+    const base = { isPinned: false, deadline: null as string | null, status: "QUEUED", seq: 0 };
+    const rows = [
+      { id: "overdue", ...base, deadline: "2026-11-01" },
+      { id: "pinned", ...base, isPinned: true },
+    ];
+    expect([...rows].sort(compareOpenBoardRows).map((x) => x.id)).toEqual(["pinned", "overdue"]);
+  });
+});

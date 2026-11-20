@@ -12,16 +12,32 @@ import type { Session } from "@/server/session";
  * KHÔNG BAO GIỜ throw: lỗi đồng bộ board không được làm hỏng việc kích hoạt
  * BOM (trả null, log warn).
  */
-export async function onBomActivated(input: {
+export interface BomActivationOutcome {
+  board: BoardSyncResult | null;
+  /** Có khi đồng bộ board THẤT BẠI (BOM vẫn đã kích hoạt) — để UI báo, không nuốt im lặng (B9). */
+  boardError: string | null;
+}
+
+export const BOARD_SYNC_FAILED_MESSAGE =
+  "BOM đã chuyển Đang dùng nhưng CHƯA thêm được dòng lên Bảng sản xuất. Hãy thêm tay trên /production-board hoặc báo quản trị.";
+
+export async function onBomActivated(input: BomActivatedInput): Promise<BoardSyncResult | null> {
+  return (await onBomActivatedWithStatus(input)).board;
+}
+
+type BomActivatedInput = {
   templateId: string;
   templateCode: string;
   extras?: BoardActivationExtras | null;
   session: Session;
   meta?: { requestId?: string | null; ipAddress?: string | null; userAgent?: string | null };
-}): Promise<BoardSyncResult | null> {
+};
+
+/** Như `onBomActivated` nhưng nói rõ khi đồng bộ lỗi. Vẫn KHÔNG throw. */
+export async function onBomActivatedWithStatus(input: BomActivatedInput): Promise<BomActivationOutcome> {
   try {
     const res = await syncBoardFromBom(input.templateId, input.extras ?? {}, input.session.userId);
-    if (!res) return null;
+    if (!res) return { board: null, boardError: null };
     if (res.action !== "unchanged" && res.action !== "skipped") {
       await writeAudit({
         actor: input.session,
@@ -50,9 +66,9 @@ export async function onBomActivated(input: {
         actorUsername: input.session.fullName,
       });
     }
-    return res;
+    return { board: res, boardError: null };
   } catch (err) {
     logger.warn({ err, templateId: input.templateId }, "đồng bộ Bảng sản xuất khi kích hoạt BOM thất bại (bỏ qua)");
-    return null;
+    return { board: null, boardError: BOARD_SYNC_FAILED_MESSAGE };
   }
 }

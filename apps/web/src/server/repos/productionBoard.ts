@@ -14,6 +14,9 @@ import {
 } from "@/lib/finance-overview-policy";
 import {
   compareOpenBoardRows,
+  diffBoardHistory,
+  selectCompletedRows,
+  shouldStampCompletedAt,
   findDuplicateBoardItem,
   planBoardSyncFromBom,
   type BoardActivationExtras,
@@ -84,14 +87,12 @@ export async function listBoardItems(opts?: {
   const active = mapped.filter((r) =>
     activeStatuses.includes(r.status),
   );
-  const completed = mapped
-    .filter((r) => r.status === "COMPLETED" || r.status === "DELIVERED")
-    .sort((a, b) => {
-      const ta = a.completedAt ? new Date(a.completedAt).getTime() : 0;
-      const tb = b.completedAt ? new Date(b.completedAt).getTime() : 0;
-      return tb - ta;
-    })
-    .slice(0, completedLimit);
+  // B8: `includeDelivered` (?all=1, trang quản lý) → trả ĐỦ, không cắt.
+  const completed = selectCompletedRows(
+    mapped.filter((r) => r.status === "COMPLETED" || r.status === "DELIVERED"),
+    completedLimit,
+    !!opts?.includeDelivered,
+  );
 
   // Ghim → hạn gần nhất (quá hạn nổi lên) → chưa có hạn xếp sau → trạng thái → STT.
   active.sort(compareOpenBoardRows);
@@ -457,6 +458,8 @@ export async function updateBoardItem(
     if (input.qtyDone !== undefined) patch.qtyDone = String(input.qtyDone);
     if (input.uom !== undefined) patch.uom = input.uom;
     if (input.status !== undefined) patch.status = input.status;
+    // B11: nhảy thẳng sang DELIVERED → đóng dấu completed_at (trigger chỉ set khi →COMPLETED).
+    if (shouldStampCompletedAt(before, input.status)) patch.completedAt = new Date();
     if (input.deadline !== undefined) patch.deadline = input.deadline;
     if (input.currentStage !== undefined)
       patch.currentStage = input.currentStage;
@@ -475,37 +478,7 @@ export async function updateBoardItem(
     if (!row) throw new BoardItemNotFoundError();
 
     // Ghi history cho các field quan trọng.
-    const histories: Array<{ field: string; oldV: string; newV: string }> = [];
-    if (input.status !== undefined && input.status !== before.status) {
-      histories.push({
-        field: "status",
-        oldV: before.status,
-        newV: input.status,
-      });
-    }
-    if (
-      input.qtyDone !== undefined &&
-      String(input.qtyDone) !== String(before.qtyDone)
-    ) {
-      histories.push({
-        field: "qty_done",
-        oldV: String(before.qtyDone),
-        newV: String(input.qtyDone),
-      });
-    }
-    // V4.4.2 — ghi lịch sử đổi đơn giá bán (chỉ route gọi tới khi actor có
-    // quyền `canSeeOrderValue`; lọc field hiển thị cho vai khác ở route history).
-    if (input.unitPrice !== undefined) {
-      const oldPrice = before.unitPrice === null ? null : String(before.unitPrice);
-      const newPrice = input.unitPrice === null ? null : String(input.unitPrice);
-      if (oldPrice !== newPrice) {
-        histories.push({
-          field: "unit_price",
-          oldV: oldPrice ?? "—",
-          newV: newPrice ?? "—",
-        });
-      }
-    }
+    const histories = diffBoardHistory(before, input);
     if (histories.length > 0) {
       await tx.insert(productionBoardHistory).values(
         histories.map((h) => ({
@@ -525,19 +498,23 @@ export async function updateBoardItem(
 export async function deleteBoardItem(
   id: string,
   userId: string | null,
-): Promise<void> {
-  await db.transaction(async (tx) => {
+): Promise<{ productCode: string; status: ProductionBoardStatus; bomTemplateId: string | null }> {
+  return db.transaction(async (tx) => {
     const [before] = await tx
-      .select({ code: productionBoardItem.productCode })
+      .select({
+        code: productionBoardItem.productCode,
+        status: productionBoardItem.status,
+        bomTemplateId: productionBoardItem.bomTemplateId,
+      })
       .from(productionBoardItem)
       .where(eq(productionBoardItem.id, id))
       .limit(1);
     if (!before) throw new BoardItemNotFoundError();
-    // History cascade-deletes với item; ghi 1 dòng audit ở entity khác không
-    // cần — xóa là xóa hẳn. (Nếu cần audit-trail bền hơn, dùng writeAudit.)
+    // Lịch sử xoá theo dòng (CASCADE) → route ghi audit (B13) bằng giá trị trả về.
     await tx
       .delete(productionBoardItem)
       .where(eq(productionBoardItem.id, id));
+    return { productCode: before.code, status: before.status, bomTemplateId: before.bomTemplateId ?? null };
   });
 }
 
