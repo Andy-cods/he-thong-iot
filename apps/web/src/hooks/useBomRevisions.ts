@@ -88,11 +88,22 @@ export function useBomRevision(id: string | null) {
   });
 }
 
+/** Kết quả tự đưa lên Bảng sản xuất khi kích hoạt BOM (server/repos/productionBoard.ts). */
+export type BoardActivationResult =
+  | {
+      action: "created" | "linked" | "updated" | "unchanged";
+      itemId: string;
+      productCode: string;
+      productName: string;
+      hasDeadline: boolean;
+    }
+  | { action: "skipped"; reason: string; productCode: string };
+
 export function useReleaseRevision(templateId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: ReleaseRevisionInput) =>
-      request<{ data: BomRevisionRow }>(
+      request<{ data: BomRevisionRow; board?: BoardActivationResult | null }>(
         `/api/bom/templates/${templateId}/revisions`,
         {
           method: "POST",

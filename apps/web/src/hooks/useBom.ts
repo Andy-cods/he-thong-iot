@@ -284,10 +284,17 @@ export function useUpdateBomTemplate(id: string) {
 export function useDeleteBomTemplate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) =>
-      request<{ data: unknown }>(`/api/bom/templates/${id}`, {
-        method: "DELETE",
-      }),
+    /**
+     * Mặc định xoá mềm (→ Ngừng dùng). `hard: true` = xoá vĩnh viễn (admin,
+     * BOM phải đang Ngừng dùng) — API từ chối kèm lý do nếu còn tham chiếu.
+     */
+    mutationFn: (input: string | { id: string; hard?: boolean }) => {
+      const { id, hard } = typeof input === "string" ? { id: input, hard: false } : input;
+      return request<{ data: unknown }>(
+        `/api/bom/templates/${id}${hard ? "?hard=true" : ""}`,
+        { method: "DELETE" },
+      );
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.bom.all });
     },

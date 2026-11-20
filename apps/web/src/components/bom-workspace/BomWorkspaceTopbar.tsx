@@ -314,6 +314,7 @@ export function BomWorkspaceTopbar({
         templateId={template.id}
         templateCode={template.code}
         nextRevisionNoHint={nextRevisionNoHint}
+        activates={template.status === "DRAFT"}
       />
 
       <DialogConfirm

@@ -88,6 +88,8 @@ export const NOTIFICATION_EVENT_TYPES = [
   "STOCKTAKE_REJECTED",
   // BOM V5 — bàn giao bước (sổ bước / phiếu giao) cho bộ phận phụ trách bước kế tiếp.
   "BOM_STAGE_HANDOFF",
+  // BOM kích hoạt → tự thêm dòng Bảng sản xuất, báo Tổ QC điền ngày giao.
+  "BOARD_BOM_ACTIVATED",
 ] as const;
 
 export type NotificationEventType = (typeof NOTIFICATION_EVENT_TYPES)[number];
@@ -207,6 +209,7 @@ export const ACTION_EVENT_TYPES: ReadonlySet<NotificationEventType> = new Set<No
   "STOCKTAKE_SUBMITTED",
   "STOCKTAKE_REJECTED",
   "BOM_STAGE_HANDOFF",
+  "BOARD_BOM_ACTIVATED",
 ]);
 
 /**
@@ -1979,5 +1982,45 @@ export function planStocktakeRejected(
       user(ctx.creatorUserId, STOCKTAKE_CREATOR_ROLES, content),
       role("warehouse", content),
     ],
+  };
+}
+
+/* ── Bảng sản xuất ← BOM kích hoạt ─────────────────────────────────────── */
+
+export interface BoardBomActivatedCtx {
+  itemId: string;
+  productCode: string;
+  productName: string;
+  bomCode: string;
+  /** Đã có ngày giao (nhập lúc kích hoạt) → chỉ báo để biết. */
+  hasDeadline: boolean;
+  actorUserId?: string | null;
+  actorUsername?: string | null;
+}
+
+/**
+ * BOM vừa Kích hoạt → hệ thống tự thêm dòng "Chờ GC" lên Bảng sản xuất → báo
+ * Tổ QC điền ngày giao (việc cần làm). Đã có ngày giao thì chỉ để biết.
+ */
+export function planBoardBomActivated(ctx: BoardBomActivatedCtx): NotifyPlan {
+  const content: NotifyContent = {
+    title: ctx.hasDeadline
+      ? `BOM ${ctx.bomCode} vừa kích hoạt — đã lên Bảng sản xuất`
+      : `BOM ${ctx.bomCode} vừa kích hoạt — cần điền ngày giao`,
+    message: `${ctx.productCode} · ${ctx.productName} đã được thêm vào Bảng sản xuất (Chờ GC).${
+      ctx.hasDeadline ? "" : " Vui lòng điền Ngày cần giao."
+    }`,
+    links: ["/production-board"],
+    category: ctx.hasDeadline ? "update" : "action",
+  };
+  return {
+    eventType: "BOARD_BOM_ACTIVATED",
+    entityType: "production_board_item",
+    entityId: ctx.itemId,
+    entityCode: ctx.productCode,
+    actorUserId: ctx.actorUserId,
+    actorUsername: ctx.actorUsername,
+    targets: [role("qc", content)],
+    adminFallback: content,
   };
 }

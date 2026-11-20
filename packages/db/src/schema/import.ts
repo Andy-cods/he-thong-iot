@@ -32,10 +32,13 @@ export const importStatusEnum = pgEnum("import_status", [
   "failed",
 ]);
 
+// Migration 0088 — thêm "replace" (ghi đè BOM) + "new_code" (tạo BOM mã khác).
 export const importDuplicateModeEnum = pgEnum("import_duplicate_mode", [
   "skip",
   "upsert",
   "error",
+  "replace",
+  "new_code",
 ]);
 
 /** Bảng 21: import_batch — trạng thái 1 lần upload Excel, giữ history & dedup theo fileHash. */

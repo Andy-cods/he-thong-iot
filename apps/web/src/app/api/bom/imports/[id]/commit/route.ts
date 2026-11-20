@@ -78,6 +78,7 @@ export async function POST(
         batchId: batch.id,
         actorId: guard.session.userId,
         duplicateMode: body.data.duplicateMode ?? "skip",
+        newCode: body.data.newCode,
         decisions: dec.data.decisions,
       });
       await writeAudit({
@@ -85,7 +86,12 @@ export async function POST(
         action: "CREATE",
         objectType: "import_batch",
         objectId: batch.id,
-        after: { template: "TRIEN_KHAI", decisions: dec.data.decisions.length },
+        after: {
+          template: "TRIEN_KHAI",
+          decisions: dec.data.decisions.length,
+          duplicateMode: body.data.duplicateMode,
+          newCode: body.data.newCode ?? null,
+        },
         notes: "bom trien khai commit enqueue",
         ...extractRequestMeta(req),
       });
@@ -143,6 +149,7 @@ export async function POST(
       after: {
         selectedSheets: body.data.selectedSheets,
         autoCreate: body.data.autoCreateMissingItems,
+        duplicateMode: body.data.duplicateMode,
       },
       notes: "bom commit enqueue",
       ...meta,

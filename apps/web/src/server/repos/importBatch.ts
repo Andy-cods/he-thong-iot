@@ -39,7 +39,7 @@ export async function createImportBatch(input: {
   fileName: string;
   fileSizeBytes: number;
   fileKey?: string | null;
-  duplicateMode: "skip" | "upsert" | "error";
+  duplicateMode: "skip" | "upsert" | "error" | "replace" | "new_code";
   uploadedBy: string | null;
 }) {
   const [row] = await db

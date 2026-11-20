@@ -7,6 +7,7 @@ import {
   type BoardStatus,
 } from "@/hooks/useProductionBoard";
 import { getStatus, statusLabel } from "@/lib/status";
+import { deadlineCountdown, vnTodayYmd } from "@/lib/board-deadline";
 
 // V4.1 UI-07: chữ trạng thái màn TV lấy từ lib/status.ts (viết HOA) — giữ nguyên
 // màu phát sáng riêng của giao diện TV nền tối.
@@ -66,8 +67,9 @@ const STATUS_META: Record<
   },
 };
 
+// Cột "Hạn" rộng hơn để chứa ngày + đếm ngược ("Còn 3 ngày" / "Chưa có ngày giao").
 const GRID =
-  "grid grid-cols-[13rem_1fr_5rem_9.5rem_15rem_6.5rem_13rem] items-center gap-4";
+  "grid grid-cols-[13rem_1fr_5rem_9.5rem_12rem_11rem_13rem] items-center gap-4";
 
 function useClock() {
   const [now, setNow] = React.useState<Date | null>(null);
@@ -92,15 +94,23 @@ function fmtClock(d: Date | null): { time: string; sec: string; date: string } {
   };
 }
 
-function deadlineInfo(deadline: string | null): { text: string; cls: string } {
-  if (!deadline) return { text: "—", cls: "text-slate-600" };
-  const d = new Date(deadline);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const text = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
-  const days = (d.getTime() - Date.now()) / 86_400_000;
-  if (days < 0) return { text, cls: "text-rose-400 font-bold" };
-  if (days <= 3) return { text, cls: "text-amber-300 font-semibold" };
-  return { text, cls: "text-slate-300" };
+// Màu đếm ngược trên nền tối (đọc được từ xa): đỏ quá hạn, vàng ≤3 ngày.
+const TV_COUNTDOWN_CLS = {
+  overdue: "text-rose-400 font-bold",
+  soon: "text-amber-300 font-bold",
+  normal: "text-slate-300 font-semibold",
+  missing: "text-amber-300",
+  done: "text-slate-500",
+} as const;
+
+function deadlineInfo(
+  deadline: string | null,
+  status: BoardStatus,
+  today: string,
+): { date: string | null; countdown: string | null; tone: keyof typeof TV_COUNTDOWN_CLS } {
+  const cd = deadlineCountdown(deadline, status, today);
+  const m = deadline ? /^\d{4}-(\d{2})-(\d{2})/.exec(deadline) : null;
+  return { date: m ? `${m[2]}/${m[1]}` : null, countdown: cd.label, tone: cd.tone };
 }
 
 export default function BoardPage() {
@@ -355,7 +365,7 @@ function BoardRow({ item, zebra }: { item: BoardItem; zebra: boolean }) {
   const done = Number(item.qtyDone) || 0;
   const planned = Number(item.qtyPlanned) || 0;
   const pct = planned > 0 ? Math.min(100, Math.round((done / planned) * 100)) : 0;
-  const dl = deadlineInfo(item.deadline);
+  const dl = deadlineInfo(item.deadline, item.status, vnTodayYmd());
 
   return (
     <div
@@ -420,10 +430,23 @@ function BoardRow({ item, zebra }: { item: BoardItem; zebra: boolean }) {
         </span>
       </div>
 
-      {/* Hạn */}
-      <span className={`text-center font-mono text-lg tabular-nums ${dl.cls}`}>
-        {dl.text}
-      </span>
+      {/* Hạn + đếm ngược */}
+      {dl.tone === "missing" ? (
+        <div className="flex justify-center">
+          <span className="whitespace-nowrap rounded-md bg-amber-400/15 px-2.5 py-1.5 text-[0.95rem] font-bold text-amber-300 ring-1 ring-inset ring-amber-400/40">
+            Chưa có ngày giao
+          </span>
+        </div>
+      ) : (
+        <div className="text-center leading-tight">
+          <span className="font-mono text-lg tabular-nums text-slate-300">{dl.date ?? "—"}</span>
+          {dl.countdown && (
+            <span className={`block whitespace-nowrap text-lg ${TV_COUNTDOWN_CLS[dl.tone]}`}>
+              {dl.countdown}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Trạng thái */}
       <div className="flex justify-center">

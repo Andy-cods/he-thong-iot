@@ -62,6 +62,8 @@ export interface BomListTableProps {
   onPreview?: (row: BomRow) => void;
   onClone?: (row: BomRow) => void;
   onDelete?: (row: BomRow) => void;
+  /** BOM Ngừng dùng: menu hiện "Xoá vĩnh viễn" (chỉ admin) thay vì "Xoá BOM". */
+  canHardDelete?: boolean;
   onRename?: (row: BomRow, newName: string) => Promise<void>;
   focusedIndex?: number;
   /** V2.1 — sort state for header click. */
@@ -212,6 +214,7 @@ export function BomListTable({
   onPreview,
   onClone,
   onDelete,
+  canHardDelete = false,
   onRename,
   focusedIndex,
   sortField,
@@ -505,7 +508,9 @@ export function BomListTable({
                     { label: "Sửa", icon: Pencil, onSelect: () => onEdit(row) },
                     { label: "Sao chép mã", icon: Copy, onSelect: () => copyCode(row.code) },
                     { label: "Nhân bản", icon: GitBranch, onSelect: () => onClone?.(row), hidden: !onClone },
-                    { label: "Xoá BOM", icon: Trash2, danger: true, onSelect: () => onDelete?.(row), hidden: !onDelete },
+                    row.status === "OBSOLETE"
+                      ? { label: "Xoá vĩnh viễn", icon: Trash2, danger: true, onSelect: () => onDelete?.(row), hidden: !onDelete || !canHardDelete }
+                      : { label: "Xoá BOM", icon: Trash2, danger: true, onSelect: () => onDelete?.(row), hidden: !onDelete },
                   ]}
                 />
               </div>

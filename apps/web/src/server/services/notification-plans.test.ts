@@ -47,6 +47,7 @@ import {
   planStocktakeApproved,
   planStocktakeRejected,
   planStocktakeSubmitted,
+  planBoardBomActivated,
   planWOApproved,
   planWOCancelled,
   planWOCompleted,
@@ -135,6 +136,8 @@ const PLANS: Array<[string, NotifyPlan]> = [
   ["stocktake approved (no diff)", planStocktakeApproved({ ...ST, creatorUserId: U(8), diffLineCount: 0 })],
   ["stocktake rejected", planStocktakeRejected({ ...ST, creatorUserId: U(8), reason: "đếm thiếu 2 ô" })],
   ["stocktake rejected (no reason)", planStocktakeRejected({ ...ST, creatorUserId: U(8), reason: null })],
+  ["board bom activated (no deadline)", planBoardBomActivated({ itemId: "b-1", productCode: "Z0000002-622582", productName: "Jig", bomCode: "Z0000002-622582", hasDeadline: false })],
+  ["board bom activated (deadline)", planBoardBomActivated({ itemId: "b-1", productCode: "Z0000002-622582", productName: "Jig", bomCode: "Z0000002-622582", hasDeadline: true })],
 ];
 
 describe("TASK-20260927 — link thông báo mở được theo vai trò người nhận", () => {

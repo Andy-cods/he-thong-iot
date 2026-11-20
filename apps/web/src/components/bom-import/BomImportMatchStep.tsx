@@ -20,13 +20,27 @@ interface Props {
   committing: boolean;
   onBack: () => void;
   onCommit: (decisions: BomImportDecisionInput[]) => void;
+  /** Khối hiển thị đầu bước (vd "Mã BOM đã tồn tại" + lựa chọn ghi đè). */
+  topSlot?: React.ReactNode;
+  /** Nhãn nút xác nhận (mặc định "Tạo BOM"). */
+  commitLabel?: string;
+  /** Có lý do → khoá nút xác nhận + hiện lý do. */
+  commitBlockedReason?: string | null;
 }
 
 /**
  * V5 WP4b — bước "Khớp vật tư" cho mẫu BOM triển khai.
  * Dòng CONFIRM phải chọn 1 vật tư ứng viên hoặc "Tạo mới" mới được commit.
  */
-export function BomImportMatchStep({ data, committing, onBack, onCommit }: Props) {
+export function BomImportMatchStep({
+  data,
+  committing,
+  onBack,
+  onCommit,
+  topSlot,
+  commitLabel = "Tạo BOM",
+  commitBlockedReason,
+}: Props) {
   const [choice, setChoice] = React.useState<MatchChoice>({});
   const [filter, setFilter] = React.useState<Filter>("ALL");
 
@@ -54,6 +68,8 @@ export function BomImportMatchStep({ data, committing, onBack, onCommit }: Props
           {st.total} dòng · kiểm tra khớp vật tư trước khi tạo BOM
         </p>
       </div>
+
+      {topSlot}
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {cards.map((c) => {
@@ -130,9 +146,15 @@ export function BomImportMatchStep({ data, committing, onBack, onCommit }: Props
               Còn {undecided.length} dòng chưa quyết
             </span>
           )}
+          {commitBlockedReason && undecided.length === 0 && (
+            <span className="flex items-center gap-1 text-sm text-amber-700 dark:text-amber-300">
+              <AlertTriangle className="h-4 w-4" aria-hidden />
+              {commitBlockedReason}
+            </span>
+          )}
           <Button
             size="lg"
-            disabled={undecided.length > 0 || committing}
+            disabled={undecided.length > 0 || committing || !!commitBlockedReason}
             onClick={() => onCommit(buildDecisions(rows, choice))}
           >
             {committing ? (
@@ -140,7 +162,7 @@ export function BomImportMatchStep({ data, committing, onBack, onCommit }: Props
             ) : (
               <Play className="mr-1 h-4 w-4" aria-hidden />
             )}
-            Tạo BOM
+            {commitLabel}
           </Button>
         </div>
       </div>

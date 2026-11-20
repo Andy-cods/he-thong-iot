@@ -1,5 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { LIMITS } from "@iot/shared";
+import {
+  BOM_DUPLICATE_MODES,
+  LIMITS,
+  sheetBomCode,
+  trienKhaiTemplateCode,
+  type BomDuplicateMode,
+} from "@iot/shared";
 import { extractRequestMeta, jsonError } from "@/server/http";
 import { logger } from "@/lib/logger";
 import {
@@ -18,6 +24,28 @@ import {
 import { env } from "@/lib/env";
 import { writeAudit } from "@/server/services/audit";
 import { requireCan } from "@/server/session";
+import { inspectBomCodeConflicts } from "@/server/repos/bomImportConflicts";
+
+/**
+ * Mã BOM file sẽ ghi (mẫu triển khai: mã dự án; cổ điển: tên từng sheet) đã có
+ * trong hệ thống? → UI bắt buộc chọn Ghi đè / Mã mới / Huỷ thay vì âm thầm bỏ qua.
+ * Lỗi tra cứu không chặn upload (trả []), commit vẫn an toàn vì worker kiểm lại.
+ */
+async function findConflicts(
+  batchId: string,
+  sheets: Array<{ sheetName: string }>,
+  trienKhai: { projectCode?: string | null } | null | undefined,
+) {
+  try {
+    const targets = trienKhai
+      ? [{ code: trienKhaiTemplateCode(trienKhai.projectCode ?? null, batchId), sheetName: null }]
+      : sheets.map((s) => ({ code: sheetBomCode(s.sheetName), sheetName: s.sheetName }));
+    return await inspectBomCodeConflicts(targets);
+  } catch (err) {
+    logger.warn({ err, batchId }, "inspectBomCodeConflicts failed");
+    return [];
+  }
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,10 +75,11 @@ export async function POST(req: NextRequest) {
   }
   const duplicateMode =
     (form.get("duplicateMode") as string | null) ?? "skip";
-  if (!["skip", "upsert", "error"].includes(duplicateMode)) {
+  // Chế độ thật chọn ở bước xem trước (commit); upload chỉ ghi giá trị mặc định.
+  if (!(BOM_DUPLICATE_MODES as readonly string[]).includes(duplicateMode)) {
     return jsonError(
       "INVALID_DUPLICATE_MODE",
-      "duplicateMode phải là skip|upsert|error.",
+      "duplicateMode phải là skip|upsert|error|replace|new_code.",
       400,
     );
   }
@@ -87,8 +116,13 @@ export async function POST(req: NextRequest) {
     const preview = (existing.previewJson ?? {}) as {
       sheets?: typeof parsed.sheets;
       autoMappings?: Record<string, Record<string, string | null>>;
-      trienKhai?: unknown;
+      trienKhai?: { projectCode?: string | null };
     };
+    const conflicts = await findConflicts(
+      existing.id,
+      preview.sheets ?? parsed.sheets,
+      preview.trienKhai ?? null,
+    );
     return NextResponse.json(
       {
         data: {
@@ -101,6 +135,7 @@ export async function POST(req: NextRequest) {
           duplicateMode,
           officialFormat: parsed.officialFormat,
           ...(preview.trienKhai ? { template: "TRIEN_KHAI", trienKhai: preview.trienKhai } : {}),
+          conflicts,
         },
       },
       { status: 200 },
@@ -155,7 +190,7 @@ export async function POST(req: NextRequest) {
     fileHash: parsed.fileHash,
     fileName: file.name,
     fileSizeBytes: file.size,
-    duplicateMode: duplicateMode as "skip" | "upsert" | "error",
+    duplicateMode: duplicateMode as BomDuplicateMode,
     uploadedBy: guard.session.userId,
   });
 
@@ -174,6 +209,8 @@ export async function POST(req: NextRequest) {
       ...(trienKhaiPreview ? { template: "TRIEN_KHAI", trienKhai: trienKhaiPreview } : {}),
     },
   });
+
+  const conflicts = await findConflicts(batch.id, parsed.sheets, parsed.trienKhai ?? null);
 
   const meta = extractRequestMeta(req);
   await writeAudit({
@@ -205,6 +242,7 @@ export async function POST(req: NextRequest) {
         // V3: nhận diện format chính thức (Bản chính thức Z0000002-...).
         officialFormat: parsed.officialFormat,
         ...(trienKhaiPreview ? { template: "TRIEN_KHAI", trienKhai: trienKhaiPreview } : {}),
+        conflicts,
       },
     },
     { status: 201 },

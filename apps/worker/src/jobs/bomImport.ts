@@ -14,7 +14,23 @@ import {
   supplier,
   userAccount,
 } from "@iot/db/schema";
+import {
+  effectiveDuplicateMode,
+  makeBomImportOutcome,
+  sheetBomCode,
+  statusAfterReplace,
+  type BomDuplicateMode,
+  type BomImportOutcome,
+} from "@iot/shared";
 import { db } from "../db.js";
+import {
+  ReplaceBlockedError,
+  assertReplaceAllowed,
+  backupTemplateLines,
+  deleteTemplateLines,
+  resolveNewCode,
+  saveOutcomes,
+} from "./bomReplace.js";
 
 export interface BomImportCommitJob {
   batchId: string;
@@ -23,7 +39,74 @@ export interface BomImportCommitJob {
   selectedSheets: string[];
   mappings: Record<string, Record<string, string | null>>;
   autoCreateMissingItems: boolean;
-  duplicateMode: "skip" | "upsert" | "error";
+  /** skip | error | replace | new_code (mã -V2… tự chọn) — "upsert" cũ = replace. */
+  duplicateMode: BomDuplicateMode;
+}
+
+/** bom_template.metadata.lastImport — để retry nhận ra template của chính batch/sheet. */
+interface SheetLastImport {
+  batchId: string;
+  sheet: string;
+  action: BomImportOutcome["action"];
+  linesRemoved?: number;
+  backupRevisionNo?: string | null;
+  previousStatus?: string | null;
+  newStatus?: string | null;
+  conflictCode?: string | null;
+}
+
+/**
+ * Ghi đè 1 sheet (đường cổ điển): khoá BOM, chặn nếu dòng có tham chiếu sản
+ * xuất, lưu bản cũ thành revision SUPERSEDED, xoá dòng cũ, Ngừng dùng → Nháp.
+ * Dòng mới ghi tiếp theo chunk như import thường.
+ */
+async function prepareSheetReplace(input: {
+  templateId: string;
+  code: string;
+  sheetName: string;
+  batchId: string;
+  fileName: string;
+  actorId: string;
+}): Promise<SheetLastImport> {
+  return db.transaction(async (tx) => {
+    const [locked] = await tx
+      .select({ status: bomTemplate.status, metadata: bomTemplate.metadata })
+      .from(bomTemplate)
+      .where(eq(bomTemplate.id, input.templateId))
+      .for("update");
+    if (!locked) throw new Error(`BOM ${input.code} không còn tồn tại`);
+    await assertReplaceAllowed(tx, input.templateId, input.code);
+    const backup = await backupTemplateLines(
+      tx,
+      input.templateId,
+      input.actorId,
+      `Bản lưu tự động trước khi ghi đè từ file "${input.fileName}" (sheet "${input.sheetName}", batch ${input.batchId.slice(0, 8)}).`,
+    );
+    await deleteTemplateLines(tx, input.templateId);
+    const newStatus = statusAfterReplace(locked.status) as typeof locked.status;
+    const last: SheetLastImport = {
+      batchId: input.batchId,
+      sheet: input.sheetName,
+      action: "replaced",
+      previousStatus: locked.status,
+      newStatus,
+      linesRemoved: backup?.lineCount ?? 0,
+      backupRevisionNo: backup?.revisionNo ?? null,
+    };
+    await tx
+      .update(bomTemplate)
+      .set({
+        status: newStatus,
+        updatedAt: new Date(),
+        metadata: {
+          ...((locked.metadata as Record<string, unknown>) ?? {}),
+          lastImport: last,
+          lastReplacedAt: new Date().toISOString(),
+        },
+      })
+      .where(eq(bomTemplate.id, input.templateId));
+    return last;
+  });
 }
 
 interface StoredRow {
@@ -79,8 +162,8 @@ export async function processBomImportCommit(
     mappings,
     autoCreateMissingItems,
     actorId,
-    duplicateMode,
   } = job.data;
+  const mode = effectiveDuplicateMode(job.data.duplicateMode);
 
   const [batch] = await db
     .select()
@@ -123,6 +206,7 @@ export async function processBomImportCommit(
   let totalFail = 0;
   let templatesCreated = 0;
   const errors: RowError[] = [];
+  const outcomes: BomImportOutcome[] = [];
 
   const totalRowsToProcess = selectedSheets.reduce(
     (acc, s) => acc + (allRowsBySheet[s]?.length ?? 0),
@@ -137,65 +221,109 @@ export async function processBomImportCommit(
     if (rows.length === 0) continue;
 
     // Sanitize sheet name → BOM code
-    const baseCode = sheetName
-      .toUpperCase()
-      .replace(/[^A-Z0-9_\-]/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 60);
-    const bomCode = baseCode.length >= 2 ? baseCode : `BOM-${sheetName}`;
+    const bomCode = sheetBomCode(sheetName);
 
-    // Create BOM template per sheet (SKIP nếu code đã tồn tại)
-    const [existing] = await db
-      .select({ id: bomTemplate.id })
+    // Retry của chính batch này (đã tạo/ghi đè ở lần chạy trước) → dùng lại.
+    const [own] = await db
+      .select({ id: bomTemplate.id, code: bomTemplate.code, metadata: bomTemplate.metadata })
       .from(bomTemplate)
-      .where(eq(bomTemplate.code, bomCode))
+      .where(
+        sql`${bomTemplate.metadata} -> 'lastImport' ->> 'batchId' = ${batchId}
+          AND ${bomTemplate.metadata} -> 'lastImport' ->> 'sheet' = ${sheetName}`,
+      )
       .limit(1);
+    const [existing] = own
+      ? []
+      : await db
+          .select({ id: bomTemplate.id, status: bomTemplate.status })
+          .from(bomTemplate)
+          .where(eq(bomTemplate.code, bomCode))
+          .limit(1);
 
     let templateId: string;
+    let templateCode = bomCode;
     let isNewTemplate = false;
-    if (existing) {
+    let last: SheetLastImport;
+    if (own) {
+      templateId = own.id;
+      templateCode = own.code;
+      last = (own.metadata as { lastImport: SheetLastImport }).lastImport;
+    } else if (existing && mode !== "new_code") {
       templateId = existing.id;
       // V3.11.4 (audit W.5) — template code đã tồn tại + đã có bom_line (import
       // trước, KHÁC batch này). Áp duplicateMode để không âm thầm append trùng:
-      //  - error: dừng sheet này với lỗi rõ.
-      //  - skip:  bỏ qua sheet (giữ nguyên template cũ).
-      //  - upsert (default): giữ hành vi cũ = append tiếp.
-      if (duplicateMode === "error" || duplicateMode === "skip") {
-        const [existingLine] = await db
-          .select({ id: bomLine.id })
-          .from(bomLine)
-          .where(
-            sql`${bomLine.templateId} = ${templateId}
-              AND (${bomLine.metadata} ->> 'importedFromBatch') IS DISTINCT FROM ${batchId}`,
-          )
-          .limit(1);
-        if (existingLine) {
-          if (duplicateMode === "error") {
-            throw new Error(
-              `BOM "${bomCode}" đã có dữ liệu import trước đó (duplicateMode=error). Đổi tên sheet hoặc chọn chế độ khác.`,
-            );
-          }
-          // skip
-          errors.push({
-            rowNumber: 0,
-            sheet: sheetName,
-            field: "_duplicate",
-            reason: `Bỏ qua sheet "${sheetName}": BOM "${bomCode}" đã có dữ liệu (duplicateMode=skip).`,
+      //  - error: dừng với lỗi rõ.
+      //  - skip:  bỏ qua sheet (giữ nguyên template cũ) — kết quả ghi rõ "Bỏ qua".
+      //  - replace (+ upsert cũ): ghi đè dòng CÙNG BOM, lưu bản cũ thành revision.
+      const [existingLine] = await db
+        .select({ id: bomLine.id })
+        .from(bomLine)
+        .where(
+          sql`${bomLine.templateId} = ${templateId}
+            AND (${bomLine.metadata} ->> 'importedFromBatch') IS DISTINCT FROM ${batchId}`,
+        )
+        .limit(1);
+      if (mode === "replace") {
+        try {
+          last = await prepareSheetReplace({
+            templateId,
+            code: bomCode,
+            sheetName,
+            batchId,
+            fileName: batch.fileName,
+            actorId,
           });
+        } catch (err) {
+          if (!(err instanceof ReplaceBlockedError)) throw err;
+          errors.push({ rowNumber: 0, sheet: sheetName, field: "_duplicate", reason: err.message });
+          outcomes.push(
+            makeBomImportOutcome({
+              action: "skipped",
+              sheet: sheetName,
+              templateId,
+              templateCode: bomCode,
+              linesWritten: 0,
+              reason: err.message,
+            }),
+          );
           continue;
         }
+      } else if (!existingLine) {
+        last = { batchId, sheet: sheetName, action: "filled" };
+      } else if (mode === "error") {
+        throw new Error(
+          `BOM "${bomCode}" đã có dữ liệu import trước đó (duplicateMode=error). Đổi tên sheet hoặc chọn chế độ khác.`,
+        );
+      } else {
+        const outcome = makeBomImportOutcome({
+          action: "skipped",
+          sheet: sheetName,
+          templateId,
+          templateCode: bomCode,
+          linesWritten: 0,
+          reason: `sheet "${sheetName}" trùng mã BOM đã có dữ liệu và bạn chọn bỏ qua`,
+        });
+        errors.push({ rowNumber: 0, sheet: sheetName, field: "_duplicate", reason: outcome.message });
+        outcomes.push(outcome);
+        continue;
       }
     } else {
+      if (existing) {
+        templateCode = await resolveNewCode(undefined, bomCode);
+        last = { batchId, sheet: sheetName, action: "new_code", conflictCode: bomCode };
+      } else {
+        last = { batchId, sheet: sheetName, action: "created" };
+      }
       const [created] = await db
         .insert(bomTemplate)
         .values({
-          code: bomCode,
+          code: templateCode,
           name: sheetName.slice(0, 250),
           status: "DRAFT",
           targetQty: "1",
           createdBy: actorId,
           description: `Imported từ batch ${batchId}`,
+          metadata: { lastImport: last },
         })
         .returning({ id: bomTemplate.id });
       if (!created) throw new Error(`Không tạo được template cho sheet ${sheetName}`);
@@ -203,6 +331,7 @@ export async function processBomImportCommit(
       templatesCreated++;
       isNewTemplate = true;
     }
+    const sheetSuccessBefore = totalSuccess;
 
     // V3.7.27 — Auto-create MATERIAL sheet + populate full catalog cho template mới.
     // Bằng với behavior của manual createTemplate (apps/web bomTemplates.ts).
@@ -268,7 +397,24 @@ export async function processBomImportCommit(
         Math.min(100, Math.round((processed / Math.max(1, totalRowsToProcess)) * 100)),
       );
     }
+
+    outcomes.push(
+      makeBomImportOutcome({
+        action: last.action,
+        sheet: sheetName,
+        templateId,
+        templateCode,
+        linesWritten: totalSuccess - sheetSuccessBefore,
+        linesRemoved: last.linesRemoved,
+        backupRevisionNo: last.backupRevisionNo,
+        previousStatus: last.previousStatus,
+        newStatus: last.newStatus,
+        conflictCode: last.conflictCode,
+      }),
+    );
   }
+
+  await saveOutcomes(batchId, outcomes);
 
   await db
     .update(importBatch)

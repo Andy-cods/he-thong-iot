@@ -19,6 +19,20 @@ export const BOM_REVISION_STATUS_LABELS: Record<BomRevisionStatus, string> = {
 
 export const bomRevisionStatusSchema = z.enum(BOM_REVISION_STATUSES);
 
+/**
+ * Thông tin tuỳ chọn đưa lên Bảng sản xuất khi KÍCH HOẠT BOM (Nháp → Đang
+ * dùng). Mọi trường đều có thể bỏ trống — QC điền sau trên /production-board.
+ */
+export const boardActivationSchema = z.object({
+  deadline: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Ngày cần giao không hợp lệ")
+    .optional()
+    .nullable(),
+  rfqNo: z.string().trim().max(64, "Số QT/RFQ tối đa 64 ký tự").optional().nullable(),
+  customer: z.string().trim().max(64, "Khách hàng tối đa 64 ký tự").optional().nullable(),
+});
+
 export const releaseRevisionSchema = z.object({
   notes: z
     .string()
@@ -26,7 +40,10 @@ export const releaseRevisionSchema = z.object({
     .max(2000, "Ghi chú tối đa 2000 ký tự")
     .optional()
     .nullable(),
+  board: boardActivationSchema.optional().nullable(),
 });
+
+export type BoardActivationInput = z.infer<typeof boardActivationSchema>;
 
 export const supersedeRevisionSchema = z.object({
   reason: z

@@ -58,6 +58,7 @@ import {
   planStocktakeApproved,
   planStocktakeRejected,
   planStocktakeSubmitted,
+  planBoardBomActivated,
   planUserIds,
   planWOApproved,
   planWOCancelled,
@@ -550,6 +551,9 @@ export const notifyStocktakeRejected = (ctx: Arg<typeof planStocktakeRejected>) 
 /* ── Helpers ────────────────────────────────────────────────────────────── */
 
 /** Số thông báo chưa đọc (chỉ dòng gửi trực tiếp user — mọi event hiện tại). */
+export const notifyBoardBomActivated = (ctx: Arg<typeof planBoardBomActivated>) =>
+  run(planBoardBomActivated(ctx));
+
 export async function getUnreadCount(userId: string): Promise<number> {
   const [row] = await db
     .select({ count: sql<number>`count(*)::int` })

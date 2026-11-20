@@ -1,4 +1,9 @@
-import type { Role } from "@iot/shared";
+import {
+  boardProductNameFromBom,
+  boardUomForBom,
+  normalizeBoardProductCode,
+  type Role,
+} from "@iot/shared";
 
 /**
  * V4.4.2 — Việc 2 (Tổng quan Tài chính: đơn giá bán mã hàng Bảng sản xuất).
@@ -77,4 +82,168 @@ export function findDuplicateBoardItem<T extends BoardItemIdentity>(
   candidates: readonly T[],
 ): T | null {
   return candidates.find((c) => isSameBoardItemIdentity(target, c)) ?? null;
+}
+
+/* ── Sắp xếp dòng đang mở (chưa hoàn thành) ─────────────────────────────── */
+
+const OPEN_STATUS_ORDER: Record<string, number> = { IN_PROGRESS: 0, QC: 1, QUEUED: 2 };
+
+export interface BoardSortable {
+  isPinned: boolean;
+  deadline: string | null;
+  status: string;
+  seq: number;
+}
+
+/**
+ * Dòng mở trên board: ghim lên đầu → hạn GẦN NHẤT trước (quá hạn tự nổi lên)
+ * → dòng CHƯA CÓ hạn xếp sau dòng có hạn (đã gắn pill vàng "Chưa có ngày
+ * giao" để QC điền, không đẩy hàng gấp xuống trên TV) → trạng thái → STT.
+ * Hạn dạng YYYY-MM-DD nên so chuỗi = so ngày.
+ */
+export function compareOpenBoardRows(a: BoardSortable, b: BoardSortable): number {
+  if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+  if (a.deadline !== b.deadline) {
+    if (!a.deadline) return 1;
+    if (!b.deadline) return -1;
+    return a.deadline < b.deadline ? -1 : 1;
+  }
+  const so = (OPEN_STATUS_ORDER[a.status] ?? 9) - (OPEN_STATUS_ORDER[b.status] ?? 9);
+  if (so !== 0) return so;
+  return a.seq - b.seq;
+}
+
+/* ── Đồng bộ Bảng sản xuất khi BOM được kích hoạt ────────────────────────── */
+
+export interface BoardRowLite {
+  id: string;
+  productCode: string;
+  rfqNo: string | null;
+  productName: string;
+  customer: string | null;
+  qtyPlanned: string;
+  status: string;
+  deadline: string | null;
+  bomTemplateId: string | null;
+}
+
+export interface BomForBoard {
+  id: string;
+  code: string;
+  name: string;
+  targetQty: string | number;
+  metadata: unknown;
+}
+
+/** Thông tin tuỳ chọn nhập ở hộp "Kích hoạt BOM" (bỏ trống = không đổi). */
+export interface BoardActivationExtras {
+  deadline?: string | null;
+  rfqNo?: string | null;
+  customer?: string | null;
+}
+
+export type BoardSyncPlan =
+  | {
+      action: "create";
+      values: {
+        productCode: string;
+        productName: string;
+        qtyPlanned: number;
+        uom: string;
+        deadline: string | null;
+        rfqNo: string | null;
+        customer: string | null;
+        bomTemplateId: string;
+      };
+    }
+  | {
+      action: "update";
+      itemId: string;
+      patch: Partial<Pick<BoardRowLite, "productName" | "deadline" | "rfqNo" | "customer" | "bomTemplateId">> & {
+        qtyPlanned?: number;
+      };
+      history: Array<{ field: string; oldValue: string | null; newValue: string | null }>;
+    }
+  | { action: "none"; itemId: string };
+
+const clean = (v: string | null | undefined): string | null => {
+  const t = v?.trim();
+  return t ? t : null;
+};
+
+/**
+ * THUẦN — quyết định tạo mới / gắn liên kết / cập nhật dòng board cho BOM vừa
+ * kích hoạt. `candidates` = dòng có thể liên quan (repo lọc thô theo mã), sắp
+ * mới-cập-nhật trước.
+ *  - Không nhân đôi: đã có dòng CHƯA GIAO cùng mã chuẩn hoá (hoặc đã gắn BOM
+ *    này) → dùng dòng đó: gắn `bom_template_id` (gắn lại sang BOM mới nhất nếu
+ *    đang trỏ BOM khác cùng mã), còn "Chờ GC" thì cập nhật tên + SL theo BOM.
+ *  - Trường tuỳ chọn người dùng nhập lúc kích hoạt → ghi đè.
+ *  - Không có → tạo "Chờ GC", hạn trống (trừ khi đã nhập).
+ */
+export function planBoardSyncFromBom(
+  bom: BomForBoard,
+  candidates: readonly BoardRowLite[],
+  extras: BoardActivationExtras = {},
+): BoardSyncPlan {
+  const norm = normalizeBoardProductCode(bom.code);
+  const productName = boardProductNameFromBom(bom.name, bom.code).slice(0, 2000);
+  const qty = Math.min(Math.max(Number(bom.targetQty) || 0, 0), BOARD_QTY_MAX);
+  const deadline = clean(extras.deadline);
+  const rfqNo = clean(extras.rfqNo);
+  const customer = clean(extras.customer);
+
+  const open = candidates.filter(
+    (c) =>
+      c.status !== "DELIVERED" &&
+      (c.bomTemplateId === bom.id || normalizeBoardProductCode(c.productCode) === norm),
+  );
+  const row = open.find((c) => c.bomTemplateId === bom.id) ?? open[0];
+
+  if (!row) {
+    return {
+      action: "create",
+      values: {
+        productCode: norm,
+        productName,
+        qtyPlanned: qty,
+        uom: boardUomForBom(bom.metadata),
+        deadline,
+        rfqNo,
+        customer,
+        bomTemplateId: bom.id,
+      },
+    };
+  }
+
+  const patch: Extract<BoardSyncPlan, { action: "update" }>["patch"] = {};
+  const history: Array<{ field: string; oldValue: string | null; newValue: string | null }> = [];
+  if (row.bomTemplateId !== bom.id) {
+    patch.bomTemplateId = bom.id;
+    history.push({ field: "bom_link", oldValue: row.bomTemplateId, newValue: bom.code });
+  }
+  if (row.status === "QUEUED") {
+    if (row.productName !== productName) {
+      patch.productName = productName;
+      history.push({ field: "product_name", oldValue: row.productName, newValue: productName });
+    }
+    if (Number(row.qtyPlanned) !== qty) {
+      patch.qtyPlanned = qty;
+      history.push({ field: "qty_planned", oldValue: String(row.qtyPlanned), newValue: String(qty) });
+    }
+  }
+  if (deadline && deadline !== row.deadline) {
+    patch.deadline = deadline;
+    history.push({ field: "deadline", oldValue: row.deadline, newValue: deadline });
+  }
+  if (rfqNo && rfqNo !== row.rfqNo) {
+    patch.rfqNo = rfqNo;
+    history.push({ field: "rfq_no", oldValue: row.rfqNo, newValue: rfqNo });
+  }
+  if (customer && customer !== row.customer) {
+    patch.customer = customer;
+    history.push({ field: "customer", oldValue: row.customer, newValue: customer });
+  }
+  if (history.length === 0) return { action: "none", itemId: row.id };
+  return { action: "update", itemId: row.id, patch, history };
 }

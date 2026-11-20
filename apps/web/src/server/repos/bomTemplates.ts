@@ -9,6 +9,8 @@ import {
   materialMaster,
   processMaster,
 } from "@iot/db/schema";
+import { countBomHardDeleteRefs } from "@iot/db/bom-refs";
+import { hardDeleteBlockedMessage, type BomRefCount } from "@iot/shared";
 import { db } from "@/lib/db";
 
 export type BomStatus = "DRAFT" | "ACTIVE" | "OBSOLETE";
@@ -363,8 +365,33 @@ export async function softDeleteTemplate(id: string) {
  * eco / sales_order / product_line_member NO ACTION → throw 23503 nếu
  * có tham chiếu (caller xử lý trả 409 HAS_REFERENCES).
  */
+export class BomHardDeleteBlockedError extends Error {
+  constructor(message: string, readonly refs: BomRefCount[]) {
+    super(message);
+    this.name = "BomHardDeleteBlockedError";
+  }
+}
+
+/**
+ * Xoá vĩnh viễn: kiểm TRƯỚC mọi tham chiếu thật (đơn hàng, đơn đã tách BOM từ
+ * revision, ECO, phiếu giao, sổ bước, lệnh SX còn hiệu lực) → từ chối với câu
+ * liệt kê cụ thể thay vì để Postgres ném 23503 chung chung. Không có tham
+ * chiếu → xoá (cascade sheet/line/revision/product_line_member/bom_line_change;
+ * material_request, work_order đã huỷ, production_board_item SET NULL).
+ */
 export async function hardDeleteTemplate(id: string): Promise<void> {
-  await db.delete(bomTemplate).where(eq(bomTemplate.id, id));
+  await db.transaction(async (tx) => {
+    const [tpl] = await tx
+      .select({ code: bomTemplate.code })
+      .from(bomTemplate)
+      .where(eq(bomTemplate.id, id))
+      .for("update");
+    if (!tpl) return;
+    const refs = (await countBomHardDeleteRefs(tx, id)) as BomRefCount[];
+    const blocked = hardDeleteBlockedMessage(tpl.code, refs);
+    if (blocked) throw new BomHardDeleteBlockedError(blocked, refs);
+    await tx.delete(bomTemplate).where(eq(bomTemplate.id, id));
+  });
 }
 
 /**

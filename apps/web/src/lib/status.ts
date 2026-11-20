@@ -499,6 +499,7 @@ export const NOTIF_TYPE_LABELS: Record<string, string> = {
   STOCKTAKE_APPROVED: "Kiểm kê đã duyệt",
   STOCKTAKE_REJECTED: "Kiểm kê bị trả lại",
   BOM_STAGE_HANDOFF: "BOM bàn giao bước",
+  BOARD_BOM_ACTIVATED: "BOM lên Bảng sản xuất",
 };
 
 /** Mã lạ → "Thông báo" (không bao giờ lộ mã thô kiểu `PR_PENDING_REMINDER`). */

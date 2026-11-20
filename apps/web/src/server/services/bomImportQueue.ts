@@ -1,6 +1,6 @@
 import { Queue } from "bullmq";
 import IORedis from "ioredis";
-import { QUEUE_NAMES } from "@iot/shared";
+import { QUEUE_NAMES, type BomDuplicateMode } from "@iot/shared";
 
 const redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379/2";
 const prefix = process.env.BULLMQ_PREFIX ?? "iot-";
@@ -41,7 +41,7 @@ export interface BomImportCommitPayload {
   selectedSheets: string[];
   mappings: Record<string, Record<string, string | null>>;
   autoCreateMissingItems: boolean;
-  duplicateMode: "skip" | "upsert" | "error";
+  duplicateMode: BomDuplicateMode;
 }
 
 export async function enqueueBomImportCommit(payload: BomImportCommitPayload) {
@@ -53,7 +53,9 @@ export async function enqueueBomImportCommit(payload: BomImportCommitPayload) {
 export interface BomImportTrienKhaiPayload {
   batchId: string;
   actorId: string;
-  duplicateMode: "skip" | "upsert" | "error";
+  duplicateMode: BomDuplicateMode;
+  /** Mã BOM mới khi duplicateMode = new_code. */
+  newCode?: string;
   decisions: Array<{ position: string; action: "USE_ITEM" | "NEW"; itemId?: string }>;
 }
 

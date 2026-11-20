@@ -200,7 +200,11 @@ export const bomImportCommitSchema = z.object({
   selectedSheets: z.array(z.string()).min(1, "Phải chọn ít nhất 1 sheet"),
   mappings: z.record(z.string(), bomImportMapSchema),
   autoCreateMissingItems: z.coerce.boolean().default(false),
-  duplicateMode: z.enum(["skip", "upsert", "error"]).default("skip"),
+  // Nhập lại BOM: thêm "replace" (ghi đè dòng cùng BOM) + "new_code" (tạo BOM
+  // mã khác). "upsert" giữ cho tương thích API = alias của "replace".
+  duplicateMode: z.enum(["skip", "upsert", "error", "replace", "new_code"]).default("skip"),
+  /** Mã BOM mới khi duplicateMode = "new_code" (bỏ trống → tự gợi ý -V2…). */
+  newCode: z.string().trim().max(64).optional(),
 });
 
 export type BomTemplateCreate = z.infer<typeof bomTemplateCreateSchema>;

@@ -39,6 +39,8 @@ import { cn } from "@/lib/utils";
 import { TONE_CLASSES, getStatus, type StatusTone } from "@/lib/status";
 import { formatDate, formatQty } from "@/lib/format";
 import { canSeeOrderValue } from "@/lib/production-board-policy";
+import { deadlineCountdown, vnTodayYmd, type DeadlineTone } from "@/lib/board-deadline";
+import { isRouteAllowed } from "@/lib/route-guard";
 
 /**
  * V3.8 — /production-board — Trang quản lý Bảng sản xuất cho Tổ QC.
@@ -103,6 +105,13 @@ export default function ProductionBoardAdminPage() {
 
   const items = data?.data ?? [];
   const counts = data?.counts;
+  // "Hôm nay" theo giờ VN — tính 1 lần mỗi lần render (đủ cho đếm ngược theo ngày).
+  const today = vnTodayYmd();
+  const missingDeadline = items.filter(
+    (it) => !it.deadline && it.status !== "COMPLETED" && it.status !== "DELIVERED",
+  ).length;
+  // Mã hàng gắn BOM → bấm mở BOM (chỉ khi vai được vào /bom, vd QC thì không).
+  const canOpenBom = !!roles && isRouteAllowed("/bom/x", roles);
 
   const openCreate = () => {
     setEditItem(null);
@@ -153,9 +162,19 @@ export default function ProductionBoardAdminPage() {
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
             {it.isPinned && <Pin className="h-3 w-3 shrink-0 fill-amber-500 text-amber-500" aria-label="Đã ghim" />}
-            <span className="truncate font-mono font-semibold text-zinc-900 dark:text-zinc-100" title={it.productCode}>
-              {it.productCode}
-            </span>
+            {it.bomTemplateId && canOpenBom ? (
+              <Link
+                href={`/bom/${it.bomTemplateId}`}
+                className="truncate font-mono font-semibold text-indigo-700 hover:underline dark:text-indigo-300"
+                title={`Mở BOM của ${it.productCode}`}
+              >
+                {it.productCode}
+              </Link>
+            ) : (
+              <span className="truncate font-mono font-semibold text-zinc-900 dark:text-zinc-100" title={it.productCode}>
+                {it.productCode}
+              </span>
+            )}
           </div>
           {it.rfqNo && (
             <span className="block truncate font-mono text-xs text-zinc-500 dark:text-zinc-400" title={it.rfqNo}>
@@ -211,10 +230,25 @@ export default function ProductionBoardAdminPage() {
       id: "deadline",
       header: "Hạn",
       kind: "date",
-      width: 110,
-      cell: (it) => (
-        <span className={deadlineTone(it.deadline, it.status)}>{formatDate(it.deadline, "dd/MM/yyyy")}</span>
-      ),
+      width: 150,
+      cell: (it) => {
+        const cd = deadlineCountdown(it.deadline, it.status, today);
+        if (cd.tone === "missing") {
+          return (
+            <span className="inline-flex items-center whitespace-nowrap rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-inset ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-900">
+              Chưa có ngày giao
+            </span>
+          );
+        }
+        return (
+          <div className="leading-tight">
+            <span className={cn("tabular-nums", cd.tone === "done" ? "text-zinc-500 dark:text-zinc-400" : "text-zinc-700 dark:text-zinc-200")}>
+              {formatDate(it.deadline, "dd/MM/yyyy")}
+            </span>
+            {cd.label && <span className={cn("block text-xs", COUNTDOWN_CLS[cd.tone])}>{cd.label}</span>}
+          </div>
+        );
+      },
     },
     {
       id: "status",
@@ -310,6 +344,11 @@ export default function ProductionBoardAdminPage() {
               tone={getStatus("board", s).tone}
             />
           ))}
+          {missingDeadline > 0 && (
+            <span className="ml-auto rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-inset ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-900">
+              {missingDeadline} mã chưa có ngày giao
+            </span>
+          )}
         </div>
       )}
 
@@ -413,16 +452,12 @@ function shortCode(code: string): string {
 function firstLine(s: string): string {
   return s.split(/[\n,]/)[0]?.trim() || s;
 }
-// V4.1 UI-13: bỏ fmtDeadline tự viết — dùng formatDate (giờ VN cố định).
-// V4.1 UI-07: dòng đã Hoàn thành/Đã giao KHÔNG tô đỏ/cam theo hạn — trước đây
-// cả bảng đỏ vì hàng đã giao quá ngày hạn, mất tín hiệu thật.
-function deadlineTone(deadline: string | null, status?: BoardStatus): string {
-  if (!deadline) return "text-zinc-400 dark:text-zinc-500";
-  if (status === "COMPLETED" || status === "DELIVERED") {
-    return "text-zinc-500 dark:text-zinc-400";
-  }
-  const days = (new Date(deadline).getTime() - Date.now()) / 86_400_000;
-  if (days < 0) return "text-red-600 font-semibold dark:text-red-400";
-  if (days <= 3) return "text-amber-600 font-medium dark:text-amber-400";
-  return "text-zinc-500 dark:text-zinc-400";
-}
+// Đếm ngược hạn giao (lib/board-deadline.ts, giờ VN). Dòng đã Hoàn thành/Đã
+// giao không đếm ngược, không tô màu (V4.1 UI-07).
+const COUNTDOWN_CLS: Record<DeadlineTone, string> = {
+  overdue: "font-semibold text-red-600 dark:text-red-400",
+  soon: "font-medium text-amber-600 dark:text-amber-400",
+  normal: "text-zinc-500 dark:text-zinc-400",
+  missing: "text-amber-600 dark:text-amber-400",
+  done: "text-zinc-500 dark:text-zinc-400",
+};
