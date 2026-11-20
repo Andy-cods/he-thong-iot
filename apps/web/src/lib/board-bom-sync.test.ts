@@ -155,7 +155,9 @@ describe("planBoardSyncFromBom — BOM kích hoạt → Bảng sản xuất", ()
 
 describe("xoá BOM từ danh sách", () => {
   it("Nháp/Đang dùng → ngừng dùng; Ngừng dùng → xoá vĩnh viễn (admin) / không được", () => {
-    expect(bomDeleteKind("ACTIVE", false)).toBe("soft");
+    expect(bomDeleteKind("ACTIVE", false)).toBe("forbidden");
+    expect(bomDeleteKind("ACTIVE", true)).toBe("soft");
+    expect(bomDeleteKind("DRAFT", false)).toBe("soft");
     expect(bomDeleteKind("DRAFT", true)).toBe("soft");
     expect(bomDeleteKind("OBSOLETE", true)).toBe("hard");
     expect(bomDeleteKind("OBSOLETE", false)).toBe("forbidden");

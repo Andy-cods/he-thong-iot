@@ -43,7 +43,7 @@ import type { BomFilter, ItemFilter } from "@/lib/query-keys";
 import { useHotkey } from "@/lib/shortcuts";
 import { statusLabel } from "@/lib/status";
 import {
-  FORBIDDEN_HARD_DELETE_REASON,
+  bomDeleteForbiddenReason,
   bomDeleteKind,
   summarizeBulkDelete,
   type BomDeleteResult,
@@ -285,7 +285,7 @@ export function BomTab() {
       selectedRows.map(async (r): Promise<BomDeleteResult> => {
         const kind = bomDeleteKind(r.status, isAdmin);
         if (kind === "forbidden") {
-          return { code: r.code, kind, ok: false, reason: FORBIDDEN_HARD_DELETE_REASON };
+          return { code: r.code, kind, ok: false, reason: bomDeleteForbiddenReason(r.status) };
         }
         try {
           await deleteBom.mutateAsync({ id: r.id, hard: kind === "hard" });
@@ -317,7 +317,7 @@ export function BomTab() {
   const singleIsHard = singleDeleteRow?.status === "OBSOLETE";
   const requestSingleDelete = (row: BomRow) => {
     if (bomDeleteKind(row.status, isAdmin) === "forbidden") {
-      toast.error(`${row.code}: ${FORBIDDEN_HARD_DELETE_REASON}.`);
+      toast.error(`${row.code}: ${bomDeleteForbiddenReason(row.status)}.`);
       return;
     }
     setSingleDeleteRow(row);

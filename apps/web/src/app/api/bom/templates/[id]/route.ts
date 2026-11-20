@@ -195,6 +195,10 @@ export async function DELETE(
   if (before.status === "OBSOLETE") {
     return jsonError("ALREADY_OBSOLETE", "BOM đã ở trạng thái ngừng dùng.", 400);
   }
+  // Cùng luật PATCH: ACTIVE → OBSOLETE chỉ admin (trước đây DELETE mềm lách được).
+  if (before.status === "ACTIVE" && !guard.session.roles.includes("admin")) {
+    return jsonError("FORBIDDEN", "Chỉ admin được chuyển BOM ACTIVE → OBSOLETE.", 403);
+  }
 
   const after = await softDeleteTemplate(params.id);
   if (!after) return jsonError("NOT_FOUND", "Không tìm thấy BOM.", 404);

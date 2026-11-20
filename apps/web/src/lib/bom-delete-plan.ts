@@ -9,11 +9,19 @@
 export type BomDeleteKind = "soft" | "hard" | "forbidden";
 
 export function bomDeleteKind(status: string, isAdmin: boolean): BomDeleteKind {
+  // Cùng luật PATCH: ACTIVE → OBSOLETE chỉ admin (xoá mềm không được lách luật này).
+  if (status === "ACTIVE") return isAdmin ? "soft" : "forbidden";
   if (status !== "OBSOLETE") return "soft";
   return isAdmin ? "hard" : "forbidden";
 }
 
 export const FORBIDDEN_HARD_DELETE_REASON = "Đã ngừng dùng — chỉ admin được xoá vĩnh viễn";
+export const FORBIDDEN_OBSOLETE_ACTIVE_REASON = "Đang dùng — chỉ admin được chuyển Ngừng dùng";
+
+/** Lý do không được xoá (khi bomDeleteKind = "forbidden"). */
+export function bomDeleteForbiddenReason(status: string): string {
+  return status === "ACTIVE" ? FORBIDDEN_OBSOLETE_ACTIVE_REASON : FORBIDDEN_HARD_DELETE_REASON;
+}
 
 export interface BomDeleteResult {
   code: string;
