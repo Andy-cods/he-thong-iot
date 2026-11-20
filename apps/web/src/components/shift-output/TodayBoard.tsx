@@ -10,6 +10,7 @@ import { addDays } from "@/lib/shift-output/shift-window";
 import type { BoardCell } from "@/lib/shift-output/board";
 import { useShiftBoard } from "@/hooks/useShiftOutput";
 import { fmtDay, fmtInt, fmtPct, KpiTile, weekday } from "./primitives";
+import { NoShiftNotice } from "./NoShiftNotice";
 import { PartImage } from "./PartImage";
 
 /**
@@ -107,7 +108,8 @@ export function TodayBoard({ siteId }: { siteId: string | null }) {
         )}
       </div>
 
-      {data ? (
+      {data && data.shifts.length === 0 ? <NoShiftNotice /> : null}
+      {data && data.shifts.length > 0 ? (
         <>
           {/* Desktop: bảng Máy × Ca */}
           <div className="hidden overflow-hidden rounded-xl bg-white shadow-xs dark:bg-zinc-900 md:block">
@@ -162,9 +164,9 @@ export function TodayBoard({ siteId }: { siteId: string | null }) {
           </div>
           {data.machines.length === 0 ? <p className="text-md text-zinc-500">Chưa có máy — vào Cài đặt để thêm.</p> : null}
         </>
-      ) : (
+      ) : !data ? (
         <Skeleton className="h-56 rounded-xl" />
-      )}
+      ) : null}
 
       <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-zinc-500">
         <Legend className="bg-white ring-1 ring-zinc-200 dark:bg-zinc-800 dark:ring-zinc-700" label="Đã nhập" />

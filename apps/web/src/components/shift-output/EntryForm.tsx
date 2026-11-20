@@ -26,6 +26,7 @@ import { Chip, FieldLabel, fmtDay, fmtInt, Panel, TouchInput, weekday } from "./
 import { emptyQty, qtyToPayload, QuantitySection, sumValues, type QtyState } from "./QuantitySection";
 import { EntryEditSheet } from "./EntryEditSheet";
 import { OfflineQueuePanel } from "./OfflineQueuePanel";
+import { NoShiftNotice } from "./NoShiftNotice";
 import { PartImage } from "./PartImage";
 import { WorkTimeSection, workTimeFromShift, type WorkTime } from "./WorkTimeSection";
 
@@ -416,6 +417,7 @@ function EntryFormInner({ ctx, stale }: { ctx: ShiftContext; stale: boolean }) {
               </Chip>
             ))}
           </div>
+          {ctx.shifts.length === 0 ? <NoShiftNotice /> : null}
           <div className={cn("grid gap-2", ctx.shifts.length <= 2 ? "grid-cols-2" : "grid-cols-3")}>
             {ctx.shifts.map((s) => (
               <Chip

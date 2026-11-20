@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useSearchParams } from "next/navigation";
 import { ImagePlus, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -131,7 +132,10 @@ const inputCls =
 
 export function SetupView({ siteId }: { siteId: string | null }) {
   const ctx = useShiftContext(siteId);
-  const [tab, setTab] = React.useState<ShiftSetupKind | "site">("parts");
+  const tabParam = useSearchParams()?.get("tab");
+  const [tab, setTab] = React.useState<ShiftSetupKind | "site">(
+    KINDS.some((k) => k.kind === tabParam) ? (tabParam as ShiftSetupKind) : "parts",
+  );
   if (!ctx.data) {
     return ctx.isError ? (
       <div className="p-4">
