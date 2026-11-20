@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { workWindowMinutes } from "./shift-window";
 import { checkLockedWrite, effectiveDowntime, isEntryLocked, lockDeadline, validateEntry, type PolicyContext } from "./policy";
 
 const ctx: PolicyContext = { shiftMinutes: 240, today: "2026-11-18", backdateDays: 2, canApprove: false, ngWarnPct: 10, avgOk30: null };
@@ -34,6 +35,16 @@ describe("validateEntry — V1..V6", () => {
     const r = validateEntry({ ...base, downtimeMin: 5, downtimes: [{ minutes: 20 }, { minutes: 30 }] }, ctx);
     expect(r.downtimeMin).toBe(50);
     expect(effectiveDowntime({ downtimeMin: null })).toBeNull();
+  });
+  it("V4 (P2) — so với phút chạy THỰC TẾ: chạy 07–19 (720') cho dừng 300'; chạy 30' chặn dừng 60'", () => {
+    const long = { ...ctx, shiftMinutes: workWindowMinutes("07:00", "19:00")! };
+    expect(codes(validateEntry({ ...base, downtimeMin: 300 }, long))).toEqual([]);
+    const short = { ...ctx, shiftMinutes: workWindowMinutes("07:00", "07:30")! };
+    const r = validateEntry({ ...base, downtimes: [{ minutes: 60 }] }, short);
+    expect(codes(r)).toContain("DOWNTIME_OVER_SHIFT");
+    expect(r.errors[0]?.message).toContain("thời gian chạy (30')");
+    const night = { ...ctx, shiftMinutes: workWindowMinutes("19:00", "07:00")! };
+    expect(codes(validateEntry({ ...base, downtimeMin: 700 }, night))).toEqual([]);
   });
   it("V6 — tương lai chặn; lùi quá 2 ngày cần approve", () => {
     expect(codes(validateEntry({ ...base, prodDate: "2026-11-19" }, ctx))).toEqual(["FUTURE_DATE"]);

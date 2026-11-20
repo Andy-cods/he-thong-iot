@@ -35,6 +35,8 @@ export interface ReportEntryRow {
   partCode: string;
   partName: string;
   customerName: string | null;
+  /** P2 — ảnh mã hàng (bom_asset id). */
+  partImageAssetId: string | null;
   operatorId: string | null;
   operatorName: string | null;
   qtyPlanned: number | null;
@@ -43,6 +45,9 @@ export interface ReportEntryRow {
   qtyRework: number | null;
   downtimeMin: number | null;
   shiftMinutes: number;
+  /** P2 — giờ chạy thực tế (null = dòng P1). */
+  workStart: string | null;
+  workEnd: string | null;
   materialLot: string | null;
   notes: string | null;
   status: string;
@@ -94,6 +99,7 @@ export async function loadReportData(
       partCode: sitePart.code,
       partName: sitePart.name,
       customerName: sitePart.customerName,
+      partImageAssetId: sitePart.imageAssetId,
       operatorId: e.operatorId,
       operatorSnapshot: e.operatorName,
       operatorFullName: siteOperator.fullName,
@@ -103,6 +109,8 @@ export async function loadReportData(
       qtyRework: e.qtyRework,
       downtimeMin: e.downtimeMin,
       shiftMinutes: e.shiftMinutes,
+      workStart: e.workStart,
+      workEnd: e.workEnd,
       materialLot: e.materialLot,
       notes: e.notes,
       status: e.status,

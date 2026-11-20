@@ -6,10 +6,15 @@
  * - % khả dụng (Q5) = (Σ phút ca − Σ phút dừng) / Σ phút ca, trong đó phút ca
  *   tính MỘT LẦN cho mỗi (ngày, ca, máy) dù ca đó chạy 2–3 mã hàng; phút dừng
  *   của 1 máy-ca không vượt phút ca.
+ * - P2 (giờ chạy thực tế): phút của 1 (ngày, ca, máy) = max(phút dòng cũ không
+ *   có giờ thực tế, ĐỘ DÀI HỢP các khoảng giờ thực tế) → 2 mã chạy nối tiếp
+ *   07–12 + 12–19 = 720'; 2 mã cùng khung giờ chỉ tính 1 lần.
  * - Mọi chỉ số trả `null` khi thiếu dữ liệu (không hiện "0%" gây hoang mang):
  *   chưa sản xuất → %NG null; không dòng nào có KH → % đạt KH null; không dòng
  *   nào ghi dừng máy → % khả dụng null.
  */
+
+import { timeToMinutes } from "./shift-window";
 
 export interface KpiRow {
   prodDate: string;
@@ -19,7 +24,47 @@ export interface KpiRow {
   qtyNg: number;
   qtyPlanned: number | null;
   downtimeMin: number | null;
+  /** Phút khả dụng của dòng (thực tế nếu có workStart/workEnd, ngược lại độ dài ca). */
   shiftMinutes: number;
+  /** P2 — giờ chạy thực tế (null = dòng P1). */
+  workStart?: string | null;
+  workEnd?: string | null;
+  /** Giờ bắt đầu ca — neo khoảng giờ thực tế qua nửa đêm. */
+  shiftStart?: string | null;
+}
+
+/**
+ * Khoảng [bắt đầu, kết thúc) theo phút, neo quanh giờ bắt đầu ca (lệch gần
+ * nhất trong ±12h) để ca đêm 19–07 với dòng 00:30–07:00 nằm SAU 19:00.
+ */
+export function workInterval(r: KpiRow): [number, number] | null {
+  if (!r.workStart || !r.workEnd || r.shiftMinutes <= 0) return null;
+  let start = timeToMinutes(r.workStart);
+  if (r.shiftStart) {
+    const anchor = timeToMinutes(r.shiftStart);
+    let d = start - anchor;
+    while (d < -720) d += 1440;
+    while (d >= 720) d -= 1440;
+    start = anchor + d;
+  }
+  return [start, start + r.shiftMinutes];
+}
+
+/** Độ dài hợp các khoảng (phút). */
+export function unionMinutes(intervals: ReadonlyArray<[number, number]>): number {
+  const sorted = [...intervals].sort((a, b) => a[0] - b[0]);
+  let total = 0;
+  let cur: [number, number] | null = null;
+  for (const [s, e] of sorted) {
+    if (!cur || s > cur[1]) {
+      if (cur) total += cur[1] - cur[0];
+      cur = [s, e];
+    } else if (e > cur[1]) {
+      cur[1] = e;
+    }
+  }
+  if (cur) total += cur[1] - cur[0];
+  return total;
 }
 
 export interface KpiResult {
@@ -44,7 +89,7 @@ export function computeKpis(rows: readonly KpiRow[]): KpiResult {
   let okOnPlanned = 0;
   let hasPlan = false;
   let hasDowntime = false;
-  const slots = new Map<string, { minutes: number; downtime: number }>();
+  const slots = new Map<string, { legacy: number; intervals: Array<[number, number]>; downtime: number }>();
 
   for (const r of rows) {
     ok += r.qtyOk;
@@ -56,8 +101,10 @@ export function computeKpis(rows: readonly KpiRow[]): KpiResult {
     }
     if (r.downtimeMin != null) hasDowntime = true;
     const key = `${r.prodDate}|${r.shiftId}|${r.machineId}`;
-    const slot = slots.get(key) ?? { minutes: 0, downtime: 0 };
-    slot.minutes = Math.max(slot.minutes, r.shiftMinutes);
+    const slot = slots.get(key) ?? { legacy: 0, intervals: [], downtime: 0 };
+    const iv = workInterval(r);
+    if (iv) slot.intervals.push(iv);
+    else slot.legacy = Math.max(slot.legacy, r.shiftMinutes);
     slot.downtime += r.downtimeMin ?? 0;
     slots.set(key, slot);
   }
@@ -65,8 +112,9 @@ export function computeKpis(rows: readonly KpiRow[]): KpiResult {
   let availableMin = 0;
   let downtime = 0;
   for (const s of slots.values()) {
-    availableMin += s.minutes;
-    downtime += Math.min(s.downtime, s.minutes);
+    const minutes = Math.max(s.legacy, unionMinutes(s.intervals));
+    availableMin += minutes;
+    downtime += Math.min(s.downtime, minutes);
   }
   const produced = ok + ng;
   return {

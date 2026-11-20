@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
+import { SHIFT_SETUP_KINDS, SHIFT_SETUP_WORKSHOP_KINDS, type ShiftSetupKind } from "@iot/shared";
+import { isModuleLockedRoles } from "@/lib/shift-output/access";
 import { logger } from "@/lib/logger";
 import { hhmm, shiftMinutes, suggestCurrentShift, todayInTz } from "@/lib/shift-output/shift-window";
 import { jsonError, parseSearchParams } from "@/server/http";
@@ -44,6 +46,12 @@ export async function GET(req: NextRequest) {
       return { ...r, startTime: hhmm(r.startTime), endTime: hhmm(r.endTime), minutes: shiftMinutes(r) };
     });
     const suggestion = suggestCurrentShift(now, shifts, site.timezone);
+    // P2 — danh mục user thêm / sửa được (khớp guard ở /setup/*): xưởng chỉ 3 loại.
+    const locked = isModuleLockedRoles(guard.session.roles);
+    const all = [...SHIFT_SETUP_KINDS] as ShiftSetupKind[];
+    const workshopKinds = [...SHIFT_SETUP_WORKSHOP_KINDS];
+    const editKinds = !canUpdateSetup ? [] : locked ? workshopKinds : all;
+    const addKinds = !canCreateSetup ? [] : locked || !canUpdateSetup ? workshopKinds : all;
     return NextResponse.json({
       data: {
         site,
@@ -62,7 +70,10 @@ export async function GET(req: NextRequest) {
           approve: canApprove,
           createSetup: canCreateSetup,
           updateSetup: canUpdateSetup,
-          workshop: guard.session.roles.includes("workshop") && !guard.session.roles.includes("admin"),
+          addKinds,
+          editKinds,
+          siteSettings: canUpdateSetup && !locked,
+          workshop: locked,
         },
       },
     });

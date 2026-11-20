@@ -9,7 +9,7 @@ import { diffDays, shiftStartEnd, type ShiftWindowLike } from "./shift-window";
  *  V1 OK+NG > 0 trừ khi có dừng máy           → lỗi NO_OUTPUT
  *  V2 rework ≤ NG; Σ chi tiết lỗi ≤ NG         → lỗi; Σ < NG → cảnh báo vàng "chưa phân loại"
  *  V3 %NG > ngưỡng site / OK > 2× TB 30 ngày   → cảnh báo cần xác nhận
- *  V4 phút dừng ≤ phút ca                       → lỗi
+ *  V4 phút dừng ≤ phút chạy (thực tế / độ dài ca) → lỗi
  *  V6 ngày tương lai → lỗi; lùi quá N ngày      → cần quyền approve
  *  V7 dòng đã khoá: cần approve + lý do ≥ 5 ký tự
  */
@@ -40,7 +40,7 @@ export interface EntryDraft {
 }
 
 export interface PolicyContext {
-  /** Snapshot độ dài ca (phút). */
+  /** Phút khả dụng của dòng: giờ chạy thực tế (P2) hoặc độ dài ca (dòng P1). */
   shiftMinutes: number;
   /** Hôm nay theo giờ site ("YYYY-MM-DD"). */
   today: string;
@@ -103,7 +103,7 @@ export function validateEntry(d: EntryDraft, ctx: PolicyContext): PolicyResult {
     errors.push({
       code: "DOWNTIME_OVER_SHIFT",
       field: "downtimeMin",
-      message: `Thời gian dừng (${downtimeMin}') vượt độ dài ca (${ctx.shiftMinutes}').`,
+      message: `Thời gian dừng (${downtimeMin}') vượt thời gian chạy (${ctx.shiftMinutes}').`,
     });
   }
 

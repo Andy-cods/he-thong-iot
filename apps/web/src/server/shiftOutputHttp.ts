@@ -7,7 +7,7 @@ import {
 } from "@iot/shared";
 import { viErrorMap } from "@/lib/zod-vi";
 import { isEntryLocked, validateEntry, type PolicyIssue } from "@/lib/shift-output/policy";
-import { diffDays, shiftMinutes, todayInTz } from "@/lib/shift-output/shift-window";
+import { diffDays, entryMinutes, todayInTz } from "@/lib/shift-output/shift-window";
 import { logger } from "@/lib/logger";
 import { writeAudit } from "./services/audit";
 import { canWithOverride } from "./shiftOutputAccess";
@@ -111,7 +111,10 @@ export async function createEntryFlow(
     );
   }
   const shift = refs.shift as unknown as { startTime: string; endTime: string; crossesMidnight: boolean };
-  const minutes = shiftMinutes(shift);
+  // P2 — có giờ chạy thực tế → phút thực tế; không (hàng đợi bản cũ) → độ dài ca.
+  const workStart = b.workStart && b.workEnd ? b.workStart : null;
+  const workEnd = workStart ? b.workEnd! : null;
+  const minutes = entryMinutes(shift, workStart, workEnd);
   const canApprove = await canWithOverride(session, "approve");
   const recent = await loadRecentContext(site.id, todayInTz(now, site.timezone));
   const policy = validateEntry(
@@ -140,6 +143,8 @@ export async function createEntryFlow(
     qtyRework: b.qtyRework ?? null,
     downtimeMin: policy.downtimeMin,
     shiftMinutes: minutes,
+    workStart,
+    workEnd,
     materialLot: b.materialLot,
     notes: b.notes,
     defects: b.defects,

@@ -9,6 +9,7 @@ const row = (p: Partial<ExcelEntryRow> = {}): ExcelEntryRow => ({
   shiftCode: "CA1",
   shiftName: "Ca 1",
   shiftStart: "08:00:00",
+  shiftEnd: "12:00:00",
   machineId: "m1",
   machineCode: "CNC-01",
   machineName: "Máy 1",
@@ -30,6 +31,26 @@ const row = (p: Partial<ExcelEntryRow> = {}): ExcelEntryRow => ({
 });
 
 describe("buildShiftOutputWorkbook (V4.10)", () => {
+  it("P2 — cột Giờ chạy + Phút chạy: thực tế nếu có, không thì giờ ca", async () => {
+    const buf = await buildShiftOutputWorkbook({
+      siteName: "Đông Anh",
+      from: "2026-11-18",
+      to: "2026-11-18",
+      entries: [
+        row({ workStart: "07:00:00", workEnd: "19:00:00", shiftMinutes: 720 }),
+        row({ id: "e2", machineId: "m2", machineCode: "CNC-02" }),
+      ],
+      defects: [],
+      downtimes: [],
+    });
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buf as unknown as ArrayBuffer);
+    const ws = wb.getWorksheet("Chi tiết")!;
+    expect(ws.getRow(4).getCell(17).value).toBe("Giờ chạy");
+    expect([ws.getRow(5).getCell(17).value, ws.getRow(5).getCell(18).value]).toEqual(["07:00–19:00", 720]);
+    expect([ws.getRow(6).getCell(17).value, ws.getRow(6).getCell(18).value]).toEqual(["08:00–12:00", 240]);
+  });
+
   it("2 sheet Chi tiết + Tổng hợp; ngày dd/MM/yyyy; %NG dạng số", async () => {
     const buf = await buildShiftOutputWorkbook({
       siteName: "Đông Anh",

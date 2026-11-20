@@ -8,6 +8,7 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePrompt } from "@/components/ui/confirm-dialog";
 import { validateEntry } from "@/lib/shift-output/policy";
+import { hhmm, workRangeLabel, workWindowMinutes } from "@/lib/shift-output/shift-window";
 import {
   ShiftApiError,
   useDeleteShiftEntry,
@@ -19,6 +20,7 @@ import {
 import { Chip, FieldLabel, fmtDay, Panel, TouchInput } from "./primitives";
 import { emptyQty, qtyToPayload, QuantitySection, type QtyState } from "./QuantitySection";
 import { EntryHistorySheet } from "./EntryHistorySheet";
+import { WorkTimeSection, type WorkTime } from "./WorkTimeSection";
 
 /**
  * V4.10 — sheet sửa 1 dòng (từ Lịch sử, danh sách "Đã nhập", hoặc 409 trùng ca).
@@ -70,6 +72,13 @@ function EditBody({ entry, onClose }: { entry: EntryRow; onClose: () => void }) 
   const [notes, setNotes] = React.useState(entry.notes ?? "");
   const [reason, setReason] = React.useState("");
   const [historyOpen, setHistoryOpen] = React.useState(false);
+  // P2 — dòng cũ (không có giờ thực tế) hiện giờ ca; chỉ gửi lên khi người dùng sửa.
+  const [work, setWork] = React.useState<WorkTime>(() => ({
+    start: hhmm(entry.workStart ?? entry.shiftStart),
+    end: hhmm(entry.workEnd ?? entry.shiftEnd),
+    dirty: false,
+  }));
+  const workMinutes = work.dirty ? (work.start && work.end ? workWindowMinutes(work.start, work.end) : null) : entry.shiftMinutes;
 
   const canApprove = ctx.data?.permissions.approve ?? false;
   const readOnly = entry.locked && !canApprove;
@@ -77,7 +86,7 @@ function EditBody({ entry, onClose }: { entry: EntryRow; onClose: () => void }) 
   const policy = validateEntry(
     { prodDate: entry.prodDate, ...p },
     {
-      shiftMinutes: entry.shiftMinutes,
+      shiftMinutes: workMinutes ?? entry.shiftMinutes,
       today: ctx.data?.today ?? entry.prodDate,
       backdateDays: 9999,
       canApprove: true,
@@ -85,7 +94,7 @@ function EditBody({ entry, onClose }: { entry: EntryRow; onClose: () => void }) 
     },
   );
   const reasonOk = !entry.locked || reason.trim().length >= SHIFT_REASON_MIN;
-  const canSave = !readOnly && policy.errors.length === 0 && reasonOk && !patch.isPending;
+  const canSave = !readOnly && policy.errors.length === 0 && reasonOk && workMinutes != null && !patch.isPending;
 
   const onSave = async () => {
     try {
@@ -94,6 +103,7 @@ function EditBody({ entry, onClose }: { entry: EntryRow; onClose: () => void }) 
         version: entry.version,
         reason: reason.trim() || null,
         ...p,
+        ...(work.dirty ? { workStart: work.start, workEnd: work.end } : {}),
         operatorId,
         operatorName: operatorId ? null : operatorName.trim() || null,
         materialLot: lot.trim() || null,
@@ -135,6 +145,9 @@ function EditBody({ entry, onClose }: { entry: EntryRow; onClose: () => void }) 
       <header className="rounded-xl bg-white p-4 pr-12 shadow-xs dark:bg-zinc-900">
         <div className="text-sm text-zinc-500 dark:text-zinc-400">
           {fmtDay(entry.prodDate)} · {entry.shiftName} ({entry.shiftStart.slice(0, 5)}–{entry.shiftEnd.slice(0, 5)})
+          {workRangeLabel(entry.workStart, entry.workEnd, entry.shiftStart, entry.shiftEnd)
+            ? ` · chạy ${workRangeLabel(entry.workStart, entry.workEnd, entry.shiftStart, entry.shiftEnd)}`
+            : ""}
         </div>
         <div className="mt-0.5 text-xl font-semibold text-zinc-900 dark:text-zinc-50">
           {entry.machineCode} · <span className="font-mono">{entry.partCode}</span>
@@ -168,13 +181,18 @@ function EditBody({ entry, onClose }: { entry: EntryRow; onClose: () => void }) 
       ) : null}
 
       <fieldset disabled={readOnly} className="space-y-3 disabled:opacity-70">
+        <WorkTimeSection
+          value={work}
+          onChange={setWork}
+          shift={{ name: entry.shiftName, startTime: entry.shiftStart, endTime: entry.shiftEnd }}
+        />
         {ctx.data ? (
           <QuantitySection
             value={qty}
             onChange={(x) => setQty((s) => ({ ...s, ...x }))}
             defectReasons={ctx.data.defectReasons}
             downtimeReasons={ctx.data.downtimeReasons}
-            shiftMinutes={entry.shiftMinutes}
+            shiftMinutes={workMinutes ?? entry.shiftMinutes}
             compact
           />
         ) : (

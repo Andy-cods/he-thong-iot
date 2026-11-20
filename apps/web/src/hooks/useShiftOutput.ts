@@ -84,6 +84,12 @@ export interface CatalogItem {
   revision?: string | null;
   customerName?: string | null;
   stdCycleSec?: number | null;
+  /** P2 — ảnh mã hàng (bom_asset id); null = chưa có ảnh. */
+  imageAssetId?: string | null;
+  /** Ca: giờ "HH:MM:SS" + cờ qua nửa đêm (tự suy). */
+  startTime?: string;
+  endTime?: string;
+  crossesMidnight?: boolean;
   isPlanned?: boolean;
   sortOrder?: number;
   isActive: boolean;
@@ -112,7 +118,17 @@ export interface ShiftContext {
   recentPartIds: string[];
   lastPartByMachine: Record<string, string>;
   avgOk30: Record<string, number>;
-  permissions: { approve: boolean; createSetup: boolean; updateSetup: boolean; workshop: boolean };
+  permissions: {
+    approve: boolean;
+    createSetup: boolean;
+    updateSetup: boolean;
+    /** P2 — danh mục được thêm / sửa (xưởng: Mã hàng, Người, Ca). Thiếu = context cache bản cũ. */
+    addKinds?: ShiftSetupKind[];
+    editKinds?: ShiftSetupKind[];
+    /** Sửa Thiết lập xưởng (giờ tự khoá, lùi ngày, %NG) — chỉ quản trị. */
+    siteSettings?: boolean;
+    workshop: boolean;
+  };
 }
 
 export interface EntryRow {
@@ -138,7 +154,11 @@ export interface EntryRow {
   qtyNg: number;
   qtyRework: number | null;
   downtimeMin: number | null;
+  /** Phút khả dụng của dòng (thực tế nếu có workStart/workEnd). */
   shiftMinutes: number;
+  /** P2 — giờ chạy thực tế "HH:MM:SS"; null = dòng cũ (theo giờ ca). */
+  workStart: string | null;
+  workEnd: string | null;
   materialLot: string | null;
   notes: string | null;
   status: string;
@@ -168,6 +188,9 @@ export interface EntryPayload {
   qtyNg: number;
   qtyRework?: number | null;
   downtimeMin?: number | null;
+  /** P2 — giờ chạy thực tế "HH:MM" (cả 2). */
+  workStart?: string | null;
+  workEnd?: string | null;
   materialLot?: string | null;
   notes?: string | null;
   defects: Array<{ reasonId: string; qty: number }>;
@@ -231,7 +254,7 @@ export interface BoardData {
   date: string;
   site: { id: string; name: string };
   machines: Array<{ id: string; code: string; name: string }>;
-  shifts: Array<{ id: string; code: string; name: string; startTime: string; endTime: string }>;
+  shifts: Array<{ id: string; code: string; name: string; startTime: string; endTime: string; crossesMidnight?: boolean }>;
   cells: BoardCell[];
   kpi: KpiResult;
   missingCount: number;
@@ -367,6 +390,38 @@ export function usePatchSetup(kind: ShiftSetupKind) {
   return useMutation({
     mutationFn: ({ id, ...body }: { id: string } & Record<string, unknown>) =>
       request<{ data: CatalogItem }>(`/api/shift-output/setup/${kind}/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+    onSuccess: () => void invalidate(),
+  });
+}
+
+/** P2 — URL ảnh mã hàng (route có auth; `v` = asset id để cache bất biến). */
+export function partImageUrl(partId: string, assetId: string, size: "thumb" | "full" = "thumb") {
+  return `/api/shift-output/parts/${partId}/image?size=${size}&v=${assetId}`;
+}
+
+/** P2 — tải lên / thay ảnh mã hàng (multipart, KHÔNG đặt content-type để trình duyệt tự thêm boundary). */
+export function useUploadPartImage() {
+  const invalidate = useInvalidateAll();
+  return useMutation({
+    mutationFn: async ({ partId, file }: { partId: string; file: File }) => {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`/api/shift-output/parts/${partId}/image`, { method: "POST", body: fd, credentials: "include" });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: { message?: string; code?: string } };
+        throw new ShiftApiError(body.error?.message ?? `Lỗi tải ảnh (HTTP ${res.status})`, res.status, body.error?.code);
+      }
+      return ((await res.json()) as { data: CatalogItem }).data;
+    },
+    onSuccess: () => void invalidate(),
+  });
+}
+
+export function useRemovePartImage() {
+  const invalidate = useInvalidateAll();
+  return useMutation({
+    mutationFn: (partId: string) =>
+      request<{ data: CatalogItem }>(`/api/shift-output/parts/${partId}/image`, { method: "DELETE" }),
     onSuccess: () => void invalidate(),
   });
 }

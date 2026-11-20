@@ -123,6 +123,20 @@ Ghi chú vận hành cho Codex trong repo `he-thong-iot`.
 
 <!-- Task mới TRÊN, cũ DƯỚI. -->
 
+### TASK-20261120-001 — Sản lượng ca P2 (giờ chạy thực tế + xưởng tự sửa ca + ảnh mã hàng)
+- **Trạng thái:** IN_PROGRESS (code xong trên nhánh, CHƯA deploy — orchestrator review/merge, áp 0089 tay)
+- **Tạo:** 2026-11-20 (+07) bởi Claude · **Phụ trách:** Claude · **Ưu tiên:** P1 · **Phụ thuộc:** TASK-20261118-001 (đã deploy 19/11)
+- **Bắt đầu:** 2026-11-20 (+07) — nhánh `feat/shift-output-p2` (worktree `C:/dev/hti-shift`)
+- **Kế hoạch:** [`plans/shift-output-p2/PLAN.md`](plans/shift-output-p2/PLAN.md)
+
+**DoD:**
+- [x] Migration 0089 (work_start/work_end + site_part.image_asset_id) + smoke ROLLBACK (Postgres 16 throwaway: 0089 ×2 idempotent, smoke 10 OK, smoke 0087b vẫn PASS)
+- [x] Xưởng tự thêm/sửa/ngừng dùng Ca, Mã hàng, Người (máy/lý do/thiết lập xưởng vẫn admin); ca tự nhận qua nửa đêm
+- [x] Giờ chạy thực tế ở Nhập ca + Sửa dòng; shift_minutes = phút thực tế; KPI hợp khoảng; Hôm nay / Lịch sử / Excel hiện giờ thực tế
+- [x] Ảnh mã hàng (upload/thay/gỡ, khung object-contain, phóng to) ở Cài đặt, chọn mã, ô Hôm nay
+- [x] Test + typecheck + build env CI PASS
+- [ ] Deploy prod (backup → 0089 → smoke → deploy → E2E) — CHƯA làm
+
 ### TASK-20261118-001 — Sản lượng ca Đông Anh P1
 - **Trạng thái:** IN_PROGRESS (code xong trên nhánh, CHƯA deploy — chờ Thang duyệt + áp migration tay)
 - **Tạo:** 2026-11-18 (+07) bởi Claude (planner) · **Phụ trách:** Claude · **Ưu tiên:** P1
