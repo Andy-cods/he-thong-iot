@@ -38,6 +38,8 @@ export interface BoardItem {
   currentStage: string | null;
   notes: string | null;
   isPinned: boolean;
+  /** Migration 0088 — BOM nguồn (tự tạo khi BOM kích hoạt); null = nhập tay. */
+  bomTemplateId?: string | null;
   /**
    * V4.4.2 — Đơn giá bán (VND/đơn vị). `undefined` khi API lọc field này cho
    * vai không xem được tài chính đơn hàng (xem `canSeeOrderValue`) — KHÁC

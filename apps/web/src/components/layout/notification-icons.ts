@@ -22,6 +22,7 @@ import {
   Tag,
   Truck,
   XCircle,
+  MonitorPlay,
 } from "lucide-react";
 
 /**
@@ -84,6 +85,7 @@ export const NOTIFICATION_EVENT_ICON: Record<string, React.ElementType> = {
   STOCKTAKE_APPROVED: ClipboardCheck,
   STOCKTAKE_REJECTED: ClipboardX,
   BOM_STAGE_HANDOFF: Truck,
+  BOARD_BOM_ACTIVATED: MonitorPlay,
 };
 
 export function notificationIcon(eventType: string): React.ElementType {

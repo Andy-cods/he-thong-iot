@@ -42,6 +42,12 @@ import {
 import type { BomFilter, ItemFilter } from "@/lib/query-keys";
 import { useHotkey } from "@/lib/shortcuts";
 import { statusLabel } from "@/lib/status";
+import {
+  FORBIDDEN_HARD_DELETE_REASON,
+  bomDeleteKind,
+  summarizeBulkDelete,
+  type BomDeleteResult,
+} from "@/lib/bom-delete-plan";
 
 // V4.1 UI-27: câu xác nhận dùng nhãn tiếng Việt thay mã thô OBSOLETE.
 const OBSOLETE_LABEL = statusLabel("bom", "OBSOLETE");
@@ -78,6 +84,8 @@ export function BomTab() {
   const sessionRoles = session.data?.roles ?? [];
   const canEditBom =
     sessionRoles.includes("admin") || sessionRoles.includes("planner");
+  // BOM đã Ngừng dùng chỉ admin xoá vĩnh viễn được (API ?hard=true).
+  const isAdmin = sessionRoles.includes("admin");
 
   const [urlState, setUrlState] = useQueryStates(
     {
@@ -255,42 +263,75 @@ export function BomTab() {
     if (r) router.push(`/bom/${r.id}`);
   });
 
-  const handleBulkDelete = async () => {
-    const ids =
+  const selectedRows = React.useMemo(() => {
+    const ids = new Set(
       selection.mode === "visible"
         ? visibleSelectedIds(selection)
         : selection.mode === "all-matching"
           ? rows.filter((r) => isSelected(selection, r.id)).map((r) => r.id)
-          : [];
-    if (ids.length === 0) return;
-
-    const results = await Promise.allSettled(
-      ids.map((id) => deleteBom.mutateAsync(id)),
+          : [],
     );
-    let success = 0;
-    const failed: Array<{ id: string; reason: string }> = [];
-    results.forEach((r, i) => {
-      if (r.status === "fulfilled") success++;
-      else
-        failed.push({
-          id: ids[i]!,
-          reason: (r.reason as Error)?.message ?? "Lỗi không xác định",
-        });
-    });
-    if (failed.length === 0) {
-      toast.success(`Đã xoá ${success} BOM.`);
+    return rows.filter((r) => ids.has(r.id));
+  }, [selection, rows]);
+  const bulkHardCount = selectedRows.filter((r) => bomDeleteKind(r.status, isAdmin) === "hard").length;
+  const bulkForbiddenCount = selectedRows.filter((r) => bomDeleteKind(r.status, isAdmin) === "forbidden").length;
+  const bulkSoftCount = selectedRows.length - bulkHardCount - bulkForbiddenCount;
+
+  // Nháp/Đang dùng → Ngừng dùng; Ngừng dùng → xoá vĩnh viễn (admin). Báo lỗi
+  // TỪNG BOM (mã + lý do tiếng Việt) thay vì chỉ "0 thành công, 11 lỗi".
+  const handleBulkDelete = async () => {
+    if (selectedRows.length === 0) return;
+    const results: BomDeleteResult[] = await Promise.all(
+      selectedRows.map(async (r): Promise<BomDeleteResult> => {
+        const kind = bomDeleteKind(r.status, isAdmin);
+        if (kind === "forbidden") {
+          return { code: r.code, kind, ok: false, reason: FORBIDDEN_HARD_DELETE_REASON };
+        }
+        try {
+          await deleteBom.mutateAsync({ id: r.id, hard: kind === "hard" });
+          return { code: r.code, kind, ok: true };
+        } catch (err) {
+          return { code: r.code, kind, ok: false, reason: (err as Error)?.message };
+        }
+      }),
+    );
+    const sum = summarizeBulkDelete(results);
+    if (sum.ok) {
+      toast.success(sum.title);
     } else {
-      toast.error(`Xoá ${success} thành công, ${failed.length} lỗi.`);
+      toast.error(sum.title, {
+        duration: 12_000,
+        description: (
+          <ul className="mt-1 space-y-0.5 text-xs">
+            {sum.failureLines.map((l) => (
+              <li key={l}>{l}</li>
+            ))}
+          </ul>
+        ),
+      });
     }
     selectionActions.clear();
     setBulkDeleteOpen(false);
   };
 
+  const singleIsHard = singleDeleteRow?.status === "OBSOLETE";
+  const requestSingleDelete = (row: BomRow) => {
+    if (bomDeleteKind(row.status, isAdmin) === "forbidden") {
+      toast.error(`${row.code}: ${FORBIDDEN_HARD_DELETE_REASON}.`);
+      return;
+    }
+    setSingleDeleteRow(row);
+  };
+
   const handleSingleDelete = async () => {
     if (!singleDeleteRow) return;
     try {
-      await deleteBom.mutateAsync(singleDeleteRow.id);
-      toast.success(`Đã xoá BOM ${singleDeleteRow.code}.`);
+      await deleteBom.mutateAsync({ id: singleDeleteRow.id, hard: singleIsHard });
+      toast.success(
+        singleIsHard
+          ? `Đã xoá vĩnh viễn BOM ${singleDeleteRow.code}.`
+          : `Đã chuyển BOM ${singleDeleteRow.code} sang ${OBSOLETE_LABEL}.`,
+      );
     } catch (err) {
       toast.error(
         (err as Error)?.message ?? "Không xoá được BOM. Vui lòng thử lại.",
@@ -457,7 +498,7 @@ export function BomTab() {
               canEditBom
                 ? (r) => {
                     const match = rows.find((x) => x.id === r.id);
-                    if (match) setSingleDeleteRow(match);
+                    if (match) requestSingleDelete(match);
                   }
                 : undefined
             }
@@ -472,9 +513,8 @@ export function BomTab() {
               onTogglePage={(ids) => selectionActions.togglePage(ids)}
               onEdit={(row) => router.push(`/bom/${row.id}`)}
               onPreview={(row) => router.push(`/bom/${row.id}`)}
-              onDelete={
-                canEditBom ? (row) => setSingleDeleteRow(row) : undefined
-              }
+              onDelete={canEditBom ? requestSingleDelete : undefined}
+              canHardDelete={isAdmin}
               onRename={canEditBom ? handleRename : undefined}
               focusedIndex={focusedIndex}
               sortField={sortField}
@@ -563,8 +603,21 @@ export function BomTab() {
       <DialogConfirm
         open={bulkDeleteOpen}
         onOpenChange={setBulkDeleteOpen}
-        title={`Xoá ${selCount} BOM?`}
-        description={`BOM sẽ chuyển sang trạng thái “${OBSOLETE_LABEL}” (không xoá hẳn dữ liệu). Gõ "XOA" để xác nhận.`}
+        title={`Xoá ${selectedRows.length} BOM?`}
+        description={[
+          bulkSoftCount > 0
+            ? `${bulkSoftCount} BOM sẽ chuyển sang “${OBSOLETE_LABEL}” (khôi phục được).`
+            : null,
+          bulkHardCount > 0
+            ? `${bulkHardCount} BOM đã ngừng dùng sẽ bị XOÁ VĨNH VIỄN — không hoàn tác được.`
+            : null,
+          bulkForbiddenCount > 0
+            ? `${bulkForbiddenCount} BOM đã ngừng dùng sẽ được bỏ qua (chỉ admin xoá vĩnh viễn).`
+            : null,
+          'Gõ "XOA" để xác nhận.',
+        ]
+          .filter(Boolean)
+          .join(" ")}
         confirmText="XOA"
         actionLabel="Xoá tất cả"
         loading={deleteBom.isPending}
@@ -578,12 +631,18 @@ export function BomTab() {
         }}
         title={
           singleDeleteRow
-            ? `Xoá BOM ${singleDeleteRow.code}?`
+            ? singleIsHard
+              ? `Xoá vĩnh viễn BOM ${singleDeleteRow.code}?`
+              : `Xoá BOM ${singleDeleteRow.code}?`
             : "Xoá BOM"
         }
-        description={`BOM sẽ chuyển sang trạng thái “${OBSOLETE_LABEL}” (không xoá hẳn dữ liệu) và không hiện trong danh sách. Gõ "XOA" để xác nhận.`}
+        description={
+          singleIsHard
+            ? `BOM và toàn bộ dòng, sheet, lịch sử phiên bản sẽ bị xoá khỏi hệ thống — KHÔNG hoàn tác được. Nếu BOM còn được đơn hàng / ECO / phiếu giao dùng, hệ thống sẽ từ chối. Gõ "XOA" để xác nhận.`
+            : `BOM sẽ chuyển sang trạng thái “${OBSOLETE_LABEL}” (không xoá hẳn dữ liệu) và không hiện trong danh sách. Gõ "XOA" để xác nhận.`
+        }
         confirmText="XOA"
-        actionLabel="Xoá BOM"
+        actionLabel={singleIsHard ? "Xoá vĩnh viễn" : "Xoá BOM"}
         loading={deleteBom.isPending}
         onConfirm={() => void handleSingleDelete()}
       />

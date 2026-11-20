@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import {
+  bomTemplate,
   productionBoardHistory,
   productionBoardItem,
   userAccount,
@@ -11,7 +12,13 @@ import {
   computeBoardValueSummary,
   type BoardValueSummary,
 } from "@/lib/finance-overview-policy";
-import { findDuplicateBoardItem } from "@/lib/production-board-policy";
+import {
+  compareOpenBoardRows,
+  findDuplicateBoardItem,
+  planBoardSyncFromBom,
+  type BoardActivationExtras,
+} from "@/lib/production-board-policy";
+import { normalizeBoardProductCode } from "@iot/shared";
 
 /**
  * V3.8 — Production Board repository.
@@ -27,14 +34,6 @@ export interface BoardItemRow extends ProductionBoardItem {
   updatedByName: string | null;
 }
 
-/** Thứ tự trạng thái để sort (đang chạy nổi nhất). */
-const STATUS_ORDER: Record<ProductionBoardStatus, number> = {
-  IN_PROGRESS: 0,
-  QC: 1,
-  QUEUED: 2,
-  COMPLETED: 3,
-  DELIVERED: 4,
-};
 
 /**
  * Lấy toàn bộ board cho màn hình TV.
@@ -94,13 +93,8 @@ export async function listBoardItems(opts?: {
     })
     .slice(0, completedLimit);
 
-  // Sort active theo STATUS_ORDER rồi pinned/seq.
-  active.sort((a, b) => {
-    if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
-    const so = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
-    if (so !== 0) return so;
-    return a.seq - b.seq;
-  });
+  // Ghim → hạn gần nhất (quá hạn nổi lên) → chưa có hạn xếp sau → trạng thái → STT.
+  active.sort(compareOpenBoardRows);
 
   return [...active, ...completed];
 }
@@ -165,6 +159,10 @@ export interface CreateBoardItemInput {
   seq?: number;
   /** V4.4.2 — Đơn giá bán. `undefined` = không set (role không được nhập giá). */
   unitPrice?: number | null;
+  /** Migration 0088 — BOM nguồn (dòng tự tạo khi BOM kích hoạt). */
+  bomTemplateId?: string | null;
+  /** Ghi chú cho dòng history "create" (mặc định "<mã> · <trạng thái>"). */
+  createNote?: string;
   userId: string | null;
 }
 
@@ -248,6 +246,7 @@ export async function createBoardItem(
           input.status === "COMPLETED" || input.status === "DELIVERED"
             ? sql`now()`
             : null,
+        bomTemplateId: input.bomTemplateId ?? null,
         createdBy: input.userId,
         updatedBy: input.userId,
       })
@@ -259,12 +258,142 @@ export async function createBoardItem(
       itemId: row.id,
       field: "create",
       oldValue: null,
-      newValue: `${row.productCode} · ${row.status}`,
+      newValue: input.createNote ?? `${row.productCode} · ${row.status}`,
       changedBy: input.userId,
     });
 
     return row;
   });
+}
+
+export type BoardSyncResult =
+  | {
+      action: "created" | "linked" | "updated" | "unchanged";
+      itemId: string;
+      productCode: string;
+      productName: string;
+      hasDeadline: boolean;
+    }
+  | { action: "skipped"; reason: string; productCode: string };
+
+/**
+ * BOM vừa chuyển "Đang dùng" → đảm bảo có 1 dòng Bảng sản xuất (không nhân
+ * đôi). Quyết định ở `planBoardSyncFromBom` (thuần, có test); ở đây chỉ nạp
+ * ứng viên + ghi DB + history. Gọi qua `services/boardFromBom.ts`.
+ */
+export async function syncBoardFromBom(
+  templateId: string,
+  extras: BoardActivationExtras,
+  userId: string | null,
+): Promise<BoardSyncResult | null> {
+  const [tpl] = await db
+    .select({
+      id: bomTemplate.id,
+      code: bomTemplate.code,
+      name: bomTemplate.name,
+      targetQty: bomTemplate.targetQty,
+      metadata: bomTemplate.metadata,
+    })
+    .from(bomTemplate)
+    .where(eq(bomTemplate.id, templateId))
+    .limit(1);
+  if (!tpl) return null;
+
+  const norm = normalizeBoardProductCode(tpl.code);
+  const like = norm.replace(/[\\%_]/g, "\\$&") + "%";
+  const candidates = await db
+    .select({
+      id: productionBoardItem.id,
+      productCode: productionBoardItem.productCode,
+      rfqNo: productionBoardItem.rfqNo,
+      productName: productionBoardItem.productName,
+      customer: productionBoardItem.customer,
+      qtyPlanned: productionBoardItem.qtyPlanned,
+      status: productionBoardItem.status,
+      deadline: productionBoardItem.deadline,
+      bomTemplateId: productionBoardItem.bomTemplateId,
+    })
+    .from(productionBoardItem)
+    .where(
+      sql`${productionBoardItem.bomTemplateId} = ${templateId}
+        OR UPPER(${productionBoardItem.productCode}) LIKE ${like}`,
+    )
+    .orderBy(desc(productionBoardItem.updatedAt));
+
+  const plan = planBoardSyncFromBom(tpl, candidates, extras);
+
+  if (plan.action === "none") {
+    const row = candidates.find((c) => c.id === plan.itemId)!;
+    return {
+      action: "unchanged",
+      itemId: plan.itemId,
+      productCode: row.productCode,
+      productName: row.productName,
+      hasDeadline: !!row.deadline,
+    };
+  }
+
+  if (plan.action === "create") {
+    try {
+      const row = await createBoardItem({
+        ...plan.values,
+        status: "QUEUED",
+        userId,
+        createNote: `${plan.values.productCode} · QUEUED (tự tạo khi kích hoạt BOM ${tpl.code})`,
+      });
+      return {
+        action: "created",
+        itemId: row.id,
+        productCode: row.productCode,
+        productName: row.productName,
+        hasDeadline: !!row.deadline,
+      };
+    } catch (err) {
+      if (err instanceof BoardItemDuplicateError) {
+        // Chỉ còn dòng ĐÃ GIAO cùng mã + RFQ → không tạo trùng; QC thêm tay với Số RFQ mới.
+        return {
+          action: "skipped",
+          productCode: plan.values.productCode,
+          reason: `Bảng sản xuất đã có dòng đã giao cùng mã ${plan.values.productCode} và cùng Số RFQ — không tạo trùng. Thêm tay với Số RFQ mới nếu là đơn mới.`,
+        };
+      }
+      throw err;
+    }
+  }
+
+  const before = candidates.find((c) => c.id === plan.itemId)!;
+  await db.transaction(async (tx) => {
+    const p = plan.patch;
+    await tx
+      .update(productionBoardItem)
+      .set({
+        ...(p.bomTemplateId !== undefined ? { bomTemplateId: p.bomTemplateId } : {}),
+        ...(p.productName !== undefined ? { productName: p.productName } : {}),
+        ...(p.qtyPlanned !== undefined ? { qtyPlanned: String(p.qtyPlanned) } : {}),
+        ...(p.deadline !== undefined ? { deadline: p.deadline } : {}),
+        ...(p.rfqNo !== undefined ? { rfqNo: p.rfqNo } : {}),
+        ...(p.customer !== undefined ? { customer: p.customer } : {}),
+        updatedBy: userId,
+      })
+      .where(eq(productionBoardItem.id, plan.itemId));
+    await tx.insert(productionBoardHistory).values(
+      plan.history.map((h) => ({
+        itemId: plan.itemId,
+        field: h.field.slice(0, 32),
+        oldValue: h.oldValue,
+        newValue: h.newValue,
+        changedBy: userId,
+      })),
+    );
+  });
+  const onlyLink = plan.history.every((h) => h.field === "bom_link");
+  return {
+    action: onlyLink ? "linked" : "updated",
+    itemId: plan.itemId,
+    productCode: before.productCode,
+    productName: plan.patch.productName ?? before.productName,
+    hasDeadline: !!(plan.patch.deadline ?? before.deadline),
+  };
 }
 
 export interface UpdateBoardItemInput {

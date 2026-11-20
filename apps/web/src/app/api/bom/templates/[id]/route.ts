@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { bomTemplateUpdateSchema } from "@iot/shared";
 import { logger } from "@/lib/logger";
 import {
+  BomHardDeleteBlockedError,
   getTemplateById,
   hardDeleteTemplate,
   loadTree,
@@ -15,6 +16,7 @@ import {
 } from "@/server/http";
 import { writeAudit, diffObjects } from "@/server/services/audit";
 import { requireCan } from "@/server/session";
+import { onBomActivated } from "@/server/services/boardFromBom";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -111,7 +113,18 @@ export async function PATCH(
       after: diff.after,
       ...meta,
     });
-    return NextResponse.json({ data: after });
+    // BOM vừa chuyển "Đang dùng" → tự đưa lên Bảng sản xuất (không nhân đôi).
+    // Chuyển Ngừng dùng → board giữ nguyên.
+    const board =
+      before.status !== "ACTIVE" && after.status === "ACTIVE"
+        ? await onBomActivated({
+            templateId: params.id,
+            templateCode: after.code,
+            session: guard.session,
+            meta,
+          })
+        : null;
+    return NextResponse.json({ data: after, board });
   } catch (err) {
     logger.error({ err, id: params.id }, "update bom template failed");
     return jsonError("INTERNAL", "Không cập nhật được BOM.", 500);
@@ -135,27 +148,30 @@ export async function DELETE(
     if (!guard.session.roles.includes("admin")) {
       return jsonError(
         "FORBIDDEN",
-        "Chỉ admin được hard-delete BOM.",
+        "Chỉ admin được xoá vĩnh viễn BOM.",
         403,
       );
     }
     if (before.status !== "OBSOLETE") {
       return jsonError(
         "MUST_BE_OBSOLETE",
-        "BOM phải ở trạng thái OBSOLETE (đã soft-delete) trước khi hard-delete.",
+        "BOM phải ở trạng thái Ngừng dùng trước khi xoá vĩnh viễn.",
         409,
       );
     }
     try {
       await hardDeleteTemplate(params.id);
     } catch (err) {
+      if (err instanceof BomHardDeleteBlockedError) {
+        return jsonError("HAS_REFERENCES", err.message, 409, { refs: err.refs });
+      }
       const e = err as { code?: string; message?: string };
       logger.error({ err, id: params.id }, "hard delete bom template failed");
       // PG FK violation 23503 — BOM đang được tham chiếu bởi ECO/SO/product_line
       if (e.code === "23503" || (e.message ?? "").includes("foreign key")) {
         return jsonError(
           "HAS_REFERENCES",
-          "BOM đang được tham chiếu bởi ECO / Sales Order / Product Line. Phải xoá các tham chiếu trước.",
+          `Không xoá vĩnh viễn được BOM ${before.code}: còn dữ liệu khác tham chiếu tới (đơn hàng / ECO / phiếu giao / tiến độ). Giữ BOM ở trạng thái Ngừng dùng.`,
           409,
         );
       }

@@ -16,6 +16,7 @@ import {
 } from "@/server/http";
 import { writeAudit } from "@/server/services/audit";
 import { requireCan } from "@/server/session";
+import { onBomActivated } from "@/server/services/boardFromBom";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,12 +71,22 @@ export async function POST(
       notes: body.data.notes ?? null,
     });
 
-    // Auto-promote DRAFT → ACTIVE sau release đầu tiên
+    const meta = extractRequestMeta(req);
+
+    // Auto-promote DRAFT → ACTIVE sau release đầu tiên → BOM "Đang dùng" thì
+    // tự đưa lên Bảng sản xuất (kèm hạn/RFQ/khách nếu nhập ở hộp kích hoạt).
+    let board = null;
     if (template.status === "DRAFT") {
       await updateTemplate(params.id, { status: "ACTIVE" });
+      board = await onBomActivated({
+        templateId: params.id,
+        templateCode: template.code,
+        extras: body.data.board ?? null,
+        session: guard.session,
+        meta,
+      });
     }
 
-    const meta = extractRequestMeta(req);
     await writeAudit({
       actor: guard.session,
       action: "RELEASE",
@@ -91,7 +102,7 @@ export async function POST(
       ...meta,
     });
 
-    return NextResponse.json({ data: revision }, { status: 201 });
+    return NextResponse.json({ data: revision, board }, { status: 201 });
   } catch (err) {
     const msg = (err as Error).message ?? "";
     if (msg.includes("TEMPLATE_EMPTY")) {
