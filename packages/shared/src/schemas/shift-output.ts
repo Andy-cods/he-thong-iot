@@ -33,8 +33,14 @@ export const SHIFT_SETUP_KINDS = [
   "downtime-reasons",
 ] as const;
 export type ShiftSetupKind = (typeof SHIFT_SETUP_KINDS)[number];
-/** Tài khoản xưởng (không có update/delete setup) chỉ được THÊM 2 danh mục này. */
-export const SHIFT_SETUP_WORKSHOP_KINDS: readonly ShiftSetupKind[] = ["parts", "operators"];
+/**
+ * P2 — danh mục tài khoản XƯỞNG (module-locked) được thêm / sửa / ngừng dùng.
+ * Máy, lý do lỗi/dừng, thiết lập xưởng vẫn do quản trị (route chặn).
+ */
+export const SHIFT_SETUP_WORKSHOP_KINDS: readonly ShiftSetupKind[] = ["parts", "operators", "shifts"];
+/** P2 — ảnh mã hàng: tối đa 5MB, JPEG/PNG/WEBP (kiểm magic bytes ở server). */
+export const SHIFT_PART_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+export const SHIFT_PART_IMAGE_MIME = ["image/jpeg", "image/png", "image/webp"] as const;
 
 const dateStr = z
   .string()
@@ -77,11 +83,34 @@ const entryFields = {
   qtyRework: qty.nullish(),
   /** Tổng phút dừng. Có chi tiết `downtimes` thì server lấy = Σ chi tiết. */
   downtimeMin: minutes.nullish(),
+  /**
+   * P2 — giờ chạy thực tế "HH:MM" (cả 2 hoặc không). Kết thúc ≤ bắt đầu = qua
+   * nửa đêm. Không gửi (hàng đợi offline bản cũ) → phút theo giờ ca.
+   */
+  workStart: timeStr.nullish(),
+  workEnd: timeStr.nullish(),
   materialLot: optText(64),
   notes: optText(1000),
   defects: z.array(shiftDefectLineSchema).max(30).default([]),
   downtimes: z.array(shiftDowntimeLineSchema).max(30).default([]),
 };
+
+/** P2 — giờ thực tế: phải có cả 2 (hoặc không có cả 2), và không bằng nhau. */
+function workWindowRule(v: { workStart?: string | null; workEnd?: string | null }, ctx: z.RefinementCtx) {
+  const hasStart = v.workStart != null;
+  const hasEnd = v.workEnd != null;
+  if (hasStart !== hasEnd) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: [hasStart ? "workEnd" : "workStart"],
+      message: "Nhập đủ giờ bắt đầu và giờ kết thúc",
+    });
+    return;
+  }
+  if (hasStart && v.workStart === v.workEnd) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["workEnd"], message: "Giờ kết thúc phải khác giờ bắt đầu" });
+  }
+}
 
 function noDupReasons(
   v: { defects?: Array<{ reasonId: string }>; downtimes?: Array<{ reasonId: string }> },
@@ -108,7 +137,8 @@ export const shiftEntryCreateSchema = z
     siteId: z.string().uuid().nullish(),
     ...entryFields,
   })
-  .superRefine(noDupReasons);
+  .superRefine(noDupReasons)
+  .superRefine(workWindowRule);
 export type ShiftEntryCreate = z.infer<typeof shiftEntryCreateSchema>;
 
 export const shiftEntryBulkSchema = z.object({
@@ -131,12 +161,16 @@ export const shiftEntryPatchSchema = z
     qtyNg: qty.optional(),
     qtyRework: qty.nullish(),
     downtimeMin: minutes.nullish(),
+    /** P2 — gửi cả 2 để đổi giờ thực tế; `null, null` = về giờ ca; bỏ trống = giữ nguyên. */
+    workStart: timeStr.nullish(),
+    workEnd: timeStr.nullish(),
     materialLot: optText(64).optional(),
     notes: optText(1000).optional(),
     defects: z.array(shiftDefectLineSchema).max(30).optional(),
     downtimes: z.array(shiftDowntimeLineSchema).max(30).optional(),
   })
-  .superRefine(noDupReasons);
+  .superRefine(noDupReasons)
+  .superRefine(workWindowRule);
 export type ShiftEntryPatch = z.infer<typeof shiftEntryPatchSchema>;
 
 export const shiftEntryDeleteSchema = z.object({
@@ -209,20 +243,22 @@ export const shiftSetupSchemas = {
     isActive,
   }),
   machines: z.object({ code, name, model: optText(120), sortOrder, isActive }),
+  // P2 — "qua nửa đêm" TỰ SUY từ giờ (kết thúc < bắt đầu); client gửi kèm thì bị ghi đè.
   shifts: z
     .object({
       code,
       name,
       startTime: timeStr,
       endTime: timeStr,
-      crossesMidnight: z.boolean().default(false),
+      crossesMidnight: z.boolean().optional(),
       sortOrder,
       isActive,
     })
-    .refine((v) => (v.crossesMidnight ? v.endTime < v.startTime : v.endTime > v.startTime), {
+    .refine((v) => v.endTime !== v.startTime, {
       path: ["endTime"],
-      message: "Giờ kết thúc phải sau giờ bắt đầu (hoặc bật 'qua nửa đêm')",
-    }),
+      message: "Giờ kết thúc phải khác giờ bắt đầu",
+    })
+    .transform((v) => ({ ...v, crossesMidnight: v.endTime < v.startTime })),
   "defect-reasons": z.object({ code, name, sortOrder, isActive }),
   "downtime-reasons": z.object({ code, name, isPlanned: z.boolean().default(false), sortOrder, isActive }),
 } as const satisfies Record<ShiftSetupKind, z.ZodTypeAny>;

@@ -16,6 +16,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { appSchema } from "./_schema";
 import { userAccount } from "./auth";
+import { bomAsset } from "./bom-asset";
 
 /**
  * V4.10 (TASK-20261118-001) — Sản lượng ca cho xưởng vệ tinh (Đông Anh).
@@ -115,6 +116,8 @@ export const sitePart = appSchema.table(
     customerName: varchar("customer_name", { length: 120 }),
     /** P2 — cycle time chuẩn (giây) cho OEE Performance. */
     stdCycleSec: integer("std_cycle_sec"),
+    /** 0089 — ảnh sản phẩm (kho ảnh dedup bom_asset; file ở UPLOAD_DIR/bom/). */
+    imageAssetId: uuid("image_asset_id").references(() => bomAsset.id, { onDelete: "set null" }),
     isActive: boolean("is_active").notNull().default(true),
     ...auditCols(),
   },
@@ -195,8 +198,14 @@ export const shiftOutputEntry = appSchema.table(
     qtyNg: integer("qty_ng").notNull().default(0),
     qtyRework: integer("qty_rework"),
     downtimeMin: integer("downtime_min"),
-    /** Snapshot độ dài ca lúc nhập (Q5 — 240'), đổi giờ ca không làm sai lịch sử. */
+    /**
+     * Phút khả dụng của dòng (snapshot): có giờ thực tế → phút(workStart→workEnd);
+     * không (dòng P1) → độ dài ca lúc nhập. Đổi giờ ca không làm sai lịch sử.
+     */
     shiftMinutes: integer("shift_minutes").notNull(),
+    /** 0089 — giờ chạy thực tế (giờ địa phương site); workEnd <= workStart = qua nửa đêm. Cả 2 NULL = dòng P1. */
+    workStart: time("work_start"),
+    workEnd: time("work_end"),
     materialLot: varchar("material_lot", { length: 64 }),
     notes: text("notes"),
     status: varchar("status", { length: 16 }).notNull().default("SUBMITTED"),
