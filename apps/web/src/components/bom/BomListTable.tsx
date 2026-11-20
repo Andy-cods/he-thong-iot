@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { type BomStatus } from "@iot/shared";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FORBIDDEN_OBSOLETE_ACTIVE_REASON } from "@/lib/bom-delete-plan";
 import { RowActionsMenu } from "@/components/ui/data-table";
 import { StatusPill } from "@/components/ui/status-badge";
 import {
@@ -64,6 +65,8 @@ export interface BomListTableProps {
   onDelete?: (row: BomRow) => void;
   /** BOM Ngừng dùng: menu hiện "Xoá vĩnh viễn" (chỉ admin) thay vì "Xoá BOM". */
   canHardDelete?: boolean;
+  /** Admin: được xoá/chuyển Ngừng dùng BOM Đang dùng. Khác admin → mục "Xoá BOM" của dòng Đang dùng bị vô hiệu hoá + nêu lý do. */
+  isAdmin?: boolean;
   onRename?: (row: BomRow, newName: string) => Promise<void>;
   focusedIndex?: number;
   /** V2.1 — sort state for header click. */
@@ -215,6 +218,7 @@ export function BomListTable({
   onClone,
   onDelete,
   canHardDelete = false,
+  isAdmin = false,
   onRename,
   focusedIndex,
   sortField,
@@ -510,7 +514,9 @@ export function BomListTable({
                     { label: "Nhân bản", icon: GitBranch, onSelect: () => onClone?.(row), hidden: !onClone },
                     row.status === "OBSOLETE"
                       ? { label: "Xoá vĩnh viễn", icon: Trash2, danger: true, onSelect: () => onDelete?.(row), hidden: !onDelete || !canHardDelete }
-                      : { label: "Xoá BOM", icon: Trash2, danger: true, onSelect: () => onDelete?.(row), hidden: !onDelete },
+                      : row.status === "ACTIVE" && !isAdmin
+                        ? { label: "Xoá BOM (chỉ admin)", icon: Trash2, danger: true, onSelect: () => undefined, disabled: true, title: FORBIDDEN_OBSOLETE_ACTIVE_REASON, hidden: !onDelete }
+                        : { label: "Xoá BOM", icon: Trash2, danger: true, onSelect: () => onDelete?.(row), hidden: !onDelete },
                   ]}
                 />
               </div>

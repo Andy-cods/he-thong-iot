@@ -1,5 +1,6 @@
 "use client";
 
+import { ImageLightbox } from "@/components/ui/image-lightbox";
 import * as React from "react";
 import { Copy, Factory, ImageOff, MoreHorizontal, Trash2, X } from "lucide-react";
 import { SheetTitle } from "@/components/ui/sheet";
@@ -45,18 +46,6 @@ export function LineSheetHeader({
   const hasMenu = !!(onDuplicate || onDelete || onCreateWorkOrder);
 
   React.useEffect(() => setImgFailed(false), [src]);
-
-  // Esc khi đang phóng to chỉ đóng ảnh, không đóng cả sheet.
-  React.useEffect(() => {
-    if (!zoom) return;
-    const h = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      e.stopPropagation();
-      setZoom(false);
-    };
-    window.addEventListener("keydown", h, true);
-    return () => window.removeEventListener("keydown", h, true);
-  }, [zoom]);
 
   return (
     <header className="px-5 pb-1 pt-4">
@@ -153,30 +142,15 @@ export function LineSheetHeader({
         {node.componentSku ?? "—"}
       </p>
 
-      {zoom && src && (
-        <div
-          role="dialog"
-          aria-label="Ảnh phóng to"
-          onClick={() => setZoom(false)}
-          className="fixed inset-0 z-[100] flex cursor-zoom-out items-center justify-center bg-black/80 p-4"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={src}
-            alt={name}
-            className="max-h-full max-w-full rounded-xl bg-white object-contain"
-          />
-          <button
-            type="button"
-            autoFocus
-            onClick={() => setZoom(false)}
-            aria-label="Đóng ảnh"
-            className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-zinc-800"
-          >
-            <X className="h-4 w-4" aria-hidden />
-          </button>
-        </div>
-      )}
+      {src ? (
+        <ImageLightbox
+          open={zoom}
+          onOpenChange={setZoom}
+          src={src}
+          fallbackSrc={lineImageSrc(node, "thumb") ?? undefined}
+          alt={name}
+        />
+      ) : null}
     </header>
   );
 }

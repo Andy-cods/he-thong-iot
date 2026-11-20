@@ -29,6 +29,8 @@ export interface BomCardGridProps {
   onOpen: (row: BomCardItem) => void;
   onClone?: (row: BomCardItem) => void;
   onDelete?: (row: BomCardItem) => void;
+  /** Trả lý do nếu KHÔNG được xoá dòng này (nút xoá bị vô hiệu hoá + tooltip). */
+  deleteBlockedReason?: (row: BomCardItem) => string | null;
 }
 
 /**
@@ -58,6 +60,7 @@ export function BomCardGrid({
   onOpen,
   onClone,
   onDelete,
+  deleteBlockedReason,
 }: BomCardGridProps) {
   if (loading && rows.length === 0) {
     return (
@@ -78,6 +81,7 @@ export function BomCardGrid({
           onOpen={onOpen}
           onClone={onClone}
           onDelete={onDelete}
+          deleteBlockedReason={deleteBlockedReason}
         />
       ))}
     </div>
@@ -89,12 +93,15 @@ function BomCard({
   onOpen,
   onClone,
   onDelete,
+  deleteBlockedReason,
 }: {
   row: BomCardItem;
   onOpen: (row: BomCardItem) => void;
   onClone?: (row: BomCardItem) => void;
   onDelete?: (row: BomCardItem) => void;
+  deleteBlockedReason?: (row: BomCardItem) => string | null;
 }) {
+  const blockedReason = deleteBlockedReason?.(row) ?? null;
   const sheetCount =
     row.sheetCount ?? (row.componentCount > 0 ? 1 : 0);
 
@@ -238,13 +245,14 @@ function BomCard({
         {onDelete && (
           <button
             type="button"
+            disabled={!!blockedReason}
             onClick={(e) => {
               e.stopPropagation();
               onDelete(row);
             }}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white text-red-500 shadow-sm transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-red-400 dark:hover:border-red-800 dark:hover:bg-red-950/40 dark:hover:text-red-300"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white text-red-500 disabled:cursor-not-allowed disabled:opacity-40 shadow-sm transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-red-400 dark:hover:border-red-800 dark:hover:bg-red-950/40 dark:hover:text-red-300"
             aria-label={`Xoá ${row.code}`}
-            title="Xoá BOM"
+            title={blockedReason ?? "Xoá BOM"}
           >
             <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
           </button>

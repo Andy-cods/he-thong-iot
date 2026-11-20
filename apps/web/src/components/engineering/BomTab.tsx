@@ -45,6 +45,8 @@ import { statusLabel } from "@/lib/status";
 import {
   bomDeleteForbiddenReason,
   bomDeleteKind,
+  bulkDeleteDescription,
+  countBulkDelete,
   summarizeBulkDelete,
   type BomDeleteResult,
 } from "@/lib/bom-delete-plan";
@@ -273,9 +275,7 @@ export function BomTab() {
     );
     return rows.filter((r) => ids.has(r.id));
   }, [selection, rows]);
-  const bulkHardCount = selectedRows.filter((r) => bomDeleteKind(r.status, isAdmin) === "hard").length;
-  const bulkForbiddenCount = selectedRows.filter((r) => bomDeleteKind(r.status, isAdmin) === "forbidden").length;
-  const bulkSoftCount = selectedRows.length - bulkHardCount - bulkForbiddenCount;
+  const bulkCounts = countBulkDelete(selectedRows, isAdmin);
 
   // Nháp/Đang dùng → Ngừng dùng; Ngừng dùng → xoá vĩnh viễn (admin). Báo lỗi
   // TỪNG BOM (mã + lý do tiếng Việt) thay vì chỉ "0 thành công, 11 lỗi".
@@ -494,6 +494,9 @@ export function BomTab() {
             loading={query.isLoading}
             onOpen={(r) => router.push(`/bom/${r.id}/grid`)}
             onClone={canEditBom ? (r) => router.push(`/bom/${r.id}`) : undefined}
+            deleteBlockedReason={(r) =>
+              bomDeleteKind(r.status, isAdmin) === "forbidden" ? bomDeleteForbiddenReason(r.status) : null
+            }
             onDelete={
               canEditBom
                 ? (r) => {
@@ -515,6 +518,7 @@ export function BomTab() {
               onPreview={(row) => router.push(`/bom/${row.id}`)}
               onDelete={canEditBom ? requestSingleDelete : undefined}
               canHardDelete={isAdmin}
+              isAdmin={isAdmin}
               onRename={canEditBom ? handleRename : undefined}
               focusedIndex={focusedIndex}
               sortField={sortField}
@@ -590,11 +594,9 @@ export function BomTab() {
         count={selCount}
         totalMatching={total}
         mode={selection.mode}
-        onSelectAllMatching={
-          selection.mode === "visible"
-            ? () => selectionActions.selectAllMatching()
-            : undefined
-        }
+        // B6: KHÔNG cho "chọn tất cả N khớp" — xoá chỉ hành động trên các dòng của
+        // TRANG đang xem nên số "N" sẽ nói sai. Chọn theo trang là đủ (BOM ít).
+        onSelectAllMatching={undefined}
         onDelete={() => setBulkDeleteOpen(true)}
         onExport={handleExportStub}
         onClear={() => selectionActions.clear()}
@@ -604,20 +606,7 @@ export function BomTab() {
         open={bulkDeleteOpen}
         onOpenChange={setBulkDeleteOpen}
         title={`Xoá ${selectedRows.length} BOM?`}
-        description={[
-          bulkSoftCount > 0
-            ? `${bulkSoftCount} BOM sẽ chuyển sang “${OBSOLETE_LABEL}” (khôi phục được).`
-            : null,
-          bulkHardCount > 0
-            ? `${bulkHardCount} BOM đã ngừng dùng sẽ bị XOÁ VĨNH VIỄN — không hoàn tác được.`
-            : null,
-          bulkForbiddenCount > 0
-            ? `${bulkForbiddenCount} BOM đã ngừng dùng sẽ được bỏ qua (chỉ admin xoá vĩnh viễn).`
-            : null,
-          'Gõ "XOA" để xác nhận.',
-        ]
-          .filter(Boolean)
-          .join(" ")}
+        description={bulkDeleteDescription(bulkCounts, OBSOLETE_LABEL)}
         confirmText="XOA"
         actionLabel="Xoá tất cả"
         loading={deleteBom.isPending}

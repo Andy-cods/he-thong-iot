@@ -30,6 +30,7 @@ import {
   type ShiftContext,
 } from "@/hooks/useShiftOutput";
 import { Panel } from "./primitives";
+import { ZoomableThumb } from "@/components/ui/image-lightbox";
 import { PartImage } from "./PartImage";
 import { fmtDuration } from "./WorkTimeSection";
 
@@ -426,14 +427,18 @@ function ImagePicker({ label, file, onPick }: { label: string; file: File | null
     <div className="text-sm text-zinc-600 dark:text-zinc-400">
       {label}
       <div className="mt-0.5 flex items-center gap-2">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-md bg-zinc-100 ring-1 ring-inset ring-zinc-200 dark:bg-zinc-800 dark:ring-zinc-700 md:h-9 md:w-9">
-          {preview ? (
-            // eslint-disable-next-line @next/next/no-img-element -- xem trước file cục bộ
-            <img src={preview} alt="Ảnh đã chọn" className="h-full w-full object-contain" />
-          ) : (
+        {preview ? (
+          <ZoomableThumb
+            fullSrc={preview}
+            thumbSrc={preview}
+            alt="Ảnh đã chọn"
+            className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-md bg-zinc-100 ring-1 ring-inset ring-zinc-200 dark:bg-zinc-800 dark:ring-zinc-700 md:h-9 md:w-9"
+          />
+        ) : (
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-md bg-zinc-100 ring-1 ring-inset ring-zinc-200 dark:bg-zinc-800 dark:ring-zinc-700 md:h-9 md:w-9">
             <ImagePlus className="h-5 w-5 text-zinc-400" aria-hidden="true" />
-          )}
-        </span>
+          </span>
+        )}
         <label
           htmlFor={id}
           className="inline-flex h-11 min-w-0 flex-1 cursor-pointer items-center rounded-lg border border-zinc-200 bg-white px-3 text-md text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300 md:h-9"

@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { DateField } from "@/components/ui/date-field";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { isValidYmd } from "@iot/shared";
 import { useReleaseRevision } from "@/hooks/useBomRevisions";
 
 /**
@@ -71,6 +72,10 @@ export function ReleaseRevisionDialog({
 
   const handleSubmit = async () => {
     if (disabled) return;
+    if (activates && deadline && !isValidYmd(deadline)) {
+      toast.error("Ngày cần giao không hợp lệ (cần ngày có thật).");
+      return;
+    }
     try {
       const res = await release.mutateAsync({
         notes: notes.trim().length > 0 ? notes.trim() : null,
@@ -88,7 +93,9 @@ export function ReleaseRevisionDialog({
         `Đã release ${res.data.revisionNo} cho BOM ${templateCode}.`,
       );
       const b = res.board;
-      if (b && b.action === "created") {
+      if (res.boardError) {
+        toast.error(res.boardError, { duration: 12000 });
+      } else if (b && b.action === "created") {
         toast.success(
           `Đã thêm ${b.productCode} lên Bảng sản xuất (Chờ GC)${b.hasDeadline ? "." : " — QC sẽ điền ngày giao."}`,
         );

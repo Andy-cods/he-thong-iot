@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { ImageOff } from "lucide-react";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { ZoomableThumb } from "@/components/ui/image-lightbox";
 import { cn } from "@/lib/utils";
 import { partImageUrl } from "@/hooks/useShiftOutput";
 
@@ -31,7 +31,6 @@ export function PartImage({
   placeholder?: boolean;
   className?: string;
 }) {
-  const [open, setOpen] = React.useState(false);
   const [broken, setBroken] = React.useState(false);
   React.useEffect(() => setBroken(false), [assetId]);
   const has = !!assetId && !broken;
@@ -65,28 +64,14 @@ export function PartImage({
     );
   }
   return (
-    <>
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          setOpen(true);
-        }}
-        className={cn(frame, "cursor-zoom-in focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500")}
-        style={style}
-        aria-label={`Xem ảnh lớn ${alt}`}
-      >
-        {inner}
-      </button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent size="lg" className="p-3" onClick={(e) => e.stopPropagation()}>
-          <DialogTitle className="pr-8 text-md">{alt}</DialogTitle>
-          <div className="flex h-[min(70dvh,560px)] w-full items-center justify-center overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800">
-            {/* eslint-disable-next-line @next/next/no-img-element -- ảnh qua route có auth */}
-            <img src={partImageUrl(partId, assetId!, "full")} alt={alt} className="h-full w-full object-contain" />
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+    <ZoomableThumb
+      thumbSrc={partImageUrl(partId, assetId!, "thumb")}
+      fullSrc={partImageUrl(partId, assetId!, "full")}
+      alt={alt}
+      className={frame}
+      size={size}
+    >
+      {inner}
+    </ZoomableThumb>
   );
 }

@@ -352,6 +352,8 @@ export interface RowAction {
   /** Hành động phá huỷ (xoá / huỷ) — chữ đỏ, tách bằng vạch ngăn. */
   danger?: boolean;
   disabled?: boolean;
+  /** Tooltip (vd lý do vô hiệu hoá). */
+  title?: string;
   hidden?: boolean;
 }
 
@@ -386,14 +388,14 @@ export function RowActionsMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-[11rem]" onClick={(e) => e.stopPropagation()}>
         {normal.map((a) => (
-          <DropdownMenuItem key={a.label} disabled={a.disabled} onSelect={() => a.onSelect()}>
+          <DropdownMenuItem key={a.label} disabled={a.disabled} title={a.title} onSelect={() => a.onSelect()}>
             {a.icon ? <a.icon className="h-4 w-4" aria-hidden /> : null}
             {a.label}
           </DropdownMenuItem>
         ))}
         {normal.length > 0 && danger.length > 0 && <DropdownMenuSeparator />}
         {danger.map((a) => (
-          <DropdownMenuItem key={a.label} variant="danger" disabled={a.disabled} onSelect={() => a.onSelect()}>
+          <DropdownMenuItem key={a.label} variant="danger" disabled={a.disabled} title={a.title} onSelect={() => a.onSelect()}>
             {a.icon ? <a.icon className="h-4 w-4" aria-hidden /> : null}
             {a.label}
           </DropdownMenuItem>

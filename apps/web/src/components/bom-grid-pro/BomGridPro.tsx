@@ -43,6 +43,7 @@ import type { SlipKind } from "@/hooks/useDeliverySlips";
 import { useBomStages } from "@/hooks/useBomStages";
 import { buildJourney, type JourneyView } from "@/lib/bom-stage-journey";
 import { lineSupplierLabel, lineSupplierSearchText } from "@/lib/bom-line-supplier";
+import { ZoomableThumb } from "@/components/ui/image-lightbox";
 import { PRQuickDialog } from "./PRQuickDialog";
 import { WOQuickDialog } from "./WOQuickDialog";
 import { SubcontractPOQuickDialog } from "./SubcontractPOQuickDialog";
@@ -176,7 +177,7 @@ type ListItem =
   | { type: "cat"; cat: BomCategory; count: number };
 
 /** Ảnh 3D thumb 44px, lazy; lỗi tải / không có → ô "chưa có ảnh". */
-function LineThumb({ src }: { src: string | null }) {
+function LineThumb({ src, fullSrc }: { src: string | null; fullSrc?: string | null }) {
   const [failed, setFailed] = React.useState(false);
   if (!src || failed) {
     return (
@@ -189,7 +190,7 @@ function LineThumb({ src }: { src: string | null }) {
       </div>
     );
   }
-  return (
+  const img = (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={src}
@@ -201,6 +202,13 @@ function LineThumb({ src }: { src: string | null }) {
       onError={() => setFailed(true)}
       className="h-11 w-11 rounded-xl bg-zinc-100 object-cover ring-1 ring-inset ring-zinc-200 dark:bg-zinc-800 dark:ring-zinc-700"
     />
+  );
+  // Chạm lần đầu mở ngay khung xem ảnh lớn (không phải mở sheet dòng trước).
+  if (!fullSrc) return img;
+  return (
+    <ZoomableThumb thumbSrc={src} fullSrc={fullSrc} alt="Ảnh 3D" className="block rounded-xl">
+      {img}
+    </ZoomableThumb>
   );
 }
 
@@ -932,7 +940,7 @@ export function BomGridPro({
         </td>
         {/* Ảnh 3D */}
         <td className={cn("px-2 py-1 md:sticky md:left-[136px] md:z-10", stickyBg)}>
-          <LineThumb src={lineImageSrc(node, "thumb")} />
+          <LineThumb src={lineImageSrc(node, "thumb")} fullSrc={lineImageSrc(node, "full")} />
         </td>
         {/* Tên chi tiết — dính trái cả trên điện thoại */}
         <td

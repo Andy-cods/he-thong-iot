@@ -187,38 +187,44 @@ function Legend({ className, label }: { className: string; label: string }) {
   );
 }
 
-function Cell({ cell, date, compact }: { cell: BoardCell | undefined; date: string; compact?: boolean }) {
+export function Cell({ cell, date, compact }: { cell: BoardCell | undefined; date: string; compact?: boolean }) {
   if (!cell) return null;
   const base = cn("block w-full rounded-lg text-left", compact ? "min-h-[64px] p-2" : "min-h-[76px] p-3");
   if (cell.state === "done") {
+    const images = (cell.images ?? []).slice(0, compact ? 1 : 2);
+    const imgSize = compact ? 32 : 40;
+    // Ảnh nằm NGOÀI <Link> (không lồng button trong a): chạm ảnh mở khung xem,
+    // chạm chỗ khác trong ô vẫn sang trang Lịch sử.
     return (
-      <Link
-        href={`/san-luong/lich-su?from=${date}&to=${date}&machineId=${cell.machineId}`}
-        className={cn(base, "bg-zinc-50 ring-1 ring-zinc-200 hover:ring-indigo-300 dark:bg-zinc-800 dark:ring-zinc-700")}
-      >
-        <div className="flex items-start gap-2">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1">
-              <span className={cn("font-semibold tabular-nums text-zinc-900 dark:text-zinc-50", compact ? "text-lg" : "text-xl")}>{fmtInt(cell.ok)}</span>
-              {cell.locked ? <Lock className="ml-auto h-3.5 w-3.5 shrink-0 text-zinc-400" aria-label="Đã khoá" /> : null}
+      <div className={cn("relative rounded-lg bg-zinc-50 ring-1 ring-zinc-200 hover:ring-indigo-300 dark:bg-zinc-800 dark:ring-zinc-700")}>
+        <Link
+          href={`/san-luong/lich-su?from=${date}&to=${date}&machineId=${cell.machineId}`}
+          className={cn(base, images.length > 0 && (compact ? "pr-12" : images.length > 1 ? "pr-24" : "pr-14"))}
+        >
+          <div className="flex items-start gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1">
+                <span className={cn("font-semibold tabular-nums text-zinc-900 dark:text-zinc-50", compact ? "text-lg" : "text-xl")}>{fmtInt(cell.ok)}</span>
+                {cell.locked ? <Lock className="ml-auto h-3.5 w-3.5 shrink-0 text-zinc-400" aria-label="Đã khoá" /> : null}
+              </div>
+              {cell.ng > 0 ? <div className="text-sm font-medium tabular-nums text-red-600 dark:text-red-400">NG {fmtInt(cell.ng)}</div> : null}
             </div>
-            {cell.ng > 0 ? <div className="text-sm font-medium tabular-nums text-red-600 dark:text-red-400">NG {fmtInt(cell.ng)}</div> : null}
           </div>
-          {(cell.images ?? []).length > 0 ? (
-            <span className="flex shrink-0 gap-1">
-              {(cell.images ?? []).slice(0, compact ? 1 : 2).map((im) => (
-                <PartImage key={im.partId} partId={im.partId} assetId={im.assetId} size={compact ? 32 : 40} alt={im.partCode} zoomable={false} />
-              ))}
-            </span>
+          <div className="truncate text-sm text-zinc-500">{cell.partCodes.join(", ")}</div>
+          {(cell.workRanges ?? []).length > 0 ? (
+            <div className="truncate text-sm text-amber-700 dark:text-amber-400" title="Giờ chạy thực tế (khác giờ ca)">
+              {(cell.workRanges ?? []).join(", ")}
+            </div>
           ) : null}
-        </div>
-        <div className="truncate text-sm text-zinc-500">{cell.partCodes.join(", ")}</div>
-        {(cell.workRanges ?? []).length > 0 ? (
-          <div className="truncate text-sm text-amber-700 dark:text-amber-400" title="Giờ chạy thực tế (khác giờ ca)">
-            {(cell.workRanges ?? []).join(", ")}
-          </div>
+        </Link>
+        {images.length > 0 ? (
+          <span className={cn("absolute right-2 flex gap-1", compact ? "top-2" : "top-3")}>
+            {images.map((im) => (
+              <PartImage key={im.partId} partId={im.partId} assetId={im.assetId} size={imgSize} alt={im.partCode} />
+            ))}
+          </span>
         ) : null}
-      </Link>
+      </div>
     );
   }
   if (cell.state === "missing") {

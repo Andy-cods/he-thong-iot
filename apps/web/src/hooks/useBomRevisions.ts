@@ -103,7 +103,7 @@ export function useReleaseRevision(templateId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: ReleaseRevisionInput) =>
-      request<{ data: BomRevisionRow; board?: BoardActivationResult | null }>(
+      request<{ data: BomRevisionRow; board?: BoardActivationResult | null; boardError?: string | null }>(
         `/api/bom/templates/${templateId}/revisions`,
         {
           method: "POST",
