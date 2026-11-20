@@ -49,7 +49,15 @@ export function ImageLightbox({
   const current = stage === "full" ? src : stage === "thumb" ? fallbackSrc : undefined;
 
   return (
-    <span className="contents" onClick={(e) => e.stopPropagation()}>
+    <span
+      className="contents"
+      onClick={(e) => {
+        e.stopPropagation();
+        // Chạm nền tối trên điện thoại: Radix chờ `click` ở document để đóng (touch),
+        // nhưng click đã bị chặn ở trên → tự đóng khi chạm ngoài khung ảnh.
+        if (open && !(e.target as Element | null)?.closest?.('[role="dialog"]')) onOpenChange(false);
+      }}
+    >
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
           size="lg"
